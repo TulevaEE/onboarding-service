@@ -1,0 +1,118 @@
+package ee.tuleva.onboarding.analytics.secondpillar;
+
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_ABANDONMENT;
+
+import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
+import ee.tuleva.onboarding.notification.email.auto.AutoEmailRepository;
+import java.time.LocalDate;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+
+@Repository
+@RequiredArgsConstructor
+public class SecondPillarAbandonmentRepository
+    implements AutoEmailRepository<SecondPillarAbandonment> {
+
+  private final JdbcClient jdbcClient;
+
+  @Override
+  public List<SecondPillarAbandonment> fetch(LocalDate startDate, LocalDate endDate) {
+
+    String sql =
+        """
+            WITH filtered_event_log AS (
+             SELECT
+               event_log.principal        AS personal_code,
+               COUNT(*)                   AS view_count,
+               MAX(event_log."timestamp") AS "timestamp",
+               '/2nd-pillar-flow'         AS path
+             FROM event_log
+             WHERE event_log.type = 'PAGE_VIEW'
+               AND (
+                 event_log.data #>> '{path}' ILIKE '/2nd-pillar-flow%'
+                 OR event_log.data #>> '{path}' ILIKE '/partner/2nd-pillar-flow%'
+               )
+               AND LOWER(event_log.data #>> '{path}') NOT LIKE '%success%'
+               AND event_log."timestamp" >= :startDate
+               AND event_log."timestamp" <= :endDate
+               AND EXTRACT(MONTH FROM event_log."timestamp") BETWEEN 1 AND 11
+             GROUP BY event_log.principal
+           ),
+
+           latest_non_december_snapshot_date AS (
+             SELECT MAX(snapshot_date) AS snapshot_date
+             FROM unit_owner
+             WHERE EXTRACT(MONTH FROM snapshot_date) BETWEEN 1 AND 11
+           ),
+
+           latest_unit_owner_snapshot AS (
+             SELECT
+               unit_owner.personal_id,
+               unit_owner.first_name,
+               unit_owner.last_name,
+               unit_owner.p2_rate,
+               unit_owner.p2_next_rate,
+               unit_owner.p2_next_rate_date,
+               unit_owner.p2_rava_status,
+               unit_owner.p2_choice,
+               unit_owner.p2_duty_end,
+               unit_owner.email,
+               unit_owner.language_preference,
+               unit_owner.date_created
+             FROM unit_owner
+             JOIN latest_non_december_snapshot_date
+               ON unit_owner.snapshot_date = latest_non_december_snapshot_date.snapshot_date
+           ),
+
+           last_email AS (
+             SELECT
+               email.personal_code,
+               MAX(email.created_date) AS last_email_sent_date
+             FROM email
+             WHERE email.type = :emailType
+             GROUP BY email.personal_code
+           )
+
+           SELECT
+             latest_unit_owner_snapshot.personal_id            AS personal_code,
+             latest_unit_owner_snapshot.first_name             AS first_name,
+             latest_unit_owner_snapshot.last_name              AS last_name,
+             filtered_event_log.view_count                     AS count,
+             filtered_event_log."timestamp"                    AS "timestamp",
+             filtered_event_log.path                           AS path,
+             latest_unit_owner_snapshot.p2_rate                AS current_rate,
+             latest_unit_owner_snapshot.p2_next_rate           AS pending_rate,
+             latest_unit_owner_snapshot.p2_next_rate_date      AS pending_rate_date,
+             latest_unit_owner_snapshot.email                  AS email,
+             latest_unit_owner_snapshot.language_preference    AS language,
+             last_email.last_email_sent_date                   AS last_email_sent_date
+           FROM filtered_event_log
+           JOIN latest_unit_owner_snapshot
+             ON filtered_event_log.personal_code = latest_unit_owner_snapshot.personal_id
+           LEFT JOIN last_email
+             ON last_email.personal_code = latest_unit_owner_snapshot.personal_id
+           WHERE
+             filtered_event_log."timestamp" < latest_unit_owner_snapshot.date_created
+             AND latest_unit_owner_snapshot.p2_rava_status IS DISTINCT FROM 'R' -- Realiseeritud
+             AND latest_unit_owner_snapshot.p2_choice      IS DISTINCT FROM 'TUK75'
+             AND latest_unit_owner_snapshot.p2_duty_end IS NULL
+           ORDER BY
+             filtered_event_log."timestamp" DESC;
+        """;
+
+    return jdbcClient
+        .sql(sql)
+        .param("startDate", startDate)
+        .param("endDate", endDate)
+        .param("emailType", getEmailType().name())
+        .query(SecondPillarAbandonment.class)
+        .list();
+  }
+
+  @Override
+  public EmailType getEmailType() {
+    return SECOND_PILLAR_ABANDONMENT;
+  }
+}

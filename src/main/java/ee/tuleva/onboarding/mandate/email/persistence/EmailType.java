@@ -18,6 +18,7 @@ public enum EmailType {
   SECOND_PILLAR_LEAVERS("second_pillar_leavers"),
   SECOND_PILLAR_EARLY_WITHDRAWAL("second_pillar_early_withdrawal"),
   PAYMENT_RATE_ABANDONMENT("payment_rate_abandonment"),
+  SECOND_PILLAR_ABANDONMENT("second_pillar_abandonment"),
 
   THIRD_PILLAR_SUGGEST_SECOND("third_pillar_suggest_second"),
   THIRD_PILLAR_PAYMENT_REMINDER_MANDATE("third_pillar_payment_reminder_mandate"),

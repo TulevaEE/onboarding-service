@@ -96,7 +96,7 @@ public class PaymentRateAbandonmentRepository
                   )
                   AND (
                     latest_unit_owner_snapshot.p2_rava_status IS NULL
-                    OR latest_unit_owner_snapshot.p2_rava_status <> 'R'
+                    OR latest_unit_owner_snapshot.p2_rava_status <> 'R' -- Realiseeritud
                   )
                   AND latest_unit_owner_snapshot.p2_duty_end IS NULL
                   AND filtered_event_log."timestamp" < latest_unit_owner_snapshot.date_created

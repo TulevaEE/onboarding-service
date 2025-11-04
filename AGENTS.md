@@ -151,6 +151,10 @@ The application follows domain-driven design with these main domains:
 - Snapshot testing for complex responses
 - MockServer for external service mocking
 - High coverage requirements for critical domains (AML, deadlines)
+- **Test file naming conventions**: Tests can use either `*Test.java` or `*Spec.groovy` naming patterns:
+  - Java/JUnit tests: `MyClassTest.java` (e.g., `UserServiceTest.java`)
+  - Groovy/Spock tests: `MyClassSpec.groovy` (e.g., `UserServiceSpec.groovy`)
+  - Both naming conventions are equally valid and should be used consistently within each test file
 - **Test method names should be descriptive**: Use the test method name itself to describe what it tests (e.g., `findByExternalReference_shouldReturnTransactionsWithMatchingExternalReference()`)
 - **Avoid @DisplayName annotations**: The method name should be self-documenting without needing a separate display name
 

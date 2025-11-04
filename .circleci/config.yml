@@ -145,6 +145,43 @@ jobs:
           name: Deploy master to production
           command: eb deploy onboarding-service-env --label ${CIRCLE_SHA1} --timeout 20
 
+  deploy-ecs:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - aws-cli/setup
+      - run:
+          name: Retag latest as ecs-latest and force ECS deployment
+          command: |
+            echo "🏷️  Retagging :latest as :ecs-latest for ECS..."
+
+            # Get manifest from :latest
+            MANIFEST=$(aws ecr batch-get-image \
+              --repository-name onboarding-service \
+              --image-ids imageTag=latest \
+              --region eu-central-1 \
+              --query 'images[0].imageManifest' \
+              --output text)
+
+            # Retag as :ecs-latest
+            aws ecr put-image \
+              --repository-name onboarding-service \
+              --image-tag ecs-latest \
+              --image-manifest "$MANIFEST" \
+              --region eu-central-1
+
+            echo "✅ Image retagged as :ecs-latest"
+            echo "🚀 Forcing ECS production service update..."
+
+            # Force production ECS update
+            aws ecs update-service \
+              --cluster onboarding-service-cluster \
+              --service onboarding-service-production \
+              --force-new-deployment \
+              --region eu-central-1
+
+            echo "✅ ECS production deployment initiated"
+
   notify-sentry-deploy:
     docker:
       - image: cimg/base:stable
@@ -212,8 +249,15 @@ workflows:
             branches:
               only: master
 
-      - notify-sentry-deploy:
+      - deploy-ecs:
           requires: [ deploy-production ]
+          context: aws
+          filters:
+            branches:
+              only: master
+
+      - notify-sentry-deploy:
+          requires: [ deploy-ecs ]
           context: sentry
           filters:
             branches:

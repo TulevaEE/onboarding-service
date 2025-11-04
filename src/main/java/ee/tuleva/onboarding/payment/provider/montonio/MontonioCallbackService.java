@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 
@@ -53,6 +54,9 @@ public class MontonioCallbackService {
         paymentRepository.findByInternalReference(internalReference.getUuid());
 
     if (existingPayment.isPresent()) {
+      log.info(
+          "Payment with internal reference {} already exists, returning existing payment",
+          internalReference.getUuid());
       return existingPayment;
     }
 
@@ -68,11 +72,28 @@ public class MontonioCallbackService {
             .paymentType(internalReference.getPaymentType())
             .build();
 
-    Payment payment = paymentRepository.save(paymentToBeSaved);
-    eventPublisher.publishEvent(
-        new PaymentCreatedEvent(this, user, payment, internalReference.getLocale()));
+    try {
+      Payment payment = paymentRepository.save(paymentToBeSaved);
+      eventPublisher.publishEvent(
+          new PaymentCreatedEvent(this, user, payment, internalReference.getLocale()));
 
-    return Optional.of(payment);
+      return Optional.of(payment);
+    } catch (DataIntegrityViolationException e) {
+      // Handle race condition: another thread created the payment between our check and insert
+      log.warn(
+          "Duplicate payment detected for internal reference {}, fetching existing payment",
+          internalReference.getUuid(),
+          e);
+      return paymentRepository
+          .findByInternalReference(internalReference.getUuid())
+          .or(
+              () -> {
+                log.error(
+                    "Payment with internal reference {} should exist but was not found after duplicate key error",
+                    internalReference.getUuid());
+                throw e;
+              });
+    }
   }
 
   private boolean isPaymentFinalized(JWSObject token) {

@@ -49,6 +49,7 @@ This file provides guidance to AI coding agents when working with code in this r
 - The application uses Java 21 with preview features enabled
 - Code formatting with Google Java style is enforced via Spotless
 - High test coverage requirements are enforced for AML and deadline packages (100% class/method/line coverage)
+- **DO NOT use `--no-daemon` flag** when running Gradle commands locally - the daemon significantly improves build performance and should only be disabled in CI/CD environments
 
 ### Monitoring & Observability
 - **Exception tracking**: Sentry integration for production error monitoring

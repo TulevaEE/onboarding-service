@@ -251,24 +251,25 @@ class AlbMtlsHeaderFilterTest {
     }
 
     @Test
-    @DisplayName("Should handle URL-encoded certificate from ALB")
-    void shouldHandleUrlEncodedCertificateFromAlb() throws ServletException, IOException {
-      // ALB sends certificates URL-encoded (+ is %2B, newline is %0A, etc.)
-      String urlEncodedCert =
+    @DisplayName("Should handle percent-encoded certificate from ALB (RFC 3986)")
+    void shouldHandlePercentEncodedCertificateFromAlb() throws ServletException, IOException {
+      // ALB uses RFC 3986 percent-encoding where + stays as + (NOT converted to space)
+      // Only %XX sequences are decoded
+      String percentEncodedCert =
           "-----BEGIN%20CERTIFICATE-----%0A"
               + "MIIEATCCAumgAwIBAgIQW4IfiLQQgDXdCKXZdCYdKjANBg==%0A"
-              + "Special%20chars:%20%2B/=%0A" // %2B is URL-encoded +, %20 is space
+              + "Base64%20with%20plus:%20abc+def/ghi=%0A" // + is literal in base64, not %2B
               + "-----END%20CERTIFICATE-----";
 
-      // Expected decoded certificate
+      // Expected: spaces and newlines decoded, + signs preserved
       String decodedCert =
           "-----BEGIN CERTIFICATE-----\n"
               + "MIIEATCCAumgAwIBAgIQW4IfiLQQgDXdCKXZdCYdKjANBg==\n"
-              + "Special chars: +/=\n"
+              + "Base64 with plus: abc+def/ghi=\n"
               + "-----END CERTIFICATE-----";
 
       when(request.getRequestURI()).thenReturn("/idLogin");
-      when(request.getHeader("x-amzn-mtls-clientcert-leaf")).thenReturn(urlEncodedCert);
+      when(request.getHeader("x-amzn-mtls-clientcert-leaf")).thenReturn(percentEncodedCert);
       when(request.getHeader("x-amzn-mtls-clientcert-subject")).thenReturn("CN=Test,O=Org,C=EE");
 
       filter.doFilter(request, response, filterChain);
@@ -279,6 +280,190 @@ class AlbMtlsHeaderFilterTest {
 
       HttpServletRequest wrappedRequest = requestCaptor.getValue();
       assertThat(wrappedRequest.getHeader("ssl-client-cert")).isEqualTo(decodedCert);
+    }
+
+    @Test
+    @DisplayName("Should preserve plus signs in base64 content (not convert to spaces)")
+    void shouldPreservePlusSignsInBase64() throws ServletException, IOException {
+      // Real base64 content contains + signs that must NOT be converted to spaces
+      // ALB sends these as literal + (not %2B), and we must preserve them
+      String certWithPlus =
+          "-----BEGIN%20CERTIFICATE-----%0A"
+              + "MIIDTest+Content+With+Plus===%0A" // Plus signs in base64
+              + "-----END%20CERTIFICATE-----";
+
+      String expectedDecoded =
+          "-----BEGIN CERTIFICATE-----\n"
+              + "MIIDTest+Content+With+Plus===\n" // Plus signs preserved
+              + "-----END CERTIFICATE-----";
+
+      when(request.getRequestURI()).thenReturn("/idLogin");
+      when(request.getHeader("x-amzn-mtls-clientcert-leaf")).thenReturn(certWithPlus);
+      when(request.getHeader("x-amzn-mtls-clientcert-subject")).thenReturn("CN=Test");
+
+      filter.doFilter(request, response, filterChain);
+
+      ArgumentCaptor<HttpServletRequest> requestCaptor =
+          ArgumentCaptor.forClass(HttpServletRequest.class);
+      verify(filterChain).doFilter(requestCaptor.capture(), eq(response));
+
+      HttpServletRequest wrappedRequest = requestCaptor.getValue();
+      assertThat(wrappedRequest.getHeader("ssl-client-cert")).isEqualTo(expectedDecoded);
+    }
+  }
+
+  @Nested
+  @DisplayName("Percent decoding (RFC 3986)")
+  class PercentDecoding {
+
+    @Test
+    @DisplayName("Should decode common percent sequences (%20, %0A, %2F)")
+    void shouldDecodeCommonPercentSequences() throws ServletException, IOException {
+      String encoded = "Hello%20World%0ANew%20Line%2FSlash";
+      String expected = "Hello World\nNew Line/Slash";
+
+      when(request.getRequestURI()).thenReturn("/idLogin");
+      when(request.getHeader("x-amzn-mtls-clientcert-leaf")).thenReturn(encoded);
+
+      filter.doFilter(request, response, filterChain);
+
+      ArgumentCaptor<HttpServletRequest> requestCaptor =
+          ArgumentCaptor.forClass(HttpServletRequest.class);
+      verify(filterChain).doFilter(requestCaptor.capture(), eq(response));
+
+      assertThat(requestCaptor.getValue().getHeader("ssl-client-cert")).isEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName("Should preserve plus signs (NOT convert to spaces like URLDecoder)")
+    void shouldPreservePlusSigns() throws ServletException, IOException {
+      // This is the key difference from URLDecoder: + stays as +
+      String encoded = "test+data+with+plus+signs";
+      String expected = "test+data+with+plus+signs"; // Plus preserved
+
+      when(request.getRequestURI()).thenReturn("/idLogin");
+      when(request.getHeader("x-amzn-mtls-clientcert-leaf")).thenReturn(encoded);
+
+      filter.doFilter(request, response, filterChain);
+
+      ArgumentCaptor<HttpServletRequest> requestCaptor =
+          ArgumentCaptor.forClass(HttpServletRequest.class);
+      verify(filterChain).doFilter(requestCaptor.capture(), eq(response));
+
+      assertThat(requestCaptor.getValue().getHeader("ssl-client-cert")).isEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName("Should handle mixed encoded and literal characters")
+    void shouldHandleMixedEncodedAndLiteral() throws ServletException, IOException {
+      String encoded = "abc%20def+ghi%2Fjkl=mno";
+      String expected = "abc def+ghi/jkl=mno";
+
+      when(request.getRequestURI()).thenReturn("/idLogin");
+      when(request.getHeader("x-amzn-mtls-clientcert-leaf")).thenReturn(encoded);
+
+      filter.doFilter(request, response, filterChain);
+
+      ArgumentCaptor<HttpServletRequest> requestCaptor =
+          ArgumentCaptor.forClass(HttpServletRequest.class);
+      verify(filterChain).doFilter(requestCaptor.capture(), eq(response));
+
+      assertThat(requestCaptor.getValue().getHeader("ssl-client-cert")).isEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName("Should handle invalid hex sequences gracefully")
+    void shouldHandleInvalidHexSequences() throws ServletException, IOException {
+      // Invalid hex should be kept as-is
+      String encoded = "test%ZZ%20valid%GG";
+      String expected = "test%ZZ valid%GG"; // Invalid kept, valid decoded
+
+      when(request.getRequestURI()).thenReturn("/idLogin");
+      when(request.getHeader("x-amzn-mtls-clientcert-leaf")).thenReturn(encoded);
+
+      filter.doFilter(request, response, filterChain);
+
+      ArgumentCaptor<HttpServletRequest> requestCaptor =
+          ArgumentCaptor.forClass(HttpServletRequest.class);
+      verify(filterChain).doFilter(requestCaptor.capture(), eq(response));
+
+      assertThat(requestCaptor.getValue().getHeader("ssl-client-cert")).isEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName("Should handle incomplete percent sequences at end")
+    void shouldHandleIncompletePercentSequences() throws ServletException, IOException {
+      String encoded = "test%20complete%2"; // Incomplete at end
+      String expected = "test complete%2"; // Incomplete kept as-is
+
+      when(request.getRequestURI()).thenReturn("/idLogin");
+      when(request.getHeader("x-amzn-mtls-clientcert-leaf")).thenReturn(encoded);
+
+      filter.doFilter(request, response, filterChain);
+
+      ArgumentCaptor<HttpServletRequest> requestCaptor =
+          ArgumentCaptor.forClass(HttpServletRequest.class);
+      verify(filterChain).doFilter(requestCaptor.capture(), eq(response));
+
+      assertThat(requestCaptor.getValue().getHeader("ssl-client-cert")).isEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName("Should handle empty string")
+    void shouldHandleEmptyString() throws ServletException, IOException {
+      when(request.getRequestURI()).thenReturn("/idLogin");
+      when(request.getHeader("x-amzn-mtls-clientcert-leaf")).thenReturn("");
+
+      filter.doFilter(request, response, filterChain);
+
+      // Empty string should pass through unchanged (will fail at next filter)
+      verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    @DisplayName("Should handle string with no encoding")
+    void shouldHandleStringWithNoEncoding() throws ServletException, IOException {
+      String unencoded = "Plain text with no encoding";
+
+      when(request.getRequestURI()).thenReturn("/idLogin");
+      when(request.getHeader("x-amzn-mtls-clientcert-leaf")).thenReturn(unencoded);
+
+      filter.doFilter(request, response, filterChain);
+
+      ArgumentCaptor<HttpServletRequest> requestCaptor =
+          ArgumentCaptor.forClass(HttpServletRequest.class);
+      verify(filterChain).doFilter(requestCaptor.capture(), eq(response));
+
+      assertThat(requestCaptor.getValue().getHeader("ssl-client-cert")).isEqualTo(unencoded);
+    }
+
+    @Test
+    @DisplayName("Should decode real ALB certificate format")
+    void shouldDecodeRealAlbCertificateFormat() throws ServletException, IOException {
+      // Simulates real ALB format with PEM structure and base64 content with plus signs
+      String albFormat =
+          "-----BEGIN%20CERTIFICATE-----%0A"
+              + "MIIDxTCCAq2gAwIBAgIBADANBgkqhkiG9w0BAQsFADCBgzELMAkGA1UEBhMCVVM%0A"
+              + "Test+Line+With+Plus+Signs/And/Slashes===%0A"
+              + "-----END%20CERTIFICATE-----%0A";
+
+      String expected =
+          "-----BEGIN CERTIFICATE-----\n"
+              + "MIIDxTCCAq2gAwIBAgIBADANBgkqhkiG9w0BAQsFADCBgzELMAkGA1UEBhMCVVM\n"
+              + "Test+Line+With+Plus+Signs/And/Slashes===\n"
+              + "-----END CERTIFICATE-----\n";
+
+      when(request.getRequestURI()).thenReturn("/idLogin");
+      when(request.getHeader("x-amzn-mtls-clientcert-leaf")).thenReturn(albFormat);
+      when(request.getHeader("x-amzn-mtls-clientcert-subject")).thenReturn("CN=Test");
+
+      filter.doFilter(request, response, filterChain);
+
+      ArgumentCaptor<HttpServletRequest> requestCaptor =
+          ArgumentCaptor.forClass(HttpServletRequest.class);
+      verify(filterChain).doFilter(requestCaptor.capture(), eq(response));
+
+      assertThat(requestCaptor.getValue().getHeader("ssl-client-cert")).isEqualTo(expected);
     }
   }
 

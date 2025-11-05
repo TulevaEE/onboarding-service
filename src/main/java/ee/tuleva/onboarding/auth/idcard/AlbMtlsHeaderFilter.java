@@ -4,9 +4,6 @@ import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
@@ -126,16 +123,30 @@ public class AlbMtlsHeaderFilter implements Filter {
     }
 
     //     Decodes percent-encoded strings (RFC 3986) without treating + as space.
-    //     ALB uses percent-encoding where only %XX sequences need decoding.
+    //     ALB uses pure percent-encoding where only %XX sequences need decoding.
     private static String percentDecode(String encoded) {
-      try {
-        // First replace + with %2B to protect it from URLDecoder
-        String protected_ = encoded.replace("+", "%2B");
-        // Then decode - this will only decode %XX sequences
-        return URLDecoder.decode(protected_, StandardCharsets.UTF_8.name());
-      } catch (UnsupportedEncodingException e) {
-        throw new RuntimeException("UTF-8 encoding not supported", e);
+      StringBuilder decoded = new StringBuilder(encoded.length());
+      int i = 0;
+      while (i < encoded.length()) {
+        char c = encoded.charAt(i);
+        if (c == '%' && i + 2 < encoded.length()) {
+          try {
+            // Decode %XX to the corresponding byte
+            int value = Integer.parseInt(encoded.substring(i + 1, i + 3), 16);
+            decoded.append((char) value);
+            i += 3;
+          } catch (NumberFormatException e) {
+            // Invalid hex sequence, keep as-is
+            decoded.append(c);
+            i++;
+          }
+        } else {
+          // Keep all other characters as-is (including +)
+          decoded.append(c);
+          i++;
+        }
       }
+      return decoded.toString();
     }
 
     @Override

@@ -64,7 +64,7 @@ class AuthControllerSpec extends BaseControllerSpec {
     0 * idCardAuthService.checkCertificate(_)
   }
 
-  def "Authenticate: check successfully verified id card certificate"() {
+  def "Authenticate: check successfully verified id card certificate (ALB path - already decoded)"() {
     when:
     def result = mockMvc.perform(post("/idLogin")
         .header("ssl-client-verify", "SUCCESS")
@@ -72,6 +72,21 @@ class AuthControllerSpec extends BaseControllerSpec {
     then:
     result.andExpect(status().isOk())
     1 * idCardAuthService.checkCertificate("test_cert")
+  }
+
+  def "Authenticate: check id card certificate with percent-encoding (NGINX path)"() {
+    given:
+    // NGINX sends percent-encoded certificate with %0A (newline) and %20 (space)
+    def nginxEncodedCert = "-----BEGIN+CERTIFICATE-----%0Atest%20content%0A-----END+CERTIFICATE-----"
+    def expectedDecodedCert = "-----BEGIN CERTIFICATE-----\ntest content\n-----END CERTIFICATE-----"
+
+    when:
+    def result = mockMvc.perform(post("/idLogin")
+        .header("ssl-client-verify", "SUCCESS")
+        .header("ssl-client-cert", nginxEncodedCert))
+    then:
+    result.andExpect(status().isOk())
+    1 * idCardAuthService.checkCertificate(expectedDecodedCert)
   }
 
   def "Authenticate: redirect successful id card login back to the app when using the GET method"() {

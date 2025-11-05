@@ -101,7 +101,19 @@ public class AuthController {
       throw new IllegalStateException("Client certificate not verified");
     }
 
-    idCardAuthService.checkCertificate(URLDecoder.decode(clientCertificate, UTF_8.name()));
+    // Check if certificate still contains percent-encoded characters
+    // NGINX sends: "-----BEGIN+CERTIFICATE-----%0A..." (contains %0A, %20, etc.)
+    // ALB (after AlbMtlsHeaderFilter): "-----BEGIN CERTIFICATE-----\n..." (already decoded)
+    String decodedCertificate;
+    if (clientCertificate.contains("%0A") || clientCertificate.contains("%20")) {
+      // NGINX path: Certificate is URL-encoded, needs URLDecoder
+      decodedCertificate = URLDecoder.decode(clientCertificate, UTF_8.name());
+    } else {
+      // ALB path: Certificate already decoded by AlbMtlsHeaderFilter
+      decodedCertificate = clientCertificate;
+    }
+
+    idCardAuthService.checkCertificate(decodedCertificate);
 
     if (httpMethod.equals(HttpMethod.GET)) {
       response.sendRedirect(frontendUrl + "/?login=idCard");

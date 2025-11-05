@@ -4,6 +4,7 @@ import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -75,13 +76,34 @@ public class AlbMtlsHeaderFilter implements Filter {
     public MtlsHeaderTranslatingRequest(HttpServletRequest request, String clientCertificate) {
       super(request);
 
-      // ALB provides the certificate in URL-encoded format, need to decode it
-      // Example: %0A (newline), %20 (space), etc.
-      String decodedCertificate = URLDecoder.decode(clientCertificate, StandardCharsets.UTF_8);
+      // ALB provides the certificate in percent-encoded format (RFC 3986)
+      // We must decode %XX sequences but preserve + signs (they're not spaces in base64)
+      // URLDecoder.decode() incorrectly treats + as space, so we decode manually
+      String decodedCertificate = percentDecode(clientCertificate);
+
+      log.info(
+          "Raw ALB certificate (first 100 chars): {}",
+          clientCertificate.substring(0, Math.min(100, clientCertificate.length())));
+      log.info(
+          "Decoded certificate (first 100 chars): {}",
+          decodedCertificate.substring(0, Math.min(100, decodedCertificate.length())));
 
       this.translatedHeaders = new HashMap<>();
       translatedHeaders.put(NGINX_CLIENT_VERIFY_HEADER, NGINX_VERIFY_SUCCESS);
       translatedHeaders.put(NGINX_CLIENT_CERT_HEADER, decodedCertificate);
+    }
+
+    //     Decodes percent-encoded strings (RFC 3986) without treating + as space.
+    //     ALB uses percent-encoding where only %XX sequences need decoding.
+    private static String percentDecode(String encoded) {
+      try {
+        // First replace + with %2B to protect it from URLDecoder
+        String protected_ = encoded.replace("+", "%2B");
+        // Then decode - this will only decode %XX sequences
+        return URLDecoder.decode(protected_, StandardCharsets.UTF_8.name());
+      } catch (UnsupportedEncodingException e) {
+        throw new RuntimeException("UTF-8 encoding not supported", e);
+      }
     }
 
     @Override

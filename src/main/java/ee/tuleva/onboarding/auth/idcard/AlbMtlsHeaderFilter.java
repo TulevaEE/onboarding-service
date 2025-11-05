@@ -4,6 +4,8 @@ import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import java.io.IOException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
@@ -73,9 +75,13 @@ public class AlbMtlsHeaderFilter implements Filter {
     public MtlsHeaderTranslatingRequest(HttpServletRequest request, String clientCertificate) {
       super(request);
 
+      // ALB provides the certificate in URL-encoded format, need to decode it
+      // Example: %0A (newline), %20 (space), etc.
+      String decodedCertificate = URLDecoder.decode(clientCertificate, StandardCharsets.UTF_8);
+
       this.translatedHeaders = new HashMap<>();
       translatedHeaders.put(NGINX_CLIENT_VERIFY_HEADER, NGINX_VERIFY_SUCCESS);
-      translatedHeaders.put(NGINX_CLIENT_CERT_HEADER, clientCertificate);
+      translatedHeaders.put(NGINX_CLIENT_CERT_HEADER, decodedCertificate);
     }
 
     @Override

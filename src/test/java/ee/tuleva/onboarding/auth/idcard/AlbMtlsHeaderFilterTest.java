@@ -251,16 +251,24 @@ class AlbMtlsHeaderFilterTest {
     }
 
     @Test
-    @DisplayName("Should handle certificate with special characters")
-    void shouldHandleCertificateWithSpecialCharacters() throws ServletException, IOException {
-      String certWithSpecialChars =
+    @DisplayName("Should handle URL-encoded certificate from ALB")
+    void shouldHandleUrlEncodedCertificateFromAlb() throws ServletException, IOException {
+      // ALB sends certificates URL-encoded (+ is %2B, newline is %0A, etc.)
+      String urlEncodedCert =
+          "-----BEGIN%20CERTIFICATE-----%0A"
+              + "MIIEATCCAumgAwIBAgIQW4IfiLQQgDXdCKXZdCYdKjANBg==%0A"
+              + "Special%20chars:%20%2B/=%0A" // %2B is URL-encoded +, %20 is space
+              + "-----END%20CERTIFICATE-----";
+
+      // Expected decoded certificate
+      String decodedCert =
           "-----BEGIN CERTIFICATE-----\n"
               + "MIIEATCCAumgAwIBAgIQW4IfiLQQgDXdCKXZdCYdKjANBg==\n"
               + "Special chars: +/=\n"
               + "-----END CERTIFICATE-----";
 
       when(request.getRequestURI()).thenReturn("/idLogin");
-      when(request.getHeader("x-amzn-mtls-clientcert-leaf")).thenReturn(certWithSpecialChars);
+      when(request.getHeader("x-amzn-mtls-clientcert-leaf")).thenReturn(urlEncodedCert);
       when(request.getHeader("x-amzn-mtls-clientcert-subject")).thenReturn("CN=Test,O=Org,C=EE");
 
       filter.doFilter(request, response, filterChain);
@@ -270,7 +278,7 @@ class AlbMtlsHeaderFilterTest {
       verify(filterChain).doFilter(requestCaptor.capture(), eq(response));
 
       HttpServletRequest wrappedRequest = requestCaptor.getValue();
-      assertThat(wrappedRequest.getHeader("ssl-client-cert")).isEqualTo(certWithSpecialChars);
+      assertThat(wrappedRequest.getHeader("ssl-client-cert")).isEqualTo(decodedCert);
     }
   }
 

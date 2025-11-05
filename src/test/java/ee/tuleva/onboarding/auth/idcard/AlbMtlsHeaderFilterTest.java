@@ -598,5 +598,62 @@ class AlbMtlsHeaderFilterTest {
       assertThat(wrappedRequest.getHeader("ssl-client-verify")).isEqualTo("SUCCESS");
       assertThat(wrappedRequest.getHeader("ssl-client-cert")).isEqualTo(SAMPLE_CLIENT_CERT);
     }
+
+    @Test
+    @DisplayName(
+        "INTEGRATION: Should decode ALB certificate and validate all base64 lines are multiples of 4")
+    void shouldDecodeAlbCertificateWithValidBase64LineLength()
+        throws ServletException, IOException {
+      // This test validates that after decoding, all base64 content lines have valid lengths
+      // Base64 lines must be multiples of 4 characters (RFC 4648)
+
+      // Simulated ALB-encoded certificate with base64 content
+      String albEncodedCert =
+          "-----BEGIN%20CERTIFICATE-----%0A"
+              + "MIID5zCCA0qgAwIBAgIQSnxuSk+CVTH25SrqalcEkDAKBggqhkjOPQQDBDBYMQsw%0A"
+              + "CQYDVQQGEwJFRTEbMBkGA1UECgwSU0sgSUQgU29sdXRpb25zIEFTMQswCQYDVQQL%0A"
+              + "DAJBSTEfMB0GA1UEAwwWRVNURUlEMjAxOCBJRC1DQTAgMB4XDTIzMDUxNTEzMjA1%0A"
+              + "NloXDTI4MDUxNDIxNTk1OVowgYQxCzAJBgNVBAYTAkVFMQ8wDQYDVQQKDAZFU1RF%0A"
+              + "SUQxGjAYBgNVBAsMEWF1dGhlbnRpY2F0aW9uMRcwFQYDVQQDDA5KQUFOLEpBTEdS%0A"
+              + "QVRBU0EZMBcGA1UEBAwQSkFMR1JBVEFTMREwDwYDVQQFEwgzODAwMTA4NTBZMBMG%0A"
+              + "ByqGSM49AgEGCCqGSM49AwEHA0IABBG0xCzxJQzgfQVfEJL+HGxwz4CgZ8cQ4JIk%0A"
+              + "fQE5LqKd0a9eVkwRiU7lPHf8T9Qi0qYwKxJqN8M5K9oTrGEaKNmjggGHMIIBgzAJ%0A"
+              + "-----END%20CERTIFICATE-----%0A";
+
+      when(request.getRequestURI()).thenReturn("/idLogin");
+      when(request.getHeader("x-amzn-mtls-clientcert-leaf")).thenReturn(albEncodedCert);
+      when(request.getHeader("x-amzn-mtls-clientcert-subject")).thenReturn("CN=Test");
+
+      filter.doFilter(request, response, filterChain);
+
+      ArgumentCaptor<HttpServletRequest> requestCaptor =
+          ArgumentCaptor.forClass(HttpServletRequest.class);
+      verify(filterChain).doFilter(requestCaptor.capture(), eq(response));
+
+      String decodedCert = requestCaptor.getValue().getHeader("ssl-client-cert");
+
+      // Validate all base64 content lines have valid lengths (multiples of 4)
+      String[] lines = decodedCert.split("\n");
+      for (int i = 0; i < lines.length; i++) {
+        String line = lines[i];
+        if (!line.startsWith("-----")) {
+          // This is a base64 content line - must be multiple of 4
+          int length = line.length();
+          boolean validLength = (length % 4 == 0) || line.endsWith("=");
+          assertThat(validLength)
+              .as(
+                  "Line %d has invalid length %d (not multiple of 4): '%s'",
+                  i, length, line.length() > 80 ? line.substring(0, 80) + "..." : line)
+              .isTrue();
+        }
+      }
+
+      // Additionally verify no spaces exist in base64 content (common decoding error)
+      for (String line : lines) {
+        if (!line.startsWith("-----")) {
+          assertThat(line).as("Base64 line should not contain spaces").doesNotContain(" ");
+        }
+      }
+    }
   }
 }

@@ -115,6 +115,24 @@ public class AlbMtlsHeaderFilter implements Filter {
                 Math.min(decodedCertificate.length(), decodedCertificate.length() / 2 + 50));
         log.info("Decoded certificate (middle 100 chars): {}", middle);
       }
+
+      // Check base64 line lengths (must be multiples of 4, except last line with padding)
+      String[] lines = decodedCertificate.split("\n");
+      log.info("Certificate has {} lines", lines.length);
+      for (int i = 0; i < lines.length; i++) {
+        String line = lines[i];
+        if (!line.startsWith("-----")) {
+          // This is a base64 content line
+          int len = line.length();
+          boolean validLength = (len % 4 == 0) || line.endsWith("=");
+          log.info(
+              "Line {}: length={}, validBase64Length={}, content='{}'",
+              i,
+              len,
+              validLength,
+              line.length() > 80 ? line.substring(0, 80) + "..." : line);
+        }
+      }
       log.info("=== End Certificate Debug ===");
 
       this.translatedHeaders = new HashMap<>();

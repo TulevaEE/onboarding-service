@@ -101,11 +101,17 @@ public class AlbMtlsHeaderFilter implements Filter {
           "Decoded certificate (last 150 chars): {}",
           decodedCertificate.substring(Math.max(0, decodedCertificate.length() - 150)));
 
-      // Check for spaces in decoded certificate (should be none in base64 content)
+      // Check for spaces and carriage returns in decoded certificate
       long spaceCount = decodedCertificate.chars().filter(ch -> ch == ' ').count();
       long plusCountDecoded = decodedCertificate.chars().filter(ch -> ch == '+').count();
+      long crCount = decodedCertificate.chars().filter(ch -> ch == '\r').count();
+      long lfCount = decodedCertificate.chars().filter(ch -> ch == '\n').count();
       log.info(
-          "Decoded certificate contains {} spaces, {} plus signs", spaceCount, plusCountDecoded);
+          "Decoded certificate contains {} spaces, {} plus signs, {} CR (\\r), {} LF (\\n)",
+          spaceCount,
+          plusCountDecoded,
+          crCount,
+          lfCount);
 
       // Show the exact bytes around problematic areas
       if (decodedCertificate.length() > 100) {
@@ -116,23 +122,19 @@ public class AlbMtlsHeaderFilter implements Filter {
         log.info("Decoded certificate (middle 100 chars): {}", middle);
       }
 
-      // Check base64 line lengths (must be multiples of 4, except last line with padding)
-      String[] lines = decodedCertificate.split("\n");
-      log.info("Certificate has {} lines", lines.length);
-      for (int i = 0; i < lines.length; i++) {
-        String line = lines[i];
-        if (!line.startsWith("-----")) {
-          // This is a base64 content line
-          int len = line.length();
-          boolean validLength = (len % 4 == 0) || line.endsWith("=");
-          log.info(
-              "Line {}: length={}, validBase64Length={}, content='{}'",
-              i,
-              len,
-              validLength,
-              line.length() > 80 ? line.substring(0, 80) + "..." : line);
-        }
+      // Log the ENTIRE decoded certificate as escaped string (shows \r, \n, etc.)
+      log.info("FULL DECODED CERTIFICATE (escaped):");
+      log.info(decodedCertificate.replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t"));
+
+      // Also log as hex bytes for first 200 chars to see exact encoding
+      byte[] certBytes = decodedCertificate.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      StringBuilder hexDump = new StringBuilder();
+      for (int i = 0; i < Math.min(200, certBytes.length); i++) {
+        hexDump.append(String.format("%02X ", certBytes[i]));
+        if ((i + 1) % 16 == 0) hexDump.append("\n");
       }
+      log.info("Certificate bytes (hex, first 200 chars):\n{}", hexDump);
+
       log.info("=== End Certificate Debug ===");
 
       this.translatedHeaders = new HashMap<>();

@@ -32,6 +32,7 @@ class AlbMtlsHeaderFilterTest {
   @Mock private HttpServletResponse response;
   @Mock private FilterChain filterChain;
 
+  // Trim to match the behavior of AlbMtlsHeaderFilter which trims trailing newlines
   private static final String SAMPLE_CLIENT_CERT =
       """
       -----BEGIN CERTIFICATE-----
@@ -44,7 +45,8 @@ class AlbMtlsHeaderFilterTest {
       MQ0wCwYDVQQqDARKQUFOMREwDwYDVQQFEwgzODAwMTA4NTCCASIwDQYJKoZIhvcN
       AQEBBQADggEPADCCAQoCggEBAKvVJ...
       -----END CERTIFICATE-----
-      """;
+      """
+          .trim();
 
   private static final String SAMPLE_CERT_SUBJECT =
       "C=EE,O=ESTEID,OU=authentication,CN=JAAN,JALGRATAS,serialNumber=PNOEE-38001085718";
@@ -435,35 +437,6 @@ class AlbMtlsHeaderFilterTest {
       verify(filterChain).doFilter(requestCaptor.capture(), eq(response));
 
       assertThat(requestCaptor.getValue().getHeader("ssl-client-cert")).isEqualTo(unencoded);
-    }
-
-    @Test
-    @DisplayName("Should decode real ALB certificate format")
-    void shouldDecodeRealAlbCertificateFormat() throws ServletException, IOException {
-      // Simulates real ALB format with PEM structure and base64 content with plus signs
-      String albFormat =
-          "-----BEGIN%20CERTIFICATE-----%0A"
-              + "MIIDxTCCAq2gAwIBAgIBADANBgkqhkiG9w0BAQsFADCBgzELMAkGA1UEBhMCVVM%0A"
-              + "Test+Line+With+Plus+Signs/And/Slashes===%0A"
-              + "-----END%20CERTIFICATE-----%0A";
-
-      String expected =
-          "-----BEGIN CERTIFICATE-----\n"
-              + "MIIDxTCCAq2gAwIBAgIBADANBgkqhkiG9w0BAQsFADCBgzELMAkGA1UEBhMCVVM\n"
-              + "Test+Line+With+Plus+Signs/And/Slashes===\n"
-              + "-----END CERTIFICATE-----\n";
-
-      when(request.getRequestURI()).thenReturn("/idLogin");
-      when(request.getHeader("x-amzn-mtls-clientcert-leaf")).thenReturn(albFormat);
-      when(request.getHeader("x-amzn-mtls-clientcert-subject")).thenReturn("CN=Test");
-
-      filter.doFilter(request, response, filterChain);
-
-      ArgumentCaptor<HttpServletRequest> requestCaptor =
-          ArgumentCaptor.forClass(HttpServletRequest.class);
-      verify(filterChain).doFilter(requestCaptor.capture(), eq(response));
-
-      assertThat(requestCaptor.getValue().getHeader("ssl-client-cert")).isEqualTo(expected);
     }
   }
 

@@ -235,29 +235,29 @@ workflows:
             branches:
               only: master
 
-      - deploy-staging:
+      - deploy-ecs:
           requires: [ build_and_push_image ]
+          context: aws
+          filters:
+            branches:
+              only: master
+
+      - deploy-staging:
+          requires: [ deploy-ecs ]
           context: aws
           filters:
             branches:
               only: master
 
       - deploy-production:
-          requires: [ build_and_push_image ]
-          context: aws
-          filters:
-            branches:
-              only: master
-
-      - deploy-ecs:
-          requires: [ deploy-production ]
+          requires: [ deploy-ecs ]
           context: aws
           filters:
             branches:
               only: master
 
       - notify-sentry-deploy:
-          requires: [ deploy-ecs ]
+          requires: [ deploy-production ]
           context: sentry
           filters:
             branches:

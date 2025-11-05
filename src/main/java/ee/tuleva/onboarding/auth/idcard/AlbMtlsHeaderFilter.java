@@ -81,12 +81,44 @@ public class AlbMtlsHeaderFilter implements Filter {
       // URLDecoder.decode() incorrectly treats + as space, so we decode manually
       String decodedCertificate = percentDecode(clientCertificate);
 
+      // Comprehensive logging for debugging certificate decoding
+      log.info("=== Certificate Decoding Debug ===");
+      log.info("Raw ALB certificate length: {} chars", clientCertificate.length());
       log.info(
-          "Raw ALB certificate (first 100 chars): {}",
-          clientCertificate.substring(0, Math.min(100, clientCertificate.length())));
+          "Raw ALB certificate (first 150 chars): {}",
+          clientCertificate.substring(0, Math.min(150, clientCertificate.length())));
       log.info(
-          "Decoded certificate (first 100 chars): {}",
-          decodedCertificate.substring(0, Math.min(100, decodedCertificate.length())));
+          "Raw ALB certificate (last 150 chars): {}",
+          clientCertificate.substring(Math.max(0, clientCertificate.length() - 150)));
+
+      // Check for + signs in raw certificate
+      long plusCount = clientCertificate.chars().filter(ch -> ch == '+').count();
+      long percentCount = clientCertificate.chars().filter(ch -> ch == '%').count();
+      log.info("Raw certificate contains {} plus signs, {} percent signs", plusCount, percentCount);
+
+      log.info("Decoded certificate length: {} chars", decodedCertificate.length());
+      log.info(
+          "Decoded certificate (first 150 chars): {}",
+          decodedCertificate.substring(0, Math.min(150, decodedCertificate.length())));
+      log.info(
+          "Decoded certificate (last 150 chars): {}",
+          decodedCertificate.substring(Math.max(0, decodedCertificate.length() - 150)));
+
+      // Check for spaces in decoded certificate (should be none in base64 content)
+      long spaceCount = decodedCertificate.chars().filter(ch -> ch == ' ').count();
+      long plusCountDecoded = decodedCertificate.chars().filter(ch -> ch == '+').count();
+      log.info(
+          "Decoded certificate contains {} spaces, {} plus signs", spaceCount, plusCountDecoded);
+
+      // Show the exact bytes around problematic areas
+      if (decodedCertificate.length() > 100) {
+        String middle =
+            decodedCertificate.substring(
+                Math.max(0, decodedCertificate.length() / 2 - 50),
+                Math.min(decodedCertificate.length(), decodedCertificate.length() / 2 + 50));
+        log.info("Decoded certificate (middle 100 chars): {}", middle);
+      }
+      log.info("=== End Certificate Debug ===");
 
       this.translatedHeaders = new HashMap<>();
       translatedHeaders.put(NGINX_CLIENT_VERIFY_HEADER, NGINX_VERIFY_SUCCESS);

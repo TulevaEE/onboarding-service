@@ -76,7 +76,7 @@ public class AlbMtlsHeaderFilter implements Filter {
       // ALB provides the certificate in percent-encoded format (RFC 3986)
       // We must decode %XX sequences but preserve + signs (they're not spaces in base64)
       // URLDecoder.decode() incorrectly treats + as space, so we decode manually
-      String decodedCertificate = percentDecode(clientCertificate);
+      String decodedCertificate = percentDecode(clientCertificate).trim();
 
       // Comprehensive logging for debugging certificate decoding
       log.info("=== Certificate Decoding Debug ===");

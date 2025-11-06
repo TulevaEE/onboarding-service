@@ -61,8 +61,10 @@ Google Analytics / Mixpanel
 
 **Hosting**
 
-AWS Elastic BeanStalk: EC2 and ELB (legacy)
-AWS ECS Fargate: Container-based deployment (current)
+AWS ECS Fargate (production and staging)
+AWS Elastic Beanstalk: EC2 and ELB (legacy - being decommissioned)
+
+**Migration Status**: Production and staging migrated to ECS on November 6, 2025. Beanstalk environments scaled to zero, pending final decommission.
 
 **Infrastructure as Code**
 
@@ -197,12 +199,13 @@ In case file has multiple certificate chains, `import-certs.sh` will add all of 
 
 ### Smart-ID, Mobile-ID, ID-card
 1. Install keystore explorer if missing `brew install --cask keystore-explorer` or use command line `keytool`
-2. Navigate to the `tuleva-secrets` S3 bucket, open either `staging` or `development` directory, download `truststore.jks`.
+2. Navigate to the `tulevasecrets` S3 bucket, open either `staging` or `development` directory, download `truststore.jks`.
 3. Add new certs and upload new version back to S3 bucket.
    * If there are errors with multiple certificates, either remove or split them by opening the `.pem` file with a text editor.
      * For example a root cert might be added (unnecessarily for our use case) to the cert you are trying to add to the truststore
    * When changing `staging` certs, also add them to `src/test_keys/truststore.jks` for your local `dev` environment.
-4. Do a clean deploy to ensure that new EC2 instance is spun up, and S3 -> EC2 files defined in`.ebextensions/keystore.config` are copied over.
+4. **For ECS**: Truststore is downloaded from S3 during container startup via entrypoint script.
+5. **For Beanstalk (legacy)**: Do a clean deploy to ensure that new EC2 instance is spun up, and S3 files defined in `.ebextensions/keystore.config` are copied over.
 
 
 ### PostgreSQL <-> H2 compatibility for integration tests
@@ -235,6 +238,20 @@ When adding a new migration for H2 <-> Postgres compatibility, the name must be 
 [Test Smart ID](https://github.com/SK-EID/smart-id-documentation/wiki/Smart-ID-demo)
 
 # Infrastructure Management
+
+## ECS Infrastructure
+
+Production and staging environments run on **AWS ECS Fargate** managed via Terraform.
+
+**Current Status (Nov 2025)**:
+- ✅ Production: Running on ECS (`pension.tuleva.ee`, `onboarding-service.tuleva.ee`)
+- ✅ Staging: Running on ECS (`staging.tuleva.ee`)
+- ⏳ Beanstalk: Scaled to zero, pending decommission
+
+**Key Resources**:
+- ECS Cluster: `onboarding-service-cluster`
+- Production Logs: `/ecs/onboarding-service-production`
+- Staging Logs: `/ecs/onboarding-service-staging`
 
 ## Terraform Files in S3
 

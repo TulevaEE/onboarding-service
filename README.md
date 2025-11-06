@@ -61,7 +61,12 @@ Google Analytics / Mixpanel
 
 **Hosting**
 
-AWS Elastic BeanStalk: EC2 and ELB
+AWS Elastic BeanStalk: EC2 and ELB (legacy)
+AWS ECS Fargate: Container-based deployment (current)
+
+**Infrastructure as Code**
+
+Terraform configurations are stored in S3, not committed to Git. See [Infrastructure Management](#infrastructure-management) below.
 
 **Continuous Integration**
 
@@ -228,6 +233,69 @@ When adding a new migration for H2 <-> Postgres compatibility, the name must be 
 [Test ID Card](https://demo.sk.ee/upload_cert/)
 
 [Test Smart ID](https://github.com/SK-EID/smart-id-documentation/wiki/Smart-ID-demo)
+
+# Infrastructure Management
+
+## Terraform Files in S3
+
+Terraform configuration files are stored in S3
+
+Location: `s3://tuleva-infrastructure/onboarding-service/terraform/`
+
+### Setting Up Terraform on Your Machine
+
+**First time setup**:
+```bash
+# 1. Navigate to terraform directory
+cd infrastructure/terraform
+
+# 2. Bootstrap: Download the download script from S3
+aws s3 cp s3://tuleva-infrastructure/onboarding-service/terraform/download-terraform-from-s3.sh . \
+  --profile AdministratorAccess-641866833894
+chmod +x download-terraform-from-s3.sh
+
+# 3. Download all terraform files
+./download-terraform-from-s3.sh
+
+# 4. Initialize terraform
+terraform init
+
+# 5. You're ready!
+terraform plan -var-file=staging.tfvars
+```
+
+### Working with Terraform
+
+**After making changes**:
+```bash
+# Test your changes
+terraform plan -var-file=staging.tfvars
+
+# Apply if good
+terraform apply -var-file=staging.tfvars
+
+# Upload to S3 for team
+./upload-terraform-to-s3.sh
+```
+
+**Getting latest changes from team**:
+```bash
+./download-terraform-from-s3.sh
+```
+
+### Available Scripts
+
+- `setup-infrastructure-bucket.sh` - One-time S3 bucket setup (already done)
+- `upload-terraform-to-s3.sh` - Upload your terraform changes to S3
+- `download-terraform-from-s3.sh` - Download latest terraform files from S3
+
+### What's in S3
+
+- `*.tf` files - Infrastructure code (main.tf, variables.tf, outputs.tf, etc.)
+- `*.tfvars` files - Environment configurations (staging, production)
+- Helper scripts - Setup, upload, and download scripts
+
+---
 
 # Using AWS
 ## Athena for log search

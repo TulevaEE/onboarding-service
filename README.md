@@ -64,7 +64,7 @@ Google Analytics / Mixpanel
 AWS ECS Fargate (production and staging)
 AWS Elastic Beanstalk: EC2 and ELB (legacy - being decommissioned)
 
-**Migration Status**: Production and staging migrated to ECS on November 6, 2025. Beanstalk environments scaled to zero, pending final decommission.
+**Migration Status**: Production and staging migrated to ECS in November 2025. Beanstalk environments scaled to zero, pending final decommission.
 
 **Infrastructure as Code**
 
@@ -82,7 +82,7 @@ Papertrail
 
 Authentication: oAuth2 with Mobile-ID, ID-card and Smart-ID
 
-[Swagger UI](https://onboarding-service.tuleva.ee/swagger-ui/)
+[Swagger UI](https://onboarding-service.tuleva.ee/swagger-ui/index.html)
 
 [Postman API collection](reference/api.postman_collection) (outdated)
 
@@ -204,7 +204,7 @@ In case file has multiple certificate chains, `import-certs.sh` will add all of 
    * If there are errors with multiple certificates, either remove or split them by opening the `.pem` file with a text editor.
      * For example a root cert might be added (unnecessarily for our use case) to the cert you are trying to add to the truststore
    * When changing `staging` certs, also add them to `src/test_keys/truststore.jks` for your local `dev` environment.
-4. **For ECS**: Truststore is downloaded from S3 during container startup via entrypoint script.
+4. **For ECS (primary)**: Truststore is downloaded from S3 during container startup via entrypoint script. Redeploy via CircleCI or force new deployment.
 5. **For Beanstalk (legacy)**: Do a clean deploy to ensure that new EC2 instance is spun up, and S3 files defined in `.ebextensions/keystore.config` are copied over.
 
 
@@ -311,6 +311,44 @@ terraform apply -var-file=staging.tfvars
 - `*.tf` files - Infrastructure code (main.tf, variables.tf, outputs.tf, etc.)
 - `*.tfvars` files - Environment configurations (staging, production)
 - Helper scripts - Setup, upload, and download scripts
+
+## CloudFlare Workers
+
+The application uses CloudFlare Workers to route traffic between S3 (static assets) and ECS (backend API):
+
+**Routing Rules**:
+- `/api/*` → Backend (strips `/api` prefix before forwarding)
+- `/oauth/*` → Backend (OAuth endpoints for authentication, including token refresh)
+- Everything else → S3 (static frontend assets)
+
+**Worker Files** (in `infrastructure/`):
+- `cloudflare-worker-pension.js` - Production worker for `pension.tuleva.ee`
+- `cloudflare-worker-staging.js` - Staging worker for `staging.tuleva.ee`
+
+**Deployment**:
+Workers are deployed manually via CloudFlare Dashboard (not automated in CircleCI). 
+
+**Architecture**:
+- Visitors access: `https://pension.tuleva.ee` (HTTPS via CloudFlare)
+- CloudFlare Worker handles routing based on path
+- Backend: `https://ecs-onboarding-service.tuleva.ee` (HTTPS)
+- S3 Static Assets: `http://pension.tuleva.ee.s3-website.eu-central-1.amazonaws.com` (HTTP)
+
+**Testing**:
+```bash
+# Test API routing (should reach backend)
+curl -X POST https://pension.tuleva.ee/api/authenticate \
+  -H "Content-Type: application/json" \
+  -d '{"phoneNumber":"test","personalCode":"test","type":"MOBILE_ID"}'
+
+# Test OAuth routing (should reach backend, not S3)
+curl -X POST https://pension.tuleva.ee/oauth/refresh-token \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token":"test"}'
+
+# Test static assets (should reach S3)
+curl -I https://pension.tuleva.ee/
+```
 
 ---
 

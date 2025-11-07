@@ -263,12 +263,10 @@ Location: `s3://tuleva-infrastructure/onboarding-service/terraform/`
 
 **First time setup**:
 ```bash
-# 1. Navigate to terraform directory
+# 1. Navigate to terraform directory and set AWS_PROFILE
 cd infrastructure/terraform
 
-# 2. Bootstrap: Download the download script from S3
-aws s3 cp s3://tuleva-infrastructure/onboarding-service/terraform/download-terraform-from-s3.sh . \
-  --profile AdministratorAccess-641866833894
+# 2. Set permissions
 chmod +x download-terraform-from-s3.sh
 
 # 3. Download all terraform files

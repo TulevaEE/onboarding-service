@@ -265,7 +265,7 @@ Location: `s3://tuleva-infrastructure/onboarding-service/terraform/`
 ```bash
 # 1. Navigate to terraform directory and set AWS_PROFILE
 cd infrastructure/terraform
-
+export AWS_PROFILE=<your profile>
 # 2. Set permissions
 chmod +x download-terraform-from-s3.sh
 

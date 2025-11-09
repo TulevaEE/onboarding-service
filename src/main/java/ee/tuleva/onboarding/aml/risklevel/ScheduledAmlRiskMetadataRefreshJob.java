@@ -14,7 +14,7 @@ public class ScheduledAmlRiskMetadataRefreshJob {
 
   private final AmlRiskRepositoryService amlRiskRepositoryService;
 
-  @Scheduled(cron = "0 0 6,12,22 * * ?", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 0 9,13,16 * * ?", zone = "Europe/Tallinn")
   public void refreshAmlRiskMetadata() {
     log.info("Starting scheduled AML risk metadata view refresh");
     amlRiskRepositoryService.refreshAmlRiskMetadataView();

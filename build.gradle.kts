@@ -85,8 +85,8 @@ dependencies {
 
     implementation("com.nimbusds:nimbus-jose-jwt:10.5")
 
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.13")
-    implementation("org.springdoc:springdoc-openapi-starter-common:2.8.13")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.14")
+    implementation("org.springdoc:springdoc-openapi-starter-common:2.8.14")
     implementation("org.springframework.session:spring-session-jdbc")
 
     runtimeOnly("org.postgresql:postgresql")

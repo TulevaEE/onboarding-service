@@ -29,4 +29,6 @@ public interface EmailRepository extends CrudRepository<Email, Long> {
       String personalCode, EmailType type);
 
   boolean existsByType(EmailType type);
+
+  Optional<Email> findByMandrillMessageId(String mandrillMessageId);
 }

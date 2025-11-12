@@ -179,9 +179,21 @@ The application follows domain-driven design with these main domains:
 - **Self-documenting code over comments**: Follow clean code principles - code should be self-explanatory
   - Use meaningful variable, method, and class names that clearly express intent
   - Extract complex logic into well-named methods
-  - Only use comments when absolutely necessary (e.g., explaining WHY, not WHAT)
+  - **Avoid comments entirely** - they rot and become outdated; code is the source of truth
+  - **When to use comments** (rare exceptions):
+    - External API links: `@see <a href="...">Documentation</a>` for third-party integrations
+    - Security-critical WHY: Only when the reason isn't obvious (e.g., "Uses constant-time comparison" → Extract to method `constantTimeEquals()` instead)
+    - Legal/licensing requirements
+  - **Never comment WHAT the code does** - the code itself should make this obvious
+  - **Never comment HOW it works** - extract to well-named methods instead
   - ❌ Bad: `// Check if payment is negative and not to investment account`
   - ✅ Good: Method name `isOutgoingReturnPayment()` with clear boolean logic
+  - ❌ Bad: `// Constant-time comparison to prevent timing attacks` + inline code
+  - ✅ Good: Extract to method `constantTimeEquals(expected, received)` - name explains intent
+  - ❌ Bad: `// Sort parameters by key and concatenate` - obvious from the code
+  - ✅ Good: Method name `buildSignedData()` makes intent clear without comments
+  - **Remove ALL Javadoc from implementation classes** - method signatures should be self-explanatory
+  - **Keep Javadoc only on public APIs** where external documentation is genuinely needed
 - **Prefer code readability**: Write code that reads like well-written prose
   - Method names should describe what they do: `hasLedgerEntry()`, `isOnboardingCompleted()`
   - Variable names should describe what they contain: `unrecordedUnattributedPayments`, `closingBankBalance`
@@ -198,6 +210,13 @@ The application follows domain-driven design with these main domains:
   - ❌ Bad: `createTransaction(date, null, metadata, entries)`
   - ✅ Good: Create overloaded method `createTransaction(date, metadata, entries)` that delegates to the full version
   - This makes the API cleaner and prevents NullPointerExceptions
+- **Use Lombok @Builder to avoid null constructor arguments**:
+  - For classes/records with many optional parameters, use Lombok's @Builder annotation
+  - This eliminates the need to pass `null` for unused optional parameters in constructors
+  - ❌ Bad: `new MyEvent("type", "id", 123L, null, null, null)` - unclear which parameters are null
+  - ✅ Good: `MyEvent.builder().type("type").id("id").ts(123L).build()` - only set what you need
+  - Builder pattern makes code more readable and maintainable, especially in tests
+  - Works with both classes and records (since Lombok 1.18.20+)
 
 #### Assertions Best Practices
 - **Always use AssertJ** for assertions instead of JUnit assertions for better readability and error messages
@@ -278,3 +297,31 @@ class ServiceTest {
 - PostgreSQL database running locally or via Docker
 - Java 21 with preview features enabled
 - File encoding must be UTF-8
+
+## Controller Architecture
+
+### Keep Controllers Lean
+Controllers should be thin routing layers with minimal logic. They should only:
+- Parse and validate request data (using built-in Spring annotations)
+- Delegate to service layer for business logic
+- Handle HTTP concerns (status codes, headers)
+- Return responses
+
+**Never put business logic in controllers** - extract it into dedicated service or helper classes.
+
+### Extract Complex Logic into Separate Classes
+
+When controllers need complex operations (signature verification, encryption, data transformation), extract them into dedicated `@Component` classes:
+
+- **Signature/Authentication**: Create `*Verifier` or `*Authenticator` classes
+  - Example: `MandrillSignatureVerifier`, `JwtTokenVerifier`
+- **Data Transformation**: Create `*Mapper` or `*Converter` classes
+  - Example: `PaymentResponseMapper`, `XmlToJsonConverter`
+- **Validation**: Create `*Validator` classes
+  - Example: `BankStatementValidator`, `PersonalCodeValidator`
+
+These classes should be:
+- Annotated with `@Component` for Spring injection
+- Focused on a single responsibility
+- Easily testable in isolation
+- Reusable across multiple controllers if needed

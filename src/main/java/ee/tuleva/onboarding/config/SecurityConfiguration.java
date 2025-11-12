@@ -41,6 +41,7 @@ public class SecurityConfiguration {
                         "/oauth/refresh-token",
                         "/idLogin",
                         "/notifications/payments",
+                        "/v1/emails/webhooks/**",
                         "/error")
                     .permitAll()
                     .requestMatchers(

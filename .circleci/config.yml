@@ -124,8 +124,6 @@ jobs:
     docker:
       - image: cimg/aws:2025.01
     steps:
-      - aws-cli/setup:
-          skip_install_check: true
       - run:
           name: Retag latest as ecs-latest and force ECS deployment
           command: |

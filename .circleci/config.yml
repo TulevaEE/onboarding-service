@@ -4,6 +4,14 @@ orbs:
   aws-cli: circleci/aws-cli@5.3.2
   codecov: codecov/codecov@5.3.0
   snyk: snyk/snyk@2.3.0
+
+executors:
+  machine-with-docker-layer-caching:
+    machine:
+      image: ubuntu-2404:current
+      docker_layer_caching: true
+    resource_class: medium
+
 jobs:
   build:
     environment:
@@ -221,6 +229,7 @@ workflows:
 
       - aws-ecr/build_and_push_image:
           name: build_and_push_image
+          executor: machine-with-docker-layer-caching
           requires:
             - build
             - flag-for-additional-review
@@ -233,9 +242,6 @@ workflows:
           tag: 'latest,${CIRCLE_SHA1}'
           attach_workspace: true
           workspace_root: .
-          setup_remote_docker: true
-          remote_docker_layer_caching: true
-          remote_docker_version: default
           filters:
             branches:
               only: master

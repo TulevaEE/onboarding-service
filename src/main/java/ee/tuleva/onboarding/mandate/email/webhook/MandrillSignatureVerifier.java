@@ -28,13 +28,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class MandrillSignatureVerifier {
 
-  @Value("${mandrill.key:#{null}}")
+  @Value("${mandrill.webhook.key:#{null}}")
   private String webhookKey;
-
-  @Value("${api.url}")
-  private String apiUrl;
-
-  private static final String WEBHOOK_PATH = "/v1/emails/webhooks/mandrill";
 
   public boolean verify(HttpServletRequest request, String receivedSignature) {
     if (receivedSignature == null || receivedSignature.isEmpty()) {
@@ -48,7 +43,7 @@ public class MandrillSignatureVerifier {
     }
 
     try {
-      String webhookUrl = apiUrl + WEBHOOK_PATH;
+      String webhookUrl = buildWebhookUrlFromRequest(request);
       String signedData = buildSignedData(webhookUrl, request.getParameterMap());
       String expectedSignature = generateSignature(signedData);
 
@@ -64,6 +59,14 @@ public class MandrillSignatureVerifier {
       log.error("Error verifying Mandrill webhook signature", e);
       return false;
     }
+  }
+
+  private String buildWebhookUrlFromRequest(HttpServletRequest request) {
+    String scheme = request.getScheme();
+    String host = request.getServerName();
+    String path = request.getRequestURI();
+
+    return scheme + "://" + host + path;
   }
 
   private boolean constantTimeEquals(String expected, String received) {

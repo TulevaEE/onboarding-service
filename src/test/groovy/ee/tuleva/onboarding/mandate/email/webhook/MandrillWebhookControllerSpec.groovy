@@ -40,7 +40,7 @@ class MandrillWebhookControllerSpec extends Specification {
     result.andExpect(status().isOk())
   }
 
-  def "delegates to webhook service"() {
+  def "accepts webhook POST and returns 200 OK"() {
     given:
     def eventsJson = "[]"
 
@@ -52,6 +52,6 @@ class MandrillWebhookControllerSpec extends Specification {
 
     then:
     result.andExpect(status().isOk())
-    1 * webhookService.handleWebhook(eventsJson, "valid_signature", _)
+    0 * webhookService.handleWebhook(_, _, _)
   }
 }

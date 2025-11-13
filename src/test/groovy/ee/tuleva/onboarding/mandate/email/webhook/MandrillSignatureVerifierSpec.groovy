@@ -1,23 +1,17 @@
 package ee.tuleva.onboarding.mandate.email.webhook
 
-import jakarta.servlet.http.HttpServletRequest
+import org.springframework.mock.web.MockHttpServletRequest
 import spock.lang.Specification
-
-import javax.crypto.Mac
-import javax.crypto.spec.SecretKeySpec
-import java.nio.charset.StandardCharsets
 
 class MandrillSignatureVerifierSpec extends Specification {
 
   MandrillSignatureVerifier verifier = new MandrillSignatureVerifier()
   String webhookKey = "test_webhook_key_123"
-  String apiUrl = "https://onboarding-service.tuleva.ee"
 
   def "verify returns false when webhook key is not configured"() {
     given:
     verifier.webhookKey = null
-    verifier.apiUrl = apiUrl
-    def request = Mock(HttpServletRequest)
+    def request = new MockHttpServletRequest()
 
     when:
     def result = verifier.verify(request, "some_signature")
@@ -29,8 +23,7 @@ class MandrillSignatureVerifierSpec extends Specification {
   def "verify returns false when signature is null"() {
     given:
     verifier.webhookKey = webhookKey
-    verifier.apiUrl = apiUrl
-    def request = Mock(HttpServletRequest)
+    def request = new MockHttpServletRequest()
 
     when:
     def result = verifier.verify(request, null)
@@ -42,8 +35,7 @@ class MandrillSignatureVerifierSpec extends Specification {
   def "verify returns false when signature is empty"() {
     given:
     verifier.webhookKey = webhookKey
-    verifier.apiUrl = apiUrl
-    def request = Mock(HttpServletRequest)
+    def request = new MockHttpServletRequest()
 
     when:
     def result = verifier.verify(request, "")
@@ -55,17 +47,20 @@ class MandrillSignatureVerifierSpec extends Specification {
   def "verify returns true for valid signature"() {
     given:
     verifier.webhookKey = webhookKey
-    verifier.apiUrl = apiUrl
-    def url = apiUrl + "/v1/emails/webhooks/mandrill"
-    def mandrillEvents = '[{"event":"open"}]'
-    def expectedSignature = generateTestSignature(url, mandrillEvents)
+    String host = "onboarding-service.tuleva.ee"
+    String webhookPath = "/v1/emails/webhooks/mandrill"
+    String mandrillEvents = '[{"event":"open"}]'
 
-    def request = Mock(HttpServletRequest) {
-      getParameterMap() >> ["mandrill_events": [mandrillEvents] as String[]]
+    def request = new MockHttpServletRequest().tap {
+      scheme = "https"
+      serverName = host
+      serverPort = 443
+      requestURI = webhookPath
+      addParameter("mandrill_events", mandrillEvents)
     }
 
     when:
-    def result = verifier.verify(request, expectedSignature)
+    def result = verifier.verify(request, "au95xsZLFFgTtfD1Ipa2mX7CXuo=")
 
     then:
     result
@@ -74,9 +69,12 @@ class MandrillSignatureVerifierSpec extends Specification {
   def "verify returns false for invalid signature"() {
     given:
     verifier.webhookKey = webhookKey
-    verifier.apiUrl = apiUrl
-    def request = Mock(HttpServletRequest) {
-      getParameterMap() >> ["mandrill_events": ['[{"event":"open"}]'] as String[]]
+    def request = new MockHttpServletRequest().tap {
+      scheme = "https"
+      serverName = "onboarding-service.tuleva.ee"
+      serverPort = 443
+      requestURI = "/v1/emails/webhooks/mandrill"
+      addParameter("mandrill_events", '[{"event":"open"}]')
     }
 
     when:
@@ -86,14 +84,25 @@ class MandrillSignatureVerifierSpec extends Specification {
     !result
   }
 
-  private String generateTestSignature(String url, String mandrillEvents) {
-    String signedData = url + "mandrill_events" + mandrillEvents
+  def "verify handles empty events array from Mandrill"() {
+    given:
+    verifier.webhookKey = webhookKey
+    String host = "onboarding-service.tuleva.ee"
+    String webhookPath = "/v1/emails/webhooks/mandrill"
+    String emptyEventsArray = "[]"
 
-    Mac mac = Mac.getInstance("HmacSHA1")
-    SecretKeySpec secretKey = new SecretKeySpec(webhookKey.getBytes(StandardCharsets.UTF_8), "HmacSHA1")
-    mac.init(secretKey)
+    def request = new MockHttpServletRequest().tap {
+      scheme = "https"
+      serverName = host
+      serverPort = 443
+      requestURI = webhookPath
+      addParameter("mandrill_events", emptyEventsArray)
+    }
 
-    byte[] hmac = mac.doFinal(signedData.getBytes(StandardCharsets.UTF_8))
-    return Base64.getEncoder().encodeToString(hmac)
+    when:
+    def result = verifier.verify(request, "0gS1zQW7WR/S2+dKHVUmSz4D8Sc=")
+
+    then:
+    result
   }
 }

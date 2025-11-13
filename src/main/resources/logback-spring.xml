@@ -1,6 +1,10 @@
 <configuration>
   <include resource="org/springframework/boot/logging/logback/base.xml"/>
-  <!-- Configure the Sentry appender, overriding the logging threshold to the ERROR level -->
+
+  <springProfile name="dev">
+    <logger name="ee.tuleva.onboarding" level="DEBUG"/>
+  </springProfile>
+
   <springProfile name="production, staging">
     <appender name="Sentry" class="io.sentry.logback.SentryAppender">
       <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
@@ -11,6 +15,5 @@
     <root level="INFO">
       <appender-ref ref="Sentry"/>
     </root>
-
   </springProfile>
 </configuration>

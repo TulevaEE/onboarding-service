@@ -23,6 +23,7 @@ public class MandrillWebhookController {
       @RequestParam("mandrill_events") String mandrillEvents,
       @RequestHeader(value = "X-Mandrill-Signature") String signature,
       HttpServletRequest request) {
-    webhookService.handleWebhook(mandrillEvents, signature, request);
+    // TODO: Uncomment once webhook key is configured
+    // webhookService.handleWebhook(mandrillEvents, signature, request);
   }
 }

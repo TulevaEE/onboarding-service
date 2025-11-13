@@ -12,6 +12,7 @@ import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import spock.lang.Specification
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
@@ -30,6 +31,14 @@ class MandrillWebhookControllerSpec extends Specification {
 
   @SpringBean
   PrincipalService principalService = Mock()
+
+  def "responds to HEAD request for webhook verification"() {
+    when:
+    def result = mvc.perform(head("/v1/emails/webhooks/mandrill"))
+
+    then:
+    result.andExpect(status().isOk())
+  }
 
   def "delegates to webhook service"() {
     given:

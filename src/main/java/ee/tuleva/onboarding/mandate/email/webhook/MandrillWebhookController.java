@@ -5,12 +5,17 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import static org.springframework.web.bind.annotation.RequestMethod.HEAD;
+
 @RestController
 @RequestMapping("/v1/emails/webhooks")
 @RequiredArgsConstructor
 public class MandrillWebhookController {
 
   private final MandrillWebhookService webhookService;
+
+  @RequestMapping(value = "/mandrill", method = HEAD)
+  public void verifyWebhookExists() {}
 
   @PostMapping("/mandrill")
   @Operation(summary = "Mandrill webhook callback for email events")

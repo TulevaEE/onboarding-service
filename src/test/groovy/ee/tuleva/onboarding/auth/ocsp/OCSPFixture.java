@@ -47,6 +47,12 @@ public class OCSPFixture {
 
   public static X509Certificate generateCertificate(
       String dn, int days, String algorithm, String urlCA, String urlOCSP) throws Exception {
+    return generateCertificate(dn, days, algorithm, urlCA, urlOCSP, false);
+  }
+
+  public static X509Certificate generateCertificate(
+      String dn, int days, String algorithm, String urlCA, String urlOCSP, boolean useNewOidFormat)
+      throws Exception {
 
     try {
       KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
@@ -72,7 +78,10 @@ public class OCSPFixture {
 
       subjectDN = new X500Name(rdns);
       X500Name issuer =
-          new X500Name("C=EE, O=SK ID Solutions AS, OID.2.5.4.97=NTREE-10747013, CN=ESTEID2018");
+          useNewOidFormat
+              ? new X500Name("C=EE, O=Zetes Estonia OÜ, OID.2.5.4.97=NTREE-17066049, CN=ESTEID2025")
+              : new X500Name(
+                  "C=EE, O=SK ID Solutions AS, OID.2.5.4.97=NTREE-10747013, CN=ESTEID2018");
 
       Date from = new Date();
       Date to = new Date(from.getTime() + days * 86400000l);
@@ -121,10 +130,13 @@ public class OCSPFixture {
                 KeyPurposeId.id_kp_clientAuth, KeyPurposeId.id_kp_emailProtection
               }));
 
+      String documentTypeOid =
+          useNewOidFormat ? "1.3.6.1.4.1.51455.2.1.1" : "1.3.6.1.4.1.51455.1.1.1";
+
       CertificatePolicies policies =
           new CertificatePolicies(
               new PolicyInformation[] {
-                new PolicyInformation(new ASN1ObjectIdentifier("1.3.6.1.4.1.51455.1.1.1")),
+                new PolicyInformation(new ASN1ObjectIdentifier(documentTypeOid)),
                 new PolicyInformation(new ASN1ObjectIdentifier("0.4.0.2042.1.2"))
               });
       certGen.addExtension(Extension.certificatePolicies, false, policies);
@@ -141,6 +153,60 @@ public class OCSPFixture {
       throw ce;
     } catch (Exception e) {
       throw new CertificateException(e);
+    }
+  }
+
+  public static X509Certificate generateCertificateWithPolicies(
+      String documentTypeOid, String authPolicyOid) {
+    try {
+      KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+      keyPairGenerator.initialize(2048);
+      KeyPair keyPair = keyPairGenerator.generateKeyPair();
+      PrivateKey privateKey = keyPair.getPrivate();
+      PublicKey publicKey = keyPair.getPublic();
+
+      BigInteger serialNumber = new BigInteger(64, new SecureRandom());
+      X500Name subjectDN = new X500Name("C=EE, O=Test, CN=Test User");
+      X500Name issuer =
+          new X500Name("C=EE, O=SK ID Solutions AS, OID.2.5.4.97=NTREE-10747013, CN=ESTEID2018");
+
+      Date from = new Date();
+      Date to = new Date(from.getTime() + 365 * 86400000L);
+
+      SubjectPublicKeyInfo subPubKeyInfo = SubjectPublicKeyInfo.getInstance(publicKey.getEncoded());
+      AlgorithmIdentifier sigAlgId =
+          new DefaultSignatureAlgorithmIdentifierFinder().find("SHA256WITHRSA");
+      AlgorithmIdentifier digAlgId = new DefaultDigestAlgorithmIdentifierFinder().find(sigAlgId);
+      AsymmetricKeyParameter privateKeyAsymKeyParam =
+          PrivateKeyFactory.createKey(privateKey.getEncoded());
+      ContentSigner sigGen =
+          new BcRSAContentSignerBuilder(sigAlgId, digAlgId).build(privateKeyAsymKeyParam);
+
+      X509v3CertificateBuilder certGen =
+          new X509v3CertificateBuilder(issuer, serialNumber, from, to, subjectDN, subPubKeyInfo);
+
+      CertificatePolicies policies =
+          new CertificatePolicies(
+              new PolicyInformation[] {
+                new PolicyInformation(new ASN1ObjectIdentifier(documentTypeOid)),
+                new PolicyInformation(new ASN1ObjectIdentifier(authPolicyOid))
+              });
+      certGen.addExtension(Extension.certificatePolicies, false, policies);
+
+      certGen.addExtension(
+          Extension.extendedKeyUsage,
+          false,
+          new ExtendedKeyUsage(
+              new KeyPurposeId[] {
+                KeyPurposeId.id_kp_clientAuth, KeyPurposeId.id_kp_emailProtection
+              }));
+
+      X509CertificateHolder certificateHolder = certGen.build(sigGen);
+      return new JcaX509CertificateConverter()
+          .setProvider(new BouncyCastleProvider())
+          .getCertificate(certificateHolder);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to generate test certificate", e);
     }
   }
 

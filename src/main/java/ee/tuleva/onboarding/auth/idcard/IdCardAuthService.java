@@ -33,7 +33,8 @@ public class IdCardAuthService {
   private static final List<String> VALID_ISSUERS =
       List.of(
           "CN=ESTEID-SK 2015, OID.2.5.4.97=NTREE-10747013, O=AS Sertifitseerimiskeskus, C=EE",
-          "CN=ESTEID2018, OID.2.5.4.97=NTREE-10747013, O=SK ID Solutions AS, C=EE");
+          "CN=ESTEID2018, OID.2.5.4.97=NTREE-10747013, O=SK ID Solutions AS, C=EE",
+          "CN=ESTEID2025, OID.2.5.4.97=NTREE-17066049, O=Zetes Estonia OÜ, C=EE");
 
   private final OCSPAuthService ocspAuthenticator;
   private final GenericSessionStore sessionStore;

@@ -22,7 +22,10 @@ public class AmlCheckNotifier {
     if (List.of(POLITICALLY_EXPOSED_PERSON_AUTO, SANCTION, RISK_LEVEL)
             .contains(event.getAmlCheckType())
         && event.isFailed()) {
-      slackService.sendMessage("AML check failed: type=%s".formatted(event.getAmlCheckType()), AML);
+      slackService.sendMessage(
+          "AML check failed: checkId=%d, type=%s"
+              .formatted(event.getCheckId(), event.getAmlCheckType()),
+          AML);
     }
   }
 

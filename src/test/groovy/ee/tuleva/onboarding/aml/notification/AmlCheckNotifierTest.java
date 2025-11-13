@@ -28,10 +28,11 @@ class AmlCheckNotifierTest {
     AmlCheckCreatedEvent event = mock(AmlCheckCreatedEvent.class);
     when(event.getAmlCheckType()).thenReturn(SANCTION);
     when(event.isFailed()).thenReturn(true);
+    when(event.getCheckId()).thenReturn(123L);
 
     notifier.onAmlCheckCreated(event);
 
-    verify(slackService).sendMessage("AML check failed: type=SANCTION", AML);
+    verify(slackService).sendMessage("AML check failed: checkId=123, type=SANCTION", AML);
   }
 
   @Test

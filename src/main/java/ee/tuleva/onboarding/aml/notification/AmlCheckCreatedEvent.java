@@ -20,4 +20,8 @@ public class AmlCheckCreatedEvent extends ApplicationEvent {
   public boolean isFailed() {
     return !amlCheck.isSuccess();
   }
+
+  public Long getCheckId() {
+    return amlCheck.getId();
+  }
 }

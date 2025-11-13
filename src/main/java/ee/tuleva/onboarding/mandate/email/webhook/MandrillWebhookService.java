@@ -29,6 +29,7 @@ public class MandrillWebhookService {
   private final MandrillSignatureVerifier signatureVerifier;
   private final ObjectMapper objectMapper;
 
+  @Transactional
   public void handleWebhook(String mandrillEvents, String signature, HttpServletRequest request) {
     if (!signatureVerifier.verify(request, signature)) {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid signature");
@@ -38,7 +39,6 @@ public class MandrillWebhookService {
     processWebhookEvents(events);
   }
 
-  @Transactional
   public void processWebhookEvents(List<MandrillWebhookEvent> events) {
     log.info("Processing {} Mandrill webhook events", events.size());
 

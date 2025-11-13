@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class MandrillSignatureVerifier {
 
-  @Value("${mandrill.webhook.key}")
+  @Value("${mandrill.key:#{null}}")
   private String webhookKey;
 
   @Value("${api.url}")

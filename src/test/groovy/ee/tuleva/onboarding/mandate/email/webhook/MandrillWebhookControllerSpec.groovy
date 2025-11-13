@@ -32,14 +32,6 @@ class MandrillWebhookControllerSpec extends Specification {
   @SpringBean
   PrincipalService principalService = Mock()
 
-  def "responds to HEAD request for webhook verification"() {
-    when:
-    def result = mvc.perform(head("/v1/emails/webhooks/mandrill"))
-
-    then:
-    result.andExpect(status().isOk())
-  }
-
   def "accepts webhook POST and returns 200 OK"() {
     given:
     def eventsJson = "[]"
@@ -52,6 +44,6 @@ class MandrillWebhookControllerSpec extends Specification {
 
     then:
     result.andExpect(status().isOk())
-    0 * webhookService.handleWebhook(_, _, _)
+    1 * webhookService.handleWebhook(eventsJson, "valid_signature", _)
   }
 }

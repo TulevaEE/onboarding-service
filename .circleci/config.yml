@@ -167,37 +167,25 @@ jobs:
   notify-sentry-deploy:
     docker:
       - image: cimg/base:stable
-    resource_class: small
     environment:
       SENTRY_PROJECT: onboarding-service
     steps:
       - checkout
-      - run:
-          name: Get Sentry CLI version
-          command: |
-            SENTRY_CLI_VERSION=$(curl -s https://api.github.com/repos/getsentry/sentry-cli/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-            echo "export SENTRY_CLI_VERSION=${SENTRY_CLI_VERSION}" >> $BASH_ENV
-            echo "Latest Sentry CLI version: ${SENTRY_CLI_VERSION}"
       - restore_cache:
           keys:
-            - v1-sentry-cli-{{ arch }}-{{ .Environment.SENTRY_CLI_VERSION }}
-            - v1-sentry-cli-{{ arch }}-
+            - v2-sentry-cli-{{ arch }}
       - run:
-          name: Install or update Sentry CLI
+          name: Install Sentry CLI if not cached
           command: |
             if [ -f ~/.local/bin/sentry-cli ]; then
-              INSTALLED_VERSION=$(~/.local/bin/sentry-cli --version | awk '{print $2}')
-              echo "Installed version: ${INSTALLED_VERSION}"
-              echo "Latest version: ${SENTRY_CLI_VERSION}"
-              if [ "${INSTALLED_VERSION}" = "${SENTRY_CLI_VERSION}" ]; then
-                echo "Sentry CLI is up to date (cached)"
-                exit 0
-              fi
+              echo "Sentry CLI already installed (cached)"
+              ~/.local/bin/sentry-cli --version
+            else
+              echo "Installing Sentry CLI"
+              curl -sL https://sentry.io/get-cli/ | bash
             fi
-            echo "Installing Sentry CLI ${SENTRY_CLI_VERSION}"
-            curl -sL https://sentry.io/get-cli/ | bash
       - save_cache:
-          key: v1-sentry-cli-{{ arch }}-{{ .Environment.SENTRY_CLI_VERSION }}
+          key: v2-sentry-cli-{{ arch }}
           paths:
             - ~/.local/bin/sentry-cli
       - run:

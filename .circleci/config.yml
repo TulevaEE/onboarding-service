@@ -122,9 +122,10 @@ jobs:
 
   deploy-ecs:
     docker:
-      - image: cimg/base:stable
+      - image: cimg/aws:2025.01
     steps:
-      - aws-cli/setup
+      - aws-cli/setup:
+          skip_install_check: true
       - run:
           name: Retag latest as ecs-latest and force ECS deployment
           command: |
@@ -160,14 +161,42 @@ jobs:
   notify-sentry-deploy:
     docker:
       - image: cimg/base:stable
+    resource_class: small
     environment:
       SENTRY_PROJECT: onboarding-service
     steps:
       - checkout
       - run:
+          name: Get Sentry CLI version
+          command: |
+            SENTRY_CLI_VERSION=$(curl -s https://api.github.com/repos/getsentry/sentry-cli/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+            echo "export SENTRY_CLI_VERSION=${SENTRY_CLI_VERSION}" >> $BASH_ENV
+            echo "Latest Sentry CLI version: ${SENTRY_CLI_VERSION}"
+      - restore_cache:
+          keys:
+            - v1-sentry-cli-{{ arch }}-{{ .Environment.SENTRY_CLI_VERSION }}
+            - v1-sentry-cli-{{ arch }}-
+      - run:
+          name: Install or update Sentry CLI
+          command: |
+            if [ -f ~/.local/bin/sentry-cli ]; then
+              INSTALLED_VERSION=$(~/.local/bin/sentry-cli --version | awk '{print $2}')
+              echo "Installed version: ${INSTALLED_VERSION}"
+              echo "Latest version: ${SENTRY_CLI_VERSION}"
+              if [ "${INSTALLED_VERSION}" = "${SENTRY_CLI_VERSION}" ]; then
+                echo "Sentry CLI is up to date (cached)"
+                exit 0
+              fi
+            fi
+            echo "Installing Sentry CLI ${SENTRY_CLI_VERSION}"
+            curl -sL https://sentry.io/get-cli/ | bash
+      - save_cache:
+          key: v1-sentry-cli-{{ arch }}-{{ .Environment.SENTRY_CLI_VERSION }}
+          paths:
+            - ~/.local/bin/sentry-cli
+      - run:
           name: Create release and notify Sentry of deploy
           command: |
-            curl -sL https://sentry.io/get-cli/ | bash
             export SENTRY_RELEASE=$(sentry-cli releases propose-version)
             sentry-cli releases new -p $SENTRY_PROJECT $SENTRY_RELEASE
             sentry-cli releases set-commits $SENTRY_RELEASE --auto
@@ -206,6 +235,9 @@ workflows:
           tag: 'latest,${CIRCLE_SHA1}'
           attach_workspace: true
           workspace_root: .
+          setup_remote_docker: true
+          remote_docker_layer_caching: true
+          remote_docker_version: default
           filters:
             branches:
               only: master

@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.mandate.email.webhook;
 
+import static org.springframework.web.bind.annotation.RequestMethod.HEAD;
+
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import static org.springframework.web.bind.annotation.RequestMethod.HEAD;
 
 @RestController
 @RequestMapping("/v1/emails/webhooks")

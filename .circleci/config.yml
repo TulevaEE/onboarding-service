@@ -2,7 +2,6 @@ version: 2.1
 orbs:
   aws-ecr: circleci/aws-ecr@9.5.1
   aws-cli: circleci/aws-cli@5.3.2
-  eb: circleci/aws-elastic-beanstalk@2.0.1
   codecov: codecov/codecov@5.3.0
   snyk: snyk/snyk@2.3.0
 jobs:
@@ -121,30 +120,6 @@ jobs:
                 echo "No files requiring additional review changed in monitored paths on master branch (or no applicable changes found)."
             fi
 
-  deploy-staging:
-    docker:
-      - image: cimg/base:stable
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - eb/setup
-      - run:
-          name: Deploy master to staging
-          command: eb deploy onboarding-service-staging --label ${CIRCLE_SHA1} --timeout 20
-
-  deploy-production:
-    docker:
-      - image: cimg/base:stable
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - eb/setup
-      - run:
-          name: Deploy master to production
-          command: eb deploy onboarding-service-env --label ${CIRCLE_SHA1} --timeout 20
-
   deploy-ecs:
     docker:
       - image: cimg/base:stable
@@ -242,22 +217,8 @@ workflows:
             branches:
               only: master
 
-      - deploy-staging:
-          requires: [ deploy-ecs ]
-          context: aws
-          filters:
-            branches:
-              only: master
-
-      - deploy-production:
-          requires: [ deploy-ecs ]
-          context: aws
-          filters:
-            branches:
-              only: master
-
       - notify-sentry-deploy:
-          requires: [ deploy-production ]
+          requires: [ deploy-ecs ]
           context: sentry
           filters:
             branches:

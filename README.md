@@ -142,23 +142,10 @@ Download `swedbank-gateway.p12` from `tuleva-secrets/staging` from `S3` and plac
 #### Account fetcher
 For `swedbank-gateway.accounts` in `application.yml`, use `EE062200221055091966` for test account variables.
 
-### Testing ID-card Locally
+### Testing ID-card Authentication
 
-In order to test ID-card locally, you need to run nginx locally with the right certificates and the right domain names.
-
-1. Add tuleva certs to `./nginx` (4 files)
-2. Update ```$frontend``` and `$backend` urls in `etc/eb/.ebextensions/nginx/conf.d/01_ssl_proxy.conf`
-3. Add to `hosts` file:
-   ```
-   127.0.0.1 id.tuleva.ee
-   127.0.0.1 pension.tuleva.ee
-   127.0.0.1 onboarding-service.tuleva.ee
-   ```
-4. Run nginx with docker: `docker compose up nginx`
-5. Add `DANGEROUSLY_DISABLE_HOST_CHECK=true` to `.env` in `onboarding-client`
-6. add `server.servlet.session.cookie.domain: tuleva.ee` to `application.yml`
-7. Test through https://pension.tuleva.ee
-8. Later, don't forget to clean up your `hosts` file
+ID-card authentication is implemented using AWS ALB mutual TLS in production and staging environments.
+Use or production environment such as `id-staging.tuleva.ee/idLogin` for tests.
 
 ### AWS Profile
 WE use AWS SSO, to get it working properly you need to configure the profile first either by running `aws configure sso` or

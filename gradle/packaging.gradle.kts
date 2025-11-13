@@ -1,29 +1,4 @@
-val gitProps: Map<String, String> by extra
-
 tasks {
-    val collectFiles by registering(Copy::class) {
-        dependsOn("jar", "generateGitProperties")
-
-        from("$rootDir/etc/eb/.ebextensions") { into(".ebextensions") }
-        from("$rootDir/etc/eb/.platform") { into(".platform") }
-
-        into(layout.buildDirectory.dir("zip"))
-
-        doLast {
-            copy {
-                from("$rootDir/etc/eb/docker-compose.yml") {
-                    expand(mapOf("hash" to gitProps["git.commit.id"]))
-                }
-                into(layout.buildDirectory.dir("zip"))
-            }
-        }
-    }
-
-    val zipWithExtensions by registering(Zip::class) {
-        dependsOn(collectFiles)
-        from(collectFiles)
-    }
-
     val unpack by registering(Copy::class) {
         dependsOn(named("bootJar"))
 
@@ -37,6 +12,6 @@ tasks {
     }
 
     named("assemble") {
-        dependsOn(unpack, zipWithExtensions)
+        dependsOn(unpack)
     }
 }

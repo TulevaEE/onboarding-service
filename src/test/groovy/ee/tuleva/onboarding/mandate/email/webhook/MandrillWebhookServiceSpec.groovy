@@ -82,7 +82,7 @@ class MandrillWebhookServiceSpec extends Specification {
 
     then:
     1 * eventLogRepository.save({ EventLog log ->
-      log.type == "open" &&
+      log.type == "OPEN" &&
           log.principal == personalCode &&
           log.timestamp == Instant.ofEpochSecond(eventTimestamp) &&
           log.data.mandrillMessageId == mandrillMessageId &&
@@ -102,7 +102,7 @@ class MandrillWebhookServiceSpec extends Specification {
 
     then:
     1 * eventLogRepository.save({ EventLog log ->
-      log.type == "click" &&
+      log.type == "CLICK" &&
           log.principal == personalCode &&
           log.data.url == "https://tuleva.ee/en/2nd-pillar" &&
           log.data.mandrillMessageId == mandrillMessageId
@@ -182,7 +182,7 @@ class MandrillWebhookServiceSpec extends Specification {
 
     then:
     1 * eventLogRepository.save({ EventLog log ->
-      log.type == "open" &&
+      log.type == "OPEN" &&
           log.data.mandrillMessageId == mandrillMessageId &&
           log.data.emailType == SECOND_PILLAR_MANDATE.name() &&
           !log.data.containsKey("url")

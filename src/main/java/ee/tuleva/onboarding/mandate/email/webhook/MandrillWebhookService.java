@@ -95,7 +95,7 @@ public class MandrillWebhookService {
 
     EventLog eventLog =
         EventLog.builder()
-            .type(eventType)
+            .type(eventType.toUpperCase())
             .principal(email.getPersonalCode())
             .timestamp(timestamp)
             .data(eventData)

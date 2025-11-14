@@ -128,12 +128,29 @@ jobs:
                 echo "No files requiring additional review changed in monitored paths on master branch (or no applicable changes found)."
             fi
 
-  deploy-ecs:
+  deploy-ecs-staging:
     docker:
       - image: cimg/aws:2025.01
     steps:
       - run:
-          name: Retag latest as ecs-latest and force ECS deployment
+          name: Deploy to ECS staging
+          command: |
+            echo "🚀 Forcing ECS staging service update..."
+
+            aws ecs update-service \
+              --cluster onboarding-service-cluster \
+              --service onboarding-service-staging \
+              --force-new-deployment \
+              --region eu-central-1
+
+            echo "✅ ECS staging deployment initiated"
+
+  deploy-ecs-production:
+    docker:
+      - image: cimg/aws:2025.01
+    steps:
+      - run:
+          name: Retag latest as ecs-latest and deploy to ECS production
           command: |
             echo "🏷️  Retagging :latest as :ecs-latest for ECS..."
 
@@ -234,7 +251,14 @@ workflows:
             branches:
               only: master
 
-      - deploy-ecs:
+      - deploy-ecs-staging:
+          requires: [ build_and_push_image ]
+          context: aws
+          filters:
+            branches:
+              only: master
+
+      - deploy-ecs-production:
           requires: [ build_and_push_image ]
           context: aws
           filters:
@@ -242,7 +266,7 @@ workflows:
               only: master
 
       - notify-sentry-deploy:
-          requires: [ deploy-ecs ]
+          requires: [ deploy-ecs-production ]
           context: sentry
           filters:
             branches:

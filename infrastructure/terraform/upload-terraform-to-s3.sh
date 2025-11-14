@@ -3,6 +3,7 @@ set -e
 
 # Upload Terraform Files to S3
 # Uploads all terraform configuration files to s3://tuleva-infrastructure/onboarding-service/terraform/
+# Uses sync with --delete to mirror local state (including deletions)
 
 BUCKET_NAME="tuleva-infrastructure"
 S3_PREFIX="onboarding-service/terraform"
@@ -15,48 +16,28 @@ echo "   Bucket: s3://${BUCKET_NAME}/${S3_PREFIX}/"
 echo "   Local: ${SCRIPT_DIR}"
 echo ""
 
-# Function to upload a file with metadata
-upload_file() {
-    local file=$1
-    local s3_key="${S3_PREFIX}/${file}"
-
-    echo "  📄 Uploading: ${file}"
-    aws s3 cp "${SCRIPT_DIR}/${file}" "s3://${BUCKET_NAME}/${s3_key}" \
-        --sse AES256 \
-        --region ${REGION} \
-        --profile ${AWS_PROFILE} \
-        --metadata "uploaded-at=$(date -u +%Y-%m-%dT%H:%M:%SZ),uploaded-by=${USER}"
-}
-
-# Upload main terraform files
-echo "📋 Core Terraform files:"
-upload_file "main.tf"
-upload_file "variables.tf"
-upload_file "outputs.tf"
-
-# Upload module files
-echo ""
-echo "🔧 Module files:"
-upload_file "alb-trust-store.tf"
-upload_file "log-streaming.tf"
-
-# Upload configuration files
-echo ""
-echo "⚙️  Configuration files:"
-upload_file "staging.tfvars"
-upload_file "production.tfvars"
-
-# Upload all scripts (including upload/download scripts for bootstrapping new machines)
-echo ""
-echo "🔨 Helper scripts:"
-for script in *.sh; do
-    upload_file "$script"
-done
+# Sync all files to S3
+# --delete flag ensures files deleted locally are also deleted from S3
+# --exclude prevents uploading provider binaries
+echo "🔄 Syncing files (including deletions)..."
+aws s3 sync "${SCRIPT_DIR}/" "s3://${BUCKET_NAME}/${S3_PREFIX}/" \
+    --exclude ".terraform/*" \
+    --exclude "backup-*/*" \
+    --delete \
+    --sse AES256 \
+    --region ${REGION} \
+    --profile ${AWS_PROFILE}
 
 echo ""
 echo "✅ Upload complete!"
 echo ""
-echo "📊 Verify upload:"
+
+# Show what was uploaded
+echo "📁 Files in S3:"
+aws s3 ls "s3://${BUCKET_NAME}/${S3_PREFIX}/" --recursive --region ${REGION} --profile ${AWS_PROFILE} | tail -20
+
+echo ""
+echo "📊 Full listing:"
 echo "   aws s3 ls s3://${BUCKET_NAME}/${S3_PREFIX}/ --recursive --profile ${AWS_PROFILE}"
 echo ""
 echo "💾 List versions (if you need to rollback):"

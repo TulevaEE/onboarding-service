@@ -27,12 +27,12 @@ if ls "${SCRIPT_DIR}"/*.tf &>/dev/null || ls "${SCRIPT_DIR}"/*.tfvars &>/dev/nul
     echo ""
 fi
 
-# Download all files from S3
+# Download all files from S3 (including state files and lock file for team collaboration)
+# --delete flag ensures files deleted from S3 are also deleted locally
 echo "📥 Downloading files..."
 aws s3 sync "s3://${BUCKET_NAME}/${S3_PREFIX}/" "${SCRIPT_DIR}/" \
-    --exclude "*.tfstate*" \
     --exclude ".terraform/*" \
-    --exclude ".terraform.lock.hcl" \
+    --delete \
     --region ${REGION} \
     --profile ${AWS_PROFILE}
 

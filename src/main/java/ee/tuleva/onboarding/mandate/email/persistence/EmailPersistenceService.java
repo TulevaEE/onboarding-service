@@ -51,7 +51,14 @@ public class EmailPersistenceService {
             .mandate(mandate)
             .build();
     log.info("Saving an email: email={}", scheduledEmail);
-    return emailRepository.save(scheduledEmail);
+    try {
+      Email savedEmail = emailRepository.save(scheduledEmail);
+      log.info("Email saved successfully: savedEmail={}", savedEmail);
+      return savedEmail;
+    } catch (Exception e) {
+      log.error("Failed to save email: email={}", scheduledEmail, e);
+      throw e;
+    }
   }
 
   public Email save(
@@ -65,7 +72,14 @@ public class EmailPersistenceService {
             .mandateBatch(mandateBatch)
             .build();
     log.info("Saving an email: email={}", scheduledEmail);
-    return emailRepository.save(scheduledEmail);
+    try {
+      Email savedEmail = emailRepository.save(scheduledEmail);
+      log.info("Email saved successfully: savedEmail={}", savedEmail);
+      return savedEmail;
+    } catch (Exception e) {
+      log.error("Failed to save email: email={}", scheduledEmail, e);
+      throw e;
+    }
   }
 
   public List<Email> cancel(Person person, EmailType type) {

@@ -3,12 +3,12 @@ package ee.tuleva.onboarding.notification.email.auto;
 import static ee.tuleva.onboarding.analytics.earlywithdrawals.AnalyticsEarlyWithdrawalFixture.anEarlyWithdrawal;
 import static ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaverFixture.aLeaverWith;
 import static ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaverFixture.anotherLeaverWith;
-import static org.assertj.core.api.Assertions.assertThat;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.SCHEDULED;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_EARLY_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_LEAVERS;
 import static ee.tuleva.onboarding.notification.email.auto.EmailEvent.NEW_EARLY_WITHDRAWAL;
 import static ee.tuleva.onboarding.notification.email.auto.EmailEvent.NEW_LEAVER;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -400,10 +400,8 @@ class AutoEmailSenderTest {
   void passesTomorrowAsEndDateToRepository() {
     var leaver = aLeaverWith().build();
     when(leaversRepository.fetch(any(), any())).thenReturn(List.of(leaver));
-    when(emailPersistenceService.getLastEmailSendDate(any(), any()))
-        .thenReturn(Optional.empty());
-    when(emailPersistenceService.hasEmailTypeBeenSentBefore(any()))
-        .thenReturn(true);
+    when(emailPersistenceService.getLastEmailSendDate(any(), any())).thenReturn(Optional.empty());
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(any())).thenReturn(true);
     when(withdrawalsRepository.fetch(any(), any())).thenReturn(List.of());
 
     autoEmailSender.sendAutoEmails();
@@ -426,16 +424,11 @@ class AutoEmailSenderTest {
   void sendsEmailForTransactionCreatedToday() {
     LocalDate today = LocalDate.of(2020, 1, 1);
     LocalDate tomorrow = today.plusDays(1);
-    var leaverCreatedToday = aLeaverWith()
-        .dateCreated(today)
-        .lastEmailSentDate(null)
-        .build();
+    var leaverCreatedToday = aLeaverWith().dateCreated(today).lastEmailSentDate(null).build();
 
     when(leaversRepository.fetch(any(), any())).thenReturn(List.of(leaverCreatedToday));
-    when(emailPersistenceService.getLastEmailSendDate(any(), any()))
-        .thenReturn(Optional.empty());
-    when(emailPersistenceService.hasEmailTypeBeenSentBefore(any()))
-        .thenReturn(true);
+    when(emailPersistenceService.getLastEmailSendDate(any(), any())).thenReturn(Optional.empty());
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(any())).thenReturn(true);
     when(withdrawalsRepository.fetch(any(), any())).thenReturn(List.of());
 
     autoEmailSender.sendAutoEmails();

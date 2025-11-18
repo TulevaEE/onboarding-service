@@ -14,7 +14,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @JsonView(MandateView.Default.class)
-@ValidAddress
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Address {
 

@@ -8,9 +8,9 @@ import spock.lang.Specification
 
 import java.time.LocalDate
 
-import static ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaverFixture.leaverFixture
-import static ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaverFixture.leaverFixture2
-import static ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaverFixture.leaverFixture3
+import static ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaverFixture.aLeaverWith
+import static ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaverFixture.anotherLeaverWith
+import static ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaverFixture.thirdLeaverWith
 
 
 @DataJdbcTest
@@ -25,7 +25,9 @@ class ExchangeTransactionLeaversRepositorySpec extends Specification {
 
   def "can fetch leavers"() {
     given:
-    def aLeaver = leaverFixture(null)
+    def aLeaver = aLeaverWith()
+        .lastEmailSentDate(null)
+        .build()
     insertIntoExchangeTransaction(aLeaver)
     insertIntoMvCrmMailchimp(aLeaver)
 
@@ -40,7 +42,7 @@ class ExchangeTransactionLeaversRepositorySpec extends Specification {
 
   def "can fetch leaver with emails sent"() {
     given:
-    def aLeaver = leaverFixture()
+    def aLeaver = aLeaverWith().build()
     insertIntoExchangeTransaction(aLeaver)
     insertIntoMvCrmMailchimp(aLeaver)
     insertIntoEmail(aLeaver)
@@ -56,9 +58,15 @@ class ExchangeTransactionLeaversRepositorySpec extends Specification {
 
   def "does not fetch old reporting date leavers"() {
     given:
-    def aLeaver = leaverFixture(null)
-    def aLeaver2 = leaverFixture2(null)
-    def aLeaver3 = leaverFixture3(null)
+    def aLeaver = aLeaverWith()
+        .lastEmailSentDate(null)
+        .build()
+    def aLeaver2 = anotherLeaverWith()
+        .lastEmailSentDate(null)
+        .build()
+    def aLeaver3 = thirdLeaverWith()
+        .lastEmailSentDate(null)
+        .build()
 
     def oldReportingDate = LocalDate.parse("2016-01-01")
     def previousReportingDate = LocalDate.parse("2021-01-01")
@@ -77,6 +85,68 @@ class ExchangeTransactionLeaversRepositorySpec extends Specification {
 
     then:
     leavers == [aLeaver3]
+  }
+
+  def "includes transactions created on last day when end date is inclusive"() {
+    given:
+    def today = LocalDate.parse("2021-01-31")
+    def tomorrow = today.plusDays(1)
+    def reportingDate = tomorrow
+
+    def leaverCreatedToday = aLeaverWith()
+        .dateCreated(today)
+        .lastEmailSentDate(null)
+        .build()
+
+    def leaverCreatedTomorrow = anotherLeaverWith()
+        .dateCreated(tomorrow)
+        .lastEmailSentDate(null)
+        .build()
+
+    insertIntoExchangeTransaction(leaverCreatedToday, reportingDate)
+    insertIntoExchangeTransaction(leaverCreatedTomorrow, reportingDate)
+
+    insertIntoMvCrmMailchimp(leaverCreatedToday)
+    insertIntoMvCrmMailchimp(leaverCreatedTomorrow)
+
+    when:
+    List<ExchangeTransactionLeaver> leavers =
+        leaversRepository.fetch(LocalDate.parse("2021-01-01"), today)
+
+    then:
+    leavers == [leaverCreatedToday]
+    !leavers.contains(leaverCreatedTomorrow)
+  }
+
+  def "excludes transactions created before first day when start date is inclusive"() {
+    given:
+    def today = LocalDate.parse("2021-01-01")
+    def yesterday = today.minusDays(1)
+    def reportingDate = today.plusMonths(1)
+
+    def leaverCreatedYesterday = aLeaverWith()
+        .dateCreated(yesterday)
+        .lastEmailSentDate(null)
+        .build()
+
+    def leaverCreatedToday = anotherLeaverWith()
+        .dateCreated(today)
+        .lastEmailSentDate(null)
+        .build()
+
+    insertIntoExchangeTransaction(leaverCreatedYesterday, reportingDate)
+    insertIntoExchangeTransaction(leaverCreatedToday, reportingDate)
+
+    insertIntoMvCrmMailchimp(leaverCreatedYesterday)
+    insertIntoMvCrmMailchimp(leaverCreatedToday)
+
+    when:
+    List<ExchangeTransactionLeaver> leavers =
+        leaversRepository.fetch(today, LocalDate.parse("2021-01-31"))
+
+    then:
+    leavers == [leaverCreatedToday]
+    !leavers.contains(leaverCreatedYesterday)
   }
 
   private def insertIntoExchangeTransaction(ExchangeTransactionLeaver leaver,
@@ -111,7 +181,7 @@ class ExchangeTransactionLeaversRepositorySpec extends Specification {
 
   private def insertIntoEmail(ExchangeTransactionLeaver aLeaver) {
     jdbcClient.sql("""
-    INSERT INTO public.email 
+    INSERT INTO public.email
     (personal_code, type, status, created_date)
     VALUES (:personal_code, :type, :status, :created_date)""")
         .param("personal_code", aLeaver.personalCode)

@@ -102,7 +102,7 @@ class ExchangeTransactionLeaversRepositoryTest {
     String sql = sqlCaptor.getValue();
 
     assertTrue(sql.contains("date_created >= :startDate"), "Should filter by start date");
-    assertTrue(sql.contains("date_created < :endDate"), "Should filter by end date");
+    assertTrue(sql.contains("date_created <= :endDate"), "Should filter by end date (inclusive)");
     assertTrue(sql.contains("security_from = 'EE3600109435'"), "Should filter by TUK75");
     assertTrue(sql.contains("security_from = 'EE3600109443'"), "Should filter by TUK00");
     assertTrue(sql.contains("security_to <> 'EE3600109443'"), "Should exclude TUK00 security_to");

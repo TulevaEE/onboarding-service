@@ -35,7 +35,7 @@ public class AutoEmailSender {
     for (final var autoEmailRepository : autoEmailRepositories) {
       EmailType emailType = autoEmailRepository.getEmailType();
       LocalDate startDate = LocalDate.now(clock).minusMonths(1).withDayOfMonth(1);
-      LocalDate endDate = LocalDate.now(clock);
+      LocalDate endDate = LocalDate.now(clock).plusDays(1);
       log.info(
           "Checking auto emails for: emailType={}, startDate={}, endDate={}",
           emailType,

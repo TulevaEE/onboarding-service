@@ -6,58 +6,55 @@ import java.time.LocalDateTime
 
 class ExchangeTransactionLeaverFixture {
 
-  static ExchangeTransactionLeaver leaverFixture(LocalDateTime lastEmailSent = LocalDateTime.parse("2019-04-30T00:00:00")) {
-    new ExchangeTransactionLeaver(
-        "EE3600109435",
-        "EE3600019766",
-        "38510309513",
-        "John",
-        "Doe",
-        1000,
-        100,
-        LocalDate.parse("2021-01-01"),
-        0.0122,
-        "LHV Pensionifond XL",
-        "john@doe.com",
-        "ENG",
-        lastEmailSent,
-    )
+  static ExchangeTransactionLeaver.ExchangeTransactionLeaverBuilder aLeaverWith() {
+    ExchangeTransactionLeaver.builder()
+        .currentFund("EE3600109435")
+        .newFund("EE3600019766")
+        .personalCode("38510309513")
+        .firstName("John")
+        .lastName("Doe")
+        .shareAmount(1000.0)
+        .sharePercentage(100.0)
+        .dateCreated(LocalDate.parse("2021-01-01"))
+        .fundOngoingChargesFigure(0.0122)
+        .fundNameEstonian("LHV Pensionifond XL")
+        .email("john@doe.com")
+        .language("ENG")
+        .lastEmailSentDate(LocalDateTime.parse("2019-04-30T00:00:00"))
   }
 
-  static ExchangeTransactionLeaver leaverFixture2(LocalDateTime lastEmailSent = LocalDateTime.parse("2019-04-30T00:00:00")) {
-    new ExchangeTransactionLeaver(
-        "EE3600109443",
-        "EE3600019782",
-        "48510309513",
-        "Jane",
-        "Doe",
-        1000,
-        100,
-        LocalDate.parse("2021-01-01"),
-        0.0057,
-        "LHV Pensionifond XS",
-        "jane@doe.com",
-        "ENG",
-        lastEmailSent,
-    )
+  static ExchangeTransactionLeaver.ExchangeTransactionLeaverBuilder anotherLeaverWith() {
+    ExchangeTransactionLeaver.builder()
+        .currentFund("EE3600109443")
+        .newFund("EE3600019782")
+        .personalCode("48510309513")
+        .firstName("Jane")
+        .lastName("Doe")
+        .shareAmount(1000.0)
+        .sharePercentage(100.0)
+        .dateCreated(LocalDate.parse("2021-01-01"))
+        .fundOngoingChargesFigure(0.0057)
+        .fundNameEstonian("LHV Pensionifond XS")
+        .email("jane@doe.com")
+        .language("ENG")
+        .lastEmailSentDate(LocalDateTime.parse("2019-04-30T00:00:00"))
   }
 
-  static ExchangeTransactionLeaver leaverFixture3(LocalDateTime lastEmailSent = LocalDateTime.parse("2019-04-30T00:00:00")) {
-    new ExchangeTransactionLeaver(
-        "EE3600109443",
-        "EE3600019774",
-        "50012319513",
-        "Jack",
-        "Doe",
-        1000,
-        100,
-        LocalDate.parse("2021-01-01"),
-        0.0108,
-        "LHV Pensionifond M",
-        "jack@doe.com",
-        "ENG",
-        lastEmailSent,
-    )
+  static ExchangeTransactionLeaver.ExchangeTransactionLeaverBuilder thirdLeaverWith() {
+    ExchangeTransactionLeaver.builder()
+        .currentFund("EE3600109443")
+        .newFund("EE3600019774")
+        .personalCode("50012319513")
+        .firstName("Jack")
+        .lastName("Doe")
+        .shareAmount(1000.0)
+        .sharePercentage(100.0)
+        .dateCreated(LocalDate.parse("2021-01-01"))
+        .fundOngoingChargesFigure(0.0108)
+        .fundNameEstonian("LHV Pensionifond M")
+        .email("jack@doe.com")
+        .language("ENG")
+        .lastEmailSentDate(LocalDateTime.parse("2019-04-30T00:00:00"))
   }
 
 }

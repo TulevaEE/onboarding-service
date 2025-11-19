@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
+import static java.math.BigDecimal.ZERO;
 import static java.time.ZoneOffset.UTC;
 import static java.util.stream.StreamSupport.stream;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -82,9 +83,20 @@ public class NAVCheckValueRetriever implements ComparisonIndexRetriever {
           "NAV checker response timestamp and fund values count do not match");
     }
 
-    return IntStream.range(0, fundValues.size())
+    List<FundValue> allValues = IntStream.range(0, fundValues.size())
         .mapToObj(i -> new FundValue(fundName, timestamps.get(i), fundValues.get(i)))
         .toList();
+
+    List<FundValue> nonZeroValues = allValues.stream()
+        .filter(fundValue -> fundValue.value().compareTo(ZERO) != 0)
+        .toList();
+
+    int filteredCount = allValues.size() - nonZeroValues.size();
+    if (filteredCount > 0) {
+      log.warn("Filtered out {} zero-values for fund {} in date range", filteredCount, fundName);
+    }
+
+    return nonZeroValues;
   }
 
   private List<LocalDate> parseTimestamps(JsonNode resultNode) {
@@ -103,15 +115,13 @@ public class NAVCheckValueRetriever implements ComparisonIndexRetriever {
         resultNode.path("indicators").path("adjclose").get(0).path("adjclose");
 
     return stream(adjustedCloseNode.spliterator(), false)
-        .map(jsonNode -> BigDecimal.valueOf(jsonNode.asDouble()))
+        .map(JsonNode::decimalValue)
         .toList();
   }
 
   private String buildFetchUri(String fundName, LocalDate startDate, LocalDate endDate) {
-    ZoneId utcZoneId = ZoneId.of("UTC");
-
-    long startEpoch = startDate.atStartOfDay(utcZoneId).minusDays(1).toEpochSecond();
-    long endEpoch = endDate.atStartOfDay(utcZoneId).plusDays(1).toEpochSecond();
+    long startEpoch = startDate.atStartOfDay(UTC).minusDays(1).toEpochSecond();
+    long endEpoch = endDate.atStartOfDay(UTC).plusDays(1).toEpochSecond();
 
     return UriComponentsBuilder.fromUriString(
             "https://query1.finance.yahoo.com/v7/finance/chart/{ticker}")

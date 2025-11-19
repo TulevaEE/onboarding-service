@@ -205,6 +205,24 @@ The application follows domain-driven design with these main domains:
   - Exceptions where single letters are fine:
     - Loop counters: `for (int i = 0; i < items.size(); i++)`
     - Very short scopes: `catch (Exception e)`
+- **Variable naming best practices**:
+  - **Avoid abbreviations**: Use full, descriptive words
+    - ❌ Bad: `dbMap`, `dbValue`, `dbEntry`, `percentageDiff`
+    - ✅ Good: `databaseValues`, `databaseValue`, `databaseEntry`, `percentageDifference`
+  - **Don't encode type in name**: Variable names should describe content, not type
+    - ❌ Bad: `yahooMap`, `databaseMap`, `userList`, `accountArray`
+    - ✅ Good: `yahooValues`, `databaseValues`, `users`, `accounts`
+  - **Use semantic names**: Names should describe the business meaning
+    - ❌ Bad: `value1`, `value2`, `data`, `info`
+    - ✅ Good: `databaseValue`, `yahooValue`, `accountBalance`, `userProfile`
+  - **Lambda parameter naming**: Use descriptive names in lambdas
+    - ❌ Bad: `.filter(fv -> fv.key().equals(fundTicker))`
+    - ✅ Good: `.filter(fundValue -> fundValue.key().equals(fundTicker))`
+- **Use static imports for readability**:
+  - Import commonly used static methods and constants
+  - ❌ Bad: `Collectors.toMap()`, `BigDecimal.ZERO`, `RoundingMode.HALF_UP`
+  - ✅ Good: `toMap()`, `ZERO`, `HALF_UP` (with appropriate static imports)
+  - Common candidates: AssertJ assertions, Stream collectors, Math constants, Enum values
 - **Avoid passing null as method parameters**:
   - Use method overloading instead of passing null parameters
   - ❌ Bad: `createTransaction(date, null, metadata, entries)`

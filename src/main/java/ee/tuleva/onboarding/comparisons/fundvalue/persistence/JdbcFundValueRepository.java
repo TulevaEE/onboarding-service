@@ -182,4 +182,23 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
   public List<FundValue> getGlobalStockValues() {
     return jdbcTemplate.query(SELECT_GLOBAL_STOCK_VALUES_QUERY, new FundValueRowMapper());
   }
+
+  @Override
+  public List<FundValue> findValuesBetweenDates(String fundKey, LocalDate startDate, LocalDate endDate) {
+    String query = """
+        SELECT *
+        FROM index_values
+        WHERE key = :key
+        AND date BETWEEN :startDate AND :endDate
+        ORDER BY date
+        """;
+
+    Map<String, Object> params = Map.of(
+        "key", fundKey,
+        "startDate", startDate,
+        "endDate", endDate
+    );
+
+    return jdbcTemplate.query(query, params, new FundValueRowMapper());
+  }
 }

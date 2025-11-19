@@ -149,6 +149,48 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
     dates == ["SOME_FUND": parse("2019-12-31"), "SOME_FUND_2": parse("2020-01-01")]
   }
 
+  def "it finds values between dates for a fund"() {
+    given:
+    String fundKey = "TEST_FUND"
+    List<FundValue> values = [
+        new FundValue(fundKey, parse("2020-01-01"), 100.0),
+        new FundValue(fundKey, parse("2020-01-02"), 101.0),
+        new FundValue(fundKey, parse("2020-01-03"), 102.0),
+        new FundValue(fundKey, parse("2020-01-04"), 103.0),
+        new FundValue(fundKey, parse("2020-01-05"), 104.0),
+        new FundValue("OTHER_FUND", parse("2020-01-03"), 999.0),
+    ]
+    fundValueRepository.saveAll(values)
+
+    when:
+    List<FundValue> result = fundValueRepository.findValuesBetweenDates(
+        fundKey, parse("2020-01-02"), parse("2020-01-04")
+    )
+
+    then:
+    result.size() == 3
+    result[0].date() == parse("2020-01-02")
+    result[0].value() == 101.0
+    result[1].date() == parse("2020-01-03")
+    result[1].value() == 102.0
+    result[2].date() == parse("2020-01-04")
+    result[2].value() == 103.0
+    result.every { it.key() == fundKey }
+  }
+
+  def "it returns empty list when no values exist between dates"() {
+    given:
+    String fundKey = "TEST_FUND"
+
+    when:
+    List<FundValue> result = fundValueRepository.findValuesBetweenDates(
+        fundKey, parse("2020-01-01"), parse("2020-01-31")
+    )
+
+    then:
+    result.isEmpty()
+  }
+
   private static List<FundValue> getFakeFundValues() {
         def today = LocalDate.now()
         def yesterday = LocalDate.now().minusDays(1)

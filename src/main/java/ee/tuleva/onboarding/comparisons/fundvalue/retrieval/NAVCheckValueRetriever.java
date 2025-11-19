@@ -10,7 +10,6 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.IntStream;
 import lombok.ToString;
@@ -83,13 +82,13 @@ public class NAVCheckValueRetriever implements ComparisonIndexRetriever {
           "NAV checker response timestamp and fund values count do not match");
     }
 
-    List<FundValue> allValues = IntStream.range(0, fundValues.size())
-        .mapToObj(i -> new FundValue(fundName, timestamps.get(i), fundValues.get(i)))
-        .toList();
+    List<FundValue> allValues =
+        IntStream.range(0, fundValues.size())
+            .mapToObj(i -> new FundValue(fundName, timestamps.get(i), fundValues.get(i)))
+            .toList();
 
-    List<FundValue> nonZeroValues = allValues.stream()
-        .filter(fundValue -> fundValue.value().compareTo(ZERO) != 0)
-        .toList();
+    List<FundValue> nonZeroValues =
+        allValues.stream().filter(fundValue -> fundValue.value().compareTo(ZERO) != 0).toList();
 
     int filteredCount = allValues.size() - nonZeroValues.size();
     if (filteredCount > 0) {
@@ -114,9 +113,7 @@ public class NAVCheckValueRetriever implements ComparisonIndexRetriever {
     JsonNode adjustedCloseNode =
         resultNode.path("indicators").path("adjclose").get(0).path("adjclose");
 
-    return stream(adjustedCloseNode.spliterator(), false)
-        .map(JsonNode::decimalValue)
-        .toList();
+    return stream(adjustedCloseNode.spliterator(), false).map(JsonNode::decimalValue).toList();
   }
 
   private String buildFetchUri(String fundName, LocalDate startDate, LocalDate endDate) {

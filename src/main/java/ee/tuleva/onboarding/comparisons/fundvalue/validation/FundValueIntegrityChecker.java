@@ -54,24 +54,25 @@ public class FundValueIntegrityChecker {
     }
   }
 
-  private List<FundValue> fetchYahooFinanceData(String fundTicker, LocalDate startDate, LocalDate endDate) {
-    return navCheckValueRetriever.retrieveValuesForRange(startDate, endDate)
-        .stream()
+  private List<FundValue> fetchYahooFinanceData(
+      String fundTicker, LocalDate startDate, LocalDate endDate) {
+    return navCheckValueRetriever.retrieveValuesForRange(startDate, endDate).stream()
         .filter(fundValue -> fundValue.key().equals(fundTicker))
         .toList();
   }
 
-  private List<FundValue> fetchDatabaseData(String fundTicker, LocalDate startDate, LocalDate endDate) {
+  private List<FundValue> fetchDatabaseData(
+      String fundTicker, LocalDate startDate, LocalDate endDate) {
     return fundValueRepository.findValuesBetweenDates(fundTicker, startDate, endDate);
   }
 
   private Map<LocalDate, BigDecimal> convertToDateValueMap(List<FundValue> fundValues) {
     return fundValues.stream()
-        .collect(toMap(
-            FundValue::date,
-            FundValue::value,
-            (existingValue, duplicateValue) -> existingValue
-        ));
+        .collect(
+            toMap(
+                FundValue::date,
+                FundValue::value,
+                (existingValue, duplicateValue) -> existingValue));
   }
 
   private void compareAndReportDiscrepancies(
@@ -88,13 +89,13 @@ public class FundValueIntegrityChecker {
 
         if (databaseValue.compareTo(yahooValue) != 0) {
           BigDecimal difference = databaseValue.subtract(yahooValue).abs();
-          BigDecimal percentageDifference = calculatePercentageDifference(databaseValue, yahooValue);
+          BigDecimal percentageDifference =
+              calculatePercentageDifference(databaseValue, yahooValue);
 
           log.error(
-              "DATA INTEGRITY ISSUE: Fund {} on {} - DB value: {}, Yahoo value: {}, " +
-              "Difference: {} ({} %)",
-              fundTicker, date, databaseValue, yahooValue, difference, percentageDifference
-          );
+              "DATA INTEGRITY ISSUE: Fund {} on {} - DB value: {}, Yahoo value: {}, "
+                  + "Difference: {} ({} %)",
+              fundTicker, date, databaseValue, yahooValue, difference, percentageDifference);
         }
       }
     }
@@ -111,8 +112,9 @@ public class FundValueIntegrityChecker {
         if (yahooValue.compareTo(ZERO) != 0) {
           log.error(
               "MISSING DATA: Fund {} on {} exists in Yahoo Finance (value: {}) but not in database",
-              fundTicker, yahooDate, yahooValue
-          );
+              fundTicker,
+              yahooDate,
+              yahooValue);
         }
       }
     }
@@ -121,18 +123,20 @@ public class FundValueIntegrityChecker {
       if (!yahooValuesByDate.containsKey(databaseDate)) {
         log.warn(
             "ORPHANED DATA: Fund {} on {} exists in database but not in Yahoo Finance response",
-            fundTicker, databaseDate
-        );
+            fundTicker,
+            databaseDate);
       }
     }
   }
 
-  private BigDecimal calculatePercentageDifference(BigDecimal databaseValue, BigDecimal yahooValue) {
+  private BigDecimal calculatePercentageDifference(
+      BigDecimal databaseValue, BigDecimal yahooValue) {
     if (yahooValue.compareTo(ZERO) == 0) {
       return databaseValue.compareTo(ZERO) == 0 ? ZERO : new BigDecimal("100");
     }
 
-    return databaseValue.subtract(yahooValue)
+    return databaseValue
+        .subtract(yahooValue)
         .abs()
         .multiply(new BigDecimal("100"))
         .divide(yahooValue.abs(), 4, HALF_UP);

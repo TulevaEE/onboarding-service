@@ -144,6 +144,16 @@ The application follows domain-driven design with these main domains:
 - **Run tests before committing**: Always execute tests to ensure they pass before finalizing changes
 - **Fix broken tests immediately**: Never leave failing tests in the codebase
 
+#### Test Behavior, Not Implementation
+- **Always test behavior, not implementation details**: Tests should assert on the output/result, not on how it's achieved
+  - ❌ Bad: Verifying mock method calls, testing private methods, asserting on internal state
+  - ✅ Good: Asserting on return values, testing through public API, verifying observable behavior
+- **Refactor for testability**: If code is hard to test, refactor it to return results instead of only producing side effects
+  - Extract pure functions that return values
+  - Return result objects instead of just logging
+  - Make side effects explicit and minimal
+- **Use Stubs over Mocks**: Prefer Stub() for dependencies and assert on results, not interactions
+
 #### Test Framework
 - Spock framework (Groovy) for unit and integration tests
 - JUnit 5 tests are also acceptable
@@ -179,6 +189,12 @@ The application follows domain-driven design with these main domains:
   - Makes it easy to grep logs for specific parameters or patterns
 
 #### Clean Code Principles
+- **Minimal Visibility**: Always use the most restrictive access level possible
+  - Make methods `private` by default
+  - Use package-private for testing when needed (avoid `public` unless part of the API)
+  - Test through public interfaces when possible, but package-private is acceptable for unit testing
+  - ❌ Bad: Making everything `public` for convenience
+  - ✅ Good: `private` methods, package-private for testing, `public` only for actual API
 - **Boy Scout Rule**: Always leave the code cleaner than you found it
   - When touching any class or file, make small improvements
   - Fix formatting issues, remove unnecessary comments, improve variable names
@@ -243,13 +259,82 @@ The application follows domain-driven design with these main domains:
   - ❌ Bad: `createTransaction(date, null, metadata, entries)`
   - ✅ Good: Create overloaded method `createTransaction(date, metadata, entries)` that delegates to the full version
   - This makes the API cleaner and prevents NullPointerExceptions
-- **Use Lombok @Builder to avoid null constructor arguments**:
-  - For classes/records with many optional parameters, use Lombok's @Builder annotation
-  - This eliminates the need to pass `null` for unused optional parameters in constructors
-  - ❌ Bad: `new MyEvent("type", "id", 123L, null, null, null)` - unclear which parameters are null
-  - ✅ Good: `MyEvent.builder().type("type").id("id").ts(123L).build()` - only set what you need
-  - Builder pattern makes code more readable and maintainable, especially in tests
-  - Works with both classes and records (since Lombok 1.18.20+)
+- **Use Lombok for cleaner code**:
+  - **@Builder pattern**: For classes with many optional parameters, use @Builder to avoid null constructor arguments
+    - ❌ Bad: `new MyEvent("type", "id", 123L, null, null, null)` - unclear which parameters are null
+    - ✅ Good: `MyEvent.builder().type("type").id("id").ts(123L).build()` - only set what you need
+  - **@Singular for immutable collections**: Use with @Builder to create immutable lists
+    - `@Singular List<Item> items` creates `builder.item(item1).item(item2)` methods
+    - `@Singular("missingData") List<Data> missingData` for custom singular names
+    - Results in immutable lists automatically - no need for `List.copyOf()`
+  - **@Value for immutable data classes**: Creates immutable value objects with all fields final
+    - Generates getters, equals/hashCode, toString automatically
+    - Combined with @Builder provides both immutability and flexible construction
+  - **Prefer immutable data structures**: Both @Singular and manual `List.of()` create immutable lists
+- **Follow functional programming principles**:
+  - **Return values instead of mutating parameters**: Methods should return new values rather than modifying inputs
+    - ❌ Bad: `void processData(Data data, Result result) { result.add(...); }` - mutating parameter
+    - ✅ Good: `List<Item> processData(Data data) { return items; }` - returning new value
+  - **Prefer pure functions**: Functions should depend only on their inputs and produce consistent outputs
+    - No side effects like modifying external state
+    - Makes code more testable and predictable
+  - **Use immutable data structures**: Prevent accidental mutations and make code thread-safe
+  - **Compose small functions**: Build complex behavior by composing simple, focused functions
+    - ❌ Bad: One large method doing multiple things with mutations
+    - ✅ Good: Several small methods returning values that are combined
+- **Write code as if using Kotlin (immutable and null-safe)**:
+  - **Default to immutability**: All variables should be final unless mutation is absolutely necessary
+    - Use `final` keyword for all variables, parameters, and fields by default
+    - ❌ Bad: `String name = "John"; name = "Jane";` - mutable variable
+    - ✅ Good: `final String name = "John";` - immutable by default
+  - **Null safety**: Never return null, use Optional or default values
+    - ❌ Bad: `return null;` - returns null that can cause NullPointerException
+    - ✅ Good: `return Optional.empty();` or `return List.of();`
+  - **Use @NonNull annotations**: Make nullability explicit in APIs
+  - **Validate inputs early**: Check for nulls at method entry, fail fast with clear messages
+  - **Prefer value objects**: Use immutable classes/records for data
+    - Records are perfect for this: `public record User(String name, int age) {}`
+  - **Builder pattern for complex objects**: When many parameters exist, use builders
+  - **Collection literals**: Use `List.of()`, `Set.of()`, `Map.of()` for immutable collections
+  - **Always prefer Java Streams over for loops**: Use functional stream operations for better readability and composability
+    - Streams are more declarative (what you want, not how to get it)
+    - Easier to parallelize, compose, and test
+    - Avoid mutable state and side effects
+    - ❌ Bad: Traditional for loop with mutation
+      ```java
+      List<Result> results = new ArrayList<>();
+      for (Item item : items) {
+        if (item.isValid()) {
+          results.add(transform(item));
+        }
+      }
+      return results;
+      ```
+    - ✅ Good: Stream with filter and map
+      ```java
+      return items.stream()
+          .filter(Item::isValid)
+          .map(this::transform)
+          .toList();
+      ```
+    - ❌ Bad: For loop over map entries
+      ```java
+      List<Result> results = new ArrayList<>();
+      for (Map.Entry<K, V> entry : map.entrySet()) {
+        if (condition(entry)) {
+          results.add(process(entry));
+        }
+      }
+      ```
+    - ✅ Good: Stream over map entries
+      ```java
+      return map.entrySet().stream()
+          .filter(this::condition)
+          .map(this::process)
+          .toList();
+      ```
+    - Use `Objects::nonNull` for filtering nulls instead of lambda: `.filter(Objects::nonNull)`
+    - Prefer method references over lambdas when possible for better readability
 
 #### Assertions Best Practices
 - **Always use AssertJ** for assertions instead of JUnit assertions for better readability and error messages

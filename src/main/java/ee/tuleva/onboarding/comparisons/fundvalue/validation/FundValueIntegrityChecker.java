@@ -7,10 +7,14 @@ import static java.util.stream.Collectors.toMap;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.NAVCheckValueRetriever;
+import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Discrepancy;
+import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.MissingData;
+import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.OrphanedData;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -35,11 +39,13 @@ public class FundValueIntegrityChecker {
     log.info("Starting fund value integrity check from {} to {}", startDate, endDate);
 
     for (String fundTicker : NAVCheckValueRetriever.FUND_TICKERS) {
-      verifyFundDataIntegrity(fundTicker, startDate, endDate);
+      IntegrityCheckResult result = verifyFundDataIntegrity(fundTicker, startDate, endDate);
+      logIntegrityCheckResult(result);
     }
   }
 
-  public void verifyFundDataIntegrity(String fundTicker, LocalDate startDate, LocalDate endDate) {
+  IntegrityCheckResult verifyFundDataIntegrity(
+      String fundTicker, LocalDate startDate, LocalDate endDate) {
     try {
       List<FundValue> yahooFinanceValues = fetchYahooFinanceData(fundTicker, startDate, endDate);
       List<FundValue> databaseFundValues = fetchDatabaseData(fundTicker, startDate, endDate);
@@ -47,11 +53,21 @@ public class FundValueIntegrityChecker {
       Map<LocalDate, BigDecimal> yahooValuesByDate = convertToDateValueMap(yahooFinanceValues);
       Map<LocalDate, BigDecimal> databaseValuesByDate = convertToDateValueMap(databaseFundValues);
 
-      compareAndReportDiscrepancies(fundTicker, yahooValuesByDate, databaseValuesByDate);
-      checkForMissingDates(fundTicker, yahooValuesByDate, databaseValuesByDate);
+      List<Discrepancy> discrepancies =
+          findDiscrepancies(fundTicker, yahooValuesByDate, databaseValuesByDate);
+      List<MissingData> missingData =
+          findMissingData(fundTicker, yahooValuesByDate, databaseValuesByDate);
+      List<OrphanedData> orphanedData =
+          findOrphanedData(fundTicker, yahooValuesByDate, databaseValuesByDate);
 
+      return IntegrityCheckResult.builder()
+          .discrepancies(discrepancies)
+          .missingData(missingData)
+          .orphanedData(orphanedData)
+          .build();
     } catch (Exception e) {
       log.error("Failed to verify data integrity for fund {}: {}", fundTicker, e.getMessage(), e);
+      return IntegrityCheckResult.empty();
     }
   }
 
@@ -76,57 +92,92 @@ public class FundValueIntegrityChecker {
                 (existingValue, duplicateValue) -> existingValue));
   }
 
-  private void compareAndReportDiscrepancies(
+  private List<Discrepancy> findDiscrepancies(
       String fundTicker,
       Map<LocalDate, BigDecimal> yahooValuesByDate,
       Map<LocalDate, BigDecimal> databaseValuesByDate) {
 
-    for (Map.Entry<LocalDate, BigDecimal> databaseEntry : databaseValuesByDate.entrySet()) {
-      LocalDate date = databaseEntry.getKey();
-      BigDecimal databaseValue = databaseEntry.getValue();
+    return databaseValuesByDate.entrySet().stream()
+        .filter(entry -> yahooValuesByDate.containsKey(entry.getKey()))
+        .map(
+            entry -> {
+              LocalDate date = entry.getKey();
+              BigDecimal databaseValue = entry.getValue();
+              BigDecimal yahooValue = yahooValuesByDate.get(date);
 
-      if (yahooValuesByDate.containsKey(date)) {
-        BigDecimal yahooValue = yahooValuesByDate.get(date);
+              BigDecimal normalizedDbValue = databaseValue.setScale(DATABASE_SCALE, HALF_UP);
+              BigDecimal normalizedYahooValue = yahooValue.setScale(DATABASE_SCALE, HALF_UP);
 
-        if (databaseValue.compareTo(yahooValue.setScale(DATABASE_SCALE, HALF_UP)) != 0) {
-          BigDecimal difference = databaseValue.subtract(yahooValue).abs();
-          BigDecimal percentageDifference =
-              calculatePercentageDifference(databaseValue, yahooValue);
+              if (normalizedDbValue.compareTo(normalizedYahooValue) != 0) {
+                BigDecimal difference = normalizedDbValue.subtract(normalizedYahooValue).abs();
+                BigDecimal percentageDifference =
+                    calculatePercentageDifference(normalizedDbValue, normalizedYahooValue);
 
-          log.error(
-              "DATA INTEGRITY ISSUE: Fund {} on {} - DB value: {}, Yahoo value: {}, "
-                  + "Difference: {} ({} %)",
-              fundTicker, date, databaseValue, yahooValue, difference, percentageDifference);
-        }
-      }
-    }
+                return new Discrepancy(
+                    fundTicker,
+                    date,
+                    normalizedDbValue,
+                    normalizedYahooValue,
+                    difference,
+                    percentageDifference);
+              }
+              return null;
+            })
+        .filter(Objects::nonNull)
+        .toList();
   }
 
-  private void checkForMissingDates(
+  private List<MissingData> findMissingData(
       String fundTicker,
       Map<LocalDate, BigDecimal> yahooValuesByDate,
       Map<LocalDate, BigDecimal> databaseValuesByDate) {
 
-    for (LocalDate yahooDate : yahooValuesByDate.keySet()) {
-      if (!databaseValuesByDate.containsKey(yahooDate)) {
-        BigDecimal yahooValue = yahooValuesByDate.get(yahooDate);
-        if (yahooValue.compareTo(ZERO) != 0) {
-          log.error(
-              "MISSING DATA: Fund {} on {} exists in Yahoo Finance (value: {}) but not in database",
-              fundTicker,
-              yahooDate,
-              yahooValue);
-        }
-      }
+    return yahooValuesByDate.entrySet().stream()
+        .filter(
+            entry ->
+                !databaseValuesByDate.containsKey(entry.getKey())
+                    && entry.getValue().compareTo(ZERO) != 0)
+        .map(entry -> new MissingData(fundTicker, entry.getKey(), entry.getValue()))
+        .toList();
+  }
+
+  private List<OrphanedData> findOrphanedData(
+      String fundTicker,
+      Map<LocalDate, BigDecimal> yahooValuesByDate,
+      Map<LocalDate, BigDecimal> databaseValuesByDate) {
+
+    return databaseValuesByDate.keySet().stream()
+        .filter(date -> !yahooValuesByDate.containsKey(date))
+        .map(date -> new OrphanedData(fundTicker, date))
+        .toList();
+  }
+
+  private void logIntegrityCheckResult(IntegrityCheckResult result) {
+    for (Discrepancy discrepancy : result.getDiscrepancies()) {
+      log.error(
+          "DATA INTEGRITY ISSUE: Fund {} on {} - DB value: {}, Yahoo value: {}, "
+              + "Difference: {} ({} %)",
+          discrepancy.fundTicker(),
+          discrepancy.date(),
+          discrepancy.dbValue(),
+          discrepancy.yahooValue(),
+          discrepancy.difference(),
+          discrepancy.percentageDifference());
     }
 
-    for (LocalDate databaseDate : databaseValuesByDate.keySet()) {
-      if (!yahooValuesByDate.containsKey(databaseDate)) {
-        log.warn(
-            "ORPHANED DATA: Fund {} on {} exists in database but not in Yahoo Finance response",
-            fundTicker,
-            databaseDate);
-      }
+    for (MissingData missing : result.getMissingData()) {
+      log.error(
+          "MISSING DATA: Fund {} on {} exists in Yahoo Finance (value: {}) but not in database",
+          missing.fundTicker(),
+          missing.date(),
+          missing.yahooValue());
+    }
+
+    for (OrphanedData orphaned : result.getOrphanedData()) {
+      log.warn(
+          "ORPHANED DATA: Fund {} on {} exists in database but not in Yahoo Finance response",
+          orphaned.fundTicker(),
+          orphaned.date());
     }
   }
 

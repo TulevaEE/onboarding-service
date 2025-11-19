@@ -179,10 +179,22 @@ The application follows domain-driven design with these main domains:
   - Makes it easy to grep logs for specific parameters or patterns
 
 #### Clean Code Principles
+- **Boy Scout Rule**: Always leave the code cleaner than you found it
+  - When touching any class or file, make small improvements
+  - Fix formatting issues, remove unnecessary comments, improve variable names
+  - Refactor unclear code into well-named methods
+  - This creates a continuous improvement flywheel - every change makes the codebase incrementally better
+  - Even if you're making a small bug fix, take a moment to clean up the surrounding code
 - **Self-documenting code over comments**: Follow clean code principles - code should be self-explanatory
   - Use meaningful variable, method, and class names that clearly express intent
   - Extract complex logic into well-named methods
   - **Avoid comments entirely** - they rot and become outdated; code is the source of truth
+- **Boy Scout Rule Examples**:
+  - Fixing a bug in a method? Also improve its variable names and extract complex conditions
+  - Adding a new field to a class? Remove any unused imports and dead code
+  - Updating a test? Remove unnecessary test labels and improve test data setup
+  - Modifying a service? Extract magic numbers to constants, improve method names
+  - Every PR should include these small improvements alongside the main change
   - **When to use comments** (rare exceptions):
     - External API links: `@see <a href="...">Documentation</a>` for third-party integrations
     - Security-critical WHY: Only when the reason isn't obvious (e.g., "Uses constant-time comparison" → Extract to method `constantTimeEquals()` instead)

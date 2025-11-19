@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 public class FundValueIntegrityChecker {
 
   private static final LocalDate EARLIEST_DATE = LocalDate.parse("2003-01-07");
+  private static final int DATABASE_SCALE = 5;
 
   private final NAVCheckValueRetriever navCheckValueRetriever;
   private final FundValueRepository fundValueRepository;
@@ -87,7 +88,7 @@ public class FundValueIntegrityChecker {
       if (yahooValuesByDate.containsKey(date)) {
         BigDecimal yahooValue = yahooValuesByDate.get(date);
 
-        if (databaseValue.compareTo(yahooValue) != 0) {
+        if (databaseValue.compareTo(yahooValue.setScale(DATABASE_SCALE, HALF_UP)) != 0) {
           BigDecimal difference = databaseValue.subtract(yahooValue).abs();
           BigDecimal percentageDifference =
               calculatePercentageDifference(databaseValue, yahooValue);

@@ -157,6 +157,9 @@ The application follows domain-driven design with these main domains:
   - Both naming conventions are equally valid and should be used consistently within each test file
 - **Test method names should be descriptive**: Use the test method name itself to describe what it tests (e.g., `findByExternalReference_shouldReturnTransactionsWithMatchingExternalReference()`)
 - **Avoid @DisplayName annotations**: The method name should be self-documenting without needing a separate display name
+- **Avoid Spock test labels**: Don't use descriptive strings in Spock given/when/then blocks (e.g., `given: "A user exists"`). These are comments that rot over time. The code should be self-documenting:
+  - ❌ Bad: `given: "Database has one value"`
+  - ✅ Good: `given:` followed by clear, self-documenting code
 
 #### Test Location
 - **Java tests should be placed in the Groovy test directory**: Even when writing JUnit tests in Java, place them under `src/test/groovy/` alongside Groovy Spock tests

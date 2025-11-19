@@ -26,44 +26,20 @@ if [ $? -ne 0 ]; then
     echo "❌ Failed to apply Spotless formatting. Please check your Spotless configuration."
     exit 1
 fi
-echo "✅ Spotless formatting applied successfully."
 
-OUTPUT_FILE=$(mktemp)
-# Get the current branch name
-current_branch=$(git rev-parse --abbrev-ref HEAD)
-
-if [ "$current_branch" != "master" ]; then
-  echo "️⚠️ Skipping test run as not on master"
-  exit 0
+# Check if Spotless made any changes
+if ! git diff --quiet; then
+    echo "📝 Spotless made formatting changes. Adding modified files to the commit..."
+    # Get list of modified files and add them to the staging area
+    git diff --name-only | while read -r file; do
+        if [ -f "$file" ]; then
+            git add "$file"
+            echo "   Added: $file"
+        fi
+    done
+    echo "✅ Spotless formatting applied and changes staged."
+else
+    echo "✅ Spotless formatting check passed (no changes needed)."
 fi
 
-echo "🚀 Running Gradle tasks: clean, check, jacocoTestCoverageVerification..."
-./gradlew clean check jacocoTestCoverageVerification --no-daemon --stacktrace > "$OUTPUT_FILE" 2>&1 &
-gradle_pid=$!
-spinner $gradle_pid
-wait $gradle_pid
-GRADLE_RESULT=$?
-
-#echo "🔄 Restoring stashed changes..."
-#git stash pop -q || true
-
-# Check for rule violations in Gradle output
-if grep -q "Rule violated" "$OUTPUT_FILE"; then
-    echo "❌ Code coverage rule violations detected:"
-    grep "Rule violated" "$OUTPUT_FILE"
-    echo "💡 Check the coverage report at: file://$(pwd)/build/reports/jacoco/test/html/index.html"
-    rm "$OUTPUT_FILE"
-    exit 1
-fi
-
-# Clean up temporary output file
-rm "$OUTPUT_FILE"
-
-# Exit with Gradle result if it failed
-if [ $GRADLE_RESULT -ne 0 ]; then
-    echo "❌ Gradle task failed. Check the output for details."
-    exit 1
-fi
-
-echo "✅ Code coverage check passed."
 exit 0

@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21
+FROM eclipse-temurin:25-jre
 VOLUME /tmp
 
 RUN apt update && apt install curl jq openssl unzip -y

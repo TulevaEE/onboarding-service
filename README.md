@@ -9,7 +9,7 @@
 
 ## Prerequisites
 
-- JDK 21
+- JDK 25
 - Groovy
 - Git
 - Gradle
@@ -32,7 +32,7 @@ IMPORTANT: Set your Spring active profile to `dev` - this will also run DB schem
 
 **Backend**
 
-Java 21, Spring Boot, Gradle, Spock for testing
+Java 25, Spring Boot, Gradle, Spock for testing
 
 Running locally: `./gradlew bootRun`
 

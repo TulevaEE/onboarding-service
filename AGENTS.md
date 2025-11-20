@@ -46,7 +46,7 @@ This file provides guidance to AI coding agents when working with code in this r
 ### Important Notes
 - Always set Spring active profile to `dev` for local development
 - Use `mock` profile to mock EpisService if you don't want to run epis-service
-- The application uses Java 21 with preview features enabled
+- The application uses Java 25 with preview features enabled
 - Code formatting with Google Java style is enforced via Spotless
 - High test coverage requirements are enforced for AML and deadline packages (100% class/method/line coverage)
 - **DO NOT use `--no-daemon` flag** when running Gradle commands locally - the daemon significantly improves build performance and should only be disabled in CI/CD environments
@@ -111,7 +111,7 @@ The application follows domain-driven design with these main domains:
 - **error**: Error handling and reporting
 
 ### Key Technologies
-- **Backend**: Java 21, Spring Boot 3.5.x, Spring Security, JPA/Hibernate
+- **Backend**: Java 25, Spring Boot 3.5.x, Spring Security, JPA/Hibernate
 - **Database**: PostgreSQL (production), H2 (tests), Flyway migrations
 - **Testing**: Spock framework (Groovy) for unit and integration tests, JUnit 5 also acceptable, Spring Boot Test, MockServer
 - **Authentication**: Estonian e-ID (Mobile-ID, Smart-ID, ID-card), OAuth2
@@ -440,7 +440,7 @@ class ServiceTest {
 - Spring profile must be set to `dev` for local development (includes DB migration)
 - Use `dev,mock` profiles together to mock external services during development
 - PostgreSQL database running locally or via Docker
-- Java 21 with preview features enabled
+- Java 25 with preview features enabled
 - File encoding must be UTF-8
 
 ## Controller Architecture

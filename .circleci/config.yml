@@ -19,7 +19,7 @@ jobs:
       SPRING_PROFILES_ACTIVE: ci,test
       GRADLE_OPTS: -Dorg.gradle.parallel=true -Dorg.gradle.workers.max=4
     docker:
-      - image: cimg/openjdk:21.0
+      - image: cimg/openjdk:25.0
     resource_class: large
     steps:
       - checkout

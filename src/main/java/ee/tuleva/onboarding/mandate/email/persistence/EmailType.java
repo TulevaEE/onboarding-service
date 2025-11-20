@@ -40,6 +40,8 @@ public enum EmailType {
   SAVINGS_FUND_PAYMENT_SUCCESS("savings_fund_payment_success"),
   SAVINGS_FUND_PAYMENT_CANCEL("savings_fund_payment_cancelled"),
   SAVINGS_FUND_PAYMENT_FAIL("savings_fund_payment_failed"),
+
+  MAILCHIMP_CAMPAIGN("mailchimp_campaign"),
   ;
 
   private final String templateName;

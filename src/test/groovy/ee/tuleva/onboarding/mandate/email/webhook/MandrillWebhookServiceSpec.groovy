@@ -104,7 +104,7 @@ class MandrillWebhookServiceSpec extends Specification {
     1 * eventLogRepository.save({ EventLog log ->
       log.type == "CLICK" &&
           log.principal == personalCode &&
-          log.data.url == "https://tuleva.ee/en/2nd-pillar" &&
+          log.data.path == "https://tuleva.ee/en/2nd-pillar" &&
           log.data.mandrillMessageId == mandrillMessageId
     })
   }
@@ -185,7 +185,7 @@ class MandrillWebhookServiceSpec extends Specification {
       log.type == "OPEN" &&
           log.data.mandrillMessageId == mandrillMessageId &&
           log.data.emailType == SECOND_PILLAR_MANDATE.name() &&
-          !log.data.containsKey("url")
+          !log.data.containsKey("path")
     })
   }
 

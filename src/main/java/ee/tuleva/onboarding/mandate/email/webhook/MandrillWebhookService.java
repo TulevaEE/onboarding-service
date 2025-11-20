@@ -118,7 +118,7 @@ public class MandrillWebhookService {
     data.put("emailType", email.getType().toString());
 
     if (event.url() != null) {
-      data.put("url", event.url());
+      data.put("path", event.url());
     }
 
     return data;

@@ -30,6 +30,8 @@ public class Email {
 
   private String mandrillMessageId;
 
+  private String mailchimpCampaign;
+
   @NotNull
   @Enumerated(STRING)
   private EmailType type;

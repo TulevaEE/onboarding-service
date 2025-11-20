@@ -129,7 +129,7 @@ dependencies {
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 
     implementation("com.github.ErkoRisthein:mailchimp-transactional-api-java:1.0.59")
-    implementation("com.github.ErkoRisthein:mailchimp-marketing-api-java:3.0.55")
+    implementation("com.github.ErkoRisthein:mailchimp-marketing-api-java:3.0.90-fix")
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 

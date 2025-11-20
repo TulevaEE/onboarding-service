@@ -139,10 +139,23 @@ The application follows domain-driven design with these main domains:
 
 ### Testing Strategy
 
+#### Testing Philosophy: Confidence Over Coverage
+
+**Our Goal**: Write tests that give us confidence that our software works and make refactoring easy.
+
+**Code Coverage Target**: Aim for 80%+ code coverage, but recognize that coverage is not the only metric that matters.
+
+**What Makes a Good Test**:
+1. **Gives confidence that the software works** - Tests should verify real-world scenarios and edge cases
+2. **Makes refactoring easy** - Tests should not break when implementation details change
+3. **Tests behavior, not implementation** - Focus on WHAT the code does, not HOW it does it
+4. **Not fragile** - Tests should only break when actual behavior changes, not on every tiny implementation detail change
+
 #### CRITICAL: Always Write and Run Tests
 - **Write tests for every change**: Every code modification must have corresponding unit or integration tests
 - **Run tests before committing**: Always execute tests to ensure they pass before finalizing changes
 - **Fix broken tests immediately**: Never leave failing tests in the codebase
+- **Coverage is necessary but not sufficient**: High coverage without good test quality is meaningless
 
 #### Test Behavior, Not Implementation
 - **Always test behavior, not implementation details**: Tests should assert on the output/result, not on how it's achieved
@@ -153,6 +166,7 @@ The application follows domain-driven design with these main domains:
   - Return result objects instead of just logging
   - Make side effects explicit and minimal
 - **Use Stubs over Mocks**: Prefer Stub() for dependencies and assert on results, not interactions
+- **Tests should survive refactoring**: If you refactor code without changing behavior, tests should still pass
 
 #### Test Framework
 - Spock framework (Groovy) for unit and integration tests
@@ -283,19 +297,32 @@ The application follows domain-driven design with these main domains:
     - ❌ Bad: One large method doing multiple things with mutations
     - ✅ Good: Several small methods returning values that are combined
 - **Write code as if using Kotlin (immutable and null-safe)**:
-  - **Default to immutability**: All variables should be final unless mutation is absolutely necessary
-    - Use `final` keyword for all variables, parameters, and fields by default
-    - ❌ Bad: `String name = "John"; name = "Jane";` - mutable variable
-    - ✅ Good: `final String name = "John";` - immutable by default
-  - **Null safety**: Never return null, use Optional or default values
-    - ❌ Bad: `return null;` - returns null that can cause NullPointerException
-    - ✅ Good: `return Optional.empty();` or `return List.of();`
+  - **Default to immutability**: Prevent reassignment where it matters
+    - Use `final` keyword for **fields** (instance variables) and **public API parameters** (method parameters in public/protected methods)
+    - **Do NOT use `final` for local variables** within method scope - it's verbose and provides minimal benefit
+    - **Exception**: Use `final` for local variables when it **simplifies code or avoids duplication** (e.g., extracting common values to reuse)
+    - ❌ Bad: `private String name;` then reassigning it - mutable field
+    - ✅ Good: `private final String name;` - immutable field
+    - ❌ Overkill: `final String localVar = "value";` inside a method - unnecessary verbosity
+    - ✅ Good: `String localVar = "value";` inside a method - scope already limits visibility
+    - ✅ Also good: `final Map<String, Object> baseData = Map.of(...);` when reused to avoid duplication
+  - **Null safety**: Prefer Optional or default values, but returning null is acceptable for fail-fast behavior
+    - Use `Optional` or default values when the absence of a value is a valid state
+    - Return `null` when you want to fail fast with NullPointerException rather than fail silently
+    - ❌ Bad: `return "unknown";` when value is missing - fails silently, harder to debug
+    - ✅ Good: `return null;` when missing value should cause immediate failure
+    - ✅ Also good: `return Optional.empty();` when absence is a valid state to handle
+    - ✅ Also good: `return List.of();` for empty collections - never return null for collections
   - **Use @NonNull annotations**: Make nullability explicit in APIs
   - **Validate inputs early**: Check for nulls at method entry, fail fast with clear messages
   - **Prefer value objects**: Use immutable classes/records for data
     - Records are perfect for this: `public record User(String name, int age) {}`
   - **Builder pattern for complex objects**: When many parameters exist, use builders
-  - **Collection literals**: Use `List.of()`, `Set.of()`, `Map.of()` for immutable collections
+  - **Prefer immutable data structures**: Use `List.of()`, `Set.of()`, `Map.of()` instead of mutable collections
+    - ❌ Bad: `Map<String, Object> data = new HashMap<>(); data.put("key", value);` - mutable, verbose
+    - ✅ Good: `Map<String, Object> data = Map.of("key", value);` - immutable, concise
+    - Use immutable structures when it simplifies code or avoids duplication
+    - Extract common data to avoid repeating Map/List creation
   - **Always prefer Java Streams over for loops**: Use functional stream operations for better readability and composability
     - Streams are more declarative (what you want, not how to get it)
     - Easier to parallelize, compose, and test

@@ -3,7 +3,9 @@ package ee.tuleva.onboarding.config;
 import com.microtripit.mandrillapp.lutung.MandrillApi;
 import io.github.erkoristhein.mailchimp.ApiClient;
 import io.github.erkoristhein.mailchimp.api.MessagesApi;
+import io.github.erkoristhein.mailchimp.marketing.api.CampaignsApi;
 import io.github.erkoristhein.mailchimp.marketing.api.ListsApi;
+import io.github.erkoristhein.mailchimp.marketing.api.ReportsApi;
 import java.util.Optional;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -68,5 +70,17 @@ public class EmailConfiguration {
   public ListsApi mailchimpMarketingListsApi(
       io.github.erkoristhein.mailchimp.marketing.ApiClient mailchimpMarketingApiClient) {
     return new ListsApi(mailchimpMarketingApiClient);
+  }
+
+  @Bean
+  public CampaignsApi mailchimpMarketingCampaignsApi(
+      io.github.erkoristhein.mailchimp.marketing.ApiClient mailchimpMarketingApiClient) {
+    return new CampaignsApi(mailchimpMarketingApiClient);
+  }
+
+  @Bean
+  public ReportsApi mailchimpMarketingReportsApi(
+      io.github.erkoristhein.mailchimp.marketing.ApiClient mailchimpMarketingApiClient) {
+    return new ReportsApi(mailchimpMarketingApiClient);
   }
 }

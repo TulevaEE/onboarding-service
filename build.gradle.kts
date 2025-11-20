@@ -26,7 +26,7 @@ plugins {
     id("org.springframework.boot") version "3.5.7"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "2.5.3"
-    id("com.diffplug.spotless") version "7.2.1"
+    id("com.diffplug.spotless") version "8.1.0"
     id("io.freefair.lombok") version "9.1.0"
     jacoco
 }
@@ -39,13 +39,13 @@ spotless {
     java {
         target("src/*/java/**/*.java", "src/*/groovy/**/*.java")
         removeUnusedImports()
-        googleJavaFormat()
+        googleJavaFormat("1.32.0")
         replaceRegex("Remove String Templates", "STR\\.\"\"\"", "\"\"\"")
         replaceRegex("Remove String Templates interpolation", "\\\\\\{([^}]*)\\}", "%s")
     }
     kotlinGradle {
         target("*.gradle.kts")
-        ktlint()
+        ktlint("1.5.0")
     }
     groovy {
         target("src/*/groovy/**/*.groovy")

@@ -143,9 +143,9 @@ public class MandateDeadlines {
     return switch (applicationType) {
       case TRANSFER -> getTransferMandateFulfillmentDate();
       case WITHDRAWAL,
-              FUND_PENSION_OPENING,
-              FUND_PENSION_OPENING_THIRD_PILLAR,
-              PARTIAL_WITHDRAWAL ->
+          FUND_PENSION_OPENING,
+          FUND_PENSION_OPENING_THIRD_PILLAR,
+          PARTIAL_WITHDRAWAL ->
           getWithdrawalLatestFulfillmentDate();
       case WITHDRAWAL_THIRD_PILLAR -> getThirdPillarWithdrawalFulfillmentDate();
       case EARLY_WITHDRAWAL -> getEarlyWithdrawalFulfillmentDate();
@@ -161,9 +161,9 @@ public class MandateDeadlines {
     return switch (applicationType) {
       case TRANSFER -> getTransferMandateCancellationDeadline();
       case WITHDRAWAL,
-              FUND_PENSION_OPENING,
-              FUND_PENSION_OPENING_THIRD_PILLAR,
-              PARTIAL_WITHDRAWAL ->
+          FUND_PENSION_OPENING,
+          FUND_PENSION_OPENING_THIRD_PILLAR,
+          PARTIAL_WITHDRAWAL ->
           getWithdrawalCancellationDeadline();
       case WITHDRAWAL_THIRD_PILLAR -> getNonCancellableApplicationDeadline();
       case EARLY_WITHDRAWAL -> getEarlyWithdrawalCancellationDeadline();

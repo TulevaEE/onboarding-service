@@ -49,7 +49,7 @@ class PaymentMessageGeneratorTest {
 
   // language=xml
   private static final String xml =
-      """
+"""
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.09" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <CstmrCdtTrfInitn>

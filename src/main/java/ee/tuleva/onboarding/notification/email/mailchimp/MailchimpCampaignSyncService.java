@@ -13,8 +13,6 @@ import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import io.github.erkoristhein.mailchimp.marketing.model.Campaign;
 import io.github.erkoristhein.mailchimp.marketing.model.CampaignReport;
-import io.github.erkoristhein.mailchimp.marketing.model.EmailActivity;
-import io.github.erkoristhein.mailchimp.marketing.model.EmailActivityRecord;
 import io.github.erkoristhein.mailchimp.marketing.model.MemberActivity2;
 import io.github.erkoristhein.mailchimp.marketing.model.SentToRecipient;
 import java.time.Instant;
@@ -39,6 +37,7 @@ public class MailchimpCampaignSyncService {
   private final EmailRepository emailRepository;
   private final EventLogRepository eventLogRepository;
   private final UserRepository userRepository;
+  private final CrmMailchimpRepository crmMailchimpRepository;
   private final MailchimpCampaignMetricsService metricsService;
 
   @Transactional
@@ -76,27 +75,44 @@ public class MailchimpCampaignSyncService {
   private void syncRecipients(Campaign campaign, String mailchimpCampaign) {
     log.info("Syncing recipients for campaign: mailchimpCampaign={}", mailchimpCampaign);
 
-    List<SentToRecipient> recipients = mailchimpService.getCampaignRecipients(campaign.getId());
     Instant sendTime = toInstant(campaign.getSendTime());
 
-    List<Email> emails =
-        recipients.stream()
-            .map(recipient -> buildEmailFromRecipient(recipient, mailchimpCampaign, sendTime))
-            .collect(toList());
+    mailchimpService.processCampaignRecipients(
+        campaign.getId(),
+        recipientsPage -> {
+          List<Email> emails =
+              recipientsPage.stream()
+                  .map(recipient -> buildEmailFromRecipient(recipient, mailchimpCampaign, sendTime))
+                  .filter(
+                      email -> {
+                        if (email.getPersonalCode() == null) {
+                          log.error(
+                              "Skipping email without personal code: mandrillMessageId={}, mailchimpCampaign={}",
+                              email.getMandrillMessageId(),
+                              mailchimpCampaign);
+                          return false;
+                        }
+                        return true;
+                      })
+                  .collect(toList());
 
-    emailRepository.saveAll(emails);
-
-    log.info(
-        "Saved {} recipients for campaign: mailchimpCampaign={}", emails.size(), mailchimpCampaign);
+          if (!emails.isEmpty()) {
+            emailRepository.saveAll(emails);
+            log.info(
+                "Saved batch of {} recipients for campaign: mailchimpCampaign={}",
+                emails.size(),
+                mailchimpCampaign);
+          }
+        });
   }
 
   private Email buildEmailFromRecipient(
       SentToRecipient recipient, String mailchimpCampaign, Instant sendTime) {
     String emailAddress = recipient.getEmailAddress();
-    Optional<User> user = userRepository.findByEmail(emailAddress);
+    String personalCode = findPersonalCodeByEmail(emailAddress);
 
     return Email.builder()
-        .personalCode(user.map(User::getPersonalCode).orElse(null))
+        .personalCode(personalCode)
         .type(MAILCHIMP_CAMPAIGN)
         .status(SENT)
         .mailchimpCampaign(mailchimpCampaign)
@@ -106,66 +122,64 @@ public class MailchimpCampaignSyncService {
         .build();
   }
 
+  private String findPersonalCodeByEmail(String emailAddress) {
+    return userRepository
+        .findByEmail(emailAddress)
+        .map(User::getPersonalCode)
+        .orElseGet(() -> crmMailchimpRepository.findPersonalCodeByEmail(emailAddress).orElse(null));
+  }
+
   private void syncActivity(String campaignId, String mailchimpCampaign) {
     log.info("Syncing activity for campaign: campaignId={}", campaignId);
 
-    EmailActivity emailActivity = mailchimpService.getCampaignActivity(campaignId);
-
-    if (emailActivity.getEmails() == null) {
-      log.warn("No email activity found for campaign: campaignId={}", campaignId);
-      return;
-    }
-
-    long totalEmailsWithActivity =
-        emailActivity.getEmails().stream()
-            .map(EmailActivityRecord::getEmailId)
-            .filter(Objects::nonNull)
-            .count();
-
-    List<EventLog> eventLogs =
-        emailActivity.getEmails().stream()
-            .filter(emailWithActivity -> emailWithActivity.getEmailId() != null)
-            .flatMap(
-                emailWithActivity -> {
-                  String emailId = emailWithActivity.getEmailId();
-                  Optional<Email> emailOpt = emailRepository.findByMandrillMessageId(emailId);
-
-                  if (emailOpt.isEmpty()) {
-                    log.warn(
-                        "Email not found for activity: emailId={}, campaignId={}, skipping",
-                        emailId,
-                        campaignId);
-                    return Stream.empty();
-                  }
-
-                  Email email = emailOpt.get();
-                  if (email.getPersonalCode() == null) {
-                    log.warn(
-                        "Email has no personalCode: emailId={}, campaignId={}, skipping event",
-                        emailId,
-                        campaignId);
-                    return Stream.empty();
-                  }
-
-                  if (emailWithActivity.getActivity() == null) {
-                    return Stream.empty();
-                  }
-
-                  return emailWithActivity.getActivity().stream()
-                      .map(activityEvent -> buildEventLog(activityEvent, email, mailchimpCampaign))
-                      .filter(Objects::nonNull);
-                })
-            .collect(toList());
-
-    eventLogRepository.saveAll(eventLogs);
-
-    long skippedCount = totalEmailsWithActivity - eventLogs.size();
-
-    log.info(
-        "Synced activity for campaign: campaignId={}, saved={}, skipped={}",
+    mailchimpService.processCampaignActivity(
         campaignId,
-        eventLogs.size(),
-        skippedCount);
+        activityPage -> {
+          List<EventLog> eventLogs =
+              activityPage.stream()
+                  .filter(emailWithActivity -> emailWithActivity.getEmailId() != null)
+                  .flatMap(
+                      emailWithActivity -> {
+                        String emailId = emailWithActivity.getEmailId();
+                        Optional<Email> emailOpt = emailRepository.findByMandrillMessageId(emailId);
+
+                        if (emailOpt.isEmpty()) {
+                          log.warn(
+                              "Email not found for activity: emailId={}, campaignId={}, skipping",
+                              emailId,
+                              campaignId);
+                          return Stream.empty();
+                        }
+
+                        Email email = emailOpt.get();
+                        if (email.getPersonalCode() == null) {
+                          log.warn(
+                              "Email has no personalCode: emailId={}, campaignId={}, skipping event",
+                              emailId,
+                              campaignId);
+                          return Stream.empty();
+                        }
+
+                        if (emailWithActivity.getActivity() == null) {
+                          return Stream.empty();
+                        }
+
+                        return emailWithActivity.getActivity().stream()
+                            .map(
+                                activityEvent ->
+                                    buildEventLog(activityEvent, email, mailchimpCampaign))
+                            .filter(Objects::nonNull);
+                      })
+                  .collect(toList());
+
+          if (!eventLogs.isEmpty()) {
+            eventLogRepository.saveAll(eventLogs);
+            log.info(
+                "Saved batch of {} event logs for campaign: campaignId={}",
+                eventLogs.size(),
+                campaignId);
+          }
+        });
   }
 
   private EventLog buildEventLog(MemberActivity2 activity, Email email, String mailchimpCampaign) {

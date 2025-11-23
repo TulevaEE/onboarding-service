@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.notification.email.provider
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import ee.tuleva.onboarding.notification.email.auto.EmailEvent
 import io.github.erkoristhein.mailchimp.api.MessagesApi
 import io.github.erkoristhein.mailchimp.marketing.api.CampaignsApi
@@ -90,12 +92,13 @@ class MailchimpServiceSpec extends Specification {
         new SentTo().sentTo([recipient1, recipient2])
 
     when:
-    def result = service.getCampaignRecipients(campaignId)
+    def collectedRecipients = []
+    service.processCampaignRecipients(campaignId, { page -> collectedRecipients.addAll(page) })
 
     then:
-    result.size() == 2
-    result[0].emailAddress == "email1@example.com"
-    result[1].emailAddress == "email2@example.com"
+    collectedRecipients.size() == 2
+    collectedRecipients[0].emailAddress == "email1@example.com"
+    collectedRecipients[1].emailAddress == "email2@example.com"
   }
 
   def "getCampaignRecipients_paginatesThroughMultiplePages"() {
@@ -110,14 +113,15 @@ class MailchimpServiceSpec extends Specification {
         new SentTo().sentTo(recipients2)
 
     when:
-    def result = service.getCampaignRecipients(campaignId)
+    def collectedRecipients = []
+    service.processCampaignRecipients(campaignId, { page -> collectedRecipients.addAll(page) })
 
     then:
-    result.size() == 1500
-    result[0].emailAddress == "email1@example.com"
-    result[999].emailAddress == "email1000@example.com"
-    result[1000].emailAddress == "email1001@example.com"
-    result[1499].emailAddress == "email1500@example.com"
+    collectedRecipients.size() == 1500
+    collectedRecipients[0].emailAddress == "email1@example.com"
+    collectedRecipients[999].emailAddress == "email1000@example.com"
+    collectedRecipients[1000].emailAddress == "email1001@example.com"
+    collectedRecipients[1499].emailAddress == "email1500@example.com"
   }
 
   def "getCampaignRecipients_stopsWhenNoMoreRecipients"() {
@@ -126,10 +130,11 @@ class MailchimpServiceSpec extends Specification {
     reportsApi.getReportsIdSentTo(campaignId, null, null, 1000, 0) >> new SentTo().sentTo([])
 
     when:
-    def result = service.getCampaignRecipients(campaignId)
+    def collectedRecipients = []
+    service.processCampaignRecipients(campaignId, { page -> collectedRecipients.addAll(page) })
 
     then:
-    result.isEmpty()
+    collectedRecipients.isEmpty()
   }
 
   def "getCampaignRecipients_throwsExceptionWhenApiFails"() {
@@ -138,7 +143,7 @@ class MailchimpServiceSpec extends Specification {
     reportsApi.getReportsIdSentTo(campaignId, null, null, 1000, 0) >> { throw new RuntimeException("API error") }
 
     when:
-    service.getCampaignRecipients(campaignId)
+    service.processCampaignRecipients(campaignId, { page -> })
 
     then:
     thrown(RuntimeException)
@@ -154,12 +159,13 @@ class MailchimpServiceSpec extends Specification {
         new EmailActivity().emails([activity1, activity2])
 
     when:
-    def result = service.getCampaignActivity(campaignId)
+    def collectedActivities = []
+    service.processCampaignActivity(campaignId, { page -> collectedActivities.addAll(page) })
 
     then:
-    result.emails.size() == 2
-    result.emails[0].emailId == "msg_1"
-    result.emails[1].emailId == "msg_2"
+    collectedActivities.size() == 2
+    collectedActivities[0].emailId == "msg_1"
+    collectedActivities[1].emailId == "msg_2"
   }
 
   def "getCampaignActivity_paginatesThroughMultiplePages"() {
@@ -174,14 +180,15 @@ class MailchimpServiceSpec extends Specification {
         new EmailActivity().emails(activities2)
 
     when:
-    def result = service.getCampaignActivity(campaignId)
+    def collectedActivities = []
+    service.processCampaignActivity(campaignId, { page -> collectedActivities.addAll(page) })
 
     then:
-    result.emails.size() == 1200
-    result.emails[0].emailId == "msg_1"
-    result.emails[999].emailId == "msg_1000"
-    result.emails[1000].emailId == "msg_1001"
-    result.emails[1199].emailId == "msg_1200"
+    collectedActivities.size() == 1200
+    collectedActivities[0].emailId == "msg_1"
+    collectedActivities[999].emailId == "msg_1000"
+    collectedActivities[1000].emailId == "msg_1001"
+    collectedActivities[1199].emailId == "msg_1200"
   }
 
   def "getCampaignActivity_stopsWhenNoMoreActivity"() {
@@ -190,10 +197,11 @@ class MailchimpServiceSpec extends Specification {
     reportsApi.getReportsIdEmailActivity(campaignId, null, null, 1000, 0, null) >> new EmailActivity().emails([])
 
     when:
-    def result = service.getCampaignActivity(campaignId)
+    def collectedActivities = []
+    service.processCampaignActivity(campaignId, { page -> collectedActivities.addAll(page) })
 
     then:
-    result.emails.isEmpty()
+    collectedActivities.isEmpty()
   }
 
   def "getCampaignActivity_throwsExceptionWhenApiFails"() {
@@ -202,9 +210,40 @@ class MailchimpServiceSpec extends Specification {
     reportsApi.getReportsIdEmailActivity(campaignId, null, null, 1000, 0, null) >> { throw new RuntimeException("API error") }
 
     when:
-    service.getCampaignActivity(campaignId)
+    service.processCampaignActivity(campaignId, { page -> })
 
     then:
     thrown(RuntimeException)
+  }
+
+  def "getCampaignRecipients_handlesEmptyAbsplitGroupInJsonResponse"() {
+    given:
+    def campaignId = "campaign_123"
+    def jsonResponse = '''
+    {
+      "sent_to": [
+        {
+          "email_id": "msg_1",
+          "email_address": "test@example.com",
+          "absplit_group": "",
+          "status": "sent",
+          "open_count": 1
+        }
+      ],
+      "campaign_id": "campaign_123",
+      "total_items": 1
+    }
+    '''
+
+    def objectMapper = new ObjectMapper()
+    objectMapper.registerModule(new JavaTimeModule())
+
+    when:
+    def sentTo = objectMapper.readValue(jsonResponse, SentTo.class)
+
+    then:
+    sentTo.sentTo.size() == 1
+    sentTo.sentTo[0].emailAddress == "test@example.com"
+    sentTo.sentTo[0].absplitGroup == null
   }
 }

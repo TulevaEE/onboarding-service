@@ -16,8 +16,8 @@ import io.github.erkoristhein.mailchimp.marketing.model.SentToRecipient;
 import io.github.erkoristhein.mailchimp.model.PostMessagesSendRequestMessageToInner;
 import io.github.erkoristhein.mailchimp.model.PostMessagesSendTemplateRequest;
 import io.github.erkoristhein.mailchimp.model.PostMessagesSendTemplateRequestMessage;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -79,10 +79,11 @@ public class MailchimpService {
     return null;
   }
 
-  public List<SentToRecipient> getCampaignRecipients(String campaignId) {
-    List<SentToRecipient> allRecipients = new ArrayList<>();
+  public void processCampaignRecipients(
+      String campaignId, Consumer<List<SentToRecipient>> pageProcessor) {
     int offset = 0;
     int count = 1000;
+    int totalProcessed = 0;
 
     while (true) {
       SentTo sentToPage =
@@ -92,7 +93,8 @@ public class MailchimpService {
         break;
       }
 
-      allRecipients.addAll(sentToPage.getSentTo());
+      pageProcessor.accept(sentToPage.getSentTo());
+      totalProcessed += sentToPage.getSentTo().size();
 
       if (sentToPage.getSentTo().size() < count) {
         break;
@@ -101,14 +103,14 @@ public class MailchimpService {
       offset += count;
     }
 
-    log.info("Fetched {} recipients for campaign {}", allRecipients.size(), campaignId);
-    return allRecipients;
+    log.info("Processed {} recipients for campaign: campaignId={}", totalProcessed, campaignId);
   }
 
-  public EmailActivity getCampaignActivity(String campaignId) {
-    List<EmailActivityRecord> allEmailActivity = new ArrayList<>();
+  public void processCampaignActivity(
+      String campaignId, Consumer<List<EmailActivityRecord>> pageProcessor) {
     int offset = 0;
     int count = 1000;
+    int totalProcessed = 0;
 
     while (true) {
       EmailActivity activityPage =
@@ -119,7 +121,8 @@ public class MailchimpService {
         break;
       }
 
-      allEmailActivity.addAll(activityPage.getEmails());
+      pageProcessor.accept(activityPage.getEmails());
+      totalProcessed += activityPage.getEmails().size();
 
       if (activityPage.getEmails().size() < count) {
         break;
@@ -129,11 +132,9 @@ public class MailchimpService {
     }
 
     log.info(
-        "Fetched {} email activity records for campaign {}", allEmailActivity.size(), campaignId);
-
-    EmailActivity result = new EmailActivity();
-    result.setEmails(allEmailActivity);
-    return result;
+        "Processed {} email activity records for campaign: campaignId={}",
+        totalProcessed,
+        campaignId);
   }
 
   public CampaignReport getCampaignReport(String campaignId) {

@@ -137,6 +137,63 @@ The application follows domain-driven design with these main domains:
 - H2 compatibility migrations for testing in format `V1_{n-1}_1__.sql`
 - Session storage via Spring Session JDBC
 
+#### Database Access
+- **Prefer JdbcClient over JdbcTemplate**: Use Spring's modern `JdbcClient` (introduced in Spring Framework 6.1) instead of `NamedParameterJdbcTemplate` or `JdbcTemplate`
+  - JdbcClient provides a fluent, chainable API that's more readable and less verbose
+  - Better null handling - no need for manual NULL string concatenation
+  - Type-safe parameter binding with `.param(name, value)`
+  - Simpler exception handling with `.optional()` for single results
+  - Example:
+    ```java
+    // ✅ Good: JdbcClient
+    jdbcClient
+        .sql("SELECT name FROM users WHERE id = :id")
+        .param("id", userId)
+        .query(String.class)
+        .optional();
+
+    // ❌ Bad: NamedParameterJdbcTemplate
+    try {
+      String name = jdbcTemplate.queryForObject(sql, params, String.class);
+      return Optional.ofNullable(name);
+    } catch (EmptyResultDataAccessException e) {
+      return Optional.empty();
+    }
+    ```
+  - Use JdbcClient in both production code and tests for consistency
+
+### HTTP Client
+- **Prefer RestClient over RestTemplate**: Use Spring's modern `RestClient` (introduced in Spring Framework 6.1) instead of `RestTemplate`
+  - RestClient provides a fluent, chainable API similar to WebClient but synchronous
+  - More readable and less verbose than RestTemplate
+  - Better error handling with built-in status handlers
+  - Type-safe request/response handling
+  - Consistent API design with other modern Spring components (JdbcClient, WebClient)
+  - Example:
+    ```java
+    // ✅ Good: RestClient
+    String result = restClient.get()
+        .uri("/api/users/{id}", userId)
+        .header("Authorization", "Bearer " + token)
+        .retrieve()
+        .body(String.class);
+
+    // ❌ Bad: RestTemplate
+    HttpHeaders headers = new HttpHeaders();
+    headers.set("Authorization", "Bearer " + token);
+    HttpEntity<String> entity = new HttpEntity<>(headers);
+    ResponseEntity<String> response = restTemplate.exchange(
+        "/api/users/{id}",
+        HttpMethod.GET,
+        entity,
+        String.class,
+        userId
+    );
+    String result = response.getBody();
+    ```
+  - RestClient supports the same features as RestTemplate but with better ergonomics
+  - Use RestClient for all new HTTP client code
+
 ### Testing Strategy
 
 #### Testing Philosophy: Confidence Over Coverage

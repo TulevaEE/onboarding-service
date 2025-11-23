@@ -7,7 +7,6 @@ import ee.tuleva.onboarding.mandate.email.persistence.EmailRepository
 import ee.tuleva.onboarding.notification.email.provider.MailchimpService
 import ee.tuleva.onboarding.user.UserRepository
 import io.github.erkoristhein.mailchimp.marketing.model.CampaignReport
-import io.github.erkoristhein.mailchimp.marketing.model.EmailActivity
 import spock.lang.Specification
 
 import java.time.OffsetDateTime
@@ -23,6 +22,7 @@ class MailchimpCampaignSyncServiceSpec extends Specification {
   EmailRepository emailRepository = Mock()
   EventLogRepository eventLogRepository = Mock()
   UserRepository userRepository = Mock()
+  CrmMailchimpRepository crmMailchimpRepository = Mock()
   MailchimpCampaignMetricsService metricsService = Mock()
 
   MailchimpCampaignSyncService service
@@ -33,6 +33,7 @@ class MailchimpCampaignSyncServiceSpec extends Specification {
         emailRepository,
         eventLogRepository,
         userRepository,
+        crmMailchimpRepository,
         metricsService
     )
   }
@@ -48,10 +49,15 @@ class MailchimpCampaignSyncServiceSpec extends Specification {
 
     mailchimpService.getLatestSentCampaign() >> testCampaign
     emailRepository.existsByMailchimpCampaign("Test Campaign camp_123") >> false
-    mailchimpService.getCampaignRecipients("camp_123") >> [recipient1, recipient2]
+    mailchimpService.processCampaignRecipients("camp_123", _) >> { String campaignId, callback ->
+      callback.accept([recipient1, recipient2])
+    }
     userRepository.findByEmail("test1@example.com") >> Optional.of(user1)
     userRepository.findByEmail("test2@example.com") >> Optional.of(user2)
-    mailchimpService.getCampaignActivity("camp_123") >> new EmailActivity().emails([activity])
+    crmMailchimpRepository.findPersonalCodeByEmail(_) >> Optional.empty()
+    mailchimpService.processCampaignActivity("camp_123", _) >> { String campaignId, callback ->
+      callback.accept([activity])
+    }
     emailRepository.findByMandrillMessageId("msg_1") >> Optional.of(
         email("39001010000", "msg_1", "Test Campaign camp_123")
     )
@@ -89,8 +95,8 @@ class MailchimpCampaignSyncServiceSpec extends Specification {
     service.syncLatestCampaign()
 
     then:
-    0 * mailchimpService.getCampaignRecipients(_)
-    0 * mailchimpService.getCampaignActivity(_)
+    0 * mailchimpService.processCampaignRecipients(_, _)
+    0 * mailchimpService.processCampaignActivity(_, _)
     0 * emailRepository.saveAll(_)
   }
 
@@ -103,19 +109,28 @@ class MailchimpCampaignSyncServiceSpec extends Specification {
 
     then:
     0 * emailRepository.existsByMailchimpCampaign(_)
-    0 * mailchimpService.getCampaignRecipients(_)
+    0 * mailchimpService.processCampaignRecipients(_, _)
   }
 
-  def "syncLatestCampaign_handlesRecipientsWithoutUser"() {
+  def "syncLatestCampaign_skipsRecipientsWithoutPersonalCode"() {
     given:
     def campaign = campaign("camp_123", "Test Campaign", OffsetDateTime.now())
-    def recipient = recipient("unknown@example.com", "msg_1")
+    def recipientWithUser = recipient("user@example.com", "msg_1")
+    def recipientWithoutUser = recipient("unknown@example.com", "msg_2")
+    def user = simpleUser().personalCode("39001010000").email("user@example.com").build()
 
     mailchimpService.getLatestSentCampaign() >> campaign
     emailRepository.existsByMailchimpCampaign("Test Campaign camp_123") >> false
-    mailchimpService.getCampaignRecipients("camp_123") >> [recipient]
+    mailchimpService.processCampaignRecipients("camp_123", _) >> { String campaignId, callback ->
+      callback.accept([recipientWithUser, recipientWithoutUser])
+    }
+    userRepository.findByEmail("user@example.com") >> Optional.of(user)
     userRepository.findByEmail("unknown@example.com") >> Optional.empty()
-    mailchimpService.getCampaignActivity("camp_123") >> new EmailActivity().emails([])
+    crmMailchimpRepository.findPersonalCodeByEmail("user@example.com") >> Optional.empty()
+    crmMailchimpRepository.findPersonalCodeByEmail("unknown@example.com") >> Optional.empty()
+    mailchimpService.processCampaignActivity("camp_123", _) >> { String campaignId, callback ->
+      callback.accept([])
+    }
     mailchimpService.getCampaignReport("camp_123") >> Mock(CampaignReport)
     metricsService.getMetrics("Test Campaign camp_123") >> Mock(MailchimpCampaignMetrics)
 
@@ -125,7 +140,7 @@ class MailchimpCampaignSyncServiceSpec extends Specification {
     then:
     1 * emailRepository.saveAll({ List<Email> emails ->
       emails.size() == 1 &&
-          emails[0].personalCode == null &&
+          emails[0].personalCode == "39001010000" &&
           emails[0].mandrillMessageId == "msg_1"
     })
   }
@@ -133,16 +148,29 @@ class MailchimpCampaignSyncServiceSpec extends Specification {
   def "syncLatestCampaign_skipsActivityForEmailsWithoutPersonalCode"() {
     given:
     def campaign = campaign("camp_123", "Test Campaign", OffsetDateTime.now())
-    def recipient = recipient("test@example.com", "msg_1")
-    def activity = emailActivity("msg_1", "open", null)
+    def recipient1 = recipient("test1@example.com", "msg_1")
+    def recipient2 = recipient("test2@example.com", "msg_2")
+    def user1 = simpleUser().personalCode("39001010000").email("test1@example.com").build()
+    def user2 = simpleUser().personalCode("39001020000").email("test2@example.com").build()
+    def activity1 = openActivity("msg_1")
+    def activity2 = openActivity("msg_2")
 
     mailchimpService.getLatestSentCampaign() >> campaign
     emailRepository.existsByMailchimpCampaign("Test Campaign camp_123") >> false
-    mailchimpService.getCampaignRecipients("camp_123") >> [recipient]
-    userRepository.findByEmail("test@example.com") >> Optional.empty()
-    mailchimpService.getCampaignActivity("camp_123") >> new EmailActivity().emails([activity])
+    mailchimpService.processCampaignRecipients("camp_123", _) >> { String campaignId, callback ->
+      callback.accept([recipient1, recipient2])
+    }
+    userRepository.findByEmail("test1@example.com") >> Optional.of(user1)
+    userRepository.findByEmail("test2@example.com") >> Optional.of(user2)
+    crmMailchimpRepository.findPersonalCodeByEmail(_) >> Optional.empty()
+    mailchimpService.processCampaignActivity("camp_123", _) >> { String campaignId, callback ->
+      callback.accept([activity1, activity2])
+    }
     emailRepository.findByMandrillMessageId("msg_1") >> Optional.of(
-        emailWithoutPersonalCode("msg_1")
+        email("39001010000", "msg_1", "Test Campaign camp_123")
+    )
+    emailRepository.findByMandrillMessageId("msg_2") >> Optional.of(
+        emailWithoutPersonalCode("msg_2")
     )
     mailchimpService.getCampaignReport("camp_123") >> Mock(CampaignReport)
     metricsService.getMetrics("Test Campaign camp_123") >> Mock(MailchimpCampaignMetrics)
@@ -151,7 +179,11 @@ class MailchimpCampaignSyncServiceSpec extends Specification {
     service.syncLatestCampaign()
 
     then:
-    1 * eventLogRepository.saveAll({ List<EventLog> logs -> logs.isEmpty() })
+    1 * eventLogRepository.saveAll({ List<EventLog> logs ->
+      logs.size() == 1 &&
+          logs[0].principal == "39001010000" &&
+          logs[0].data.mandrillMessageId == "msg_1"
+    })
   }
 
   def "syncLatestCampaign_handlesClickEventsWithUrl"() {
@@ -163,9 +195,14 @@ class MailchimpCampaignSyncServiceSpec extends Specification {
 
     mailchimpService.getLatestSentCampaign() >> campaign
     emailRepository.existsByMailchimpCampaign("Test Campaign camp_123") >> false
-    mailchimpService.getCampaignRecipients("camp_123") >> [recipient]
+    mailchimpService.processCampaignRecipients("camp_123", _) >> { String campaignId, callback ->
+      callback.accept([recipient])
+    }
     userRepository.findByEmail("test@example.com") >> Optional.of(user)
-    mailchimpService.getCampaignActivity("camp_123") >> new EmailActivity().emails([clickActivity])
+    crmMailchimpRepository.findPersonalCodeByEmail(_) >> Optional.empty()
+    mailchimpService.processCampaignActivity("camp_123", _) >> { String campaignId, callback ->
+      callback.accept([clickActivity])
+    }
     emailRepository.findByMandrillMessageId("msg_1") >> Optional.of(
         email("39001010000", "msg_1", "Test Campaign camp_123")
     )
@@ -193,9 +230,14 @@ class MailchimpCampaignSyncServiceSpec extends Specification {
 
     mailchimpService.getLatestSentCampaign() >> campaign
     emailRepository.existsByMailchimpCampaign("Test Campaign camp_123") >> false
-    mailchimpService.getCampaignRecipients("camp_123") >> [recipient]
+    mailchimpService.processCampaignRecipients("camp_123", _) >> { String campaignId, callback ->
+      callback.accept([recipient])
+    }
     userRepository.findByEmail("test@example.com") >> Optional.of(user)
-    mailchimpService.getCampaignActivity("camp_123") >> new EmailActivity().emails([unsubActivity])
+    crmMailchimpRepository.findPersonalCodeByEmail(_) >> Optional.empty()
+    mailchimpService.processCampaignActivity("camp_123", _) >> { String campaignId, callback ->
+      callback.accept([unsubActivity])
+    }
     emailRepository.findByMandrillMessageId("msg_1") >> Optional.of(
         email("39001010000", "msg_1", "Test Campaign camp_123")
     )
@@ -217,13 +259,19 @@ class MailchimpCampaignSyncServiceSpec extends Specification {
     def campaign = campaign("camp_123", "Test Campaign", OffsetDateTime.now())
     def recipient = recipient("test@example.com", "msg_1")
     def user = simpleUser().personalCode("39001010000").email("test@example.com").build()
-    def bounceActivity = emailActivity("msg_1", "bounce", null)
+    def openActivityRecord = openActivity("msg_1")
+    def bounceActivityRecord = emailActivity("msg_1", "bounce", null)
 
     mailchimpService.getLatestSentCampaign() >> campaign
     emailRepository.existsByMailchimpCampaign("Test Campaign camp_123") >> false
-    mailchimpService.getCampaignRecipients("camp_123") >> [recipient]
+    mailchimpService.processCampaignRecipients("camp_123", _) >> { String campaignId, callback ->
+      callback.accept([recipient])
+    }
     userRepository.findByEmail("test@example.com") >> Optional.of(user)
-    mailchimpService.getCampaignActivity("camp_123") >> new EmailActivity().emails([bounceActivity])
+    crmMailchimpRepository.findPersonalCodeByEmail(_) >> Optional.empty()
+    mailchimpService.processCampaignActivity("camp_123", _) >> { String campaignId, callback ->
+      callback.accept([openActivityRecord, bounceActivityRecord])
+    }
     emailRepository.findByMandrillMessageId("msg_1") >> Optional.of(
         email("39001010000", "msg_1", "Test Campaign camp_123")
     )
@@ -234,23 +282,10 @@ class MailchimpCampaignSyncServiceSpec extends Specification {
     service.syncLatestCampaign()
 
     then:
-    1 * eventLogRepository.saveAll({ List<EventLog> logs -> logs.isEmpty() })
-  }
-
-  def "syncLatestCampaign_sanitizesCampaignNameWithSpecialCharacters"() {
-    given:
-    def campaign = campaign("camp_123", "Test Campaign!!! 2024", OffsetDateTime.now())
-    mailchimpService.getLatestSentCampaign() >> campaign
-    emailRepository.existsByMailchimpCampaign("Test Campaign!!! 2024 camp_123") >> false
-    mailchimpService.getCampaignRecipients("camp_123") >> []
-    mailchimpService.getCampaignActivity("camp_123") >> new EmailActivity().emails([])
-    mailchimpService.getCampaignReport("camp_123") >> Mock(CampaignReport)
-    metricsService.getMetrics("Test Campaign!!! 2024 camp_123") >> Mock(MailchimpCampaignMetrics)
-
-    when:
-    service.syncLatestCampaign()
-
-    then:
-    1 * emailRepository.saveAll(_)
+    1 * eventLogRepository.saveAll({ List<EventLog> logs ->
+      logs.size() == 1 &&
+          logs[0].type == "OPEN" &&
+          logs[0].principal == "39001010000"
+    })
   }
 }

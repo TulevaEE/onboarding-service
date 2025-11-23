@@ -66,6 +66,19 @@ class CrmMailchimpRepositorySpec extends Specification {
     result3.get() == '38512310217'
   }
 
+  def "findPersonalCodeByEmail returns first result when duplicates exist"() {
+    given:
+    insertCrmRecord('38512310215', 'duplicate@example.com', 'ET', 30)
+    insertCrmRecord('38512310216', 'duplicate@example.com', 'EN', 25)
+
+    when:
+    def result = repository.findPersonalCodeByEmail('duplicate@example.com')
+
+    then:
+    result.isPresent()
+    result.get() == '38512310215'
+  }
+
   private void insertCrmRecord(String personalCode, String email, String language, int age) {
     jdbcClient.sql("""
       INSERT INTO analytics.mv_crm_mailchimp (isikukood, email, keel, vanus)

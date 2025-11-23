@@ -15,7 +15,7 @@ public class CrmMailchimpRepository {
 
   public Optional<String> findPersonalCodeByEmail(String email) {
     return jdbcClient
-        .sql("SELECT isikukood FROM analytics.mv_crm_mailchimp WHERE email = :email")
+        .sql("SELECT isikukood FROM analytics.mv_crm_mailchimp WHERE email = :email LIMIT 1")
         .param("email", email)
         .query(String.class)
         .optional();

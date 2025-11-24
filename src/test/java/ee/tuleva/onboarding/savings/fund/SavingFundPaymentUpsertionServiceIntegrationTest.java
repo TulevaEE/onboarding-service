@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARI
 import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
@@ -24,9 +25,11 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
+@Import(TestSchedulerLockConfiguration.class)
 @Transactional
 class SavingFundPaymentUpsertionServiceIntegrationTest {
 

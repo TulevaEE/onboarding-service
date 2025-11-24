@@ -9,6 +9,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -28,7 +29,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
-@Import({MockSavingsFundLedgerConfiguration.class})
+@Import({TestSchedulerLockConfiguration.class, MockSavingsFundLedgerConfiguration.class})
 @Transactional
 class SavingsFundReservationJobIntegrationTest {
 

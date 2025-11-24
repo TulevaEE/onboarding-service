@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.audit.health;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -18,6 +19,10 @@ public class ScheduledAuditHealthCheckJob {
   private static final String CRON_ZONE = "Europe/Tallinn";
 
   @Scheduled(cron = CRON_EXPRESSION, zone = CRON_ZONE)
+  @SchedulerLock(
+      name = "ScheduledAuditHealthCheckJob_checkAuditLogHealth",
+      lockAtMostFor = "55m",
+      lockAtLeastFor = "5m")
   public void checkAuditLogHealth() {
     log.info(
         "Starting hourly check for audit log health. Cron [{}], Zone [{}].",

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.aml.risklevel;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -15,6 +16,10 @@ public class ScheduledAmlRiskMetadataRefreshJob {
   private final AmlRiskRepositoryService amlRiskRepositoryService;
 
   @Scheduled(cron = "0 0 9,13,16 * * ?", zone = "Europe/Tallinn")
+  @SchedulerLock(
+      name = "ScheduledAmlRiskMetadataRefreshJob_refreshAmlRiskMetadata",
+      lockAtMostFor = "23h",
+      lockAtLeastFor = "30m")
   public void refreshAmlRiskMetadata() {
     log.info("Starting scheduled AML risk metadata view refresh");
     amlRiskRepositoryService.refreshAmlRiskMetadataView();

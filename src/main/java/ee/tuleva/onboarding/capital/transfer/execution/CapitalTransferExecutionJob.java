@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,10 @@ public class CapitalTransferExecutionJob {
   private final CapitalTransferExecutor executor;
 
   @Scheduled(fixedRate = 10000) // every 10 seconds
+  @SchedulerLock(
+      name = "CapitalTransferExecutionJob_executeApprovedContracts",
+      lockAtMostFor = "8s",
+      lockAtLeastFor = "2s")
   public void executeApprovedContracts() {
     List<CapitalTransferContract> approvedContracts =
         contractRepository.findAllByState(CapitalTransferContractState.APPROVED);

@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -26,6 +27,10 @@ public class ScheduledFundTransactionSynchronizationJob {
   private final String secondPillarBondIsin = "EE3600109443";
 
   @Scheduled(cron = "0 10 3 * * ?", zone = "Europe/Tallinn")
+  @SchedulerLock(
+      name = "ScheduledFundTransactionSynchronizationJob_runDailySyncForThirdPillar",
+      lockAtMostFor = "23h",
+      lockAtLeastFor = "30m")
   public void runDailySyncForThirdPillar() {
     log.info(
         "Starting scheduled fund transaction synchronization job for ISIN {}.", thirdPillarIsin);
@@ -33,6 +38,10 @@ public class ScheduledFundTransactionSynchronizationJob {
   }
 
   @Scheduled(cron = "0 20 3 * * ?", zone = "Europe/Tallinn")
+  @SchedulerLock(
+      name = "ScheduledFundTransactionSynchronizationJob_runDailySyncForSecondPillar",
+      lockAtMostFor = "23h",
+      lockAtLeastFor = "30m")
   public void runDailySyncForSecondPillar() {
     log.info(
         "Starting scheduled fund transaction synchronization job for ISIN {}.", secondPillarIsin);
@@ -40,6 +49,10 @@ public class ScheduledFundTransactionSynchronizationJob {
   }
 
   @Scheduled(cron = "0 30 3 * * ?", zone = "Europe/Tallinn")
+  @SchedulerLock(
+      name = "ScheduledFundTransactionSynchronizationJob_runDailySyncForSecondPillarBond",
+      lockAtMostFor = "23h",
+      lockAtLeastFor = "30m")
   public void runDailySyncForSecondPillarBond() {
     log.info(
         "Starting scheduled fund transaction synchronization job for ISIN {}.",

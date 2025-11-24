@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
@@ -34,6 +35,10 @@ public class FundValueIndexingJob {
   static final LocalDate EARLIEST_DATE = LocalDate.parse("2003-01-07");
 
   @Scheduled(cron = "0 0 * * * *", zone = "Europe/Tallinn") // the top of every hour of every day
+  @SchedulerLock(
+      name = "FundValueIndexingJob_runIndexingJob",
+      lockAtMostFor = "55m",
+      lockAtLeastFor = "5m")
   public void runIndexingJob() {
     log.info(
         "Running indexing job on retrievers: staticRetrievers={}, dynamicRetrievers={}",

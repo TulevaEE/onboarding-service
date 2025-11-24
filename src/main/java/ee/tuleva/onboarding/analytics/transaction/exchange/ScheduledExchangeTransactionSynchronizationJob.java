@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -21,6 +22,10 @@ public class ScheduledExchangeTransactionSynchronizationJob {
   private final Clock clock;
 
   @Scheduled(cron = "0 0 2 * * ?", zone = "Europe/Tallinn")
+  @SchedulerLock(
+      name = "ScheduledExchangeTransactionSynchronizationJob_run",
+      lockAtMostFor = "23h",
+      lockAtLeastFor = "30m")
   public void run() {
     log.info("Starting exchange transactions synchronization job");
 

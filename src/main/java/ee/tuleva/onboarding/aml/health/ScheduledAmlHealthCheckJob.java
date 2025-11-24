@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -27,6 +28,10 @@ public class ScheduledAmlHealthCheckJob {
           AmlCheckType.INTERNAL_ESCALATION);
 
   @Scheduled(cron = "0 0 * * * ?", zone = "Europe/Tallinn")
+  @SchedulerLock(
+      name = "ScheduledAmlHealthCheckJob_checkForDelayedAmlChecks",
+      lockAtMostFor = "55m",
+      lockAtLeastFor = "5m")
   public void checkForDelayedAmlChecks() {
     log.info("Starting hourly check for delayed AML processes.");
     Stream<AmlCheckType> checkTypesToMonitor =

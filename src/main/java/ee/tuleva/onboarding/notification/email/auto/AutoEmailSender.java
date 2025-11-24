@@ -13,6 +13,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -31,6 +32,10 @@ public class AutoEmailSender {
 
   // checks every day at 12:00
   @Scheduled(cron = "0 0 12 * * *", zone = "Europe/Tallinn")
+  @SchedulerLock(
+      name = "AutoEmailSender_sendAutoEmails",
+      lockAtMostFor = "23h",
+      lockAtLeastFor = "30m")
   public void sendAutoEmails() {
     for (final var autoEmailRepository : autoEmailRepositories) {
       EmailType emailType = autoEmailRepository.getEmailType();

@@ -20,6 +20,7 @@ import java.util.concurrent.Executors;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -101,6 +102,10 @@ public class MandateBatchProcessingPoller {
   }
 
   @Scheduled(fixedRate = 1000)
+  @SchedulerLock(
+      name = "MandateBatchProcessingPoller_processQueue",
+      lockAtMostFor = "500ms",
+      lockAtLeastFor = "100ms")
   public void processQueue() {
     for (int i = 0; i < THREAD_COUNT; i++) {
       poller.submit(getPoller());

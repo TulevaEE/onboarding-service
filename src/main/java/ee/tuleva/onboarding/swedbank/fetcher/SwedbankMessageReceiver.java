@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,10 @@ public class SwedbankMessageReceiver {
 
   // @Scheduled(fixedRateString = "1m")
   @Scheduled(cron = "0 0 9-17 * * MON-FRI", zone = "Europe/Tallinn")
+  @SchedulerLock(
+      name = "SwedbankMessageReceiver_getResponses",
+      lockAtMostFor = "50s",
+      lockAtLeastFor = "5s")
   public void getResponses() {
     try {
       getResponse();

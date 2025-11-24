@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.annotation.Schedules;
@@ -21,6 +22,10 @@ public class ScheduledFundBalanceSynchronizationJob {
     @Scheduled(cron = "0 0 11 3 11 ?", zone = "Europe/Tallinn"),
     @Scheduled(cron = "0 0 18 * * ?", zone = "Europe/Tallinn")
   })
+  @SchedulerLock(
+      name = "ScheduledFundBalanceSynchronizationJob_runDailySync",
+      lockAtMostFor = "23h",
+      lockAtLeastFor = "30m")
   public void runDailySync() {
     LocalDate syncDate = LocalDate.now(ClockHolder.clock()).minusDays(1);
     log.info("Starting scheduled fund balance synchronization job for previous day {}.", syncDate);

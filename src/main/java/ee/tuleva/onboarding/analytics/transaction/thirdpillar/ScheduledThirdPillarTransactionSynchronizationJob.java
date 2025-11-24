@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,10 @@ public class ScheduledThirdPillarTransactionSynchronizationJob {
   private static final int DEFAULT_LOOKBACK_DAYS = 2;
 
   @Scheduled(cron = "0 0 2 * * ?", zone = "Europe/Tallinn")
+  @SchedulerLock(
+      name = "ScheduledThirdPillarTransactionSynchronizationJob_runDailySync",
+      lockAtMostFor = "23h",
+      lockAtLeastFor = "30m")
   public void runDailySync() {
     log.info("Starting third pillar transactions synchronization job");
 

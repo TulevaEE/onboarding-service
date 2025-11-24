@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +33,10 @@ public class FundValueIntegrityChecker {
   private final FundValueRepository fundValueRepository;
 
   @Scheduled(cron = "0 30 * * * *", zone = "Europe/Tallinn")
+  @SchedulerLock(
+      name = "FundValueIntegrityChecker_performIntegrityCheck",
+      lockAtMostFor = "55m",
+      lockAtLeastFor = "5m")
   public void performIntegrityCheck() {
     LocalDate endDate = LocalDate.now();
     LocalDate startDate = EARLIEST_DATE;

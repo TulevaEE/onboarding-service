@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -29,6 +30,10 @@ public class AmlHealthThresholdCache {
 
   @PostConstruct
   @Scheduled(cron = REFRESH_CRON_EXPRESSION, zone = REFRESH_CRON_ZONE)
+  @SchedulerLock(
+      name = "AmlHealthThresholdCache_refreshThresholds",
+      lockAtMostFor = "23h",
+      lockAtLeastFor = "30m")
   public void refreshThresholds() {
     log.info(
         "Refreshing AML health thresholds using cron: [{}] in zone: [{}]",

@@ -24,6 +24,7 @@ import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -40,6 +41,7 @@ public class HoldingDetailsJob {
   private final FtpClient morningstarFtpClient;
 
   @Scheduled(cron = "0 0 * * * *", zone = "Europe/Tallinn")
+  @SchedulerLock(name = "HoldingDetailsJob_runJob", lockAtMostFor = "55m", lockAtLeastFor = "5m")
   public void runJob() {
     log.info("Going to start holding detail job");
     HoldingDetail lastDetail = repository.findFirstByOrderByCreatedDateDesc();

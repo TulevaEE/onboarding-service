@@ -23,7 +23,7 @@ val springCloudVersion = "2025.0.0"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.5.7"
+    id("org.springframework.boot") version "4.0.0"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "2.5.3"
     id("com.diffplug.spotless") version "8.1.0"

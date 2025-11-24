@@ -226,8 +226,8 @@ The application follows domain-driven design with these main domains:
 - **Tests should survive refactoring**: If you refactor code without changing behavior, tests should still pass
 
 #### Test Framework
-- Spock framework (Groovy) for unit and integration tests
-- JUnit 5 tests are also acceptable
+- JUnit 5 tests for integration and unit tests
+- Spock framework (Groovy) tests when test data presentable in a table format with @Unroll
 - H2 in-memory database for test isolation
 - Snapshot testing for complex responses
 - MockServer for external service mocking

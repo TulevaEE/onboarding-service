@@ -153,4 +153,26 @@ class FundValueIntegrityCheckerSpec extends Specification {
         result.getOrphanedData().size() == 1   // date3 missing in Yahoo
         result.hasIssues()
     }
+
+    def "should exclude today's date from integrity check"() {
+        given:
+        String fundTicker = "TEST.F"
+        LocalDate today = LocalDate.now()
+        LocalDate yesterday = today.minusDays(1)
+
+        FundValue todayValue = new FundValue(fundTicker, today, new BigDecimal("100.00000"))
+        FundValue yesterdayValue = new FundValue(fundTicker, yesterday, new BigDecimal("99.00000"))
+
+        fundValueRepository.findValuesBetweenDates(fundTicker, _, yesterday) >> [yesterdayValue]
+        navCheckValueRetriever.retrieveValuesForRange(_, yesterday) >> [yesterdayValue]
+
+        when:
+        IntegrityCheckResult result = checker.verifyFundDataIntegrity(fundTicker, yesterday, yesterday)
+
+        then:
+        result.getDiscrepancies().isEmpty()
+        result.getMissingData().isEmpty()
+        result.getOrphanedData().isEmpty()
+        !result.hasIssues()
+    }
 }

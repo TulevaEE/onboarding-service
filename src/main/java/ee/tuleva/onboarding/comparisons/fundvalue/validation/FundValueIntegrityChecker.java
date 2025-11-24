@@ -38,7 +38,7 @@ public class FundValueIntegrityChecker {
       lockAtMostFor = "55m",
       lockAtLeastFor = "5m")
   public void performIntegrityCheck() {
-    LocalDate endDate = LocalDate.now();
+    LocalDate endDate = LocalDate.now().minusDays(1);
     LocalDate startDate = EARLIEST_DATE;
 
     log.info("Starting fund value integrity check from {} to {}", startDate, endDate);

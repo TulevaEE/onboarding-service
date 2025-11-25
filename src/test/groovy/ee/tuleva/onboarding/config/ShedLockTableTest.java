@@ -23,6 +23,7 @@ class ShedLockTableTest {
     database =
         new EmbeddedDatabaseBuilder()
             .setType(EmbeddedDatabaseType.H2)
+            .generateUniqueName(true)
             .addScript("db/migration/V1_127__shedlock_scheduling_job_lock.sql")
             .addScript("db/migration/V1_128__shedlock_extend_name_field.sql")
             .build();

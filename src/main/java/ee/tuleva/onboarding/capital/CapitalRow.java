@@ -27,7 +27,7 @@ public record CapitalRow(
         row.type(),
         row.contributions().setScale(2, HALF_DOWN),
         row.profit().setScale(2, HALF_DOWN),
-        row.unitCount().setScale(2, HALF_DOWN),
+        row.unitCount().setScale(5, HALF_DOWN),
         row.unitPrice(),
         row.currency());
   }

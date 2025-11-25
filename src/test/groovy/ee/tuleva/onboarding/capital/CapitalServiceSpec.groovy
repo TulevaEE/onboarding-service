@@ -114,33 +114,33 @@ class CapitalServiceSpec extends Specification {
     with(capitalRows.find({ it.type() == MEMBERSHIP_BONUS })) {
       contributions() == 2000.23
       profit() == 979.07
-      getValue() == CapitalCalculations.calculateCapitalValue(new BigDecimal("1900.20"), ownershipUnitPrice)
-      unitCount() == 1900.00 + 0.20
+      getValue() == CapitalCalculations.calculateCapitalValue(new BigDecimal("1900.2"), ownershipUnitPrice)
+      unitCount() == new BigDecimal("1900.2").setScale(5, HALF_DOWN)
       unitPrice() == ownershipUnitPrice
       currency() == EUR
     }
     with(capitalRows.find({ it.type() == CAPITAL_PAYMENT })) {
       contributions() == 1000.12
       profit() == 567.92
-      getValue() == CapitalCalculations.calculateCapitalValue(new BigDecimal("1000.10"), ownershipUnitPrice)
-      unitCount() == 1000 + 0.10
+      getValue() == CapitalCalculations.calculateCapitalValue(new BigDecimal("1000.1"), ownershipUnitPrice)
+      unitCount() == new BigDecimal("1000.1").setScale(5, HALF_DOWN)
       unitPrice() == ownershipUnitPrice
       currency() == EUR
     }
     with(capitalRows.find({ it.type() == WORK_COMPENSATION })) {
       contributions() == 4000.46
       profit() == 2114.94
-      getValue() == CapitalCalculations.calculateCapitalValue(new BigDecimal("3900.40"), ownershipUnitPrice)
+      getValue() == CapitalCalculations.calculateCapitalValue(new BigDecimal("3900.4"), ownershipUnitPrice)
       unitPrice() == ownershipUnitPrice
-      unitCount() == 3900.0 + 0.40
+      unitCount() == new BigDecimal("3900.4").setScale(5, HALF_DOWN)
       currency() == EUR
     }
     with(capitalRows.find({ it.type() == UNVESTED_WORK_COMPENSATION })) {
       contributions() == 3000.35
       profit() == 1547.00
-      getValue() == CapitalCalculations.calculateCapitalValue(new BigDecimal("2900.30"), ownershipUnitPrice)
+      getValue() == CapitalCalculations.calculateCapitalValue(new BigDecimal("2900.3"), ownershipUnitPrice)
       unitPrice() == ownershipUnitPrice
-      unitCount() == 2900.0 + 0.30
+      unitCount() == new BigDecimal("2900.3").setScale(5, HALF_DOWN)
       currency() == EUR
     }
   }

@@ -227,6 +227,7 @@ The application follows domain-driven design with these main domains:
 
 #### Test Framework
 - JUnit 5 tests for integration and unit tests
+  - Add @DisplayName to @Test
 - Spock framework (Groovy) tests when test data presentable in a table format with @Unroll
 - H2 in-memory database for test isolation
 - Snapshot testing for complex responses

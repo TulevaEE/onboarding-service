@@ -272,4 +272,58 @@ class KycSurveyControllerTest {
                 .with(authentication(authentication)))
         .andExpect(status().isBadRequest());
   }
+
+  @Test
+  @DisplayName("POST /v1/kyc/surveys with invalid email returns 400")
+  void submit_withInvalidEmail_returnsBadRequest() throws Exception {
+    String requestBody =
+        """
+        {
+          "answers": [
+            {
+              "type": "EMAIL",
+              "value": {
+                "type": "TEXT",
+                "value": "not-a-valid-email"
+              }
+            }
+          ]
+        }
+        """;
+
+    mvc.perform(
+            post("/v1/kyc/surveys")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody)
+                .with(csrf())
+                .with(authentication(authentication)))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("POST /v1/kyc/surveys with blank email returns 400")
+  void submit_withBlankEmail_returnsBadRequest() throws Exception {
+    String requestBody =
+        """
+        {
+          "answers": [
+            {
+              "type": "EMAIL",
+              "value": {
+                "type": "TEXT",
+                "value": ""
+              }
+            }
+          ]
+        }
+        """;
+
+    mvc.perform(
+            post("/v1/kyc/surveys")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody)
+                .with(csrf())
+                .with(authentication(authentication)))
+        .andExpect(status().isBadRequest());
+  }
 }

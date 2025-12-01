@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import ee.tuleva.onboarding.country.ValidIso2CountryCode;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -31,7 +32,7 @@ public sealed interface KycSurveyResponseItem {
 
   record Address(@Valid AddressValue value) implements KycSurveyResponseItem {}
 
-  record Email(TextValue value) implements KycSurveyResponseItem {}
+  record Email(@Valid EmailValue value) implements KycSurveyResponseItem {}
 
   record PhoneNumber(TextValue value) implements KycSurveyResponseItem {}
 
@@ -54,14 +55,16 @@ public sealed interface KycSurveyResponseItem {
 
   record CountriesValue(String type, List<@ValidIso2CountryCode String> value) {}
 
+  record EmailValue(String type, @NotBlank @jakarta.validation.constraints.Email String value) {}
+
   record AddressValue(String type, @Valid AddressDetails value) {}
 
   record AddressDetails(
-      String street,
-      String city,
+      @NotBlank String street,
+      @NotBlank String city,
       String state,
-      String postalCode,
-      @ValidIso2CountryCode String countryCode) {}
+      @NotBlank String postalCode,
+      @NotBlank @ValidIso2CountryCode String countryCode) {}
 
   // Union types for fields that can be either option or text ("Other")
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")

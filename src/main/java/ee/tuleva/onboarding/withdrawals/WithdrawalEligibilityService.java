@@ -52,7 +52,7 @@ public class WithdrawalEligibilityService {
 
     var ageAtLeast55 = PersonalCode.getAge(person.getPersonalCode()) >= 55;
 
-    var fiveYearsAgo = ZonedDateTime.now(clock().getZone()).minusYears(5).toInstant();
+    var fiveYearsAgo = ZonedDateTime.now(clock()).minusYears(5).toInstant();
     var thirdPillarOpenedAtLeast5YearsAgo =
         contactDetails.isThirdPillarActive()
             && contactDetails.getThirdPillarInitDate().isBefore(fiveYearsAgo);

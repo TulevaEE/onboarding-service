@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.kyc.survey;
 
-import static jakarta.persistence.GenerationType.IDENTITY;
 import static org.hibernate.generator.EventType.INSERT;
 
 import io.hypersistence.utils.hibernate.type.json.JsonType;
@@ -23,9 +22,7 @@ import org.hibernate.annotations.Type;
 @AllArgsConstructor
 public class KycSurvey {
 
-  @Id
-  @GeneratedValue(strategy = IDENTITY)
-  private UUID id;
+  @Id @GeneratedValue private UUID id;
 
   @NotNull
   @Column(name = "user_id")

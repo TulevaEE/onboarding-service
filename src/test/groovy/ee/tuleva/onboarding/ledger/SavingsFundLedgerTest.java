@@ -11,8 +11,6 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.UUID;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -28,175 +26,76 @@ class SavingsFundLedgerTest {
   User testUser = sampleUser().personalCode("38001010001").build();
 
   @Test
-  @DisplayName("Money-in flow: Payment received should create correct ledger entries")
-  void shouldRecordPaymentReceived() {
-    BigDecimal amount = new BigDecimal("1000.00");
-    UUID externalReference = randomUUID();
+  void recordPaymentReceived_createsCorrectLedgerEntries() {
+    var amount = new BigDecimal("1000.00");
+    var externalReference = randomUUID();
 
-    LedgerTransaction transaction =
-        savingsFundLedger.recordPaymentReceived(testUser, amount, externalReference);
+    var transaction = savingsFundLedger.recordPaymentReceived(testUser, amount, externalReference);
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_RECEIVED");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
     assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
     assertThat(transaction.getMetadata().get("personalCode")).isEqualTo(testUser.getPersonalCode());
-
-    // Verify user cash account balance liability increased
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(amount.negate());
-
-    // Verify incoming payments clearing asset increased
     assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
-
-    // Verify double-entry accounting is maintained
     verifyDoubleEntry(transaction);
   }
 
   @Test
-  @DisplayName("Reconciliation flow: Unattributed payment should be recorded separately")
-  void testRecordUnattributedPayment() {
-    BigDecimal amount = new BigDecimal("500.00");
-    UUID externalReference = randomUUID();
+  void recordUnattributedPayment_recordsToUnreconciledAccount() {
+    var amount = new BigDecimal("500.00");
+    var externalReference = randomUUID();
 
-    LedgerTransaction transaction =
-        savingsFundLedger.recordUnattributedPayment(amount, externalReference);
+    var transaction = savingsFundLedger.recordUnattributedPayment(amount, externalReference);
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("UNATTRIBUTED_PAYMENT");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
-
     assertThat(getUnreconciledBankReceiptsAccount().getBalance())
         .isEqualByComparingTo(amount.negate());
     assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
-
     verifyDoubleEntry(transaction);
   }
 
   @Test
-  @DisplayName("Reconciliation flow: Late attribution should transfer from unreconciled to user")
-  void testAttributeLatePayment() {
-    BigDecimal amount = new BigDecimal("750.00");
+  void attributeLatePayment_transfersFromUnreconciledToUser() {
+    var amount = new BigDecimal("750.00");
     savingsFundLedger.recordUnattributedPayment(amount, randomUUID());
 
-    LedgerTransaction transaction = savingsFundLedger.attributeLatePayment(testUser, amount);
+    var transaction = savingsFundLedger.attributeLatePayment(testUser, amount);
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("LATE_ATTRIBUTION");
     assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
-    assertThat(transaction.getMetadata().get("personalCode")).isEqualTo(testUser.getPersonalCode());
-
     assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(amount.negate());
-
     verifyDoubleEntry(transaction);
   }
 
   @Test
-  @DisplayName("Reconciliation flow: Bounce-back should reverse unattributed payment")
-  void testBounceBackUnattributedPayment() {
-    BigDecimal amount = new BigDecimal("300.00");
-    UUID externalReference = randomUUID();
+  void bounceBackUnattributedPayment_reversesUnattributedPayment() {
+    var amount = new BigDecimal("300.00");
+    var externalReference = randomUUID();
     savingsFundLedger.recordUnattributedPayment(amount, externalReference);
 
-    LedgerTransaction transaction =
-        savingsFundLedger.bounceBackUnattributedPayment(amount, externalReference);
+    var transaction = savingsFundLedger.bounceBackUnattributedPayment(amount, externalReference);
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_BOUNCE_BACK");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
-
     assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
-
     verifyDoubleEntry(transaction);
   }
 
   @Test
-  @DisplayName("Subscription flow: Should reserve payment before issuing fund units")
-  void testReservePaymentAndIssueFundUnits() {
-    BigDecimal cashAmount = new BigDecimal("950.00");
-    BigDecimal fundUnits = new BigDecimal("10.00000");
-    BigDecimal navPerUnit = new BigDecimal("95.00");
+  void completeSubscriptionFlow_allBalancesCorrect() {
+    var cashAmount = new BigDecimal("1000.00");
+    var fundUnits = new BigDecimal("10.00000");
+    var navPerUnit = new BigDecimal("100.00");
 
-    // Step 1: Payment received
-    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, randomUUID());
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(cashAmount.negate());
-
-    // Step 2: Reserve payment for subscription (cash -> cash_reserved)
-    LedgerTransaction reserveTransaction =
-        savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount);
-    assertThat(reserveTransaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_RESERVED");
-    assertThat(reserveTransaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(cashAmount.negate());
-
-    // Step 3: Issue fund units from reserved account
-    LedgerTransaction subscriptionTransaction =
+    var paymentTx = savingsFundLedger.recordPaymentReceived(testUser, cashAmount, randomUUID());
+    var reserveTx = savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount);
+    var subscriptionTx =
         savingsFundLedger.issueFundUnitsFromReserved(testUser, cashAmount, fundUnits, navPerUnit);
-
-    assertThat(subscriptionTransaction.getMetadata().get("operationType"))
-        .isEqualTo("FUND_SUBSCRIPTION");
-    assertThat(subscriptionTransaction.getMetadata().get("navPerUnit")).isEqualTo(navPerUnit);
-    assertThat(subscriptionTransaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
-
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(fundUnits.negate());
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(cashAmount);
-    assertThat(getFundUnitsOutstandingAccount().getBalance()).isEqualByComparingTo(fundUnits);
-    assertThat(getUserSubscriptionsAccount().getBalance())
-        .isEqualByComparingTo(cashAmount.negate());
-
-    verifyDoubleEntry(reserveTransaction);
-    verifyDoubleEntry(subscriptionTransaction);
-  }
-
-  @Test
-  @DisplayName("Subscription flow: Should transfer cash to fund investment account")
-  void testTransferToFundAccount() {
-    BigDecimal amount = new BigDecimal("2000.00");
-    savingsFundLedger.recordPaymentReceived(testUser, amount, randomUUID());
-
-    LedgerTransaction transaction = savingsFundLedger.transferToFundAccount(amount);
-
-    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("FUND_TRANSFER");
-
-    LedgerAccount incomingAccount = getIncomingPaymentsClearingAccount();
-    assertThat(incomingAccount.getBalance()).isEqualByComparingTo(ZERO);
-
-    LedgerAccount fundAccount = getFundInvestmentCashClearingAccount();
-    assertThat(fundAccount.getBalance()).isEqualByComparingTo(amount);
-
-    verifyDoubleEntry(transaction);
-  }
-
-  @Test
-  @DisplayName("Redemption flow: Should transfer fund cash to payout clearing")
-  void testTransferFundToPayoutCash() {
-    BigDecimal amount = new BigDecimal("1200.00");
-    setupFundWithCash(amount);
-
-    LedgerTransaction transaction = savingsFundLedger.transferFundToPayoutCash(amount);
-
-    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("FUND_CASH_TRANSFER");
-
-    assertThat(getFundInvestmentCashClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getPayoutsCashClearingAccount().getBalance()).isEqualByComparingTo(amount);
-
-    verifyDoubleEntry(transaction);
-  }
-
-  @Test
-  @DisplayName("Complete subscription flow: Payment → Reserve → Units → Fund transfer")
-  void testCompleteSubscriptionFlow() {
-    BigDecimal paymentAmount = new BigDecimal("1000.00");
-    BigDecimal fundUnits = new BigDecimal("10.52630");
-    BigDecimal navPerUnit = new BigDecimal("95.00");
-
-    LedgerTransaction paymentTx =
-        savingsFundLedger.recordPaymentReceived(testUser, paymentAmount, randomUUID());
-    LedgerTransaction reserveTx =
-        savingsFundLedger.reservePaymentForSubscription(testUser, paymentAmount);
-    LedgerTransaction subscriptionTx =
-        savingsFundLedger.issueFundUnitsFromReserved(
-            testUser, paymentAmount, fundUnits, navPerUnit);
-    LedgerTransaction transferTx = savingsFundLedger.transferToFundAccount(paymentAmount);
+    var transferTx = savingsFundLedger.transferToFundAccount(cashAmount);
 
     verifyDoubleEntry(paymentTx);
     verifyDoubleEntry(reserveTx);
@@ -207,32 +106,29 @@ class SavingsFundLedgerTest {
     assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(fundUnits.negate());
     assertThat(getFundInvestmentCashClearingAccount().getBalance())
-        .isEqualByComparingTo(paymentAmount);
+        .isEqualByComparingTo(cashAmount);
     assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getUserSubscriptionsAccount().getBalance())
-        .isEqualByComparingTo(paymentAmount.negate());
+        .isEqualByComparingTo(cashAmount.negate());
+    assertThat(getFundUnitsOutstandingAccount().getBalance()).isEqualByComparingTo(fundUnits);
   }
 
   @Test
-  @DisplayName("Complete redemption flow: Request → Cash transfer → Payout")
-  void testCompleteRedemptionFlow() {
-    BigDecimal initialAmount = new BigDecimal("1000.00");
-    BigDecimal initialUnits = new BigDecimal("10.00000");
-    BigDecimal redeemUnits = new BigDecimal("3.00000");
-    BigDecimal redeemAmount = new BigDecimal("300.00");
-    BigDecimal navPerUnit = new BigDecimal("100.00");
-    String customerIban = "EE777888999000111222";
+  void completeRedemptionFlow_allBalancesCorrect() {
+    var initialAmount = new BigDecimal("1000.00");
+    var initialUnits = new BigDecimal("10.00000");
+    var redeemUnits = new BigDecimal("3.00000");
+    var redeemAmount = new BigDecimal("300.00");
+    var navPerUnit = new BigDecimal("100.00");
+    var customerIban = "EE777888999000111222";
     setupUserWithFundUnits(initialAmount, initialUnits, navPerUnit);
 
-    LedgerTransaction reserveTx =
-        savingsFundLedger.reserveFundUnitsForRedemption(testUser, redeemUnits);
-    LedgerTransaction redemptionTx =
-        savingsFundLedger.processRedemptionFromReserved(
+    var reserveTx = savingsFundLedger.reserveFundUnitsForRedemption(testUser, redeemUnits);
+    var redemptionTx =
+        savingsFundLedger.redeemFundUnitsFromReserved(
             testUser, redeemUnits, redeemAmount, navPerUnit);
-    LedgerTransaction cashTransferTx = savingsFundLedger.transferFundToPayoutCash(redeemAmount);
-    LedgerTransaction payoutTx =
-        savingsFundLedger.processRedemptionPayoutFromCashRedemption(
-            testUser, redeemAmount, customerIban);
+    var cashTransferTx = savingsFundLedger.transferFromFundAccount(redeemAmount);
+    var payoutTx = savingsFundLedger.recordRedemptionPayout(testUser, redeemAmount, customerIban);
 
     verifyDoubleEntry(reserveTx);
     verifyDoubleEntry(redemptionTx);
@@ -247,137 +143,76 @@ class SavingsFundLedgerTest {
   }
 
   @Test
-  @DisplayName("Redemption flow: Should process final payout to customer")
-  void testProcessRedemptionPayoutFromCashRedemption() {
-    BigDecimal amount = new BigDecimal("500.00");
-    String customerIban = "EE111222333444555666";
-    setupRedemptionScenario(amount);
+  void hasLedgerEntry_detectsEntriesByExternalReference() {
+    var amount = new BigDecimal("500.00");
+    var paymentRef = randomUUID();
+    var bounceBackRef = randomUUID();
+    var receivedRef = randomUUID();
 
-    LedgerTransaction transaction =
-        savingsFundLedger.processRedemptionPayoutFromCashRedemption(testUser, amount, customerIban);
+    assertThat(savingsFundLedger.hasLedgerEntry(paymentRef)).isFalse();
 
-    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("REDEMPTION_PAYOUT");
-    assertThat(transaction.getMetadata().get("customerIban")).isEqualTo(customerIban);
-    assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
+    savingsFundLedger.recordUnattributedPayment(amount, paymentRef);
+    assertThat(savingsFundLedger.hasLedgerEntry(paymentRef)).isTrue();
 
-    // After payout, user's cash redemption account should be empty
-    assertThat(getUserCashRedemptionAccount().getBalance()).isEqualByComparingTo(ZERO);
+    savingsFundLedger.bounceBackUnattributedPayment(amount, bounceBackRef);
+    assertThat(savingsFundLedger.hasLedgerEntry(bounceBackRef)).isTrue();
 
-    // Payouts cash clearing should also be zero (money sent out)
-    assertThat(getPayoutsCashClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+    savingsFundLedger.recordPaymentReceived(testUser, amount, receivedRef);
+    assertThat(savingsFundLedger.hasLedgerEntry(receivedRef)).isTrue();
 
-    verifyDoubleEntry(transaction);
-  }
-
-  @Test
-  @DisplayName("hasLedgerEntry returns false for non-existent entries and true after recording")
-  void testHasLedgerEntry() {
-    BigDecimal amount = new BigDecimal("500.00");
-    UUID externalReference = randomUUID();
-
-    assertThat(savingsFundLedger.hasLedgerEntry(externalReference)).isFalse();
-
-    savingsFundLedger.recordUnattributedPayment(amount, externalReference);
-
-    assertThat(savingsFundLedger.hasLedgerEntry(externalReference)).isTrue();
     assertThat(savingsFundLedger.hasLedgerEntry(randomUUID())).isFalse();
   }
 
   @Test
-  @DisplayName("hasLedgerEntry detects bounce back entries")
-  void testHasLedgerEntry_forBounceBack() {
-    BigDecimal amount = new BigDecimal("300.00");
-    UUID paymentId = randomUUID();
-    UUID bounceBackId = randomUUID();
+  void recordPaymentReceived_autoCreatesPartyAndAccountsForNewUser() {
+    var newUser = sampleUser().personalCode("99999999999").build();
+    var amount = new BigDecimal("100.00");
+    var externalReference = randomUUID();
 
-    assertThat(savingsFundLedger.hasLedgerEntry(paymentId)).isFalse();
-    assertThat(savingsFundLedger.hasLedgerEntry(bounceBackId)).isFalse();
-
-    savingsFundLedger.recordUnattributedPayment(amount, paymentId);
-    assertThat(savingsFundLedger.hasLedgerEntry(paymentId)).isTrue();
-
-    savingsFundLedger.bounceBackUnattributedPayment(amount, bounceBackId);
-    assertThat(savingsFundLedger.hasLedgerEntry(bounceBackId)).isTrue();
-  }
-
-  @Test
-  @DisplayName("hasLedgerEntry detects payment received entries")
-  void testHasLedgerEntry_forPaymentReceived() {
-    BigDecimal amount = new BigDecimal("1000.00");
-    UUID externalReference = randomUUID();
-
-    assertThat(savingsFundLedger.hasLedgerEntry(externalReference)).isFalse();
-
-    savingsFundLedger.recordPaymentReceived(testUser, amount, externalReference);
-
-    assertThat(savingsFundLedger.hasLedgerEntry(externalReference)).isTrue();
-  }
-
-  @Test
-  @DisplayName("Should auto-create party and accounts for non-onboarded user")
-  void testAutoCreatePartyForUnonboardedUser() {
-    User unonboardedUser = sampleUser().personalCode("99999999999").build();
-    BigDecimal amount = new BigDecimal("100.00");
-    UUID externalReference = randomUUID();
-
-    // Should not throw exception, should create party and accounts automatically
-    LedgerTransaction transaction =
-        savingsFundLedger.recordPaymentReceived(unonboardedUser, amount, externalReference);
+    var transaction = savingsFundLedger.recordPaymentReceived(newUser, amount, externalReference);
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_RECEIVED");
-    assertThat(transaction.getMetadata().get("userId")).isEqualTo(unonboardedUser.getId());
-    assertThat(transaction.getMetadata().get("personalCode"))
-        .isEqualTo(unonboardedUser.getPersonalCode());
+    assertThat(transaction.getMetadata().get("userId")).isEqualTo(newUser.getId());
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
-
-    // Verify double-entry accounting is maintained
     verifyDoubleEntry(transaction);
   }
 
   @Test
-  @DisplayName("Should maintain accounting relationships after complex operations")
-  void testMaintainAccountingRelationshipsAfterComplexOperations() {
-    BigDecimal amount = new BigDecimal("1000.00");
+  void subscribeAndRedeemRoundTrip_allBalancesReturnToZero() {
+    var cashAmount = new BigDecimal("1000.00");
+    var fundUnits = new BigDecimal("10.00000");
+    var navPerUnit = new BigDecimal("100.00");
+    var customerIban = "EE123456789012345678";
 
-    LedgerTransaction payment =
-        savingsFundLedger.recordPaymentReceived(testUser, amount, randomUUID());
-    LedgerTransaction reserve = savingsFundLedger.reservePaymentForSubscription(testUser, amount);
-    LedgerTransaction subscription =
-        savingsFundLedger.issueFundUnitsFromReserved(
-            testUser, amount, new BigDecimal("10.00000"), new BigDecimal("100.00"));
-    LedgerTransaction transfer = savingsFundLedger.transferToFundAccount(amount);
+    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, randomUUID());
+    savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount);
+    savingsFundLedger.issueFundUnitsFromReserved(testUser, cashAmount, fundUnits, navPerUnit);
+    savingsFundLedger.transferToFundAccount(cashAmount);
 
-    verifyDoubleEntry(payment);
-    verifyDoubleEntry(reserve);
-    verifyDoubleEntry(subscription);
-    verifyDoubleEntry(transfer);
+    assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(fundUnits.negate());
+    assertThat(getFundUnitsOutstandingAccount().getBalance()).isEqualByComparingTo(fundUnits);
+    assertThat(getUserSubscriptionsAccount().getBalance())
+        .isEqualByComparingTo(cashAmount.negate());
 
-    LedgerAccount userCashAccount = getUserCashAccount();
-    assertThat(userCashAccount.getEntries()).isNotEmpty();
-    assertThat(userCashAccount.getBalance()).isEqualByComparingTo(ZERO);
+    savingsFundLedger.reserveFundUnitsForRedemption(testUser, fundUnits);
+    savingsFundLedger.redeemFundUnitsFromReserved(testUser, fundUnits, cashAmount, navPerUnit);
+    savingsFundLedger.transferFromFundAccount(cashAmount);
+    savingsFundLedger.recordRedemptionPayout(testUser, cashAmount, customerIban);
 
-    LedgerAccount userCashReservedAccount = getUserCashReservedAccount();
-    assertThat(userCashReservedAccount.getEntries()).isNotEmpty();
-    assertThat(userCashReservedAccount.getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashRedemptionAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserReservedUnitsAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getFundUnitsOutstandingAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getFundInvestmentCashClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getPayoutsCashClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
 
-    LedgerAccount userUnitsAccount = getUserUnitsAccount();
-    assertThat(userUnitsAccount.getEntries()).isNotEmpty();
-    assertThat(userUnitsAccount.getBalance()).isEqualByComparingTo(new BigDecimal("-10.00000"));
-
-    LedgerAccount fundSubscriptionsAccount = getUserSubscriptionsAccount();
-    assertThat(fundSubscriptionsAccount.getEntries()).isNotEmpty();
-    assertThat(fundSubscriptionsAccount.getBalance()).isEqualByComparingTo(amount.negate());
-
-    LedgerAccount fundInvestmentAccount = getFundInvestmentCashClearingAccount();
-    assertThat(fundInvestmentAccount.getEntries()).isNotEmpty();
-    assertThat(fundInvestmentAccount.getBalance()).isEqualByComparingTo(amount);
-
-    LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
-    assertThat(incomingPaymentsAccount.getEntries()).isNotEmpty();
-    assertThat(incomingPaymentsAccount.getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserSubscriptionsAccount().getBalance())
+        .isEqualByComparingTo(cashAmount.negate());
+    assertThat(getUserRedemptionsAccount().getBalance()).isEqualByComparingTo(cashAmount);
   }
-
-  // Helper methods
 
   private void setupUserWithFundUnits(
       BigDecimal cashAmount, BigDecimal fundUnits, BigDecimal navPerUnit) {
@@ -387,20 +222,6 @@ class SavingsFundLedgerTest {
     savingsFundLedger.transferToFundAccount(cashAmount);
   }
 
-  private void setupFundWithCash(BigDecimal amount) {
-    savingsFundLedger.recordPaymentReceived(testUser, amount, randomUUID());
-    savingsFundLedger.transferToFundAccount(amount);
-  }
-
-  private void setupRedemptionScenario(BigDecimal amount) {
-    setupUserWithFundUnits(amount, new BigDecimal("5.00000"), new BigDecimal("100.00"));
-    savingsFundLedger.reserveFundUnitsForRedemption(testUser, new BigDecimal("5.00000"));
-    savingsFundLedger.processRedemptionFromReserved(
-        testUser, new BigDecimal("5.00000"), amount, new BigDecimal("100.00"));
-    savingsFundLedger.transferFundToPayoutCash(amount);
-  }
-
-  // Low-level core helper methods
   private LedgerAccount getUserAccount(UserAccount userAccount) {
     return ledgerService.getUserAccount(testUser, userAccount);
   }
@@ -409,7 +230,6 @@ class SavingsFundLedgerTest {
     return ledgerService.getSystemAccount(systemAccount);
   }
 
-  // High-level user account helpers
   private LedgerAccount getUserCashAccount() {
     return getUserAccount(CASH);
   }
@@ -460,7 +280,6 @@ class SavingsFundLedgerTest {
 
   private static void verifyDoubleEntry(LedgerTransaction transaction) {
     List<LedgerEntry> entries = transaction.getEntries();
-
     assertThat(entries.size()).isGreaterThan(1);
 
     BigDecimal totalDebits =

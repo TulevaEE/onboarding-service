@@ -22,6 +22,35 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+/**
+ * Ledger service for Tuleva savings fund transactions.
+ *
+ * <h2>Subscription Flow (buying fund units)</h2>
+ *
+ * <pre>
+ * 1. {@link #recordPaymentReceived}            - Record incoming payment from user
+ * 2. {@link #reservePaymentForSubscription}    - Move cash from available to reserved
+ * 3. {@link #issueFundUnitsFromReserved}       - Issue fund units, record subscription
+ * 4. {@link #transferToFundAccount}            - Transfer cash to fund investment account
+ * </pre>
+ *
+ * <h2>Redemption Flow (selling fund units)</h2>
+ *
+ * <pre>
+ * 1. {@link #reserveFundUnitsForRedemption}    - Reserve user's fund units
+ * 2. {@link #redeemFundUnitsFromReserved}      - Convert units to cash (pending payout)
+ * 3. {@link #transferFromFundAccount}          - Transfer cash from fund to payout account
+ * 4. {@link #recordRedemptionPayout}           - Pay out cash to user's bank account
+ * </pre>
+ *
+ * <h2>Edge Cases</h2>
+ *
+ * <ul>
+ *   <li>{@link #recordUnattributedPayment} - Payment cannot be matched to a user
+ *   <li>{@link #bounceBackUnattributedPayment} - Return unattributed payment to sender
+ *   <li>{@link #attributeLatePayment} - Attribute previously unattributed payment to a user
+ * </ul>
+ */
 @Service
 @RequiredArgsConstructor
 public class SavingsFundLedger {
@@ -194,7 +223,7 @@ public class SavingsFundLedger {
   }
 
   @Transactional
-  public LedgerTransaction processRedemptionFromReserved(
+  public LedgerTransaction redeemFundUnitsFromReserved(
       User user, BigDecimal fundUnits, BigDecimal cashAmount, BigDecimal navPerUnit) {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userUnitsReservedAccount = getUserUnitsReservedAccount(userParty);
@@ -219,7 +248,7 @@ public class SavingsFundLedger {
   }
 
   @Transactional
-  public LedgerTransaction transferFundToPayoutCash(BigDecimal amount) {
+  public LedgerTransaction transferFromFundAccount(BigDecimal amount) {
     LedgerAccount fundCashAccount = getFundInvestmentCashClearingAccount();
     LedgerAccount payoutsCashAccount = getPayoutsCashClearingAccount();
 
@@ -233,7 +262,7 @@ public class SavingsFundLedger {
   }
 
   @Transactional
-  public LedgerTransaction processRedemptionPayoutFromCashRedemption(
+  public LedgerTransaction recordRedemptionPayout(
       User user, BigDecimal amount, String customerIban) {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userCashRedemptionAccount = getUserCashRedemptionAccount(userParty);

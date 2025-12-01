@@ -76,9 +76,6 @@ class SavingsFundPaymentIntegrationTest {
     jdbcTemplate.update(
         "insert into savings_fund_onboarding (user_id) values (:user_id)",
         Map.of("user_id", testUser.getId()));
-
-    // Set up ledger for the user
-    ledgerService.onboard(testUser);
   }
 
   @AfterEach

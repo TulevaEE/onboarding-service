@@ -16,6 +16,6 @@ public class Iso2CountryCodeValidator implements ConstraintValidator<ValidIso2Co
     if (countryCode == null) {
       return false;
     }
-    return VALID_ISO2_COUNTRIES.contains(countryCode.toUpperCase());
+    return VALID_ISO2_COUNTRIES.contains(countryCode.toUpperCase(Locale.ROOT));
   }
 }

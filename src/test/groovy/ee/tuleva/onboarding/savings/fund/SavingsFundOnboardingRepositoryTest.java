@@ -1,38 +1,37 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
-import java.util.Map;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
-@SpringBootTest
-@Transactional
+@DataJpaTest
+@Import(SavingsFundOnboardingRepository.class)
 class SavingsFundOnboardingRepositoryTest {
 
   @Autowired SavingsFundOnboardingRepository repository;
   @Autowired UserRepository userRepository;
-  @Autowired NamedParameterJdbcTemplate jdbcTemplate;
 
   @Test
-  void isOnboardingCompleted() {
-    var user1 = createUser("33306182790");
-    var user2 = createUser("46102110140");
+  void isOnboardingCompleted_returnsFalseWhenNotOnboarded() {
+    var userId = createUser("33306182790");
 
-    jdbcTemplate.update(
-        "insert into savings_fund_onboarding (user_id) values (:user_id)",
-        Map.of("user_id", user1));
-
-    assertThat(repository.isOnboardingCompleted(user1)).isTrue();
-    assertThat(repository.isOnboardingCompleted(user2)).isFalse();
+    assertThat(repository.isOnboardingCompleted(userId)).isFalse();
     assertThat(repository.isOnboardingCompleted(new Random().nextLong())).isFalse();
+  }
+
+  @Test
+  void completeOnboarding_marksUserAsOnboarded() {
+    var userId = createUser("46102110140");
+
+    repository.completeOnboarding(userId);
+
+    assertThat(repository.isOnboardingCompleted(userId)).isTrue();
   }
 
   private Long createUser(String personalCode) {

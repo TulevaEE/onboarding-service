@@ -39,7 +39,7 @@ class KycSurveyControllerIntegrationTest {
 
   @BeforeEach
   void setUp() {
-    user = userRepository.save(sampleUserNonMember().id(null).build());
+    user = userRepository.save(sampleUserNonMember().id(null).personalCode("48805051231").build());
 
     var authPerson = authenticatedPersonFromUser(user).build();
 

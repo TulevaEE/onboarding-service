@@ -151,29 +151,6 @@ class RedemptionControllerTest {
   }
 
   @Test
-  @DisplayName("GET /v1/savings/redemptions returns user redemptions")
-  void getUserRedemptions_returnsRedemptions() throws Exception {
-    var request1 =
-        RedemptionRequest.builder()
-            .id(UUID.randomUUID())
-            .userId(authPerson.getUserId())
-            .fundUnits(new BigDecimal("10.00000"))
-            .customerIban("EE111111111111111111")
-            .status(PENDING)
-            .build();
-
-    when(redemptionService.getUserRedemptions(authPerson.getUserId()))
-        .thenReturn(List.of(request1));
-
-    mvc.perform(get("/v1/savings/redemptions").with(csrf()).with(authentication(authentication)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0].id").value(request1.getId().toString()))
-        .andExpect(jsonPath("$[0].status").value("PENDING"));
-
-    verify(redemptionService).getUserRedemptions(authPerson.getUserId());
-  }
-
-  @Test
   @DisplayName("DELETE /v1/savings/redemptions/{id} cancels redemption")
   void cancelRedemption_cancelsAndReturnsNoContent() throws Exception {
     var requestId = UUID.randomUUID();

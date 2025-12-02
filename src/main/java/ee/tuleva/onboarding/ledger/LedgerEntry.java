@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
 import static jakarta.persistence.EnumType.STRING;
-import static jakarta.persistence.GenerationType.*;
+import static jakarta.persistence.GenerationType.UUID;
 import static org.hibernate.generator.EventType.INSERT;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -30,7 +30,7 @@ import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 @EntryAccountConsistency
 public class LedgerEntry {
   @Id
-  @GeneratedValue(strategy = IDENTITY)
+  @GeneratedValue(strategy = UUID)
   private UUID id;
 
   @ManyToOne

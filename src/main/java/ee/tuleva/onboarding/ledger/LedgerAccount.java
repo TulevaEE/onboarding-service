@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
 import static jakarta.persistence.EnumType.STRING;
+import static jakarta.persistence.GenerationType.UUID;
 import static java.math.BigDecimal.ZERO;
 import static org.hibernate.generator.EventType.INSERT;
 
@@ -29,7 +30,7 @@ import org.jetbrains.annotations.Nullable;
 public class LedgerAccount {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @GeneratedValue(strategy = UUID)
   private UUID id;
 
   @Nullable

@@ -8,7 +8,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,13 +38,6 @@ public class RedemptionController {
 
     return redemptionService.createRedemptionRequest(
         authenticatedPerson.getUserId(), request.amount(), request.currency(), request.iban());
-  }
-
-  @Operation(summary = "Get user's redemption requests")
-  @GetMapping
-  public List<RedemptionRequest> getUserRedemptions(
-      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    return redemptionService.getUserRedemptions(authenticatedPerson.getUserId());
   }
 
   @Operation(summary = "Cancel redemption request")

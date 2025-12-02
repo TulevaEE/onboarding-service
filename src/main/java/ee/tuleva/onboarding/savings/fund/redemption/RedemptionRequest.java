@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.PENDING;
 import static jakarta.persistence.EnumType.STRING;
 
+import ee.tuleva.onboarding.time.ClockHolder;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
@@ -64,7 +65,7 @@ public class RedemptionRequest {
 
   @PrePersist
   protected void onCreate() {
-    Instant now = Instant.now();
+    Instant now = ClockHolder.clock().instant();
     createdAt = now;
     updatedAt = now;
     if (requestedAt == null) {
@@ -74,7 +75,7 @@ public class RedemptionRequest {
 
   @PreUpdate
   protected void onUpdate() {
-    updatedAt = Instant.now();
+    updatedAt = ClockHolder.clock().instant();
   }
 
   public enum Status {

@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
+import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status;
-import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -68,7 +68,7 @@ public class RedemptionStatusService {
     }
 
     request.setStatus(CANCELLED);
-    request.setCancelledAt(Instant.now());
+    request.setCancelledAt(clock().instant());
     repository.save(request);
   }
 

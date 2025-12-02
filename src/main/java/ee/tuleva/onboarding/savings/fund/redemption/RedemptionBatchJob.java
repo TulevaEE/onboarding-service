@@ -188,7 +188,7 @@ public class RedemptionBatchJob {
               PaymentRequest paymentRequest =
                   PaymentRequest.tulevaPaymentBuilder(updated.getId())
                       .remitterIban(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
-                      .beneficiaryName(user.getFirstName() + " " + user.getLastName())
+                      .beneficiaryName(user.getFullName())
                       .beneficiaryIban(updated.getCustomerIban())
                       .amount(updated.getCashAmount())
                       .description("Fondi tagasivõtmine")
@@ -217,7 +217,7 @@ public class RedemptionBatchJob {
   private void handleError(UUID requestId, Exception e) {
     try {
       RedemptionRequest request = redemptionRequestRepository.findById(requestId).orElseThrow();
-      request.setErrorReason(e.getMessage());
+      request.setErrorReason(e.toString());
       redemptionRequestRepository.save(request);
       redemptionStatusService.changeStatus(requestId, FAILED);
     } catch (Exception ex) {

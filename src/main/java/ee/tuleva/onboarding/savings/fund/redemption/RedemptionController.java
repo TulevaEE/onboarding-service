@@ -1,11 +1,10 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
-import static ee.tuleva.onboarding.currency.Currency.EUR;
-
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.capital.transfer.iban.ValidIban;
+import ee.tuleva.onboarding.currency.Currency;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
@@ -32,13 +31,14 @@ public class RedemptionController {
       @Valid @RequestBody RedemptionRequestDto request,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     log.info(
-        "Creating redemption request: userId={}, amount={}, customerIban={}",
+        "Creating redemption request: userId={}, amount={}, currency={}, iban={}",
         authenticatedPerson.getUserId(),
         request.amount(),
-        request.customerIban());
+        request.currency(),
+        request.iban());
 
     return redemptionService.createRedemptionRequest(
-        authenticatedPerson.getUserId(), request.amount(), EUR, request.customerIban());
+        authenticatedPerson.getUserId(), request.amount(), request.currency(), request.iban());
   }
 
   @Operation(summary = "Get user's redemption requests")
@@ -59,5 +59,5 @@ public class RedemptionController {
   }
 
   public record RedemptionRequestDto(
-      @NotNull @Positive BigDecimal amount, @NotBlank String customerIban) {}
+      @NotNull @Positive BigDecimal amount, @NotNull Currency currency, @ValidIban String iban) {}
 }

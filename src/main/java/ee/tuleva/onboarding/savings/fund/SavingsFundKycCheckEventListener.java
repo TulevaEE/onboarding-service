@@ -22,6 +22,6 @@ public class SavingsFundKycCheckEventListener {
         .ifPresent(
             user ->
                 savingsFundOnboardingService.updateOnboardingStatusIfNeeded(
-                    user.getId(), event.getKycCheck()));
+                    user, event.getKycCheck()));
   }
 }

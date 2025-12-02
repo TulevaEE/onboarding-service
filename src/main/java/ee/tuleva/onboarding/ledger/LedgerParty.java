@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
 import static jakarta.persistence.EnumType.STRING;
-import static jakarta.persistence.GenerationType.IDENTITY;
+import static jakarta.persistence.GenerationType.UUID;
 import static org.hibernate.generator.EventType.INSERT;
 
 import io.hypersistence.utils.hibernate.type.json.JsonType;
@@ -30,7 +30,7 @@ public class LedgerParty {
   }
 
   @Id
-  @GeneratedValue(strategy = IDENTITY)
+  @GeneratedValue(strategy = UUID)
   private UUID id;
 
   @Enumerated(STRING)

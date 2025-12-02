@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.config;
 
-import net.javacrumbs.shedlock.core.LockConfiguration;
+import java.util.Optional;
 import net.javacrumbs.shedlock.core.LockProvider;
 import net.javacrumbs.shedlock.core.SimpleLock;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -15,6 +15,7 @@ import org.springframework.context.annotation.Primary;
  */
 @TestConfiguration
 public class TestSchedulerLockConfiguration {
+
   @Bean
   @Primary
   @ConditionalOnProperty(
@@ -22,20 +23,10 @@ public class TestSchedulerLockConfiguration {
       havingValue = "true",
       matchIfMissing = true)
   public LockProvider testLockProvider() {
-    return new NoOpLockProvider();
-  }
-
-  private static class NoOpLockProvider implements LockProvider {
-    @Override
-    public java.util.Optional<SimpleLock> lock(LockConfiguration lockConfiguration) {
+    return _ -> {
       // Always return a successful lock for tests
-      return java.util.Optional.of(
-          new SimpleLock() {
-            @Override
-            public void unlock() {
-              // No-op
-            }
-          });
-    }
+      SimpleLock noOp = () -> {};
+      return Optional.of(noOp);
+    };
   }
 }

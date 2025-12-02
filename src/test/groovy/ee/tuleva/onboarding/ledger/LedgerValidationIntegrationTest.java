@@ -10,6 +10,8 @@ import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
+import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import jakarta.validation.ConstraintViolationException;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -69,7 +71,7 @@ class LedgerValidationIntegrationTest {
     transaction.addEntry(eurLiabilityAccount, new BigDecimal("-50.00")); // Unbalanced!
 
     // When/Then - should fail when trying to persist through repository
-    assertThatThrownBy(() -> transactionRepository.save(transaction))
+    assertThatThrownBy(() -> transactionRepository.saveAndFlush(transaction))
         .isInstanceOf(ConstraintViolationException.class)
         .hasMessageContaining("balance");
   }
@@ -89,7 +91,7 @@ class LedgerValidationIntegrationTest {
     // Missing the balancing entry!
 
     // When/Then - should fail when trying to persist
-    assertThatThrownBy(() -> transactionRepository.save(transaction))
+    assertThatThrownBy(() -> transactionRepository.saveAndFlush(transaction))
         .isInstanceOf(ConstraintViolationException.class)
         .hasMessageContaining("at least 2 entries");
   }
@@ -114,7 +116,7 @@ class LedgerValidationIntegrationTest {
     transaction.addEntry(fundLiabilityAccount, new BigDecimal("-60.00000"));
 
     // When/Then - should fail when trying to persist
-    assertThatThrownBy(() -> transactionRepository.save(transaction))
+    assertThatThrownBy(() -> transactionRepository.saveAndFlush(transaction))
         .isInstanceOf(ConstraintViolationException.class)
         .hasMessageContaining("does not balance");
   }
@@ -151,7 +153,7 @@ class LedgerValidationIntegrationTest {
     transaction.getEntries().add(entry2);
 
     // When/Then - should fail validation
-    assertThatThrownBy(() -> transactionRepository.save(transaction))
+    assertThatThrownBy(() -> transactionRepository.saveAndFlush(transaction))
         .isInstanceOf(ConstraintViolationException.class)
         .hasMessageContaining("decimal places");
   }
@@ -188,7 +190,7 @@ class LedgerValidationIntegrationTest {
     transaction.getEntries().add(entry2);
 
     // When/Then - should fail validation
-    assertThatThrownBy(() -> transactionRepository.save(transaction))
+    assertThatThrownBy(() -> transactionRepository.saveAndFlush(transaction))
         .isInstanceOf(ConstraintViolationException.class)
         .hasMessageContaining("decimal places");
   }
@@ -244,7 +246,7 @@ class LedgerValidationIntegrationTest {
     transaction.getEntries().add(balancingEntry);
 
     // When/Then - validation should fail
-    assertThatThrownBy(() -> transactionRepository.save(transaction))
+    assertThatThrownBy(() -> transactionRepository.saveAndFlush(transaction))
         .isInstanceOf(ConstraintViolationException.class)
         .hasMessageContaining("does not match");
   }
@@ -334,7 +336,7 @@ class LedgerValidationIntegrationTest {
     transaction.getEntries().add(entry2);
 
     // When/Then - should fail validation
-    assertThatThrownBy(() -> transactionRepository.save(transaction))
+    assertThatThrownBy(() -> transactionRepository.saveAndFlush(transaction))
         .isInstanceOf(ConstraintViolationException.class)
         .hasMessageContaining("decimal places");
   }
@@ -379,14 +381,14 @@ class LedgerValidationIntegrationTest {
     transaction.addEntry(eurLiabilityAccount, new BigDecimal("-99.99")); // Off by 0.01!
 
     // When/Then
-    assertThatThrownBy(() -> transactionRepository.save(transaction))
+    assertThatThrownBy(() -> transactionRepository.saveAndFlush(transaction))
         .isInstanceOf(ConstraintViolationException.class)
         .hasMessageContaining("balance");
   }
 
   // Helper method to create and persist an account
   private LedgerAccount createAndPersistAccount(
-      String name, LedgerAccount.AssetType assetType, LedgerAccount.AccountType accountType) {
+      String name, AssetType assetType, AccountType accountType) {
 
     LedgerAccount account =
         LedgerAccount.builder()

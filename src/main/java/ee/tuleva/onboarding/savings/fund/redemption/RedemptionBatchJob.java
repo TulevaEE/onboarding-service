@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Sta
 import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.WITHDRAWAL_EUR;
 import static java.math.BigDecimal.ZERO;
+import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -114,7 +115,7 @@ public class RedemptionBatchJob {
             transactionTemplate.execute(
                 status -> {
                   User user = userService.getByIdOrThrow(request.getUserId());
-                  BigDecimal amount = request.getFundUnits().multiply(nav);
+                  BigDecimal amount = request.getFundUnits().multiply(nav).setScale(2, HALF_UP);
 
                   RedemptionRequest toUpdate =
                       redemptionRequestRepository.findById(request.getId()).orElseThrow();

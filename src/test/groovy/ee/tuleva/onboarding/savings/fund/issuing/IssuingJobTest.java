@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
+import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.List;
@@ -27,11 +28,14 @@ class IssuingJobTest {
 
   private IssuerService issuerService;
   private SavingFundPaymentRepository paymentRepository;
+  private SavingsFundNavProvider navProvider;
 
   @BeforeEach
   void setUp() {
     paymentRepository = mock(SavingFundPaymentRepository.class);
     issuerService = mock(IssuerService.class);
+    navProvider = mock(SavingsFundNavProvider.class);
+    when(navProvider.getCurrentNav()).thenReturn(BigDecimal.ONE);
   }
 
   boolean isReservedDateWorkingDay(SavingFundPayment payment) {
@@ -51,7 +55,7 @@ class IssuingJobTest {
   void processMessages() {
     var now = Instant.parse("2025-01-03T14:00:00Z"); // friday 3rd january 2025
     var clock = Clock.fixed(now, UTC);
-    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository);
+    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository, navProvider);
 
     var nav = BigDecimal.ONE;
 
@@ -103,7 +107,7 @@ class IssuingJobTest {
   void before16TwoWorkingDaysBefore() {
     var now = Instant.parse("2025-01-10T12:00:00Z"); // friday 3rd january 2025 before 16:00 cutoff
     var clock = Clock.fixed(now, UTC);
-    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository);
+    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository, navProvider);
 
     var nav = BigDecimal.ONE;
 
@@ -178,7 +182,7 @@ class IssuingJobTest {
   void runOnWeekend() {
     var now = Instant.parse("2025-01-12T14:00:00Z"); // sunday
     var clock = Clock.fixed(now, UTC);
-    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository);
+    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository, navProvider);
 
     var nav = BigDecimal.ONE;
 
@@ -254,7 +258,7 @@ class IssuingJobTest {
   void processMessagesPostCutoff() {
     var now = Instant.parse("2025-01-03T14:00:00Z"); // friday 3rd january 2025
     var clock = Clock.fixed(now, UTC);
-    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository);
+    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository, navProvider);
 
     var nav = BigDecimal.ONE;
 
@@ -306,7 +310,7 @@ class IssuingJobTest {
   void doesNotProcessWeekendReserved() {
     var now = Instant.parse("2025-01-06T14:00:00Z"); // monday 5th january 2025
     var clock = Clock.fixed(now, UTC);
-    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository);
+    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository, navProvider);
 
     var nav = BigDecimal.ONE;
 
@@ -367,7 +371,7 @@ class IssuingJobTest {
         Instant.parse(
             "2024-12-27T14:00:00Z"); // friday 27th december 2024, with 3 public holidays before it
     var clock = Clock.fixed(now, UTC);
-    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository);
+    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository, navProvider);
 
     var nav = BigDecimal.ONE;
 

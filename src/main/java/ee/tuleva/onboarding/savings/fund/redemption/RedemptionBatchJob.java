@@ -7,6 +7,7 @@ import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import ee.tuleva.onboarding.swedbank.payment.PaymentRequest;
@@ -44,6 +45,7 @@ public class RedemptionBatchJob {
   private final SwedbankGatewayClient swedbankGatewayClient;
   private final SwedbankAccountConfiguration swedbankAccountConfiguration;
   private final TransactionTemplate transactionTemplate;
+  private final SavingsFundNavProvider navProvider;
 
   @Scheduled(cron = "0 0 16 * * MON-FRI", zone = "Europe/Tallinn")
   @SchedulerLock(name = "RedemptionBatchJob", lockAtMostFor = "30m", lockAtLeastFor = "1m")
@@ -249,7 +251,6 @@ public class RedemptionBatchJob {
   }
 
   private BigDecimal getNAV() {
-    // TODO: Fetch actual NAV
-    return BigDecimal.ONE;
+    return navProvider.getCurrentNav();
   }
 }

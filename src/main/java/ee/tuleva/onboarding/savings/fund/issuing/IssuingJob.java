@@ -6,6 +6,7 @@ import static java.util.stream.Collectors.toList;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
+import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.List;
@@ -25,6 +26,7 @@ public class IssuingJob {
   private final Clock clock;
   private final IssuerService issuerService;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
+  private final SavingsFundNavProvider navProvider;
 
   @Scheduled(fixedRateString = "1m")
   @SchedulerLock(name = "IssuingJob_runJob", lockAtMostFor = "50s", lockAtLeastFor = "10s")
@@ -80,7 +82,6 @@ public class IssuingJob {
   }
 
   private BigDecimal getNAV() {
-    // TODO nav fetching
-    return BigDecimal.ONE;
+    return navProvider.getCurrentNav();
   }
 }

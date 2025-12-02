@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static java.math.BigDecimal.ZERO;
@@ -46,14 +47,14 @@ class RedemptionIntegrationTest {
 
   @Test
   void createRedemptionRequest_createsRequestInPendingStatus() {
-    var fundUnits = new BigDecimal("10.00000");
+    var amount = new BigDecimal("10.00");
     var customerIban = "EE123456789012345678";
 
     var request =
-        redemptionService.createRedemptionRequest(testUser.getId(), fundUnits, customerIban);
+        redemptionService.createRedemptionRequest(testUser.getId(), amount, EUR, customerIban);
 
     assertThat(request.getStatus()).isEqualTo(PENDING);
-    assertThat(request.getFundUnits()).isEqualByComparingTo(fundUnits);
+    assertThat(request.getFundUnits()).isEqualByComparingTo(new BigDecimal("10.00000"));
     assertThat(request.getCustomerIban()).isEqualTo(customerIban);
     assertThat(request.getUserId()).isEqualTo(testUser.getId());
     assertThat(request.getRequestedAt()).isNotNull();
@@ -61,23 +62,46 @@ class RedemptionIntegrationTest {
 
   @Test
   void createRedemptionRequest_failsWhenInsufficientUnits() {
-    var fundUnits = new BigDecimal("200.00000");
+    var amount = new BigDecimal("200.00");
     var customerIban = "EE123456789012345678";
 
     assertThatThrownBy(
             () ->
                 redemptionService.createRedemptionRequest(
-                    testUser.getId(), fundUnits, customerIban))
+                    testUser.getId(), amount, EUR, customerIban))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Insufficient fund units");
   }
 
   @Test
+  void createRedemptionRequest_maxWithdrawalRoundsToExactBalance() {
+    var maxAmount = new BigDecimal("100.00");
+    var customerIban = "EE123456789012345678";
+
+    var request =
+        redemptionService.createRedemptionRequest(testUser.getId(), maxAmount, EUR, customerIban);
+
+    assertThat(request.getFundUnits()).isEqualByComparingTo(new BigDecimal("100.00000"));
+  }
+
+  @Test
+  void createRedemptionRequest_nearMaxWithdrawalRoundsToExactBalance() {
+    var nearMaxAmount = new BigDecimal("99.999999");
+    var customerIban = "EE123456789012345678";
+
+    var request =
+        redemptionService.createRedemptionRequest(
+            testUser.getId(), nearMaxAmount, EUR, customerIban);
+
+    assertThat(request.getFundUnits()).isEqualByComparingTo(new BigDecimal("100.00000"));
+  }
+
+  @Test
   void cancelRedemption_cancelsRequestBeforeCutoff() {
-    var fundUnits = new BigDecimal("10.00000");
+    var amount = new BigDecimal("10.00");
     var customerIban = "EE123456789012345678";
     var request =
-        redemptionService.createRedemptionRequest(testUser.getId(), fundUnits, customerIban);
+        redemptionService.createRedemptionRequest(testUser.getId(), amount, EUR, customerIban);
 
     redemptionService.cancelRedemption(request.getId(), testUser.getId());
 
@@ -89,9 +113,9 @@ class RedemptionIntegrationTest {
   @Test
   void getUserRedemptions_returnsUserRedemptions() {
     redemptionService.createRedemptionRequest(
-        testUser.getId(), new BigDecimal("5.00000"), "EE111111111111111111");
+        testUser.getId(), new BigDecimal("5.00"), EUR, "EE111111111111111111");
     redemptionService.createRedemptionRequest(
-        testUser.getId(), new BigDecimal("3.00000"), "EE222222222222222222");
+        testUser.getId(), new BigDecimal("3.00"), EUR, "EE222222222222222222");
 
     var redemptions = redemptionService.getUserRedemptions(testUser.getId());
 
@@ -100,12 +124,12 @@ class RedemptionIntegrationTest {
 
   @Test
   void reserveUnits_locksUnitsInLedger() {
-    var fundUnits = new BigDecimal("10.00000");
+    var amount = new BigDecimal("10.00");
     var request =
         redemptionService.createRedemptionRequest(
-            testUser.getId(), fundUnits, "EE123456789012345678");
+            testUser.getId(), amount, EUR, "EE123456789012345678");
 
-    savingsFundLedger.reserveFundUnitsForRedemption(testUser, fundUnits);
+    savingsFundLedger.reserveFundUnitsForRedemption(testUser, request.getFundUnits());
     redemptionStatusService.changeStatus(request.getId(), RESERVED);
 
     var reserved = redemptionRequestRepository.findById(request.getId()).orElseThrow();
@@ -113,7 +137,7 @@ class RedemptionIntegrationTest {
 
     var reservedUnitsBalance =
         ledgerService.getUserAccount(testUser, FUND_UNITS_RESERVED).getBalance();
-    assertThat(reservedUnitsBalance).isEqualByComparingTo(fundUnits.negate());
+    assertThat(reservedUnitsBalance).isEqualByComparingTo(new BigDecimal("-10.00000"));
   }
 
   @Test

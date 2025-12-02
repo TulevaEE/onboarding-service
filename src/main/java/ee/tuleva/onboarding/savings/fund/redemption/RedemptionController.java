@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
+import static ee.tuleva.onboarding.currency.Currency.EUR;
+
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -30,13 +32,13 @@ public class RedemptionController {
       @Valid @RequestBody RedemptionRequestDto request,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     log.info(
-        "Creating redemption request: userId={}, fundUnits={}, customerIban={}",
+        "Creating redemption request: userId={}, amount={}, customerIban={}",
         authenticatedPerson.getUserId(),
-        request.fundUnits(),
+        request.amount(),
         request.customerIban());
 
     return redemptionService.createRedemptionRequest(
-        authenticatedPerson.getUserId(), request.fundUnits(), request.customerIban());
+        authenticatedPerson.getUserId(), request.amount(), EUR, request.customerIban());
   }
 
   @Operation(summary = "Get user's redemption requests")
@@ -57,5 +59,5 @@ public class RedemptionController {
   }
 
   public record RedemptionRequestDto(
-      @NotNull @Positive BigDecimal fundUnits, @NotBlank String customerIban) {}
+      @NotNull @Positive BigDecimal amount, @NotBlank String customerIban) {}
 }

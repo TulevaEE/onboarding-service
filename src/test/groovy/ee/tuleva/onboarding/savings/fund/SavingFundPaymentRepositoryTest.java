@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.CREATED;
+import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
+import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.PROCESSED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RECEIVED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
@@ -333,6 +335,59 @@ class SavingFundPaymentRepositoryTest {
     var allPayments = repository.findAll();
     assertThat(allPayments).hasSize(3);
     assertThat(allPayments).extracting("id").containsExactlyInAnyOrder(id1, id2, id3);
+  }
+
+  @Test
+  void findUserDepositBankAccountIbans() {
+    var user1 = createUser("37706154772");
+    var user2 = createUser("36407145233");
+
+    var id1 =
+        repository.savePaymentData(
+            createPayment().externalId("1").remitterIban("EE111111111111111111").build());
+    var id2 =
+        repository.savePaymentData(
+            createPayment().externalId("2").remitterIban("EE222222222222222222").build());
+    var id3 =
+        repository.savePaymentData(
+            createPayment().externalId("3").remitterIban("EE333333333333333333").build());
+    var id4 =
+        repository.savePaymentData(
+            createPayment().externalId("4").remitterIban("EE111111111111111111").build());
+    var id5 =
+        repository.savePaymentData(
+            createPayment().externalId("5").remitterIban("EE444444444444444444").build());
+    var id6 =
+        repository.savePaymentData(
+            createPayment().externalId("6").remitterIban("EE555555555555555555").build());
+    var id7 =
+        repository.savePaymentData(
+            createPayment()
+                .externalId("7")
+                .remitterIban("EE666666666666666666")
+                .amount(new BigDecimal("-50.00"))
+                .build());
+
+    repository.attachUser(id1, user1);
+    repository.attachUser(id2, user1);
+    repository.attachUser(id3, user1);
+    repository.attachUser(id4, user1);
+    repository.attachUser(id5, user1);
+    repository.attachUser(id6, user2);
+    repository.attachUser(id7, user1);
+
+    updatePaymentStatus(id1, RESERVED);
+    updatePaymentStatus(id2, ISSUED);
+    updatePaymentStatus(id3, PROCESSED);
+    updatePaymentStatus(id4, RESERVED);
+    updatePaymentStatus(id5, RECEIVED);
+    updatePaymentStatus(id6, RESERVED);
+    updatePaymentStatus(id7, PROCESSED);
+
+    var result = repository.findUserDepositBankAccountIbans(user1);
+
+    assertThat(result)
+        .containsExactly("EE111111111111111111", "EE222222222222222222", "EE333333333333333333");
   }
 
   private SavingFundPayment.SavingFundPaymentBuilder createPayment() {

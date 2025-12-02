@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.payment.event.SavingsPaymentCancelledEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 public class SavingFundPaymentController {
 
   private final UserService userService;
+  private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final LocaleService localeService;
@@ -48,5 +50,13 @@ public class SavingFundPaymentController {
         savingsFundOnboardingService.getOnboardingStatus(
             userService.getByIdOrThrow(authenticatedPerson.getUserId()));
     return Map.of("status", status);
+  }
+
+  @Operation(summary = "Get user bank accounts used for deposits")
+  @GetMapping("/bank-accounts")
+  public List<String> getBankAccounts(
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    User user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
+    return savingFundPaymentRepository.findUserDepositBankAccountIbans(user.getId());
   }
 }

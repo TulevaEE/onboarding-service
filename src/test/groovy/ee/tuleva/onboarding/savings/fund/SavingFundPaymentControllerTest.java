@@ -7,6 +7,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -36,6 +37,7 @@ class SavingFundPaymentControllerTest {
   @Autowired private MockMvc mvc;
 
   @MockitoBean private UserService userService;
+  @MockitoBean private SavingFundPaymentRepository savingFundPaymentRepository;
   @MockitoBean private SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
   @MockitoBean private SavingsFundOnboardingService savingsFundOnboardingService;
   @MockitoBean private LocaleService localeService;
@@ -77,8 +79,25 @@ class SavingFundPaymentControllerTest {
 
     mvc.perform(get("/v1/savings/onboarding/status").with(authentication(auth)))
         .andExpect(status().isOk())
-        .andExpect(
-            result ->
-                result.getResponse().getContentAsString().equals("{\"status\":\"COMPLETED\"}"));
+        .andExpect(content().json("{\"status\":\"COMPLETED\"}"));
+  }
+
+  @Test
+  void getBankAccounts_shouldReturnListOfIbans() throws Exception {
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            AuthenticatedPerson.builder().userId(1L).build(),
+            null,
+            List.of(new SimpleGrantedAuthority(USER)));
+
+    var user = Mockito.mock(User.class);
+    Mockito.when(user.getId()).thenReturn(1L);
+    Mockito.when(userService.getByIdOrThrow(1L)).thenReturn(user);
+    Mockito.when(savingFundPaymentRepository.findUserDepositBankAccountIbans(1L))
+        .thenReturn(List.of("EE123456789012345678", "EE987654321098765432"));
+
+    mvc.perform(get("/v1/savings/bank-accounts").with(authentication(auth)))
+        .andExpect(status().isOk())
+        .andExpect(content().json("[\"EE123456789012345678\",\"EE987654321098765432\"]"));
   }
 }

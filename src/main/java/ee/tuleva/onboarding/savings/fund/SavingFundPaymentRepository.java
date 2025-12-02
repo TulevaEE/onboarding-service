@@ -100,6 +100,25 @@ public class SavingFundPaymentRepository {
         this::rowMapper);
   }
 
+  public List<String> findUserDepositBankAccountIbans(Long userId) {
+    return jdbcTemplate.query(
+        """
+            SELECT DISTINCT remitter_iban
+            FROM saving_fund_payment
+            WHERE user_id = :user_id
+              AND status IN (:statuses)
+              AND amount > 0
+              AND remitter_iban IS NOT NULL
+            ORDER BY remitter_iban
+            """,
+        Map.of(
+            "user_id",
+            userId,
+            "statuses",
+            List.of(RESERVED.name(), ISSUED.name(), PROCESSED.name())),
+        (rs, _) -> rs.getString("remitter_iban"));
+  }
+
   public Optional<SavingFundPayment> findByExternalId(String externalId) {
     var result =
         jdbcTemplate.query(

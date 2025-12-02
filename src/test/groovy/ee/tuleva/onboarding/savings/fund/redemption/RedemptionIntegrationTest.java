@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
+import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
@@ -65,7 +66,7 @@ class RedemptionIntegrationTest {
 
     testUser =
         userRepository.save(sampleUser().id(null).member(null).personalCode("39901019992").build());
-    savingsFundOnboardingRepository.completeOnboarding(testUser.getId());
+    savingsFundOnboardingRepository.saveOnboardingStatus(testUser.getId(), COMPLETED);
     setupUserWithFundUnits(new BigDecimal("1000.00"), new BigDecimal("100.00000"));
   }
 

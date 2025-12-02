@@ -24,7 +24,6 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -32,7 +31,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -49,7 +47,7 @@ class SavingsFundPaymentIntegrationTest {
   @Autowired private FundAccountPaymentJob fundAccountPaymentJob;
   @Autowired private UserRepository userRepository;
   @Autowired private LedgerService ledgerService;
-  @Autowired private NamedParameterJdbcTemplate jdbcTemplate;
+  @Autowired private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Autowired private SwedbankAccountConfiguration swedbankAccountConfiguration;
 
   // Monday 2025-09-29 17:00 EET (15:00 UTC) - after 16:00 cutoff
@@ -73,9 +71,8 @@ class SavingsFundPaymentIntegrationTest {
                 .build());
 
     // Mark user as onboarded to savings fund
-    jdbcTemplate.update(
-        "insert into savings_fund_onboarding (user_id) values (:user_id)",
-        Map.of("user_id", testUser.getId()));
+    savingsFundOnboardingRepository.saveOnboardingStatus(
+        testUser.getId(), SavingsFundOnboardingStatus.COMPLETED);
   }
 
   @AfterEach
@@ -348,9 +345,8 @@ class SavingsFundPaymentIntegrationTest {
                 .build());
 
     // Mark this user as onboarded to savings fund
-    jdbcTemplate.update(
-        "insert into savings_fund_onboarding (user_id) values (:user_id)",
-        Map.of("user_id", differentUser.getId()));
+    savingsFundOnboardingRepository.saveOnboardingStatus(
+        differentUser.getId(), SavingsFundOnboardingStatus.COMPLETED);
 
     // Given - XML message with payment that cannot be verified (wrong personal code)
     var xml = createUnverifiablePaymentXml();

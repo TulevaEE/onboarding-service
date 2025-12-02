@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -39,11 +38,8 @@ class KycSurveyControllerTest {
           authPerson, null, List.of(new SimpleGrantedAuthority(USER)));
 
   @Test
-  @DisplayName("POST /v1/kyc/surveys saves survey and returns 201")
-  void submit_savesSurveyAndReturnsCreated() throws Exception {
-    when(kycSurveyService.save(eq(authPerson.getUserId()), any(KycSurveyResponse.class)))
-        .thenReturn(KycSurvey.builder().userId(authPerson.getUserId()).build());
-
+  @DisplayName("POST /v1/kyc/surveys submits survey and returns 200")
+  void submit_submitsSurveyAndReturnsOk() throws Exception {
     String requestBody =
         """
         {
@@ -79,17 +75,14 @@ class KycSurveyControllerTest {
                 .content(requestBody)
                 .with(csrf())
                 .with(authentication(authentication)))
-        .andExpect(status().isCreated());
+        .andExpect(status().isOk());
 
-    verify(kycSurveyService).save(eq(authPerson.getUserId()), any(KycSurveyResponse.class));
+    verify(kycSurveyService).submit(eq(authPerson), any(KycSurveyResponse.class));
   }
 
   @Test
   @DisplayName("POST /v1/kyc/surveys with full payload deserializes correctly")
   void submit_withFullPayload_deserializesCorrectly() throws Exception {
-    when(kycSurveyService.save(eq(authPerson.getUserId()), any(KycSurveyResponse.class)))
-        .thenReturn(KycSurvey.builder().userId(authPerson.getUserId()).build());
-
     String requestBody =
         """
         {
@@ -173,9 +166,9 @@ class KycSurveyControllerTest {
                 .content(requestBody)
                 .with(csrf())
                 .with(authentication(authentication)))
-        .andExpect(status().isCreated());
+        .andExpect(status().isOk());
 
-    verify(kycSurveyService).save(eq(authPerson.getUserId()), any(KycSurveyResponse.class));
+    verify(kycSurveyService).submit(eq(authPerson), any(KycSurveyResponse.class));
   }
 
   @Test

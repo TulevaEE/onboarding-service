@@ -16,12 +16,11 @@ class KycSurveyController {
   private final KycSurveyService kycSurveyService;
 
   @PostMapping
-  @ResponseStatus(HttpStatus.CREATED)
+  @ResponseStatus(HttpStatus.OK)
   @Operation(summary = "Submit KYC survey")
-  public KycSurveyResponse submit(
+  public void submit(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody KycSurveyResponse surveyResponse) {
-    kycSurveyService.save(authenticatedPerson.getUserId(), surveyResponse);
-    return surveyResponse;
+    kycSurveyService.submit(authenticatedPerson, surveyResponse);
   }
 }

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
+import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static java.util.stream.Collectors.toSet;
 
@@ -17,6 +18,7 @@ import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
+import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
@@ -200,6 +202,17 @@ public class AmlService {
             .metadata(metadata(user, contactDetails))
             .build();
     return addCheckIfMissing(pensionRegistryNameCheck);
+  }
+
+  public Optional<AmlCheck> addKycCheck(String personalCode, KycCheck kycCheck) {
+    AmlCheck check =
+        AmlCheck.builder()
+            .personalCode(personalCode)
+            .type(KYC_CHECK)
+            .success(kycCheck.riskLevel() == LOW)
+            .metadata(Map.of("score", kycCheck.score(), "riskLevel", kycCheck.riskLevel().name()))
+            .build();
+    return addCheckIfMissing(check);
   }
 
   private boolean personDataMatches(Person person1, Person person2) {

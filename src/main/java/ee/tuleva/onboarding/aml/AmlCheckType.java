@@ -19,7 +19,8 @@ public enum AmlCheckType {
   RISK_LEVEL,
   RISK_LEVEL_OVERRIDE,
   RISK_LEVEL_OVERRIDE_CONFIRMATION,
-  INTERNAL_ESCALATION;
+  INTERNAL_ESCALATION,
+  KYC_CHECK;
 
   @Getter final boolean manual;
 

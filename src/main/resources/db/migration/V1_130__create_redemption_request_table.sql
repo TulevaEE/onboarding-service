@@ -19,5 +19,4 @@ CREATE TABLE redemption_request (
 );
 
 CREATE INDEX idx_redemption_request_user_id ON redemption_request(user_id);
-CREATE INDEX idx_redemption_request_status ON redemption_request(status);
-CREATE INDEX idx_redemption_request_requested_at ON redemption_request(requested_at);
+CREATE INDEX idx_redemption_request_status_requested_at ON redemption_request(status, requested_at);

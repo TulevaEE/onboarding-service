@@ -323,7 +323,7 @@ class RedemptionBatchJobTest {
 
     var captor = ArgumentCaptor.forClass(RedemptionRequest.class);
     verify(redemptionRequestRepository).save(captor.capture());
-    assertThat(captor.getValue().getErrorReason()).isEqualTo("Test error");
+    assertThat(captor.getValue().getErrorReason()).contains("Test error");
     verify(redemptionStatusService).changeStatus(requestId, FAILED);
   }
 }

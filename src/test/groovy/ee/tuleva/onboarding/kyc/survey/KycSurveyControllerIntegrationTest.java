@@ -3,12 +3,15 @@ package ee.tuleva.onboarding.kyc.survey;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
+import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.HIGH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ee.tuleva.onboarding.kyc.KycCheck;
+import ee.tuleva.onboarding.kyc.KycCheckPerformedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.util.List;
@@ -22,17 +25,21 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
+@RecordApplicationEvents
 class KycSurveyControllerIntegrationTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private KycSurveyRepository kycSurveyRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private ApplicationEvents applicationEvents;
 
   private User user;
   private Authentication authentication;
@@ -128,7 +135,7 @@ class KycSurveyControllerIntegrationTest {
                 .content(requestBody)
                 .with(csrf())
                 .with(authentication(authentication)))
-        .andExpect(status().isCreated());
+        .andExpect(status().isOk());
 
     var surveys = kycSurveyRepository.findAll();
     assertThat(surveys).hasSize(1);
@@ -137,5 +144,12 @@ class KycSurveyControllerIntegrationTest {
     assertThat(saved.getUserId()).isEqualTo(user.getId());
     assertThat(saved.getSurvey().answers()).hasSize(8);
     assertThat(saved.getCreatedTime()).isNotNull();
+
+    var events = applicationEvents.stream(KycCheckPerformedEvent.class).toList();
+    assertThat(events).hasSize(1);
+
+    var event = events.getFirst();
+    assertThat(event.getPersonalCode()).isEqualTo(user.getPersonalCode());
+    assertThat(event.getKycCheck()).isEqualTo(new KycCheck(99, HIGH));
   }
 }

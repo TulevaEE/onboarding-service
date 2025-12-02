@@ -51,7 +51,7 @@ class RedemptionControllerTest {
             .id(requestId)
             .userId(authPerson.getUserId())
             .fundUnits(new BigDecimal("10.00000"))
-            .customerIban("EE123456789012345678")
+            .customerIban("EE471000001020145685")
             .status(PENDING)
             .build();
 
@@ -59,14 +59,15 @@ class RedemptionControllerTest {
             eq(authPerson.getUserId()),
             eq(new BigDecimal("10.00")),
             eq(EUR),
-            eq("EE123456789012345678")))
+            eq("EE471000001020145685")))
         .thenReturn(redemptionRequest);
 
     String requestBody =
         """
         {
           "amount": 10.00,
-          "customerIban": "EE123456789012345678"
+          "currency": "EUR",
+          "iban": "EE471000001020145685"
         }
         """;
 
@@ -85,7 +86,7 @@ class RedemptionControllerTest {
             eq(authPerson.getUserId()),
             eq(new BigDecimal("10.00")),
             eq(EUR),
-            eq("EE123456789012345678"));
+            eq("EE471000001020145685"));
   }
 
   @Test
@@ -94,7 +95,8 @@ class RedemptionControllerTest {
     String requestBody =
         """
         {
-          "customerIban": "EE123456789012345678"
+          "currency": "EUR",
+          "iban": "EE471000001020145685"
         }
         """;
 
@@ -114,7 +116,8 @@ class RedemptionControllerTest {
         """
         {
           "amount": -10.00,
-          "customerIban": "EE123456789012345678"
+          "currency": "EUR",
+          "iban": "EE471000001020145685"
         }
         """;
 
@@ -133,7 +136,8 @@ class RedemptionControllerTest {
     String requestBody =
         """
         {
-          "amount": 10.00
+          "amount": 10.00,
+          "currency": "EUR"
         }
         """;
 

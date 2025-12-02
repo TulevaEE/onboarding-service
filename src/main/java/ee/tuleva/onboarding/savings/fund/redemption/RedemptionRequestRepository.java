@@ -14,7 +14,7 @@ public interface RedemptionRequestRepository extends CrudRepository<RedemptionRe
 
   List<RedemptionRequest> findByUserIdOrderByRequestedAtDesc(Long userId);
 
-  List<RedemptionRequest> findByStatus(Status status);
+  List<RedemptionRequest> findByUserIdAndStatus(Long userId, Status status);
 
   List<RedemptionRequest> findByStatusAndRequestedAtBeforeAndCancelledAtIsNull(
       Status status, Instant cutoff);

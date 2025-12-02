@@ -1,14 +1,15 @@
 package ee.tuleva.onboarding.account;
 
+import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.manager.FundManager;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
+import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
@@ -23,8 +24,9 @@ public class SavingsFundStatementService {
   private final UserService userService;
   private final LedgerService ledgerService;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
+  private final SavingsFundNavProvider navProvider;
 
-  private static final BigDecimal FEE_RATE = new BigDecimal("0.0045");
+  // TODO: fetch from the funds table in the database
   private static final Fund SAVINGS_FUND =
       Fund.builder()
           .fundManager(new FundManager("Tuleva", 1L))
@@ -33,8 +35,8 @@ public class SavingsFundStatementService {
           .pillar(null)
           .nameEnglish("Tuleva Additional Savings Fund")
           .nameEstonian("Tuleva täiendav kogumisfond")
-          .managementFeeRate(FEE_RATE)
-          .ongoingChargesFigure(FEE_RATE)
+          .managementFeeRate(new BigDecimal("0.0019"))
+          .ongoingChargesFigure(new BigDecimal("0.0029"))
           .status(ACTIVE)
           .build();
 
@@ -51,7 +53,7 @@ public class SavingsFundStatementService {
 
     return FundBalance.builder()
         .fund(SAVINGS_FUND)
-        .currency(Currency.EUR.name())
+        .currency(EUR.name())
         .units(units)
         .value(value)
         .contributions(getUserSubscriptions(user))
@@ -75,7 +77,6 @@ public class SavingsFundStatementService {
   }
 
   private BigDecimal getNAV() {
-    // TODO fetch NAV
-    return BigDecimal.ONE;
+    return navProvider.getCurrentNav();
   }
 }

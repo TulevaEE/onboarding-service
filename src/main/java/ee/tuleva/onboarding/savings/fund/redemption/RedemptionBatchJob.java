@@ -198,10 +198,8 @@ public class RedemptionBatchJob {
 
               redemptionStatusService.changeStatus(updated.getId(), PAID_OUT);
 
-              RedemptionRequest toMarkProcessed =
-                  redemptionRequestRepository.findById(updated.getId()).orElseThrow();
-              toMarkProcessed.setProcessedAt(clock.instant());
-              redemptionRequestRepository.save(toMarkProcessed);
+              updated.setProcessedAt(Instant.now());
+              redemptionRequestRepository.save(updated);
 
               log.info(
                   "Processed individual payout: id={}, amount={}, iban={}",

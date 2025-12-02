@@ -146,7 +146,7 @@ class KycSurveyControllerTest {
               "type": "INVESTABLE_ASSETS",
               "value": {
                 "type": "OPTION",
-                "value": "80_OR_MORE"
+                "value": "MORE_THAN_80K"
               }
             },
             {

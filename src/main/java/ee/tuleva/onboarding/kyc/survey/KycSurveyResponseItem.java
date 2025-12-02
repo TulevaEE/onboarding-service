@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.kyc.survey;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import ee.tuleva.onboarding.country.ValidIso2CountryCode;
@@ -103,14 +102,10 @@ public sealed interface KycSurveyResponseItem {
   }
 
   enum AssetRange {
-    @JsonProperty("20K_OR_LESS")
-    TWENTY_K_OR_LESS,
-    @JsonProperty("20K_40K")
-    TWENTY_K_TO_FORTY_K,
-    @JsonProperty("40K_80K")
-    FORTY_K_TO_EIGHTY_K,
-    @JsonProperty("80_OR_MORE")
-    EIGHTY_OR_MORE
+    LESS_THAN_20K,
+    RANGE_20K_40K,
+    RANGE_40K_80K,
+    MORE_THAN_80K
   }
 
   enum IncomeSource {

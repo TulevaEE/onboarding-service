@@ -100,7 +100,7 @@ class KycSurveyControllerIntegrationTest {
               "type": "INVESTABLE_ASSETS",
               "value": {
                 "type": "OPTION",
-                "value": "20K_OR_LESS"
+                "value": "LESS_THAN_20K"
               }
             },
             {

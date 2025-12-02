@@ -200,7 +200,7 @@ public class RedemptionBatchJob {
 
               RedemptionRequest toMarkProcessed =
                   redemptionRequestRepository.findById(updated.getId()).orElseThrow();
-              toMarkProcessed.setProcessedAt(Instant.now());
+              toMarkProcessed.setProcessedAt(clock.instant());
               redemptionRequestRepository.save(toMarkProcessed);
 
               log.info(

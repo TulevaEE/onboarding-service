@@ -43,8 +43,10 @@ class SavingsFundStatementServiceSpec extends Specification {
 
     then:
     savingsAccountStatement.fund == additionalSavingsFund()
-    savingsAccountStatement.value == 3
-    savingsAccountStatement.units == 3
+    savingsAccountStatement.units == 2
+    savingsAccountStatement.value == 2
+    savingsAccountStatement.unavailableUnits == 1
+    savingsAccountStatement.unavailableValue == 1
     savingsAccountStatement.contributions == 3
     savingsAccountStatement.subtractions == 0
   }

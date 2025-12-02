@@ -48,31 +48,37 @@ public class SavingsFundStatementService {
           "User is not onboarded: personalCode=" + user.getPersonalCode());
     }
 
-    BigDecimal units = getUserFundUnits(user);
+    BigDecimal units = getUnits(user);
     BigDecimal value = getNAV().multiply(units);
+
+    BigDecimal reservedUnits = getReservedUnits(user);
+    BigDecimal reservedValue = getNAV().multiply(reservedUnits);
 
     return FundBalance.builder()
         .fund(SAVINGS_FUND)
         .currency(EUR.name())
         .units(units)
         .value(value)
-        .contributions(getUserSubscriptions(user))
-        .subtractions(getUserRedemptions(user))
+        .unavailableUnits(reservedUnits)
+        .unavailableValue(reservedValue)
+        .contributions(getSubscriptions(user))
+        .subtractions(getRedemptions(user))
         .build();
   }
 
-  private BigDecimal getUserFundUnits(User user) {
-    BigDecimal balance = ledgerService.getUserAccount(user, FUND_UNITS).getBalance().negate();
-    BigDecimal reservedBalance =
-        ledgerService.getUserAccount(user, FUND_UNITS_RESERVED).getBalance().negate();
-    return balance.add(reservedBalance);
+  private BigDecimal getUnits(User user) {
+    return ledgerService.getUserAccount(user, FUND_UNITS).getBalance().negate();
   }
 
-  private BigDecimal getUserSubscriptions(User user) {
+  private BigDecimal getReservedUnits(User user) {
+    return ledgerService.getUserAccount(user, FUND_UNITS_RESERVED).getBalance().negate();
+  }
+
+  private BigDecimal getSubscriptions(User user) {
     return ledgerService.getUserAccount(user, SUBSCRIPTIONS).getBalance().negate();
   }
 
-  private BigDecimal getUserRedemptions(User user) {
+  private BigDecimal getRedemptions(User user) {
     return ledgerService.getUserAccount(user, REDEMPTIONS).getBalance();
   }
 

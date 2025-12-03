@@ -41,7 +41,8 @@ public sealed interface KycSurveyResponseItem {
 
   record InvestableAssets(OptionValue<AssetRange> value) implements KycSurveyResponseItem {}
 
-  record SourceOfIncome(SourceOfIncomeValue value) implements KycSurveyResponseItem {}
+  record SourceOfIncome(List<@Valid SourceOfIncomeValueItem> value)
+      implements KycSurveyResponseItem {}
 
   record Terms(OptionValue<TermsAccepted> value) implements KycSurveyResponseItem {}
 
@@ -61,7 +62,6 @@ public sealed interface KycSurveyResponseItem {
   record AddressDetails(
       @NotBlank String street,
       @NotBlank String city,
-      String state,
       @NotBlank String postalCode,
       @NotBlank @ValidIso2CountryCode String countryCode) {}
 
@@ -79,13 +79,13 @@ public sealed interface KycSurveyResponseItem {
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes({
-    @JsonSubTypes.Type(value = SourceOfIncomeValue.MultiOption.class, name = "MULTI_OPTION"),
-    @JsonSubTypes.Type(value = SourceOfIncomeValue.Text.class, name = "TEXT"),
+    @JsonSubTypes.Type(value = SourceOfIncomeValueItem.Option.class, name = "OPTION"),
+    @JsonSubTypes.Type(value = SourceOfIncomeValueItem.Text.class, name = "TEXT"),
   })
-  sealed interface SourceOfIncomeValue {
-    record MultiOption(List<IncomeSource> value) implements SourceOfIncomeValue {}
+  sealed interface SourceOfIncomeValueItem {
+    record Option(IncomeSource value) implements SourceOfIncomeValueItem {}
 
-    record Text(String value) implements SourceOfIncomeValue {}
+    record Text(String value) implements SourceOfIncomeValueItem {}
   }
 
   // Enums

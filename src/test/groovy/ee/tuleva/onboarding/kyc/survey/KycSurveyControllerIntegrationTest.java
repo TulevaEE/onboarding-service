@@ -76,7 +76,6 @@ class KycSurveyControllerIntegrationTest {
                 "value": {
                   "street": "123 Main St",
                   "city": "Tallinn",
-                  "state": "Harjumaa",
                   "postalCode": "10115",
                   "countryCode": "EE"
                 }
@@ -112,10 +111,10 @@ class KycSurveyControllerIntegrationTest {
             },
             {
               "type": "SOURCE_OF_INCOME",
-              "value": {
-                "type": "MULTI_OPTION",
-                "value": ["SALARY", "SAVINGS"]
-              }
+              "value": [
+                { "type": "OPTION", "value": "SALARY" },
+                { "type": "OPTION", "value": "SAVINGS" }
+              ]
             },
             {
               "type": "TERMS",

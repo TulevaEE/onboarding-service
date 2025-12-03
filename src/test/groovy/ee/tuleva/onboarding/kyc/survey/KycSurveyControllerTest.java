@@ -101,7 +101,6 @@ class KycSurveyControllerTest {
                 "value": {
                   "street": "123 Main St",
                   "city": "Anytown",
-                  "state": "CA",
                   "postalCode": "12345",
                   "countryCode": "US"
                 }
@@ -144,10 +143,10 @@ class KycSurveyControllerTest {
             },
             {
               "type": "SOURCE_OF_INCOME",
-              "value": {
-                "type": "MULTI_OPTION",
-                "value": ["SALARY", "INVESTMENTS"]
-              }
+              "value": [
+                { "type": "OPTION", "value": "SALARY" },
+                { "type": "OPTION", "value": "INVESTMENTS" }
+              ]
             },
             {
               "type": "TERMS",

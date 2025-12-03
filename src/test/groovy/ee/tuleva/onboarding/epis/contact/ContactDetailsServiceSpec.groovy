@@ -10,7 +10,7 @@ import spock.lang.Specification
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
-import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
+import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 
 class ContactDetailsServiceSpec extends Specification {
 
@@ -22,7 +22,7 @@ class ContactDetailsServiceSpec extends Specification {
   def "Can update contact details"() {
     given:
     def user = sampleUser().build()
-    def address = addressFixture().build()
+    def address = countryFixture().build()
     episService.getContactDetails(user) >> contactDetailsFixture()
 
     when:
@@ -61,7 +61,7 @@ class ContactDetailsServiceSpec extends Specification {
   def "can update contact details for users with no pension account"() {
     given:
     def user = sampleUser().build()
-    def address = addressFixture().build()
+    def address = countryFixture().build()
     def contactDetails = contactDetailsFixture()
     episService.getContactDetails(user) >> contactDetails
 

@@ -16,7 +16,7 @@ import spock.lang.Unroll
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
 import static ee.tuleva.onboarding.mandate.MandateType.*
-import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
+import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 
 class MandateProcessorServiceSpec extends Specification {
 
@@ -55,14 +55,14 @@ class MandateProcessorServiceSpec extends Specification {
     }) >> mandateResponse
     where:
     pillar | address
-    2      | addressFixture().build()
+    2      | countryFixture().build()
     3      | null
   }
 
   def "Start: starts processing cancellation mandate and saves mandate processes"() {
     given:
     Mandate mandate = sampleWithdrawalCancellationMandate()
-    mandate.address = addressFixture().build()
+    mandate.address = countryFixture().build()
     mandate.user = sampleUser
     def response = new MandateCommandResponse("1", true, null, null)
     1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
@@ -81,7 +81,7 @@ class MandateProcessorServiceSpec extends Specification {
   def "Start: processes mandate with payment rate and saves processes"() {
     given:
     Mandate mandate = sampleMandateWithPaymentRate()
-    mandate.address = addressFixture().build()
+    mandate.address = countryFixture().build()
     mandate.user = sampleUser
     def response = new MandateCommandResponse("1", true, null, null)
     1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
@@ -99,7 +99,7 @@ class MandateProcessorServiceSpec extends Specification {
 //  def "Start: processes mandate with payment rate and saves processes"() {
 //    given:
 //    Mandate mandate = sampleMandateWithPaymentRate()
-//    mandate.address = addressFixture().build()
+//    mandate.address = countryFixture().build()
 //    mandate.user = sampleUser
 //    def mandateResponse = new ApplicationResponseDTO()
 //    def response = new ApplicationResponse()

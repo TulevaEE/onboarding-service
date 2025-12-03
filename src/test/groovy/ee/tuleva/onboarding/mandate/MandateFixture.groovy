@@ -19,7 +19,7 @@ import static ee.tuleva.onboarding.pillar.Pillar.THIRD
 import static ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails.fromFundTransferExchanges
 import static ee.tuleva.onboarding.mandate.Mandate.MandateBuilder
 import static ee.tuleva.onboarding.mandate.Mandate.builder
-import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
+import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 
 class MandateFixture {
 
@@ -61,7 +61,7 @@ class MandateFixture {
             )
         ],
         "futureContributionFundIsin": futureContibutionFundIsin,
-        "address": addressFixture().build()
+        "address": countryFixture().build()
     )
   }
 
@@ -116,7 +116,7 @@ class MandateFixture {
     builder()
         .futureContributionFundIsin("isin")
         .fundTransferExchanges([])
-        .address(addressFixture().build())
+        .address(countryFixture().build())
         .metadata([:])
         .pillar(SECOND.toInt())
   }
@@ -144,7 +144,7 @@ class MandateFixture {
                 .build()
         ])
         .futureContributionFundIsin(futureContibutionFundIsin)
-        .address(addressFixture().build())
+        .address(countryFixture().build())
         .build()
 
     mandate.setId(123)
@@ -178,7 +178,7 @@ class MandateFixture {
                 .build()
         ])
         .futureContributionFundIsin(futureContibutionFundIsin)
-        .address(addressFixture().build())
+        .address(countryFixture().build())
         .build()
 
     mandate.setId(124)
@@ -190,7 +190,7 @@ class MandateFixture {
 
   static Mandate sampleWithdrawalCancellationMandate() {
     Mandate mandate = builder()
-        .address(addressFixture().build())
+        .address(countryFixture().build())
         .user(sampleUser().build())
         .details(new WithdrawalCancellationMandateDetails())
         .build()
@@ -204,7 +204,7 @@ class MandateFixture {
 
   static Mandate sampleEarlyWithdrawalCancellationMandate() {
     Mandate mandate = builder()
-        .address(addressFixture().build())
+        .address(countryFixture().build())
         .fundTransferExchanges([])
         .user(sampleUser().build())
         .details(new EarlyWithdrawalCancellationMandateDetails())
@@ -219,7 +219,7 @@ class MandateFixture {
 
   static Mandate samplePartialWithdrawalMandate(PartialWithdrawalMandateDetails details = aPartialWithdrawalMandateDetails) {
     Mandate mandate = builder()
-        .address(addressFixture().build())
+        .address(countryFixture().build())
         .pillar(details.pillar.toInt())
         .details(details)
         .fundTransferExchanges([])
@@ -236,7 +236,7 @@ class MandateFixture {
 
   static Mandate sampleFundPensionOpeningMandate(FundPensionOpeningMandateDetails details = aFundPensionOpeningMandateDetails) {
     Mandate mandate = builder()
-        .address(addressFixture().build())
+        .address(countryFixture().build())
         .pillar(details.pillar.toInt())
         .details(details)
         .fundTransferExchanges([])
@@ -253,7 +253,7 @@ class MandateFixture {
 
   static Mandate sampleMandateWithPaymentRate(PaymentRateChangeMandateDetails details = aPaymentRateChangeMandateDetails) {
     Mandate mandate = builder()
-        .address(addressFixture().build())
+        .address(countryFixture().build())
         .pillar(SECOND.toInt())
         .details(details)
         .fundTransferExchanges([])
@@ -283,7 +283,7 @@ class MandateFixture {
         )
         .futureContributionFundIsin(null)
         .user(sampleUser().build())
-        .address(addressFixture().build())
+        .address(countryFixture().build())
         .details(fromFundTransferExchanges(fundTransferExchanges, SECOND.toInt()))
         .build()
 
@@ -298,7 +298,7 @@ class MandateFixture {
     Mandate mandate = builder()
         .fundTransferExchanges([])
         .futureContributionFundIsin(futureContibutionFundIsin)
-        .address(addressFixture().build())
+        .address(countryFixture().build())
         .build()
 
     mandate.setId(123)
@@ -339,7 +339,7 @@ class MandateFixture {
 
         ])
         .futureContributionFundIsin(futureContibutionFundIsin)
-        .address(addressFixture().build())
+        .address(countryFixture().build())
         .build()
 
     mandate.setId(123)
@@ -372,7 +372,7 @@ class MandateFixture {
                 .build()
         ])
         .futureContributionFundIsin(futureContibutionFundIsin)
-        .address(addressFixture().build())
+        .address(countryFixture().build())
         .build()
 
     mandate.setId(123)

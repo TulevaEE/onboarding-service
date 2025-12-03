@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.command;
 
-import ee.tuleva.onboarding.user.address.Address;
+import ee.tuleva.onboarding.country.Country;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -17,5 +17,5 @@ public class CreateMandateCommand {
 
   @Valid @NotNull private List<MandateFundTransferExchangeCommand> fundTransferExchanges;
 
-  @Valid @NotNull private Address address;
+  @Valid @NotNull private Country address;
 }

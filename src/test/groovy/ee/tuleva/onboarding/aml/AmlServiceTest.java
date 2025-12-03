@@ -24,12 +24,12 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.address.Address;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -505,7 +505,7 @@ class AmlServiceTest {
   void addSanctionAndPepCheckIfMissing_addsChecks() {
     // given
     User user = createUser("123", "First", "Last", 1L);
-    Address address = new Address("EE");
+    Country country = new Country("EE");
     ArrayNode results = objectMapper.createArrayNode();
     ObjectNode result1 = objectMapper.createObjectNode();
     result1.put("id", "res123");
@@ -519,7 +519,7 @@ class AmlServiceTest {
     JsonNode query = objectMapper.createObjectNode();
     MatchResponse matchResponse = new MatchResponse(results, query);
 
-    when(pepAndSanctionCheckService.match(user, address)).thenReturn(matchResponse);
+    when(pepAndSanctionCheckService.match(user, country)).thenReturn(matchResponse);
     when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
             anyString(), any(AmlCheckType.class), any(Instant.class)))
         .thenReturn(false);
@@ -531,7 +531,7 @@ class AmlServiceTest {
         .thenReturn(Collections.emptyList());
 
     // when
-    List<AmlCheck> addedChecks = amlService.addSanctionAndPepCheckIfMissing(user, address);
+    List<AmlCheck> addedChecks = amlService.addSanctionAndPepCheckIfMissing(user, country);
 
     // then
     verify(amlCheckRepository, times(2)).save(amlCheckCaptor.capture());
@@ -560,7 +560,7 @@ class AmlServiceTest {
   void addSanctionAndPepCheckIfMissing_considersOverrides() {
     // given
     User user = createUser("123", "First", "Last", 1L);
-    Address address = new Address("EE");
+    Country country = new Country("EE");
 
     ArrayNode resultsArray = objectMapper.createArrayNode();
     ObjectNode resultNode = JsonNodeFactory.instance.objectNode();
@@ -574,7 +574,7 @@ class AmlServiceTest {
     JsonNode queryNode = JsonNodeFactory.instance.objectNode();
     MatchResponse matchResponse = new MatchResponse(resultsArray, queryNode);
 
-    when(pepAndSanctionCheckService.match(user, address)).thenReturn(matchResponse);
+    when(pepAndSanctionCheckService.match(user, country)).thenReturn(matchResponse);
     when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
             anyString(), any(AmlCheckType.class), any(Instant.class)))
         .thenReturn(false);
@@ -594,7 +594,7 @@ class AmlServiceTest {
         .thenReturn(Collections.emptyList());
 
     // when
-    List<AmlCheck> addedChecks = amlService.addSanctionAndPepCheckIfMissing(user, address);
+    List<AmlCheck> addedChecks = amlService.addSanctionAndPepCheckIfMissing(user, country);
 
     // then
     verify(amlCheckRepository, times(2)).save(amlCheckCaptor.capture());
@@ -617,12 +617,12 @@ class AmlServiceTest {
   void addSanctionAndPepCheckIfMissing_handlesMatchServiceException() {
     // given
     User user = createUser("123", "First", "Last", 1L);
-    Address address = new Address("EE");
-    when(pepAndSanctionCheckService.match(user, address))
+    Country country = new Country("EE");
+    when(pepAndSanctionCheckService.match(user, country))
         .thenThrow(new RuntimeException("Match service error"));
 
     // when
-    List<AmlCheck> result = amlService.addSanctionAndPepCheckIfMissing(user, address);
+    List<AmlCheck> result = amlService.addSanctionAndPepCheckIfMissing(user, country);
 
     // then
     assertTrue(result.isEmpty(), "Should return an empty list on exception");
@@ -644,7 +644,7 @@ class AmlServiceTest {
 
     MatchResponse emptyMatchResponse =
         new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
-    when(pepAndSanctionCheckService.match(eq(record1), any(Address.class)))
+    when(pepAndSanctionCheckService.match(eq(record1), any(Country.class)))
         .thenReturn(emptyMatchResponse);
     when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
             anyString(), any(AmlCheckType.class), any(Instant.class)))

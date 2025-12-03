@@ -15,13 +15,13 @@ import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsRecentThirdPillarRepo
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.conversion.UserConversionService;
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.address.Address;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -84,10 +84,10 @@ public class AmlService {
     addCheckIfMissing(skNameCheck);
   }
 
-  public List<AmlCheck> addSanctionAndPepCheckIfMissing(Person person, Address address) {
+  public List<AmlCheck> addSanctionAndPepCheckIfMissing(Person person, Country country) {
     MatchResponse response;
     try {
-      response = pepAndSanctionCheckService.match(person, address);
+      response = pepAndSanctionCheckService.match(person, country);
     } catch (RuntimeException e) {
       log.error("Error calling matching service", e);
       return List.of();
@@ -152,7 +152,7 @@ public class AmlService {
     records.forEach(
         record -> {
           MatchResponse response =
-              pepAndSanctionCheckService.match(record, new Address(record.getCountry()));
+              pepAndSanctionCheckService.match(record, new Country(record.getCountry()));
           addPepCheckIfMissing(record, response);
           addSanctionCheckIfMissing(record, response);
         });

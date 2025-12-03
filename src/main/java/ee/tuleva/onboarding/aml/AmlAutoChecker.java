@@ -4,13 +4,13 @@ import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent;
 import ee.tuleva.onboarding.kyc.BeforeKycCheckedEvent;
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import ee.tuleva.onboarding.user.address.Address;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -64,10 +64,10 @@ public class AmlAutoChecker {
   @EventListener
   public void beforeMandateCreated(BeforeMandateCreatedEvent event) {
     User user = event.getUser();
-    Address address = event.getAddress();
+    Country country = event.getCountry();
 
     if (amlService.isMandateAmlCheckRequired(user, event.getMandate())) {
-      amlService.addSanctionAndPepCheckIfMissing(user, address);
+      amlService.addSanctionAndPepCheckIfMissing(user, country);
     }
 
     if (!amlService.allChecksPassed(user, event.getMandate())) {

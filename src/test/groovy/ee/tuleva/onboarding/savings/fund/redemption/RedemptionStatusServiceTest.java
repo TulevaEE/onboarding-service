@@ -25,52 +25,8 @@ class RedemptionStatusServiceTest {
   @InjectMocks private RedemptionStatusService redemptionStatusService;
 
   @Test
-  @DisplayName("changeStatus transitions from PENDING to RESERVED")
-  void changeStatus_pendingToReserved_succeeds() {
-    var requestId = UUID.randomUUID();
-    var request =
-        RedemptionRequest.builder()
-            .id(requestId)
-            .userId(1L)
-            .fundUnits(new BigDecimal("10.00000"))
-            .customerIban("EE123456789012345678")
-            .status(PENDING)
-            .build();
-
-    when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
-
-    redemptionStatusService.changeStatus(requestId, RESERVED);
-
-    var captor = ArgumentCaptor.forClass(RedemptionRequest.class);
-    verify(repository).save(captor.capture());
-    assertThat(captor.getValue().getStatus()).isEqualTo(RESERVED);
-  }
-
-  @Test
-  @DisplayName("changeStatus transitions from PENDING to CANCELLED")
-  void changeStatus_pendingToCancelled_succeeds() {
-    var requestId = UUID.randomUUID();
-    var request =
-        RedemptionRequest.builder()
-            .id(requestId)
-            .userId(1L)
-            .fundUnits(new BigDecimal("10.00000"))
-            .customerIban("EE123456789012345678")
-            .status(PENDING)
-            .build();
-
-    when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
-
-    redemptionStatusService.changeStatus(requestId, CANCELLED);
-
-    var captor = ArgumentCaptor.forClass(RedemptionRequest.class);
-    verify(repository).save(captor.capture());
-    assertThat(captor.getValue().getStatus()).isEqualTo(CANCELLED);
-  }
-
-  @Test
-  @DisplayName("changeStatus transitions from RESERVED to PAID_OUT")
-  void changeStatus_reservedToPaidOut_succeeds() {
+  @DisplayName("changeStatus transitions from RESERVED to VERIFIED")
+  void changeStatus_reservedToVerified_succeeds() {
     var requestId = UUID.randomUUID();
     var request =
         RedemptionRequest.builder()
@@ -83,16 +39,16 @@ class RedemptionStatusServiceTest {
 
     when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
 
-    redemptionStatusService.changeStatus(requestId, PAID_OUT);
+    redemptionStatusService.changeStatus(requestId, VERIFIED);
 
     var captor = ArgumentCaptor.forClass(RedemptionRequest.class);
     verify(repository).save(captor.capture());
-    assertThat(captor.getValue().getStatus()).isEqualTo(PAID_OUT);
+    assertThat(captor.getValue().getStatus()).isEqualTo(VERIFIED);
   }
 
   @Test
-  @DisplayName("changeStatus transitions from PAID_OUT to COMPLETED")
-  void changeStatus_paidOutToCompleted_succeeds() {
+  @DisplayName("changeStatus transitions from RESERVED to IN_REVIEW")
+  void changeStatus_reservedToInReview_succeeds() {
     var requestId = UUID.randomUUID();
     var request =
         RedemptionRequest.builder()
@@ -100,16 +56,82 @@ class RedemptionStatusServiceTest {
             .userId(1L)
             .fundUnits(new BigDecimal("10.00000"))
             .customerIban("EE123456789012345678")
-            .status(PAID_OUT)
+            .status(RESERVED)
             .build();
 
     when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
 
-    redemptionStatusService.changeStatus(requestId, COMPLETED);
+    redemptionStatusService.changeStatus(requestId, IN_REVIEW);
 
     var captor = ArgumentCaptor.forClass(RedemptionRequest.class);
     verify(repository).save(captor.capture());
-    assertThat(captor.getValue().getStatus()).isEqualTo(COMPLETED);
+    assertThat(captor.getValue().getStatus()).isEqualTo(IN_REVIEW);
+  }
+
+  @Test
+  @DisplayName("changeStatus transitions from RESERVED to CANCELLED")
+  void changeStatus_reservedToCancelled_succeeds() {
+    var requestId = UUID.randomUUID();
+    var request =
+        RedemptionRequest.builder()
+            .id(requestId)
+            .userId(1L)
+            .fundUnits(new BigDecimal("10.00000"))
+            .customerIban("EE123456789012345678")
+            .status(RESERVED)
+            .build();
+
+    when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    redemptionStatusService.changeStatus(requestId, CANCELLED);
+
+    var captor = ArgumentCaptor.forClass(RedemptionRequest.class);
+    verify(repository).save(captor.capture());
+    assertThat(captor.getValue().getStatus()).isEqualTo(CANCELLED);
+  }
+
+  @Test
+  @DisplayName("changeStatus transitions from VERIFIED to REDEEMED")
+  void changeStatus_verifiedToRedeemed_succeeds() {
+    var requestId = UUID.randomUUID();
+    var request =
+        RedemptionRequest.builder()
+            .id(requestId)
+            .userId(1L)
+            .fundUnits(new BigDecimal("10.00000"))
+            .customerIban("EE123456789012345678")
+            .status(VERIFIED)
+            .build();
+
+    when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    redemptionStatusService.changeStatus(requestId, REDEEMED);
+
+    var captor = ArgumentCaptor.forClass(RedemptionRequest.class);
+    verify(repository).save(captor.capture());
+    assertThat(captor.getValue().getStatus()).isEqualTo(REDEEMED);
+  }
+
+  @Test
+  @DisplayName("changeStatus transitions from REDEEMED to PROCESSED")
+  void changeStatus_redeemedToProcessed_succeeds() {
+    var requestId = UUID.randomUUID();
+    var request =
+        RedemptionRequest.builder()
+            .id(requestId)
+            .userId(1L)
+            .fundUnits(new BigDecimal("10.00000"))
+            .customerIban("EE123456789012345678")
+            .status(REDEEMED)
+            .build();
+
+    when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    redemptionStatusService.changeStatus(requestId, PROCESSED);
+
+    var captor = ArgumentCaptor.forClass(RedemptionRequest.class);
+    verify(repository).save(captor.capture());
+    assertThat(captor.getValue().getStatus()).isEqualTo(PROCESSED);
   }
 
   @Test
@@ -122,12 +144,12 @@ class RedemptionStatusServiceTest {
             .userId(1L)
             .fundUnits(new BigDecimal("10.00000"))
             .customerIban("EE123456789012345678")
-            .status(PENDING)
+            .status(RESERVED)
             .build();
 
     when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
 
-    assertThatThrownBy(() -> redemptionStatusService.changeStatus(requestId, COMPLETED))
+    assertThatThrownBy(() -> redemptionStatusService.changeStatus(requestId, PROCESSED))
         .isInstanceOf(IllegalStateException.class);
   }
 
@@ -138,13 +160,13 @@ class RedemptionStatusServiceTest {
 
     when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> redemptionStatusService.changeStatus(requestId, RESERVED))
+    assertThatThrownBy(() -> redemptionStatusService.changeStatus(requestId, VERIFIED))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
-  @DisplayName("cancel cancels pending request")
-  void cancel_pendingRequest_succeeds() {
+  @DisplayName("cancel cancels reserved request")
+  void cancel_reservedRequest_succeeds() {
     var requestId = UUID.randomUUID();
     var request =
         RedemptionRequest.builder()
@@ -152,7 +174,7 @@ class RedemptionStatusServiceTest {
             .userId(1L)
             .fundUnits(new BigDecimal("10.00000"))
             .customerIban("EE123456789012345678")
-            .status(PENDING)
+            .status(RESERVED)
             .build();
 
     when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
@@ -166,8 +188,8 @@ class RedemptionStatusServiceTest {
   }
 
   @Test
-  @DisplayName("cancel throws when request not pending")
-  void cancel_notPending_throwsException() {
+  @DisplayName("cancel throws when request not in cancellable state")
+  void cancel_notCancellable_throwsException() {
     var requestId = UUID.randomUUID();
     var request =
         RedemptionRequest.builder()
@@ -175,7 +197,7 @@ class RedemptionStatusServiceTest {
             .userId(1L)
             .fundUnits(new BigDecimal("10.00000"))
             .customerIban("EE123456789012345678")
-            .status(RESERVED)
+            .status(VERIFIED)
             .build();
 
     when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));

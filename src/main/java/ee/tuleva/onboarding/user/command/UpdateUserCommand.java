@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.user.command;
 
-import ee.tuleva.onboarding.user.address.Address;
+import ee.tuleva.onboarding.country.Country;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
@@ -13,5 +13,5 @@ public class UpdateUserCommand {
 
   private String phoneNumber;
 
-  @Valid private Address address;
+  @Valid private Country address;
 }

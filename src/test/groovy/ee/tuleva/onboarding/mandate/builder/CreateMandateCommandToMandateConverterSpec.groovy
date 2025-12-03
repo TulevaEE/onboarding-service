@@ -15,7 +15,7 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticated
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
-import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
+import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 
 class CreateMandateCommandToMandateConverterSpec extends Specification {
 
@@ -35,7 +35,7 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
     def command = new CreateMandateCommand()
     command.setFutureContributionFundIsin("test")
     command.fundTransferExchanges = []
-    command.address = addressFixture().build()
+    command.address = countryFixture().build()
     def user = sampleUser().build()
     def person = authenticatedPersonFromUser(user).build()
     def conversion = fullyConverted()

@@ -8,7 +8,7 @@ import ee.tuleva.onboarding.epis.mandate.details.WithdrawalCancellationMandateDe
 
 import java.time.Instant
 
-import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
+import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 
 class CancellationFixture {
 
@@ -16,7 +16,7 @@ class CancellationFixture {
         return  GenericMandateDto.<WithdrawalCancellationMandateDetails>builder()
             .id(875L)
             .createdDate(Instant.parse("2021-03-09T10:00:00Z"))
-            .address(addressFixture().build())
+            .address(countryFixture().build())
             .email("email@override.ee")
             .phoneNumber("+37288888888")
             .details(new WithdrawalCancellationMandateDetails())
@@ -27,7 +27,7 @@ class CancellationFixture {
     return  GenericMandateDto.<EarlyWithdrawalCancellationMandateDetails>builder()
         .id(875L)
         .createdDate(Instant.parse("2021-03-09T10:00:00Z"))
-        .address(addressFixture().build())
+        .address(countryFixture().build())
         .email("email@override.ee")
         .phoneNumber("+37288888888")
         .details(new EarlyWithdrawalCancellationMandateDetails())
@@ -38,7 +38,7 @@ class CancellationFixture {
     return GenericMandateDto.<TransferCancellationMandateDetails>builder()
         .id(875L)
         .createdDate(Instant.parse("2021-03-09T10:00:00Z"))
-        .address(addressFixture().build())
+        .address(countryFixture().build())
         .email("email@override.ee")
         .phoneNumber("+37288888888")
         .details(new TransferCancellationMandateDetails(isinToCancel, pillar))

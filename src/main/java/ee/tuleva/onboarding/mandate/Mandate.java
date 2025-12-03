@@ -5,13 +5,13 @@ import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.epis.mandate.GenericMandateDto;
 import ee.tuleva.onboarding.epis.mandate.details.*;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
 import ee.tuleva.onboarding.mandate.payment.rate.ValidPaymentRate;
 import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.address.Address;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
@@ -65,10 +65,10 @@ public class Mandate implements Serializable {
       fundTransferExchanges; // TODO: refactor this field into details
 
   @Type(JsonType.class)
-  @Column(columnDefinition = "jsonb")
+  @Column(name = "address", columnDefinition = "jsonb")
   @NotNull
   @JsonView(MandateView.Default.class)
-  private Address address;
+  private Country address;
 
   @Type(JsonType.class)
   @Column(columnDefinition = "jsonb")
@@ -101,7 +101,7 @@ public class Mandate implements Serializable {
       String futureContributionFundIsin,
       List<FundTransferExchange> fundTransferExchanges,
       Integer pillar,
-      @Nullable Address address,
+      @Nullable Country address,
       Map<String, Object> metadata,
       @Nullable BigDecimal paymentRate,
       MandateDetails details) {
@@ -237,5 +237,10 @@ public class Mandate implements Serializable {
   @JsonIgnore
   public boolean isPartOfBatch() {
     return getMandateBatch() != null;
+  }
+
+  @JsonIgnore
+  public Country getCountry() {
+    return address;
   }
 }

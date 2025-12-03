@@ -3,11 +3,11 @@ package ee.tuleva.onboarding.user.response;
 import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.notification.email.Emailable;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.address.Address;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.time.Instant;
@@ -34,7 +34,7 @@ public class UserResponse implements Person, Emailable {
   private Integer memberNumber;
   private String pensionAccountNumber;
   private String secondPillarPikNumber;
-  private Address address;
+  private Country address;
   private boolean isSecondPillarActive;
   private boolean isThirdPillarActive;
   private PaymentRatesResponse secondPillarPaymentRates;
@@ -53,7 +53,7 @@ public class UserResponse implements Person, Emailable {
       @NotNull PaymentRates paymentRates) {
     return responseBuilder(user)
         .pensionAccountNumber(contactDetails.getPensionAccountNumber())
-        .address(Address.builder().countryCode(contactDetails.getCountry()).build())
+        .address(Country.builder().countryCode(contactDetails.getCountry()).build())
         .secondPillarPikNumber(contactDetails.getActiveSecondPillarFundPik())
         .isSecondPillarActive(contactDetails.isSecondPillarActive())
         .isThirdPillarActive(checkIfThirdPillarIsActive(contactDetails))

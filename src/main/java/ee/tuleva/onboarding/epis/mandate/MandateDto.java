@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.epis.mandate;
 
-import ee.tuleva.onboarding.user.address.Address;
+import ee.tuleva.onboarding.country.Country;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -34,7 +34,7 @@ public class MandateDto {
 
   private List<MandateFundsTransferExchangeDTO> fundTransferExchanges;
 
-  @Nullable private Address address;
+  @Nullable private Country address;
 
   private String email;
 

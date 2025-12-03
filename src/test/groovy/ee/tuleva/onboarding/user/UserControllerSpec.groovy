@@ -13,7 +13,7 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
-import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
+import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 import static org.hamcrest.Matchers.*
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
@@ -148,7 +148,7 @@ class UserControllerSpec extends BaseControllerSpec {
   def "updates an existing user"() {
     given:
     def contactDetails = contactDetailsFixture()
-    def address = addressFixture().build()
+    def address = countryFixture().build()
     def command = new UpdateUserCommand(
         email: "erko@risthein.ee",
         phoneNumber: "5555555",

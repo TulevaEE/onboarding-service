@@ -12,6 +12,8 @@ import org.springframework.data.repository.CrudRepository;
 
 public interface RedemptionRequestRepository extends CrudRepository<RedemptionRequest, UUID> {
 
+  List<RedemptionRequest> findByStatus(Status status);
+
   List<RedemptionRequest> findByUserIdOrderByRequestedAtDesc(Long userId);
 
   List<RedemptionRequest> findByUserIdAndStatus(Long userId, Status status);

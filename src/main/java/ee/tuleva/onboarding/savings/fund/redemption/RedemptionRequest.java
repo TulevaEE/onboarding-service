@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.PENDING;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static jakarta.persistence.EnumType.STRING;
 
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -41,7 +41,7 @@ public class RedemptionRequest {
   @Enumerated(STRING)
   @Column(nullable = false, length = 20)
   @Builder.Default
-  private Status status = PENDING;
+  private Status status = RESERVED;
 
   @Column(nullable = false)
   private Instant requestedAt;
@@ -78,11 +78,12 @@ public class RedemptionRequest {
   }
 
   public enum Status {
-    PENDING,
-    CANCELLED,
     RESERVED,
-    PAID_OUT,
-    COMPLETED,
+    IN_REVIEW,
+    CANCELLED,
+    VERIFIED,
+    REDEEMED,
+    PROCESSED,
     FAILED
   }
 }

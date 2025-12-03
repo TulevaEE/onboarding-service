@@ -20,7 +20,7 @@ class MandateSuccessfulEventBroadcasterSpec extends Specification {
     given:
     User user = sampleUser
     Mandate mandate = sampleMandate().tap { it.pillar = pillar }
-    def event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
+    def event = new AfterMandateSignedEvent(user, mandate, Locale.ENGLISH)
 
     when:
     service.publishMandateSuccessfulEvent(event)

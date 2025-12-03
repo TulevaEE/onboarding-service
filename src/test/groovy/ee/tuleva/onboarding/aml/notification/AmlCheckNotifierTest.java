@@ -64,8 +64,7 @@ class AmlCheckNotifierTest {
   @Test
   @DisplayName("Should always send Slack message when AML checks job is run")
   void onScheduledAmlCheckJobRun_sendsSlackMessage() {
-    AmlChecksRunEvent event = mock(AmlChecksRunEvent.class);
-    when(event.getNumberOfRecords()).thenReturn(10);
+    AmlChecksRunEvent event = new AmlChecksRunEvent(10);
 
     notifier.onScheduledAmlCheckJobRun(event);
 
@@ -78,9 +77,7 @@ class AmlCheckNotifierTest {
   @Test
   @DisplayName("Should always send Slack message with row counts after an AML risk level job run")
   void onAmlRiskLevelJobRun_sendsSlackMessage() {
-    AmlRiskLevelJobRunEvent event = mock(AmlRiskLevelJobRunEvent.class);
-    when(event.getHighRiskRowCount()).thenReturn(3);
-    when(event.getAmlChecksCreatedCount()).thenReturn(2);
+    AmlRiskLevelJobRunEvent event = new AmlRiskLevelJobRunEvent(3, 0, 2);
 
     notifier.onAmlRiskLevelJobRun(event);
 

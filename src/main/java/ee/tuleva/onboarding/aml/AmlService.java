@@ -147,7 +147,7 @@ public class AmlService {
     List<AnalyticsRecentThirdPillar> records = analyticsRecentThirdPillarRepository.findAll();
 
     log.info("Running III pillar AML checks on {} records", records.size());
-    eventPublisher.publishEvent(new AmlChecksRunEvent(this, records));
+    eventPublisher.publishEvent(new AmlChecksRunEvent(records.size()));
 
     records.forEach(
         record -> {
@@ -240,7 +240,7 @@ public class AmlService {
         amlCheck.getPersonalCode(),
         amlCheck.isSuccess());
     AmlCheck saved = amlCheckRepository.save(amlCheck);
-    eventPublisher.publishEvent(new AmlCheckCreatedEvent(this, saved));
+    eventPublisher.publishEvent(new AmlCheckCreatedEvent(saved));
     return saved;
   }
 

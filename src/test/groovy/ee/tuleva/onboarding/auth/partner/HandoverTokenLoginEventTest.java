@@ -156,7 +156,7 @@ public class HandoverTokenLoginEventTest {
 
     AuthenticationTokens tokens = new AuthenticationTokens("mock-access", "mock-refresh");
     AfterTokenGrantedEvent afterTokenEvent =
-        new AfterTokenGrantedEvent(this, authenticatedPerson, PARTNER, tokens);
+        new AfterTokenGrantedEvent(authenticatedPerson, PARTNER, tokens);
     loginEventBroadcaster.onAfterTokenGrantedEvent(afterTokenEvent);
 
     // Then
@@ -223,7 +223,7 @@ public class HandoverTokenLoginEventTest {
 
     AuthenticationTokens tokens = new AuthenticationTokens("mock-access", "mock-refresh");
     AfterTokenGrantedEvent afterTokenEvent =
-        new AfterTokenGrantedEvent(this, authenticatedPerson, PARTNER, tokens);
+        new AfterTokenGrantedEvent(authenticatedPerson, PARTNER, tokens);
     loginEventBroadcaster.onAfterTokenGrantedEvent(afterTokenEvent);
 
     // Then
@@ -283,7 +283,7 @@ public class HandoverTokenLoginEventTest {
 
     AuthenticationTokens tokens = new AuthenticationTokens("mock-access", "mock-refresh");
     AfterTokenGrantedEvent afterTokenEvent =
-        new AfterTokenGrantedEvent(this, authenticatedPerson, PARTNER, tokens);
+        new AfterTokenGrantedEvent(authenticatedPerson, PARTNER, tokens);
     loginEventBroadcaster.onAfterTokenGrantedEvent(afterTokenEvent);
 
     // Then

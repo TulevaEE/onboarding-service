@@ -21,7 +21,7 @@ public class MandateSuccessfulEventBroadcaster {
   public void publishMandateSuccessfulEvent(AfterMandateSignedEvent event) {
     eventPublisher.publishEvent(
         new TrackableEvent(
-            event.getUser(),
+            event.user(),
             TrackableEventType.MANDATE_SUCCESSFUL,
             Map.of("pillar", event.getPillar())));
   }

@@ -84,7 +84,7 @@ public class PaymentVerificationService {
         .ifPresent(
             user ->
                 applicationEventPublisher.publishEvent(
-                    new SavingsPaymentFailedEvent(this, user, Locale.of("et"))));
+                    new SavingsPaymentFailedEvent(user, Locale.of("et"))));
   }
 
   Optional<String> extractPersonalCode(String description) {

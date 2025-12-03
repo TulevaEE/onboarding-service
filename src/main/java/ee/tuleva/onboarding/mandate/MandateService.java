@@ -86,7 +86,7 @@ public class MandateService {
 
   public Mandate save(User user, Mandate mandate) {
     log.info("Saving mandate for user {}", user.getId());
-    applicationEventPublisher.publishEvent(new BeforeMandateCreatedEvent(this, user, mandate));
+    applicationEventPublisher.publishEvent(new BeforeMandateCreatedEvent(user, mandate));
     return mandateRepository.save(mandate);
   }
 
@@ -202,8 +202,7 @@ public class MandateService {
   }
 
   private void notifyAboutSignedMandate(User user, Mandate mandate, Locale locale) {
-    applicationEventPublisher.publishEvent(
-        new AfterMandateSignedEvent(this, user, mandate, locale));
+    applicationEventPublisher.publishEvent(new AfterMandateSignedEvent(user, mandate, locale));
   }
 
   private void persistSignedFile(Mandate mandate, byte[] signedFile) {

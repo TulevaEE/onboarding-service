@@ -28,7 +28,7 @@ class AmlKycCheckIntegrationTest {
   @Test
   @DisplayName("KycCheckPerformedEvent with LOW risk creates successful AmlCheck")
   void onKycCheckPerformed_lowRisk_createsSuccessfulCheck() {
-    var event = new KycCheckPerformedEvent(this, PERSONAL_CODE, new KycCheck(10, LOW));
+    var event = new KycCheckPerformedEvent(PERSONAL_CODE, new KycCheck(10, LOW));
 
     eventPublisher.publishEvent(event);
 
@@ -47,7 +47,7 @@ class AmlKycCheckIntegrationTest {
   @Test
   @DisplayName("KycCheckPerformedEvent with HIGH risk creates failed AmlCheck")
   void onKycCheckPerformed_highRisk_createsFailedCheck() {
-    var event = new KycCheckPerformedEvent(this, PERSONAL_CODE, new KycCheck(99, HIGH));
+    var event = new KycCheckPerformedEvent(PERSONAL_CODE, new KycCheck(99, HIGH));
 
     eventPublisher.publishEvent(event);
 

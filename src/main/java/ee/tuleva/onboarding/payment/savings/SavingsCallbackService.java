@@ -66,8 +66,7 @@ public class SavingsCallbackService {
             user -> {
               savingFundPaymentRepository.attachUser(paymentId, user.getId());
               eventPublisher.publishEvent(
-                  new SavingsPaymentCreatedEvent(
-                      this, user, token.getMerchantReference().getLocale()));
+                  new SavingsPaymentCreatedEvent(user, token.getMerchantReference().getLocale()));
             });
 
     return Optional.of(payment);

@@ -44,7 +44,7 @@ class LoginEventBroadcasterSpec extends Specification {
     samplePerson = samplePerson.build()
     def tokens = sampleAuthenticationTokens()
 
-    def event = new AfterTokenGrantedEvent(this, samplePerson, grantType, tokens)
+    def event = new AfterTokenGrantedEvent(samplePerson, grantType, tokens)
 
     when:
     service.onAfterTokenGrantedEvent(event)
@@ -73,7 +73,7 @@ class LoginEventBroadcasterSpec extends Specification {
     def contactDetails = contactDetailsFixture()
     def conversion = fullyConverted()
 
-    def event = new AfterTokenGrantedEvent(this, samplePerson, SMART_ID, tokens)
+    def event = new AfterTokenGrantedEvent(samplePerson, SMART_ID, tokens)
 
     1 * conversionService.getConversion(samplePerson) >> conversion
     1 * contactDetailsService.getContactDetails(samplePerson) >> contactDetails

@@ -164,11 +164,10 @@ class AmlAutoCheckerTest {
   @DisplayName("contactDetailsUpdated: Should add contact details check")
   void contactDetailsUpdated_addsCheck() {
     // given
-    ContactDetailsUpdatedEvent mockEvent = mock(ContactDetailsUpdatedEvent.class);
-    when(mockEvent.getUser()).thenReturn(mockUser);
+    var event = new ContactDetailsUpdatedEvent(mockUser, null);
 
     // when
-    amlAutoChecker.contactDetailsUpdated(mockEvent);
+    amlAutoChecker.contactDetailsUpdated(event);
 
     // then
     verify(amlService).addContactDetailsCheckIfMissing(mockUser);
@@ -179,18 +178,15 @@ class AmlAutoCheckerTest {
       "beforeMandateCreated: Should add sanction and PEP check when required, and all checks passed")
   void beforeMandateCreated_addsSanctionAndPepCheck_forThirdPillar_whenChecksPass() {
     // given
-    BeforeMandateCreatedEvent mockEvent = mock(BeforeMandateCreatedEvent.class);
     var mandate = thirdPillarMandate();
-    Integer pillar = mandate.getPillar();
+    mandate.setAddress(mockAddress);
+    var event = new BeforeMandateCreatedEvent(mockUser, mandate);
 
-    when(mockEvent.getUser()).thenReturn(mockUser);
-    when(mockEvent.getMandate()).thenReturn(mandate);
-    when(mockEvent.getAddress()).thenReturn(mockAddress);
     when(amlService.allChecksPassed(mockUser, mandate)).thenReturn(true);
     when(amlService.isMandateAmlCheckRequired(mockUser, mandate)).thenReturn(true);
 
     // when
-    assertDoesNotThrow(() -> amlAutoChecker.beforeMandateCreated(mockEvent));
+    assertDoesNotThrow(() -> amlAutoChecker.beforeMandateCreated(event));
 
     // then
     verify(amlService).addSanctionAndPepCheckIfMissing(mockUser, mockAddress);
@@ -202,16 +198,14 @@ class AmlAutoCheckerTest {
       "beforeMandateCreated: Should not add sanction and PEP check when not required when all checks passed")
   void beforeMandateCreated_noSanctionAndPepCheck_forNonThirdPillar_whenChecksPass() {
     // given
-    BeforeMandateCreatedEvent mockEvent = mock(BeforeMandateCreatedEvent.class);
     var mandate = sampleMandate();
+    var event = new BeforeMandateCreatedEvent(mockUser, mandate);
 
-    when(mockEvent.getUser()).thenReturn(mockUser);
-    when(mockEvent.getMandate()).thenReturn(mandate);
     when(amlService.isMandateAmlCheckRequired(mockUser, mandate)).thenReturn(false);
     when(amlService.allChecksPassed(mockUser, mandate)).thenReturn(true);
 
     // when
-    assertDoesNotThrow(() -> amlAutoChecker.beforeMandateCreated(mockEvent));
+    assertDoesNotThrow(() -> amlAutoChecker.beforeMandateCreated(event));
 
     // then
     verify(amlService, never()).addSanctionAndPepCheckIfMissing(any(), any());
@@ -223,12 +217,10 @@ class AmlAutoCheckerTest {
       "beforeMandateCreated: Should throw AmlChecksMissingException if not all checks passed)")
   void beforeMandateCreated_throwsException_whenChecksFail_thirdPillar() {
     // given
-    BeforeMandateCreatedEvent mockEvent = mock(BeforeMandateCreatedEvent.class);
     var mandate = thirdPillarMandate();
+    mandate.setAddress(mockAddress);
+    var event = new BeforeMandateCreatedEvent(mockUser, mandate);
 
-    when(mockEvent.getUser()).thenReturn(mockUser);
-    when(mockEvent.getMandate()).thenReturn(mandate);
-    when(mockEvent.getAddress()).thenReturn(mockAddress);
     when(amlService.allChecksPassed(mockUser, mandate)).thenReturn(false);
     when(amlService.isMandateAmlCheckRequired(mockUser, mandate)).thenReturn(true);
 
@@ -237,7 +229,7 @@ class AmlAutoCheckerTest {
         assertThrows(
             AmlChecksMissingException.class,
             () -> {
-              amlAutoChecker.beforeMandateCreated(mockEvent);
+              amlAutoChecker.beforeMandateCreated(event);
             });
 
     // then

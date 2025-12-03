@@ -49,7 +49,7 @@ public class AmlAutoChecker {
 
   @EventListener
   public void contactDetailsUpdated(ContactDetailsUpdatedEvent event) {
-    amlService.addContactDetailsCheckIfMissing(event.getUser());
+    amlService.addContactDetailsCheckIfMissing(event.user());
   }
 
   private User getUser(Person person) {
@@ -62,14 +62,14 @@ public class AmlAutoChecker {
 
   @EventListener
   public void beforeMandateCreated(BeforeMandateCreatedEvent event) {
-    User user = event.getUser();
+    User user = event.user();
     Address address = event.getAddress();
 
-    if (amlService.isMandateAmlCheckRequired(user, event.getMandate())) {
+    if (amlService.isMandateAmlCheckRequired(user, event.mandate())) {
       amlService.addSanctionAndPepCheckIfMissing(user, address);
     }
 
-    if (!amlService.allChecksPassed(user, event.getMandate())) {
+    if (!amlService.allChecksPassed(user, event.mandate())) {
       throw AmlChecksMissingException.newInstance();
     }
   }

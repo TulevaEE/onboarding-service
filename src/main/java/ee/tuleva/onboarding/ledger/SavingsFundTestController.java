@@ -62,6 +62,6 @@ public class SavingsFundTestController {
   @Operation(summary = "Trigger message getter")
   @GetMapping("/swedbank/statement")
   public void getSwedbankResponse() {
-    swedbankMessageReceiver.getResponse();
+    swedbankMessageReceiver.getResponses();
   }
 }

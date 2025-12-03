@@ -153,7 +153,7 @@ public class SavingFundPaymentRepository {
               + endToEndId.substring(16, 20)
               + "-"
               + endToEndId.substring(20, 32));
-    } catch (IllegalArgumentException e) {
+    } catch (IllegalArgumentException | IndexOutOfBoundsException e) {
       return null;
     }
   }

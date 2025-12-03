@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayResponseDto;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -30,25 +31,19 @@ public class SwedbankMessageReceiver {
       lockAtMostFor = "50s",
       lockAtLeastFor = "5s")
   public void getResponses() {
+    log.info("Running Swedbank statement response fetcher");
+
     try {
-      getResponse();
+      Stream.generate(swedbankGatewayClient::getResponse)
+          .takeWhile(Optional::isPresent)
+          .map(Optional::get)
+          .forEach(this::handleResponse);
     } catch (Exception e) {
       log.error("Swedbank statement response fetcher failed", e);
     }
   }
 
-  public void getResponse() {
-    log.info("Running Swedbank statement response fetcher");
-
-    var optionalResponse = swedbankGatewayClient.getResponse();
-
-    if (optionalResponse.isEmpty()) {
-      log.info("No Swedbank message available");
-      return;
-    }
-
-    var response = optionalResponse.get();
-
+  private void handleResponse(SwedbankGatewayResponseDto response) {
     var messageEntity =
         SwedbankMessage.builder()
             .requestId(response.requestTrackingId())
@@ -58,8 +53,6 @@ public class SwedbankMessageReceiver {
     swedbankMessageRepository.save(messageEntity);
 
     acknowledgeResponse(response);
-
-    // TODO processing
   }
 
   private void acknowledgeResponse(SwedbankGatewayResponseDto response) {

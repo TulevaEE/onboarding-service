@@ -38,9 +38,11 @@ class SwedbankMessageReceiverTest {
 
     var mockSwedbankResponse =
         new SwedbankGatewayResponseDto(responseBody, id, trackingId.toString());
-    when(swedbankGatewayClient.getResponse()).thenReturn(Optional.of(mockSwedbankResponse));
+    when(swedbankGatewayClient.getResponse())
+        .thenReturn(Optional.of(mockSwedbankResponse))
+        .thenReturn(Optional.empty());
 
-    receiver.getResponse();
+    receiver.getResponses();
 
     verify(messageRepository, times(1))
         .save(
@@ -58,9 +60,26 @@ class SwedbankMessageReceiverTest {
 
     when(swedbankGatewayClient.getResponse()).thenReturn(Optional.empty());
 
-    receiver.getResponse();
+    receiver.getResponses();
 
     verify(messageRepository, never()).save(any());
     verify(swedbankGatewayClient, never()).acknowledgeResponse(any());
+  }
+
+  @Test
+  @DisplayName("fetches all messages when multiple in queue")
+  void fetches_all_messages_when_multiple_in_queue() {
+    var response1 = new SwedbankGatewayResponseDto("<xml>MSG1</xml>", "req1", "track1");
+    var response2 = new SwedbankGatewayResponseDto("<xml>MSG2</xml>", "req2", "track2");
+
+    when(swedbankGatewayClient.getResponse())
+        .thenReturn(Optional.of(response1))
+        .thenReturn(Optional.of(response2))
+        .thenReturn(Optional.empty());
+
+    receiver.getResponses();
+
+    verify(messageRepository, times(2)).save(any());
+    verify(swedbankGatewayClient, times(2)).acknowledgeResponse(any());
   }
 }

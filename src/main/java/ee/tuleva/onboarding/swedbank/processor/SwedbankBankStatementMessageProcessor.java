@@ -74,47 +74,70 @@ class SwedbankBankStatementMessageProcessor {
     } else if (isOutgoingReturn(payment)) {
       findOriginalPaymentForReturn(payment)
           .ifPresentOrElse(
-              originalPayment -> completeUserCancelledPaymentReturn(originalPayment, payment),
-              () -> completeUnattributedPaymentBounceBack(payment));
+              this::completePaymentReturn,
+              () ->
+                  log.error(
+                      "Original payment not found for return: endToEndId={}, beneficiaryIban={}, amount={}",
+                      payment.getEndToEndId(),
+                      payment.getBeneficiaryIban(),
+                      payment.getAmount()));
+    } else if (isIncomingPayment(payment)) {
+      log.debug(
+          "Incoming payment inserted, ledger entry handled by verification: paymentId={}",
+          payment.getId());
+    } else {
+      log.error(
+          "Unhandled payment type: paymentId={}, amount={}", payment.getId(), payment.getAmount());
     }
   }
 
-  private void completeUserCancelledPaymentReturn(
-      SavingFundPayment originalPayment, SavingFundPayment returnPayment) {
+  private boolean isIncomingPayment(SavingFundPayment payment) {
+    return payment.getAmount().compareTo(ZERO) > 0;
+  }
+
+  private void completePaymentReturn(SavingFundPayment originalPayment) {
+    if (isUserCancelledPayment(originalPayment)) {
+      completeUserCancelledPaymentReturn(originalPayment);
+    } else {
+      completeUnattributedPaymentBounceBack(originalPayment);
+    }
+  }
+
+  private boolean isUserCancelledPayment(SavingFundPayment payment) {
+    return payment.getUserId() != null;
+  }
+
+  private void completeUserCancelledPaymentReturn(SavingFundPayment originalPayment) {
     userRepository
         .findById(originalPayment.getUserId())
         .ifPresentOrElse(
             user -> {
               log.info(
-                  "Completing ledger entry for user-cancelled payment: paymentId={}, amount={}, to={}",
+                  "Completing ledger entry for user-cancelled payment: paymentId={}, amount={}",
                   originalPayment.getId(),
-                  returnPayment.getAmount().negate(),
-                  returnPayment.getBeneficiaryIban());
+                  originalPayment.getAmount());
               savingsFundLedger.recordPaymentCancelled(
-                  user, returnPayment.getAmount().negate(), originalPayment.getId());
+                  user, originalPayment.getAmount(), originalPayment.getId());
             },
             () ->
-                log.warn(
+                log.error(
                     "User not found for cancelled payment return: userId={}, paymentId={}",
                     originalPayment.getUserId(),
                     originalPayment.getId()));
   }
 
-  private void completeUnattributedPaymentBounceBack(SavingFundPayment payment) {
+  private void completeUnattributedPaymentBounceBack(SavingFundPayment originalPayment) {
     log.info(
-        "Creating ledger entry for unattributed payment bounce back: paymentId={}, amount={}, to={}",
-        payment.getId(),
-        payment.getAmount().negate(),
-        payment.getBeneficiaryIban());
-    savingsFundLedger.bounceBackUnattributedPayment(payment.getAmount().negate(), payment.getId());
+        "Completing ledger entry for unattributed payment bounce back: paymentId={}, amount={}",
+        originalPayment.getId(),
+        originalPayment.getAmount());
+    savingsFundLedger.bounceBackUnattributedPayment(
+        originalPayment.getAmount(), originalPayment.getId());
   }
 
   private Optional<SavingFundPayment> findOriginalPaymentForReturn(
       SavingFundPayment returnPayment) {
-    return savingFundPaymentRepository
-        .findReturnedPaymentByRemitterIbanAndAmount(
-            returnPayment.getBeneficiaryIban(), returnPayment.getAmount().negate())
-        .filter(originalPayment -> originalPayment.getUserId() != null);
+    return savingFundPaymentRepository.findOriginalPaymentForReturn(returnPayment.getEndToEndId());
   }
 
   private boolean isOutgoingToFundAccount(SavingFundPayment payment) {

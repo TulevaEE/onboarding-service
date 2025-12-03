@@ -1,17 +1,10 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.CREATED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.FROZEN;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.PROCESSED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RECEIVED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RETURNED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
+import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import static java.time.temporal.ChronoUnit.DAYS;
 
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -43,8 +36,8 @@ public class SavingFundPaymentRepository {
 
     jdbcTemplate.update(
         """
-      insert into saving_fund_payment (id, external_id, amount, currency, description, remitter_iban, remitter_id_code, remitter_name, beneficiary_iban, beneficiary_id_code, beneficiary_name, received_before, status)
-      values (:id, :external_id, :amount, :currency, :description, :remitter_iban, :remitter_id_code, :remitter_name, :beneficiary_iban, :beneficiary_id_code, :beneficiary_name, :received_before, :status)
+      insert into saving_fund_payment (id, external_id, end_to_end_id, amount, currency, description, remitter_iban, remitter_id_code, remitter_name, beneficiary_iban, beneficiary_id_code, beneficiary_name, received_before, status)
+      values (:id, :external_id, :end_to_end_id, :amount, :currency, :description, :remitter_iban, :remitter_id_code, :remitter_name, :beneficiary_iban, :beneficiary_id_code, :beneficiary_name, :received_before, :status)
       """,
         parameters);
 
@@ -56,14 +49,14 @@ public class SavingFundPaymentRepository {
     jdbcTemplate.update(
         """
         update saving_fund_payment
-        set external_id=:external_id, amount=:amount, currency=:currency, description=:description, remitter_iban=:remitter_iban, remitter_id_code=:remitter_id_code,
+        set external_id=:external_id, end_to_end_id=:end_to_end_id, amount=:amount, currency=:currency, description=:description, remitter_iban=:remitter_iban, remitter_id_code=:remitter_id_code,
             remitter_name=:remitter_name, beneficiary_iban=:beneficiary_iban, beneficiary_id_code=:beneficiary_id_code, beneficiary_name=:beneficiary_name, received_before=:received_before
         where id=:id
         """,
         parameters);
   }
 
-  public List<SavingFundPayment> findPaymentsWithStatus(SavingFundPayment.Status status) {
+  public List<SavingFundPayment> findPaymentsWithStatus(Status status) {
     return jdbcTemplate.query(
         """
         select * from saving_fund_payment where status=:status
@@ -90,8 +83,7 @@ public class SavingFundPaymentRepository {
         this::rowMapper);
   }
 
-  public List<SavingFundPayment> findUserPaymentsWithStatus(
-      Long userId, SavingFundPayment.Status... statuses) {
+  public List<SavingFundPayment> findUserPaymentsWithStatus(Long userId, Status... statuses) {
     return jdbcTemplate.query(
         """
         select * from saving_fund_payment where user_id=:user_id and status in (:statuses) order by created_at desc
@@ -137,21 +129,33 @@ public class SavingFundPaymentRepository {
     return jdbcTemplate.query("select * from saving_fund_payment", this::rowMapper);
   }
 
-  public Optional<SavingFundPayment> findOriginalPaymentMarkedAsReturnedByRemitterIbanAndAmount(
-      String remitterIban, java.math.BigDecimal amount) {
-    var result =
-        jdbcTemplate.query(
-            """
-            select * from saving_fund_payment
-            where remitter_iban = :remitter_iban
-              and amount = :amount
-              and status = :status
-            order by status_changed_at desc
-            limit 1
-            """,
-            Map.of("remitter_iban", remitterIban, "amount", amount, "status", RETURNED.name()),
-            this::rowMapper);
-    return result.isEmpty() ? Optional.empty() : Optional.of(result.getFirst());
+  public Optional<SavingFundPayment> findOriginalPaymentForReturn(String endToEndId) {
+    if (endToEndId == null || endToEndId.length() != 32) {
+      return Optional.empty();
+    }
+    var originalPaymentId = toUuid(endToEndId);
+    if (originalPaymentId == null) {
+      return Optional.empty();
+    }
+    return findById(originalPaymentId)
+        .filter(payment -> Set.of(TO_BE_RETURNED, RETURNED).contains(payment.getStatus()));
+  }
+
+  private UUID toUuid(String endToEndId) {
+    try {
+      return UUID.fromString(
+          endToEndId.substring(0, 8)
+              + "-"
+              + endToEndId.substring(8, 12)
+              + "-"
+              + endToEndId.substring(12, 16)
+              + "-"
+              + endToEndId.substring(16, 20)
+              + "-"
+              + endToEndId.substring(20, 32));
+    } catch (IllegalArgumentException e) {
+      return null;
+    }
   }
 
   private SavingFundPayment rowMapper(ResultSet rs, int ignored) throws SQLException {
@@ -159,6 +163,7 @@ public class SavingFundPaymentRepository {
         .id(UUID.fromString(rs.getString("id")))
         .userId(getLong(rs, "user_id"))
         .externalId(rs.getString("external_id"))
+        .endToEndId(rs.getString("end_to_end_id"))
         .amount(rs.getBigDecimal("amount"))
         .currency(Currency.valueOf(rs.getString("currency")))
         .description(rs.getString("description"))
@@ -168,7 +173,7 @@ public class SavingFundPaymentRepository {
         .beneficiaryIban(rs.getString("beneficiary_iban"))
         .beneficiaryIdCode(rs.getString("beneficiary_id_code"))
         .beneficiaryName(rs.getString("beneficiary_name"))
-        .status(SavingFundPayment.Status.valueOf(rs.getString("status")))
+        .status(Status.valueOf(rs.getString("status")))
         .createdAt(instant(rs, "created_at"))
         .receivedBefore(instant(rs, "received_before"))
         .statusChangedAt(instant(rs, "status_changed_at"))
@@ -190,6 +195,7 @@ public class SavingFundPaymentRepository {
   private MapSqlParameterSource createParameters(SavingFundPayment payment) {
     return new MapSqlParameterSource()
         .addValue("external_id", payment.getExternalId())
+        .addValue("end_to_end_id", payment.getEndToEndId())
         .addValue("amount", payment.getAmount())
         .addValue("currency", payment.getCurrency().name())
         .addValue("description", payment.getDescription())
@@ -206,7 +212,7 @@ public class SavingFundPaymentRepository {
                 : null);
   }
 
-  public void changeStatus(UUID paymentId, SavingFundPayment.Status newStatus) {
+  public void changeStatus(UUID paymentId, Status newStatus) {
     var currentStatus = getAndLockCurrentStatus(paymentId);
     var allowedTransitions =
         Map.of(
@@ -252,11 +258,11 @@ public class SavingFundPaymentRepository {
         "UPDATE saving_fund_payment SET cancelled_at=NOW() WHERE id=:id", Map.of("id", paymentId));
   }
 
-  private SavingFundPayment.Status getAndLockCurrentStatus(UUID paymentId) {
+  private Status getAndLockCurrentStatus(UUID paymentId) {
     return jdbcTemplate.queryForObject(
         "select status from saving_fund_payment where id=:id for update",
         Map.of("id", paymentId),
-        SavingFundPayment.Status.class);
+        Status.class);
   }
 
   // todo

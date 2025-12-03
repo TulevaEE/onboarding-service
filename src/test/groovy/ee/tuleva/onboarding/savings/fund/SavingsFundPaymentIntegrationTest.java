@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -405,7 +406,7 @@ class SavingsFundPaymentIntegrationTest {
         .isEqualByComparingTo(paymentAmount);
 
     // Step 3: Process outgoing return XML → Ledger should record bounce back
-    var returnXml = createReturnPaymentXml();
+    var returnXml = createReturnPaymentXml(paymentId);
     persistXmlMessage(returnXml, NOW);
     swedbankMessageDelegator.processMessages();
 
@@ -466,7 +467,8 @@ class SavingsFundPaymentIntegrationTest {
         + "</Document>";
   }
 
-  private String createReturnPaymentXml() {
+  private String createReturnPaymentXml(UUID originalPaymentId) {
+    var endToEndId = originalPaymentId.toString().replace("-", "");
     return "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
         + "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.052.001.02\"> "
         + "<BkToCstmrAcctRpt> "
@@ -491,7 +493,9 @@ class SavingsFundPaymentIntegrationTest {
         + "<Sts>BOOK</Sts> "
         + "<BookgDt> <Dt>2025-09-29</Dt> </BookgDt> "
         + "<NtryDtls> <TxDtls> "
-        + "<Refs> <AcctSvcrRef>2025092914000-1</AcctSvcrRef> </Refs> "
+        + "<Refs> <AcctSvcrRef>2025092914000-1</AcctSvcrRef> <EndToEndId>"
+        + endToEndId
+        + "</EndToEndId> </Refs> "
         + "<AmtDtls> <TxAmt> <Amt Ccy=\"EUR\">50.00</Amt> </TxAmt> </AmtDtls> "
         + "<RltdPties> "
         + "<Cdtr> <Nm>Jüri Tamm</Nm> </Cdtr> "

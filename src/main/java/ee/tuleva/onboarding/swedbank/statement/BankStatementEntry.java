@@ -20,7 +20,8 @@ public record BankStatementEntry(
     String currencyCode,
     TransactionType transactionType,
     String remittanceInformation,
-    String externalId) {
+    String externalId,
+    @Nullable String endToEndId) {
 
   @RequiredArgsConstructor
   public static final class CounterPartyDetails {
@@ -136,13 +137,22 @@ public record BankStatementEntry(
     // Extract external ID from entry reference
     var externalId = entry.getNtryRef();
 
+    // Extract end-to-end ID from transaction references (used for matching return payments)
+    var entryDetails = Require.exactlyOne(entry.getNtryDtls(), "entry details");
+    var transactionDetails = Require.exactlyOne(entryDetails.getTxDtls(), "transaction details");
+    var endToEndId =
+        Optional.ofNullable(transactionDetails.getRefs())
+            .map(ee.swedbank.gateway.iso.response.statement.TransactionReferences2::getEndToEndId)
+            .orElse(null);
+
     return new BankStatementEntry(
         counterPartyDetails,
         entryAmount,
         currencyCode,
         transactionType,
         remittanceInformation,
-        externalId);
+        externalId,
+        endToEndId);
   }
 
   static BankStatementEntry from(ReportEntry2 entry) {
@@ -173,12 +183,21 @@ public record BankStatementEntry(
     // Extract external ID from entry reference
     var externalId = entry.getNtryRef();
 
+    // Extract end-to-end ID from transaction references (used for matching return payments)
+    var entryDetails = Require.exactlyOne(entry.getNtryDtls(), "entry details");
+    var transactionDetails = Require.exactlyOne(entryDetails.getTxDtls(), "transaction details");
+    var endToEndId =
+        Optional.ofNullable(transactionDetails.getRefs())
+            .map(ee.swedbank.gateway.iso.response.report.TransactionReferences2::getEndToEndId)
+            .orElse(null);
+
     return new BankStatementEntry(
         counterPartyDetails,
         entryAmount,
         currencyCode,
         transactionType,
         remittanceInformation,
-        externalId);
+        externalId,
+        endToEndId);
   }
 }

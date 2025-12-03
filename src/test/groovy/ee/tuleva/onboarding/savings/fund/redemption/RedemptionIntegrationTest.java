@@ -12,6 +12,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
@@ -20,6 +22,7 @@ import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
+import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
@@ -59,6 +62,7 @@ class RedemptionIntegrationTest {
   @Autowired SavingFundPaymentRepository savingFundPaymentRepository;
 
   @MockitoBean SwedbankGatewayClient swedbankGatewayClient;
+  @MockitoBean SavingsFundNavProvider navProvider;
 
   User testUser;
 
@@ -66,6 +70,7 @@ class RedemptionIntegrationTest {
   void setUp() {
     ClockHolder.setClock(Clock.fixed(NOW, ZoneId.of("UTC")));
     doNothing().when(swedbankGatewayClient).sendPaymentRequest(any(), any());
+    lenient().when(navProvider.getCurrentNav()).thenReturn(BigDecimal.ONE);
 
     testUser =
         userRepository.save(sampleUser().id(null).member(null).personalCode("39901019992").build());
@@ -336,6 +341,10 @@ class RedemptionIntegrationTest {
   }
 
   private void setupUserDepositIban(String iban) {
+    setupUserDepositIban(testUser, iban);
+  }
+
+  private void setupUserDepositIban(User user, String iban) {
     var payment =
         SavingFundPayment.builder()
             .externalId("TEST-" + UUID.randomUUID())
@@ -343,8 +352,8 @@ class RedemptionIntegrationTest {
             .currency(EUR)
             .description("Test deposit")
             .remitterIban(iban)
-            .remitterIdCode(testUser.getPersonalCode())
-            .remitterName(testUser.getFirstName() + " " + testUser.getLastName())
+            .remitterIdCode(user.getPersonalCode())
+            .remitterName(user.getFirstName() + " " + user.getLastName())
             .beneficiaryIban("EE362200221234567897")
             .beneficiaryIdCode("12345678")
             .beneficiaryName("Tuleva")
@@ -352,7 +361,7 @@ class RedemptionIntegrationTest {
             .build();
 
     var paymentId = savingFundPaymentRepository.savePaymentData(payment);
-    savingFundPaymentRepository.attachUser(paymentId, testUser.getId());
+    savingFundPaymentRepository.attachUser(paymentId, user.getId());
     savingFundPaymentRepository.changeStatus(paymentId, SavingFundPayment.Status.RECEIVED);
     savingFundPaymentRepository.changeStatus(paymentId, SavingFundPayment.Status.VERIFIED);
     savingFundPaymentRepository.changeStatus(paymentId, SavingFundPayment.Status.RESERVED);
@@ -372,5 +381,22 @@ class RedemptionIntegrationTest {
                     testUser.getId(), amount, EUR, invalidIban))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("IBAN does not belong to user");
+  }
+
+  @Test
+  @DisplayName("Max withdrawal with precise NAV rounds to exact balance")
+  void createRedemptionRequest_maxWithdrawalWithPreciseNavRoundsToExactBalance() {
+    var preciseNav = new BigDecimal("1.23456");
+    var availableFundUnits = new BigDecimal("100.00000");
+    var maxWithdrawalValue = availableFundUnits.multiply(preciseNav).setScale(2, HALF_UP);
+
+    when(navProvider.getCurrentNav()).thenReturn(preciseNav);
+
+    var request =
+        redemptionService.createRedemptionRequest(
+            testUser.getId(), maxWithdrawalValue, EUR, VALID_IBAN);
+
+    assertThat(request.getFundUnits()).isEqualByComparingTo(availableFundUnits);
+    assertThat(request.getRequestedAmount()).isEqualByComparingTo(maxWithdrawalValue);
   }
 }

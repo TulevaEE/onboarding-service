@@ -30,7 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class RedemptionService {
 
   private static final int FUND_UNITS_SCALE = 5;
-  private static final BigDecimal MAX_WITHDRAWAL_TOLERANCE = new BigDecimal("0.00001");
+  private static final BigDecimal MAX_WITHDRAWAL_TOLERANCE = new BigDecimal("0.01");
 
   private final RedemptionRequestRepository redemptionRequestRepository;
   private final RedemptionStatusService redemptionStatusService;

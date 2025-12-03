@@ -31,7 +31,7 @@ class SavingsFundStatementServiceSpec extends Specification {
 
     userService.findByPersonalCode(user.personalCode) >> Optional.of(user)
     savingsFundOnboardingService.isOnboardingCompleted(user) >> true
-    navProvider.getCurrentNav() >> BigDecimal.ONE
+    navProvider.getCurrentNav() >> new BigDecimal("1.12345")
     ledgerService.getUserAccount(user, FUND_UNITS) >> fundUnits
     ledgerService.getUserAccount(user, FUND_UNITS_RESERVED) >> fundUnitsReserved
     ledgerService.getUserAccount(user, SUBSCRIPTIONS) >> subscriptions
@@ -44,9 +44,9 @@ class SavingsFundStatementServiceSpec extends Specification {
     then:
     savingsAccountStatement.fund == additionalSavingsFund()
     savingsAccountStatement.units == 2
-    savingsAccountStatement.value == 2
+    savingsAccountStatement.value == 2.25
     savingsAccountStatement.unavailableUnits == 1
-    savingsAccountStatement.unavailableValue == 1
+    savingsAccountStatement.unavailableValue == 1.12
     savingsAccountStatement.contributions == 3
     savingsAccountStatement.subtractions == 0
   }

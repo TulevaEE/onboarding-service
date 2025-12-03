@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.account;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
+import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.fund.Fund;
@@ -49,10 +50,10 @@ public class SavingsFundStatementService {
     }
 
     BigDecimal units = getUnits(user);
-    BigDecimal value = getNAV().multiply(units);
+    BigDecimal value = getNAV().multiply(units).setScale(2, HALF_UP);
 
     BigDecimal reservedUnits = getReservedUnits(user);
-    BigDecimal reservedValue = getNAV().multiply(reservedUnits);
+    BigDecimal reservedValue = getNAV().multiply(reservedUnits).setScale(2, HALF_UP);
 
     return FundBalance.builder()
         .fund(SAVINGS_FUND)

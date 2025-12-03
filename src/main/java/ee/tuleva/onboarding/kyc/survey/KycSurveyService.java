@@ -21,8 +21,7 @@ public class KycSurveyService {
     KycSurvey saved = kycSurveyRepository.save(survey);
 
     var kycCheck = kycCheckService.check(person.getPersonalCode());
-    eventPublisher.publishEvent(
-        new KycCheckPerformedEvent(this, person.getPersonalCode(), kycCheck));
+    eventPublisher.publishEvent(new KycCheckPerformedEvent(person.getPersonalCode(), kycCheck));
 
     return saved;
   }

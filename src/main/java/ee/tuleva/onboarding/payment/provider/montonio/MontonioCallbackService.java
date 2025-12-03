@@ -75,7 +75,7 @@ public class MontonioCallbackService {
     try {
       Payment payment = paymentRepository.save(paymentToBeSaved);
       eventPublisher.publishEvent(
-          new PaymentCreatedEvent(this, user, payment, internalReference.getLocale()));
+          new PaymentCreatedEvent(user, payment, internalReference.getLocale()));
 
       return Optional.of(payment);
     } catch (DataIntegrityViolationException e) {

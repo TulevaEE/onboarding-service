@@ -148,7 +148,7 @@ class KycSurveyControllerIntegrationTest {
     assertThat(events).hasSize(1);
 
     var event = events.getFirst();
-    assertThat(event.getPersonalCode()).isEqualTo(user.getPersonalCode());
-    assertThat(event.getKycCheck()).isEqualTo(new KycCheck(99, HIGH));
+    assertThat(event.personalCode()).isEqualTo(user.getPersonalCode());
+    assertThat(event.kycCheck()).isEqualTo(new KycCheck(99, HIGH));
   }
 }

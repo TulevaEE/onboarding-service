@@ -10,8 +10,8 @@ import lombok.Getter;
 public class PaymentCreatedEvent extends PaymentEvent {
   private final Payment payment;
 
-  public PaymentCreatedEvent(Object source, User user, Payment payment, Locale locale) {
-    super(source, user, locale);
+  public PaymentCreatedEvent(User user, Payment payment, Locale locale) {
+    super(user, locale);
     this.payment = payment;
   }
 

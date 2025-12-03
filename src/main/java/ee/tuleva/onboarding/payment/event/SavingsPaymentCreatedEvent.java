@@ -5,8 +5,8 @@ import ee.tuleva.onboarding.user.User;
 import java.util.Locale;
 
 public class SavingsPaymentCreatedEvent extends PaymentEvent {
-  public SavingsPaymentCreatedEvent(Object source, User user, Locale locale) {
-    super(source, user, locale);
+  public SavingsPaymentCreatedEvent(User user, Locale locale) {
+    super(user, locale);
   }
 
   @Override

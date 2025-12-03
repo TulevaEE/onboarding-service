@@ -15,6 +15,6 @@ public class ContactDetailsUpdater {
 
   @EventListener
   public void updateAddress(AfterMandateSignedEvent event) {
-    contactDetailsService.updateContactDetails(event.getUser(), event.getAddress());
+    contactDetailsService.updateContactDetails(event.user(), event.getAddress());
   }
 }

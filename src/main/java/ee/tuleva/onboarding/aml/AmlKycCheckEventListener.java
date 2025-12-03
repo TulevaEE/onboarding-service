@@ -15,6 +15,6 @@ public class AmlKycCheckEventListener {
   @EventListener
   @Transactional
   public void onKycCheckPerformed(KycCheckPerformedEvent event) {
-    amlService.addKycCheck(event.getPersonalCode(), event.getKycCheck());
+    amlService.addKycCheck(event.personalCode(), event.kycCheck());
   }
 }

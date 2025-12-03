@@ -26,10 +26,7 @@ public class UserDetailsUpdater {
   public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
     Person person = event.getPerson();
 
-    log.info(
-        "Updating user name: timestamp={}, personal code={}",
-        event.getTimestamp(),
-        person.getPersonalCode());
+    log.info("Updating user name: personalCode={}", person.getPersonalCode());
 
     userService
         .findByPersonalCode(person.getPersonalCode())

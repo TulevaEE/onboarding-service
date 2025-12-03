@@ -188,10 +188,10 @@ class MandateBatchProcessingPollerTest {
     verify(applicationEventPublisher, times(1))
         .publishEvent(
             argThat(
-                event ->
+                (Object event) ->
                     event instanceof AfterMandateBatchSignedEvent
                         && ((AfterMandateBatchSignedEvent) event)
-                            .getMandateBatch()
+                            .mandateBatch()
                             .equals(mandateBatch)));
     verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
   }
@@ -254,10 +254,10 @@ class MandateBatchProcessingPollerTest {
     verify(applicationEventPublisher, times(1))
         .publishEvent(
             argThat(
-                event ->
+                (Object event) ->
                     event instanceof OnMandateBatchFailedEvent
                         && ((OnMandateBatchFailedEvent) event)
-                            .getMandateBatch()
+                            .mandateBatch()
                             .equals(mandateBatch)));
     verify(applicationEventPublisher, times(0))
         .publishEvent(any(AfterMandateBatchSignedEvent.class));

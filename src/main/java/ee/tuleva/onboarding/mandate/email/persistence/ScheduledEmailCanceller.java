@@ -14,7 +14,7 @@ public class ScheduledEmailCanceller {
   @EventListener
   public void cancelEmail(AfterMandateSignedEvent event) {
     if (event.getPillar() == 2) {
-      emailPersistenceService.cancel(event.getUser(), EmailType.THIRD_PILLAR_SUGGEST_SECOND);
+      emailPersistenceService.cancel(event.user(), EmailType.THIRD_PILLAR_SUGGEST_SECOND);
     }
   }
 }

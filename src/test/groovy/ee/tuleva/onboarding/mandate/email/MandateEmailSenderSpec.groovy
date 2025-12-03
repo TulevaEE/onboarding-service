@@ -45,7 +45,7 @@ class MandateEmailSenderSpec extends Specification {
     PaymentRates paymentRates = samplePaymentRates()
     PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
 
-    AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
+    AfterMandateSignedEvent event = new AfterMandateSignedEvent(user, mandate, Locale.ENGLISH)
 
     1 * episService.getContactDetails(_) >> contactDetails
     1 * conversionService.getConversion(user) >> conversion
@@ -67,11 +67,11 @@ class MandateEmailSenderSpec extends Specification {
     PaymentRates paymentRates = samplePaymentRates()
     PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
 
-    AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
+    AfterMandateSignedEvent event = new AfterMandateSignedEvent(user, mandate, Locale.ENGLISH)
 
     1 * episService.getContactDetails(_) >> contactDetails
-    1 * conversionService.getConversion(event.getUser()) >> conversion
-    1 * paymentRateService.getPaymentRates(event.getUser()) >> paymentRates
+    1 * conversionService.getConversion(event.user()) >> conversion
+    1 * paymentRateService.getPaymentRates(event.user()) >> paymentRates
 
     when:
     mandateEmailSender.sendEmail(event)
@@ -94,7 +94,7 @@ class MandateEmailSenderSpec extends Specification {
     PaymentRates paymentRates = samplePaymentRates()
     PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
 
-    AfterMandateBatchSignedEvent event = new AfterMandateBatchSignedEvent(this, user, mandateBatch, Locale.ENGLISH)
+    AfterMandateBatchSignedEvent event = new AfterMandateBatchSignedEvent(user, mandateBatch, Locale.ENGLISH)
 
     1 * episService.getContactDetails(_) >> contactDetails
     1 * conversionService.getConversion(user) >> conversion

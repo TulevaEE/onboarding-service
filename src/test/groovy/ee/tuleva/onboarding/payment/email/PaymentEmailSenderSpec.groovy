@@ -45,7 +45,7 @@ class PaymentEmailSenderSpec extends Specification {
     def paymentRates = samplePaymentRates()
     def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
 
-    def paymentCreatedEvent = new PaymentCreatedEvent(this, user, payment, locale)
+    def paymentCreatedEvent = new PaymentCreatedEvent(user, payment, locale)
 
     1 * contactDetailsService.getContactDetails(user) >> contactDetails
     1 * conversionService.getConversion(user) >> conversion
@@ -64,7 +64,7 @@ class PaymentEmailSenderSpec extends Specification {
     def payment = aNewSinglePayment()
     payment.paymentType = MEMBER_FEE
     def locale = ENGLISH
-    def paymentCreatedEvent = new PaymentCreatedEvent(this, user, payment, locale)
+    def paymentCreatedEvent = new PaymentCreatedEvent(user, payment, locale)
 
     when:
     paymentEmailSender.sendEmails(paymentCreatedEvent)
@@ -78,7 +78,7 @@ class PaymentEmailSenderSpec extends Specification {
     def user = sampleUser().build()
     def locale = ENGLISH
 
-    def savingsPaymentCreatedEvent = new SavingsPaymentCreatedEvent(this, user, locale)
+    def savingsPaymentCreatedEvent = new SavingsPaymentCreatedEvent(user, locale)
 
     when:
     paymentEmailSender.sendEmails(savingsPaymentCreatedEvent)
@@ -92,7 +92,7 @@ class PaymentEmailSenderSpec extends Specification {
     def user = sampleUser().build()
     def locale = ENGLISH
 
-    def savingsPaymentCancelledEvent = new SavingsPaymentCancelledEvent(this, user, locale)
+    def savingsPaymentCancelledEvent = new SavingsPaymentCancelledEvent(user, locale)
 
     when:
     paymentEmailSender.sendEmails(savingsPaymentCancelledEvent)
@@ -106,7 +106,7 @@ class PaymentEmailSenderSpec extends Specification {
     def user = sampleUser().build()
     def locale = ENGLISH
 
-    def savingsPaymentFailedEvent = new SavingsPaymentFailedEvent(this, user, locale)
+    def savingsPaymentFailedEvent = new SavingsPaymentFailedEvent(user, locale)
 
     when:
     paymentEmailSender.sendEmails(savingsPaymentFailedEvent)

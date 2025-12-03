@@ -4,22 +4,8 @@ import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
 import java.util.Locale;
-import lombok.Getter;
-import org.springframework.context.ApplicationEvent;
 
-@Getter
-public class AfterMandateSignedEvent extends ApplicationEvent {
-
-  private final User user;
-  private final Mandate mandate;
-  private final Locale locale;
-
-  public AfterMandateSignedEvent(Object source, User user, Mandate mandate, Locale locale) {
-    super(source);
-    this.user = user;
-    this.mandate = mandate;
-    this.locale = locale;
-  }
+public record AfterMandateSignedEvent(User user, Mandate mandate, Locale locale) {
 
   public Integer getPillar() {
     return mandate.getPillar();

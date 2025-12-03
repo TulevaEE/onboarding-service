@@ -31,7 +31,7 @@ public class ContactDetailsService {
       updatedContactDetails = contactDetails;
       log.error("Contact details update failed for user " + user.getId(), e);
     }
-    eventPublisher.publishEvent(new ContactDetailsUpdatedEvent(this, user, updatedContactDetails));
+    eventPublisher.publishEvent(new ContactDetailsUpdatedEvent(user, updatedContactDetails));
     return updatedContactDetails;
   }
 

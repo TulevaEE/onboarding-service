@@ -32,14 +32,14 @@ public class AmlCheckNotifier {
   @EventListener
   public void onScheduledAmlCheckJobRun(AmlChecksRunEvent event) {
     slackService.sendMessage(
-        "Running AML checks job: numberOfRecords=%d".formatted(event.getNumberOfRecords()), AML);
+        "Running AML checks job: numberOfRecords=%d".formatted(event.numberOfRecords()), AML);
   }
 
   @EventListener
   public void onAmlRiskLevelJobRun(AmlRiskLevelJobRunEvent event) {
     slackService.sendMessage(
         "Ran AML Risk Level job: highRiskRecordCount=%d, amlChecksCreatedCount=%d"
-            .formatted(event.getHighRiskRowCount(), event.getAmlChecksCreatedCount()),
+            .formatted(event.highRiskRowCount(), event.amlChecksCreatedCount()),
         AML);
   }
 }

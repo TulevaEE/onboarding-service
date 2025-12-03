@@ -27,35 +27,35 @@ public class MandateEmailSender {
 
   @EventListener
   public void sendEmail(AfterMandateSignedEvent event) {
-    ContactDetails contactDetails = episService.getContactDetails(event.getUser());
-    ConversionResponse conversion = conversionService.getConversion(event.getUser());
-    PaymentRates paymentRates = paymentRateService.getPaymentRates(event.getUser());
+    ContactDetails contactDetails = episService.getContactDetails(event.user());
+    ConversionResponse conversion = conversionService.getConversion(event.user());
+    PaymentRates paymentRates = paymentRateService.getPaymentRates(event.user());
     PillarSuggestion pillarSuggestion =
-        new PillarSuggestion(event.getUser(), contactDetails, conversion, paymentRates);
-    if (!event.getMandate().isPartOfBatch()) {
+        new PillarSuggestion(event.user(), contactDetails, conversion, paymentRates);
+    if (!event.mandate().isPartOfBatch()) {
       mandateEmailService.sendMandate(
-          event.getUser(), event.getMandate(), pillarSuggestion, event.getLocale());
+          event.user(), event.mandate(), pillarSuggestion, event.locale());
     } else {
       log.info(
           "Skipping mandate email because it is part of a batch: mandateId={}",
-          event.getMandate().getId());
+          event.mandate().getId());
     }
   }
 
   @EventListener
   public void sendBatchEmail(AfterMandateBatchSignedEvent event) {
-    ContactDetails contactDetails = episService.getContactDetails(event.getUser());
-    ConversionResponse conversion = conversionService.getConversion(event.getUser());
-    PaymentRates paymentRates = paymentRateService.getPaymentRates(event.getUser());
+    ContactDetails contactDetails = episService.getContactDetails(event.user());
+    ConversionResponse conversion = conversionService.getConversion(event.user());
+    PaymentRates paymentRates = paymentRateService.getPaymentRates(event.user());
     PillarSuggestion pillarSuggestion =
-        new PillarSuggestion(event.getUser(), contactDetails, conversion, paymentRates);
+        new PillarSuggestion(event.user(), contactDetails, conversion, paymentRates);
     mandateBatchEmailService.sendMandateBatch(
-        event.getUser(), event.getMandateBatch(), pillarSuggestion, event.getLocale());
+        event.user(), event.mandateBatch(), pillarSuggestion, event.locale());
   }
 
   @EventListener
   public void sendBatchFailedEmail(OnMandateBatchFailedEvent event) {
     mandateBatchEmailService.sendMandateBatchFailedEmail(
-        event.getUser(), event.getMandateBatch(), event.getLocale());
+        event.user(), event.mandateBatch(), event.locale());
   }
 }

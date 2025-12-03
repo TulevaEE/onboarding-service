@@ -70,7 +70,7 @@ public class RiskLevelService {
         createdCount);
 
     eventPublisher.publishEvent(
-        new AmlRiskLevelJobRunEvent(this, highRiskCount, mediumRiskCount, createdCount));
+        new AmlRiskLevelJobRunEvent(highRiskCount, mediumRiskCount, createdCount));
   }
 
   private AmlCheck buildAmlCheck(RiskLevelResult row, Integer level) {
@@ -96,7 +96,7 @@ public class RiskLevelService {
       }
     }
     AmlCheck saved = amlCheckRepository.save(amlCheck);
-    eventPublisher.publishEvent(new AmlCheckCreatedEvent(this, saved));
+    eventPublisher.publishEvent(new AmlCheckCreatedEvent(saved));
     return true;
   }
 

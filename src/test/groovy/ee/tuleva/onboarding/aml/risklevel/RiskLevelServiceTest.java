@@ -94,10 +94,10 @@ class RiskLevelServiceTest {
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher).publishEvent(jobEventCaptor.capture());
     AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
-    assertEquals(1, jobRunEvent.getHighRiskRowCount());
-    assertEquals(0, jobRunEvent.getMediumRiskRowCount());
-    assertEquals(1, jobRunEvent.getTotalRowsProcessed());
-    assertEquals(1, jobRunEvent.getAmlChecksCreatedCount());
+    assertEquals(1, jobRunEvent.highRiskRowCount());
+    assertEquals(0, jobRunEvent.mediumRiskRowCount());
+    assertEquals(1, jobRunEvent.totalRowsProcessed());
+    assertEquals(1, jobRunEvent.amlChecksCreatedCount());
   }
 
   @Test
@@ -131,10 +131,10 @@ class RiskLevelServiceTest {
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher).publishEvent(jobEventCaptor.capture());
     AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
-    assertEquals(0, jobRunEvent.getHighRiskRowCount());
-    assertEquals(1, jobRunEvent.getMediumRiskRowCount());
-    assertEquals(1, jobRunEvent.getTotalRowsProcessed());
-    assertEquals(1, jobRunEvent.getAmlChecksCreatedCount());
+    assertEquals(0, jobRunEvent.highRiskRowCount());
+    assertEquals(1, jobRunEvent.mediumRiskRowCount());
+    assertEquals(1, jobRunEvent.totalRowsProcessed());
+    assertEquals(1, jobRunEvent.amlChecksCreatedCount());
   }
 
   @Test
@@ -177,10 +177,10 @@ class RiskLevelServiceTest {
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher).publishEvent(jobEventCaptor.capture());
     AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
-    assertEquals(1, jobRunEvent.getHighRiskRowCount());
-    assertEquals(1, jobRunEvent.getMediumRiskRowCount());
-    assertEquals(2, jobRunEvent.getTotalRowsProcessed());
-    assertEquals(2, jobRunEvent.getAmlChecksCreatedCount());
+    assertEquals(1, jobRunEvent.highRiskRowCount());
+    assertEquals(1, jobRunEvent.mediumRiskRowCount());
+    assertEquals(2, jobRunEvent.totalRowsProcessed());
+    assertEquals(2, jobRunEvent.amlChecksCreatedCount());
   }
 
   @Test
@@ -200,10 +200,10 @@ class RiskLevelServiceTest {
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher).publishEvent(jobEventCaptor.capture());
     AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
-    assertEquals(1, jobRunEvent.getHighRiskRowCount());
-    assertEquals(0, jobRunEvent.getMediumRiskRowCount());
-    assertEquals(1, jobRunEvent.getTotalRowsProcessed());
-    assertEquals(0, jobRunEvent.getAmlChecksCreatedCount());
+    assertEquals(1, jobRunEvent.highRiskRowCount());
+    assertEquals(0, jobRunEvent.mediumRiskRowCount());
+    assertEquals(1, jobRunEvent.totalRowsProcessed());
+    assertEquals(0, jobRunEvent.amlChecksCreatedCount());
   }
 
   @Test
@@ -235,10 +235,10 @@ class RiskLevelServiceTest {
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher).publishEvent(jobEventCaptor.capture());
     AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
-    assertEquals(1, jobRunEvent.getHighRiskRowCount());
-    assertEquals(0, jobRunEvent.getMediumRiskRowCount());
-    assertEquals(1, jobRunEvent.getTotalRowsProcessed());
-    assertEquals(0, jobRunEvent.getAmlChecksCreatedCount());
+    assertEquals(1, jobRunEvent.highRiskRowCount());
+    assertEquals(0, jobRunEvent.mediumRiskRowCount());
+    assertEquals(1, jobRunEvent.totalRowsProcessed());
+    assertEquals(0, jobRunEvent.amlChecksCreatedCount());
   }
 
   @Test
@@ -262,10 +262,10 @@ class RiskLevelServiceTest {
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher).publishEvent(jobEventCaptor.capture());
     AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
-    assertEquals(1, jobRunEvent.getHighRiskRowCount());
-    assertEquals(0, jobRunEvent.getMediumRiskRowCount());
-    assertEquals(1, jobRunEvent.getTotalRowsProcessed());
-    assertEquals(1, jobRunEvent.getAmlChecksCreatedCount());
+    assertEquals(1, jobRunEvent.highRiskRowCount());
+    assertEquals(0, jobRunEvent.mediumRiskRowCount());
+    assertEquals(1, jobRunEvent.totalRowsProcessed());
+    assertEquals(1, jobRunEvent.amlChecksCreatedCount());
   }
 
   @Test
@@ -297,10 +297,10 @@ class RiskLevelServiceTest {
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher).publishEvent(jobEventCaptor.capture());
     AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
-    assertEquals(1, jobRunEvent.getHighRiskRowCount());
-    assertEquals(0, jobRunEvent.getMediumRiskRowCount());
-    assertEquals(1, jobRunEvent.getTotalRowsProcessed());
-    assertEquals(1, jobRunEvent.getAmlChecksCreatedCount());
+    assertEquals(1, jobRunEvent.highRiskRowCount());
+    assertEquals(0, jobRunEvent.mediumRiskRowCount());
+    assertEquals(1, jobRunEvent.totalRowsProcessed());
+    assertEquals(1, jobRunEvent.amlChecksCreatedCount());
   }
 
   @Test
@@ -322,10 +322,10 @@ class RiskLevelServiceTest {
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher, atLeastOnce()).publishEvent(jobEventCaptor.capture());
     AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
-    assertEquals(0, jobRunEvent.getHighRiskRowCount());
-    assertEquals(0, jobRunEvent.getMediumRiskRowCount());
-    assertEquals(0, jobRunEvent.getTotalRowsProcessed());
-    assertEquals(0, jobRunEvent.getAmlChecksCreatedCount());
+    assertEquals(0, jobRunEvent.highRiskRowCount());
+    assertEquals(0, jobRunEvent.mediumRiskRowCount());
+    assertEquals(0, jobRunEvent.totalRowsProcessed());
+    assertEquals(0, jobRunEvent.amlChecksCreatedCount());
   }
 
   @Test
@@ -450,10 +450,10 @@ class RiskLevelServiceTest {
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher).publishEvent(jobEventCaptor.capture());
     AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
-    assertEquals(1, jobRunEvent.getHighRiskRowCount());
-    assertEquals(0, jobRunEvent.getMediumRiskRowCount());
-    assertEquals(1, jobRunEvent.getTotalRowsProcessed());
-    assertEquals(0, jobRunEvent.getAmlChecksCreatedCount());
+    assertEquals(1, jobRunEvent.highRiskRowCount());
+    assertEquals(0, jobRunEvent.mediumRiskRowCount());
+    assertEquals(1, jobRunEvent.totalRowsProcessed());
+    assertEquals(0, jobRunEvent.amlChecksCreatedCount());
   }
 
   @Test
@@ -486,9 +486,9 @@ class RiskLevelServiceTest {
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher).publishEvent(jobEventCaptor.capture());
     AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
-    assertEquals(1, jobRunEvent.getHighRiskRowCount());
-    assertEquals(0, jobRunEvent.getMediumRiskRowCount());
-    assertEquals(1, jobRunEvent.getTotalRowsProcessed());
-    assertEquals(1, jobRunEvent.getAmlChecksCreatedCount());
+    assertEquals(1, jobRunEvent.highRiskRowCount());
+    assertEquals(0, jobRunEvent.mediumRiskRowCount());
+    assertEquals(1, jobRunEvent.totalRowsProcessed());
+    assertEquals(1, jobRunEvent.amlChecksCreatedCount());
   }
 }

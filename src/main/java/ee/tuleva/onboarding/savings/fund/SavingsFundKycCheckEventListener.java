@@ -18,10 +18,10 @@ public class SavingsFundKycCheckEventListener {
   @Transactional
   public void onKycCheckPerformed(KycCheckPerformedEvent event) {
     userService
-        .findByPersonalCode(event.getPersonalCode())
+        .findByPersonalCode(event.personalCode())
         .ifPresent(
             user ->
                 savingsFundOnboardingService.updateOnboardingStatusIfNeeded(
-                    user, event.getKycCheck()));
+                    user, event.kycCheck()));
   }
 }

@@ -8,13 +8,11 @@ import lombok.Getter;
 @Getter
 public class AfterTokenGrantedEvent extends BeforeTokenGrantedEvent {
 
-  private final AuthenticatedPerson person;
   private final AuthenticationTokens tokens;
 
   public AfterTokenGrantedEvent(
-      Object source, AuthenticatedPerson person, GrantType grantType, AuthenticationTokens tokens) {
-    super(source, person, grantType);
-    this.person = person;
+      AuthenticatedPerson person, GrantType grantType, AuthenticationTokens tokens) {
+    super(person, grantType);
     this.tokens = tokens;
   }
 

@@ -38,7 +38,7 @@ public class SavingFundPaymentController {
     User user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
     savingFundPaymentUpsertionService.cancelUserPayment(user.getId(), paymentId);
     eventPublisher.publishEvent(
-        new SavingsPaymentCancelledEvent(this, user, localeService.getCurrentLocale()));
+        new SavingsPaymentCancelledEvent(user, localeService.getCurrentLocale()));
     return ResponseEntity.noContent().build();
   }
 

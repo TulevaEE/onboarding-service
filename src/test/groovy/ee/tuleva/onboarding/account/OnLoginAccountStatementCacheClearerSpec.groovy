@@ -18,7 +18,7 @@ class OnLoginAccountStatementCacheClearerSpec extends Specification {
 
     AuthenticatedPerson samplePerson = AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember().build()
 
-    BeforeTokenGrantedEvent beforeTokenGrantedEvent = new BeforeTokenGrantedEvent(this, samplePerson, GrantType.ID_CARD)
+    BeforeTokenGrantedEvent beforeTokenGrantedEvent = new BeforeTokenGrantedEvent(samplePerson, GrantType.ID_CARD)
 
     when:
     service.onBeforeTokenGrantedEvent(beforeTokenGrantedEvent)

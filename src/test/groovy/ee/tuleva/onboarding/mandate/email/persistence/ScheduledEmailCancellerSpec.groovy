@@ -14,7 +14,7 @@ class ScheduledEmailCancellerSpec extends Specification {
     given:
     User user = Mock()
     Mandate mandate = new Mandate(pillar: pillar)
-    AfterMandateSignedEvent event = new AfterMandateSignedEvent(new Object(), user, mandate, Locale.ENGLISH)
+    AfterMandateSignedEvent event = new AfterMandateSignedEvent(user, mandate, Locale.ENGLISH)
 
     when:
     scheduledEmailCanceller.cancelEmail(event)

@@ -37,14 +37,13 @@ public class AuthService {
 
     final var authorities = grantedAuthorityFactory.from(authenticatedPerson);
 
-    eventPublisher.publishEvent(new BeforeTokenGrantedEvent(this, authenticatedPerson, grantType));
+    eventPublisher.publishEvent(new BeforeTokenGrantedEvent(authenticatedPerson, grantType));
 
     String accessToken = jwtTokenUtil.generateAccessToken(authenticatedPerson, authorities);
     String refreshToken = jwtTokenUtil.generateRefreshToken(authenticatedPerson, authorities);
     final var tokens = new AuthenticationTokens(accessToken, refreshToken);
 
-    eventPublisher.publishEvent(
-        new AfterTokenGrantedEvent(this, authenticatedPerson, grantType, tokens));
+    eventPublisher.publishEvent(new AfterTokenGrantedEvent(authenticatedPerson, grantType, tokens));
 
     return tokens;
   }

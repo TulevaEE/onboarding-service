@@ -257,10 +257,10 @@ public class MandateBatchService {
         .forEach(
             mandate ->
                 applicationEventPublisher.publishEvent(
-                    new AfterMandateSignedEvent(this, user, mandate, locale)));
+                    new AfterMandateSignedEvent(user, mandate, locale)));
 
     applicationEventPublisher.publishEvent(
-        new AfterMandateBatchSignedEvent(this, user, mandateBatch, locale));
+        new AfterMandateBatchSignedEvent(user, mandateBatch, locale));
   }
 
   private void persistSignedFile(MandateBatch mandateBatch, byte[] signedFile) {

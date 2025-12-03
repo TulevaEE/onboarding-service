@@ -149,7 +149,7 @@ public class MandateBatchProcessingPoller {
       // some weren't
       if (mandates.size() > 1 && successfulMandateCount > 0 && failedMandateCount > 0) {
         applicationEventPublisher.publishEvent(
-            new OnMandateBatchFailedEvent(this, context.user(), context.batch, context.locale));
+            new OnMandateBatchFailedEvent(context.user(), context.batch, context.locale));
       }
 
       throw new MandateProcessingException(errorsResponse);
@@ -163,9 +163,9 @@ public class MandateBatchProcessingPoller {
         .forEach(
             mandate ->
                 applicationEventPublisher.publishEvent(
-                    new AfterMandateSignedEvent(this, context.user(), mandate, context.locale)));
+                    new AfterMandateSignedEvent(context.user(), mandate, context.locale)));
 
     applicationEventPublisher.publishEvent(
-        new AfterMandateBatchSignedEvent(this, context.user(), context.batch, context.locale));
+        new AfterMandateBatchSignedEvent(context.user(), context.batch, context.locale));
   }
 }

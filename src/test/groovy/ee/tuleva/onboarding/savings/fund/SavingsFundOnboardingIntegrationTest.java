@@ -36,7 +36,7 @@ class SavingsFundOnboardingIntegrationTest {
 
   @BeforeEach
   void setUp() {
-    user = userRepository.save(sampleUserNonMember().id(null).build());
+    user = userRepository.save(sampleUserNonMember().personalCode("39802077017").id(null).build());
   }
 
   @Test

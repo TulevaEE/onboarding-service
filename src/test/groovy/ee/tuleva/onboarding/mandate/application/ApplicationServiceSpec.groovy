@@ -7,9 +7,12 @@ import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.application.PaymentApplicationDetails
 import ee.tuleva.onboarding.payment.application.PaymentLinkingService
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment
-import ee.tuleva.onboarding.savings.fund.SavingFundPaymentDeadlinesService
+import ee.tuleva.onboarding.savings.fund.SavingFundDeadlinesService
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService
 import ee.tuleva.onboarding.savings.fund.application.SavingFundPaymentApplicationDetails
+import ee.tuleva.onboarding.savings.fund.application.SavingFundWithdrawalApplicationDetails
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionService
 import ee.tuleva.onboarding.time.TestClockHolder
 import spock.lang.Specification
 
@@ -29,6 +32,8 @@ import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.paymen
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.*
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD
+import static java.math.BigDecimal.TEN
+import static java.math.BigDecimal.valueOf
 
 class ApplicationServiceSpec extends Specification {
 
@@ -37,11 +42,12 @@ class ApplicationServiceSpec extends Specification {
   FundRepository fundRepository = Mock()
   MandateDeadlinesService mandateDeadlinesService = Mock()
   PaymentLinkingService paymentApplicationService = Mock()
-  SavingFundPaymentDeadlinesService savingFundPaymentDeadlinesService = Mock()
+  SavingFundDeadlinesService savingFundPaymentDeadlinesService = Mock()
   SavingFundPaymentUpsertionService savingFundPaymentService = Mock()
+  RedemptionService savingFundRedemptionService = Mock()
 
   ApplicationService applicationService =
-      new ApplicationService(episService, localeService, fundRepository, mandateDeadlinesService, paymentApplicationService, savingFundPaymentDeadlinesService, savingFundPaymentService)
+      new ApplicationService(episService, localeService, fundRepository, mandateDeadlinesService, paymentApplicationService, savingFundPaymentDeadlinesService, savingFundPaymentService, savingFundRedemptionService)
 
   def "gets applications"() {
     given:
@@ -68,6 +74,7 @@ class ApplicationServiceSpec extends Specification {
     mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
     paymentApplicationService.getPaymentApplications(person) >> [paymentApplication().build()]
     savingFundPaymentService.getPendingPaymentsForUser(_) >> []
+    savingFundRedemptionService.getPendingRedemptionsForUser(_) >> []
 
     when:
     def applications = applicationService.getAllApplications(person)
@@ -251,6 +258,7 @@ class ApplicationServiceSpec extends Specification {
     mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
     paymentApplicationService.getPaymentApplications(person) >> []
     savingFundPaymentService.getPendingPaymentsForUser(_) >> []
+    savingFundRedemptionService.getPendingRedemptionsForUser(_) >> []
 
     when:
     def applications = applicationService.getAllApplications(person)
@@ -375,8 +383,8 @@ class ApplicationServiceSpec extends Specification {
     localeService.getCurrentLocale() >> Locale.ENGLISH
     paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
     savingFundPaymentService.getPendingPaymentsForUser(authenticatedPerson.getUserId()) >> [payment1, payment2]
+    savingFundRedemptionService.getPendingRedemptionsForUser(authenticatedPerson.getUserId()) >> []
 
-    // Mock deadlines service
     savingFundPaymentDeadlinesService.getCancellationDeadline(payment1) >> Instant.parse("2021-03-31T21:00:00.000000000Z")
     savingFundPaymentDeadlinesService.getFulfillmentDeadline(payment1) >> Instant.parse("2021-04-20T10:00:00Z")
     savingFundPaymentDeadlinesService.getCancellationDeadline(payment2) >> Instant.parse("2021-03-31T21:00:00.000000000Z")
@@ -410,6 +418,77 @@ class ApplicationServiceSpec extends Specification {
         currency == EUR
         paymentId == payment1Id
         cancellationDeadline == Instant.parse("2021-03-31T20:59:59.000000000Z")
+        fulfillmentDeadline == Instant.parse("2021-04-20T10:00:00Z")
+      }
+    }
+  }
+
+  def "gets saving fund redemption applications for authenticated person"() {
+    given:
+    def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
+
+    def redemption1Id = UUID.fromString("11111111-1111-1111-1111-111111111111")
+    def redemption2Id = UUID.fromString("22222222-2222-2222-2222-222222222222")
+
+    def redemption1 = RedemptionRequest.builder()
+        .id(redemption1Id)
+        .userId(authenticatedPerson.getUserId())
+        .fundUnits(valueOf(10.12345))
+        .requestedAmount(valueOf(150.00))
+        .customerIban("EE123456789012345678")
+        .status(RedemptionRequest.Status.PENDING)
+        .requestedAt(TestClockHolder.now)
+        .build()
+
+    def redemption2 = RedemptionRequest.builder()
+        .id(redemption2Id)
+        .userId(authenticatedPerson.getUserId())
+        .fundUnits(valueOf(20.54321))
+        .requestedAmount(valueOf(300.50))
+        .customerIban("EE987654321098765432")
+        .status(RedemptionRequest.Status.PENDING)
+        .requestedAt(TestClockHolder.now.minusSeconds(7200))
+        .build()
+
+    episService.getApplications(authenticatedPerson) >> []
+    localeService.getCurrentLocale() >> Locale.ENGLISH
+    paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
+    savingFundPaymentService.getPendingPaymentsForUser(authenticatedPerson.getUserId()) >> []
+    savingFundRedemptionService.getPendingRedemptionsForUser(authenticatedPerson.getUserId()) >> [redemption1, redemption2]
+
+    savingFundPaymentDeadlinesService.getCancellationDeadline(_ as Instant) >> Instant.parse("2021-03-31T21:00:00Z")
+    savingFundPaymentDeadlinesService.getFulfillmentDeadline(_ as Instant) >> Instant.parse("2021-04-20T10:00:00Z")
+
+    when:
+    def applications = applicationService.getAllApplications(authenticatedPerson)
+
+    then:
+    applications.size() == 2
+
+    with(applications[0] as Application<SavingFundWithdrawalApplicationDetails>) {
+      id == redemption2Id.getMostSignificantBits()
+      status == PENDING
+      creationTime == TestClockHolder.now.minusSeconds(7200)
+      with(details) {
+        id == redemption2Id
+        amount == valueOf(300.50)
+        currency == EUR
+        iban == "EE987654321098765432"
+        cancellationDeadline == Instant.parse("2021-03-31T20:59:59Z")
+        fulfillmentDeadline == Instant.parse("2021-04-20T10:00:00Z")
+      }
+    }
+
+    with(applications[1] as Application<SavingFundWithdrawalApplicationDetails>) {
+      id == redemption1Id.getMostSignificantBits()
+      status == PENDING
+      creationTime == TestClockHolder.now
+      with(details) {
+        id == redemption1Id
+        amount == valueOf(150.00)
+        currency == EUR
+        iban == "EE123456789012345678"
+        cancellationDeadline == Instant.parse("2021-03-31T20:59:59Z")
         fulfillmentDeadline == Instant.parse("2021-04-20T10:00:00Z")
       }
     }

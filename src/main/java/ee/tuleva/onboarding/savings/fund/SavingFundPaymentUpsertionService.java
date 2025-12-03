@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service;
 public class SavingFundPaymentUpsertionService {
 
   private final SavingFundPaymentRepository repository;
-  private final SavingFundPaymentDeadlinesService savingFundPaymentDeadlinesService;
+  private final SavingFundDeadlinesService savingFundDeadlinesService;
 
   public void upsert(SavingFundPayment payment, Consumer<SavingFundPayment> onInsert) {
     // Check if payment with this external ID already exists
@@ -61,7 +61,7 @@ public class SavingFundPaymentUpsertionService {
     if (!userId.equals(payment.getUserId()) || payment.getCancelledAt() != null) {
       throw new NoSuchElementException();
     }
-    var deadline = savingFundPaymentDeadlinesService.getCancellationDeadline(payment);
+    var deadline = savingFundDeadlinesService.getCancellationDeadline(payment);
     if (deadline.isBefore(Instant.now())) {
       throw new IllegalStateException("Payment cancellation deadline has passed");
     }

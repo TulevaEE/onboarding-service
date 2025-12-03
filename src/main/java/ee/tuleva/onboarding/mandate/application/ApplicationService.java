@@ -6,6 +6,7 @@ import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
@@ -18,10 +19,13 @@ import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.mandate.exception.NotFoundException;
 import ee.tuleva.onboarding.payment.application.PaymentLinkingService;
 import ee.tuleva.onboarding.pillar.Pillar;
+import ee.tuleva.onboarding.savings.fund.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
-import ee.tuleva.onboarding.savings.fund.SavingFundPaymentDeadlinesService;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService;
 import ee.tuleva.onboarding.savings.fund.application.SavingFundPaymentApplicationDetails;
+import ee.tuleva.onboarding.savings.fund.application.SavingFundWithdrawalApplicationDetails;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionService;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -45,8 +49,9 @@ public class ApplicationService {
   private final FundRepository fundRepository;
   private final MandateDeadlinesService mandateDeadlinesService;
   private final PaymentLinkingService paymentLinkingService;
-  private final SavingFundPaymentDeadlinesService savingFundPaymentDeadlinesService;
+  private final SavingFundDeadlinesService savingFundDeadlinesService;
   private final SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
+  private final RedemptionService savingFundRedemptionService;
 
   public Application<?> getApplication(Long id, AuthenticatedPerson authenticatedPerson) {
     return getAllApplications(authenticatedPerson).stream()
@@ -67,7 +72,7 @@ public class ApplicationService {
     applications.addAll(paymentLinkingService.getPaymentApplications(person));
     applications.addAll(getPaymentRateApplications(person));
     applications.addAll(getFundPensionOpeningApplications(person));
-    applications.addAll(getSavingsFundPaymentApplications(person));
+    applications.addAll(getSavingsFundApplications(person));
     Collections.sort(applications);
     return applications;
   }
@@ -138,10 +143,15 @@ public class ApplicationService {
     return application -> application.hasStatus(status);
   }
 
-  private List<Application<SavingFundPaymentApplicationDetails>> getSavingsFundPaymentApplications(
+  private List<Application<? extends ApplicationDetails>> getSavingsFundApplications(
       AuthenticatedPerson person) {
     var payments = savingFundPaymentUpsertionService.getPendingPaymentsForUser(person.getUserId());
-    return payments.stream().map(this::convertSavingFundPayment).sorted().toList();
+    var redemptionRequests =
+        savingFundRedemptionService.getPendingRedemptionsForUser(person.getUserId());
+    return Stream.concat(
+            payments.stream().map(this::convertSavingFundPayment),
+            redemptionRequests.stream().map(this::convertSavingFundRedemptionRequest))
+        .toList();
   }
 
   private List<Application<TransferApplicationDetails>> groupTransfers(
@@ -262,7 +272,7 @@ public class ApplicationService {
             .id(payment.getId().getMostSignificantBits());
 
     var cancellationDeadline =
-        savingFundPaymentDeadlinesService.getCancellationDeadline(payment).minusSeconds(1);
+        savingFundDeadlinesService.getCancellationDeadline(payment).minusSeconds(1);
 
     applicationBuilder.details(
         SavingFundPaymentApplicationDetails.builder()
@@ -271,7 +281,34 @@ public class ApplicationService {
             .paymentId(payment.getId())
             .cancelledAt(payment.getCancelledAt())
             .cancellationDeadline(payment.getCancelledAt() != null ? null : cancellationDeadline)
-            .fulfillmentDeadline(savingFundPaymentDeadlinesService.getFulfillmentDeadline(payment))
+            .fulfillmentDeadline(savingFundDeadlinesService.getFulfillmentDeadline(payment))
+            .build());
+    return applicationBuilder.build();
+  }
+
+  private Application<SavingFundWithdrawalApplicationDetails> convertSavingFundRedemptionRequest(
+      RedemptionRequest redemptionRequest) {
+    final var applicationBuilder =
+        Application.<SavingFundWithdrawalApplicationDetails>builder()
+            .creationTime(redemptionRequest.getRequestedAt())
+            .status(PENDING)
+            .id(redemptionRequest.getId().getMostSignificantBits());
+
+    var cancellationDeadline =
+        savingFundDeadlinesService
+            .getCancellationDeadline(redemptionRequest.getRequestedAt())
+            .minusSeconds(1);
+    var fulfillmentDeadline =
+        savingFundDeadlinesService.getFulfillmentDeadline(redemptionRequest.getRequestedAt());
+
+    applicationBuilder.details(
+        SavingFundWithdrawalApplicationDetails.builder()
+            .id(redemptionRequest.getId())
+            .amount(redemptionRequest.getRequestedAmount())
+            .currency(Currency.EUR)
+            .iban(redemptionRequest.getCustomerIban())
+            .cancellationDeadline(cancellationDeadline)
+            .fulfillmentDeadline(fulfillmentDeadline)
             .build());
     return applicationBuilder.build();
   }

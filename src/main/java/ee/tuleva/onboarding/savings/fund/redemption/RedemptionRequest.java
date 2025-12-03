@@ -32,6 +32,9 @@ public class RedemptionRequest {
   @Column(nullable = false, precision = 15, scale = 5)
   private BigDecimal fundUnits;
 
+  @Column(nullable = false, precision = 15, scale = 2)
+  private BigDecimal requestedAmount;
+
   @Column(nullable = false, length = 34)
   private String customerIban;
 
@@ -58,15 +61,11 @@ public class RedemptionRequest {
   @Nullable private String errorReason;
 
   @Column(nullable = false)
-  private Instant createdAt;
-
-  @Column(nullable = false)
   private Instant updatedAt;
 
   @PrePersist
   protected void onCreate() {
     Instant now = ClockHolder.clock().instant();
-    createdAt = now;
     updatedAt = now;
     if (requestedAt == null) {
       requestedAt = now;

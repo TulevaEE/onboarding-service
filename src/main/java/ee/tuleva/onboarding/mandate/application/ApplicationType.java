@@ -17,6 +17,7 @@ public enum ApplicationType {
   PARTIAL_WITHDRAWAL("Osalise väljamakse avaldus II sambast"),
   WITHDRAWAL_THIRD_PILLAR("Väljamakse avaldus vabatahtlikust pensionifondist"),
   SAVING_FUND_PAYMENT("Täiendava kogumisfondi sissemakse"),
+  SAVING_FUND_WITHDRAWAL("Täiendava kogumisfondi väljamakse"),
   ;
 
   public final String nameEstonian;

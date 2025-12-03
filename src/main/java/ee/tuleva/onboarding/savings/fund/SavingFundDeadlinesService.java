@@ -4,12 +4,13 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.time.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class SavingFundPaymentDeadlinesService {
+public class SavingFundDeadlinesService {
   private final PublicHolidays publicHolidays;
   private final Clock estonianClock;
 
@@ -20,11 +21,13 @@ public class SavingFundPaymentDeadlinesService {
   }
 
   public Instant getCancellationDeadline(SavingFundPayment payment) {
+    return getCancellationDeadline(payment.getReceivedBefore());
+  }
+
+  public Instant getCancellationDeadline(@Nullable Instant receivedAt) {
     ZoneId timeZone = estonianClock.getZone();
     Instant now = Instant.now(estonianClock);
     LocalDate today = now.atZone(timeZone).toLocalDate();
-
-    Instant receivedAt = payment.getReceivedBefore(); // may be null
 
     if (receivedAt != null) {
       ZonedDateTime receivedZdt = receivedAt.atZone(timeZone);
@@ -48,13 +51,15 @@ public class SavingFundPaymentDeadlinesService {
   }
 
   public Instant getFulfillmentDeadline(SavingFundPayment payment) {
+    return getFulfillmentDeadline(payment.getReceivedBefore());
+  }
+
+  public Instant getFulfillmentDeadline(@Nullable Instant receivedAt) {
     ZoneId timeZone = estonianClock.getZone();
     Instant now = Instant.now(estonianClock);
     LocalDate today = now.atZone(timeZone).toLocalDate();
 
-    Instant receivedAt = payment.getReceivedBefore();
     LocalDate baseDate;
-
     if (receivedAt != null) {
       baseDate = receivedAt.atZone(timeZone).toLocalDate();
     } else {

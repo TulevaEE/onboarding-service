@@ -17,7 +17,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class CancellationJob {
 
   private final SavingFundPaymentRepository paymentRepository;
-  private final SavingFundPaymentDeadlinesService deadlinesService;
+  private final SavingFundDeadlinesService deadlinesService;
   private final TransactionTemplate transactionTemplate;
 
   @Scheduled(cron = "0 1 16-20 * * *", zone = "Europe/Tallinn")

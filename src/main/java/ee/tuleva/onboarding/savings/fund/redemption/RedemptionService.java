@@ -44,6 +44,8 @@ public class RedemptionService {
       throw new IllegalArgumentException("Only EUR currency is supported: currency=" + currency);
     }
 
+    validateAmountPrecision(amount);
+
     User user = userService.getByIdOrThrow(userId);
     validateOnboarding(user);
     validateIbanBelongsToUser(customerIban, userId);
@@ -58,13 +60,14 @@ public class RedemptionService {
         RedemptionRequest.builder()
             .userId(userId)
             .fundUnits(fundUnits)
+            .requestedAmount(amount)
             .customerIban(customerIban)
             .status(PENDING)
             .build();
 
     RedemptionRequest saved = redemptionRequestRepository.save(request);
     log.info(
-        "Created redemption request: id={}, userId={}, amount={}, fundUnits={}, nav={}, customerIban={}",
+        "Created redemption request: id={}, userId={}, requestedAmount={}, fundUnits={}, nav={}, customerIban={}",
         saved.getId(),
         userId,
         amount,
@@ -78,23 +81,14 @@ public class RedemptionService {
   private BigDecimal convertAmountToFundUnits(
       BigDecimal amount, BigDecimal nav, BigDecimal availableUnits) {
     BigDecimal fundUnits = amount.divide(nav, FUND_UNITS_SCALE, HALF_UP);
-
     BigDecimal maxWithdrawalValue = availableUnits.multiply(nav);
     BigDecimal difference = amount.subtract(maxWithdrawalValue).abs();
 
     if (difference.compareTo(MAX_WITHDRAWAL_TOLERANCE) <= 0) {
       log.info(
-          "Max withdrawal detected: requested amount={}, max value={}, rounding to all units={}",
+          "Max withdrawal detected: requestedAmount={}, maxValue={}, roundingToAllUnits={}",
           amount,
           maxWithdrawalValue,
-          availableUnits);
-      return availableUnits;
-    }
-
-    if (fundUnits.subtract(availableUnits).abs().compareTo(MAX_WITHDRAWAL_TOLERANCE) <= 0) {
-      log.info(
-          "Max withdrawal detected (units): calculated units={}, available={}, rounding to all",
-          fundUnits,
           availableUnits);
       return availableUnits;
     }
@@ -102,8 +96,9 @@ public class RedemptionService {
     return fundUnits;
   }
 
-  public List<RedemptionRequest> getUserRedemptions(Long userId) {
-    return redemptionRequestRepository.findByUserIdOrderByRequestedAtDesc(userId);
+  public List<RedemptionRequest> getPendingRedemptionsForUser(Long userId) {
+    return redemptionRequestRepository.findByUserIdAndStatusIn(
+        userId, List.of(PENDING)); // TODO: add other statuses
   }
 
   public RedemptionRequest getRedemption(UUID id) {
@@ -163,6 +158,13 @@ public class RedemptionService {
     if (!userIbans.contains(iban)) {
       throw new IllegalArgumentException(
           "IBAN does not belong to user: iban=" + iban + ", userId=" + userId);
+    }
+  }
+
+  private void validateAmountPrecision(BigDecimal amount) {
+    if (amount.scale() > 2) {
+      throw new IllegalArgumentException(
+          "Amount cannot have more than 2 decimal places: amount=" + amount);
     }
   }
 }

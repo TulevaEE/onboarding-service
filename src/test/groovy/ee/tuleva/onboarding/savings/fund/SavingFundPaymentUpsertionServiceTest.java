@@ -19,7 +19,7 @@ class SavingFundPaymentUpsertionServiceTest {
 
   @Mock private SavingFundPaymentRepository repository;
 
-  @Mock private SavingFundPaymentDeadlinesService deadlinesService;
+  @Mock private SavingFundDeadlinesService deadlinesService;
 
   @InjectMocks private SavingFundPaymentUpsertionService service;
 

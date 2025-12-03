@@ -89,6 +89,7 @@ class RedemptionIntegrationTest {
 
     assertThat(request.getStatus()).isEqualTo(PENDING);
     assertThat(request.getFundUnits()).isEqualByComparingTo(new BigDecimal("10.00000"));
+    assertThat(request.getRequestedAmount()).isEqualByComparingTo(new BigDecimal("10.00"));
     assertThat(request.getCustomerIban()).isEqualTo(VALID_IBAN);
     assertThat(request.getUserId()).isEqualTo(testUser.getId());
     assertThat(request.getRequestedAt()).isNotNull();
@@ -118,14 +119,15 @@ class RedemptionIntegrationTest {
   }
 
   @Test
-  @DisplayName("Near max withdrawal rounds to exact balance")
-  void createRedemptionRequest_nearMaxWithdrawalRoundsToExactBalance() {
-    var nearMaxAmount = new BigDecimal("99.999999");
+  @DisplayName("Create redemption request fails when amount has more than 2 decimals")
+  void createRedemptionRequest_failsWhenAmountHasMoreThanTwoDecimals() {
+    var amount = new BigDecimal("10.123");
 
-    var request =
-        redemptionService.createRedemptionRequest(testUser.getId(), nearMaxAmount, EUR, VALID_IBAN);
-
-    assertThat(request.getFundUnits()).isEqualByComparingTo(new BigDecimal("100.00000"));
+    assertThatThrownBy(
+            () ->
+                redemptionService.createRedemptionRequest(
+                    testUser.getId(), amount, EUR, VALID_IBAN))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -150,7 +152,7 @@ class RedemptionIntegrationTest {
     redemptionService.createRedemptionRequest(
         testUser.getId(), new BigDecimal("3.00"), EUR, VALID_IBAN);
 
-    var redemptions = redemptionService.getUserRedemptions(testUser.getId());
+    var redemptions = redemptionService.getPendingRedemptionsForUser(testUser.getId());
 
     assertThat(redemptions).hasSize(2);
   }

@@ -4,13 +4,13 @@ import ee.tuleva.onboarding.deadline.PublicHolidays
 import spock.lang.Specification
 import java.time.*
 
-class SavingFundPaymentDeadlinesServiceTest extends Specification {
+class SavingFundDeadlinesServiceTest extends Specification {
 
   def publicHolidays = Mock(PublicHolidays)
   static def timeZone = ZoneId.of("Europe/Tallinn")
   def clock = Mock(Clock)
 
-  def service = new SavingFundPaymentDeadlinesService(publicHolidays, clock)
+  def service = new SavingFundDeadlinesService(publicHolidays, clock)
 
   def setup() {
     clock.getZone() >> timeZone

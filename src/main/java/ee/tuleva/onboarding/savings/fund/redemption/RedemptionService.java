@@ -8,12 +8,15 @@ import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerService;
+import ee.tuleva.onboarding.savings.fund.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
+import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +39,7 @@ public class RedemptionService {
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final SavingsFundNavProvider navProvider;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
+  private final SavingFundDeadlinesService deadlinesService;
 
   @Transactional
   public RedemptionRequest createRedemptionRequest(
@@ -115,8 +119,25 @@ public class RedemptionService {
       throw new IllegalArgumentException("Redemption does not belong to user: id=" + id);
     }
 
+    validateCancellationDeadline(request);
+
     redemptionStatusService.cancel(id);
     log.info("Cancelled redemption request: id={}, userId={}", id, userId);
+  }
+
+  private void validateCancellationDeadline(RedemptionRequest request) {
+    Instant deadline = deadlinesService.getCancellationDeadline(request.getRequestedAt());
+    Instant now = ClockHolder.clock().instant();
+
+    if (now.isAfter(deadline)) {
+      throw new IllegalStateException(
+          "Cancellation deadline has passed: id="
+              + request.getId()
+              + ", deadline="
+              + deadline
+              + ", now="
+              + now);
+    }
   }
 
   private void validateOnboarding(User user) {

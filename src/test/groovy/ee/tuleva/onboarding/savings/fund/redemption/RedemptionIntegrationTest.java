@@ -145,6 +145,26 @@ class RedemptionIntegrationTest {
   }
 
   @Test
+  @DisplayName("Cancel redemption after deadline fails")
+  void cancelRedemption_afterDeadline_throwsException() {
+    // Monday 2025-09-29 17:00 EET (15:00 UTC) - after 16:00 cutoff
+    // Deadline for cancellation: Tuesday 2025-09-30 16:00 EET
+    var monday = Instant.parse("2025-09-29T15:00:00Z");
+    ClockHolder.setClock(Clock.fixed(monday, ZoneId.of("Europe/Tallinn")));
+
+    var request =
+        redemptionService.createRedemptionRequest(
+            testUser.getId(), new BigDecimal("10.00"), EUR, VALID_IBAN);
+
+    var tuesdayAfterDeadline = Instant.parse("2025-09-30T14:01:00Z");
+    ClockHolder.setClock(Clock.fixed(tuesdayAfterDeadline, ZoneId.of("Europe/Tallinn")));
+
+    assertThatThrownBy(() -> redemptionService.cancelRedemption(request.getId(), testUser.getId()))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Cancellation deadline has passed");
+  }
+
+  @Test
   @DisplayName("Get user redemptions returns user's redemptions")
   void getUserRedemptions_returnsUserRedemptions() {
     redemptionService.createRedemptionRequest(

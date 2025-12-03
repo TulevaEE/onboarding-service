@@ -10,8 +10,9 @@ import jakarta.validation.Validator
 import spock.lang.Specification
 import spock.lang.Unroll
 
-import static ee.tuleva.onboarding.pillar.Pillar.SECOND
+import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
+import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 
 class MandateSpec extends Specification {
 
@@ -106,6 +107,19 @@ class MandateSpec extends Specification {
     dto.details instanceof TransferCancellationMandateDetails
     ((TransferCancellationMandateDetails) dto.details).getSourceFundIsinOfTransferToCancel() == mandate.fundTransferExchanges.first.sourceFundIsin
     ((TransferCancellationMandateDetails) dto.details).getPillar() == SECOND
+  }
+
+  def "getCountry returns address field"() {
+    given:
+    def country = countryFixture().build()
+    Mandate mandate = Mandate.builder()
+        .address(country)
+        .pillar(2)
+        .metadata([:])
+        .build()
+
+    expect:
+    mandate.getCountry() == country
   }
 
 }

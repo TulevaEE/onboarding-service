@@ -30,7 +30,13 @@ public class RedemptionVerificationService {
     log.info("Processing verification for redemption request: id={}", request.getId());
 
     User user = userService.getByIdOrThrow(request.getUserId());
-    Country country = kycSurveyService.getCountry(user.getId()).orElseThrow();
+    Country country =
+        kycSurveyService
+            .getCountry(user.getId())
+            .orElseThrow(
+                () ->
+                    new IllegalStateException(
+                        "KYC survey with country not found: userId=" + user.getId()));
 
     List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, country);
 

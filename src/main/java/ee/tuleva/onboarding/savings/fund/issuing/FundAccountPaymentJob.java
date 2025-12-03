@@ -47,6 +47,9 @@ public class FundAccountPaymentJob {
 
   void createPaymentRequest() {
     var payments = savingFundPaymentRepository.findPaymentsWithStatus(ISSUED);
+    if (payments.isEmpty()) {
+      return;
+    }
     var total = payments.stream().map(SavingFundPayment::getAmount).reduce(ZERO, BigDecimal::add);
     payments.forEach(
         payment -> savingFundPaymentRepository.changeStatus(payment.getId(), PROCESSED));

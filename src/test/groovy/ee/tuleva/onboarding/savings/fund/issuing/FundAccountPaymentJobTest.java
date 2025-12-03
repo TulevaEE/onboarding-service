@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.DEPOSIT_EU
 import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -61,5 +62,14 @@ class FundAccountPaymentJobTest {
     assertThat(paymentRequest.beneficiaryName()).isEqualTo("Tuleva Fondid AS");
     assertThat(paymentRequest.beneficiaryIban()).isEqualTo("investment-IBAN");
     assertThat(paymentRequest.description()).isEqualTo("Subscriptions");
+  }
+
+  @Test
+  void createPaymentRequest_doesNotSendPaymentWhenNoIssuedPayments() {
+    when(savingFundPaymentRepository.findPaymentsWithStatus(ISSUED)).thenReturn(List.of());
+
+    job.createPaymentRequest();
+
+    verify(swedbankGatewayClient, never()).sendPaymentRequest(any(), any());
   }
 }

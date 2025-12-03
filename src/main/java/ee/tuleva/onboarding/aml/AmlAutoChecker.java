@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent;
+import ee.tuleva.onboarding.kyc.BeforeKycCheckedEvent;
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
@@ -72,6 +73,11 @@ public class AmlAutoChecker {
     if (!amlService.allChecksPassed(user, event.getMandate())) {
       throw AmlChecksMissingException.newInstance();
     }
+  }
+
+  @EventListener
+  public void beforeKycChecked(BeforeKycCheckedEvent event) {
+    amlService.addSanctionAndPepCheckIfMissing(event.person(), event.address());
   }
 
   private Boolean isResident(BeforeTokenGrantedEvent event) {

@@ -10,6 +10,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ee.tuleva.onboarding.kyc.BeforeKycCheckedEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.kyc.KycCheckPerformedEvent;
 import ee.tuleva.onboarding.user.User;
@@ -150,5 +151,12 @@ class KycSurveyControllerIntegrationTest {
     var event = events.getFirst();
     assertThat(event.getPersonalCode()).isEqualTo(user.getPersonalCode());
     assertThat(event.getKycCheck()).isEqualTo(new KycCheck(99, HIGH));
+
+    var beforeKycEvents = applicationEvents.stream(BeforeKycCheckedEvent.class).toList();
+    assertThat(beforeKycEvents).hasSize(1);
+
+    var beforeKycEvent = beforeKycEvents.getFirst();
+    assertThat(beforeKycEvent.person().getPersonalCode()).isEqualTo(user.getPersonalCode());
+    assertThat(beforeKycEvent.address().getCountryCode()).isEqualTo("EE");
   }
 }

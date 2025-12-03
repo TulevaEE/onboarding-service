@@ -17,8 +17,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.conversion.UserConversionService;
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.address.Address;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -112,10 +112,10 @@ public class AmlServiceIntegrationTest {
   void shouldAddPepAndSanctionChecks() {
     // given
     User user = sampleUser().build();
-    Address address = Address.builder().countryCode("EE").build();
+    Country country = new Country("EE");
 
     // when
-    List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, address);
+    List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, country);
 
     // then
     assertThat(checks).hasSize(2);
@@ -128,10 +128,10 @@ public class AmlServiceIntegrationTest {
   void shouldVerifyAllChecksPassForThirdPillar() {
     // given
     User user = sampleUser().build();
-    Address address = Address.builder().countryCode("EE").build();
+    Country country = new Country("EE");
 
     amlService.checkUserBeforeLogin(user, user, true);
-    amlService.addSanctionAndPepCheckIfMissing(user, address);
+    amlService.addSanctionAndPepCheckIfMissing(user, country);
 
     AmlCheck occupationCheck =
         AmlCheck.builder()
@@ -172,7 +172,7 @@ public class AmlServiceIntegrationTest {
   void shouldFailWhenSanctionMatchIsFound() {
     // given
     User user = sampleUser().build();
-    Address address = Address.builder().countryCode("EE").build();
+    Country country = new Country("EE");
 
     ObjectMapper objectMapper = new ObjectMapper();
     ArrayNode results = objectMapper.createArrayNode();
@@ -194,7 +194,7 @@ public class AmlServiceIntegrationTest {
     when(checkService.match(any(), any())).thenReturn(sanctionMatchResponse);
 
     // when
-    List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, address);
+    List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, country);
 
     // then
     assertThat(checks).anyMatch(check -> check.getType() == SANCTION && !check.isSuccess());

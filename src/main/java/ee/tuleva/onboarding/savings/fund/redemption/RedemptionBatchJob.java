@@ -59,52 +59,23 @@ public class RedemptionBatchJob {
 
     log.info("Starting daily redemption processing");
 
-    Instant currentCutoff = getCurrentCutoff();
     Instant previousCutoff = getPreviousCutoff();
-
-    reservePendingRequests(currentCutoff);
-    processReservedRequests(previousCutoff);
+    processVerifiedRequests(previousCutoff);
 
     log.info("Completed daily redemption processing");
   }
 
-  private void reservePendingRequests(Instant currentCutoff) {
-    List<RedemptionRequest> toReserve =
-        redemptionRequestRepository.findByStatusAndRequestedAtBeforeAndCancelledAtIsNull(
-            PENDING, currentCutoff);
-    log.info("Reserving {} pending requests submitted before {}", toReserve.size(), currentCutoff);
-
-    for (RedemptionRequest request : toReserve) {
-      try {
-        transactionTemplate.executeWithoutResult(
-            status -> {
-              User user = userService.getByIdOrThrow(request.getUserId());
-              savingsFundLedger.reserveFundUnitsForRedemption(user, request.getFundUnits());
-              redemptionStatusService.changeStatus(request.getId(), RESERVED);
-              log.info(
-                  "Reserved redemption request: id={}, userId={}, fundUnits={}",
-                  request.getId(),
-                  request.getUserId(),
-                  request.getFundUnits());
-            });
-      } catch (Exception e) {
-        log.error("Failed to reserve redemption request: id={}", request.getId(), e);
-        handleError(request.getId(), e);
-      }
-    }
-  }
-
-  private void processReservedRequests(Instant previousCutoff) {
+  private void processVerifiedRequests(Instant previousCutoff) {
     List<RedemptionRequest> toProcess =
-        redemptionRequestRepository.findByStatusAndRequestedAtBefore(RESERVED, previousCutoff);
+        redemptionRequestRepository.findByStatusAndRequestedAtBefore(VERIFIED, previousCutoff);
 
     if (toProcess.isEmpty()) {
-      log.info("No reserved requests to process for cutoff {}", previousCutoff);
+      log.info("No verified requests to process for cutoff {}", previousCutoff);
       return;
     }
 
     log.info(
-        "Processing {} reserved requests submitted before {}", toProcess.size(), previousCutoff);
+        "Processing {} verified requests submitted before {}", toProcess.size(), previousCutoff);
 
     BigDecimal nav = getNAV();
     BigDecimal totalCashAmount = ZERO;
@@ -196,7 +167,7 @@ public class RedemptionBatchJob {
 
               swedbankGatewayClient.sendPaymentRequest(paymentRequest, UUID.randomUUID());
 
-              redemptionStatusService.changeStatus(updated.getId(), PAID_OUT);
+              redemptionStatusService.changeStatus(updated.getId(), REDEEMED);
 
               updated.setProcessedAt(Instant.now());
               redemptionRequestRepository.save(updated);

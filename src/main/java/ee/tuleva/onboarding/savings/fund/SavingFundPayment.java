@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
+import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 
 import ee.tuleva.onboarding.currency.Currency;
 import jakarta.annotation.Nullable;
@@ -33,7 +34,7 @@ public class SavingFundPayment {
   Instant createdAt;
   @Nullable Instant receivedBefore;
 
-  @Builder.Default Status status = Status.CREATED;
+  @Builder.Default Status status = CREATED;
 
   Instant statusChangedAt;
   Instant cancelledAt;

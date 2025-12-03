@@ -18,13 +18,17 @@ public class RedemptionStatusService {
 
   private static final Set<StatusTransition> ALLOWED_TRANSITIONS =
       Set.of(
-          new StatusTransition(PENDING, RESERVED),
-          new StatusTransition(PENDING, CANCELLED),
-          new StatusTransition(PENDING, FAILED),
-          new StatusTransition(RESERVED, PAID_OUT),
+          new StatusTransition(RESERVED, IN_REVIEW),
+          new StatusTransition(RESERVED, VERIFIED),
+          new StatusTransition(RESERVED, CANCELLED),
           new StatusTransition(RESERVED, FAILED),
-          new StatusTransition(PAID_OUT, COMPLETED),
-          new StatusTransition(PAID_OUT, FAILED));
+          new StatusTransition(IN_REVIEW, VERIFIED),
+          new StatusTransition(IN_REVIEW, CANCELLED),
+          new StatusTransition(IN_REVIEW, FAILED),
+          new StatusTransition(VERIFIED, REDEEMED),
+          new StatusTransition(VERIFIED, FAILED),
+          new StatusTransition(REDEEMED, PROCESSED),
+          new StatusTransition(REDEEMED, FAILED));
 
   private final RedemptionRequestRepository repository;
 
@@ -63,7 +67,7 @@ public class RedemptionStatusService {
             .orElseThrow(
                 () -> new IllegalArgumentException("Redemption request not found: id=" + id));
 
-    if (request.getStatus() != PENDING) {
+    if (request.getStatus() != RESERVED && request.getStatus() != IN_REVIEW) {
       throw new IllegalStateException("Cancellation not allowed: status=" + request.getStatus());
     }
 

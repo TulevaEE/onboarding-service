@@ -6,7 +6,7 @@ import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.auth.PersonFixture.sampleToken
 import static ee.tuleva.onboarding.auth.UserFixture.getSampleUser
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
-import static ee.tuleva.onboarding.user.address.AddressFixture.getAnAddress
+import static ee.tuleva.onboarding.country.CountryFixture.aCountry
 
 class ContactDetailsServiceStub extends Specification {
 
@@ -16,7 +16,7 @@ class ContactDetailsServiceStub extends Specification {
 
   ContactDetailsService get() {
     return Stub(ContactDetailsService) {
-      updateContactDetails(sampleUser, anAddress) >> contactDetailsFixture()
+      updateContactDetails(sampleUser, aCountry) >> contactDetailsFixture()
       getContactDetails(samplePerson) >> contactDetailsFixture()
       getContactDetails(samplePerson, sampleToken) >> contactDetailsFixture()
     }

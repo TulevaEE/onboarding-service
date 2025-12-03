@@ -32,6 +32,8 @@ import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.paymen
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.*
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED
 import static java.math.BigDecimal.TEN
 import static java.math.BigDecimal.valueOf
 
@@ -436,7 +438,7 @@ class ApplicationServiceSpec extends Specification {
         .fundUnits(valueOf(10.12345))
         .requestedAmount(valueOf(150.00))
         .customerIban("EE123456789012345678")
-        .status(RedemptionRequest.Status.PENDING)
+        .status(RESERVED)
         .requestedAt(TestClockHolder.now)
         .build()
 
@@ -446,7 +448,7 @@ class ApplicationServiceSpec extends Specification {
         .fundUnits(valueOf(20.54321))
         .requestedAmount(valueOf(300.50))
         .customerIban("EE987654321098765432")
-        .status(RedemptionRequest.Status.PENDING)
+        .status(VERIFIED)
         .requestedAt(TestClockHolder.now.minusSeconds(7200))
         .build()
 

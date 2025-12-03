@@ -85,14 +85,14 @@ class RedemptionIntegrationTest {
   }
 
   @Test
-  @DisplayName("Create redemption request creates request in PENDING status")
-  void createRedemptionRequest_createsRequestInPendingStatus() {
+  @DisplayName("Create redemption request creates request in RESERVED status")
+  void createRedemptionRequest_createsRequestInReservedStatus() {
     var amount = new BigDecimal("10.00");
 
     var request =
         redemptionService.createRedemptionRequest(testUser.getId(), amount, EUR, VALID_IBAN);
 
-    assertThat(request.getStatus()).isEqualTo(PENDING);
+    assertThat(request.getStatus()).isEqualTo(RESERVED);
     assertThat(request.getFundUnits()).isEqualByComparingTo(new BigDecimal("10.00000"));
     assertThat(request.getRequestedAmount()).isEqualByComparingTo(new BigDecimal("10.00"));
     assertThat(request.getCustomerIban()).isEqualTo(VALID_IBAN);
@@ -183,17 +183,14 @@ class RedemptionIntegrationTest {
   }
 
   @Test
-  @DisplayName("Reserve units locks units in ledger")
-  void reserveUnits_locksUnitsInLedger() {
+  @DisplayName("Create redemption request locks units in ledger immediately")
+  void createRedemptionRequest_locksUnitsInLedger() {
     var amount = new BigDecimal("10.00");
+
     var request =
         redemptionService.createRedemptionRequest(testUser.getId(), amount, EUR, VALID_IBAN);
 
-    savingsFundLedger.reserveFundUnitsForRedemption(testUser, request.getFundUnits());
-    redemptionStatusService.changeStatus(request.getId(), RESERVED);
-
-    var reserved = redemptionRequestRepository.findById(request.getId()).orElseThrow();
-    assertThat(reserved.getStatus()).isEqualTo(RESERVED);
+    assertThat(request.getStatus()).isEqualTo(RESERVED);
 
     var reservedUnitsBalance = getUserFundUnitsReservedAccount().getBalance();
     assertThat(reservedUnitsBalance).isEqualByComparingTo(new BigDecimal("-10.00000"));
@@ -221,7 +218,7 @@ class RedemptionIntegrationTest {
   }
 
   @Test
-  @DisplayName("End-to-end batch job: PENDING → RESERVED → PAID_OUT")
+  @DisplayName("End-to-end batch job: RESERVED → VERIFIED → REDEEMED")
   void endToEndBatchJob_processesRedemptionRequest() {
     var initialFundUnits = new BigDecimal("100.00000");
     var redemptionAmount = new BigDecimal("25.00");
@@ -230,37 +227,33 @@ class RedemptionIntegrationTest {
 
     // Friday 17:00 EET (14:00 UTC) - AFTER 16:00 EET cutoff
     var friday = Instant.parse("2025-09-26T14:00:00Z");
-    var monday = Instant.parse("2025-09-29T15:00:00Z");
     var tuesday = Instant.parse("2025-09-30T15:00:00Z");
 
-    // Step 1: Create redemption request on Friday (after cutoff)
+    // Step 1: Create redemption request on Friday (after cutoff) - immediately RESERVED
     ClockHolder.setClock(Clock.fixed(friday, ZoneId.of("UTC")));
     var request =
         redemptionService.createRedemptionRequest(
             testUser.getId(), redemptionAmount, EUR, VALID_IBAN);
     var requestId = request.getId();
 
-    assertThat(request.getStatus()).isEqualTo(PENDING);
-
-    // Step 2: Run batch job on Monday - should RESERVE the fund units (request is after Friday
-    // cutoff)
-    ClockHolder.setClock(Clock.fixed(monday, ZoneId.of("UTC")));
-    redemptionBatchJob.processDailyRedemptions();
-
-    var afterReservation = redemptionRequestRepository.findById(requestId).orElseThrow();
-    assertThat(afterReservation.getStatus()).isEqualTo(RESERVED);
-
+    assertThat(request.getStatus()).isEqualTo(RESERVED);
     assertThat(getUserFundUnitsAccount().getBalance())
         .isEqualByComparingTo(remainingUnits.negate());
     assertThat(getUserFundUnitsReservedAccount().getBalance())
         .isEqualByComparingTo(expectedFundUnits.negate());
 
-    // Step 3: Run batch job on Tuesday - should process and PAID_OUT
+    // Step 2: Simulate verification job changing status to VERIFIED
+    redemptionStatusService.changeStatus(requestId, VERIFIED);
+
+    var afterVerification = redemptionRequestRepository.findById(requestId).orElseThrow();
+    assertThat(afterVerification.getStatus()).isEqualTo(VERIFIED);
+
+    // Step 3: Run batch job on Tuesday - should process and REDEEMED
     ClockHolder.setClock(Clock.fixed(tuesday, ZoneId.of("UTC")));
     redemptionBatchJob.processDailyRedemptions();
 
     var afterPayout = redemptionRequestRepository.findById(requestId).orElseThrow();
-    assertThat(afterPayout.getStatus()).isEqualTo(PAID_OUT);
+    assertThat(afterPayout.getStatus()).isEqualTo(REDEEMED);
     assertThat(afterPayout.getCashAmount()).isEqualByComparingTo(redemptionAmount);
     assertThat(afterPayout.getNavPerUnit()).isNotNull();
     assertThat(afterPayout.getProcessedAt()).isNotNull();
@@ -276,22 +269,27 @@ class RedemptionIntegrationTest {
   }
 
   @Test
-  @DisplayName("Cancelled redemption is not processed by batch job")
+  @DisplayName("Cancelled redemption is not processed by batch job and releases reserved units")
   void cancelledRedemption_notProcessedByBatchJob() {
     var initialFundUnits = new BigDecimal("100.00000");
     var redemptionAmount = new BigDecimal("50.00");
+    var reservedFundUnits = new BigDecimal("50.00000");
 
     var friday = Instant.parse("2025-09-26T10:00:00Z");
     var monday = Instant.parse("2025-09-29T15:00:00Z");
 
-    // Create redemption on Friday
+    // Create redemption on Friday - immediately RESERVED
     ClockHolder.setClock(Clock.fixed(friday, ZoneId.of("UTC")));
     var request =
         redemptionService.createRedemptionRequest(
             testUser.getId(), redemptionAmount, EUR, VALID_IBAN);
     var requestId = request.getId();
 
-    // Cancel before batch job runs
+    assertThat(request.getStatus()).isEqualTo(RESERVED);
+    assertThat(getUserFundUnitsReservedAccount().getBalance())
+        .isEqualByComparingTo(reservedFundUnits.negate());
+
+    // Cancel before batch job runs - should release reserved units
     redemptionService.cancelRedemption(requestId, testUser.getId());
 
     // Run batch job on Monday
@@ -302,7 +300,7 @@ class RedemptionIntegrationTest {
     var afterBatch = redemptionRequestRepository.findById(requestId).orElseThrow();
     assertThat(afterBatch.getStatus()).isEqualTo(CANCELLED);
 
-    // Fund units unchanged
+    // Fund units returned to user account
     assertThat(getUserFundUnitsAccount().getBalance())
         .isEqualByComparingTo(initialFundUnits.negate());
     assertThat(getUserFundUnitsReservedAccount().getBalance()).isEqualByComparingTo(ZERO);

@@ -2,12 +2,13 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.PENDING;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerService;
+import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
@@ -35,6 +36,7 @@ public class RedemptionService {
   private final RedemptionRequestRepository redemptionRequestRepository;
   private final RedemptionStatusService redemptionStatusService;
   private final LedgerService ledgerService;
+  private final SavingsFundLedger savingsFundLedger;
   private final UserService userService;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final SavingsFundNavProvider navProvider;
@@ -60,13 +62,15 @@ public class RedemptionService {
 
     validateFundUnits(fundUnits, availableUnits);
 
+    savingsFundLedger.reserveFundUnitsForRedemption(user, fundUnits);
+
     RedemptionRequest request =
         RedemptionRequest.builder()
             .userId(userId)
             .fundUnits(fundUnits)
             .requestedAmount(amount)
             .customerIban(customerIban)
-            .status(PENDING)
+            .status(RESERVED)
             .build();
 
     RedemptionRequest saved = redemptionRequestRepository.save(request);
@@ -102,7 +106,7 @@ public class RedemptionService {
 
   public List<RedemptionRequest> getPendingRedemptionsForUser(Long userId) {
     return redemptionRequestRepository.findByUserIdAndStatusIn(
-        userId, List.of(PENDING)); // TODO: add other statuses
+        userId, List.of(RESERVED, IN_REVIEW, VERIFIED));
   }
 
   public RedemptionRequest getRedemption(UUID id) {
@@ -121,6 +125,8 @@ public class RedemptionService {
 
     validateCancellationDeadline(request);
 
+    User user = userService.getByIdOrThrow(userId);
+    savingsFundLedger.cancelRedemptionReservation(user, request.getFundUnits());
     redemptionStatusService.cancel(id);
     log.info("Cancelled redemption request: id={}, userId={}", id, userId);
   }
@@ -159,19 +165,7 @@ public class RedemptionService {
   }
 
   private BigDecimal getEffectiveAvailableFundUnits(User user) {
-    BigDecimal availableUnits = getAvailableFundUnits(user);
-    BigDecimal pendingRedemptionUnits = getPendingRedemptionUnits(user.getId());
-    return availableUnits.subtract(pendingRedemptionUnits);
-  }
-
-  private BigDecimal getAvailableFundUnits(User user) {
     return ledgerService.getUserAccount(user, FUND_UNITS).getBalance().negate();
-  }
-
-  private BigDecimal getPendingRedemptionUnits(Long userId) {
-    return redemptionRequestRepository.findByUserIdAndStatus(userId, PENDING).stream()
-        .map(RedemptionRequest::getFundUnits)
-        .reduce(ZERO, BigDecimal::add);
   }
 
   private void validateIbanBelongsToUser(String iban, Long userId) {

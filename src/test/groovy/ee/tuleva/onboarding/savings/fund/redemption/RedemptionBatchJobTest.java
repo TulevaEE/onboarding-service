@@ -88,22 +88,19 @@ class RedemptionBatchJobTest {
     when(publicHolidays.isWorkingDay(LocalDate.of(2024, 1, 15))).thenReturn(true);
     when(publicHolidays.previousWorkingDay(any(LocalDate.class)))
         .thenReturn(LocalDate.of(2024, 1, 12));
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBeforeAndCancelledAtIsNull(
-            eq(PENDING), any(Instant.class)))
-        .thenReturn(List.of());
     when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
-            eq(RESERVED), any(Instant.class)))
+            eq(VERIFIED), any(Instant.class)))
         .thenReturn(List.of());
 
     batchJob.processDailyRedemptions();
 
     verify(redemptionRequestRepository)
-        .findByStatusAndRequestedAtBeforeAndCancelledAtIsNull(eq(PENDING), any(Instant.class));
+        .findByStatusAndRequestedAtBefore(eq(VERIFIED), any(Instant.class));
   }
 
   @Test
-  @DisplayName("processDailyRedemptions reserves pending requests")
-  void processDailyRedemptions_reservesPendingRequests() {
+  @DisplayName("processDailyRedemptions processes verified requests with NAV")
+  void processDailyRedemptions_processesVerifiedRequests() {
     var user = sampleUser().build();
     var requestId = UUID.randomUUID();
     var request =
@@ -112,90 +109,14 @@ class RedemptionBatchJobTest {
             .userId(user.getId())
             .fundUnits(new BigDecimal("10.00000"))
             .customerIban("EE123456789012345678")
-            .status(PENDING)
+            .status(VERIFIED)
             .build();
 
     when(publicHolidays.isWorkingDay(LocalDate.of(2024, 1, 15))).thenReturn(true);
     when(publicHolidays.previousWorkingDay(any(LocalDate.class)))
         .thenReturn(LocalDate.of(2024, 1, 12));
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBeforeAndCancelledAtIsNull(
-            eq(PENDING), any(Instant.class)))
-        .thenReturn(List.of(request));
     when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
-            eq(RESERVED), any(Instant.class)))
-        .thenReturn(List.of());
-    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
-
-    doAnswer(
-            invocation -> {
-              Consumer<TransactionStatus> callback = invocation.getArgument(0);
-              callback.accept(null);
-              return null;
-            })
-        .when(transactionTemplate)
-        .executeWithoutResult(any());
-
-    batchJob.processDailyRedemptions();
-
-    verify(savingsFundLedger).reserveFundUnitsForRedemption(user, new BigDecimal("10.00000"));
-    verify(redemptionStatusService).changeStatus(requestId, RESERVED);
-  }
-
-  @Test
-  @DisplayName("processDailyRedemptions handles errors during reservation")
-  void processDailyRedemptions_handlesReservationErrors() {
-    var requestId = UUID.randomUUID();
-    var request =
-        RedemptionRequest.builder()
-            .id(requestId)
-            .userId(1L)
-            .fundUnits(new BigDecimal("10.00000"))
-            .customerIban("EE123456789012345678")
-            .status(PENDING)
-            .build();
-
-    when(publicHolidays.isWorkingDay(LocalDate.of(2024, 1, 15))).thenReturn(true);
-    when(publicHolidays.previousWorkingDay(any(LocalDate.class)))
-        .thenReturn(LocalDate.of(2024, 1, 12));
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBeforeAndCancelledAtIsNull(
-            eq(PENDING), any(Instant.class)))
-        .thenReturn(List.of(request));
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
-            eq(RESERVED), any(Instant.class)))
-        .thenReturn(List.of());
-    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
-
-    doThrow(new RuntimeException("Test error"))
-        .when(transactionTemplate)
-        .executeWithoutResult(any());
-
-    batchJob.processDailyRedemptions();
-
-    verify(redemptionStatusService).changeStatus(requestId, FAILED);
-  }
-
-  @Test
-  @DisplayName("processDailyRedemptions processes reserved requests with NAV")
-  void processDailyRedemptions_processesReservedRequests() {
-    var user = sampleUser().build();
-    var requestId = UUID.randomUUID();
-    var request =
-        RedemptionRequest.builder()
-            .id(requestId)
-            .userId(user.getId())
-            .fundUnits(new BigDecimal("10.00000"))
-            .customerIban("EE123456789012345678")
-            .status(RESERVED)
-            .build();
-
-    when(publicHolidays.isWorkingDay(LocalDate.of(2024, 1, 15))).thenReturn(true);
-    when(publicHolidays.previousWorkingDay(any(LocalDate.class)))
-        .thenReturn(LocalDate.of(2024, 1, 12));
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBeforeAndCancelledAtIsNull(
-            eq(PENDING), any(Instant.class)))
-        .thenReturn(List.of());
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
-            eq(RESERVED), any(Instant.class)))
+            eq(VERIFIED), any(Instant.class)))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
@@ -231,6 +152,7 @@ class RedemptionBatchJobTest {
         .recordRedemptionPayout(eq(user), any(BigDecimal.class), eq("EE123456789012345678"));
     verify(swedbankGatewayClient, times(2))
         .sendPaymentRequest(any(PaymentRequest.class), any(UUID.class));
+    verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
   }
 
   @Test
@@ -244,18 +166,15 @@ class RedemptionBatchJobTest {
             .userId(user.getId())
             .fundUnits(new BigDecimal("10.00000"))
             .customerIban("EE123456789012345678")
-            .status(RESERVED)
+            .status(VERIFIED)
             .cashAmount(new BigDecimal("10.00"))
             .build();
 
     when(publicHolidays.isWorkingDay(LocalDate.of(2024, 1, 15))).thenReturn(true);
     when(publicHolidays.previousWorkingDay(any(LocalDate.class)))
         .thenReturn(LocalDate.of(2024, 1, 12));
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBeforeAndCancelledAtIsNull(
-            eq(PENDING), any(Instant.class)))
-        .thenReturn(List.of());
     when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
-            eq(RESERVED), any(Instant.class)))
+            eq(VERIFIED), any(Instant.class)))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
@@ -301,23 +220,18 @@ class RedemptionBatchJobTest {
             .userId(1L)
             .fundUnits(new BigDecimal("10.00000"))
             .customerIban("EE123456789012345678")
-            .status(PENDING)
+            .status(VERIFIED)
             .build();
 
     when(publicHolidays.isWorkingDay(LocalDate.of(2024, 1, 15))).thenReturn(true);
     when(publicHolidays.previousWorkingDay(any(LocalDate.class)))
         .thenReturn(LocalDate.of(2024, 1, 12));
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBeforeAndCancelledAtIsNull(
-            eq(PENDING), any(Instant.class)))
-        .thenReturn(List.of(request));
     when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
-            eq(RESERVED), any(Instant.class)))
-        .thenReturn(List.of());
+            eq(VERIFIED), any(Instant.class)))
+        .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
 
-    doThrow(new RuntimeException("Test error"))
-        .when(transactionTemplate)
-        .executeWithoutResult(any());
+    doThrow(new RuntimeException("Test error")).when(transactionTemplate).execute(any());
 
     batchJob.processDailyRedemptions();
 

@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.epis.contact;
 import static ee.tuleva.onboarding.epis.contact.ContactDetails.LanguagePreferenceType.EST;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.notification.email.Emailable;
-import ee.tuleva.onboarding.user.address.Address;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -41,11 +41,11 @@ public class ContactDetails implements Person, Emailable {
   private Instant secondPillarOpenDate;
   private Instant thirdPillarInitDate;
 
-  public Address getAddress() {
-    return Address.builder().countryCode(country).build();
+  public Country getAddress() {
+    return Country.builder().countryCode(country).build();
   }
 
-  public ContactDetails setAddress(Address address) {
+  public ContactDetails setAddress(Country address) {
     country = address.getCountryCode();
     return this;
   }

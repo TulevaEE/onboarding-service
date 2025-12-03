@@ -1,8 +1,9 @@
 package ee.tuleva.onboarding.kyc.survey;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyc.KycCheckService;
-import ee.tuleva.onboarding.user.address.Address;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,18 +19,30 @@ public class KycSurveyService {
         KycSurvey.builder().userId(person.getUserId()).survey(surveyResponse).build();
     KycSurvey saved = kycSurveyRepository.save(survey);
 
-    var address = extractAddress(surveyResponse);
-    kycCheckService.check(person, address);
+    var country = extractCountry(surveyResponse);
+    kycCheckService.check(person, country);
 
     return saved;
   }
 
-  private Address extractAddress(KycSurveyResponse surveyResponse) {
+  public Optional<Country> getCountry(Long userId) {
+    return kycSurveyRepository
+        .findFirstByUserIdOrderByCreatedTimeDesc(userId)
+        .flatMap(
+            survey ->
+                survey.getSurvey().answers().stream()
+                    .filter(KycSurveyResponseItem.Address.class::isInstance)
+                    .map(KycSurveyResponseItem.Address.class::cast)
+                    .findFirst()
+                    .map(address -> new Country(address.value().value().countryCode())));
+  }
+
+  private Country extractCountry(KycSurveyResponse surveyResponse) {
     return surveyResponse.answers().stream()
         .filter(item -> item instanceof KycSurveyResponseItem.Address)
         .map(item -> (KycSurveyResponseItem.Address) item)
         .findFirst()
-        .map(addr -> Address.builder().countryCode(addr.value().value().countryCode()).build())
+        .map(addr -> Country.builder().countryCode(addr.value().value().countryCode()).build())
         .orElseThrow(() -> new IllegalArgumentException("Address is required in KYC survey"));
   }
 }

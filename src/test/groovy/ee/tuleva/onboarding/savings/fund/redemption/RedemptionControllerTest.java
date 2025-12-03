@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.PENDING;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -52,7 +52,7 @@ class RedemptionControllerTest {
             .userId(authPerson.getUserId())
             .fundUnits(new BigDecimal("10.00000"))
             .customerIban("EE471000001020145685")
-            .status(PENDING)
+            .status(RESERVED)
             .build();
 
     when(redemptionService.createRedemptionRequest(
@@ -79,7 +79,7 @@ class RedemptionControllerTest {
                 .with(authentication(authentication)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.id").value(requestId.toString()))
-        .andExpect(jsonPath("$.status").value("PENDING"));
+        .andExpect(jsonPath("$.status").value("RESERVED"));
 
     verify(redemptionService)
         .createRedemptionRequest(

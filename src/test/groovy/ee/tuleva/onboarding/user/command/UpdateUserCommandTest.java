@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.user.command;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ee.tuleva.onboarding.user.address.Address;
+import ee.tuleva.onboarding.country.Country;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -30,7 +30,7 @@ class UpdateUserCommandTest {
     UpdateUserCommand command = new UpdateUserCommand();
     command.setEmail("test@example.com");
     command.setPhoneNumber("+3725551234");
-    command.setAddress(Address.builder().countryCode("EE").build());
+    command.setAddress(Country.builder().countryCode("EE").build());
 
     // when
     Set<ConstraintViolation<UpdateUserCommand>> violations = validator.validate(command);
@@ -45,7 +45,7 @@ class UpdateUserCommandTest {
     // given
     UpdateUserCommand command = new UpdateUserCommand();
     command.setEmail(null);
-    command.setAddress(Address.builder().countryCode("EE").build());
+    command.setAddress(Country.builder().countryCode("EE").build());
 
     // when
     Set<ConstraintViolation<UpdateUserCommand>> violations = validator.validate(command);
@@ -61,7 +61,7 @@ class UpdateUserCommandTest {
     // given
     UpdateUserCommand command = new UpdateUserCommand();
     command.setEmail("not-an-email");
-    command.setAddress(Address.builder().countryCode("EE").build());
+    command.setAddress(Country.builder().countryCode("EE").build());
 
     // when
     Set<ConstraintViolation<UpdateUserCommand>> violations = validator.validate(command);
@@ -77,7 +77,7 @@ class UpdateUserCommandTest {
     // given
     UpdateUserCommand command = new UpdateUserCommand();
     command.setEmail("test@example.com");
-    command.setAddress(Address.builder().countryCode("").build());
+    command.setAddress(Country.builder().countryCode("").build());
 
     // when
     Set<ConstraintViolation<UpdateUserCommand>> violations = validator.validate(command);
@@ -95,7 +95,7 @@ class UpdateUserCommandTest {
     // given
     UpdateUserCommand command = new UpdateUserCommand();
     command.setEmail("test@example.com");
-    command.setAddress(Address.builder().countryCode(null).build());
+    command.setAddress(Country.builder().countryCode(null).build());
 
     // when
     Set<ConstraintViolation<UpdateUserCommand>> violations = validator.validate(command);
@@ -113,7 +113,7 @@ class UpdateUserCommandTest {
     // given
     UpdateUserCommand command = new UpdateUserCommand();
     command.setEmail("test@example.com");
-    command.setAddress(Address.builder().countryCode("   ").build());
+    command.setAddress(Country.builder().countryCode("   ").build());
 
     // when
     Set<ConstraintViolation<UpdateUserCommand>> violations = validator.validate(command);

@@ -34,7 +34,7 @@ import static ee.tuleva.onboarding.epis.MandateCommandResponseFixture.sampleMand
 import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.*
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND
-import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
+import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 import static org.mockserver.model.HttpRequest.request
 import static org.mockserver.model.HttpResponse.response
 import static org.mockserver.model.JsonBody.json
@@ -175,7 +175,7 @@ class EpisServiceIntegrationSpec extends Specification {
     given:
     def fundsTransferExchange =
         new MandateDto.MandateFundsTransferExchangeDTO("transferProcessId", 1.0, "EE123", "EE234", null)
-    def address = addressFixture().build()
+    def address = countryFixture().build()
     def mandate = MandateDto.builder()
         .id(111L)
         .fundTransferExchanges([fundsTransferExchange])

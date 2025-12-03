@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.mandate.event;
 
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.address.Address;
 import java.util.Locale;
 import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
@@ -25,7 +25,7 @@ public class AfterMandateSignedEvent extends ApplicationEvent {
     return mandate.getPillar();
   }
 
-  public Address getAddress() {
+  public Country getAddress() {
     return mandate.getAddress();
   }
 }

@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.mandate.event;
 
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.address.Address;
 import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 
@@ -22,8 +22,8 @@ public class BeforeMandateCreatedEvent extends ApplicationEvent {
     return mandate.getPillar();
   }
 
-  public Address getAddress() {
-    return mandate.getAddress();
+  public Country getCountry() {
+    return mandate.getCountry();
   }
 
   public boolean isThirdPillar() {

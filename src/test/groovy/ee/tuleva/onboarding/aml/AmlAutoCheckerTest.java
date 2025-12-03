@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent;
@@ -16,7 +17,6 @@ import ee.tuleva.onboarding.kyc.BeforeKycCheckedEvent;
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import ee.tuleva.onboarding.user.address.Address;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,7 +36,7 @@ class AmlAutoCheckerTest {
 
   @Mock private User mockUser;
   @Mock private ContactDetails mockContactDetails;
-  @Mock private Address mockAddress;
+  @Mock private Country mockCountry;
   @Mock private IdDocumentType mockIdDocumentType;
 
   private static AuthenticatedPerson createTestPerson(String personalCode) {
@@ -186,7 +186,7 @@ class AmlAutoCheckerTest {
 
     when(mockEvent.getUser()).thenReturn(mockUser);
     when(mockEvent.getMandate()).thenReturn(mandate);
-    when(mockEvent.getAddress()).thenReturn(mockAddress);
+    when(mockEvent.getCountry()).thenReturn(mockCountry);
     when(amlService.allChecksPassed(mockUser, mandate)).thenReturn(true);
     when(amlService.isMandateAmlCheckRequired(mockUser, mandate)).thenReturn(true);
 
@@ -194,7 +194,7 @@ class AmlAutoCheckerTest {
     assertDoesNotThrow(() -> amlAutoChecker.beforeMandateCreated(mockEvent));
 
     // then
-    verify(amlService).addSanctionAndPepCheckIfMissing(mockUser, mockAddress);
+    verify(amlService).addSanctionAndPepCheckIfMissing(mockUser, mockCountry);
     verify(amlService).allChecksPassed(mockUser, mandate);
   }
 
@@ -229,7 +229,7 @@ class AmlAutoCheckerTest {
 
     when(mockEvent.getUser()).thenReturn(mockUser);
     when(mockEvent.getMandate()).thenReturn(mandate);
-    when(mockEvent.getAddress()).thenReturn(mockAddress);
+    when(mockEvent.getCountry()).thenReturn(mockCountry);
     when(amlService.allChecksPassed(mockUser, mandate)).thenReturn(false);
     when(amlService.isMandateAmlCheckRequired(mockUser, mandate)).thenReturn(true);
 
@@ -243,7 +243,7 @@ class AmlAutoCheckerTest {
 
     // then
     assertNotNull(exception);
-    verify(amlService).addSanctionAndPepCheckIfMissing(mockUser, mockAddress);
+    verify(amlService).addSanctionAndPepCheckIfMissing(mockUser, mockCountry);
     verify(amlService).allChecksPassed(mockUser, mandate);
   }
 

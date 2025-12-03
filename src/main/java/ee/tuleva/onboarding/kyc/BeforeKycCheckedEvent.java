@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.kyc;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.user.address.Address;
+import ee.tuleva.onboarding.country.Country;
 
-public record BeforeKycCheckedEvent(Person person, Address address) {}
+public record BeforeKycCheckedEvent(Person person, Country country) {}

@@ -14,7 +14,7 @@ import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDet
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
-import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
+import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 
 class ContextBuilderSpec extends Specification {
 
@@ -155,7 +155,7 @@ class ContextBuilderSpec extends Specification {
   }
 
   def "address"() {
-    def address = addressFixture().build()
+    def address = countryFixture().build()
     when:
     Context context = ContextBuilder.builder()
         .address(address)

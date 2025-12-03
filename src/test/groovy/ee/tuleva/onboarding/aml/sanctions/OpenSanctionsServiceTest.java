@@ -8,7 +8,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
-import ee.tuleva.onboarding.user.address.Address;
+import ee.tuleva.onboarding.country.Country;
 import java.time.LocalDate;
 import java.util.List;
 import org.json.JSONException;
@@ -64,7 +64,7 @@ class OpenSanctionsServiceTest {
     String personalCode = "36004081234";
     Person person = new PersonImpl(personalCode, firstName, lastName);
     String countryCode = "ee";
-    Address address = Address.builder().countryCode(countryCode).build();
+    Country country = new Country(countryCode);
 
     String expectedResultsJson =
         String.format(
@@ -137,7 +137,7 @@ class OpenSanctionsServiceTest {
         .andRespond(withSuccess(mockApiResponseJson, MediaType.APPLICATION_JSON));
 
     // when
-    MatchResponse actualResponse = openSanctionsService.match(person, address);
+    MatchResponse actualResponse = openSanctionsService.match(person, country);
 
     // then
     JSONAssert.assertEquals(
@@ -216,8 +216,8 @@ class OpenSanctionsServiceTest {
   }
 
   @Test
-  @DisplayName("Should use default country 'ee' in request when address is null")
-  void match_whenAddressIsNull_usesDefaultCountry() throws JsonProcessingException, JSONException {
+  @DisplayName("Should use default country 'ee' in request when country is null")
+  void match_whenCountryIsNull_usesDefaultCountry() throws JsonProcessingException, JSONException {
     // given
     String firstName = "Peeter";
     String lastName = "Meeter";
@@ -225,7 +225,7 @@ class OpenSanctionsServiceTest {
     LocalDate birthDate = LocalDate.parse("1960-04-08");
     String personalCode = "36004081234";
     Person person = new PersonImpl(personalCode, firstName, lastName);
-    Address address = null;
+    Country country = null;
 
     List<String> countriesForRequest = List.of("ee");
     List<String> countriesForQueryInResponse = List.of("ee");
@@ -247,7 +247,7 @@ class OpenSanctionsServiceTest {
         .andRespond(withSuccess(mockApiResponseJson, MediaType.APPLICATION_JSON));
 
     // when
-    MatchResponse actualResponse = openSanctionsService.match(person, address);
+    MatchResponse actualResponse = openSanctionsService.match(person, country);
 
     // then
     assertTrue(actualResponse.results().isEmpty());
@@ -272,8 +272,8 @@ class OpenSanctionsServiceTest {
   }
 
   @Test
-  @DisplayName("Should use default country 'ee' in request when address country code is null")
-  void match_whenAddressCountryCodeIsNull_usesDefaultCountry()
+  @DisplayName("Should use default country 'ee' in request when country code is null")
+  void match_whenCountryCodeIsNull_usesDefaultCountry()
       throws JsonProcessingException, JSONException {
     // given
     String firstName = "Peeter";
@@ -282,7 +282,7 @@ class OpenSanctionsServiceTest {
     LocalDate birthDate = LocalDate.parse("1960-04-08");
     String personalCode = "36004081234";
     Person person = new PersonImpl(personalCode, firstName, lastName);
-    Address address = Address.builder().countryCode(null).build();
+    Country country = new Country(null);
 
     List<String> countriesForRequest = List.of("ee");
     List<String> countriesForQueryInResponse = List.of("ee");
@@ -304,7 +304,7 @@ class OpenSanctionsServiceTest {
         .andRespond(withSuccess(mockApiResponseJson, MediaType.APPLICATION_JSON));
 
     // when
-    MatchResponse actualResponse = openSanctionsService.match(person, address);
+    MatchResponse actualResponse = openSanctionsService.match(person, country);
 
     // then
     assertTrue(actualResponse.results().isEmpty());
@@ -330,8 +330,8 @@ class OpenSanctionsServiceTest {
 
   @Test
   @DisplayName(
-      "Should use both 'ee' and address country code in request when address has a different country code")
-  void match_whenAddressHasDifferentCountryCode_usesBothCountries()
+      "Should use both 'ee' and country code in request when country has a different country code")
+  void match_whenCountryHasDifferentCountryCode_usesBothCountries()
       throws JsonProcessingException, JSONException {
     // given
     String firstName = "Peeter";
@@ -340,7 +340,7 @@ class OpenSanctionsServiceTest {
     LocalDate birthDate = LocalDate.parse("1960-04-08");
     String personalCode = "36004081234";
     Person person = new PersonImpl(personalCode, firstName, lastName);
-    Address address = Address.builder().countryCode("fi").build();
+    Country country = new Country("fi");
 
     List<String> countriesForRequest = List.of("ee", "fi");
     List<String> countriesForQueryInResponse = List.of("ee", "fi");
@@ -362,7 +362,7 @@ class OpenSanctionsServiceTest {
         .andRespond(withSuccess(mockApiResponseJson, MediaType.APPLICATION_JSON));
 
     // when
-    MatchResponse actualResponse = openSanctionsService.match(person, address);
+    MatchResponse actualResponse = openSanctionsService.match(person, country);
 
     // then
     assertTrue(actualResponse.results().isEmpty());
@@ -397,7 +397,7 @@ class OpenSanctionsServiceTest {
     LocalDate birthDate = LocalDate.parse("1960-04-08");
     String personalCode = "36004081234";
     Person person = new PersonImpl(personalCode, firstName, lastName);
-    Address address = Address.builder().countryCode("ee").build();
+    Country country = new Country("ee");
 
     String malformedMockApiResponseJson =
         "{ \"responses\": { \"36004081234\": { \"status\": 200, \"results\": [{\"id\":\"test\"], \"query\": {} } }";
@@ -419,7 +419,7 @@ class OpenSanctionsServiceTest {
     assertThrows(
         JsonProcessingException.class,
         () -> {
-          openSanctionsService.match(person, address);
+          openSanctionsService.match(person, country);
         });
   }
 }

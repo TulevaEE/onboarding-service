@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.content.thymeleaf;
 
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails;
 import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
@@ -8,7 +9,6 @@ import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.address.Address;
 import java.math.BigDecimal;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -112,7 +112,7 @@ public class ContextBuilder {
     return this;
   }
 
-  public ContextBuilder address(Address address) {
+  public ContextBuilder address(Country address) {
     ctx.setVariable("countryCode", address.getCountryCode());
     return this;
   }

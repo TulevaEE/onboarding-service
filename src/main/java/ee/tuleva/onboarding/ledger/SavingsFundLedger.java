@@ -265,6 +265,25 @@ public class SavingsFundLedger {
   }
 
   @Transactional
+  public LedgerTransaction cancelRedemptionReservation(User user, BigDecimal fundUnits) {
+    LedgerParty userParty = getUserParty(user);
+    LedgerAccount userUnitsAccount = getUserUnitsAccount(userParty);
+    LedgerAccount userUnitsReservedAccount = getUserUnitsReservedAccount(userParty);
+
+    Map<String, Object> metadata =
+        Map.of(
+            OPERATION_TYPE.key, REDEMPTION_CANCELLED.name(),
+            USER_ID.key, user.getId(),
+            PERSONAL_CODE.key, user.getPersonalCode());
+
+    return ledgerTransactionService.createTransaction(
+        Instant.now(clock),
+        metadata,
+        entry(userUnitsReservedAccount, fundUnits),
+        entry(userUnitsAccount, fundUnits.negate()));
+  }
+
+  @Transactional
   public LedgerTransaction redeemFundUnitsFromReserved(
       User user, BigDecimal fundUnits, BigDecimal cashAmount, BigDecimal navPerUnit) {
     LedgerParty userParty = getUserParty(user);

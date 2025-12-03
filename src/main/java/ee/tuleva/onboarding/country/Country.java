@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.user.address;
+package ee.tuleva.onboarding.country;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonView;
@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @JsonView(MandateView.Default.class)
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Address {
+public class Country {
 
   @NotBlank private String countryCode;
 }

@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.epis.contact;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.address.Address;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -19,7 +19,7 @@ public class ContactDetailsService {
   private final EpisService episService;
   private final ApplicationEventPublisher eventPublisher;
 
-  public ContactDetails updateContactDetails(User user, Address address) {
+  public ContactDetails updateContactDetails(User user, Country address) {
     ContactDetails contactDetails = episService.getContactDetails(user);
     contactDetails.setEmail(user.getEmail());
     contactDetails.setPhoneNumber(user.getPhoneNumber());

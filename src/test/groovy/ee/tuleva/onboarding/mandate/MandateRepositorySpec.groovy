@@ -12,7 +12,7 @@ import java.time.Instant
 
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 import static ee.tuleva.onboarding.mandate.MandateType.TRANSFER_CANCELLATION
-import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
+import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 
 @DataJpaTest
 class MandateRepositorySpec extends Specification {
@@ -37,7 +37,7 @@ class MandateRepositorySpec extends Specification {
       .build()
     entityManager.persistAndFlush(savedUser)
 
-    def address = addressFixture().build()
+    def address = countryFixture().build()
     def metadata = ["conversion": true]
 
     def savedMandate = Mandate.builder()

@@ -137,6 +137,23 @@ public class SavingFundPaymentRepository {
     return jdbcTemplate.query("select * from saving_fund_payment", this::rowMapper);
   }
 
+  public Optional<SavingFundPayment> findReturnedPaymentByRemitterIbanAndAmount(
+      String remitterIban, java.math.BigDecimal amount) {
+    var result =
+        jdbcTemplate.query(
+            """
+            select * from saving_fund_payment
+            where remitter_iban = :remitter_iban
+              and amount = :amount
+              and status = :status
+            order by status_changed_at desc
+            limit 1
+            """,
+            Map.of("remitter_iban", remitterIban, "amount", amount, "status", RETURNED.name()),
+            this::rowMapper);
+    return result.isEmpty() ? Optional.empty() : Optional.of(result.getFirst());
+  }
+
   private SavingFundPayment rowMapper(ResultSet rs, int ignored) throws SQLException {
     return SavingFundPayment.builder()
         .id(UUID.fromString(rs.getString("id")))

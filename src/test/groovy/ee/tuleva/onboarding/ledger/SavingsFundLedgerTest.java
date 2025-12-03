@@ -86,6 +86,45 @@ class SavingsFundLedgerTest {
   }
 
   @Test
+  void reservePaymentForCancellation_movesCashToReserved() {
+    var amount = new BigDecimal("500.00");
+    var externalReference = randomUUID();
+    savingsFundLedger.recordPaymentReceived(testUser, amount, externalReference);
+
+    var transaction =
+        savingsFundLedger.reservePaymentForCancellation(testUser, amount, externalReference);
+
+    assertThat(transaction.getMetadata().get("operationType"))
+        .isEqualTo("PAYMENT_CANCEL_REQUESTED");
+    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
+    assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
+    assertThat(transaction.getMetadata().get("personalCode")).isEqualTo(testUser.getPersonalCode());
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(amount.negate());
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void recordPaymentCancelled_clearsReservedAndBankAsset() {
+    var amount = new BigDecimal("500.00");
+    var externalReference = randomUUID();
+    savingsFundLedger.recordPaymentReceived(testUser, amount, externalReference);
+    savingsFundLedger.reservePaymentForCancellation(testUser, amount, externalReference);
+
+    var transaction = savingsFundLedger.recordPaymentCancelled(testUser, amount, externalReference);
+
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_CANCELLED");
+    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
+    assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
+    assertThat(transaction.getMetadata().get("personalCode")).isEqualTo(testUser.getPersonalCode());
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
   void completeSubscriptionFlow_allBalancesCorrect() {
     var cashAmount = new BigDecimal("1000.00");
     var fundUnits = new BigDecimal("10.00000");

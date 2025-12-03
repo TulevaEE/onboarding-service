@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.ledger;
 
 public enum SavingsFundTransactionType {
   PAYMENT_RECEIVED,
+  PAYMENT_CANCEL_REQUESTED,
+  PAYMENT_CANCELLED,
   UNATTRIBUTED_PAYMENT,
   PAYMENT_BOUNCE_BACK,
   PAYMENT_RESERVED,

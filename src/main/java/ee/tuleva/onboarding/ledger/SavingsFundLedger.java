@@ -96,6 +96,48 @@ public class SavingsFundLedger {
   }
 
   @Transactional
+  public LedgerTransaction reservePaymentForCancellation(
+      User user, BigDecimal amount, UUID externalReference) {
+    LedgerParty userParty = getUserParty(user);
+    LedgerAccount userCashAccount = getUserCashAccount(userParty);
+    LedgerAccount userCashReservedAccount = getUserCashReservedAccount(userParty);
+
+    Map<String, Object> metadata =
+        Map.of(
+            OPERATION_TYPE.key, PAYMENT_CANCEL_REQUESTED.name(),
+            USER_ID.key, user.getId(),
+            PERSONAL_CODE.key, user.getPersonalCode());
+
+    return ledgerTransactionService.createTransaction(
+        Instant.now(clock),
+        externalReference,
+        metadata,
+        entry(userCashAccount, amount),
+        entry(userCashReservedAccount, amount.negate()));
+  }
+
+  @Transactional
+  public LedgerTransaction recordPaymentCancelled(
+      User user, BigDecimal amount, UUID externalReference) {
+    LedgerParty userParty = getUserParty(user);
+    LedgerAccount userCashReservedAccount = getUserCashReservedAccount(userParty);
+    LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
+
+    Map<String, Object> metadata =
+        Map.of(
+            OPERATION_TYPE.key, PAYMENT_CANCELLED.name(),
+            USER_ID.key, user.getId(),
+            PERSONAL_CODE.key, user.getPersonalCode());
+
+    return ledgerTransactionService.createTransaction(
+        Instant.now(clock),
+        externalReference,
+        metadata,
+        entry(userCashReservedAccount, amount),
+        entry(incomingPaymentsAccount, amount.negate()));
+  }
+
+  @Transactional
   public LedgerTransaction recordUnattributedPayment(BigDecimal amount, UUID externalReference) {
     LedgerAccount unreconciledAccount = getUnreconciledBankReceiptsAccount();
     LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();

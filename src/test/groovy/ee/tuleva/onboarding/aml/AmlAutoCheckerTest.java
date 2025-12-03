@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent;
+import ee.tuleva.onboarding.kyc.BeforeKycCheckedEvent;
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
@@ -244,5 +245,19 @@ class AmlAutoCheckerTest {
     assertNotNull(exception);
     verify(amlService).addSanctionAndPepCheckIfMissing(mockUser, mockAddress);
     verify(amlService).allChecksPassed(mockUser, mandate);
+  }
+
+  @Test
+  @DisplayName("beforeKycChecked: Should add sanction and PEP check")
+  void beforeKycChecked_addsSanctionAndPepCheck() {
+    // given
+    var person = createTestPerson("38001010005");
+    var event = new BeforeKycCheckedEvent(person, mockAddress);
+
+    // when
+    amlAutoChecker.beforeKycChecked(event);
+
+    // then
+    verify(amlService).addSanctionAndPepCheckIfMissing(person, mockAddress);
   }
 }

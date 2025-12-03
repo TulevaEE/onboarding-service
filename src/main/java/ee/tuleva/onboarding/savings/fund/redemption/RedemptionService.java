@@ -8,6 +8,7 @@ import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerService;
+import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
 import ee.tuleva.onboarding.user.User;
@@ -34,6 +35,7 @@ public class RedemptionService {
   private final UserService userService;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final SavingsFundNavProvider navProvider;
+  private final SavingFundPaymentRepository savingFundPaymentRepository;
 
   @Transactional
   public RedemptionRequest createRedemptionRequest(
@@ -44,6 +46,7 @@ public class RedemptionService {
 
     User user = userService.getByIdOrThrow(userId);
     validateOnboarding(user);
+    validateIbanBelongsToUser(customerIban, userId);
 
     BigDecimal nav = navProvider.getCurrentNav();
     BigDecimal availableUnits = getEffectiveAvailableFundUnits(user);
@@ -153,5 +156,13 @@ public class RedemptionService {
     return redemptionRequestRepository.findByUserIdAndStatus(userId, PENDING).stream()
         .map(RedemptionRequest::getFundUnits)
         .reduce(ZERO, BigDecimal::add);
+  }
+
+  private void validateIbanBelongsToUser(String iban, Long userId) {
+    List<String> userIbans = savingFundPaymentRepository.findUserDepositBankAccountIbans(userId);
+    if (!userIbans.contains(iban)) {
+      throw new IllegalArgumentException(
+          "IBAN does not belong to user: iban=" + iban + ", userId=" + userId);
+    }
   }
 }

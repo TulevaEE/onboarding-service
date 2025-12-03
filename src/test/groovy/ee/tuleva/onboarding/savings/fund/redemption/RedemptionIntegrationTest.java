@@ -17,6 +17,8 @@ import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
+import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -54,6 +56,7 @@ class RedemptionIntegrationTest {
   @Autowired SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Autowired LedgerService ledgerService;
   @Autowired UserRepository userRepository;
+  @Autowired SavingFundPaymentRepository savingFundPaymentRepository;
 
   @MockitoBean SwedbankGatewayClient swedbankGatewayClient;
 
@@ -68,6 +71,7 @@ class RedemptionIntegrationTest {
         userRepository.save(sampleUser().id(null).member(null).personalCode("39901019992").build());
     savingsFundOnboardingRepository.saveOnboardingStatus(testUser.getId(), COMPLETED);
     setupUserWithFundUnits(new BigDecimal("1000.00"), new BigDecimal("100.00000"));
+    setupUserDepositIban(VALID_IBAN);
   }
 
   @AfterEach
@@ -307,5 +311,44 @@ class RedemptionIntegrationTest {
 
   private LedgerAccount getPayoutsCashClearingAccount() {
     return ledgerService.getSystemAccount(PAYOUTS_CASH_CLEARING);
+  }
+
+  private void setupUserDepositIban(String iban) {
+    var payment =
+        SavingFundPayment.builder()
+            .externalId("TEST-" + UUID.randomUUID())
+            .amount(new BigDecimal("100.00"))
+            .currency(EUR)
+            .description("Test deposit")
+            .remitterIban(iban)
+            .remitterIdCode(testUser.getPersonalCode())
+            .remitterName(testUser.getFirstName() + " " + testUser.getLastName())
+            .beneficiaryIban("EE362200221234567897")
+            .beneficiaryIdCode("12345678")
+            .beneficiaryName("Tuleva")
+            .status(SavingFundPayment.Status.PROCESSED)
+            .build();
+
+    var paymentId = savingFundPaymentRepository.savePaymentData(payment);
+    savingFundPaymentRepository.attachUser(paymentId, testUser.getId());
+    savingFundPaymentRepository.changeStatus(paymentId, SavingFundPayment.Status.RECEIVED);
+    savingFundPaymentRepository.changeStatus(paymentId, SavingFundPayment.Status.VERIFIED);
+    savingFundPaymentRepository.changeStatus(paymentId, SavingFundPayment.Status.RESERVED);
+    savingFundPaymentRepository.changeStatus(paymentId, SavingFundPayment.Status.ISSUED);
+    savingFundPaymentRepository.changeStatus(paymentId, SavingFundPayment.Status.PROCESSED);
+  }
+
+  @Test
+  @DisplayName("Create redemption request fails when IBAN does not belong to user")
+  void createRedemptionRequest_failsWhenIbanDoesNotBelongToUser() {
+    var amount = new BigDecimal("10.00");
+    var invalidIban = "EE382200221020145685";
+
+    assertThatThrownBy(
+            () ->
+                redemptionService.createRedemptionRequest(
+                    testUser.getId(), amount, EUR, invalidIban))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("IBAN does not belong to user");
   }
 }

@@ -137,7 +137,7 @@ public class SavingFundPaymentRepository {
     return jdbcTemplate.query("select * from saving_fund_payment", this::rowMapper);
   }
 
-  public Optional<SavingFundPayment> findReturnedPaymentByRemitterIbanAndAmount(
+  public Optional<SavingFundPayment> findOriginalPaymentMarkedAsReturnedByRemitterIbanAndAmount(
       String remitterIban, java.math.BigDecimal amount) {
     var result =
         jdbcTemplate.query(

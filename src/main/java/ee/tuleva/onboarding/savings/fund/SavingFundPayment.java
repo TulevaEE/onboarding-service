@@ -28,6 +28,7 @@ public class SavingFundPayment {
   @Nullable String beneficiaryIdCode;
 
   @Nullable String externalId;
+  @Nullable String endToEndId;
 
   Instant createdAt;
   @Nullable Instant receivedBefore;

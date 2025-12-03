@@ -17,7 +17,7 @@ public record PaymentRequest(
     String ourId,
     String endToEndId) {
 
-  public static PaymentRequest.PaymentRequestBuilder tulevaPaymentBuilder(UUID fromId) {
+  public static PaymentRequestBuilder tulevaPaymentBuilder(UUID fromId) {
     var id = fromId.toString().replace("-", "");
     return PaymentRequest.builder()
         .remitterName("Tuleva Fondid AS")

@@ -67,6 +67,7 @@ public class SavingFundPaymentExtractor {
             .currency(currency)
             .description(entry.remittanceInformation())
             .externalId(entry.externalId())
+            .endToEndId(entry.endToEndId())
             .receivedBefore(receivedBefore);
 
     if (entry.transactionType() == TransactionType.CREDIT) {

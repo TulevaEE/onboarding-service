@@ -133,7 +133,8 @@ class SavingFundPaymentExtractorTest {
             "USD",
             TransactionType.CREDIT,
             "Test payment",
-            "test-ref");
+            "test-ref",
+            null);
 
     var statement = createBankStatement(account, List.of(usdEntry));
 
@@ -239,7 +240,7 @@ class SavingFundPaymentExtractorTest {
     var counterParty =
         createCounterPartyDetails(counterPartyName, counterPartyIban, counterPartyIdCode);
     return new BankStatementEntry(
-        counterParty, amount, "EUR", TransactionType.CREDIT, description, externalId);
+        counterParty, amount, "EUR", TransactionType.CREDIT, description, externalId, null);
   }
 
   private BankStatementEntry createDebitEntry(
@@ -252,7 +253,7 @@ class SavingFundPaymentExtractorTest {
     var counterParty =
         createCounterPartyDetails(counterPartyName, counterPartyIban, counterPartyIdCode);
     return new BankStatementEntry(
-        counterParty, amount, "EUR", TransactionType.DEBIT, description, externalId);
+        counterParty, amount, "EUR", TransactionType.DEBIT, description, externalId, null);
   }
 
   private BankStatementEntry.CounterPartyDetails createCounterPartyDetails(

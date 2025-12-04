@@ -28,28 +28,43 @@ import org.springframework.stereotype.Service;
  * <h2>Subscription Flow (buying fund units)</h2>
  *
  * <pre>
- * 1. {@link #recordPaymentReceived}            - Record incoming payment from user
- * 2. {@link #reservePaymentForSubscription}    - Move cash from available to reserved
- * 3. {@link #issueFundUnitsFromReserved}       - Issue fund units, record subscription
- * 4. {@link #transferToFundAccount}            - Transfer cash to fund investment account
+ * 1. recordPaymentReceived         INCOMING_PAYMENTS_CLEARING → User:CASH
+ * 2. reservePaymentForSubscription User:CASH → User:CASH_RESERVED
+ * 3. issueFundUnitsFromReserved    User:CASH_RESERVED → User:SUBSCRIPTIONS
+ *                                  FUND_UNITS_OUTSTANDING → User:FUND_UNITS
+ * 4. transferToFundAccount         INCOMING_PAYMENTS_CLEARING → FUND_INVESTMENT_CASH_CLEARING
+ * </pre>
+ *
+ * <h2>Subscription Cancellation Flow (before fund units issued)</h2>
+ *
+ * <pre>
+ * 1. reservePaymentForCancellation User:CASH → User:CASH_RESERVED
+ * 2. recordPaymentCancelled        User:CASH_RESERVED → INCOMING_PAYMENTS_CLEARING
  * </pre>
  *
  * <h2>Redemption Flow (selling fund units)</h2>
  *
  * <pre>
- * 1. {@link #reserveFundUnitsForRedemption}    - Reserve user's fund units
- * 2. {@link #redeemFundUnitsFromReserved}      - Convert units to cash (pending payout)
- * 3. {@link #transferFromFundAccount}          - Transfer cash from fund to payout account
- * 4. {@link #recordRedemptionPayout}           - Pay out cash to user's bank account
+ * 1. reserveFundUnitsForRedemption User:FUND_UNITS → User:FUND_UNITS_RESERVED
+ * 2. redeemFundUnitsFromReserved   User:FUND_UNITS_RESERVED → FUND_UNITS_OUTSTANDING
+ *                                  User:CASH_REDEMPTION → User:REDEMPTIONS
+ * 3. transferFromFundAccount       FUND_INVESTMENT_CASH_CLEARING → PAYOUTS_CASH_CLEARING
+ * 4. recordRedemptionPayout        PAYOUTS_CASH_CLEARING → User:CASH_REDEMPTION
  * </pre>
  *
- * <h2>Edge Cases</h2>
+ * <h2>Redemption Cancellation Flow (before payout)</h2>
  *
- * <ul>
- *   <li>{@link #recordUnattributedPayment} - Payment cannot be matched to a user
- *   <li>{@link #bounceBackUnattributedPayment} - Return unattributed payment to sender
- *   <li>{@link #attributeLatePayment} - Attribute previously unattributed payment to a user
- * </ul>
+ * <pre>
+ * 1. cancelRedemptionReservation   User:FUND_UNITS_RESERVED → User:FUND_UNITS
+ * </pre>
+ *
+ * <h2>Unattributed Payment Flows</h2>
+ *
+ * <pre>
+ * recordUnattributedPayment        INCOMING_PAYMENTS_CLEARING → UNRECONCILED_BANK_RECEIPTS
+ * bounceBackUnattributedPayment    UNRECONCILED_BANK_RECEIPTS → INCOMING_PAYMENTS_CLEARING
+ * attributeLatePayment             UNRECONCILED_BANK_RECEIPTS → User:CASH
+ * </pre>
  */
 @Service
 @RequiredArgsConstructor

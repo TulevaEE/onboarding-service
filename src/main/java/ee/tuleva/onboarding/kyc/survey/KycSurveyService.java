@@ -48,6 +48,6 @@ public class KycSurveyService {
         .map(item -> (KycSurveyResponseItem.Address) item)
         .findFirst()
         .map(addr -> Country.builder().countryCode(addr.value().value().countryCode()).build())
-        .orElseThrow(() -> new IllegalArgumentException("Address is required in KYC survey"));
+        .orElseThrow(() -> new IllegalArgumentException("Country code is required in KYC survey"));
   }
 }

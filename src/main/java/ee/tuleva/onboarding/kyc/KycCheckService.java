@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.kyc;
 
-import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.HIGH;
-
-import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.country.Country;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -13,10 +11,11 @@ import org.springframework.stereotype.Service;
 public class KycCheckService {
 
   private final ApplicationEventPublisher eventPublisher;
+  private final KycChecker kycChecker;
 
-  public void check(Person person, Country country) {
+  public void check(AuthenticatedPerson person, Country country) {
     eventPublisher.publishEvent(new BeforeKycCheckedEvent(person, country));
-    var kycCheck = new KycCheck(99, HIGH); // TODO: replace with actual logic
+    var kycCheck = kycChecker.check(person.getUserId());
     eventPublisher.publishEvent(
         new KycCheckPerformedEvent(this, person.getPersonalCode(), kycCheck));
   }

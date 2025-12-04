@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticated
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.HIGH;
+import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -13,6 +14,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import ee.tuleva.onboarding.kyc.BeforeKycCheckedEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.kyc.KycCheckPerformedEvent;
+import ee.tuleva.onboarding.kyc.TestKycChecker;
+import ee.tuleva.onboarding.kyc.TestKycCheckerConfiguration;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus;
 import ee.tuleva.onboarding.user.User;
@@ -24,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -37,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 @AutoConfigureMockMvc
 @Transactional
 @RecordApplicationEvents
+@Import(TestKycCheckerConfiguration.class)
 class KycSurveyControllerIntegrationTest {
 
   @Autowired private MockMvc mockMvc;
@@ -44,12 +49,14 @@ class KycSurveyControllerIntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Autowired private ApplicationEvents applicationEvents;
+  @Autowired private TestKycChecker testKycChecker;
 
   private User user;
   private Authentication authentication;
 
   @BeforeEach
   void setUp() {
+    testKycChecker.reset();
     user = userRepository.save(sampleUserNonMember().id(null).personalCode("48805051231").build());
     savingsFundOnboardingRepository.saveOnboardingStatus(
         user.getId(), SavingsFundOnboardingStatus.WHITELISTED);
@@ -150,18 +157,106 @@ class KycSurveyControllerIntegrationTest {
     assertThat(saved.getSurvey().answers()).hasSize(8);
     assertThat(saved.getCreatedTime()).isNotNull();
 
-    var events = applicationEvents.stream(KycCheckPerformedEvent.class).toList();
-    assertThat(events).hasSize(1);
-
-    var event = events.getFirst();
-    assertThat(event.getPersonalCode()).isEqualTo(user.getPersonalCode());
-    assertThat(event.getKycCheck()).isEqualTo(new KycCheck(99, HIGH));
-
     var beforeKycEvents = applicationEvents.stream(BeforeKycCheckedEvent.class).toList();
     assertThat(beforeKycEvents).hasSize(1);
 
     var beforeKycEvent = beforeKycEvents.getFirst();
     assertThat(beforeKycEvent.person().getPersonalCode()).isEqualTo(user.getPersonalCode());
     assertThat(beforeKycEvent.country().getCountryCode()).isEqualTo("EE");
+
+    var events = applicationEvents.stream(KycCheckPerformedEvent.class).toList();
+    assertThat(events).hasSize(1);
+
+    var event = events.getFirst();
+    assertThat(event.getPersonalCode()).isEqualTo(user.getPersonalCode());
+    assertThat(event.getKycCheck()).isEqualTo(new KycCheck(0, LOW));
+  }
+
+  @Test
+  @DisplayName(
+      "POST /v1/kyc/surveys publishes HIGH risk KycCheckPerformedEvent when checker returns HIGH risk")
+  void post_publishesHighRiskEvent_whenCheckerReturnsHighRisk() throws Exception {
+    testKycChecker.givenKycCheck(user.getId(), new KycCheck(100, HIGH));
+
+    String requestBody =
+        """
+        {
+          "answers": [
+            {
+              "type": "CITIZENSHIP",
+              "value": {
+                "type": "COUNTRIES",
+                "value": ["EE"]
+              }
+            },
+            {
+              "type": "ADDRESS",
+              "value": {
+                "type": "ADDRESS",
+                "value": {
+                  "street": "123 Main St",
+                  "city": "Tallinn",
+                  "postalCode": "10115",
+                  "countryCode": "EE"
+                }
+              }
+            },
+            {
+              "type": "EMAIL",
+              "value": {
+                "type": "TEXT",
+                "value": "test@example.com"
+              }
+            },
+            {
+              "type": "PEP_SELF_DECLARATION",
+              "value": {
+                "type": "OPTION",
+                "value": "IS_NOT_PEP"
+              }
+            },
+            {
+              "type": "INVESTMENT_GOALS",
+              "value": {
+                "type": "OPTION",
+                "value": "LONG_TERM"
+              }
+            },
+            {
+              "type": "INVESTABLE_ASSETS",
+              "value": {
+                "type": "OPTION",
+                "value": "LESS_THAN_20K"
+              }
+            },
+            {
+              "type": "SOURCE_OF_INCOME",
+              "value": [
+                { "type": "OPTION", "value": "SALARY" }
+              ]
+            },
+            {
+              "type": "TERMS",
+              "value": {
+                "type": "OPTION",
+                "value": "ACCEPTED"
+              }
+            }
+          ]
+        }
+        """;
+
+    mockMvc
+        .perform(
+            post("/v1/kyc/surveys")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody)
+                .with(csrf())
+                .with(authentication(authentication)))
+        .andExpect(status().isOk());
+
+    var events = applicationEvents.stream(KycCheckPerformedEvent.class).toList();
+    assertThat(events).hasSize(1);
+    assertThat(events.getFirst().getKycCheck()).isEqualTo(new KycCheck(100, HIGH));
   }
 }

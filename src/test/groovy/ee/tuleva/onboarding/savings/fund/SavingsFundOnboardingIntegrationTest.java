@@ -37,6 +37,7 @@ class SavingsFundOnboardingIntegrationTest {
   @BeforeEach
   void setUp() {
     user = userRepository.save(sampleUserNonMember().personalCode("39802077017").id(null).build());
+    repository.saveOnboardingStatus(user.getId(), WHITELISTED);
   }
 
   @Test
@@ -94,6 +95,6 @@ class SavingsFundOnboardingIntegrationTest {
     assertThat(trackableEvent.getType()).isEqualTo(SAVINGS_FUND_ONBOARDING_STATUS_CHANGE);
     assertThat(trackableEvent.getPerson().getPersonalCode()).isEqualTo(user.getPersonalCode());
     assertThat(trackableEvent.getData())
-        .isEqualTo(Map.of("oldStatus", NOT_STARTED, "newStatus", COMPLETED));
+        .isEqualTo(Map.of("oldStatus", WHITELISTED, "newStatus", COMPLETED));
   }
 }

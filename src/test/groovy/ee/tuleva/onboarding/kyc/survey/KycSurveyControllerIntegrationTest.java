@@ -13,6 +13,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import ee.tuleva.onboarding.kyc.BeforeKycCheckedEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.kyc.KycCheckPerformedEvent;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.util.List;
@@ -40,6 +42,7 @@ class KycSurveyControllerIntegrationTest {
   @Autowired private MockMvc mockMvc;
   @Autowired private KycSurveyRepository kycSurveyRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Autowired private ApplicationEvents applicationEvents;
 
   private User user;
@@ -48,6 +51,8 @@ class KycSurveyControllerIntegrationTest {
   @BeforeEach
   void setUp() {
     user = userRepository.save(sampleUserNonMember().id(null).personalCode("48805051231").build());
+    savingsFundOnboardingRepository.saveOnboardingStatus(
+        user.getId(), SavingsFundOnboardingStatus.WHITELISTED);
 
     var authPerson = authenticatedPersonFromUser(user).build();
 

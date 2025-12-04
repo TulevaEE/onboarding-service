@@ -23,13 +23,17 @@ public class SavingsFundOnboardingService {
     return savingsFundOnboardingRepository.isOnboardingCompleted(user.getId());
   }
 
+  public boolean isUserWhitelisted(Long userId) {
+    return savingsFundOnboardingRepository.findStatusByUserId(userId).isPresent();
+  }
+
   public SavingsFundOnboardingStatus getOnboardingStatus(User user) {
-    return savingsFundOnboardingRepository.findStatusByUserId(user.getId()).orElse(NOT_STARTED);
+    return savingsFundOnboardingRepository.findStatusByUserId(user.getId()).orElse(null);
   }
 
   public void updateOnboardingStatusIfNeeded(User user, KycCheck kycCheck) {
     SavingsFundOnboardingStatus oldStatus =
-        savingsFundOnboardingRepository.findStatusByUserId(user.getId()).orElse(NOT_STARTED);
+        savingsFundOnboardingRepository.findStatusByUserId(user.getId()).orElseThrow();
     if (oldStatus == COMPLETED) {
       return;
     }

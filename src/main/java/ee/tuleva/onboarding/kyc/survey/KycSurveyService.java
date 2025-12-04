@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.kyc.survey;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyc.KycCheckService;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -13,8 +14,12 @@ public class KycSurveyService {
 
   private final KycSurveyRepository kycSurveyRepository;
   private final KycCheckService kycCheckService;
+  private final SavingsFundOnboardingService savingsFundOnboardingService;
 
   public KycSurvey submit(AuthenticatedPerson person, KycSurveyResponse surveyResponse) {
+    if (!savingsFundOnboardingService.isUserWhitelisted(person.getUserId())) {
+      throw new IllegalStateException("User is not whitelisted.");
+    }
     KycSurvey survey =
         KycSurvey.builder().userId(person.getUserId()).survey(surveyResponse).build();
     KycSurvey saved = kycSurveyRepository.save(survey);

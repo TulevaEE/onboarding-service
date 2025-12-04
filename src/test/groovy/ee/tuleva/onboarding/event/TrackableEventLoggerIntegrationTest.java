@@ -72,4 +72,24 @@ class TrackableEventLoggerIntegrationTest {
     assertThat(savedLog.getType()).isEqualTo(eventType.toString());
     assertThat(savedLog.getData()).isEmpty();
   }
+
+  @Test
+  @Transactional
+  @Commit
+  void logsTrackableSystemEvent() {
+    TrackableEventType eventType = TrackableEventType.SUBSCRIPTION_BATCH_CREATED;
+    Map<String, Object> eventData = Map.of("batchId", "test-batch-id", "paymentCount", 3);
+    TrackableSystemEvent eventToPublish = new TrackableSystemEvent(eventType, eventData);
+
+    eventPublisher.publishEvent(eventToPublish);
+
+    Iterable<EventLog> eventLogs = eventLogRepository.findAll();
+    assertThat(eventLogs).hasSize(1);
+
+    EventLog savedLog = eventLogs.iterator().next();
+    assertThat(savedLog.getPrincipal()).isEqualTo("onboarding-service");
+    assertThat(savedLog.getType()).isEqualTo(eventType.toString());
+    assertThat(savedLog.getData()).isEqualTo(eventData);
+    assertThat(savedLog.getTimestamp()).isNotNull().isBeforeOrEqualTo(Instant.now());
+  }
 }

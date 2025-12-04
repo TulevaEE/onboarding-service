@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
+import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.NONE;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static java.util.stream.Collectors.toSet;
 
@@ -209,8 +210,8 @@ public class AmlService {
         AmlCheck.builder()
             .personalCode(personalCode)
             .type(KYC_CHECK)
-            .success(kycCheck.riskLevel() == LOW)
-            .metadata(Map.of("score", kycCheck.score(), "riskLevel", kycCheck.riskLevel().name()))
+            .success(kycCheck.riskLevel() == LOW || kycCheck.riskLevel() == NONE)
+            .metadata(kycCheck.metadata())
             .build();
     return addCheckIfMissing(check);
   }

@@ -41,9 +41,21 @@ class SavingsFundOnboardingIntegrationTest {
   }
 
   @Test
+  @DisplayName("KycCheckPerformedEvent with NONE risk sets status to COMPLETED")
+  void onKycCheckPerformed_mapsNoneRiskToCompleted() {
+    var event =
+        new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(NONE, Map.of()));
+
+    eventPublisher.publishEvent(event);
+
+    assertThat(repository.findStatusByUserId(user.getId())).contains(COMPLETED);
+  }
+
+  @Test
   @DisplayName("KycCheckPerformedEvent with LOW risk sets status to COMPLETED")
   void onKycCheckPerformed_mapsLowRiskToCompleted() {
-    var event = new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(10, LOW));
+    var event =
+        new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(LOW, Map.of()));
 
     eventPublisher.publishEvent(event);
 
@@ -53,7 +65,8 @@ class SavingsFundOnboardingIntegrationTest {
   @Test
   @DisplayName("KycCheckPerformedEvent with MEDIUM risk sets status to PENDING")
   void onKycCheckPerformed_mapsMediumRiskToPending() {
-    var event = new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(50, MEDIUM));
+    var event =
+        new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(MEDIUM, Map.of()));
 
     eventPublisher.publishEvent(event);
 
@@ -63,7 +76,8 @@ class SavingsFundOnboardingIntegrationTest {
   @Test
   @DisplayName("KycCheckPerformedEvent with HIGH risk sets status to REJECTED")
   void onKycCheckPerformed_mapsHighRiskToRejected() {
-    var event = new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(99, HIGH));
+    var event =
+        new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(HIGH, Map.of()));
 
     eventPublisher.publishEvent(event);
 
@@ -74,7 +88,8 @@ class SavingsFundOnboardingIntegrationTest {
   @DisplayName("KycCheckPerformedEvent does not update status if already COMPLETED")
   void onKycCheckPerformed_doesNotUpdateIfAlreadyCompleted() {
     repository.saveOnboardingStatus(user.getId(), COMPLETED);
-    var event = new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(99, HIGH));
+    var event =
+        new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(HIGH, Map.of()));
 
     eventPublisher.publishEvent(event);
 
@@ -84,7 +99,8 @@ class SavingsFundOnboardingIntegrationTest {
   @Test
   @DisplayName("KycCheckPerformedEvent publishes TrackableEvent when status changes")
   void onKycCheckPerformed_publishesTrackableEventOnStatusChange() {
-    var event = new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(10, LOW));
+    var event =
+        new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(LOW, Map.of()));
 
     eventPublisher.publishEvent(event);
 

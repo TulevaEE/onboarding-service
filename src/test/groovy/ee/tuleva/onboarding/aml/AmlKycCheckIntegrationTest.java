@@ -1,8 +1,7 @@
 package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.KYC_CHECK;
-import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.HIGH;
-import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
+import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.*;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,9 +25,32 @@ class AmlKycCheckIntegrationTest {
   @Autowired private AmlCheckRepository amlCheckRepository;
 
   @Test
+  @DisplayName("KycCheckPerformedEvent with NONE risk creates successful AmlCheck")
+  void onKycCheckPerformed_noneRisk_createsSuccessfulCheck() {
+    var event =
+        new KycCheckPerformedEvent(
+            this, PERSONAL_CODE, new KycCheck(NONE, Map.of("riskLevel", "NONE")));
+
+    eventPublisher.publishEvent(event);
+
+    var checks =
+        amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(PERSONAL_CODE, aYearAgo());
+    assertThat(checks)
+        .singleElement()
+        .satisfies(
+            check -> {
+              assertThat(check.getType()).isEqualTo(KYC_CHECK);
+              assertThat(check.isSuccess()).isTrue();
+              assertThat(check.getMetadata()).isEqualTo(Map.of("riskLevel", "NONE"));
+            });
+  }
+
+  @Test
   @DisplayName("KycCheckPerformedEvent with LOW risk creates successful AmlCheck")
   void onKycCheckPerformed_lowRisk_createsSuccessfulCheck() {
-    var event = new KycCheckPerformedEvent(this, PERSONAL_CODE, new KycCheck(10, LOW));
+    var event =
+        new KycCheckPerformedEvent(
+            this, PERSONAL_CODE, new KycCheck(LOW, Map.of("score", 10, "riskLevel", "LOW")));
 
     eventPublisher.publishEvent(event);
 
@@ -45,9 +67,32 @@ class AmlKycCheckIntegrationTest {
   }
 
   @Test
+  @DisplayName("KycCheckPerformedEvent with MEDIUM risk creates failed AmlCheck")
+  void onKycCheckPerformed_mediumRisk_createsFailedCheck() {
+    var event =
+        new KycCheckPerformedEvent(
+            this, PERSONAL_CODE, new KycCheck(MEDIUM, Map.of("score", 50, "riskLevel", "MEDIUM")));
+
+    eventPublisher.publishEvent(event);
+
+    var checks =
+        amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(PERSONAL_CODE, aYearAgo());
+    assertThat(checks)
+        .singleElement()
+        .satisfies(
+            check -> {
+              assertThat(check.getType()).isEqualTo(KYC_CHECK);
+              assertThat(check.isSuccess()).isFalse();
+              assertThat(check.getMetadata()).isEqualTo(Map.of("score", 50, "riskLevel", "MEDIUM"));
+            });
+  }
+
+  @Test
   @DisplayName("KycCheckPerformedEvent with HIGH risk creates failed AmlCheck")
   void onKycCheckPerformed_highRisk_createsFailedCheck() {
-    var event = new KycCheckPerformedEvent(this, PERSONAL_CODE, new KycCheck(99, HIGH));
+    var event =
+        new KycCheckPerformedEvent(
+            this, PERSONAL_CODE, new KycCheck(HIGH, Map.of("score", 99, "riskLevel", "HIGH")));
 
     eventPublisher.publishEvent(event);
 

@@ -51,7 +51,7 @@ public class SavingsFundOnboardingService {
 
   private SavingsFundOnboardingStatus mapRiskLevelToStatus(RiskLevel riskLevel) {
     return switch (riskLevel) {
-      case LOW -> COMPLETED;
+      case LOW, NONE -> COMPLETED;
       case MEDIUM -> PENDING;
       case HIGH -> REJECTED;
     };

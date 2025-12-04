@@ -21,6 +21,7 @@ import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -169,14 +170,14 @@ class KycSurveyControllerIntegrationTest {
 
     var event = events.getFirst();
     assertThat(event.getPersonalCode()).isEqualTo(user.getPersonalCode());
-    assertThat(event.getKycCheck()).isEqualTo(new KycCheck(0, LOW));
+    assertThat(event.getKycCheck()).isEqualTo(new KycCheck(LOW, Map.of()));
   }
 
   @Test
   @DisplayName(
       "POST /v1/kyc/surveys publishes HIGH risk KycCheckPerformedEvent when checker returns HIGH risk")
   void post_publishesHighRiskEvent_whenCheckerReturnsHighRisk() throws Exception {
-    testKycChecker.givenKycCheck(user.getId(), new KycCheck(100, HIGH));
+    testKycChecker.givenKycCheck(user.getId(), new KycCheck(HIGH, Map.of("score", 100)));
 
     String requestBody =
         """
@@ -257,6 +258,6 @@ class KycSurveyControllerIntegrationTest {
 
     var events = applicationEvents.stream(KycCheckPerformedEvent.class).toList();
     assertThat(events).hasSize(1);
-    assertThat(events.getFirst().getKycCheck()).isEqualTo(new KycCheck(100, HIGH));
+    assertThat(events.getFirst().getKycCheck()).isEqualTo(new KycCheck(HIGH, Map.of("score", 100)));
   }
 }

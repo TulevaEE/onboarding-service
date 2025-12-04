@@ -46,10 +46,10 @@ class SavingFundDeadlinesServiceTest extends Specification {
       getCreatedAt() >> Instant.parse(createdStr ?: "2025-09-30T10:00:00Z")
     }
     publicHolidays.nextWorkingDay(_ as LocalDate) >> { LocalDate date ->
-      if (date.dayOfWeek.value >= 6) {
-        return date.plusDays(8 - date.dayOfWeek.value)
-      }
       return date.plusDays(1)
+    }
+    publicHolidays.addWorkingDays(_ as LocalDate, _) >> { LocalDate date, int days ->
+      return date.plusDays(days)
     }
 
     expect:
@@ -57,9 +57,9 @@ class SavingFundDeadlinesServiceTest extends Specification {
 
     where:
     receivedStr                    | createdStr                    | expectedDeadline
-    "2025-09-29T12:00:00Z"         | "2025-09-29T10:00:00Z"        | "2025-09-30T13:00:00Z"
-    "2025-09-30T12:00:00Z"         | "2025-09-30T10:00:00Z"        | "2025-10-01T13:00:00Z"
-    null                           | "2025-09-30T13:00:00Z"        | "2025-10-02T13:00:00Z"
+    "2025-09-29T12:00:00Z"         | "2025-09-29T10:00:00Z"        | "2025-10-01T13:00:00Z"
+    "2025-09-30T12:00:00Z"         | "2025-09-30T10:00:00Z"        | "2025-10-02T13:00:00Z"
+    null                           | "2025-09-30T13:00:00Z"        | "2025-10-03T13:00:00Z"
   }
 
   def "getCancellationDeadline_shouldReturnCorrectDeadlineForRedemptionRequest"() {
@@ -87,10 +87,10 @@ class SavingFundDeadlinesServiceTest extends Specification {
       getRequestedAt() >> Instant.parse(requestedAtStr)
     }
     publicHolidays.nextWorkingDay(_ as LocalDate) >> { LocalDate date ->
-      if (date.dayOfWeek.value >= 6) {
-        return date.plusDays(8 - date.dayOfWeek.value)
-      }
       return date.plusDays(1)
+    }
+    publicHolidays.addWorkingDays(_ as LocalDate, _) >> { LocalDate date, int days ->
+      return date.plusDays(days)
     }
 
     expect:
@@ -98,8 +98,8 @@ class SavingFundDeadlinesServiceTest extends Specification {
 
     where:
     requestedAtStr                 | expectedDeadline
-    "2025-09-29T12:00:00Z"         | "2025-09-30T13:00:00Z"
-    "2025-09-30T09:00:00Z"         | "2025-10-01T13:00:00Z"
-    "2025-09-30T13:00:00Z"         | "2025-10-02T13:00:00Z"
+    "2025-09-29T12:00:00Z"         | "2025-10-01T13:00:00Z"
+    "2025-09-30T09:00:00Z"         | "2025-10-02T13:00:00Z"
+    "2025-09-30T13:00:00Z"         | "2025-10-03T13:00:00Z"
   }
 }

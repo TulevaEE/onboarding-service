@@ -53,20 +53,20 @@ public class SavingFundDeadlinesService {
 
   public Instant getFulfillmentDeadline(SavingFundPayment payment) {
     Instant cancellationDeadline = getCancellationDeadline(payment);
-    return nextWorkingDayFrom(cancellationDeadline);
+    return twoWorkingDaysFrom(cancellationDeadline);
   }
 
   public Instant getFulfillmentDeadline(RedemptionRequest redemptionRequest) {
     Instant cancellationDeadline = getCancellationDeadline(redemptionRequest);
-    return nextWorkingDayFrom(cancellationDeadline);
+    return twoWorkingDaysFrom(cancellationDeadline);
   }
 
-  private Instant nextWorkingDayFrom(Instant instant) {
+  private Instant twoWorkingDaysFrom(Instant instant) {
     ZoneId timeZone = estonianClock.getZone();
     ZonedDateTime zdt = instant.atZone(timeZone);
     LocalDate date = zdt.toLocalDate();
 
-    LocalDate nextWorkingDay = publicHolidays.nextWorkingDay(date);
+    LocalDate nextWorkingDay = publicHolidays.addWorkingDays(date, 2);
     return nextWorkingDay.atTime(CUTOFF_TIME).atZone(timeZone).toInstant();
   }
 }

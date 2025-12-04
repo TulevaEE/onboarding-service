@@ -127,7 +127,7 @@ public class RedemptionService {
 
     User user = userService.getByIdOrThrow(userId);
     savingsFundLedger.cancelRedemptionReservation(user, request.getFundUnits());
-    redemptionStatusService.cancel(id);
+    redemptionStatusService.changeStatus(id, CANCELLED);
     log.info("Cancelled redemption request: id={}, userId={}", id, userId);
   }
 

@@ -130,7 +130,7 @@ class RedemptionStatusServiceTest {
 
     when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
 
-    redemptionStatusService.cancel(requestId);
+    redemptionStatusService.changeStatus(requestId, CANCELLED);
 
     var captor = ArgumentCaptor.forClass(RedemptionRequest.class);
     verify(repository).save(captor.capture());
@@ -142,22 +142,11 @@ class RedemptionStatusServiceTest {
   @DisplayName("cancel throws when request not in cancellable state")
   void cancel_notCancellable_throwsException() {
     var requestId = UUID.randomUUID();
-    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
+    var request = redemptionRequestFixture().id(requestId).status(REDEEMED).build();
 
     when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
 
-    assertThatThrownBy(() -> redemptionStatusService.cancel(requestId))
+    assertThatThrownBy(() -> redemptionStatusService.changeStatus(requestId, CANCELLED))
         .isInstanceOf(IllegalStateException.class);
-  }
-
-  @Test
-  @DisplayName("cancel throws when request not found")
-  void cancel_notFound_throwsException() {
-    var requestId = UUID.randomUUID();
-
-    when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.empty());
-
-    assertThatThrownBy(() -> redemptionStatusService.cancel(requestId))
-        .isInstanceOf(IllegalArgumentException.class);
   }
 }

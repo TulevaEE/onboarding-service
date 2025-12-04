@@ -25,6 +25,7 @@ public class RedemptionStatusService {
           new StatusTransition(IN_REVIEW, VERIFIED),
           new StatusTransition(IN_REVIEW, CANCELLED),
           new StatusTransition(IN_REVIEW, FAILED),
+          new StatusTransition(VERIFIED, CANCELLED),
           new StatusTransition(VERIFIED, REDEEMED),
           new StatusTransition(VERIFIED, FAILED),
           new StatusTransition(REDEEMED, PROCESSED),
@@ -56,23 +57,9 @@ public class RedemptionStatusService {
         newStatus);
 
     request.setStatus(newStatus);
-    repository.save(request);
-  }
-
-  @Transactional
-  public void cancel(UUID id) {
-    RedemptionRequest request =
-        repository
-            .findByIdForUpdate(id)
-            .orElseThrow(
-                () -> new IllegalArgumentException("Redemption request not found: id=" + id));
-
-    if (request.getStatus() != RESERVED && request.getStatus() != IN_REVIEW) {
-      throw new IllegalStateException("Cancellation not allowed: status=" + request.getStatus());
+    if (newStatus == CANCELLED) {
+      request.setCancelledAt(clock().instant());
     }
-
-    request.setStatus(CANCELLED);
-    request.setCancelledAt(clock().instant());
     repository.save(request);
   }
 

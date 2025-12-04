@@ -1,8 +1,11 @@
 package ee.tuleva.onboarding.kyc;
 
-public record KycCheck(int score, RiskLevel riskLevel) {
+import java.util.Map;
+
+public record KycCheck(RiskLevel riskLevel, Map<String, Object> metadata) {
 
   public enum RiskLevel {
+    NONE,
     LOW,
     MEDIUM,
     HIGH

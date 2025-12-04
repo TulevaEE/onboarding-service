@@ -295,11 +295,8 @@ public class ApplicationService {
             .id(redemptionRequest.getId().getMostSignificantBits());
 
     var cancellationDeadline =
-        savingFundDeadlinesService
-            .getCancellationDeadline(redemptionRequest.getRequestedAt())
-            .minusSeconds(1);
-    var fulfillmentDeadline =
-        savingFundDeadlinesService.getFulfillmentDeadline(redemptionRequest.getRequestedAt());
+        savingFundDeadlinesService.getCancellationDeadline(redemptionRequest).minusSeconds(1);
+    var fulfillmentDeadline = savingFundDeadlinesService.getFulfillmentDeadline(redemptionRequest);
 
     applicationBuilder.details(
         SavingFundWithdrawalApplicationDetails.builder()

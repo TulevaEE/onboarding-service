@@ -126,7 +126,7 @@ public class RedemptionService {
   }
 
   private void validateCancellationDeadline(RedemptionRequest request) {
-    Instant deadline = deadlinesService.getCancellationDeadline(request.getRequestedAt());
+    Instant deadline = deadlinesService.getCancellationDeadline(request);
     Instant now = ClockHolder.clock().instant();
 
     if (now.isAfter(deadline)) {

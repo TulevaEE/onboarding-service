@@ -456,8 +456,8 @@ class ApplicationServiceSpec extends Specification {
     savingFundPaymentService.getPendingPaymentsForUser(authenticatedPerson.getUserId()) >> []
     savingFundRedemptionService.getPendingRedemptionsForUser(authenticatedPerson.getUserId()) >> [redemption1, redemption2]
 
-    savingFundPaymentDeadlinesService.getCancellationDeadline(_ as Instant) >> Instant.parse("2021-03-31T21:00:00Z")
-    savingFundPaymentDeadlinesService.getFulfillmentDeadline(_ as Instant) >> Instant.parse("2021-04-20T10:00:00Z")
+    savingFundPaymentDeadlinesService.getCancellationDeadline(_ as RedemptionRequest) >> Instant.parse("2021-03-31T21:00:00Z")
+    savingFundPaymentDeadlinesService.getFulfillmentDeadline(_ as RedemptionRequest) >> Instant.parse("2021-04-20T10:00:00Z")
 
     when:
     def applications = applicationService.getAllApplications(authenticatedPerson)

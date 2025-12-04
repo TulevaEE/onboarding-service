@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import java.time.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,58 +20,53 @@ public class SavingFundDeadlinesService {
     return publicHolidays.nextWorkingDay(date.minusDays(1));
   }
 
-  public Instant getCancellationDeadline(SavingFundPayment payment) {
-    return getCancellationDeadline(payment.getReceivedBefore());
+  private boolean isBeforeCutoffOnWorkingDay(LocalDate date, LocalTime time) {
+    LocalDate firstWorkingDay = firstWorkingDayOnOrAfter(date);
+    return date.equals(firstWorkingDay) && time.isBefore(CUTOFF_TIME);
   }
 
-  public Instant getCancellationDeadline(@Nullable Instant receivedAt) {
-    ZoneId timeZone = estonianClock.getZone();
-    Instant now = Instant.now(estonianClock);
-    LocalDate today = now.atZone(timeZone).toLocalDate();
+  public Instant getCancellationDeadline(RedemptionRequest redemptionRequest) {
+    return getCancellationDeadlineFrom(redemptionRequest.getRequestedAt());
+  }
 
-    if (receivedAt != null) {
-      ZonedDateTime receivedZdt = receivedAt.atZone(timeZone);
-      LocalDate receivedDate = receivedZdt.toLocalDate();
-      LocalTime receivedTime = receivedZdt.toLocalTime();
-
-      if (receivedTime.isBefore(CUTOFF_TIME)) {
-        // Received before cutoff → same working day 16:00
-        LocalDate workDay = firstWorkingDayOnOrAfter(receivedDate);
-        return workDay.atTime(CUTOFF_TIME).atZone(timeZone).toInstant();
-      } else {
-        // Received at/after cutoff → next working day 16:00
-        LocalDate nextWork = publicHolidays.nextWorkingDay(receivedDate);
-        return nextWork.atTime(CUTOFF_TIME).atZone(timeZone).toInstant();
-      }
-    } else {
-      // Not received yet → assume cancellable until today 16:00
-      LocalDate workDay = firstWorkingDayOnOrAfter(today);
-      return workDay.atTime(CUTOFF_TIME).atZone(timeZone).toInstant();
+  public Instant getCancellationDeadline(SavingFundPayment payment) {
+    if (payment.getReceivedBefore() != null) {
+      return getCancellationDeadlineFrom(payment.getReceivedBefore());
     }
+    return getCancellationDeadlineFrom(payment.getCreatedAt());
+  }
+
+  private Instant getCancellationDeadlineFrom(Instant eventInstant) {
+    ZoneId zone = estonianClock.getZone();
+    ZonedDateTime zdt = eventInstant.atZone(zone);
+    LocalDate date = zdt.toLocalDate();
+    LocalTime time = zdt.toLocalTime();
+
+    LocalDate firstWorkingDay = firstWorkingDayOnOrAfter(date);
+    LocalDate deadlineDate =
+        isBeforeCutoffOnWorkingDay(date, time)
+            ? firstWorkingDay
+            : publicHolidays.nextWorkingDay(firstWorkingDay);
+
+    return deadlineDate.atTime(CUTOFF_TIME).atZone(zone).toInstant();
   }
 
   public Instant getFulfillmentDeadline(SavingFundPayment payment) {
-    return getFulfillmentDeadline(payment.getReceivedBefore());
+    Instant cancellationDeadline = getCancellationDeadline(payment);
+    return nextWorkingDayFrom(cancellationDeadline);
   }
 
-  public Instant getFulfillmentDeadline(@Nullable Instant receivedAt) {
+  public Instant getFulfillmentDeadline(RedemptionRequest redemptionRequest) {
+    Instant cancellationDeadline = getCancellationDeadline(redemptionRequest);
+    return nextWorkingDayFrom(cancellationDeadline);
+  }
+
+  private Instant nextWorkingDayFrom(Instant instant) {
     ZoneId timeZone = estonianClock.getZone();
-    Instant now = Instant.now(estonianClock);
-    LocalDate today = now.atZone(timeZone).toLocalDate();
+    ZonedDateTime zdt = instant.atZone(timeZone);
+    LocalDate date = zdt.toLocalDate();
 
-    LocalDate baseDate;
-    if (receivedAt != null) {
-      baseDate = receivedAt.atZone(timeZone).toLocalDate();
-    } else {
-      // Not received yet → assume it will arrive today after cutoff
-      baseDate = today;
-    }
-
-    // First working day after received date
-    LocalDate nextWork = publicHolidays.nextWorkingDay(baseDate);
-    // Second working day after received date
-    LocalDate fulfillmentDay = publicHolidays.nextWorkingDay(nextWork);
-
-    return fulfillmentDay.atTime(CUTOFF_TIME).atZone(timeZone).toInstant();
+    LocalDate nextWorkingDay = publicHolidays.nextWorkingDay(date);
+    return nextWorkingDay.atTime(CUTOFF_TIME).atZone(timeZone).toInstant();
   }
 }

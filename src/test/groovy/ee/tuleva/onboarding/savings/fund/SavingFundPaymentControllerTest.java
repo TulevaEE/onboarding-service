@@ -83,6 +83,23 @@ class SavingFundPaymentControllerTest {
   }
 
   @Test
+  void getSavingsFundOnboardingStatus_shouldReturnNull() throws Exception {
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            AuthenticatedPerson.builder().userId(1L).build(),
+            null,
+            List.of(new SimpleGrantedAuthority(USER)));
+
+    var user = Mockito.mock(User.class);
+    Mockito.when(userService.getByIdOrThrow(1L)).thenReturn(user);
+    Mockito.when(savingsFundOnboardingService.getOnboardingStatus(user)).thenReturn(null);
+
+    mvc.perform(get("/v1/savings/onboarding/status").with(authentication(auth)))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"status\":null}"));
+  }
+
+  @Test
   void getBankAccounts_shouldReturnListOfIbans() throws Exception {
     var auth =
         new UsernamePasswordAuthenticationToken(

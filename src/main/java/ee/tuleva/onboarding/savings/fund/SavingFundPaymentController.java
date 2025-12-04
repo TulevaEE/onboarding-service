@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,12 +45,12 @@ public class SavingFundPaymentController {
 
   @Operation(summary = "Get user savings fund onboarding status")
   @GetMapping("/onboarding/status")
-  public Map<String, SavingsFundOnboardingStatus> getSavingsFundOnboardingStatus(
+  public Map<String, Optional<SavingsFundOnboardingStatus>> getSavingsFundOnboardingStatus(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     SavingsFundOnboardingStatus status =
         savingsFundOnboardingService.getOnboardingStatus(
             userService.getByIdOrThrow(authenticatedPerson.getUserId()));
-    return Map.of("status", status);
+    return Map.of("status", Optional.ofNullable(status));
   }
 
   @Operation(summary = "Get user bank accounts used for deposits")

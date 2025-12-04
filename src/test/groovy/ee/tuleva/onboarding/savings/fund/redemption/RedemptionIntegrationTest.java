@@ -250,7 +250,7 @@ class RedemptionIntegrationTest {
 
     // Step 3: Run batch job on Tuesday - should process and REDEEMED
     ClockHolder.setClock(Clock.fixed(tuesday, ZoneId.of("UTC")));
-    redemptionBatchJob.processDailyRedemptions();
+    redemptionBatchJob.runJob();
 
     var afterPayout = redemptionRequestRepository.findById(requestId).orElseThrow();
     assertThat(afterPayout.getStatus()).isEqualTo(REDEEMED);
@@ -294,7 +294,7 @@ class RedemptionIntegrationTest {
 
     // Run batch job on Monday
     ClockHolder.setClock(Clock.fixed(monday, ZoneId.of("UTC")));
-    redemptionBatchJob.processDailyRedemptions();
+    redemptionBatchJob.runJob();
 
     // Should remain cancelled
     var afterBatch = redemptionRequestRepository.findById(requestId).orElseThrow();

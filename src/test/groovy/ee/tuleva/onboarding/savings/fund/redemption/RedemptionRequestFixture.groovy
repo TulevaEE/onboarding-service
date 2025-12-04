@@ -1,9 +1,8 @@
 package ee.tuleva.onboarding.savings.fund.redemption
 
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.*
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.*
+
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.RedemptionRequestBuilder
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.builder
 
 class RedemptionRequestFixture {
 

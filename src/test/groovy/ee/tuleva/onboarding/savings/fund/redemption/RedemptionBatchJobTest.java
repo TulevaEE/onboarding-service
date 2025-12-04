@@ -5,6 +5,9 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Sta
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.WITHDRAWAL_EUR;
+import static java.time.ZoneOffset.UTC;
+import static java.time.temporal.ChronoUnit.DAYS;
+import static java.time.temporal.ChronoUnit.HOURS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -12,6 +15,7 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
@@ -37,7 +41,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @ExtendWith(MockitoExtension.class)
 class RedemptionBatchJobTest {
 
-  @Mock private PublicHolidays publicHolidays;
   @Mock private RedemptionRequestRepository redemptionRequestRepository;
   @Mock private RedemptionStatusService redemptionStatusService;
   @Mock private SavingsFundLedger savingsFundLedger;
@@ -46,72 +49,64 @@ class RedemptionBatchJobTest {
   @Mock private SwedbankAccountConfiguration swedbankAccountConfiguration;
   @Mock private TransactionTemplate transactionTemplate;
   @Mock private SavingsFundNavProvider navProvider;
-
-  private RedemptionBatchJob batchJob;
-  private Clock fixedClock;
+  @Mock private SavingFundPaymentRepository savingFundPaymentRepository;
 
   @BeforeEach
   void setUp() {
-    fixedClock =
-        Clock.fixed(
-            LocalDateTime.of(2024, 1, 15, 16, 30).atZone(ZoneId.of("Europe/Tallinn")).toInstant(),
-            ZoneId.of("Europe/Tallinn"));
-
     lenient().when(navProvider.getCurrentNav()).thenReturn(BigDecimal.ONE);
+  }
 
-    batchJob =
-        new RedemptionBatchJob(
-            fixedClock,
-            publicHolidays,
-            redemptionRequestRepository,
-            redemptionStatusService,
-            savingsFundLedger,
-            userService,
-            swedbankGatewayClient,
-            swedbankAccountConfiguration,
-            transactionTemplate,
-            navProvider);
+  private RedemptionBatchJob createBatchJob(Instant now) {
+    var clock = Clock.fixed(now, UTC);
+    return new RedemptionBatchJob(
+        clock,
+        new PublicHolidays(),
+        redemptionRequestRepository,
+        redemptionStatusService,
+        savingsFundLedger,
+        userService,
+        swedbankGatewayClient,
+        swedbankAccountConfiguration,
+        transactionTemplate,
+        navProvider,
+        savingFundPaymentRepository);
   }
 
   @Test
-  @DisplayName("processDailyRedemptions skips on non-working days")
-  void processDailyRedemptions_skipsOnNonWorkingDay() {
-    when(publicHolidays.isWorkingDay(LocalDate.of(2024, 1, 15))).thenReturn(false);
+  @DisplayName("runJob does nothing when no verified requests exist")
+  void runJob_noRequests() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var batchJob = createBatchJob(now);
 
-    batchJob.processDailyRedemptions();
-
-    verifyNoInteractions(redemptionRequestRepository);
-  }
-
-  @Test
-  @DisplayName("processDailyRedemptions processes on working days")
-  void processDailyRedemptions_processesOnWorkingDay() {
-    when(publicHolidays.isWorkingDay(LocalDate.of(2024, 1, 15))).thenReturn(true);
-    when(publicHolidays.previousWorkingDay(any(LocalDate.class)))
-        .thenReturn(LocalDate.of(2024, 1, 12));
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
-            eq(VERIFIED), any(Instant.class)))
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
         .thenReturn(List.of());
 
-    batchJob.processDailyRedemptions();
+    batchJob.runJob();
 
-    verify(redemptionRequestRepository)
-        .findByStatusAndRequestedAtBefore(eq(VERIFIED), any(Instant.class));
+    verify(redemptionRequestRepository).findByStatusAndRequestedAtBefore(eq(VERIFIED), any());
+    verifyNoMoreInteractions(savingsFundLedger);
   }
 
   @Test
-  @DisplayName("processDailyRedemptions processes verified requests with NAV")
-  void processDailyRedemptions_processesVerifiedRequests() {
+  @DisplayName("after 16:00 on working day, processes requests from before last working day cutoff")
+  void runJob_afterCutoff_processesRequestsFromLastWorkingDay() {
+    var now = Instant.parse("2025-01-15T15:00:00Z"); // 17:00 Tallinn time (after cutoff)
+    var batchJob = createBatchJob(now);
+
     var user = sampleUser().build();
     var requestId = UUID.randomUUID();
+    var customerIban = "EE123456789012345678";
+    var beneficiaryName = "John Smith";
     var request =
-        redemptionRequestFixture().id(requestId).userId(user.getId()).status(VERIFIED).build();
+        redemptionRequestFixture()
+            .id(requestId)
+            .userId(user.getId())
+            .status(VERIFIED)
+            .customerIban(customerIban)
+            .requestedAt(now.minus(1, DAYS)) // yesterday
+            .build();
 
-    when(publicHolidays.isWorkingDay(LocalDate.of(2024, 1, 15))).thenReturn(true);
-    when(publicHolidays.previousWorkingDay(any(LocalDate.class)))
-        .thenReturn(LocalDate.of(2024, 1, 12));
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
-            eq(VERIFIED), any(Instant.class)))
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
@@ -119,6 +114,8 @@ class RedemptionBatchJobTest {
         .thenReturn("EE111111111111111111");
     when(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
         .thenReturn("EE222222222222222222");
+    when(savingFundPaymentRepository.findRemitterNameByIban(user.getId(), customerIban))
+        .thenReturn(Optional.of(beneficiaryName));
 
     doAnswer(
             invocation -> {
@@ -137,37 +134,94 @@ class RedemptionBatchJobTest {
         .when(transactionTemplate)
         .executeWithoutResult(any());
 
-    batchJob.processDailyRedemptions();
+    batchJob.runJob();
 
     verify(savingsFundLedger)
         .redeemFundUnitsFromReserved(
             eq(user), eq(new BigDecimal("10.00000")), any(BigDecimal.class), eq(BigDecimal.ONE));
     verify(savingsFundLedger).transferFromFundAccount(any(BigDecimal.class));
     verify(savingsFundLedger)
-        .recordRedemptionPayout(eq(user), any(BigDecimal.class), eq("EE123456789012345678"));
+        .recordRedemptionPayout(eq(user), any(BigDecimal.class), eq(customerIban));
     verify(swedbankGatewayClient, times(2))
         .sendPaymentRequest(any(PaymentRequest.class), any(UUID.class));
     verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
   }
 
   @Test
-  @DisplayName("processDailyRedemptions handles payout errors")
-  void processDailyRedemptions_handlesPayoutErrors() {
+  @DisplayName(
+      "before 16:00 on working day, processes requests from before second-to-last working day cutoff")
+  void runJob_beforeCutoff_processesRequestsFromSecondToLastWorkingDay() {
+    var now = Instant.parse("2025-01-15T12:00:00Z"); // 14:00 Tallinn time (before cutoff)
+    var batchJob = createBatchJob(now);
+
+    var requestFromTwoDaysBefore =
+        redemptionRequestFixture()
+            .id(UUID.randomUUID())
+            .status(VERIFIED)
+            .requestedAt(now.minus(2, DAYS).minus(4, HOURS))
+            .build();
+
+    var requestFromYesterday =
+        redemptionRequestFixture()
+            .id(UUID.randomUUID())
+            .status(VERIFIED)
+            .requestedAt(now.minus(1, DAYS))
+            .build();
+
+    var cutoffCaptor = ArgumentCaptor.forClass(Instant.class);
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
+            eq(VERIFIED), cutoffCaptor.capture()))
+        .thenReturn(List.of());
+
+    batchJob.runJob();
+
+    // Before 16:00, cutoff should be second-to-last working day's 16:00
+    // January 15 before cutoff means we use January 13 (Monday) 16:00 Tallinn as cutoff
+    var capturedCutoff = cutoffCaptor.getValue();
+    var cutoffDateTime = capturedCutoff.atZone(ZoneId.of("Europe/Tallinn"));
+    assertThat(cutoffDateTime.getHour()).isEqualTo(16);
+    assertThat(cutoffDateTime.getMinute()).isEqualTo(0);
+  }
+
+  @Test
+  @DisplayName("on weekend, processes requests from before second-to-last working day cutoff")
+  void runJob_onWeekend_processesOlderRequests() {
+    var now = Instant.parse("2025-01-18T14:00:00Z"); // Saturday
+    var batchJob = createBatchJob(now);
+
+    var cutoffCaptor = ArgumentCaptor.forClass(Instant.class);
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
+            eq(VERIFIED), cutoffCaptor.capture()))
+        .thenReturn(List.of());
+
+    batchJob.runJob();
+
+    // On weekend, cutoff should be second-to-last working day's 16:00
+    // Saturday Jan 18 -> last working day is Friday Jan 17 -> second-to-last is Thursday Jan 16
+    var capturedCutoff = cutoffCaptor.getValue();
+    var cutoffDate = capturedCutoff.atZone(ZoneId.of("Europe/Tallinn")).toLocalDate();
+    assertThat(cutoffDate).isEqualTo(LocalDate.of(2025, 1, 16));
+  }
+
+  @Test
+  @DisplayName("runJob handles payout errors")
+  void runJob_handlesPayoutErrors() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var batchJob = createBatchJob(now);
+
     var user = sampleUser().build();
     var requestId = UUID.randomUUID();
+    var customerIban = "EE123456789012345678";
     var request =
         redemptionRequestFixture()
             .id(requestId)
             .userId(user.getId())
             .status(VERIFIED)
+            .customerIban(customerIban)
             .cashAmount(new BigDecimal("10.00"))
             .build();
 
-    when(publicHolidays.isWorkingDay(LocalDate.of(2024, 1, 15))).thenReturn(true);
-    when(publicHolidays.previousWorkingDay(any(LocalDate.class)))
-        .thenReturn(LocalDate.of(2024, 1, 12));
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
-            eq(VERIFIED), any(Instant.class)))
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
@@ -175,6 +229,9 @@ class RedemptionBatchJobTest {
         .thenReturn("EE111111111111111111");
     when(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
         .thenReturn("EE222222222222222222");
+    lenient()
+        .when(savingFundPaymentRepository.findRemitterNameByIban(user.getId(), customerIban))
+        .thenReturn(Optional.of("John Smith"));
 
     doAnswer(
             invocation -> {
@@ -198,28 +255,27 @@ class RedemptionBatchJobTest {
         .when(transactionTemplate)
         .executeWithoutResult(any());
 
-    batchJob.processDailyRedemptions();
+    batchJob.runJob();
 
     verify(redemptionStatusService).changeStatus(requestId, FAILED);
   }
 
   @Test
-  @DisplayName("handleError marks request as failed and saves error reason")
-  void handleError_marksRequestAsFailed() {
+  @DisplayName("runJob marks request as failed and saves error reason on processing error")
+  void runJob_marksRequestAsFailed() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var batchJob = createBatchJob(now);
+
     var requestId = UUID.randomUUID();
     var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
 
-    when(publicHolidays.isWorkingDay(LocalDate.of(2024, 1, 15))).thenReturn(true);
-    when(publicHolidays.previousWorkingDay(any(LocalDate.class)))
-        .thenReturn(LocalDate.of(2024, 1, 12));
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
-            eq(VERIFIED), any(Instant.class)))
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
 
     doThrow(new RuntimeException("Test error")).when(transactionTemplate).execute(any());
 
-    batchJob.processDailyRedemptions();
+    batchJob.runJob();
 
     var captor = ArgumentCaptor.forClass(RedemptionRequest.class);
     verify(redemptionRequestRepository).save(captor.capture());

@@ -8,6 +8,7 @@ import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
@@ -18,7 +19,9 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +38,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Profile("!staging")
 public class RedemptionBatchJob {
 
+  private static final LocalTime CUTOFF_TIME = LocalTime.of(16, 0, 0);
   private static final ZoneId CUTOFF_TIMEZONE = ZoneId.of("Europe/Tallinn");
 
   private final Clock clock;
@@ -47,36 +51,54 @@ public class RedemptionBatchJob {
   private final SwedbankAccountConfiguration swedbankAccountConfiguration;
   private final TransactionTemplate transactionTemplate;
   private final SavingsFundNavProvider navProvider;
+  private final SavingFundPaymentRepository savingFundPaymentRepository;
 
-  @Scheduled(cron = "0 0 16 * * MON-FRI", zone = "Europe/Tallinn")
-  @SchedulerLock(name = "RedemptionBatchJob", lockAtMostFor = "30m", lockAtLeastFor = "1m")
-  public void processDailyRedemptions() {
-    LocalDate today = LocalDate.now(clock);
-    if (!publicHolidays.isWorkingDay(today)) {
-      log.info("Skipping redemption processing: today is not a working day");
-      return;
-    }
-
-    log.info("Starting daily redemption processing");
-
-    Instant previousCutoff = getPreviousCutoff();
-    processVerifiedRequests(previousCutoff);
-
-    log.info("Completed daily redemption processing");
-  }
-
-  private void processVerifiedRequests(Instant previousCutoff) {
+  @Scheduled(fixedRateString = "1m")
+  @SchedulerLock(name = "RedemptionBatchJob", lockAtMostFor = "50s", lockAtLeastFor = "10s")
+  public void runJob() {
+    Instant cutoff = getCutoffForProcessing();
     List<RedemptionRequest> toProcess =
-        redemptionRequestRepository.findByStatusAndRequestedAtBefore(VERIFIED, previousCutoff);
+        redemptionRequestRepository.findByStatusAndRequestedAtBefore(VERIFIED, cutoff);
 
     if (toProcess.isEmpty()) {
-      log.info("No verified requests to process for cutoff {}", previousCutoff);
       return;
     }
 
     log.info(
-        "Processing {} verified requests submitted before {}", toProcess.size(), previousCutoff);
+        "Running redemption job for {} verified requests submitted before {}",
+        toProcess.size(),
+        cutoff);
+    processVerifiedRequests(toProcess);
+  }
 
+  private Instant getCutoffForProcessing() {
+    var todaysCutoff = getCutoff(LocalDate.now(clock));
+    var currentTime = clock.instant();
+    var isTodayWorkingDay =
+        publicHolidays.isWorkingDay(currentTime.atZone(CUTOFF_TIMEZONE).toLocalDate());
+
+    if (currentTime.isBefore(todaysCutoff) || !isTodayWorkingDay) {
+      return getSecondToLastWorkingDayCutoff();
+    }
+    return getLastWorkingDayCutoff();
+  }
+
+  private Instant getSecondToLastWorkingDayCutoff() {
+    var lastWorkingDay = publicHolidays.previousWorkingDay(LocalDate.now(clock));
+    var secondToLastWorkingDay = publicHolidays.previousWorkingDay(lastWorkingDay);
+    return getCutoff(secondToLastWorkingDay);
+  }
+
+  private Instant getLastWorkingDayCutoff() {
+    var lastWorkingDay = publicHolidays.previousWorkingDay(LocalDate.now(clock));
+    return getCutoff(lastWorkingDay);
+  }
+
+  private Instant getCutoff(LocalDate date) {
+    return ZonedDateTime.of(date, CUTOFF_TIME, CUTOFF_TIMEZONE).toInstant();
+  }
+
+  private void processVerifiedRequests(List<RedemptionRequest> toProcess) {
     BigDecimal nav = getNAV();
     BigDecimal totalCashAmount = ZERO;
 
@@ -152,6 +174,8 @@ public class RedemptionBatchJob {
         transactionTemplate.executeWithoutResult(
             status -> {
               User user = userService.getByIdOrThrow(updated.getUserId());
+              String beneficiaryName =
+                  getBeneficiaryName(updated.getUserId(), updated.getCustomerIban());
 
               savingsFundLedger.recordRedemptionPayout(
                   user, updated.getCashAmount(), updated.getCustomerIban());
@@ -159,7 +183,7 @@ public class RedemptionBatchJob {
               PaymentRequest paymentRequest =
                   PaymentRequest.tulevaPaymentBuilder(updated.getId())
                       .remitterIban(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
-                      .beneficiaryName(user.getFullName())
+                      .beneficiaryName(beneficiaryName)
                       .beneficiaryIban(updated.getCustomerIban())
                       .amount(updated.getCashAmount())
                       .description("Fondi tagasivõtmine")
@@ -173,16 +197,29 @@ public class RedemptionBatchJob {
               redemptionRequestRepository.save(updated);
 
               log.info(
-                  "Processed individual payout: id={}, amount={}, iban={}",
+                  "Processed individual payout: id={}, amount={}, iban={}, beneficiaryName={}",
                   updated.getId(),
                   updated.getCashAmount(),
-                  updated.getCustomerIban());
+                  updated.getCustomerIban(),
+                  beneficiaryName);
             });
       } catch (Exception e) {
         log.error("Failed to process payout for redemption: id={}", updated.getId(), e);
         handleError(updated.getId(), e);
       }
     }
+  }
+
+  private String getBeneficiaryName(Long userId, String iban) {
+    return savingFundPaymentRepository
+        .findRemitterNameByIban(userId, iban)
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "IBAN not found in user's deposit accounts: userId="
+                        + userId
+                        + ", iban="
+                        + iban));
   }
 
   private void handleError(UUID requestId, Exception e) {
@@ -194,30 +231,6 @@ public class RedemptionBatchJob {
     } catch (Exception ex) {
       log.error("Failed to mark redemption as failed: id={}", requestId, ex);
     }
-  }
-
-  private Instant getCurrentCutoff() {
-    var now = clock.instant().atZone(CUTOFF_TIMEZONE);
-    var today = now.toLocalDate();
-
-    if (publicHolidays.isWorkingDay(today) && now.getHour() >= 16) {
-      return today.atTime(16, 0).atZone(CUTOFF_TIMEZONE).toInstant();
-    }
-
-    return publicHolidays
-        .previousWorkingDay(today)
-        .atTime(16, 0)
-        .atZone(CUTOFF_TIMEZONE)
-        .toInstant();
-  }
-
-  private Instant getPreviousCutoff() {
-    var currentCutoff = getCurrentCutoff().atZone(CUTOFF_TIMEZONE).toLocalDate();
-    return publicHolidays
-        .previousWorkingDay(currentCutoff)
-        .atTime(16, 0)
-        .atZone(CUTOFF_TIMEZONE)
-        .toInstant();
   }
 
   private BigDecimal getNAV() {

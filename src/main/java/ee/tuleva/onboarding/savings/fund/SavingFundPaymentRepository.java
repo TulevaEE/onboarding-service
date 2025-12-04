@@ -111,6 +111,30 @@ public class SavingFundPaymentRepository {
         (rs, _) -> rs.getString("remitter_iban"));
   }
 
+  public Optional<String> findRemitterNameByIban(Long userId, String iban) {
+    var results =
+        jdbcTemplate.query(
+            """
+            SELECT remitter_name
+            FROM saving_fund_payment
+            WHERE user_id = :user_id
+              AND remitter_iban = :iban
+              AND status IN (:statuses)
+              AND amount > 0
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            Map.of(
+                "user_id",
+                userId,
+                "iban",
+                iban,
+                "statuses",
+                List.of(RESERVED.name(), ISSUED.name(), PROCESSED.name())),
+            (rs, _) -> rs.getString("remitter_name"));
+    return results.isEmpty() ? Optional.empty() : Optional.of(results.getFirst());
+  }
+
   public Optional<SavingFundPayment> findByExternalId(String externalId) {
     var result =
         jdbcTemplate.query(

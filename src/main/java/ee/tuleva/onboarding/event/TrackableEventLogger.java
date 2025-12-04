@@ -15,8 +15,15 @@ public class TrackableEventLogger {
 
   @EventListener
   public void onTrackableEvent(TrackableEvent trackableEvent) {
-    AuditEvent event = trackableEvent.getAuditEvent();
+    logEvent(trackableEvent.getAuditEvent());
+  }
 
+  @EventListener
+  public void onTrackableSystemEvent(TrackableSystemEvent trackableSystemEvent) {
+    logEvent(trackableSystemEvent.getAuditEvent());
+  }
+
+  private void logEvent(AuditEvent event) {
     log.info(
         "Logging event: timestamp={}, principal={}, type={}, data={}",
         event.getTimestamp(),

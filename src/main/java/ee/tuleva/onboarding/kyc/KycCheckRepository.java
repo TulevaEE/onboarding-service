@@ -13,7 +13,8 @@ public class KycCheckRepository implements KycChecker {
   @Override
   public KycCheck check(Long userId) {
     return jdbcClient
-        .sql("SELECT * FROM kyc_ob_assess_user_risk(:userId)")
+        // User ID in database layer is SERIAL (int), on Java layer Long
+        .sql("SELECT * FROM kyc_ob_assess_user_risk(:userId::integer)")
         .param("userId", userId)
         .query(KycCheck.class)
         .single();

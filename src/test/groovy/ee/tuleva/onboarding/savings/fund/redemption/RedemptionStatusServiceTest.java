@@ -1,12 +1,12 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -28,14 +28,7 @@ class RedemptionStatusServiceTest {
   @DisplayName("changeStatus transitions from RESERVED to VERIFIED")
   void changeStatus_reservedToVerified_succeeds() {
     var requestId = UUID.randomUUID();
-    var request =
-        RedemptionRequest.builder()
-            .id(requestId)
-            .userId(1L)
-            .fundUnits(new BigDecimal("10.00000"))
-            .customerIban("EE123456789012345678")
-            .status(RESERVED)
-            .build();
+    var request = redemptionRequestFixture().id(requestId).status(RESERVED).build();
 
     when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
 
@@ -50,14 +43,7 @@ class RedemptionStatusServiceTest {
   @DisplayName("changeStatus transitions from RESERVED to IN_REVIEW")
   void changeStatus_reservedToInReview_succeeds() {
     var requestId = UUID.randomUUID();
-    var request =
-        RedemptionRequest.builder()
-            .id(requestId)
-            .userId(1L)
-            .fundUnits(new BigDecimal("10.00000"))
-            .customerIban("EE123456789012345678")
-            .status(RESERVED)
-            .build();
+    var request = redemptionRequestFixture().id(requestId).status(RESERVED).build();
 
     when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
 
@@ -72,14 +58,7 @@ class RedemptionStatusServiceTest {
   @DisplayName("changeStatus transitions from RESERVED to CANCELLED")
   void changeStatus_reservedToCancelled_succeeds() {
     var requestId = UUID.randomUUID();
-    var request =
-        RedemptionRequest.builder()
-            .id(requestId)
-            .userId(1L)
-            .fundUnits(new BigDecimal("10.00000"))
-            .customerIban("EE123456789012345678")
-            .status(RESERVED)
-            .build();
+    var request = redemptionRequestFixture().id(requestId).status(RESERVED).build();
 
     when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
 
@@ -94,14 +73,7 @@ class RedemptionStatusServiceTest {
   @DisplayName("changeStatus transitions from VERIFIED to REDEEMED")
   void changeStatus_verifiedToRedeemed_succeeds() {
     var requestId = UUID.randomUUID();
-    var request =
-        RedemptionRequest.builder()
-            .id(requestId)
-            .userId(1L)
-            .fundUnits(new BigDecimal("10.00000"))
-            .customerIban("EE123456789012345678")
-            .status(VERIFIED)
-            .build();
+    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
 
     when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
 
@@ -116,14 +88,7 @@ class RedemptionStatusServiceTest {
   @DisplayName("changeStatus transitions from REDEEMED to PROCESSED")
   void changeStatus_redeemedToProcessed_succeeds() {
     var requestId = UUID.randomUUID();
-    var request =
-        RedemptionRequest.builder()
-            .id(requestId)
-            .userId(1L)
-            .fundUnits(new BigDecimal("10.00000"))
-            .customerIban("EE123456789012345678")
-            .status(REDEEMED)
-            .build();
+    var request = redemptionRequestFixture().id(requestId).status(REDEEMED).build();
 
     when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
 
@@ -138,14 +103,7 @@ class RedemptionStatusServiceTest {
   @DisplayName("changeStatus throws when transition not allowed")
   void changeStatus_invalidTransition_throwsException() {
     var requestId = UUID.randomUUID();
-    var request =
-        RedemptionRequest.builder()
-            .id(requestId)
-            .userId(1L)
-            .fundUnits(new BigDecimal("10.00000"))
-            .customerIban("EE123456789012345678")
-            .status(RESERVED)
-            .build();
+    var request = redemptionRequestFixture().id(requestId).status(RESERVED).build();
 
     when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
 
@@ -168,14 +126,7 @@ class RedemptionStatusServiceTest {
   @DisplayName("cancel cancels reserved request")
   void cancel_reservedRequest_succeeds() {
     var requestId = UUID.randomUUID();
-    var request =
-        RedemptionRequest.builder()
-            .id(requestId)
-            .userId(1L)
-            .fundUnits(new BigDecimal("10.00000"))
-            .customerIban("EE123456789012345678")
-            .status(RESERVED)
-            .build();
+    var request = redemptionRequestFixture().id(requestId).status(RESERVED).build();
 
     when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
 
@@ -191,14 +142,7 @@ class RedemptionStatusServiceTest {
   @DisplayName("cancel throws when request not in cancellable state")
   void cancel_notCancellable_throwsException() {
     var requestId = UUID.randomUUID();
-    var request =
-        RedemptionRequest.builder()
-            .id(requestId)
-            .userId(1L)
-            .fundUnits(new BigDecimal("10.00000"))
-            .customerIban("EE123456789012345678")
-            .status(VERIFIED)
-            .build();
+    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
 
     when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
 

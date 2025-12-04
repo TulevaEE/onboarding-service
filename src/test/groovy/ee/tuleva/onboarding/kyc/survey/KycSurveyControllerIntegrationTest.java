@@ -157,6 +157,6 @@ class KycSurveyControllerIntegrationTest {
 
     var beforeKycEvent = beforeKycEvents.getFirst();
     assertThat(beforeKycEvent.person().getPersonalCode()).isEqualTo(user.getPersonalCode());
-    assertThat(beforeKycEvent.address().getCountryCode()).isEqualTo("EE");
+    assertThat(beforeKycEvent.country().getCountryCode()).isEqualTo("EE");
   }
 }

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.WITHDRAWAL_EUR;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -104,13 +105,7 @@ class RedemptionBatchJobTest {
     var user = sampleUser().build();
     var requestId = UUID.randomUUID();
     var request =
-        RedemptionRequest.builder()
-            .id(requestId)
-            .userId(user.getId())
-            .fundUnits(new BigDecimal("10.00000"))
-            .customerIban("EE123456789012345678")
-            .status(VERIFIED)
-            .build();
+        redemptionRequestFixture().id(requestId).userId(user.getId()).status(VERIFIED).build();
 
     when(publicHolidays.isWorkingDay(LocalDate.of(2024, 1, 15))).thenReturn(true);
     when(publicHolidays.previousWorkingDay(any(LocalDate.class)))
@@ -161,11 +156,9 @@ class RedemptionBatchJobTest {
     var user = sampleUser().build();
     var requestId = UUID.randomUUID();
     var request =
-        RedemptionRequest.builder()
+        redemptionRequestFixture()
             .id(requestId)
             .userId(user.getId())
-            .fundUnits(new BigDecimal("10.00000"))
-            .customerIban("EE123456789012345678")
             .status(VERIFIED)
             .cashAmount(new BigDecimal("10.00"))
             .build();
@@ -214,14 +207,7 @@ class RedemptionBatchJobTest {
   @DisplayName("handleError marks request as failed and saves error reason")
   void handleError_marksRequestAsFailed() {
     var requestId = UUID.randomUUID();
-    var request =
-        RedemptionRequest.builder()
-            .id(requestId)
-            .userId(1L)
-            .fundUnits(new BigDecimal("10.00000"))
-            .customerIban("EE123456789012345678")
-            .status(VERIFIED)
-            .build();
+    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
 
     when(publicHolidays.isWorkingDay(LocalDate.of(2024, 1, 15))).thenReturn(true);
     when(publicHolidays.previousWorkingDay(any(LocalDate.class)))

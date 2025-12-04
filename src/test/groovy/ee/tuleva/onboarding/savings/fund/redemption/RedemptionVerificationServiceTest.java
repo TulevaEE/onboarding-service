@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
@@ -11,7 +12,6 @@ import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyService;
 import ee.tuleva.onboarding.user.UserService;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -37,7 +37,7 @@ class RedemptionVerificationServiceTest {
   void process_allChecksPassed_transitionsToVerified() {
     var requestId = UUID.randomUUID();
     var userId = 1L;
-    var request = createRequest(requestId, userId);
+    var request = redemptionRequestFixture().id(requestId).userId(userId).build();
     var user = sampleUser().id(userId).build();
     var country = new Country("EE");
     var passingCheck =
@@ -63,7 +63,7 @@ class RedemptionVerificationServiceTest {
   void process_checkFails_transitionsToInReview() {
     var requestId = UUID.randomUUID();
     var userId = 1L;
-    var request = createRequest(requestId, userId);
+    var request = redemptionRequestFixture().id(requestId).userId(userId).build();
     var user = sampleUser().id(userId).build();
     var country = new Country("EE");
     var failingCheck =
@@ -89,7 +89,7 @@ class RedemptionVerificationServiceTest {
   void process_noNewChecksNeeded_transitionsToVerified() {
     var requestId = UUID.randomUUID();
     var userId = 1L;
-    var request = createRequest(requestId, userId);
+    var request = redemptionRequestFixture().id(requestId).userId(userId).build();
     var user = sampleUser().id(userId).build();
     var country = new Country("EE");
 
@@ -107,7 +107,7 @@ class RedemptionVerificationServiceTest {
   void process_noKycCountry_throws() {
     var requestId = UUID.randomUUID();
     var userId = 1L;
-    var request = createRequest(requestId, userId);
+    var request = redemptionRequestFixture().id(requestId).userId(userId).build();
     var user = sampleUser().id(userId).build();
 
     when(userService.getByIdOrThrow(userId)).thenReturn(user);
@@ -118,15 +118,5 @@ class RedemptionVerificationServiceTest {
         .hasMessageContaining("KYC survey with country not found");
 
     verify(redemptionStatusService, never()).changeStatus(any(), any());
-  }
-
-  private RedemptionRequest createRequest(UUID id, Long userId) {
-    return RedemptionRequest.builder()
-        .id(id)
-        .userId(userId)
-        .fundUnits(new BigDecimal("10.00000"))
-        .customerIban("EE123456789012345678")
-        .status(RESERVED)
-        .build();
   }
 }

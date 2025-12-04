@@ -77,7 +77,7 @@ public class AmlAutoChecker {
 
   @EventListener
   public void beforeKycChecked(BeforeKycCheckedEvent event) {
-    amlService.addSanctionAndPepCheckIfMissing(event.person(), event.address());
+    amlService.addSanctionAndPepCheckIfMissing(event.person(), event.country());
   }
 
   private Boolean isResident(BeforeTokenGrantedEvent event) {

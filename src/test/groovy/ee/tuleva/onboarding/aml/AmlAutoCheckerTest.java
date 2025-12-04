@@ -252,12 +252,12 @@ class AmlAutoCheckerTest {
   void beforeKycChecked_addsSanctionAndPepCheck() {
     // given
     var person = createTestPerson("38001010005");
-    var event = new BeforeKycCheckedEvent(person, mockAddress);
+    var event = new BeforeKycCheckedEvent(person, mockCountry);
 
     // when
     amlAutoChecker.beforeKycChecked(event);
 
     // then
-    verify(amlService).addSanctionAndPepCheckIfMissing(person, mockAddress);
+    verify(amlService).addSanctionAndPepCheckIfMissing(person, mockCountry);
   }
 }

@@ -106,18 +106,34 @@ public class RedemptionBatchJob {
       try {
         BigDecimal cashAmount =
             transactionTemplate.execute(
-                status -> {
+                ignored -> {
+                  RedemptionRequest toUpdate =
+                      redemptionRequestRepository.findById(request.getId()).orElseThrow();
+
+                  if (toUpdate.getCashAmount() != null) {
+                    log.info(
+                        "Skipping pricing for already priced redemption: id={}, cashAmount={}",
+                        request.getId(),
+                        toUpdate.getCashAmount());
+                    return toUpdate.getCashAmount();
+                  }
+
+                  if (savingsFundLedger.hasPricingEntry(request.getId())) {
+                    log.warn(
+                        "Ledger entry already exists for redemption pricing: id={}",
+                        request.getId());
+                    return ZERO;
+                  }
+
                   User user = userService.getByIdOrThrow(request.getUserId());
                   BigDecimal amount = request.getFundUnits().multiply(nav).setScale(2, HALF_UP);
 
-                  RedemptionRequest toUpdate =
-                      redemptionRequestRepository.findById(request.getId()).orElseThrow();
                   toUpdate.setCashAmount(amount);
                   toUpdate.setNavPerUnit(nav);
                   redemptionRequestRepository.save(toUpdate);
 
                   savingsFundLedger.redeemFundUnitsFromReserved(
-                      user, request.getFundUnits(), amount, nav);
+                      user, request.getFundUnits(), amount, nav, request.getId());
 
                   log.info(
                       "Priced redemption request: id={}, fundUnits={}, cashAmount={}, nav={}",
@@ -172,13 +188,19 @@ public class RedemptionBatchJob {
 
       try {
         transactionTemplate.executeWithoutResult(
-            status -> {
+            ignored -> {
+              if (savingsFundLedger.hasPayoutEntry(updated.getId())) {
+                log.info("Skipping payout, ledger entry already exists: id={}", updated.getId());
+                markAsRedeemed(updated.getId());
+                return;
+              }
+
               User user = userService.getByIdOrThrow(updated.getUserId());
               String beneficiaryName =
                   getBeneficiaryName(updated.getUserId(), updated.getCustomerIban());
 
               savingsFundLedger.recordRedemptionPayout(
-                  user, updated.getCashAmount(), updated.getCustomerIban());
+                  user, updated.getCashAmount(), updated.getCustomerIban(), updated.getId());
 
               PaymentRequest paymentRequest =
                   PaymentRequest.tulevaPaymentBuilder(updated.getId())
@@ -189,12 +211,9 @@ public class RedemptionBatchJob {
                       .description("Fondi tagasivõtmine")
                       .build();
 
-              swedbankGatewayClient.sendPaymentRequest(paymentRequest, UUID.randomUUID());
+              swedbankGatewayClient.sendPaymentRequest(paymentRequest, updated.getId());
 
-              redemptionStatusService.changeStatus(updated.getId(), REDEEMED);
-
-              updated.setProcessedAt(Instant.now());
-              redemptionRequestRepository.save(updated);
+              markAsRedeemed(updated.getId());
 
               log.info(
                   "Processed individual payout: id={}, amount={}, iban={}, beneficiaryName={}",
@@ -208,6 +227,13 @@ public class RedemptionBatchJob {
         handleError(updated.getId(), e);
       }
     }
+  }
+
+  private void markAsRedeemed(UUID requestId) {
+    redemptionStatusService.changeStatus(requestId, REDEEMED);
+    RedemptionRequest request = redemptionRequestRepository.findById(requestId).orElseThrow();
+    request.setProcessedAt(Instant.now(clock));
+    redemptionRequestRepository.save(request);
   }
 
   private String getBeneficiaryName(Long userId, String iban) {

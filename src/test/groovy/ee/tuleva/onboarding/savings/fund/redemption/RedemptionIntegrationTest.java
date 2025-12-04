@@ -13,6 +13,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
@@ -396,5 +398,43 @@ class RedemptionIntegrationTest {
 
     assertThat(request.getFundUnits()).isEqualByComparingTo(availableFundUnits);
     assertThat(request.getRequestedAmount()).isEqualByComparingTo(maxWithdrawalValue);
+  }
+
+  @Test
+  @DisplayName("Running batch job twice does not create duplicate ledger entries or payments")
+  void batchJobIdempotency_runningTwiceDoesNotCreateDuplicates() {
+    var redemptionAmount = new BigDecimal("25.00");
+
+    var friday = Instant.parse("2025-09-26T14:00:00Z");
+    var tuesday = Instant.parse("2025-09-30T15:00:00Z");
+
+    ClockHolder.setClock(Clock.fixed(friday, ZoneId.of("UTC")));
+    var request =
+        redemptionService.createRedemptionRequest(
+            testUser.getId(), redemptionAmount, EUR, VALID_IBAN);
+    var requestId = request.getId();
+
+    redemptionStatusService.changeStatus(requestId, VERIFIED);
+
+    ClockHolder.setClock(Clock.fixed(tuesday, ZoneId.of("UTC")));
+
+    redemptionBatchJob.runJob();
+    var afterFirstRun = redemptionRequestRepository.findById(requestId).orElseThrow();
+    assertThat(afterFirstRun.getStatus()).isEqualTo(REDEEMED);
+
+    var redemptionsBalanceAfterFirst = getUserRedemptionsAccount().getBalance();
+    var payoutsClearingAfterFirst = getPayoutsCashClearingAccount().getBalance();
+
+    redemptionBatchJob.runJob();
+    var afterSecondRun = redemptionRequestRepository.findById(requestId).orElseThrow();
+    assertThat(afterSecondRun.getStatus()).isEqualTo(REDEEMED);
+
+    var redemptionsBalanceAfterSecond = getUserRedemptionsAccount().getBalance();
+    var payoutsClearingAfterSecond = getPayoutsCashClearingAccount().getBalance();
+
+    assertThat(redemptionsBalanceAfterSecond).isEqualByComparingTo(redemptionsBalanceAfterFirst);
+    assertThat(payoutsClearingAfterSecond).isEqualByComparingTo(payoutsClearingAfterFirst);
+
+    verify(swedbankGatewayClient, times(2)).sendPaymentRequest(any(), any());
   }
 }

@@ -138,13 +138,22 @@ class RedemptionBatchJobTest {
 
     verify(savingsFundLedger)
         .redeemFundUnitsFromReserved(
-            eq(user), eq(new BigDecimal("10.00000")), any(BigDecimal.class), eq(BigDecimal.ONE));
+            eq(user),
+            eq(new BigDecimal("10.00000")),
+            any(BigDecimal.class),
+            eq(BigDecimal.ONE),
+            eq(requestId));
     verify(savingsFundLedger).transferFromFundAccount(any(BigDecimal.class));
     verify(savingsFundLedger)
-        .recordRedemptionPayout(eq(user), any(BigDecimal.class), eq(customerIban));
+        .recordRedemptionPayout(eq(user), any(BigDecimal.class), eq(customerIban), eq(requestId));
     verify(swedbankGatewayClient, times(2))
         .sendPaymentRequest(any(PaymentRequest.class), any(UUID.class));
     verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
+
+    var savedRequestCaptor = ArgumentCaptor.forClass(RedemptionRequest.class);
+    verify(redemptionRequestRepository, atLeast(2)).save(savedRequestCaptor.capture());
+    var lastSaved = savedRequestCaptor.getAllValues().getLast();
+    assertThat(lastSaved.getProcessedAt()).isNotNull();
   }
 
   @Test
@@ -224,7 +233,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
-    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    lenient().when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
         .thenReturn("EE111111111111111111");
     when(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
@@ -281,5 +290,268 @@ class RedemptionBatchJobTest {
     verify(redemptionRequestRepository).save(captor.capture());
     assertThat(captor.getValue().getErrorReason()).contains("Test error");
     verify(redemptionStatusService).changeStatus(requestId, FAILED);
+  }
+
+  @Test
+  @DisplayName("runJob skips pricing when ledger entry already exists")
+  void runJob_skipsPricingWhenLedgerEntryExists() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var batchJob = createBatchJob(now);
+
+    var user = sampleUser().build();
+    var requestId = UUID.randomUUID();
+    var customerIban = "EE123456789012345678";
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .userId(user.getId())
+            .status(VERIFIED)
+            .customerIban(customerIban)
+            .cashAmount(null)
+            .requestedAt(now.minus(1, DAYS))
+            .build();
+
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(savingsFundLedger.hasPricingEntry(requestId)).thenReturn(true);
+
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> callback = invocation.getArgument(0);
+              return callback.doInTransaction(null);
+            })
+        .when(transactionTemplate)
+        .execute(any());
+
+    batchJob.runJob();
+
+    verify(savingsFundLedger, never())
+        .redeemFundUnitsFromReserved(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  @DisplayName("runJob skips already priced requests")
+  void runJob_skipsAlreadyPricedRequests() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var batchJob = createBatchJob(now);
+
+    var user = sampleUser().build();
+    var requestId = UUID.randomUUID();
+    var customerIban = "EE123456789012345678";
+    var alreadyPricedAmount = new BigDecimal("10.00");
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .userId(user.getId())
+            .status(VERIFIED)
+            .customerIban(customerIban)
+            .cashAmount(alreadyPricedAmount)
+            .requestedAt(now.minus(1, DAYS))
+            .build();
+
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+        .thenReturn("EE111111111111111111");
+    when(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+        .thenReturn("EE222222222222222222");
+    when(savingFundPaymentRepository.findRemitterNameByIban(user.getId(), customerIban))
+        .thenReturn(Optional.of("John Smith"));
+
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> callback = invocation.getArgument(0);
+              return callback.doInTransaction(null);
+            })
+        .when(transactionTemplate)
+        .execute(any());
+
+    doAnswer(
+            invocation -> {
+              Consumer<TransactionStatus> callback = invocation.getArgument(0);
+              callback.accept(null);
+              return null;
+            })
+        .when(transactionTemplate)
+        .executeWithoutResult(any());
+
+    batchJob.runJob();
+
+    verify(savingsFundLedger, never())
+        .redeemFundUnitsFromReserved(any(), any(), any(), any(), any());
+    verify(savingsFundLedger).transferFromFundAccount(alreadyPricedAmount);
+  }
+
+  @Test
+  @DisplayName("runJob uses deterministic payment ID for Swedbank")
+  void runJob_usesDeterministicPaymentId() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var batchJob = createBatchJob(now);
+
+    var user = sampleUser().build();
+    var requestId = UUID.randomUUID();
+    var customerIban = "EE123456789012345678";
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .userId(user.getId())
+            .status(VERIFIED)
+            .customerIban(customerIban)
+            .requestedAt(now.minus(1, DAYS))
+            .build();
+
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+        .thenReturn("EE111111111111111111");
+    when(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+        .thenReturn("EE222222222222222222");
+    when(savingFundPaymentRepository.findRemitterNameByIban(user.getId(), customerIban))
+        .thenReturn(Optional.of("John Smith"));
+
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> callback = invocation.getArgument(0);
+              return callback.doInTransaction(null);
+            })
+        .when(transactionTemplate)
+        .execute(any());
+
+    doAnswer(
+            invocation -> {
+              Consumer<TransactionStatus> callback = invocation.getArgument(0);
+              callback.accept(null);
+              return null;
+            })
+        .when(transactionTemplate)
+        .executeWithoutResult(any());
+
+    batchJob.runJob();
+
+    var paymentIdCaptor = ArgumentCaptor.forClass(UUID.class);
+    verify(swedbankGatewayClient, times(2))
+        .sendPaymentRequest(any(PaymentRequest.class), paymentIdCaptor.capture());
+
+    var capturedIds = paymentIdCaptor.getAllValues();
+    assertThat(capturedIds.get(1)).isEqualTo(requestId);
+  }
+
+  @Test
+  @DisplayName("runJob running twice does not reprocess already redeemed requests")
+  void runJob_runningTwice_doesNotReprocessRedeemedRequests() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var batchJob = createBatchJob(now);
+
+    var user = sampleUser().build();
+    var requestId = UUID.randomUUID();
+    var customerIban = "EE123456789012345678";
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .userId(user.getId())
+            .status(VERIFIED)
+            .customerIban(customerIban)
+            .requestedAt(now.minus(1, DAYS))
+            .build();
+
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request))
+        .thenReturn(List.of()); // Second run finds no VERIFIED requests
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+        .thenReturn("EE111111111111111111");
+    when(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+        .thenReturn("EE222222222222222222");
+    when(savingFundPaymentRepository.findRemitterNameByIban(user.getId(), customerIban))
+        .thenReturn(Optional.of("John Smith"));
+
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> callback = invocation.getArgument(0);
+              return callback.doInTransaction(null);
+            })
+        .when(transactionTemplate)
+        .execute(any());
+
+    doAnswer(
+            invocation -> {
+              Consumer<TransactionStatus> callback = invocation.getArgument(0);
+              callback.accept(null);
+              return null;
+            })
+        .when(transactionTemplate)
+        .executeWithoutResult(any());
+
+    // First run - processes the request
+    batchJob.runJob();
+
+    // Second run - should not find any VERIFIED requests (status changed to REDEEMED)
+    batchJob.runJob();
+
+    // Verify payment was only sent once per type (batch + individual)
+    verify(swedbankGatewayClient, times(2))
+        .sendPaymentRequest(any(PaymentRequest.class), any(UUID.class));
+    verify(redemptionStatusService, times(1)).changeStatus(requestId, REDEEMED);
+  }
+
+  @Test
+  @DisplayName("runJob skips payout when ledger entry already exists but still marks as redeemed")
+  void runJob_skipsPayoutWhenLedgerEntryExists_butMarksAsRedeemed() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var batchJob = createBatchJob(now);
+
+    var user = sampleUser().build();
+    var requestId = UUID.randomUUID();
+    var customerIban = "EE123456789012345678";
+    var cashAmount = new BigDecimal("10.00");
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .userId(user.getId())
+            .status(VERIFIED)
+            .customerIban(customerIban)
+            .cashAmount(cashAmount) // Already priced
+            .requestedAt(now.minus(1, DAYS))
+            .build();
+
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+        .thenReturn("EE111111111111111111");
+    when(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+        .thenReturn("EE222222222222222222");
+    when(savingsFundLedger.hasPayoutEntry(requestId)).thenReturn(true); // Payout already recorded
+
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> callback = invocation.getArgument(0);
+              return callback.doInTransaction(null);
+            })
+        .when(transactionTemplate)
+        .execute(any());
+
+    doAnswer(
+            invocation -> {
+              Consumer<TransactionStatus> callback = invocation.getArgument(0);
+              callback.accept(null);
+              return null;
+            })
+        .when(transactionTemplate)
+        .executeWithoutResult(any());
+
+    batchJob.runJob();
+
+    // Should skip individual payout but still mark as redeemed
+    verify(savingsFundLedger, never()).recordRedemptionPayout(any(), any(), any(), any());
+    verify(swedbankGatewayClient, times(1)) // Only batch transfer, no individual payout
+        .sendPaymentRequest(any(PaymentRequest.class), any(UUID.class));
+    verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
   }
 }

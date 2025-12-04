@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.REDEMPTIONS;
 import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import ee.tuleva.onboarding.user.User;
@@ -84,7 +85,8 @@ public class SavingsFundLedger {
     EXTERNAL_REFERENCE("externalReference"),
     PAYER_IBAN("payerIban"),
     CUSTOMER_IBAN("customerIban"),
-    NAV_PER_UNIT("navPerUnit");
+    NAV_PER_UNIT("navPerUnit"),
+    REDEMPTION_REQUEST_ID("redemptionRequestId");
 
     private final String key;
   }
@@ -301,26 +303,46 @@ public class SavingsFundLedger {
   @Transactional
   public LedgerTransaction redeemFundUnitsFromReserved(
       User user, BigDecimal fundUnits, BigDecimal cashAmount, BigDecimal navPerUnit) {
+    return redeemFundUnitsFromReserved(user, fundUnits, cashAmount, navPerUnit, null);
+  }
+
+  @Transactional
+  public LedgerTransaction redeemFundUnitsFromReserved(
+      User user,
+      BigDecimal fundUnits,
+      BigDecimal cashAmount,
+      BigDecimal navPerUnit,
+      UUID redemptionRequestId) {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userUnitsReservedAccount = getUserUnitsReservedAccount(userParty);
     LedgerAccount userCashRedemptionAccount = getUserCashRedemptionAccount(userParty);
     LedgerAccount unitsOutstandingAccount = getFundUnitsOutstandingAccount();
     LedgerAccount userRedemptionsAccount = getUserRedemptionsAccount(userParty);
 
-    Map<String, Object> metadata =
-        Map.of(
-            OPERATION_TYPE.key, REDEMPTION_REQUEST.name(),
-            USER_ID.key, user.getId(),
-            PERSONAL_CODE.key, user.getPersonalCode(),
-            NAV_PER_UNIT.key, navPerUnit);
+    var metadataBuilder = new java.util.HashMap<String, Object>();
+    metadataBuilder.put(OPERATION_TYPE.key, REDEMPTION_REQUEST.name());
+    metadataBuilder.put(USER_ID.key, user.getId());
+    metadataBuilder.put(PERSONAL_CODE.key, user.getPersonalCode());
+    metadataBuilder.put(NAV_PER_UNIT.key, navPerUnit);
+    if (redemptionRequestId != null) {
+      metadataBuilder.put(REDEMPTION_REQUEST_ID.key, redemptionRequestId);
+    }
+
+    UUID externalReference =
+        redemptionRequestId != null ? derivePricingReference(redemptionRequestId) : null;
 
     return ledgerTransactionService.createTransaction(
         Instant.now(clock),
-        metadata,
+        externalReference,
+        metadataBuilder,
         entry(userUnitsReservedAccount, fundUnits),
         entry(unitsOutstandingAccount, fundUnits.negate()),
         entry(userCashRedemptionAccount, cashAmount.negate()),
         entry(userRedemptionsAccount, cashAmount));
+  }
+
+  private UUID derivePricingReference(UUID redemptionRequestId) {
+    return UUID.nameUUIDFromBytes((redemptionRequestId + ":pricing").getBytes(UTF_8));
   }
 
   @Transactional
@@ -340,22 +362,38 @@ public class SavingsFundLedger {
   @Transactional
   public LedgerTransaction recordRedemptionPayout(
       User user, BigDecimal amount, String customerIban) {
+    return recordRedemptionPayout(user, amount, customerIban, null);
+  }
+
+  @Transactional
+  public LedgerTransaction recordRedemptionPayout(
+      User user, BigDecimal amount, String customerIban, UUID redemptionRequestId) {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userCashRedemptionAccount = getUserCashRedemptionAccount(userParty);
     LedgerAccount payoutsCashAccount = getPayoutsCashClearingAccount();
 
-    Map<String, Object> metadata =
-        Map.of(
-            OPERATION_TYPE.key, REDEMPTION_PAYOUT.name(),
-            USER_ID.key, user.getId(),
-            PERSONAL_CODE.key, user.getPersonalCode(),
-            CUSTOMER_IBAN.key, customerIban);
+    var metadataBuilder = new java.util.HashMap<String, Object>();
+    metadataBuilder.put(OPERATION_TYPE.key, REDEMPTION_PAYOUT.name());
+    metadataBuilder.put(USER_ID.key, user.getId());
+    metadataBuilder.put(PERSONAL_CODE.key, user.getPersonalCode());
+    metadataBuilder.put(CUSTOMER_IBAN.key, customerIban);
+    if (redemptionRequestId != null) {
+      metadataBuilder.put(REDEMPTION_REQUEST_ID.key, redemptionRequestId);
+    }
+
+    UUID externalReference =
+        redemptionRequestId != null ? derivePayoutReference(redemptionRequestId) : null;
 
     return ledgerTransactionService.createTransaction(
         Instant.now(clock),
-        metadata,
+        externalReference,
+        metadataBuilder,
         entry(payoutsCashAccount, amount.negate()),
         entry(userCashRedemptionAccount, amount));
+  }
+
+  private UUID derivePayoutReference(UUID redemptionRequestId) {
+    return UUID.nameUUIDFromBytes((redemptionRequestId + ":payout").getBytes(UTF_8));
   }
 
   private LedgerEntryDto entry(LedgerAccount account, BigDecimal amount) {
@@ -426,7 +464,15 @@ public class SavingsFundLedger {
     return getSystemAccount(PAYOUTS_CASH_CLEARING);
   }
 
-  public boolean hasLedgerEntry(UUID paymentId) {
-    return ledgerTransactionService.existsByExternalReference(paymentId);
+  public boolean hasLedgerEntry(UUID externalReference) {
+    return ledgerTransactionService.existsByExternalReference(externalReference);
+  }
+
+  public boolean hasPricingEntry(UUID redemptionRequestId) {
+    return hasLedgerEntry(derivePricingReference(redemptionRequestId));
+  }
+
+  public boolean hasPayoutEntry(UUID redemptionRequestId) {
+    return hasLedgerEntry(derivePayoutReference(redemptionRequestId));
   }
 }

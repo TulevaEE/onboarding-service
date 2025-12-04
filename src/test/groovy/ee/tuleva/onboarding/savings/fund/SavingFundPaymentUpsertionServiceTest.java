@@ -1,27 +1,28 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.currency.Currency.EUR;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.ArgumentCaptor;
 
-@ExtendWith(MockitoExtension.class)
 class SavingFundPaymentUpsertionServiceTest {
 
-  @Mock private SavingFundPaymentRepository repository;
+  SavingFundPaymentRepository repository = mock(SavingFundPaymentRepository.class);
+  SavingFundDeadlinesService deadlinesService = mock(SavingFundDeadlinesService.class);
 
-  @Mock private SavingFundDeadlinesService deadlinesService;
-
-  @InjectMocks private SavingFundPaymentUpsertionService service;
+  SavingFundPaymentUpsertionService service =
+      new SavingFundPaymentUpsertionService(repository, deadlinesService, new NameMatcher());
 
   @Test
   void cancelUserPayment_successful() {
@@ -74,5 +75,77 @@ class SavingFundPaymentUpsertionServiceTest {
 
     assertThrows(NoSuchElementException.class, () -> service.cancelUserPayment(1L, paymentId));
     verify(repository, never()).cancel(any());
+  }
+
+  @Test
+  @DisplayName("upsert merges payment with flexible name matching")
+  void upsert_mergesPaymentWithFlexibleNameMatching() {
+    var existingPaymentId = UUID.randomUUID();
+    var existingPayment =
+        SavingFundPayment.builder()
+            .id(existingPaymentId)
+            .amount(BigDecimal.TEN)
+            .currency(EUR)
+            .description("37508295796")
+            .remitterName("vootele Töömees")
+            .remitterIban("EE123")
+            .beneficiaryName("TULEVA AS")
+            .beneficiaryIban("EE456")
+            .build();
+
+    var incomingPayment =
+        SavingFundPayment.builder()
+            .amount(BigDecimal.TEN)
+            .currency(EUR)
+            .description("37508295796")
+            .externalId("EXT123")
+            .remitterName("TOOMEES VOOTELE")
+            .remitterIban("EE123")
+            .beneficiaryName("TULEVA AS")
+            .beneficiaryIban("EE456")
+            .receivedBefore(Instant.now())
+            .build();
+
+    when(repository.findByExternalId("EXT123")).thenReturn(Optional.empty());
+    when(repository.findRecentPayments("37508295796")).thenReturn(List.of(existingPayment));
+
+    service.upsert(incomingPayment, payment -> {});
+
+    var captor = ArgumentCaptor.forClass(SavingFundPayment.class);
+    verify(repository).updatePaymentData(eq(existingPaymentId), captor.capture());
+
+    var mergedPayment = captor.getValue();
+    assertThat(mergedPayment.getRemitterName()).isEqualTo("vootele Töömees");
+  }
+
+  @Test
+  @DisplayName("upsert throws exception when names don't match")
+  void upsert_throwsExceptionWhenNamesDontMatch() {
+    var existingPaymentId = UUID.randomUUID();
+    var existingPayment =
+        SavingFundPayment.builder()
+            .id(existingPaymentId)
+            .amount(BigDecimal.TEN)
+            .currency(EUR)
+            .description("37508295796")
+            .remitterName("PEETER MEETER")
+            .remitterIban("EE123")
+            .build();
+
+    var incomingPayment =
+        SavingFundPayment.builder()
+            .amount(BigDecimal.TEN)
+            .currency(EUR)
+            .description("37508295796")
+            .externalId("EXT123")
+            .remitterName("MARI KASK")
+            .remitterIban("EE123")
+            .receivedBefore(Instant.now())
+            .build();
+
+    when(repository.findByExternalId("EXT123")).thenReturn(Optional.empty());
+    when(repository.findRecentPayments("37508295796")).thenReturn(List.of(existingPayment));
+
+    assertThrows(IllegalStateException.class, () -> service.upsert(incomingPayment, payment -> {}));
   }
 }

@@ -17,6 +17,7 @@ public class SavingFundPaymentUpsertionService {
 
   private final SavingFundPaymentRepository repository;
   private final SavingFundDeadlinesService savingFundDeadlinesService;
+  private final NameMatcher nameMatcher;
 
   public void upsert(SavingFundPayment payment, Consumer<SavingFundPayment> onInsert) {
     // Check if payment with this external ID already exists
@@ -101,7 +102,7 @@ public class SavingFundPaymentUpsertionService {
             mergeAndValidateField(
                 "remitterIdCode", existing.getRemitterIdCode(), payment.getRemitterIdCode()))
         .remitterName(
-            mergeAndValidateField(
+            mergeAndValidateName(
                 "remitterName", existing.getRemitterName(), payment.getRemitterName()))
         .beneficiaryIban(
             mergeAndValidateField(
@@ -112,7 +113,7 @@ public class SavingFundPaymentUpsertionService {
                 existing.getBeneficiaryIdCode(),
                 payment.getBeneficiaryIdCode()))
         .beneficiaryName(
-            mergeAndValidateField(
+            mergeAndValidateName(
                 "beneficiaryName", existing.getBeneficiaryName(), payment.getBeneficiaryName()))
         .externalId(
             mergeAndValidateField("externalId", existing.getExternalId(), payment.getExternalId()))
@@ -143,6 +144,20 @@ public class SavingFundPaymentUpsertionService {
       // We have a value for something already, lets not override it with null
       return existingValue;
     } else if (!existingValue.equals(newValue)) {
+      throw new IllegalStateException(
+          String.format(
+              "Payment field mismatch: %s existing='%s', incoming='%s'",
+              fieldName, existingValue, newValue));
+    }
+    return existingValue;
+  }
+
+  private String mergeAndValidateName(String fieldName, String existingValue, String newValue) {
+    if (existingValue == null) {
+      return newValue;
+    } else if (newValue == null) {
+      return existingValue;
+    } else if (!nameMatcher.isSameName(existingValue, newValue)) {
       throw new IllegalStateException(
           String.format(
               "Payment field mismatch: %s existing='%s', incoming='%s'",

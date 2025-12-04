@@ -7,12 +7,9 @@ import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.user.personalcode.PersonalCodeValidator;
-import java.text.Normalizer;
-import java.util.Arrays;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -30,6 +27,7 @@ public class PaymentVerificationService {
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final SavingsFundLedger savingsFundLedger;
   private final ApplicationEventPublisher applicationEventPublisher;
+  private final NameMatcher nameMatcher;
 
   @Transactional
   public void process(SavingFundPayment payment) {
@@ -54,7 +52,7 @@ public class PaymentVerificationService {
       return;
     }
     if (!remitterPersonalCodeProvided
-        && !isSameName(user.get().getFullName(), payment.getRemitterName())) {
+        && !nameMatcher.isSameName(user.get().getFullName(), payment.getRemitterName())) {
       identityCheckFailure(payment, "maksja nimi ei klapi Tuleva andmetega");
       return;
     }
@@ -95,19 +93,5 @@ public class PaymentVerificationService {
     if (personalCodeValidator.isValid(possiblePersonalCode))
       return Optional.of(possiblePersonalCode);
     return Optional.empty();
-  }
-
-  boolean isSameName(String name1, String name2) {
-    if (name1 == null || name2 == null) return false;
-    return normalize(name1.strip()).equals(normalize(name2.strip()));
-  }
-
-  private String normalize(String name) {
-    return Arrays.stream(name.replaceAll("\\p{Punct}", " ").split("\\s+"))
-        .map(String::strip)
-        .map(String::toUpperCase)
-        .map(s -> Normalizer.normalize(s, Normalizer.Form.NFKD).replaceAll("\\p{M}", ""))
-        .sorted()
-        .collect(Collectors.joining(" "));
   }
 }

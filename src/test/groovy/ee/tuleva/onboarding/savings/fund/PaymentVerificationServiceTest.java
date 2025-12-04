@@ -5,10 +5,7 @@ import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIE
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.user.User;
@@ -16,19 +13,23 @@ import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(MockitoExtension.class)
 class PaymentVerificationServiceTest {
 
-  @Mock SavingFundPaymentRepository savingFundPaymentRepository;
-  @Mock UserRepository userRepository;
-  @Mock SavingsFundOnboardingService savingsFundOnboardingService;
-  @Mock SavingsFundLedger savingsFundLedger;
-  @InjectMocks PaymentVerificationService service;
+  SavingFundPaymentRepository savingFundPaymentRepository = mock(SavingFundPaymentRepository.class);
+  UserRepository userRepository = mock(UserRepository.class);
+  SavingsFundOnboardingService savingsFundOnboardingService =
+      mock(SavingsFundOnboardingService.class);
+  SavingsFundLedger savingsFundLedger = mock(SavingsFundLedger.class);
+
+  PaymentVerificationService service =
+      new PaymentVerificationService(
+          savingFundPaymentRepository,
+          userRepository,
+          savingsFundOnboardingService,
+          savingsFundLedger,
+          null,
+          new NameMatcher());
 
   @Test
   void process_noPersonalCodeInDescription() {
@@ -172,20 +173,6 @@ class PaymentVerificationServiceTest {
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository).attachUser(payment.getId(), 123L);
     verifyNoMoreInteractions(savingFundPaymentRepository);
-  }
-
-  @Test
-  void isSameName() {
-    assertThat(service.isSameName(null, null)).isFalse();
-    assertThat(service.isSameName("A", null)).isFalse();
-    assertThat(service.isSameName(null, "A")).isFalse();
-    assertThat(service.isSameName("A", "B")).isFalse();
-    assertThat(service.isSameName("A", "A")).isTrue();
-    assertThat(service.isSameName("A", " A   ")).isTrue();
-    assertThat(service.isSameName("A A", "AA")).isFalse();
-    assertThat(service.isSameName("AA BB CC", "BB CC AA")).isTrue();
-    assertThat(service.isSameName("AA/BB,CC", "BB+CC-AA")).isTrue();
-    assertThat(service.isSameName("aaa bbb", "Aaa BBB")).isTrue();
   }
 
   @Test

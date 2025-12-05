@@ -3,6 +3,9 @@ package ee.tuleva.onboarding.ledger;
 import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.DEPOSIT_EUR;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessageReceiver;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher;
 import ee.tuleva.onboarding.swedbank.statement.BankAccountType;
@@ -28,6 +31,9 @@ public class SavingsFundTestController {
   private final LedgerAccountService ledgerAccountService;
   private final SwedbankStatementFetcher swedbankStatementFetcher;
   private final SwedbankMessageReceiver swedbankMessageReceiver;
+  private final SavingsFundOnboardingService savingsFundOnboardingService;
+  private final SavingFundPaymentRepository savingFundPaymentRepository;
+  private final RedemptionRequestRepository redemptionRequestRepository;
 
   @Operation(summary = "Get my ledger accounts")
   @GetMapping("/account")
@@ -63,5 +69,25 @@ public class SavingsFundTestController {
   @GetMapping("/swedbank/statement")
   public void getSwedbankResponse() {
     swedbankMessageReceiver.getResponses();
+  }
+
+  @Operation(summary = "Backdate user VERIFIED deposits by 2 days")
+  @GetMapping("/backdate-deposits")
+  public int backdateDeposits(@AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    if (!savingsFundOnboardingService.isUserWhitelisted(authenticatedPerson.getUserId())) {
+      throw new IllegalStateException("User not whitelisted");
+    }
+    return savingFundPaymentRepository.TEST_backdateVerifiedPayments(
+        authenticatedPerson.getUserId());
+  }
+
+  @Operation(summary = "Backdate user VERIFIED redemption requests by 1 day")
+  @GetMapping("/backdate-redemptions")
+  public int backdateRedemptions(@AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    if (!savingsFundOnboardingService.isUserWhitelisted(authenticatedPerson.getUserId())) {
+      throw new IllegalStateException("User not whitelisted");
+    }
+    return redemptionRequestRepository.TEST_backdateVerifiedRequests(
+        authenticatedPerson.getUserId());
   }
 }

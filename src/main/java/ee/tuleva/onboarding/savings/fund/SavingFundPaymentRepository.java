@@ -289,6 +289,18 @@ public class SavingFundPaymentRepository {
         Status.class);
   }
 
+  public int TEST_backdateVerifiedPayments(Long userId) {
+    return jdbcTemplate.update(
+        """
+        UPDATE saving_fund_payment
+        SET received_at = received_at - INTERVAL '2 days'
+        WHERE status = 'VERIFIED'
+          AND received_at > NOW() - INTERVAL '2 days'
+          AND user_id = :userId
+        """,
+        Map.of("userId", userId));
+  }
+
   // todo
   // Montonio should use findRecentPayments(), savePaymentData() and attachUser() —— DONE
 

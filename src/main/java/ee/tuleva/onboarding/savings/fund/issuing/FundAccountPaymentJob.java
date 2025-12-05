@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
+import ee.tuleva.onboarding.swedbank.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.swedbank.payment.PaymentRequest;
 import java.math.BigDecimal;
 import java.util.Map;
@@ -36,6 +37,7 @@ public class FundAccountPaymentJob {
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
+  private final EndToEndIdConverter endToEndIdConverter;
 
   @Scheduled(fixedRateString = "1m")
   @SchedulerLock(
@@ -75,7 +77,7 @@ public class FundAccountPaymentJob {
                 total)));
 
     var paymentRequest =
-        PaymentRequest.tulevaPaymentBuilder(id)
+        PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(id))
             .remitterIban(swedbankAccountConfiguration.getAccountIban(DEPOSIT_EUR))
             .beneficiaryName("Tuleva Fondid AS")
             .beneficiaryIban(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))

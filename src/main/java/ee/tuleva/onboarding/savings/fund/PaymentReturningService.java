@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RETURNE
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
+import ee.tuleva.onboarding.swedbank.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.swedbank.payment.PaymentRequest;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.util.UUID;
@@ -19,6 +20,7 @@ public class PaymentReturningService {
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final UserRepository userRepository;
   private final SavingsFundLedger savingsFundLedger;
+  private final EndToEndIdConverter endToEndIdConverter;
 
   @Transactional
   public void createReturn(SavingFundPayment payment) {
@@ -34,7 +36,7 @@ public class PaymentReturningService {
     var returnReason = payment.getReturnReason();
     var description = returnReason != null ? "Tagastus: " + returnReason : "Tagastus";
     var paymentRequest =
-        PaymentRequest.tulevaPaymentBuilder(payment.getId())
+        PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(payment.getId()))
             .remitterIban(payment.getBeneficiaryIban())
             .beneficiaryName(payment.getRemitterName())
             .beneficiaryIban(payment.getRemitterIban())

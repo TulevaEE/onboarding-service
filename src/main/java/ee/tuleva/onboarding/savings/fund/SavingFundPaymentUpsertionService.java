@@ -2,10 +2,9 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,8 +18,20 @@ public class SavingFundPaymentUpsertionService {
   private final SavingFundDeadlinesService savingFundDeadlinesService;
   private final NameMatcher nameMatcher;
 
-  public void upsert(SavingFundPayment payment, Consumer<SavingFundPayment> onInsert) {
-    // Check if payment with this external ID already exists
+  public void upsert(
+      SavingFundPayment payment, Function<SavingFundPayment, SavingFundPayment.Status> onInsert) {
+    upsert(
+        payment,
+        onInsert,
+        p -> {
+          throw new IllegalStateException("Unexpected existing payment: id=" + p.getId());
+        });
+  }
+
+  public void upsert(
+      SavingFundPayment payment,
+      Function<SavingFundPayment, SavingFundPayment.Status> onInsert,
+      Function<SavingFundPayment, SavingFundPayment.Status> onUpdate) {
     if (payment.getExternalId() != null) {
       var existingById = repository.findByExternalId(payment.getExternalId());
       if (existingById.isPresent()) {
@@ -32,21 +43,18 @@ public class SavingFundPaymentUpsertionService {
     }
 
     var existingPayment = findExistingPayment(payment);
-    UUID paymentId;
 
     if (existingPayment.isPresent()) {
       log.info("Found existing payment, updating: {}", existingPayment.get().getId());
       updatePayment(existingPayment.get(), payment);
-      paymentId = existingPayment.get().getId();
+      var status = onUpdate.apply(payment);
+      repository.changeStatus(existingPayment.get().getId(), status);
     } else {
       log.info("No existing payment found, inserting new payment");
-      paymentId = repository.savePaymentData(payment);
-      onInsert.accept(payment);
+      var paymentId = repository.savePaymentData(payment);
+      var status = onInsert.apply(payment);
+      repository.changeStatus(paymentId, status);
     }
-
-    // Incoming payments (amount > 0) go to RECEIVED, outgoing/zero go directly to PROCESSED
-    var status = payment.getAmount().compareTo(BigDecimal.ZERO) > 0 ? RECEIVED : PROCESSED;
-    repository.changeStatus(paymentId, status);
   }
 
   public List<SavingFundPayment> getPendingPaymentsForUser(Long userId) {

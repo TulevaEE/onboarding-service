@@ -211,8 +211,11 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
   }
 
   @Test
-  void paymentsFromNonDepositAccountsAreNotProcessed() {
+  void paymentsFromNonDepositAccountsAreAlsoSavedButDirectlyProcessed() {
     // given - XML with WITHDRAWAL_EUR account IBAN
+    var withdrawalAccountIban =
+        swedbankAccountConfiguration.getAccountIban(
+            ee.tuleva.onboarding.swedbank.statement.BankAccountType.WITHDRAWAL_EUR);
     var withdrawalAccountXml =
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
             + "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.052.001.02\"> "
@@ -226,7 +229,9 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
             + "<ToDtTm>2025-10-01T12:00:00</ToDtTm> "
             + "</FrToDt> "
             + "<Acct> "
-            + "<Id> <IBAN>EE987700771001802057</IBAN> </Id> "
+            + "<Id> <IBAN>"
+            + withdrawalAccountIban
+            + "</IBAN> </Id> "
             + "<Ownr> <Nm>TULEVA FONDID AS</Nm> "
             + "<Id> <OrgId> <Othr> <Id>14118923</Id> </Othr> </OrgId> </Id> "
             + "</Ownr> "
@@ -256,8 +261,11 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     // when
     processXmlMessage(withdrawalAccountXml);
 
-    // then - no payment should be created from withdrawal account
-    assertThat(repository.findAll()).isEmpty();
+    // then - payment is created and directly goes to PROCESSED status
+    assertThat(repository.findAll()).hasSize(1);
+    var savedPayment = repository.findAll().iterator().next();
+    assertThat(savedPayment.getAmount()).isEqualByComparingTo(new BigDecimal("200.00"));
+    assertThat(savedPayment.getStatus()).isEqualTo(SavingFundPayment.Status.PROCESSED);
   }
 
   @Test

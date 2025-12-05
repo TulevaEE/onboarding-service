@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.swedbank.payment;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 import lombok.Builder;
 
 @Builder
@@ -17,8 +16,7 @@ public record PaymentRequest(
     String ourId,
     String endToEndId) {
 
-  public static PaymentRequestBuilder tulevaPaymentBuilder(UUID fromId) {
-    var id = fromId.toString().replace("-", "");
+  public static PaymentRequestBuilder tulevaPaymentBuilder(String id) {
     return PaymentRequest.builder()
         .remitterName("Tuleva Fondid AS")
         .remitterId("14118923")

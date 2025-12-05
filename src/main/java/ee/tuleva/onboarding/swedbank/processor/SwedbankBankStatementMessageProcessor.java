@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.swedbank.processor;
 
-import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.DEPOSIT_EUR;
-import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.REDEEMED;
+import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.*;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -9,9 +9,14 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentExtractor;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
+import ee.tuleva.onboarding.swedbank.payment.EndToEndIdConverter;
+import ee.tuleva.onboarding.swedbank.statement.BankAccountType;
 import ee.tuleva.onboarding.swedbank.statement.SwedbankBankStatementExtractor;
-import ee.tuleva.onboarding.user.UserRepository;
+import ee.tuleva.onboarding.user.UserService;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +34,10 @@ class SwedbankBankStatementMessageProcessor {
   private final SwedbankAccountConfiguration swedbankAccountConfiguration;
   private final SavingsFundLedger savingsFundLedger;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
-  private final UserRepository userRepository;
+  private final UserService userService;
+  private final RedemptionRequestRepository redemptionRequestRepository;
+  private final RedemptionStatusService redemptionStatusService;
+  private final EndToEndIdConverter endToEndIdConverter;
 
   @Transactional
   public void processMessage(String rawResponse, SwedbankMessageType messageType) {
@@ -49,23 +57,53 @@ class SwedbankBankStatementMessageProcessor {
         bankStatement.getEntries().size());
 
     var accountIban = bankStatement.getBankStatementAccount().iban();
-    if (swedbankAccountConfiguration.getAccountType(accountIban) != DEPOSIT_EUR) {
-      log.info(
-          "Skipping payment processing as it is not a DEPOSIT_EUR account: account={}",
-          accountIban);
+    var accountType = swedbankAccountConfiguration.getAccountType(accountIban);
+
+    if (accountType == null) {
+      log.warn("Unknown account type for IBAN: {}", accountIban);
       return;
     }
 
     var payments = paymentExtractor.extractPayments(bankStatement);
-
     log.info("Successfully extracted {} payments from a bank statement", payments.size());
 
-    payments.forEach(payment -> paymentService.upsert(payment, this::handleInsertedPayment));
-
-    log.info("Successfully upserted {} payments", payments.size());
+    payments.forEach(payment -> processPayment(payment, accountType));
+    log.info("Successfully upserted {} payments for account type {}", payments.size(), accountType);
   }
 
-  private void handleInsertedPayment(SavingFundPayment payment) {
+  private SavingFundPayment.Status resolveDepositAccountStatus(SavingFundPayment payment) {
+    return isIncomingPayment(payment)
+        ? SavingFundPayment.Status.RECEIVED
+        : SavingFundPayment.Status.PROCESSED;
+  }
+
+  private SavingFundPayment.Status processDepositPaymentOnInsert(SavingFundPayment payment) {
+    handleDepositAccountPayment(payment);
+    return resolveDepositAccountStatus(payment);
+  }
+
+  private SavingFundPayment.Status processWithdrawalPaymentOnInsert(SavingFundPayment payment) {
+    handleWithdrawalAccountPayment(payment);
+    return SavingFundPayment.Status.PROCESSED;
+  }
+
+  private SavingFundPayment.Status processFundInvestmentPaymentOnInsert(SavingFundPayment payment) {
+    handleFundInvestmentAccountPayment(payment);
+    return SavingFundPayment.Status.PROCESSED;
+  }
+
+  private void processPayment(SavingFundPayment payment, BankAccountType accountType) {
+    switch (accountType) {
+      case DEPOSIT_EUR ->
+          paymentService.upsert(
+              payment, this::processDepositPaymentOnInsert, this::resolveDepositAccountStatus);
+      case WITHDRAWAL_EUR -> paymentService.upsert(payment, this::processWithdrawalPaymentOnInsert);
+      case FUND_INVESTMENT_EUR ->
+          paymentService.upsert(payment, this::processFundInvestmentPaymentOnInsert);
+    }
+  }
+
+  private void handleDepositAccountPayment(SavingFundPayment payment) {
     if (isOutgoingToFundAccount(payment)) {
       log.info(
           "Creating ledger entry for transfer to fund investment account: amount={}",
@@ -95,6 +133,90 @@ class SwedbankBankStatementMessageProcessor {
     return payment.getAmount().compareTo(ZERO) > 0;
   }
 
+  private boolean isOutgoingPayment(SavingFundPayment payment) {
+    return payment.getAmount().compareTo(ZERO) < 0;
+  }
+
+  private void handleWithdrawalAccountPayment(SavingFundPayment payment) {
+    if (isOutgoingPayment(payment)) {
+      handleOutgoingRedemptionPayout(payment);
+    } else if (isIncomingFromFundInvestment(payment)) {
+      log.info(
+          "Batch transfer received in WITHDRAWAL_EUR from FUND_INVESTMENT_EUR: amount={}",
+          payment.getAmount());
+    } else {
+      log.error(
+          "Unhandled WITHDRAWAL_EUR payment: amount={}, remitterIban={}",
+          payment.getAmount(),
+          payment.getRemitterIban());
+    }
+  }
+
+  private void handleOutgoingRedemptionPayout(SavingFundPayment payment) {
+    findRedemptionRequestByEndToEndId(payment.getEndToEndId())
+        .ifPresentOrElse(
+            request -> processRedemptionPayout(request, payment),
+            () ->
+                log.error(
+                    "No matching RedemptionRequest found for outgoing payment: endToEndId={}, beneficiaryIban={}, amount={}",
+                    payment.getEndToEndId(),
+                    payment.getBeneficiaryIban(),
+                    payment.getAmount()));
+  }
+
+  private void processRedemptionPayout(RedemptionRequest request, SavingFundPayment payment) {
+    if (savingsFundLedger.hasPayoutEntry(request.getId())) {
+      log.error(
+          "Ledger payout entry already exists but status is REDEEMED: id={}", request.getId());
+    } else {
+      var user = userService.getByIdOrThrow(request.getUserId());
+      var amount = payment.getAmount().negate();
+      log.info(
+          "Creating ledger entry for redemption payout: redemptionId={}, amount={}",
+          request.getId(),
+          amount);
+      savingsFundLedger.recordRedemptionPayout(
+          user, amount, request.getCustomerIban(), request.getId());
+    }
+    markRedemptionAsProcessed(request);
+  }
+
+  private Optional<RedemptionRequest> findRedemptionRequestByEndToEndId(String endToEndId) {
+    return endToEndIdConverter
+        .toUuid(endToEndId)
+        .flatMap(id -> redemptionRequestRepository.findByIdAndStatus(id, REDEEMED));
+  }
+
+  private void markRedemptionAsProcessed(RedemptionRequest request) {
+    log.info("Marking redemption as PROCESSED: id={}", request.getId());
+    redemptionStatusService.changeStatus(request.getId(), RedemptionRequest.Status.PROCESSED);
+  }
+
+  private boolean isIncomingFromFundInvestment(SavingFundPayment payment) {
+    return isIncomingPayment(payment)
+        && swedbankAccountConfiguration.getAccountType(payment.getRemitterIban())
+            == FUND_INVESTMENT_EUR;
+  }
+
+  private void handleFundInvestmentAccountPayment(SavingFundPayment payment) {
+    if (isOutgoingToWithdrawalAccount(payment)) {
+      var amount = payment.getAmount().negate();
+      log.info("Creating ledger entry for batch transfer to withdrawal account: amount={}", amount);
+      savingsFundLedger.transferFromFundAccount(amount);
+    } else {
+      log.debug(
+          "FUND_INVESTMENT_EUR payment: amount={}, beneficiaryIban={}",
+          payment.getAmount(),
+          payment.getBeneficiaryIban());
+    }
+  }
+
+  private boolean isOutgoingToWithdrawalAccount(SavingFundPayment payment) {
+    return isOutgoingPayment(payment)
+        && swedbankAccountConfiguration.getAccountType(payment.getBeneficiaryIban())
+            == WITHDRAWAL_EUR;
+  }
+
   private void completePaymentReturn(SavingFundPayment originalPayment) {
     if (isUserCancelledPayment(originalPayment)) {
       completeUserCancelledPaymentReturn(originalPayment);
@@ -108,22 +230,13 @@ class SwedbankBankStatementMessageProcessor {
   }
 
   private void completeUserCancelledPaymentReturn(SavingFundPayment originalPayment) {
-    userRepository
-        .findById(originalPayment.getUserId())
-        .ifPresentOrElse(
-            user -> {
-              log.info(
-                  "Completing ledger entry for user-cancelled payment: paymentId={}, amount={}",
-                  originalPayment.getId(),
-                  originalPayment.getAmount());
-              savingsFundLedger.recordPaymentCancelled(
-                  user, originalPayment.getAmount(), originalPayment.getId());
-            },
-            () ->
-                log.error(
-                    "User not found for cancelled payment return: userId={}, paymentId={}",
-                    originalPayment.getUserId(),
-                    originalPayment.getId()));
+    var user = userService.getByIdOrThrow(originalPayment.getUserId());
+    log.info(
+        "Completing ledger entry for user-cancelled payment: paymentId={}, amount={}",
+        originalPayment.getId(),
+        originalPayment.getAmount());
+    savingsFundLedger.recordPaymentCancelled(
+        user, originalPayment.getAmount(), originalPayment.getId());
   }
 
   private void completeUnattributedPaymentBounceBack(SavingFundPayment originalPayment) {

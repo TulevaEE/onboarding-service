@@ -18,6 +18,7 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
+import ee.tuleva.onboarding.swedbank.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.swedbank.payment.PaymentRequest;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
@@ -66,7 +67,8 @@ class RedemptionBatchJobTest {
         swedbankAccountConfiguration,
         transactionTemplate,
         navProvider,
-        savingFundPaymentRepository);
+        savingFundPaymentRepository,
+        new EndToEndIdConverter());
   }
 
   @Test

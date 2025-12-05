@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
+import ee.tuleva.onboarding.swedbank.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.swedbank.payment.PaymentRequest;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
@@ -18,7 +19,6 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -29,7 +29,20 @@ class PaymentReturningServiceTest {
   @Mock SavingFundPaymentRepository savingFundPaymentRepository;
   @Mock UserRepository userRepository;
   @Mock SavingsFundLedger savingsFundLedger;
-  @InjectMocks PaymentReturningService service;
+  EndToEndIdConverter endToEndIdConverter = new EndToEndIdConverter();
+
+  PaymentReturningService service;
+
+  @org.junit.jupiter.api.BeforeEach
+  void setUp() {
+    service =
+        new PaymentReturningService(
+            swedbankGatewayClient,
+            savingFundPaymentRepository,
+            userRepository,
+            savingsFundLedger,
+            endToEndIdConverter);
+  }
 
   @Test
   void createReturn() {

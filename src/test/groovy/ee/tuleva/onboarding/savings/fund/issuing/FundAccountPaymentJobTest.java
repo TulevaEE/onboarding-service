@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.DEPOSIT_EU
 import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -16,26 +17,32 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
+import ee.tuleva.onboarding.swedbank.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.swedbank.payment.PaymentRequest;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.support.TransactionTemplate;
 
-@ExtendWith(MockitoExtension.class)
 class FundAccountPaymentJobTest {
 
-  @Mock SwedbankGatewayClient swedbankGatewayClient;
-  @Mock SwedbankAccountConfiguration swedbankAccountConfiguration;
-  @Mock SavingFundPaymentRepository savingFundPaymentRepository;
-  @Mock ApplicationEventPublisher eventPublisher;
-  @InjectMocks FundAccountPaymentJob job;
+  SwedbankGatewayClient swedbankGatewayClient = mock();
+  SwedbankAccountConfiguration swedbankAccountConfiguration = mock();
+  SavingFundPaymentRepository savingFundPaymentRepository = mock();
+  TransactionTemplate transactionTemplate = mock();
+  ApplicationEventPublisher eventPublisher = mock();
+
+  FundAccountPaymentJob job =
+      new FundAccountPaymentJob(
+          swedbankGatewayClient,
+          swedbankAccountConfiguration,
+          savingFundPaymentRepository,
+          transactionTemplate,
+          eventPublisher,
+          new EndToEndIdConverter());
 
   @Test
   @SuppressWarnings("unchecked")

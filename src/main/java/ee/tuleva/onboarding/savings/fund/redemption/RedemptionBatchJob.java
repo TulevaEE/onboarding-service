@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
+import ee.tuleva.onboarding.swedbank.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.swedbank.payment.PaymentRequest;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
@@ -52,6 +53,7 @@ public class RedemptionBatchJob {
   private final TransactionTemplate transactionTemplate;
   private final SavingsFundNavProvider navProvider;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
+  private final EndToEndIdConverter endToEndIdConverter;
 
   @Scheduled(fixedRateString = "1m")
   @SchedulerLock(name = "RedemptionBatchJob", lockAtMostFor = "50s", lockAtLeastFor = "10s")
@@ -161,7 +163,7 @@ public class RedemptionBatchJob {
 
     UUID batchId = UUID.randomUUID();
     PaymentRequest paymentRequest =
-        PaymentRequest.tulevaPaymentBuilder(batchId)
+        PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(batchId))
             .remitterIban(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
             .beneficiaryName("Tuleva Fondid AS")
             .beneficiaryIban(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
@@ -185,7 +187,7 @@ public class RedemptionBatchJob {
         String beneficiaryName = getBeneficiaryName(updated.getUserId(), updated.getCustomerIban());
 
         PaymentRequest paymentRequest =
-            PaymentRequest.tulevaPaymentBuilder(updated.getId())
+            PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(updated.getId()))
                 .remitterIban(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
                 .beneficiaryName(beneficiaryName)
                 .beneficiaryIban(updated.getCustomerIban())

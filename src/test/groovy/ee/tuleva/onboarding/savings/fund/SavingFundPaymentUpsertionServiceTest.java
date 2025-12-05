@@ -109,7 +109,10 @@ class SavingFundPaymentUpsertionServiceTest {
     when(repository.findByExternalId("EXT123")).thenReturn(Optional.empty());
     when(repository.findRecentPayments("37508295796")).thenReturn(List.of(existingPayment));
 
-    service.upsert(incomingPayment, payment -> {});
+    service.upsert(
+        incomingPayment,
+        p -> SavingFundPayment.Status.RECEIVED,
+        p -> SavingFundPayment.Status.RECEIVED);
 
     var captor = ArgumentCaptor.forClass(SavingFundPayment.class);
     verify(repository).updatePaymentData(eq(existingPaymentId), captor.capture());
@@ -146,6 +149,12 @@ class SavingFundPaymentUpsertionServiceTest {
     when(repository.findByExternalId("EXT123")).thenReturn(Optional.empty());
     when(repository.findRecentPayments("37508295796")).thenReturn(List.of(existingPayment));
 
-    assertThrows(IllegalStateException.class, () -> service.upsert(incomingPayment, payment -> {}));
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            service.upsert(
+                incomingPayment,
+                p -> SavingFundPayment.Status.RECEIVED,
+                p -> SavingFundPayment.Status.RECEIVED));
   }
 }

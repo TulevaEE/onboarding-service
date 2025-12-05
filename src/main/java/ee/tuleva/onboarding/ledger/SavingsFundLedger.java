@@ -359,6 +359,7 @@ public class SavingsFundLedger {
         entry(payoutsCashAccount, amount));
   }
 
+  // TODO: remove, only used in tests
   @Transactional
   public LedgerTransaction recordRedemptionPayout(
       User user, BigDecimal amount, String customerIban) {

@@ -27,7 +27,7 @@ class SavingsFundStatementServiceSpec extends Specification {
     def fundUnits = fundUnitsAccountWithBalance(2.0)
     def fundUnitsReserved = fundUnitsReservedAccountWithBalance(1.0)
     def subscriptions = subscriptionsAccountWithBalance(3.0)
-    def redemptions = redemptionsAccountWithBalance(0.0)
+    def redemptions = redemptionsAccountWithBalance(1.0)
 
     userService.findByPersonalCode(user.personalCode) >> Optional.of(user)
     savingsFundOnboardingService.isOnboardingCompleted(user) >> true
@@ -36,7 +36,6 @@ class SavingsFundStatementServiceSpec extends Specification {
     ledgerService.getUserAccount(user, FUND_UNITS_RESERVED) >> fundUnitsReserved
     ledgerService.getUserAccount(user, SUBSCRIPTIONS) >> subscriptions
     ledgerService.getUserAccount(user, REDEMPTIONS) >> redemptions
-
 
     when:
     FundBalance savingsAccountStatement = service.getAccountStatement(user)
@@ -48,7 +47,7 @@ class SavingsFundStatementServiceSpec extends Specification {
     savingsAccountStatement.unavailableUnits == 1
     savingsAccountStatement.unavailableValue == 1.12
     savingsAccountStatement.contributions == 3
-    savingsAccountStatement.subtractions == 0
+    savingsAccountStatement.subtractions == -1
   }
 
   def "throws exception if user is not onboarded"() {

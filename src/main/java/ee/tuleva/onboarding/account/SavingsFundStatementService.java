@@ -80,7 +80,7 @@ public class SavingsFundStatementService {
   }
 
   private BigDecimal getRedemptions(User user) {
-    return ledgerService.getUserAccount(user, REDEMPTIONS).getBalance();
+    return ledgerService.getUserAccount(user, REDEMPTIONS).getBalance().negate();
   }
 
   private BigDecimal getNAV() {

@@ -159,23 +159,18 @@ public class RedemptionBatchJob {
   private void transferFromFundAccount(BigDecimal totalAmount) {
     log.info("Transferring {} EUR from fund account to payout account", totalAmount);
 
-    transactionTemplate.executeWithoutResult(
-        status -> {
-          savingsFundLedger.transferFromFundAccount(totalAmount);
+    UUID batchId = UUID.randomUUID();
+    PaymentRequest paymentRequest =
+        PaymentRequest.tulevaPaymentBuilder(batchId)
+            .remitterIban(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+            .beneficiaryName("Tuleva Fondid AS")
+            .beneficiaryIban(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+            .amount(totalAmount)
+            .description("Redemptions batch")
+            .build();
 
-          UUID batchId = UUID.randomUUID();
-          PaymentRequest paymentRequest =
-              PaymentRequest.tulevaPaymentBuilder(batchId)
-                  .remitterIban(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
-                  .beneficiaryName("Tuleva Fondid AS")
-                  .beneficiaryIban(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
-                  .amount(totalAmount)
-                  .description("Redemptions batch")
-                  .build();
-
-          swedbankGatewayClient.sendPaymentRequest(paymentRequest, batchId);
-          log.info("Sent batch transfer request: batchId={}, amount={}", batchId, totalAmount);
-        });
+    swedbankGatewayClient.sendPaymentRequest(paymentRequest, batchId);
+    log.info("Sent batch transfer request: batchId={}, amount={}", batchId, totalAmount);
   }
 
   private void processIndividualPayouts(List<RedemptionRequest> requests) {
@@ -187,41 +182,27 @@ public class RedemptionBatchJob {
       }
 
       try {
-        transactionTemplate.executeWithoutResult(
-            ignored -> {
-              if (savingsFundLedger.hasPayoutEntry(updated.getId())) {
-                log.info("Skipping payout, ledger entry already exists: id={}", updated.getId());
-                markAsRedeemed(updated.getId());
-                return;
-              }
+        String beneficiaryName = getBeneficiaryName(updated.getUserId(), updated.getCustomerIban());
 
-              User user = userService.getByIdOrThrow(updated.getUserId());
-              String beneficiaryName =
-                  getBeneficiaryName(updated.getUserId(), updated.getCustomerIban());
+        PaymentRequest paymentRequest =
+            PaymentRequest.tulevaPaymentBuilder(updated.getId())
+                .remitterIban(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+                .beneficiaryName(beneficiaryName)
+                .beneficiaryIban(updated.getCustomerIban())
+                .amount(updated.getCashAmount())
+                .description("Fondi tagasivõtmine")
+                .build();
 
-              savingsFundLedger.recordRedemptionPayout(
-                  user, updated.getCashAmount(), updated.getCustomerIban(), updated.getId());
+        swedbankGatewayClient.sendPaymentRequest(paymentRequest, updated.getId());
 
-              PaymentRequest paymentRequest =
-                  PaymentRequest.tulevaPaymentBuilder(updated.getId())
-                      .remitterIban(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
-                      .beneficiaryName(beneficiaryName)
-                      .beneficiaryIban(updated.getCustomerIban())
-                      .amount(updated.getCashAmount())
-                      .description("Fondi tagasivõtmine")
-                      .build();
+        markAsRedeemed(updated.getId());
 
-              swedbankGatewayClient.sendPaymentRequest(paymentRequest, updated.getId());
-
-              markAsRedeemed(updated.getId());
-
-              log.info(
-                  "Processed individual payout: id={}, amount={}, iban={}, beneficiaryName={}",
-                  updated.getId(),
-                  updated.getCashAmount(),
-                  updated.getCustomerIban(),
-                  beneficiaryName);
-            });
+        log.info(
+            "Processed individual payout: id={}, amount={}, iban={}, beneficiaryName={}",
+            updated.getId(),
+            updated.getCashAmount(),
+            updated.getCustomerIban(),
+            beneficiaryName);
       } catch (Exception e) {
         log.error("Failed to process payout for redemption: id={}", updated.getId(), e);
         handleError(updated.getId(), e);

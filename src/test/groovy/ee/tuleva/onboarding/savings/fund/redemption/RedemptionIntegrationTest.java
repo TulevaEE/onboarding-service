@@ -205,8 +205,13 @@ class RedemptionIntegrationTest {
     var navPerUnit = new BigDecimal("10.00");
     var cashAmount = new BigDecimal("100.00");
 
+    // Step 1: Reserve units (happens when redemption request created)
     savingsFundLedger.reserveFundUnitsForRedemption(testUser, fundUnits);
+
+    // Step 2: Price and redeem (happens in batch job at T+2)
     savingsFundLedger.redeemFundUnitsFromReserved(testUser, fundUnits, cashAmount, navPerUnit);
+
+    // Steps 3 & 4: Transfer and payout (happens during bank statement reconciliation)
     savingsFundLedger.transferFromFundAccount(cashAmount);
     savingsFundLedger.recordRedemptionPayout(testUser, cashAmount, VALID_IBAN);
 
@@ -250,24 +255,26 @@ class RedemptionIntegrationTest {
     var afterVerification = redemptionRequestRepository.findById(requestId).orElseThrow();
     assertThat(afterVerification.getStatus()).isEqualTo(VERIFIED);
 
-    // Step 3: Run batch job on Tuesday - should process and REDEEMED
+    // Step 3: Run batch job on Tuesday - prices units and sends payments to bank
+    // Note: Ledger entries for transfer (step 3) and payout (step 4) happen during reconciliation
     ClockHolder.setClock(Clock.fixed(tuesday, ZoneId.of("UTC")));
     redemptionBatchJob.runJob();
 
-    var afterPayout = redemptionRequestRepository.findById(requestId).orElseThrow();
-    assertThat(afterPayout.getStatus()).isEqualTo(REDEEMED);
-    assertThat(afterPayout.getCashAmount()).isEqualByComparingTo(redemptionAmount);
-    assertThat(afterPayout.getNavPerUnit()).isNotNull();
-    assertThat(afterPayout.getProcessedAt()).isNotNull();
+    var afterBatchJob = redemptionRequestRepository.findById(requestId).orElseThrow();
+    assertThat(afterBatchJob.getStatus()).isEqualTo(REDEEMED);
+    assertThat(afterBatchJob.getCashAmount()).isEqualByComparingTo(redemptionAmount);
+    assertThat(afterBatchJob.getNavPerUnit()).isNotNull();
+    assertThat(afterBatchJob.getProcessedAt()).isNotNull();
 
+    // Fund units redeemed from reserved
     assertThat(getUserFundUnitsAccount().getBalance())
         .isEqualByComparingTo(remainingUnits.negate());
     assertThat(getUserFundUnitsReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashRedemptionAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserRedemptionsAccount().getBalance()).isEqualByComparingTo(redemptionAmount);
-
     assertThat(getFundUnitsOutstandingAccount().getBalance()).isEqualByComparingTo(remainingUnits);
-    assertThat(getPayoutsCashClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+
+    // Cash redemption account has pending payout (will be cleared during reconciliation)
+    assertThat(getUserCashRedemptionAccount().getBalance())
+        .isEqualByComparingTo(redemptionAmount.negate());
   }
 
   @Test
@@ -334,10 +341,6 @@ class RedemptionIntegrationTest {
 
   private LedgerAccount getFundUnitsOutstandingAccount() {
     return ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING);
-  }
-
-  private LedgerAccount getPayoutsCashClearingAccount() {
-    return ledgerService.getSystemAccount(PAYOUTS_CASH_CLEARING);
   }
 
   private void setupUserDepositIban(String iban) {
@@ -422,19 +425,18 @@ class RedemptionIntegrationTest {
     var afterFirstRun = redemptionRequestRepository.findById(requestId).orElseThrow();
     assertThat(afterFirstRun.getStatus()).isEqualTo(REDEEMED);
 
-    var redemptionsBalanceAfterFirst = getUserRedemptionsAccount().getBalance();
-    var payoutsClearingAfterFirst = getPayoutsCashClearingAccount().getBalance();
+    var cashRedemptionAfterFirst = getUserCashRedemptionAccount().getBalance();
 
     redemptionBatchJob.runJob();
     var afterSecondRun = redemptionRequestRepository.findById(requestId).orElseThrow();
     assertThat(afterSecondRun.getStatus()).isEqualTo(REDEEMED);
 
-    var redemptionsBalanceAfterSecond = getUserRedemptionsAccount().getBalance();
-    var payoutsClearingAfterSecond = getPayoutsCashClearingAccount().getBalance();
+    var cashRedemptionAfterSecond = getUserCashRedemptionAccount().getBalance();
 
-    assertThat(redemptionsBalanceAfterSecond).isEqualByComparingTo(redemptionsBalanceAfterFirst);
-    assertThat(payoutsClearingAfterSecond).isEqualByComparingTo(payoutsClearingAfterFirst);
+    // Ledger balances should not change on second run
+    assertThat(cashRedemptionAfterSecond).isEqualByComparingTo(cashRedemptionAfterFirst);
 
+    // Payments sent only once (batch + individual)
     verify(swedbankGatewayClient, times(2)).sendPaymentRequest(any(), any());
   }
 }

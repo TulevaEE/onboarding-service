@@ -7,7 +7,6 @@ import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVES
 import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.WITHDRAWAL_EUR;
 import static java.time.ZoneOffset.UTC;
 import static java.time.temporal.ChronoUnit.DAYS;
-import static java.time.temporal.ChronoUnit.HOURS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -26,7 +25,6 @@ import java.time.*;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,7 +32,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -84,7 +81,7 @@ class RedemptionBatchJobTest {
     batchJob.runJob();
 
     verify(redemptionRequestRepository).findByStatusAndRequestedAtBefore(eq(VERIFIED), any());
-    verifyNoMoreInteractions(savingsFundLedger);
+    verifyNoInteractions(swedbankGatewayClient);
   }
 
   @Test
@@ -125,15 +122,6 @@ class RedemptionBatchJobTest {
         .when(transactionTemplate)
         .execute(any());
 
-    doAnswer(
-            invocation -> {
-              Consumer<TransactionStatus> callback = invocation.getArgument(0);
-              callback.accept(null);
-              return null;
-            })
-        .when(transactionTemplate)
-        .executeWithoutResult(any());
-
     batchJob.runJob();
 
     verify(savingsFundLedger)
@@ -143,9 +131,6 @@ class RedemptionBatchJobTest {
             any(BigDecimal.class),
             eq(BigDecimal.ONE),
             eq(requestId));
-    verify(savingsFundLedger).transferFromFundAccount(any(BigDecimal.class));
-    verify(savingsFundLedger)
-        .recordRedemptionPayout(eq(user), any(BigDecimal.class), eq(customerIban), eq(requestId));
     verify(swedbankGatewayClient, times(2))
         .sendPaymentRequest(any(PaymentRequest.class), any(UUID.class));
     verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
@@ -162,20 +147,6 @@ class RedemptionBatchJobTest {
   void runJob_beforeCutoff_processesRequestsFromSecondToLastWorkingDay() {
     var now = Instant.parse("2025-01-15T12:00:00Z"); // 14:00 Tallinn time (before cutoff)
     var batchJob = createBatchJob(now);
-
-    var requestFromTwoDaysBefore =
-        redemptionRequestFixture()
-            .id(UUID.randomUUID())
-            .status(VERIFIED)
-            .requestedAt(now.minus(2, DAYS).minus(4, HOURS))
-            .build();
-
-    var requestFromYesterday =
-        redemptionRequestFixture()
-            .id(UUID.randomUUID())
-            .status(VERIFIED)
-            .requestedAt(now.minus(1, DAYS))
-            .build();
 
     var cutoffCaptor = ArgumentCaptor.forClass(Instant.class);
     when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
@@ -213,7 +184,7 @@ class RedemptionBatchJobTest {
   }
 
   @Test
-  @DisplayName("runJob handles payout errors")
+  @DisplayName("runJob handles individual payout errors")
   void runJob_handlesPayoutErrors() {
     var now = Instant.parse("2025-01-15T15:00:00Z");
     var batchJob = createBatchJob(now);
@@ -233,13 +204,11 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
-    lenient().when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
         .thenReturn("EE111111111111111111");
     when(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
         .thenReturn("EE222222222222222222");
-    lenient()
-        .when(savingFundPaymentRepository.findRemitterNameByIban(user.getId(), customerIban))
+    when(savingFundPaymentRepository.findRemitterNameByIban(user.getId(), customerIban))
         .thenReturn(Optional.of("John Smith"));
 
     doAnswer(
@@ -250,19 +219,11 @@ class RedemptionBatchJobTest {
         .when(transactionTemplate)
         .execute(any());
 
-    var callCount = new int[] {0};
-    doAnswer(
-            invocation -> {
-              callCount[0]++;
-              if (callCount[0] == 1) {
-                Consumer<TransactionStatus> callback = invocation.getArgument(0);
-                callback.accept(null);
-                return null;
-              }
-              throw new RuntimeException("Payout error");
-            })
-        .when(transactionTemplate)
-        .executeWithoutResult(any());
+    // First call (batch transfer) succeeds, second call (individual payout) fails
+    doNothing()
+        .doThrow(new RuntimeException("Payout error"))
+        .when(swedbankGatewayClient)
+        .sendPaymentRequest(any(), any());
 
     batchJob.runJob();
 
@@ -293,44 +254,6 @@ class RedemptionBatchJobTest {
   }
 
   @Test
-  @DisplayName("runJob skips pricing when ledger entry already exists")
-  void runJob_skipsPricingWhenLedgerEntryExists() {
-    var now = Instant.parse("2025-01-15T15:00:00Z");
-    var batchJob = createBatchJob(now);
-
-    var user = sampleUser().build();
-    var requestId = UUID.randomUUID();
-    var customerIban = "EE123456789012345678";
-    var request =
-        redemptionRequestFixture()
-            .id(requestId)
-            .userId(user.getId())
-            .status(VERIFIED)
-            .customerIban(customerIban)
-            .cashAmount(null)
-            .requestedAt(now.minus(1, DAYS))
-            .build();
-
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
-        .thenReturn(List.of(request));
-    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
-    when(savingsFundLedger.hasPricingEntry(requestId)).thenReturn(true);
-
-    doAnswer(
-            invocation -> {
-              TransactionCallback<?> callback = invocation.getArgument(0);
-              return callback.doInTransaction(null);
-            })
-        .when(transactionTemplate)
-        .execute(any());
-
-    batchJob.runJob();
-
-    verify(savingsFundLedger, never())
-        .redeemFundUnitsFromReserved(any(), any(), any(), any(), any());
-  }
-
-  @Test
   @DisplayName("runJob skips already priced requests")
   void runJob_skipsAlreadyPricedRequests() {
     var now = Instant.parse("2025-01-15T15:00:00Z");
@@ -353,7 +276,6 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
-    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
         .thenReturn("EE111111111111111111");
     when(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
@@ -369,24 +291,15 @@ class RedemptionBatchJobTest {
         .when(transactionTemplate)
         .execute(any());
 
-    doAnswer(
-            invocation -> {
-              Consumer<TransactionStatus> callback = invocation.getArgument(0);
-              callback.accept(null);
-              return null;
-            })
-        .when(transactionTemplate)
-        .executeWithoutResult(any());
-
     batchJob.runJob();
 
-    verify(savingsFundLedger, never())
-        .redeemFundUnitsFromReserved(any(), any(), any(), any(), any());
-    verify(savingsFundLedger).transferFromFundAccount(alreadyPricedAmount);
+    // Verify pricing was skipped but payments were still sent
+    verify(swedbankGatewayClient, times(2))
+        .sendPaymentRequest(any(PaymentRequest.class), any(UUID.class));
   }
 
   @Test
-  @DisplayName("runJob uses deterministic payment ID for Swedbank")
+  @DisplayName("runJob uses deterministic payment ID for individual payouts")
   void runJob_usesDeterministicPaymentId() {
     var now = Instant.parse("2025-01-15T15:00:00Z");
     var batchJob = createBatchJob(now);
@@ -422,15 +335,6 @@ class RedemptionBatchJobTest {
         .when(transactionTemplate)
         .execute(any());
 
-    doAnswer(
-            invocation -> {
-              Consumer<TransactionStatus> callback = invocation.getArgument(0);
-              callback.accept(null);
-              return null;
-            })
-        .when(transactionTemplate)
-        .executeWithoutResult(any());
-
     batchJob.runJob();
 
     var paymentIdCaptor = ArgumentCaptor.forClass(UUID.class);
@@ -438,6 +342,7 @@ class RedemptionBatchJobTest {
         .sendPaymentRequest(any(PaymentRequest.class), paymentIdCaptor.capture());
 
     var capturedIds = paymentIdCaptor.getAllValues();
+    // Second payment (individual payout) should use the request ID
     assertThat(capturedIds.get(1)).isEqualTo(requestId);
   }
 
@@ -479,15 +384,6 @@ class RedemptionBatchJobTest {
         .when(transactionTemplate)
         .execute(any());
 
-    doAnswer(
-            invocation -> {
-              Consumer<TransactionStatus> callback = invocation.getArgument(0);
-              callback.accept(null);
-              return null;
-            })
-        .when(transactionTemplate)
-        .executeWithoutResult(any());
-
     // First run - processes the request
     batchJob.runJob();
 
@@ -501,33 +397,24 @@ class RedemptionBatchJobTest {
   }
 
   @Test
-  @DisplayName("runJob skips payout when ledger entry already exists but still marks as redeemed")
-  void runJob_skipsPayoutWhenLedgerEntryExists_butMarksAsRedeemed() {
+  @DisplayName("runJob skips pricing when ledger entry already exists")
+  void runJob_skipsPricingWhenLedgerEntryExists() {
     var now = Instant.parse("2025-01-15T15:00:00Z");
     var batchJob = createBatchJob(now);
 
-    var user = sampleUser().build();
     var requestId = UUID.randomUUID();
-    var customerIban = "EE123456789012345678";
-    var cashAmount = new BigDecimal("10.00");
     var request =
         redemptionRequestFixture()
             .id(requestId)
-            .userId(user.getId())
             .status(VERIFIED)
-            .customerIban(customerIban)
-            .cashAmount(cashAmount) // Already priced
+            .cashAmount(null)
             .requestedAt(now.minus(1, DAYS))
             .build();
 
     when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
-    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
-        .thenReturn("EE111111111111111111");
-    when(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
-        .thenReturn("EE222222222222222222");
-    when(savingsFundLedger.hasPayoutEntry(requestId)).thenReturn(true); // Payout already recorded
+    when(savingsFundLedger.hasPricingEntry(requestId)).thenReturn(true);
 
     doAnswer(
             invocation -> {
@@ -537,21 +424,9 @@ class RedemptionBatchJobTest {
         .when(transactionTemplate)
         .execute(any());
 
-    doAnswer(
-            invocation -> {
-              Consumer<TransactionStatus> callback = invocation.getArgument(0);
-              callback.accept(null);
-              return null;
-            })
-        .when(transactionTemplate)
-        .executeWithoutResult(any());
-
     batchJob.runJob();
 
-    // Should skip individual payout but still mark as redeemed
-    verify(savingsFundLedger, never()).recordRedemptionPayout(any(), any(), any(), any());
-    verify(swedbankGatewayClient, times(1)) // Only batch transfer, no individual payout
-        .sendPaymentRequest(any(PaymentRequest.class), any(UUID.class));
-    verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
+    verify(savingsFundLedger, never())
+        .redeemFundUnitsFromReserved(any(), any(), any(), any(), any());
   }
 }

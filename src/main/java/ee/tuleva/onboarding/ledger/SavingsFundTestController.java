@@ -81,7 +81,7 @@ public class SavingsFundTestController {
         authenticatedPerson.getUserId());
   }
 
-  @Operation(summary = "Backdate user VERIFIED redemption requests by 1 day")
+  @Operation(summary = "Backdate user VERIFIED redemption requests by 2 days")
   @GetMapping("/backdate-redemptions")
   public int backdateRedemptions(@AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     if (!savingsFundOnboardingService.isUserWhitelisted(authenticatedPerson.getUserId())) {

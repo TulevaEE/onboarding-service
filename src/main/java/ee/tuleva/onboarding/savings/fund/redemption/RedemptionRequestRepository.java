@@ -37,9 +37,9 @@ public interface RedemptionRequestRepository extends CrudRepository<RedemptionRe
   @Query(
       """
     UPDATE RedemptionRequest r
-          SET r.requestedAt = r.requestedAt - 1 DAY
+          SET r.requestedAt = r.requestedAt - 2 DAY
           WHERE r.status = 'VERIFIED'
-      AND r.requestedAt > CURRENT_TIMESTAMP - 1 DAY
+      AND r.requestedAt > CURRENT_TIMESTAMP - 2 DAY
       AND r.userId = :userId
     """)
   int TEST_backdateVerifiedRequests(@Param("userId") Long userId);

@@ -293,9 +293,9 @@ public class SavingFundPaymentRepository {
     return jdbcTemplate.update(
         """
         UPDATE saving_fund_payment
-        SET received_at = received_at - INTERVAL '2 days'
+        SET received_before = received_before - INTERVAL '2 days'
         WHERE status = 'VERIFIED'
-          AND received_at > NOW() - INTERVAL '2 days'
+          AND received_before > NOW() - INTERVAL '2 days'
           AND user_id = :userId
         """,
         Map.of("userId", userId));

@@ -1,27 +1,15 @@
 package ee.tuleva.onboarding.auth.command;
 
-import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import org.hibernate.validator.constraints.Length;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 
-@Getter
-@Setter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class AuthenticateCommand {
-
-  @Length(min = 7, max = 30)
-  @Pattern(regexp = "^\\+?\\d{7,30}$")
-  private String phoneNumber;
-
-  @ValidPersonalCode private String personalCode;
-
-  @NotNull private AuthenticationType type;
-}
+@JsonTypeInfo(use = Id.NAME, property = "type")
+@JsonSubTypes({
+  @Type(value = MobileIdAuthenticateCommand.class, name = "MOBILE_ID"),
+  @Type(value = SmartIdAuthenticateCommand.class, name = "SMART_ID"),
+  @Type(value = IdCardAuthenticateCommand.class, name = "ID_CARD")
+})
+public sealed interface AuthenticateCommand
+    permits MobileIdAuthenticateCommand, SmartIdAuthenticateCommand, IdCardAuthenticateCommand {}

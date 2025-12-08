@@ -76,6 +76,9 @@ opensanctions:
 async:
   enabled: false
 
+web-eid:
+  origin: https://localhost:3000
+
 swedbank-gateway:
   accounts:
     DEPOSIT_EUR: EE442200221092874625

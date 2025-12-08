@@ -24,4 +24,8 @@ public class AuthenticateResponse {
         smartIdSession.getVerificationCode(),
         smartIdSession.getAuthenticationHash().getHashInBase64());
   }
+
+  public static AuthenticateResponse fromWebEidChallenge(String challengeNonce) {
+    return new AuthenticateResponse(challengeNonce, null);
+  }
 }

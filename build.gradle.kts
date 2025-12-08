@@ -123,7 +123,7 @@ dependencies {
     implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.25.0")
     implementation("io.sentry:sentry-logback:8.25.0")
 
-    implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.12.0")
+    implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.13.2")
 
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")

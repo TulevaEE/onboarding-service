@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.auth.mobileid.MobileIdFixture
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.auth.smartid.SmartIdAuthService
 import ee.tuleva.onboarding.auth.smartid.SmartIdFixture
+import ee.tuleva.onboarding.auth.webeid.WebEidAuthService
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 
@@ -22,10 +23,11 @@ class AuthControllerSpec extends BaseControllerSpec {
 
   MobileIdAuthService mobileIdAuthService = Mock(MobileIdAuthService)
   SmartIdAuthService smartIdAuthService = Mock(SmartIdAuthService)
-  GenericSessionStore sessionStore = Mock(GenericSessionStore)
   IdCardAuthService idCardAuthService = Mock(IdCardAuthService)
+  WebEidAuthService webEidAuthService = Mock(WebEidAuthService)
+  GenericSessionStore sessionStore = Mock(GenericSessionStore)
   AuthService authService = Mock(AuthService)
-  AuthController controller = new AuthController(mobileIdAuthService, smartIdAuthService, idCardAuthService, sessionStore, authService)
+  AuthController controller = new AuthController(mobileIdAuthService, smartIdAuthService, idCardAuthService, webEidAuthService, sessionStore, authService)
   private MockMvc mockMvc
 
   def setup() {
@@ -53,6 +55,19 @@ class AuthControllerSpec extends BaseControllerSpec {
         .content(mapper.writeValueAsString(sampleSmartIdAuthenticateCommand())))
     then:
     result.andExpect(status().isOk())
+  }
+
+  def "Authenticate: Initiate id card authentication via Web eID"() {
+    given:
+    def challengeNonce = "dGVzdC1jaGFsbGVuZ2Utbm9uY2U="
+    1 * webEidAuthService.generateChallenge() >> challengeNonce
+    when:
+    def result = mockMvc.perform(post("/authenticate")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(mapper.writeValueAsString(sampleIdCardAuthenticateCommand())))
+    then:
+    result.andExpect(status().isOk())
+        .andExpect(jsonPath('$.challengeCode', is(challengeNonce)))
   }
 
   def "Authenticate: throw exception when no cert sent"() {
@@ -180,6 +195,12 @@ class AuthControllerSpec extends BaseControllerSpec {
     [
         personalCode: SmartIdFixture.personalCode,
         type        : AuthenticationType.SMART_ID.toString()
+    ]
+  }
+
+  private static sampleIdCardAuthenticateCommand() {
+    [
+        type: AuthenticationType.ID_CARD.toString()
     ]
   }
 

@@ -1,12 +1,9 @@
 package ee.tuleva.onboarding.auth.command
 
-
 import spock.lang.Specification
 import spock.lang.Unroll
 
 import jakarta.validation.Validation
-
-import static ee.tuleva.onboarding.auth.command.AuthenticationType.MOBILE_ID
 
 class AuthenticateCommandSpec extends Specification {
 
@@ -16,11 +13,7 @@ class AuthenticateCommandSpec extends Specification {
   @Unroll
   def "valid phone numbers"() {
     given:
-    def cmd = AuthenticateCommand.builder()
-      .personalCode(personalCode)
-      .phoneNumber(phoneNumber)
-      .type(MOBILE_ID)
-      .build()
+    def cmd = new MobileIdAuthenticateCommand(phoneNumber, personalCode)
 
     when:
     def violations = validator.validate(cmd)
@@ -39,11 +32,7 @@ class AuthenticateCommandSpec extends Specification {
   @Unroll
   def "invalid phone numbers"() {
     given:
-    def cmd = AuthenticateCommand.builder()
-      .personalCode(personalCode)
-      .phoneNumber(phoneNumber)
-      .type(MOBILE_ID)
-      .build()
+    def cmd = new MobileIdAuthenticateCommand(phoneNumber, personalCode)
 
     when:
     def violations = validator.validate(cmd)

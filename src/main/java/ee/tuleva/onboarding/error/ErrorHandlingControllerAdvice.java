@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.account.PensionRegistryAccountStatementConnectionExc
 import ee.tuleva.onboarding.auth.ExpiredRefreshJwtException;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
+import ee.tuleva.onboarding.auth.webeid.WebEidAuthException;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
@@ -94,5 +95,14 @@ public class ErrorHandlingControllerAdvice {
   public ResponseEntity<Object> handleErrors(MandateProcessingException exception) {
     log.debug("MandateProcessingException {}", exception.toString());
     return new ResponseEntity<>(exception.getErrorsResponse(), INTERNAL_SERVER_ERROR);
+  }
+
+  @ExceptionHandler(WebEidAuthException.class)
+  public ResponseEntity<Object> handleErrors(WebEidAuthException exception) {
+    log.info("WebEidAuthException {}", exception.getMessage());
+    return new ResponseEntity<>(
+        Map.of(
+            "error", "ID_CARD_AUTH_FAILED", "error_description", "ID-card authentication failed"),
+        BAD_REQUEST);
   }
 }

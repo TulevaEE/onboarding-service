@@ -1,21 +1,21 @@
 package ee.tuleva.onboarding.auth;
 
-import static ee.tuleva.onboarding.auth.command.AuthenticationType.SMART_ID;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.springframework.web.bind.annotation.RequestMethod.GET;
 import static org.springframework.web.bind.annotation.RequestMethod.POST;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import ee.tuleva.onboarding.auth.command.AuthenticateCommand;
+import ee.tuleva.onboarding.auth.command.IdCardAuthenticateCommand;
+import ee.tuleva.onboarding.auth.command.MobileIdAuthenticateCommand;
+import ee.tuleva.onboarding.auth.command.SmartIdAuthenticateCommand;
 import ee.tuleva.onboarding.auth.idcard.IdCardAuthService;
-import ee.tuleva.onboarding.auth.mobileid.MobileIDSession;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdAuthService;
 import ee.tuleva.onboarding.auth.response.AuthenticateResponse;
 import ee.tuleva.onboarding.auth.response.IdCardLoginResponse;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.auth.smartid.SmartIdAuthService;
-import ee.tuleva.onboarding.auth.smartid.SmartIdSession;
-import ee.tuleva.onboarding.error.ValidationErrorsException;
+import ee.tuleva.onboarding.auth.webeid.WebEidAuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.servlet.http.HttpServletResponse;
@@ -26,10 +26,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -40,6 +37,7 @@ public class AuthController {
   private final MobileIdAuthService mobileIdAuthService;
   private final SmartIdAuthService smartIdAuthService;
   private final IdCardAuthService idCardAuthService;
+  private final WebEidAuthService webEidAuthService;
   private final GenericSessionStore genericSessionStore;
   private final AuthService authService;
 
@@ -48,27 +46,22 @@ public class AuthController {
 
   @Operation(summary = "Initiate authentication")
   @PostMapping(value = "/authenticate", consumes = MediaType.APPLICATION_JSON_VALUE)
-  public ResponseEntity<AuthenticateResponse> authenticate(
-      @Valid @RequestBody AuthenticateCommand authenticateCommand,
-      @Parameter(hidden = true) Errors errors) {
-
-    if (errors != null && errors.hasErrors()) {
-      throw new ValidationErrorsException(errors);
-    }
-
-    if (SMART_ID == authenticateCommand.getType()) {
-      SmartIdSession loginSession =
-          smartIdAuthService.startLogin(authenticateCommand.getPersonalCode());
-      return new ResponseEntity<>(
-          AuthenticateResponse.fromSmartIdSession(loginSession), HttpStatus.OK);
-    }
-
-    MobileIDSession loginSession =
-        mobileIdAuthService.startLogin(
-            authenticateCommand.getPhoneNumber(), authenticateCommand.getPersonalCode());
-    genericSessionStore.save(loginSession);
-    return new ResponseEntity<>(
-        AuthenticateResponse.fromMobileIdSession(loginSession), HttpStatus.OK);
+  public AuthenticateResponse authenticate(@Valid @RequestBody AuthenticateCommand command) {
+    return switch (command) {
+      case IdCardAuthenticateCommand _ -> {
+        var challengeNonce = webEidAuthService.generateChallenge();
+        yield AuthenticateResponse.fromWebEidChallenge(challengeNonce);
+      }
+      case SmartIdAuthenticateCommand cmd -> {
+        var loginSession = smartIdAuthService.startLogin(cmd.personalCode());
+        yield AuthenticateResponse.fromSmartIdSession(loginSession);
+      }
+      case MobileIdAuthenticateCommand cmd -> {
+        var loginSession = mobileIdAuthService.startLogin(cmd.phoneNumber(), cmd.personalCode());
+        genericSessionStore.save(loginSession);
+        yield AuthenticateResponse.fromMobileIdSession(loginSession);
+      }
+    };
   }
 
   @PostMapping({"/oauth/token", "/login", "/v1/tokens"})

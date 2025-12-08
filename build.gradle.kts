@@ -67,6 +67,7 @@ java {
 repositories {
     mavenCentral()
     maven("https://jitpack.io")
+    maven("https://gitlab.com/api/v4/projects/19948337/packages/maven")
 }
 
 dependencies {
@@ -114,6 +115,7 @@ dependencies {
     implementation("ee.sk.mid:mid-rest-java-client:1.6") {
         exclude(group = "org.bouncycastle")
     }
+    implementation("eu.webeid.security:authtoken-validation:3.2.0")
 
     implementation("org.digidoc4j:digidoc4j:6.0.1") {
         exclude(group = "commons-logging", module = "commons-logging")

@@ -1,14 +1,22 @@
 package ee.tuleva.onboarding.deadline;
 
+import static java.time.DayOfWeek.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 public class MandateDeadlinesTest {
 
@@ -435,5 +443,31 @@ public class MandateDeadlinesTest {
             IllegalArgumentException.class,
             () -> deadlines.getCancellationDeadline(cancellationType));
     assertEquals("Unknown application type: " + cancellationType, exception.getMessage());
+  }
+
+  static Stream<Arguments> thirdPillarPaymentDeadlineTestCases() {
+    return Stream.of(
+        Arguments.of(2018, MONDAY, Instant.parse("2018-12-27T13:59:59.999999999Z")),
+        Arguments.of(2024, TUESDAY, Instant.parse("2024-12-27T13:59:59.999999999Z")),
+        Arguments.of(2025, WEDNESDAY, Instant.parse("2025-12-29T13:59:59.999999999Z")),
+        Arguments.of(2026, THURSDAY, Instant.parse("2026-12-29T13:59:59.999999999Z")),
+        Arguments.of(2027, FRIDAY, Instant.parse("2027-12-29T13:59:59.999999999Z")),
+        Arguments.of(2022, SATURDAY, Instant.parse("2022-12-28T13:59:59.999999999Z")),
+        Arguments.of(2028, SUNDAY, Instant.parse("2028-12-27T13:59:59.999999999Z")));
+  }
+
+  @ParameterizedTest(name = "{0}: Dec 31 is {1}")
+  @MethodSource("thirdPillarPaymentDeadlineTestCases")
+  @DisplayName("Third pillar payment deadline is 2 working days before last working day of year")
+  void getThirdPillarPaymentDeadline_allDaysOfWeek(
+      int year, DayOfWeek expectedDayOfWeek, Instant expectedDeadline) {
+    LocalDate dec31 = LocalDate.of(year, 12, 31);
+    assertThat(dec31.getDayOfWeek()).isEqualTo(expectedDayOfWeek);
+
+    Instant applicationDate = Instant.parse(year + "-12-01T10:00:00Z");
+    Clock clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"));
+    MandateDeadlines deadlines = new MandateDeadlines(clock, publicHolidays, applicationDate);
+
+    assertThat(deadlines.getThirdPillarPaymentDeadline()).isEqualTo(expectedDeadline);
   }
 }

@@ -91,6 +91,25 @@ public class MandateDeadlines {
     return publicHolidays.addWorkingDays(zonedApplicationDate.toLocalDate(), 4);
   }
 
+  public Instant getThirdPillarPaymentDeadline() {
+    ZoneId timeZone = estonianClock.getZone();
+    ZonedDateTime zonedApplicationDate = applicationDate.atZone(timeZone);
+    int year = zonedApplicationDate.getYear();
+
+    LocalDate december31 = LocalDate.of(year, Month.DECEMBER, 31);
+    LocalDate lastWorkingDayOfYear =
+        publicHolidays.isWorkingDay(december31)
+            ? december31
+            : publicHolidays.previousWorkingDay(december31);
+    LocalDate twoWorkingDaysBefore =
+        publicHolidays.previousWorkingDay(publicHolidays.previousWorkingDay(lastWorkingDayOfYear));
+
+    return twoWorkingDaysBefore
+        .atTime(LocalTime.of(15, 59, 59, 999_999_999))
+        .atZone(timeZone)
+        .toInstant();
+  }
+
   public Instant getNonCancellableApplicationDeadline() {
     return applicationDate;
   }

@@ -32,7 +32,7 @@ class CashFlowFixture {
   }
 
   static CashFlowStatement cashFlowStatementFor3rdPillarPayment(Payment payment) {
-    def time = payment.createdTime.plus(60)
+    def time = payment.createdTime.plusSeconds(60)
     def amount = payment.amount
     def currency = payment.currency
     return CashFlowStatement.builder()
@@ -44,8 +44,8 @@ class CashFlowFixture {
         ])
         .transactions([
             CashFlow.builder().time(time).priceTime(time).amount(amount).currency(currency).isin(null).type(CASH).build(),
-            CashFlow.builder().time(time.plus(1)).priceTime(time.plus(1)).amount(amount.negate()).currency(currency).isin(null).type(CASH).build(),
-            CashFlow.builder().time(time.plus(1)).priceTime(time.plus(1)).amount(10.01).currency(currency).isin(TULEVA_3RD_PILLAR_FUND_ISIN).type(CONTRIBUTION_CASH).build(),
+            CashFlow.builder().time(time.plusSeconds(1)).priceTime(time.plusSeconds(1)).amount(amount.negate()).currency(currency).isin(null).type(CASH).build(),
+            CashFlow.builder().time(time.plusSeconds(1)).priceTime(time.plusSeconds(1)).amount(10.01).currency(currency).isin(TULEVA_3RD_PILLAR_FUND_ISIN).type(CONTRIBUTION_CASH).build(),
         ]).build()
   }
 }

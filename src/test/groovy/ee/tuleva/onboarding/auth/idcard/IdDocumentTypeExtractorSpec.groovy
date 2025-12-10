@@ -14,12 +14,12 @@ import static ee.tuleva.onboarding.auth.ocsp.OCSPFixture.generateCertificateWith
 class IdDocumentTypeExtractorSpec extends Specification {
 
     IdDocumentTypeExtractor extractor = new IdDocumentTypeExtractor()
-    static final ID_CARD_EXTENSION = "BEAwPjAyBgsrBgEEAYORIQEBAzAjMCEGCCsGAQUFBwIBFhVodHRwczovL3d3dy5zay5lZS9DUFMwCAYGBACPegEC"
+    static final DIGITAL_ID_CARD_EXTENSION_BASE64 = "BEAwPjAyBgsrBgEEAYORIQEBAzAjMCEGCCsGAQUFBwIBFhVodHRwczovL3d3dy5zay5lZS9DUFMwCAYGBACPegEC"
 
     def "extract document type from certificate"() {
         given:
         X509Certificate cert = Mock()
-        cert.getExtensionValue("2.5.29.32") >> Base64.getDecoder().decode(ID_CARD_EXTENSION)
+        cert.getExtensionValue("2.5.29.32") >> Base64.getDecoder().decode(DIGITAL_ID_CARD_EXTENSION_BASE64)
 
         when:
         def response = extractor.extract(cert)

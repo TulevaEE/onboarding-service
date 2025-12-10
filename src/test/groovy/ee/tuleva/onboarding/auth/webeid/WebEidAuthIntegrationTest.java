@@ -33,7 +33,7 @@ class WebEidAuthIntegrationTest {
   }
 
   @Test
-  void tokenWithInvalidAuthTokenReturnsBadRequest() throws Exception {
+  void invalidAuthTokenReturnsBadRequest() throws Exception {
     mockMvc
         .perform(
             post("/oauth/token")

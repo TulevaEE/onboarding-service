@@ -22,8 +22,8 @@ public class IdDocumentTypeExtractor {
 
   private static final String AUTHENTICATION_POLICY_ID = "0.4.0.2042.1.2";
   private static final String CLIENT_AUTHENTICATION_ID = "1.3.6.1.5.5.7.3.2";
-  private static final int POLICY_NO_1 = 0;
-  private static final int POLICY_NO_2 = 1;
+  private static final int DOCUMENT_TYPE_POLICY_INDEX = 0;
+  private static final int AUTHENTICATION_POLICY_INDEX = 1;
   private static final List<String> VALID_ISSUERS =
       List.of(
           "CN=ESTEID-SK 2015, OID.2.5.4.97=NTREE-10747013, O=AS Sertifitseerimiskeskus, C=EE",
@@ -36,10 +36,10 @@ public class IdDocumentTypeExtractor {
       if (encodedExtensionValue != null) {
         var extensionValue = (DLSequence) parseExtensionValue(encodedExtensionValue);
         try {
-          var first = (DLSequence) extensionValue.getObjectAt(POLICY_NO_1);
-          var second = (DLSequence) extensionValue.getObjectAt(POLICY_NO_2);
+          var first = (DLSequence) extensionValue.getObjectAt(DOCUMENT_TYPE_POLICY_INDEX);
+          var second = (DLSequence) extensionValue.getObjectAt(AUTHENTICATION_POLICY_INDEX);
           if (Objects.equals(second.getObjectAt(0).toString(), AUTHENTICATION_POLICY_ID)) {
-            return IdDocumentType.findByIdentifier(first.getObjectAt(POLICY_NO_1).toString());
+            return IdDocumentType.findByIdentifier(first.getObjectAt(0).toString());
           } else {
             throw new UnknownDocumentTypeException(second.getObjectAt(0).toString());
           }

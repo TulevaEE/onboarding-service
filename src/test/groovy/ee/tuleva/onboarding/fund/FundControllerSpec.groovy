@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.fund
 
 import ee.tuleva.onboarding.BaseControllerSpec
-import ee.tuleva.onboarding.mandate.MandateFixture
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueCsvExporter
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 
@@ -18,7 +18,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class FundControllerSpec extends BaseControllerSpec {
 
     FundService fundService = Mock(FundService)
-    FundController controller = new FundController(fundService)
+    FundValueCsvExporter csvExporter = Mock(FundValueCsvExporter)
+    FundController controller = new FundController(fundService, csvExporter)
 
     private MockMvc mockMvc
 

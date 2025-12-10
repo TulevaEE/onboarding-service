@@ -67,9 +67,8 @@ class WebEidAuthProviderTest {
   }
 
   @Test
-  void throwsExceptionWhenAuthTokenIsNull() {
-    assertThatThrownBy(() -> webEidAuthProvider.authenticate(null))
-        .isInstanceOf(WebEidAuthException.class);
+  void returnsNullWhenAuthTokenIsNull() {
+    assertThat(webEidAuthProvider.authenticate(null)).isNull();
   }
 
   @Test

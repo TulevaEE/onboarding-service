@@ -37,7 +37,7 @@ public class WebEidAuthProvider implements AuthProvider {
   @Override
   public AuthenticatedPerson authenticate(String authTokenJson) {
     if (authTokenJson == null) {
-      throw new WebEidAuthException("Auth token is required", null);
+      return null;
     }
 
     WebEidAuthToken authToken = parseAuthToken(authTokenJson);

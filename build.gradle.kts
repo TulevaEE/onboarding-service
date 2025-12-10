@@ -18,14 +18,14 @@ buildscript {
     }
 }
 
-val springCloudVersion = "2025.0.0"
+val springCloudVersion = "2025.1.0"
 
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.5.7"
+    id("org.springframework.boot") version "3.5.8"
     id("io.spring.dependency-management") version "1.1.7"
-    id("com.gorylenko.gradle-git-properties") version "2.5.3"
+    id("com.gorylenko.gradle-git-properties") version "2.5.4"
     id("com.diffplug.spotless") version "8.1.0"
     id("io.freefair.lombok") version "9.1.0"
     jacoco
@@ -122,10 +122,10 @@ dependencies {
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.25.0")
-    implementation("io.sentry:sentry-logback:8.25.0")
+    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.28.0")
+    implementation("io.sentry:sentry-logback:8.28.0")
 
-    implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.12.0")
+    implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.13.2")
 
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
@@ -135,22 +135,22 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("software.amazon.awssdk:s3:2.38.2")
+    implementation("software.amazon.awssdk:s3:2.40.3")
     implementation("commons-io:commons-io:2.21.0")
     implementation("org.apache.commons:commons-csv:1.14.1")
 
-    implementation("net.javacrumbs.shedlock:shedlock-spring:5.16.0")
-    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:5.16.0")
+    implementation("net.javacrumbs.shedlock:shedlock-spring:7.2.1")
+    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.2.1")
 
     testImplementation("com.h2database:h2")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(module = "spock-core")
         exclude(module = "junit-vintage-engine")
     }
-    testImplementation("org.spockframework:spock-core:2.4-M6-groovy-4.0") {
+    testImplementation("org.spockframework:spock-core:2.4-M7-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.spockframework:spock-spring:2.4-M6-groovy-4.0") {
+    testImplementation("org.spockframework:spock-spring:2.4-M7-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
     testImplementation("org.apache.groovy:groovy-all:4.0.29")

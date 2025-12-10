@@ -1,5 +1,11 @@
 package ee.tuleva.onboarding.auth.webeid;
 
+import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.ESTONIAN_CITIZEN_ID_CARD;
+import static org.bouncycastle.asn1.x509.Extension.certificatePolicies;
+import static org.bouncycastle.asn1.x509.KeyPurposeId.id_kp_clientAuth;
+import static org.bouncycastle.asn1.x509.KeyPurposeId.id_kp_emailProtection;
+
+import ee.tuleva.onboarding.auth.idcard.IdDocumentType;
 import java.math.BigInteger;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -9,8 +15,14 @@ import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.util.Date;
 import lombok.SneakyThrows;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.CertificatePolicies;
+import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
+import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.KeyPurposeId;
+import org.bouncycastle.asn1.x509.PolicyInformation;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
@@ -24,12 +36,49 @@ import org.bouncycastle.operator.bc.BcRSAContentSignerBuilder;
 
 public class WebEidCertificateFixture {
 
-  public static final String TEST_PERSONAL_CODE = "38001085718";
-  public static final String TEST_FIRST_NAME = "JAAK-KRISTJAN";
-  public static final String TEST_LAST_NAME = "JÕEORG";
+  private static final String VALID_ISSUER =
+      "C=EE, O=SK ID Solutions AS, OID.2.5.4.97=NTREE-10747013, CN=ESTEID2018";
+  private static final String AUTH_POLICY_OID = "0.4.0.2042.1.2";
 
   @SneakyThrows
-  public static X509Certificate createTestCertificate() {
+  public static X509Certificate certificate(
+      String firstName, String lastName, String personalCode, IdDocumentType documentType) {
+    return generateCertificate(
+        firstName, lastName, personalCode, documentType.getFirstIdentifier(), VALID_ISSUER, true);
+  }
+
+  @SneakyThrows
+  public static X509Certificate certificateWithIssuer(
+      String firstName, String lastName, String personalCode, String issuer) {
+    return generateCertificate(
+        firstName,
+        lastName,
+        personalCode,
+        ESTONIAN_CITIZEN_ID_CARD.getFirstIdentifier(),
+        issuer,
+        true);
+  }
+
+  @SneakyThrows
+  public static X509Certificate certificateWithoutClientAuth(
+      String firstName, String lastName, String personalCode) {
+    return generateCertificate(
+        firstName,
+        lastName,
+        personalCode,
+        ESTONIAN_CITIZEN_ID_CARD.getFirstIdentifier(),
+        VALID_ISSUER,
+        false);
+  }
+
+  private static X509Certificate generateCertificate(
+      String firstName,
+      String lastName,
+      String personalCode,
+      String documentTypeOid,
+      String issuerDn,
+      boolean includeClientAuth)
+      throws Exception {
     KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
     keyPairGenerator.initialize(2048);
     KeyPair keyPair = keyPairGenerator.generateKeyPair();
@@ -40,27 +89,24 @@ public class WebEidCertificateFixture {
 
     X500Name subjectDN =
         new X500Name(
-            "C=EE, "
-                + "O=ESTEID, "
-                + "OU=AUTHENTICATION, "
+            "C=EE, O=ESTEID, OU=AUTHENTICATION, "
                 + "CN=\""
-                + TEST_LAST_NAME
+                + lastName
                 + ","
-                + TEST_FIRST_NAME
+                + firstName
                 + ","
-                + TEST_PERSONAL_CODE
+                + personalCode
                 + "\", "
                 + "SURNAME="
-                + TEST_LAST_NAME
+                + lastName
                 + ", "
                 + "GIVENNAME="
-                + TEST_FIRST_NAME
+                + firstName
                 + ", "
                 + "SERIALNUMBER=PNOEE-"
-                + TEST_PERSONAL_CODE);
+                + personalCode);
 
-    X500Name issuer =
-        new X500Name("C=EE, O=SK ID Solutions AS, OID.2.5.4.97=NTREE-10747013, CN=ESTEID2018");
+    X500Name issuer = new X500Name(issuerDn);
 
     Date from = new Date();
     Date to = new Date(from.getTime() + 365 * 86400000L);
@@ -76,6 +122,21 @@ public class WebEidCertificateFixture {
 
     X509v3CertificateBuilder certGen =
         new X509v3CertificateBuilder(issuer, serialNumber, from, to, subjectDN, subPubKeyInfo);
+
+    CertificatePolicies policies =
+        new CertificatePolicies(
+            new PolicyInformation[] {
+              new PolicyInformation(new ASN1ObjectIdentifier(documentTypeOid)),
+              new PolicyInformation(new ASN1ObjectIdentifier(AUTH_POLICY_OID))
+            });
+    certGen.addExtension(certificatePolicies, false, policies);
+
+    if (includeClientAuth) {
+      certGen.addExtension(
+          Extension.extendedKeyUsage,
+          false,
+          new ExtendedKeyUsage(new KeyPurposeId[] {id_kp_clientAuth, id_kp_emailProtection}));
+    }
 
     return new JcaX509CertificateConverter()
         .setProvider(new BouncyCastleProvider())

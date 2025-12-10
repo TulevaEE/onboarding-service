@@ -61,6 +61,8 @@ public class WebEidAuthService {
       var personalCode = extractPersonalCode(serialNumber);
 
       var documentType = documentTypeExtractor.extract(certificate);
+      documentTypeExtractor.checkClientAuthentication(certificate);
+      documentTypeExtractor.checkIssuer(certificate);
 
       return IdCardSession.builder()
           .firstName(firstName)

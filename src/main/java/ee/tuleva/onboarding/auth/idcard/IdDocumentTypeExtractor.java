@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth.idcard;
 
+import static javax.security.auth.x500.X500Principal.RFC1779;
 import static org.bouncycastle.asn1.x509.Extension.certificatePolicies;
 import static org.bouncycastle.asn1.x509.Extension.extendedKeyUsage;
 import static org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils.parseExtensionValue;
@@ -11,7 +12,6 @@ import java.io.IOException;
 import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.Objects;
-import javax.security.auth.x500.X500Principal;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.asn1.DLSequence;
 import org.springframework.stereotype.Component;
@@ -59,13 +59,13 @@ public class IdDocumentTypeExtractor {
     try {
       byte[] encodedExtendedKeyUsage = certificate.getExtensionValue(extendedKeyUsage.getId());
       if (encodedExtendedKeyUsage != null) {
-        var keyUsage = (DLSequence) parseExtensionValue(encodedExtendedKeyUsage);
-        for (var element : keyUsage) {
+        var extendedKeyUsageSequence = (DLSequence) parseExtensionValue(encodedExtendedKeyUsage);
+        for (var element : extendedKeyUsageSequence) {
           if (element.toString().equals(CLIENT_AUTHENTICATION_ID)) {
             return;
           }
         }
-        throw new UnknownExtendedKeyUsageException(keyUsage.toString());
+        throw new UnknownExtendedKeyUsageException(extendedKeyUsageSequence.toString());
       } else {
         log.error("Extension missing!");
       }
@@ -76,7 +76,7 @@ public class IdDocumentTypeExtractor {
   }
 
   public void checkIssuer(X509Certificate certificate) {
-    var issuer = certificate.getIssuerX500Principal().getName(X500Principal.RFC1779);
+    var issuer = certificate.getIssuerX500Principal().getName(RFC1779);
     if (VALID_ISSUERS.contains(issuer)) {
       return;
     }

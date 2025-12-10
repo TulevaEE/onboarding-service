@@ -33,6 +33,10 @@ public enum IdDocumentType {
     this.identifiers = identifiers;
   }
 
+  public String getFirstIdentifier() {
+    return identifiers.getFirst();
+  }
+
   static IdDocumentType findByIdentifier(String identifier) {
     return Arrays.stream(IdDocumentType.values())
         .filter(idDocumentType -> idDocumentType.identifiers.contains(identifier))

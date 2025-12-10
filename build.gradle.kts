@@ -153,7 +153,7 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.4-M7-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy-all:4.0.29")
+    testImplementation("org.apache.groovy:groovy-all:5.0.3")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:postgresql")
     testImplementation("org.testcontainers:jdbc")

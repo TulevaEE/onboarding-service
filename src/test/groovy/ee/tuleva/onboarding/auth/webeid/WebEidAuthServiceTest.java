@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.auth.webeid;
 
-import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.OLD_ID_CARD;
+import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.ESTONIAN_CITIZEN_ID_CARD;
 import static ee.tuleva.onboarding.auth.webeid.WebEidCertificateFixture.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.auth.idcard.IdDocumentTypeExtractor;
 import eu.webeid.security.authtoken.WebEidAuthToken;
 import eu.webeid.security.challenge.ChallengeNonce;
 import eu.webeid.security.challenge.ChallengeNonceGenerator;
@@ -29,6 +30,7 @@ class WebEidAuthServiceTest {
   @Mock ChallengeNonceGenerator challengeNonceGenerator;
   @Mock ChallengeNonceStore challengeNonceStore;
   @Mock AuthTokenValidator authTokenValidator;
+  @Mock IdDocumentTypeExtractor documentTypeExtractor;
 
   @InjectMocks WebEidAuthService webEidAuthService;
 
@@ -49,13 +51,14 @@ class WebEidAuthServiceTest {
     var certificate = createTestCertificate();
     when(challengeNonceStore.getAndRemove()).thenReturn(nonce);
     when(authTokenValidator.validate(eq(authToken), eq("valid-nonce"))).thenReturn(certificate);
+    when(documentTypeExtractor.extract(certificate)).thenReturn(ESTONIAN_CITIZEN_ID_CARD);
 
     var result = webEidAuthService.authenticate(authToken);
 
     assertThat(result.getFirstName()).isEqualTo(TEST_FIRST_NAME);
     assertThat(result.getLastName()).isEqualTo(TEST_LAST_NAME);
     assertThat(result.getPersonalCode()).isEqualTo(TEST_PERSONAL_CODE);
-    assertThat(result.getDocumentType()).isEqualTo(OLD_ID_CARD);
+    assertThat(result.getDocumentType()).isEqualTo(ESTONIAN_CITIZEN_ID_CARD);
   }
 
   @Test

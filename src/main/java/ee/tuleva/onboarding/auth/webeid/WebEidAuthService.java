@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.auth.webeid;
 
 import ee.tuleva.onboarding.auth.idcard.IdCardSession;
-import ee.tuleva.onboarding.auth.idcard.IdDocumentType;
+import ee.tuleva.onboarding.auth.idcard.IdDocumentTypeExtractor;
 import eu.webeid.security.authtoken.WebEidAuthToken;
 import eu.webeid.security.certificate.CertificateData;
 import eu.webeid.security.challenge.ChallengeNonceGenerator;
@@ -23,6 +23,7 @@ public class WebEidAuthService {
   private final ChallengeNonceGenerator challengeNonceGenerator;
   private final ChallengeNonceStore challengeNonceStore;
   private final AuthTokenValidator authTokenValidator;
+  private final IdDocumentTypeExtractor documentTypeExtractor;
 
   public String generateChallenge() {
     return challengeNonceGenerator.generateAndStoreNonce().getBase64EncodedNonce();
@@ -59,11 +60,13 @@ public class WebEidAuthService {
                   () -> new WebEidAuthException("Missing personal code in certificate", null));
       var personalCode = extractPersonalCode(serialNumber);
 
+      var documentType = documentTypeExtractor.extract(certificate);
+
       return IdCardSession.builder()
           .firstName(firstName)
           .lastName(lastName)
           .personalCode(personalCode)
-          .documentType(IdDocumentType.OLD_ID_CARD)
+          .documentType(documentType)
           .build();
     } catch (CertificateEncodingException e) {
       throw new WebEidAuthException("Failed to read certificate data", e);

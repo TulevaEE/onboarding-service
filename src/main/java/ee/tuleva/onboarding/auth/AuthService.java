@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import io.jsonwebtoken.ExpiredJwtException;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ public class AuthService {
         providers.stream()
             .filter(it -> it.supports(grantType))
             .map(it -> it.authenticate(authenticationHash))
+            .filter(Objects::nonNull)
             .findFirst()
             .orElse(null);
 

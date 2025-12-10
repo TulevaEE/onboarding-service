@@ -4,6 +4,7 @@ import static org.springframework.http.HttpStatus.*;
 
 import ee.tuleva.onboarding.account.PensionRegistryAccountStatementConnectionException;
 import ee.tuleva.onboarding.auth.ExpiredRefreshJwtException;
+import ee.tuleva.onboarding.auth.idcard.exception.IdCardSessionNotFoundException;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import ee.tuleva.onboarding.auth.webeid.WebEidAuthException;
@@ -100,6 +101,16 @@ public class ErrorHandlingControllerAdvice {
   @ExceptionHandler(WebEidAuthException.class)
   public ResponseEntity<Object> handleErrors(WebEidAuthException exception) {
     log.info("WebEidAuthException {}", exception.getMessage());
+    return idCardAuthFailedResponse();
+  }
+
+  @ExceptionHandler(IdCardSessionNotFoundException.class)
+  public ResponseEntity<Object> handleErrors(IdCardSessionNotFoundException exception) {
+    log.info("IdCardSessionNotFoundException {}", exception.getMessage());
+    return idCardAuthFailedResponse();
+  }
+
+  private ResponseEntity<Object> idCardAuthFailedResponse() {
     return new ResponseEntity<>(
         Map.of(
             "error", "ID_CARD_AUTH_FAILED", "error_description", "ID-card authentication failed"),

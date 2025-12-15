@@ -139,8 +139,8 @@ dependencies {
     implementation("commons-io:commons-io:2.21.0")
     implementation("org.apache.commons:commons-csv:1.14.1")
 
-    implementation("net.javacrumbs.shedlock:shedlock-spring:7.2.1")
-    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.2.1")
+    implementation("net.javacrumbs.shedlock:shedlock-spring:7.2.2")
+    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.2.2")
 
     testImplementation("com.h2database:h2")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {

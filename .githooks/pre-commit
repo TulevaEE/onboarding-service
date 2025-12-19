@@ -20,26 +20,12 @@ spinner() {
 #echo "📦 Stashing uncommitted changes..."
 #git stash -q --keep-index || true
 
-echo "✨ Applying Spotless formatting..."
-./gradlew spotlessApply --no-daemon --quiet
-if [ $? -ne 0 ]; then
-    echo "❌ Failed to apply Spotless formatting. Please check your Spotless configuration."
+echo "✨ Checking Spotless formatting..."
+if ! ./gradlew spotlessCheck --no-daemon --quiet; then
+    echo "❌ Spotless formatting check failed."
+    echo "   Run './gradlew spotlessApply' to fix formatting, then try again."
     exit 1
 fi
-
-# Check if Spotless made any changes
-if ! git diff --quiet; then
-    echo "📝 Spotless made formatting changes. Adding modified files to the commit..."
-    # Get list of modified files and add them to the staging area
-    git diff --name-only | while read -r file; do
-        if [ -f "$file" ]; then
-            git add "$file"
-            echo "   Added: $file"
-        fi
-    done
-    echo "✅ Spotless formatting applied and changes staged."
-else
-    echo "✅ Spotless formatting check passed (no changes needed)."
-fi
+echo "✅ Spotless formatting check passed."
 
 exit 0

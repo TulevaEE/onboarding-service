@@ -2,10 +2,10 @@ package ee.tuleva.onboarding.listing;
 
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.UNVESTED_WORK_COMPENSATION;
 import static ee.tuleva.onboarding.listing.Listing.State.ACTIVE;
-import static ee.tuleva.onboarding.listing.ListingType.BUY;
-import static ee.tuleva.onboarding.listing.ListingType.SELL;
 import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getNameMergeVars;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*;
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.LISTING_REPLY_TO_BUYER;
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.LISTING_REPLY_TO_SELLER;
+import static java.math.BigDecimal.ZERO;
 import static org.springframework.web.util.HtmlUtils.htmlEscape;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
@@ -49,9 +49,7 @@ public class ListingService {
       throw new IllegalArgumentException("Need to be member to create listing");
     }
 
-    if (!hasEnoughMemberCapital(user, request)) {
-      throw new IllegalArgumentException("Not enough member capital to create listing");
-    }
+    validateMemberCapital(user, request);
 
     Listing saved =
         listingRepository.save(
@@ -67,8 +65,8 @@ public class ListingService {
     User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
 
     return listingRepository.findByExpiryTimeAfter(clock.instant()).stream()
-        .filter(listing -> listing.getState().equals(ACTIVE))
-        .map((listing) -> ListingDto.from(listing, user))
+        .filter(Listing::isActive)
+        .map(listing -> ListingDto.from(listing, user))
         .toList();
   }
 
@@ -89,17 +87,11 @@ public class ListingService {
     User userContacting = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
 
     var mergeVars = new HashMap<String, Object>();
-
     mergeVars.put("message", getContactMessage(listingId, messageRequest, authenticatedPerson));
-
     mergeVars.putAll(getNameMergeVars(listingOwner));
 
-    List<String> tags = List.of();
-    EmailType emailType =
-        listing.getType() == BUY ? LISTING_REPLY_TO_BUYER : LISTING_REPLY_TO_SELLER;
-
-    String listingLanguage = listing.getLanguage();
-    String templateName = emailType.getTemplateName(listingLanguage);
+    EmailType emailType = listing.isBuy() ? LISTING_REPLY_TO_BUYER : LISTING_REPLY_TO_SELLER;
+    String templateName = emailType.getTemplateName(listing.getLanguage());
 
     MandrillMessage message =
         emailService.newMandrillMessage(
@@ -107,7 +99,7 @@ public class ListingService {
             userContacting.getEmail(),
             templateName,
             mergeVars,
-            tags,
+            List.of(),
             List.of());
 
     return emailService
@@ -137,9 +129,8 @@ public class ListingService {
 
     var bookValue = listing.getBookValue().toString();
     var totalAmount = listing.getTotalPrice();
-    var language = String.valueOf(listing.getLanguage());
 
-    if ("en".equalsIgnoreCase(language)) {
+    if ("en".equalsIgnoreCase(listing.getLanguage())) {
       return transformMessageNewlines(
               """
               %s %s, amount: %s €; price: %s €
@@ -154,12 +145,12 @@ public class ListingService {
               """
                   .formatted(
                       interestedUserName,
-                      listing.getType() == BUY
+                      listing.isBuy()
                           ? "wants to sell you their membership capital"
                           : "wants to buy your membership capital",
                       bookValue,
                       totalAmount,
-                      listing.getType() == BUY ? "seller's" : "buyer's",
+                      listing.isBuy() ? "seller's" : "buyer's",
                       contactMessageRequest.addPersonalCode()
                           ? interestedUserName + " (" + interestedUserPersonalCode + ")"
                           : interestedUserName,
@@ -184,12 +175,12 @@ public class ListingService {
             """
                 .formatted(
                     interestedUserName,
-                    listing.getType() == BUY
+                    listing.isBuy()
                         ? "soovib sulle sulle müüa oma liikmekapitali"
                         : "soovib osta sinu liikmekapitali",
                     bookValue,
                     totalAmount,
-                    listing.getType() == BUY ? "müüja" : "ostja",
+                    listing.isBuy() ? "müüja" : "ostja",
                     contactMessageRequest.addPersonalCode()
                         ? interestedUserName + " (" + interestedUserPersonalCode + ")"
                         : interestedUserName,
@@ -198,9 +189,9 @@ public class ListingService {
         .trim();
   }
 
-  private boolean hasEnoughMemberCapital(User user, NewListingRequest request) {
-    if (request.type() == BUY) {
-      return true;
+  private void validateMemberCapital(User user, NewListingRequest request) {
+    if (request.isBuy()) {
+      return;
     }
 
     var capitalStatement = capitalService.getCapitalRows(user.getMemberId());
@@ -208,42 +199,46 @@ public class ListingService {
         capitalStatement.stream()
             .filter(event -> event.type() != UNVESTED_WORK_COMPENSATION)
             .map(CapitalRow::getValue)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+            .reduce(ZERO, BigDecimal::add);
 
-    var totalMemberCapitalBeingSold =
+    var capitalBeingSold =
         capitalTransferContractService
             .getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow())
             .values()
             .stream()
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+            .reduce(ZERO, BigDecimal::add);
 
-    var sellerCapitalAlreadyListed = getSellerListingsBookValueSum(user);
+    var capitalAlreadyListed = getSellerListingsBookValueSum(user);
 
-    var totalMemberCapitalAvailableForSale =
-        totalMemberCapital
-            .subtract(totalMemberCapitalBeingSold)
-            .subtract(sellerCapitalAlreadyListed);
+    var availableForSale =
+        totalMemberCapital.subtract(capitalBeingSold).subtract(capitalAlreadyListed);
 
-    return totalMemberCapitalAvailableForSale.compareTo(request.bookValue()) >= 0;
+    if (availableForSale.compareTo(request.bookValue()) < 0) {
+      throw new IllegalArgumentException(
+          "Not enough member capital to create listing: requestedBookValue=%s, availableForSale=%s, totalMemberCapital=%s, capitalBeingSold=%s, capitalAlreadyListed=%s"
+              .formatted(
+                  request.bookValue(),
+                  availableForSale,
+                  totalMemberCapital,
+                  capitalBeingSold,
+                  capitalAlreadyListed));
+    }
   }
 
   private BigDecimal getSellerListingsBookValueSum(User seller) {
-    var myActiveSaleListings =
-        listingRepository
-            .findByExpiryTimeAfterAndMemberIdEquals(clock.instant(), seller.getMemberId())
-            .stream()
-            .filter(listing -> listing.getType().equals(SELL) && listing.getState().equals(ACTIVE));
-
-    return myActiveSaleListings.map(Listing::getBookValue).reduce(BigDecimal.ZERO, BigDecimal::add);
+    return listingRepository
+        .findByExpiryTimeAfterAndMemberIdEquals(clock.instant(), seller.getMemberId())
+        .stream()
+        .filter(listing -> listing.isSell() && listing.isActive())
+        .map(Listing::getBookValue)
+        .reduce(ZERO, BigDecimal::add);
   }
 
   private String transformMessageNewlines(String message) {
-    var newLine = "<br />";
-
     return message
-        .replace("\r\n", newLine)
-        .replace("\n\r", newLine)
-        .replace("\r", newLine)
-        .replace("\n", newLine);
+        .replace("\r\n", "<br />")
+        .replace("\n\r", "<br />")
+        .replace("\r", "<br />")
+        .replace("\n", "<br />");
   }
 }

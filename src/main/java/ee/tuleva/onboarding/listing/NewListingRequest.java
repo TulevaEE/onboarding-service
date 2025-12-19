@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.listing;
 
 import static ee.tuleva.onboarding.listing.Listing.State.ACTIVE;
+import static ee.tuleva.onboarding.listing.ListingType.BUY;
 import static java.time.temporal.ChronoUnit.DAYS;
 
 import ee.tuleva.onboarding.currency.Currency;
@@ -34,5 +35,9 @@ public record NewListingRequest(
   @AssertTrue(message = "expiryDate must be within one year")
   private boolean isWithinOneYear() {
     return Optional.ofNullable(expiryTime).orElseThrow().isBefore(Instant.now().plus(365, DAYS));
+  }
+
+  public boolean isBuy() {
+    return type == BUY;
   }
 }

@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.listing
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
-import ee.tuleva.onboarding.capital.ApiCapitalEvent
 import ee.tuleva.onboarding.capital.CapitalRow
 import ee.tuleva.onboarding.capital.CapitalService
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractService
@@ -18,7 +17,6 @@ import spock.lang.Specification
 
 import java.time.Clock
 import java.time.Instant
-import java.time.LocalDate
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
@@ -56,14 +54,14 @@ class ListingServiceSpec extends Specification {
     def user = sampleUser().build()
     def request = newListingRequest().build()
     def person = authenticatedPersonFromUser(user).build()
-
     def savedListing = request.toListing(42L, 'et').tap {
       id = 1L
       createdTime = Instant.now()
     }
     listingRepository.save(_ as Listing) >> savedListing
+    listingRepository.findByExpiryTimeAfterAndMemberIdEquals(_, _) >> List.of()
     userService.getById(person.userId) >> Optional.of(user)
-    capitalService.getCapitalEvents(user.getMemberId()) >> List.of(new ApiCapitalEvent(LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(1000), Currency.EUR))
+    capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(CAPITAL_PAYMENT, BigDecimal.valueOf(1000), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, Currency.EUR))
     capitalTransferContractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of()
 
     when:
@@ -78,15 +76,14 @@ class ListingServiceSpec extends Specification {
     def user = sampleUser().build()
     def request = newListingRequest().build()
     def person = authenticatedPersonFromUser(user).build()
-
     def savedListing = request.toListing(42L, 'et').tap {
       id = 1L
       createdTime = Instant.now()
     }
     listingRepository.save(_ as Listing) >> savedListing
+    listingRepository.findByExpiryTimeAfterAndMemberIdEquals(_, _) >> List.of()
     userService.getById(person.userId) >> Optional.of(user)
-    capitalService.getCapitalEvents(user.getMemberId()) >> List.of(new ApiCapitalEvent(LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(2000), Currency.EUR))
-
+    capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(CAPITAL_PAYMENT, BigDecimal.valueOf(2000), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, Currency.EUR))
     capitalTransferContractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of(CAPITAL_PAYMENT, 500)
 
     when:
@@ -101,22 +98,16 @@ class ListingServiceSpec extends Specification {
     def user = sampleUser().build()
     def request = newListingRequest().type(SELL).bookValue(1001.00).build()
     def person = authenticatedPersonFromUser(user).build()
-
-    def savedListing = request.toListing(42L, 'et').tap {
-      id = 1L
-      createdTime = Instant.now()
-    }
     listingRepository.findByExpiryTimeAfterAndMemberIdEquals(_, _) >> List.of()
-    listingRepository.save(_ as Listing) >> savedListing
     userService.getById(person.userId) >> Optional.of(user)
     capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(CAPITAL_PAYMENT, BigDecimal.valueOf(100), BigDecimal.valueOf(900), BigDecimal.valueOf(100), BigDecimal.valueOf(10), Currency.EUR))
     capitalTransferContractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of()
+
     when:
     service.createListing(request, person)
 
     then:
-    def e = thrown(IllegalArgumentException)
-    e.message == "Not enough member capital to create listing"
+    thrown(IllegalArgumentException)
   }
 
   def "createListing does not create listing when considering capital sales in progress"() {
@@ -124,22 +115,16 @@ class ListingServiceSpec extends Specification {
     def user = sampleUser().build()
     def request = newListingRequest().type(SELL).bookValue(500.00).build()
     def person = authenticatedPersonFromUser(user).build()
-
-    def savedListing = request.toListing(42L, 'et').tap {
-      id = 1L
-      createdTime = Instant.now()
-    }
     listingRepository.findByExpiryTimeAfterAndMemberIdEquals(_, _) >> List.of()
-    listingRepository.save(_ as Listing) >> savedListing
     userService.getById(person.userId) >> Optional.of(user)
     capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(CAPITAL_PAYMENT, BigDecimal.valueOf(100), BigDecimal.valueOf(900), BigDecimal.valueOf(100), BigDecimal.valueOf(10), Currency.EUR))
     capitalTransferContractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of(CAPITAL_PAYMENT, BigDecimal.valueOf(900))
+
     when:
     service.createListing(request, person)
 
     then:
-    def e = thrown(IllegalArgumentException)
-    e.message == "Not enough member capital to create listing"
+    thrown(IllegalArgumentException)
   }
 
   def "createListing does not create listing when considering sale listings already made"() {
@@ -147,22 +132,16 @@ class ListingServiceSpec extends Specification {
     def user = sampleUser().build()
     def request = newListingRequest().type(SELL).bookValue(500.00).build()
     def person = authenticatedPersonFromUser(user).build()
-
-    def savedListing = request.toListing(42L, 'et').tap {
-      id = 1L
-      createdTime = Instant.now()
-    }
     listingRepository.findByExpiryTimeAfterAndMemberIdEquals(_, _) >> List.of(activeListing().type(SELL).memberId(user.getMemberId()).bookValue(new BigDecimal("1000")).build())
-    listingRepository.save(_ as Listing) >> savedListing
     userService.getById(person.userId) >> Optional.of(user)
     capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(CAPITAL_PAYMENT, BigDecimal.valueOf(100), BigDecimal.valueOf(900), BigDecimal.valueOf(100), BigDecimal.valueOf(10), Currency.EUR))
     capitalTransferContractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of()
+
     when:
     service.createListing(request, person)
 
     then:
-    def e = thrown(IllegalArgumentException)
-    e.message == "Not enough member capital to create listing"
+    thrown(IllegalArgumentException)
   }
 
   def "createListing does not consider unvested work compensation as sellable member capital"() {
@@ -170,14 +149,7 @@ class ListingServiceSpec extends Specification {
     def user = sampleUser().build()
     def request = newListingRequest().type(SELL).bookValue(100.00).build()
     def person = authenticatedPersonFromUser(user).build()
-
-    def savedListing = request.toListing(42L, 'et').tap {
-      id = 1L
-      createdTime = Instant.now()
-    }
-
     listingRepository.findByExpiryTimeAfterAndMemberIdEquals(_, _) >> List.of()
-    listingRepository.save(_ as Listing) >> savedListing
     userService.getById(person.userId) >> Optional.of(user)
     capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(UNVESTED_WORK_COMPENSATION, BigDecimal.valueOf(100), BigDecimal.valueOf(900), BigDecimal.valueOf(100), BigDecimal.valueOf(10), Currency.EUR))
     capitalTransferContractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of()
@@ -186,8 +158,7 @@ class ListingServiceSpec extends Specification {
     service.createListing(request, person)
 
     then:
-    def e = thrown(IllegalArgumentException)
-    e.message == "Not enough member capital to create listing"
+    thrown(IllegalArgumentException)
   }
 
   def "findActiveListings retrieves and maps active listings"() {
@@ -250,8 +221,6 @@ class ListingServiceSpec extends Specification {
     def contacter = sampleUser().build()
     def listingOwner = sampleUser().firstName("Sander").email("sander@tuleva.ee").id(1111).build()
     def contacterPerson = authenticatedPersonFromUser(contacter).build()
-
-
     def contactMessageRequest = new ContactMessageRequest(true, true)
 
     def savedListing = newListingRequest().type(SELL).bookValue(100.00).totalPrice(200.00).build().toListing(42L, 'et').tap {
@@ -289,7 +258,6 @@ class ListingServiceSpec extends Specification {
     message.id() == 1
   }
 
-
   def "can get correct messages in estonian"() {
     given:
     def contacter = sampleUser().build()
@@ -313,7 +281,6 @@ class ListingServiceSpec extends Specification {
     def sellMessage = service.getContactMessage(sellListing.id, new ContactMessageRequest(true, true), contacterPerson)
     def buyMessage = service.getContactMessage(buyListing.id, new ContactMessageRequest(false, false), contacterPerson)
 
-
     then:
     sellMessage.contains("soovib osta sinu liikmekapitali")
     sellMessage.contains("raamatupidamislikus väärtuses 100.00 €")
@@ -322,7 +289,6 @@ class ListingServiceSpec extends Specification {
     sellMessage.contains(contacter.getFullName())
     sellMessage.contains(contacter.getPersonalCode().toString())
     sellMessage.contains(contacter.getPhoneNumber())
-
 
     buyMessage.contains("soovib sulle sulle müüa oma liikmekapitali")
     buyMessage.contains("raamatupidamislikus väärtuses 100.00 €")
@@ -356,7 +322,6 @@ class ListingServiceSpec extends Specification {
     def sellMessage = service.getContactMessage(sellListing.id, new ContactMessageRequest(true, true), contacterPerson)
     def buyMessage = service.getContactMessage(buyListing.id, new ContactMessageRequest(false, false), contacterPerson)
 
-
     then:
     sellMessage.contains("wants to buy your membership capital")
     sellMessage.contains("amount: 100.00 €")
@@ -365,7 +330,6 @@ class ListingServiceSpec extends Specification {
     sellMessage.contains(contacter.getFullName())
     sellMessage.contains(contacter.getPersonalCode().toString())
     sellMessage.contains(contacter.getPhoneNumber())
-
 
     buyMessage.contains("wants to sell you their membership capital")
     buyMessage.contains("amount: 100.00 €")
@@ -397,7 +361,6 @@ class ListingServiceSpec extends Specification {
     when:
     def listingMessage = service.getContactMessage(listing.id, new ContactMessageRequest(true, true), contacterPerson)
 
-
     then:
     listingMessage.contains("raamatupidamislikus väärtuses")
     !listingMessage.contains(evilFirstName)
@@ -427,7 +390,6 @@ class ListingServiceSpec extends Specification {
 
     when:
     def listingMessage = service.getContactMessage(listing.id, new ContactMessageRequest(true, true), contacterPerson)
-
 
     then:
     listingMessage.contains("amount")

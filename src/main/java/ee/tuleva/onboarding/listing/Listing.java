@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.listing;
 
 import static ee.tuleva.onboarding.listing.Listing.State.ACTIVE;
 import static ee.tuleva.onboarding.listing.Listing.State.CANCELLED;
+import static ee.tuleva.onboarding.listing.ListingType.BUY;
+import static ee.tuleva.onboarding.listing.ListingType.SELL;
 import static jakarta.persistence.EnumType.STRING;
 import static jakarta.persistence.GenerationType.IDENTITY;
 
@@ -88,6 +90,18 @@ public class Listing {
     ACTIVE,
     IN_PROGRESS,
     CANCELLED,
-    COMPLETED
+    COMPLETED;
+  }
+
+  public boolean isActive() {
+    return state == ACTIVE;
+  }
+
+  public boolean isBuy() {
+    return type == BUY;
+  }
+
+  public boolean isSell() {
+    return type == SELL;
   }
 }

@@ -136,17 +136,23 @@ class AuthControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.refresh_token', is(refreshToken)))
   }
 
-  def "Authenticate: return validation error for invalid request"() {
+  def "Authenticate: return validation error with ValidPersonalCode for invalid personal code"() {
     given:
-        String invalidRequestBody = "{}"
+        def invalidRequest = [
+            phoneNumber : MobileIdFixture.samplePhoneNumber,
+            personalCode: "invalid",
+            type        : AuthenticationType.MOBILE_ID.toString()
+        ]
 
     when:
         def result = mockMvc.perform(post("/authenticate")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(invalidRequestBody))
+            .content(mapper.writeValueAsString(invalidRequest)))
 
     then:
         result.andExpect(status().isBadRequest())
+            .andExpect(jsonPath('$.errors[0].code', is("ValidPersonalCode")))
+            .andExpect(jsonPath('$.errors[0].path', is("personalCode")))
   }
 
   def "Refresh Access Token: successfully refresh token"() {

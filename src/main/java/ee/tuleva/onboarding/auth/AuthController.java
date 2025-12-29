@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.auth.response.IdCardLoginResponse;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.auth.smartid.SmartIdAuthService;
 import ee.tuleva.onboarding.auth.webeid.WebEidAuthService;
+import ee.tuleva.onboarding.error.ValidationErrorsException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -46,7 +48,11 @@ public class AuthController {
 
   @Operation(summary = "Initiate authentication")
   @PostMapping(value = "/authenticate", consumes = MediaType.APPLICATION_JSON_VALUE)
-  public AuthenticateResponse authenticate(@Valid @RequestBody AuthenticateCommand command) {
+  public AuthenticateResponse authenticate(
+      @Valid @RequestBody AuthenticateCommand command, @Parameter(hidden = true) Errors errors) {
+    if (errors != null && errors.hasErrors()) {
+      throw new ValidationErrorsException(errors);
+    }
     return switch (command) {
       case IdCardAuthenticateCommand _ -> {
         var challengeNonce = webEidAuthService.generateChallenge();

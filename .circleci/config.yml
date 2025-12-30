@@ -134,6 +134,7 @@ jobs:
     steps:
       - run:
           name: Deploy to ECS staging
+          no_output_timeout: 15m
           command: |
             echo "🚀 Forcing ECS staging service update..."
 
@@ -143,7 +144,14 @@ jobs:
               --force-new-deployment \
               --region eu-central-1
 
-            echo "✅ ECS staging deployment initiated"
+            echo "⏳ Waiting for staging deployment to stabilize..."
+
+            aws ecs wait services-stable \
+              --cluster onboarding-service-cluster \
+              --services onboarding-service-staging \
+              --region eu-central-1
+
+            echo "✅ ECS staging deployment completed successfully"
 
   deploy-ecs-production:
     docker:
@@ -151,6 +159,7 @@ jobs:
     steps:
       - run:
           name: Retag latest as ecs-latest and deploy to ECS production
+          no_output_timeout: 15m
           command: |
             echo "🏷️  Retagging :latest as :ecs-latest for ECS..."
 
@@ -179,7 +188,14 @@ jobs:
               --force-new-deployment \
               --region eu-central-1
 
-            echo "✅ ECS production deployment initiated"
+            echo "⏳ Waiting for production deployment to stabilize..."
+
+            aws ecs wait services-stable \
+              --cluster onboarding-service-cluster \
+              --services onboarding-service-production \
+              --region eu-central-1
+
+            echo "✅ ECS production deployment completed successfully"
 
   notify-sentry-deploy:
     docker:

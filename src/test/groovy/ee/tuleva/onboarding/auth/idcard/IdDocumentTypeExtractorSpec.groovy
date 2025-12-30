@@ -13,7 +13,7 @@ import static ee.tuleva.onboarding.auth.ocsp.OCSPFixture.*
 
 class IdDocumentTypeExtractorSpec extends Specification {
 
-    IdDocumentTypeExtractor extractor = new IdDocumentTypeExtractor()
+    IdDocumentTypeExtractor extractor = new IdDocumentTypeExtractor([])
     static final DIGITAL_ID_CARD_EXTENSION_BASE64 = "BEAwPjAyBgsrBgEEAYORIQEBAzAjMCEGCCsGAQUFBwIBFhVodHRwczovL3d3dy5zay5lZS9DUFMwCAYGBACPegEC"
 
     def "extract document type from certificate"() {

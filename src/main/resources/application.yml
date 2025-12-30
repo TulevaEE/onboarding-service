@@ -350,6 +350,12 @@ epis:
     url: https://epis-service-staging.tuleva.ee/v1
     long-request-url: https://epis-service-staging.tuleva.ee/v1  # Staging uses regular URL (no Cloudflare bypass needed yet)
 
+id-card:
+  additional-issuers:
+    - "CN=TEST of ESTEID-SK 2015, OID.2.5.4.97=NTREE-10747013, O=AS Sertifitseerimiskeskus, C=EE"
+    - "CN=TEST of ESTEID2018, OID.2.5.4.97=NTREE-10747013, O=SK ID Solutions AS, C=EE"
+    - "C=EE, O=Zetes Estonia OÜ, OID.2.5.4.97=NTREE-17066049, CN=Test ESTEID2025"
+
 sentry:
   environment: staging
 ---

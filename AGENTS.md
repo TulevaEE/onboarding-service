@@ -308,6 +308,10 @@ The application follows domain-driven design with these main domains:
   - Exceptions where single letters are fine:
     - Loop counters: `for (int i = 0; i < items.size(); i++)`
     - Very short scopes: `catch (Exception e)`
+- **Always use imports, never fully qualified class names in code**:
+  - ❌ Bad: `var list = new java.util.ArrayList<>();`
+  - ✅ Good: `import java.util.ArrayList;` then `var list = new ArrayList<>();`
+  - This applies to all types - always add proper imports at the top of the file
 - **Variable naming best practices**:
   - **Avoid abbreviations**: Use full, descriptive words
     - ❌ Bad: `dbMap`, `dbValue`, `dbEntry`, `percentageDiff`

@@ -10,10 +10,12 @@ import ee.tuleva.onboarding.auth.idcard.exception.UnknownExtendedKeyUsageExcepti
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownIssuerException;
 import java.io.IOException;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.asn1.DLSequence;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -22,11 +24,22 @@ public class IdDocumentTypeExtractor {
 
   private static final String AUTHENTICATION_POLICY_ID = "0.4.0.2042.1.2";
   private static final String CLIENT_AUTHENTICATION_ID = "1.3.6.1.5.5.7.3.2";
-  private static final List<String> VALID_ISSUERS =
+
+  private final List<String> validIssuers;
+
+  private static final List<String> DEFAULT_VALID_ISSUERS =
       List.of(
           "CN=ESTEID-SK 2015, OID.2.5.4.97=NTREE-10747013, O=AS Sertifitseerimiskeskus, C=EE",
           "CN=ESTEID2018, OID.2.5.4.97=NTREE-10747013, O=SK ID Solutions AS, C=EE",
           "C=EE, O=Zetes Estonia OÜ, OID.2.5.4.97=NTREE-17066049, CN=ESTEID2025");
+
+  public IdDocumentTypeExtractor(
+      @Value("${id-card.additional-issuers:#{T(java.util.List).of()}}")
+          List<String> additionalIssuers) {
+    var merged = new ArrayList<>(DEFAULT_VALID_ISSUERS);
+    merged.addAll(additionalIssuers);
+    this.validIssuers = List.copyOf(merged);
+  }
 
   public IdDocumentType extract(X509Certificate certificate) {
     try {
@@ -86,7 +99,7 @@ public class IdDocumentTypeExtractor {
 
   public void checkIssuer(X509Certificate certificate) {
     var issuer = certificate.getIssuerX500Principal().getName(RFC1779);
-    if (VALID_ISSUERS.contains(issuer)) {
+    if (validIssuers.contains(issuer)) {
       return;
     }
     throw new UnknownIssuerException(issuer);

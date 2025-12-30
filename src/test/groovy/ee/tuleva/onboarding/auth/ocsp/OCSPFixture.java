@@ -15,6 +15,7 @@ import java.util.Date;
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.DERIA5String;
+import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DERSequence;
 import org.bouncycastle.asn1.DERUTF8String;
 import org.bouncycastle.asn1.x500.AttributeTypeAndValue;
@@ -158,6 +159,29 @@ public class OCSPFixture {
 
   public static X509Certificate generateCertificateWithPolicies(
       String documentTypeOid, String authPolicyOid) {
+    return generateCertificateWithPolicies(
+        documentTypeOid,
+        authPolicyOid,
+        new X500Name("C=EE, O=SK ID Solutions AS, OID.2.5.4.97=NTREE-10747013, CN=ESTEID2018"),
+        PolicyOrder.DOCUMENT_TYPE_FIRST);
+  }
+
+  public static X509Certificate generate2025CertificateWithPolicies(
+      String documentTypeOid, String authPolicyOid) {
+    return generateCertificateWithPolicies(
+        documentTypeOid,
+        authPolicyOid,
+        new X500Name("C=EE, O=Zetes Estonia OÜ, OID.2.5.4.97=NTREE-17066049, CN=ESTEID2025"),
+        PolicyOrder.AUTH_POLICY_FIRST);
+  }
+
+  public enum PolicyOrder {
+    DOCUMENT_TYPE_FIRST,
+    AUTH_POLICY_FIRST
+  }
+
+  private static X509Certificate generateCertificateWithPolicies(
+      String documentTypeOid, String authPolicyOid, X500Name issuer, PolicyOrder policyOrder) {
     try {
       KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
       keyPairGenerator.initialize(2048);
@@ -167,8 +191,6 @@ public class OCSPFixture {
 
       BigInteger serialNumber = new BigInteger(64, new SecureRandom());
       X500Name subjectDN = new X500Name("C=EE, O=Test, CN=Test User");
-      X500Name issuer =
-          new X500Name("C=EE, O=SK ID Solutions AS, OID.2.5.4.97=NTREE-10747013, CN=ESTEID2018");
 
       Date from = new Date();
       Date to = new Date(from.getTime() + 365 * 86400000L);
@@ -185,12 +207,18 @@ public class OCSPFixture {
       X509v3CertificateBuilder certGen =
           new X509v3CertificateBuilder(issuer, serialNumber, from, to, subjectDN, subPubKeyInfo);
 
-      CertificatePolicies policies =
-          new CertificatePolicies(
-              new PolicyInformation[] {
+      PolicyInformation[] policyArray =
+          policyOrder == PolicyOrder.AUTH_POLICY_FIRST
+              ? new PolicyInformation[] {
+                new PolicyInformation(new ASN1ObjectIdentifier(authPolicyOid)),
+                new PolicyInformation(new ASN1ObjectIdentifier(documentTypeOid))
+              }
+              : new PolicyInformation[] {
                 new PolicyInformation(new ASN1ObjectIdentifier(documentTypeOid)),
                 new PolicyInformation(new ASN1ObjectIdentifier(authPolicyOid))
-              });
+              };
+
+      CertificatePolicies policies = new CertificatePolicies(policyArray);
       certGen.addExtension(Extension.certificatePolicies, false, policies);
 
       certGen.addExtension(
@@ -207,6 +235,17 @@ public class OCSPFixture {
           .getCertificate(certificateHolder);
     } catch (Exception e) {
       throw new RuntimeException("Failed to generate test certificate", e);
+    }
+  }
+
+  public static byte[] buildExtendedKeyUsageExtension(String oid) {
+    try {
+      var oidObject = new ASN1ObjectIdentifier(oid);
+      var sequence = new DERSequence(oidObject);
+      var octet = new DEROctetString(sequence);
+      return octet.getEncoded();
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to build extended key usage extension", e);
     }
   }
 

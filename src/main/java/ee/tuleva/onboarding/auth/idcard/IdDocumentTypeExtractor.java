@@ -8,6 +8,7 @@ import static org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils.parseExtensionV
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownDocumentTypeException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownExtendedKeyUsageException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownIssuerException;
+import ee.tuleva.onboarding.auth.idcard.normalizer.CertificateNormalizer;
 import java.io.IOException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -25,20 +26,23 @@ public class IdDocumentTypeExtractor {
   private static final String AUTHENTICATION_POLICY_ID = "0.4.0.2042.1.2";
   private static final String CLIENT_AUTHENTICATION_ID = "1.3.6.1.5.5.7.3.2";
 
-  private final List<String> validIssuers;
-
   private static final List<String> DEFAULT_VALID_ISSUERS =
       List.of(
           "CN=ESTEID-SK 2015, OID.2.5.4.97=NTREE-10747013, O=AS Sertifitseerimiskeskus, C=EE",
           "CN=ESTEID2018, OID.2.5.4.97=NTREE-10747013, O=SK ID Solutions AS, C=EE",
           "C=EE, O=Zetes Estonia OÜ, OID.2.5.4.97=NTREE-17066049, CN=ESTEID2025");
 
+  private final List<String> validIssuers;
+  private final CertificateNormalizer normalizer;
+
   public IdDocumentTypeExtractor(
       @Value("${id-card.additional-issuers:#{T(java.util.List).of()}}")
-          List<String> additionalIssuers) {
+          List<String> additionalIssuers,
+      CertificateNormalizer normalizer) {
     var merged = new ArrayList<>(DEFAULT_VALID_ISSUERS);
     merged.addAll(additionalIssuers);
     this.validIssuers = List.copyOf(merged);
+    this.normalizer = normalizer;
   }
 
   public IdDocumentType extract(X509Certificate certificate) {
@@ -62,7 +66,7 @@ public class IdDocumentTypeExtractor {
         }
 
         if (hasAuthPolicy && documentTypeOid != null) {
-          return IdDocumentType.findByIdentifier(documentTypeOid);
+          return IdDocumentType.findByIdentifier(normalizer.normalizeOid(documentTypeOid));
         } else if (!hasAuthPolicy) {
           throw new UnknownDocumentTypeException("Missing authentication policy");
         } else {
@@ -99,7 +103,8 @@ public class IdDocumentTypeExtractor {
 
   public void checkIssuer(X509Certificate certificate) {
     var issuer = certificate.getIssuerX500Principal().getName(RFC1779);
-    if (validIssuers.contains(issuer)) {
+    var normalizedIssuer = normalizer.normalizeIssuer(issuer);
+    if (validIssuers.contains(normalizedIssuer)) {
       return;
     }
     throw new UnknownIssuerException(issuer);

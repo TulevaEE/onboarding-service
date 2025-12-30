@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.auth.idcard
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownDocumentTypeException
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownExtendedKeyUsageException
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownIssuerException
+import ee.tuleva.onboarding.auth.idcard.normalizer.CertificateNormalizer
+import ee.tuleva.onboarding.auth.idcard.normalizer.ProductionCertificateNormalizer
 import spock.lang.Specification
 
 import javax.security.auth.x500.X500Principal
@@ -13,7 +15,8 @@ import static ee.tuleva.onboarding.auth.ocsp.OCSPFixture.*
 
 class IdDocumentTypeExtractorSpec extends Specification {
 
-    IdDocumentTypeExtractor extractor = new IdDocumentTypeExtractor([])
+    CertificateNormalizer normalizer = new ProductionCertificateNormalizer()
+    IdDocumentTypeExtractor extractor = new IdDocumentTypeExtractor([], normalizer)
     static final DIGITAL_ID_CARD_EXTENSION_BASE64 = "BEAwPjAyBgsrBgEEAYORIQEBAzAjMCEGCCsGAQUFBwIBFhVodHRwczovL3d3dy5zay5lZS9DUFMwCAYGBACPegEC"
 
     def "extract document type from certificate"() {

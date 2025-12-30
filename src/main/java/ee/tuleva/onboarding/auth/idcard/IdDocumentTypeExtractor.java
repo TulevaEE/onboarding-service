@@ -22,8 +22,6 @@ public class IdDocumentTypeExtractor {
 
   private static final String AUTHENTICATION_POLICY_ID = "0.4.0.2042.1.2";
   private static final String CLIENT_AUTHENTICATION_ID = "1.3.6.1.5.5.7.3.2";
-  private static final int DOCUMENT_TYPE_POLICY_INDEX = 0;
-  private static final int AUTHENTICATION_POLICY_INDEX = 1;
   private static final List<String> VALID_ISSUERS =
       List.of(
           "CN=ESTEID-SK 2015, OID.2.5.4.97=NTREE-10747013, O=AS Sertifitseerimiskeskus, C=EE",
@@ -35,22 +33,29 @@ public class IdDocumentTypeExtractor {
       byte[] encodedExtensionValue = certificate.getExtensionValue(certificatePolicies.getId());
       if (encodedExtensionValue != null) {
         var extensionValue = (DLSequence) parseExtensionValue(encodedExtensionValue);
-        try {
-          var first = (DLSequence) extensionValue.getObjectAt(DOCUMENT_TYPE_POLICY_INDEX);
-          var second = (DLSequence) extensionValue.getObjectAt(AUTHENTICATION_POLICY_INDEX);
-          if (Objects.equals(second.getObjectAt(0).toString(), AUTHENTICATION_POLICY_ID)) {
-            return IdDocumentType.findByIdentifier(first.getObjectAt(0).toString());
+        String documentTypeOid = null;
+        boolean hasAuthPolicy = false;
+
+        for (int i = 0; i < extensionValue.size(); i++) {
+          var policy = (DLSequence) extensionValue.getObjectAt(i);
+          String oid = policy.getObjectAt(0).toString();
+          if (Objects.equals(oid, AUTHENTICATION_POLICY_ID)) {
+            hasAuthPolicy = true;
           } else {
-            throw new UnknownDocumentTypeException(second.getObjectAt(0).toString());
+            documentTypeOid = oid;
           }
-        } catch (ArrayIndexOutOfBoundsException e) {
-          log.error("Extension of card certificate not known: {}", extensionValue);
+        }
+
+        if (hasAuthPolicy && documentTypeOid != null) {
+          return IdDocumentType.findByIdentifier(documentTypeOid);
+        } else if (!hasAuthPolicy) {
+          throw new UnknownDocumentTypeException("Missing authentication policy");
         }
       } else {
-        log.error("Extension missing!");
+        log.error("Certificate policies extension missing");
       }
     } catch (IOException e) {
-      log.error("Could not parse certificate", e);
+      log.error("Failed to parse certificate policies extension", e);
     }
     throw new UnknownDocumentTypeException();
   }
@@ -67,10 +72,10 @@ public class IdDocumentTypeExtractor {
         }
         throw new UnknownExtendedKeyUsageException(extendedKeyUsageSequence.toString());
       } else {
-        log.error("Extension missing!");
+        log.error("Extended key usage extension missing");
       }
     } catch (IOException e) {
-      log.error("Could not parse certificate", e);
+      log.error("Failed to parse extended key usage extension", e);
     }
     throw new UnknownExtendedKeyUsageException();
   }

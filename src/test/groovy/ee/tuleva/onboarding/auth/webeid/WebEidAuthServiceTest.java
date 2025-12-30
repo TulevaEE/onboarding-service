@@ -24,6 +24,7 @@ import eu.webeid.security.exceptions.AuthTokenParseException;
 import eu.webeid.security.exceptions.ChallengeNonceExpiredException;
 import eu.webeid.security.validator.AuthTokenValidator;
 import java.time.ZonedDateTime;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -48,7 +49,7 @@ class WebEidAuthServiceTest {
   void setUp() {
     service =
         new WebEidAuthService(
-            null, challengeNonceStore, authTokenValidator, new IdDocumentTypeExtractor());
+            null, challengeNonceStore, authTokenValidator, new IdDocumentTypeExtractor(List.of()));
   }
 
   @Test
@@ -58,7 +59,10 @@ class WebEidAuthServiceTest {
     when(generator.generateAndStoreNonce()).thenReturn(expectedNonce);
     var serviceWithGenerator =
         new WebEidAuthService(
-            generator, challengeNonceStore, authTokenValidator, new IdDocumentTypeExtractor());
+            generator,
+            challengeNonceStore,
+            authTokenValidator,
+            new IdDocumentTypeExtractor(List.of()));
 
     var result = serviceWithGenerator.generateChallenge();
 

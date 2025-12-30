@@ -11,10 +11,6 @@ import org.springframework.context.annotation.Profile;
 @Configuration
 public class DigiDocConfiguration {
 
-  // TODO: Remove after https://github.com/open-eid/test-TL/pull/26 is merged
-  private static final String TEST_TSL_WITH_ESTEID2025 =
-      "https://raw.githubusercontent.com/open-eid/test-TL/zetes/EE_T.xml";
-
   @Bean
   @Profile("production")
   public org.digidoc4j.Configuration digiDocConfigProd() {
@@ -29,7 +25,6 @@ public class DigiDocConfiguration {
     var configuration = new org.digidoc4j.Configuration(TEST);
     configuration.setTrustedTerritories("EE_T");
     configuration.setPreferAiaOcsp(false);
-    configuration.setLotlLocation(TEST_TSL_WITH_ESTEID2025);
     return configuration;
   }
 }

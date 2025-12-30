@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.auth.idcard.IdDocumentType;
 import ee.tuleva.onboarding.auth.idcard.IdDocumentTypeExtractor;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownExtendedKeyUsageException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownIssuerException;
+import ee.tuleva.onboarding.auth.idcard.normalizer.ProductionCertificateNormalizer;
 import eu.webeid.security.authtoken.WebEidAuthToken;
 import eu.webeid.security.challenge.ChallengeNonce;
 import eu.webeid.security.challenge.ChallengeNonceGenerator;
@@ -47,9 +48,13 @@ class WebEidAuthServiceTest {
 
   @BeforeEach
   void setUp() {
+    var normalizer = new ProductionCertificateNormalizer();
     service =
         new WebEidAuthService(
-            null, challengeNonceStore, authTokenValidator, new IdDocumentTypeExtractor(List.of()));
+            null,
+            challengeNonceStore,
+            authTokenValidator,
+            new IdDocumentTypeExtractor(List.of(), normalizer));
   }
 
   @Test
@@ -57,12 +62,13 @@ class WebEidAuthServiceTest {
     var expectedNonce = new ChallengeNonce("test-nonce-base64", ZonedDateTime.now().plusMinutes(5));
     var generator = mock(ChallengeNonceGenerator.class);
     when(generator.generateAndStoreNonce()).thenReturn(expectedNonce);
+    var normalizer = new ProductionCertificateNormalizer();
     var serviceWithGenerator =
         new WebEidAuthService(
             generator,
             challengeNonceStore,
             authTokenValidator,
-            new IdDocumentTypeExtractor(List.of()));
+            new IdDocumentTypeExtractor(List.of(), normalizer));
 
     var result = serviceWithGenerator.generateChallenge();
 

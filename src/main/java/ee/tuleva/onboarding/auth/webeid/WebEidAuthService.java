@@ -7,6 +7,8 @@ import eu.webeid.security.certificate.CertificateData;
 import eu.webeid.security.challenge.ChallengeNonceGenerator;
 import eu.webeid.security.challenge.ChallengeNonceStore;
 import eu.webeid.security.exceptions.AuthTokenException;
+import eu.webeid.security.exceptions.AuthTokenSignatureValidationException;
+import eu.webeid.security.exceptions.CertificateNotTrustedException;
 import eu.webeid.security.exceptions.ChallengeNonceExpiredException;
 import eu.webeid.security.validator.AuthTokenValidator;
 import java.security.cert.CertificateEncodingException;
@@ -39,8 +41,11 @@ public class WebEidAuthService {
     } catch (ChallengeNonceExpiredException e) {
       log.error("Web eID challenge nonce expired or not found", e);
       throw new WebEidAuthException("Challenge nonce expired or not found", e);
+    } catch (AuthTokenSignatureValidationException | CertificateNotTrustedException e) {
+      log.error("Web eID configuration error", e);
+      throw new WebEidConfigurationException("Web eID configuration error", e);
     } catch (AuthTokenException e) {
-      log.error("Web eID token validation failed", e);
+      log.info("Web eID token validation failed: {}", e.getMessage());
       throw new WebEidAuthException("Web eID token validation failed", e);
     }
   }

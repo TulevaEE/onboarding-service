@@ -24,7 +24,6 @@ public class DigiDocConfiguration {
   public org.digidoc4j.Configuration digiDocConfigDev() {
     var configuration = new org.digidoc4j.Configuration(TEST);
     configuration.setTrustedTerritories("EE_T");
-    configuration.setPreferAiaOcsp(false);
     return configuration;
   }
 }

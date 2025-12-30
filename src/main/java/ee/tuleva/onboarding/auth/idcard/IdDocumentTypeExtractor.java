@@ -41,8 +41,10 @@ public class IdDocumentTypeExtractor {
           String oid = policy.getObjectAt(0).toString();
           if (Objects.equals(oid, AUTHENTICATION_POLICY_ID)) {
             hasAuthPolicy = true;
-          } else {
+          } else if (documentTypeOid == null) {
             documentTypeOid = oid;
+          } else {
+            throw new UnknownDocumentTypeException("Unexpected additional policy OID: " + oid);
           }
         }
 
@@ -50,6 +52,8 @@ public class IdDocumentTypeExtractor {
           return IdDocumentType.findByIdentifier(documentTypeOid);
         } else if (!hasAuthPolicy) {
           throw new UnknownDocumentTypeException("Missing authentication policy");
+        } else {
+          throw new UnknownDocumentTypeException("Missing document type policy");
         }
       } else {
         log.error("Certificate policies extension missing");

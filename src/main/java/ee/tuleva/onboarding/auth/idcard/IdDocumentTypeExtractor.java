@@ -26,7 +26,7 @@ public class IdDocumentTypeExtractor {
       List.of(
           "CN=ESTEID-SK 2015, OID.2.5.4.97=NTREE-10747013, O=AS Sertifitseerimiskeskus, C=EE",
           "CN=ESTEID2018, OID.2.5.4.97=NTREE-10747013, O=SK ID Solutions AS, C=EE",
-          "CN=ESTEID2025, OID.2.5.4.97=NTREE-17066049, O=Zetes Estonia OÜ, C=EE");
+          "C=EE, O=Zetes Estonia OÜ, OID.2.5.4.97=NTREE-17066049, CN=ESTEID2025");
 
   public IdDocumentType extract(X509Certificate certificate) {
     try {

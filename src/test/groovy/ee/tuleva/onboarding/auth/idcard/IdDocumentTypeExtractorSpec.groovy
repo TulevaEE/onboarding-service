@@ -169,7 +169,7 @@ class IdDocumentTypeExtractorSpec extends Specification {
         given:
         X509Certificate cert = Mock()
         cert.getIssuerX500Principal() >> new X500Principal(
-            "CN=ESTEID2025, OID.2.5.4.97=NTREE-17066049, O=Zetes Estonia OÜ, C=EE")
+            "C=EE, O=Zetes Estonia OÜ, OID.2.5.4.97=NTREE-17066049, CN=ESTEID2025")
 
         when:
         extractor.checkIssuer(cert)

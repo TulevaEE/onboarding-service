@@ -101,7 +101,7 @@ smartid:
   hostUrl: https://sid.demo.sk.ee/smart-id-rp/v1/
 
 web-eid:
-  origin: https://local.tuleva.ee
+  origin: ${FRONTEND_URL:https://local.tuleva.ee}
   nonce-ttl-minutes: 5
 
 jwt:

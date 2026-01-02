@@ -15,7 +15,7 @@ public class RefreshMaterializedViewsJob {
 
   private final MaterializedViewRepository materializedViewRepository;
 
-  @Scheduled(cron = "0 0 5 * * ?", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 0 7 * * ?", zone = "Europe/Tallinn")
   @SchedulerLock(
       name = "RefreshMaterializedViewsJob_refreshViews",
       lockAtMostFor = "23h",

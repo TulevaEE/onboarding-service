@@ -36,6 +36,10 @@ Java 25, Spring Boot, Gradle, Spock for testing
 
 Running locally: `./gradlew bootRun`
 
+**Modularity**
+
+Spring Modulith enforces module boundaries between packages. Run `./gradlew test --tests ModularityTest` to verify module structure and generate documentation in `build/spring-modulith-docs/`.
+
 **Testing**
 
 Tests can run against either H2 in-memory database or PostgreSQL via Testcontainers:

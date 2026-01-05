@@ -19,6 +19,7 @@ buildscript {
 }
 
 val springCloudVersion = "2025.1.0"
+val springModulithVersion = "1.4.6"
 
 plugins {
     java
@@ -142,6 +143,9 @@ dependencies {
     implementation("net.javacrumbs.shedlock:shedlock-spring:7.2.1")
     implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.2.1")
 
+    implementation("org.springframework.modulith:spring-modulith-starter-core")
+    testImplementation("org.springframework.modulith:spring-modulith-starter-test")
+
     testImplementation("com.h2database:h2")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(module = "spock-core")
@@ -173,6 +177,7 @@ dependencies {
 dependencyManagement {
     imports {
         mavenBom("org.springframework.cloud:spring-cloud-dependencies:$springCloudVersion")
+        mavenBom("org.springframework.modulith:spring-modulith-bom:$springModulithVersion")
     }
 }
 

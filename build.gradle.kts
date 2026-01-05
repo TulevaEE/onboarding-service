@@ -140,8 +140,8 @@ dependencies {
     implementation("commons-io:commons-io:2.21.0")
     implementation("org.apache.commons:commons-csv:1.14.1")
 
-    implementation("net.javacrumbs.shedlock:shedlock-spring:7.2.1")
-    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.2.1")
+    implementation("net.javacrumbs.shedlock:shedlock-spring:7.5.0")
+    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.5.0")
 
     implementation("org.springframework.modulith:spring-modulith-starter-core")
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")

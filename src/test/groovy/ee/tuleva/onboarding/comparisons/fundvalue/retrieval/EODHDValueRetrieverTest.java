@@ -2,7 +2,9 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
@@ -10,7 +12,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest;
@@ -32,13 +33,11 @@ class EODHDValueRetrieverTest {
   }
 
   @Test
-  @DisplayName("returns correct key")
   void returnsCorrectKey() {
     assertThat(retriever.getKey()).isEqualTo("EODHD_VALUE");
   }
 
   @Test
-  @DisplayName("retrieves fund values from EODHD API")
   void retrievesFundValuesFromEodhdApi() {
     var mockResponse =
         """
@@ -71,7 +70,6 @@ class EODHDValueRetrieverTest {
   }
 
   @Test
-  @DisplayName("filters out zero values from response")
   void filtersOutZeroValues() {
     var mockResponseWithZeros =
         """
@@ -103,7 +101,6 @@ class EODHDValueRetrieverTest {
   }
 
   @Test
-  @DisplayName("parses adjusted_close values correctly")
   void parsesAdjustedCloseValuesCorrectly() {
     var mockResponse =
         """
@@ -142,5 +139,18 @@ class EODHDValueRetrieverTest {
         result.stream().filter(fv -> fv.key().equals(firstTicker)).findFirst().orElseThrow();
     assertThat(firstFundValue.value()).isEqualByComparingTo(new BigDecimal("123.456789"));
     assertThat(firstFundValue.date()).isEqualTo(LocalDate.of(2024, 1, 2));
+  }
+
+  @Test
+  void returnsEmptyListOnApiError() {
+    FundTicker.getEodhdTickers()
+        .forEach(
+            ticker ->
+                server.expect(requestTo(containsString(ticker))).andRespond(withServerError()));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
+
+    assertThat(result).isEmpty();
   }
 }

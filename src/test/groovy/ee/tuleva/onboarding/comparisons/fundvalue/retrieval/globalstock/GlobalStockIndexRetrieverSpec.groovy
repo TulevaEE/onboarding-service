@@ -15,8 +15,11 @@ import spock.lang.Specification
 
 import java.nio.file.Files
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
 import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.GlobalStockIndexRetriever.KEY
+import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.GlobalStockIndexRetriever.PROVIDER
 import static java.time.LocalDate.parse
+import static org.assertj.core.api.Assertions.assertThat
 
 class GlobalStockIndexRetrieverSpec extends Specification {
     @Shared
@@ -88,59 +91,53 @@ class GlobalStockIndexRetrieverSpec extends Specification {
     }
 
     def "it successfully parses ftp files"() {
-        given:
-        List<FundValue> expectedValues = [
-            new FundValue(KEY, parse("2020-03-26"), 2803.69952),
-            new FundValue(KEY, parse("2020-03-27"), 2732.50162),
-            new FundValue(KEY, parse("2020-03-28"), 2732.50162),
-            new FundValue(KEY, parse("2020-03-29"), 2732.50162),
-            new FundValue(KEY, parse("2020-03-30"), 2791.31415),
-            new FundValue(KEY, parse("2020-03-31"), 2791.20446),
-            new FundValue(KEY, parse("2020-04-01"), 2698.83588),
-            new FundValue(KEY, parse("2020-04-02"), 2743.17354),
-        ]
-
         when:
         List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-03-26"), parse("2020-04-02"))
 
         then:
-        values == expectedValues
+        def expected = [
+            aFundValue(KEY, parse("2020-03-26"), 2803.69952, PROVIDER),
+            aFundValue(KEY, parse("2020-03-27"), 2732.50162, PROVIDER),
+            aFundValue(KEY, parse("2020-03-28"), 2732.50162, PROVIDER),
+            aFundValue(KEY, parse("2020-03-29"), 2732.50162, PROVIDER),
+            aFundValue(KEY, parse("2020-03-30"), 2791.31415, PROVIDER),
+            aFundValue(KEY, parse("2020-03-31"), 2791.20446, PROVIDER),
+            aFundValue(KEY, parse("2020-04-01"), 2698.83588, PROVIDER),
+            aFundValue(KEY, parse("2020-04-02"), 2743.17354, PROVIDER)
+        ]
+        assertThat(values).usingRecursiveComparison().ignoringFields("updatedAt").isEqualTo(expected)
     }
 
     def "it skips invalid ftp files"() {
-        given:
-        List<FundValue> expectedValues = [
-            new FundValue(KEY, parse("2020-03-26"), 2803.69952),
-            new FundValue(KEY, parse("2020-03-27"), 2732.50162),
-            new FundValue(KEY, parse("2020-03-28"), 2732.50162),
-            new FundValue(KEY, parse("2020-03-29"), 2732.50162),
-            new FundValue(KEY, parse("2020-03-30"), 2791.31415),
-            new FundValue(KEY, parse("2020-03-31"), 2791.20446),
-        ]
-
         when:
         List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-03-24"), parse("2020-03-31"))
 
         then:
-        values == expectedValues
+        def expected = [
+            aFundValue(KEY, parse("2020-03-26"), 2803.69952, PROVIDER),
+            aFundValue(KEY, parse("2020-03-27"), 2732.50162, PROVIDER),
+            aFundValue(KEY, parse("2020-03-28"), 2732.50162, PROVIDER),
+            aFundValue(KEY, parse("2020-03-29"), 2732.50162, PROVIDER),
+            aFundValue(KEY, parse("2020-03-30"), 2791.31415, PROVIDER),
+            aFundValue(KEY, parse("2020-03-31"), 2791.20446, PROVIDER)
+        ]
+        assertThat(values).usingRecursiveComparison().ignoringFields("updatedAt").isEqualTo(expected)
     }
 
     def "it should work with empty data files"() {
-        given:
-        List<FundValue> expectedValues = [
-            new FundValue(KEY, parse("2020-03-26"), 2803.69952),
-            new FundValue(KEY, parse("2020-03-27"), 2732.50162),
-            new FundValue(KEY, parse("2020-03-28"), 2732.50162),
-            new FundValue(KEY, parse("2020-03-29"), 2732.50162),
-            new FundValue(KEY, parse("2020-03-30"), 2791.31415),
-            new FundValue(KEY, parse("2020-03-31"), 2791.20446),
-        ]
-
         when:
         List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-02-24"), parse("2020-03-31"))
 
         then:
-        values == expectedValues
+        def expected = [
+            aFundValue(KEY, parse("2020-03-26"), 2803.69952, PROVIDER),
+            aFundValue(KEY, parse("2020-03-27"), 2732.50162, PROVIDER),
+            aFundValue(KEY, parse("2020-03-28"), 2732.50162, PROVIDER),
+            aFundValue(KEY, parse("2020-03-29"), 2732.50162, PROVIDER),
+            aFundValue(KEY, parse("2020-03-30"), 2791.31415, PROVIDER),
+            aFundValue(KEY, parse("2020-03-31"), 2791.20446, PROVIDER)
+        ]
+        assertThat(values).usingRecursiveComparison().ignoringFields("updatedAt").isEqualTo(expected)
     }
 
     def "it should handle ftp client open/close exception"() {

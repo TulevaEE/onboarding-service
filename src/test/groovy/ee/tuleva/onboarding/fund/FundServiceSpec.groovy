@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.fund
 
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
+
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService
@@ -10,6 +10,7 @@ import spock.lang.Specification
 
 import java.time.LocalDate
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static java.util.stream.Collectors.toList
 
@@ -120,7 +121,7 @@ class FundServiceSpec extends Specification {
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
     localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
     fundValueRepository.findLastValueForFund(tulevaFund.isin) >> Optional.of(
-        new FundValue(tulevaFund.isin, LocalDate.parse("2023-11-03"),123.0))
+        aFundValue(tulevaFund.isin, LocalDate.parse("2023-11-03"),123.0))
     fundValueRepository.findLastValueForFund(_ as String) >> Optional.empty()
 
     when:

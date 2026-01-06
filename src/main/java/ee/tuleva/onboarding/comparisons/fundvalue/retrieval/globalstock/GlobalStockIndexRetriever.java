@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
@@ -29,6 +30,7 @@ import org.springframework.stereotype.Service;
 @Profile("!dev")
 public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
   public static final String KEY = "GLOBAL_STOCK_INDEX";
+  public static final String PROVIDER = "MORNINGSTAR";
   private static final String PATH = "/Daily/DMRI/XI_MSTAR/";
   private static final String SECURITY_ID = "F00000VN9N";
 
@@ -99,6 +101,7 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
   private List<FundValue> extractValuesFromRecords(Map<String, MonthRecord> monthRecords) {
     log.debug("Extracting values from record dictionary");
     List<FundValue> fundValues = new ArrayList<>();
+    var now = Instant.now();
 
     for (MonthRecord record : monthRecords.values()) {
       List<String> recordValues = record.getValues();
@@ -113,7 +116,7 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
                   .toFormatter();
 
           LocalDate date = LocalDate.parse(record.monthId, formatter);
-          fundValues.add(new FundValue(KEY, date, new BigDecimal(dayValue)));
+          fundValues.add(new FundValue(KEY, date, new BigDecimal(dayValue), PROVIDER, now));
         }
       }
     }

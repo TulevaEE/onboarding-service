@@ -45,13 +45,13 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
 
   private static final String INSERT_VALUES_QUERY =
       """
-      INSERT INTO index_values (key, date, value)
-      VALUES (:key, :date, :value)
+      INSERT INTO index_values (key, date, value, provider, updated_at)
+      VALUES (:key, :date, :value, :provider, :updatedAt)
       """;
 
   private static final String UPDATE_VALUES_QUERY =
       """
-      UPDATE index_values SET value = :value
+      UPDATE index_values SET value = :value, provider = :provider, updated_at = :updatedAt
       WHERE key = :key AND date = :date
       """;
 
@@ -109,44 +109,43 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
 
     @Override
     public FundValue mapRow(ResultSet rs, int rowNum) throws SQLException {
+      var timestamp = rs.getTimestamp("updated_at");
       return new FundValue(
-          rs.getString("key"), rs.getDate("date").toLocalDate(), rs.getBigDecimal("value"));
+          rs.getString("key"),
+          rs.getDate("date").toLocalDate(),
+          rs.getBigDecimal("value"),
+          rs.getString("provider"),
+          timestamp != null ? timestamp.toInstant() : null);
     }
   }
 
   @Override
   public void save(FundValue fundValue) {
-    Map<String, Object> values =
-        Map.of(
-            "key", fundValue.key(),
-            "date", fundValue.date(),
-            "value", fundValue.value());
-
+    Map<String, Object> values = buildParamsMap(fundValue);
     jdbcTemplate.update(INSERT_VALUES_QUERY, values);
+  }
+
+  private Map<String, Object> buildParamsMap(FundValue fundValue) {
+    var map = new HashMap<String, Object>();
+    map.put("key", fundValue.key());
+    map.put("date", fundValue.date());
+    map.put("value", fundValue.value());
+    map.put("provider", fundValue.provider());
+    map.put(
+        "updatedAt",
+        fundValue.updatedAt() != null ? java.sql.Timestamp.from(fundValue.updatedAt()) : null);
+    return map;
   }
 
   @Override
   public void update(FundValue fundValue) {
-    Map<String, Object> values =
-        Map.of(
-            "key", fundValue.key(),
-            "date", fundValue.date(),
-            "value", fundValue.value());
-
+    Map<String, Object> values = buildParamsMap(fundValue);
     jdbcTemplate.update(UPDATE_VALUES_QUERY, values);
   }
 
   @Override
   public void saveAll(List<FundValue> fundValues) {
-    List<Map<String, Object>> batchValues =
-        fundValues.stream()
-            .map(
-                fundValue ->
-                    Map.of(
-                        "key", (Object) fundValue.key(),
-                        "date", fundValue.date(),
-                        "value", fundValue.value()))
-            .toList();
+    List<Map<String, Object>> batchValues = fundValues.stream().map(this::buildParamsMap).toList();
     jdbcTemplate.batchUpdate(INSERT_VALUES_QUERY, batchValues.toArray(new Map[fundValues.size()]));
   }
 

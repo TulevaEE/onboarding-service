@@ -1,16 +1,19 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval
 
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
+
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest
 import org.springframework.http.MediaType
 import org.springframework.test.web.client.MockRestServiceServer
 import spock.lang.Specification
 
-import java.nio.charset.StandardCharsets
 import java.time.LocalDate
 import java.util.zip.GZIPOutputStream
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
+import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.CpiValueRetriever.PROVIDER
+import static java.nio.charset.StandardCharsets.UTF_8
+import static org.assertj.core.api.Assertions.assertThat
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
 
@@ -49,21 +52,22 @@ M,I96,CP00,EE\t93.8 \t96.8\t98.4"""
     def result = cpiValueRetriever.retrieveValuesForRange(startDate, endDate)
 
     then:
-    result == [
-        new FundValue(CpiValueRetriever.KEY, LocalDate.of(1996, 1, 1), 93.8),
-        new FundValue(CpiValueRetriever.KEY, LocalDate.of(1996, 2, 1), 96.8),
-        new FundValue(CpiValueRetriever.KEY, LocalDate.of(1996, 3, 1), 98.4)
+    def expected = [
+        aFundValue(CpiValueRetriever.KEY, LocalDate.of(1996, 1, 1), 93.8, PROVIDER),
+        aFundValue(CpiValueRetriever.KEY, LocalDate.of(1996, 2, 1), 96.8, PROVIDER),
+        aFundValue(CpiValueRetriever.KEY, LocalDate.of(1996, 3, 1), 98.4, PROVIDER)
     ]
+    assertThat(result).usingRecursiveComparison().ignoringFields("updatedAt").isEqualTo(expected)
   }
 
   private byte[] gzip(String input) {
     try (def byteArrayOutputStream = new ByteArrayOutputStream()
          def gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream)) {
-      gzipOutputStream.write(input.getBytes(StandardCharsets.UTF_8))
+      gzipOutputStream.write(input.getBytes(UTF_8))
       gzipOutputStream.close()
       return byteArrayOutputStream.toByteArray()
     } catch (IOException e) {
-      throw new RuntimeException("Error compressing string", e)
+      throw new UncheckedIOException("Error compressing string", e)
     }
   }
 }

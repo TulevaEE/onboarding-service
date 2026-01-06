@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.ParseException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -36,6 +37,7 @@ import org.springframework.web.client.RestTemplate;
 @ToString(onlyExplicitlyIncluded = true)
 public class WorldIndexValueRetriever implements ComparisonIndexRetriever {
   @ToString.Include public static final String KEY = "MARKET";
+  public static final String PROVIDER = "GOOGLE_SHEETS";
 
   private final RestTemplate restTemplate;
 
@@ -100,7 +102,7 @@ public class WorldIndexValueRetriever implements ComparisonIndexRetriever {
       return Optional.empty();
     }
 
-    return Optional.of(new FundValue(KEY, date.get(), value.get()));
+    return Optional.of(new FundValue(KEY, date.get(), value.get(), PROVIDER, Instant.now()));
   }
 
   private Optional<LocalDate> parseDate(String date) {

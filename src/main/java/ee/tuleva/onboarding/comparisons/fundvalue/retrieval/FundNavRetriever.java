@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.fund.NavDto;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @ToString(onlyExplicitlyIncluded = true)
 public class FundNavRetriever implements ComparisonIndexRetriever {
+  public static final String PROVIDER = "PENSIONIKESKUS";
 
   private final EpisService episService;
   @ToString.Include private final String isin;
@@ -41,6 +43,6 @@ public class FundNavRetriever implements ComparisonIndexRetriever {
   }
 
   private FundValue toFundValue(NavDto nav) {
-    return new FundValue(nav.getIsin(), nav.getDate(), nav.getValue());
+    return new FundValue(nav.getIsin(), nav.getDate(), nav.getValue(), PROVIDER, Instant.now());
   }
 }

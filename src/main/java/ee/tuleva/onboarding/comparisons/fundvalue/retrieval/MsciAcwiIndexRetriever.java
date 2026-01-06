@@ -6,6 +6,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 import com.fasterxml.jackson.databind.JsonNode;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -20,6 +21,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 @ToString(onlyExplicitlyIncluded = true)
 public class MsciAcwiIndexRetriever implements ComparisonIndexRetriever {
   @ToString.Include public static final String KEY = "MSCI_ACWI";
+  public static final String PROVIDER = "MSCI";
 
   private static final String INDEX_CODE = "892400";
   private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
@@ -48,6 +50,7 @@ public class MsciAcwiIndexRetriever implements ComparisonIndexRetriever {
   private List<FundValue> parseIndexLevels(
       JsonNode response, LocalDate startDate, LocalDate endDate) {
     JsonNode indexLevels = response.path("indexes").path("INDEX_LEVELS");
+    var now = Instant.now();
 
     return stream(indexLevels.spliterator(), false)
         .map(
@@ -55,7 +58,7 @@ public class MsciAcwiIndexRetriever implements ComparisonIndexRetriever {
               String dateString = node.path("calc_date").asText();
               LocalDate date = LocalDate.parse(dateString, DATE_FORMATTER);
               BigDecimal value = BigDecimal.valueOf(node.path("level_eod").asDouble());
-              return new FundValue(KEY, date, value);
+              return new FundValue(KEY, date, value, PROVIDER, now);
             })
         .filter(
             fundValue -> {

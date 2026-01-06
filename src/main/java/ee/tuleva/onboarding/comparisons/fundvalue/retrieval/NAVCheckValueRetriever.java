@@ -23,27 +23,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 @ToString(onlyExplicitlyIncluded = true)
 public class NAVCheckValueRetriever implements ComparisonIndexRetriever {
   @ToString.Include public static final String KEY = "NAV_CHECK_VALUE";
+  public static final String PROVIDER = "YAHOO";
 
-  public static final List<String> FUND_TICKERS =
-      List.of(
-          "0P000152G5.F",
-          "0P0001N0Z0.F",
-          "SGAS.DE",
-          "SLMC.DE",
-          "SGAJ.DE",
-          "0P0001MGOG.F",
-          "0P0000YXER.F",
-          "0P00006OK2.F",
-          "0P0001A3RC.F",
-          "0P0000STQT.F",
-          "ESGM.DE",
-          "XRSM.DE",
-          "D5BH.DE",
-          "USAS.PA",
-          "V3YA.DE",
-          "EEUX.DE",
-          "PAC.DE",
-          "EJAP.DE");
+  public static final List<String> FUND_TICKERS = FundTicker.getYahooTickers();
 
   private final RestClient restClient;
 
@@ -82,9 +64,11 @@ public class NAVCheckValueRetriever implements ComparisonIndexRetriever {
           "NAV checker response timestamp and fund values count do not match");
     }
 
+    var now = Instant.now();
     List<FundValue> allValues =
         IntStream.range(0, fundValues.size())
-            .mapToObj(i -> new FundValue(fundName, timestamps.get(i), fundValues.get(i)))
+            .mapToObj(
+                i -> new FundValue(fundName, timestamps.get(i), fundValues.get(i), PROVIDER, now))
             .toList();
 
     List<FundValue> nonZeroValues =

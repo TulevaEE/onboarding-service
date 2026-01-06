@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval
 
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
+
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest
 import org.springframework.http.MediaType
@@ -9,6 +9,9 @@ import spock.lang.Specification
 
 import java.time.LocalDate
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
+import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.MsciAcwiIndexRetriever.PROVIDER
+import static org.assertj.core.api.Assertions.assertThat
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
 
@@ -67,11 +70,12 @@ class MsciAcwiIndexRetrieverSpec extends Specification {
     def result = msciAcwiIndexRetriever.retrieveValuesForRange(startDate, endDate)
 
     then:
-    result == [
-      new FundValue(MsciAcwiIndexRetriever.KEY, LocalDate.of(2024, 1, 2), 100.0),
-      new FundValue(MsciAcwiIndexRetriever.KEY, LocalDate.of(2024, 1, 3), 101.5),
-      new FundValue(MsciAcwiIndexRetriever.KEY, LocalDate.of(2024, 1, 4), 102.3)
+    def expected = [
+      aFundValue(MsciAcwiIndexRetriever.KEY, LocalDate.of(2024, 1, 2), 100.0, PROVIDER),
+      aFundValue(MsciAcwiIndexRetriever.KEY, LocalDate.of(2024, 1, 3), 101.5, PROVIDER),
+      aFundValue(MsciAcwiIndexRetriever.KEY, LocalDate.of(2024, 1, 4), 102.3, PROVIDER)
     ]
+    assertThat(result).usingRecursiveComparison().ignoringFields("updatedAt").isEqualTo(expected)
   }
 
   def "it filters values within the requested date range"() {
@@ -118,10 +122,11 @@ class MsciAcwiIndexRetrieverSpec extends Specification {
 
     then:
     result.size() == 3
-    result == [
-      new FundValue(MsciAcwiIndexRetriever.KEY, LocalDate.of(2024, 1, 2), 100.0),
-      new FundValue(MsciAcwiIndexRetriever.KEY, LocalDate.of(2024, 1, 3), 101.5),
-      new FundValue(MsciAcwiIndexRetriever.KEY, LocalDate.of(2024, 1, 4), 102.3)
+    def expected = [
+      aFundValue(MsciAcwiIndexRetriever.KEY, LocalDate.of(2024, 1, 2), 100.0, PROVIDER),
+      aFundValue(MsciAcwiIndexRetriever.KEY, LocalDate.of(2024, 1, 3), 101.5, PROVIDER),
+      aFundValue(MsciAcwiIndexRetriever.KEY, LocalDate.of(2024, 1, 4), 102.3, PROVIDER)
     ]
+    assertThat(result).usingRecursiveComparison().ignoringFields("updatedAt").isEqualTo(expected)
   }
 }

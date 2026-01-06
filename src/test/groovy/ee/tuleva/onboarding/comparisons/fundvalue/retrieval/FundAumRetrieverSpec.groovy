@@ -11,6 +11,9 @@ import spock.lang.Specification
 import java.nio.charset.StandardCharsets
 import java.time.LocalDate
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
+import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.PensionikeskusDataDownloader.PROVIDER
+import static org.assertj.core.api.Assertions.assertThat
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
 
@@ -50,9 +53,8 @@ class FundAumRetrieverSpec extends Specification {
         List<FundValue> results = secondPillarStockAumRetriever.retrieveValuesForRange(startDate, endDate)
 
         then:
-        results == [
-            new FundValue("AUM_EE3600109435", LocalDate.of(2024, 11, 6), 661127723 as BigDecimal),
-        ]
+        def expected = [aFundValue("AUM_EE3600109435", LocalDate.of(2024, 11, 6), 661127723 as BigDecimal, PROVIDER)]
+        assertThat(results).usingRecursiveComparison().ignoringFields("updatedAt").isEqualTo(expected)
     }
 
     def "should retrieve second pillar bond fund AUM values from CSV"() {
@@ -72,9 +74,8 @@ class FundAumRetrieverSpec extends Specification {
         List<FundValue> results = secondPillarBondAumRetriever.retrieveValuesForRange(startDate, endDate)
 
         then:
-        results == [
-            new FundValue("AUM_EE3600109443", LocalDate.of(2024, 11, 6), 11327895 as BigDecimal),
-        ]
+        def expected = [aFundValue("AUM_EE3600109443", LocalDate.of(2024, 11, 6), 11327895 as BigDecimal, PROVIDER)]
+        assertThat(results).usingRecursiveComparison().ignoringFields("updatedAt").isEqualTo(expected)
     }
 
     def "should retrieve third pillar fund AUM values from CSV"() {
@@ -94,8 +95,7 @@ class FundAumRetrieverSpec extends Specification {
         List<FundValue> results = thirdPillarAumRetriever.retrieveValuesForRange(startDate, endDate)
 
         then:
-        results == [
-            new FundValue("AUM_EE3600001707", LocalDate.of(2024, 11, 6), 305624105 as BigDecimal),
-        ]
+        def expected = [aFundValue("AUM_EE3600001707", LocalDate.of(2024, 11, 6), 305624105 as BigDecimal, PROVIDER)]
+        assertThat(results).usingRecursiveComparison().ignoringFields("updatedAt").isEqualTo(expected)
     }
 }

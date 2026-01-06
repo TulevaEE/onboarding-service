@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 @ToString(onlyExplicitlyIncluded = true)
 public class UnionStockIndexRetriever implements ComparisonIndexRetriever {
   @ToString.Include public static final String KEY = "UNION_STOCK_INDEX";
+  public static final String PROVIDER = "CALCULATED";
 
   private final FundValueRepository fundValueRepository;
 
@@ -50,6 +52,7 @@ public class UnionStockIndexRetriever implements ComparisonIndexRetriever {
   private List<FundValue> createStocks() {
     List<FundValue> stockValues = new ArrayList<>();
     List<FundValue> jdbcValues = fundValueRepository.getGlobalStockValues();
+    var now = Instant.now();
 
     for (FundValue fundvalue : jdbcValues) {
       LocalDate date = fundvalue.date();
@@ -58,9 +61,9 @@ public class UnionStockIndexRetriever implements ComparisonIndexRetriever {
 
       if (date.isAfter(changeDate)) {
         BigDecimal stockValue = value.divide(MULTIPLIER, RoundingMode.HALF_UP);
-        stockValues.add(new FundValue(KEY, date, stockValue));
+        stockValues.add(new FundValue(KEY, date, stockValue, PROVIDER, now));
       } else {
-        stockValues.add(new FundValue(KEY, date, value));
+        stockValues.add(new FundValue(KEY, date, value, PROVIDER, now));
       }
     }
 

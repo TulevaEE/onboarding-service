@@ -10,6 +10,7 @@ import spock.lang.Specification
 import java.time.Instant
 import java.time.LocalDate
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
 import static java.util.Collections.singletonList
 
 class FundValueIndexingJobSpec extends Specification {
@@ -58,7 +59,7 @@ class FundValueIndexingJobSpec extends Specification {
             fundValueRetriever.getKey() >> UnionStockIndexRetriever.KEY
             def lastFundValueTime = LocalDate.parse("2018-05-01")
             def dayFromLastFundValueTime = LocalDate.parse("2018-05-02")
-            fundValueRepository.findLastValueForFund(UnionStockIndexRetriever.KEY) >> Optional.of(new FundValue(UnionStockIndexRetriever.KEY, lastFundValueTime, 120.0))
+            fundValueRepository.findLastValueForFund(UnionStockIndexRetriever.KEY) >> Optional.of(aFundValue(UnionStockIndexRetriever.KEY, lastFundValueTime, 120.0))
             fundValueRepository.findExistingValueForFund(_ as FundValue) >> Optional.empty()
         when:
             fundValueIndexingJob.runIndexingJob()
@@ -72,7 +73,7 @@ class FundValueIndexingJobSpec extends Specification {
         given:
             fundValueRetriever.getKey() >> UnionStockIndexRetriever.KEY
             def lastValueDate = LocalDate.now()
-            fundValueRepository.findLastValueForFund(UnionStockIndexRetriever.KEY) >> Optional.of(new FundValue(UnionStockIndexRetriever.KEY, lastValueDate, 120.0))
+            fundValueRepository.findLastValueForFund(UnionStockIndexRetriever.KEY) >> Optional.of(aFundValue(UnionStockIndexRetriever.KEY, lastValueDate, 120.0))
         when:
             fundValueIndexingJob.runIndexingJob()
         then:
@@ -82,8 +83,8 @@ class FundValueIndexingJobSpec extends Specification {
 
     private static List<FundValue> fakeFundValues() {
         return [
-            new FundValue(UnionStockIndexRetriever.KEY, LocalDate.parse("2017-01-01"), 100.0),
-            new FundValue(UnionStockIndexRetriever.KEY, LocalDate.parse("2018-01-01"), 110.0),
+            aFundValue(UnionStockIndexRetriever.KEY, LocalDate.parse("2017-01-01"), 100.0),
+            aFundValue(UnionStockIndexRetriever.KEY, LocalDate.parse("2018-01-01"), 110.0),
         ]
     }
 }

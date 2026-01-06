@@ -12,7 +12,11 @@ import spock.lang.Specification
 import java.nio.charset.StandardCharsets
 import java.time.LocalDate
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
+import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.WorldIndexValueRetriever.PROVIDER
+import static java.nio.charset.StandardCharsets.UTF_8
 import static java.time.LocalDate.parse
+import static org.assertj.core.api.Assertions.assertThat
 
 class WorldIndexValueRetrieverSpec extends Specification {
 
@@ -41,10 +45,6 @@ class WorldIndexValueRetrieverSpec extends Specification {
 "17-July-2018","24.05","224.01","8.1931","0.3617","278.07","",""
 """
         ClientHttpResponse response = createResponse(HttpStatus.OK, responseBody)
-        List<FundValue> expectedValues = [
-            new FundValue(WorldIndexValueRetriever.KEY, parse("2018-07-01"), 279.09),
-            new FundValue(WorldIndexValueRetriever.KEY, parse("2018-07-17"), 278.07),
-        ]
 
         when:
         List<FundValue> values = retriever.retrieveValuesForRange(parse("2018-01-01"), parse("2019-01-01"))
@@ -54,7 +54,11 @@ class WorldIndexValueRetrieverSpec extends Specification {
             String url, HttpMethod method, RequestCallback callback, ResponseExtractor<List<FundValue>> handler, Object[] uriVariables ->
                 handler.extractData(response)
         }
-        values == expectedValues
+        def expected = [
+            aFundValue(WorldIndexValueRetriever.KEY, parse("2018-07-01"), 279.09, PROVIDER),
+            aFundValue(WorldIndexValueRetriever.KEY, parse("2018-07-17"), 278.07, PROVIDER)
+        ]
+        assertThat(values).usingRecursiveComparison().ignoringFields("updatedAt").isEqualTo(expected)
     }
 
     def "it filters out lines with incorrect dates"() {
@@ -70,10 +74,6 @@ class WorldIndexValueRetrieverSpec extends Specification {
 "13-Jul-2018","24.04","223.77","6.7372","0.2974","228.52","","","","","","","","","","","","","","","","","","","",""
 """
         ClientHttpResponse response = createResponse(HttpStatus.OK, responseBody)
-        List<FundValue> expectedValues = [
-            new FundValue(WorldIndexValueRetriever.KEY, parse("2018-07-17"), 228.65),
-            new FundValue(WorldIndexValueRetriever.KEY, parse("2018-07-16"), 227.74),
-        ]
 
         when:
         List<FundValue> values = retriever.retrieveValuesForRange(startTime, endTime)
@@ -83,8 +83,11 @@ class WorldIndexValueRetrieverSpec extends Specification {
             String url, HttpMethod method, RequestCallback callback, ResponseExtractor<List<FundValue>> handler, Object[] uriVariables ->
                 handler.extractData(response)
         }
-        values == expectedValues
-
+        def expected = [
+            aFundValue(WorldIndexValueRetriever.KEY, parse("2018-07-17"), 228.65, PROVIDER),
+            aFundValue(WorldIndexValueRetriever.KEY, parse("2018-07-16"), 227.74, PROVIDER)
+        ]
+        assertThat(values).usingRecursiveComparison().ignoringFields("updatedAt").isEqualTo(expected)
     }
 
     def "when a row is misformed it is ignored"() {
@@ -96,10 +99,6 @@ broken
 "18-Jul-2018","24.18","223.89","8.1931","0.3617","279.09","",""
 "17-Jul-2018","24.05","224.01","8.1931","0.3617","278.07","",""
 """)
-        List<FundValue> expectedValues = [
-            new FundValue(WorldIndexValueRetriever.KEY, parse("2018-07-18"), 279.09),
-            new FundValue(WorldIndexValueRetriever.KEY, parse("2018-07-17"), 278.07),
-        ]
 
         when:
         List<FundValue> values = retriever.retrieveValuesForRange(parse("2018-01-01"), parse("2019-01-01"))
@@ -109,7 +108,11 @@ broken
             String url, HttpMethod method, RequestCallback callback, ResponseExtractor<List<FundValue>> handler, Object[] uriVariables ->
                 handler.extractData(response)
         }
-        values == expectedValues
+        def expected = [
+            aFundValue(WorldIndexValueRetriever.KEY, parse("2018-07-18"), 279.09, PROVIDER),
+            aFundValue(WorldIndexValueRetriever.KEY, parse("2018-07-17"), 278.07, PROVIDER)
+        ]
+        assertThat(values).usingRecursiveComparison().ignoringFields("updatedAt").isEqualTo(expected)
     }
 
     def "when an invalid response is received, an empty list is returned"() {
@@ -130,7 +133,7 @@ broken
     private ClientHttpResponse createResponse(HttpStatus status, String csvBody) {
         ClientHttpResponse response = Mock(ClientHttpResponse)
         response.getStatusCode() >> status
-        response.getBody() >> new ByteArrayInputStream(csvBody.getBytes(StandardCharsets.UTF_8))
+        response.getBody() >> new ByteArrayInputStream(csvBody.getBytes(UTF_8))
         return response
     }
 }

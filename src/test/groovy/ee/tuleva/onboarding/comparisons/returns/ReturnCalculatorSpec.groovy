@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.comparisons.returns
 
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
+
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EpiIndex
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
@@ -11,6 +11,8 @@ import spock.lang.Specification
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+
+import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
 
 class ReturnCalculatorSpec extends Specification {
 
@@ -141,7 +143,7 @@ class ReturnCalculatorSpec extends Specification {
     Instant endTime = parseInstant("2018-07-16")
     mockFundValues(EpiIndex.EPI.key, epiFundValues())
     fundValueProvider.getLatestValue(UnionStockIndexRetriever.KEY, _ as LocalDate) >> {
-      String givenFund, LocalDate date -> Optional.of(new FundValue(givenFund, date, 123.0))
+      String givenFund, LocalDate date -> Optional.of(aFundValue(givenFund, date, 123.0))
     }
     def overview = new AccountOverview(exampleTransactions, 30.0, 123123.0, startTime, endTime, 2)
     when:
@@ -217,7 +219,7 @@ class ReturnCalculatorSpec extends Specification {
   private void mockFundValues(String fund, Map<String, BigDecimal> values) {
     fundValueProvider.getLatestValue(fund, _ as LocalDate) >> {
       String givenFund, LocalDate date ->
-        Optional.of(new FundValue(UnionStockIndexRetriever.KEY, date, values[date.toString()]))
+        Optional.of(aFundValue(UnionStockIndexRetriever.KEY, date, values[date.toString()]))
     }
   }
 
@@ -227,7 +229,7 @@ class ReturnCalculatorSpec extends Specification {
 
   private void fakeNoReturnFundValues() {
     fundValueProvider.getLatestValue(_, _) >>
-        Optional.of(new FundValue(UnionStockIndexRetriever.KEY, LocalDate.parse("2018-06-17"), 1.0))
+        Optional.of(aFundValue(UnionStockIndexRetriever.KEY, LocalDate.parse("2018-06-17"), 1.0))
   }
 
   List<Transaction> exampleTransactions = [

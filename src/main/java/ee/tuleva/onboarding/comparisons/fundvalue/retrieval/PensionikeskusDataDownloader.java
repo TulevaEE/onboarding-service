@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpStatus.*;
 
@@ -12,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.ParseException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -32,9 +34,10 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Slf4j
 @Service
 public class PensionikeskusDataDownloader {
+  public static final String PROVIDER = "PENSIONIKESKUS";
 
   private final RestTemplate restTemplate;
-  private static final DateTimeFormatter DEFAULT_DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
+  private static final DateTimeFormatter DEFAULT_DATE_FORMATTER = ISO_LOCAL_DATE;
   private static final DecimalFormat DEFAULT_DECIMAL_FORMAT;
 
   static {
@@ -113,7 +116,7 @@ public class PensionikeskusDataDownloader {
       if (config.keyColumn() != null) {
         computedKey = config.keyPrefix() + "_" + columns[config.keyColumn()].trim();
       }
-      return Optional.of(new FundValue(computedKey, date, value));
+      return Optional.of(new FundValue(computedKey, date, value, PROVIDER, Instant.now()));
     } catch (Exception e) {
       log.error("Failed to parse line: {}. Error: {}", line, e.getMessage());
       return Optional.empty();

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval
 
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
+
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest
 import org.springframework.http.MediaType
@@ -67,13 +67,19 @@ class NAVCheckValueRetrieverSpec extends Specification {
     def result = navCheckValueRetriever.retrieveValuesForRange(startDate, endDate)
 
     then:
-    result == NAVCheckValueRetriever.FUND_TICKERS.collect {
-      [
-        new FundValue(it, LocalDate.of(2018, 1, 2), 13.5799999237061),
-        new FundValue(it, LocalDate.of(2018, 1, 3), 13.6680002212524),
-        new FundValue(it, LocalDate.of(2018, 1, 4), 13.7229995727539)
-      ]
-    }.flatten()
+    result.size() == NAVCheckValueRetriever.FUND_TICKERS.size() * 3
+    result.every { it.provider() == "YAHOO" }
+    result.every { it.updatedAt() != null }
+    NAVCheckValueRetriever.FUND_TICKERS.each { ticker ->
+      def tickerValues = result.findAll { it.key() == ticker }
+      assert tickerValues.size() == 3
+      assert tickerValues[0].date() == LocalDate.of(2018, 1, 2)
+      assert tickerValues[0].value() == 13.5799999237061
+      assert tickerValues[1].date() == LocalDate.of(2018, 1, 3)
+      assert tickerValues[1].value() == 13.6680002212524
+      assert tickerValues[2].date() == LocalDate.of(2018, 1, 4)
+      assert tickerValues[2].value() == 13.7229995727539
+    }
   }
 
   def "it filters out zero values from Yahoo Finance response"() {
@@ -110,16 +116,18 @@ class NAVCheckValueRetrieverSpec extends Specification {
 
     then:
     result.size() == NAVCheckValueRetriever.FUND_TICKERS.size() * 3
-
-    result == NAVCheckValueRetriever.FUND_TICKERS.collect {
-      [
-        new FundValue(it, LocalDate.of(2018, 1, 2), 13.5799999237061),
-        new FundValue(it, LocalDate.of(2018, 1, 4), 13.7229995727539),
-        new FundValue(it, LocalDate.of(2018, 1, 6), 13.85)
-      ]
-    }.flatten()
-
     result.every { fundValue -> fundValue.value() != ZERO }
+    result.every { it.provider() == "YAHOO" }
+    NAVCheckValueRetriever.FUND_TICKERS.each { ticker ->
+      def tickerValues = result.findAll { it.key() == ticker }
+      assert tickerValues.size() == 3
+      assert tickerValues[0].date() == LocalDate.of(2018, 1, 2)
+      assert tickerValues[0].value() == 13.5799999237061
+      assert tickerValues[1].date() == LocalDate.of(2018, 1, 4)
+      assert tickerValues[1].value() == 13.7229995727539
+      assert tickerValues[2].date() == LocalDate.of(2018, 1, 6)
+      assert tickerValues[2].value() == 13.85
+    }
   }
 }
 

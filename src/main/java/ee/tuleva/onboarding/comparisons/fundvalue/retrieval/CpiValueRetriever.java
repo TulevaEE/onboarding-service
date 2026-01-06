@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +26,7 @@ import org.springframework.web.client.RestTemplate;
 @ToString(onlyExplicitlyIncluded = true)
 public class CpiValueRetriever implements ComparisonIndexRetriever {
   @ToString.Include public static final String KEY = "CPI";
+  public static final String PROVIDER = "EUROSTAT";
   private static final String SOURCE_URL =
       "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/prc_hicp_midx/?format=TSV&compressed=true";
 
@@ -81,6 +83,7 @@ public class CpiValueRetriever implements ComparisonIndexRetriever {
     lines.toArray(table);
 
     List<FundValue> cpiValues = new ArrayList<>();
+    var now = Instant.now();
 
     for (int i = 0; i < table[0].length - 1; i++) {
       String yearMonth = table[0][1 + i].trim();
@@ -94,7 +97,7 @@ public class CpiValueRetriever implements ComparisonIndexRetriever {
 
       try {
         BigDecimal cpiValue = new BigDecimal(cpi);
-        cpiValues.add(new FundValue(KEY, date, cpiValue));
+        cpiValues.add(new FundValue(KEY, date, cpiValue, PROVIDER, now));
       } catch (NumberFormatException e) {
         log.error("Could not convert CPI value to BigDecimal: {}", cpi);
       }

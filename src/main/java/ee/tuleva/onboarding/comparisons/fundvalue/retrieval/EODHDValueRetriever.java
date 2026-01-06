@@ -50,8 +50,14 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
       String ticker, LocalDate startDate, LocalDate endDate) {
     var uri = buildUri(ticker, startDate, endDate);
 
-    EODHDResponse[] response =
-        restClient.get().uri(uri).accept(APPLICATION_JSON).retrieve().body(EODHDResponse[].class);
+    EODHDResponse[] response;
+    try {
+      response =
+          restClient.get().uri(uri).accept(APPLICATION_JSON).retrieve().body(EODHDResponse[].class);
+    } catch (Exception e) {
+      log.error("Failed to retrieve values for ticker: {}", ticker, e);
+      return List.of();
+    }
 
     if (response == null) {
       return List.of();

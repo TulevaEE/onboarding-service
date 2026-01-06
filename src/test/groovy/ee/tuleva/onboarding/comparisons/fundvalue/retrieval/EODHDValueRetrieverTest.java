@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EODHDValueRetriever.RUN_FROM;
+import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EODHDValueRetriever.RUN_UNTIL;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -8,28 +10,46 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.deadline.EstonianClockConfiguration;
+import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.client.MockRestServiceServer;
 
 @RestClientTest(EODHDValueRetriever.class)
 @TestPropertySource(properties = "eodhd.api-token=test-token")
+@Import(EstonianClockConfiguration.class)
 class EODHDValueRetrieverTest {
+
+  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
   @Autowired EODHDValueRetriever retriever;
 
   @Autowired MockRestServiceServer server;
 
+  @BeforeEach
+  void setup() {
+    ClockHolder.setClock(
+        Clock.fixed(
+            ZonedDateTime.now(TALLINN).with(RUN_FROM.plusMinutes(30)).toInstant(), TALLINN));
+  }
+
   @AfterEach
   void cleanup() {
     server.reset();
+    ClockHolder.setDefaultClock();
   }
 
   @Test
@@ -152,5 +172,20 @@ class EODHDValueRetrieverTest {
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
 
     assertThat(result).isEmpty();
+  }
+
+  @Test
+  void returnsEmptyListOutsideTimeWindow() {
+    ClockHolder.setClock(
+        Clock.fixed(ZonedDateTime.now(TALLINN).with(RUN_FROM.minusHours(1)).toInstant(), TALLINN));
+
+    assertThat(retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4)))
+        .isEmpty();
+
+    ClockHolder.setClock(
+        Clock.fixed(ZonedDateTime.now(TALLINN).with(RUN_UNTIL.plusHours(1)).toInstant(), TALLINN));
+
+    assertThat(retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4)))
+        .isEmpty();
   }
 }

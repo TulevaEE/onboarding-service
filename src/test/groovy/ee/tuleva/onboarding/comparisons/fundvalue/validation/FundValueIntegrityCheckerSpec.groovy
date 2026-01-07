@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue.validation
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.NAVCheckValueRetriever
 import spock.lang.Specification
 
@@ -175,5 +176,62 @@ class FundValueIntegrityCheckerSpec extends Specification {
         result.getMissingData().isEmpty()
         result.getOrphanedData().isEmpty()
         !result.hasIssues()
+    }
+
+    // Cross-provider integrity tests
+
+    def "should log error when Yahoo and EODHD values differ by more than 1%"() {
+        given:
+        def ticker = FundTicker.ISHARES_USA_ESG_SCREENED
+        LocalDate date = LocalDate.of(2024, 1, 15)
+
+        FundValue yahooValue = aFundValue(ticker.yahooTicker, date, 100.00)
+        FundValue eodhdValue = aFundValue(ticker.eodhdTicker, date, 102.00)
+
+        fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> [yahooValue]
+        fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> [eodhdValue]
+
+        when:
+        def discrepancies = checker.checkCrossProviderIntegrity(ticker, date, date)
+
+        then:
+        discrepancies.size() == 1
+        discrepancies[0].date() == date
+        discrepancies[0].percentageDifference() > 1.0
+    }
+
+    def "should not log error when Yahoo and EODHD values differ by less than 1%"() {
+        given:
+        def ticker = FundTicker.ISHARES_USA_ESG_SCREENED
+        LocalDate date = LocalDate.of(2024, 1, 15)
+
+        FundValue yahooValue = aFundValue(ticker.yahooTicker, date, 100.00)
+        FundValue eodhdValue = aFundValue(ticker.eodhdTicker, date, 100.50)
+
+        fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> [yahooValue]
+        fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> [eodhdValue]
+
+        when:
+        def discrepancies = checker.checkCrossProviderIntegrity(ticker, date, date)
+
+        then:
+        discrepancies.isEmpty()
+    }
+
+    def "should skip cross-provider comparison when only one provider has data"() {
+        given:
+        def ticker = FundTicker.ISHARES_USA_ESG_SCREENED
+        LocalDate date = LocalDate.of(2024, 1, 15)
+
+        FundValue yahooValue = aFundValue(ticker.yahooTicker, date, 100.00)
+
+        fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> [yahooValue]
+        fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> []
+
+        when:
+        def discrepancies = checker.checkCrossProviderIntegrity(ticker, date, date)
+
+        then:
+        discrepancies.isEmpty()
     }
 }

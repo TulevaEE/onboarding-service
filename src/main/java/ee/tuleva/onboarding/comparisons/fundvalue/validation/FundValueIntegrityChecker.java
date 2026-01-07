@@ -6,6 +6,7 @@ import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.NAVCheckValueRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Discrepancy;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.MissingData;
@@ -28,6 +29,7 @@ public class FundValueIntegrityChecker {
 
   private static final LocalDate EARLIEST_DATE = LocalDate.parse("2003-01-07");
   private static final int DATABASE_SCALE = 5;
+  private static final BigDecimal CROSS_PROVIDER_THRESHOLD_PERCENT = new BigDecimal("1.0");
 
   private final NAVCheckValueRetriever navCheckValueRetriever;
   private final FundValueRepository fundValueRepository;
@@ -39,17 +41,42 @@ public class FundValueIntegrityChecker {
       lockAtLeastFor = "5m")
   public void performIntegrityCheck() {
     LocalDate endDate = LocalDate.now().minusDays(1);
-    LocalDate startDate = EARLIEST_DATE;
 
-    log.info("Starting fund value integrity check from {} to {}", startDate, endDate);
+    checkYahooVsDatabaseIntegrity(endDate);
+    checkCrossProviderIntegrity(endDate);
+  }
+
+  private void checkYahooVsDatabaseIntegrity(LocalDate endDate) {
+    log.info("Starting Yahoo vs database integrity check from {} to {}", EARLIEST_DATE, endDate);
 
     for (String fundTicker : NAVCheckValueRetriever.FUND_TICKERS) {
-      IntegrityCheckResult result = verifyFundDataIntegrity(fundTicker, startDate, endDate);
-      logIntegrityCheckResult(result);
+      checkYahooVsDatabaseIntegrity(fundTicker, EARLIEST_DATE, endDate);
     }
   }
 
-  IntegrityCheckResult verifyFundDataIntegrity(
+  void checkYahooVsDatabaseIntegrity(String fundTicker, LocalDate startDate, LocalDate endDate) {
+    IntegrityCheckResult result = verifyFundDataIntegrity(fundTicker, startDate, endDate);
+    logIntegrityCheckResult(result);
+  }
+
+  private void checkCrossProviderIntegrity(LocalDate endDate) {
+    LocalDate startDate = endDate.minusDays(30);
+
+    log.info("Starting cross-provider integrity check from {} to {}", startDate, endDate);
+
+    for (FundTicker ticker : FundTicker.values()) {
+      checkCrossProviderIntegrity(ticker, startDate, endDate);
+    }
+  }
+
+  List<Discrepancy> checkCrossProviderIntegrity(
+      FundTicker ticker, LocalDate startDate, LocalDate endDate) {
+    List<Discrepancy> discrepancies = findCrossProviderDiscrepancies(ticker, startDate, endDate);
+    logCrossProviderDiscrepancies(ticker, discrepancies);
+    return discrepancies;
+  }
+
+  private IntegrityCheckResult verifyFundDataIntegrity(
       String fundTicker, LocalDate startDate, LocalDate endDate) {
     try {
       List<FundValue> yahooFinanceValues = fetchYahooFinanceData(fundTicker, startDate, endDate);
@@ -197,5 +224,53 @@ public class FundValueIntegrityChecker {
         .abs()
         .multiply(new BigDecimal("100"))
         .divide(yahooValue.abs(), 4, HALF_UP);
+  }
+
+  private List<Discrepancy> findCrossProviderDiscrepancies(
+      FundTicker ticker, LocalDate startDate, LocalDate endDate) {
+    List<FundValue> yahooValues =
+        fundValueRepository.findValuesBetweenDates(ticker.getYahooTicker(), startDate, endDate);
+    List<FundValue> eodhdValues =
+        fundValueRepository.findValuesBetweenDates(ticker.getEodhdTicker(), startDate, endDate);
+
+    Map<LocalDate, BigDecimal> yahooByDate = convertToDateValueMap(yahooValues);
+    Map<LocalDate, BigDecimal> eodhdByDate = convertToDateValueMap(eodhdValues);
+
+    return yahooByDate.entrySet().stream()
+        .filter(entry -> eodhdByDate.containsKey(entry.getKey()))
+        .map(
+            entry -> {
+              LocalDate date = entry.getKey();
+              BigDecimal yahooValue = entry.getValue().setScale(DATABASE_SCALE, HALF_UP);
+              BigDecimal eodhdValue = eodhdByDate.get(date).setScale(DATABASE_SCALE, HALF_UP);
+
+              BigDecimal percentageDiff = calculatePercentageDifference(yahooValue, eodhdValue);
+              if (percentageDiff.compareTo(CROSS_PROVIDER_THRESHOLD_PERCENT) > 0) {
+                BigDecimal difference = yahooValue.subtract(eodhdValue).abs();
+                return new Discrepancy(
+                    ticker.getDisplayName(),
+                    date,
+                    yahooValue,
+                    eodhdValue,
+                    difference,
+                    percentageDiff);
+              }
+              return null;
+            })
+        .filter(Objects::nonNull)
+        .toList();
+  }
+
+  private void logCrossProviderDiscrepancies(FundTicker ticker, List<Discrepancy> discrepancies) {
+    for (Discrepancy discrepancy : discrepancies) {
+      log.error(
+          "CROSS-PROVIDER DISCREPANCY: {} on {} - Yahoo: {}, EODHD: {}, Difference: {} ({}%)",
+          ticker.getDisplayName(),
+          discrepancy.date(),
+          discrepancy.dbValue(),
+          discrepancy.yahooValue(),
+          discrepancy.difference(),
+          discrepancy.percentageDifference());
+    }
   }
 }

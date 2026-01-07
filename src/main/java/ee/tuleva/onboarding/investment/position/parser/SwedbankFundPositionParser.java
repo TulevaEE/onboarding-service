@@ -12,7 +12,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -20,20 +22,41 @@ import org.springframework.stereotype.Component;
 @Component
 public class SwedbankFundPositionParser implements FundPositionParser {
 
-  private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-  private static final String DELIMITER = "\t";
+  private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+  private static final String DELIMITER = ";";
 
-  private static final int COL_REPORTING_DATE = 0;
-  private static final int COL_FUND_CODE = 1;
-  private static final int COL_ACCOUNT_TYPE = 2;
-  private static final int COL_ACCOUNT_NAME = 3;
-  private static final int COL_ACCOUNT_ID = 4;
-  private static final int COL_QUANTITY = 5;
-  private static final int COL_MARKET_PRICE = 6;
-  private static final int COL_CURRENCY = 7;
-  private static final int COL_MARKET_VALUE = 8;
+  private static final int COL_NAV_DATE = 1;
+  private static final int COL_PORTFOLIO = 2;
+  private static final int COL_ASSET_TYPE = 3;
+  private static final int COL_ISIN = 5;
+  private static final int COL_ASSET_NAME = 6;
+  private static final int COL_QUANTITY = 7;
+  private static final int COL_ASSET_CURRENCY = 8;
+  private static final int COL_PRICE_PC = 9;
+  private static final int COL_MARKET_VALUE_PC = 15;
 
-  private static final int EXPECTED_COLUMNS = 9;
+  private static final int MIN_COLUMNS = 16;
+
+  private static final Map<String, String> PORTFOLIO_TO_FUND_CODE =
+      Map.of(
+          "Tuleva Maailma Aktsiate Pensionifond", "TUK75",
+          "Tuleva Maailma Võlakirjade Pensionifond", "TUK00",
+          "Tuleva Maailma Volakirjade Pensionifond", "TUK00",
+          "Tuleva Vabatahtlik Pensionifond", "TUV100",
+          "Tuleva Vabatahtlik Pensionifon", "TUV100");
+
+  private static final Map<String, AccountType> ASSET_TYPE_MAPPING =
+      Map.of(
+          "Equities", AccountType.SECURITY,
+          "Fixed Income", AccountType.SECURITY,
+          "Cash & Cash Equiv", AccountType.CASH,
+          "Cash", AccountType.CASH,
+          "Asset", AccountType.RECEIVABLES,
+          "Liabilities", AccountType.LIABILITY,
+          "TotalNetAsset", AccountType.NAV);
+
+  private static final Set<String> SKIPPED_ASSET_TYPES =
+      Set.of("Asset", "Liabilities", "TotalNetAsset");
 
   @Override
   public List<FundPosition> parse(InputStream inputStream) {
@@ -49,22 +72,41 @@ public class SwedbankFundPositionParser implements FundPositionParser {
     try {
       String[] columns = line.split(DELIMITER, -1);
 
-      if (columns.length < EXPECTED_COLUMNS) {
+      if (columns.length < MIN_COLUMNS) {
         log.warn("Skipping line with insufficient columns: columnCount={}", columns.length);
+        return Optional.empty();
+      }
+
+      String assetType = columns[COL_ASSET_TYPE].trim();
+      if (SKIPPED_ASSET_TYPES.contains(assetType)) {
+        log.debug("Skipping asset type: assetType={}", assetType);
+        return Optional.empty();
+      }
+
+      String portfolio = columns[COL_PORTFOLIO].trim();
+      String fundCode = PORTFOLIO_TO_FUND_CODE.get(portfolio);
+      if (fundCode == null) {
+        log.warn("Unknown portfolio, skipping: portfolio={}", portfolio);
+        return Optional.empty();
+      }
+
+      AccountType accountType = ASSET_TYPE_MAPPING.get(assetType);
+      if (accountType == null) {
+        log.warn("Unknown asset type, skipping: assetType={}", assetType);
         return Optional.empty();
       }
 
       FundPosition position =
           FundPosition.builder()
-              .reportingDate(parseDate(columns[COL_REPORTING_DATE]))
-              .fundCode(columns[COL_FUND_CODE].trim())
-              .accountType(AccountType.valueOf(columns[COL_ACCOUNT_TYPE].trim()))
-              .accountName(columns[COL_ACCOUNT_NAME].trim())
-              .accountId(parseString(columns[COL_ACCOUNT_ID]))
+              .reportingDate(parseDate(columns[COL_NAV_DATE]))
+              .fundCode(fundCode)
+              .accountType(accountType)
+              .accountName(columns[COL_ASSET_NAME].trim())
+              .accountId(parseString(columns[COL_ISIN]))
               .quantity(parseBigDecimal(columns[COL_QUANTITY]))
-              .marketPrice(parseBigDecimal(columns[COL_MARKET_PRICE]))
-              .currency(parseString(columns[COL_CURRENCY]))
-              .marketValue(parseBigDecimal(columns[COL_MARKET_VALUE]))
+              .marketPrice(parseBigDecimal(columns[COL_PRICE_PC]))
+              .currency(parseString(columns[COL_ASSET_CURRENCY]))
+              .marketValue(parseBigDecimal(columns[COL_MARKET_VALUE_PC]))
               .createdAt(Instant.now())
               .build();
 

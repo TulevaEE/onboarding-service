@@ -26,7 +26,7 @@ public class FundPositionImportJob {
   private final FundPositionImportService importService;
 
   @Scheduled(cron = "0 0 7 * * *", zone = "Europe/Tallinn")
-  @Scheduled(cron = "0 5 12 7 1 *", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 55 12 7 1 *", zone = "Europe/Tallinn")
   @SchedulerLock(name = "FundPositionImportJob", lockAtMostFor = "55m", lockAtLeastFor = "5m")
   public void runImport() {
     LocalDate today = LocalDate.now();

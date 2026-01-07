@@ -18,13 +18,13 @@ buildscript {
     }
 }
 
-val springCloudVersion = "2025.1.0"
+val springCloudVersion = "2025.0.1"
 val springModulithVersion = "1.4.6"
 
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.5.8"
+    id("org.springframework.boot") version "3.5.9"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "2.5.4"
     id("com.diffplug.spotless") version "8.1.0"
@@ -87,8 +87,8 @@ dependencies {
 
     implementation("com.nimbusds:nimbus-jose-jwt:10.6")
 
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.14")
-    implementation("org.springdoc:springdoc-openapi-starter-common:2.8.14")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.15")
+    implementation("org.springdoc:springdoc-openapi-starter-common:2.8.15")
     implementation("org.springframework.session:spring-session-jdbc")
 
     runtimeOnly("org.postgresql:postgresql")
@@ -100,12 +100,12 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
-    implementation("org.jsoup:jsoup:1.21.2")
+    implementation("org.jsoup:jsoup:1.22.1")
     implementation("commons-net:commons-net:3.12.0")
     implementation("org.apache.commons:commons-lang3")
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.decampo:xirr:1.2")
-    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.8")
+    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.9")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.4")
 
     xjc("org.glassfish.jaxb:jaxb-xjc:4.0.5")
@@ -118,15 +118,15 @@ dependencies {
     }
     implementation("eu.webeid.security:authtoken-validation:3.2.0")
 
-    implementation("org.digidoc4j:digidoc4j:6.0.1") {
+    implementation("org.digidoc4j:digidoc4j:6.1.0") {
         exclude(group = "commons-logging", module = "commons-logging")
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.28.0")
-    implementation("io.sentry:sentry-logback:8.28.0")
+    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.29.0")
+    implementation("io.sentry:sentry-logback:8.29.0")
 
-    implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.13.2")
+    implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.14.1")
 
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
@@ -136,12 +136,12 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("software.amazon.awssdk:s3:2.40.3")
+    implementation("software.amazon.awssdk:s3:2.41.1")
     implementation("commons-io:commons-io:2.21.0")
     implementation("org.apache.commons:commons-csv:1.14.1")
 
-    implementation("net.javacrumbs.shedlock:shedlock-spring:7.2.1")
-    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.2.1")
+    implementation("net.javacrumbs.shedlock:shedlock-spring:7.5.0")
+    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.5.0")
 
     implementation("org.springframework.modulith:spring-modulith-starter-core")
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
@@ -151,10 +151,10 @@ dependencies {
         exclude(module = "spock-core")
         exclude(module = "junit-vintage-engine")
     }
-    testImplementation("org.spockframework:spock-core:2.4-M7-groovy-5.0") {
+    testImplementation("org.spockframework:spock-core:2.4-groovy-5.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.spockframework:spock-spring:2.4-M7-groovy-5.0") {
+    testImplementation("org.spockframework:spock-spring:2.4-groovy-5.0") {
         exclude(group = "org.apache.groovy")
     }
     testImplementation("org.apache.groovy:groovy:5.0.3")

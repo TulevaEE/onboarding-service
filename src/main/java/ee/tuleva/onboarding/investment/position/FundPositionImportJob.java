@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.position;
 
+import ee.tuleva.onboarding.investment.position.parser.FundPositionParser;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.util.List;
@@ -21,11 +22,11 @@ public class FundPositionImportJob {
   private static final int LOOKBACK_DAYS = 7;
 
   private final FundPositionSource source;
-  private final FundPositionCsvParser parser;
+  private final FundPositionParser parser;
   private final FundPositionImportService importService;
 
   @Scheduled(cron = "0 0 7 * * *", zone = "Europe/Tallinn")
-  @Scheduled(cron = "0 0 11 7 1 *", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 55 11 7 1 *", zone = "Europe/Tallinn")
   @SchedulerLock(name = "FundPositionImportJob", lockAtMostFor = "55m", lockAtLeastFor = "5m")
   public void runImport() {
     LocalDate today = LocalDate.now();

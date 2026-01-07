@@ -5,8 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface FundPositionRepository extends JpaRepository<FundPosition, Long> {
 
-  boolean existsByNavDate(LocalDate navDate);
+  boolean existsByReportingDate(LocalDate reportingDate);
 
-  boolean existsByNavDateAndFundCodeAndAssetName(
-      LocalDate navDate, String fundCode, String assetName);
+  boolean existsByReportingDateAndFundCodeAndAccountName(
+      LocalDate reportingDate, String fundCode, String accountName);
 }

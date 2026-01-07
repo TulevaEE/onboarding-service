@@ -14,8 +14,8 @@ public class FundPositionImportService {
 
   private final FundPositionRepository repository;
 
-  public boolean isDateAlreadyImported(LocalDate navDate) {
-    return repository.existsByNavDate(navDate);
+  public boolean isDateAlreadyImported(LocalDate reportingDate) {
+    return repository.existsByReportingDate(reportingDate);
   }
 
   @Transactional
@@ -24,8 +24,8 @@ public class FundPositionImportService {
 
     for (FundPosition position : positions) {
       boolean exists =
-          repository.existsByNavDateAndFundCodeAndAssetName(
-              position.getNavDate(), position.getFundCode(), position.getAssetName());
+          repository.existsByReportingDateAndFundCodeAndAccountName(
+              position.getReportingDate(), position.getFundCode(), position.getAccountName());
 
       if (!exists) {
         repository.save(position);

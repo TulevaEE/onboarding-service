@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.investment.position;
 
+import static jakarta.persistence.EnumType.STRING;
+
 import jakarta.persistence.Entity;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -26,37 +29,25 @@ public class FundPosition {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  @NotNull private LocalDate reportDate;
-
-  @NotNull private LocalDate navDate;
-
-  @NotNull private String portfolio;
+  @NotNull private LocalDate reportingDate;
 
   @NotNull private String fundCode;
 
-  @NotNull private String assetType;
+  @NotNull
+  @Enumerated(STRING)
+  private AccountType accountType;
 
-  private String instrumentType;
+  @NotNull private String accountName;
 
-  private String isin;
-
-  private String securityId;
-
-  @NotNull private String assetName;
-
-  private String issuerName;
+  private String accountId;
 
   private BigDecimal quantity;
 
-  private String fundCurrency;
+  private BigDecimal marketPrice;
 
-  private String assetCurrency;
-
-  private BigDecimal price;
+  private String currency;
 
   private BigDecimal marketValue;
-
-  private BigDecimal percentageOfNav;
 
   private Instant createdAt;
 }

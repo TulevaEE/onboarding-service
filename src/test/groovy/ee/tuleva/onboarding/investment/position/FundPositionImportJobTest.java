@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,7 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class FundPositionImportJobTest {
 
   @Mock private FundPositionSource source;
-  @Spy private FundPositionCsvParser parser = new FundPositionCsvParser();
+  @Spy private SwedbankFundPositionParser parser = new SwedbankFundPositionParser();
   @Mock private FundPositionRepository repository;
 
   private FundPositionImportService importService;
@@ -35,27 +36,26 @@ class FundPositionImportJobTest {
 
   private static final String SAMPLE_CSV =
       """
-      ReportDate;NAVDate;Portfolio;AssetType;FundCurr;ISIN;AssetName;Quantity;AssetCurr;PricePC;PriceQC;BookCostPC;BookCostQC;BookPriceQC;ValuationPC;MarketValuePC;ValuationQC;InterestPC;InterestQC; ;GainPC;GainQC;PriceEffect;FxEffect;InstrumentType;PrctNav;IssuerName;TNA;pGroupCode;MaturityDate;FxRate;Security_ID;Detailed Asset Type;Trade ID;Trade Date;ClassCode
-      06.01.2026;05.01.2026;Tuleva Maailma Aktsiate Pensionifond;Equities;EUR;IE00BFG1TM61;ISHARES DEV WLD ESG;1000000;EUR;33.5;33.5;30000000;30000000;30;33500000;33500000;33500000;0;0; ;3500000;3500000;3500000;0;Equity Fund;50;BlackRock;0;18;;1;BDWTEIA;Equity Fund;;;
-      06.01.2026;05.01.2026;Tuleva Maailma Aktsiate Pensionifond;Cash & Cash Equiv;EUR;;Overnight Deposit;5000000;EUR;;;5000000;5000000;1;5000000;5000000;5000000;100;100; ;0;0;0;0;Money Market;7.5;SWEDBANK;0;18;;1;MM-SWD;Overnight Deposit;;;
-      06.01.2026;05.01.2026;Tuleva Maailma Aktsiate Pensionifond;Liabilities;EUR;;Fee Payable;-50000;EUR;0;0;0;0;0;-50000;-50000;-50000;0;0; ;0;0;0;0;Liabilities;-0.1;;0;18;;1;;;;;
-      06.01.2026;05.01.2026;Tuleva Vabatahtlik Pensionifond;Equities;EUR;IE00BFNM3G45;ISHARES USA ESG;500000;EUR;12;12;5000000;5000000;10;6000000;6000000;6000000;0;0; ;1000000;1000000;1000000;0;Equity Fund;60;BlackRock;0;18;;1;SGASUS;Equity Fund - ETF;;;
+      reporting_date\tfund_code\taccount_type\taccount_name\taccount_id\tquantity\tmarket_price\tcurrency\tmarket_value
+      2026-01-05\tTUK75\tSECURITY\tISHARES DEV WLD ESG\tIE00BFG1TM61\t1000000\t33.5\tEUR\t33500000
+      2026-01-05\tTUK75\tCASH\tOvernight Deposit\tRMP_KONTO_NR\t5000000\t1\tEUR\t5000000
+      2026-01-05\tTUV100\tSECURITY\tISHARES USA ESG\tIE00BFNM3G45\t500000\t12\tEUR\t6000000
       """;
 
   @Test
   void importForDate_fullFlow_parsesAndSavesPositions() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    when(repository.existsByNavDate(date)).thenReturn(false);
+    when(repository.existsByReportingDate(date)).thenReturn(false);
     when(source.fetch(date))
         .thenReturn(
             Optional.of(new ByteArrayInputStream(SAMPLE_CSV.getBytes(StandardCharsets.UTF_8))));
-    when(repository.existsByNavDateAndFundCodeAndAssetName(
+    when(repository.existsByReportingDateAndFundCodeAndAccountName(
             LocalDate.of(2026, 1, 5), "TUK75", "ISHARES DEV WLD ESG"))
         .thenReturn(false);
-    when(repository.existsByNavDateAndFundCodeAndAssetName(
+    when(repository.existsByReportingDateAndFundCodeAndAccountName(
             LocalDate.of(2026, 1, 5), "TUK75", "Overnight Deposit"))
         .thenReturn(false);
-    when(repository.existsByNavDateAndFundCodeAndAssetName(
+    when(repository.existsByReportingDateAndFundCodeAndAccountName(
             LocalDate.of(2026, 1, 5), "TUV100", "ISHARES USA ESG"))
         .thenReturn(false);
 
@@ -67,17 +67,17 @@ class FundPositionImportJobTest {
   @Test
   void importForDate_skipsExistingPositions() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    when(repository.existsByNavDate(date)).thenReturn(false);
+    when(repository.existsByReportingDate(date)).thenReturn(false);
     when(source.fetch(date))
         .thenReturn(
             Optional.of(new ByteArrayInputStream(SAMPLE_CSV.getBytes(StandardCharsets.UTF_8))));
-    when(repository.existsByNavDateAndFundCodeAndAssetName(
+    when(repository.existsByReportingDateAndFundCodeAndAccountName(
             LocalDate.of(2026, 1, 5), "TUK75", "ISHARES DEV WLD ESG"))
         .thenReturn(true);
-    when(repository.existsByNavDateAndFundCodeAndAssetName(
+    when(repository.existsByReportingDateAndFundCodeAndAccountName(
             LocalDate.of(2026, 1, 5), "TUK75", "Overnight Deposit"))
         .thenReturn(false);
-    when(repository.existsByNavDateAndFundCodeAndAssetName(
+    when(repository.existsByReportingDateAndFundCodeAndAccountName(
             LocalDate.of(2026, 1, 5), "TUV100", "ISHARES USA ESG"))
         .thenReturn(false);
 
@@ -89,7 +89,7 @@ class FundPositionImportJobTest {
   @Test
   void importForDate_handlesEmptyFile() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    when(repository.existsByNavDate(date)).thenReturn(false);
+    when(repository.existsByReportingDate(date)).thenReturn(false);
     when(source.fetch(date)).thenReturn(Optional.empty());
 
     job.importForDate(date);
@@ -100,7 +100,7 @@ class FundPositionImportJobTest {
   @Test
   void importForDate_skipsAlreadyImportedDate() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    when(repository.existsByNavDate(date)).thenReturn(true);
+    when(repository.existsByReportingDate(date)).thenReturn(true);
 
     job.importForDate(date);
 
@@ -110,17 +110,17 @@ class FundPositionImportJobTest {
 
   @Test
   void runImport_processesMultipleDays() {
-    when(repository.existsByNavDate(any())).thenReturn(true);
+    when(repository.existsByReportingDate(any())).thenReturn(true);
 
     job.runImport();
 
-    verify(repository, times(7)).existsByNavDate(any());
+    verify(repository, times(7)).existsByReportingDate(any());
     verify(source, never()).fetch(any());
   }
 
   @Test
   void runImport_continuesOnError() {
-    when(repository.existsByNavDate(any())).thenReturn(false);
+    when(repository.existsByReportingDate(any())).thenReturn(false);
     when(source.fetch(any())).thenThrow(new RuntimeException("S3 error"));
 
     job.runImport();
@@ -131,7 +131,7 @@ class FundPositionImportJobTest {
   @Test
   void importForDate_throwsRuntimeException_whenParsingFails() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    when(repository.existsByNavDate(date)).thenReturn(false);
+    when(repository.existsByReportingDate(date)).thenReturn(false);
     InputStream failingStream =
         new InputStream() {
           @Override

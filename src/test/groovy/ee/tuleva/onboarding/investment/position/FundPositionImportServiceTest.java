@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.position;
 
+import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -24,7 +25,8 @@ class FundPositionImportServiceTest {
   @Test
   void importPositions_savesNewPositions() {
     FundPosition position = createPosition("TUK75", "Asset 1");
-    when(repository.existsByNavDateAndFundCodeAndAssetName(any(), any(), any())).thenReturn(false);
+    when(repository.existsByReportingDateAndFundCodeAndAccountName(any(), any(), any()))
+        .thenReturn(false);
 
     int imported = service.importPositions(List.of(position));
 
@@ -35,8 +37,8 @@ class FundPositionImportServiceTest {
   @Test
   void importPositions_skipsExistingPositions() {
     FundPosition position = createPosition("TUK75", "Asset 1");
-    when(repository.existsByNavDateAndFundCodeAndAssetName(
-            position.getNavDate(), position.getFundCode(), position.getAssetName()))
+    when(repository.existsByReportingDateAndFundCodeAndAccountName(
+            position.getReportingDate(), position.getFundCode(), position.getAccountName()))
         .thenReturn(true);
 
     int imported = service.importPositions(List.of(position));
@@ -50,11 +52,11 @@ class FundPositionImportServiceTest {
     FundPosition existing = createPosition("TUK75", "Existing Asset");
     FundPosition newPosition = createPosition("TUK00", "New Asset");
 
-    when(repository.existsByNavDateAndFundCodeAndAssetName(
-            existing.getNavDate(), existing.getFundCode(), existing.getAssetName()))
+    when(repository.existsByReportingDateAndFundCodeAndAccountName(
+            existing.getReportingDate(), existing.getFundCode(), existing.getAccountName()))
         .thenReturn(true);
-    when(repository.existsByNavDateAndFundCodeAndAssetName(
-            newPosition.getNavDate(), newPosition.getFundCode(), newPosition.getAssetName()))
+    when(repository.existsByReportingDateAndFundCodeAndAccountName(
+            newPosition.getReportingDate(), newPosition.getFundCode(), newPosition.getAccountName()))
         .thenReturn(false);
 
     int imported = service.importPositions(List.of(existing, newPosition));
@@ -72,15 +74,16 @@ class FundPositionImportServiceTest {
     verify(repository, never()).save(any());
   }
 
-  private FundPosition createPosition(String fundCode, String assetName) {
+  private FundPosition createPosition(String fundCode, String accountName) {
     return FundPosition.builder()
-        .reportDate(LocalDate.of(2026, 1, 6))
-        .navDate(LocalDate.of(2026, 1, 5))
-        .portfolio("Test Portfolio")
+        .reportingDate(LocalDate.of(2026, 1, 6))
         .fundCode(fundCode)
-        .assetType("Equities")
-        .assetName(assetName)
+        .accountType(SECURITY)
+        .accountName(accountName)
+        .accountId("IE00BFG1TM61")
         .quantity(new BigDecimal("1000"))
+        .marketPrice(new BigDecimal("10"))
+        .currency("EUR")
         .marketValue(new BigDecimal("10000"))
         .createdAt(Instant.now())
         .build();

@@ -6,15 +6,12 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.math.BigDecimal;
-import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -27,20 +24,14 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
 
   @ToString.Include public static final String KEY = "EODHD_VALUE";
   public static final String PROVIDER = "EODHD";
-  static final LocalTime RUN_FROM = LocalTime.of(16, 0);
-  static final LocalTime RUN_UNTIL = LocalTime.of(17, 0);
 
   private final RestClient restClient;
   private final String apiToken;
-  private final Clock estonianClock;
 
   public EODHDValueRetriever(
-      RestClient.Builder restClientBuilder,
-      @Value("${eodhd.api-token:}") String apiToken,
-      @Qualifier("estonianClock") Clock estonianClock) {
+      RestClient.Builder restClientBuilder, @Value("${eodhd.api-token:}") String apiToken) {
     this.restClient = restClientBuilder.build();
     this.apiToken = apiToken;
-    this.estonianClock = estonianClock;
   }
 
   @Override
@@ -50,12 +41,6 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
 
   @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
-    var now = LocalTime.now(estonianClock);
-    if (now.isBefore(RUN_FROM) || now.isAfter(RUN_UNTIL)) {
-      log.debug(
-          "Skipping EODHD retrieval, current time {} is outside {}-{}", now, RUN_FROM, RUN_UNTIL);
-      return List.of();
-    }
     return FundTicker.getEodhdTickers().stream()
         .flatMap(ticker -> retrieveValuesForTicker(ticker, startDate, endDate).stream())
         .toList();

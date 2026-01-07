@@ -100,9 +100,7 @@ class SwedbankFundPositionParserTest {
   @Test
   void parse_skipsLineWithInvalidDate() {
     String csv =
-        HEADER
-            + "\n"
-            + "INVALID\tTUV100\tSECURITY\tAsset 1\tIE00BFG1TM61\t1000\t10\tEUR\t10000";
+        HEADER + "\n" + "INVALID\tTUV100\tSECURITY\tAsset 1\tIE00BFG1TM61\t1000\t10\tEUR\t10000";
 
     List<FundPosition> positions = parser.parse(toInputStream(csv));
 

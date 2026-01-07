@@ -56,7 +56,9 @@ class FundPositionImportServiceTest {
             existing.getReportingDate(), existing.getFundCode(), existing.getAccountName()))
         .thenReturn(true);
     when(repository.existsByReportingDateAndFundCodeAndAccountName(
-            newPosition.getReportingDate(), newPosition.getFundCode(), newPosition.getAccountName()))
+            newPosition.getReportingDate(),
+            newPosition.getFundCode(),
+            newPosition.getAccountName()))
         .thenReturn(false);
 
     int imported = service.importPositions(List.of(existing, newPosition));

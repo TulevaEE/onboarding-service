@@ -14,7 +14,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -55,9 +54,6 @@ public class SwedbankFundPositionParser implements FundPositionParser {
           "Liabilities", AccountType.LIABILITY,
           "TotalNetAsset", AccountType.NAV);
 
-  private static final Set<String> SKIPPED_ASSET_TYPES =
-      Set.of("Asset", "Liabilities", "TotalNetAsset");
-
   @Override
   public List<FundPosition> parse(InputStream inputStream) {
     try (var reader =
@@ -78,11 +74,6 @@ public class SwedbankFundPositionParser implements FundPositionParser {
       }
 
       String assetType = columns[COL_ASSET_TYPE].trim();
-      if (SKIPPED_ASSET_TYPES.contains(assetType)) {
-        log.debug("Skipping asset type: assetType={}", assetType);
-        return Optional.empty();
-      }
-
       String portfolio = columns[COL_PORTFOLIO].trim();
       String fundCode = PORTFOLIO_TO_FUND_CODE.get(portfolio);
       if (fundCode == null) {

@@ -96,8 +96,7 @@ class SwedbankFundPositionParserTest {
   }
 
   @Test
-  @DisplayName("parse_skipsLiabilities")
-  void parse_skipsLiabilities() {
+  void parse_parsesLiabilities() {
     String csv =
         HEADER
             + "\n"
@@ -105,12 +104,17 @@ class SwedbankFundPositionParserTest {
 
     List<FundPosition> positions = parser.parse(toInputStream(csv));
 
-    assertThat(positions).isEmpty();
+    assertThat(positions).hasSize(1);
+    FundPosition position = positions.getFirst();
+    assertThat(position.getFundCode()).isEqualTo("TUK75");
+    assertThat(position.getAccountType()).isEqualTo(LIABILITY);
+    assertThat(position.getAccountName()).isEqualTo("Management Fee Payable");
+    assertThat(position.getQuantity()).isEqualByComparingTo(new BigDecimal("-190567.45"));
+    assertThat(position.getMarketValue()).isEqualByComparingTo(new BigDecimal("-190567.45"));
   }
 
   @Test
-  @DisplayName("parse_skipsAssets")
-  void parse_skipsAssets() {
+  void parse_parsesReceivables() {
     String csv =
         HEADER
             + "\n"
@@ -118,12 +122,17 @@ class SwedbankFundPositionParserTest {
 
     List<FundPosition> positions = parser.parse(toInputStream(csv));
 
-    assertThat(positions).isEmpty();
+    assertThat(positions).hasSize(1);
+    FundPosition position = positions.getFirst();
+    assertThat(position.getFundCode()).isEqualTo("TUK75");
+    assertThat(position.getAccountType()).isEqualTo(RECEIVABLES);
+    assertThat(position.getAccountName()).isEqualTo("Other receivables");
+    assertThat(position.getQuantity()).isEqualByComparingTo(new BigDecimal("49371.68"));
+    assertThat(position.getMarketValue()).isEqualByComparingTo(new BigDecimal("49371.68"));
   }
 
   @Test
-  @DisplayName("parse_skipsTotalNetAsset")
-  void parse_skipsTotalNetAsset() {
+  void parse_parsesNav() {
     String csv =
         HEADER
             + "\n"
@@ -131,7 +140,12 @@ class SwedbankFundPositionParserTest {
 
     List<FundPosition> positions = parser.parse(toInputStream(csv));
 
-    assertThat(positions).isEmpty();
+    assertThat(positions).hasSize(1);
+    FundPosition position = positions.getFirst();
+    assertThat(position.getFundCode()).isEqualTo("TUK75");
+    assertThat(position.getAccountType()).isEqualTo(NAV);
+    assertThat(position.getAccountName()).isEmpty();
+    assertThat(position.getQuantity()).isEqualByComparingTo(BigDecimal.ZERO);
   }
 
   @Test

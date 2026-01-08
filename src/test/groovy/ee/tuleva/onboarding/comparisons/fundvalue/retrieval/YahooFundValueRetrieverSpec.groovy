@@ -136,6 +136,54 @@ class YahooFundValueRetrieverSpec extends Specification {
     }
   }
 
+  def "it filters out null values from Yahoo Finance response"() {
+    given:
+    def mockApiResponseWithNulls = """
+      {
+        "chart": {
+          "result": [
+            {
+              "timestamp": [1514876400, 1514962800, 1515049200, 1515135600, 1515222000],
+              "indicators": {
+                "adjclose": [
+                  {
+                    "adjclose": [13.5799999237061, null, 13.7229995727539, null, 13.85]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    """
+
+    YahooFundValueRetriever.FUND_TICKERS.forEach {
+      fund -> server.expect(requestTo(String.format("https://query1.finance.yahoo.com/v8/finance/chart/%s?interval=1d&events=history&includeAdjustedClose=true&period1=1514764800&period2=1515283200", fund)))
+        .andRespond(withSuccess(mockApiResponseWithNulls, MediaType.APPLICATION_JSON))
+    }
+
+    when:
+    LocalDate startDate = LocalDate.of(2018, 1, 2)
+    LocalDate endDate = LocalDate.of(2018, 1, 6)
+    def result = retriever.retrieveValuesForRange(startDate, endDate)
+
+    then:
+    result.size() == YahooFundValueRetriever.FUND_TICKERS.size() * 3
+    result.every { fundValue -> fundValue.value() != null }
+    result.every { it.provider() == "YAHOO" }
+    YahooFundValueRetriever.FUND_TICKERS.each { ticker ->
+      def tickerValues = result.findAll { it.key() == ticker }
+      assert tickerValues.size() == 3
+      assert tickerValues[0].date() == LocalDate.of(2018, 1, 2)
+      assert tickerValues[0].value() == 13.5799999237061
+      assert tickerValues[1].date() == LocalDate.of(2018, 1, 4)
+      assert tickerValues[1].value() == 13.7229995727539
+      assert tickerValues[2].date() == LocalDate.of(2018, 1, 6)
+      assert tickerValues[2].value() == 13.85
+    }
+  }
+
   def "filters out today's values when market is still open"() {
     given:
     def beforeClose = MARKET_CLOSE_BUFFER.minusHours(1)

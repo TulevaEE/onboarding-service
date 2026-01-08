@@ -91,7 +91,10 @@ public class YahooFundValueRetriever implements ComparisonIndexRetriever {
             .toList();
 
     List<FundValue> nonZeroValues =
-        allValues.stream().filter(fundValue -> fundValue.value().compareTo(ZERO) != 0).toList();
+        allValues.stream()
+            .filter(
+                fundValue -> fundValue.value() != null && fundValue.value().compareTo(ZERO) != 0)
+            .toList();
 
     int filteredCount = allValues.size() - nonZeroValues.size();
     if (filteredCount > 0) {

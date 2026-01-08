@@ -38,6 +38,7 @@ This file provides guidance to AI coding agents when working with code in this r
 - **Add all new files**: `git add .` (be careful with this, check what you're adding first)
 - **Add specific file**: `git add src/main/java/path/to/NewFile.java`
 - **Important**: Untracked files won't be included in commits, always verify new files are added
+- **NEVER commit or push without user approval**: Always show the changes and wait for explicit user confirmation before committing. Never push to remote without the user explicitly asking for it.
 
 ### Database
 - **Run migrations**: Automatic with `dev` profile

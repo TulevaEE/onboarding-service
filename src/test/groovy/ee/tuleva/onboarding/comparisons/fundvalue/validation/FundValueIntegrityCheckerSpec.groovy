@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue.validation
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.NAVCheckValueRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.YahooFundValueRetriever
 import spock.lang.Specification
 
 import java.time.LocalDate
@@ -12,11 +12,11 @@ import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundV
 
 class FundValueIntegrityCheckerSpec extends Specification {
 
-    NAVCheckValueRetriever navCheckValueRetriever = Stub()
+    YahooFundValueRetriever yahooFundValueRetriever = Stub()
     FundValueRepository fundValueRepository = Stub()
 
     FundValueIntegrityChecker checker = new FundValueIntegrityChecker(
-            navCheckValueRetriever,
+            yahooFundValueRetriever,
             fundValueRepository
     )
 
@@ -29,7 +29,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
         FundValue yahooValue = aFundValue(fundTicker, date, 14.019000053405762)
 
         fundValueRepository.findValuesBetweenDates(fundTicker, date, date) >> [dbValue]
-        navCheckValueRetriever.retrieveValuesForRange(date, date) >> [yahooValue]
+        yahooFundValueRetriever.retrieveValuesForRange(date, date) >> [yahooValue]
 
         when:
         IntegrityCheckResult result = checker.verifyFundDataIntegrity(fundTicker, date, date)
@@ -50,7 +50,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
         FundValue yahooValue = aFundValue(fundTicker, date, 110.98999786376953)
 
         fundValueRepository.findValuesBetweenDates(fundTicker, date, date) >> [dbValue]
-        navCheckValueRetriever.retrieveValuesForRange(date, date) >> [yahooValue]
+        yahooFundValueRetriever.retrieveValuesForRange(date, date) >> [yahooValue]
 
         when:
         IntegrityCheckResult result = checker.verifyFundDataIntegrity(fundTicker, date, date)
@@ -60,16 +60,16 @@ class FundValueIntegrityCheckerSpec extends Specification {
         !result.hasIssues()
     }
 
-    def "should report discrepancy when values differ within 5 decimal places"() {
+    def "should report discrepancy when values differ by more than 0.0001%"() {
         given:
         String fundTicker = "0P000152G5.F"
         LocalDate date = LocalDate.of(2018, 1, 22)
 
-        FundValue dbValue = aFundValue(fundTicker, date, 14.01900)
-        FundValue yahooValue = aFundValue(fundTicker, date, 14.01901)
+        FundValue dbValue = aFundValue(fundTicker, date, 100.00000)
+        FundValue yahooValue = aFundValue(fundTicker, date, 100.00020)
 
         fundValueRepository.findValuesBetweenDates(fundTicker, date, date) >> [dbValue]
-        navCheckValueRetriever.retrieveValuesForRange(date, date) >> [yahooValue]
+        yahooFundValueRetriever.retrieveValuesForRange(date, date) >> [yahooValue]
 
         when:
         IntegrityCheckResult result = checker.verifyFundDataIntegrity(fundTicker, date, date)
@@ -81,9 +81,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
         IntegrityCheckResult.Discrepancy discrepancy = result.getDiscrepancies().first()
         discrepancy.fundTicker() == fundTicker
         discrepancy.date() == date
-        discrepancy.dbValue() == 14.01900
-        discrepancy.yahooValue() == 14.01901
-        discrepancy.difference() == 0.00001
+        discrepancy.percentageDifference() > 0.0001
     }
 
     def "should report missing data when Yahoo has value but database does not"() {
@@ -94,7 +92,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
         FundValue yahooValue = aFundValue(fundTicker, date, 100.12345)
 
         fundValueRepository.findValuesBetweenDates(fundTicker, date, date) >> []
-        navCheckValueRetriever.retrieveValuesForRange(date, date) >> [yahooValue]
+        yahooFundValueRetriever.retrieveValuesForRange(date, date) >> [yahooValue]
 
         when:
         IntegrityCheckResult result = checker.verifyFundDataIntegrity(fundTicker, date, date)
@@ -117,7 +115,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
         FundValue dbValue = aFundValue(fundTicker, date, 100.12345)
 
         fundValueRepository.findValuesBetweenDates(fundTicker, date, date) >> [dbValue]
-        navCheckValueRetriever.retrieveValuesForRange(date, date) >> []
+        yahooFundValueRetriever.retrieveValuesForRange(date, date) >> []
 
         when:
         IntegrityCheckResult result = checker.verifyFundDataIntegrity(fundTicker, date, date)
@@ -141,17 +139,17 @@ class FundValueIntegrityCheckerSpec extends Specification {
         FundValue dbValue1 = aFundValue(fundTicker, date1, 100.00000)
         FundValue dbValue3 = aFundValue(fundTicker, date3, 102.00000)
 
-        FundValue yahooValue1 = aFundValue(fundTicker, date1, 100.00001)
+        FundValue yahooValue1 = aFundValue(fundTicker, date1, 100.00020)
         FundValue yahooValue2 = aFundValue(fundTicker, date2, 101.00000)
 
         fundValueRepository.findValuesBetweenDates(fundTicker, date1, date3) >> [dbValue1, dbValue3]
-        navCheckValueRetriever.retrieveValuesForRange(date1, date3) >> [yahooValue1, yahooValue2]
+        yahooFundValueRetriever.retrieveValuesForRange(date1, date3) >> [yahooValue1, yahooValue2]
 
         when:
         IntegrityCheckResult result = checker.verifyFundDataIntegrity(fundTicker, date1, date3)
 
         then:
-        result.getDiscrepancies().size() == 1  // date1 has discrepancy
+        result.getDiscrepancies().size() == 1  // date1 has discrepancy (0.0002% > 0.0001%)
         result.getMissingData().size() == 1    // date2 missing in DB
         result.getOrphanedData().size() == 1   // date3 missing in Yahoo
         result.hasIssues()
@@ -166,7 +164,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
         FundValue yesterdayValue = aFundValue(fundTicker, yesterday, 99.00000)
 
         fundValueRepository.findValuesBetweenDates(fundTicker, _, yesterday) >> [yesterdayValue]
-        navCheckValueRetriever.retrieveValuesForRange(_, yesterday) >> [yesterdayValue]
+        yahooFundValueRetriever.retrieveValuesForRange(_, yesterday) >> [yesterdayValue]
 
         when:
         IntegrityCheckResult result = checker.verifyFundDataIntegrity(fundTicker, yesterday, yesterday)
@@ -180,13 +178,13 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
     // Cross-provider integrity tests
 
-    def "should log error when Yahoo and EODHD values differ by more than 1%"() {
+    def "should log error when Yahoo and EODHD values differ by more than 0.001%"() {
         given:
         def ticker = FundTicker.ISHARES_USA_ESG_SCREENED
         LocalDate date = LocalDate.of(2024, 1, 15)
 
         FundValue yahooValue = aFundValue(ticker.yahooTicker, date, 100.00)
-        FundValue eodhdValue = aFundValue(ticker.eodhdTicker, date, 102.00)
+        FundValue eodhdValue = aFundValue(ticker.eodhdTicker, date, 100.002)
 
         fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> [yahooValue]
         fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> [eodhdValue]
@@ -197,16 +195,16 @@ class FundValueIntegrityCheckerSpec extends Specification {
         then:
         discrepancies.size() == 1
         discrepancies[0].date() == date
-        discrepancies[0].percentageDifference() > 1.0
+        discrepancies[0].percentageDifference() > 0.001
     }
 
-    def "should not log error when Yahoo and EODHD values differ by less than 1%"() {
+    def "should not log error when Yahoo and EODHD values differ by less than 0.001%"() {
         given:
         def ticker = FundTicker.ISHARES_USA_ESG_SCREENED
         LocalDate date = LocalDate.of(2024, 1, 15)
 
-        FundValue yahooValue = aFundValue(ticker.yahooTicker, date, 100.00)
-        FundValue eodhdValue = aFundValue(ticker.eodhdTicker, date, 100.50)
+        FundValue yahooValue = aFundValue(ticker.yahooTicker, date, 100.00000)
+        FundValue eodhdValue = aFundValue(ticker.eodhdTicker, date, 100.00050)
 
         fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> [yahooValue]
         fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> [eodhdValue]

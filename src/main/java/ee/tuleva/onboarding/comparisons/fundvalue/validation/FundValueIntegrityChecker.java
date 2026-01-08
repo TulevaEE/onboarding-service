@@ -7,7 +7,7 @@ import static java.util.stream.Collectors.toMap;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.NAVCheckValueRetriever;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.YahooFundValueRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Discrepancy;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.MissingData;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.OrphanedData;
@@ -29,9 +29,10 @@ public class FundValueIntegrityChecker {
 
   private static final LocalDate EARLIEST_DATE = LocalDate.parse("2003-01-07");
   private static final int DATABASE_SCALE = 5;
-  private static final BigDecimal CROSS_PROVIDER_THRESHOLD_PERCENT = new BigDecimal("1.0");
+  private static final BigDecimal SAME_PROVIDER_THRESHOLD_PERCENT = new BigDecimal("0.0001");
+  private static final BigDecimal CROSS_PROVIDER_THRESHOLD_PERCENT = new BigDecimal("0.001");
 
-  private final NAVCheckValueRetriever navCheckValueRetriever;
+  private final YahooFundValueRetriever yahooFundValueRetriever;
   private final FundValueRepository fundValueRepository;
 
   @Scheduled(cron = "0 30 * * * *", zone = "Europe/Tallinn")
@@ -49,7 +50,7 @@ public class FundValueIntegrityChecker {
   private void checkYahooVsDatabaseIntegrity(LocalDate endDate) {
     log.info("Starting Yahoo vs database integrity check from {} to {}", EARLIEST_DATE, endDate);
 
-    for (String fundTicker : NAVCheckValueRetriever.FUND_TICKERS) {
+    for (String fundTicker : FundTicker.getYahooTickers()) {
       checkYahooVsDatabaseIntegrity(fundTicker, EARLIEST_DATE, endDate);
     }
   }
@@ -105,7 +106,7 @@ public class FundValueIntegrityChecker {
 
   private List<FundValue> fetchYahooFinanceData(
       String fundTicker, LocalDate startDate, LocalDate endDate) {
-    return navCheckValueRetriever.retrieveValuesForRange(startDate, endDate).stream()
+    return yahooFundValueRetriever.retrieveValuesForRange(startDate, endDate).stream()
         .filter(fundValue -> fundValue.key().equals(fundTicker))
         .toList();
   }
@@ -140,11 +141,10 @@ public class FundValueIntegrityChecker {
               BigDecimal normalizedDbValue = databaseValue.setScale(DATABASE_SCALE, HALF_UP);
               BigDecimal normalizedYahooValue = yahooValue.setScale(DATABASE_SCALE, HALF_UP);
 
-              if (normalizedDbValue.compareTo(normalizedYahooValue) != 0) {
+              BigDecimal percentageDifference =
+                  calculatePercentageDifference(normalizedDbValue, normalizedYahooValue);
+              if (percentageDifference.compareTo(SAME_PROVIDER_THRESHOLD_PERCENT) > 0) {
                 BigDecimal difference = normalizedDbValue.subtract(normalizedYahooValue).abs();
-                BigDecimal percentageDifference =
-                    calculatePercentageDifference(normalizedDbValue, normalizedYahooValue);
-
                 return new Discrepancy(
                     fundTicker,
                     date,

@@ -1,6 +1,9 @@
 #debug: true
 
 
+scheduling:
+  enabled: false
+
 spring:
   main:
     banner-mode: off

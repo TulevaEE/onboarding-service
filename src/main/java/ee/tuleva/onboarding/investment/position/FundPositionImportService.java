@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.position;
 
-import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,10 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class FundPositionImportService {
 
   private final FundPositionRepository repository;
-
-  public boolean isDateAlreadyImported(LocalDate reportingDate) {
-    return repository.existsByReportingDate(reportingDate);
-  }
 
   @Transactional
   public int importPositions(List<FundPosition> positions) {

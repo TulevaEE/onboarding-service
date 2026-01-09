@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.investment.position.parser;
 
+import static java.math.BigDecimal.ONE;
+import static java.math.BigDecimal.ZERO;
+
 import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import java.io.BufferedReader;
@@ -14,6 +17,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -54,6 +58,9 @@ public class SwedbankFundPositionParser implements FundPositionParser {
           "Liabilities", AccountType.LIABILITY,
           "TotalNetAsset", AccountType.NAV);
 
+  private static final Set<AccountType> UNIT_PRICE_ACCOUNT_TYPES =
+      Set.of(AccountType.CASH, AccountType.LIABILITY, AccountType.RECEIVABLES);
+
   @Override
   public List<FundPosition> parse(InputStream inputStream) {
     try (var reader =
@@ -87,6 +94,8 @@ public class SwedbankFundPositionParser implements FundPositionParser {
         return Optional.empty();
       }
 
+      BigDecimal marketPrice = parseMarketPrice(columns[COL_PRICE_PC], accountType);
+
       FundPosition position =
           FundPosition.builder()
               .reportingDate(parseDate(columns[COL_NAV_DATE]))
@@ -95,7 +104,7 @@ public class SwedbankFundPositionParser implements FundPositionParser {
               .accountName(columns[COL_ASSET_NAME].trim())
               .accountId(parseString(columns[COL_ISIN]))
               .quantity(parseBigDecimal(columns[COL_QUANTITY]))
-              .marketPrice(parseBigDecimal(columns[COL_PRICE_PC]))
+              .marketPrice(marketPrice)
               .currency(parseString(columns[COL_ASSET_CURRENCY]))
               .marketValue(parseBigDecimal(columns[COL_MARKET_VALUE_PC]))
               .createdAt(Instant.now())
@@ -124,5 +133,14 @@ public class SwedbankFundPositionParser implements FundPositionParser {
     }
     String normalized = trimmed.replace(" ", "").replace(",", "");
     return new BigDecimal(normalized);
+  }
+
+  private BigDecimal parseMarketPrice(String value, AccountType accountType) {
+    BigDecimal price = parseBigDecimal(value);
+    boolean priceIsNullOrZero = price == null || price.compareTo(ZERO) == 0;
+    if (priceIsNullOrZero && UNIT_PRICE_ACCOUNT_TYPES.contains(accountType)) {
+      return ONE;
+    }
+    return price;
   }
 }

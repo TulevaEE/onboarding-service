@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.position.parser;
 
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
+import static java.math.BigDecimal.ONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -44,8 +45,7 @@ class SwedbankFundPositionParserTest {
   }
 
   @Test
-  @DisplayName("parse_parsesCashRow")
-  void parse_parsesCashRow() {
+  void parse_parsesCashRowWithDefaultUnitPrice() {
     String csv =
         HEADER
             + "\n"
@@ -54,7 +54,6 @@ class SwedbankFundPositionParserTest {
     List<FundPosition> positions = parser.parse(toInputStream(csv));
 
     assertThat(positions).hasSize(1);
-
     FundPosition position = positions.getFirst();
     assertThat(position.getFundCode()).isEqualTo("TUK75");
     assertThat(position.getAccountType()).isEqualTo(CASH);
@@ -62,6 +61,7 @@ class SwedbankFundPositionParserTest {
         .isEqualTo("ULEOODEPOSIIT-SWEDBANK(EUR) .99% Due 06.01.2026");
     assertThat(position.getAccountId()).isNull();
     assertThat(position.getQuantity()).isEqualByComparingTo(new BigDecimal("13303338.79"));
+    assertThat(position.getMarketPrice()).isEqualByComparingTo(ONE);
     assertThat(position.getMarketValue()).isEqualByComparingTo(new BigDecimal("13303703.89"));
   }
 
@@ -96,7 +96,7 @@ class SwedbankFundPositionParserTest {
   }
 
   @Test
-  void parse_parsesLiabilities() {
+  void parse_parsesLiabilitiesWithDefaultUnitPrice() {
     String csv =
         HEADER
             + "\n"
@@ -110,11 +110,12 @@ class SwedbankFundPositionParserTest {
     assertThat(position.getAccountType()).isEqualTo(LIABILITY);
     assertThat(position.getAccountName()).isEqualTo("Management Fee Payable");
     assertThat(position.getQuantity()).isEqualByComparingTo(new BigDecimal("-190567.45"));
+    assertThat(position.getMarketPrice()).isEqualByComparingTo(ONE);
     assertThat(position.getMarketValue()).isEqualByComparingTo(new BigDecimal("-190567.45"));
   }
 
   @Test
-  void parse_parsesReceivables() {
+  void parse_parsesReceivablesWithDefaultUnitPrice() {
     String csv =
         HEADER
             + "\n"
@@ -128,6 +129,7 @@ class SwedbankFundPositionParserTest {
     assertThat(position.getAccountType()).isEqualTo(RECEIVABLES);
     assertThat(position.getAccountName()).isEqualTo("Other receivables");
     assertThat(position.getQuantity()).isEqualByComparingTo(new BigDecimal("49371.68"));
+    assertThat(position.getMarketPrice()).isEqualByComparingTo(ONE);
     assertThat(position.getMarketValue()).isEqualByComparingTo(new BigDecimal("49371.68"));
   }
 

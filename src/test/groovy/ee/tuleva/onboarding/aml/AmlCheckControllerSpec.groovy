@@ -42,6 +42,18 @@ class AmlCheckControllerSpec extends BaseControllerSpec {
             .andExpect(status().isOk())
     }
 
+    def "POST /amlchecks accepts PEP check with success false when user declares they are a PEP"() {
+        given:
+        def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
+        def command = AmlCheckAddCommand.builder().type(POLITICALLY_EXPOSED_PERSON).success(false).build()
+        1 * amlCheckService.addCheckIfMissing(sampleAuthenticatedPerson, command)
+        expect:
+        mvc.perform(post("/v1/amlchecks")
+            .content("""{"type": "POLITICALLY_EXPOSED_PERSON", "success": false}""")
+            .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+    }
+
     def "POST /amlchecks fails is check type not allowed"() {
         given:
         def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)

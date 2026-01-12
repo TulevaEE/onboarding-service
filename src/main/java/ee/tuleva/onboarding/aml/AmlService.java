@@ -265,8 +265,10 @@ public class AmlService {
             .map(AmlCheck::getType)
             .collect(toSet());
 
+    var allTypes = getChecks(user).stream().map(AmlCheck::getType).collect(toSet());
+    var hasManualPepDeclaration = allTypes.contains(POLITICALLY_EXPOSED_PERSON);
     var pepCheck =
-        successfulTypes.contains(POLITICALLY_EXPOSED_PERSON)
+        hasManualPepDeclaration
             || successfulTypes.contains(POLITICALLY_EXPOSED_PERSON_AUTO)
             || successfulTypes.contains(POLITICALLY_EXPOSED_PERSON_OVERRIDE);
     var sanctionCheck =

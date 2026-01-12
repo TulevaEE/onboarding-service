@@ -62,6 +62,33 @@ class AmlCheckNotifierTest {
   }
 
   @Test
+  @DisplayName(
+      "Should send Slack message when manual PEP check fails (user declares they ARE a PEP)")
+  void onAmlCheckCreated_manualPepFailed_sendsSlackMessage() {
+    AmlCheckCreatedEvent event = mock(AmlCheckCreatedEvent.class);
+    when(event.getAmlCheckType()).thenReturn(POLITICALLY_EXPOSED_PERSON);
+    when(event.isFailed()).thenReturn(true);
+    when(event.getCheckId()).thenReturn(456L);
+
+    notifier.onAmlCheckCreated(event);
+
+    verify(slackService)
+        .sendMessage("AML check failed: checkId=456, type=POLITICALLY_EXPOSED_PERSON", AML);
+  }
+
+  @Test
+  @DisplayName("Should not send Slack message when manual PEP check succeeds")
+  void onAmlCheckCreated_manualPepSuccess_noSlackMessage() {
+    AmlCheckCreatedEvent event = mock(AmlCheckCreatedEvent.class);
+    when(event.getAmlCheckType()).thenReturn(POLITICALLY_EXPOSED_PERSON);
+    when(event.isFailed()).thenReturn(false);
+
+    notifier.onAmlCheckCreated(event);
+
+    verify(slackService, never()).sendMessage(anyString(), any());
+  }
+
+  @Test
   @DisplayName("Should always send Slack message when AML checks job is run")
   void onScheduledAmlCheckJobRun_sendsSlackMessage() {
     AmlChecksRunEvent event = mock(AmlChecksRunEvent.class);

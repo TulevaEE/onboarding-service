@@ -58,4 +58,24 @@ class AmlCheckServiceSpec extends Specification {
     then:
     1 * amlService.addCheckIfMissing(amlCheck)
   }
+
+  def "adds PEP check with success false when user declares they are a PEP"() {
+    given:
+    def user = sampleUser().build()
+    def command = AmlCheckAddCommand.builder()
+        .type(POLITICALLY_EXPOSED_PERSON)
+        .success(false)
+        .metadata([:])
+        .build()
+    def expectedCheck = AmlCheck.builder()
+        .personalCode(user.personalCode)
+        .type(POLITICALLY_EXPOSED_PERSON)
+        .success(false)
+        .metadata([:])
+        .build()
+    when:
+    amlCheckService.addCheckIfMissing(user, command)
+    then:
+    1 * amlService.addCheckIfMissing(expectedCheck)
+  }
 }

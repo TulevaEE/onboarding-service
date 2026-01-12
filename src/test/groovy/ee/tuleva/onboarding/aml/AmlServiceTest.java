@@ -395,8 +395,8 @@ class AmlServiceTest {
                         .stream(),
                     failedChecks(POLITICALLY_EXPOSED_PERSON).stream())
                 .collect(Collectors.toList()),
-            false,
-            true),
+            true,
+            false), // Failed manual PEP declaration should still allow mandate signing
         Arguments.of(
             successfulChecks(
                 POLITICALLY_EXPOSED_PERSON, DOCUMENT, OCCUPATION, RESIDENCY_AUTO, SK_NAME),

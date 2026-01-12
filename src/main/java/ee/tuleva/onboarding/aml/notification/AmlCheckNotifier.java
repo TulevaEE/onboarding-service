@@ -19,7 +19,7 @@ public class AmlCheckNotifier {
 
   @EventListener
   public void onAmlCheckCreated(AmlCheckCreatedEvent event) {
-    if (List.of(POLITICALLY_EXPOSED_PERSON_AUTO, SANCTION, RISK_LEVEL)
+    if (List.of(POLITICALLY_EXPOSED_PERSON, POLITICALLY_EXPOSED_PERSON_AUTO, SANCTION, RISK_LEVEL)
             .contains(event.getAmlCheckType())
         && event.isFailed()) {
       slackService.sendMessage(

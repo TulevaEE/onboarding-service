@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.swedbank.processor;
 
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.REDEEMED;
+import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
 import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.*;
 import static java.math.BigDecimal.ZERO;
 
+import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentExtractor;
@@ -15,7 +17,6 @@ import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.swedbank.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.swedbank.statement.BankAccountType;
-import ee.tuleva.onboarding.swedbank.statement.SwedbankBankStatementExtractor;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 class SwedbankBankStatementMessageProcessor {
 
-  private final SwedbankBankStatementExtractor swedbankBankStatementExtractor;
+  private final BankStatementExtractor bankStatementExtractor;
   private final SavingFundPaymentExtractor paymentExtractor;
   private final SavingFundPaymentUpsertionService paymentService;
   private final SwedbankAccountConfiguration swedbankAccountConfiguration;
@@ -46,9 +47,11 @@ class SwedbankBankStatementMessageProcessor {
     var bankStatement =
         switch (messageType) {
           case INTRA_DAY_REPORT ->
-              swedbankBankStatementExtractor.extractFromIntraDayReport(rawResponse);
+              bankStatementExtractor.extractFromIntraDayReport(
+                  rawResponse, SWEDBANK_GATEWAY_TIME_ZONE);
           case HISTORIC_STATEMENT ->
-              swedbankBankStatementExtractor.extractFromHistoricStatement(rawResponse);
+              bankStatementExtractor.extractFromHistoricStatement(
+                  rawResponse, SWEDBANK_GATEWAY_TIME_ZONE);
           case PAYMENT_ORDER_CONFIRMATION ->
               throw new IllegalArgumentException("Message type not supported: " + messageType);
         };

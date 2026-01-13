@@ -1,11 +1,8 @@
-package ee.tuleva.onboarding.swedbank.statement;
+package ee.tuleva.onboarding.banking.statement;
 
-import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
-
-import ee.tuleva.onboarding.banking.statement.BankStatement;
-import ee.tuleva.onboarding.banking.statement.BankStatementParseException;
-import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayMarshaller;
+import ee.tuleva.onboarding.banking.xml.Iso20022Marshaller;
 import jakarta.xml.bind.JAXBElement;
+import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -13,11 +10,11 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class SwedbankBankStatementExtractor {
+public class BankStatementExtractor {
 
-  private final SwedbankGatewayMarshaller marshaller;
+  private final Iso20022Marshaller marshaller;
 
-  public BankStatement extractFromIntraDayReport(String rawXml) {
+  public BankStatement extractFromIntraDayReport(String rawXml, ZoneId timezone) {
     if (rawXml == null || rawXml.isBlank()) {
       throw new BankStatementParseException("Raw XML is null or empty");
     }
@@ -38,8 +35,7 @@ public class SwedbankBankStatementExtractor {
         throw new BankStatementParseException("BkToCstmrAcctRpt is missing in document");
       }
 
-      BankStatement statement =
-          BankStatement.from(document.getBkToCstmrAcctRpt(), SWEDBANK_GATEWAY_TIME_ZONE);
+      BankStatement statement = BankStatement.from(document.getBkToCstmrAcctRpt(), timezone);
       log.debug("Extracted intra-day report with {} entries", statement.getEntries().size());
       return statement;
     } catch (BankStatementParseException e) {
@@ -51,7 +47,7 @@ public class SwedbankBankStatementExtractor {
     }
   }
 
-  public BankStatement extractFromHistoricStatement(String rawXml) {
+  public BankStatement extractFromHistoricStatement(String rawXml, ZoneId timezone) {
     if (rawXml == null || rawXml.isBlank()) {
       throw new BankStatementParseException("Raw XML is null or empty");
     }
@@ -73,8 +69,7 @@ public class SwedbankBankStatementExtractor {
         throw new BankStatementParseException("BkToCstmrStmt is missing in document");
       }
 
-      BankStatement statement =
-          BankStatement.from(document.getBkToCstmrStmt(), SWEDBANK_GATEWAY_TIME_ZONE);
+      BankStatement statement = BankStatement.from(document.getBkToCstmrStmt(), timezone);
       log.debug("Extracted historic statement with {} entries", statement.getEntries().size());
       return statement;
     } catch (BankStatementParseException e) {

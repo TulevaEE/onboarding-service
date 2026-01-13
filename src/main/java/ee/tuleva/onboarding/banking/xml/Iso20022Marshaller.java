@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.swedbank.http;
+package ee.tuleva.onboarding.banking.xml;
 
 import jakarta.xml.bind.JAXBContext;
 import java.io.*;
@@ -6,9 +6,7 @@ import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
 
 @Service
-public class SwedbankGatewayMarshaller {
-  // TODO: Consider if this should be moved to a more general package since it's now public and
-  // reusable
+public class Iso20022Marshaller {
 
   @SneakyThrows
   public String marshalToString(Object object) {

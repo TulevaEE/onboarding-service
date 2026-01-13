@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.banking.iso20022.camt060.PartyIdentification43;
 import ee.tuleva.onboarding.banking.iso20022.camt060.ReportingPeriod1;
 import ee.tuleva.onboarding.banking.iso20022.camt060.ReportingRequest3;
 import ee.tuleva.onboarding.banking.iso20022.camt060.TimePeriodDetails1;
+import ee.tuleva.onboarding.banking.xml.Iso20022Marshaller;
 import ee.tuleva.onboarding.swedbank.payment.PaymentMessageGenerator;
 import ee.tuleva.onboarding.swedbank.payment.PaymentRequest;
 import jakarta.xml.bind.JAXBElement;
@@ -55,7 +56,7 @@ public class SwedbankGatewayClient {
   private final String agreementId;
 
   private final Clock clock;
-  private final SwedbankGatewayMarshaller marshaller;
+  private final Iso20022Marshaller marshaller;
   private final PaymentMessageGenerator paymentMessageGenerator;
 
   private final Converter<LocalDate, XMLGregorianCalendar> dateConverter;

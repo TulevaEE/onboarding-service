@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.DEPOSIT_EU
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import ee.swedbank.gateway.iso.request.Document;
+import ee.tuleva.onboarding.banking.iso20022.camt060.Document;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import jakarta.xml.bind.JAXBElement;
 import java.util.*;

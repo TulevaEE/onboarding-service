@@ -13,7 +13,7 @@ public class SwedbankGatewayMarshaller {
   @SneakyThrows
   public String marshalToString(Object object) {
     JAXBContext marshalContext =
-        JAXBContext.newInstance(ee.swedbank.gateway.iso.request.ObjectFactory.class);
+        JAXBContext.newInstance(ee.tuleva.onboarding.banking.iso20022.camt060.ObjectFactory.class);
     var marshaller = marshalContext.createMarshaller();
     StringWriter sw = new StringWriter();
     marshaller.marshal(object, sw);

@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.swedbank.statement;
 
-import static ee.swedbank.gateway.iso.response.report.BalanceType12Code.*;
-import static ee.swedbank.gateway.iso.response.report.CreditDebitCode.CRDT;
+import static ee.tuleva.onboarding.banking.iso20022.camt052.BalanceType12Code.*;
+import static ee.tuleva.onboarding.banking.iso20022.camt052.CreditDebitCode.CRDT;
 
-import ee.swedbank.gateway.iso.response.report.BalanceType12Code;
-import ee.swedbank.gateway.iso.response.report.CashBalance3;
-import ee.swedbank.gateway.iso.response.statement.CreditDebitCode;
+import ee.tuleva.onboarding.banking.iso20022.camt052.BalanceType12Code;
+import ee.tuleva.onboarding.banking.iso20022.camt052.CashBalance3;
+import ee.tuleva.onboarding.banking.iso20022.camt053.CreditDebitCode;
 import ee.tuleva.onboarding.swedbank.converter.XmlGregorianCalendarConverterToLocalDate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -16,49 +16,51 @@ public record BankStatementBalance(StatementBalanceType type, LocalDate time, Bi
   public enum StatementBalanceType {
     OPEN(
         OPBD,
-        ee.swedbank.gateway.iso.response.statement.BalanceType12Code
+        ee.tuleva.onboarding.banking.iso20022.camt053.BalanceType12Code
             .OPBD), // Opening booked balance
     CLOSE(
         CLBD,
-        ee.swedbank.gateway.iso.response.statement.BalanceType12Code
+        ee.tuleva.onboarding.banking.iso20022.camt053.BalanceType12Code
             .CLBD), // Closing booked balance
     OPEN_AVAILABLE(
         OPAV,
-        ee.swedbank.gateway.iso.response.statement.BalanceType12Code
+        ee.tuleva.onboarding.banking.iso20022.camt053.BalanceType12Code
             .OPAV), // Opening available balance
     INTERIM_AVAILABLE(
         ITAV,
-        ee.swedbank.gateway.iso.response.statement.BalanceType12Code
+        ee.tuleva.onboarding.banking.iso20022.camt053.BalanceType12Code
             .ITAV), // Interim available balance
     CLOSING_AVAILABLE(
         CLAV,
-        ee.swedbank.gateway.iso.response.statement.BalanceType12Code
+        ee.tuleva.onboarding.banking.iso20022.camt053.BalanceType12Code
             .CLAV), // Closing available balance
     FORWARD_AVAILABLE(
         FWAV,
-        ee.swedbank.gateway.iso.response.statement.BalanceType12Code
+        ee.tuleva.onboarding.banking.iso20022.camt053.BalanceType12Code
             .FWAV), // Forward available balance
     INTERIM_BOOKED(
         ITBD,
-        ee.swedbank.gateway.iso.response.statement.BalanceType12Code
+        ee.tuleva.onboarding.banking.iso20022.camt053.BalanceType12Code
             .ITBD), // Interim booked balance
     PREVIOUSLY_CLOSED(
         PRCD,
-        ee.swedbank.gateway.iso.response.statement.BalanceType12Code
+        ee.tuleva.onboarding.banking.iso20022.camt053.BalanceType12Code
             .PRCD), // Previously closed booked balance
     EXPECTED(
         XPCD,
-        ee.swedbank.gateway.iso.response.statement.BalanceType12Code.XPCD), // Expected balance
+        ee.tuleva.onboarding.banking.iso20022.camt053.BalanceType12Code.XPCD), // Expected balance
     INFORMATION(
         INFO,
-        ee.swedbank.gateway.iso.response.statement.BalanceType12Code.INFO); // Informational balance
+        ee.tuleva.onboarding.banking.iso20022.camt053.BalanceType12Code
+            .INFO); // Informational balance
 
     private final BalanceType12Code reportBalanceCode;
-    private final ee.swedbank.gateway.iso.response.statement.BalanceType12Code statementBalanceCode;
+    private final ee.tuleva.onboarding.banking.iso20022.camt053.BalanceType12Code
+        statementBalanceCode;
 
     StatementBalanceType(
         BalanceType12Code balanceTypeCode,
-        ee.swedbank.gateway.iso.response.statement.BalanceType12Code statementBalanceCode) {
+        ee.tuleva.onboarding.banking.iso20022.camt053.BalanceType12Code statementBalanceCode) {
       this.reportBalanceCode = balanceTypeCode;
       this.statementBalanceCode = statementBalanceCode;
     }
@@ -73,7 +75,7 @@ public record BankStatementBalance(StatementBalanceType type, LocalDate time, Bi
     }
 
     public static StatementBalanceType fromBalanceCode(
-        ee.swedbank.gateway.iso.response.statement.BalanceType12Code balanceTypeCode) {
+        ee.tuleva.onboarding.banking.iso20022.camt053.BalanceType12Code balanceTypeCode) {
       return Arrays.stream(StatementBalanceType.values())
           .filter(balanceType -> balanceType.statementBalanceCode.equals(balanceTypeCode))
           .findFirst()
@@ -100,7 +102,7 @@ public record BankStatementBalance(StatementBalanceType type, LocalDate time, Bi
   }
 
   static BankStatementBalance from(
-      ee.swedbank.gateway.iso.response.statement.CashBalance3 balance) {
+      ee.tuleva.onboarding.banking.iso20022.camt053.CashBalance3 balance) {
     var dateConverter = new XmlGregorianCalendarConverterToLocalDate();
     var statementBalanceType =
         StatementBalanceType.fromBalanceCode(balance.getTp().getCdOrPrtry().getCd());

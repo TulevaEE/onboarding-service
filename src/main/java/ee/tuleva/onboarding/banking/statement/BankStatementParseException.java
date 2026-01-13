@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.swedbank.statement;
+package ee.tuleva.onboarding.banking.statement;
 
 public class BankStatementParseException extends RuntimeException {
 

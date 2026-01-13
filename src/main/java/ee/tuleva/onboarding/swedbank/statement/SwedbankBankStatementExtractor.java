@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.swedbank.statement;
 
+import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
+
+import ee.tuleva.onboarding.banking.statement.BankStatement;
+import ee.tuleva.onboarding.banking.statement.BankStatementParseException;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayMarshaller;
 import jakarta.xml.bind.JAXBElement;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +38,8 @@ public class SwedbankBankStatementExtractor {
         throw new BankStatementParseException("BkToCstmrAcctRpt is missing in document");
       }
 
-      BankStatement statement = BankStatement.from(document.getBkToCstmrAcctRpt());
+      BankStatement statement =
+          BankStatement.from(document.getBkToCstmrAcctRpt(), SWEDBANK_GATEWAY_TIME_ZONE);
       log.debug("Extracted intra-day report with {} entries", statement.getEntries().size());
       return statement;
     } catch (BankStatementParseException e) {
@@ -68,7 +73,8 @@ public class SwedbankBankStatementExtractor {
         throw new BankStatementParseException("BkToCstmrStmt is missing in document");
       }
 
-      BankStatement statement = BankStatement.from(document.getBkToCstmrStmt());
+      BankStatement statement =
+          BankStatement.from(document.getBkToCstmrStmt(), SWEDBANK_GATEWAY_TIME_ZONE);
       log.debug("Extracted historic statement with {} entries", statement.getEntries().size());
       return statement;
     } catch (BankStatementParseException e) {

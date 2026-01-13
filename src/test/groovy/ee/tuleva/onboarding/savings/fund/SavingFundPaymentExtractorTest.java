@@ -3,11 +3,11 @@ package ee.tuleva.onboarding.savings.fund;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ee.tuleva.onboarding.banking.statement.BankStatement;
+import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
+import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
+import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.currency.Currency;
-import ee.tuleva.onboarding.swedbank.statement.BankStatement;
-import ee.tuleva.onboarding.swedbank.statement.BankStatementAccount;
-import ee.tuleva.onboarding.swedbank.statement.BankStatementEntry;
-import ee.tuleva.onboarding.swedbank.statement.TransactionType;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;

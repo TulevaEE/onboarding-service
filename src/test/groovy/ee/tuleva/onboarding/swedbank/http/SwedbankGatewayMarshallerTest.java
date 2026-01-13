@@ -1,15 +1,16 @@
 package ee.tuleva.onboarding.swedbank.http;
 
-import static ee.tuleva.onboarding.swedbank.statement.BankStatementBalance.StatementBalanceType.CLOSE;
-import static ee.tuleva.onboarding.swedbank.statement.BankStatementBalance.StatementBalanceType.OPEN;
+import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.CLOSE;
+import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.OPEN;
+import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
 import ee.tuleva.onboarding.banking.iso20022.camt053.Document;
 import ee.tuleva.onboarding.banking.iso20022.camt053.ObjectFactory;
+import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.swedbank.converter.LocalDateToXmlGregorianCalendarConverter;
 import ee.tuleva.onboarding.swedbank.converter.ZonedDateTimeToXmlGregorianCalendarConverter;
-import ee.tuleva.onboarding.swedbank.statement.BankStatement;
 import ee.tuleva.onboarding.time.TestClockHolder;
 import jakarta.xml.bind.JAXBElement;
 import java.math.BigDecimal;
@@ -74,7 +75,8 @@ public class SwedbankGatewayMarshallerTest {
 
     assertEquals(4, entries.size());
 
-    var parsed = BankStatement.from(response.getValue().getBkToCstmrStmt());
+    var parsed =
+        BankStatement.from(response.getValue().getBkToCstmrStmt(), SWEDBANK_GATEWAY_TIME_ZONE);
 
     // TODO more asserts
     assertEquals("EE062200221055091966", parsed.getBankStatementAccount().iban());

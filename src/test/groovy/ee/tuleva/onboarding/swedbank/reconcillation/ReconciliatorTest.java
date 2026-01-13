@@ -1,20 +1,20 @@
 package ee.tuleva.onboarding.swedbank.reconcillation;
 
+import static ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType.HISTORIC_STATEMENT;
+import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.CLOSE;
+import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.OPEN;
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.systemAccountWithBalance;
 import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.DEPOSIT_EUR;
-import static ee.tuleva.onboarding.swedbank.statement.BankStatement.BankStatementType.HISTORIC_STATEMENT;
-import static ee.tuleva.onboarding.swedbank.statement.BankStatementBalance.StatementBalanceType.CLOSE;
-import static ee.tuleva.onboarding.swedbank.statement.BankStatementBalance.StatementBalanceType.OPEN;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.banking.statement.BankStatement;
+import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
+import ee.tuleva.onboarding.banking.statement.BankStatementBalance;
+import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
-import ee.tuleva.onboarding.swedbank.statement.BankStatement;
-import ee.tuleva.onboarding.swedbank.statement.BankStatementAccount;
-import ee.tuleva.onboarding.swedbank.statement.BankStatementBalance;
-import ee.tuleva.onboarding.swedbank.statement.BankStatementEntry;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;

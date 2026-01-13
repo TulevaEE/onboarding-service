@@ -1,8 +1,7 @@
-package ee.tuleva.onboarding.swedbank.statement;
+package ee.tuleva.onboarding.banking.statement;
 
-import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
-import static ee.tuleva.onboarding.swedbank.statement.BankStatement.BankStatementType.HISTORIC_STATEMENT;
-import static ee.tuleva.onboarding.swedbank.statement.BankStatement.BankStatementType.INTRA_DAY_REPORT;
+import static ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType.HISTORIC_STATEMENT;
+import static ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType.INTRA_DAY_REPORT;
 
 import ee.tuleva.onboarding.banking.iso20022.camt052.AccountReport11;
 import ee.tuleva.onboarding.banking.iso20022.camt052.BankToCustomerAccountReportV02;
@@ -10,6 +9,7 @@ import ee.tuleva.onboarding.banking.iso20022.camt052.DateTimePeriodDetails;
 import ee.tuleva.onboarding.banking.iso20022.camt053.AccountStatement2;
 import ee.tuleva.onboarding.banking.iso20022.camt053.BankToCustomerStatementV02;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import javax.xml.datatype.XMLGregorianCalendar;
 import lombok.Getter;
@@ -31,17 +31,17 @@ public class BankStatement {
   private final List<BankStatementEntry> entries;
   private final Instant receivedBefore;
 
-  static BankStatement from(BankToCustomerAccountReportV02 accountReport) {
+  public static BankStatement from(BankToCustomerAccountReportV02 accountReport, ZoneId timezone) {
     var report = Require.exactlyOne(accountReport.getRpt(), "report");
-    return from(report);
+    return from(report, timezone);
   }
 
-  public static BankStatement from(BankToCustomerStatementV02 customerStatement) {
+  public static BankStatement from(BankToCustomerStatementV02 customerStatement, ZoneId timezone) {
     var statement = Require.exactlyOne(customerStatement.getStmt(), "statement");
-    return from(statement);
+    return from(statement, timezone);
   }
 
-  static BankStatement from(AccountReport11 report) {
+  static BankStatement from(AccountReport11 report, ZoneId timezone) {
     var account = BankStatementAccount.from(report);
     var balances = report.getBal().stream().map(BankStatementBalance::from).toList();
     var entries = report.getNtry().stream().map(BankStatementEntry::from).toList();
@@ -51,16 +51,12 @@ public class BankStatement {
     XMLGregorianCalendar toDateTime = Require.notNull(fromAndToDateTime.getToDtTm(), "toDateTime");
 
     var receivedBefore =
-        toDateTime
-            .toGregorianCalendar()
-            .toZonedDateTime()
-            .withZoneSameLocal(SWEDBANK_GATEWAY_TIME_ZONE)
-            .toInstant();
+        toDateTime.toGregorianCalendar().toZonedDateTime().withZoneSameLocal(timezone).toInstant();
 
     return new BankStatement(INTRA_DAY_REPORT, account, balances, entries, receivedBefore);
   }
 
-  static BankStatement from(AccountStatement2 statement) {
+  static BankStatement from(AccountStatement2 statement, ZoneId timezone) {
     var accountType = BankStatementAccount.from(statement);
     var balances = statement.getBal().stream().map(BankStatementBalance::from).toList();
     var entries = statement.getNtry().stream().map(BankStatementEntry::from).toList();
@@ -71,7 +67,7 @@ public class BankStatement {
                 .getToDtTm()
                 .toGregorianCalendar()
                 .toZonedDateTime()
-                .withZoneSameLocal(SWEDBANK_GATEWAY_TIME_ZONE)
+                .withZoneSameLocal(timezone)
                 .toInstant()
             : null;
 

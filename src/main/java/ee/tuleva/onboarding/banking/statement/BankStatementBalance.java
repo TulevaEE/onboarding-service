@@ -1,12 +1,12 @@
-package ee.tuleva.onboarding.swedbank.statement;
+package ee.tuleva.onboarding.banking.statement;
 
 import static ee.tuleva.onboarding.banking.iso20022.camt052.BalanceType12Code.*;
 import static ee.tuleva.onboarding.banking.iso20022.camt052.CreditDebitCode.CRDT;
 
+import ee.tuleva.onboarding.banking.converter.XmlGregorianCalendarToLocalDateConverter;
 import ee.tuleva.onboarding.banking.iso20022.camt052.BalanceType12Code;
 import ee.tuleva.onboarding.banking.iso20022.camt052.CashBalance3;
 import ee.tuleva.onboarding.banking.iso20022.camt053.CreditDebitCode;
-import ee.tuleva.onboarding.swedbank.converter.XmlGregorianCalendarConverterToLocalDate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -86,7 +86,7 @@ public record BankStatementBalance(StatementBalanceType type, LocalDate time, Bi
   }
 
   static BankStatementBalance from(CashBalance3 balance) {
-    var dateConverter = new XmlGregorianCalendarConverterToLocalDate();
+    var dateConverter = new XmlGregorianCalendarToLocalDateConverter();
     var statementBalanceType =
         StatementBalanceType.fromBalanceCode(
             balance.getTp().getCdOrPrtry().getCd()); // TODO reserved party = null?
@@ -103,7 +103,7 @@ public record BankStatementBalance(StatementBalanceType type, LocalDate time, Bi
 
   static BankStatementBalance from(
       ee.tuleva.onboarding.banking.iso20022.camt053.CashBalance3 balance) {
-    var dateConverter = new XmlGregorianCalendarConverterToLocalDate();
+    var dateConverter = new XmlGregorianCalendarToLocalDateConverter();
     var statementBalanceType =
         StatementBalanceType.fromBalanceCode(balance.getTp().getCdOrPrtry().getCd());
 

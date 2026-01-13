@@ -4,11 +4,11 @@ import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY
 import static ee.tuleva.onboarding.swedbank.statement.BankStatement.BankStatementType.HISTORIC_STATEMENT;
 import static ee.tuleva.onboarding.swedbank.statement.BankStatement.BankStatementType.INTRA_DAY_REPORT;
 
-import ee.swedbank.gateway.iso.response.report.AccountReport11;
-import ee.swedbank.gateway.iso.response.report.BankToCustomerAccountReportV02;
-import ee.swedbank.gateway.iso.response.report.DateTimePeriodDetails;
-import ee.swedbank.gateway.iso.response.statement.AccountStatement2;
-import ee.swedbank.gateway.iso.response.statement.BankToCustomerStatementV02;
+import ee.tuleva.onboarding.banking.iso20022.camt052.AccountReport11;
+import ee.tuleva.onboarding.banking.iso20022.camt052.BankToCustomerAccountReportV02;
+import ee.tuleva.onboarding.banking.iso20022.camt052.DateTimePeriodDetails;
+import ee.tuleva.onboarding.banking.iso20022.camt053.AccountStatement2;
+import ee.tuleva.onboarding.banking.iso20022.camt053.BankToCustomerStatementV02;
 import java.time.Instant;
 import java.util.List;
 import javax.xml.datatype.XMLGregorianCalendar;

@@ -18,17 +18,17 @@ public class SwedbankBankStatementExtractor {
       throw new BankStatementParseException("Raw XML is null or empty");
     }
     try {
-      JAXBElement<ee.swedbank.gateway.iso.response.report.Document> response =
+      JAXBElement<ee.tuleva.onboarding.banking.iso20022.camt052.Document> response =
           marshaller.unMarshal(
               rawXml,
               JAXBElement.class,
-              ee.swedbank.gateway.iso.response.report.ObjectFactory.class);
+              ee.tuleva.onboarding.banking.iso20022.camt052.ObjectFactory.class);
 
       if (response == null || response.getValue() == null) {
         throw new BankStatementParseException("Unmarshalled document is null");
       }
 
-      ee.swedbank.gateway.iso.response.report.Document document = response.getValue();
+      ee.tuleva.onboarding.banking.iso20022.camt052.Document document = response.getValue();
 
       if (document.getBkToCstmrAcctRpt() == null) {
         throw new BankStatementParseException("BkToCstmrAcctRpt is missing in document");
@@ -52,17 +52,17 @@ public class SwedbankBankStatementExtractor {
     }
 
     try {
-      JAXBElement<ee.swedbank.gateway.iso.response.statement.Document> response =
+      JAXBElement<ee.tuleva.onboarding.banking.iso20022.camt053.Document> response =
           marshaller.unMarshal(
               rawXml,
               JAXBElement.class,
-              ee.swedbank.gateway.iso.response.statement.ObjectFactory.class);
+              ee.tuleva.onboarding.banking.iso20022.camt053.ObjectFactory.class);
 
       if (response == null || response.getValue() == null) {
         throw new BankStatementParseException("Unmarshalled document is null");
       }
 
-      ee.swedbank.gateway.iso.response.statement.Document document = response.getValue();
+      ee.tuleva.onboarding.banking.iso20022.camt053.Document document = response.getValue();
 
       if (document.getBkToCstmrStmt() == null) {
         throw new BankStatementParseException("BkToCstmrStmt is missing in document");

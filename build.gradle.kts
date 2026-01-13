@@ -334,13 +334,13 @@ tasks {
         group = "code generation"
         description = "Generates Java classes from XSD files"
 
-        val xsdDir = file("$projectDir/src/main/resources/swedbank")
-        val outputDir = file("${layout.buildDirectory.get()}/generated-sources/swedbank")
+        val xsdDir = file("$projectDir/src/main/resources/banking/iso20022")
+        val outputDir = file("${layout.buildDirectory.get()}/generated-sources/iso20022")
         val rootSchemas =
             listOf(
-                file("$xsdDir/camt.060.001.03.xsd") to "ee.swedbank.gateway.iso.request",
-                file("$xsdDir/camt.052.001.02.xsd") to "ee.swedbank.gateway.iso.response.report",
-                file("$xsdDir/camt.053.001.02.xsd") to "ee.swedbank.gateway.iso.response.statement",
+                file("$xsdDir/camt.060.001.03.xsd") to "ee.tuleva.onboarding.banking.iso20022.camt060",
+                file("$xsdDir/camt.052.001.02.xsd") to "ee.tuleva.onboarding.banking.iso20022.camt052",
+                file("$xsdDir/camt.053.001.02.xsd") to "ee.tuleva.onboarding.banking.iso20022.camt053",
             )
 
         doLast {
@@ -377,7 +377,7 @@ tasks.named<JavaCompile>("compileJava") {
 sourceSets {
     main {
         java {
-            srcDir("${layout.buildDirectory.get()}/generated-sources/swedbank")
+            srcDir("${layout.buildDirectory.get()}/generated-sources/iso20022")
         }
     }
 }

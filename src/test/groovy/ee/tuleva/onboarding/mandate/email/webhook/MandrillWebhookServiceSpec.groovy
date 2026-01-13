@@ -46,6 +46,21 @@ class MandrillWebhookServiceSpec extends Specification {
     1 * eventLogRepository.save(_)
   }
 
+  def "handleWebhook handles metadata as empty array"() {
+    given:
+    def eventsJson = """[{"event":"open","_id":"event123","ts":$eventTimestamp,"msg":{"_id":"$mandrillMessageId","email":"test@example.com","subject":"Subject","metadata":[]}}]"""
+    def email = sampleEmail()
+
+    signatureVerifier.verify(request, "valid_signature") >> true
+    emailRepository.findByMandrillMessageId(mandrillMessageId) >> Optional.of(email)
+
+    when:
+    service.handleWebhook(eventsJson, "valid_signature", request)
+
+    then:
+    1 * eventLogRepository.save(_)
+  }
+
   def "handleWebhook rejects invalid signature"() {
     given:
     signatureVerifier.verify(request, "invalid_signature") >> false

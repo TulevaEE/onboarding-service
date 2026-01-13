@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.mandate.email.webhook;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.HashMap;
-import java.util.Map;
 import lombok.Builder;
 
 /**
@@ -31,9 +29,5 @@ public record MandrillWebhookEvent(
 
   @Builder
   public record MandrillMessage(
-      @JsonProperty("_id") String id, String email, String subject, Map<String, Object> metadata) {
-    public MandrillMessage {
-      metadata = metadata != null ? metadata : new HashMap<>();
-    }
-  }
+      @JsonProperty("_id") String id, String email, String subject, Object metadata) {}
 }

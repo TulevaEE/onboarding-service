@@ -60,7 +60,7 @@ public class MandrillWebhookService {
     try {
       return objectMapper.readValue(mandrillEvents, new TypeReference<>() {});
     } catch (JsonProcessingException e) {
-      log.error("Failed to parse Mandrill webhook events", e);
+      log.error("Failed to parse Mandrill webhook events: payload={}", mandrillEvents, e);
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid JSON payload");
     }
   }

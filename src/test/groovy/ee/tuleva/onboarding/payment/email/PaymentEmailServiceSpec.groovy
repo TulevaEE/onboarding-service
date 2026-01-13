@@ -6,7 +6,6 @@ import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.email.PillarSuggestion
 import ee.tuleva.onboarding.mandate.email.persistence.Email
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType
 import ee.tuleva.onboarding.notification.email.EmailService
 import spock.lang.Specification
 
@@ -15,11 +14,7 @@ import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notConve
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getAttachments
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_PAYMENT_CANCEL
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_PAYMENT_FAIL
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_PAYMENT_SUCCESS
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates
 
@@ -42,15 +37,16 @@ class PaymentEmailServiceSpec extends Specification {
     def payment = aNewSinglePayment()
     def message = new MandrillMessage()
     var mergeVars = [
-        "fname"              : user.firstName,
-        "lname"              : user.lastName,
-        "amount"             : 10.00,
-        "currency"           : EUR,
-        "recipient"          : payment.recipientPersonalCode,
-        "suggestPaymentRate" : pillarSuggestion.suggestPaymentRate,
-        "suggestMembership"  : pillarSuggestion.suggestMembership,
-        "suggestSecondPillar": pillarSuggestion.suggestSecondPillar,
-        "suggestThirdPillar": pillarSuggestion.suggestThirdPillar
+        "fname"                : user.firstName,
+        "lname"                : user.lastName,
+        "amount"               : 10.00,
+        "currency"             : EUR,
+        "senderPersonalCode"   : user.personalCode,
+        "recipientPersonalCode": payment.recipientPersonalCode,
+        "suggestPaymentRate"   : pillarSuggestion.suggestPaymentRate,
+        "suggestMembership"    : pillarSuggestion.suggestMembership,
+        "suggestSecondPillar"  : pillarSuggestion.suggestSecondPillar,
+        "suggestThirdPillar"   : pillarSuggestion.suggestThirdPillar
     ]
     def tags = ["pillar_3.1", "mandate", "payment", "suggest_payment_rate", "suggest_2"]
     def locale = Locale.ENGLISH

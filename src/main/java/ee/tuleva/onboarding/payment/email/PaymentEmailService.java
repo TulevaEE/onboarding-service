@@ -70,7 +70,8 @@ public class PaymentEmailService {
             Map.of(
                 "amount", payment.getAmount(),
                 "currency", payment.getCurrency(),
-                "recipient", payment.getRecipientPersonalCode()));
+                "senderPersonalCode", user.getPersonalCode(),
+                "recipientPersonalCode", payment.getRecipientPersonalCode()));
     variables.putAll(getNameMergeVars(user));
     variables.putAll(getPillarSuggestionMergeVars(pillarSuggestion));
 

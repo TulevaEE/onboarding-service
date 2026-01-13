@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.swedbank.statement;
 
-import static ee.swedbank.gateway.iso.response.report.CreditDebitCode.CRDT;
+import static ee.tuleva.onboarding.banking.iso20022.camt052.CreditDebitCode.CRDT;
 
-import ee.swedbank.gateway.iso.response.report.GenericPersonIdentification1;
-import ee.swedbank.gateway.iso.response.report.Party6Choice;
-import ee.swedbank.gateway.iso.response.report.ReportEntry2;
-import ee.swedbank.gateway.iso.response.statement.CreditDebitCode;
+import ee.tuleva.onboarding.banking.iso20022.camt052.GenericPersonIdentification1;
+import ee.tuleva.onboarding.banking.iso20022.camt052.Party6Choice;
+import ee.tuleva.onboarding.banking.iso20022.camt052.ReportEntry2;
+import ee.tuleva.onboarding.banking.iso20022.camt053.CreditDebitCode;
 import jakarta.annotation.Nullable;
 import java.math.BigDecimal;
 import java.util.List;
@@ -66,7 +66,8 @@ public record BankStatementEntry(
       return new CounterPartyDetails(name, iban, personalIdCode);
     }
 
-    static CounterPartyDetails from(ee.swedbank.gateway.iso.response.statement.ReportEntry2 entry) {
+    static CounterPartyDetails from(
+        ee.tuleva.onboarding.banking.iso20022.camt053.ReportEntry2 entry) {
       var creditOrDebit = entry.getCdtDbtInd();
 
       var entryDetails = Require.exactlyOne(entry.getNtryDtls(), "entry details");
@@ -83,12 +84,12 @@ public record BankStatementEntry(
       var name = otherParty.getNm();
       var personalIdCodes =
           Optional.ofNullable(otherParty.getId())
-              .map(ee.swedbank.gateway.iso.response.statement.Party6Choice::getPrvtId)
+              .map(ee.tuleva.onboarding.banking.iso20022.camt053.Party6Choice::getPrvtId)
               .map(
                   prvtId ->
                       prvtId.getOthr().stream()
                           .map(
-                              ee.swedbank.gateway.iso.response.statement
+                              ee.tuleva.onboarding.banking.iso20022.camt053
                                       .GenericPersonIdentification1
                                   ::getId)
                           .filter(id -> id != null && !id.isBlank())
@@ -107,7 +108,7 @@ public record BankStatementEntry(
     }
   }
 
-  static BankStatementEntry from(ee.swedbank.gateway.iso.response.statement.ReportEntry2 entry) {
+  static BankStatementEntry from(ee.tuleva.onboarding.banking.iso20022.camt053.ReportEntry2 entry) {
     var counterPartyDetails = CounterPartyDetails.from(entry);
     var creditOrDebit = entry.getCdtDbtInd();
     var creditDebitCoefficient =
@@ -142,7 +143,8 @@ public record BankStatementEntry(
     var transactionDetails = Require.exactlyOne(entryDetails.getTxDtls(), "transaction details");
     var endToEndId =
         Optional.ofNullable(transactionDetails.getRefs())
-            .map(ee.swedbank.gateway.iso.response.statement.TransactionReferences2::getEndToEndId)
+            .map(
+                ee.tuleva.onboarding.banking.iso20022.camt053.TransactionReferences2::getEndToEndId)
             .orElse(null);
 
     return new BankStatementEntry(
@@ -188,7 +190,8 @@ public record BankStatementEntry(
     var transactionDetails = Require.exactlyOne(entryDetails.getTxDtls(), "transaction details");
     var endToEndId =
         Optional.ofNullable(transactionDetails.getRefs())
-            .map(ee.swedbank.gateway.iso.response.report.TransactionReferences2::getEndToEndId)
+            .map(
+                ee.tuleva.onboarding.banking.iso20022.camt052.TransactionReferences2::getEndToEndId)
             .orElse(null);
 
     return new BankStatementEntry(

@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+// TODO: Consider migrating to JAXB bindings from pain.001.001.09.xsd
 @Component
 @RequiredArgsConstructor
 public class PaymentMessageGenerator {

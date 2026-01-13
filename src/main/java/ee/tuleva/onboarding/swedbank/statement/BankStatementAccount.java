@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.swedbank.statement;
 
-import ee.swedbank.gateway.iso.response.report.AccountReport11;
-import ee.swedbank.gateway.iso.response.report.GenericOrganisationIdentification1;
-import ee.swedbank.gateway.iso.response.report.OrganisationIdentification4;
-import ee.swedbank.gateway.iso.response.report.Party6Choice;
-import ee.swedbank.gateway.iso.response.report.PartyIdentification32;
-import ee.swedbank.gateway.iso.response.statement.AccountStatement2;
+import ee.tuleva.onboarding.banking.iso20022.camt052.AccountReport11;
+import ee.tuleva.onboarding.banking.iso20022.camt052.GenericOrganisationIdentification1;
+import ee.tuleva.onboarding.banking.iso20022.camt052.OrganisationIdentification4;
+import ee.tuleva.onboarding.banking.iso20022.camt052.Party6Choice;
+import ee.tuleva.onboarding.banking.iso20022.camt052.PartyIdentification32;
+import ee.tuleva.onboarding.banking.iso20022.camt053.AccountStatement2;
 import java.util.List;
 import java.util.Optional;
 
@@ -48,14 +48,14 @@ public record BankStatementAccount(
     // Extract account holder ID code (organization or private)
     var accountHolderIdCodes =
         Optional.of(owner)
-            .map(ee.swedbank.gateway.iso.response.statement.PartyIdentification32::getId)
-            .map(ee.swedbank.gateway.iso.response.statement.Party6Choice::getOrgId)
-            .map(ee.swedbank.gateway.iso.response.statement.OrganisationIdentification4::getOthr)
+            .map(ee.tuleva.onboarding.banking.iso20022.camt053.PartyIdentification32::getId)
+            .map(ee.tuleva.onboarding.banking.iso20022.camt053.Party6Choice::getOrgId)
+            .map(ee.tuleva.onboarding.banking.iso20022.camt053.OrganisationIdentification4::getOthr)
             .map(
                 others ->
                     others.stream()
                         .map(
-                            ee.swedbank.gateway.iso.response.statement
+                            ee.tuleva.onboarding.banking.iso20022.camt053
                                     .GenericOrganisationIdentification1
                                 ::getId)
                         .filter(id -> id != null && !id.isBlank())

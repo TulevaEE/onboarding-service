@@ -42,7 +42,8 @@ class PaymentMessageGeneratorTest {
     var schema =
         SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI)
             .newSchema(
-                new StreamSource(getClass().getResourceAsStream("/swedbank/pain.001.001.09.xsd")));
+                new StreamSource(
+                    getClass().getResourceAsStream("/banking/iso20022/pain.001.001.09.xsd")));
     var validator = schema.newValidator();
     validator.validate(new StreamSource(new StringReader(result)));
   }

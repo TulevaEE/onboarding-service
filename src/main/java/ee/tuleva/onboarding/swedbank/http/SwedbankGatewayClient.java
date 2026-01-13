@@ -1,22 +1,22 @@
 package ee.tuleva.onboarding.swedbank.http;
 
-import static ee.swedbank.gateway.iso.request.QueryType3Code.ALLL;
+import static ee.tuleva.onboarding.banking.iso20022.camt060.QueryType3Code.ALLL;
 import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
 import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.POST;
 
-import ee.swedbank.gateway.iso.request.AccountIdentification4Choice;
-import ee.swedbank.gateway.iso.request.AccountReportingRequestV03;
-import ee.swedbank.gateway.iso.request.CashAccount24;
-import ee.swedbank.gateway.iso.request.DatePeriodDetails1;
-import ee.swedbank.gateway.iso.request.GroupHeader59;
-import ee.swedbank.gateway.iso.request.ObjectFactory;
-import ee.swedbank.gateway.iso.request.Party12Choice;
-import ee.swedbank.gateway.iso.request.PartyIdentification43;
-import ee.swedbank.gateway.iso.request.ReportingPeriod1;
-import ee.swedbank.gateway.iso.request.ReportingRequest3;
-import ee.swedbank.gateway.iso.request.TimePeriodDetails1;
+import ee.tuleva.onboarding.banking.iso20022.camt060.AccountIdentification4Choice;
+import ee.tuleva.onboarding.banking.iso20022.camt060.AccountReportingRequestV03;
+import ee.tuleva.onboarding.banking.iso20022.camt060.CashAccount24;
+import ee.tuleva.onboarding.banking.iso20022.camt060.DatePeriodDetails1;
+import ee.tuleva.onboarding.banking.iso20022.camt060.GroupHeader59;
+import ee.tuleva.onboarding.banking.iso20022.camt060.ObjectFactory;
+import ee.tuleva.onboarding.banking.iso20022.camt060.Party12Choice;
+import ee.tuleva.onboarding.banking.iso20022.camt060.PartyIdentification43;
+import ee.tuleva.onboarding.banking.iso20022.camt060.ReportingPeriod1;
+import ee.tuleva.onboarding.banking.iso20022.camt060.ReportingRequest3;
+import ee.tuleva.onboarding.banking.iso20022.camt060.TimePeriodDetails1;
 import ee.tuleva.onboarding.swedbank.payment.PaymentMessageGenerator;
 import ee.tuleva.onboarding.swedbank.payment.PaymentRequest;
 import jakarta.xml.bind.JAXBElement;
@@ -71,7 +71,7 @@ public class SwedbankGatewayClient {
   }
 
   public void sendStatementRequest(
-      JAXBElement<ee.swedbank.gateway.iso.request.Document> entity, UUID uuid) {
+      JAXBElement<ee.tuleva.onboarding.banking.iso20022.camt060.Document> entity, UUID uuid) {
     var requestXml = marshaller.marshalToString(entity);
 
     HttpEntity<String> requestEntity = new HttpEntity<>(requestXml, getHeaders(uuid));
@@ -128,8 +128,8 @@ public class SwedbankGatewayClient {
     return headers;
   }
 
-  public JAXBElement<ee.swedbank.gateway.iso.request.Document> getIntraDayReportRequestEntity(
-      String accountIban, UUID messageId) {
+  public JAXBElement<ee.tuleva.onboarding.banking.iso20022.camt060.Document>
+      getIntraDayReportRequestEntity(String accountIban, UUID messageId) {
     AccountReportingRequestV03 accountReportingRequest = new AccountReportingRequestV03();
 
     GroupHeader59 groupHeader = new GroupHeader59();
@@ -182,16 +182,17 @@ public class SwedbankGatewayClient {
 
     accountReportingRequest.getRptgReq().add(reportingRequest);
 
-    ee.swedbank.gateway.iso.request.Document document =
-        new ee.swedbank.gateway.iso.request.Document();
+    ee.tuleva.onboarding.banking.iso20022.camt060.Document document =
+        new ee.tuleva.onboarding.banking.iso20022.camt060.Document();
     document.setAcctRptgReq(accountReportingRequest);
     var objectFactory = new ObjectFactory();
 
     return objectFactory.createDocument(document);
   }
 
-  public JAXBElement<ee.swedbank.gateway.iso.request.Document> getHistoricReportRequestEntity(
-      String accountIban, UUID messageId, LocalDate fromDate, LocalDate toDate) {
+  public JAXBElement<ee.tuleva.onboarding.banking.iso20022.camt060.Document>
+      getHistoricReportRequestEntity(
+          String accountIban, UUID messageId, LocalDate fromDate, LocalDate toDate) {
     AccountReportingRequestV03 accountReportingRequest = new AccountReportingRequestV03();
 
     GroupHeader59 groupHeader = new GroupHeader59();
@@ -242,8 +243,8 @@ public class SwedbankGatewayClient {
 
     accountReportingRequest.getRptgReq().add(reportingRequest);
 
-    ee.swedbank.gateway.iso.request.Document document =
-        new ee.swedbank.gateway.iso.request.Document();
+    ee.tuleva.onboarding.banking.iso20022.camt060.Document document =
+        new ee.tuleva.onboarding.banking.iso20022.camt060.Document();
     document.setAcctRptgReq(accountReportingRequest);
     var objectFactory = new ObjectFactory();
 

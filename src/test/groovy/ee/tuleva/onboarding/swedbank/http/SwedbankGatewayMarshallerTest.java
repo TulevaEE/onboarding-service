@@ -5,8 +5,8 @@ import static ee.tuleva.onboarding.swedbank.statement.BankStatementBalance.State
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
-import ee.swedbank.gateway.iso.response.statement.Document;
-import ee.swedbank.gateway.iso.response.statement.ObjectFactory;
+import ee.tuleva.onboarding.banking.iso20022.camt053.Document;
+import ee.tuleva.onboarding.banking.iso20022.camt053.ObjectFactory;
 import ee.tuleva.onboarding.swedbank.converter.LocalDateToXmlGregorianCalendarConverter;
 import ee.tuleva.onboarding.swedbank.converter.ZonedDateTimeToXmlGregorianCalendarConverter;
 import ee.tuleva.onboarding.swedbank.statement.BankStatement;

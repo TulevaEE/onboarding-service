@@ -5,12 +5,13 @@ import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARI
 import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.banking.BankType;
+import ee.tuleva.onboarding.banking.message.BankingMessage;
+import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessage;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessageRepository;
 import ee.tuleva.onboarding.swedbank.processor.SwedbankMessageDelegator;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
@@ -34,7 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 class SavingFundPaymentUpsertionServiceIntegrationTest {
 
   @Autowired private SavingFundPaymentRepository repository;
-  @Autowired private SwedbankMessageRepository swedbankMessageRepository;
+  @Autowired private BankingMessageRepository bankingMessageRepository;
   @Autowired private SwedbankMessageDelegator delegator;
   @Autowired private LedgerService ledgerService;
   @Autowired private SwedbankAccountConfiguration swedbankAccountConfiguration;
@@ -118,37 +119,39 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
   void doesNotProcessFailedMessages() {
     // given - a failed message with malformed XML
     var failedMessage =
-        SwedbankMessage.builder()
+        BankingMessage.builder()
+            .bankType(BankType.SWEDBANK)
             .requestId("test-failed")
             .trackingId("test-failed")
             .rawResponse("<malformed xml")
             .receivedAt(NOW.minus(Duration.ofHours(2)))
             .failedAt(NOW.minus(Duration.ofHours(1)))
             .build();
-    var savedFailedMessage = swedbankMessageRepository.save(failedMessage);
+    var savedFailedMessage = bankingMessageRepository.save(failedMessage);
 
     // and a successful message with valid XML
     var successMessage =
-        SwedbankMessage.builder()
+        BankingMessage.builder()
+            .bankType(BankType.SWEDBANK)
             .requestId("test-success")
             .trackingId("test-success")
             .rawResponse(XML_TEMPLATE)
             .receivedAt(NOW)
             .build();
-    var savedSuccessMessage = swedbankMessageRepository.save(successMessage);
+    var savedSuccessMessage = bankingMessageRepository.save(successMessage);
 
     // when
     delegator.processMessages();
 
     // then - failed message should not be processed
     var failedMessageAfter =
-        swedbankMessageRepository.findById(savedFailedMessage.getId()).orElseThrow();
+        bankingMessageRepository.findById(savedFailedMessage.getId()).orElseThrow();
     assertThat(failedMessageAfter.getProcessedAt()).isNull();
     assertThat(failedMessageAfter.getFailedAt()).isEqualTo(NOW.minus(Duration.ofHours(1)));
 
     // and successful message should be processed
     var successMessageAfter =
-        swedbankMessageRepository.findById(savedSuccessMessage.getId()).orElseThrow();
+        bankingMessageRepository.findById(savedSuccessMessage.getId()).orElseThrow();
     assertThat(successMessageAfter.getProcessedAt()).isNotNull();
     assertThat(successMessageAfter.getFailedAt()).isNull();
 
@@ -391,7 +394,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
   class PaymentMatchingTests {
 
     @Autowired private SavingFundPaymentRepository repository;
-    @Autowired private SwedbankMessageRepository swedbankMessageRepository;
+    @Autowired private BankingMessageRepository bankingMessageRepository;
     @Autowired private SwedbankMessageDelegator delegator;
 
     @Test
@@ -453,7 +456,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
       var messageId = processXmlMessage(XML_TEMPLATE);
 
       // then - message should not be marked as processed due to IBAN mismatch
-      var message = swedbankMessageRepository.findById(messageId).orElseThrow();
+      var message = bankingMessageRepository.findById(messageId).orElseThrow();
       assertThat(message.getProcessedAt()).isNull();
     }
 
@@ -508,7 +511,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
       var messageId = processXmlMessage(XML_TEMPLATE);
 
       // then - message should not be marked as processed due to amount mismatch
-      var message = swedbankMessageRepository.findById(messageId).orElseThrow();
+      var message = bankingMessageRepository.findById(messageId).orElseThrow();
       assertThat(message.getProcessedAt()).isNull();
     }
 
@@ -523,19 +526,20 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
       var messageId = processXmlMessage(XML_TEMPLATE);
 
       // then - message should not be marked as processed due to field mismatch
-      var message = swedbankMessageRepository.findById(messageId).orElseThrow();
+      var message = bankingMessageRepository.findById(messageId).orElseThrow();
       assertThat(message.getProcessedAt()).isNull();
     }
 
     private UUID processXmlMessage(String xml) {
       var message =
-          SwedbankMessage.builder()
+          BankingMessage.builder()
+              .bankType(BankType.SWEDBANK)
               .requestId("test")
               .trackingId("test")
               .rawResponse(xml)
               .receivedAt(NOW)
               .build();
-      var saved = swedbankMessageRepository.save(message);
+      var saved = bankingMessageRepository.save(message);
       // This is the delegator from the nested class context, not from the outer class context.
       delegator.processMessages();
       return saved.getId();
@@ -561,13 +565,14 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
 
   private UUID processXmlMessage(String xml) {
     var message =
-        SwedbankMessage.builder()
+        BankingMessage.builder()
+            .bankType(BankType.SWEDBANK)
             .requestId("test")
             .trackingId("test")
             .rawResponse(xml)
             .receivedAt(NOW)
             .build();
-    var saved = swedbankMessageRepository.save(message);
+    var saved = bankingMessageRepository.save(message);
     delegator.processMessages();
     return saved.getId();
   }

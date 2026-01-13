@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.swedbank.converter;
+package ee.tuleva.onboarding.banking.converter;
 
 import java.time.LocalDate;
 import javax.xml.datatype.XMLGregorianCalendar;
@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-public class XmlGregorianCalendarConverterToLocalDate
+public class XmlGregorianCalendarToLocalDateConverter
     implements Converter<XMLGregorianCalendar, LocalDate> {
 
   @Override

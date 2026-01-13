@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.swedbank.statement;
+package ee.tuleva.onboarding.banking.statement;
 
 import ee.tuleva.onboarding.banking.iso20022.camt052.AccountReport11;
 import ee.tuleva.onboarding.banking.iso20022.camt052.GenericOrganisationIdentification1;

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.swedbank.statement;
+package ee.tuleva.onboarding.banking.statement;
 
 import java.util.List;
 import java.util.function.Function;

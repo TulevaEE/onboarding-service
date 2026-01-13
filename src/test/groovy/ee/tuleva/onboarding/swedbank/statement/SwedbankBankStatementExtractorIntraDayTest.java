@@ -3,8 +3,9 @@ package ee.tuleva.onboarding.swedbank.statement;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
+import ee.tuleva.onboarding.banking.statement.BankStatementParseException;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayMarshaller;
-import ee.tuleva.onboarding.swedbank.statement.BankStatement.BankStatementType;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;

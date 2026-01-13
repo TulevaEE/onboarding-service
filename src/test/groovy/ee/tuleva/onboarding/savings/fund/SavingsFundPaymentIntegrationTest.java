@@ -8,6 +8,9 @@ import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVES
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.banking.BankType;
+import ee.tuleva.onboarding.banking.message.BankingMessage;
+import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
@@ -15,8 +18,6 @@ import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.savings.fund.issuing.FundAccountPaymentJob;
 import ee.tuleva.onboarding.savings.fund.issuing.IssuingJob;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessage;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessageRepository;
 import ee.tuleva.onboarding.swedbank.processor.SwedbankMessageDelegator;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
@@ -41,7 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 class SavingsFundPaymentIntegrationTest {
 
   @Autowired private SavingFundPaymentRepository paymentRepository;
-  @Autowired private SwedbankMessageRepository swedbankMessageRepository;
+  @Autowired private BankingMessageRepository bankingMessageRepository;
   @Autowired private SwedbankMessageDelegator swedbankMessageDelegator;
   @Autowired private PaymentVerificationJob paymentVerificationJob;
   @Autowired private SavingsFundReservationJob savingsFundReservationJob;
@@ -288,13 +289,14 @@ class SavingsFundPaymentIntegrationTest {
 
   private void persistXmlMessage(String xml, Instant receivedAt) {
     var message =
-        SwedbankMessage.builder()
+        BankingMessage.builder()
+            .bankType(BankType.SWEDBANK)
             .requestId("test-e2e")
             .trackingId("test-e2e")
             .rawResponse(xml)
             .receivedAt(receivedAt)
             .build();
-    swedbankMessageRepository.save(message);
+    bankingMessageRepository.save(message);
   }
 
   // Ledger helper methods - following pattern from SavingsFundLedgerTest

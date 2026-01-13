@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.swedbank.fetcher;
 
+import static ee.tuleva.onboarding.banking.BankType.SWEDBANK;
+
+import ee.tuleva.onboarding.banking.message.BankingMessage;
+import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayResponseDto;
 import java.util.Optional;
@@ -17,11 +21,11 @@ import org.springframework.stereotype.Service;
 @Profile("!staging")
 public class SwedbankMessageReceiver {
 
-  private final SwedbankMessageRepository swedbankMessageRepository;
+  private final BankingMessageRepository bankingMessageRepository;
   private final SwedbankGatewayClient swedbankGatewayClient;
 
-  public Optional<SwedbankMessage> getById(UUID id) {
-    return swedbankMessageRepository.findById(id);
+  public Optional<BankingMessage> getById(UUID id) {
+    return bankingMessageRepository.findById(id);
   }
 
   // @Scheduled(fixedRateString = "1m")
@@ -44,12 +48,13 @@ public class SwedbankMessageReceiver {
 
   private void handleResponse(SwedbankGatewayResponseDto response) {
     var messageEntity =
-        SwedbankMessage.builder()
+        BankingMessage.builder()
+            .bankType(SWEDBANK)
             .requestId(response.requestTrackingId())
             .trackingId(response.responseTrackingId())
             .rawResponse(response.rawResponse())
             .build();
-    swedbankMessageRepository.save(messageEntity);
+    bankingMessageRepository.save(messageEntity);
 
     acknowledgeResponse(response);
   }

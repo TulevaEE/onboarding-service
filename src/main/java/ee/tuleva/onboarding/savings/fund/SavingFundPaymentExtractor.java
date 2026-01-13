@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import ee.tuleva.onboarding.banking.statement.BankStatement;
+import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
+import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
+import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.currency.Currency;
-import ee.tuleva.onboarding.swedbank.statement.BankStatement;
-import ee.tuleva.onboarding.swedbank.statement.BankStatementAccount;
-import ee.tuleva.onboarding.swedbank.statement.BankStatementEntry;
-import ee.tuleva.onboarding.swedbank.statement.TransactionType;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;

@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.swedbank.reconcillation;
 
-import static ee.tuleva.onboarding.swedbank.statement.BankStatementBalance.StatementBalanceType.CLOSE;
+import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.CLOSE;
 
+import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
-import ee.tuleva.onboarding.swedbank.statement.BankStatement;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;

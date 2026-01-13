@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.swedbank.processor;
 
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessage;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessageRepository;
+import ee.tuleva.onboarding.banking.message.BankingMessage;
+import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
 import java.io.StringReader;
 import java.time.Clock;
 import java.util.List;
@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 public class SwedbankMessageDelegator {
 
   private final Clock clock;
-  private final SwedbankMessageRepository swedbankMessageRepository;
+  private final BankingMessageRepository bankingMessageRepository;
   private final List<SwedbankMessageProcessor> messageProcessors;
 
   // @Scheduled(fixedRateString = "1m")
@@ -31,15 +31,14 @@ public class SwedbankMessageDelegator {
       lockAtLeastFor = "5s")
   public void processMessages() {
     var messages =
-        swedbankMessageRepository
-            .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc();
+        bankingMessageRepository.findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc();
 
-    for (SwedbankMessage message : messages) {
+    for (BankingMessage message : messages) {
       processMessage(message);
     }
   }
 
-  private void processMessage(SwedbankMessage message) {
+  private void processMessage(BankingMessage message) {
     try {
       var messageName =
           extractMessageName(extractNamespace(message.getRawResponse()).orElseThrow());
@@ -60,12 +59,11 @@ public class SwedbankMessageDelegator {
       }
 
       message.setProcessedAt(clock.instant());
-      swedbankMessageRepository.save(message);
+      bankingMessageRepository.save(message);
     } catch (Exception e) {
       log.error("Failed to process message id: {}", message.getId(), e);
       message.setFailedAt(clock.instant());
-      // TODO: send Slack message ?
-      swedbankMessageRepository.save(message);
+      bankingMessageRepository.save(message);
     }
   }
 

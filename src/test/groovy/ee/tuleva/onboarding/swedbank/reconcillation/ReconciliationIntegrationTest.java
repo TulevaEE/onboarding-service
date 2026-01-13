@@ -2,10 +2,11 @@ package ee.tuleva.onboarding.swedbank.reconcillation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.banking.BankType;
+import ee.tuleva.onboarding.banking.message.BankingMessage;
+import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessage;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessageRepository;
 import ee.tuleva.onboarding.swedbank.processor.SwedbankMessageDelegator;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.Clock;
@@ -25,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 class ReconciliationIntegrationTest {
 
   @Autowired private SavingFundPaymentRepository paymentRepository;
-  @Autowired private SwedbankMessageRepository swedbankMessageRepository;
+  @Autowired private BankingMessageRepository bankingMessageRepository;
   @Autowired private SwedbankMessageDelegator swedbankMessageDelegator;
 
   private static final Instant NOW = Instant.parse("2025-10-01T12:00:00Z");
@@ -175,12 +176,13 @@ class ReconciliationIntegrationTest {
 
   private void persistMessage(String xml) {
     var message =
-        SwedbankMessage.builder()
+        BankingMessage.builder()
+            .bankType(BankType.SWEDBANK)
             .requestId("test-reconciliation")
             .trackingId("test-reconciliation")
             .rawResponse(xml)
             .receivedAt(NOW)
             .build();
-    swedbankMessageRepository.save(message);
+    bankingMessageRepository.save(message);
   }
 }

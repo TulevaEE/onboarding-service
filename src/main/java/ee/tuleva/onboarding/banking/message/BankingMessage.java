@@ -1,28 +1,31 @@
-package ee.tuleva.onboarding.swedbank.fetcher;
+package ee.tuleva.onboarding.banking.message;
 
-import jakarta.annotation.Nullable;
+import ee.tuleva.onboarding.banking.BankType;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.*;
 
 @Entity
-@Table(name = "swedbank_message")
+@Table(name = "banking_message")
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SwedbankMessage {
+public class BankingMessage {
+
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
-  @Column(nullable = false)
   private UUID id;
 
-  @Column @Nullable private String requestId;
-  @Column @Nullable private String trackingId;
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  private BankType bankType;
 
-  @Column @Nullable private String rawResponse;
+  private String requestId;
+  private String trackingId;
+  private String rawResponse;
 
   @Column(columnDefinition = "TIMESTAMPTZ")
   private Instant failedAt;

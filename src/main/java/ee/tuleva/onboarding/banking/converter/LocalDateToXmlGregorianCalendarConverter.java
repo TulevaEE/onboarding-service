@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.swedbank.converter;
+package ee.tuleva.onboarding.banking.converter;
 
 import java.time.LocalDate;
 import javax.xml.datatype.DatatypeFactory;

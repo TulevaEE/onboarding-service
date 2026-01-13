@@ -14,6 +14,7 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
+import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentExtractor;
@@ -24,7 +25,6 @@ import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.swedbank.payment.EndToEndIdConverter;
-import ee.tuleva.onboarding.swedbank.statement.SwedbankBankStatementExtractor;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
@@ -44,8 +44,7 @@ class SwedbankBankStatementMessageProcessorTest {
   private static final String WITHDRAWAL_ACCOUNT_IBAN = "EE662200221066655544";
   private static final String EXTERNAL_ACCOUNT_IBAN = "EE112233445566778899";
 
-  SwedbankBankStatementExtractor swedbankBankStatementExtractor =
-      mock(SwedbankBankStatementExtractor.class);
+  BankStatementExtractor bankStatementExtractor = mock(BankStatementExtractor.class);
   SavingFundPaymentExtractor paymentExtractor = mock(SavingFundPaymentExtractor.class);
   SavingFundPaymentUpsertionService paymentService = mock(SavingFundPaymentUpsertionService.class);
   SwedbankAccountConfiguration swedbankAccountConfiguration =
@@ -59,7 +58,7 @@ class SwedbankBankStatementMessageProcessorTest {
 
   SwedbankBankStatementMessageProcessor processor =
       new SwedbankBankStatementMessageProcessor(
-          swedbankBankStatementExtractor,
+          bankStatementExtractor,
           paymentExtractor,
           paymentService,
           swedbankAccountConfiguration,
@@ -226,7 +225,7 @@ class SwedbankBankStatementMessageProcessorTest {
             List.of(),
             List.of(),
             Instant.now());
-    when(swedbankBankStatementExtractor.extractFromIntraDayReport(any())).thenReturn(bankStatement);
+    when(bankStatementExtractor.extractFromIntraDayReport(any(), any())).thenReturn(bankStatement);
     when(swedbankAccountConfiguration.getAccountType(accountIban)).thenReturn(accountType);
     when(paymentExtractor.extractPayments(bankStatement)).thenReturn(List.of(payment));
 

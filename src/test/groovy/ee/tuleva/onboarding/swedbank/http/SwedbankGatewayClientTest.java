@@ -8,8 +8,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpMethod.POST;
 
-import ee.tuleva.onboarding.swedbank.converter.LocalDateToXmlGregorianCalendarConverter;
-import ee.tuleva.onboarding.swedbank.converter.ZonedDateTimeToXmlGregorianCalendarConverter;
+import ee.tuleva.onboarding.banking.converter.LocalDateToXmlGregorianCalendarConverter;
+import ee.tuleva.onboarding.banking.converter.ZonedDateTimeToXmlGregorianCalendarConverter;
+import ee.tuleva.onboarding.banking.xml.Iso20022Marshaller;
 import ee.tuleva.onboarding.swedbank.payment.PaymentMessageGenerator;
 import ee.tuleva.onboarding.swedbank.payment.PaymentRequest;
 import ee.tuleva.onboarding.time.TestClockHolder;
@@ -34,7 +35,7 @@ import org.springframework.web.client.RestTemplate;
 class SwedbankGatewayClientTest {
 
   @Mock private RestTemplate restTemplate;
-  @Mock private SwedbankGatewayMarshaller marshaller;
+  @Mock private Iso20022Marshaller marshaller;
   @Mock private PaymentMessageGenerator paymentMessageGenerator;
 
   private SwedbankGatewayClient client;

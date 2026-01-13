@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.swedbank.statement;
 
+import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
+import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
 import ee.tuleva.onboarding.banking.statement.BankStatementParseException;
-import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayMarshaller;
+import ee.tuleva.onboarding.banking.xml.Iso20022Marshaller;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,12 +15,12 @@ import org.junit.jupiter.api.Test;
 
 class SwedbankBankStatementExtractorIntraDayTest {
 
-  private SwedbankBankStatementExtractor extractor;
+  private BankStatementExtractor extractor;
 
   @BeforeEach
   void setUp() {
-    SwedbankGatewayMarshaller marshaller = new SwedbankGatewayMarshaller();
-    extractor = new SwedbankBankStatementExtractor(marshaller);
+    Iso20022Marshaller marshaller = new Iso20022Marshaller();
+    extractor = new BankStatementExtractor(marshaller);
   }
 
   @Test
@@ -27,7 +29,7 @@ class SwedbankBankStatementExtractorIntraDayTest {
     String rawXml = createCamt052Xml();
 
     // when
-    var statement = extractor.extractFromIntraDayReport(rawXml);
+    var statement = extractor.extractFromIntraDayReport(rawXml, SWEDBANK_GATEWAY_TIME_ZONE);
 
     // then
     assertThat(statement).isNotNull();
@@ -49,21 +51,21 @@ class SwedbankBankStatementExtractorIntraDayTest {
 
   @Test
   void extractFromIntraDayReport_shouldThrowExceptionForNullXml() {
-    assertThatThrownBy(() -> extractor.extractFromIntraDayReport(null))
+    assertThatThrownBy(() -> extractor.extractFromIntraDayReport(null, SWEDBANK_GATEWAY_TIME_ZONE))
         .isInstanceOf(BankStatementParseException.class)
         .hasMessage("Raw XML is null or empty");
   }
 
   @Test
   void extractFromIntraDayReport_shouldThrowExceptionForEmptyXml() {
-    assertThatThrownBy(() -> extractor.extractFromIntraDayReport(""))
+    assertThatThrownBy(() -> extractor.extractFromIntraDayReport("", SWEDBANK_GATEWAY_TIME_ZONE))
         .isInstanceOf(BankStatementParseException.class)
         .hasMessage("Raw XML is null or empty");
   }
 
   @Test
   void extractFromIntraDayReport_shouldThrowExceptionForBlankXml() {
-    assertThatThrownBy(() -> extractor.extractFromIntraDayReport("   "))
+    assertThatThrownBy(() -> extractor.extractFromIntraDayReport("   ", SWEDBANK_GATEWAY_TIME_ZONE))
         .isInstanceOf(BankStatementParseException.class)
         .hasMessage("Raw XML is null or empty");
   }
@@ -83,7 +85,8 @@ class SwedbankBankStatementExtractorIntraDayTest {
         </Document>
         """;
 
-    assertThatThrownBy(() -> extractor.extractFromIntraDayReport(emptyReportXml))
+    assertThatThrownBy(
+            () -> extractor.extractFromIntraDayReport(emptyReportXml, SWEDBANK_GATEWAY_TIME_ZONE))
         .isInstanceOf(BankStatementParseException.class)
         .hasMessageContaining("Expected exactly one report");
   }
@@ -126,7 +129,10 @@ class SwedbankBankStatementExtractorIntraDayTest {
           </Document>
           """;
 
-      assertThatThrownBy(() -> extractor.extractFromIntraDayReport(xmlWithoutAccountHolderName))
+      assertThatThrownBy(
+              () ->
+                  extractor.extractFromIntraDayReport(
+                      xmlWithoutAccountHolderName, SWEDBANK_GATEWAY_TIME_ZONE))
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("account holder name is required");
     }
@@ -160,7 +166,10 @@ class SwedbankBankStatementExtractorIntraDayTest {
           </Document>
           """;
 
-      assertThatThrownBy(() -> extractor.extractFromIntraDayReport(xmlWithoutIdCodes))
+      assertThatThrownBy(
+              () ->
+                  extractor.extractFromIntraDayReport(
+                      xmlWithoutIdCodes, SWEDBANK_GATEWAY_TIME_ZONE))
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("Expected exactly one account holder ID code, but found: 0");
     }
@@ -203,7 +212,10 @@ class SwedbankBankStatementExtractorIntraDayTest {
           </Document>
           """;
 
-      assertThatThrownBy(() -> extractor.extractFromIntraDayReport(xmlWithMultipleIdCodes))
+      assertThatThrownBy(
+              () ->
+                  extractor.extractFromIntraDayReport(
+                      xmlWithMultipleIdCodes, SWEDBANK_GATEWAY_TIME_ZONE))
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("Expected exactly one account holder ID code, but found: 2");
     }
@@ -246,7 +258,10 @@ class SwedbankBankStatementExtractorIntraDayTest {
           </Document>
           """;
 
-      assertThatThrownBy(() -> extractor.extractFromIntraDayReport(xmlWithoutAccountIban))
+      assertThatThrownBy(
+              () ->
+                  extractor.extractFromIntraDayReport(
+                      xmlWithoutAccountIban, SWEDBANK_GATEWAY_TIME_ZONE))
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("account IBAN is required");
     }
@@ -314,7 +329,10 @@ class SwedbankBankStatementExtractorIntraDayTest {
 
       String xmlWithMissingRemittance = createCamt052Xml(entries);
 
-      assertThatThrownBy(() -> extractor.extractFromIntraDayReport(xmlWithMissingRemittance))
+      assertThatThrownBy(
+              () ->
+                  extractor.extractFromIntraDayReport(
+                      xmlWithMissingRemittance, SWEDBANK_GATEWAY_TIME_ZONE))
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("Expected exactly one remittance information, but found: 0");
     }
@@ -371,7 +389,9 @@ class SwedbankBankStatementExtractorIntraDayTest {
 
       String xmlWithMissingPersonalCode = createCamt052Xml(entries);
 
-      var statement = extractor.extractFromIntraDayReport(xmlWithMissingPersonalCode);
+      var statement =
+          extractor.extractFromIntraDayReport(
+              xmlWithMissingPersonalCode, SWEDBANK_GATEWAY_TIME_ZONE);
 
       assertThat(statement).isNotNull();
       assertThat(statement.getEntries()).hasSize(1);
@@ -445,7 +465,10 @@ class SwedbankBankStatementExtractorIntraDayTest {
 
       String xmlWithMultiplePersonalCodes = createCamt052Xml(entries);
 
-      assertThatThrownBy(() -> extractor.extractFromIntraDayReport(xmlWithMultiplePersonalCodes))
+      assertThatThrownBy(
+              () ->
+                  extractor.extractFromIntraDayReport(
+                      xmlWithMultiplePersonalCodes, SWEDBANK_GATEWAY_TIME_ZONE))
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("Expected at most one personal ID code, but found: 2");
     }
@@ -514,7 +537,10 @@ class SwedbankBankStatementExtractorIntraDayTest {
 
       String xmlWithMissingCounterPartyIban = createCamt052Xml(entries);
 
-      assertThatThrownBy(() -> extractor.extractFromIntraDayReport(xmlWithMissingCounterPartyIban))
+      assertThatThrownBy(
+              () ->
+                  extractor.extractFromIntraDayReport(
+                      xmlWithMissingCounterPartyIban, SWEDBANK_GATEWAY_TIME_ZONE))
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("counter-party IBAN is required");
     }
@@ -561,7 +587,10 @@ class SwedbankBankStatementExtractorIntraDayTest {
 
       String xmlWithMultipleEntryDetails = createCamt052Xml(entries);
 
-      assertThatThrownBy(() -> extractor.extractFromIntraDayReport(xmlWithMultipleEntryDetails))
+      assertThatThrownBy(
+              () ->
+                  extractor.extractFromIntraDayReport(
+                      xmlWithMultipleEntryDetails, SWEDBANK_GATEWAY_TIME_ZONE))
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("Expected exactly one entry details, but found: 2");
     }
@@ -637,7 +666,9 @@ class SwedbankBankStatementExtractorIntraDayTest {
       String xmlWithMultipleTransactionDetails = createCamt052Xml(entries);
 
       assertThatThrownBy(
-              () -> extractor.extractFromIntraDayReport(xmlWithMultipleTransactionDetails))
+              () ->
+                  extractor.extractFromIntraDayReport(
+                      xmlWithMultipleTransactionDetails, SWEDBANK_GATEWAY_TIME_ZONE))
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("Expected exactly one transaction details, but found: 2");
     }
@@ -647,7 +678,8 @@ class SwedbankBankStatementExtractorIntraDayTest {
       var entries = List.<String>of();
       String xmlWithEmptyEntries = createCamt052Xml(entries);
 
-      var statement = extractor.extractFromIntraDayReport(xmlWithEmptyEntries);
+      var statement =
+          extractor.extractFromIntraDayReport(xmlWithEmptyEntries, SWEDBANK_GATEWAY_TIME_ZONE);
 
       assertThat(statement).isNotNull();
       assertThat(statement.getEntries()).isEmpty();

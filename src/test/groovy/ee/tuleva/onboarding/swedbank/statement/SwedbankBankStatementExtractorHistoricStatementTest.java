@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.swedbank.statement;
 
+import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
+import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
 import ee.tuleva.onboarding.banking.statement.BankStatementParseException;
-import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayMarshaller;
+import ee.tuleva.onboarding.banking.xml.Iso20022Marshaller;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,12 +15,12 @@ import org.junit.jupiter.api.Test;
 
 class SwedbankBankStatementExtractorHistoricStatementTest {
 
-  private SwedbankBankStatementExtractor extractor;
+  private BankStatementExtractor extractor;
 
   @BeforeEach
   void setUp() {
-    SwedbankGatewayMarshaller marshaller = new SwedbankGatewayMarshaller();
-    extractor = new SwedbankBankStatementExtractor(marshaller);
+    Iso20022Marshaller marshaller = new Iso20022Marshaller();
+    extractor = new BankStatementExtractor(marshaller);
   }
 
   @Test
@@ -27,7 +29,7 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
     String rawXml = createCamt053Xml();
 
     // when
-    var statement = extractor.extractFromHistoricStatement(rawXml);
+    var statement = extractor.extractFromHistoricStatement(rawXml, SWEDBANK_GATEWAY_TIME_ZONE);
 
     // then
     assertThat(statement).isNotNull();
@@ -57,7 +59,10 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
         </Document>
         """;
 
-    assertThatThrownBy(() -> extractor.extractFromHistoricStatement(emptyStatementXml))
+    assertThatThrownBy(
+            () ->
+                extractor.extractFromHistoricStatement(
+                    emptyStatementXml, SWEDBANK_GATEWAY_TIME_ZONE))
         .isInstanceOf(BankStatementParseException.class)
         .hasMessageContaining("Expected exactly one statement");
   }
@@ -100,7 +105,10 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
           </Document>
           """;
 
-      assertThatThrownBy(() -> extractor.extractFromHistoricStatement(xmlWithoutAccountHolderName))
+      assertThatThrownBy(
+              () ->
+                  extractor.extractFromHistoricStatement(
+                      xmlWithoutAccountHolderName, SWEDBANK_GATEWAY_TIME_ZONE))
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("account holder name is required");
     }
@@ -134,7 +142,10 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
           </Document>
           """;
 
-      assertThatThrownBy(() -> extractor.extractFromHistoricStatement(xmlWithoutIdCodes))
+      assertThatThrownBy(
+              () ->
+                  extractor.extractFromHistoricStatement(
+                      xmlWithoutIdCodes, SWEDBANK_GATEWAY_TIME_ZONE))
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("Expected exactly one account holder ID code, but found: 0");
     }
@@ -177,7 +188,10 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
           </Document>
           """;
 
-      assertThatThrownBy(() -> extractor.extractFromHistoricStatement(xmlWithMultipleIdCodes))
+      assertThatThrownBy(
+              () ->
+                  extractor.extractFromHistoricStatement(
+                      xmlWithMultipleIdCodes, SWEDBANK_GATEWAY_TIME_ZONE))
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("Expected exactly one account holder ID code, but found: 2");
     }
@@ -220,7 +234,10 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
           </Document>
           """;
 
-      assertThatThrownBy(() -> extractor.extractFromHistoricStatement(xmlWithoutAccountIban))
+      assertThatThrownBy(
+              () ->
+                  extractor.extractFromHistoricStatement(
+                      xmlWithoutAccountIban, SWEDBANK_GATEWAY_TIME_ZONE))
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("account IBAN is required");
     }
@@ -288,7 +305,10 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
 
       String xmlWithMissingRemittance = createCamt053Xml(entries);
 
-      assertThatThrownBy(() -> extractor.extractFromHistoricStatement(xmlWithMissingRemittance))
+      assertThatThrownBy(
+              () ->
+                  extractor.extractFromHistoricStatement(
+                      xmlWithMissingRemittance, SWEDBANK_GATEWAY_TIME_ZONE))
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("Expected exactly one remittance information, but found: 0");
     }
@@ -345,7 +365,9 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
 
       String xmlWithMissingPersonalCode = createCamt053Xml(entries);
 
-      var statement = extractor.extractFromHistoricStatement(xmlWithMissingPersonalCode);
+      var statement =
+          extractor.extractFromHistoricStatement(
+              xmlWithMissingPersonalCode, SWEDBANK_GATEWAY_TIME_ZONE);
 
       assertThat(statement).isNotNull();
       assertThat(statement.getEntries()).hasSize(1);
@@ -419,7 +441,10 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
 
       String xmlWithMultiplePersonalCodes = createCamt053Xml(entries);
 
-      assertThatThrownBy(() -> extractor.extractFromHistoricStatement(xmlWithMultiplePersonalCodes))
+      assertThatThrownBy(
+              () ->
+                  extractor.extractFromHistoricStatement(
+                      xmlWithMultiplePersonalCodes, SWEDBANK_GATEWAY_TIME_ZONE))
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("Expected at most one personal ID code, but found: 2");
     }
@@ -489,7 +514,9 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
       String xmlWithMissingCounterPartyIban = createCamt053Xml(entries);
 
       assertThatThrownBy(
-              () -> extractor.extractFromHistoricStatement(xmlWithMissingCounterPartyIban))
+              () ->
+                  extractor.extractFromHistoricStatement(
+                      xmlWithMissingCounterPartyIban, SWEDBANK_GATEWAY_TIME_ZONE))
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("counter-party IBAN is required");
     }
@@ -536,7 +563,10 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
 
       String xmlWithMultipleEntryDetails = createCamt053Xml(entries);
 
-      assertThatThrownBy(() -> extractor.extractFromHistoricStatement(xmlWithMultipleEntryDetails))
+      assertThatThrownBy(
+              () ->
+                  extractor.extractFromHistoricStatement(
+                      xmlWithMultipleEntryDetails, SWEDBANK_GATEWAY_TIME_ZONE))
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("Expected exactly one entry details, but found: 2");
     }
@@ -612,7 +642,9 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
       String xmlWithMultipleTransactionDetails = createCamt053Xml(entries);
 
       assertThatThrownBy(
-              () -> extractor.extractFromHistoricStatement(xmlWithMultipleTransactionDetails))
+              () ->
+                  extractor.extractFromHistoricStatement(
+                      xmlWithMultipleTransactionDetails, SWEDBANK_GATEWAY_TIME_ZONE))
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("Expected exactly one transaction details, but found: 2");
     }
@@ -622,7 +654,8 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
       var entries = List.<String>of();
       String xmlWithEmptyEntries = createCamt053Xml(entries);
 
-      var statement = extractor.extractFromHistoricStatement(xmlWithEmptyEntries);
+      var statement =
+          extractor.extractFromHistoricStatement(xmlWithEmptyEntries, SWEDBANK_GATEWAY_TIME_ZONE);
 
       assertThat(statement).isNotNull();
       assertThat(statement.getEntries()).isEmpty();

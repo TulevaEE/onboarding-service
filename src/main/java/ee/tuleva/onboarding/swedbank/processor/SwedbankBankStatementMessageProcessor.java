@@ -1,10 +1,12 @@
 package ee.tuleva.onboarding.swedbank.processor;
 
+import static ee.tuleva.onboarding.banking.BankAccountType.*;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.REDEEMED;
 import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
-import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.*;
 import static java.math.BigDecimal.ZERO;
 
+import ee.tuleva.onboarding.banking.BankAccountType;
+import ee.tuleva.onboarding.banking.message.BankMessageType;
 import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
@@ -16,7 +18,6 @@ import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.swedbank.payment.EndToEndIdConverter;
-import ee.tuleva.onboarding.swedbank.statement.BankAccountType;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -41,7 +42,7 @@ class SwedbankBankStatementMessageProcessor {
   private final EndToEndIdConverter endToEndIdConverter;
 
   @Transactional
-  public void processMessage(String rawResponse, SwedbankMessageType messageType) {
+  public void processMessage(String rawResponse, BankMessageType messageType) {
     log.info("Processing bank statement message of type {}", messageType);
 
     var bankStatement =

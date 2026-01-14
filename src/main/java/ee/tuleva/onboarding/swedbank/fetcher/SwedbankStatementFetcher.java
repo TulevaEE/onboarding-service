@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.swedbank.fetcher;
 
+import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
-import ee.tuleva.onboarding.swedbank.statement.BankAccountType;
 import java.time.LocalDate;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;

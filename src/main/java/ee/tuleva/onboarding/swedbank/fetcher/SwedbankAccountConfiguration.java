@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.swedbank.fetcher;
 
 import static java.util.stream.Collectors.toMap;
 
-import ee.tuleva.onboarding.swedbank.statement.BankAccountType;
+import ee.tuleva.onboarding.banking.BankAccountType;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.constraints.NotNull;

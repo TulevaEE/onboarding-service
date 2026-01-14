@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.savings.fund.issuing;
 
+import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
+import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.event.TrackableEventType.SUBSCRIPTION_BATCH_CREATED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.PROCESSED;
-import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.DEPOSIT_EUR;
-import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.event.TrackableSystemEvent;

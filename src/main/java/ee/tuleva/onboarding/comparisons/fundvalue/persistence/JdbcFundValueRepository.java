@@ -170,6 +170,14 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
   }
 
   @Override
+  public Optional<FundValue> getValueForDate(String key, LocalDate date) {
+    List<FundValue> result =
+        jdbcTemplate.query(
+            FIND_FUND_VALUE_QUERY, Map.of("key", key, "date", date), new FundValueRowMapper());
+    return result.isEmpty() ? Optional.empty() : Optional.of(result.getFirst());
+  }
+
+  @Override
   public Optional<FundValue> getLatestValue(String key, LocalDate date) {
     List<FundValue> result =
         jdbcTemplate.query(

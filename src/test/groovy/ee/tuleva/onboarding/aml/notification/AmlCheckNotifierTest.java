@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.aml.notification;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
-import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.AML;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.notification.slack.SlackService;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,13 +13,13 @@ import org.mockito.Mockito;
 
 class AmlCheckNotifierTest {
 
-  private SlackService slackService;
+  private OperationsNotificationService notificationService;
   private AmlCheckNotifier notifier;
 
   @BeforeEach
   void setUp() {
-    slackService = Mockito.mock(SlackService.class);
-    notifier = new AmlCheckNotifier(slackService);
+    notificationService = Mockito.mock(OperationsNotificationService.class);
+    notifier = new AmlCheckNotifier(notificationService);
   }
 
   @Test
@@ -32,7 +32,7 @@ class AmlCheckNotifierTest {
 
     notifier.onAmlCheckCreated(event);
 
-    verify(slackService).sendMessage("AML check failed: checkId=123, type=SANCTION", AML);
+    verify(notificationService).sendMessage("AML check failed: checkId=123, type=SANCTION", AML);
   }
 
   @Test
@@ -45,7 +45,7 @@ class AmlCheckNotifierTest {
 
     notifier.onAmlCheckCreated(event);
 
-    verify(slackService, never()).sendMessage(anyString(), any());
+    verify(notificationService, never()).sendMessage(anyString(), any());
   }
 
   @Test
@@ -58,7 +58,7 @@ class AmlCheckNotifierTest {
 
     notifier.onAmlCheckCreated(event);
 
-    verify(slackService, never()).sendMessage(anyString(), any());
+    verify(notificationService, never()).sendMessage(anyString(), any());
   }
 
   @Test
@@ -72,7 +72,7 @@ class AmlCheckNotifierTest {
 
     notifier.onAmlCheckCreated(event);
 
-    verify(slackService)
+    verify(notificationService)
         .sendMessage("AML check failed: checkId=456, type=POLITICALLY_EXPOSED_PERSON", AML);
   }
 
@@ -85,7 +85,7 @@ class AmlCheckNotifierTest {
 
     notifier.onAmlCheckCreated(event);
 
-    verify(slackService, never()).sendMessage(anyString(), any());
+    verify(notificationService, never()).sendMessage(anyString(), any());
   }
 
   @Test
@@ -97,7 +97,7 @@ class AmlCheckNotifierTest {
     notifier.onScheduledAmlCheckJobRun(event);
 
     ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
-    verify(slackService).sendMessage(captor.capture(), eq(AML));
+    verify(notificationService).sendMessage(captor.capture(), eq(AML));
     org.junit.jupiter.api.Assertions.assertEquals(
         "Running AML checks job: numberOfRecords=10", captor.getValue());
   }
@@ -112,7 +112,7 @@ class AmlCheckNotifierTest {
     notifier.onAmlRiskLevelJobRun(event);
 
     ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
-    verify(slackService).sendMessage(captor.capture(), eq(AML));
+    verify(notificationService).sendMessage(captor.capture(), eq(AML));
     org.junit.jupiter.api.Assertions.assertEquals(
         "Ran AML Risk Level job: highRiskRecordCount=3, amlChecksCreatedCount=2",
         captor.getValue());

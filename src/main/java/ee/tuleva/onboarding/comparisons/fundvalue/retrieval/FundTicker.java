@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -73,5 +74,9 @@ public enum FundTicker {
 
   public static List<String> getEodhdTickers() {
     return Arrays.stream(values()).map(FundTicker::getEodhdTicker).toList();
+  }
+
+  public static Optional<FundTicker> findByIsin(String isin) {
+    return Arrays.stream(values()).filter(ticker -> ticker.getIsin().equals(isin)).findFirst();
   }
 }

@@ -9,7 +9,8 @@ import org.springframework.test.web.client.MockRestServiceServer
 import spock.lang.Specification
 
 import static org.mockito.Mockito.when
-import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.AML
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML
+import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel
 import static org.springframework.http.HttpMethod.POST
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
@@ -30,7 +31,6 @@ class SlackServiceSpec extends Specification {
 
   private String dummyWebhookUrl = "https://example.com"
 
-
   def setup() {
     slackService.environment = environment
   }
@@ -43,7 +43,7 @@ class SlackServiceSpec extends Specification {
     given:
     def testMessage = "Test Message 😎"
 
-    when(webhookConfiguration.getWebhookUrl(AML)).thenReturn(dummyWebhookUrl)
+    when(webhookConfiguration.getWebhookUrl(SlackChannel.AML)).thenReturn(dummyWebhookUrl)
 
     server.expect(requestTo(dummyWebhookUrl))
         .andExpect(method(POST))
@@ -60,7 +60,7 @@ class SlackServiceSpec extends Specification {
 
   def "should not send message to Slack if webhook URL is not present and not in production"() {
     given:
-    when(webhookConfiguration.getWebhookUrl(AML)).thenReturn(null)
+    when(webhookConfiguration.getWebhookUrl(SlackChannel.AML)).thenReturn(null)
     environment.matchesProfiles("production") >> false
 
 
@@ -74,7 +74,7 @@ class SlackServiceSpec extends Specification {
 
   def "throws if webhook URL is not present and in production"() {
     given:
-    when(webhookConfiguration.getWebhookUrl(AML)).thenReturn(null)
+    when(webhookConfiguration.getWebhookUrl(SlackChannel.AML)).thenReturn(null)
     environment.matchesProfiles("production") >> true
 
 

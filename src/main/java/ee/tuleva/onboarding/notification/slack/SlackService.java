@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.notification.slack;
 
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.core.env.Environment;
@@ -10,24 +12,21 @@ import org.springframework.web.client.RestTemplate;
 
 @Service
 @Slf4j
-public class SlackService {
+public class SlackService implements OperationsNotificationService {
 
   private Environment environment;
-
   private final RestTemplate restTemplate;
   private final SlackWebhookConfiguration configuration;
 
-  // mapped from slack.webhooks.___ in application properties
-  public enum SlackChannel {
+  @Getter
+  @RequiredArgsConstructor
+  enum SlackChannel {
     AML("aml"),
     WITHDRAWALS("withdrawals"),
-    CAPITAL_TRANSFER("capital_transfer");
+    CAPITAL_TRANSFER("capital_transfer"),
+    INVESTMENT("investment");
 
-    @Getter private final String configurationKey;
-
-    SlackChannel(String configurationKey) {
-      this.configurationKey = configurationKey;
-    }
+    private final String configurationKey;
   }
 
   public SlackService(
@@ -39,8 +38,10 @@ public class SlackService {
     this.environment = environment;
   }
 
-  public void sendMessage(String message, SlackChannel channel) {
-    String webhookUrl = configuration.getWebhookUrl(channel);
+  @Override
+  public void sendMessage(String message, Channel channel) {
+    SlackChannel slackChannel = SlackChannel.valueOf(channel.name());
+    String webhookUrl = configuration.getWebhookUrl(slackChannel);
 
     if (webhookUrl == null) {
       if (environment.matchesProfiles("production")) {

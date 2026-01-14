@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
 import static ee.tuleva.onboarding.event.TrackableEventType.CAPITAL_TRANSFER_STATE_CHANGE;
-import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.CAPITAL_TRANSFER;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.CAPITAL_TRANSFER;
 import static ee.tuleva.onboarding.user.MemberFixture.memberFixture;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -23,8 +23,8 @@ import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.mandate.email.persistence.Email;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.email.EmailService;
-import ee.tuleva.onboarding.notification.slack.SlackService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.member.MemberService;
@@ -54,7 +54,7 @@ class CapitalTransferContractServiceTest {
   @Mock private CapitalTransferContractContentService contractContentService;
   @Mock private CapitalService capitalService;
   @Mock private ContactDetailsService contactDetailsService;
-  @Mock private SlackService slackService;
+  @Mock private OperationsNotificationService notificationService;
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
 
@@ -373,7 +373,7 @@ class CapitalTransferContractServiceTest {
 
         var result = contractService.updateStateByUser(1L, PAYMENT_CONFIRMED_BY_SELLER, user);
         assertEquals(contract, result);
-        verify(slackService).sendMessage(anyString(), eq(CAPITAL_TRANSFER));
+        verify(notificationService).sendMessage(anyString(), eq(CAPITAL_TRANSFER));
 
         // Verify that email is sent to the buyer (not the seller)
         verify(emailService)

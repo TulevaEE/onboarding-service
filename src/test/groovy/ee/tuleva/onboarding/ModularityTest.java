@@ -28,16 +28,6 @@ class ModularityTest {
   }
 
   @Test
-  @DisplayName("Investment module has no dependencies on other modules")
-  void investmentModuleHasNoDependencies() {
-    ApplicationModule investment = modules.getModuleByName("investment").orElseThrow();
-
-    assertThat(investment.getDependencies(modules).stream())
-        .as("Investment module should not depend on any other modules")
-        .isEmpty();
-  }
-
-  @Test
   @DisplayName("No other module depends on investment module")
   void noModuleDependsOnInvestment() {
     var modulesWithInvestmentDependency =

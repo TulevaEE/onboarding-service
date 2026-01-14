@@ -4,5 +4,8 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 public interface FundValueProvider {
-  Optional<FundValue> getLatestValue(String comparisonFund, LocalDate date);
+
+  Optional<FundValue> getValueForDate(String key, LocalDate date);
+
+  Optional<FundValue> getLatestValue(String key, LocalDate date);
 }

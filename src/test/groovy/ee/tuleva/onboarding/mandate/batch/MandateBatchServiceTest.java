@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.SIGNED;
-import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.WITHDRAWALS;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.WITHDRAWALS;
 import static ee.tuleva.onboarding.signature.response.SignatureStatus.OUTSTANDING_TRANSACTION;
 import static ee.tuleva.onboarding.signature.response.SignatureStatus.SIGNATURE;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -24,7 +24,7 @@ import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
-import ee.tuleva.onboarding.notification.slack.SlackService;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
 import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession;
@@ -63,7 +63,7 @@ public class MandateBatchServiceTest {
   @Mock private MandateBatchProcessingPoller mandateBatchProcessingPoller;
   @Mock private EpisService episService;
   @Mock private ApplicationEventPublisher applicationEventPublisher;
-  @Mock private SlackService slackService;
+  @Mock private OperationsNotificationService notificationService;
 
   @Mock private SignatureService signService;
 
@@ -192,7 +192,7 @@ public class MandateBatchServiceTest {
     assertThat(result.getMandates().size()).isEqualTo(2);
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
 
-    verify(slackService, times(1))
+    verify(notificationService, times(1))
         .sendMessage(
             argThat(
                 message -> {
@@ -242,7 +242,7 @@ public class MandateBatchServiceTest {
     assertThat(result.getMandates().size()).isEqualTo(2);
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
 
-    verify(slackService, times(1))
+    verify(notificationService, times(1))
         .sendMessage(
             argThat(
                 message -> {
@@ -389,7 +389,7 @@ public class MandateBatchServiceTest {
 
     assertThat(result.getMandates().size()).isEqualTo(1);
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
-    verify(slackService, times(1))
+    verify(notificationService, times(1))
         .sendMessage(
             argThat(
                 message -> {
@@ -431,7 +431,7 @@ public class MandateBatchServiceTest {
     when(mandateBatchRepository.save(
             argThat(mandateBatch -> mandateBatch.getStatus().equals(INITIALIZED))))
         .thenReturn(aMandateBatch);
-    doThrow(new IllegalStateException()).when(slackService).sendMessage(any(), any());
+    doThrow(new IllegalStateException()).when(notificationService).sendMessage(any(), any());
 
     MandateBatch result =
         mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto);

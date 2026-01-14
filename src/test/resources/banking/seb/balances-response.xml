@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.052.001.02">
+  <BkToCstmrAcctRpt>
+    <GrpHdr>
+      <MsgId>60d397512c85407ba37df0157081a5c2</MsgId>
+      <CreDtTm>2026-01-13T21:28:15.921+02:00</CreDtTm>
+    </GrpHdr>
+    <Rpt>
+      <Id>f07e1934f2bf4cc992f1d7a2c0704c9f</Id>
+      <CreDtTm>2026-01-13T21:28:15.926+02:00</CreDtTm>
+      <Acct>
+        <Id>
+          <IBAN>EE651010220306497226</IBAN>
+        </Id>
+        <Ccy>EUR</Ccy>
+        <Ownr>
+          <Nm>BGW TESTCLIENT1</Nm>
+          <PstlAdr>
+            <AdrLine>TORNI 2 TALLINN 13629</AdrLine>
+          </PstlAdr>
+          <Id>
+            <OrgId>
+              <Othr>
+                <Id>22255887</Id>
+                <SchmeNm>
+                  <Cd>COID</Cd>
+                </SchmeNm>
+              </Othr>
+            </OrgId>
+          </Id>
+        </Ownr>
+        <Svcr>
+          <FinInstnId>
+            <BIC>EEUHEE2X</BIC>
+            <Nm>AS SEB PANK</Nm>
+            <PstlAdr>
+              <AdrLine>TORNIMÄE 2 TALLINN 15010 ESTONIA</AdrLine>
+            </PstlAdr>
+            <Othr>
+              <Id>10004252</Id>
+              <SchmeNm>
+                <Cd>COID</Cd>
+              </SchmeNm>
+            </Othr>
+          </FinInstnId>
+        </Svcr>
+      </Acct>
+      <Bal>
+        <Tp>
+          <CdOrPrtry>
+            <Cd>OPBD</Cd>
+          </CdOrPrtry>
+        </Tp>
+        <Amt Ccy="EUR">50001.30</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt>
+          <Dt>2026-01-13</Dt>
+        </Dt>
+      </Bal>
+      <Bal>
+        <Tp>
+          <CdOrPrtry>
+            <Cd>ITBD</Cd>
+          </CdOrPrtry>
+        </Tp>
+        <Amt Ccy="EUR">50001.30</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt>
+          <Dt>2026-01-13</Dt>
+        </Dt>
+      </Bal>
+      <Bal>
+        <Tp>
+          <CdOrPrtry>
+            <Cd>ITAV</Cd>
+          </CdOrPrtry>
+        </Tp>
+        <Amt Ccy="EUR">50001.30</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt>
+          <Dt>2026-01-13</Dt>
+        </Dt>
+      </Bal>
+      <Bal>
+        <Tp>
+          <CdOrPrtry>
+            <Prtry>ODFT</Prtry>
+          </CdOrPrtry>
+        </Tp>
+        <Amt Ccy="EUR">0.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt>
+          <Dt>2026-01-13</Dt>
+        </Dt>
+      </Bal>
+      <Bal>
+        <Tp>
+          <CdOrPrtry>
+            <Cd>INFO</Cd>
+          </CdOrPrtry>
+          <SubTp>
+            <Cd>BLKD</Cd>
+          </SubTp>
+        </Tp>
+        <Amt Ccy="EUR">0.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt>
+          <Dt>2026-01-13</Dt>
+        </Dt>
+      </Bal>
+    </Rpt>
+  </BkToCstmrAcctRpt>
+</Document>

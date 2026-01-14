@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ImportedPaymentFileDTO>
+  <importedFileId>47f027bd-af21-4464-9e18-d08e32eade6c</importedFileId>
+  <status>PENDING</status>
+  <errorCode/>
+  <errorMessage/>
+  <links>
+    <links>
+      <rel>self</rel>
+      <href>/v1/imported-payment-files/47f027bd-af21-4464-9e18-d08e32eade6c</href>
+    </links>
+  </links>
+</ImportedPaymentFileDTO>

@@ -40,3 +40,4 @@ src/main/resources/application-dev.yml
 
 # Infrastructure files stored in S3 (see README.md - Infrastructure Management section)
 infrastructure/
+.env

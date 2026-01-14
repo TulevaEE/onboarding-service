@@ -35,7 +35,7 @@ public class SavingsFundStatementService {
           .isin("EE0000000000")
           .pillar(null)
           .nameEnglish("Tuleva Additional Savings Fund")
-          .nameEstonian("Tuleva täiendav kogumisfond")
+          .nameEstonian("Tuleva Täiendav Kogumisfond")
           .managementFeeRate(new BigDecimal("0.0019"))
           .ongoingChargesFigure(new BigDecimal("0.0029"))
           .status(ACTIVE)

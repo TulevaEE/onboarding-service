@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.swedbank.statement;
+package ee.tuleva.onboarding.banking;
 
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 

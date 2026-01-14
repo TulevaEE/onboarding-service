@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.swedbank.reconcillation;
 
+import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType.HISTORIC_STATEMENT;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.CLOSE;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.OPEN;
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.systemAccountWithBalance;
-import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.DEPOSIT_EUR;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 

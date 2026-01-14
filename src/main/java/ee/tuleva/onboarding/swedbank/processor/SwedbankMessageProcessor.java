@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.swedbank.processor;
 
-public interface SwedbankMessageProcessor {
-  void processMessage(String rawResponse, SwedbankMessageType messageType);
+import ee.tuleva.onboarding.banking.message.BankMessageType;
 
-  boolean supports(SwedbankMessageType messageType);
+public interface SwedbankMessageProcessor {
+  void processMessage(String rawResponse, BankMessageType messageType);
+
+  boolean supports(BankMessageType messageType);
 }

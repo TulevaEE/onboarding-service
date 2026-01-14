@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.swedbank.processor;
 
 import static ee.tuleva.onboarding.banking.BankType.SWEDBANK;
-import static ee.tuleva.onboarding.swedbank.processor.SwedbankMessageType.*;
+import static ee.tuleva.onboarding.banking.message.BankMessageType.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 

@@ -1,8 +1,9 @@
 package ee.tuleva.onboarding.swedbank.processor;
 
-import static ee.tuleva.onboarding.swedbank.processor.SwedbankMessageType.HISTORIC_STATEMENT;
-import static ee.tuleva.onboarding.swedbank.processor.SwedbankMessageType.INTRA_DAY_REPORT;
+import static ee.tuleva.onboarding.banking.message.BankMessageType.HISTORIC_STATEMENT;
+import static ee.tuleva.onboarding.banking.message.BankMessageType.INTRA_DAY_REPORT;
 
+import ee.tuleva.onboarding.banking.message.BankMessageType;
 import ee.tuleva.onboarding.swedbank.reconcillation.SwedbankCheckingReconciliator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +20,7 @@ class SwedbankBankStatementMessageCompositeProcessor implements SwedbankMessageP
 
   @Override
   @Transactional
-  public void processMessage(String rawResponse, SwedbankMessageType messageType) {
+  public void processMessage(String rawResponse, BankMessageType messageType) {
     this.swedbankBankStatementMessageProcessor.processMessage(rawResponse, messageType);
 
     if (messageType == HISTORIC_STATEMENT) {
@@ -28,7 +29,7 @@ class SwedbankBankStatementMessageCompositeProcessor implements SwedbankMessageP
   }
 
   @Override
-  public boolean supports(SwedbankMessageType messageType) {
+  public boolean supports(BankMessageType messageType) {
     return messageType == INTRA_DAY_REPORT || messageType == HISTORIC_STATEMENT;
   }
 }

@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
-import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.banking.BankType;
@@ -218,7 +218,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     // given - XML with WITHDRAWAL_EUR account IBAN
     var withdrawalAccountIban =
         swedbankAccountConfiguration.getAccountIban(
-            ee.tuleva.onboarding.swedbank.statement.BankAccountType.WITHDRAWAL_EUR);
+            ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR);
     var withdrawalAccountXml =
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
             + "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.052.001.02\"> "

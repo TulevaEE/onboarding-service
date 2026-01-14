@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.swedbank.fetcher;
 
-import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.DEPOSIT_EUR;
+import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 

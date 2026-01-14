@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.swedbank.processor;
 
+import ee.tuleva.onboarding.banking.message.BankMessageType;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
 import java.io.StringReader;
@@ -42,7 +43,7 @@ public class SwedbankMessageDelegator {
     try {
       var messageName =
           extractMessageName(extractNamespace(message.getRawResponse()).orElseThrow());
-      var messageType = SwedbankMessageType.fromXmlType(messageName);
+      var messageType = BankMessageType.fromXmlType(messageName);
 
       var supportedProcessor =
           messageProcessors.stream()

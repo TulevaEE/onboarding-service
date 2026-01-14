@@ -6,12 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull; // Added for basic
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class MandateDeadlinesServiceTest {
 
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
   private final Instant fixedTime = Instant.parse("2021-03-11T10:00:00Z");
   private Clock clock;
   private PublicHolidays publicHolidays;
@@ -19,7 +20,7 @@ public class MandateDeadlinesServiceTest {
 
   @BeforeEach
   void setup() {
-    clock = Clock.fixed(fixedTime, ZoneOffset.UTC);
+    clock = Clock.fixed(fixedTime, ESTONIAN_ZONE);
     publicHolidays = new PublicHolidays();
     service = new MandateDeadlinesService(clock, publicHolidays);
   }
@@ -29,17 +30,20 @@ public class MandateDeadlinesServiceTest {
     MandateDeadlines deadlines = service.getDeadlines();
 
     assertNotNull(deadlines);
-    assertEquals(Instant.parse("2021-03-31T23:59:59.999999999Z"), deadlines.getPeriodEnding());
+    // March 31, 2021 23:59:59 Estonian time (EEST = UTC+3) = 20:59:59 UTC
+    assertEquals(Instant.parse("2021-03-31T20:59:59.999999999Z"), deadlines.getPeriodEnding());
     assertEquals(
-        Instant.parse("2021-03-31T23:59:59.999999999Z"),
+        Instant.parse("2021-03-31T20:59:59.999999999Z"),
         deadlines.getTransferMandateCancellationDeadline());
     assertEquals(LocalDate.parse("2021-05-03"), deadlines.getTransferMandateFulfillmentDate());
+    // July 31, 2021 23:59:59 Estonian time (EEST = UTC+3) = 20:59:59 UTC
     assertEquals(
-        Instant.parse("2021-07-31T23:59:59.999999999Z"),
+        Instant.parse("2021-07-31T20:59:59.999999999Z"),
         deadlines.getEarlyWithdrawalCancellationDeadline());
     assertEquals(LocalDate.parse("2021-09-01"), deadlines.getEarlyWithdrawalFulfillmentDate());
+    // March 31, 2021 23:59:59 Estonian time (EEST = UTC+3) = 20:59:59 UTC
     assertEquals(
-        Instant.parse("2021-03-31T23:59:59.999999999Z"),
+        Instant.parse("2021-03-31T20:59:59.999999999Z"),
         deadlines.getWithdrawalCancellationDeadline());
     assertEquals(LocalDate.parse("2021-04-16"), deadlines.getWithdrawalFulfillmentDate());
   }
@@ -50,17 +54,20 @@ public class MandateDeadlinesServiceTest {
     MandateDeadlines deadlines = service.getDeadlines(specificApplicationDate);
 
     assertNotNull(deadlines);
-    assertEquals(Instant.parse("2021-03-31T23:59:59.999999999Z"), deadlines.getPeriodEnding());
+    // March 31, 2021 23:59:59 Estonian time (EEST = UTC+3) = 20:59:59 UTC
+    assertEquals(Instant.parse("2021-03-31T20:59:59.999999999Z"), deadlines.getPeriodEnding());
     assertEquals(
-        Instant.parse("2021-03-31T23:59:59.999999999Z"),
+        Instant.parse("2021-03-31T20:59:59.999999999Z"),
         deadlines.getTransferMandateCancellationDeadline());
     assertEquals(LocalDate.parse("2021-05-03"), deadlines.getTransferMandateFulfillmentDate());
+    // July 31, 2021 23:59:59 Estonian time (EEST = UTC+3) = 20:59:59 UTC
     assertEquals(
-        Instant.parse("2021-07-31T23:59:59.999999999Z"),
+        Instant.parse("2021-07-31T20:59:59.999999999Z"),
         deadlines.getEarlyWithdrawalCancellationDeadline());
     assertEquals(LocalDate.parse("2021-09-01"), deadlines.getEarlyWithdrawalFulfillmentDate());
+    // March 31, 2021 23:59:59 Estonian time (EEST = UTC+3) = 20:59:59 UTC
     assertEquals(
-        Instant.parse("2021-03-31T23:59:59.999999999Z"),
+        Instant.parse("2021-03-31T20:59:59.999999999Z"),
         deadlines.getWithdrawalCancellationDeadline());
     assertEquals(LocalDate.parse("2021-04-16"), deadlines.getWithdrawalFulfillmentDate());
   }

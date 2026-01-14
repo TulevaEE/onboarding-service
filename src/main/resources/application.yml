@@ -18,6 +18,9 @@ server:
 spring:
   application:
     name: 'Onboarding Service'
+  modulith:
+    moments:
+      enabled: false
   datasource:
     url: jdbc:postgresql://localhost:5432/tuleva-onboarding
     username: tuleva-onboarding

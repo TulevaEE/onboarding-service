@@ -630,6 +630,60 @@ class AmlServiceTest {
   }
 
   @Test
+  @DisplayName("addSanctionAndPepCheckIfMissing: handles override check with null results in metadata")
+  void addSanctionAndPepCheckIfMissing_handlesNullResultsInOverrideMetadata() {
+    // given
+    User user = createUser("123", "First", "Last", 1L);
+    Country country = new Country("EE");
+
+    ArrayNode resultsArray = objectMapper.createArrayNode();
+    ObjectNode resultNode = JsonNodeFactory.instance.objectNode();
+    resultNode.put("id", "matchId123");
+    resultNode.put("match", true);
+    ObjectNode propertiesNode = JsonNodeFactory.instance.objectNode();
+    propertiesNode.set("topics", JsonNodeFactory.instance.arrayNode().add("role.pep"));
+    resultNode.set("properties", propertiesNode);
+    resultsArray.add(resultNode);
+    JsonNode queryNode = JsonNodeFactory.instance.objectNode();
+    MatchResponse matchResponse = new MatchResponse(resultsArray, queryNode);
+
+    when(pepAndSanctionCheckService.match(user, country)).thenReturn(matchResponse);
+    when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+            anyString(), any(AmlCheckType.class), any(Instant.class)))
+        .thenReturn(false);
+
+    AmlCheck overrideWithNullResults =
+        AmlCheck.builder()
+            .type(POLITICALLY_EXPOSED_PERSON_OVERRIDE)
+            .success(true)
+            .metadata(Map.of("query", "some query"))
+            .build();
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
+            user.getPersonalCode(), POLITICALLY_EXPOSED_PERSON_OVERRIDE, true))
+        .thenReturn(List.of(overrideWithNullResults));
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
+            user.getPersonalCode(), SANCTION_OVERRIDE, true))
+        .thenReturn(Collections.emptyList());
+
+    // when
+    List<AmlCheck> addedChecks = amlService.addSanctionAndPepCheckIfMissing(user, country);
+
+    // then
+    verify(amlCheckRepository, times(2)).save(amlCheckCaptor.capture());
+    List<AmlCheck> savedChecks = amlCheckCaptor.getAllValues();
+    AmlCheck pepAutoCheck =
+        savedChecks.stream()
+            .filter(c -> c.getType() == POLITICALLY_EXPOSED_PERSON_AUTO)
+            .findFirst()
+            .orElseThrow();
+
+    assertFalse(
+        pepAutoCheck.isSuccess(),
+        "PEP check should fail as override has null results and cannot match");
+    assertEquals(2, addedChecks.size());
+  }
+
+  @Test
   @DisplayName("runAmlChecksOnThirdPillarCustomers: processes records and adds checks")
   void runAmlChecksOnThirdPillarCustomers_processesRecords() {
     // given

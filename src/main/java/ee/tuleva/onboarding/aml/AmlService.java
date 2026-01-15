@@ -140,6 +140,14 @@ public class AmlService {
             check -> {
               @SuppressWarnings("unchecked")
               var foundResults = (Iterable<Map<String, String>>) check.getMetadata().get("results");
+              if (foundResults == null) {
+                log.info(
+                    "AML override check has null results in metadata: personalCode={}, overrideType={}, checkId={}",
+                    person.getPersonalCode(),
+                    overrideType,
+                    check.getId());
+                return false;
+              }
               return stream(foundResults).anyMatch(result -> ids.contains(result.get("id")));
             });
   }

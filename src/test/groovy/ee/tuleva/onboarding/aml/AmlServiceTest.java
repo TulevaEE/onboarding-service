@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.aml;
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.*;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
+import static java.util.Arrays.stream;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -34,16 +36,12 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -121,7 +119,6 @@ class AmlServiceTest {
   }
 
   @Test
-  @DisplayName("checkUserBeforeLogin: adds document, SK name, and residency checks when resident")
   void checkUserBeforeLogin_addsAllChecks_whenResident() {
     // given
     User testUser = createUser("12345", "Test", "User", 1L);
@@ -163,7 +160,6 @@ class AmlServiceTest {
   }
 
   @Test
-  @DisplayName("checkUserBeforeLogin: does not add residency check if isResident is null")
   void checkUserBeforeLogin_noResidencyCheck_whenIsNull() {
     // given
     User testUser = createUser("12345", "Test", "User", 1L);
@@ -184,7 +180,6 @@ class AmlServiceTest {
   }
 
   @Test
-  @DisplayName("checkUserBeforeLogin: SK name check fails if last names differ")
   void checkUserBeforeLogin_skNameCheckFails_onLastNameMismatch() {
     // given
     User user = createUser("12345", "Test", "User", 1L);
@@ -208,7 +203,6 @@ class AmlServiceTest {
   }
 
   @Test
-  @DisplayName("addPensionRegistryNameCheckIfMissing: adds check if missing and names match")
   void addPensionRegistryNameCheckIfMissing_addsCheck_whenMissingAndNamesMatch() {
     // given
     User user = createUser("123", "First", "Last", 1L);
@@ -234,7 +228,6 @@ class AmlServiceTest {
   }
 
   @Test
-  @DisplayName("addPensionRegistryNameCheckIfMissing: saves failed check if last names differ")
   void addPensionRegistryNameCheckIfMissing_savesFailedCheck_onLastNameMismatch() {
     // given
     User user = createUser("123", "First", "OriginalLast", 1L);
@@ -256,7 +249,6 @@ class AmlServiceTest {
   }
 
   @Test
-  @DisplayName("addContactDetailsCheckIfMissing: adds check if missing")
   void addContactDetailsCheckIfMissing_addsCheck() {
     // given
     User user = createUser("123", "First", "Last", 1L);
@@ -278,7 +270,6 @@ class AmlServiceTest {
   }
 
   @Test
-  @DisplayName("addCheckIfMissing: adds check when it does not exist")
   void addCheckIfMissing_addsCheck_whenNotExists() {
     // given
     AmlCheck newCheck = AmlCheck.builder().personalCode("123").type(DOCUMENT).success(true).build();
@@ -296,7 +287,6 @@ class AmlServiceTest {
   }
 
   @Test
-  @DisplayName("addCheckIfMissing: does not add check when it already exists")
   void addCheckIfMissing_doesNotAdd_whenExists() {
     // given
     AmlCheck existingCheck =
@@ -315,7 +305,6 @@ class AmlServiceTest {
   }
 
   @Test
-  @DisplayName("getChecks: returns checks from repository")
   void getChecks_returnsAllChecks() {
     // given
     User user = createUser("123", "Test", "User", 1L);
@@ -331,7 +320,6 @@ class AmlServiceTest {
   }
 
   @Test
-  @DisplayName("allChecksPassed: returns true for pillar 2")
   void allChecksPassed_trueForPillar2() {
     // given
     User user = createUser("123", "Test", "User", 1L);
@@ -348,7 +336,7 @@ class AmlServiceTest {
 
   private static Stream<Arguments> allChecksPassedThirdPillarScenarios() {
     return Stream.of(
-        Arguments.of(Collections.emptyList(), false, true),
+        Arguments.of(List.of(), false, true),
         Arguments.of(
             successfulChecks(
                 POLITICALLY_EXPOSED_PERSON,
@@ -394,19 +382,19 @@ class AmlServiceTest {
                     successfulChecks(SANCTION, DOCUMENT, OCCUPATION, RESIDENCY_AUTO, SK_NAME)
                         .stream(),
                     failedChecks(POLITICALLY_EXPOSED_PERSON).stream())
-                .collect(Collectors.toList()),
+                .toList(),
             true,
-            false), // Failed manual PEP declaration should still allow mandate signing
+            false),
         Arguments.of(
             successfulChecks(
                 POLITICALLY_EXPOSED_PERSON, DOCUMENT, OCCUPATION, RESIDENCY_AUTO, SK_NAME),
             false,
-            true), // Missing SANCTION
+            true),
         Arguments.of(
             successfulChecks(
                 POLITICALLY_EXPOSED_PERSON, SANCTION, DOCUMENT, OCCUPATION, RESIDENCY_MANUAL),
             false,
-            true), // Missing NAME check
+            true),
         Arguments.of(
             successfulChecks(
                 POLITICALLY_EXPOSED_PERSON_AUTO,
@@ -421,7 +409,6 @@ class AmlServiceTest {
 
   @ParameterizedTest
   @MethodSource("allChecksPassedThirdPillarScenarios")
-  @DisplayName("allChecksPassed: evaluates third pillar non-withdrawal checks correctly")
   void allChecksPassed_evaluatesThirdPillar(
       List<AmlCheck> checks, boolean expectedResult, boolean eventExpected) {
     // given
@@ -488,8 +475,7 @@ class AmlServiceTest {
 
   @ParameterizedTest
   @MethodSource("amlChecksRequiredMandateScenarios")
-  @DisplayName("isMandateAmlCheckRequired: works correctly")
-  void isMandateAmlCheckRequired_returnsTrue(
+  void isMandateAmlCheckRequired_worksCorrectly(
       ConversionResponse conversion, Mandate mandate, Checks expectedResult) {
     User user = createUser("12345", "Test", "User", 1L);
     when(userConversionService.getConversion(user)).thenReturn(conversion);
@@ -500,8 +486,6 @@ class AmlServiceTest {
   }
 
   @Test
-  @DisplayName(
-      "addSanctionAndPepCheckIfMissing: adds PEP and Sanction checks based on match response")
   void addSanctionAndPepCheckIfMissing_addsChecks() {
     // given
     User user = createUser("123", "First", "Last", 1L);
@@ -525,10 +509,10 @@ class AmlServiceTest {
         .thenReturn(false);
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
             user.getPersonalCode(), POLITICALLY_EXPOSED_PERSON_OVERRIDE, true))
-        .thenReturn(Collections.emptyList());
+        .thenReturn(List.of());
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
             user.getPersonalCode(), SANCTION_OVERRIDE, true))
-        .thenReturn(Collections.emptyList());
+        .thenReturn(List.of());
 
     // when
     List<AmlCheck> addedChecks = amlService.addSanctionAndPepCheckIfMissing(user, country);
@@ -556,7 +540,6 @@ class AmlServiceTest {
   }
 
   @Test
-  @DisplayName("addSanctionAndPepCheckIfMissing: considers overrides for PEP and Sanction checks")
   void addSanctionAndPepCheckIfMissing_considersOverrides() {
     // given
     User user = createUser("123", "First", "Last", 1L);
@@ -591,7 +574,7 @@ class AmlServiceTest {
 
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
             user.getPersonalCode(), SANCTION_OVERRIDE, true))
-        .thenReturn(Collections.emptyList());
+        .thenReturn(List.of());
 
     // when
     List<AmlCheck> addedChecks = amlService.addSanctionAndPepCheckIfMissing(user, country);
@@ -613,7 +596,57 @@ class AmlServiceTest {
   }
 
   @Test
-  @DisplayName("addSanctionAndPepCheckIfMissing: handles RuntimeException from match service")
+  void blanketOverrideWithoutResultsMetadata_appliesToAllMatches() {
+    // given
+    User user = createUser("123", "First", "Last", 1L);
+    Country country = new Country("EE");
+
+    ArrayNode resultsArray = objectMapper.createArrayNode();
+    ObjectNode resultNode = JsonNodeFactory.instance.objectNode();
+    resultNode.put("id", "matchId123");
+    resultNode.put("match", true);
+    ObjectNode propertiesNode = JsonNodeFactory.instance.objectNode();
+    propertiesNode.set("topics", JsonNodeFactory.instance.arrayNode().add("role.pep"));
+    resultNode.set("properties", propertiesNode);
+    resultsArray.add(resultNode);
+    JsonNode queryNode = JsonNodeFactory.instance.objectNode();
+    MatchResponse matchResponse = new MatchResponse(resultsArray, queryNode);
+
+    when(pepAndSanctionCheckService.match(user, country)).thenReturn(matchResponse);
+    when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+            anyString(), any(AmlCheckType.class), any(Instant.class)))
+        .thenReturn(false);
+
+    AmlCheck blanketOverrideWithoutResults =
+        AmlCheck.builder()
+            .type(POLITICALLY_EXPOSED_PERSON_OVERRIDE)
+            .success(true)
+            .metadata(Map.of("comment", "Kinnitan ärisuhte", "createdBy", "admin"))
+            .build();
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
+            user.getPersonalCode(), POLITICALLY_EXPOSED_PERSON_OVERRIDE, true))
+        .thenReturn(List.of(blanketOverrideWithoutResults));
+
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
+            user.getPersonalCode(), SANCTION_OVERRIDE, true))
+        .thenReturn(List.of());
+
+    // when
+    amlService.addSanctionAndPepCheckIfMissing(user, country);
+
+    // then
+    verify(amlCheckRepository, times(2)).save(amlCheckCaptor.capture());
+    List<AmlCheck> savedChecks = amlCheckCaptor.getAllValues();
+    AmlCheck pepAutoCheck =
+        savedChecks.stream()
+            .filter(c -> c.getType() == POLITICALLY_EXPOSED_PERSON_AUTO)
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(pepAutoCheck.isSuccess()).isTrue();
+  }
+
+  @Test
   void addSanctionAndPepCheckIfMissing_handlesMatchServiceException() {
     // given
     User user = createUser("123", "First", "Last", 1L);
@@ -630,7 +663,6 @@ class AmlServiceTest {
   }
 
   @Test
-  @DisplayName("runAmlChecksOnThirdPillarCustomers: processes records and adds checks")
   void runAmlChecksOnThirdPillarCustomers_processesRecords() {
     // given
     AnalyticsRecentThirdPillar record1 = mock(AnalyticsRecentThirdPillar.class);
@@ -652,10 +684,10 @@ class AmlServiceTest {
 
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
             anyString(), eq(POLITICALLY_EXPOSED_PERSON_OVERRIDE), eq(true)))
-        .thenReturn(Collections.emptyList());
+        .thenReturn(List.of());
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
             anyString(), eq(SANCTION_OVERRIDE), eq(true)))
-        .thenReturn(Collections.emptyList());
+        .thenReturn(List.of());
 
     // when
     amlService.runAmlChecksOnThirdPillarCustomers();
@@ -668,14 +700,14 @@ class AmlServiceTest {
   }
 
   private static List<AmlCheck> successfulChecks(AmlCheckType... checkTypes) {
-    return Arrays.stream(checkTypes)
+    return stream(checkTypes)
         .map(type -> AmlCheck.builder().type(type).success(true).build())
-        .collect(Collectors.toList());
+        .toList();
   }
 
   private static List<AmlCheck> failedChecks(AmlCheckType... checkTypes) {
-    return Arrays.stream(checkTypes)
+    return stream(checkTypes)
         .map(type -> AmlCheck.builder().type(type).success(false).build())
-        .collect(Collectors.toList());
+        .toList();
   }
 }

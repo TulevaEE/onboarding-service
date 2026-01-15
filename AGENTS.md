@@ -249,6 +249,19 @@ The application follows domain-driven design with these main domains:
 - **Run tests before committing**: Always execute tests to ensure they pass before finalizing changes
 - **Fix broken tests immediately**: Never leave failing tests in the codebase
 - **Coverage is necessary but not sufficient**: High coverage without good test quality is meaningless
+- **Verify against CLAUDE.md principles**: After completing any change, review your code against the principles in this file and fix any violations
+
+#### Test-First Bug Fixing
+When fixing bugs, always follow the test-first approach:
+1. **Write a failing test first**: Create a test case that reproduces the bug
+2. **Verify the test fails**: Run the test to confirm it captures the buggy behavior
+3. **Fix the code**: Implement the minimal fix to make the test pass
+4. **Verify the test passes**: Run the test to confirm the fix works
+
+This approach ensures:
+- The bug is properly understood before fixing
+- The fix is verified to actually resolve the issue
+- Regression protection is in place for the future
 
 #### Test Behavior, Not Implementation
 - **Always test behavior, not implementation details**: Tests should assert on the output/result, not on how it's achieved
@@ -263,7 +276,6 @@ The application follows domain-driven design with these main domains:
 
 #### Test Framework
 - JUnit 5 tests for integration and unit tests
-  - Add @DisplayName to @Test
 - Spock framework (Groovy) tests when test data presentable in a table format with @Unroll
 - H2 in-memory database for test isolation
 - Snapshot testing for complex responses

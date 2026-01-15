@@ -140,6 +140,9 @@ public class AmlService {
             check -> {
               @SuppressWarnings("unchecked")
               var foundResults = (Iterable<Map<String, String>>) check.getMetadata().get("results");
+              if (foundResults == null) {
+                return true;
+              }
               return stream(foundResults).anyMatch(result -> ids.contains(result.get("id")));
             });
   }

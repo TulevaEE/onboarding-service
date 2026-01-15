@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static ee.tuleva.onboarding.ledger.SystemAccount.*;
+import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
@@ -11,17 +11,14 @@ import static java.math.RoundingMode.HALF_UP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
+import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
@@ -76,7 +73,7 @@ class RedemptionIntegrationTest {
 
     testUser =
         userRepository.save(sampleUser().id(null).member(null).personalCode("39901019992").build());
-    savingsFundOnboardingRepository.saveOnboardingStatus(testUser.getId(), COMPLETED);
+    savingsFundOnboardingRepository.saveOnboardingStatus(testUser.getPersonalCode(), COMPLETED);
     setupUserWithFundUnits(new BigDecimal("1000.00"), new BigDecimal("100.00000"));
     setupUserDepositIban(VALID_IBAN);
   }
@@ -360,16 +357,16 @@ class RedemptionIntegrationTest {
             .beneficiaryIban("EE362200221234567897")
             .beneficiaryIdCode("12345678")
             .beneficiaryName("Tuleva")
-            .status(SavingFundPayment.Status.PROCESSED)
+            .status(Status.PROCESSED)
             .build();
 
     var paymentId = savingFundPaymentRepository.savePaymentData(payment);
     savingFundPaymentRepository.attachUser(paymentId, user.getId());
-    savingFundPaymentRepository.changeStatus(paymentId, SavingFundPayment.Status.RECEIVED);
-    savingFundPaymentRepository.changeStatus(paymentId, SavingFundPayment.Status.VERIFIED);
-    savingFundPaymentRepository.changeStatus(paymentId, SavingFundPayment.Status.RESERVED);
-    savingFundPaymentRepository.changeStatus(paymentId, SavingFundPayment.Status.ISSUED);
-    savingFundPaymentRepository.changeStatus(paymentId, SavingFundPayment.Status.PROCESSED);
+    savingFundPaymentRepository.changeStatus(paymentId, Status.RECEIVED);
+    savingFundPaymentRepository.changeStatus(paymentId, Status.VERIFIED);
+    savingFundPaymentRepository.changeStatus(paymentId, Status.RESERVED);
+    savingFundPaymentRepository.changeStatus(paymentId, Status.ISSUED);
+    savingFundPaymentRepository.changeStatus(paymentId, Status.PROCESSED);
   }
 
   @Test

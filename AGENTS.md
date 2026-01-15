@@ -138,6 +138,33 @@ The application follows domain-driven design with these main domains:
 - H2 compatibility migrations for testing in format `V1_{n-1}_1__.sql`
 - Session storage via Spring Session JDBC
 
+#### Migration Best Practices
+- **Always use explicit constraint names**: H2 and PostgreSQL generate different auto-names for constraints. Always name constraints explicitly to ensure migrations work on both databases:
+  ```sql
+  -- ❌ Bad: Auto-generated constraint name (differs between H2 and PostgreSQL)
+  CREATE TABLE my_table (
+      id bigint primary key
+  );
+
+  -- ✅ Good: Explicit constraint name (consistent across databases)
+  CREATE TABLE my_table (
+      id bigint not null,
+      constraint my_table_pkey primary key (id)
+  );
+  ```
+- **Recreate tables for complex schema changes**: When changing primary keys or making complex alterations, create a new table, migrate data, drop old table, and rename - this is more compatible across H2 and PostgreSQL than `ALTER TABLE ... DROP CONSTRAINT`
+
+#### PostgreSQL Best Practices
+- **Prefer `text` over `varchar(n)`**: PostgreSQL treats them identically internally, but `varchar(n)` adds unnecessary length checking and can cause migration issues if you need to increase the length later
+- **Use `char(n)` for fixed-length identifiers**: When a field has a known fixed length (e.g., Estonian personal code is always 11 characters), `char(11)` is appropriate and documents the constraint
+- **Use `timestamptz` for timestamps**: Always use `timestamp with time zone` (or `timestamptz`) instead of `timestamp`. It stores in UTC internally and handles timezone conversions correctly. Pairs well with Java `Instant`
+- **Use `bigint` for IDs**: Prefer `bigint` over `integer` for primary keys to avoid running out of IDs in high-volume tables
+- **Use `numeric` for money**: Never use `float` or `double` for monetary values. Use `numeric(precision, scale)` (e.g., `numeric(19,2)` for currency amounts)
+- **Add indexes for foreign keys**: PostgreSQL doesn't automatically index foreign key columns. Add indexes explicitly for columns used in JOINs
+- **Use `jsonb` over `json`**: When storing JSON data, prefer `jsonb` which is binary and supports indexing, over `json` which stores as text
+- **Use `uuid` for external identifiers**: Use native `uuid` type instead of `varchar(36)` for UUIDs - it's more efficient and validates format
+- **Prefer `boolean` over integer flags**: Use native `boolean` type instead of `integer` with 0/1 values
+
 #### Database Access
 - **Prefer JdbcClient over JdbcTemplate**: Use Spring's modern `JdbcClient` (introduced in Spring Framework 6.1) instead of `NamedParameterJdbcTemplate` or `JdbcTemplate`
   - JdbcClient provides a fluent, chainable API that's more readable and less verbose

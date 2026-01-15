@@ -13,31 +13,33 @@ public class SavingsFundOnboardingRepository {
 
   private final JdbcClient jdbcClient;
 
-  public boolean isOnboardingCompleted(Long userId) {
-    return findStatusByUserId(userId).filter(status -> status == COMPLETED).isPresent();
+  public boolean isOnboardingCompleted(String personalCode) {
+    return findStatusByPersonalCode(personalCode).filter(status -> status == COMPLETED).isPresent();
   }
 
-  public Optional<SavingsFundOnboardingStatus> findStatusByUserId(Long userId) {
+  public Optional<SavingsFundOnboardingStatus> findStatusByPersonalCode(String personalCode) {
     return jdbcClient
-        .sql("SELECT status FROM savings_fund_onboarding WHERE user_id = :userId")
-        .param("userId", userId)
+        .sql("SELECT status FROM savings_fund_onboarding WHERE personal_code = :personalCode")
+        .param("personalCode", personalCode)
         .query(String.class)
         .optional()
         .map(SavingsFundOnboardingStatus::valueOf);
   }
 
-  public void saveOnboardingStatus(Long userId, SavingsFundOnboardingStatus status) {
+  public void saveOnboardingStatus(String personalCode, SavingsFundOnboardingStatus status) {
     int updated =
         jdbcClient
-            .sql("UPDATE savings_fund_onboarding SET status = :status WHERE user_id = :userId")
-            .param("userId", userId)
+            .sql(
+                "UPDATE savings_fund_onboarding SET status = :status WHERE personal_code = :personalCode")
+            .param("personalCode", personalCode)
             .param("status", status.name())
             .update();
 
     if (updated == 0) {
       jdbcClient
-          .sql("INSERT INTO savings_fund_onboarding (user_id, status) VALUES (:userId, :status)")
-          .param("userId", userId)
+          .sql(
+              "INSERT INTO savings_fund_onboarding (personal_code, status) VALUES (:personalCode, :status)")
+          .param("personalCode", personalCode)
           .param("status", status.name())
           .update();
     }

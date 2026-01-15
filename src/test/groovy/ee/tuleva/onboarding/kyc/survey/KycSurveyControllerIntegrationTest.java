@@ -5,19 +5,15 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.HIGH;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
+import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.WHITELISTED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import ee.tuleva.onboarding.kyc.BeforeKycCheckedEvent;
-import ee.tuleva.onboarding.kyc.KycCheck;
-import ee.tuleva.onboarding.kyc.KycCheckPerformedEvent;
-import ee.tuleva.onboarding.kyc.TestKycChecker;
-import ee.tuleva.onboarding.kyc.TestKycCheckerConfiguration;
+import ee.tuleva.onboarding.kyc.*;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
-import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.util.List;
@@ -59,8 +55,7 @@ class KycSurveyControllerIntegrationTest {
   void setUp() {
     testKycChecker.reset();
     user = userRepository.save(sampleUserNonMember().id(null).personalCode("48805051231").build());
-    savingsFundOnboardingRepository.saveOnboardingStatus(
-        user.getId(), SavingsFundOnboardingStatus.WHITELISTED);
+    savingsFundOnboardingRepository.saveOnboardingStatus(user.getPersonalCode(), WHITELISTED);
 
     var authPerson = authenticatedPersonFromUser(user).build();
 

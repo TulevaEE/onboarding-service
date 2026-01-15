@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.*;
 
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.kyc.KycCheck.RiskLevel;
@@ -20,20 +21,26 @@ public class SavingsFundOnboardingService {
   private final ApplicationEventPublisher eventPublisher;
 
   public boolean isOnboardingCompleted(User user) {
-    return savingsFundOnboardingRepository.isOnboardingCompleted(user.getId());
+    return savingsFundOnboardingRepository.isOnboardingCompleted(user.getPersonalCode());
   }
 
-  public boolean isUserWhitelisted(Long userId) {
-    return savingsFundOnboardingRepository.findStatusByUserId(userId).isPresent();
+  public boolean isWhitelisted(Person person) {
+    return savingsFundOnboardingRepository
+        .findStatusByPersonalCode(person.getPersonalCode())
+        .isPresent();
   }
 
   public SavingsFundOnboardingStatus getOnboardingStatus(User user) {
-    return savingsFundOnboardingRepository.findStatusByUserId(user.getId()).orElse(null);
+    return savingsFundOnboardingRepository
+        .findStatusByPersonalCode(user.getPersonalCode())
+        .orElse(null);
   }
 
   public void updateOnboardingStatusIfNeeded(User user, KycCheck kycCheck) {
     SavingsFundOnboardingStatus oldStatus =
-        savingsFundOnboardingRepository.findStatusByUserId(user.getId()).orElseThrow();
+        savingsFundOnboardingRepository
+            .findStatusByPersonalCode(user.getPersonalCode())
+            .orElseThrow();
     if (oldStatus == COMPLETED) {
       return;
     }
@@ -41,7 +48,7 @@ public class SavingsFundOnboardingService {
     if (oldStatus == newStatus) {
       return;
     }
-    savingsFundOnboardingRepository.saveOnboardingStatus(user.getId(), newStatus);
+    savingsFundOnboardingRepository.saveOnboardingStatus(user.getPersonalCode(), newStatus);
     eventPublisher.publishEvent(
         new TrackableEvent(
             user,

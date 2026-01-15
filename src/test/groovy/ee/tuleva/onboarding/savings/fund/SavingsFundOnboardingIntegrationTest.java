@@ -37,7 +37,7 @@ class SavingsFundOnboardingIntegrationTest {
   @BeforeEach
   void setUp() {
     user = userRepository.save(sampleUserNonMember().personalCode("39802077017").id(null).build());
-    repository.saveOnboardingStatus(user.getId(), WHITELISTED);
+    repository.saveOnboardingStatus(user.getPersonalCode(), WHITELISTED);
   }
 
   @Test
@@ -48,7 +48,7 @@ class SavingsFundOnboardingIntegrationTest {
 
     eventPublisher.publishEvent(event);
 
-    assertThat(repository.findStatusByUserId(user.getId())).contains(COMPLETED);
+    assertThat(repository.findStatusByPersonalCode(user.getPersonalCode())).contains(COMPLETED);
   }
 
   @Test
@@ -59,7 +59,7 @@ class SavingsFundOnboardingIntegrationTest {
 
     eventPublisher.publishEvent(event);
 
-    assertThat(repository.findStatusByUserId(user.getId())).contains(COMPLETED);
+    assertThat(repository.findStatusByPersonalCode(user.getPersonalCode())).contains(COMPLETED);
   }
 
   @Test
@@ -70,7 +70,7 @@ class SavingsFundOnboardingIntegrationTest {
 
     eventPublisher.publishEvent(event);
 
-    assertThat(repository.findStatusByUserId(user.getId())).contains(PENDING);
+    assertThat(repository.findStatusByPersonalCode(user.getPersonalCode())).contains(PENDING);
   }
 
   @Test
@@ -81,19 +81,19 @@ class SavingsFundOnboardingIntegrationTest {
 
     eventPublisher.publishEvent(event);
 
-    assertThat(repository.findStatusByUserId(user.getId())).contains(REJECTED);
+    assertThat(repository.findStatusByPersonalCode(user.getPersonalCode())).contains(REJECTED);
   }
 
   @Test
   @DisplayName("KycCheckPerformedEvent does not update status if already COMPLETED")
   void onKycCheckPerformed_doesNotUpdateIfAlreadyCompleted() {
-    repository.saveOnboardingStatus(user.getId(), COMPLETED);
+    repository.saveOnboardingStatus(user.getPersonalCode(), COMPLETED);
     var event =
         new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(HIGH, Map.of()));
 
     eventPublisher.publishEvent(event);
 
-    assertThat(repository.findStatusByUserId(user.getId())).contains(COMPLETED);
+    assertThat(repository.findStatusByPersonalCode(user.getPersonalCode())).contains(COMPLETED);
   }
 
   @Test

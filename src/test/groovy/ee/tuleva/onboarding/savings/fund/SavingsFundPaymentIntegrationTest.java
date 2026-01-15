@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
+import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -72,8 +73,7 @@ class SavingsFundPaymentIntegrationTest {
                 .build());
 
     // Mark user as onboarded to savings fund
-    savingsFundOnboardingRepository.saveOnboardingStatus(
-        testUser.getId(), SavingsFundOnboardingStatus.COMPLETED);
+    savingsFundOnboardingRepository.saveOnboardingStatus(testUser.getPersonalCode(), COMPLETED);
   }
 
   @AfterEach
@@ -347,7 +347,7 @@ class SavingsFundPaymentIntegrationTest {
 
     // Mark this user as onboarded to savings fund
     savingsFundOnboardingRepository.saveOnboardingStatus(
-        differentUser.getId(), SavingsFundOnboardingStatus.COMPLETED);
+        differentUser.getPersonalCode(), COMPLETED);
 
     // Given - XML message with payment that cannot be verified (wrong personal code)
     var xml = createUnverifiablePaymentXml();

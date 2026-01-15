@@ -13,7 +13,6 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -28,7 +27,7 @@ public class IssuingJob {
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final SavingsFundNavProvider navProvider;
 
-  @Scheduled(fixedRateString = "1m")
+  // @Scheduled(fixedRateString = "1m")
   @SchedulerLock(name = "IssuingJob_runJob", lockAtMostFor = "50s", lockAtLeastFor = "10s")
   public void runJob() {
     var payments = getReservedPaymentsDependingOnCurrentTime();

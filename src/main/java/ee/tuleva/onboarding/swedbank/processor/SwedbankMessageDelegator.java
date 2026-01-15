@@ -13,7 +13,6 @@ import javax.xml.stream.XMLStreamReader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -25,7 +24,7 @@ public class SwedbankMessageDelegator {
   private final SwedbankMessageRepository swedbankMessageRepository;
   private final List<SwedbankMessageProcessor> messageProcessors;
 
-  @Scheduled(fixedRateString = "1m")
+  // @Scheduled(fixedRateString = "1m")
   @SchedulerLock(
       name = "SwedbankMessageDelegator_processMessages",
       lockAtMostFor = "50s",

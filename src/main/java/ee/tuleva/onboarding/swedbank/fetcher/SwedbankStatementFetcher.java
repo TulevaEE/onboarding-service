@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
@@ -21,7 +20,7 @@ public class SwedbankStatementFetcher {
   private final SwedbankAccountConfiguration swedbankAccountConfiguration;
 
   // @Scheduled(cron = "0 0 9-17 * * MON-FRI", zone = "Europe/Tallinn")
-  @Scheduled(cron = "0 0 18 * * *", zone = "Europe/Tallinn")
+  // @Scheduled(cron = "0 0 18 * * *", zone = "Europe/Tallinn")
   @SchedulerLock(
       name = "SwedbankStatementFetcher_sendRequests",
       lockAtMostFor = "23h",

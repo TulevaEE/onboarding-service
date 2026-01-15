@@ -29,7 +29,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -55,7 +54,7 @@ public class RedemptionBatchJob {
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final EndToEndIdConverter endToEndIdConverter;
 
-  @Scheduled(fixedRateString = "1m")
+  // @Scheduled(fixedRateString = "1m")
   @SchedulerLock(name = "RedemptionBatchJob", lockAtMostFor = "50s", lockAtLeastFor = "10s")
   public void runJob() {
     Instant cutoff = getCutoffForProcessing();

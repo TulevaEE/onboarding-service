@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RECEIVE
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -16,7 +15,7 @@ public class PaymentVerificationJob {
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final PaymentVerificationService paymentVerificationService;
 
-  @Scheduled(fixedRateString = "1m")
+  // @Scheduled(fixedRateString = "1m")
   @SchedulerLock(
       name = "PaymentVerificationJob_runJob",
       lockAtMostFor = "50s",

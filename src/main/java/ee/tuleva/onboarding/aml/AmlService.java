@@ -175,7 +175,7 @@ public class AmlService {
   }
 
   private <T> Stream<T> stream(Iterable<T> iterable) {
-    return StreamSupport.stream(iterable.spliterator(), false);
+    return iterable != null ? StreamSupport.stream(iterable.spliterator(), false) : Stream.empty();
   }
 
   private Map<String, Object> metadata(User user, Person person) {

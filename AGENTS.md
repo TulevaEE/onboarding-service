@@ -153,6 +153,14 @@ The application follows domain-driven design with these main domains:
   );
   ```
 - **Recreate tables for complex schema changes**: When changing primary keys or making complex alterations, create a new table, migrate data, drop old table, and rename - this is more compatible across H2 and PostgreSQL than `ALTER TABLE ... DROP CONSTRAINT`
+- **Prefer standard SQL over database-specific syntax**: Migrations must work on both H2 (tests) and PostgreSQL (production). Use ANSI SQL where possible:
+  ```sql
+  -- ❌ Bad: PostgreSQL-specific (doesn't work in H2)
+  ALTER INDEX old_name RENAME TO new_name;
+
+  -- ✅ Good: Standard SQL (works in both H2 and PostgreSQL)
+  ALTER TABLE my_table RENAME CONSTRAINT old_name TO new_name;
+  ```
 
 #### PostgreSQL Best Practices
 - **Prefer `text` over `varchar(n)`**: PostgreSQL treats them identically internally, but `varchar(n)` adds unnecessary length checking and can cause migration issues if you need to increase the length later

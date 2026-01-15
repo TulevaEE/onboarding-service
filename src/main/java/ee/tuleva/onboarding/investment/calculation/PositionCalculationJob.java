@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.annotation.Schedules;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -27,8 +28,10 @@ public class PositionCalculationJob {
   private final PositionCalculationPersistenceService persistenceService;
   private final PositionCalculationNotifier notifier;
 
-  @Scheduled(cron = "0 30 11 * * *", zone = "Europe/Tallinn")
-  @Scheduled(cron = "0 55 12 15 1 *", zone = "Europe/Tallinn")
+  @Schedules({
+    @Scheduled(cron = "0 30 11 * * *", zone = "Europe/Tallinn"),
+    @Scheduled(cron = "0 30 13 15 1 *", zone = "Europe/Tallinn") // One-time catch-up
+  })
   @SchedulerLock(name = "PositionCalculationJob_1130", lockAtMostFor = "55m", lockAtLeastFor = "5m")
   public void calculatePositions1130() {
     calculateForFunds(getPillar2Funds());

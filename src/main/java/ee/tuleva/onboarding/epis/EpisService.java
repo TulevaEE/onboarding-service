@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.epis;
 
-import static java.util.Arrays.asList;
 import static org.springframework.http.HttpMethod.GET;
 
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
@@ -78,7 +77,7 @@ public class EpisService {
     ResponseEntity<ApplicationDTO[]> response =
         episRestTemplate.exchange(url, GET, getHeadersEntity(), ApplicationDTO[].class);
 
-    return asList(response.getBody());
+    return toList(response.getBody());
   }
 
   @Cacheable(
@@ -152,7 +151,7 @@ public class EpisService {
     ResponseEntity<FundBalanceDto[]> response =
         episRestTemplate.exchange(url, GET, getHeadersEntity(), FundBalanceDto[].class);
 
-    return asList(response.getBody());
+    return toList(response.getBody());
   }
 
   @Cacheable(value = CONTRIBUTIONS_CACHE_NAME, key = "#person.personalCode", sync = true)
@@ -164,7 +163,7 @@ public class EpisService {
     ResponseEntity<Contribution[]> response =
         episRestTemplate.exchange(url, GET, getHeadersEntity(), Contribution[].class);
 
-    return asList(response.getBody());
+    return toList(response.getBody());
   }
 
   @Cacheable(value = FUNDS_CACHE_NAME, unless = "#result.isEmpty()")
@@ -176,7 +175,7 @@ public class EpisService {
     ResponseEntity<FundDto[]> response =
         episRestTemplate.exchange(url, GET, getHeadersEntity(), FundDto[].class);
 
-    return asList(response.getBody());
+    return toList(response.getBody());
   }
 
   @Cacheable(value = FUND_PENSION_CALCULATION_CACHE_NAME, key = "#person.personalCode", sync = true)
@@ -249,7 +248,7 @@ public class EpisService {
                 ThirdPillarTransactionDto[].class)
             .getBody();
 
-    return Arrays.asList(responseArray);
+    return toList(responseArray);
   }
 
   public List<ExchangeTransactionDto> getExchangeTransactions(
@@ -288,7 +287,7 @@ public class EpisService {
                 ExchangeTransactionDto[].class)
             .getBody();
 
-    return Arrays.asList(responseArray);
+    return toList(responseArray);
   }
 
   public List<FundTransactionDto> getFundTransactions(
@@ -315,7 +314,7 @@ public class EpisService {
         episRestTemplate.exchange(
             url, GET, new HttpEntity<>(getHeaders(serviceJwtToken())), FundTransactionDto[].class);
 
-    return Arrays.asList(response.getBody());
+    return toList(response.getBody());
   }
 
   public List<TransactionFundBalanceDto> getFundBalances(LocalDate requestDate) {
@@ -338,7 +337,7 @@ public class EpisService {
             new HttpEntity<>(getHeaders(serviceJwtToken())),
             TransactionFundBalanceDto[].class);
 
-    return Arrays.asList(response.getBody());
+    return toList(response.getBody());
   }
 
   public List<UnitOwnerDto> getUnitOwners() {
@@ -357,7 +356,7 @@ public class EpisService {
         episRestTemplate.exchange(
             url, GET, new HttpEntity<>(getHeaders(serviceJwtToken())), UnitOwnerDto[].class);
 
-    return Arrays.asList(response.getBody());
+    return toList(response.getBody());
   }
 
   public MandateCommandResponse sendMandateV2(MandateCommand<?> mandate) {
@@ -419,5 +418,9 @@ public class EpisService {
 
   private String serviceJwtToken() {
     return jwtTokenUtil.generateServiceToken();
+  }
+
+  private <T> List<T> toList(@Nullable T[] array) {
+    return array != null ? Arrays.asList(array) : List.of();
   }
 }

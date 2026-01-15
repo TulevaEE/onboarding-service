@@ -32,7 +32,7 @@ class PositionCalculationJobTest {
 
   private static final TulevaFund FUND = TUK75;
   private static final String ISIN = "IE00BFNM3G45";
-  private static final LocalDate TODAY = LocalDate.now();
+  private static final LocalDate YESTERDAY = LocalDate.now().minusDays(1);
 
   @Mock private PositionCalculationService calculationService;
   @Mock private PositionCalculationPersistenceService persistenceService;
@@ -43,7 +43,7 @@ class PositionCalculationJobTest {
   @Test
   void calculateForFunds_withOkStatus_savesWithoutNotification() {
     List<PositionCalculation> calculations = List.of(createCalculation(OK));
-    when(calculationService.calculate(any(List.class), eq(TODAY))).thenReturn(calculations);
+    when(calculationService.calculate(any(List.class), eq(YESTERDAY))).thenReturn(calculations);
 
     job.calculateForFunds(List.of(FUND));
 
@@ -63,7 +63,7 @@ class PositionCalculationJobTest {
         PositionCalculation.builder()
             .isin(ISIN)
             .fund(FUND)
-            .date(TODAY)
+            .date(YESTERDAY)
             .quantity(new BigDecimal("1000"))
             .eodhdPrice(eodhdPrice)
             .yahooPrice(yahooPrice)
@@ -75,11 +75,13 @@ class PositionCalculationJobTest {
             .createdAt(Instant.now())
             .build();
 
-    when(calculationService.calculate(any(List.class), eq(TODAY))).thenReturn(List.of(calculation));
+    when(calculationService.calculate(any(List.class), eq(YESTERDAY)))
+        .thenReturn(List.of(calculation));
 
     job.calculateForFunds(List.of(FUND));
 
-    verify(notifier).notifyPriceDiscrepancy(FUND, ISIN, TODAY, eodhdPrice, yahooPrice, discrepancy);
+    verify(notifier)
+        .notifyPriceDiscrepancy(FUND, ISIN, YESTERDAY, eodhdPrice, yahooPrice, discrepancy);
   }
 
   @Test
@@ -89,7 +91,7 @@ class PositionCalculationJobTest {
         PositionCalculation.builder()
             .isin(ISIN)
             .fund(FUND)
-            .date(TODAY)
+            .date(YESTERDAY)
             .quantity(new BigDecimal("1000"))
             .eodhdPrice(eodhdPrice)
             .usedPrice(eodhdPrice)
@@ -99,11 +101,12 @@ class PositionCalculationJobTest {
             .createdAt(Instant.now())
             .build();
 
-    when(calculationService.calculate(any(List.class), eq(TODAY))).thenReturn(List.of(calculation));
+    when(calculationService.calculate(any(List.class), eq(YESTERDAY)))
+        .thenReturn(List.of(calculation));
 
     job.calculateForFunds(List.of(FUND));
 
-    verify(notifier).notifyYahooMissing(FUND, ISIN, TODAY, eodhdPrice);
+    verify(notifier).notifyYahooMissing(FUND, ISIN, YESTERDAY, eodhdPrice);
   }
 
   @Test
@@ -113,22 +116,23 @@ class PositionCalculationJobTest {
         PositionCalculation.builder()
             .isin(ISIN)
             .fund(FUND)
-            .date(TODAY)
+            .date(YESTERDAY)
             .quantity(new BigDecimal("1000"))
             .yahooPrice(yahooPrice)
             .usedPrice(yahooPrice)
             .priceSource(YAHOO)
             .calculatedMarketValue(new BigDecimal("100000.00"))
             .validationStatus(EODHD_MISSING)
-            .priceDate(TODAY)
+            .priceDate(YESTERDAY)
             .createdAt(Instant.now())
             .build();
 
-    when(calculationService.calculate(any(List.class), eq(TODAY))).thenReturn(List.of(calculation));
+    when(calculationService.calculate(any(List.class), eq(YESTERDAY)))
+        .thenReturn(List.of(calculation));
 
     job.calculateForFunds(List.of(FUND));
 
-    verify(notifier).notifyEodhdMissing(FUND, ISIN, TODAY, yahooPrice);
+    verify(notifier).notifyEodhdMissing(FUND, ISIN, YESTERDAY, yahooPrice);
   }
 
   @Test
@@ -137,17 +141,18 @@ class PositionCalculationJobTest {
         PositionCalculation.builder()
             .isin(ISIN)
             .fund(FUND)
-            .date(TODAY)
+            .date(YESTERDAY)
             .quantity(new BigDecimal("1000"))
             .validationStatus(NO_PRICE_DATA)
             .createdAt(Instant.now())
             .build();
 
-    when(calculationService.calculate(any(List.class), eq(TODAY))).thenReturn(List.of(calculation));
+    when(calculationService.calculate(any(List.class), eq(YESTERDAY)))
+        .thenReturn(List.of(calculation));
 
     job.calculateForFunds(List.of(FUND));
 
-    verify(notifier).notifyNoPriceData(FUND, ISIN, TODAY);
+    verify(notifier).notifyNoPriceData(FUND, ISIN, YESTERDAY);
   }
 
   @Test
@@ -164,42 +169,42 @@ class PositionCalculationJobTest {
   void calculateForFunds_withMultipleFunds_processesAll() {
     List<TulevaFund> funds = List.of(TUK75, TUK00);
     List<PositionCalculation> calculations = List.of(createCalculation(OK));
-    when(calculationService.calculate(eq(funds), eq(TODAY))).thenReturn(calculations);
+    when(calculationService.calculate(eq(funds), eq(YESTERDAY))).thenReturn(calculations);
 
     job.calculateForFunds(funds);
 
-    verify(calculationService).calculate(funds, TODAY);
+    verify(calculationService).calculate(funds, YESTERDAY);
     verify(persistenceService).saveAll(calculations);
   }
 
   @Test
   void calculatePositions1130_processesPillarIIFunds() {
     List<TulevaFund> expectedFunds = getPillar2Funds();
-    when(calculationService.calculate(eq(expectedFunds), eq(TODAY))).thenReturn(List.of());
+    when(calculationService.calculate(eq(expectedFunds), eq(YESTERDAY))).thenReturn(List.of());
 
     job.calculatePositions1130();
 
-    verify(calculationService).calculate(expectedFunds, TODAY);
+    verify(calculationService).calculate(expectedFunds, YESTERDAY);
   }
 
   @Test
   void calculatePositions1530_processesPillarIIIFunds() {
     List<TulevaFund> expectedFunds = getPillar3Funds();
-    when(calculationService.calculate(eq(expectedFunds), eq(TODAY))).thenReturn(List.of());
+    when(calculationService.calculate(eq(expectedFunds), eq(YESTERDAY))).thenReturn(List.of());
 
     job.calculatePositions1530();
 
-    verify(calculationService).calculate(expectedFunds, TODAY);
+    verify(calculationService).calculate(expectedFunds, YESTERDAY);
   }
 
   @Test
   void calculateForFunds_withStalePrice_notifiesStalePrice() {
-    LocalDate staleDate = TODAY.minusDays(3);
+    LocalDate staleDate = YESTERDAY.minusDays(3);
     PositionCalculation calculation =
         PositionCalculation.builder()
             .isin(ISIN)
             .fund(FUND)
-            .date(TODAY)
+            .date(YESTERDAY)
             .quantity(new BigDecimal("1000"))
             .eodhdPrice(new BigDecimal("100.00"))
             .usedPrice(new BigDecimal("100.00"))
@@ -210,18 +215,20 @@ class PositionCalculationJobTest {
             .createdAt(Instant.now())
             .build();
 
-    when(calculationService.calculate(any(List.class), eq(TODAY))).thenReturn(List.of(calculation));
+    when(calculationService.calculate(any(List.class), eq(YESTERDAY)))
+        .thenReturn(List.of(calculation));
 
     job.calculateForFunds(List.of(FUND));
 
-    verify(notifier).notifyStalePrice(FUND, ISIN, TODAY, staleDate);
+    verify(notifier).notifyStalePrice(FUND, ISIN, YESTERDAY, staleDate);
   }
 
   @Test
   void calculateForFunds_withCurrentPrice_doesNotNotifyStalePrice() {
     PositionCalculation calculation = createCalculation(OK);
 
-    when(calculationService.calculate(any(List.class), eq(TODAY))).thenReturn(List.of(calculation));
+    when(calculationService.calculate(any(List.class), eq(YESTERDAY)))
+        .thenReturn(List.of(calculation));
 
     job.calculateForFunds(List.of(FUND));
 
@@ -232,14 +239,14 @@ class PositionCalculationJobTest {
     return PositionCalculation.builder()
         .isin(ISIN)
         .fund(FUND)
-        .date(TODAY)
+        .date(YESTERDAY)
         .quantity(new BigDecimal("1000"))
         .eodhdPrice(new BigDecimal("100.00"))
         .usedPrice(new BigDecimal("100.00"))
         .priceSource(EODHD)
         .calculatedMarketValue(new BigDecimal("100000.00"))
         .validationStatus(status)
-        .priceDate(TODAY)
+        .priceDate(YESTERDAY)
         .createdAt(Instant.now())
         .build();
   }

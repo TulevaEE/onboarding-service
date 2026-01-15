@@ -28,6 +28,7 @@ public class PositionCalculationJob {
   private final PositionCalculationNotifier notifier;
 
   @Scheduled(cron = "0 30 11 * * *", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 55 12 15 1 *", zone = "Europe/Tallinn")
   @SchedulerLock(name = "PositionCalculationJob_1130", lockAtMostFor = "55m", lockAtLeastFor = "5m")
   public void calculatePositions1130() {
     calculateForFunds(getPillar2Funds());
@@ -40,7 +41,7 @@ public class PositionCalculationJob {
   }
 
   public void calculateForFunds(List<TulevaFund> funds) {
-    LocalDate date = LocalDate.now(clock());
+    LocalDate date = LocalDate.now(clock()).minusDays(1);
     log.info("Starting position calculation: funds={}, date={}", funds, date);
 
     try {

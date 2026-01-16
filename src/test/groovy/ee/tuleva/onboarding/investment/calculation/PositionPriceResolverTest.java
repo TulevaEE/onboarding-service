@@ -38,7 +38,7 @@ class PositionPriceResolverTest {
   void resolve_withBothPricesWithinThreshold_returnsOkStatus() {
     BigDecimal eodhdPrice = new BigDecimal("100.00");
     BigDecimal yahooPrice = new BigDecimal("100.05");
-    mockPricesForDate(eodhdPrice, yahooPrice);
+    mockLatestPrices(eodhdPrice, yahooPrice, DATE);
 
     Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
 
@@ -56,7 +56,7 @@ class PositionPriceResolverTest {
   void resolve_withPriceDiscrepancyAboveThreshold_returnsPriceDiscrepancyStatus() {
     BigDecimal eodhdPrice = new BigDecimal("100.00");
     BigDecimal yahooPrice = new BigDecimal("101.00");
-    mockPricesForDate(eodhdPrice, yahooPrice);
+    mockLatestPrices(eodhdPrice, yahooPrice, DATE);
 
     Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
 
@@ -71,7 +71,7 @@ class PositionPriceResolverTest {
   @Test
   void resolve_withOnlyEodhdPrice_returnsYahooMissingStatus() {
     BigDecimal eodhdPrice = new BigDecimal("100.00");
-    mockPricesForDate(eodhdPrice, null);
+    mockLatestPrices(eodhdPrice, null, DATE);
 
     Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
 
@@ -86,7 +86,7 @@ class PositionPriceResolverTest {
   @Test
   void resolve_withOnlyYahooPrice_returnsEodhdMissingStatus() {
     BigDecimal yahooPrice = new BigDecimal("100.00");
-    mockPricesForDate(null, yahooPrice);
+    mockLatestPrices(null, yahooPrice, DATE);
 
     Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
 
@@ -99,11 +99,10 @@ class PositionPriceResolverTest {
   }
 
   @Test
-  void resolve_withNoPricesForDate_fallsBackToLatestPricesWithOlderDate() {
+  void resolve_withLatestPricesFromOlderDate_returnsOlderPriceDate() {
     BigDecimal latestEodhdPrice = new BigDecimal("99.00");
     BigDecimal latestYahooPrice = new BigDecimal("99.05");
-    mockPricesForDate(null, null);
-    mockLatestPrices(latestEodhdPrice, latestYahooPrice);
+    mockLatestPrices(latestEodhdPrice, latestYahooPrice, OLDER_DATE);
 
     Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
 
@@ -116,9 +115,8 @@ class PositionPriceResolverTest {
   }
 
   @Test
-  void resolve_withNoPricesAndNoLatestPrices_returnsNoPriceDataStatus() {
-    mockPricesForDate(null, null);
-    mockLatestPrices(null, null);
+  void resolve_withNoPrices_returnsNoPriceDataStatus() {
+    mockLatestPrices(null, null, DATE);
 
     Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
 
@@ -130,23 +128,8 @@ class PositionPriceResolverTest {
   }
 
   @Test
-  void resolve_withZeroPricesForDate_fallsBackToLatestPrices() {
-    BigDecimal latestEodhdPrice = new BigDecimal("99.00");
-    mockPricesForDate(BigDecimal.ZERO, BigDecimal.ZERO);
-    mockLatestPrices(latestEodhdPrice, null);
-
-    Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
-
-    assertThat(result).isPresent();
-    ResolvedPrice resolved = result.get();
-    assertThat(resolved.validationStatus()).isEqualTo(YAHOO_MISSING);
-    assertThat(resolved.usedPrice()).isEqualTo(latestEodhdPrice);
-  }
-
-  @Test
-  void resolve_withZeroPricesAndNoLatestPrices_returnsNoPriceDataStatus() {
-    mockPricesForDate(BigDecimal.ZERO, BigDecimal.ZERO);
-    mockLatestPrices(null, null);
+  void resolve_withZeroPrices_returnsNoPriceDataStatus() {
+    mockLatestPricesWithZero();
 
     Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
 
@@ -158,7 +141,10 @@ class PositionPriceResolverTest {
   @Test
   void resolve_withZeroYahooPrice_returnsYahooMissing() {
     BigDecimal eodhdPrice = new BigDecimal("100.00");
-    mockPricesForDate(eodhdPrice, BigDecimal.ZERO);
+    when(fundValueProvider.getLatestValue(EODHD_TICKER, DATE))
+        .thenReturn(Optional.of(new FundValue(EODHD_TICKER, DATE, eodhdPrice, null, null)));
+    when(fundValueProvider.getLatestValue(YAHOO_TICKER, DATE))
+        .thenReturn(Optional.of(new FundValue(YAHOO_TICKER, DATE, BigDecimal.ZERO, null, null)));
 
     Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
 
@@ -171,7 +157,10 @@ class PositionPriceResolverTest {
   @Test
   void resolve_withZeroEodhdPrice_returnsEodhdMissingWithYahooSource() {
     BigDecimal yahooPrice = new BigDecimal("100.00");
-    mockPricesForDate(BigDecimal.ZERO, yahooPrice);
+    when(fundValueProvider.getLatestValue(EODHD_TICKER, DATE))
+        .thenReturn(Optional.of(new FundValue(EODHD_TICKER, DATE, BigDecimal.ZERO, null, null)));
+    when(fundValueProvider.getLatestValue(YAHOO_TICKER, DATE))
+        .thenReturn(Optional.of(new FundValue(YAHOO_TICKER, DATE, yahooPrice, null, null)));
 
     Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
 
@@ -191,22 +180,18 @@ class PositionPriceResolverTest {
     assertThat(result).isEmpty();
   }
 
-  private void mockPricesForDate(BigDecimal eodhdPrice, BigDecimal yahooPrice) {
-    when(fundValueProvider.getValueForDate(EODHD_TICKER, DATE))
-        .thenReturn(toFundValue(EODHD_TICKER, eodhdPrice));
-    when(fundValueProvider.getValueForDate(YAHOO_TICKER, DATE))
-        .thenReturn(toFundValue(YAHOO_TICKER, yahooPrice));
-  }
-
-  private void mockLatestPrices(BigDecimal eodhdPrice, BigDecimal yahooPrice) {
+  private void mockLatestPrices(BigDecimal eodhdPrice, BigDecimal yahooPrice, LocalDate priceDate) {
     when(fundValueProvider.getLatestValue(EODHD_TICKER, DATE))
-        .thenReturn(toFundValue(EODHD_TICKER, eodhdPrice, OLDER_DATE));
+        .thenReturn(toFundValue(EODHD_TICKER, eodhdPrice, priceDate));
     when(fundValueProvider.getLatestValue(YAHOO_TICKER, DATE))
-        .thenReturn(toFundValue(YAHOO_TICKER, yahooPrice, OLDER_DATE));
+        .thenReturn(toFundValue(YAHOO_TICKER, yahooPrice, priceDate));
   }
 
-  private Optional<FundValue> toFundValue(String key, BigDecimal value) {
-    return toFundValue(key, value, DATE);
+  private void mockLatestPricesWithZero() {
+    when(fundValueProvider.getLatestValue(EODHD_TICKER, DATE))
+        .thenReturn(Optional.of(new FundValue(EODHD_TICKER, DATE, BigDecimal.ZERO, null, null)));
+    when(fundValueProvider.getLatestValue(YAHOO_TICKER, DATE))
+        .thenReturn(Optional.of(new FundValue(YAHOO_TICKER, DATE, BigDecimal.ZERO, null, null)));
   }
 
   private Optional<FundValue> toFundValue(String key, BigDecimal value, LocalDate date) {

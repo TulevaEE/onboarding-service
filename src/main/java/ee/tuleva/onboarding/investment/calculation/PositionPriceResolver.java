@@ -33,22 +33,9 @@ public class PositionPriceResolver {
   }
 
   private ResolvedPrice resolveForTicker(FundTicker ticker, LocalDate date) {
-    FundValue eodhdValue = fetchValueForDate(ticker.getEodhdTicker(), date);
-    FundValue yahooValue = fetchValueForDate(ticker.getYahooTicker(), date);
-
-    if (eodhdValue == null && yahooValue == null) {
-      eodhdValue = fetchLatestValue(ticker.getEodhdTicker(), date);
-      yahooValue = fetchLatestValue(ticker.getYahooTicker(), date);
-    }
-
+    FundValue eodhdValue = fetchLatestValue(ticker.getEodhdTicker(), date);
+    FundValue yahooValue = fetchLatestValue(ticker.getYahooTicker(), date);
     return determineResult(eodhdValue, yahooValue);
-  }
-
-  private FundValue fetchValueForDate(String tickerKey, LocalDate date) {
-    return fundValueProvider
-        .getValueForDate(tickerKey, date)
-        .filter(fundValue -> fundValue.value().compareTo(ZERO) != 0)
-        .orElse(null);
   }
 
   private FundValue fetchLatestValue(String tickerKey, LocalDate maxDate) {

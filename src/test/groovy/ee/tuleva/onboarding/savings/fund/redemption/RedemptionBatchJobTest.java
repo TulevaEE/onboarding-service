@@ -13,13 +13,12 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
-import ee.tuleva.onboarding.banking.payment.PaymentRequest;
+import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
-import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.time.*;
@@ -33,6 +32,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -43,7 +43,7 @@ class RedemptionBatchJobTest {
   @Mock private RedemptionStatusService redemptionStatusService;
   @Mock private SavingsFundLedger savingsFundLedger;
   @Mock private UserService userService;
-  @Mock private SwedbankGatewayClient swedbankGatewayClient;
+  @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private SwedbankAccountConfiguration swedbankAccountConfiguration;
   @Mock private TransactionTemplate transactionTemplate;
   @Mock private SavingsFundNavProvider navProvider;
@@ -63,7 +63,7 @@ class RedemptionBatchJobTest {
         redemptionStatusService,
         savingsFundLedger,
         userService,
-        swedbankGatewayClient,
+        eventPublisher,
         swedbankAccountConfiguration,
         transactionTemplate,
         navProvider,
@@ -83,7 +83,7 @@ class RedemptionBatchJobTest {
     batchJob.runJob();
 
     verify(redemptionRequestRepository).findByStatusAndRequestedAtBefore(eq(VERIFIED), any());
-    verifyNoInteractions(swedbankGatewayClient);
+    verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
   }
 
   @Test
@@ -133,8 +133,7 @@ class RedemptionBatchJobTest {
             any(BigDecimal.class),
             eq(BigDecimal.ONE),
             eq(requestId));
-    verify(swedbankGatewayClient, times(2))
-        .sendPaymentRequest(any(PaymentRequest.class), any(UUID.class));
+    verify(eventPublisher, times(2)).publishEvent(any(RequestPaymentEvent.class));
     verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
 
     var savedRequestCaptor = ArgumentCaptor.forClass(RedemptionRequest.class);
@@ -222,10 +221,13 @@ class RedemptionBatchJobTest {
         .execute(any());
 
     // First call (batch transfer) succeeds, second call (individual payout) fails
-    doNothing()
+    doAnswer(
+            invocation -> {
+              return null;
+            })
         .doThrow(new RuntimeException("Payout error"))
-        .when(swedbankGatewayClient)
-        .sendPaymentRequest(any(), any());
+        .when(eventPublisher)
+        .publishEvent(any(RequestPaymentEvent.class));
 
     batchJob.runJob();
 
@@ -296,8 +298,7 @@ class RedemptionBatchJobTest {
     batchJob.runJob();
 
     // Verify pricing was skipped but payments were still sent
-    verify(swedbankGatewayClient, times(2))
-        .sendPaymentRequest(any(PaymentRequest.class), any(UUID.class));
+    verify(eventPublisher, times(2)).publishEvent(any(RequestPaymentEvent.class));
   }
 
   @Test
@@ -339,13 +340,12 @@ class RedemptionBatchJobTest {
 
     batchJob.runJob();
 
-    var paymentIdCaptor = ArgumentCaptor.forClass(UUID.class);
-    verify(swedbankGatewayClient, times(2))
-        .sendPaymentRequest(any(PaymentRequest.class), paymentIdCaptor.capture());
+    var eventCaptor = ArgumentCaptor.forClass(RequestPaymentEvent.class);
+    verify(eventPublisher, times(2)).publishEvent(eventCaptor.capture());
 
-    var capturedIds = paymentIdCaptor.getAllValues();
+    var capturedEvents = eventCaptor.getAllValues();
     // Second payment (individual payout) should use the request ID
-    assertThat(capturedIds.get(1)).isEqualTo(requestId);
+    assertThat(capturedEvents.get(1).requestId()).isEqualTo(requestId);
   }
 
   @Test
@@ -393,8 +393,7 @@ class RedemptionBatchJobTest {
     batchJob.runJob();
 
     // Verify payment was only sent once per type (batch + individual)
-    verify(swedbankGatewayClient, times(2))
-        .sendPaymentRequest(any(PaymentRequest.class), any(UUID.class));
+    verify(eventPublisher, times(2)).publishEvent(any(RequestPaymentEvent.class));
     verify(redemptionStatusService, times(1)).changeStatus(requestId, REDEEMED);
   }
 

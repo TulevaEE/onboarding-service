@@ -4,11 +4,12 @@ import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RETURNE
 
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
+import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
-import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PaymentReturningService {
 
-  private final SwedbankGatewayClient swedbankGatewayClient;
+  private final ApplicationEventPublisher eventPublisher;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final UserRepository userRepository;
   private final SavingsFundLedger savingsFundLedger;
@@ -43,7 +44,7 @@ public class PaymentReturningService {
             .amount(payment.getAmount())
             .description(description)
             .build();
-    swedbankGatewayClient.sendPaymentRequest(paymentRequest, UUID.randomUUID());
+    eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, UUID.randomUUID()));
   }
 
   private boolean isUserCancelledPayment(SavingFundPayment payment) {

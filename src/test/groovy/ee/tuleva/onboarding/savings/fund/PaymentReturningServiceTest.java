@@ -2,16 +2,16 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RETURNED;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
+import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
-import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
@@ -19,13 +19,15 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentReturningServiceTest {
 
-  @Mock SwedbankGatewayClient swedbankGatewayClient;
+  @Mock ApplicationEventPublisher eventPublisher;
   @Mock SavingFundPaymentRepository savingFundPaymentRepository;
   @Mock UserRepository userRepository;
   @Mock SavingsFundLedger savingsFundLedger;
@@ -37,7 +39,7 @@ class PaymentReturningServiceTest {
   void setUp() {
     service =
         new PaymentReturningService(
-            swedbankGatewayClient,
+            eventPublisher,
             savingFundPaymentRepository,
             userRepository,
             savingsFundLedger,
@@ -73,7 +75,9 @@ class PaymentReturningServiceTest {
             .ourId(expectedId)
             .endToEndId(expectedId)
             .build();
-    verify(swedbankGatewayClient).sendPaymentRequest(eq(expectedPaymentRequest), any());
+    var eventCaptor = ArgumentCaptor.forClass(RequestPaymentEvent.class);
+    verify(eventPublisher).publishEvent(eventCaptor.capture());
+    assertThat(eventCaptor.getValue().paymentRequest()).isEqualTo(expectedPaymentRequest);
     verify(savingFundPaymentRepository).changeStatus(originalPayment.getId(), RETURNED);
   }
 

@@ -25,8 +25,7 @@ public class FundPositionImportJob {
   private final FundPositionParser parser;
   private final FundPositionImportService importService;
 
-  @Scheduled(cron = "0 0 7 * * *", zone = "Europe/Tallinn")
-  @Scheduled(cron = "0 40 15 9 1 *", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 0 15 * * *", zone = "Europe/Tallinn")
   @SchedulerLock(name = "FundPositionImportJob", lockAtMostFor = "55m", lockAtLeastFor = "5m")
   public void runImport() {
     LocalDate today = LocalDate.now();

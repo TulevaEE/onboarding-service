@@ -28,23 +28,26 @@ public class PositionCalculationJob {
   private final PositionCalculationPersistenceService persistenceService;
   private final PositionCalculationNotifier notifier;
 
+  // Pillar 2: Runs at 11:30, uses T-2 data because fund reports arrive at 14:30
+  // and are only imported at 15:00, so yesterday's data isn't available yet
   @Schedules({
     @Scheduled(cron = "0 30 11 * * *", zone = "Europe/Tallinn"),
-    @Scheduled(cron = "0 30 13 15 1 *", zone = "Europe/Tallinn") // One-time catch-up
+    @Scheduled(cron = "0 30 13 16 1 *", zone = "Europe/Tallinn") // One-time catch-up
   })
   @SchedulerLock(name = "PositionCalculationJob_1130", lockAtMostFor = "55m", lockAtLeastFor = "5m")
   public void calculatePositions1130() {
-    calculateForFunds(getPillar2Funds());
+    calculateForFunds(getPillar2Funds(), 2);
   }
 
+  // Pillar 3: Runs at 15:30, after the 15:00 import, so T-1 data is available
   @Scheduled(cron = "0 30 15 * * *", zone = "Europe/Tallinn")
   @SchedulerLock(name = "PositionCalculationJob_1530", lockAtMostFor = "55m", lockAtLeastFor = "5m")
   public void calculatePositions1530() {
-    calculateForFunds(getPillar3Funds());
+    calculateForFunds(getPillar3Funds(), 1);
   }
 
-  public void calculateForFunds(List<TulevaFund> funds) {
-    LocalDate date = LocalDate.now(clock()).minusDays(1);
+  public void calculateForFunds(List<TulevaFund> funds, int daysBack) {
+    LocalDate date = LocalDate.now(clock()).minusDays(daysBack);
     log.info("Starting position calculation: funds={}, date={}", funds, date);
 
     try {

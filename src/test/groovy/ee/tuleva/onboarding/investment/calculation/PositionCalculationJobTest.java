@@ -33,6 +33,7 @@ class PositionCalculationJobTest {
   private static final TulevaFund FUND = TUK75;
   private static final String ISIN = "IE00BFNM3G45";
   private static final LocalDate YESTERDAY = LocalDate.now().minusDays(1);
+  private static final LocalDate TWO_DAYS_AGO = LocalDate.now().minusDays(2);
 
   @Mock private PositionCalculationService calculationService;
   @Mock private PositionCalculationPersistenceService persistenceService;
@@ -45,7 +46,7 @@ class PositionCalculationJobTest {
     List<PositionCalculation> calculations = List.of(createCalculation(OK));
     when(calculationService.calculate(any(List.class), eq(YESTERDAY))).thenReturn(calculations);
 
-    job.calculateForFunds(List.of(FUND));
+    job.calculateForFunds(List.of(FUND), 1);
 
     verify(persistenceService).saveAll(calculations);
     verify(notifier, never()).notifyPriceDiscrepancy(any(), any(), any(), any(), any(), any());
@@ -78,7 +79,7 @@ class PositionCalculationJobTest {
     when(calculationService.calculate(any(List.class), eq(YESTERDAY)))
         .thenReturn(List.of(calculation));
 
-    job.calculateForFunds(List.of(FUND));
+    job.calculateForFunds(List.of(FUND), 1);
 
     verify(notifier)
         .notifyPriceDiscrepancy(FUND, ISIN, YESTERDAY, eodhdPrice, yahooPrice, discrepancy);
@@ -104,7 +105,7 @@ class PositionCalculationJobTest {
     when(calculationService.calculate(any(List.class), eq(YESTERDAY)))
         .thenReturn(List.of(calculation));
 
-    job.calculateForFunds(List.of(FUND));
+    job.calculateForFunds(List.of(FUND), 1);
 
     verify(notifier).notifyYahooMissing(FUND, ISIN, YESTERDAY, eodhdPrice);
   }
@@ -130,7 +131,7 @@ class PositionCalculationJobTest {
     when(calculationService.calculate(any(List.class), eq(YESTERDAY)))
         .thenReturn(List.of(calculation));
 
-    job.calculateForFunds(List.of(FUND));
+    job.calculateForFunds(List.of(FUND), 1);
 
     verify(notifier).notifyEodhdMissing(FUND, ISIN, YESTERDAY, yahooPrice);
   }
@@ -150,7 +151,7 @@ class PositionCalculationJobTest {
     when(calculationService.calculate(any(List.class), eq(YESTERDAY)))
         .thenReturn(List.of(calculation));
 
-    job.calculateForFunds(List.of(FUND));
+    job.calculateForFunds(List.of(FUND), 1);
 
     verify(notifier).notifyNoPriceData(FUND, ISIN, YESTERDAY);
   }
@@ -160,7 +161,7 @@ class PositionCalculationJobTest {
     when(calculationService.calculate(any(List.class), any()))
         .thenThrow(new RuntimeException("Test exception"));
 
-    job.calculateForFunds(List.of(FUND));
+    job.calculateForFunds(List.of(FUND), 1);
 
     verify(persistenceService, never()).saveAll(any());
   }
@@ -171,20 +172,20 @@ class PositionCalculationJobTest {
     List<PositionCalculation> calculations = List.of(createCalculation(OK));
     when(calculationService.calculate(eq(funds), eq(YESTERDAY))).thenReturn(calculations);
 
-    job.calculateForFunds(funds);
+    job.calculateForFunds(funds, 1);
 
     verify(calculationService).calculate(funds, YESTERDAY);
     verify(persistenceService).saveAll(calculations);
   }
 
   @Test
-  void calculatePositions1130_processesPillarIIFunds() {
+  void calculatePositions1130_processesPillarIIFundsWithTwoDaysAgo() {
     List<TulevaFund> expectedFunds = getPillar2Funds();
-    when(calculationService.calculate(eq(expectedFunds), eq(YESTERDAY))).thenReturn(List.of());
+    when(calculationService.calculate(eq(expectedFunds), eq(TWO_DAYS_AGO))).thenReturn(List.of());
 
     job.calculatePositions1130();
 
-    verify(calculationService).calculate(expectedFunds, YESTERDAY);
+    verify(calculationService).calculate(expectedFunds, TWO_DAYS_AGO);
   }
 
   @Test
@@ -218,7 +219,7 @@ class PositionCalculationJobTest {
     when(calculationService.calculate(any(List.class), eq(YESTERDAY)))
         .thenReturn(List.of(calculation));
 
-    job.calculateForFunds(List.of(FUND));
+    job.calculateForFunds(List.of(FUND), 1);
 
     verify(notifier).notifyStalePrice(FUND, ISIN, YESTERDAY, staleDate);
   }
@@ -230,7 +231,7 @@ class PositionCalculationJobTest {
     when(calculationService.calculate(any(List.class), eq(YESTERDAY)))
         .thenReturn(List.of(calculation));
 
-    job.calculateForFunds(List.of(FUND));
+    job.calculateForFunds(List.of(FUND), 1);
 
     verify(notifier, never()).notifyStalePrice(any(), any(), any(), any());
   }

@@ -6,14 +6,14 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Sta
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
+import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
+import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
-import ee.tuleva.onboarding.swedbank.payment.EndToEndIdConverter;
-import ee.tuleva.onboarding.swedbank.payment.PaymentRequest;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;

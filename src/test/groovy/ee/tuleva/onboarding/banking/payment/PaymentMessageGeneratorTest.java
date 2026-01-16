@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.swedbank.payment;
+package ee.tuleva.onboarding.banking.payment;
 
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;

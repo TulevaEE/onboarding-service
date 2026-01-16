@@ -7,6 +7,7 @@ import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.message.BankMessageType;
+import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
@@ -17,7 +18,6 @@ import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
-import ee.tuleva.onboarding.swedbank.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;

@@ -1,8 +1,8 @@
-package ee.tuleva.onboarding.swedbank.payment;
+package ee.tuleva.onboarding.banking.payment;
 
-import static ee.tuleva.onboarding.swedbank.payment.XmlHelper.add;
-import static ee.tuleva.onboarding.swedbank.payment.XmlHelper.asString;
-import static ee.tuleva.onboarding.swedbank.payment.XmlHelper.createDocument;
+import static ee.tuleva.onboarding.banking.xml.XmlHelper.add;
+import static ee.tuleva.onboarding.banking.xml.XmlHelper.asString;
+import static ee.tuleva.onboarding.banking.xml.XmlHelper.createDocument;
 
 import java.time.Clock;
 import java.time.LocalDate;

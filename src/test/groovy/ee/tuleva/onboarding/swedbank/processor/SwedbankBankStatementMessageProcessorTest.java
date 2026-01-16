@@ -13,6 +13,7 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.message.BankMessageType;
+import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
@@ -26,7 +27,6 @@ import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
-import ee.tuleva.onboarding.swedbank.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;

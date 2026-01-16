@@ -12,12 +12,12 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.banking.BankAccountConfiguration;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -28,14 +28,14 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 class FundAccountPaymentJobTest {
 
-  SwedbankAccountConfiguration swedbankAccountConfiguration = mock();
+  BankAccountConfiguration bankAccountConfiguration = mock();
   SavingFundPaymentRepository savingFundPaymentRepository = mock();
   TransactionTemplate transactionTemplate = mock();
   ApplicationEventPublisher eventPublisher = mock();
 
   FundAccountPaymentJob job =
       new FundAccountPaymentJob(
-          swedbankAccountConfiguration,
+          bankAccountConfiguration,
           savingFundPaymentRepository,
           transactionTemplate,
           eventPublisher,
@@ -51,9 +51,9 @@ class FundAccountPaymentJobTest {
             SavingFundPayment.builder().id(paymentId1).amount(new BigDecimal("40")).build(),
             SavingFundPayment.builder().id(paymentId2).amount(new BigDecimal("50.40")).build());
     when(savingFundPaymentRepository.findPaymentsWithStatus(ISSUED)).thenReturn(payments);
-    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+    when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
         .thenReturn("investment-IBAN");
-    when(swedbankAccountConfiguration.getAccountIban(DEPOSIT_EUR)).thenReturn("deposit-IBAN");
+    when(bankAccountConfiguration.getAccountIban(DEPOSIT_EUR)).thenReturn("deposit-IBAN");
 
     job.createPaymentRequest();
 

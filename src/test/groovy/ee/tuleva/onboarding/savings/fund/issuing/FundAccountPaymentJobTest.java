@@ -13,12 +13,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
-import ee.tuleva.onboarding.banking.payment.PaymentRequest;
+import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
-import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -29,7 +28,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 class FundAccountPaymentJobTest {
 
-  SwedbankGatewayClient swedbankGatewayClient = mock();
   SwedbankAccountConfiguration swedbankAccountConfiguration = mock();
   SavingFundPaymentRepository savingFundPaymentRepository = mock();
   TransactionTemplate transactionTemplate = mock();
@@ -37,7 +35,6 @@ class FundAccountPaymentJobTest {
 
   FundAccountPaymentJob job =
       new FundAccountPaymentJob(
-          swedbankGatewayClient,
           swedbankAccountConfiguration,
           savingFundPaymentRepository,
           transactionTemplate,
@@ -63,10 +60,10 @@ class FundAccountPaymentJobTest {
     verify(savingFundPaymentRepository).changeStatus(payments.get(0).getId(), PROCESSED);
     verify(savingFundPaymentRepository).changeStatus(payments.get(1).getId(), PROCESSED);
 
-    var paymentRequestCaptor = ArgumentCaptor.forClass(PaymentRequest.class);
-    verify(swedbankGatewayClient).sendPaymentRequest(paymentRequestCaptor.capture(), any());
+    var paymentEventCaptor = ArgumentCaptor.forClass(RequestPaymentEvent.class);
+    verify(eventPublisher).publishEvent(paymentEventCaptor.capture());
 
-    var paymentRequest = paymentRequestCaptor.getValue();
+    var paymentRequest = paymentEventCaptor.getValue().paymentRequest();
     assertThat(paymentRequest.amount()).isEqualTo(new BigDecimal("90.40"));
     assertThat(paymentRequest.remitterName()).isEqualTo("Tuleva Fondid AS");
     assertThat(paymentRequest.remitterIban()).isEqualTo("deposit-IBAN");
@@ -74,9 +71,9 @@ class FundAccountPaymentJobTest {
     assertThat(paymentRequest.beneficiaryIban()).isEqualTo("investment-IBAN");
     assertThat(paymentRequest.description()).isEqualTo("Subscriptions");
 
-    var eventCaptor = ArgumentCaptor.forClass(TrackableSystemEvent.class);
-    verify(eventPublisher).publishEvent(eventCaptor.capture());
-    var event = eventCaptor.getValue();
+    var trackableEventCaptor = ArgumentCaptor.forClass(TrackableSystemEvent.class);
+    verify(eventPublisher).publishEvent(trackableEventCaptor.capture());
+    var event = trackableEventCaptor.getValue();
     assertThat(event.getType()).isEqualTo(SUBSCRIPTION_BATCH_CREATED);
     assertThat(event.getData().get("batchId")).isNotNull();
     assertThat((List<UUID>) event.getData().get("paymentIds"))
@@ -91,6 +88,6 @@ class FundAccountPaymentJobTest {
 
     job.createPaymentRequest();
 
-    verify(swedbankGatewayClient, never()).sendPaymentRequest(any(), any());
+    verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
   }
 }

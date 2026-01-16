@@ -8,12 +8,12 @@ import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
+import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
-import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
@@ -28,6 +28,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -47,7 +48,7 @@ public class RedemptionBatchJob {
   private final RedemptionStatusService redemptionStatusService;
   private final SavingsFundLedger savingsFundLedger;
   private final UserService userService;
-  private final SwedbankGatewayClient swedbankGatewayClient;
+  private final ApplicationEventPublisher eventPublisher;
   private final SwedbankAccountConfiguration swedbankAccountConfiguration;
   private final TransactionTemplate transactionTemplate;
   private final SavingsFundNavProvider navProvider;
@@ -170,7 +171,7 @@ public class RedemptionBatchJob {
             .description("Redemptions batch")
             .build();
 
-    swedbankGatewayClient.sendPaymentRequest(paymentRequest, batchId);
+    eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, batchId));
     log.info("Sent batch transfer request: batchId={}, amount={}", batchId, totalAmount);
   }
 
@@ -194,7 +195,7 @@ public class RedemptionBatchJob {
                 .description("Fondi tagasivõtmine")
                 .build();
 
-        swedbankGatewayClient.sendPaymentRequest(paymentRequest, updated.getId());
+        eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, updated.getId()));
 
         markAsRedeemed(updated.getId());
 

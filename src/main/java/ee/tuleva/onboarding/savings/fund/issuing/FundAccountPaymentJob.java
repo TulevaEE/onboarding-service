@@ -9,11 +9,11 @@ import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
+import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
-import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
@@ -31,7 +31,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Profile("!staging")
 public class FundAccountPaymentJob {
 
-  private final SwedbankGatewayClient swedbankGatewayClient;
   private final SwedbankAccountConfiguration swedbankAccountConfiguration;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final TransactionTemplate transactionTemplate;
@@ -85,6 +84,6 @@ public class FundAccountPaymentJob {
             .build();
     log.info(
         "Preparing subscriptions payment to investment account with the amount of {} EUR", total);
-    swedbankGatewayClient.sendPaymentRequest(paymentRequest, id);
+    eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, id));
   }
 }

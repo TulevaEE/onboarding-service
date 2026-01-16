@@ -7,13 +7,13 @@ import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.PROCESSED;
 import static java.math.BigDecimal.ZERO;
 
+import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
+import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
-import ee.tuleva.onboarding.swedbank.payment.EndToEndIdConverter;
-import ee.tuleva.onboarding.swedbank.payment.PaymentRequest;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;

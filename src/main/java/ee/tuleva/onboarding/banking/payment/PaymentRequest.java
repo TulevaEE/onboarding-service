@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.swedbank.payment;
+package ee.tuleva.onboarding.banking.payment;
 
 import java.math.BigDecimal;
 import lombok.Builder;

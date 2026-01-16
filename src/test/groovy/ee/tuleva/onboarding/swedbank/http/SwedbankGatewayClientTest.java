@@ -10,9 +10,9 @@ import static org.springframework.http.HttpMethod.POST;
 
 import ee.tuleva.onboarding.banking.converter.LocalDateToXmlGregorianCalendarConverter;
 import ee.tuleva.onboarding.banking.converter.ZonedDateTimeToXmlGregorianCalendarConverter;
+import ee.tuleva.onboarding.banking.payment.PaymentMessageGenerator;
+import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.xml.Iso20022Marshaller;
-import ee.tuleva.onboarding.swedbank.payment.PaymentMessageGenerator;
-import ee.tuleva.onboarding.swedbank.payment.PaymentRequest;
 import ee.tuleva.onboarding.time.TestClockHolder;
 import jakarta.xml.bind.JAXBElement;
 import java.net.URI;

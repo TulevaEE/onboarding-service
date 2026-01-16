@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.swedbank.payment;
+package ee.tuleva.onboarding.banking.xml;
 
 import static java.math.RoundingMode.HALF_UP;
 

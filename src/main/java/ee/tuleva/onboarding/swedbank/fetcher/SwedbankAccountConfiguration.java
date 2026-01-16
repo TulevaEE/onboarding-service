@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.swedbank.fetcher;
 
 import static java.util.stream.Collectors.toMap;
 
+import ee.tuleva.onboarding.banking.BankAccountConfiguration;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.PostConstruct;
@@ -17,11 +18,12 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @RequiredArgsConstructor
 @ConfigurationProperties("swedbank-gateway")
-public class SwedbankAccountConfiguration {
+public class SwedbankAccountConfiguration implements BankAccountConfiguration {
 
   @Getter private final Map<BankAccountType, String> accounts;
   private Map<String, BankAccountType> accountsByIban;
 
+  @Override
   @NotNull
   public String getAccountIban(BankAccountType account) {
     return Optional.ofNullable(accounts.get(account))
@@ -29,6 +31,7 @@ public class SwedbankAccountConfiguration {
             () -> new IllegalStateException("No iban found for account=%s".formatted(account)));
   }
 
+  @Override
   @Nullable
   public BankAccountType getAccountType(String iban) {
     return accountsByIban.get(iban);

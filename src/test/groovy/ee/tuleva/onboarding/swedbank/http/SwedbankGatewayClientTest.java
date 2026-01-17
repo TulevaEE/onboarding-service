@@ -8,8 +8,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpMethod.POST;
 
-import ee.tuleva.onboarding.banking.converter.LocalDateToXmlGregorianCalendarConverter;
-import ee.tuleva.onboarding.banking.converter.ZonedDateTimeToXmlGregorianCalendarConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentMessageGenerator;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.xml.Iso20022Marshaller;
@@ -57,8 +55,6 @@ class SwedbankGatewayClientTest {
             TestClockHolder.clock,
             marshaller,
             paymentMessageGenerator,
-            new LocalDateToXmlGregorianCalendarConverter(),
-            new ZonedDateTimeToXmlGregorianCalendarConverter(),
             restTemplate);
   }
 

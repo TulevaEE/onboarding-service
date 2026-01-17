@@ -1,40 +1,22 @@
 package ee.tuleva.onboarding.swedbank.http;
 
-import static ee.tuleva.onboarding.banking.iso20022.camt060.QueryType3Code.ALLL;
-import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
 import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.POST;
 
-import ee.tuleva.onboarding.banking.iso20022.camt060.AccountIdentification4Choice;
-import ee.tuleva.onboarding.banking.iso20022.camt060.AccountReportingRequestV03;
-import ee.tuleva.onboarding.banking.iso20022.camt060.CashAccount24;
-import ee.tuleva.onboarding.banking.iso20022.camt060.DatePeriodDetails1;
-import ee.tuleva.onboarding.banking.iso20022.camt060.GroupHeader59;
-import ee.tuleva.onboarding.banking.iso20022.camt060.ObjectFactory;
-import ee.tuleva.onboarding.banking.iso20022.camt060.Party12Choice;
-import ee.tuleva.onboarding.banking.iso20022.camt060.PartyIdentification43;
-import ee.tuleva.onboarding.banking.iso20022.camt060.ReportingPeriod1;
-import ee.tuleva.onboarding.banking.iso20022.camt060.ReportingRequest3;
-import ee.tuleva.onboarding.banking.iso20022.camt060.TimePeriodDetails1;
 import ee.tuleva.onboarding.banking.payment.PaymentMessageGenerator;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.xml.Iso20022Marshaller;
 import jakarta.xml.bind.JAXBElement;
 import java.net.URI;
 import java.time.Clock;
-import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import java.util.UUID;
-import javax.xml.datatype.XMLGregorianCalendar;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
@@ -58,9 +40,6 @@ public class SwedbankGatewayClient {
   private final Clock clock;
   private final Iso20022Marshaller marshaller;
   private final PaymentMessageGenerator paymentMessageGenerator;
-
-  private final Converter<LocalDate, XMLGregorianCalendar> dateConverter;
-  private final Converter<ZonedDateTime, XMLGregorianCalendar> timeConverter;
 
   @Qualifier("swedbankGatewayRestTemplate")
   private final RestTemplate restTemplate;
@@ -127,129 +106,6 @@ public class SwedbankGatewayClient {
     headers.add("Content-Type", "application/xml; charset=utf-8");
 
     return headers;
-  }
-
-  public JAXBElement<ee.tuleva.onboarding.banking.iso20022.camt060.Document>
-      getIntraDayReportRequestEntity(String accountIban, UUID messageId) {
-    AccountReportingRequestV03 accountReportingRequest = new AccountReportingRequestV03();
-
-    GroupHeader59 groupHeader = new GroupHeader59();
-    groupHeader.setMsgId(serializeRequestId(messageId));
-    groupHeader.setCreDtTm(timeConverter.convert(ZonedDateTime.now(clock)));
-    accountReportingRequest.setGrpHdr(groupHeader);
-
-    ReportingRequest3 reportingRequest = new ReportingRequest3();
-
-    reportingRequest.setId(serializeRequestId(messageId));
-    reportingRequest.setReqdMsgNmId("camt.052.001.02"); // current day 52, past 53
-
-    CashAccount24 cashAccount24 = new CashAccount24();
-    AccountIdentification4Choice accountIdentification = new AccountIdentification4Choice();
-
-    accountIdentification.setIBAN(accountIban);
-
-    cashAccount24.setId(accountIdentification);
-    reportingRequest.setAcct(cashAccount24);
-
-    var partyChoice = new Party12Choice();
-    var party = new PartyIdentification43();
-    // party.setNm("Tuleva");
-    partyChoice.setPty(party);
-
-    reportingRequest.setAcctOwnr(partyChoice);
-
-    ReportingPeriod1 period = new ReportingPeriod1();
-
-    DatePeriodDetails1 datePeriodDetails = new DatePeriodDetails1();
-
-    datePeriodDetails.setFrDt(dateConverter.convert(LocalDate.now(clock)));
-    datePeriodDetails.setToDt(dateConverter.convert(LocalDate.now(clock)));
-
-    period.setFrToDt(datePeriodDetails);
-    period.setTp(ALLL);
-
-    TimePeriodDetails1 timePeriodDetails = new TimePeriodDetails1();
-
-    // TODO revisit this, maybe run for last hour to better deal with limits
-    timePeriodDetails.setFrTm(
-        timeConverter.convert(LocalDate.now(clock).atStartOfDay(SWEDBANK_GATEWAY_TIME_ZONE)));
-    timePeriodDetails.setToTm(
-        timeConverter.convert(
-            LocalDate.now(clock).atStartOfDay(SWEDBANK_GATEWAY_TIME_ZONE).with(LocalTime.MAX)));
-
-    period.setFrToTm(timePeriodDetails);
-
-    reportingRequest.setRptgPrd(period);
-
-    accountReportingRequest.getRptgReq().add(reportingRequest);
-
-    ee.tuleva.onboarding.banking.iso20022.camt060.Document document =
-        new ee.tuleva.onboarding.banking.iso20022.camt060.Document();
-    document.setAcctRptgReq(accountReportingRequest);
-    var objectFactory = new ObjectFactory();
-
-    return objectFactory.createDocument(document);
-  }
-
-  public JAXBElement<ee.tuleva.onboarding.banking.iso20022.camt060.Document>
-      getHistoricReportRequestEntity(
-          String accountIban, UUID messageId, LocalDate fromDate, LocalDate toDate) {
-    AccountReportingRequestV03 accountReportingRequest = new AccountReportingRequestV03();
-
-    GroupHeader59 groupHeader = new GroupHeader59();
-    groupHeader.setMsgId(serializeRequestId(messageId));
-    groupHeader.setCreDtTm(timeConverter.convert(ZonedDateTime.now(clock)));
-    accountReportingRequest.setGrpHdr(groupHeader);
-
-    ReportingRequest3 reportingRequest = new ReportingRequest3();
-
-    reportingRequest.setId(serializeRequestId(messageId));
-    reportingRequest.setReqdMsgNmId("camt.053.001.02");
-
-    CashAccount24 cashAccount24 = new CashAccount24();
-    AccountIdentification4Choice accountIdentification = new AccountIdentification4Choice();
-
-    accountIdentification.setIBAN(accountIban);
-
-    cashAccount24.setId(accountIdentification);
-    reportingRequest.setAcct(cashAccount24);
-
-    var partyChoice = new Party12Choice();
-    var party = new PartyIdentification43();
-    // party.setNm("Tuleva");
-    partyChoice.setPty(party);
-
-    reportingRequest.setAcctOwnr(partyChoice);
-
-    ReportingPeriod1 period = new ReportingPeriod1();
-
-    DatePeriodDetails1 datePeriodDetails = new DatePeriodDetails1();
-
-    datePeriodDetails.setFrDt(dateConverter.convert(fromDate));
-    datePeriodDetails.setToDt(dateConverter.convert(toDate));
-
-    period.setFrToDt(datePeriodDetails);
-    period.setTp(ALLL);
-
-    TimePeriodDetails1 timePeriodDetails = new TimePeriodDetails1();
-
-    timePeriodDetails.setFrTm(
-        timeConverter.convert(fromDate.atStartOfDay(SWEDBANK_GATEWAY_TIME_ZONE)));
-    timePeriodDetails.setToTm(
-        timeConverter.convert(toDate.atStartOfDay(SWEDBANK_GATEWAY_TIME_ZONE).with(LocalTime.MAX)));
-
-    period.setFrToTm(timePeriodDetails);
-
-    reportingRequest.setRptgPrd(period);
-
-    accountReportingRequest.getRptgReq().add(reportingRequest);
-
-    ee.tuleva.onboarding.banking.iso20022.camt060.Document document =
-        new ee.tuleva.onboarding.banking.iso20022.camt060.Document();
-    document.setAcctRptgReq(accountReportingRequest);
-    var objectFactory = new ObjectFactory();
-
-    return objectFactory.createDocument(document);
   }
 
   private static String serializeRequestId(UUID requestId) {

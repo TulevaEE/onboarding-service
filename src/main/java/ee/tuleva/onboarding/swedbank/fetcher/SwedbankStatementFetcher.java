@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.swedbank.fetcher;
 
+import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
+
 import ee.tuleva.onboarding.banking.BankAccountType;
+import ee.tuleva.onboarding.banking.statement.StatementRequestMessageGenerator;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -18,6 +21,7 @@ public class SwedbankStatementFetcher {
 
   private final SwedbankGatewayClient swedbankGatewayClient;
   private final SwedbankAccountConfiguration swedbankAccountConfiguration;
+  private final StatementRequestMessageGenerator statementRequestMessageGenerator;
 
   // @Scheduled(cron = "0 0 9-17 * * MON-FRI", zone = "Europe/Tallinn")
   // @Scheduled(cron = "0 0 18 * * *", zone = "Europe/Tallinn")
@@ -45,7 +49,9 @@ public class SwedbankStatementFetcher {
         accountIban,
         id);
 
-    var requestEntity = swedbankGatewayClient.getIntraDayReportRequestEntity(accountIban, id);
+    var requestEntity =
+        statementRequestMessageGenerator.generateIntraDayReportRequest(
+            accountIban, id, SWEDBANK_GATEWAY_TIME_ZONE);
     swedbankGatewayClient.sendStatementRequest(requestEntity, id);
   }
 
@@ -62,7 +68,8 @@ public class SwedbankStatementFetcher {
         toDate);
 
     var requestEntity =
-        swedbankGatewayClient.getHistoricReportRequestEntity(accountIban, id, fromDate, toDate);
+        statementRequestMessageGenerator.generateHistoricReportRequest(
+            accountIban, id, fromDate, toDate, SWEDBANK_GATEWAY_TIME_ZONE);
     swedbankGatewayClient.sendStatementRequest(requestEntity, id);
   }
 }

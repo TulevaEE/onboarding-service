@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.banking.message;
 import ee.tuleva.onboarding.banking.BankType;
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.UUID;
 import lombok.*;
 
@@ -26,6 +27,13 @@ public class BankingMessage {
   private String requestId;
   private String trackingId;
   private String rawResponse;
+
+  @Column(nullable = false)
+  private String timezone;
+
+  public ZoneId getTimezoneId() {
+    return ZoneId.of(timezone);
+  }
 
   @Column(columnDefinition = "TIMESTAMPTZ")
   private Instant failedAt;

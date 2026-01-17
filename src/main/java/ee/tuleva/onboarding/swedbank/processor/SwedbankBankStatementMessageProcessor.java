@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.swedbank.processor;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.*;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.REDEEMED;
-import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.banking.BankAccountType;
@@ -19,6 +18,7 @@ import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.user.UserService;
+import java.time.ZoneId;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,17 +42,15 @@ class SwedbankBankStatementMessageProcessor {
   private final EndToEndIdConverter endToEndIdConverter;
 
   @Transactional
-  public void processMessage(String rawResponse, BankMessageType messageType) {
+  public void processMessage(String rawResponse, BankMessageType messageType, ZoneId timezone) {
     log.info("Processing bank statement message of type {}", messageType);
 
     var bankStatement =
         switch (messageType) {
           case INTRA_DAY_REPORT ->
-              bankStatementExtractor.extractFromIntraDayReport(
-                  rawResponse, SWEDBANK_GATEWAY_TIME_ZONE);
+              bankStatementExtractor.extractFromIntraDayReport(rawResponse, timezone);
           case HISTORIC_STATEMENT ->
-              bankStatementExtractor.extractFromHistoricStatement(
-                  rawResponse, SWEDBANK_GATEWAY_TIME_ZONE);
+              bankStatementExtractor.extractFromHistoricStatement(rawResponse, timezone);
           case PAYMENT_ORDER_CONFIRMATION ->
               throw new IllegalArgumentException("Message type not supported: " + messageType);
         };

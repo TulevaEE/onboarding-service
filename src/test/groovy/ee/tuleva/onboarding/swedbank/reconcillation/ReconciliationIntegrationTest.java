@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.swedbank.reconcillation;
 
+import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.banking.BankType;
@@ -181,6 +182,7 @@ class ReconciliationIntegrationTest {
             .requestId("test-reconciliation")
             .trackingId("test-reconciliation")
             .rawResponse(xml)
+            .timezone(SWEDBANK_GATEWAY_TIME_ZONE.getId())
             .receivedAt(NOW)
             .build();
     bankingMessageRepository.save(message);

@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RETURNE
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentFixture.aPayment;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.REDEEMED;
+import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -80,7 +81,7 @@ class SwedbankBankStatementMessageProcessorTest {
     when(swedbankAccountConfiguration.getAccountType(FUND_INVESTMENT_IBAN))
         .thenReturn(FUND_INVESTMENT_EUR);
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT);
+    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
 
     verify(savingsFundLedger).transferToFundAccount(new BigDecimal("100.00"));
   }
@@ -112,7 +113,7 @@ class SwedbankBankStatementMessageProcessorTest {
         .thenReturn(Optional.of(originalPayment));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT);
+    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
 
     verify(savingsFundLedger)
         .recordPaymentCancelled(user, new BigDecimal("50.00"), originalPaymentId);
@@ -142,7 +143,7 @@ class SwedbankBankStatementMessageProcessorTest {
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT);
+    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
 
     verify(savingsFundLedger)
         .bounceBackUnattributedPayment(new BigDecimal("75.00"), originalPaymentId);
@@ -162,7 +163,7 @@ class SwedbankBankStatementMessageProcessorTest {
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(any()))
         .thenReturn(Optional.empty());
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT);
+    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
 
     verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
     verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
@@ -196,7 +197,9 @@ class SwedbankBankStatementMessageProcessorTest {
 
     assertThrows(
         NoSuchElementException.class,
-        () -> processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT));
+        () ->
+            processor.processMessage(
+                "<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE));
   }
 
   @Test
@@ -205,7 +208,7 @@ class SwedbankBankStatementMessageProcessorTest {
     var incomingPayment = aPayment().amount(new BigDecimal("200.00")).build();
     setupMocksForPayment(incomingPayment);
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT);
+    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
 
     verify(savingsFundLedger, never()).transferToFundAccount(any());
     verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
@@ -277,7 +280,7 @@ class SwedbankBankStatementMessageProcessorTest {
     when(savingsFundLedger.hasPayoutEntry(redemptionRequestId)).thenReturn(false);
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT);
+    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
 
     verify(savingsFundLedger)
         .recordRedemptionPayout(user, new BigDecimal("500.00"), customerIban, redemptionRequestId);
@@ -309,7 +312,7 @@ class SwedbankBankStatementMessageProcessorTest {
         .thenReturn(Optional.of(redemptionRequest));
     when(savingsFundLedger.hasPayoutEntry(redemptionRequestId)).thenReturn(true);
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT);
+    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
 
     verify(savingsFundLedger, never()).recordRedemptionPayout(any(), any(), any(), any());
     verify(redemptionStatusService)
@@ -343,7 +346,9 @@ class SwedbankBankStatementMessageProcessorTest {
 
     assertThrows(
         NoSuchElementException.class,
-        () -> processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT));
+        () ->
+            processor.processMessage(
+                "<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE));
   }
 
   @Test
@@ -361,7 +366,7 @@ class SwedbankBankStatementMessageProcessorTest {
     when(redemptionRequestRepository.findByIdAndStatus(any(), eq(REDEEMED)))
         .thenReturn(Optional.empty());
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT);
+    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
 
     verifyNoInteractions(redemptionStatusService);
   }
@@ -375,7 +380,7 @@ class SwedbankBankStatementMessageProcessorTest {
     when(swedbankAccountConfiguration.getAccountType(FUND_INVESTMENT_IBAN))
         .thenReturn(FUND_INVESTMENT_EUR);
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT);
+    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
 
     verifyNoInteractions(redemptionStatusService);
   }
@@ -393,7 +398,7 @@ class SwedbankBankStatementMessageProcessorTest {
     when(swedbankAccountConfiguration.getAccountType(WITHDRAWAL_ACCOUNT_IBAN))
         .thenReturn(WITHDRAWAL_EUR);
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT);
+    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
 
     verify(savingsFundLedger).transferFromFundAccount(new BigDecimal("1000.00"));
     verifyNoInteractions(redemptionStatusService);

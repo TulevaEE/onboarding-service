@@ -4,14 +4,13 @@ import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.Statem
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.OPEN;
 import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.mock;
 
 import ee.tuleva.onboarding.banking.converter.LocalDateToXmlGregorianCalendarConverter;
 import ee.tuleva.onboarding.banking.converter.ZonedDateTimeToXmlGregorianCalendarConverter;
 import ee.tuleva.onboarding.banking.iso20022.camt053.Document;
 import ee.tuleva.onboarding.banking.iso20022.camt053.ObjectFactory;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
-import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
+import ee.tuleva.onboarding.banking.statement.StatementRequestMessageGenerator;
 import ee.tuleva.onboarding.time.TestClockHolder;
 import jakarta.xml.bind.JAXBElement;
 import java.math.BigDecimal;
@@ -21,36 +20,31 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.client.RestTemplate;
 
 public class Iso20022MarshallerTest {
 
   private Iso20022Marshaller marshaller;
 
-  private SwedbankGatewayClient swedbankGatewayClient;
+  private StatementRequestMessageGenerator statementRequestMessageGenerator;
 
   @BeforeEach
   void setUp() {
     this.marshaller = new Iso20022Marshaller();
-    this.swedbankGatewayClient =
-        new SwedbankGatewayClient(
-            "",
-            "",
-            "",
+    this.statementRequestMessageGenerator =
+        new StatementRequestMessageGenerator(
             TestClockHolder.clock,
-            marshaller,
-            null,
             new LocalDateToXmlGregorianCalendarConverter(),
-            new ZonedDateTimeToXmlGregorianCalendarConverter(),
-            mock(RestTemplate.class));
+            new ZonedDateTimeToXmlGregorianCalendarConverter());
   }
 
   @Test
   @DisplayName("marshals request class")
   public void marshalRequestClass() {
     var request =
-        swedbankGatewayClient.getIntraDayReportRequestEntity(
-            "EE_TEST_IBAN", UUID.fromString("cdb18c2e-ad18-4f08-93a6-1f91492fb9f5"));
+        statementRequestMessageGenerator.generateIntraDayReportRequest(
+            "EE_TEST_IBAN",
+            UUID.fromString("cdb18c2e-ad18-4f08-93a6-1f91492fb9f5"),
+            SWEDBANK_GATEWAY_TIME_ZONE);
 
     var requestXml = marshaller.marshalToString(request);
 

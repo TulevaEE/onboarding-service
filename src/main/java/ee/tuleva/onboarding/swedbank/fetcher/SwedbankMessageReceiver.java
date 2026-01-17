@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.swedbank.fetcher;
 
 import static ee.tuleva.onboarding.banking.BankType.SWEDBANK;
+import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
 
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
@@ -53,6 +54,7 @@ public class SwedbankMessageReceiver {
             .requestId(response.requestTrackingId())
             .trackingId(response.responseTrackingId())
             .rawResponse(response.rawResponse())
+            .timezone(SWEDBANK_GATEWAY_TIME_ZONE.getId())
             .build();
     bankingMessageRepository.save(messageEntity);
 

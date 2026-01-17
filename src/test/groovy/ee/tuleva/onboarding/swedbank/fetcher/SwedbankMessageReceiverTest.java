@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.swedbank.fetcher;
 
 import static ee.tuleva.onboarding.banking.BankType.SWEDBANK;
+import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
@@ -53,7 +54,8 @@ class SwedbankMessageReceiverTest {
                     message.getBankType() == SWEDBANK
                         && message.getRequestId().equals(id)
                         && message.getTrackingId().equals(trackingId)
-                        && message.getRawResponse().equals(responseBody)));
+                        && message.getRawResponse().equals(responseBody)
+                        && message.getTimezoneId().equals(SWEDBANK_GATEWAY_TIME_ZONE)));
     verify(swedbankGatewayClient, times(1)).acknowledgeResponse(eq(mockSwedbankResponse));
   }
 

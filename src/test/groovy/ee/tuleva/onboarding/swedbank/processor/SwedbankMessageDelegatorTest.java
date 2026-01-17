@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.swedbank.processor;
 
 import static ee.tuleva.onboarding.banking.BankType.SWEDBANK;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.*;
+import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
@@ -52,6 +53,7 @@ class SwedbankMessageDelegatorTest {
             .trackingId("test")
             .rawResponse(
                 "<?xml version=\"1.0\" encoding=\"UTF-8\"?> <Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.002.001.10\"></Document>")
+            .timezone(SWEDBANK_GATEWAY_TIME_ZONE.getId())
             .receivedAt(clock.instant())
             .build();
 
@@ -66,8 +68,9 @@ class SwedbankMessageDelegatorTest {
 
     delegator.processMessages();
 
-    verify(firstProcessor, never()).processMessage(any(), any());
-    verify(secondProcessor, times(1)).processMessage(message.getRawResponse(), messageType);
+    verify(firstProcessor, never()).processMessage(any(), any(), any());
+    verify(secondProcessor, times(1))
+        .processMessage(message.getRawResponse(), messageType, message.getTimezoneId());
 
     assertThat(message.getProcessedAt()).isEqualTo(clock.instant());
 
@@ -85,6 +88,7 @@ class SwedbankMessageDelegatorTest {
             .trackingId("test")
             .rawResponse(
                 "<?xml version=\"1.0\" encoding=\"UTF-8\"?> <Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.052.001.02\"></Document>")
+            .timezone(SWEDBANK_GATEWAY_TIME_ZONE.getId())
             .receivedAt(clock.instant())
             .build();
 
@@ -99,8 +103,9 @@ class SwedbankMessageDelegatorTest {
 
     delegator.processMessages();
 
-    verify(firstProcessor, never()).processMessage(any(), any());
-    verify(secondProcessor, times(1)).processMessage(message.getRawResponse(), messageType);
+    verify(firstProcessor, never()).processMessage(any(), any(), any());
+    verify(secondProcessor, times(1))
+        .processMessage(message.getRawResponse(), messageType, message.getTimezoneId());
 
     assertThat(message.getProcessedAt()).isEqualTo(clock.instant());
 
@@ -119,6 +124,7 @@ class SwedbankMessageDelegatorTest {
             .requestId("test")
             .trackingId("test")
             .rawResponse(xml)
+            .timezone(SWEDBANK_GATEWAY_TIME_ZONE.getId())
             .receivedAt(clock.instant())
             .build();
 
@@ -133,8 +139,9 @@ class SwedbankMessageDelegatorTest {
 
     delegator.processMessages();
 
-    verify(firstProcessor, never()).processMessage(any(), any());
-    verify(secondProcessor, times(1)).processMessage(message.getRawResponse(), messageType);
+    verify(firstProcessor, never()).processMessage(any(), any(), any());
+    verify(secondProcessor, times(1))
+        .processMessage(message.getRawResponse(), messageType, message.getTimezoneId());
 
     assertThat(message.getProcessedAt()).isEqualTo(clock.instant());
 
@@ -152,6 +159,7 @@ class SwedbankMessageDelegatorTest {
             .trackingId("test")
             .rawResponse(
                 "<?xml version=\"1.0\" encoding=\"UTF-8\"?> <Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.002.001.10\"></Document>")
+            .timezone(SWEDBANK_GATEWAY_TIME_ZONE.getId())
             .receivedAt(clock.instant())
             .build();
 
@@ -164,8 +172,8 @@ class SwedbankMessageDelegatorTest {
 
     delegator.processMessages();
 
-    verify(firstProcessor, never()).processMessage(any(), any());
-    verify(secondProcessor, never()).processMessage(any(), any());
+    verify(firstProcessor, never()).processMessage(any(), any(), any());
+    verify(secondProcessor, never()).processMessage(any(), any(), any());
 
     assertThat(message.getProcessedAt()).isEqualTo(clock.instant());
     verify(bankingMessageRepository).save(message);
@@ -182,6 +190,7 @@ class SwedbankMessageDelegatorTest {
             .trackingId("test")
             .rawResponse(
                 "<?xml version=\"1.0\" encoding=\"UTF-8\"?> <Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.002.001.10\"></Document>")
+            .timezone(SWEDBANK_GATEWAY_TIME_ZONE.getId())
             .receivedAt(clock.instant())
             .build();
 
@@ -191,7 +200,7 @@ class SwedbankMessageDelegatorTest {
     when(secondProcessor.supports(messageType)).thenReturn(true);
     doThrow(new RuntimeException("Processing failed"))
         .when(secondProcessor)
-        .processMessage(message.getRawResponse(), messageType);
+        .processMessage(message.getRawResponse(), messageType, message.getTimezoneId());
 
     when(bankingMessageRepository
             .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc())
@@ -199,7 +208,8 @@ class SwedbankMessageDelegatorTest {
 
     delegator.processMessages();
 
-    verify(secondProcessor, times(1)).processMessage(message.getRawResponse(), messageType);
+    verify(secondProcessor, times(1))
+        .processMessage(message.getRawResponse(), messageType, message.getTimezoneId());
 
     assertThat(message.getFailedAt()).isEqualTo(clock.instant());
     assertThat(message.getProcessedAt()).isNull();

@@ -1,8 +1,7 @@
 package ee.tuleva.onboarding.swedbank.reconcillation;
 
-import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
-
 import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
+import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -14,10 +13,8 @@ public class SwedbankCheckingReconciliator {
   private final BankStatementExtractor bankStatementExtractor;
   private final Reconciliator reconciliator;
 
-  public void processMessage(String rawResponse) {
-    var statement =
-        bankStatementExtractor.extractFromHistoricStatement(
-            rawResponse, SWEDBANK_GATEWAY_TIME_ZONE);
+  public void processMessage(String rawResponse, ZoneId timezone) {
+    var statement = bankStatementExtractor.extractFromHistoricStatement(rawResponse, timezone);
 
     try {
       reconciliator.reconcile(statement);

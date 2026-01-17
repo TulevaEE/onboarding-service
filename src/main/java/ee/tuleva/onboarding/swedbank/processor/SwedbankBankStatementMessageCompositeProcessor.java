@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.banking.message.BankMessageType.INTRA_DAY_REP
 
 import ee.tuleva.onboarding.banking.message.BankMessageType;
 import ee.tuleva.onboarding.swedbank.reconcillation.SwedbankCheckingReconciliator;
+import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,11 +21,11 @@ class SwedbankBankStatementMessageCompositeProcessor implements SwedbankMessageP
 
   @Override
   @Transactional
-  public void processMessage(String rawResponse, BankMessageType messageType) {
-    this.swedbankBankStatementMessageProcessor.processMessage(rawResponse, messageType);
+  public void processMessage(String rawResponse, BankMessageType messageType, ZoneId timezone) {
+    this.swedbankBankStatementMessageProcessor.processMessage(rawResponse, messageType, timezone);
 
     if (messageType == HISTORIC_STATEMENT) {
-      this.swedbankCheckingReconciliator.processMessage(rawResponse);
+      this.swedbankCheckingReconciliator.processMessage(rawResponse, timezone);
     }
   }
 

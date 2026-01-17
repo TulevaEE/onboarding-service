@@ -5,9 +5,8 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Sta
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.banking.BankAccountType;
-import ee.tuleva.onboarding.banking.message.BankMessageType;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
-import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
+import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentExtractor;
@@ -18,19 +17,16 @@ import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.user.UserService;
-import java.time.ZoneId;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-class SwedbankBankStatementMessageProcessor {
+public class SwedbankBankStatementProcessor {
 
-  private final BankStatementExtractor bankStatementExtractor;
   private final SavingFundPaymentExtractor paymentExtractor;
   private final SavingFundPaymentUpsertionService paymentService;
   private final SwedbankAccountConfiguration swedbankAccountConfiguration;
@@ -41,36 +37,25 @@ class SwedbankBankStatementMessageProcessor {
   private final RedemptionStatusService redemptionStatusService;
   private final EndToEndIdConverter endToEndIdConverter;
 
-  @Transactional
-  public void processMessage(String rawResponse, BankMessageType messageType, ZoneId timezone) {
-    log.info("Processing bank statement message of type {}", messageType);
-
-    var bankStatement =
-        switch (messageType) {
-          case INTRA_DAY_REPORT ->
-              bankStatementExtractor.extractFromIntraDayReport(rawResponse, timezone);
-          case HISTORIC_STATEMENT ->
-              bankStatementExtractor.extractFromHistoricStatement(rawResponse, timezone);
-          case PAYMENT_ORDER_CONFIRMATION ->
-              throw new IllegalArgumentException("Message type not supported: " + messageType);
-        };
+  public void processStatement(BankStatement bankStatement) {
     log.info(
-        "Successfully extracted bank statement message: entries={}",
+        "Processing bank statement: type={}, entries={}",
+        bankStatement.getType(),
         bankStatement.getEntries().size());
 
     var accountIban = bankStatement.getBankStatementAccount().iban();
     var accountType = swedbankAccountConfiguration.getAccountType(accountIban);
 
     if (accountType == null) {
-      log.warn("Unknown account type for IBAN: {}", accountIban);
+      log.warn("Unknown account type: iban={}", accountIban);
       return;
     }
 
     var payments = paymentExtractor.extractPayments(bankStatement);
-    log.info("Successfully extracted {} payments from a bank statement", payments.size());
+    log.info("Extracted payments: count={}", payments.size());
 
     payments.forEach(payment -> processPayment(payment, accountType));
-    log.info("Successfully upserted {} payments for account type {}", payments.size(), accountType);
+    log.info("Processed payments: count={}, accountType={}", payments.size(), accountType);
   }
 
   private SavingFundPayment.Status resolveDepositAccountStatus(SavingFundPayment payment) {

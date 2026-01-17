@@ -6,19 +6,16 @@ import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RETURNE
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentFixture.aPayment;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.REDEEMED;
-import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.BankAccountType;
-import ee.tuleva.onboarding.banking.message.BankMessageType;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
-import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentExtractor;
@@ -40,14 +37,13 @@ import java.util.function.Function;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-class SwedbankBankStatementMessageProcessorTest {
+class SwedbankBankStatementProcessorTest {
 
   private static final String DEPOSIT_ACCOUNT_IBAN = "EE442200221092874625";
   private static final String FUND_INVESTMENT_IBAN = "EE552200221055544433";
   private static final String WITHDRAWAL_ACCOUNT_IBAN = "EE662200221066655544";
   private static final String EXTERNAL_ACCOUNT_IBAN = "EE112233445566778899";
 
-  BankStatementExtractor bankStatementExtractor = mock(BankStatementExtractor.class);
   SavingFundPaymentExtractor paymentExtractor = mock(SavingFundPaymentExtractor.class);
   SavingFundPaymentUpsertionService paymentService = mock(SavingFundPaymentUpsertionService.class);
   SwedbankAccountConfiguration swedbankAccountConfiguration =
@@ -59,9 +55,8 @@ class SwedbankBankStatementMessageProcessorTest {
   RedemptionStatusService redemptionStatusService = mock(RedemptionStatusService.class);
   EndToEndIdConverter endToEndIdConverter = new EndToEndIdConverter();
 
-  SwedbankBankStatementMessageProcessor processor =
-      new SwedbankBankStatementMessageProcessor(
-          bankStatementExtractor,
+  SwedbankBankStatementProcessor processor =
+      new SwedbankBankStatementProcessor(
           paymentExtractor,
           paymentService,
           swedbankAccountConfiguration,
@@ -77,11 +72,11 @@ class SwedbankBankStatementMessageProcessorTest {
   void outgoingToFundAccount_createsLedgerTransferEntry() {
     var outgoingPayment =
         aPayment().amount(new BigDecimal("-100.00")).beneficiaryIban(FUND_INVESTMENT_IBAN).build();
-    setupMocksForPayment(outgoingPayment);
+    var bankStatement = setupMocksForPayment(outgoingPayment);
     when(swedbankAccountConfiguration.getAccountType(FUND_INVESTMENT_IBAN))
         .thenReturn(FUND_INVESTMENT_EUR);
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
+    processor.processStatement(bankStatement);
 
     verify(savingsFundLedger).transferToFundAccount(new BigDecimal("100.00"));
   }
@@ -107,13 +102,13 @@ class SwedbankBankStatementMessageProcessorTest {
             .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
             .endToEndId(endToEndId)
             .build();
-    setupMocksForPayment(returnPayment);
+    var bankStatement = setupMocksForPayment(returnPayment);
     when(swedbankAccountConfiguration.getAccountType(EXTERNAL_ACCOUNT_IBAN)).thenReturn(null);
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
+    processor.processStatement(bankStatement);
 
     verify(savingsFundLedger)
         .recordPaymentCancelled(user, new BigDecimal("50.00"), originalPaymentId);
@@ -138,12 +133,12 @@ class SwedbankBankStatementMessageProcessorTest {
             .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
             .endToEndId(endToEndId)
             .build();
-    setupMocksForPayment(returnPayment);
+    var bankStatement = setupMocksForPayment(returnPayment);
     when(swedbankAccountConfiguration.getAccountType(EXTERNAL_ACCOUNT_IBAN)).thenReturn(null);
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
+    processor.processStatement(bankStatement);
 
     verify(savingsFundLedger)
         .bounceBackUnattributedPayment(new BigDecimal("75.00"), originalPaymentId);
@@ -158,12 +153,12 @@ class SwedbankBankStatementMessageProcessorTest {
             .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
             .endToEndId("nonexistent12345678901234567890")
             .build();
-    setupMocksForPayment(returnPayment);
+    var bankStatement = setupMocksForPayment(returnPayment);
     when(swedbankAccountConfiguration.getAccountType(EXTERNAL_ACCOUNT_IBAN)).thenReturn(null);
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(any()))
         .thenReturn(Optional.empty());
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
+    processor.processStatement(bankStatement);
 
     verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
     verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
@@ -189,37 +184,33 @@ class SwedbankBankStatementMessageProcessorTest {
             .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
             .endToEndId(endToEndId)
             .build();
-    setupMocksForPayment(returnPayment);
+    var bankStatement = setupMocksForPayment(returnPayment);
     when(swedbankAccountConfiguration.getAccountType(EXTERNAL_ACCOUNT_IBAN)).thenReturn(null);
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
     when(userService.getByIdOrThrow(missingUserId)).thenThrow(new NoSuchElementException());
 
-    assertThrows(
-        NoSuchElementException.class,
-        () ->
-            processor.processMessage(
-                "<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE));
+    assertThrows(NoSuchElementException.class, () -> processor.processStatement(bankStatement));
   }
 
   @Test
   @DisplayName("Incoming payment does not create ledger entry in processor")
   void incomingPayment_doesNotCreateLedgerEntry() {
     var incomingPayment = aPayment().amount(new BigDecimal("200.00")).build();
-    setupMocksForPayment(incomingPayment);
+    var bankStatement = setupMocksForPayment(incomingPayment);
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
+    processor.processStatement(bankStatement);
 
     verify(savingsFundLedger, never()).transferToFundAccount(any());
     verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
     verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
   }
 
-  private void setupMocksForPayment(SavingFundPayment payment) {
-    setupMocksForPaymentWithAccount(payment, DEPOSIT_ACCOUNT_IBAN, DEPOSIT_EUR);
+  private BankStatement setupMocksForPayment(SavingFundPayment payment) {
+    return setupMocksForPaymentWithAccount(payment, DEPOSIT_ACCOUNT_IBAN, DEPOSIT_EUR);
   }
 
-  private void setupMocksForPaymentWithAccount(
+  private BankStatement setupMocksForPaymentWithAccount(
       SavingFundPayment payment, String accountIban, BankAccountType accountType) {
     var bankStatement =
         new BankStatement(
@@ -228,7 +219,6 @@ class SwedbankBankStatementMessageProcessorTest {
             List.of(),
             List.of(),
             Instant.now());
-    when(bankStatementExtractor.extractFromIntraDayReport(any(), any())).thenReturn(bankStatement);
     when(swedbankAccountConfiguration.getAccountType(accountIban)).thenReturn(accountType);
     when(paymentExtractor.extractPayments(bankStatement)).thenReturn(List.of(payment));
 
@@ -251,6 +241,8 @@ class SwedbankBankStatementMessageProcessorTest {
             })
         .when(paymentService)
         .upsert(eq(payment), any());
+
+    return bankStatement;
   }
 
   @Test
@@ -274,13 +266,14 @@ class SwedbankBankStatementMessageProcessorTest {
             .beneficiaryIban(customerIban)
             .endToEndId(endToEndId)
             .build();
-    setupMocksForPaymentWithAccount(outgoingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
+    var bankStatement =
+        setupMocksForPaymentWithAccount(outgoingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
     when(redemptionRequestRepository.findByIdAndStatus(redemptionRequestId, REDEEMED))
         .thenReturn(Optional.of(redemptionRequest));
     when(savingsFundLedger.hasPayoutEntry(redemptionRequestId)).thenReturn(false);
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
+    processor.processStatement(bankStatement);
 
     verify(savingsFundLedger)
         .recordRedemptionPayout(user, new BigDecimal("500.00"), customerIban, redemptionRequestId);
@@ -307,12 +300,13 @@ class SwedbankBankStatementMessageProcessorTest {
             .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
             .endToEndId(endToEndId)
             .build();
-    setupMocksForPaymentWithAccount(outgoingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
+    var bankStatement =
+        setupMocksForPaymentWithAccount(outgoingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
     when(redemptionRequestRepository.findByIdAndStatus(redemptionRequestId, REDEEMED))
         .thenReturn(Optional.of(redemptionRequest));
     when(savingsFundLedger.hasPayoutEntry(redemptionRequestId)).thenReturn(true);
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
+    processor.processStatement(bankStatement);
 
     verify(savingsFundLedger, never()).recordRedemptionPayout(any(), any(), any(), any());
     verify(redemptionStatusService)
@@ -338,17 +332,14 @@ class SwedbankBankStatementMessageProcessorTest {
             .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
             .endToEndId(endToEndId)
             .build();
-    setupMocksForPaymentWithAccount(outgoingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
+    var bankStatement =
+        setupMocksForPaymentWithAccount(outgoingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
     when(redemptionRequestRepository.findByIdAndStatus(redemptionRequestId, REDEEMED))
         .thenReturn(Optional.of(redemptionRequest));
     when(savingsFundLedger.hasPayoutEntry(redemptionRequestId)).thenReturn(false);
     when(userService.getByIdOrThrow(missingUserId)).thenThrow(new NoSuchElementException());
 
-    assertThrows(
-        NoSuchElementException.class,
-        () ->
-            processor.processMessage(
-                "<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE));
+    assertThrows(NoSuchElementException.class, () -> processor.processStatement(bankStatement));
   }
 
   @Test
@@ -362,11 +353,12 @@ class SwedbankBankStatementMessageProcessorTest {
             .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
             .endToEndId(endToEndId)
             .build();
-    setupMocksForPaymentWithAccount(outgoingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
+    var bankStatement =
+        setupMocksForPaymentWithAccount(outgoingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
     when(redemptionRequestRepository.findByIdAndStatus(any(), eq(REDEEMED)))
         .thenReturn(Optional.empty());
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
+    processor.processStatement(bankStatement);
 
     verifyNoInteractions(redemptionStatusService);
   }
@@ -376,11 +368,12 @@ class SwedbankBankStatementMessageProcessorTest {
   void withdrawalIncoming_fromFundInvestment_logsBatchTransfer() {
     var incomingPayment =
         aPayment().amount(new BigDecimal("1000.00")).remitterIban(FUND_INVESTMENT_IBAN).build();
-    setupMocksForPaymentWithAccount(incomingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
+    var bankStatement =
+        setupMocksForPaymentWithAccount(incomingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
     when(swedbankAccountConfiguration.getAccountType(FUND_INVESTMENT_IBAN))
         .thenReturn(FUND_INVESTMENT_EUR);
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
+    processor.processStatement(bankStatement);
 
     verifyNoInteractions(redemptionStatusService);
   }
@@ -394,11 +387,12 @@ class SwedbankBankStatementMessageProcessorTest {
             .amount(new BigDecimal("-1000.00"))
             .beneficiaryIban(WITHDRAWAL_ACCOUNT_IBAN)
             .build();
-    setupMocksForPaymentWithAccount(outgoingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
+    var bankStatement =
+        setupMocksForPaymentWithAccount(outgoingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
     when(swedbankAccountConfiguration.getAccountType(WITHDRAWAL_ACCOUNT_IBAN))
         .thenReturn(WITHDRAWAL_EUR);
 
-    processor.processMessage("<xml>", BankMessageType.INTRA_DAY_REPORT, SWEDBANK_GATEWAY_TIME_ZONE);
+    processor.processStatement(bankStatement);
 
     verify(savingsFundLedger).transferFromFundAccount(new BigDecimal("1000.00"));
     verifyNoInteractions(redemptionStatusService);

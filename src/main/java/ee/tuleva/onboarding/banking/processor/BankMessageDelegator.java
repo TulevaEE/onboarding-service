@@ -1,11 +1,16 @@
-package ee.tuleva.onboarding.swedbank.processor;
+package ee.tuleva.onboarding.banking.processor;
 
+import static ee.tuleva.onboarding.banking.message.BankMessageType.*;
+
+import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankStatementReceived;
 import ee.tuleva.onboarding.banking.message.BankMessageType;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
+import ee.tuleva.onboarding.banking.statement.BankStatement;
+import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
 import java.io.StringReader;
 import java.time.Clock;
-import java.util.List;
+import java.time.ZoneId;
 import java.util.Optional;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
@@ -14,20 +19,22 @@ import javax.xml.stream.XMLStreamReader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class SwedbankMessageDelegator {
+public class BankMessageDelegator {
 
   private final Clock clock;
   private final BankingMessageRepository bankingMessageRepository;
-  private final List<SwedbankMessageProcessor> messageProcessors;
+  private final BankStatementExtractor bankStatementExtractor;
+  private final ApplicationEventPublisher eventPublisher;
 
   // @Scheduled(fixedRateString = "1m")
   @SchedulerLock(
-      name = "SwedbankMessageDelegator_processMessages",
+      name = "BankMessageDelegator_processMessages",
       lockAtMostFor = "50s",
       lockAtLeastFor = "5s")
   public void processMessages() {
@@ -45,29 +52,38 @@ public class SwedbankMessageDelegator {
           extractMessageName(extractNamespace(message.getRawResponse()).orElseThrow());
       var messageType = BankMessageType.fromXmlType(messageName);
 
-      var supportedProcessor =
-          messageProcessors.stream()
-              .filter(processor -> processor.supports(messageType))
-              .findFirst();
-
-      if (supportedProcessor.isEmpty()) {
+      if (messageType == PAYMENT_ORDER_CONFIRMATION) {
         log.info(
-            "No processor found for message type: {} (message id: {})",
-            messageType,
-            message.getId());
+            "Payment order confirmation received: messageId={}, bankType={}",
+            message.getId(),
+            message.getBankType());
       } else {
-        supportedProcessor
-            .get()
-            .processMessage(message.getRawResponse(), messageType, message.getTimezoneId());
+        var bankStatement =
+            extractBankStatement(message.getRawResponse(), messageType, message.getTimezoneId());
+        var event =
+            new BankStatementReceived(message.getId(), message.getBankType(), bankStatement);
+        eventPublisher.publishEvent(event);
       }
 
       message.setProcessedAt(clock.instant());
       bankingMessageRepository.save(message);
     } catch (Exception e) {
-      log.error("Failed to process message id: {}", message.getId(), e);
+      log.error("Failed to process message: messageId={}", message.getId(), e);
       message.setFailedAt(clock.instant());
       bankingMessageRepository.save(message);
     }
+  }
+
+  private BankStatement extractBankStatement(
+      String rawResponse, BankMessageType messageType, ZoneId timezone) {
+    return switch (messageType) {
+      case INTRA_DAY_REPORT ->
+          bankStatementExtractor.extractFromIntraDayReport(rawResponse, timezone);
+      case HISTORIC_STATEMENT ->
+          bankStatementExtractor.extractFromHistoricStatement(rawResponse, timezone);
+      case PAYMENT_ORDER_CONFIRMATION ->
+          throw new IllegalArgumentException("Message type not supported: " + messageType);
+    };
   }
 
   private String extractMessageName(String namespace) {
@@ -84,7 +100,6 @@ public class SwedbankMessageDelegator {
           XMLInputFactory.newInstance().createXMLStreamReader(new StringReader(xml));
 
       try {
-        // Find the first START_ELEMENT (root element)
         while (reader.hasNext()) {
           int event = reader.next();
           if (event == XMLStreamConstants.START_ELEMENT) {

@@ -9,11 +9,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
+import ee.tuleva.onboarding.banking.processor.BankMessageDelegator;
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
-import ee.tuleva.onboarding.swedbank.processor.SwedbankMessageDelegator;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -37,7 +37,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
 
   @Autowired private SavingFundPaymentRepository repository;
   @Autowired private BankingMessageRepository bankingMessageRepository;
-  @Autowired private SwedbankMessageDelegator delegator;
+  @Autowired private BankMessageDelegator delegator;
   @Autowired private LedgerService ledgerService;
   @Autowired private SwedbankAccountConfiguration swedbankAccountConfiguration;
 
@@ -398,7 +398,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
 
     @Autowired private SavingFundPaymentRepository repository;
     @Autowired private BankingMessageRepository bankingMessageRepository;
-    @Autowired private SwedbankMessageDelegator delegator;
+    @Autowired private BankMessageDelegator delegator;
 
     @Test
     void findsExistingPaymentByExternalId_updatesExistingPayment() {

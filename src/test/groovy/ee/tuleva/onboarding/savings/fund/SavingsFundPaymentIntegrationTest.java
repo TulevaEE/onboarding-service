@@ -12,6 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
+import ee.tuleva.onboarding.banking.processor.BankMessageDelegator;
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
@@ -19,7 +20,6 @@ import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.savings.fund.issuing.FundAccountPaymentJob;
 import ee.tuleva.onboarding.savings.fund.issuing.IssuingJob;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
-import ee.tuleva.onboarding.swedbank.processor.SwedbankMessageDelegator;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
@@ -44,7 +44,7 @@ class SavingsFundPaymentIntegrationTest {
 
   @Autowired private SavingFundPaymentRepository paymentRepository;
   @Autowired private BankingMessageRepository bankingMessageRepository;
-  @Autowired private SwedbankMessageDelegator swedbankMessageDelegator;
+  @Autowired private BankMessageDelegator bankMessageDelegator;
   @Autowired private PaymentVerificationJob paymentVerificationJob;
   @Autowired private SavingsFundReservationJob savingsFundReservationJob;
   @Autowired private IssuingJob issuingJob;
@@ -91,7 +91,7 @@ class SavingsFundPaymentIntegrationTest {
     persistXmlMessage(xml, NOW);
 
     // Step 1: Process XML message → Payment should be RECEIVED
-    swedbankMessageDelegator.processMessages();
+    bankMessageDelegator.processMessages();
 
     // Build expected payment
     var expectedPayment =
@@ -180,7 +180,7 @@ class SavingsFundPaymentIntegrationTest {
     var outgoingToInvestmentXml =
         createOutgoingToInvestmentAccountXml(investmentIban, paymentAmount);
     persistXmlMessage(outgoingToInvestmentXml, NOW);
-    swedbankMessageDelegator.processMessages();
+    bankMessageDelegator.processMessages();
 
     // Verify outgoing payment was created and processed
     var allPayments = paymentRepository.findAll();
@@ -358,7 +358,7 @@ class SavingsFundPaymentIntegrationTest {
     persistXmlMessage(xml, NOW);
 
     // Step 1: Process XML message → Payment should be RECEIVED
-    swedbankMessageDelegator.processMessages();
+    bankMessageDelegator.processMessages();
 
     // Build expected payment
     var expectedPayment =
@@ -412,7 +412,7 @@ class SavingsFundPaymentIntegrationTest {
     // Step 3: Process outgoing return XML → Ledger should record bounce back
     var returnXml = createReturnPaymentXml(paymentId);
     persistXmlMessage(returnXml, NOW);
-    swedbankMessageDelegator.processMessages();
+    bankMessageDelegator.processMessages();
 
     // Verify return payment was created
     var allPayments = paymentRepository.findAll();

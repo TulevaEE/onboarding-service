@@ -56,7 +56,9 @@ public class SwedbankMessageDelegator {
             messageType,
             message.getId());
       } else {
-        supportedProcessor.get().processMessage(message.getRawResponse(), messageType);
+        supportedProcessor
+            .get()
+            .processMessage(message.getRawResponse(), messageType, message.getTimezoneId());
       }
 
       message.setProcessedAt(clock.instant());

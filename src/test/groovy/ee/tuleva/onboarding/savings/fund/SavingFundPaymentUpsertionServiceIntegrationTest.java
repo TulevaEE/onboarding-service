@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
+import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.banking.BankType;
@@ -124,6 +125,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
             .requestId("test-failed")
             .trackingId("test-failed")
             .rawResponse("<malformed xml")
+            .timezone(SWEDBANK_GATEWAY_TIME_ZONE.getId())
             .receivedAt(NOW.minus(Duration.ofHours(2)))
             .failedAt(NOW.minus(Duration.ofHours(1)))
             .build();
@@ -136,6 +138,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
             .requestId("test-success")
             .trackingId("test-success")
             .rawResponse(XML_TEMPLATE)
+            .timezone(SWEDBANK_GATEWAY_TIME_ZONE.getId())
             .receivedAt(NOW)
             .build();
     var savedSuccessMessage = bankingMessageRepository.save(successMessage);
@@ -537,6 +540,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
               .requestId("test")
               .trackingId("test")
               .rawResponse(xml)
+              .timezone(SWEDBANK_GATEWAY_TIME_ZONE.getId())
               .receivedAt(NOW)
               .build();
       var saved = bankingMessageRepository.save(message);
@@ -570,6 +574,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
             .requestId("test")
             .trackingId("test")
             .rawResponse(xml)
+            .timezone(SWEDBANK_GATEWAY_TIME_ZONE.getId())
             .receivedAt(NOW)
             .build();
     var saved = bankingMessageRepository.save(message);

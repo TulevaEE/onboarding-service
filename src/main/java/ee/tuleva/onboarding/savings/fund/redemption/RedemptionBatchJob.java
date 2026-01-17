@@ -1,19 +1,19 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
+import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
+import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
-import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
-import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.WITHDRAWAL_EUR;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
+import ee.tuleva.onboarding.banking.BankAccountConfiguration;
+import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
+import ee.tuleva.onboarding.banking.payment.PaymentRequest;
+import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
-import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
-import ee.tuleva.onboarding.swedbank.payment.EndToEndIdConverter;
-import ee.tuleva.onboarding.swedbank.payment.PaymentRequest;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
@@ -28,6 +28,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -47,8 +48,8 @@ public class RedemptionBatchJob {
   private final RedemptionStatusService redemptionStatusService;
   private final SavingsFundLedger savingsFundLedger;
   private final UserService userService;
-  private final SwedbankGatewayClient swedbankGatewayClient;
-  private final SwedbankAccountConfiguration swedbankAccountConfiguration;
+  private final ApplicationEventPublisher eventPublisher;
+  private final BankAccountConfiguration bankAccountConfiguration;
   private final TransactionTemplate transactionTemplate;
   private final SavingsFundNavProvider navProvider;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
@@ -163,14 +164,14 @@ public class RedemptionBatchJob {
     UUID batchId = UUID.randomUUID();
     PaymentRequest paymentRequest =
         PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(batchId))
-            .remitterIban(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+            .remitterIban(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
             .beneficiaryName("Tuleva Fondid AS")
-            .beneficiaryIban(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+            .beneficiaryIban(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
             .amount(totalAmount)
             .description("Redemptions batch")
             .build();
 
-    swedbankGatewayClient.sendPaymentRequest(paymentRequest, batchId);
+    eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, batchId));
     log.info("Sent batch transfer request: batchId={}, amount={}", batchId, totalAmount);
   }
 
@@ -187,14 +188,14 @@ public class RedemptionBatchJob {
 
         PaymentRequest paymentRequest =
             PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(updated.getId()))
-                .remitterIban(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+                .remitterIban(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
                 .beneficiaryName(beneficiaryName)
                 .beneficiaryIban(updated.getCustomerIban())
                 .amount(updated.getCashAmount())
                 .description("Fondi tagasivõtmine")
                 .build();
 
-        swedbankGatewayClient.sendPaymentRequest(paymentRequest, updated.getId());
+        eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, updated.getId()));
 
         markAsRedeemed(updated.getId());
 

@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
+import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
-import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
-import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.WITHDRAWAL_EUR;
 import static java.time.ZoneOffset.UTC;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -12,14 +12,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.banking.BankAccountConfiguration;
+import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
+import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
-import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
-import ee.tuleva.onboarding.swedbank.payment.EndToEndIdConverter;
-import ee.tuleva.onboarding.swedbank.payment.PaymentRequest;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.time.*;
@@ -33,6 +32,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -43,8 +43,8 @@ class RedemptionBatchJobTest {
   @Mock private RedemptionStatusService redemptionStatusService;
   @Mock private SavingsFundLedger savingsFundLedger;
   @Mock private UserService userService;
-  @Mock private SwedbankGatewayClient swedbankGatewayClient;
-  @Mock private SwedbankAccountConfiguration swedbankAccountConfiguration;
+  @Mock private ApplicationEventPublisher eventPublisher;
+  @Mock private BankAccountConfiguration bankAccountConfiguration;
   @Mock private TransactionTemplate transactionTemplate;
   @Mock private SavingsFundNavProvider navProvider;
   @Mock private SavingFundPaymentRepository savingFundPaymentRepository;
@@ -63,8 +63,8 @@ class RedemptionBatchJobTest {
         redemptionStatusService,
         savingsFundLedger,
         userService,
-        swedbankGatewayClient,
-        swedbankAccountConfiguration,
+        eventPublisher,
+        bankAccountConfiguration,
         transactionTemplate,
         navProvider,
         savingFundPaymentRepository,
@@ -83,7 +83,7 @@ class RedemptionBatchJobTest {
     batchJob.runJob();
 
     verify(redemptionRequestRepository).findByStatusAndRequestedAtBefore(eq(VERIFIED), any());
-    verifyNoInteractions(swedbankGatewayClient);
+    verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
   }
 
   @Test
@@ -109,9 +109,9 @@ class RedemptionBatchJobTest {
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
-    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+    when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
         .thenReturn("EE111111111111111111");
-    when(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+    when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
         .thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(user.getId(), customerIban))
         .thenReturn(Optional.of(beneficiaryName));
@@ -133,8 +133,7 @@ class RedemptionBatchJobTest {
             any(BigDecimal.class),
             eq(BigDecimal.ONE),
             eq(requestId));
-    verify(swedbankGatewayClient, times(2))
-        .sendPaymentRequest(any(PaymentRequest.class), any(UUID.class));
+    verify(eventPublisher, times(2)).publishEvent(any(RequestPaymentEvent.class));
     verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
 
     var savedRequestCaptor = ArgumentCaptor.forClass(RedemptionRequest.class);
@@ -206,9 +205,9 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
-    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+    when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
         .thenReturn("EE111111111111111111");
-    when(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+    when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
         .thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(user.getId(), customerIban))
         .thenReturn(Optional.of("John Smith"));
@@ -222,10 +221,13 @@ class RedemptionBatchJobTest {
         .execute(any());
 
     // First call (batch transfer) succeeds, second call (individual payout) fails
-    doNothing()
+    doAnswer(
+            invocation -> {
+              return null;
+            })
         .doThrow(new RuntimeException("Payout error"))
-        .when(swedbankGatewayClient)
-        .sendPaymentRequest(any(), any());
+        .when(eventPublisher)
+        .publishEvent(any(RequestPaymentEvent.class));
 
     batchJob.runJob();
 
@@ -278,9 +280,9 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
-    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+    when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
         .thenReturn("EE111111111111111111");
-    when(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+    when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
         .thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(user.getId(), customerIban))
         .thenReturn(Optional.of("John Smith"));
@@ -296,8 +298,7 @@ class RedemptionBatchJobTest {
     batchJob.runJob();
 
     // Verify pricing was skipped but payments were still sent
-    verify(swedbankGatewayClient, times(2))
-        .sendPaymentRequest(any(PaymentRequest.class), any(UUID.class));
+    verify(eventPublisher, times(2)).publishEvent(any(RequestPaymentEvent.class));
   }
 
   @Test
@@ -322,9 +323,9 @@ class RedemptionBatchJobTest {
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
-    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+    when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
         .thenReturn("EE111111111111111111");
-    when(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+    when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
         .thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(user.getId(), customerIban))
         .thenReturn(Optional.of("John Smith"));
@@ -339,13 +340,12 @@ class RedemptionBatchJobTest {
 
     batchJob.runJob();
 
-    var paymentIdCaptor = ArgumentCaptor.forClass(UUID.class);
-    verify(swedbankGatewayClient, times(2))
-        .sendPaymentRequest(any(PaymentRequest.class), paymentIdCaptor.capture());
+    var eventCaptor = ArgumentCaptor.forClass(RequestPaymentEvent.class);
+    verify(eventPublisher, times(2)).publishEvent(eventCaptor.capture());
 
-    var capturedIds = paymentIdCaptor.getAllValues();
+    var capturedEvents = eventCaptor.getAllValues();
     // Second payment (individual payout) should use the request ID
-    assertThat(capturedIds.get(1)).isEqualTo(requestId);
+    assertThat(capturedEvents.get(1).requestId()).isEqualTo(requestId);
   }
 
   @Test
@@ -371,9 +371,9 @@ class RedemptionBatchJobTest {
         .thenReturn(List.of()); // Second run finds no VERIFIED requests
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
-    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+    when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
         .thenReturn("EE111111111111111111");
-    when(swedbankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+    when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
         .thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(user.getId(), customerIban))
         .thenReturn(Optional.of("John Smith"));
@@ -393,8 +393,7 @@ class RedemptionBatchJobTest {
     batchJob.runJob();
 
     // Verify payment was only sent once per type (batch + individual)
-    verify(swedbankGatewayClient, times(2))
-        .sendPaymentRequest(any(PaymentRequest.class), any(UUID.class));
+    verify(eventPublisher, times(2)).publishEvent(any(RequestPaymentEvent.class));
     verify(redemptionStatusService, times(1)).changeStatus(requestId, REDEEMED);
   }
 

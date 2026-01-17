@@ -1,19 +1,19 @@
 package ee.tuleva.onboarding.savings.fund.issuing;
 
+import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
+import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.event.TrackableEventType.SUBSCRIPTION_BATCH_CREATED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.PROCESSED;
-import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.DEPOSIT_EUR;
-import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
 import static java.math.BigDecimal.ZERO;
 
+import ee.tuleva.onboarding.banking.BankAccountConfiguration;
+import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
+import ee.tuleva.onboarding.banking.payment.PaymentRequest;
+import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
-import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
-import ee.tuleva.onboarding.swedbank.payment.EndToEndIdConverter;
-import ee.tuleva.onboarding.swedbank.payment.PaymentRequest;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
@@ -31,8 +31,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Profile("!staging")
 public class FundAccountPaymentJob {
 
-  private final SwedbankGatewayClient swedbankGatewayClient;
-  private final SwedbankAccountConfiguration swedbankAccountConfiguration;
+  private final BankAccountConfiguration bankAccountConfiguration;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
@@ -77,14 +76,14 @@ public class FundAccountPaymentJob {
 
     var paymentRequest =
         PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(id))
-            .remitterIban(swedbankAccountConfiguration.getAccountIban(DEPOSIT_EUR))
+            .remitterIban(bankAccountConfiguration.getAccountIban(DEPOSIT_EUR))
             .beneficiaryName("Tuleva Fondid AS")
-            .beneficiaryIban(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+            .beneficiaryIban(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
             .amount(total)
             .description("Subscriptions")
             .build();
     log.info(
         "Preparing subscriptions payment to investment account with the amount of {} EUR", total);
-    swedbankGatewayClient.sendPaymentRequest(paymentRequest, id);
+    eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, id));
   }
 }

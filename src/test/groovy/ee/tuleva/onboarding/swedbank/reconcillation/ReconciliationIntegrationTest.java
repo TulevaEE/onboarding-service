@@ -1,12 +1,14 @@
 package ee.tuleva.onboarding.swedbank.reconcillation;
 
+import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.banking.BankType;
+import ee.tuleva.onboarding.banking.message.BankingMessage;
+import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
+import ee.tuleva.onboarding.banking.processor.BankMessageDelegator;
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessage;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessageRepository;
-import ee.tuleva.onboarding.swedbank.processor.SwedbankMessageDelegator;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.Clock;
 import java.time.Instant;
@@ -25,8 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
 class ReconciliationIntegrationTest {
 
   @Autowired private SavingFundPaymentRepository paymentRepository;
-  @Autowired private SwedbankMessageRepository swedbankMessageRepository;
-  @Autowired private SwedbankMessageDelegator swedbankMessageDelegator;
+  @Autowired private BankingMessageRepository bankingMessageRepository;
+  @Autowired private BankMessageDelegator bankMessageDelegator;
 
   private static final Instant NOW = Instant.parse("2025-10-01T12:00:00Z");
 
@@ -49,7 +51,7 @@ class ReconciliationIntegrationTest {
     persistMessage(xml);
 
     // When - process the message
-    swedbankMessageDelegator.processMessages();
+    bankMessageDelegator.processMessages();
 
     // Then - payments should be stored despite reconciliation failure
     var payments = paymentRepository.findAll();
@@ -175,12 +177,14 @@ class ReconciliationIntegrationTest {
 
   private void persistMessage(String xml) {
     var message =
-        SwedbankMessage.builder()
+        BankingMessage.builder()
+            .bankType(BankType.SWEDBANK)
             .requestId("test-reconciliation")
             .trackingId("test-reconciliation")
             .rawResponse(xml)
+            .timezone(SWEDBANK_GATEWAY_TIME_ZONE.getId())
             .receivedAt(NOW)
             .build();
-    swedbankMessageRepository.save(message);
+    bankingMessageRepository.save(message);
   }
 }

@@ -48,7 +48,8 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
 
   private List<FundValue> retrieveValuesForTicker(
       String ticker, LocalDate startDate, LocalDate endDate) {
-    var uri = buildUri(ticker, startDate, endDate);
+    var apiTicker = stripProviderSuffix(ticker);
+    var uri = buildUri(apiTicker, startDate, endDate);
 
     EODHDResponse[] response;
     try {
@@ -81,6 +82,10 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
     }
 
     return nonZeroValues;
+  }
+
+  private String stripProviderSuffix(String ticker) {
+    return ticker.endsWith("." + PROVIDER) ? ticker.substring(0, ticker.lastIndexOf(".")) : ticker;
   }
 
   private String buildUri(String ticker, LocalDate startDate, LocalDate endDate) {

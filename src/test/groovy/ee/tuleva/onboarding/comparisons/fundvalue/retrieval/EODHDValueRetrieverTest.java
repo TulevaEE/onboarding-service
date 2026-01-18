@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
@@ -38,6 +37,35 @@ class EODHDValueRetrieverTest {
   }
 
   @Test
+  void stripsProviderSuffixFromApiCallButKeepsItInStoredKey() {
+    var mockResponse =
+        """
+        [
+          {"date": "2024-01-02", "open": 4.50, "high": 4.55, "low": 4.45, "close": 4.52, "adjusted_close": 4.52, "volume": 1000}
+        ]
+        """;
+
+    FundTicker.getEodhdTickers()
+        .forEach(
+            ticker ->
+                server
+                    .expect(
+                        requestTo(
+                            "https://eodhd.com/api/eod/"
+                                + expectedApiTicker(ticker)
+                                + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-02"))
+                    .andRespond(withSuccess(mockResponse, MediaType.APPLICATION_JSON)));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 2));
+
+    var amundiValue =
+        result.stream().filter(fv -> fv.key().equals("USAS.PA.EODHD")).findFirst().orElseThrow();
+    assertThat(amundiValue.key()).isEqualTo("USAS.PA.EODHD");
+    assertThat(amundiValue.value()).isEqualByComparingTo(new BigDecimal("4.52"));
+  }
+
+  @Test
   void retrievesFundValuesFromEodhdApi() {
     var mockResponse =
         """
@@ -55,7 +83,7 @@ class EODHDValueRetrieverTest {
                     .expect(
                         requestTo(
                             "https://eodhd.com/api/eod/"
-                                + ticker
+                                + expectedApiTicker(ticker)
                                 + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-04"))
                     .andRespond(withSuccess(mockResponse, MediaType.APPLICATION_JSON)));
 
@@ -87,7 +115,7 @@ class EODHDValueRetrieverTest {
                     .expect(
                         requestTo(
                             "https://eodhd.com/api/eod/"
-                                + ticker
+                                + expectedApiTicker(ticker)
                                 + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-04"))
                     .andRespond(withSuccess(mockResponseWithZeros, MediaType.APPLICATION_JSON)));
 
@@ -114,7 +142,7 @@ class EODHDValueRetrieverTest {
         .expect(
             requestTo(
                 "https://eodhd.com/api/eod/"
-                    + firstTicker
+                    + expectedApiTicker(firstTicker)
                     + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-02"))
         .andRespond(withSuccess(mockResponse, MediaType.APPLICATION_JSON));
 
@@ -126,7 +154,7 @@ class EODHDValueRetrieverTest {
                     .expect(
                         requestTo(
                             "https://eodhd.com/api/eod/"
-                                + ticker
+                                + expectedApiTicker(ticker)
                                 + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-02"))
                     .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON)));
 
@@ -146,11 +174,21 @@ class EODHDValueRetrieverTest {
     FundTicker.getEodhdTickers()
         .forEach(
             ticker ->
-                server.expect(requestTo(containsString(ticker))).andRespond(withServerError()));
+                server
+                    .expect(
+                        requestTo(
+                            "https://eodhd.com/api/eod/"
+                                + expectedApiTicker(ticker)
+                                + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-04"))
+                    .andRespond(withServerError()));
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
 
     assertThat(result).isEmpty();
+  }
+
+  private String expectedApiTicker(String storageTicker) {
+    return storageTicker.equals("USAS.PA.EODHD") ? "USAS.PA" : storageTicker;
   }
 }

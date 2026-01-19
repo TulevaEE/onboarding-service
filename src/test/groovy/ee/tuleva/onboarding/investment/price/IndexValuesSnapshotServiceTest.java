@@ -1,14 +1,14 @@
 package ee.tuleva.onboarding.investment.price;
 
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.OffsetDateTime;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,7 +19,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 @DataJpaTest
-@Import({IndexValuesSnapshotService.class, IndexValuesSnapshotRepository.class, ClockConfig.class})
+@Import({IndexValuesSnapshotService.class, IndexValuesSnapshotRepository.class})
 class IndexValuesSnapshotServiceTest {
 
   @Autowired JdbcClient jdbcClient;
@@ -30,7 +30,7 @@ class IndexValuesSnapshotServiceTest {
 
   @BeforeEach
   void setUp() {
-    ClockHolder.setClock(Clock.fixed(FIXED_INSTANT, ZoneId.of("Europe/Tallinn")));
+    ClockHolder.setClock(Clock.fixed(FIXED_INSTANT, UTC));
   }
 
   @AfterEach
@@ -82,7 +82,7 @@ class IndexValuesSnapshotServiceTest {
     List<String> savedKeys =
         jdbcClient
             .sql("SELECT key FROM index_values_snapshot WHERE snapshot_time = :snapshotTime")
-            .param("snapshotTime", FIXED_INSTANT)
+            .param("snapshotTime", OffsetDateTime.ofInstant(FIXED_INSTANT, UTC))
             .query(String.class)
             .list();
 
@@ -100,7 +100,7 @@ class IndexValuesSnapshotServiceTest {
         .param("date", date)
         .param("value", value)
         .param("provider", provider)
-        .param("updatedAt", Instant.now())
+        .param("updatedAt", OffsetDateTime.ofInstant(FIXED_INSTANT, UTC))
         .update();
   }
 }

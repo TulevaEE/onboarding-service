@@ -197,6 +197,8 @@ The application follows domain-driven design with these main domains:
     }
     ```
   - Use JdbcClient in both production code and tests for consistency
+### Time Handling
+- **Never use `Instant.now()` or `LocalDate.now()` directly**: Always use `ClockHolder` and `TestClockHolder` for testability
 
 ### HTTP Client
 - **Prefer RestClient over RestTemplate**: Use Spring's modern `RestClient` (introduced in Spring Framework 6.1) instead of `RestTemplate`

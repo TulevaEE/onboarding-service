@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.price;
 
-import java.time.Clock;
+import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -17,12 +17,11 @@ public class IndexValuesSnapshotService {
 
   private final JdbcClient jdbcClient;
   private final IndexValuesSnapshotRepository snapshotRepository;
-  private final Clock clock;
 
   @Transactional
   public List<IndexValuesSnapshot> createSnapshot() {
-    Instant snapshotTime = clock.instant();
-    LocalDate today = LocalDate.now(clock);
+    Instant snapshotTime = ClockHolder.clock().instant();
+    LocalDate today = LocalDate.now(ClockHolder.clock());
 
     log.info("Creating index values snapshot: date={}, snapshotTime={}", today, snapshotTime);
 
@@ -46,7 +45,7 @@ public class IndexValuesSnapshotService {
 
   private List<IndexValuesSnapshot> fetchCurrentDateIndexValues(
       LocalDate date, Instant snapshotTime) {
-    Instant createdAt = clock.instant();
+    Instant createdAt = ClockHolder.clock().instant();
 
     return jdbcClient
         .sql(

@@ -1,10 +1,12 @@
 package ee.tuleva.onboarding.investment.price;
 
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,7 +54,7 @@ class IndexValuesSnapshotRepositoryTest {
     List<String> savedKeys =
         jdbcClient
             .sql("SELECT key FROM index_values_snapshot WHERE snapshot_time = :snapshotTime")
-            .param("snapshotTime", SNAPSHOT_TIME)
+            .param("snapshotTime", OffsetDateTime.ofInstant(SNAPSHOT_TIME, UTC))
             .query(String.class)
             .list();
 

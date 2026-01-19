@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.annotation.Schedules;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -15,7 +16,10 @@ public class IndexValuesSnapshotJob {
 
   private final IndexValuesSnapshotService snapshotService;
 
-  @Scheduled(cron = "0 30 11 * * *", zone = "Europe/Tallinn")
+  @Schedules({
+    @Scheduled(cron = "0 30 11 * * *", zone = "Europe/Tallinn"),
+    @Scheduled(cron = "0 20 16 19 1 ?", zone = "Europe/Tallinn") // temporary ad hoc
+  })
   @SchedulerLock(name = "IndexValuesSnapshotJob_1130", lockAtMostFor = "55m", lockAtLeastFor = "1m")
   public void createSnapshot1130() {
     createSnapshot();

@@ -21,14 +21,19 @@ public class IndexValuesSnapshotService {
   @Transactional
   public List<IndexValuesSnapshot> createSnapshot() {
     Instant snapshotTime = ClockHolder.clock().instant();
-    LocalDate today = LocalDate.now(ClockHolder.clock());
 
-    log.info("Creating index values snapshot: date={}, snapshotTime={}", today, snapshotTime);
+    LocalDate latestDate = findLatestDate();
+    if (latestDate == null) {
+      log.warn("No index values found in database");
+      return List.of();
+    }
 
-    List<IndexValuesSnapshot> snapshots = fetchCurrentDateIndexValues(today, snapshotTime);
+    log.info("Creating index values snapshot: date={}, snapshotTime={}", latestDate, snapshotTime);
+
+    List<IndexValuesSnapshot> snapshots = fetchIndexValuesForDate(latestDate, snapshotTime);
 
     if (snapshots.isEmpty()) {
-      log.warn("No index values found for current date: date={}", today);
+      log.warn("No index values found for date: date={}", latestDate);
       return snapshots;
     }
 
@@ -36,15 +41,22 @@ public class IndexValuesSnapshotService {
 
     log.info(
         "Index values snapshot created: date={}, snapshotTime={}, count={}",
-        today,
+        latestDate,
         snapshotTime,
         snapshots.size());
 
     return snapshots;
   }
 
-  private List<IndexValuesSnapshot> fetchCurrentDateIndexValues(
-      LocalDate date, Instant snapshotTime) {
+  private LocalDate findLatestDate() {
+    return jdbcClient
+        .sql("SELECT MAX(date) FROM index_values")
+        .query(LocalDate.class)
+        .optional()
+        .orElse(null);
+  }
+
+  private List<IndexValuesSnapshot> fetchIndexValuesForDate(LocalDate date, Instant snapshotTime) {
     Instant createdAt = ClockHolder.clock().instant();
 
     return jdbcClient

@@ -25,8 +25,8 @@ class IndexValuesSnapshotServiceTest {
   @Autowired JdbcClient jdbcClient;
   @Autowired IndexValuesSnapshotService service;
 
-  private static final Instant FIXED_INSTANT = Instant.parse("2026-01-15T11:30:00Z");
-  private static final LocalDate FIXED_DATE = LocalDate.of(2026, 1, 15);
+  private static final Instant FIXED_INSTANT = Instant.parse("2026-01-19T13:30:00Z");
+  private static final LocalDate LATEST_DATE = LocalDate.of(2026, 1, 17);
 
   @BeforeEach
   void setUp() {
@@ -39,9 +39,9 @@ class IndexValuesSnapshotServiceTest {
   }
 
   @Test
-  void createSnapshot_savesIndexValuesForCurrentDate() {
-    insertIndexValue("EE3600109435", FIXED_DATE, new BigDecimal("1.23456"), "PENSIONIKESKUS");
-    insertIndexValue("SGAS.DE", FIXED_DATE, new BigDecimal("12.34500"), "YAHOO");
+  void createSnapshot_savesIndexValuesForLatestDate() {
+    insertIndexValue("EE3600109435", LATEST_DATE, new BigDecimal("1.23456"), "PENSIONIKESKUS");
+    insertIndexValue("SGAS.DE", LATEST_DATE, new BigDecimal("12.34500"), "YAHOO");
 
     List<IndexValuesSnapshot> snapshots = service.createSnapshot();
 
@@ -50,24 +50,24 @@ class IndexValuesSnapshotServiceTest {
         .extracting(IndexValuesSnapshot::key)
         .containsExactlyInAnyOrder("EE3600109435", "SGAS.DE");
     assertThat(snapshots).allSatisfy(s -> assertThat(s.snapshotTime()).isEqualTo(FIXED_INSTANT));
-    assertThat(snapshots).allSatisfy(s -> assertThat(s.date()).isEqualTo(FIXED_DATE));
+    assertThat(snapshots).allSatisfy(s -> assertThat(s.date()).isEqualTo(LATEST_DATE));
   }
 
   @Test
-  void createSnapshot_ignoresIndexValuesForOtherDates() {
-    insertIndexValue("EE3600109435", FIXED_DATE, new BigDecimal("1.23456"), "PENSIONIKESKUS");
-    insertIndexValue("SGAS.DE", FIXED_DATE.minusDays(1), new BigDecimal("12.34500"), "YAHOO");
+  void createSnapshot_onlySnapshotsLatestDate() {
+    LocalDate olderDate = LATEST_DATE.minusDays(1);
+    insertIndexValue("EE3600109435", LATEST_DATE, new BigDecimal("1.23456"), "PENSIONIKESKUS");
+    insertIndexValue("SGAS.DE", olderDate, new BigDecimal("12.34500"), "YAHOO");
 
     List<IndexValuesSnapshot> snapshots = service.createSnapshot();
 
     assertThat(snapshots).hasSize(1);
     assertThat(snapshots.getFirst().key()).isEqualTo("EE3600109435");
+    assertThat(snapshots.getFirst().date()).isEqualTo(LATEST_DATE);
   }
 
   @Test
-  void createSnapshot_returnsEmptyListWhenNoIndexValuesForCurrentDate() {
-    insertIndexValue("EE3600109435", FIXED_DATE.minusDays(1), new BigDecimal("1.23456"), "TEST");
-
+  void createSnapshot_returnsEmptyListWhenNoIndexValues() {
     List<IndexValuesSnapshot> snapshots = service.createSnapshot();
 
     assertThat(snapshots).isEmpty();
@@ -75,7 +75,7 @@ class IndexValuesSnapshotServiceTest {
 
   @Test
   void createSnapshot_persistsSnapshotsToDatabase() {
-    insertIndexValue("EE3600109435", FIXED_DATE, new BigDecimal("1.23456"), "PENSIONIKESKUS");
+    insertIndexValue("EE3600109435", LATEST_DATE, new BigDecimal("1.23456"), "PENSIONIKESKUS");
 
     service.createSnapshot();
 

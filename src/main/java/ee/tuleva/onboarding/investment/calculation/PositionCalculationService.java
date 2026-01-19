@@ -41,6 +41,22 @@ public class PositionCalculationService {
     return funds.stream().flatMap(fund -> calculate(fund, date).stream()).toList();
   }
 
+  public List<PositionCalculation> calculateForLatestDate(List<TulevaFund> funds) {
+    return funds.stream().flatMap(fund -> calculateForLatestDate(fund).stream()).toList();
+  }
+
+  public List<PositionCalculation> calculateForLatestDate(TulevaFund fund) {
+    Optional<LocalDate> latestDate =
+        fundPositionRepository.findLatestReportingDateByFundCode(fund.getCode());
+
+    if (latestDate.isEmpty()) {
+      log.warn("No fund positions found: fund={}", fund);
+      return List.of();
+    }
+
+    return calculate(fund, latestDate.get());
+  }
+
   private PositionCalculation calculatePosition(
       FundPosition position, TulevaFund fund, LocalDate date) {
     String isin = position.getAccountId();

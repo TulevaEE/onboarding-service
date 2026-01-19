@@ -174,6 +174,79 @@ class PositionCalculationServiceTest {
     assertThat(result.getFirst().calculatedMarketValue()).isNull();
   }
 
+  @Test
+  void calculateForLatestDate_withExistingPositions_returnsCalculations() {
+    BigDecimal quantity = new BigDecimal("1000");
+    BigDecimal price = new BigDecimal("100.00");
+    FundPosition position = createSecurityPosition(ISIN, quantity);
+
+    ResolvedPrice resolvedPrice =
+        ResolvedPrice.builder()
+            .eodhdPrice(price)
+            .usedPrice(price)
+            .priceSource(EODHD)
+            .validationStatus(OK)
+            .build();
+
+    when(fundPositionRepository.findLatestReportingDateByFundCode(FUND_CODE))
+        .thenReturn(Optional.of(DATE));
+    when(fundPositionRepository.findByReportingDateAndFundCodeAndAccountType(
+            DATE, FUND_CODE, SECURITY))
+        .thenReturn(List.of(position));
+    when(priceResolver.resolve(ISIN, DATE)).thenReturn(Optional.of(resolvedPrice));
+
+    List<PositionCalculation> result = service.calculateForLatestDate(FUND);
+
+    assertThat(result).hasSize(1);
+    assertThat(result.getFirst().fund()).isEqualTo(FUND);
+    assertThat(result.getFirst().date()).isEqualTo(DATE);
+  }
+
+  @Test
+  void calculateForLatestDate_withNoPositions_returnsEmptyList() {
+    when(fundPositionRepository.findLatestReportingDateByFundCode(FUND_CODE))
+        .thenReturn(Optional.empty());
+
+    List<PositionCalculation> result = service.calculateForLatestDate(FUND);
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  void calculateForLatestDate_withMultipleFunds_returnsCombinedCalculations() {
+    BigDecimal quantity = new BigDecimal("1000");
+    BigDecimal price = new BigDecimal("100.00");
+    LocalDate date1 = LocalDate.of(2025, 1, 10);
+    LocalDate date2 = LocalDate.of(2025, 1, 9);
+
+    FundPosition position1 = createSecurityPosition(ISIN, quantity);
+    FundPosition position2 = createSecurityPosition(ISIN, quantity);
+
+    ResolvedPrice resolvedPrice =
+        ResolvedPrice.builder()
+            .eodhdPrice(price)
+            .usedPrice(price)
+            .priceSource(EODHD)
+            .validationStatus(OK)
+            .build();
+
+    when(fundPositionRepository.findLatestReportingDateByFundCode(TUK75.getCode()))
+        .thenReturn(Optional.of(date1));
+    when(fundPositionRepository.findLatestReportingDateByFundCode(TUK00.getCode()))
+        .thenReturn(Optional.of(date2));
+    when(fundPositionRepository.findByReportingDateAndFundCodeAndAccountType(
+            date1, TUK75.getCode(), SECURITY))
+        .thenReturn(List.of(position1));
+    when(fundPositionRepository.findByReportingDateAndFundCodeAndAccountType(
+            date2, TUK00.getCode(), SECURITY))
+        .thenReturn(List.of(position2));
+    when(priceResolver.resolve(eq(ISIN), any())).thenReturn(Optional.of(resolvedPrice));
+
+    List<PositionCalculation> result = service.calculateForLatestDate(List.of(TUK75, TUK00));
+
+    assertThat(result).hasSize(2);
+  }
+
   private FundPosition createSecurityPosition(String isin, BigDecimal quantity) {
     return FundPosition.builder()
         .fundCode(FUND_CODE)

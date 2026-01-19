@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.investment.calculation;
 
 import static ee.tuleva.onboarding.investment.calculation.PriceSource.EODHD;
-import static ee.tuleva.onboarding.investment.calculation.PriceSource.YAHOO;
-import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.EODHD_MISSING;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.NO_PRICE_DATA;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.OK;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.PRICE_DISCREPANCY;
@@ -34,7 +32,12 @@ public class PositionPriceResolver {
 
   private ResolvedPrice resolveForTicker(FundTicker ticker, LocalDate date) {
     FundValue eodhdValue = fetchLatestValue(ticker.getEodhdTicker(), date);
-    FundValue yahooValue = fetchLatestValue(ticker.getYahooTicker(), date);
+    if (eodhdValue == null) {
+      return buildNoPriceDataResult();
+    }
+
+    LocalDate priceDate = eodhdValue.date();
+    FundValue yahooValue = fetchValueForDate(ticker.getYahooTicker(), priceDate);
     return determineResult(eodhdValue, yahooValue);
   }
 
@@ -45,38 +48,30 @@ public class PositionPriceResolver {
         .orElse(null);
   }
 
-  private ResolvedPrice determineResult(FundValue eodhdValue, FundValue yahooValue) {
-    boolean hasEodhd = eodhdValue != null;
-    boolean hasYahoo = yahooValue != null;
+  private FundValue fetchValueForDate(String tickerKey, LocalDate date) {
+    return fundValueProvider
+        .getValueForDate(tickerKey, date)
+        .filter(fundValue -> fundValue.value().compareTo(ZERO) != 0)
+        .orElse(null);
+  }
 
-    if (hasEodhd && hasYahoo) {
+  private ResolvedPrice determineResult(FundValue eodhdValue, FundValue yahooValue) {
+    if (yahooValue != null) {
       return resolveWithBothPrices(eodhdValue, yahooValue);
     }
 
-    if (hasEodhd) {
-      return ResolvedPrice.builder()
-          .eodhdPrice(eodhdValue.value())
-          .yahooPrice(null)
-          .usedPrice(eodhdValue.value())
-          .priceSource(EODHD)
-          .validationStatus(YAHOO_MISSING)
-          .discrepancyPercent(null)
-          .priceDate(eodhdValue.date())
-          .build();
-    }
+    return ResolvedPrice.builder()
+        .eodhdPrice(eodhdValue.value())
+        .yahooPrice(null)
+        .usedPrice(eodhdValue.value())
+        .priceSource(EODHD)
+        .validationStatus(YAHOO_MISSING)
+        .discrepancyPercent(null)
+        .priceDate(eodhdValue.date())
+        .build();
+  }
 
-    if (hasYahoo) {
-      return ResolvedPrice.builder()
-          .eodhdPrice(null)
-          .yahooPrice(yahooValue.value())
-          .usedPrice(yahooValue.value())
-          .priceSource(YAHOO)
-          .validationStatus(EODHD_MISSING)
-          .discrepancyPercent(null)
-          .priceDate(yahooValue.date())
-          .build();
-    }
-
+  private ResolvedPrice buildNoPriceDataResult() {
     return ResolvedPrice.builder()
         .eodhdPrice(null)
         .yahooPrice(null)

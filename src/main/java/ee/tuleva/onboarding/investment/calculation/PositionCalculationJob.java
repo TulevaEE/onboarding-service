@@ -2,13 +2,10 @@ package ee.tuleva.onboarding.investment.calculation;
 
 import static ee.tuleva.onboarding.investment.calculation.TulevaFund.getPillar2Funds;
 import static ee.tuleva.onboarding.investment.calculation.TulevaFund.getPillar3Funds;
-import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.EODHD_MISSING;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.NO_PRICE_DATA;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.PRICE_DISCREPANCY;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.YAHOO_MISSING;
-import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
-import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,42 +25,39 @@ public class PositionCalculationJob {
   private final PositionCalculationPersistenceService persistenceService;
   private final PositionCalculationNotifier notifier;
 
-  // Pillar 2: Runs at 11:30, uses T-2 data because fund reports arrive at 14:30
-  // and are only imported at 15:00, so yesterday's data isn't available yet
+  // Pillar 2: Runs at 11:30. Calculates for the latest available fund position date.
   @Schedules({
     @Scheduled(cron = "0 30 11 * * *", zone = "Europe/Tallinn"),
     @Scheduled(cron = "0 30 13 16 1 *", zone = "Europe/Tallinn") // One-time catch-up
   })
   @SchedulerLock(name = "PositionCalculationJob_1130", lockAtMostFor = "55m", lockAtLeastFor = "5m")
   public void calculatePositions1130() {
-    calculateForFunds(getPillar2Funds(), 2);
+    calculateForFunds(getPillar2Funds());
   }
 
-  // Pillar 3: Runs at 15:30, after the 15:00 import, so T-1 data is available
+  // Pillar 3: Runs at 15:30, after the 15:00 import. Calculates for latest available date.
   @Scheduled(cron = "0 30 15 * * *", zone = "Europe/Tallinn")
   @SchedulerLock(name = "PositionCalculationJob_1530", lockAtMostFor = "55m", lockAtLeastFor = "5m")
   public void calculatePositions1530() {
-    calculateForFunds(getPillar3Funds(), 1);
+    calculateForFunds(getPillar3Funds());
   }
 
-  public void calculateForFunds(List<TulevaFund> funds, int daysBack) {
-    LocalDate date = LocalDate.now(clock()).minusDays(daysBack);
-    log.info("Starting position calculation: funds={}, date={}", funds, date);
+  public void calculateForFunds(List<TulevaFund> funds) {
+    log.info("Starting position calculation: funds={}", funds);
 
     try {
-      List<PositionCalculation> calculations = calculationService.calculate(funds, date);
+      List<PositionCalculation> calculations = calculationService.calculateForLatestDate(funds);
       persistenceService.saveAll(calculations);
 
       notifyIssues(calculations);
 
       log.info(
-          "Position calculation completed: funds={}, date={}, calculationCount={}",
+          "Position calculation completed: funds={}, calculationCount={}",
           funds,
-          date,
           calculations.size());
 
     } catch (Exception e) {
-      log.error("Position calculation failed: funds={}, date={}", funds, date, e);
+      log.error("Position calculation failed: funds={}", funds, e);
     }
   }
 
@@ -82,9 +76,6 @@ public class PositionCalculationJob {
       } else if (status == YAHOO_MISSING) {
         notifier.notifyYahooMissing(
             calculation.fund(), calculation.isin(), calculation.date(), calculation.eodhdPrice());
-      } else if (status == EODHD_MISSING) {
-        notifier.notifyEodhdMissing(
-            calculation.fund(), calculation.isin(), calculation.date(), calculation.yahooPrice());
       } else if (status == NO_PRICE_DATA) {
         notifier.notifyNoPriceData(calculation.fund(), calculation.isin(), calculation.date());
       }

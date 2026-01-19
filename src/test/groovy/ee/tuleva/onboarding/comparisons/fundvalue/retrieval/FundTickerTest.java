@@ -55,4 +55,24 @@ class FundTickerTest {
   void getEuronextParisIsinsReturnsOnlyParisTradedEtfs() {
     assertThat(getEuronextParisIsins()).containsExactly("IE000F60HVH9");
   }
+
+  @Test
+  void xetraTradedEtfReturnsXetraStorageKey() {
+    assertThat(ISHARES_USA_ESG_SCREENED.getXetraStorageKey()).hasValue("IE00BFNM3G45.XETR");
+  }
+
+  @Test
+  void nonXetraTradedEtfReturnsEmptyXetraStorageKey() {
+    assertThat(AMUNDI_USA_SCREENED.getXetraStorageKey()).isEmpty();
+  }
+
+  @Test
+  void parisTradedEtfReturnsEuronextParisStorageKey() {
+    assertThat(AMUNDI_USA_SCREENED.getEuronextParisStorageKey()).hasValue("IE000F60HVH9.XPAR");
+  }
+
+  @Test
+  void nonParisTradedEtfReturnsEmptyEuronextParisStorageKey() {
+    assertThat(ISHARES_USA_ESG_SCREENED.getEuronextParisStorageKey()).isEmpty();
+  }
 }

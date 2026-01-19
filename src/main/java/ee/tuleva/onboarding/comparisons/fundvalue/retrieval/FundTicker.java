@@ -93,4 +93,18 @@ public enum FundTicker {
         .map(FundTicker::getIsin)
         .toList();
   }
+
+  public Optional<String> getXetraStorageKey() {
+    if (eodhdTicker.endsWith(".XETRA")) {
+      return Optional.of(isin + ".XETR");
+    }
+    return Optional.empty();
+  }
+
+  public Optional<String> getEuronextParisStorageKey() {
+    if (eodhdTicker.endsWith(".PA.EODHD")) {
+      return Optional.of(isin + ".XPAR");
+    }
+    return Optional.empty();
+  }
 }

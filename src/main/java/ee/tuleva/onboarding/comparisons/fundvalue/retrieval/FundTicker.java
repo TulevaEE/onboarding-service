@@ -79,4 +79,18 @@ public enum FundTicker {
   public static Optional<FundTicker> findByIsin(String isin) {
     return Arrays.stream(values()).filter(ticker -> ticker.getIsin().equals(isin)).findFirst();
   }
+
+  public static List<String> getXetraIsins() {
+    return Arrays.stream(values())
+        .filter(ticker -> ticker.getEodhdTicker().endsWith(".XETRA"))
+        .map(FundTicker::getIsin)
+        .toList();
+  }
+
+  public static List<String> getEuronextParisIsins() {
+    return Arrays.stream(values())
+        .filter(ticker -> ticker.getEodhdTicker().endsWith(".PA.EODHD"))
+        .map(FundTicker::getIsin)
+        .toList();
+  }
 }

@@ -34,4 +34,25 @@ class FundTickerTest {
     assertThat(ticker.getYahooTicker()).isEqualTo("USAS.PA");
     assertThat(ticker.getEodhdTicker()).isEqualTo("USAS.PA.EODHD");
   }
+
+  @Test
+  void getXetraIsinsReturnsOnlyXetraTradedEtfs() {
+    assertThat(getXetraIsins())
+        .containsExactlyInAnyOrder(
+            "IE00BFNM3G45",
+            "IE00BFNM3D14",
+            "IE00BFNM3L97",
+            "IE00BMDBMY19",
+            "IE00BJZ2DC62",
+            "LU0476289540",
+            "IE000O58J820",
+            "LU1291099718",
+            "LU1291106356",
+            "LU1291102447");
+  }
+
+  @Test
+  void getEuronextParisIsinsReturnsOnlyParisTradedEtfs() {
+    assertThat(getEuronextParisIsins()).containsExactly("IE000F60HVH9");
+  }
 }

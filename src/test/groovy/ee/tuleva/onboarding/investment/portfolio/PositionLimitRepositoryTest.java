@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.portfolio;
 
+import static ee.tuleva.onboarding.investment.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.BNP_PARIBAS;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.ISHARES;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.XTRACKERS;
@@ -24,7 +26,7 @@ class PositionLimitRepositoryTest {
     var limit =
         PositionLimit.builder()
             .effectiveDate(LocalDate.of(2025, 11, 7))
-            .fundCode("tkt100")
+            .fund(TUK75)
             .isin("IE00BJZ2DC62")
             .ticker("XRSM.DE")
             .label("Xtrackers MSCI USA Screened UCITS ETF")
@@ -39,7 +41,7 @@ class PositionLimitRepositoryTest {
     var retrieved = repository.findById(limit.getId()).orElseThrow();
 
     assertThat(retrieved.getEffectiveDate()).isEqualTo(LocalDate.of(2025, 11, 7));
-    assertThat(retrieved.getFundCode()).isEqualTo("tkt100");
+    assertThat(retrieved.getFund()).isEqualTo(TUK75);
     assertThat(retrieved.getIsin()).isEqualTo("IE00BJZ2DC62");
     assertThat(retrieved.getTicker()).isEqualTo("XRSM.DE");
     assertThat(retrieved.getLabel()).isEqualTo("Xtrackers MSCI USA Screened UCITS ETF");
@@ -50,13 +52,13 @@ class PositionLimitRepositoryTest {
   }
 
   @Test
-  void findByFundCodeAndEffectiveDate_multiplePositions() {
+  void findByFundAndEffectiveDate_multiplePositions() {
     var date = LocalDate.of(2025, 11, 7);
 
     var xtrackers =
         PositionLimit.builder()
             .effectiveDate(date)
-            .fundCode("tkt100")
+            .fund(TUK75)
             .isin("IE00BJZ2DC62")
             .ticker("XRSM.DE")
             .provider(XTRACKERS)
@@ -67,7 +69,7 @@ class PositionLimitRepositoryTest {
     var bnp =
         PositionLimit.builder()
             .effectiveDate(date)
-            .fundCode("tkt100")
+            .fund(TUK75)
             .isin("LU1291099718")
             .ticker("EEUX.DE")
             .provider(BNP_PARIBAS)
@@ -78,7 +80,7 @@ class PositionLimitRepositoryTest {
     var otherFund =
         PositionLimit.builder()
             .effectiveDate(date)
-            .fundCode("tuk75")
+            .fund(TUK00)
             .isin("IE00BFG1TM61")
             .provider(ISHARES)
             .softLimitPercent(new BigDecimal("0.2965"))
@@ -90,7 +92,7 @@ class PositionLimitRepositoryTest {
     entityManager.persist(otherFund);
     entityManager.flush();
 
-    var result = repository.findByFundCodeAndEffectiveDate("tkt100", date);
+    var result = repository.findByFundAndEffectiveDate(TUK75, date);
 
     assertThat(result).hasSize(2);
     assertThat(result).extracting("isin").containsExactlyInAnyOrder("IE00BJZ2DC62", "LU1291099718");
@@ -98,14 +100,14 @@ class PositionLimitRepositoryTest {
   }
 
   @Test
-  void findLatestByFundCode_returnsNewestEffectiveDate() {
+  void findLatestByFund_returnsNewestEffectiveDate() {
     var olderDate = LocalDate.of(2025, 6, 30);
     var newerDate = LocalDate.of(2025, 11, 7);
 
     var olderLimit =
         PositionLimit.builder()
             .effectiveDate(olderDate)
-            .fundCode("tkt100")
+            .fund(TUK75)
             .isin("IE00B4L5Y983")
             .provider(ISHARES)
             .softLimitPercent(new BigDecimal("0.25"))
@@ -115,7 +117,7 @@ class PositionLimitRepositoryTest {
     var newerXtrackers =
         PositionLimit.builder()
             .effectiveDate(newerDate)
-            .fundCode("tkt100")
+            .fund(TUK75)
             .isin("IE00BJZ2DC62")
             .provider(XTRACKERS)
             .softLimitPercent(new BigDecimal("0.1862"))
@@ -125,7 +127,7 @@ class PositionLimitRepositoryTest {
     var newerBnp =
         PositionLimit.builder()
             .effectiveDate(newerDate)
-            .fundCode("tkt100")
+            .fund(TUK75)
             .isin("LU1291099718")
             .provider(BNP_PARIBAS)
             .softLimitPercent(new BigDecimal("0.1338"))
@@ -137,7 +139,7 @@ class PositionLimitRepositoryTest {
     entityManager.persist(newerBnp);
     entityManager.flush();
 
-    var result = repository.findLatestByFundCode("tkt100");
+    var result = repository.findLatestByFund(TUK75);
 
     assertThat(result).hasSize(2);
     assertThat(result).extracting("effectiveDate").containsOnly(newerDate);
@@ -145,8 +147,8 @@ class PositionLimitRepositoryTest {
   }
 
   @Test
-  void findLatestByFundCode_returnsEmptyWhenNoData() {
-    var result = repository.findLatestByFundCode("nonexistent");
+  void findLatestByFund_returnsEmptyWhenNoData() {
+    var result = repository.findLatestByFund(TUK75);
 
     assertThat(result).isEmpty();
   }

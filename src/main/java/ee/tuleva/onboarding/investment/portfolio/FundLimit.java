@@ -1,6 +1,11 @@
 package ee.tuleva.onboarding.investment.portfolio;
 
+import static jakarta.persistence.EnumType.STRING;
+
+import ee.tuleva.onboarding.investment.TulevaFund;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -30,7 +35,10 @@ public class FundLimit {
 
   @NotNull private LocalDate effectiveDate;
 
-  @NotNull private String fundCode;
+  @NotNull
+  @Enumerated(STRING)
+  @Column(name = "fund_code")
+  private TulevaFund fund;
 
   @Nullable private BigDecimal reserveSoft;
 

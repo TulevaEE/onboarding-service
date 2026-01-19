@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.portfolio;
 
+import static ee.tuleva.onboarding.investment.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
@@ -21,7 +23,7 @@ class FundLimitRepositoryTest {
     var limit =
         FundLimit.builder()
             .effectiveDate(LocalDate.of(2025, 11, 7))
-            .fundCode("tkt100")
+            .fund(TUK75)
             .reserveSoft(new BigDecimal("500000.00"))
             .reserveHard(new BigDecimal("200000.00"))
             .minTransaction(new BigDecimal("50000.00"))
@@ -33,7 +35,7 @@ class FundLimitRepositoryTest {
     var retrieved = repository.findById(limit.getId()).orElseThrow();
 
     assertThat(retrieved.getEffectiveDate()).isEqualTo(LocalDate.of(2025, 11, 7));
-    assertThat(retrieved.getFundCode()).isEqualTo("tkt100");
+    assertThat(retrieved.getFund()).isEqualTo(TUK75);
     assertThat(retrieved.getReserveSoft()).isEqualByComparingTo("500000.00");
     assertThat(retrieved.getReserveHard()).isEqualByComparingTo("200000.00");
     assertThat(retrieved.getMinTransaction()).isEqualByComparingTo("50000.00");
@@ -45,7 +47,7 @@ class FundLimitRepositoryTest {
     var limit =
         FundLimit.builder()
             .effectiveDate(LocalDate.of(2025, 6, 30))
-            .fundCode("tuk00")
+            .fund(TUK00)
             .reserveSoft(new BigDecimal("100000.00"))
             .reserveHard(new BigDecimal("200000.00"))
             .build();
@@ -61,54 +63,54 @@ class FundLimitRepositoryTest {
   }
 
   @Test
-  void findByFundCodeAndEffectiveDate_multipleFunds() {
+  void findByFundAndEffectiveDate_multipleFunds() {
     var date = LocalDate.of(2025, 11, 7);
 
-    var tkt100 =
+    var tuk75Limit =
         FundLimit.builder()
             .effectiveDate(date)
-            .fundCode("tkt100")
+            .fund(TUK75)
             .reserveSoft(new BigDecimal("500000.00"))
             .reserveHard(new BigDecimal("200000.00"))
             .minTransaction(new BigDecimal("50000.00"))
             .build();
 
-    var tuk75 =
+    var tuk00Limit =
         FundLimit.builder()
             .effectiveDate(date)
-            .fundCode("tuk75")
+            .fund(TUK00)
             .reserveSoft(new BigDecimal("200000.00"))
             .reserveHard(new BigDecimal("500000.00"))
             .minTransaction(new BigDecimal("50000.00"))
             .build();
 
-    entityManager.persist(tkt100);
-    entityManager.persist(tuk75);
+    entityManager.persist(tuk75Limit);
+    entityManager.persist(tuk00Limit);
     entityManager.flush();
 
-    var result = repository.findByFundCodeAndEffectiveDate("tkt100", date);
+    var result = repository.findByFundAndEffectiveDate(TUK75, date);
 
     assertThat(result).isPresent();
-    assertThat(result.get().getFundCode()).isEqualTo("tkt100");
+    assertThat(result.get().getFund()).isEqualTo(TUK75);
     assertThat(result.get().getReserveSoft()).isEqualByComparingTo("500000.00");
   }
 
   @Test
-  void findByFundCodeAndEffectiveDate_returnsEmptyWhenNotFound() {
-    var result = repository.findByFundCodeAndEffectiveDate("nonexistent", LocalDate.now());
+  void findByFundAndEffectiveDate_returnsEmptyWhenNotFound() {
+    var result = repository.findByFundAndEffectiveDate(TUK75, LocalDate.now());
 
     assertThat(result).isEmpty();
   }
 
   @Test
-  void findLatestByFundCode_returnsNewestEffectiveDate() {
+  void findLatestByFund_returnsNewestEffectiveDate() {
     var olderDate = LocalDate.of(2025, 6, 30);
     var newerDate = LocalDate.of(2025, 11, 7);
 
     var olderLimit =
         FundLimit.builder()
             .effectiveDate(olderDate)
-            .fundCode("tkt100")
+            .fund(TUK75)
             .reserveSoft(new BigDecimal("400000.00"))
             .minTransaction(new BigDecimal("40000.00"))
             .build();
@@ -116,7 +118,7 @@ class FundLimitRepositoryTest {
     var newerLimit =
         FundLimit.builder()
             .effectiveDate(newerDate)
-            .fundCode("tkt100")
+            .fund(TUK75)
             .reserveSoft(new BigDecimal("500000.00"))
             .reserveHard(new BigDecimal("200000.00"))
             .minTransaction(new BigDecimal("50000.00"))
@@ -126,7 +128,7 @@ class FundLimitRepositoryTest {
     entityManager.persist(newerLimit);
     entityManager.flush();
 
-    var result = repository.findLatestByFundCode("tkt100");
+    var result = repository.findLatestByFund(TUK75);
 
     assertThat(result).isPresent();
     assertThat(result.get().getEffectiveDate()).isEqualTo(newerDate);
@@ -136,8 +138,8 @@ class FundLimitRepositoryTest {
   }
 
   @Test
-  void findLatestByFundCode_returnsEmptyWhenNoData() {
-    var result = repository.findLatestByFundCode("nonexistent");
+  void findLatestByFund_returnsEmptyWhenNoData() {
+    var result = repository.findLatestByFund(TUK75);
 
     assertThat(result).isEmpty();
   }

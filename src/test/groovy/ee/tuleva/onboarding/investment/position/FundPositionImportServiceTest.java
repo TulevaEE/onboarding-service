@@ -1,10 +1,13 @@
 package ee.tuleva.onboarding.investment.position;
 
+import static ee.tuleva.onboarding.investment.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.investment.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -24,8 +27,8 @@ class FundPositionImportServiceTest {
 
   @Test
   void importPositions_savesNewPositions() {
-    FundPosition position = createPosition("TUK75", "Asset 1");
-    when(repository.existsByReportingDateAndFundCodeAndAccountName(any(), any(), any()))
+    FundPosition position = createPosition(TUK75, "Asset 1");
+    when(repository.existsByReportingDateAndFundAndAccountName(any(), any(), any()))
         .thenReturn(false);
 
     int imported = service.importPositions(List.of(position));
@@ -36,9 +39,9 @@ class FundPositionImportServiceTest {
 
   @Test
   void importPositions_skipsExistingPositions() {
-    FundPosition position = createPosition("TUK75", "Asset 1");
-    when(repository.existsByReportingDateAndFundCodeAndAccountName(
-            position.getReportingDate(), position.getFundCode(), position.getAccountName()))
+    FundPosition position = createPosition(TUK75, "Asset 1");
+    when(repository.existsByReportingDateAndFundAndAccountName(
+            position.getReportingDate(), position.getFund(), position.getAccountName()))
         .thenReturn(true);
 
     int imported = service.importPositions(List.of(position));
@@ -49,16 +52,14 @@ class FundPositionImportServiceTest {
 
   @Test
   void importPositions_handlesMultiplePositions() {
-    FundPosition existing = createPosition("TUK75", "Existing Asset");
-    FundPosition newPosition = createPosition("TUK00", "New Asset");
+    FundPosition existing = createPosition(TUK75, "Existing Asset");
+    FundPosition newPosition = createPosition(TUK00, "New Asset");
 
-    when(repository.existsByReportingDateAndFundCodeAndAccountName(
-            existing.getReportingDate(), existing.getFundCode(), existing.getAccountName()))
+    when(repository.existsByReportingDateAndFundAndAccountName(
+            existing.getReportingDate(), existing.getFund(), existing.getAccountName()))
         .thenReturn(true);
-    when(repository.existsByReportingDateAndFundCodeAndAccountName(
-            newPosition.getReportingDate(),
-            newPosition.getFundCode(),
-            newPosition.getAccountName()))
+    when(repository.existsByReportingDateAndFundAndAccountName(
+            newPosition.getReportingDate(), newPosition.getFund(), newPosition.getAccountName()))
         .thenReturn(false);
 
     int imported = service.importPositions(List.of(existing, newPosition));
@@ -76,10 +77,10 @@ class FundPositionImportServiceTest {
     verify(repository, never()).save(any());
   }
 
-  private FundPosition createPosition(String fundCode, String accountName) {
+  private FundPosition createPosition(TulevaFund fund, String accountName) {
     return FundPosition.builder()
         .reportingDate(LocalDate.of(2026, 1, 6))
-        .fundCode(fundCode)
+        .fund(fund)
         .accountType(SECURITY)
         .accountName(accountName)
         .accountId("IE00BFG1TM61")

@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.portfolio;
 
+import static ee.tuleva.onboarding.investment.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.BNP_PARIBAS;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.ISHARES;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.XTRACKERS;
@@ -24,7 +26,7 @@ class ModelPortfolioAllocationRepositoryTest {
     var allocation =
         ModelPortfolioAllocation.builder()
             .effectiveDate(LocalDate.of(2025, 12, 1))
-            .fundCode("tkf100")
+            .fund(TUK75)
             .isin("IE00BJZ2DC62")
             .ticker("XRSM.DE")
             .weight(new BigDecimal("0.174"))
@@ -38,7 +40,7 @@ class ModelPortfolioAllocationRepositoryTest {
     var retrieved = repository.findById(allocation.getId()).orElseThrow();
 
     assertThat(retrieved.getEffectiveDate()).isEqualTo(LocalDate.of(2025, 12, 1));
-    assertThat(retrieved.getFundCode()).isEqualTo("tkf100");
+    assertThat(retrieved.getFund()).isEqualTo(TUK75);
     assertThat(retrieved.getIsin()).isEqualTo("IE00BJZ2DC62");
     assertThat(retrieved.getTicker()).isEqualTo("XRSM.DE");
     assertThat(retrieved.getWeight()).isEqualByComparingTo("0.174");
@@ -48,13 +50,13 @@ class ModelPortfolioAllocationRepositoryTest {
   }
 
   @Test
-  void findByFundCodeAndEffectiveDate_multiplePositions() {
+  void findByFundAndEffectiveDate_multiplePositions() {
     var date = LocalDate.of(2025, 12, 1);
 
     var xtrackers =
         ModelPortfolioAllocation.builder()
             .effectiveDate(date)
-            .fundCode("tkf100")
+            .fund(TUK75)
             .isin("IE00BJZ2DC62")
             .ticker("XRSM.DE")
             .weight(new BigDecimal("0.174"))
@@ -65,7 +67,7 @@ class ModelPortfolioAllocationRepositoryTest {
     var bnp =
         ModelPortfolioAllocation.builder()
             .effectiveDate(date)
-            .fundCode("tkf100")
+            .fund(TUK75)
             .isin("LU1291099718")
             .ticker("EEUX.DE")
             .weight(new BigDecimal("0.125"))
@@ -76,7 +78,7 @@ class ModelPortfolioAllocationRepositoryTest {
     var otherFund =
         ModelPortfolioAllocation.builder()
             .effectiveDate(date)
-            .fundCode("tuk75")
+            .fund(TUK00)
             .isin("IE00BFG1TM61")
             .weight(new BigDecimal("0.2954"))
             .provider(ISHARES)
@@ -87,7 +89,7 @@ class ModelPortfolioAllocationRepositoryTest {
     entityManager.persist(otherFund);
     entityManager.flush();
 
-    var result = repository.findByFundCodeAndEffectiveDate("tkf100", date);
+    var result = repository.findByFundAndEffectiveDate(TUK75, date);
 
     assertThat(result).hasSize(2);
     assertThat(result).extracting("isin").containsExactlyInAnyOrder("IE00BJZ2DC62", "LU1291099718");
@@ -95,14 +97,14 @@ class ModelPortfolioAllocationRepositoryTest {
   }
 
   @Test
-  void findLatestByFundCode_returnsNewestEffectiveDate() {
+  void findLatestByFund_returnsNewestEffectiveDate() {
     var olderDate = LocalDate.of(2025, 6, 30);
     var newerDate = LocalDate.of(2025, 12, 1);
 
     var olderAllocation =
         ModelPortfolioAllocation.builder()
             .effectiveDate(olderDate)
-            .fundCode("tkf100")
+            .fund(TUK75)
             .isin("IE00B4L5Y983")
             .weight(new BigDecimal("0.25"))
             .provider(ISHARES)
@@ -111,7 +113,7 @@ class ModelPortfolioAllocationRepositoryTest {
     var newerAllocation1 =
         ModelPortfolioAllocation.builder()
             .effectiveDate(newerDate)
-            .fundCode("tkf100")
+            .fund(TUK75)
             .isin("IE00BJZ2DC62")
             .weight(new BigDecimal("0.174"))
             .provider(XTRACKERS)
@@ -120,7 +122,7 @@ class ModelPortfolioAllocationRepositoryTest {
     var newerAllocation2 =
         ModelPortfolioAllocation.builder()
             .effectiveDate(newerDate)
-            .fundCode("tkf100")
+            .fund(TUK75)
             .isin("LU1291099718")
             .weight(new BigDecimal("0.125"))
             .provider(BNP_PARIBAS)
@@ -131,7 +133,7 @@ class ModelPortfolioAllocationRepositoryTest {
     entityManager.persist(newerAllocation2);
     entityManager.flush();
 
-    var result = repository.findLatestByFundCode("tkf100");
+    var result = repository.findLatestByFund(TUK75);
 
     assertThat(result).hasSize(2);
     assertThat(result).extracting("effectiveDate").containsOnly(newerDate);
@@ -139,8 +141,8 @@ class ModelPortfolioAllocationRepositoryTest {
   }
 
   @Test
-  void findLatestByFundCode_returnsEmptyWhenNoData() {
-    var result = repository.findLatestByFundCode("nonexistent");
+  void findLatestByFund_returnsEmptyWhenNoData() {
+    var result = repository.findLatestByFund(TUK75);
 
     assertThat(result).isEmpty();
   }

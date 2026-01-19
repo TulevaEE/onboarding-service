@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.investment.calculation;
 
+import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.calculation.PriceSource.EODHD;
-import static ee.tuleva.onboarding.investment.calculation.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.OK;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -10,6 +10,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.investment.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;

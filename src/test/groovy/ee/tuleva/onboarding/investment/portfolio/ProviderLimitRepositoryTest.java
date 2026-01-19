@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.portfolio;
 
+import static ee.tuleva.onboarding.investment.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.BNP_PARIBAS;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.XTRACKERS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,7 +25,7 @@ class ProviderLimitRepositoryTest {
     var limit =
         ProviderLimit.builder()
             .effectiveDate(LocalDate.of(2025, 11, 7))
-            .fundCode("tkt100")
+            .fund(TUK75)
             .provider(XTRACKERS)
             .softLimitPercent(new BigDecimal("0.1965"))
             .hardLimitPercent(new BigDecimal("0.20"))
@@ -35,7 +37,7 @@ class ProviderLimitRepositoryTest {
     var retrieved = repository.findById(limit.getId()).orElseThrow();
 
     assertThat(retrieved.getEffectiveDate()).isEqualTo(LocalDate.of(2025, 11, 7));
-    assertThat(retrieved.getFundCode()).isEqualTo("tkt100");
+    assertThat(retrieved.getFund()).isEqualTo(TUK75);
     assertThat(retrieved.getProvider()).isEqualTo(XTRACKERS);
     assertThat(retrieved.getSoftLimitPercent()).isEqualByComparingTo("0.1965");
     assertThat(retrieved.getHardLimitPercent()).isEqualByComparingTo("0.20");
@@ -43,13 +45,13 @@ class ProviderLimitRepositoryTest {
   }
 
   @Test
-  void findByFundCodeAndEffectiveDate() {
+  void findByFundAndEffectiveDate() {
     var date = LocalDate.of(2025, 11, 7);
 
     var xtrackersLimit =
         ProviderLimit.builder()
             .effectiveDate(date)
-            .fundCode("tkt100")
+            .fund(TUK75)
             .provider(XTRACKERS)
             .softLimitPercent(new BigDecimal("0.1965"))
             .hardLimitPercent(new BigDecimal("0.20"))
@@ -58,7 +60,7 @@ class ProviderLimitRepositoryTest {
     var bnpLimit =
         ProviderLimit.builder()
             .effectiveDate(date)
-            .fundCode("tkt100")
+            .fund(TUK75)
             .provider(BNP_PARIBAS)
             .softLimitPercent(new BigDecimal("0.1965"))
             .hardLimitPercent(new BigDecimal("0.20"))
@@ -67,7 +69,7 @@ class ProviderLimitRepositoryTest {
     var otherFund =
         ProviderLimit.builder()
             .effectiveDate(date)
-            .fundCode("tuk75")
+            .fund(TUK00)
             .provider(XTRACKERS)
             .softLimitPercent(new BigDecimal("0.15"))
             .hardLimitPercent(new BigDecimal("0.18"))
@@ -78,20 +80,20 @@ class ProviderLimitRepositoryTest {
     entityManager.persist(otherFund);
     entityManager.flush();
 
-    var result = repository.findByFundCodeAndEffectiveDate("tkt100", date);
+    var result = repository.findByFundAndEffectiveDate(TUK75, date);
 
     assertThat(result).hasSize(2);
     assertThat(result).extracting("provider").containsExactlyInAnyOrder(XTRACKERS, BNP_PARIBAS);
   }
 
   @Test
-  void findByFundCodeAndEffectiveDateAndProvider() {
+  void findByFundAndEffectiveDateAndProvider() {
     var date = LocalDate.of(2025, 11, 7);
 
     var xtrackersLimit =
         ProviderLimit.builder()
             .effectiveDate(date)
-            .fundCode("tkt100")
+            .fund(TUK75)
             .provider(XTRACKERS)
             .softLimitPercent(new BigDecimal("0.1965"))
             .hardLimitPercent(new BigDecimal("0.20"))
@@ -100,7 +102,7 @@ class ProviderLimitRepositoryTest {
     var bnpLimit =
         ProviderLimit.builder()
             .effectiveDate(date)
-            .fundCode("tkt100")
+            .fund(TUK75)
             .provider(BNP_PARIBAS)
             .softLimitPercent(new BigDecimal("0.1965"))
             .hardLimitPercent(new BigDecimal("0.20"))
@@ -110,21 +112,21 @@ class ProviderLimitRepositoryTest {
     entityManager.persist(bnpLimit);
     entityManager.flush();
 
-    var result = repository.findByFundCodeAndEffectiveDateAndProvider("tkt100", date, XTRACKERS);
+    var result = repository.findByFundAndEffectiveDateAndProvider(TUK75, date, XTRACKERS);
 
     assertThat(result).isPresent();
     assertThat(result.get().getProvider()).isEqualTo(XTRACKERS);
   }
 
   @Test
-  void findLatestByFundCode() {
+  void findLatestByFund() {
     var olderDate = LocalDate.of(2025, 1, 1);
     var newerDate = LocalDate.of(2025, 11, 7);
 
     var olderLimit =
         ProviderLimit.builder()
             .effectiveDate(olderDate)
-            .fundCode("tkt100")
+            .fund(TUK75)
             .provider(XTRACKERS)
             .softLimitPercent(new BigDecimal("0.15"))
             .hardLimitPercent(new BigDecimal("0.18"))
@@ -133,7 +135,7 @@ class ProviderLimitRepositoryTest {
     var newerXtrackers =
         ProviderLimit.builder()
             .effectiveDate(newerDate)
-            .fundCode("tkt100")
+            .fund(TUK75)
             .provider(XTRACKERS)
             .softLimitPercent(new BigDecimal("0.1965"))
             .hardLimitPercent(new BigDecimal("0.20"))
@@ -142,7 +144,7 @@ class ProviderLimitRepositoryTest {
     var newerBnp =
         ProviderLimit.builder()
             .effectiveDate(newerDate)
-            .fundCode("tkt100")
+            .fund(TUK75)
             .provider(BNP_PARIBAS)
             .softLimitPercent(new BigDecimal("0.1965"))
             .hardLimitPercent(new BigDecimal("0.20"))
@@ -153,7 +155,7 @@ class ProviderLimitRepositoryTest {
     entityManager.persist(newerBnp);
     entityManager.flush();
 
-    var result = repository.findLatestByFundCode("tkt100");
+    var result = repository.findLatestByFund(TUK75);
 
     assertThat(result).hasSize(2);
     assertThat(result).extracting("effectiveDate").containsOnly(newerDate);
@@ -161,8 +163,8 @@ class ProviderLimitRepositoryTest {
   }
 
   @Test
-  void findLatestByFundCode_returnsEmptyWhenNoData() {
-    var result = repository.findLatestByFundCode("nonexistent");
+  void findLatestByFund_returnsEmptyWhenNoData() {
+    var result = repository.findLatestByFund(TUK75);
 
     assertThat(result).isEmpty();
   }

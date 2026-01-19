@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.position;
 
+import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.investment.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -50,7 +52,7 @@ class FundPositionImportJobTest {
     when(source.fetch(date))
         .thenReturn(
             Optional.of(new ByteArrayInputStream(SAMPLE_CSV.getBytes(StandardCharsets.UTF_8))));
-    when(repository.existsByReportingDateAndFundCodeAndAccountName(any(), any(), any()))
+    when(repository.existsByReportingDateAndFundAndAccountName(any(), any(), any()))
         .thenReturn(false);
 
     job.importForDate(date);
@@ -64,14 +66,14 @@ class FundPositionImportJobTest {
     when(source.fetch(date))
         .thenReturn(
             Optional.of(new ByteArrayInputStream(SAMPLE_CSV.getBytes(StandardCharsets.UTF_8))));
-    when(repository.existsByReportingDateAndFundCodeAndAccountName(
-            LocalDate.of(2026, 1, 5), "TUK75", "ISHARES DEV WLD ESG"))
+    when(repository.existsByReportingDateAndFundAndAccountName(
+            LocalDate.of(2026, 1, 5), TUK75, "ISHARES DEV WLD ESG"))
         .thenReturn(true);
-    when(repository.existsByReportingDateAndFundCodeAndAccountName(
-            LocalDate.of(2026, 1, 5), "TUK75", "Overnight Deposit"))
+    when(repository.existsByReportingDateAndFundAndAccountName(
+            LocalDate.of(2026, 1, 5), TUK75, "Overnight Deposit"))
         .thenReturn(false);
-    when(repository.existsByReportingDateAndFundCodeAndAccountName(
-            LocalDate.of(2026, 1, 5), "TUV100", "ISHARES USA ESG"))
+    when(repository.existsByReportingDateAndFundAndAccountName(
+            LocalDate.of(2026, 1, 5), TUV100, "ISHARES USA ESG"))
         .thenReturn(false);
 
     job.importForDate(date);

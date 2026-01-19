@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.calculation;
 
+import ee.tuleva.onboarding.investment.TulevaFund;
 import java.time.LocalDate;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;

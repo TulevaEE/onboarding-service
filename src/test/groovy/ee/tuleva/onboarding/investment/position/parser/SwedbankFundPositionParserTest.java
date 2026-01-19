@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.investment.position.parser;
 
+import static ee.tuleva.onboarding.investment.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.investment.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static java.math.BigDecimal.ONE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,7 +37,7 @@ class SwedbankFundPositionParserTest {
 
     FundPosition position = positions.getFirst();
     assertThat(position.getReportingDate()).isEqualTo(LocalDate.of(2026, 1, 5));
-    assertThat(position.getFundCode()).isEqualTo("TUK75");
+    assertThat(position.getFund()).isEqualTo(TUK75);
     assertThat(position.getAccountType()).isEqualTo(SECURITY);
     assertThat(position.getAccountName()).isEqualTo("ISHARES DEVELOPED WLD ESG SC I");
     assertThat(position.getAccountId()).isEqualTo("IE00BFG1TM61");
@@ -55,7 +58,7 @@ class SwedbankFundPositionParserTest {
 
     assertThat(positions).hasSize(1);
     FundPosition position = positions.getFirst();
-    assertThat(position.getFundCode()).isEqualTo("TUK75");
+    assertThat(position.getFund()).isEqualTo(TUK75);
     assertThat(position.getAccountType()).isEqualTo(CASH);
     assertThat(position.getAccountName())
         .isEqualTo("ULEOODEPOSIIT-SWEDBANK(EUR) .99% Due 06.01.2026");
@@ -76,7 +79,7 @@ class SwedbankFundPositionParserTest {
     List<FundPosition> positions = parser.parse(toInputStream(csv));
 
     assertThat(positions).hasSize(1);
-    assertThat(positions.getFirst().getFundCode()).isEqualTo("TUK00");
+    assertThat(positions.getFirst().getFund()).isEqualTo(TUK00);
     assertThat(positions.getFirst().getAccountType()).isEqualTo(SECURITY);
     assertThat(positions.getFirst().getAccountId()).isEqualTo("IE0005032192");
   }
@@ -92,7 +95,7 @@ class SwedbankFundPositionParserTest {
     List<FundPosition> positions = parser.parse(toInputStream(csv));
 
     assertThat(positions).hasSize(1);
-    assertThat(positions.getFirst().getFundCode()).isEqualTo("TUV100");
+    assertThat(positions.getFirst().getFund()).isEqualTo(TUV100);
   }
 
   @Test
@@ -106,7 +109,7 @@ class SwedbankFundPositionParserTest {
 
     assertThat(positions).hasSize(1);
     FundPosition position = positions.getFirst();
-    assertThat(position.getFundCode()).isEqualTo("TUK75");
+    assertThat(position.getFund()).isEqualTo(TUK75);
     assertThat(position.getAccountType()).isEqualTo(LIABILITY);
     assertThat(position.getAccountName()).isEqualTo("Management Fee Payable");
     assertThat(position.getQuantity()).isEqualByComparingTo(new BigDecimal("-190567.45"));
@@ -125,7 +128,7 @@ class SwedbankFundPositionParserTest {
 
     assertThat(positions).hasSize(1);
     FundPosition position = positions.getFirst();
-    assertThat(position.getFundCode()).isEqualTo("TUK75");
+    assertThat(position.getFund()).isEqualTo(TUK75);
     assertThat(position.getAccountType()).isEqualTo(RECEIVABLES);
     assertThat(position.getAccountName()).isEqualTo("Other receivables");
     assertThat(position.getQuantity()).isEqualByComparingTo(new BigDecimal("49371.68"));
@@ -144,7 +147,7 @@ class SwedbankFundPositionParserTest {
 
     assertThat(positions).hasSize(1);
     FundPosition position = positions.getFirst();
-    assertThat(position.getFundCode()).isEqualTo("TUK75");
+    assertThat(position.getFund()).isEqualTo(TUK75);
     assertThat(position.getAccountType()).isEqualTo(NAV);
     assertThat(position.getAccountName()).isEmpty();
     assertThat(position.getQuantity()).isEqualByComparingTo(BigDecimal.ZERO);
@@ -162,8 +165,8 @@ class SwedbankFundPositionParserTest {
     List<FundPosition> positions = parser.parse(toInputStream(csv));
 
     assertThat(positions).hasSize(2);
-    assertThat(positions.get(0).getFundCode()).isEqualTo("TUK75");
-    assertThat(positions.get(1).getFundCode()).isEqualTo("TUK00");
+    assertThat(positions.get(0).getFund()).isEqualTo(TUK75);
+    assertThat(positions.get(1).getFund()).isEqualTo(TUK00);
   }
 
   @Test

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.portfolio;
 
+import ee.tuleva.onboarding.investment.TulevaFund;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -8,20 +9,20 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface ProviderLimitRepository extends JpaRepository<ProviderLimit, Long> {
 
-  List<ProviderLimit> findByFundCodeAndEffectiveDate(String fundCode, LocalDate effectiveDate);
+  List<ProviderLimit> findByFundAndEffectiveDate(TulevaFund fund, LocalDate effectiveDate);
 
-  Optional<ProviderLimit> findByFundCodeAndEffectiveDateAndProvider(
-      String fundCode, LocalDate effectiveDate, Provider provider);
+  Optional<ProviderLimit> findByFundAndEffectiveDateAndProvider(
+      TulevaFund fund, LocalDate effectiveDate, Provider provider);
 
   @Query(
       """
       SELECT pl FROM ProviderLimit pl
-      WHERE pl.fundCode = :fundCode
+      WHERE pl.fund = :fund
       AND pl.effectiveDate = (
         SELECT MAX(pl2.effectiveDate)
         FROM ProviderLimit pl2
-        WHERE pl2.fundCode = :fundCode
+        WHERE pl2.fund = :fund
       )
       """)
-  List<ProviderLimit> findLatestByFundCode(String fundCode);
+  List<ProviderLimit> findLatestByFund(TulevaFund fund);
 }

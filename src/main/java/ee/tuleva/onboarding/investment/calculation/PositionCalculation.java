@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.calculation;
 
+import ee.tuleva.onboarding.investment.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;

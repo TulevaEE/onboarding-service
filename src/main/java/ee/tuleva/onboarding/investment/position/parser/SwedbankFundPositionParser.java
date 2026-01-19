@@ -1,8 +1,12 @@
 package ee.tuleva.onboarding.investment.position.parser;
 
+import static ee.tuleva.onboarding.investment.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.investment.TulevaFund.TUV100;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
 
+import ee.tuleva.onboarding.investment.TulevaFund;
 import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import java.io.BufferedReader;
@@ -40,13 +44,13 @@ public class SwedbankFundPositionParser implements FundPositionParser {
 
   private static final int MIN_COLUMNS = 16;
 
-  private static final Map<String, String> PORTFOLIO_TO_FUND_CODE =
+  private static final Map<String, TulevaFund> PORTFOLIO_TO_FUND =
       Map.of(
-          "Tuleva Maailma Aktsiate Pensionifond", "TUK75",
-          "Tuleva Maailma Võlakirjade Pensionifond", "TUK00",
-          "Tuleva Maailma Volakirjade Pensionifond", "TUK00",
-          "Tuleva Vabatahtlik Pensionifond", "TUV100",
-          "Tuleva Vabatahtlik Pensionifon", "TUV100");
+          "Tuleva Maailma Aktsiate Pensionifond", TUK75,
+          "Tuleva Maailma Võlakirjade Pensionifond", TUK00,
+          "Tuleva Maailma Volakirjade Pensionifond", TUK00,
+          "Tuleva Vabatahtlik Pensionifond", TUV100,
+          "Tuleva Vabatahtlik Pensionifon", TUV100);
 
   private static final Map<String, AccountType> ASSET_TYPE_MAPPING =
       Map.of(
@@ -82,8 +86,8 @@ public class SwedbankFundPositionParser implements FundPositionParser {
 
       String assetType = columns[COL_ASSET_TYPE].trim();
       String portfolio = columns[COL_PORTFOLIO].trim();
-      String fundCode = PORTFOLIO_TO_FUND_CODE.get(portfolio);
-      if (fundCode == null) {
+      TulevaFund fund = PORTFOLIO_TO_FUND.get(portfolio);
+      if (fund == null) {
         log.warn("Unknown portfolio, skipping: portfolio={}", portfolio);
         return Optional.empty();
       }
@@ -99,7 +103,7 @@ public class SwedbankFundPositionParser implements FundPositionParser {
       FundPosition position =
           FundPosition.builder()
               .reportingDate(parseDate(columns[COL_NAV_DATE]))
-              .fundCode(fundCode)
+              .fund(fund)
               .accountType(accountType)
               .accountName(columns[COL_ASSET_NAME].trim())
               .accountId(parseString(columns[COL_ISIN]))

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.calculation;
 
 import static jakarta.persistence.EnumType.STRING;
 
+import ee.tuleva.onboarding.investment.TulevaFund;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Enumerated;

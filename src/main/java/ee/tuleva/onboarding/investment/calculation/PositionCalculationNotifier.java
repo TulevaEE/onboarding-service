@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.calculation;
 
 import static java.time.temporal.ChronoUnit.DAYS;
 
+import ee.tuleva.onboarding.investment.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;

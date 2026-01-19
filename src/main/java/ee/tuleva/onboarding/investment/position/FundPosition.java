@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.investment.position;
 
 import static jakarta.persistence.EnumType.STRING;
 
+import ee.tuleva.onboarding.investment.TulevaFund;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
@@ -31,7 +33,10 @@ public class FundPosition {
 
   @NotNull private LocalDate reportingDate;
 
-  @NotNull private String fundCode;
+  @NotNull
+  @Enumerated(STRING)
+  @Column(name = "fund_code")
+  private TulevaFund fund;
 
   @NotNull
   @Enumerated(STRING)

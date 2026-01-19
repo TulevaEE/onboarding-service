@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.investment.calculation;
 
+import static ee.tuleva.onboarding.investment.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.calculation.PriceSource.EODHD;
-import static ee.tuleva.onboarding.investment.calculation.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.investment.calculation.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.NO_PRICE_DATA;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.OK;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
@@ -11,6 +11,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.investment.TulevaFund;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import java.math.BigDecimal;
@@ -27,7 +28,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class PositionCalculationServiceTest {
 
   private static final TulevaFund FUND = TUK75;
-  private static final String FUND_CODE = FUND.getCode();
   private static final LocalDate DATE = LocalDate.of(2025, 1, 10);
   private static final String ISIN = "IE00BFNM3G45";
 
@@ -53,8 +53,7 @@ class PositionCalculationServiceTest {
             .discrepancyPercent(BigDecimal.ZERO)
             .build();
 
-    when(fundPositionRepository.findByReportingDateAndFundCodeAndAccountType(
-            DATE, FUND_CODE, SECURITY))
+    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(DATE, FUND, SECURITY))
         .thenReturn(List.of(position));
     when(priceResolver.resolve(ISIN, DATE)).thenReturn(Optional.of(resolvedPrice));
 
@@ -75,8 +74,7 @@ class PositionCalculationServiceTest {
   void calculate_withPositionWithoutIsin_skipsPosition() {
     FundPosition positionWithoutIsin = createSecurityPosition(null, new BigDecimal("1000"));
 
-    when(fundPositionRepository.findByReportingDateAndFundCodeAndAccountType(
-            DATE, FUND_CODE, SECURITY))
+    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(DATE, FUND, SECURITY))
         .thenReturn(List.of(positionWithoutIsin));
 
     List<PositionCalculation> result = service.calculate(FUND, DATE);
@@ -89,8 +87,7 @@ class PositionCalculationServiceTest {
     String unknownIsin = "UNKNOWN_ISIN";
     FundPosition position = createSecurityPosition(unknownIsin, new BigDecimal("1000"));
 
-    when(fundPositionRepository.findByReportingDateAndFundCodeAndAccountType(
-            DATE, FUND_CODE, SECURITY))
+    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(DATE, FUND, SECURITY))
         .thenReturn(List.of(position));
     when(priceResolver.resolve(unknownIsin, DATE)).thenReturn(Optional.empty());
 
@@ -105,7 +102,7 @@ class PositionCalculationServiceTest {
     BigDecimal price = new BigDecimal("100.00");
     FundPosition position1 = createSecurityPosition(ISIN, quantity);
     FundPosition position2 = createSecurityPosition(ISIN, quantity);
-    position2.setFundCode(TUK00.getCode());
+    position2.setFund(TUK00);
 
     ResolvedPrice resolvedPrice =
         ResolvedPrice.builder()
@@ -115,7 +112,7 @@ class PositionCalculationServiceTest {
             .validationStatus(OK)
             .build();
 
-    when(fundPositionRepository.findByReportingDateAndFundCodeAndAccountType(
+    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(
             eq(DATE), any(), eq(SECURITY)))
         .thenReturn(List.of(position1));
     when(priceResolver.resolve(ISIN, DATE)).thenReturn(Optional.of(resolvedPrice));
@@ -139,8 +136,7 @@ class PositionCalculationServiceTest {
             .validationStatus(NO_PRICE_DATA)
             .build();
 
-    when(fundPositionRepository.findByReportingDateAndFundCodeAndAccountType(
-            DATE, FUND_CODE, SECURITY))
+    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(DATE, FUND, SECURITY))
         .thenReturn(List.of(position));
     when(priceResolver.resolve(ISIN, DATE)).thenReturn(Optional.of(resolvedPrice));
 
@@ -163,8 +159,7 @@ class PositionCalculationServiceTest {
             .validationStatus(OK)
             .build();
 
-    when(fundPositionRepository.findByReportingDateAndFundCodeAndAccountType(
-            DATE, FUND_CODE, SECURITY))
+    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(DATE, FUND, SECURITY))
         .thenReturn(List.of(position));
     when(priceResolver.resolve(ISIN, DATE)).thenReturn(Optional.of(resolvedPrice));
 
@@ -188,10 +183,8 @@ class PositionCalculationServiceTest {
             .validationStatus(OK)
             .build();
 
-    when(fundPositionRepository.findLatestReportingDateByFundCode(FUND_CODE))
-        .thenReturn(Optional.of(DATE));
-    when(fundPositionRepository.findByReportingDateAndFundCodeAndAccountType(
-            DATE, FUND_CODE, SECURITY))
+    when(fundPositionRepository.findLatestReportingDateByFund(FUND)).thenReturn(Optional.of(DATE));
+    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(DATE, FUND, SECURITY))
         .thenReturn(List.of(position));
     when(priceResolver.resolve(ISIN, DATE)).thenReturn(Optional.of(resolvedPrice));
 
@@ -204,8 +197,7 @@ class PositionCalculationServiceTest {
 
   @Test
   void calculateForLatestDate_withNoPositions_returnsEmptyList() {
-    when(fundPositionRepository.findLatestReportingDateByFundCode(FUND_CODE))
-        .thenReturn(Optional.empty());
+    when(fundPositionRepository.findLatestReportingDateByFund(FUND)).thenReturn(Optional.empty());
 
     List<PositionCalculation> result = service.calculateForLatestDate(FUND);
 
@@ -230,15 +222,13 @@ class PositionCalculationServiceTest {
             .validationStatus(OK)
             .build();
 
-    when(fundPositionRepository.findLatestReportingDateByFundCode(TUK75.getCode()))
+    when(fundPositionRepository.findLatestReportingDateByFund(TUK75))
         .thenReturn(Optional.of(date1));
-    when(fundPositionRepository.findLatestReportingDateByFundCode(TUK00.getCode()))
+    when(fundPositionRepository.findLatestReportingDateByFund(TUK00))
         .thenReturn(Optional.of(date2));
-    when(fundPositionRepository.findByReportingDateAndFundCodeAndAccountType(
-            date1, TUK75.getCode(), SECURITY))
+    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(date1, TUK75, SECURITY))
         .thenReturn(List.of(position1));
-    when(fundPositionRepository.findByReportingDateAndFundCodeAndAccountType(
-            date2, TUK00.getCode(), SECURITY))
+    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(date2, TUK00, SECURITY))
         .thenReturn(List.of(position2));
     when(priceResolver.resolve(eq(ISIN), any())).thenReturn(Optional.of(resolvedPrice));
 
@@ -249,7 +239,7 @@ class PositionCalculationServiceTest {
 
   private FundPosition createSecurityPosition(String isin, BigDecimal quantity) {
     return FundPosition.builder()
-        .fundCode(FUND_CODE)
+        .fund(FUND)
         .reportingDate(DATE)
         .accountType(SECURITY)
         .accountId(isin)

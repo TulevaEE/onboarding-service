@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.calculation;
 
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 
+import ee.tuleva.onboarding.investment.TulevaFund;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import java.math.BigDecimal;
@@ -24,8 +25,7 @@ public class PositionCalculationService {
 
   public List<PositionCalculation> calculate(TulevaFund fund, LocalDate date) {
     List<FundPosition> positions =
-        fundPositionRepository.findByReportingDateAndFundCodeAndAccountType(
-            date, fund.getCode(), SECURITY);
+        fundPositionRepository.findByReportingDateAndFundAndAccountType(date, fund, SECURITY);
 
     log.info(
         "Calculating positions: fund={}, date={}, positionCount={}", fund, date, positions.size());
@@ -46,8 +46,7 @@ public class PositionCalculationService {
   }
 
   public List<PositionCalculation> calculateForLatestDate(TulevaFund fund) {
-    Optional<LocalDate> latestDate =
-        fundPositionRepository.findLatestReportingDateByFundCode(fund.getCode());
+    Optional<LocalDate> latestDate = fundPositionRepository.findLatestReportingDateByFund(fund);
 
     if (latestDate.isEmpty()) {
       log.warn("No fund positions found: fund={}", fund);

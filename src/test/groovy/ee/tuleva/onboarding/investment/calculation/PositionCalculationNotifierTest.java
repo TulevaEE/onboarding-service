@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.investment.calculation;
 
-import static ee.tuleva.onboarding.investment.calculation.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.investment.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;

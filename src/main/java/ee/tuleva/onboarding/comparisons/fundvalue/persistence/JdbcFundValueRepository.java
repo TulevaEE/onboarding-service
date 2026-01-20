@@ -43,16 +43,13 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
       LIMIT 1
       """;
 
-  private static final String INSERT_VALUES_QUERY =
+  private static final String INSERT_IF_NOT_EXISTS_QUERY =
       """
       INSERT INTO index_values (key, date, value, provider, updated_at)
-      VALUES (:key, :date, :value, :provider, :updatedAt)
-      """;
-
-  private static final String UPDATE_VALUES_QUERY =
-      """
-      UPDATE index_values SET value = :value, provider = :provider, updated_at = :updatedAt
-      WHERE key = :key AND date = :date
+      SELECT :key, :date, :value, :provider, :updatedAt
+      WHERE NOT EXISTS (
+          SELECT 1 FROM index_values WHERE key = :key AND date = :date
+      )
       """;
 
   private static final String SELECT_GLOBAL_STOCK_VALUES_QUERY =
@@ -120,9 +117,10 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
   }
 
   @Override
-  public void save(FundValue fundValue) {
+  public Optional<FundValue> save(FundValue fundValue) {
     Map<String, Object> values = buildParamsMap(fundValue);
-    jdbcTemplate.update(INSERT_VALUES_QUERY, values);
+    int rowsAffected = jdbcTemplate.update(INSERT_IF_NOT_EXISTS_QUERY, values);
+    return rowsAffected > 0 ? Optional.of(fundValue) : Optional.empty();
   }
 
   private Map<String, Object> buildParamsMap(FundValue fundValue) {
@@ -138,34 +136,14 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
   }
 
   @Override
-  public void update(FundValue fundValue) {
-    Map<String, Object> values = buildParamsMap(fundValue);
-    jdbcTemplate.update(UPDATE_VALUES_QUERY, values);
-  }
-
-  @Override
-  public void saveAll(List<FundValue> fundValues) {
-    List<Map<String, Object>> batchValues = fundValues.stream().map(this::buildParamsMap).toList();
-    jdbcTemplate.batchUpdate(INSERT_VALUES_QUERY, batchValues.toArray(new Map[fundValues.size()]));
+  public List<FundValue> saveAll(List<FundValue> fundValues) {
+    return fundValues.stream().map(this::save).flatMap(Optional::stream).toList();
   }
 
   @Override
   public Optional<FundValue> findLastValueForFund(String fund) {
     List<FundValue> result =
         jdbcTemplate.query(FIND_LAST_VALUE_QUERY, Map.of("key", fund), new FundValueRowMapper());
-    return result.isEmpty() ? Optional.empty() : Optional.of(result.getFirst());
-  }
-
-  @Override
-  public Optional<FundValue> findExistingValueForFund(FundValue fundValue) {
-    List<FundValue> result =
-        jdbcTemplate.query(
-            FIND_FUND_VALUE_QUERY,
-            Map.of(
-                "key", fundValue.key(),
-                "date", fundValue.date(),
-                "value", fundValue.value()),
-            new FundValueRowMapper());
     return result.isEmpty() ? Optional.empty() : Optional.of(result.getFirst());
   }
 

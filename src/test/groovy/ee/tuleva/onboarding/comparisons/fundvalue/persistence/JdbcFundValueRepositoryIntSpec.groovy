@@ -86,17 +86,6 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
         marketValue.get().value() == 204.12345
     }
 
-    def "it can save and update values"() {
-        given:
-        def oldValue = aFundValue("FOO_BAR", parse("2020-04-30"), 1.12345)
-        fundValueRepository.save(oldValue)
-        def newValue = aFundValue("FOO_BAR", parse("2020-04-30"), 2.12345)
-        when:
-        fundValueRepository.update(newValue)
-        then:
-        fundValueRepository.findLastValueForFund("FOO_BAR").get() == newValue
-    }
-
     def "it can select global stock values from two tables"() {
         given:
         List<FundValue> values = [
@@ -210,20 +199,48 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
     result.get().updatedAt() != null
   }
 
-  def "it updates provider and updatedAt fields"() {
+  def "save returns saved value for new entries"() {
     given:
-    def now = Instant.now()
-    fundValueRepository.save(new FundValue("UPDATE_KEY", parse("2020-01-01"), 100.0, "YAHOO", now))
+    def newValue = aFundValue("NEW_KEY", parse("2020-01-01"), 100.0, "YAHOO")
 
     when:
-    def newNow = Instant.now()
-    fundValueRepository.update(new FundValue("UPDATE_KEY", parse("2020-01-01"), 200.0, "EODHD", newNow))
-    def result = fundValueRepository.findLastValueForFund("UPDATE_KEY")
+    def result = fundValueRepository.save(newValue)
 
     then:
     result.isPresent()
-    result.get().value() == 200.0
-    result.get().provider() == "EODHD"
+    result.get() == newValue
+  }
+
+  def "save returns empty for duplicate key-date combinations"() {
+    given:
+    def originalValue = aFundValue("IMMUTABLE_KEY", parse("2020-01-01"), 100.0, "YAHOO")
+    fundValueRepository.save(originalValue)
+
+    when:
+    def duplicateValue = aFundValue("IMMUTABLE_KEY", parse("2020-01-01"), 999.0, "DIFFERENT_PROVIDER")
+    def result = fundValueRepository.save(duplicateValue)
+
+    then:
+    result.isEmpty()
+    fundValueRepository.findLastValueForFund("IMMUTABLE_KEY").get().value() == 100.0
+  }
+
+  def "saveAll returns only actually saved values"() {
+    given:
+    def existingValue = aFundValue("BATCH_KEY", parse("2020-01-01"), 100.0, "YAHOO")
+    fundValueRepository.save(existingValue)
+
+    when:
+    def valuesToSave = [
+        aFundValue("BATCH_KEY", parse("2020-01-01"), 999.0, "DIFFERENT"),
+        aFundValue("BATCH_KEY", parse("2020-01-02"), 200.0, "YAHOO")
+    ]
+    def savedValues = fundValueRepository.saveAll(valuesToSave)
+
+    then:
+    savedValues.size() == 1
+    savedValues[0].date() == parse("2020-01-02")
+    savedValues[0].value() == 200.0
   }
 
   private static List<FundValue> getFakeFundValues() {

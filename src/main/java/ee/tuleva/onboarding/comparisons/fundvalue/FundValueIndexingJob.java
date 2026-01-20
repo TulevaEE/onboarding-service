@@ -97,18 +97,14 @@ public class FundValueIndexingJob {
   private void loadAndPersistDataForStartTime(
       ComparisonIndexRetriever comparisonIndexRetriever, LocalDate startDate) {
     LocalDate endDate = LocalDate.now();
-    List<FundValue> valuesPulled =
+    List<FundValue> valuesFetched =
         comparisonIndexRetriever.retrieveValuesForRange(startDate, endDate);
-    valuesPulled.forEach(
-        value -> {
-          if (fundValueRepository.findExistingValueForFund(value).isEmpty())
-            fundValueRepository.save(value);
-          else fundValueRepository.update(value);
-        });
+    List<FundValue> valuesSaved =
+        valuesFetched.stream().map(fundValueRepository::save).flatMap(Optional::stream).toList();
     log.info(
-        "Successfully pulled and saved {} {} values: {}",
-        valuesPulled.size(),
+        "Fund value indexing complete: key={}, fetched={}, saved={}",
         comparisonIndexRetriever.getKey(),
-        valuesPulled);
+        valuesFetched.size(),
+        valuesSaved.size());
   }
 }

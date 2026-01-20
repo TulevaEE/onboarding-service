@@ -44,10 +44,8 @@ class EuronextValueRetrieverTest {
                         requestTo(
                             "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
                                 + isin
-                                + "-XPAR?format=csv&decimal_separator=.&date_form=Y-m-d&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
-                    .andRespond(
-                        withSuccess(
-                            mockCsvResponseForIsin(isin, "2024-01-02", "2024-01-04"), TEXT_PLAIN)));
+                                + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
+                    .andRespond(withSuccess(mockCsvResponseForIsin(isin), TEXT_PLAIN)));
 
     var startDate = LocalDate.of(2024, 1, 2);
     var endDate = LocalDate.of(2024, 1, 4);
@@ -73,7 +71,7 @@ class EuronextValueRetrieverTest {
         "From 2024-01-02 to 2024-01-02"
         %s
         Date;Open;High;Low;Last;Close;Number of Shares;Number of Trades;Turnover
-        2024-01-02;4.506;4.506;4.4925;4.497;4.495;3370;6;15147;4.494641
+        02/01/2024;4.506;4.506;4.4925;4.497;4.495;3370;6;15147;4.494641
         """
             .formatted(isin);
 
@@ -82,7 +80,7 @@ class EuronextValueRetrieverTest {
             requestTo(
                 "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
                     + isin
-                    + "-XPAR?format=csv&decimal_separator=.&date_form=Y-m-d&adjusted=Y&startdate=2024-01-02&enddate=2024-01-02"))
+                    + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-02"))
         .andRespond(withSuccess(mockResponse, TEXT_PLAIN));
 
     var result =
@@ -108,7 +106,7 @@ class EuronextValueRetrieverTest {
                         requestTo(
                             "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
                                 + isin
-                                + "-XPAR?format=csv&decimal_separator=.&date_form=Y-m-d&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
+                                + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
                     .andRespond(withSuccess(mockCsvResponseWithZero(isin), TEXT_PLAIN)));
 
     var result =
@@ -129,7 +127,7 @@ class EuronextValueRetrieverTest {
                         requestTo(
                             "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
                                 + isin
-                                + "-XPAR?format=csv&decimal_separator=.&date_form=Y-m-d&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
+                                + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
                     .andRespond(withServerError()));
 
     var result =
@@ -148,7 +146,7 @@ class EuronextValueRetrieverTest {
                         requestTo(
                             "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
                                 + isin
-                                + "-XPAR?format=csv&decimal_separator=.&date_form=Y-m-d&adjusted=Y&startdate=2024-01-02&enddate=2024-01-02"))
+                                + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-02"))
                     .andRespond(withSuccess(emptyCsvResponse(isin), TEXT_PLAIN)));
 
     var result =
@@ -157,17 +155,17 @@ class EuronextValueRetrieverTest {
     assertThat(result).isEmpty();
   }
 
-  private String mockCsvResponseForIsin(String isin, String startDate, String endDate) {
+  private String mockCsvResponseForIsin(String isin) {
     return """
         "Historical Data"
-        "From %s to %s"
+        "From 2024-01-02 to 2024-01-04"
         %s
         Date;Open;High;Low;Last;Close;Number of Shares;Number of Trades;Turnover
-        %s;4.506;4.506;4.4925;4.497;4.495;3370;6;15147;4.494641
-        2024-01-03;4.474;4.511;4.474;4.5065;4.5105;24852;3;112000;4.50669
-        %s;4.4875;4.4875;4.4545;4.4545;4.452;4929;6;22006;4.464614
+        02/01/2024;4.506;4.506;4.4925;4.497;4.495;3370;6;15147;4.494641
+        03/01/2024;4.474;4.511;4.474;4.5065;4.5105;24852;3;112000;4.50669
+        04/01/2024;4.4875;4.4875;4.4545;4.4545;4.452;4929;6;22006;4.464614
         """
-        .formatted(startDate, endDate, isin, startDate, endDate);
+        .formatted(isin);
   }
 
   private String mockCsvResponseWithZero(String isin) {
@@ -176,9 +174,9 @@ class EuronextValueRetrieverTest {
         "From 2024-01-02 to 2024-01-04"
         %s
         Date;Open;High;Low;Last;Close;Number of Shares;Number of Trades;Turnover
-        2024-01-02;4.506;4.506;4.4925;4.497;4.495;3370;6;15147;4.494641
-        2024-01-03;0;0;0;0;0;0;0;0;0
-        2024-01-04;4.4875;4.4875;4.4545;4.4545;4.452;4929;6;22006;4.464614
+        02/01/2024;4.506;4.506;4.4925;4.497;4.495;3370;6;15147;4.494641
+        03/01/2024;0;0;0;0;0;0;0;0;0
+        04/01/2024;4.4875;4.4875;4.4545;4.4545;4.452;4929;6;22006;4.464614
         """
         .formatted(isin);
   }

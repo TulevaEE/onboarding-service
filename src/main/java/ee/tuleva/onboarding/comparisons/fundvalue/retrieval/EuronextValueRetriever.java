@@ -8,6 +8,7 @@ import java.io.StringReader;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.ToString;
@@ -25,6 +26,7 @@ public class EuronextValueRetriever implements ComparisonIndexRetriever {
   public static final String PROVIDER = "EURONEXT";
   private static final String EURONEXT_PARIS_MARKET_IDENTIFIER_CODE = "XPAR";
   private static final int HEADER_LINES_TO_SKIP = 4;
+  private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
   private final RestClient restClient;
 
@@ -94,7 +96,7 @@ public class EuronextValueRetriever implements ComparisonIndexRetriever {
           continue;
         }
 
-        var date = LocalDate.parse(parts[0]);
+        var date = LocalDate.parse(parts[0], DATE_FORMATTER);
         var closePrice = new BigDecimal(parts[5]);
 
         values.add(new FundValue(storageKey, date, closePrice, PROVIDER, now));
@@ -115,7 +117,7 @@ public class EuronextValueRetriever implements ComparisonIndexRetriever {
                 + EURONEXT_PARIS_MARKET_IDENTIFIER_CODE)
         .queryParam("format", "csv")
         .queryParam("decimal_separator", ".")
-        .queryParam("date_form", "Y-m-d")
+        .queryParam("date_form", "d/m/Y")
         .queryParam("adjusted", "Y")
         .queryParam("startdate", startDate)
         .queryParam("enddate", endDate)

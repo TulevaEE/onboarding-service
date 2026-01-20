@@ -30,7 +30,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class FundValueIntegrityChecker {
 
-  private static final LocalDate EARLIEST_DATE = LocalDate.parse("2003-01-07");
   private static final int DATABASE_SCALE = 5;
   private static final BigDecimal SAME_PROVIDER_THRESHOLD_PERCENT = new BigDecimal("0.0001");
   private static final BigDecimal CROSS_PROVIDER_THRESHOLD_PERCENT = new BigDecimal("0.001");
@@ -69,20 +68,18 @@ public class FundValueIntegrityChecker {
     LocalDate endDate = LocalDate.now().minusDays(1);
     LocalDate crossProviderStartDate = endDate.minusDays(30);
 
-    List<TickerCheckResult> results = collectAllResults(endDate, crossProviderStartDate);
-    logSummary(endDate, crossProviderStartDate, results);
+    List<TickerCheckResult> results = collectAllResults(crossProviderStartDate, endDate);
+    logSummary(crossProviderStartDate, endDate, results);
   }
 
-  private List<TickerCheckResult> collectAllResults(
-      LocalDate yahooVsDbEndDate, LocalDate crossProviderStartDate) {
+  private List<TickerCheckResult> collectAllResults(LocalDate startDate, LocalDate endDate) {
     return Arrays.stream(FundTicker.values())
         .map(
             ticker -> {
               IntegrityCheckResult yahooVsDbResult =
-                  verifyFundDataIntegrity(ticker.getYahooTicker(), EARLIEST_DATE, yahooVsDbEndDate);
+                  verifyFundDataIntegrity(ticker.getYahooTicker(), startDate, endDate);
               CrossProviderCheckResult crossProviderResult =
-                  checkCrossProviderIntegrityInternal(
-                      ticker, crossProviderStartDate, yahooVsDbEndDate);
+                  checkCrossProviderIntegrityInternal(ticker, startDate, endDate);
 
               return new TickerCheckResult(
                   ticker,
@@ -267,17 +264,14 @@ public class FundValueIntegrityChecker {
         .toList();
   }
 
-  private void logSummary(
-      LocalDate yahooVsDbEndDate,
-      LocalDate crossProviderStartDate,
-      List<TickerCheckResult> results) {
+  private void logSummary(LocalDate startDate, LocalDate endDate, List<TickerCheckResult> results) {
     StringBuilder summary = new StringBuilder();
-    summary.append(String.format("Fund Value Integrity Check Summary (%s):%n%n", yahooVsDbEndDate));
-
-    summary.append(buildYahooVsDbSummaryTable(results));
-    summary.append("\n");
     summary.append(
-        buildCrossProviderSummaryTable(crossProviderStartDate, yahooVsDbEndDate, results));
+        String.format("Fund Value Integrity Check Summary (%s to %s):%n%n", startDate, endDate));
+
+    summary.append(buildYahooVsDbSummaryTable(startDate, endDate, results));
+    summary.append("\n");
+    summary.append(buildCrossProviderSummaryTable(startDate, endDate, results));
 
     List<String> issues = collectIssueDetails(results);
 
@@ -290,9 +284,10 @@ public class FundValueIntegrityChecker {
     }
   }
 
-  private String buildYahooVsDbSummaryTable(List<TickerCheckResult> results) {
+  private String buildYahooVsDbSummaryTable(
+      LocalDate startDate, LocalDate endDate, List<TickerCheckResult> results) {
     StringBuilder table = new StringBuilder();
-    table.append(String.format("Yahoo vs Database (since %s):%n", EARLIEST_DATE));
+    table.append(String.format("Yahoo vs Database (%s to %s):%n", startDate, endDate));
     table.append(formatTableHeader("Fund", "Status", "Missing", "Orphaned"));
     table.append(formatTableSeparator());
 
@@ -438,7 +433,7 @@ public class FundValueIntegrityChecker {
 
   private String padStatus(String status) {
     if (status.equals(CHECK_MARK) || status.equals(CROSS_MARK)) {
-      return status + "    ";
+      return status + "     ";
     }
     return String.format("%-6s", status);
   }
@@ -484,7 +479,7 @@ public class FundValueIntegrityChecker {
 
   private String padCrossProviderStatus(String status, int width) {
     if (status.equals(CHECK_MARK) || status.equals(CROSS_MARK)) {
-      return status + " ".repeat(width - 2);
+      return status + " ".repeat(width - 1);
     }
     return String.format("%-" + width + "s", status);
   }

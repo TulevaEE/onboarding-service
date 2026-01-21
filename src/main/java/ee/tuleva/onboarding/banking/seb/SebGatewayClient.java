@@ -7,15 +7,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
-import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
-@Service
 @Slf4j
 @RequiredArgsConstructor
-@ConditionalOnProperty(prefix = "seb-gateway", name = "enabled", havingValue = "true")
 public class SebGatewayClient {
 
   private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;

@@ -4,14 +4,10 @@ import ee.tuleva.onboarding.banking.payment.PaymentMessageGenerator;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Component;
 
-@Component
 @RequiredArgsConstructor
 @Slf4j
-@ConditionalOnProperty(prefix = "seb-gateway", name = "enabled", havingValue = "true")
 public class SebPaymentRequestListener {
 
   private final SebGatewayClient sebGatewayClient;

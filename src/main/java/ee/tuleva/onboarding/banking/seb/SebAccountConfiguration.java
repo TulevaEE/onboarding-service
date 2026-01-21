@@ -12,14 +12,10 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
 
-@Configuration
 @RequiredArgsConstructor
 @ConfigurationProperties("seb-gateway")
-@ConditionalOnProperty(prefix = "seb-gateway", name = "enabled", havingValue = "true")
 public class SebAccountConfiguration implements BankAccountConfiguration {
 
   @Getter private final Map<BankAccountType, String> accounts;

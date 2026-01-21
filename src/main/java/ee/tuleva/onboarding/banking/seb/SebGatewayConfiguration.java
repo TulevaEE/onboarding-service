@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.banking.seb;
 
 import static org.springframework.http.MediaType.APPLICATION_XML_VALUE;
 
+import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
+import ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetcher;
 import java.io.File;
 import java.security.KeyStore;
 import java.security.PrivateKey;
@@ -21,6 +23,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
@@ -123,6 +126,16 @@ public class SebGatewayConfiguration {
     return (PrivateKey)
         keyStore.getKey(
             getSingleKeyAlias(keyStore), properties.keystore().password().toCharArray());
+  }
+
+  @Bean
+  @Profile("!staging")
+  SebStatementFetcher sebStatementFetcher(
+      SebGatewayClient sebGatewayClient,
+      SebAccountConfiguration sebAccountConfiguration,
+      BankingMessageRepository bankingMessageRepository) {
+    return new SebStatementFetcher(
+        sebGatewayClient, sebAccountConfiguration, bankingMessageRepository);
   }
 }
 

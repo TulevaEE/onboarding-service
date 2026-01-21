@@ -67,7 +67,6 @@ class PaymentReturningServiceTest {
             .remitterName("Tuleva Fondid AS")
             .remitterId("14118923")
             .remitterIban("IBAN-22")
-            .remitterBic("HABAEE2X")
             .beneficiaryName("John Doe")
             .beneficiaryIban("IBAN-11")
             .amount(new BigDecimal(60))

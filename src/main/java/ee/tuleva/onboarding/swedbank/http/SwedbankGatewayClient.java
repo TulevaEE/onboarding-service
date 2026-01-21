@@ -7,6 +7,7 @@ import static org.springframework.http.HttpMethod.POST;
 import ee.tuleva.onboarding.banking.payment.PaymentMessageGenerator;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.xml.Iso20022Marshaller;
+import ee.tuleva.onboarding.swedbank.Swedbank;
 import jakarta.xml.bind.JAXBElement;
 import java.net.URI;
 import java.time.Clock;
@@ -45,7 +46,8 @@ public class SwedbankGatewayClient {
   private final RestTemplate restTemplate;
 
   public void sendPaymentRequest(PaymentRequest paymentRequest, UUID requestId) {
-    var paymentMessage = paymentMessageGenerator.generatePaymentMessage(paymentRequest);
+    var paymentMessage =
+        paymentMessageGenerator.generatePaymentMessage(paymentRequest, Swedbank.SWEDBANK_BIC);
     var requestEntity = new HttpEntity<>(paymentMessage, getHeaders(requestId));
     restTemplate.exchange(getRequestUrl("payment-initiations"), POST, requestEntity, String.class);
   }

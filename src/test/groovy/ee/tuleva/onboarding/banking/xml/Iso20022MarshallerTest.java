@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.banking.xml;
 
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.CLOSE;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.OPEN;
-import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
+import static ee.tuleva.onboarding.swedbank.Swedbank.SWEDBANK_GATEWAY_TIME_ZONE;
 import static org.junit.jupiter.api.Assertions.*;
 
 import ee.tuleva.onboarding.banking.converter.LocalDateToXmlGregorianCalendarConverter;

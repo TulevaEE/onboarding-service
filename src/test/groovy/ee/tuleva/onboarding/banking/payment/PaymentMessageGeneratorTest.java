@@ -26,7 +26,6 @@ class PaymentMessageGeneratorTest {
             .remitterName("Tuleva AS")
             .remitterId("14118923")
             .remitterIban("EE121283519985595614")
-            .remitterBic("HABAEE2X")
             .beneficiaryName("John Doe")
             .beneficiaryIban("EE461277288334943840")
             .amount(new BigDecimal("111.03"))
@@ -35,7 +34,7 @@ class PaymentMessageGeneratorTest {
             .endToEndId("123ABC")
             .build();
 
-    var result = generator.generatePaymentMessage(paymentRequest);
+    var result = generator.generatePaymentMessage(paymentRequest, "HABAEE2X");
 
     assertThat(result).isEqualToIgnoringWhitespace(xml);
 

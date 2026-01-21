@@ -10,13 +10,9 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
 @Slf4j
-@Service
-@Profile("!staging")
 public class SwedbankStatementFetcher {
 
   private final SwedbankGatewayClient swedbankGatewayClient;

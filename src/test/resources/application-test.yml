@@ -83,6 +83,7 @@ web-eid:
   origin: https://localhost:3000
 
 swedbank-gateway:
+  enabled: true
   accounts:
     DEPOSIT_EUR: EE442200221092874625
     WITHDRAWAL_EUR: EE987700771001802057

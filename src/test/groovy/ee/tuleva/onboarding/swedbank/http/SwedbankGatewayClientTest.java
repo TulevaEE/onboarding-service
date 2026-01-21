@@ -12,6 +12,7 @@ import static org.springframework.http.HttpMethod.POST;
 import ee.tuleva.onboarding.banking.payment.PaymentMessageGenerator;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.xml.Iso20022Marshaller;
+import ee.tuleva.onboarding.swedbank.SwedbankGatewayProperties;
 import ee.tuleva.onboarding.time.TestClockHolder;
 import jakarta.xml.bind.JAXBElement;
 import java.net.URI;
@@ -48,15 +49,16 @@ class SwedbankGatewayClientTest {
 
   @BeforeEach
   void setUp() {
-    client =
-        new SwedbankGatewayClient(
+    var properties =
+        new SwedbankGatewayProperties(
+            true,
             baseUrl,
             clientId,
             agreementId,
-            TestClockHolder.clock,
-            marshaller,
-            paymentMessageGenerator,
-            restTemplate);
+            new SwedbankGatewayProperties.Keystore("path", "password"));
+    client =
+        new SwedbankGatewayClient(
+            properties, TestClockHolder.clock, marshaller, paymentMessageGenerator, restTemplate);
   }
 
   @Test

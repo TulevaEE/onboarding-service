@@ -4,12 +4,12 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.YahooFundValueRetriever
-import lombok.extern.slf4j.Slf4j
 import spock.lang.Specification
 
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
+import static ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Severity
 
 class FundValueIntegrityCheckerSpec extends Specification {
 
@@ -105,7 +105,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
         IntegrityCheckResult.MissingData missing = result.getMissingData().first()
         missing.fundTicker() == fundTicker
         missing.date() == date
-        missing.yahooValue() == 100.12345
+        missing.referenceValue() == 100.12345
     }
 
     def "should report orphaned data when database has value but Yahoo does not"() {
@@ -177,58 +177,91 @@ class FundValueIntegrityCheckerSpec extends Specification {
         !result.hasIssues()
     }
 
-    // Cross-provider integrity tests
+    // Cross-provider integrity tests with Exchange/EODHD as anchor
 
-    def "should log error when Yahoo and EODHD values differ by more than 0.001%"() {
+    def "should report CRITICAL when Exchange and EODHD values differ by more than 0.001%"() {
         given:
         def ticker = FundTicker.ISHARES_USA_ESG_SCREENED
         LocalDate date = LocalDate.of(2024, 1, 15)
+        def xetraKey = ticker.isin + ".XETR"
 
+        FundValue eodhdValue = aFundValue(ticker.eodhdTicker, date, 100.00)
+        FundValue xetraValue = aFundValue(xetraKey, date, 100.002)
         FundValue yahooValue = aFundValue(ticker.yahooTicker, date, 100.00)
-        FundValue eodhdValue = aFundValue(ticker.eodhdTicker, date, 100.002)
 
-        fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> [yahooValue]
         fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> [eodhdValue]
-        fundValueRepository.findValuesBetweenDates(ticker.isin + ".XETR", date, date) >> []
+        fundValueRepository.findValuesBetweenDates(xetraKey, date, date) >> [xetraValue]
+        fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> [yahooValue]
 
         when:
         def discrepancies = checker.checkCrossProviderIntegrity(ticker, date, date)
 
         then:
-        discrepancies.size() == 1
-        discrepancies[0].date() == date
-        discrepancies[0].percentageDifference() > 0.001
+        def criticalDiscrepancies = discrepancies.findAll { it.severity() == Severity.CRITICAL }
+        criticalDiscrepancies.size() == 1
+        criticalDiscrepancies[0].date() == date
+        criticalDiscrepancies[0].percentageDifference() > 0.001
+        criticalDiscrepancies[0].comparisonDescription() == "Exchange vs EODHD"
     }
 
-    def "should not log error when Yahoo and EODHD values differ by less than 0.001%"() {
+    def "should report INFO when EODHD and Yahoo values differ by more than 0.001%"() {
         given:
         def ticker = FundTicker.ISHARES_USA_ESG_SCREENED
         LocalDate date = LocalDate.of(2024, 1, 15)
+        def xetraKey = ticker.isin + ".XETR"
 
-        FundValue yahooValue = aFundValue(ticker.yahooTicker, date, 100.00000)
-        FundValue eodhdValue = aFundValue(ticker.eodhdTicker, date, 100.00050)
+        FundValue eodhdValue = aFundValue(ticker.eodhdTicker, date, 100.00)
+        FundValue xetraValue = aFundValue(xetraKey, date, 100.00)
+        FundValue yahooValue = aFundValue(ticker.yahooTicker, date, 100.002)
 
-        fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> [yahooValue]
         fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> [eodhdValue]
-        fundValueRepository.findValuesBetweenDates(ticker.isin + ".XETR", date, date) >> []
+        fundValueRepository.findValuesBetweenDates(xetraKey, date, date) >> [xetraValue]
+        fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> [yahooValue]
 
         when:
         def discrepancies = checker.checkCrossProviderIntegrity(ticker, date, date)
 
         then:
-        discrepancies.isEmpty()
+        def infoDiscrepancies = discrepancies.findAll { it.severity() == Severity.INFO }
+        infoDiscrepancies.size() == 1
+        infoDiscrepancies[0].date() == date
+        infoDiscrepancies[0].percentageDifference() > 0.001
+        infoDiscrepancies[0].comparisonDescription() == "EODHD vs Yahoo"
+    }
+
+    def "should not report discrepancy when Exchange and EODHD values differ by less than 0.001%"() {
+        given:
+        def ticker = FundTicker.ISHARES_USA_ESG_SCREENED
+        LocalDate date = LocalDate.of(2024, 1, 15)
+        def xetraKey = ticker.isin + ".XETR"
+
+        FundValue eodhdValue = aFundValue(ticker.eodhdTicker, date, 100.00000)
+        FundValue xetraValue = aFundValue(xetraKey, date, 100.00050)
+        FundValue yahooValue = aFundValue(ticker.yahooTicker, date, 100.00000)
+
+        fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> [eodhdValue]
+        fundValueRepository.findValuesBetweenDates(xetraKey, date, date) >> [xetraValue]
+        fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> [yahooValue]
+
+        when:
+        def discrepancies = checker.checkCrossProviderIntegrity(ticker, date, date)
+
+        then:
+        def criticalDiscrepancies = discrepancies.findAll { it.severity() == Severity.CRITICAL }
+        criticalDiscrepancies.isEmpty()
     }
 
     def "should skip cross-provider comparison when only one provider has data"() {
         given:
         def ticker = FundTicker.ISHARES_USA_ESG_SCREENED
         LocalDate date = LocalDate.of(2024, 1, 15)
+        def xetraKey = ticker.isin + ".XETR"
 
-        FundValue yahooValue = aFundValue(ticker.yahooTicker, date, 100.00)
+        FundValue eodhdValue = aFundValue(ticker.eodhdTicker, date, 100.00)
 
-        fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> [yahooValue]
-        fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> []
-        fundValueRepository.findValuesBetweenDates(ticker.isin + ".XETR", date, date) >> []
+        fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> [eodhdValue]
+        fundValueRepository.findValuesBetweenDates(xetraKey, date, date) >> []
+        fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> []
 
         when:
         def discrepancies = checker.checkCrossProviderIntegrity(ticker, date, date)
@@ -237,50 +270,52 @@ class FundValueIntegrityCheckerSpec extends Specification {
         discrepancies.isEmpty()
     }
 
-    def "should check Deutsche Börse data for Xetra-traded ETFs"() {
+    def "should check Deutsche Börse as anchor for Xetra-traded ETFs"() {
         given:
         def ticker = FundTicker.ISHARES_USA_ESG_SCREENED
         LocalDate date = LocalDate.of(2024, 1, 15)
         def xetraKey = ticker.isin + ".XETR"
 
-        FundValue yahooValue = aFundValue(ticker.yahooTicker, date, 100.00)
         FundValue eodhdValue = aFundValue(ticker.eodhdTicker, date, 100.00)
         FundValue xetraValue = aFundValue(xetraKey, date, 100.002)
+        FundValue yahooValue = aFundValue(ticker.yahooTicker, date, 100.00)
 
-        fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> [yahooValue]
         fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> [eodhdValue]
         fundValueRepository.findValuesBetweenDates(xetraKey, date, date) >> [xetraValue]
+        fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> [yahooValue]
 
         when:
         def discrepancies = checker.checkCrossProviderIntegrity(ticker, date, date)
 
         then:
-        discrepancies.size() == 1
-        discrepancies[0].fundTicker().contains("Deutsche Börse")
-        discrepancies[0].date() == date
+        def criticalDiscrepancies = discrepancies.findAll { it.severity() == Severity.CRITICAL }
+        criticalDiscrepancies.size() == 1
+        criticalDiscrepancies[0].fundTicker().contains("Deutsche Börse")
+        criticalDiscrepancies[0].date() == date
     }
 
-    def "should check Euronext data for Paris-traded ETFs"() {
+    def "should check Euronext as anchor for Paris-traded ETFs"() {
         given:
         def ticker = FundTicker.AMUNDI_USA_SCREENED
         LocalDate date = LocalDate.of(2024, 1, 15)
         def euronextKey = ticker.isin + ".XPAR"
 
-        FundValue yahooValue = aFundValue(ticker.yahooTicker, date, 100.00)
         FundValue eodhdValue = aFundValue(ticker.eodhdTicker, date, 100.00)
         FundValue euronextValue = aFundValue(euronextKey, date, 100.002)
+        FundValue yahooValue = aFundValue(ticker.yahooTicker, date, 100.00)
 
-        fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> [yahooValue]
         fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> [eodhdValue]
         fundValueRepository.findValuesBetweenDates(euronextKey, date, date) >> [euronextValue]
+        fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> [yahooValue]
 
         when:
         def discrepancies = checker.checkCrossProviderIntegrity(ticker, date, date)
 
         then:
-        discrepancies.size() == 1
-        discrepancies[0].fundTicker().contains("Euronext")
-        discrepancies[0].date() == date
+        def criticalDiscrepancies = discrepancies.findAll { it.severity() == Severity.CRITICAL }
+        criticalDiscrepancies.size() == 1
+        criticalDiscrepancies[0].fundTicker().contains("Euronext")
+        criticalDiscrepancies[0].date() == date
     }
 
     def "should not check Xetra for non-Xetra ETFs"() {
@@ -289,18 +324,19 @@ class FundValueIntegrityCheckerSpec extends Specification {
         LocalDate date = LocalDate.of(2024, 1, 15)
         def euronextKey = ticker.isin + ".XPAR"
 
-        FundValue yahooValue = aFundValue(ticker.yahooTicker, date, 100.00)
         FundValue eodhdValue = aFundValue(ticker.eodhdTicker, date, 100.00)
+        FundValue yahooValue = aFundValue(ticker.yahooTicker, date, 100.00)
 
-        fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> [yahooValue]
         fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> [eodhdValue]
         fundValueRepository.findValuesBetweenDates(euronextKey, date, date) >> []
+        fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> [yahooValue]
 
         when:
         def discrepancies = checker.checkCrossProviderIntegrity(ticker, date, date)
 
         then:
-        discrepancies.isEmpty()
+        def criticalDiscrepancies = discrepancies.findAll { it.severity() == Severity.CRITICAL }
+        criticalDiscrepancies.isEmpty()
     }
 
     def "should log summary table with all tickers"() {
@@ -312,8 +348,8 @@ class FundValueIntegrityCheckerSpec extends Specification {
         }
 
         for (ticker in FundTicker.values()) {
-            def yahooValue = aFundValue(ticker.yahooTicker, date, 100.00)
             def eodhdValue = aFundValue(ticker.eodhdTicker, date, 100.00)
+            def yahooValue = aFundValue(ticker.yahooTicker, date, 100.00)
 
             fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, _, _) >> [yahooValue]
             fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, _, _) >> [eodhdValue]

@@ -11,10 +11,12 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.YahooFundValueRetrie
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Discrepancy;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.MissingData;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.OrphanedData;
+import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Severity;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -36,6 +38,8 @@ public class FundValueIntegrityChecker {
   private static final int FUND_NAME_WIDTH = 49;
   private static final String CHECK_MARK = "✅";
   private static final String CROSS_MARK = "❌";
+  private static final String WARNING_MARK = "⚠️";
+  private static final String INFO_MARK = "ℹ️";
   private static final String NOT_APPLICABLE = "-";
 
   private final YahooFundValueRetriever yahooFundValueRetriever;
@@ -44,10 +48,9 @@ public class FundValueIntegrityChecker {
   record TickerCheckResult(
       FundTicker ticker,
       IntegrityCheckResult yahooVsDbResult,
-      boolean yahooOk,
       boolean eodhdOk,
-      boolean xetraOk,
-      boolean euronextOk,
+      boolean exchangeOk,
+      boolean yahooOk,
       List<Discrepancy> crossProviderDiscrepancies) {
 
     boolean hasYahooVsDbIssues() {
@@ -56,6 +59,10 @@ public class FundValueIntegrityChecker {
 
     boolean hasCrossProviderIssues() {
       return !crossProviderDiscrepancies.isEmpty();
+    }
+
+    boolean hasCriticalIssues() {
+      return crossProviderDiscrepancies.stream().anyMatch(d -> d.severity() == Severity.CRITICAL);
     }
   }
 
@@ -84,21 +91,16 @@ public class FundValueIntegrityChecker {
               return new TickerCheckResult(
                   ticker,
                   yahooVsDbResult,
-                  crossProviderResult.yahooOk(),
                   crossProviderResult.eodhdOk(),
-                  crossProviderResult.xetraOk(),
-                  crossProviderResult.euronextOk(),
+                  crossProviderResult.exchangeOk(),
+                  crossProviderResult.yahooOk(),
                   crossProviderResult.discrepancies());
             })
         .toList();
   }
 
   private record CrossProviderCheckResult(
-      boolean yahooOk,
-      boolean eodhdOk,
-      boolean xetraOk,
-      boolean euronextOk,
-      List<Discrepancy> discrepancies) {}
+      boolean eodhdOk, boolean exchangeOk, boolean yahooOk, List<Discrepancy> discrepancies) {}
 
   void checkYahooVsDatabaseIntegrity(String fundTicker, LocalDate startDate, LocalDate endDate) {
     verifyFundDataIntegrity(fundTicker, startDate, endDate);
@@ -111,53 +113,71 @@ public class FundValueIntegrityChecker {
 
   private CrossProviderCheckResult checkCrossProviderIntegrityInternal(
       FundTicker ticker, LocalDate startDate, LocalDate endDate) {
-    Map<LocalDate, BigDecimal> yahooByDate =
-        convertToDateValueMap(
-            fundValueRepository.findValuesBetweenDates(
-                ticker.getYahooTicker(), startDate, endDate));
     Map<LocalDate, BigDecimal> eodhdByDate =
         convertToDateValueMap(
             fundValueRepository.findValuesBetweenDates(
                 ticker.getEodhdTicker(), startDate, endDate));
+    Map<LocalDate, BigDecimal> yahooByDate =
+        convertToDateValueMap(
+            fundValueRepository.findValuesBetweenDates(
+                ticker.getYahooTicker(), startDate, endDate));
 
     List<Discrepancy> discrepancies = new ArrayList<>();
-    List<Discrepancy> yahooVsEodhdDiscrepancies =
-        compareProviders(ticker.getDisplayName(), "Yahoo", yahooByDate, "EODHD", eodhdByDate);
-    discrepancies.addAll(yahooVsEodhdDiscrepancies);
 
-    boolean yahooOk = !yahooByDate.isEmpty();
-    boolean eodhdOk = yahooVsEodhdDiscrepancies.isEmpty() && !eodhdByDate.isEmpty();
-
-    boolean xetraOk = true;
+    boolean exchangeOk = true;
     Optional<String> xetraKey = ticker.getXetraStorageKey();
+    Optional<String> euronextKey = ticker.getEuronextParisStorageKey();
+
     if (xetraKey.isPresent()) {
       Map<LocalDate, BigDecimal> xetraByDate =
           convertToDateValueMap(
               fundValueRepository.findValuesBetweenDates(xetraKey.get(), startDate, endDate));
-      List<Discrepancy> xetraDiscrepancies =
+      List<Discrepancy> exchangeVsEodhdDiscrepancies =
           compareProviders(
-              ticker.getDisplayName(), "Yahoo", yahooByDate, "Deutsche Börse", xetraByDate);
-      discrepancies.addAll(xetraDiscrepancies);
-      xetraOk = xetraDiscrepancies.isEmpty() && !xetraByDate.isEmpty();
-    }
-
-    boolean euronextOk = true;
-    Optional<String> euronextKey = ticker.getEuronextParisStorageKey();
-    if (euronextKey.isPresent()) {
+              ticker.getDisplayName(),
+              "Deutsche Börse",
+              xetraByDate,
+              "EODHD",
+              eodhdByDate,
+              Severity.CRITICAL,
+              "Exchange vs EODHD");
+      discrepancies.addAll(exchangeVsEodhdDiscrepancies);
+      exchangeOk = exchangeVsEodhdDiscrepancies.isEmpty() && !xetraByDate.isEmpty();
+    } else if (euronextKey.isPresent()) {
       Map<LocalDate, BigDecimal> euronextByDate =
           convertToDateValueMap(
               fundValueRepository.findValuesBetweenDates(euronextKey.get(), startDate, endDate));
-      List<Discrepancy> euronextDiscrepancies =
+      List<Discrepancy> exchangeVsEodhdDiscrepancies =
           compareProviders(
-              ticker.getDisplayName(), "Yahoo", yahooByDate, "Euronext", euronextByDate);
-      discrepancies.addAll(euronextDiscrepancies);
-      euronextOk = euronextDiscrepancies.isEmpty() && !euronextByDate.isEmpty();
+              ticker.getDisplayName(),
+              "Euronext",
+              euronextByDate,
+              "EODHD",
+              eodhdByDate,
+              Severity.CRITICAL,
+              "Exchange vs EODHD");
+      discrepancies.addAll(exchangeVsEodhdDiscrepancies);
+      exchangeOk = exchangeVsEodhdDiscrepancies.isEmpty() && !euronextByDate.isEmpty();
     }
 
-    return new CrossProviderCheckResult(yahooOk, eodhdOk, xetraOk, euronextOk, discrepancies);
+    List<Discrepancy> eodhdVsYahooDiscrepancies =
+        compareProviders(
+            ticker.getDisplayName(),
+            "EODHD",
+            eodhdByDate,
+            "Yahoo",
+            yahooByDate,
+            Severity.INFO,
+            "EODHD vs Yahoo");
+    discrepancies.addAll(eodhdVsYahooDiscrepancies);
+
+    boolean eodhdOk = !eodhdByDate.isEmpty();
+    boolean yahooOk = eodhdVsYahooDiscrepancies.isEmpty() && !yahooByDate.isEmpty();
+
+    return new CrossProviderCheckResult(eodhdOk, exchangeOk, yahooOk, discrepancies);
   }
 
-  private IntegrityCheckResult verifyFundDataIntegrity(
+  IntegrityCheckResult verifyFundDataIntegrity(
       String fundTicker, LocalDate startDate, LocalDate endDate) {
     try {
       List<FundValue> yahooFinanceValues = fetchYahooFinanceData(fundTicker, startDate, endDate);
@@ -269,129 +289,261 @@ public class FundValueIntegrityChecker {
     summary.append(
         String.format("Fund Value Integrity Check Summary (%s to %s):%n%n", startDate, endDate));
 
-    summary.append(buildYahooVsDbSummaryTable(startDate, endDate, results));
+    summary.append(buildLatestDaySummary(endDate, results));
     summary.append("\n");
     summary.append(buildCrossProviderSummaryTable(startDate, endDate, results));
+    summary.append("\n");
+    summary.append(buildTrendSummary(startDate, endDate, results));
 
-    List<String> issues = collectIssueDetails(results);
+    List<Discrepancy> criticalIssues = collectCriticalIssues(results);
+    List<Discrepancy> infoIssues = collectInfoIssues(results);
 
-    if (issues.isEmpty()) {
-      log.info("{}", summary);
+    if (criticalIssues.isEmpty()) {
+      if (infoIssues.isEmpty()) {
+        log.info("{}", summary);
+      } else {
+        summary.append(
+            String.format(
+                "%n%s Expected Yahoo discrepancies (%d):%n", INFO_MARK, infoIssues.size()));
+        summary.append(
+            String.format(
+                "   (Yahoo often returns intra-day prices instead of actual EOD prices)%n"));
+        appendIssuesSummary(summary, infoIssues, 3);
+        log.info("{}", summary);
+      }
     } else {
-      summary.append(String.format("%nIssues found (%d):%n", issues.size()));
-      issues.forEach(issue -> summary.append(String.format("  %s %s%n", CROSS_MARK, issue)));
+      summary.append(
+          String.format(
+              "%n%s CRITICAL Issues requiring investigation (%d):%n",
+              CROSS_MARK, criticalIssues.size()));
+      appendIssueDetails(summary, criticalIssues);
+      if (!infoIssues.isEmpty()) {
+        summary.append(
+            String.format(
+                "%n%s Expected Yahoo discrepancies (%d - INFO only):%n",
+                INFO_MARK, infoIssues.size()));
+        appendIssuesSummary(summary, infoIssues, 3);
+      }
       log.error("{}", summary);
     }
   }
 
-  private String buildYahooVsDbSummaryTable(
-      LocalDate startDate, LocalDate endDate, List<TickerCheckResult> results) {
-    StringBuilder table = new StringBuilder();
-    table.append(String.format("Yahoo vs Database (%s to %s):%n", startDate, endDate));
-    table.append(formatTableHeader("Fund", "Status", "Missing", "Orphaned"));
-    table.append(formatTableSeparator());
+  private String buildLatestDaySummary(LocalDate latestDate, List<TickerCheckResult> results) {
+    StringBuilder summary = new StringBuilder();
+    summary.append(String.format("Latest Day (%s):%n", latestDate));
 
-    for (TickerCheckResult result : results) {
-      IntegrityCheckResult yahooResult = result.yahooVsDbResult();
-      String status = yahooResult.hasIssues() ? CROSS_MARK : CHECK_MARK;
-      int missing = yahooResult.getMissingData().size();
-      int orphaned = yahooResult.getOrphanedData().size();
+    List<Discrepancy> latestDayIssues =
+        results.stream()
+            .flatMap(r -> r.crossProviderDiscrepancies().stream())
+            .filter(d -> d.date().equals(latestDate))
+            .sorted(
+                Comparator.comparing(Discrepancy::severity)
+                    .thenComparing(d -> d.percentageDifference().negate()))
+            .toList();
 
-      table.append(
-          formatTableRow(
-              truncateFundName(result.ticker().getDisplayName()),
-              status,
-              String.valueOf(missing),
-              String.valueOf(orphaned)));
+    if (latestDayIssues.isEmpty()) {
+      summary.append(
+          String.format("  %s All funds have consistent prices across providers%n", CHECK_MARK));
+    } else {
+      long criticalCount =
+          latestDayIssues.stream().filter(d -> d.severity() == Severity.CRITICAL).count();
+      long infoCount = latestDayIssues.stream().filter(d -> d.severity() == Severity.INFO).count();
+
+      if (criticalCount > 0) {
+        summary.append(
+            String.format(
+                "  %s %d critical issue(s) found - investigate before NAV calculation%n",
+                CROSS_MARK, criticalCount));
+        latestDayIssues.stream()
+            .filter(d -> d.severity() == Severity.CRITICAL)
+            .forEach(
+                d ->
+                    summary.append(
+                        String.format(
+                            "    • %s: %s=%.5f vs %s=%.5f (diff: %.4f%%)%n",
+                            d.fundTicker(),
+                            getAnchorName(d.comparisonDescription()),
+                            d.anchorValue(),
+                            getComparedName(d.comparisonDescription()),
+                            d.comparedValue(),
+                            d.percentageDifference())));
+      }
+      if (infoCount > 0) {
+        summary.append(
+            String.format(
+                "  %s %d expected Yahoo discrepancies (INFO - no action needed)%n",
+                INFO_MARK, infoCount));
+      }
     }
-    table.append(formatTableFooter());
 
-    return table.toString();
+    return summary.toString();
+  }
+
+  private String getAnchorName(String comparisonDescription) {
+    if (comparisonDescription.contains("Exchange vs EODHD")) {
+      return "Exchange";
+    } else if (comparisonDescription.contains("EODHD vs Yahoo")) {
+      return "EODHD";
+    }
+    return "Anchor";
+  }
+
+  private String getComparedName(String comparisonDescription) {
+    if (comparisonDescription.contains("Exchange vs EODHD")) {
+      return "EODHD";
+    } else if (comparisonDescription.contains("EODHD vs Yahoo")) {
+      return "Yahoo";
+    }
+    return "Compared";
   }
 
   private String buildCrossProviderSummaryTable(
       LocalDate startDate, LocalDate endDate, List<TickerCheckResult> results) {
     StringBuilder table = new StringBuilder();
     table.append(String.format("Cross-Provider Comparison (%s to %s):%n", startDate, endDate));
+    table.append(String.format("  Anchor hierarchy: Exchange (Xetra/Euronext) → EODHD → Yahoo%n"));
+    table.append(
+        String.format(
+            "  Exchange vs EODHD: CRITICAL if differs | EODHD vs Yahoo: INFO (expected)%n%n"));
     table.append(formatCrossProviderHeader());
     table.append(formatCrossProviderSeparator());
 
     for (TickerCheckResult result : results) {
-      String yahooStatus = result.yahooOk() ? CHECK_MARK : CROSS_MARK;
       String eodhdStatus = result.eodhdOk() ? CHECK_MARK : CROSS_MARK;
-      String xetraStatus =
-          result.ticker().getXetraStorageKey().isPresent()
-              ? (result.xetraOk() ? CHECK_MARK : CROSS_MARK)
-              : NOT_APPLICABLE;
-      String euronextStatus =
-          result.ticker().getEuronextParisStorageKey().isPresent()
-              ? (result.euronextOk() ? CHECK_MARK : CROSS_MARK)
-              : NOT_APPLICABLE;
+
+      String exchangeStatus;
+      if (result.ticker().getXetraStorageKey().isPresent()
+          || result.ticker().getEuronextParisStorageKey().isPresent()) {
+        exchangeStatus = result.exchangeOk() ? CHECK_MARK : CROSS_MARK;
+      } else {
+        exchangeStatus = NOT_APPLICABLE;
+      }
+
+      String yahooStatus = result.yahooOk() ? CHECK_MARK : WARNING_MARK;
 
       table.append(
           formatCrossProviderRow(
               truncateFundName(result.ticker().getDisplayName()),
-              yahooStatus,
               eodhdStatus,
-              xetraStatus,
-              euronextStatus));
+              exchangeStatus,
+              yahooStatus));
     }
     table.append(formatCrossProviderFooter());
 
     return table.toString();
   }
 
-  private List<String> collectIssueDetails(List<TickerCheckResult> results) {
-    List<String> issues = new ArrayList<>();
+  private String buildTrendSummary(
+      LocalDate startDate, LocalDate endDate, List<TickerCheckResult> results) {
+    StringBuilder summary = new StringBuilder();
+    summary.append(String.format("30-Day Trend Summary:%n"));
+    summary.append(formatTrendHeader());
+    summary.append(formatTrendSeparator());
 
     for (TickerCheckResult result : results) {
-      IntegrityCheckResult yahooResult = result.yahooVsDbResult();
-      String fundName = result.ticker().getDisplayName();
+      List<Discrepancy> criticalDiscrepancies =
+          result.crossProviderDiscrepancies().stream()
+              .filter(d -> d.severity() == Severity.CRITICAL)
+              .toList();
 
-      if (!yahooResult.getMissingData().isEmpty()) {
-        List<LocalDate> missingDates =
-            yahooResult.getMissingData().stream().map(MissingData::date).sorted().limit(5).toList();
-        String datesStr =
-            missingDates.size() < yahooResult.getMissingData().size()
-                ? formatDates(missingDates) + " ..."
-                : formatDates(missingDates);
-        issues.add(
-            String.format(
-                "%s: Missing %d dates in database (%s)",
-                fundName, yahooResult.getMissingData().size(), datesStr));
+      String status;
+      String avgDiff;
+      String maxDiff;
+      String pattern;
+
+      if (criticalDiscrepancies.isEmpty()) {
+        status = CHECK_MARK;
+        avgDiff = "-";
+        maxDiff = "-";
+        pattern = "";
+      } else {
+        status = CROSS_MARK;
+        BigDecimal totalDiff =
+            criticalDiscrepancies.stream()
+                .map(Discrepancy::percentageDifference)
+                .reduce(ZERO, BigDecimal::add);
+        BigDecimal avgDiffValue =
+            totalDiff.divide(new BigDecimal(criticalDiscrepancies.size()), 4, HALF_UP);
+        BigDecimal maxDiffValue =
+            criticalDiscrepancies.stream()
+                .map(Discrepancy::percentageDifference)
+                .max(Comparator.naturalOrder())
+                .orElse(ZERO);
+
+        avgDiff = String.format("%.4f%%", avgDiffValue);
+        maxDiff = String.format("%.4f%%", maxDiffValue);
+        pattern =
+            criticalDiscrepancies.size() > 25
+                ? "Consistent"
+                : criticalDiscrepancies.size() > 10 ? "Frequent" : "Intermittent";
       }
 
-      if (!yahooResult.getOrphanedData().isEmpty()) {
-        List<LocalDate> orphanedDates =
-            yahooResult.getOrphanedData().stream()
-                .map(OrphanedData::date)
-                .sorted()
-                .limit(5)
-                .toList();
-        String datesStr =
-            orphanedDates.size() < yahooResult.getOrphanedData().size()
-                ? formatDates(orphanedDates) + " ..."
-                : formatDates(orphanedDates);
-        issues.add(
-            String.format(
-                "%s: %d orphaned dates in database (%s)",
-                fundName, yahooResult.getOrphanedData().size(), datesStr));
-      }
-
-      for (Discrepancy discrepancy : result.crossProviderDiscrepancies()) {
-        issues.add(
-            String.format(
-                "%s: %s values %.2f vs %.2f, diff=%.2f (%.4f%%)",
-                discrepancy.fundTicker(),
-                discrepancy.date(),
-                discrepancy.dbValue(),
-                discrepancy.yahooValue(),
-                discrepancy.difference(),
-                discrepancy.percentageDifference()));
-      }
+      summary.append(
+          formatTrendRow(
+              truncateFundName(result.ticker().getDisplayName()),
+              status,
+              avgDiff,
+              maxDiff,
+              pattern));
     }
+    summary.append(formatTrendFooter());
 
-    return issues;
+    return summary.toString();
+  }
+
+  private List<Discrepancy> collectCriticalIssues(List<TickerCheckResult> results) {
+    return results.stream()
+        .flatMap(r -> r.crossProviderDiscrepancies().stream())
+        .filter(d -> d.severity() == Severity.CRITICAL)
+        .toList();
+  }
+
+  private List<Discrepancy> collectInfoIssues(List<TickerCheckResult> results) {
+    return results.stream()
+        .flatMap(r -> r.crossProviderDiscrepancies().stream())
+        .filter(d -> d.severity() == Severity.INFO)
+        .toList();
+  }
+
+  private void appendIssueDetails(StringBuilder summary, List<Discrepancy> issues) {
+    issues.stream()
+        .sorted(Comparator.comparing(Discrepancy::date).reversed())
+        .limit(10)
+        .forEach(
+            d ->
+                summary.append(
+                    String.format(
+                        "  • %s [%s]: %s %.5f vs %.5f, diff=%.5f (%.4f%%)%n",
+                        d.fundTicker(),
+                        d.date(),
+                        d.comparisonDescription(),
+                        d.anchorValue(),
+                        d.comparedValue(),
+                        d.difference(),
+                        d.percentageDifference())));
+    if (issues.size() > 10) {
+      summary.append(String.format("  ... and %d more%n", issues.size() - 10));
+    }
+  }
+
+  private void appendIssuesSummary(StringBuilder summary, List<Discrepancy> issues, int limit) {
+    Map<String, Long> countByFund =
+        issues.stream()
+            .collect(
+                java.util.stream.Collectors.groupingBy(
+                    Discrepancy::fundTicker, java.util.stream.Collectors.counting()));
+
+    countByFund.entrySet().stream()
+        .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+        .limit(limit)
+        .forEach(
+            entry ->
+                summary.append(
+                    String.format("  • %s: %d occurrences%n", entry.getKey(), entry.getValue())));
+
+    if (countByFund.size() > limit) {
+      summary.append(String.format("  ... and %d more funds%n", countByFund.size() - limit));
+    }
   }
 
   private String truncateFundName(String name) {
@@ -401,84 +553,41 @@ public class FundValueIntegrityChecker {
     return name.substring(0, FUND_NAME_WIDTH - 3) + "...";
   }
 
-  private String formatDates(List<LocalDate> dates) {
-    return dates.stream().map(LocalDate::toString).reduce((a, b) -> a + ", " + b).orElse("");
-  }
-
-  private String formatTableHeader(String col1, String col2, String col3, String col4) {
-    return String.format(
-        "┌─%-"
-            + FUND_NAME_WIDTH
-            + "s─┬────────┬─────────┬──────────┐%n"
-            + "│ %-"
-            + FUND_NAME_WIDTH
-            + "s │ %-6s │ %-7s │ %-8s │%n",
-        "─".repeat(FUND_NAME_WIDTH),
-        col1,
-        col2,
-        col3,
-        col4);
-  }
-
-  private String formatTableSeparator() {
-    return String.format(
-        "├─%-" + FUND_NAME_WIDTH + "s─┼────────┼─────────┼──────────┤%n",
-        "─".repeat(FUND_NAME_WIDTH));
-  }
-
-  private String formatTableRow(String col1, String col2, String col3, String col4) {
-    return String.format(
-        "│ %-" + FUND_NAME_WIDTH + "s │ %s │ %-7s │ %-8s │%n", col1, padStatus(col2), col3, col4);
-  }
-
-  private String padStatus(String status) {
-    if (status.equals(CHECK_MARK) || status.equals(CROSS_MARK)) {
-      return status + "     ";
-    }
-    return String.format("%-6s", status);
-  }
-
-  private String formatTableFooter() {
-    return String.format(
-        "└─%-" + FUND_NAME_WIDTH + "s─┴────────┴─────────┴──────────┘%n",
-        "─".repeat(FUND_NAME_WIDTH));
-  }
-
   private String formatCrossProviderHeader() {
     return String.format(
         "┌─%-"
             + FUND_NAME_WIDTH
-            + "s─┬────────┬────────┬─────────────────┬──────────┐%n"
+            + "s─┬────────┬────────────┬────────┐%n"
             + "│ %-"
             + FUND_NAME_WIDTH
-            + "s │ %-6s │ %-6s │ %-15s │ %-8s │%n",
+            + "s │ %-6s │ %-10s │ %-6s │%n",
         "─".repeat(FUND_NAME_WIDTH),
         "Fund",
-        "Yahoo",
         "EODHD",
-        "Deutsche Börse",
-        "Euronext");
+        "Exchange",
+        "Yahoo");
   }
 
   private String formatCrossProviderSeparator() {
     return String.format(
-        "├─%-" + FUND_NAME_WIDTH + "s─┼────────┼────────┼─────────────────┼──────────┤%n",
+        "├─%-" + FUND_NAME_WIDTH + "s─┼────────┼────────────┼────────┤%n",
         "─".repeat(FUND_NAME_WIDTH));
   }
 
-  private String formatCrossProviderRow(
-      String fund, String yahoo, String eodhd, String xetra, String euronext) {
+  private String formatCrossProviderRow(String fund, String eodhd, String exchange, String yahoo) {
     return String.format(
-        "│ %-" + FUND_NAME_WIDTH + "s │ %s │ %s │ %s │ %s │%n",
+        "│ %-" + FUND_NAME_WIDTH + "s │ %s │ %s │ %s │%n",
         fund,
-        padCrossProviderStatus(yahoo, 6),
         padCrossProviderStatus(eodhd, 6),
-        padCrossProviderStatus(xetra, 15),
-        padCrossProviderStatus(euronext, 8));
+        padCrossProviderStatus(exchange, 10),
+        padCrossProviderStatus(yahoo, 6));
   }
 
   private String padCrossProviderStatus(String status, int width) {
-    if (status.equals(CHECK_MARK) || status.equals(CROSS_MARK)) {
+    if (status.equals(CHECK_MARK)
+        || status.equals(CROSS_MARK)
+        || status.equals(WARNING_MARK)
+        || status.equals(INFO_MARK)) {
       return status + " ".repeat(width - 1);
     }
     return String.format("%-" + width + "s", status);
@@ -486,38 +595,74 @@ public class FundValueIntegrityChecker {
 
   private String formatCrossProviderFooter() {
     return String.format(
-        "└─%-" + FUND_NAME_WIDTH + "s─┴────────┴────────┴─────────────────┴──────────┘%n",
+        "└─%-" + FUND_NAME_WIDTH + "s─┴────────┴────────────┴────────┘%n",
+        "─".repeat(FUND_NAME_WIDTH));
+  }
+
+  private String formatTrendHeader() {
+    return String.format(
+        "┌─%-"
+            + FUND_NAME_WIDTH
+            + "s─┬────────┬──────────┬──────────┬─────────────┐%n"
+            + "│ %-"
+            + FUND_NAME_WIDTH
+            + "s │ %-6s │ %-8s │ %-8s │ %-11s │%n",
+        "─".repeat(FUND_NAME_WIDTH),
+        "Fund",
+        "Status",
+        "Avg Δ",
+        "Max Δ",
+        "Pattern");
+  }
+
+  private String formatTrendSeparator() {
+    return String.format(
+        "├─%-" + FUND_NAME_WIDTH + "s─┼────────┼──────────┼──────────┼─────────────┤%n",
+        "─".repeat(FUND_NAME_WIDTH));
+  }
+
+  private String formatTrendRow(
+      String fund, String status, String avgDiff, String maxDiff, String pattern) {
+    return String.format(
+        "│ %-" + FUND_NAME_WIDTH + "s │ %s │ %-8s │ %-8s │ %-11s │%n",
+        fund,
+        padCrossProviderStatus(status, 6),
+        avgDiff,
+        maxDiff,
+        pattern);
+  }
+
+  private String formatTrendFooter() {
+    return String.format(
+        "└─%-" + FUND_NAME_WIDTH + "s─┴────────┴──────────┴──────────┴─────────────┘%n",
         "─".repeat(FUND_NAME_WIDTH));
   }
 
   private BigDecimal calculatePercentageDifference(
-      BigDecimal databaseValue, BigDecimal yahooValue) {
-    if (yahooValue.compareTo(ZERO) == 0) {
-      return databaseValue.compareTo(ZERO) == 0 ? ZERO : new BigDecimal("100");
+      BigDecimal anchorValue, BigDecimal comparedValue) {
+    if (anchorValue.compareTo(ZERO) == 0) {
+      return comparedValue.compareTo(ZERO) == 0 ? ZERO : new BigDecimal("100");
     }
 
-    return databaseValue
-        .subtract(yahooValue)
+    return anchorValue
+        .subtract(comparedValue)
         .abs()
         .multiply(new BigDecimal("100"))
-        .divide(yahooValue.abs(), 4, HALF_UP);
+        .divide(anchorValue.abs(), 4, HALF_UP);
   }
 
   private List<Discrepancy> findCrossProviderDiscrepancies(
       FundTicker ticker, LocalDate startDate, LocalDate endDate) {
     List<Discrepancy> discrepancies = new ArrayList<>();
 
-    Map<LocalDate, BigDecimal> yahooByDate =
-        convertToDateValueMap(
-            fundValueRepository.findValuesBetweenDates(
-                ticker.getYahooTicker(), startDate, endDate));
     Map<LocalDate, BigDecimal> eodhdByDate =
         convertToDateValueMap(
             fundValueRepository.findValuesBetweenDates(
                 ticker.getEodhdTicker(), startDate, endDate));
-
-    discrepancies.addAll(
-        compareProviders(ticker.getDisplayName(), "Yahoo", yahooByDate, "EODHD", eodhdByDate));
+    Map<LocalDate, BigDecimal> yahooByDate =
+        convertToDateValueMap(
+            fundValueRepository.findValuesBetweenDates(
+                ticker.getYahooTicker(), startDate, endDate));
 
     ticker
         .getXetraStorageKey()
@@ -529,10 +674,12 @@ public class FundValueIntegrityChecker {
               discrepancies.addAll(
                   compareProviders(
                       ticker.getDisplayName(),
-                      "Yahoo",
-                      yahooByDate,
                       "Deutsche Börse",
-                      xetraByDate));
+                      xetraByDate,
+                      "EODHD",
+                      eodhdByDate,
+                      Severity.CRITICAL,
+                      "Exchange vs EODHD"));
             });
 
     ticker
@@ -544,37 +691,57 @@ public class FundValueIntegrityChecker {
                       fundValueRepository.findValuesBetweenDates(euronextKey, startDate, endDate));
               discrepancies.addAll(
                   compareProviders(
-                      ticker.getDisplayName(), "Yahoo", yahooByDate, "Euronext", euronextByDate));
+                      ticker.getDisplayName(),
+                      "Euronext",
+                      euronextByDate,
+                      "EODHD",
+                      eodhdByDate,
+                      Severity.CRITICAL,
+                      "Exchange vs EODHD"));
             });
+
+    discrepancies.addAll(
+        compareProviders(
+            ticker.getDisplayName(),
+            "EODHD",
+            eodhdByDate,
+            "Yahoo",
+            yahooByDate,
+            Severity.INFO,
+            "EODHD vs Yahoo"));
 
     return discrepancies;
   }
 
   private List<Discrepancy> compareProviders(
       String tickerName,
-      String provider1Name,
-      Map<LocalDate, BigDecimal> provider1ByDate,
-      String provider2Name,
-      Map<LocalDate, BigDecimal> provider2ByDate) {
+      String anchorProviderName,
+      Map<LocalDate, BigDecimal> anchorByDate,
+      String comparedProviderName,
+      Map<LocalDate, BigDecimal> comparedByDate,
+      Severity severity,
+      String comparisonDescription) {
 
-    return provider1ByDate.entrySet().stream()
-        .filter(entry -> provider2ByDate.containsKey(entry.getKey()))
+    return anchorByDate.entrySet().stream()
+        .filter(entry -> comparedByDate.containsKey(entry.getKey()))
         .map(
             entry -> {
               LocalDate date = entry.getKey();
-              BigDecimal value1 = entry.getValue().setScale(DATABASE_SCALE, HALF_UP);
-              BigDecimal value2 = provider2ByDate.get(date).setScale(DATABASE_SCALE, HALF_UP);
+              BigDecimal anchorValue = entry.getValue().setScale(DATABASE_SCALE, HALF_UP);
+              BigDecimal comparedValue = comparedByDate.get(date).setScale(DATABASE_SCALE, HALF_UP);
 
-              BigDecimal percentageDiff = calculatePercentageDifference(value1, value2);
+              BigDecimal percentageDiff = calculatePercentageDifference(anchorValue, comparedValue);
               if (percentageDiff.compareTo(CROSS_PROVIDER_THRESHOLD_PERCENT) > 0) {
-                BigDecimal difference = value1.subtract(value2).abs();
+                BigDecimal difference = anchorValue.subtract(comparedValue).abs();
                 return new Discrepancy(
-                    tickerName + " (" + provider1Name + " vs " + provider2Name + ")",
+                    tickerName + " (" + anchorProviderName + " vs " + comparedProviderName + ")",
                     date,
-                    value1,
-                    value2,
+                    anchorValue,
+                    comparedValue,
                     difference,
-                    percentageDiff);
+                    percentageDiff,
+                    severity,
+                    comparisonDescription);
               }
               return null;
             })

@@ -68,6 +68,7 @@ truststore:
   password: changeit
 
 swedbank-gateway:
+  enabled: false
   keystore:
     path: "src/main/resources/empty-swedbank-keystore.p12"
     password: changeit
@@ -200,6 +201,7 @@ spring:
         - dev
 
 swedbank-gateway:
+  enabled: true
   keystore:
     path: "test_keys/swedbank-gateway.p12"
     password: changeit
@@ -260,6 +262,7 @@ truststore:
   path: "/truststore.jks"
 
 swedbank-gateway:
+  enabled: true
   keystore:
     path: "/swedbank-gateway.p12"
     password: ${SWEDBANK_GATEWAY_KEYSTORE_PASSWORD}

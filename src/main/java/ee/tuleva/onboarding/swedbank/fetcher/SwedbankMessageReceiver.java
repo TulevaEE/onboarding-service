@@ -13,13 +13,9 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
 @Slf4j
-@Service
-@Profile("!staging")
 public class SwedbankMessageReceiver {
 
   private final BankingMessageRepository bankingMessageRepository;

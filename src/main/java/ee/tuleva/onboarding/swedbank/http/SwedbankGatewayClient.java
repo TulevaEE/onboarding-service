@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.banking.payment.PaymentMessageGenerator;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.xml.Iso20022Marshaller;
 import ee.tuleva.onboarding.swedbank.Swedbank;
+import ee.tuleva.onboarding.swedbank.SwedbankGatewayProperties;
 import jakarta.xml.bind.JAXBElement;
 import java.net.URI;
 import java.time.Clock;
@@ -17,27 +18,16 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
-import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-@Service
 @RequiredArgsConstructor
 public class SwedbankGatewayClient {
 
-  @Value("${swedbank-gateway.url}")
-  private final String baseUrl;
-
-  @Value("${swedbank-gateway.client-id}")
-  private final String clientId;
-
-  @Value("${swedbank-gateway.agreement-id}")
-  private final String agreementId;
-
+  private final SwedbankGatewayProperties properties;
   private final Clock clock;
   private final Iso20022Marshaller marshaller;
   private final PaymentMessageGenerator paymentMessageGenerator;
@@ -92,8 +82,8 @@ public class SwedbankGatewayClient {
   }
 
   private String getRequestUrl(String path) {
-    return UriComponentsBuilder.fromUriString(baseUrl + path)
-        .queryParam("client_id", clientId)
+    return UriComponentsBuilder.fromUriString(properties.url() + path)
+        .queryParam("client_id", properties.clientId())
         .build()
         .toUriString();
   }
@@ -101,7 +91,7 @@ public class SwedbankGatewayClient {
   private HttpHeaders getHeaders(UUID requestId) {
     var headers = new HttpHeaders();
     headers.add("X-Request-ID", serializeRequestId(requestId));
-    headers.add("X-Agreement-ID", agreementId);
+    headers.add("X-Agreement-ID", properties.agreementId());
     headers.add(
         "Date",
         DateTimeFormatter.RFC_1123_DATE_TIME.withZone(ZoneId.of("UTC")).format(clock.instant()));

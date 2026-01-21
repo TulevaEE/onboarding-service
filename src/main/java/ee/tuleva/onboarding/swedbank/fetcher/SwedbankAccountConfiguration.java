@@ -13,9 +13,7 @@ import java.util.Optional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
 
-@Configuration
 @RequiredArgsConstructor
 @ConfigurationProperties("swedbank-gateway")
 public class SwedbankAccountConfiguration implements BankAccountConfiguration {

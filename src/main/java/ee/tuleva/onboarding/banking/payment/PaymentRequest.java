@@ -8,7 +8,6 @@ public record PaymentRequest(
     String remitterName,
     String remitterId,
     String remitterIban,
-    String remitterBic,
     String beneficiaryName,
     String beneficiaryIban,
     BigDecimal amount,
@@ -20,7 +19,6 @@ public record PaymentRequest(
     return PaymentRequest.builder()
         .remitterName("Tuleva Fondid AS")
         .remitterId("14118923")
-        .remitterBic("HABAEE2X")
         .ourId(id)
         .endToEndId(id);
   }

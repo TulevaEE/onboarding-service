@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 public class PaymentMessageGenerator {
   private final Clock clock;
 
-  public String generatePaymentMessage(PaymentRequest paymentRequest) {
+  public String generatePaymentMessage(PaymentRequest paymentRequest, String remitterBic) {
     var document = createDocument();
 
     var documentElement = add(document, "Document");
@@ -46,7 +46,7 @@ public class PaymentMessageGenerator {
     add(debtor, "Nm", paymentRequest.remitterName(), 70);
     add(add(add(add(debtor, "Id"), "OrgId"), "Othr"), "Id", paymentRequest.remitterId(), 35);
     add(add(add(paymentInfo, "DbtrAcct"), "Id"), "IBAN", paymentRequest.remitterIban());
-    add(add(add(paymentInfo, "DbtrAgt"), "FinInstnId"), "BICFI", paymentRequest.remitterBic());
+    add(add(add(paymentInfo, "DbtrAgt"), "FinInstnId"), "BICFI", remitterBic);
 
     var paymentRoot = add(paymentInfo, "CdtTrfTxInf");
     var paymentId = add(paymentRoot, "PmtId");

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.swedbank.fetcher;
 
-import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
+import static ee.tuleva.onboarding.swedbank.Swedbank.SWEDBANK_GATEWAY_TIME_ZONE;
 
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.statement.StatementRequestMessageGenerator;

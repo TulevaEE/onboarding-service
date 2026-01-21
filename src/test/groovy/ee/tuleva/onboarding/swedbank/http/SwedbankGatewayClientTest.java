@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.swedbank.http;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -61,7 +62,8 @@ class SwedbankGatewayClientTest {
   @Test
   void sendPaymentRequest() {
     var paymentRequest = PaymentRequest.builder().ourId("123").build();
-    when(paymentMessageGenerator.generatePaymentMessage(any())).thenReturn("<payment-xml/>");
+    when(paymentMessageGenerator.generatePaymentMessage(any(), anyString()))
+        .thenReturn("<payment-xml/>");
 
     client.sendPaymentRequest(paymentRequest, requestUuid);
 

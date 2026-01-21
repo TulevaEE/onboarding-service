@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
-import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
+import static ee.tuleva.onboarding.swedbank.Swedbank.SWEDBANK_GATEWAY_TIME_ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.banking.BankType;

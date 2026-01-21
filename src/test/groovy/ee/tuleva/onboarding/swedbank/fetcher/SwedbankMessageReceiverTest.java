@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.swedbank.fetcher;
 
 import static ee.tuleva.onboarding.banking.BankType.SWEDBANK;
-import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
+import static ee.tuleva.onboarding.swedbank.Swedbank.SWEDBANK_GATEWAY_TIME_ZONE;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;

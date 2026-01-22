@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
+import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
@@ -8,6 +9,9 @@ import java.io.StringReader;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +31,8 @@ public class EuronextValueRetriever implements ComparisonIndexRetriever {
   private static final String EURONEXT_PARIS_MARKET_IDENTIFIER_CODE = "XPAR";
   private static final int HEADER_LINES_TO_SKIP = 4;
   private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+  private static final ZoneId EURONEXT_TIMEZONE = ZoneId.of("Europe/Paris");
+  private static final LocalTime EURONEXT_CLOSING_PRICE_AVAILABLE_TIME = LocalTime.of(18, 0);
 
   private final RestClient restClient;
 
@@ -69,12 +75,31 @@ public class EuronextValueRetriever implements ComparisonIndexRetriever {
     List<FundValue> nonZeroValues =
         allValues.stream().filter(fundValue -> fundValue.value().compareTo(ZERO) != 0).toList();
 
-    int filteredCount = allValues.size() - nonZeroValues.size();
-    if (filteredCount > 0) {
-      log.warn("Filtered out {} zero-values for ISIN {} in date range", filteredCount, isin);
+    int zeroFilteredCount = allValues.size() - nonZeroValues.size();
+    if (zeroFilteredCount > 0) {
+      log.warn("Filtered out {} zero-values for ISIN {} in date range", zeroFilteredCount, isin);
     }
 
-    return nonZeroValues;
+    ZonedDateTime nowInCET = ZonedDateTime.now(clock()).withZoneSameInstant(EURONEXT_TIMEZONE);
+    LocalDate today = nowInCET.toLocalDate();
+    boolean closingPriceAvailable = isClosingPriceAvailable(nowInCET);
+
+    List<FundValue> filteredValues =
+        nonZeroValues.stream()
+            .filter(fundValue -> closingPriceAvailable || !fundValue.date().equals(today))
+            .toList();
+
+    if (!closingPriceAvailable && filteredValues.size() < nonZeroValues.size()) {
+      log.info(
+          "Skipping today's Euronext data for ISIN={}: closing price not yet available (before 18:00 CET)",
+          isin);
+    }
+
+    return filteredValues;
+  }
+
+  private boolean isClosingPriceAvailable(ZonedDateTime nowInCET) {
+    return !nowInCET.toLocalTime().isBefore(EURONEXT_CLOSING_PRICE_AVAILABLE_TIME);
   }
 
   private List<FundValue> parseCsvResponse(String csvResponse, String storageKey, Instant now) {

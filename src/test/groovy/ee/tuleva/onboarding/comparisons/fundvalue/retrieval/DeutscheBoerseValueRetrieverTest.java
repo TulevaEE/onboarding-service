@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import static java.math.BigDecimal.ZERO;
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -8,7 +9,10 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -27,6 +31,7 @@ class DeutscheBoerseValueRetrieverTest {
   @AfterEach
   void cleanup() {
     server.reset();
+    ClockHolder.setDefaultClock();
   }
 
   @Test
@@ -214,6 +219,102 @@ class DeutscheBoerseValueRetrieverTest {
           "isin": "%s",
           "data": [],
           "totalCount": 0
+        }
+        """
+        .formatted(isin);
+  }
+
+  @Test
+  void filtersTodaysDataBeforeXetraClose() {
+    Clock beforeClose = Clock.fixed(Instant.parse("2024-01-04T16:00:00Z"), UTC);
+    ClockHolder.setClock(beforeClose);
+
+    FundTicker.getXetraIsins()
+        .forEach(
+            isin ->
+                server
+                    .expect(
+                        requestTo(
+                            "https://mobile-api.live.deutsche-boerse.com/v1/data/price_history"
+                                + "?isin="
+                                + isin
+                                + "&mic=XETR&minDate=2024-01-02&maxDate=2024-01-04"))
+                    .andRespond(
+                        withSuccess(
+                            mockResponseForIsin(isin, "2024-01-02", "2024-01-04"),
+                            APPLICATION_JSON)));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
+
+    assertThat(result)
+        .isNotEmpty()
+        .noneMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 4)));
+  }
+
+  @Test
+  void includesTodaysDataAfterXetraClose() {
+    Clock afterClose = Clock.fixed(Instant.parse("2024-01-04T17:30:00Z"), UTC);
+    ClockHolder.setClock(afterClose);
+
+    FundTicker.getXetraIsins()
+        .forEach(
+            isin ->
+                server
+                    .expect(
+                        requestTo(
+                            "https://mobile-api.live.deutsche-boerse.com/v1/data/price_history"
+                                + "?isin="
+                                + isin
+                                + "&mic=XETR&minDate=2024-01-02&maxDate=2024-01-04"))
+                    .andRespond(
+                        withSuccess(
+                            mockResponseForIsin(isin, "2024-01-02", "2024-01-04"),
+                            APPLICATION_JSON)));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
+
+    assertThat(result)
+        .isNotEmpty()
+        .anyMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 4)));
+  }
+
+  @Test
+  void alwaysIncludesHistoricalDataRegardlessOfTime() {
+    Clock beforeClose = Clock.fixed(Instant.parse("2024-01-04T12:00:00Z"), UTC);
+    ClockHolder.setClock(beforeClose);
+
+    FundTicker.getXetraIsins()
+        .forEach(
+            isin ->
+                server
+                    .expect(
+                        requestTo(
+                            "https://mobile-api.live.deutsche-boerse.com/v1/data/price_history"
+                                + "?isin="
+                                + isin
+                                + "&mic=XETR&minDate=2024-01-02&maxDate=2024-01-03"))
+                    .andRespond(withSuccess(mockHistoricalResponse(isin), APPLICATION_JSON)));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 3));
+
+    assertThat(result)
+        .isNotEmpty()
+        .anyMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 2)))
+        .anyMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 3)));
+  }
+
+  private String mockHistoricalResponse(String isin) {
+    return """
+        {
+          "isin": "%s",
+          "data": [
+            {"date": "2024-01-02", "open": 100.00, "close": 100.50, "high": 101.00, "low": 99.50, "turnoverPieces": 1000, "turnoverEuro": 100500.00},
+            {"date": "2024-01-03", "open": 100.50, "close": 101.25, "high": 102.00, "low": 100.00, "turnoverPieces": 2000, "turnoverEuro": 202500.00}
+          ],
+          "totalCount": 2
         }
         """
         .formatted(isin);

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
+import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static java.math.BigDecimal.ZERO;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
@@ -7,6 +8,9 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +26,8 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
   @ToString.Include public static final String KEY = "DEUTSCHE_BOERSE_VALUE";
   public static final String PROVIDER = "DEUTSCHE_BOERSE";
   private static final String XETRA_MARKET_IDENTIFIER_CODE = "XETR";
+  private static final ZoneId XETRA_TIMEZONE = ZoneId.of("Europe/Berlin");
+  private static final LocalTime XETRA_CLOSING_PRICE_AVAILABLE_TIME = LocalTime.of(18, 0);
 
   private final RestClient restClient;
 
@@ -75,12 +81,31 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
     List<FundValue> nonZeroValues =
         allValues.stream().filter(fundValue -> fundValue.value().compareTo(ZERO) != 0).toList();
 
-    int filteredCount = allValues.size() - nonZeroValues.size();
-    if (filteredCount > 0) {
-      log.warn("Filtered out {} zero-values for ISIN {} in date range", filteredCount, isin);
+    int zeroFilteredCount = allValues.size() - nonZeroValues.size();
+    if (zeroFilteredCount > 0) {
+      log.warn("Filtered out {} zero-values for ISIN {} in date range", zeroFilteredCount, isin);
     }
 
-    return nonZeroValues;
+    ZonedDateTime nowInCET = ZonedDateTime.now(clock()).withZoneSameInstant(XETRA_TIMEZONE);
+    LocalDate today = nowInCET.toLocalDate();
+    boolean closingPriceAvailable = isClosingPriceAvailable(nowInCET);
+
+    List<FundValue> filteredValues =
+        nonZeroValues.stream()
+            .filter(fundValue -> closingPriceAvailable || !fundValue.date().equals(today))
+            .toList();
+
+    if (!closingPriceAvailable && filteredValues.size() < nonZeroValues.size()) {
+      log.info(
+          "Skipping today's Deutsche Börse data for ISIN={}: closing price not yet available (before 18:00 CET)",
+          isin);
+    }
+
+    return filteredValues;
+  }
+
+  private boolean isClosingPriceAvailable(ZonedDateTime nowInCET) {
+    return !nowInCET.toLocalTime().isBefore(XETRA_CLOSING_PRICE_AVAILABLE_TIME);
   }
 
   private String buildUri(String isin, LocalDate startDate, LocalDate endDate) {

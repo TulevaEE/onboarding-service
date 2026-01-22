@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import static java.math.BigDecimal.ZERO;
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.TEXT_PLAIN;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -8,7 +9,10 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -27,6 +31,7 @@ class EuronextValueRetrieverTest {
   @AfterEach
   void cleanup() {
     server.reset();
+    ClockHolder.setDefaultClock();
   }
 
   @Test
@@ -187,6 +192,91 @@ class EuronextValueRetrieverTest {
         "From 2024-01-02 to 2024-01-02"
         %s
         Date;Open;High;Low;Last;Close;Number of Shares;Number of Trades;Turnover
+        """
+        .formatted(isin);
+  }
+
+  @Test
+  void filtersTodaysDataBeforeEuronextClose() {
+    Clock beforeClose = Clock.fixed(Instant.parse("2024-01-04T16:00:00Z"), UTC);
+    ClockHolder.setClock(beforeClose);
+
+    FundTicker.getEuronextParisIsins()
+        .forEach(
+            isin ->
+                server
+                    .expect(
+                        requestTo(
+                            "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
+                                + isin
+                                + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
+                    .andRespond(withSuccess(mockCsvResponseForIsin(isin), TEXT_PLAIN)));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
+
+    assertThat(result)
+        .isNotEmpty()
+        .noneMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 4)));
+  }
+
+  @Test
+  void includesTodaysDataAfterEuronextClose() {
+    Clock afterClose = Clock.fixed(Instant.parse("2024-01-04T17:30:00Z"), UTC);
+    ClockHolder.setClock(afterClose);
+
+    FundTicker.getEuronextParisIsins()
+        .forEach(
+            isin ->
+                server
+                    .expect(
+                        requestTo(
+                            "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
+                                + isin
+                                + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
+                    .andRespond(withSuccess(mockCsvResponseForIsin(isin), TEXT_PLAIN)));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
+
+    assertThat(result)
+        .isNotEmpty()
+        .anyMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 4)));
+  }
+
+  @Test
+  void alwaysIncludesHistoricalDataRegardlessOfTime() {
+    Clock beforeClose = Clock.fixed(Instant.parse("2024-01-04T12:00:00Z"), UTC);
+    ClockHolder.setClock(beforeClose);
+
+    FundTicker.getEuronextParisIsins()
+        .forEach(
+            isin ->
+                server
+                    .expect(
+                        requestTo(
+                            "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
+                                + isin
+                                + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-03"))
+                    .andRespond(withSuccess(mockHistoricalCsvResponse(isin), TEXT_PLAIN)));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 3));
+
+    assertThat(result)
+        .isNotEmpty()
+        .anyMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 2)))
+        .anyMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 3)));
+  }
+
+  private String mockHistoricalCsvResponse(String isin) {
+    return """
+        "Historical Data"
+        "From 2024-01-02 to 2024-01-03"
+        %s
+        Date;Open;High;Low;Last;Close;Number of Shares;Number of Trades;Turnover
+        02/01/2024;4.506;4.506;4.4925;4.497;4.495;3370;6;15147;4.494641
+        03/01/2024;4.474;4.511;4.474;4.5065;4.5105;24852;3;112000;4.50669
         """
         .formatted(isin);
   }

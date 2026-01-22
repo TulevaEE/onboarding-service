@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.annotation.Schedules;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -25,7 +26,11 @@ public class FundPositionImportJob {
   private final FundPositionParser parser;
   private final FundPositionImportService importService;
 
-  @Scheduled(cron = "0 0 15 * * *", zone = "Europe/Tallinn")
+  @Schedules({
+    @Scheduled(cron = "0 0 11 * * *", zone = "Europe/Tallinn"),
+    @Scheduled(cron = "0 0 15 * * *", zone = "Europe/Tallinn"),
+    @Scheduled(cron = "0 0 12 22 1 *", zone = "Europe/Tallinn") // Ad-hoc
+  })
   @SchedulerLock(name = "FundPositionImportJob", lockAtMostFor = "55m", lockAtLeastFor = "5m")
   public void runImport() {
     LocalDate today = LocalDate.now();

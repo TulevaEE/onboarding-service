@@ -15,48 +15,65 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class IndexValuesSnapshotService {
 
+  private static final int PREVIOUS_DAYS_TO_INCLUDE = 7;
+
   private final JdbcClient jdbcClient;
   private final IndexValuesSnapshotRepository snapshotRepository;
 
   @Transactional
   public List<IndexValuesSnapshot> createSnapshot() {
     Instant snapshotTime = ClockHolder.clock().instant();
+    LocalDate today = LocalDate.now(ClockHolder.clock());
+    LocalDate startDate = today.minusDays(PREVIOUS_DAYS_TO_INCLUDE);
 
-    LocalDate latestDate = findLatestDate();
-    if (latestDate == null) {
-      log.warn("No index values found in database");
+    List<LocalDate> datesWithData = findDatesWithData(startDate, today);
+    if (datesWithData.isEmpty()) {
+      log.warn("No index values found for last {} days", PREVIOUS_DAYS_TO_INCLUDE + 1);
       return List.of();
     }
 
-    log.info("Creating index values snapshot: date={}, snapshotTime={}", latestDate, snapshotTime);
+    log.info(
+        "Creating index values snapshot: dateRange={} to {}, datesWithData={}, snapshotTime={}",
+        startDate,
+        today,
+        datesWithData.size(),
+        snapshotTime);
 
-    List<IndexValuesSnapshot> snapshots = fetchIndexValuesForDate(latestDate, snapshotTime);
+    List<IndexValuesSnapshot> snapshots = fetchIndexValuesForDates(datesWithData, snapshotTime);
 
     if (snapshots.isEmpty()) {
-      log.warn("No index values found for date: date={}", latestDate);
+      log.warn("No index values found for dates: dates={}", datesWithData);
       return snapshots;
     }
 
     snapshotRepository.saveAll(snapshots);
 
     log.info(
-        "Index values snapshot created: date={}, snapshotTime={}, count={}",
-        latestDate,
+        "Index values snapshot created: dateRange={} to {}, snapshotTime={}, count={}",
+        startDate,
+        today,
         snapshotTime,
         snapshots.size());
 
     return snapshots;
   }
 
-  private LocalDate findLatestDate() {
+  private List<LocalDate> findDatesWithData(LocalDate startDate, LocalDate endDate) {
     return jdbcClient
-        .sql("SELECT MAX(date) FROM index_values")
+        .sql(
+            """
+            SELECT DISTINCT date FROM index_values
+            WHERE date >= :startDate AND date <= :endDate
+            ORDER BY date
+            """)
+        .param("startDate", startDate)
+        .param("endDate", endDate)
         .query(LocalDate.class)
-        .optional()
-        .orElse(null);
+        .list();
   }
 
-  private List<IndexValuesSnapshot> fetchIndexValuesForDate(LocalDate date, Instant snapshotTime) {
+  private List<IndexValuesSnapshot> fetchIndexValuesForDates(
+      List<LocalDate> dates, Instant snapshotTime) {
     Instant createdAt = ClockHolder.clock().instant();
 
     return jdbcClient
@@ -64,9 +81,9 @@ public class IndexValuesSnapshotService {
             """
             SELECT key, date, value, provider, updated_at
             FROM index_values
-            WHERE date = :date
+            WHERE date IN (:dates)
             """)
-        .param("date", date)
+        .param("dates", dates)
         .query(
             (rs, rowNum) ->
                 new IndexValuesSnapshot(

@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class NameMatcherTest {
@@ -10,56 +9,56 @@ class NameMatcherTest {
   private final NameMatcher nameMatcher = new NameMatcher();
 
   @Test
-  @DisplayName("isSameName returns false for null values")
-  void isSameName_nullValues() {
+  void isSameName_returnsFalseForNullValues() {
     assertThat(nameMatcher.isSameName(null, null)).isFalse();
     assertThat(nameMatcher.isSameName("A", null)).isFalse();
     assertThat(nameMatcher.isSameName(null, "A")).isFalse();
   }
 
   @Test
-  @DisplayName("isSameName returns false for different names")
-  void isSameName_differentNames() {
+  void isSameName_returnsFalseForDifferentNames() {
     assertThat(nameMatcher.isSameName("A", "B")).isFalse();
     assertThat(nameMatcher.isSameName("A A", "AA")).isFalse();
   }
 
   @Test
-  @DisplayName("isSameName returns true for exact match")
-  void isSameName_exactMatch() {
+  void isSameName_returnsTrueForExactMatch() {
     assertThat(nameMatcher.isSameName("A", "A")).isTrue();
   }
 
   @Test
-  @DisplayName("isSameName ignores extra whitespace")
-  void isSameName_whitespace() {
+  void isSameName_ignoresExtraWhitespace() {
     assertThat(nameMatcher.isSameName("A", " A   ")).isTrue();
   }
 
   @Test
-  @DisplayName("isSameName is order-independent")
-  void isSameName_orderIndependent() {
+  void isSameName_isOrderIndependent() {
     assertThat(nameMatcher.isSameName("AA BB CC", "BB CC AA")).isTrue();
     assertThat(nameMatcher.isSameName("KASK MARI", "MARI KASK")).isTrue();
   }
 
   @Test
-  @DisplayName("isSameName ignores punctuation")
-  void isSameName_punctuation() {
+  void isSameName_ignoresPunctuation() {
     assertThat(nameMatcher.isSameName("AA/BB,CC", "BB+CC-AA")).isTrue();
     assertThat(nameMatcher.isSameName("MARI-LIIS KASK", "MARI LIIS KASK")).isTrue();
   }
 
   @Test
-  @DisplayName("isSameName is case-insensitive")
-  void isSameName_caseInsensitive() {
+  void isSameName_isCaseInsensitive() {
     assertThat(nameMatcher.isSameName("aaa bbb", "Aaa BBB")).isTrue();
   }
 
   @Test
-  @DisplayName("isSameName normalizes diacritics")
-  void isSameName_diacritics() {
+  void isSameName_normalizesDiacritics() {
     assertThat(nameMatcher.isSameName("Jüri Õun", "JURI OUN")).isTrue();
     assertThat(nameMatcher.isSameName("PÄRT ÕLEKÕRS", "Part Olekors")).isTrue();
+  }
+
+  @Test
+  void isSameName_stripsFieDesignation() {
+    assertThat(nameMatcher.isSameName("FIE PÄRT ÕLEKÕRS", "PÄRT ÕLEKÕRS")).isTrue();
+    assertThat(nameMatcher.isSameName("PÄRT ÕLEKÕRS FIE", "PÄRT ÕLEKÕRS")).isTrue();
+    assertThat(nameMatcher.isSameName("FIE MARI KASK", "KASK MARI")).isTrue();
+    assertThat(nameMatcher.isSameName("fie Jüri Õun", "JURI OUN")).isTrue();
   }
 }

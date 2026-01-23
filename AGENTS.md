@@ -265,6 +265,18 @@ This approach ensures:
 - The fix is verified to actually resolve the issue
 - Regression protection is in place for the future
 
+#### Test-Driven Development (TDD)
+When implementing new features, follow TDD:
+1. **Write failing tests first**: Create test cases for the expected behavior
+2. **Verify tests fail**: Run tests to confirm they fail as expected
+3. **Implement the code**: Write the minimal code to make tests pass
+4. **Verify tests pass**: Run tests to confirm the implementation works
+
+This approach ensures:
+- Requirements are clearly understood before implementation
+- The implementation meets the specified requirements
+- Test coverage is built-in from the start
+
 #### Test Behavior, Not Implementation
 - **Always test behavior, not implementation details**: Tests should assert on the output/result, not on how it's achieved
   - ❌ Bad: Verifying mock method calls, testing private methods, asserting on internal state

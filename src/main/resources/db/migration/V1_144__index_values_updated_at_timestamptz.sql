@@ -1,0 +1,2 @@
+ALTER TABLE index_values
+  ALTER COLUMN updated_at TYPE TIMESTAMP WITH TIME ZONE;

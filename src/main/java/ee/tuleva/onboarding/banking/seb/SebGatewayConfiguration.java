@@ -4,6 +4,10 @@ import static org.springframework.http.MediaType.APPLICATION_XML_VALUE;
 
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
 import ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetcher;
+import ee.tuleva.onboarding.banking.seb.listener.SebBankStatementListener;
+import ee.tuleva.onboarding.banking.seb.listener.SebReconciliationListener;
+import ee.tuleva.onboarding.banking.seb.processor.SebBankStatementProcessor;
+import ee.tuleva.onboarding.banking.seb.reconciliation.SebReconciliator;
 import java.io.File;
 import java.security.KeyStore;
 import java.security.PrivateKey;
@@ -32,7 +36,14 @@ import org.springframework.web.client.RestClient;
 @RequiredArgsConstructor
 @EnableConfigurationProperties({SebGatewayProperties.class, SebAccountConfiguration.class})
 @ConditionalOnProperty(prefix = "seb-gateway", name = "enabled", havingValue = "true")
-@Import({SebGatewayClient.class, SebPaymentRequestListener.class})
+@Import({
+  SebGatewayClient.class,
+  SebPaymentRequestListener.class,
+  SebBankStatementListener.class,
+  SebReconciliationListener.class,
+  SebBankStatementProcessor.class,
+  SebReconciliator.class
+})
 public class SebGatewayConfiguration {
 
   private final SebGatewayProperties properties;

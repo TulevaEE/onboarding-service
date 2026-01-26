@@ -7,21 +7,21 @@ import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebCurrentDayTransactionsRequested;
+import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebEodTransactionsRequested;
+import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
 import ee.tuleva.onboarding.banking.seb.SebGatewayClient;
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
-import ee.tuleva.onboarding.time.ClockHolder;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Clock;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.List;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -49,21 +49,16 @@ class SebBankMessagesFetchingIntegrationTest {
 
   @MockitoBean private SebGatewayClient sebGatewayClient;
 
-  @Autowired private SebStatementFetcher sebStatementFetcher;
+  @Autowired private ApplicationEventPublisher eventPublisher;
 
   @Autowired private BankingMessageRepository bankingMessageRepository;
-
-  @AfterEach
-  void tearDown() {
-    ClockHolder.setDefaultClock();
-  }
 
   @Test
   void fetchCurrentDayTransactions_persistsMessageToDatabase() throws Exception {
     String testXml = loadTestXml("current-transactions-response.xml");
     when(sebGatewayClient.getCurrentTransactions(DEPOSIT_IBAN)).thenReturn(testXml);
 
-    sebStatementFetcher.fetchCurrentDayTransactions(DEPOSIT_EUR);
+    eventPublisher.publishEvent(new FetchSebCurrentDayTransactionsRequested(DEPOSIT_EUR));
 
     List<BankingMessage> messages = findAllUnprocessedMessages();
     assertThat(messages).hasSize(1);
@@ -81,7 +76,7 @@ class SebBankMessagesFetchingIntegrationTest {
     String testXml = loadTestXml("eod-transactions-response.xml");
     when(sebGatewayClient.getEodTransactions(WITHDRAWAL_IBAN)).thenReturn(testXml);
 
-    sebStatementFetcher.fetchEodTransactions(WITHDRAWAL_EUR);
+    eventPublisher.publishEvent(new FetchSebEodTransactionsRequested(WITHDRAWAL_EUR));
 
     List<BankingMessage> messages = findAllUnprocessedMessages();
     assertThat(messages).hasSize(1);
@@ -99,28 +94,8 @@ class SebBankMessagesFetchingIntegrationTest {
     LocalDate dateTo = LocalDate.of(2024, 1, 31);
     when(sebGatewayClient.getTransactions(DEPOSIT_IBAN, dateFrom, dateTo)).thenReturn(testXml);
 
-    sebStatementFetcher.fetchHistoricTransactions(DEPOSIT_EUR, dateFrom, dateTo);
-
-    List<BankingMessage> messages = findAllUnprocessedMessages();
-    assertThat(messages).hasSize(1);
-
-    BankingMessage message = messages.getFirst();
-    assertThat(message.getBankType()).isEqualTo(SEB);
-    assertThat(message.getRawResponse()).isEqualTo(testXml);
-    assertThat(message.getTimezoneId()).isEqualTo(SEB_GATEWAY_TIME_ZONE);
-  }
-
-  @Test
-  void fetchLast7DaysTransactions_persistsMessageToDatabase() throws Exception {
-    String testXml = loadTestXml("historical-transactions-response.xml");
-    LocalDate today = LocalDate.of(2025, 1, 15);
-    LocalDate sevenDaysAgo = LocalDate.of(2025, 1, 8);
-    ClockHolder.setClock(
-        Clock.fixed(today.atStartOfDay().toInstant(ZoneOffset.UTC), ZoneOffset.UTC));
-
-    when(sebGatewayClient.getTransactions(DEPOSIT_IBAN, sevenDaysAgo, today)).thenReturn(testXml);
-
-    sebStatementFetcher.fetchLast7DaysTransactions(DEPOSIT_EUR);
+    eventPublisher.publishEvent(
+        new FetchSebHistoricTransactionsRequested(DEPOSIT_EUR, dateFrom, dateTo));
 
     List<BankingMessage> messages = findAllUnprocessedMessages();
     assertThat(messages).hasSize(1);

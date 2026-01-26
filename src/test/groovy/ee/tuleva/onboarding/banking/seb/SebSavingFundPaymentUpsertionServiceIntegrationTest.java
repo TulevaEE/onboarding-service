@@ -7,9 +7,9 @@ import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARI
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.banking.BankType;
+import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
-import ee.tuleva.onboarding.banking.processor.BankMessageDelegator;
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerService;
@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,7 +52,7 @@ class SebSavingFundPaymentUpsertionServiceIntegrationTest {
 
   @Autowired private SavingFundPaymentRepository repository;
   @Autowired private BankingMessageRepository bankingMessageRepository;
-  @Autowired private BankMessageDelegator delegator;
+  @Autowired private ApplicationEventPublisher eventPublisher;
   @Autowired private LedgerService ledgerService;
   @Autowired private SebAccountConfiguration sebAccountConfiguration;
 
@@ -158,7 +159,7 @@ class SebSavingFundPaymentUpsertionServiceIntegrationTest {
     var savedSuccessMessage = bankingMessageRepository.save(successMessage);
 
     // when
-    delegator.processMessages();
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
 
     // then - failed message should not be processed
     var failedMessageAfter =
@@ -412,7 +413,7 @@ class SebSavingFundPaymentUpsertionServiceIntegrationTest {
 
     @Autowired private SavingFundPaymentRepository repository;
     @Autowired private BankingMessageRepository bankingMessageRepository;
-    @Autowired private BankMessageDelegator delegator;
+    @Autowired private ApplicationEventPublisher eventPublisher;
 
     @Test
     void findsExistingPaymentByExternalId_updatesExistingPayment() {
@@ -558,8 +559,7 @@ class SebSavingFundPaymentUpsertionServiceIntegrationTest {
               .receivedAt(NOW)
               .build();
       var saved = bankingMessageRepository.save(message);
-      // This is the delegator from the nested class context, not from the outer class context.
-      delegator.processMessages();
+      eventPublisher.publishEvent(new ProcessBankMessagesRequested());
       return saved.getId();
     }
   }
@@ -592,7 +592,7 @@ class SebSavingFundPaymentUpsertionServiceIntegrationTest {
             .receivedAt(NOW)
             .build();
     var saved = bankingMessageRepository.save(message);
-    delegator.processMessages();
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
     return saved.getId();
   }
 }

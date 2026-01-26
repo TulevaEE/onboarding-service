@@ -8,12 +8,17 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum TulevaFund {
-  TUK75("TUK75", 2),
-  TUK00("TUK00", 2),
-  TUV100("TUV100", 3);
+  TUK75("TUK75", 2, "EE3600109435"),
+  TUK00("TUK00", 2, "EE3600109443"),
+  TUV100("TUV100", 3, "EE3600001707");
 
   private final String code;
   private final int pillar;
+  private final String isin;
+
+  public String getAumKey() {
+    return "AUM_" + isin;
+  }
 
   public static List<TulevaFund> getPillar2Funds() {
     return Arrays.stream(values()).filter(fund -> fund.pillar == 2).toList();

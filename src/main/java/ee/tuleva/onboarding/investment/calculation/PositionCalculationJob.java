@@ -26,6 +26,7 @@ public class PositionCalculationJob {
   private final PositionCalculationPersistenceService persistenceService;
   private final PositionCalculationNotifier notifier;
 
+  // TODO extract scheduled times to a common investment package file
   // Pillar 2: Runs at 11:30. Calculates for the latest available fund position date.
   @Schedules({
     @Scheduled(cron = "0 30 11 * * *", zone = "Europe/Tallinn"),

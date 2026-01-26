@@ -15,7 +15,7 @@ public class FeeAccrualRepository {
         jdbcClient
             .sql(
                 """
-                UPDATE fee_accrual SET
+                UPDATE investment_fee_accrual SET
                     fee_month = :feeMonth,
                     base_value = :baseValue,
                     annual_rate = :annualRate,
@@ -45,7 +45,7 @@ public class FeeAccrualRepository {
       jdbcClient
           .sql(
               """
-              INSERT INTO fee_accrual (
+              INSERT INTO investment_fee_accrual (
                   fund_code, fee_type, accrual_date, fee_month, base_value,
                   annual_rate, daily_amount_net, daily_amount_gross, vat_rate,
                   days_in_year, reference_date

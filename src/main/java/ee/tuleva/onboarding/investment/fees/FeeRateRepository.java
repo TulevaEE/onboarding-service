@@ -18,7 +18,7 @@ public class FeeRateRepository {
         .sql(
             """
             SELECT id, fund_code, fee_type, annual_rate, valid_from, valid_to
-            FROM fee_rate
+            FROM investment_fee_rate
             WHERE fund_code = :fundCode
               AND fee_type = :feeType
               AND valid_from <= :date

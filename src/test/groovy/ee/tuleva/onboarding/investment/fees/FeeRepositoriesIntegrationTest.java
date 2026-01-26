@@ -29,7 +29,7 @@ class FeeRepositoriesIntegrationTest {
 
     @BeforeEach
     void setUp() {
-      jdbcClient.sql("DELETE FROM fee_rate").update();
+      jdbcClient.sql("DELETE FROM investment_fee_rate").update();
     }
 
     @Test
@@ -104,7 +104,7 @@ class FeeRepositoriesIntegrationTest {
       jdbcClient
           .sql(
               """
-              INSERT INTO fee_rate (fund_code, fee_type, annual_rate, valid_from, valid_to, created_by)
+              INSERT INTO investment_fee_rate (fund_code, fee_type, annual_rate, valid_from, valid_to, created_by)
               VALUES (:fundCode, :feeType, :annualRate, :validFrom, :validTo, 'TEST')
               """)
           .param("fundCode", fund.name())
@@ -123,7 +123,7 @@ class FeeRepositoriesIntegrationTest {
 
     @BeforeEach
     void setUp() {
-      jdbcClient.sql("DELETE FROM depot_fee_tier").update();
+      jdbcClient.sql("DELETE FROM investment_depot_fee_tier").update();
       insertDepotFeeTier(0, "0.00035", LocalDate.of(2025, 1, 1));
       insertDepotFeeTier(1300000000, "0.00025", LocalDate.of(2025, 1, 1));
       insertDepotFeeTier(1650000000, "0.000225", LocalDate.of(2025, 1, 1));
@@ -154,7 +154,7 @@ class FeeRepositoriesIntegrationTest {
     @Test
     void findRateForAum_returnsDefaultWhenNoTierMatches() {
       LocalDate futureDate = LocalDate.of(2099, 1, 1);
-      jdbcClient.sql("DELETE FROM depot_fee_tier").update();
+      jdbcClient.sql("DELETE FROM investment_depot_fee_tier").update();
 
       BigDecimal rate =
           depotFeeTierRepository.findRateForAum(new BigDecimal("1000000000"), futureDate);
@@ -166,7 +166,7 @@ class FeeRepositoriesIntegrationTest {
       jdbcClient
           .sql(
               """
-              INSERT INTO depot_fee_tier (min_aum, annual_rate, valid_from)
+              INSERT INTO investment_depot_fee_tier (min_aum, annual_rate, valid_from)
               VALUES (:minAum, :annualRate, :validFrom)
               """)
           .param("minAum", minAum)
@@ -183,7 +183,7 @@ class FeeRepositoriesIntegrationTest {
 
     @BeforeEach
     void setUp() {
-      jdbcClient.sql("DELETE FROM fee_accrual").update();
+      jdbcClient.sql("DELETE FROM investment_fee_accrual").update();
     }
 
     @Test
@@ -207,7 +207,7 @@ class FeeRepositoriesIntegrationTest {
           jdbcClient
               .sql(
                   """
-                  SELECT daily_amount_net FROM fee_accrual
+                  SELECT daily_amount_net FROM investment_fee_accrual
                   WHERE fund_code = :fundCode AND fee_type = :feeType AND accrual_date = :accrualDate
                   """)
               .param("fundCode", TUK75.name())
@@ -256,7 +256,7 @@ class FeeRepositoriesIntegrationTest {
           jdbcClient
               .sql(
                   """
-                  SELECT daily_amount_net FROM fee_accrual
+                  SELECT daily_amount_net FROM investment_fee_accrual
                   WHERE fund_code = :fundCode AND fee_type = :feeType AND accrual_date = :accrualDate
                   """)
               .param("fundCode", TUK75.name())
@@ -276,7 +276,7 @@ class FeeRepositoriesIntegrationTest {
 
     @BeforeEach
     void setUp() {
-      jdbcClient.sql("DELETE FROM custody_fee_instrument_type").update();
+      jdbcClient.sql("DELETE FROM investment_custody_fee_instrument_type").update();
     }
 
     @Test
@@ -335,7 +335,7 @@ class FeeRepositoriesIntegrationTest {
       jdbcClient
           .sql(
               """
-              INSERT INTO custody_fee_instrument_type (isin, instrument_type, annual_rate, valid_from, valid_to)
+              INSERT INTO investment_custody_fee_instrument_type (isin, instrument_type, annual_rate, valid_from, valid_to)
               VALUES (:isin, :instrumentType, :annualRate, :validFrom, :validTo)
               """)
           .param("isin", isin)

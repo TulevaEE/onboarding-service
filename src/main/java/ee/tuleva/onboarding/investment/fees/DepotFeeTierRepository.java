@@ -17,7 +17,7 @@ public class DepotFeeTierRepository {
         .sql(
             """
             SELECT annual_rate
-            FROM depot_fee_tier
+            FROM investment_depot_fee_tier
             WHERE min_aum <= :totalAum
               AND valid_from <= :date
               AND (valid_to IS NULL OR valid_to >= :date)

@@ -17,7 +17,7 @@ public class CustodyFeeInstrumentTypeRepository {
         .sql(
             """
             SELECT id, isin, instrument_type, annual_rate, valid_from, valid_to
-            FROM custody_fee_instrument_type
+            FROM investment_custody_fee_instrument_type
             WHERE valid_from <= :date
               AND (valid_to IS NULL OR valid_to >= :date)
             ORDER BY isin

@@ -4,9 +4,9 @@ import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.banking.BankType;
+import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
-import ee.tuleva.onboarding.banking.processor.BankMessageDelegator;
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -18,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,7 +42,7 @@ class SebReconciliationIntegrationTest {
 
   @Autowired private SavingFundPaymentRepository paymentRepository;
   @Autowired private BankingMessageRepository bankingMessageRepository;
-  @Autowired private BankMessageDelegator bankMessageDelegator;
+  @Autowired private ApplicationEventPublisher eventPublisher;
 
   private static final Instant NOW = Instant.parse("2025-10-01T12:00:00Z");
 
@@ -64,7 +65,7 @@ class SebReconciliationIntegrationTest {
     persistMessage(xml);
 
     // When - process the message
-    bankMessageDelegator.processMessages();
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
 
     // Then - payments should be stored despite reconciliation failure
     var payments = paymentRepository.findAll();

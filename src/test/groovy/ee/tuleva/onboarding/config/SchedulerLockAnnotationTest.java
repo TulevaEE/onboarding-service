@@ -47,7 +47,7 @@ class SchedulerLockAnnotationTest {
           ee.tuleva.onboarding.savings.fund.issuing.IssuingJob.class,
           ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessageReceiver.class,
           ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.class,
-          ee.tuleva.onboarding.banking.processor.BankMessageDelegator.class,
+          ee.tuleva.onboarding.banking.processor.BankMessageProcessingScheduler.class,
         };
 
     var missingLockAnnotations = new StringBuilder();

@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.banking.seb;
 
 import static org.springframework.http.MediaType.APPLICATION_XML_VALUE;
 
-import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
 import ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetcher;
+import ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler;
 import ee.tuleva.onboarding.banking.seb.listener.SebBankStatementListener;
 import ee.tuleva.onboarding.banking.seb.listener.SebReconciliationListener;
 import ee.tuleva.onboarding.banking.seb.processor.SebBankStatementProcessor;
@@ -24,6 +24,7 @@ import org.apache.hc.core5.ssl.SSLContexts;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -42,7 +43,8 @@ import org.springframework.web.client.RestClient;
   SebBankStatementListener.class,
   SebReconciliationListener.class,
   SebBankStatementProcessor.class,
-  SebReconciliator.class
+  SebReconciliator.class,
+  SebStatementFetcher.class
 })
 public class SebGatewayConfiguration {
 
@@ -141,12 +143,9 @@ public class SebGatewayConfiguration {
 
   @Bean
   @Profile("!staging")
-  SebStatementFetcher sebStatementFetcher(
-      SebGatewayClient sebGatewayClient,
-      SebAccountConfiguration sebAccountConfiguration,
-      BankingMessageRepository bankingMessageRepository) {
-    return new SebStatementFetcher(
-        sebGatewayClient, sebAccountConfiguration, bankingMessageRepository);
+  SebStatementFetchingScheduler sebStatementFetchingScheduler(
+      ApplicationEventPublisher eventPublisher) {
+    return new SebStatementFetchingScheduler(eventPublisher);
   }
 }
 

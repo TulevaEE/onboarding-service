@@ -1,8 +1,9 @@
 package ee.tuleva.onboarding.banking.processor;
 
-import static ee.tuleva.onboarding.banking.message.BankMessageType.*;
+import static ee.tuleva.onboarding.banking.message.BankMessageType.PAYMENT_ORDER_CONFIRMATION;
 
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankStatementReceived;
+import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankMessageType;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
@@ -18,12 +19,12 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.stereotype.Service;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
 
 @Slf4j
-@Service
+@Component
 @RequiredArgsConstructor
 public class BankMessageDelegator {
 
@@ -32,12 +33,9 @@ public class BankMessageDelegator {
   private final BankStatementExtractor bankStatementExtractor;
   private final ApplicationEventPublisher eventPublisher;
 
-  // @Scheduled(fixedRateString = "1m")
-  @SchedulerLock(
-      name = "BankMessageDelegator_processMessages",
-      lockAtMostFor = "50s",
-      lockAtLeastFor = "5s")
-  public void processMessages() {
+  @EventListener
+  public void onProcessRequested(ProcessBankMessagesRequested event) {
+    log.info("Processing bank messages");
     var messages =
         bankingMessageRepository.findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc();
 
@@ -60,9 +58,9 @@ public class BankMessageDelegator {
       } else {
         var bankStatement =
             extractBankStatement(message.getRawResponse(), messageType, message.getTimezoneId());
-        var event =
+        var statementEvent =
             new BankStatementReceived(message.getId(), message.getBankType(), bankStatement);
-        eventPublisher.publishEvent(event);
+        eventPublisher.publishEvent(statementEvent);
       }
 
       message.setProcessedAt(clock.instant());

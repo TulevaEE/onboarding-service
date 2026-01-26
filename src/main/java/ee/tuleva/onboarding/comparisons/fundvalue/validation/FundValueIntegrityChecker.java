@@ -35,6 +35,7 @@ public class FundValueIntegrityChecker {
   private static final int DATABASE_SCALE = 5;
   private static final BigDecimal SAME_PROVIDER_THRESHOLD_PERCENT = new BigDecimal("0.0001");
   private static final BigDecimal CROSS_PROVIDER_THRESHOLD_PERCENT = new BigDecimal("0.001");
+  private static final LocalDate CROSS_PROVIDER_CHECK_START_DATE = LocalDate.of(2026, 1, 24);
   private static final int FUND_NAME_WIDTH = 49;
   private static final String CHECK_MARK = "✅";
   private static final String CROSS_MARK = "❌";
@@ -73,7 +74,10 @@ public class FundValueIntegrityChecker {
       lockAtLeastFor = "5m")
   public void performIntegrityCheck() {
     LocalDate endDate = LocalDate.now().minusDays(1);
-    LocalDate crossProviderStartDate = endDate.minusDays(30);
+    LocalDate crossProviderStartDate =
+        endDate.minusDays(30).isBefore(CROSS_PROVIDER_CHECK_START_DATE)
+            ? CROSS_PROVIDER_CHECK_START_DATE
+            : endDate.minusDays(30);
 
     List<TickerCheckResult> results = collectAllResults(crossProviderStartDate, endDate);
     logSummary(crossProviderStartDate, endDate, results);

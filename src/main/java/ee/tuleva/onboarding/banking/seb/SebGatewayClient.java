@@ -4,7 +4,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -60,11 +59,6 @@ public class SebGatewayClient {
         .uri("/v1/accounts/{iban}/balances", iban)
         .retrieve()
         .body(String.class);
-  }
-
-  public String submitPaymentFile(String paymentXml) {
-    // TODO: use a key that is really idempotent, Payment ID?
-    return submitPaymentFile(paymentXml, UUID.randomUUID().toString());
   }
 
   public String submitPaymentFile(String paymentXml, String idempotencyKey) {

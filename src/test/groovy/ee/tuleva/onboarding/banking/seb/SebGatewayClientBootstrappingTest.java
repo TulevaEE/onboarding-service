@@ -11,23 +11,18 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import javax.net.ssl.SSLContext;
+import java.util.UUID;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
-import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
-import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
-import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestComponent;
 import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.TestPropertySource;
 
 @SpringBootTest
@@ -56,7 +51,7 @@ import org.springframework.test.context.TestPropertySource;
 """)
 class SebGatewayClientBootstrappingTest {
 
-  private static final String TEST_IBAN_EUR = "EE651010220306497226";
+  private static final String TEST_IBAN_EUR = "EE241010220306719221";
   private static final Path FIXTURES_DIR = Path.of("build/test-fixtures/banking/seb");
 
   @Autowired private SebGatewayClient sebGatewayClient;
@@ -108,7 +103,7 @@ class SebGatewayClientBootstrappingTest {
   @DisplayName("Capture payment import response")
   void capturePaymentImport() throws IOException {
     String paymentXml = createTestPaymentXml();
-    String response = sebGatewayClient.submitPaymentFile(paymentXml);
+    String response = sebGatewayClient.submitPaymentFile(paymentXml, UUID.randomUUID().toString());
 
     assertThat(response).isNotNull().contains("importedFileId");
     writeFixture("imported-payment-response.xml", response);
@@ -179,14 +174,5 @@ class SebGatewayClientBootstrappingTest {
         </Document>
         """
         .formatted(uniqueId, creationDateTime, uniqueId, executionDate, uniqueId, uniqueId);
-  }
-}
-
-@TestComponent
-@Primary
-class LocalProxySebTlsStrategyFactory implements SebTlsStrategyFactory {
-  @Override
-  public TlsSocketStrategy create(SSLContext sslContext) {
-    return new DefaultClientTlsStrategy(sslContext, NoopHostnameVerifier.INSTANCE);
   }
 }

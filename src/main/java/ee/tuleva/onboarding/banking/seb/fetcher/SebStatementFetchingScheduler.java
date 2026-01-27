@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.scheduling.annotation.Scheduled;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -18,7 +19,7 @@ public class SebStatementFetchingScheduler {
 
   private final ApplicationEventPublisher eventPublisher;
 
-  // @Scheduled(cron = "0 0 9-17 * * MON-FRI", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 */5 9-17 * * MON-FRI", zone = "Europe/Tallinn")
   @SchedulerLock(
       name = "SebStatementFetchingScheduler_fetchCurrentDayTransactions",
       lockAtMostFor = "23h",

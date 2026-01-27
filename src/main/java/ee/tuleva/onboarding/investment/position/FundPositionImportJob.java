@@ -1,7 +1,12 @@
 package ee.tuleva.onboarding.investment.position;
 
+import static ee.tuleva.onboarding.investment.JobRunSchedule.*;
+
 import ee.tuleva.onboarding.investment.position.parser.FundPositionParser;
-import java.io.InputStream;
+import ee.tuleva.onboarding.investment.report.InvestmentReport;
+import ee.tuleva.onboarding.investment.report.InvestmentReportService;
+import ee.tuleva.onboarding.investment.report.ReportProvider;
+import ee.tuleva.onboarding.investment.report.ReportType;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -21,15 +26,16 @@ import org.springframework.stereotype.Component;
 public class FundPositionImportJob {
 
   private static final int LOOKBACK_DAYS = 7;
+  private static final ReportProvider PROVIDER = ReportProvider.SWEDBANK;
+  private static final ReportType REPORT_TYPE = ReportType.POSITIONS;
 
-  private final FundPositionSource source;
   private final FundPositionParser parser;
   private final FundPositionImportService importService;
+  private final InvestmentReportService reportService;
 
   @Schedules({
-    @Scheduled(cron = "0 0 11 * * *", zone = "Europe/Tallinn"),
-    @Scheduled(cron = "0 0 15 * * *", zone = "Europe/Tallinn"),
-    @Scheduled(cron = "0 0 12 22 1 *", zone = "Europe/Tallinn") // Ad-hoc
+    @Scheduled(cron = PARSE_MORNING, zone = TIMEZONE),
+    @Scheduled(cron = PARSE_AFTERNOON, zone = TIMEZONE)
   })
   @SchedulerLock(name = "FundPositionImportJob", lockAtMostFor = "55m", lockAtLeastFor = "5m")
   public void runImport() {
@@ -47,24 +53,24 @@ public class FundPositionImportJob {
   }
 
   public void importForDate(LocalDate date) {
-    log.info("Starting fund position import: date={}", date);
+    log.info("Starting fund position import: provider={}, date={}", PROVIDER, date);
 
-    Optional<InputStream> csvStream = source.fetch(date);
-    if (csvStream.isEmpty()) {
-      log.warn("No fund position file found: date={}", date);
+    Optional<InvestmentReport> report = reportService.getReport(PROVIDER, REPORT_TYPE, date);
+    if (report.isEmpty()) {
+      log.info("No positions report in database: provider={}, date={}", PROVIDER, date);
       return;
     }
 
-    try (InputStream stream = csvStream.get()) {
-      List<FundPosition> positions = parser.parse(stream);
-      log.info("Parsed fund positions: date={}, count={}", date, positions.size());
+    List<FundPosition> positions = parser.parse(report.get().getRawData());
+    log.info(
+        "Parsed fund positions: provider={}, date={}, count={}", PROVIDER, date, positions.size());
 
-      int imported = importService.importPositions(positions);
-      log.info("Fund position import completed: date={}, imported={}", date, imported);
-
-    } catch (Exception e) {
-      log.error("Fund position import failed: date={}", date, e);
-      throw new RuntimeException("Fund position import failed: date=" + date, e);
-    }
+    int imported = importService.importPositions(positions);
+    log.info(
+        "Fund position import completed: provider={}, date={}, imported={}, rowCount={}",
+        PROVIDER,
+        date,
+        imported,
+        report.get().getRawData().size());
   }
 }

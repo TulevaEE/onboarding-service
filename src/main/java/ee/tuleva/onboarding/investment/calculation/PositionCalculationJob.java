@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.calculation;
 
+import static ee.tuleva.onboarding.investment.JobRunSchedule.*;
 import static ee.tuleva.onboarding.investment.TulevaFund.getPillar2Funds;
 import static ee.tuleva.onboarding.investment.TulevaFund.getPillar3Funds;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.NO_PRICE_DATA;
@@ -13,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.scheduling.annotation.Schedules;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -26,21 +26,21 @@ public class PositionCalculationJob {
   private final PositionCalculationPersistenceService persistenceService;
   private final PositionCalculationNotifier notifier;
 
-  // TODO extract scheduled times to a common investment package file
-  // Pillar 2: Runs at 11:30. Calculates for the latest available fund position date.
-  @Schedules({
-    @Scheduled(cron = "0 30 11 * * *", zone = "Europe/Tallinn"),
-    @Scheduled(cron = "0 30 13 16 1 *", zone = "Europe/Tallinn") // One-time catch-up
-  })
-  @SchedulerLock(name = "PositionCalculationJob_1130", lockAtMostFor = "55m", lockAtLeastFor = "5m")
-  public void calculatePositions1130() {
+  @Scheduled(cron = CALCULATE_MORNING, zone = TIMEZONE)
+  @SchedulerLock(
+      name = "PositionCalculationJob_morning",
+      lockAtMostFor = "55m",
+      lockAtLeastFor = "5m")
+  public void calculatePositionsMorning() {
     calculateForFunds(getPillar2Funds());
   }
 
-  // Pillar 3: Runs at 15:30, after the 15:00 import. Calculates for latest available date.
-  @Scheduled(cron = "0 30 15 * * *", zone = "Europe/Tallinn")
-  @SchedulerLock(name = "PositionCalculationJob_1530", lockAtMostFor = "55m", lockAtLeastFor = "5m")
-  public void calculatePositions1530() {
+  @Scheduled(cron = CALCULATE_AFTERNOON, zone = TIMEZONE)
+  @SchedulerLock(
+      name = "PositionCalculationJob_afternoon",
+      lockAtMostFor = "55m",
+      lockAtLeastFor = "5m")
+  public void calculatePositionsAfternoon() {
     calculateForFunds(getPillar3Funds());
   }
 

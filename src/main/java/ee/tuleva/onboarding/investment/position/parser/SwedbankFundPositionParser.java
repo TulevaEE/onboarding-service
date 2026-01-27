@@ -9,12 +9,7 @@ import static java.math.BigDecimal.ZERO;
 import ee.tuleva.onboarding.investment.TulevaFund;
 import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -30,19 +25,6 @@ import org.springframework.stereotype.Component;
 public class SwedbankFundPositionParser implements FundPositionParser {
 
   private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
-  private static final String DELIMITER = ";";
-
-  private static final int COL_NAV_DATE = 1;
-  private static final int COL_PORTFOLIO = 2;
-  private static final int COL_ASSET_TYPE = 3;
-  private static final int COL_ISIN = 5;
-  private static final int COL_ASSET_NAME = 6;
-  private static final int COL_QUANTITY = 7;
-  private static final int COL_ASSET_CURRENCY = 8;
-  private static final int COL_PRICE_PC = 9;
-  private static final int COL_MARKET_VALUE_PC = 15;
-
-  private static final int MIN_COLUMNS = 16;
 
   private static final Map<String, TulevaFund> PORTFOLIO_TO_FUND =
       Map.of(
@@ -66,81 +48,84 @@ public class SwedbankFundPositionParser implements FundPositionParser {
       Set.of(AccountType.CASH, AccountType.LIABILITY, AccountType.RECEIVABLES);
 
   @Override
-  public List<FundPosition> parse(InputStream inputStream) {
-    try (var reader =
-        new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
-      return reader.lines().skip(1).map(this::parseLine).flatMap(Optional::stream).toList();
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to parse fund position CSV", e);
-    }
+  public List<FundPosition> parse(List<Map<String, Object>> rawData) {
+    return rawData.stream().map(this::parseRow).flatMap(Optional::stream).toList();
   }
 
-  private Optional<FundPosition> parseLine(String line) {
+  private Optional<FundPosition> parseRow(Map<String, Object> row) {
     try {
-      String[] columns = line.split(DELIMITER, -1);
-
-      if (columns.length < MIN_COLUMNS) {
-        log.warn("Skipping line with insufficient columns: columnCount={}", columns.length);
-        return Optional.empty();
-      }
-
-      String assetType = columns[COL_ASSET_TYPE].trim();
-      String portfolio = columns[COL_PORTFOLIO].trim();
+      String portfolio = getString(row, "Portfolio");
       TulevaFund fund = PORTFOLIO_TO_FUND.get(portfolio);
       if (fund == null) {
         log.warn("Unknown portfolio, skipping: portfolio={}", portfolio);
         return Optional.empty();
       }
 
+      String assetType = getString(row, "AssetType");
       AccountType accountType = ASSET_TYPE_MAPPING.get(assetType);
       if (accountType == null) {
         log.warn("Unknown asset type, skipping: assetType={}", assetType);
         return Optional.empty();
       }
 
-      BigDecimal marketPrice = parseMarketPrice(columns[COL_PRICE_PC], accountType);
+      BigDecimal marketPrice = parseMarketPrice(row, accountType);
 
       FundPosition position =
           FundPosition.builder()
-              .reportingDate(parseDate(columns[COL_NAV_DATE]))
+              .reportingDate(getDate(row, "NAVDate"))
               .fund(fund)
               .accountType(accountType)
-              .accountName(columns[COL_ASSET_NAME].trim())
-              .accountId(parseString(columns[COL_ISIN]))
-              .quantity(parseBigDecimal(columns[COL_QUANTITY]))
+              .accountName(getString(row, "AssetName"))
+              .accountId(getString(row, "ISIN"))
+              .quantity(getBigDecimal(row, "Quantity"))
               .marketPrice(marketPrice)
-              .currency(parseString(columns[COL_ASSET_CURRENCY]))
-              .marketValue(parseBigDecimal(columns[COL_MARKET_VALUE_PC]))
+              .currency(getString(row, "AssetCurr"))
+              .marketValue(getBigDecimal(row, "MarketValuePC"))
               .createdAt(Instant.now())
               .build();
 
       return Optional.of(position);
     } catch (Exception e) {
-      log.error("Failed to parse line: line={}", line, e);
+      log.error("Failed to parse row: row={}", row, e);
       return Optional.empty();
     }
   }
 
-  private LocalDate parseDate(String value) {
-    return LocalDate.parse(value.trim(), DATE_FORMAT);
-  }
-
-  private String parseString(String value) {
-    String trimmed = value.trim();
-    return trimmed.isEmpty() ? null : trimmed;
-  }
-
-  private BigDecimal parseBigDecimal(String value) {
-    String trimmed = value.trim();
-    if (trimmed.isEmpty()) {
+  private String getString(Map<String, Object> row, String key) {
+    Object value = row.get(key);
+    if (value == null) {
       return null;
     }
-    String normalized = trimmed.replace(" ", "").replace(",", "");
+    String str = value.toString().trim();
+    return str.isEmpty() ? null : str;
+  }
+
+  private LocalDate getDate(Map<String, Object> row, String key) {
+    String value = getString(row, key);
+    return value != null ? LocalDate.parse(value, DATE_FORMAT) : null;
+  }
+
+  private BigDecimal getBigDecimal(Map<String, Object> row, String key) {
+    Object value = row.get(key);
+    if (value == null) {
+      return null;
+    }
+    if (value instanceof BigDecimal bigDecimal) {
+      return bigDecimal;
+    }
+    if (value instanceof Number number) {
+      return BigDecimal.valueOf(number.doubleValue());
+    }
+    String str = value.toString().trim();
+    if (str.isEmpty()) {
+      return null;
+    }
+    String normalized = str.replace(" ", "").replace(",", ".");
     return new BigDecimal(normalized);
   }
 
-  private BigDecimal parseMarketPrice(String value, AccountType accountType) {
-    BigDecimal price = parseBigDecimal(value);
+  private BigDecimal parseMarketPrice(Map<String, Object> row, AccountType accountType) {
+    BigDecimal price = getBigDecimal(row, "PricePC");
     boolean priceIsNullOrZero = price == null || price.compareTo(ZERO) == 0;
     if (priceIsNullOrZero && UNIT_PRICE_ACCOUNT_TYPES.contains(accountType)) {
       return ONE;

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.fees;
 
+import static ee.tuleva.onboarding.investment.JobRunSchedule.*;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
 import java.time.LocalDate;
@@ -18,7 +19,7 @@ public class FeeCalculationScheduledJob {
 
   private final FeeCalculationService feeCalculationService;
 
-  @Scheduled(cron = "0 0 6 * * *", zone = "Europe/Tallinn")
+  @Scheduled(cron = FEE_CALCULATION, zone = TIMEZONE)
   @SchedulerLock(name = "FeeCalculationScheduledJob", lockAtMostFor = "30m", lockAtLeastFor = "5m")
   public void calculateDailyFees() {
     LocalDate yesterday = LocalDate.now(clock()).minusDays(1);

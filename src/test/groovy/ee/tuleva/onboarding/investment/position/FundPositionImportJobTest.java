@@ -2,56 +2,94 @@ package ee.tuleva.onboarding.investment.position;
 
 import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.TulevaFund.TUV100;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
+import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
+import ee.tuleva.onboarding.investment.report.InvestmentReport;
+import ee.tuleva.onboarding.investment.report.InvestmentReportService;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class FundPositionImportJobTest {
 
-  @Mock private FundPositionSource source;
-  @Spy private SwedbankFundPositionParser parser = new SwedbankFundPositionParser();
   @Mock private FundPositionRepository repository;
+  @Mock private InvestmentReportService reportService;
 
+  private SwedbankFundPositionParser parser;
   private FundPositionImportService importService;
   private FundPositionImportJob job;
 
   @BeforeEach
   void setUp() {
+    parser = new SwedbankFundPositionParser();
     importService = new FundPositionImportService(repository);
-    job = new FundPositionImportJob(source, parser, importService);
+    job = new FundPositionImportJob(parser, importService, reportService);
   }
 
-  private static final String HEADER =
-      "ReportDate;NAVDate;Portfolio;AssetType;FundCurr;ISIN;AssetName;Quantity;AssetCurr;PricePC;PriceQC;BookCostPC;BookCostQC;BookPriceQC;ValuationPC;MarketValuePC;ValuationQC;InterestPC;InterestQC; ;GainPC;GainQC;PriceEffect;FxEffect;InstrumentType;PrctNav;IssuerName;TNA;pGroupCode;MaturityDate;FxRate;Security_ID;Detailed Asset Type;Trade ID;Trade Date;ClassCode";
+  private static final List<Map<String, Object>> SAMPLE_RAW_DATA =
+      List.of(
+          Map.ofEntries(
+              Map.entry("ReportDate", "06.01.2026"),
+              Map.entry("NAVDate", "05.01.2026"),
+              Map.entry("Portfolio", "Tuleva Maailma Aktsiate Pensionifond"),
+              Map.entry("AssetType", "Equities"),
+              Map.entry("FundCurr", "EUR"),
+              Map.entry("ISIN", "IE00BFG1TM61"),
+              Map.entry("AssetName", "ISHARES DEV WLD ESG"),
+              Map.entry("Quantity", "1000000"),
+              Map.entry("AssetCurr", "EUR"),
+              Map.entry("MarketValuePC", "33500000")),
+          Map.ofEntries(
+              Map.entry("ReportDate", "06.01.2026"),
+              Map.entry("NAVDate", "05.01.2026"),
+              Map.entry("Portfolio", "Tuleva Maailma Aktsiate Pensionifond"),
+              Map.entry("AssetType", "Cash & Cash Equiv"),
+              Map.entry("FundCurr", "EUR"),
+              Map.entry("ISIN", ""),
+              Map.entry("AssetName", "Overnight Deposit"),
+              Map.entry("Quantity", "5000000"),
+              Map.entry("AssetCurr", "EUR"),
+              Map.entry("MarketValuePC", "5000000")),
+          Map.ofEntries(
+              Map.entry("ReportDate", "06.01.2026"),
+              Map.entry("NAVDate", "05.01.2026"),
+              Map.entry("Portfolio", "Tuleva Vabatahtlik Pensionifon"),
+              Map.entry("AssetType", "Equities"),
+              Map.entry("FundCurr", "EUR"),
+              Map.entry("ISIN", "IE00BFNM3G45"),
+              Map.entry("AssetName", "ISHARES USA ESG"),
+              Map.entry("Quantity", "500000"),
+              Map.entry("AssetCurr", "EUR"),
+              Map.entry("MarketValuePC", "6000000")));
 
-  private static final String SAMPLE_CSV =
-      HEADER
-          + "\n"
-          + "06.01.2026;05.01.2026;Tuleva Maailma Aktsiate Pensionifond;Equities;EUR;IE00BFG1TM61;ISHARES DEV WLD ESG;1000000;EUR;33.5;33.5;0;0;0;0;33500000;0;0;0;;0;0;0;0;Equity Fund;0;;0;18;;1;;;;;\n"
-          + "06.01.2026;05.01.2026;Tuleva Maailma Aktsiate Pensionifond;Cash & Cash Equiv;EUR;;Overnight Deposit;5000000;EUR;1;1;0;0;0;0;5000000;0;0;0;;0;0;0;0;Money Market;0;;0;18;;1;;;;;\n"
-          + "06.01.2026;05.01.2026;Tuleva Vabatahtlik Pensionifon;Equities;EUR;IE00BFNM3G45;ISHARES USA ESG;500000;EUR;12;12;0;0;0;0;6000000;0;0;0;;0;0;0;0;Equity Fund;0;;0;18;;1;;;;;";
+  private InvestmentReport createReport(LocalDate date) {
+    return InvestmentReport.builder()
+        .provider(SWEDBANK)
+        .reportType(POSITIONS)
+        .reportDate(date)
+        .rawData(SAMPLE_RAW_DATA)
+        .metadata(Map.of())
+        .createdAt(Instant.now())
+        .build();
+  }
 
   @Test
   void importForDate_parsesAndSavesPositions() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    when(source.fetch(date))
-        .thenReturn(
-            Optional.of(new ByteArrayInputStream(SAMPLE_CSV.getBytes(StandardCharsets.UTF_8))));
+    when(reportService.getReport(SWEDBANK, POSITIONS, date))
+        .thenReturn(Optional.of(createReport(date)));
     when(repository.existsByReportingDateAndFundAndAccountName(any(), any(), any()))
         .thenReturn(false);
 
@@ -63,9 +101,8 @@ class FundPositionImportJobTest {
   @Test
   void importForDate_skipsExistingPositions() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    when(source.fetch(date))
-        .thenReturn(
-            Optional.of(new ByteArrayInputStream(SAMPLE_CSV.getBytes(StandardCharsets.UTF_8))));
+    when(reportService.getReport(SWEDBANK, POSITIONS, date))
+        .thenReturn(Optional.of(createReport(date)));
     when(repository.existsByReportingDateAndFundAndAccountName(
             LocalDate.of(2026, 1, 5), TUK75, "ISHARES DEV WLD ESG"))
         .thenReturn(true);
@@ -82,9 +119,9 @@ class FundPositionImportJobTest {
   }
 
   @Test
-  void importForDate_handlesEmptyFile() {
+  void importForDate_handlesNoReportInDatabase() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    when(source.fetch(date)).thenReturn(Optional.empty());
+    when(reportService.getReport(SWEDBANK, POSITIONS, date)).thenReturn(Optional.empty());
 
     job.importForDate(date);
 
@@ -93,36 +130,19 @@ class FundPositionImportJobTest {
 
   @Test
   void runImport_processesMultipleDays() {
-    when(source.fetch(any())).thenReturn(Optional.empty());
+    when(reportService.getReport(any(), any(), any())).thenReturn(Optional.empty());
 
     job.runImport();
 
-    verify(source, times(7)).fetch(any());
+    verify(reportService, times(7)).getReport(any(), any(), any());
   }
 
   @Test
   void runImport_continuesOnError() {
-    when(source.fetch(any())).thenThrow(new RuntimeException("S3 error"));
+    when(reportService.getReport(any(), any(), any())).thenThrow(new RuntimeException("DB error"));
 
     job.runImport();
 
-    verify(source, times(7)).fetch(any());
-  }
-
-  @Test
-  void importForDate_throwsRuntimeException_whenParsingFails() {
-    LocalDate date = LocalDate.of(2026, 1, 5);
-    InputStream failingStream =
-        new InputStream() {
-          @Override
-          public int read() throws IOException {
-            throw new IOException("Stream error");
-          }
-        };
-    when(source.fetch(date)).thenReturn(Optional.of(failingStream));
-
-    assertThatThrownBy(() -> job.importForDate(date))
-        .isInstanceOf(RuntimeException.class)
-        .hasMessageContaining("Fund position import failed");
+    verify(reportService, times(7)).getReport(any(), any(), any());
   }
 }

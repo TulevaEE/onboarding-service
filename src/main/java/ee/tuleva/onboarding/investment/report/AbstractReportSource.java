@@ -1,12 +1,10 @@
-package ee.tuleva.onboarding.investment.position;
+package ee.tuleva.onboarding.investment.report;
 
 import java.io.InputStream;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -15,21 +13,19 @@ import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
 @Slf4j
-@Component
 @RequiredArgsConstructor
-public class FundPositionSource {
+public abstract class AbstractReportSource implements ReportSource {
 
-  private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
   private static final String BUCKET = "tuleva-investment-reports";
-  private static final String PREFIX = "portfolio/";
 
   private final S3Client s3Client;
 
-  public Optional<InputStream> fetch(LocalDate date) {
-    String key = PREFIX + date.format(DATE_FORMAT) + ".csv";
+  @Override
+  public Optional<InputStream> fetch(ReportType reportType, LocalDate date) {
+    String key = getKey(reportType, date);
 
     try {
-      log.info("Fetching fund position file: bucket={}, key={}", BUCKET, key);
+      log.info("Fetching report file: provider={}, bucket={}, key={}", getProvider(), BUCKET, key);
 
       GetObjectRequest request = GetObjectRequest.builder().bucket(BUCKET).key(key).build();
 
@@ -37,19 +33,36 @@ public class FundPositionSource {
       return Optional.of(response);
 
     } catch (NoSuchKeyException e) {
-      log.info("Fund position file not found: bucket={}, key={}", BUCKET, key);
+      log.info("Report file not found: provider={}, bucket={}, key={}", getProvider(), BUCKET, key);
       return Optional.empty();
 
     } catch (S3Exception e) {
       if (e.statusCode() == 404) {
-        log.info("Fund position file not found: bucket={}, key={}", BUCKET, key);
+        log.info(
+            "Report file not found: provider={}, bucket={}, key={}", getProvider(), BUCKET, key);
         return Optional.empty();
       } else if (e.statusCode() == 403) {
-        log.error("Access denied to fund position file: bucket={}, key={}", BUCKET, key, e);
+        log.error(
+            "Access denied to report file: provider={}, bucket={}, key={}",
+            getProvider(),
+            BUCKET,
+            key,
+            e);
         return Optional.empty();
       }
       throw new RuntimeException(
-          "S3 error fetching fund position file: bucket=" + BUCKET + ", key=" + key, e);
+          "S3 error fetching report file: provider="
+              + getProvider()
+              + ", bucket="
+              + BUCKET
+              + ", key="
+              + key,
+          e);
     }
+  }
+
+  @Override
+  public String getBucket() {
+    return BUCKET;
   }
 }

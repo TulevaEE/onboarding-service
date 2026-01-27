@@ -148,21 +148,21 @@ class PositionCalculationJobTest {
   }
 
   @Test
-  void calculatePositions1130_processesPillarIIFunds() {
+  void calculatePositionsMorning_processesPillarIIFunds() {
     List<TulevaFund> expectedFunds = getPillar2Funds();
     when(calculationService.calculateForLatestDate(expectedFunds)).thenReturn(List.of());
 
-    job.calculatePositions1130();
+    job.calculatePositionsMorning();
 
     verify(calculationService).calculateForLatestDate(expectedFunds);
   }
 
   @Test
-  void calculatePositions1530_processesPillarIIIFunds() {
+  void calculatePositionsAfternoon_processesPillarIIIFunds() {
     List<TulevaFund> expectedFunds = getPillar3Funds();
     when(calculationService.calculateForLatestDate(expectedFunds)).thenReturn(List.of());
 
-    job.calculatePositions1530();
+    job.calculatePositionsAfternoon();
 
     verify(calculationService).calculateForLatestDate(expectedFunds);
   }

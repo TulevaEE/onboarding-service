@@ -80,6 +80,18 @@ swedbank-gateway:
     WITHDRAWAL_EUR: ''
     FUND_INVESTMENT_EUR: ''
 
+seb-gateway:
+  enabled: false
+  keystore:
+    path: "src/main/resources/empty-swedbank-keystore.p12"
+    password: changeit
+  url: ''
+  org-id: ''
+  accounts:
+    DEPOSIT_EUR: ''
+    WITHDRAWAL_EUR: ''
+    FUND_INVESTMENT_EUR: ''
+
 springdoc:
   swagger-ui:
     path: /swagger-ui
@@ -262,7 +274,7 @@ truststore:
   path: "/truststore.jks"
 
 swedbank-gateway:
-  enabled: true
+  enabled: ${SWEDBANK_GATEWAY_ENABLED:true}
   keystore:
     path: "/swedbank-gateway.p12"
     password: ${SWEDBANK_GATEWAY_KEYSTORE_PASSWORD}
@@ -273,6 +285,18 @@ swedbank-gateway:
     DEPOSIT_EUR: ${SWEDBANK_GATEWAY_DEPOSIT_EUR_ACCOUNT_IBAN}
     WITHDRAWAL_EUR: ${SWEDBANK_GATEWAY_WITHDRAWAL_EUR_ACCOUNT_IBAN}
     FUND_INVESTMENT_EUR: ${SWEDBANK_GATEWAY_INVESTMENT_EUR_ACCOUNT_IBAN}
+
+seb-gateway:
+  enabled: ${SEB_GATEWAY_ENABLED:false}
+  keystore:
+    path: ${SEB_GATEWAY_KEYSTORE_PATH:/seb-gateway.p12}
+    password: ${SEB_GATEWAY_KEYSTORE_PASSWORD:changeit}
+  url: ${SEB_GATEWAY_URL:}
+  org-id: ${SEB_GATEWAY_ORG_ID:}
+  accounts:
+    DEPOSIT_EUR: ${SEB_GATEWAY_ACCOUNTS_DEPOSIT_EUR:}
+    WITHDRAWAL_EUR: ${SEB_GATEWAY_ACCOUNTS_WITHDRAWAL_EUR:}
+    FUND_INVESTMENT_EUR: ${SEB_GATEWAY_ACCOUNTS_FUND_INVESTMENT_EUR:}
 
 epis:
   service:

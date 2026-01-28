@@ -42,6 +42,7 @@ public class SecurityConfiguration {
                         "/idLogin",
                         "/notifications/payments",
                         "/v1/emails/webhooks/**",
+                        "/admin/**",
                         "/error")
                     .permitAll()
                     .requestMatchers(

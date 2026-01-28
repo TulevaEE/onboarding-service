@@ -47,6 +47,8 @@ public class SebGatewayClient {
                     .path("/v1/accounts/{iban}/transactions")
                     .queryParam("dateFrom", dateFrom.format(DATE_FORMAT))
                     .queryParam("dateTo", dateTo.format(DATE_FORMAT))
+                    .queryParam("page", 1)
+                    .queryParam("size", 3000)
                     .build(iban))
         .retrieve()
         .body(String.class);

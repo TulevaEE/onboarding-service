@@ -56,6 +56,9 @@ opensanctions:
 eodhd:
   api-token: ${EODHD_API_TOKEN:}
 
+admin:
+  api-token: ${ADMIN_API_TOKEN:}
+
 mobile-id:
   # use "https://mid.sk.ee/mid-api" for testing signing
   hostUrl: 'https://tsp.demo.sk.ee/mid-api'

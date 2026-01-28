@@ -305,6 +305,33 @@ This approach ensures:
   - ❌ Bad: `given: "Database has one value"`
   - ✅ Good: `given:` followed by clear, self-documenting code
 
+#### Controller Tests with @WebMvcTest
+- **Use `@WebMvcTest` for controller tests**: This loads only the web layer without the full application context
+- **Use `@WithMockUser` for security**: Bypasses Spring Security authentication
+- **Use `@TestPropertySource` for test properties**: Set configuration values needed by the controller
+- **Use `.with(csrf())` for POST/PUT/DELETE requests**: Required when security is enabled
+- **Avoid `ReflectionTestUtils`**: Use `@TestPropertySource` to set field values instead of reflection hacks
+- **Use `@MockitoBean` (not deprecated `@MockBean`)**: For mocking dependencies in the controller
+
+Example:
+```java
+@WebMvcTest(MyController.class)
+@TestPropertySource(properties = "my.config=value")
+@WithMockUser
+class MyControllerTest {
+  @Autowired private MockMvc mockMvc;
+  @MockitoBean private MyService myService;
+
+  @Test
+  void myEndpoint_withValidInput_returnsOk() throws Exception {
+    mockMvc.perform(post("/my-endpoint")
+            .with(csrf())
+            .param("input", "value"))
+        .andExpect(status().isOk());
+  }
+}
+```
+
 #### Test Location
 - **Java tests should be placed in the Groovy test directory**: Even when writing JUnit tests in Java, place them under `src/test/groovy/` alongside Groovy Spock tests
 - Follow the same package structure as the main source code

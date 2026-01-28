@@ -1,63 +1,94 @@
 package ee.tuleva.onboarding.banking.processor;
 
-import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
+import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import java.math.BigDecimal;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+@ExtendWith(MockitoExtension.class)
 class BankOperationProcessorTest {
 
-  BankOperationProcessor processor = new BankOperationProcessor();
+  @Mock SavingsFundLedger savingsFundLedger;
+
+  @InjectMocks BankOperationProcessor processor;
 
   @Test
   void processBankOperation_skipsEntriesWithCounterparty() {
     var entry = createEntryWithCounterparty();
 
-    assertThatCode(() -> processor.processBankOperation(entry, UUID.randomUUID()))
-        .doesNotThrowAnyException();
+    processor.processBankOperation(entry, UUID.randomUUID());
+
+    verifyNoInteractions(savingsFundLedger);
   }
 
   @Test
-  void processBankOperation_handlesInterestEntry() {
+  void processBankOperation_recordsInterestReceived() {
+    var amount = new BigDecimal("5.00");
+    var entry = createBankOperationEntry("INTR", amount);
+
+    processor.processBankOperation(entry, UUID.randomUUID());
+
+    verify(savingsFundLedger).recordInterestReceived(eq(amount), any(UUID.class));
+  }
+
+  @Test
+  void processBankOperation_recordsBankFee() {
+    var amount = new BigDecimal("-1.00");
+    var entry = createBankOperationEntry("FEES", amount);
+
+    processor.processBankOperation(entry, UUID.randomUUID());
+
+    verify(savingsFundLedger).recordBankFee(eq(amount), any(UUID.class));
+  }
+
+  @Test
+  void processBankOperation_recordsBankAdjustment() {
+    var amount = new BigDecimal("0.50");
+    var entry = createBankOperationEntry("ADJT", amount);
+
+    processor.processBankOperation(entry, UUID.randomUUID());
+
+    verify(savingsFundLedger).recordBankAdjustment(eq(amount), any(UUID.class));
+  }
+
+  @Test
+  void processBankOperation_skipsAlreadyRecordedEntry() {
     var entry = createBankOperationEntry("INTR", new BigDecimal("5.00"));
+    when(savingsFundLedger.hasLedgerEntry(any(UUID.class))).thenReturn(true);
 
-    assertThatCode(() -> processor.processBankOperation(entry, UUID.randomUUID()))
-        .doesNotThrowAnyException();
+    processor.processBankOperation(entry, UUID.randomUUID());
+
+    verify(savingsFundLedger, never()).recordInterestReceived(any(), any());
   }
 
   @Test
-  void processBankOperation_handlesFeeEntry() {
-    var entry = createBankOperationEntry("FEES", new BigDecimal("-1.00"));
-
-    assertThatCode(() -> processor.processBankOperation(entry, UUID.randomUUID()))
-        .doesNotThrowAnyException();
-  }
-
-  @Test
-  void processBankOperation_handlesFeeAdjustmentEntry() {
-    var entry = createBankOperationEntry("ADJT", new BigDecimal("0.50"));
-
-    assertThatCode(() -> processor.processBankOperation(entry, UUID.randomUUID()))
-        .doesNotThrowAnyException();
-  }
-
-  @Test
-  void processBankOperation_handlesUnknownSubFamilyCode() {
+  void processBankOperation_doesNotRecordUnknownSubFamilyCode() {
     var entry = createBankOperationEntry("UNKN", new BigDecimal("10.00"));
 
-    assertThatCode(() -> processor.processBankOperation(entry, UUID.randomUUID()))
-        .doesNotThrowAnyException();
+    processor.processBankOperation(entry, UUID.randomUUID());
+
+    verify(savingsFundLedger, never()).recordInterestReceived(any(), any());
+    verify(savingsFundLedger, never()).recordBankFee(any(), any());
+    verify(savingsFundLedger, never()).recordBankAdjustment(any(), any());
   }
 
   @Test
   void processBankOperation_handlesNullSubFamilyCode() {
     var entry = createBankOperationEntry(null, new BigDecimal("10.00"));
 
-    assertThatCode(() -> processor.processBankOperation(entry, UUID.randomUUID()))
-        .doesNotThrowAnyException();
+    processor.processBankOperation(entry, UUID.randomUUID());
+
+    verifyNoInteractions(savingsFundLedger);
   }
 
   private BankStatementEntry createEntryWithCounterparty() {

@@ -22,7 +22,10 @@ public class AmountPrecisionValidator
 
     BigDecimal amount = entry.getAmount();
     LedgerAccount.AssetType assetType = entry.getAssetType();
-    int scale = amount.scale();
+    int scale =
+        assetType.requiresExactPrecision()
+            ? amount.scale()
+            : Math.max(0, amount.stripTrailingZeros().scale());
 
     boolean isValid = scale >= assetType.getMinPrecision() && scale <= assetType.getMaxPrecision();
 

@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.ASSET;
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
 
@@ -18,7 +17,9 @@ public enum SystemAccount {
   FUND_INVESTMENT_CASH_CLEARING(ASSET, EUR),
   FUND_UNITS_OUTSTANDING(LIABILITY, FUND_UNIT),
   PAYOUTS_CASH_CLEARING(ASSET, EUR),
-  BANK_FEE_ACCRUAL(LIABILITY, EUR);
+  BANK_FEE(EXPENSE, EUR),
+  BANK_ADJUSTMENT(EXPENSE, EUR),
+  INTEREST_INCOME(INCOME, EUR);
 
   private final AccountType accountType;
   private final AssetType assetType;

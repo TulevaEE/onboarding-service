@@ -1,13 +1,10 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.*;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.OPERATION_TYPE;
 import static ee.tuleva.onboarding.ledger.SavingsFundTransactionType.*;
-import static ee.tuleva.onboarding.ledger.SavingsFundTransactionType.REDEMPTION_REQUEST;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
+import static ee.tuleva.onboarding.ledger.SystemAccount.BANK_FEE;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
-import static ee.tuleva.onboarding.ledger.UserAccount.REDEMPTIONS;
-import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
@@ -395,6 +392,52 @@ public class SavingsFundLedger {
 
   private UUID derivePayoutReference(UUID redemptionRequestId) {
     return UUID.nameUUIDFromBytes((redemptionRequestId + ":payout").getBytes(UTF_8));
+  }
+
+  @Transactional
+  public LedgerTransaction recordBankFee(BigDecimal amount, UUID externalReference) {
+    LedgerAccount bankFeeExpenseAccount = getSystemAccount(BANK_FEE);
+    LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
+
+    Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, BANK_FEE.name());
+
+    return ledgerTransactionService.createTransaction(
+        Instant.now(clock),
+        externalReference,
+        metadata,
+        entry(bankFeeExpenseAccount, amount.negate()),
+        entry(incomingPaymentsAccount, amount));
+  }
+
+  @Transactional
+  public LedgerTransaction recordInterestReceived(BigDecimal amount, UUID externalReference) {
+    LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
+    LedgerAccount interestIncomeAccount = getSystemAccount(INTEREST_INCOME);
+
+    Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, INTEREST_RECEIVED.name());
+
+    return ledgerTransactionService.createTransaction(
+        Instant.now(clock),
+        externalReference,
+        metadata,
+        entry(incomingPaymentsAccount, amount),
+        entry(interestIncomeAccount, amount.negate()));
+  }
+
+  @Transactional
+  public LedgerTransaction recordBankAdjustment(BigDecimal amount, UUID externalReference) {
+    LedgerAccount bankAdjustmentAccount = getSystemAccount(SystemAccount.BANK_ADJUSTMENT);
+    LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
+
+    Map<String, Object> metadata =
+        Map.of(OPERATION_TYPE.key, SavingsFundTransactionType.BANK_ADJUSTMENT.name());
+
+    return ledgerTransactionService.createTransaction(
+        Instant.now(clock),
+        externalReference,
+        metadata,
+        entry(bankAdjustmentAccount, amount.negate()),
+        entry(incomingPaymentsAccount, amount));
   }
 
   private LedgerEntryDto entry(LedgerAccount account, BigDecimal amount) {

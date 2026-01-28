@@ -16,5 +16,6 @@ public enum SavingsFundTransactionType {
   FUND_CASH_TRANSFER,
   REDEMPTION_PAYOUT,
   INTEREST_RECEIVED,
-  BANK_FEE
+  BANK_FEE,
+  BANK_ADJUSTMENT
 }

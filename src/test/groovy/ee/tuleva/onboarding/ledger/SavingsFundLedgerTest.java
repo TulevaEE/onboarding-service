@@ -253,6 +253,50 @@ class SavingsFundLedgerTest {
     assertThat(getUserRedemptionsAccount().getBalance()).isEqualByComparingTo(cashAmount);
   }
 
+  @Test
+  void recordBankFee_createsCorrectLedgerEntries() {
+    var amount = new BigDecimal("-1.50");
+    var externalReference = randomUUID();
+
+    var transaction = savingsFundLedger.recordBankFee(amount, externalReference);
+
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("BANK_FEE");
+    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
+    assertThat(getSystemAccount(BANK_FEE).getBalance()).isEqualByComparingTo(amount.negate());
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void recordInterestReceived_createsCorrectLedgerEntries() {
+    var amount = new BigDecimal("5.00");
+    var externalReference = randomUUID();
+
+    var transaction = savingsFundLedger.recordInterestReceived(amount, externalReference);
+
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("INTEREST_RECEIVED");
+    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
+    assertThat(getSystemAccount(INTEREST_INCOME).getBalance())
+        .isEqualByComparingTo(amount.negate());
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void recordBankAdjustment_createsCorrectLedgerEntries() {
+    var amount = new BigDecimal("0.500");
+    var externalReference = randomUUID();
+
+    var transaction = savingsFundLedger.recordBankAdjustment(amount, externalReference);
+
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("BANK_ADJUSTMENT");
+    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
+    assertThat(getSystemAccount(BANK_ADJUSTMENT).getBalance())
+        .isEqualByComparingTo(amount.negate());
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
+    verifyDoubleEntry(transaction);
+  }
+
   private void setupUserWithFundUnits(
       BigDecimal cashAmount, BigDecimal fundUnits, BigDecimal navPerUnit) {
     savingsFundLedger.recordPaymentReceived(testUser, cashAmount, randomUUID());

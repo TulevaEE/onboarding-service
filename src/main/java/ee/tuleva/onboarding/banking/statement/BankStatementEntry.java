@@ -162,8 +162,7 @@ public record BankStatementEntry(
     var remittanceInformation =
         Require.exactlyOne(remittanceInformationList, "remittance information");
 
-    var externalId =
-        Optional.ofNullable(entry.getNtryRef()).orElseGet(entry::getAcctSvcrRef);
+    var externalId = Optional.ofNullable(entry.getNtryRef()).orElseGet(entry::getAcctSvcrRef);
 
     var entryDetails = Require.exactlyOne(entry.getNtryDtls(), "entry details");
     var transactionDetails = Require.exactlyOne(entryDetails.getTxDtls(), "transaction details");
@@ -221,8 +220,7 @@ public record BankStatementEntry(
     var remittanceInformation =
         Require.exactlyOne(remittanceInformationList, "remittance information");
 
-    var externalId =
-        Optional.ofNullable(entry.getNtryRef()).orElseGet(entry::getAcctSvcrRef);
+    var externalId = Optional.ofNullable(entry.getNtryRef()).orElseGet(entry::getAcctSvcrRef);
 
     var entryDetails = Require.exactlyOne(entry.getNtryDtls(), "entry details");
     var transactionDetails = Require.exactlyOne(entryDetails.getTxDtls(), "transaction details");

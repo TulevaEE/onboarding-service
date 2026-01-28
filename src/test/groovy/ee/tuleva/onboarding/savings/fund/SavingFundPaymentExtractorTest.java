@@ -134,6 +134,7 @@ class SavingFundPaymentExtractorTest {
             TransactionType.CREDIT,
             "Test payment",
             "test-ref",
+            null,
             null);
 
     var statement = createBankStatement(account, List.of(usdEntry));
@@ -218,6 +219,39 @@ class SavingFundPaymentExtractorTest {
     assertThat(payments.get(0).getAmount()).isEqualByComparingTo(new BigDecimal("150.10"));
   }
 
+  @Test
+  void extractPayments_shouldSkipBankOperationEntriesWithoutCounterparty() {
+    var account =
+        createBankStatementAccount("EE442200221092874625", "TULEVA FONDID AS", "14118923");
+
+    var paymentEntry =
+        createCreditEntry(
+            new BigDecimal("100.00"),
+            "EE157700771001802057",
+            "Test Person",
+            "12345678901",
+            "Payment",
+            "payment-ref");
+
+    var bankOperationEntry =
+        new BankStatementEntry(
+            null,
+            new BigDecimal("-1.00"),
+            "EUR",
+            TransactionType.DEBIT,
+            "Konto kuutasu",
+            "fee-ref",
+            null,
+            "FEES");
+
+    var statement = createBankStatement(account, List.of(paymentEntry, bankOperationEntry));
+
+    List<SavingFundPayment> payments = extractor.extractPayments(statement);
+
+    assertThat(payments).hasSize(1);
+    assertThat(payments.get(0).getExternalId()).isEqualTo("payment-ref");
+  }
+
   // Helper methods for manual BankStatement construction
 
   private BankStatement createBankStatement(
@@ -240,7 +274,7 @@ class SavingFundPaymentExtractorTest {
     var counterParty =
         createCounterPartyDetails(counterPartyName, counterPartyIban, counterPartyIdCode);
     return new BankStatementEntry(
-        counterParty, amount, "EUR", TransactionType.CREDIT, description, externalId, null);
+        counterParty, amount, "EUR", TransactionType.CREDIT, description, externalId, null, null);
   }
 
   private BankStatementEntry createDebitEntry(
@@ -253,7 +287,7 @@ class SavingFundPaymentExtractorTest {
     var counterParty =
         createCounterPartyDetails(counterPartyName, counterPartyIban, counterPartyIdCode);
     return new BankStatementEntry(
-        counterParty, amount, "EUR", TransactionType.DEBIT, description, externalId, null);
+        counterParty, amount, "EUR", TransactionType.DEBIT, description, externalId, null, null);
   }
 
   private BankStatementEntry.CounterPartyDetails createCounterPartyDetails(

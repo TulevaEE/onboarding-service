@@ -42,6 +42,7 @@ public class BankMessageDelegator {
     for (BankingMessage message : messages) {
       processMessage(message);
     }
+    log.info("Finished processing bank messages: processedMessages={}", messages.size());
   }
 
   private void processMessage(BankingMessage message) {

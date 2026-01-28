@@ -474,7 +474,7 @@ class SwedbankBankStatementExtractorIntraDayTest {
     }
 
     @Test
-    void extractFromIntraDayReport_shouldThrowExceptionForMissingCounterPartyIban() {
+    void extractFromIntraDayReport_shouldReturnNullDetailsForMissingCounterPartyIban() {
       var entries =
           List.of(
               """
@@ -537,12 +537,116 @@ class SwedbankBankStatementExtractorIntraDayTest {
 
       String xmlWithMissingCounterPartyIban = createCamt052Xml(entries);
 
-      assertThatThrownBy(
-              () ->
-                  extractor.extractFromIntraDayReport(
-                      xmlWithMissingCounterPartyIban, SWEDBANK_GATEWAY_TIME_ZONE))
-          .isInstanceOf(BankStatementParseException.class)
-          .hasMessageContaining("counter-party IBAN is required");
+      var statement =
+          extractor.extractFromIntraDayReport(
+              xmlWithMissingCounterPartyIban, SWEDBANK_GATEWAY_TIME_ZONE);
+
+      assertThat(statement.getEntries()).hasSize(1);
+      assertThat(statement.getEntries().getFirst().details()).isNull();
+    }
+
+    @Test
+    void extractFromIntraDayReport_shouldHandleBankOperationWithoutCounterparty() {
+      var entries =
+          List.of(
+              """
+          <Ntry>
+            <NtryRef>fee-ref-123</NtryRef>
+            <Amt Ccy="EUR">1.50</Amt>
+            <CdtDbtInd>DBIT</CdtDbtInd>
+            <Sts>BOOK</Sts>
+            <BookgDt>
+              <Dt>2025-09-29</Dt>
+            </BookgDt>
+            <ValDt>
+              <Dt>2025-09-29</Dt>
+            </ValDt>
+            <BkTxCd>
+              <Domn>
+                <Cd>ACMT</Cd>
+                <Fmly>
+                  <Cd>MCOP</Cd>
+                  <SubFmlyCd>FEES</SubFmlyCd>
+                </Fmly>
+              </Domn>
+            </BkTxCd>
+            <NtryDtls>
+              <TxDtls>
+                <Refs>
+                  <AcctSvcrRef>fee-ref-123</AcctSvcrRef>
+                </Refs>
+                <RmtInf>
+                  <Ustrd>Konto kuutasu</Ustrd>
+                </RmtInf>
+              </TxDtls>
+            </NtryDtls>
+          </Ntry>
+          """
+                  .stripIndent());
+
+      String xmlWithBankOperation = createCamt052Xml(entries);
+
+      var statement =
+          extractor.extractFromIntraDayReport(xmlWithBankOperation, SWEDBANK_GATEWAY_TIME_ZONE);
+
+      assertThat(statement.getEntries()).hasSize(1);
+      var entry = statement.getEntries().getFirst();
+      assertThat(entry.details()).isNull();
+      assertThat(entry.subFamilyCode()).isEqualTo("FEES");
+      assertThat(entry.amount()).isEqualByComparingTo("-1.50");
+      assertThat(entry.remittanceInformation()).isEqualTo("Konto kuutasu");
+    }
+
+    @Test
+    void extractFromIntraDayReport_shouldHandleInterestPaymentWithoutCounterparty() {
+      var entries =
+          List.of(
+              """
+          <Ntry>
+            <NtryRef>interest-ref-456</NtryRef>
+            <Amt Ccy="EUR">5.25</Amt>
+            <CdtDbtInd>CRDT</CdtDbtInd>
+            <Sts>BOOK</Sts>
+            <BookgDt>
+              <Dt>2025-09-29</Dt>
+            </BookgDt>
+            <ValDt>
+              <Dt>2025-09-29</Dt>
+            </ValDt>
+            <BkTxCd>
+              <Domn>
+                <Cd>ACMT</Cd>
+                <Fmly>
+                  <Cd>MCOP</Cd>
+                  <SubFmlyCd>INTR</SubFmlyCd>
+                </Fmly>
+              </Domn>
+            </BkTxCd>
+            <NtryDtls>
+              <TxDtls>
+                <Refs>
+                  <AcctSvcrRef>interest-ref-456</AcctSvcrRef>
+                </Refs>
+                <RmtInf>
+                  <Ustrd>Intresside väljamakse EUR</Ustrd>
+                </RmtInf>
+              </TxDtls>
+            </NtryDtls>
+          </Ntry>
+          """
+                  .stripIndent());
+
+      String xmlWithInterest = createCamt052Xml(entries);
+
+      var statement =
+          extractor.extractFromIntraDayReport(xmlWithInterest, SWEDBANK_GATEWAY_TIME_ZONE);
+
+      assertThat(statement.getEntries()).hasSize(1);
+      var entry = statement.getEntries().getFirst();
+      assertThat(entry.details()).isNull();
+      assertThat(entry.subFamilyCode()).isEqualTo("INTR");
+      assertThat(entry.amount()).isEqualByComparingTo("5.25");
+      assertThat(entry.remittanceInformation()).isEqualTo("Intresside väljamakse EUR");
     }
 
     @Test

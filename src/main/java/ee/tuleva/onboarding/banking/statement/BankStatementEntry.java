@@ -15,13 +15,14 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 public record BankStatementEntry(
-    CounterPartyDetails details,
+    @Nullable CounterPartyDetails details,
     BigDecimal amount,
     String currencyCode,
     TransactionType transactionType,
     String remittanceInformation,
     String externalId,
-    @Nullable String endToEndId) {
+    @Nullable String endToEndId,
+    @Nullable String subFamilyCode) {
 
   @RequiredArgsConstructor
   public static final class CounterPartyDetails {
@@ -34,6 +35,7 @@ public record BankStatementEntry(
       return Optional.ofNullable(personalCode);
     }
 
+    @Nullable
     public static CounterPartyDetails from(ReportEntry2 entry) {
       var creditOrDebit = entry.getCdtDbtInd();
 
@@ -41,9 +43,27 @@ public record BankStatementEntry(
       var transactionDetails = Require.exactlyOne(entryDetails.getTxDtls(), "transaction details");
       var relatedParties = transactionDetails.getRltdPties();
 
-      // TODO entry group can break this?
-      // if credit, get debitor; otherwise get creditor
+      if (relatedParties == null) {
+        return null;
+      }
+
       var otherParty = creditOrDebit == CRDT ? relatedParties.getDbtr() : relatedParties.getCdtr();
+
+      if (otherParty == null) {
+        return null;
+      }
+
+      var otherPartyAccount =
+          creditOrDebit == CRDT ? relatedParties.getDbtrAcct() : relatedParties.getCdtrAcct();
+
+      if (otherPartyAccount == null || otherPartyAccount.getId() == null) {
+        return null;
+      }
+
+      var iban = otherPartyAccount.getId().getIBAN();
+      if (iban == null || iban.isBlank()) {
+        return null;
+      }
 
       var name = otherParty.getNm();
       var personalIdCodes =
@@ -58,14 +78,10 @@ public record BankStatementEntry(
               .orElseGet(List::of);
       var personalIdCode = Require.atMostOne(personalIdCodes, "personal ID code");
 
-      var otherPartyAccount =
-          creditOrDebit == CRDT ? relatedParties.getDbtrAcct() : relatedParties.getCdtrAcct();
-
-      var iban = Require.notNullOrBlank(otherPartyAccount.getId().getIBAN(), "counter-party IBAN");
-
       return new CounterPartyDetails(name, iban, personalIdCode);
     }
 
+    @Nullable
     static CounterPartyDetails from(
         ee.tuleva.onboarding.banking.iso20022.camt053.ReportEntry2 entry) {
       var creditOrDebit = entry.getCdtDbtInd();
@@ -74,12 +90,32 @@ public record BankStatementEntry(
       var transactionDetails = Require.exactlyOne(entryDetails.getTxDtls(), "transaction details");
       var relatedParties = transactionDetails.getRltdPties();
 
-      // TODO entry group can break this?
-      // if credit, get debitor; otherwise get creditor
+      if (relatedParties == null) {
+        return null;
+      }
+
       var otherParty =
           creditOrDebit == CreditDebitCode.CRDT
               ? relatedParties.getDbtr()
               : relatedParties.getCdtr();
+
+      if (otherParty == null) {
+        return null;
+      }
+
+      var otherPartyAccount =
+          creditOrDebit == CreditDebitCode.CRDT
+              ? relatedParties.getDbtrAcct()
+              : relatedParties.getCdtrAcct();
+
+      if (otherPartyAccount == null || otherPartyAccount.getId() == null) {
+        return null;
+      }
+
+      var iban = otherPartyAccount.getId().getIBAN();
+      if (iban == null || iban.isBlank()) {
+        return null;
+      }
 
       var name = otherParty.getNm();
       var personalIdCodes =
@@ -97,13 +133,6 @@ public record BankStatementEntry(
               .orElseGet(List::of);
       var personalIdCode = Require.atMostOne(personalIdCodes, "personal ID code");
 
-      var otherPartyAccount =
-          creditOrDebit == CreditDebitCode.CRDT
-              ? relatedParties.getDbtrAcct()
-              : relatedParties.getCdtrAcct();
-
-      var iban = Require.notNullOrBlank(otherPartyAccount.getId().getIBAN(), "counter-party IBAN");
-
       return new CounterPartyDetails(name, iban, personalIdCode);
     }
   }
@@ -117,11 +146,9 @@ public record BankStatementEntry(
 
     var currencyCode = entry.getAmt().getCcy();
 
-    // Determine transaction type
     var transactionType =
         creditOrDebit == CreditDebitCode.CRDT ? TransactionType.CREDIT : TransactionType.DEBIT;
 
-    // Collect all remittance information from all transaction details and require exactly one
     var remittanceInformationList =
         entry.getNtryDtls().stream()
             .flatMap(ntryDtl -> ntryDtl.getTxDtls().stream())
@@ -135,10 +162,8 @@ public record BankStatementEntry(
     var remittanceInformation =
         Require.exactlyOne(remittanceInformationList, "remittance information");
 
-    // Extract external ID from entry reference
     var externalId = entry.getNtryRef();
 
-    // Extract end-to-end ID from transaction references (used for matching return payments)
     var entryDetails = Require.exactlyOne(entry.getNtryDtls(), "entry details");
     var transactionDetails = Require.exactlyOne(entryDetails.getTxDtls(), "transaction details");
     var endToEndId =
@@ -147,6 +172,8 @@ public record BankStatementEntry(
                 ee.tuleva.onboarding.banking.iso20022.camt053.TransactionReferences2::getEndToEndId)
             .orElse(null);
 
+    var subFamilyCode = extractSubFamilyCode(entry);
+
     return new BankStatementEntry(
         counterPartyDetails,
         entryAmount,
@@ -154,7 +181,20 @@ public record BankStatementEntry(
         transactionType,
         remittanceInformation,
         externalId,
-        endToEndId);
+        endToEndId,
+        subFamilyCode);
+  }
+
+  @Nullable
+  private static String extractSubFamilyCode(
+      ee.tuleva.onboarding.banking.iso20022.camt053.ReportEntry2 entry) {
+    return Optional.ofNullable(entry.getBkTxCd())
+        .map(ee.tuleva.onboarding.banking.iso20022.camt053.BankTransactionCodeStructure4::getDomn)
+        .map(ee.tuleva.onboarding.banking.iso20022.camt053.BankTransactionCodeStructure5::getFmly)
+        .map(
+            ee.tuleva.onboarding.banking.iso20022.camt053.BankTransactionCodeStructure6
+                ::getSubFmlyCd)
+        .orElse(null);
   }
 
   static BankStatementEntry from(ReportEntry2 entry) {
@@ -165,10 +205,8 @@ public record BankStatementEntry(
 
     var currencyCode = entry.getAmt().getCcy();
 
-    // Determine transaction type
     var transactionType = creditOrDebit == CRDT ? TransactionType.CREDIT : TransactionType.DEBIT;
 
-    // Collect all remittance information from all transaction details and require exactly one
     var remittanceInformationList =
         entry.getNtryDtls().stream()
             .flatMap(ntryDtl -> ntryDtl.getTxDtls().stream())
@@ -182,10 +220,8 @@ public record BankStatementEntry(
     var remittanceInformation =
         Require.exactlyOne(remittanceInformationList, "remittance information");
 
-    // Extract external ID from entry reference
     var externalId = entry.getNtryRef();
 
-    // Extract end-to-end ID from transaction references (used for matching return payments)
     var entryDetails = Require.exactlyOne(entry.getNtryDtls(), "entry details");
     var transactionDetails = Require.exactlyOne(entryDetails.getTxDtls(), "transaction details");
     var endToEndId =
@@ -194,6 +230,8 @@ public record BankStatementEntry(
                 ee.tuleva.onboarding.banking.iso20022.camt052.TransactionReferences2::getEndToEndId)
             .orElse(null);
 
+    var subFamilyCode = extractSubFamilyCode(entry);
+
     return new BankStatementEntry(
         counterPartyDetails,
         entryAmount,
@@ -201,6 +239,18 @@ public record BankStatementEntry(
         transactionType,
         remittanceInformation,
         externalId,
-        endToEndId);
+        endToEndId,
+        subFamilyCode);
+  }
+
+  @Nullable
+  private static String extractSubFamilyCode(ReportEntry2 entry) {
+    return Optional.ofNullable(entry.getBkTxCd())
+        .map(ee.tuleva.onboarding.banking.iso20022.camt052.BankTransactionCodeStructure4::getDomn)
+        .map(ee.tuleva.onboarding.banking.iso20022.camt052.BankTransactionCodeStructure5::getFmly)
+        .map(
+            ee.tuleva.onboarding.banking.iso20022.camt052.BankTransactionCodeStructure6
+                ::getSubFmlyCd)
+        .orElse(null);
   }
 }

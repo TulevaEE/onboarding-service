@@ -34,6 +34,7 @@ public class SavingFundPaymentExtractor {
     var receivedBefore = statement.getReceivedBefore();
 
     return statement.getEntries().stream()
+        .filter(entry -> entry.details() != null)
         .map(entry -> convertToSavingFundPayment(entry, account, receivedBefore))
         .toList();
   }

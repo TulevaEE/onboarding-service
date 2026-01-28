@@ -5,6 +5,7 @@ import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
+import ee.tuleva.onboarding.banking.processor.BankOperationProcessor;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -17,6 +18,7 @@ import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,8 +35,9 @@ public class SebBankStatementProcessor {
   private final RedemptionRequestRepository redemptionRequestRepository;
   private final RedemptionStatusService redemptionStatusService;
   private final EndToEndIdConverter endToEndIdConverter;
+  private final BankOperationProcessor bankOperationProcessor;
 
-  public void processStatement(BankStatement bankStatement) {
+  public void processStatement(BankStatement bankStatement, UUID messageId) {
     log.info(
         "Processing bank statement: type={}, entries={}",
         bankStatement.getType(),
@@ -53,6 +56,10 @@ public class SebBankStatementProcessor {
 
     payments.forEach(payment -> processPayment(payment, accountType));
     log.info("Processed payments: count={}, accountType={}", payments.size(), accountType);
+
+    bankStatement.getEntries().stream()
+        .filter(entry -> entry.details() == null)
+        .forEach(entry -> bankOperationProcessor.processBankOperation(entry, messageId));
   }
 
   private SavingFundPayment.Status resolveDepositAccountStatus(SavingFundPayment payment) {

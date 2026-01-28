@@ -513,12 +513,12 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
 
       String xmlWithMissingCounterPartyIban = createCamt053Xml(entries);
 
-      assertThatThrownBy(
-              () ->
-                  extractor.extractFromHistoricStatement(
-                      xmlWithMissingCounterPartyIban, SWEDBANK_GATEWAY_TIME_ZONE))
-          .isInstanceOf(BankStatementParseException.class)
-          .hasMessageContaining("counter-party IBAN is required");
+      var statement =
+          extractor.extractFromHistoricStatement(
+              xmlWithMissingCounterPartyIban, SWEDBANK_GATEWAY_TIME_ZONE);
+
+      assertThat(statement.getEntries()).hasSize(1);
+      assertThat(statement.getEntries().get(0).details()).isNull();
     }
 
     @Test

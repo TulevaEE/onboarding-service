@@ -91,9 +91,9 @@ seb-gateway:
   url: ''
   org-id: ''
   accounts:
-    DEPOSIT_EUR: ''
-    WITHDRAWAL_EUR: ''
-    FUND_INVESTMENT_EUR: ''
+    DEPOSIT_EUR: 'SEB_DEPOSIT_PLACEHOLDER'
+    WITHDRAWAL_EUR: 'SEB_WITHDRAWAL_PLACEHOLDER'
+    FUND_INVESTMENT_EUR: 'SEB_INVESTMENT_PLACEHOLDER'
 
 springdoc:
   swagger-ui:
@@ -216,7 +216,7 @@ spring:
         - dev
 
 swedbank-gateway:
-  enabled: true
+  enabled: false
   keystore:
     path: "test_keys/swedbank-gateway.p12"
     password: changeit
@@ -227,6 +227,12 @@ swedbank-gateway:
     DEPOSIT_EUR: ${SWEDBANK_GATEWAY_DEPOSIT_EUR_ACCOUNT_IBAN:EE_TEST_IBAN}
     WITHDRAWAL_EUR: ${SWEDBANK_GATEWAY_WITHDRAWAL_EUR_ACCOUNT_IBAN:EE_TEST_IBAN_2}
     FUND_INVESTMENT_EUR: ${SWEDBANK_GATEWAY_INVESTMENT_EUR_ACCOUNT_IBAN:EE_TEST_IBAN_3}
+
+seb-gateway:
+  enabled: true
+  keystore:
+    path: "test_keys/test-seb-keystore.p12"
+    password: changeit
 ---
 spring:
   flyway:

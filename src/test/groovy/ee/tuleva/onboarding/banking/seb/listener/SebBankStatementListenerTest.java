@@ -28,11 +28,12 @@ class SebBankStatementListenerTest {
   @Test
   void processStatement_shouldProcessSebStatements() {
     var statement = createStatement();
-    var event = new BankStatementReceived(UUID.randomUUID(), SEB, statement);
+    var messageId = UUID.randomUUID();
+    var event = new BankStatementReceived(messageId, SEB, statement);
 
     listener.processStatement(event);
 
-    verify(processor).processStatement(statement);
+    verify(processor).processStatement(statement, messageId);
   }
 
   @Test

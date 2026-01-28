@@ -788,6 +788,63 @@ class SwedbankBankStatementExtractorIntraDayTest {
       assertThat(statement).isNotNull();
       assertThat(statement.getEntries()).isEmpty();
     }
+
+    @Test
+    void extractFromIntraDayReport_shouldUseAcctSvcrRefAsExternalIdWhenNtryRefIsMissing() {
+      var entries =
+          List.of(
+              """
+          <Ntry>
+            <Amt Ccy="EUR">100.00</Amt>
+            <CdtDbtInd>CRDT</CdtDbtInd>
+            <Sts>BOOK</Sts>
+            <BookgDt>
+              <Dt>2025-09-29</Dt>
+            </BookgDt>
+            <ValDt>
+              <Dt>2025-09-29</Dt>
+            </ValDt>
+            <AcctSvcrRef>RO4074890734L02</AcctSvcrRef>
+            <NtryDtls>
+              <TxDtls>
+                <Refs>
+                  <AcctSvcrRef>RO4074890734L02</AcctSvcrRef>
+                </Refs>
+                <AmtDtls>
+                  <InstdAmt>
+                    <Amt Ccy="EUR">100.00</Amt>
+                  </InstdAmt>
+                  <TxAmt>
+                    <Amt Ccy="EUR">100.00</Amt>
+                  </TxAmt>
+                </AmtDtls>
+                <RltdPties>
+                  <Dbtr>
+                    <Nm>Test Person</Nm>
+                  </Dbtr>
+                  <DbtrAcct>
+                    <Id>
+                      <IBAN>EE123456789012345678</IBAN>
+                    </Id>
+                  </DbtrAcct>
+                </RltdPties>
+                <RmtInf>
+                  <Ustrd>Test payment</Ustrd>
+                </RmtInf>
+              </TxDtls>
+            </NtryDtls>
+          </Ntry>
+          """
+                  .stripIndent());
+
+      String xmlWithAcctSvcrRefOnly = createCamt052Xml(entries);
+
+      var statement =
+          extractor.extractFromIntraDayReport(xmlWithAcctSvcrRefOnly, SWEDBANK_GATEWAY_TIME_ZONE);
+
+      assertThat(statement.getEntries()).hasSize(1);
+      assertThat(statement.getEntries().getFirst().externalId()).isEqualTo("RO4074890734L02");
+    }
   }
 
   private String createCamt052Xml(List<String> entries) {

@@ -11,6 +11,7 @@ import java.util.Map;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.commons.io.input.BOMInputStream;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -26,7 +27,10 @@ public class CsvToJsonConverter {
             .setTrim(true)
             .setIgnoreEmptyLines(true)
             .build()
-            .parse(new InputStreamReader(csvInputStream, StandardCharsets.UTF_8))) {
+            .parse(
+                new InputStreamReader(
+                    BOMInputStream.builder().setInputStream(csvInputStream).get(),
+                    StandardCharsets.UTF_8))) {
 
       return parser.stream().map(this::recordToMap).toList();
 

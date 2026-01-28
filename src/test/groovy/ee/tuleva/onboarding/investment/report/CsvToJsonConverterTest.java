@@ -87,6 +87,21 @@ class CsvToJsonConverterTest {
   }
 
   @Test
+  void convert_stripsByteOrderMark() {
+    byte[] bom = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
+    byte[] csv = "Name;Amount\nTest;100".getBytes(StandardCharsets.UTF_8);
+    byte[] csvWithBom = new byte[bom.length + csv.length];
+    System.arraycopy(bom, 0, csvWithBom, 0, bom.length);
+    System.arraycopy(csv, 0, csvWithBom, bom.length, csv.length);
+    var inputStream = new ByteArrayInputStream(csvWithBom);
+
+    List<Map<String, Object>> result = converter.convert(inputStream, ';');
+
+    assertThat(result.getFirst()).containsKey("Name");
+    assertThat(result.getFirst().get("Name")).isEqualTo("Test");
+  }
+
+  @Test
   void convert_returnsEmptyListForEmptyCsv() {
     String csv = "Name;Amount";
     var inputStream = new ByteArrayInputStream(csv.getBytes(StandardCharsets.UTF_8));

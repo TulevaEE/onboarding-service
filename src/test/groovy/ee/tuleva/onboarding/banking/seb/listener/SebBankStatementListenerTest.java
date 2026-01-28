@@ -33,7 +33,7 @@ class SebBankStatementListenerTest {
 
     listener.processStatement(event);
 
-    verify(processor).processStatement(statement, messageId);
+    verify(processor).processStatement(statement);
   }
 
   @Test

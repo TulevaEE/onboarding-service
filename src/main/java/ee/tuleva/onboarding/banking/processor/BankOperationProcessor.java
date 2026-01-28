@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.banking.processor;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import java.math.BigDecimal;
@@ -20,7 +23,8 @@ public class BankOperationProcessor {
 
   private final SavingsFundLedger savingsFundLedger;
 
-  public void processBankOperation(BankStatementEntry entry, UUID messageId) {
+  public void processBankOperation(
+      BankStatementEntry entry, String accountIban, BankAccountType accountType) {
     if (entry.details() != null) {
       return;
     }
@@ -35,9 +39,10 @@ public class BankOperationProcessor {
     }
 
     var externalReference =
-        UUID.nameUUIDFromBytes((messageId + ":" + entry.externalId()).getBytes());
+        UUID.nameUUIDFromBytes((accountIban + ":" + entry.externalId()).getBytes(UTF_8));
 
     var amount = normalizeAmount(entry.amount());
+    var clearingAccount = accountType.getLedgerAccount();
 
     if (savingsFundLedger.hasLedgerEntry(externalReference)) {
       log.debug(
@@ -50,27 +55,30 @@ public class BankOperationProcessor {
     switch (subFamilyCode) {
       case INTR -> {
         log.info(
-            "Bank interest received: amount={}, externalRef={}, description={}",
+            "Bank interest received: amount={}, externalRef={}, account={}, description={}",
             amount,
             externalReference,
+            accountType,
             entry.remittanceInformation());
-        savingsFundLedger.recordInterestReceived(amount, externalReference);
+        savingsFundLedger.recordInterestReceived(amount, externalReference, clearingAccount);
       }
       case FEES -> {
         log.info(
-            "Bank fee charged: amount={}, externalRef={}, description={}",
+            "Bank fee charged: amount={}, externalRef={}, account={}, description={}",
             amount,
             externalReference,
+            accountType,
             entry.remittanceInformation());
-        savingsFundLedger.recordBankFee(amount, externalReference);
+        savingsFundLedger.recordBankFee(amount, externalReference, clearingAccount);
       }
       case ADJT -> {
         log.info(
-            "Bank fee adjustment: amount={}, externalRef={}, description={}",
+            "Bank fee adjustment: amount={}, externalRef={}, account={}, description={}",
             amount,
             externalReference,
+            accountType,
             entry.remittanceInformation());
-        savingsFundLedger.recordBankAdjustment(amount, externalReference);
+        savingsFundLedger.recordBankAdjustment(amount, externalReference, clearingAccount);
       }
       default ->
           log.warn(

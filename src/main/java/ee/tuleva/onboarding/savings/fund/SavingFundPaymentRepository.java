@@ -5,6 +5,7 @@ import static java.time.temporal.ChronoUnit.DAYS;
 
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
+import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -162,7 +163,48 @@ public class SavingFundPaymentRepository {
       return Optional.empty();
     }
     return findById(originalPaymentId)
-        .filter(payment -> Set.of(TO_BE_RETURNED, RETURNED).contains(payment.getStatus()));
+        .filter(
+            payment ->
+                Set.of(CREATED, RECEIVED, VERIFIED, TO_BE_RETURNED, RETURNED)
+                    .contains(payment.getStatus()));
+  }
+
+  public List<SavingFundPayment> findUnmatchedOutgoingReturns() {
+    return jdbcTemplate.query(
+        """
+        select * from saving_fund_payment
+        where status = 'PROCESSED'
+          and amount < 0
+          and end_to_end_id is not null
+          and length(end_to_end_id) = 32
+        """,
+        this::rowMapper);
+  }
+
+  public Optional<SavingFundPayment> findOriginalPaymentByIbanAndAmount(
+      String beneficiaryIban, BigDecimal returnAmount) {
+    var results =
+        jdbcTemplate.query(
+            """
+            SELECT * FROM saving_fund_payment
+            WHERE remitter_iban = :iban
+              AND amount = :amount
+              AND status IN (:statuses)
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            Map.of(
+                "iban", beneficiaryIban,
+                "amount", returnAmount.negate(),
+                "statuses",
+                    List.of(
+                        CREATED.name(),
+                        RECEIVED.name(),
+                        VERIFIED.name(),
+                        TO_BE_RETURNED.name(),
+                        RETURNED.name())),
+            this::rowMapper);
+    return results.isEmpty() ? Optional.empty() : Optional.of(results.getFirst());
   }
 
   private UUID toUuid(String endToEndId) {

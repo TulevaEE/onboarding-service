@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.banking.processor;
 
+import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
+import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -26,7 +28,7 @@ class BankOperationProcessorTest {
   void processBankOperation_skipsEntriesWithCounterparty() {
     var entry = createEntryWithCounterparty();
 
-    processor.processBankOperation(entry, UUID.randomUUID());
+    processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
 
     verifyNoInteractions(savingsFundLedger);
   }
@@ -36,9 +38,10 @@ class BankOperationProcessorTest {
     var amount = new BigDecimal("5.00");
     var entry = createBankOperationEntry("INTR", amount);
 
-    processor.processBankOperation(entry, UUID.randomUUID());
+    processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
 
-    verify(savingsFundLedger).recordInterestReceived(eq(amount), any(UUID.class));
+    verify(savingsFundLedger)
+        .recordInterestReceived(eq(amount), any(UUID.class), eq(INCOMING_PAYMENTS_CLEARING));
   }
 
   @Test
@@ -46,9 +49,10 @@ class BankOperationProcessorTest {
     var amount = new BigDecimal("-1.00");
     var entry = createBankOperationEntry("FEES", amount);
 
-    processor.processBankOperation(entry, UUID.randomUUID());
+    processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
 
-    verify(savingsFundLedger).recordBankFee(eq(amount), any(UUID.class));
+    verify(savingsFundLedger)
+        .recordBankFee(eq(amount), any(UUID.class), eq(INCOMING_PAYMENTS_CLEARING));
   }
 
   @Test
@@ -56,9 +60,10 @@ class BankOperationProcessorTest {
     var amount = new BigDecimal("0.50");
     var entry = createBankOperationEntry("ADJT", amount);
 
-    processor.processBankOperation(entry, UUID.randomUUID());
+    processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
 
-    verify(savingsFundLedger).recordBankAdjustment(eq(amount), any(UUID.class));
+    verify(savingsFundLedger)
+        .recordBankAdjustment(eq(amount), any(UUID.class), eq(INCOMING_PAYMENTS_CLEARING));
   }
 
   @Test
@@ -66,27 +71,27 @@ class BankOperationProcessorTest {
     var entry = createBankOperationEntry("INTR", new BigDecimal("5.00"));
     when(savingsFundLedger.hasLedgerEntry(any(UUID.class))).thenReturn(true);
 
-    processor.processBankOperation(entry, UUID.randomUUID());
+    processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
 
-    verify(savingsFundLedger, never()).recordInterestReceived(any(), any());
+    verify(savingsFundLedger, never()).recordInterestReceived(any(), any(), any());
   }
 
   @Test
   void processBankOperation_doesNotRecordUnknownSubFamilyCode() {
     var entry = createBankOperationEntry("UNKN", new BigDecimal("10.00"));
 
-    processor.processBankOperation(entry, UUID.randomUUID());
+    processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
 
-    verify(savingsFundLedger, never()).recordInterestReceived(any(), any());
-    verify(savingsFundLedger, never()).recordBankFee(any(), any());
-    verify(savingsFundLedger, never()).recordBankAdjustment(any(), any());
+    verify(savingsFundLedger, never()).recordInterestReceived(any(), any(), any());
+    verify(savingsFundLedger, never()).recordBankFee(any(), any(), any());
+    verify(savingsFundLedger, never()).recordBankAdjustment(any(), any(), any());
   }
 
   @Test
   void processBankOperation_handlesNullSubFamilyCode() {
     var entry = createBankOperationEntry(null, new BigDecimal("10.00"));
 
-    processor.processBankOperation(entry, UUID.randomUUID());
+    processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
 
     verifyNoInteractions(savingsFundLedger);
   }

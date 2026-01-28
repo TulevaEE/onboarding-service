@@ -395,9 +395,10 @@ public class SavingsFundLedger {
   }
 
   @Transactional
-  public LedgerTransaction recordBankFee(BigDecimal amount, UUID externalReference) {
+  public LedgerTransaction recordBankFee(
+      BigDecimal amount, UUID externalReference, SystemAccount clearingAccount) {
     LedgerAccount bankFeeExpenseAccount = getSystemAccount(BANK_FEE);
-    LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
+    LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount);
 
     Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, BANK_FEE.name());
 
@@ -406,12 +407,13 @@ public class SavingsFundLedger {
         externalReference,
         metadata,
         entry(bankFeeExpenseAccount, amount.negate()),
-        entry(incomingPaymentsAccount, amount));
+        entry(clearingLedgerAccount, amount));
   }
 
   @Transactional
-  public LedgerTransaction recordInterestReceived(BigDecimal amount, UUID externalReference) {
-    LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
+  public LedgerTransaction recordInterestReceived(
+      BigDecimal amount, UUID externalReference, SystemAccount clearingAccount) {
+    LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount);
     LedgerAccount interestIncomeAccount = getSystemAccount(INTEREST_INCOME);
 
     Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, INTEREST_RECEIVED.name());
@@ -420,14 +422,15 @@ public class SavingsFundLedger {
         Instant.now(clock),
         externalReference,
         metadata,
-        entry(incomingPaymentsAccount, amount),
+        entry(clearingLedgerAccount, amount),
         entry(interestIncomeAccount, amount.negate()));
   }
 
   @Transactional
-  public LedgerTransaction recordBankAdjustment(BigDecimal amount, UUID externalReference) {
+  public LedgerTransaction recordBankAdjustment(
+      BigDecimal amount, UUID externalReference, SystemAccount clearingAccount) {
     LedgerAccount bankAdjustmentAccount = getSystemAccount(SystemAccount.BANK_ADJUSTMENT);
-    LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
+    LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount);
 
     Map<String, Object> metadata =
         Map.of(OPERATION_TYPE.key, SavingsFundTransactionType.BANK_ADJUSTMENT.name());
@@ -437,7 +440,7 @@ public class SavingsFundLedger {
         externalReference,
         metadata,
         entry(bankAdjustmentAccount, amount.negate()),
-        entry(incomingPaymentsAccount, amount));
+        entry(clearingLedgerAccount, amount));
   }
 
   private LedgerEntryDto entry(LedgerAccount account, BigDecimal amount) {

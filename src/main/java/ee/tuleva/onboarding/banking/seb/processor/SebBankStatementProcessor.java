@@ -11,14 +11,12 @@ import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentExtractor;
-import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.Optional;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -30,14 +28,13 @@ public class SebBankStatementProcessor {
   private final SavingFundPaymentUpsertionService paymentService;
   private final SebAccountConfiguration sebAccountConfiguration;
   private final SavingsFundLedger savingsFundLedger;
-  private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final UserService userService;
   private final RedemptionRequestRepository redemptionRequestRepository;
   private final RedemptionStatusService redemptionStatusService;
   private final EndToEndIdConverter endToEndIdConverter;
   private final BankOperationProcessor bankOperationProcessor;
 
-  public void processStatement(BankStatement bankStatement, UUID messageId) {
+  public void processStatement(BankStatement bankStatement) {
     log.info(
         "Processing bank statement: type={}, entries={}",
         bankStatement.getType(),
@@ -59,7 +56,8 @@ public class SebBankStatementProcessor {
 
     bankStatement.getEntries().stream()
         .filter(entry -> entry.details() == null)
-        .forEach(entry -> bankOperationProcessor.processBankOperation(entry, messageId));
+        .forEach(
+            entry -> bankOperationProcessor.processBankOperation(entry, accountIban, accountType));
   }
 
   private SavingFundPayment.Status resolveDepositAccountStatus(SavingFundPayment payment) {
@@ -101,15 +99,11 @@ public class SebBankStatementProcessor {
           payment.getAmount().negate());
       savingsFundLedger.transferToFundAccount(payment.getAmount().negate());
     } else if (isOutgoingReturn(payment)) {
-      findOriginalPaymentForReturn(payment)
-          .ifPresentOrElse(
-              this::completePaymentReturn,
-              () ->
-                  log.error(
-                      "Original payment not found for return: endToEndId={}, beneficiaryIban={}, amount={}",
-                      payment.getEndToEndId(),
-                      payment.getBeneficiaryIban(),
-                      payment.getAmount()));
+      log.info(
+          "Outgoing return detected, deferring matching to post-processing pass: endToEndId={}, beneficiaryIban={}, amount={}",
+          payment.getEndToEndId(),
+          payment.getBeneficiaryIban(),
+          payment.getAmount());
     } else if (isIncomingPayment(payment)) {
       log.debug(
           "Incoming payment inserted, ledger entry handled by verification: paymentId={}",
@@ -207,42 +201,6 @@ public class SebBankStatementProcessor {
   private boolean isOutgoingToWithdrawalAccount(SavingFundPayment payment) {
     return isOutgoingPayment(payment)
         && sebAccountConfiguration.getAccountType(payment.getBeneficiaryIban()) == WITHDRAWAL_EUR;
-  }
-
-  private void completePaymentReturn(SavingFundPayment originalPayment) {
-    if (isUserCancelledPayment(originalPayment)) {
-      completeUserCancelledPaymentReturn(originalPayment);
-    } else {
-      completeUnattributedPaymentBounceBack(originalPayment);
-    }
-  }
-
-  private boolean isUserCancelledPayment(SavingFundPayment payment) {
-    return payment.getUserId() != null;
-  }
-
-  private void completeUserCancelledPaymentReturn(SavingFundPayment originalPayment) {
-    var user = userService.getByIdOrThrow(originalPayment.getUserId());
-    log.info(
-        "Completing ledger entry for user-cancelled payment: paymentId={}, amount={}",
-        originalPayment.getId(),
-        originalPayment.getAmount());
-    savingsFundLedger.recordPaymentCancelled(
-        user, originalPayment.getAmount(), originalPayment.getId());
-  }
-
-  private void completeUnattributedPaymentBounceBack(SavingFundPayment originalPayment) {
-    log.info(
-        "Completing ledger entry for unattributed payment bounce back: paymentId={}, amount={}",
-        originalPayment.getId(),
-        originalPayment.getAmount());
-    savingsFundLedger.bounceBackUnattributedPayment(
-        originalPayment.getAmount(), originalPayment.getId());
-  }
-
-  private Optional<SavingFundPayment> findOriginalPaymentForReturn(
-      SavingFundPayment returnPayment) {
-    return savingFundPaymentRepository.findOriginalPaymentForReturn(returnPayment.getEndToEndId());
   }
 
   private boolean isOutgoingToFundAccount(SavingFundPayment payment) {

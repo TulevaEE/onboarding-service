@@ -258,7 +258,8 @@ class SavingsFundLedgerTest {
     var amount = new BigDecimal("-1.50");
     var externalReference = randomUUID();
 
-    var transaction = savingsFundLedger.recordBankFee(amount, externalReference);
+    var transaction =
+        savingsFundLedger.recordBankFee(amount, externalReference, INCOMING_PAYMENTS_CLEARING);
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("BANK_FEE");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
@@ -272,7 +273,9 @@ class SavingsFundLedgerTest {
     var amount = new BigDecimal("5.00");
     var externalReference = randomUUID();
 
-    var transaction = savingsFundLedger.recordInterestReceived(amount, externalReference);
+    var transaction =
+        savingsFundLedger.recordInterestReceived(
+            amount, externalReference, INCOMING_PAYMENTS_CLEARING);
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("INTEREST_RECEIVED");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
@@ -287,7 +290,9 @@ class SavingsFundLedgerTest {
     var amount = new BigDecimal("0.500");
     var externalReference = randomUUID();
 
-    var transaction = savingsFundLedger.recordBankAdjustment(amount, externalReference);
+    var transaction =
+        savingsFundLedger.recordBankAdjustment(
+            amount, externalReference, INCOMING_PAYMENTS_CLEARING);
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("BANK_ADJUSTMENT");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);

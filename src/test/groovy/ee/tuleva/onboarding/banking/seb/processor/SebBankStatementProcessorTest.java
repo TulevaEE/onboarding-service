@@ -2,8 +2,6 @@ package ee.tuleva.onboarding.banking.seb.processor;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.banking.BankAccountType.*;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RETURNED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentFixture.aPayment;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.REDEEMED;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -21,7 +19,6 @@ import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentExtractor;
-import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
@@ -43,13 +40,11 @@ class SebBankStatementProcessorTest {
   private static final String FUND_INVESTMENT_IBAN = "EE552200221055544433";
   private static final String WITHDRAWAL_ACCOUNT_IBAN = "EE662200221066655544";
   private static final String EXTERNAL_ACCOUNT_IBAN = "EE112233445566778899";
-  private static final UUID MESSAGE_ID = UUID.randomUUID();
 
   SavingFundPaymentExtractor paymentExtractor = mock(SavingFundPaymentExtractor.class);
   SavingFundPaymentUpsertionService paymentService = mock(SavingFundPaymentUpsertionService.class);
   SebAccountConfiguration sebAccountConfiguration = mock(SebAccountConfiguration.class);
   SavingsFundLedger savingsFundLedger = mock(SavingsFundLedger.class);
-  SavingFundPaymentRepository savingFundPaymentRepository = mock(SavingFundPaymentRepository.class);
   UserService userService = mock(UserService.class);
   RedemptionRequestRepository redemptionRequestRepository = mock(RedemptionRequestRepository.class);
   RedemptionStatusService redemptionStatusService = mock(RedemptionStatusService.class);
@@ -62,7 +57,6 @@ class SebBankStatementProcessorTest {
           paymentService,
           sebAccountConfiguration,
           savingsFundLedger,
-          savingFundPaymentRepository,
           userService,
           redemptionRequestRepository,
           redemptionStatusService,
@@ -77,117 +71,26 @@ class SebBankStatementProcessorTest {
     when(sebAccountConfiguration.getAccountType(FUND_INVESTMENT_IBAN))
         .thenReturn(FUND_INVESTMENT_EUR);
 
-    processor.processStatement(bankStatement, MESSAGE_ID);
+    processor.processStatement(bankStatement);
 
     verify(savingsFundLedger).transferToFundAccount(new BigDecimal("100.00"));
   }
 
   @Test
-  void outgoingReturn_userCancelled_createsPaymentCancelledLedgerEntry() {
-    User user = sampleUser().build();
-    var originalPaymentId = UUID.randomUUID();
-    var endToEndId = originalPaymentId.toString().replace("-", "");
-    var originalPayment =
-        aPayment()
-            .id(originalPaymentId)
-            .userId(user.getId())
-            .amount(new BigDecimal("50.00"))
-            .remitterIban(EXTERNAL_ACCOUNT_IBAN)
-            .status(RETURNED)
-            .build();
+  void outgoingReturn_defersMatchingToPostProcessingPass() {
     var returnPayment =
         aPayment()
             .amount(new BigDecimal("-50.00"))
-            .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
-            .endToEndId(endToEndId)
-            .build();
-    var bankStatement = setupMocksForPayment(returnPayment);
-    when(sebAccountConfiguration.getAccountType(EXTERNAL_ACCOUNT_IBAN)).thenReturn(null);
-    when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
-        .thenReturn(Optional.of(originalPayment));
-    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
-
-    processor.processStatement(bankStatement, MESSAGE_ID);
-
-    verify(savingsFundLedger)
-        .recordPaymentCancelled(user, new BigDecimal("50.00"), originalPaymentId);
-  }
-
-  @Test
-  void outgoingReturn_unattributed_createsBounceBackLedgerEntry() {
-    var originalPaymentId = UUID.randomUUID();
-    var endToEndId = originalPaymentId.toString().replace("-", "");
-    var originalPayment =
-        aPayment()
-            .id(originalPaymentId)
-            .userId(null)
-            .amount(new BigDecimal("75.00"))
-            .remitterIban(EXTERNAL_ACCOUNT_IBAN)
-            .status(TO_BE_RETURNED)
-            .build();
-    var returnPayment =
-        aPayment()
-            .amount(new BigDecimal("-75.00"))
-            .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
-            .endToEndId(endToEndId)
-            .build();
-    var bankStatement = setupMocksForPayment(returnPayment);
-    when(sebAccountConfiguration.getAccountType(EXTERNAL_ACCOUNT_IBAN)).thenReturn(null);
-    when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
-        .thenReturn(Optional.of(originalPayment));
-
-    processor.processStatement(bankStatement, MESSAGE_ID);
-
-    verify(savingsFundLedger)
-        .bounceBackUnattributedPayment(new BigDecimal("75.00"), originalPaymentId);
-  }
-
-  @Test
-  void outgoingReturn_originalNotFound_doesNotCreateLedgerEntry() {
-    var returnPayment =
-        aPayment()
-            .amount(new BigDecimal("-100.00"))
             .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
             .endToEndId("nonexistent12345678901234567890")
             .build();
     var bankStatement = setupMocksForPayment(returnPayment);
     when(sebAccountConfiguration.getAccountType(EXTERNAL_ACCOUNT_IBAN)).thenReturn(null);
-    when(savingFundPaymentRepository.findOriginalPaymentForReturn(any()))
-        .thenReturn(Optional.empty());
 
-    processor.processStatement(bankStatement, MESSAGE_ID);
+    processor.processStatement(bankStatement);
 
     verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
     verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
-  }
-
-  @Test
-  void userCancelledReturn_throwsWhenUserNotFound() {
-    Long missingUserId = 99999L;
-    var originalPaymentId = UUID.randomUUID();
-    var endToEndId = originalPaymentId.toString().replace("-", "");
-    var originalPayment =
-        aPayment()
-            .id(originalPaymentId)
-            .userId(missingUserId)
-            .amount(new BigDecimal("50.00"))
-            .remitterIban(EXTERNAL_ACCOUNT_IBAN)
-            .status(RETURNED)
-            .build();
-    var returnPayment =
-        aPayment()
-            .amount(new BigDecimal("-50.00"))
-            .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
-            .endToEndId(endToEndId)
-            .build();
-    var bankStatement = setupMocksForPayment(returnPayment);
-    when(sebAccountConfiguration.getAccountType(EXTERNAL_ACCOUNT_IBAN)).thenReturn(null);
-    when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
-        .thenReturn(Optional.of(originalPayment));
-    when(userService.getByIdOrThrow(missingUserId)).thenThrow(new NoSuchElementException());
-
-    assertThrows(
-        NoSuchElementException.class, () -> processor.processStatement(bankStatement, MESSAGE_ID));
   }
 
   @Test
@@ -195,7 +98,7 @@ class SebBankStatementProcessorTest {
     var incomingPayment = aPayment().amount(new BigDecimal("200.00")).build();
     var bankStatement = setupMocksForPayment(incomingPayment);
 
-    processor.processStatement(bankStatement, MESSAGE_ID);
+    processor.processStatement(bankStatement);
 
     verify(savingsFundLedger, never()).transferToFundAccount(any());
     verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
@@ -267,7 +170,7 @@ class SebBankStatementProcessorTest {
     when(savingsFundLedger.hasPayoutEntry(redemptionRequestId)).thenReturn(false);
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
 
-    processor.processStatement(bankStatement, MESSAGE_ID);
+    processor.processStatement(bankStatement);
 
     verify(savingsFundLedger)
         .recordRedemptionPayout(user, new BigDecimal("500.00"), customerIban, redemptionRequestId);
@@ -299,7 +202,7 @@ class SebBankStatementProcessorTest {
         .thenReturn(Optional.of(redemptionRequest));
     when(savingsFundLedger.hasPayoutEntry(redemptionRequestId)).thenReturn(true);
 
-    processor.processStatement(bankStatement, MESSAGE_ID);
+    processor.processStatement(bankStatement);
 
     verify(savingsFundLedger, never()).recordRedemptionPayout(any(), any(), any(), any());
     verify(redemptionStatusService)
@@ -331,8 +234,7 @@ class SebBankStatementProcessorTest {
     when(savingsFundLedger.hasPayoutEntry(redemptionRequestId)).thenReturn(false);
     when(userService.getByIdOrThrow(missingUserId)).thenThrow(new NoSuchElementException());
 
-    assertThrows(
-        NoSuchElementException.class, () -> processor.processStatement(bankStatement, MESSAGE_ID));
+    assertThrows(NoSuchElementException.class, () -> processor.processStatement(bankStatement));
   }
 
   @Test
@@ -349,7 +251,7 @@ class SebBankStatementProcessorTest {
     when(redemptionRequestRepository.findByIdAndStatus(any(), eq(REDEEMED)))
         .thenReturn(Optional.empty());
 
-    processor.processStatement(bankStatement, MESSAGE_ID);
+    processor.processStatement(bankStatement);
 
     verifyNoInteractions(redemptionStatusService);
   }
@@ -363,7 +265,7 @@ class SebBankStatementProcessorTest {
     when(sebAccountConfiguration.getAccountType(FUND_INVESTMENT_IBAN))
         .thenReturn(FUND_INVESTMENT_EUR);
 
-    processor.processStatement(bankStatement, MESSAGE_ID);
+    processor.processStatement(bankStatement);
 
     verifyNoInteractions(redemptionStatusService);
   }
@@ -380,7 +282,7 @@ class SebBankStatementProcessorTest {
     when(sebAccountConfiguration.getAccountType(WITHDRAWAL_ACCOUNT_IBAN))
         .thenReturn(WITHDRAWAL_EUR);
 
-    processor.processStatement(bankStatement, MESSAGE_ID);
+    processor.processStatement(bankStatement);
 
     verify(savingsFundLedger).transferFromFundAccount(new BigDecimal("1000.00"));
     verifyNoInteractions(redemptionStatusService);

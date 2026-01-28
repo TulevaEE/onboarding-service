@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.payment.savings
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.nimbusds.jose.JWSObject
-import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository
@@ -11,12 +10,7 @@ import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aPaymentProviderConfiguration
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSecretKey
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedPaymentPendingToken
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedSavingsPaymentToken
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedSinglePaymentFinishedToken
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.getAnInternalReference
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
 
 class SavingsCallbackServiceSpec extends Specification {
   MontonioTokenParser tokenParser = new MontonioTokenParser(new ObjectMapper(), aPaymentProviderConfiguration())

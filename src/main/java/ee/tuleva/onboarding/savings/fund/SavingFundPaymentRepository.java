@@ -70,7 +70,7 @@ public class SavingFundPaymentRepository {
         """
         select * from saving_fund_payment where description=:description and created_at > :recent
         """,
-        Map.of("description", description, "recent", Timestamp.from(Instant.now().minus(5, DAYS))),
+        Map.of("description", description, "recent", Timestamp.from(Instant.now().minus(30, DAYS))),
         this::rowMapper);
   }
 

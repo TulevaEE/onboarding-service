@@ -9,6 +9,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -17,6 +18,7 @@ public class SebReconciliator {
   private final LedgerService ledgerService;
   private final SebAccountConfiguration sebAccountConfiguration;
 
+  @Transactional
   public void reconcile(BankStatement bankStatement) {
     var closingBankBalance =
         bankStatement.getBalances().stream()

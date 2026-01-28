@@ -26,7 +26,7 @@ class FeeCalculationIntegrationTest {
 
   @BeforeEach
   void setUp() {
-    insertTestAumData();
+    insertTestPositionData();
     insertFeeRates();
     insertDepotFeeTiers();
   }
@@ -85,28 +85,33 @@ class FeeCalculationIntegrationTest {
         .single();
   }
 
-  private void insertTestAumData() {
-    insertAumValue("AUM_EE3600109435", LocalDate.of(2025, 1, 15), new BigDecimal("1000000000"));
-    insertAumValue("AUM_EE3600109435", LocalDate.of(2025, 1, 14), new BigDecimal("995000000"));
-    insertAumValue("AUM_EE3600109435", LocalDate.of(2025, 1, 13), new BigDecimal("990000000"));
-    insertAumValue("AUM_EE3600109443", LocalDate.of(2025, 1, 15), new BigDecimal("100000000"));
-    insertAumValue("AUM_EE3600001707", LocalDate.of(2025, 1, 15), new BigDecimal("300000000"));
-    insertAumValue("AUM_EE3600109435", LocalDate.of(2024, 12, 31), new BigDecimal("980000000"));
-    insertAumValue("AUM_EE3600109443", LocalDate.of(2024, 12, 31), new BigDecimal("95000000"));
-    insertAumValue("AUM_EE3600001707", LocalDate.of(2024, 12, 31), new BigDecimal("290000000"));
+  private void insertTestPositionData() {
+    insertPositionCalculation(TUK75, LocalDate.of(2025, 1, 15), new BigDecimal("1000000000"));
+    insertPositionCalculation(TUK75, LocalDate.of(2025, 1, 14), new BigDecimal("995000000"));
+    insertPositionCalculation(TUK75, LocalDate.of(2025, 1, 13), new BigDecimal("990000000"));
+    insertPositionCalculation(
+        TulevaFund.TUK00, LocalDate.of(2025, 1, 15), new BigDecimal("100000000"));
+    insertPositionCalculation(
+        TulevaFund.TUV100, LocalDate.of(2025, 1, 15), new BigDecimal("300000000"));
+    insertPositionCalculation(TUK75, LocalDate.of(2024, 12, 31), new BigDecimal("980000000"));
+    insertPositionCalculation(
+        TulevaFund.TUK00, LocalDate.of(2024, 12, 31), new BigDecimal("95000000"));
+    insertPositionCalculation(
+        TulevaFund.TUV100, LocalDate.of(2024, 12, 31), new BigDecimal("290000000"));
   }
 
-  private void insertAumValue(String key, LocalDate date, BigDecimal value) {
+  private void insertPositionCalculation(TulevaFund fund, LocalDate date, BigDecimal marketValue) {
     jdbcClient
         .sql(
             """
-            MERGE INTO index_values (key, date, value, provider, updated_at)
-            KEY (key, date)
-            VALUES (:key, :date, :value, 'TEST', now())
+            INSERT INTO investment_position_calculation
+            (isin, fund_code, date, quantity, calculated_market_value, validation_status, created_at)
+            VALUES (:isin, :fundCode, :date, 1, :marketValue, 'OK', now())
             """)
-        .param("key", key)
+        .param("isin", "TEST_ISIN_" + fund.name())
+        .param("fundCode", fund.name())
         .param("date", date)
-        .param("value", value)
+        .param("marketValue", marketValue)
         .update();
   }
 

@@ -5,6 +5,7 @@ import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.investment.calculation.PositionCalculationRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -19,7 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class DepotFeeCalculatorTest {
 
   @Mock private DepotFeeTierRepository tierRepository;
-  @Mock private AumRepository aumRepository;
+  @Mock private PositionCalculationRepository positionCalculationRepository;
   @Mock private FeeMonthResolver feeMonthResolver;
   @Mock private VatRateProvider vatRateProvider;
 
@@ -30,15 +31,20 @@ class DepotFeeCalculatorTest {
     LocalDate date = LocalDate.of(2025, 7, 15);
     LocalDate feeMonth = LocalDate.of(2025, 7, 1);
     LocalDate previousMonthEnd = LocalDate.of(2025, 6, 30);
-    BigDecimal fundAum = new BigDecimal("500000000");
+    BigDecimal assetValue = new BigDecimal("500000000");
     BigDecimal totalAum = new BigDecimal("1400000000");
     BigDecimal tierRate = new BigDecimal("0.00025");
     BigDecimal vatRate = new BigDecimal("0.24");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(aumRepository.getAumReferenceDate(TUK75, date)).thenReturn(date);
-    when(aumRepository.getAum(TUK75, date)).thenReturn(Optional.of(fundAum));
-    when(aumRepository.getHistoricalMaxTotalAum(previousMonthEnd)).thenReturn(totalAum);
+    when(positionCalculationRepository.getLatestDateUpTo(TUK75, date))
+        .thenReturn(Optional.of(date));
+    when(positionCalculationRepository.getTotalMarketValue(TUK75, date))
+        .thenReturn(Optional.of(assetValue));
+    when(positionCalculationRepository.getLatestDateUpTo(previousMonthEnd))
+        .thenReturn(Optional.of(previousMonthEnd));
+    when(positionCalculationRepository.getTotalMarketValueAllFunds(previousMonthEnd))
+        .thenReturn(Optional.of(totalAum));
     when(tierRepository.findRateForAum(totalAum, feeMonth)).thenReturn(tierRate);
     when(vatRateProvider.getVatRate(feeMonth)).thenReturn(vatRate);
 
@@ -48,13 +54,13 @@ class DepotFeeCalculatorTest {
     assertThat(result.feeType()).isEqualTo(FeeType.DEPOT);
     assertThat(result.accrualDate()).isEqualTo(date);
     assertThat(result.feeMonth()).isEqualTo(feeMonth);
-    assertThat(result.baseValue()).isEqualTo(fundAum);
+    assertThat(result.baseValue()).isEqualTo(assetValue);
     assertThat(result.annualRate()).isEqualTo(tierRate);
     assertThat(result.vatRate()).isEqualTo(vatRate);
     assertThat(result.daysInYear()).isEqualTo(365);
 
     BigDecimal expectedDailyNet =
-        fundAum.multiply(tierRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP);
+        assetValue.multiply(tierRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP);
     BigDecimal expectedDailyGross =
         expectedDailyNet.multiply(BigDecimal.ONE.add(vatRate)).setScale(6, RoundingMode.HALF_UP);
 
@@ -67,15 +73,20 @@ class DepotFeeCalculatorTest {
     LocalDate date = LocalDate.of(2025, 7, 15);
     LocalDate feeMonth = LocalDate.of(2025, 7, 1);
     LocalDate previousMonthEnd = LocalDate.of(2025, 6, 30);
-    BigDecimal fundAum = new BigDecimal("500000000");
+    BigDecimal assetValue = new BigDecimal("500000000");
     BigDecimal totalAum = new BigDecimal("3000000000");
     BigDecimal tierRate = new BigDecimal("0.00015");
     BigDecimal vatRate = new BigDecimal("0.24");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(aumRepository.getAumReferenceDate(TUK75, date)).thenReturn(date);
-    when(aumRepository.getAum(TUK75, date)).thenReturn(Optional.of(fundAum));
-    when(aumRepository.getHistoricalMaxTotalAum(previousMonthEnd)).thenReturn(totalAum);
+    when(positionCalculationRepository.getLatestDateUpTo(TUK75, date))
+        .thenReturn(Optional.of(date));
+    when(positionCalculationRepository.getTotalMarketValue(TUK75, date))
+        .thenReturn(Optional.of(assetValue));
+    when(positionCalculationRepository.getLatestDateUpTo(previousMonthEnd))
+        .thenReturn(Optional.of(previousMonthEnd));
+    when(positionCalculationRepository.getTotalMarketValueAllFunds(previousMonthEnd))
+        .thenReturn(Optional.of(totalAum));
     when(tierRepository.findRateForAum(totalAum, feeMonth)).thenReturn(tierRate);
     when(vatRateProvider.getVatRate(feeMonth)).thenReturn(vatRate);
 
@@ -89,15 +100,20 @@ class DepotFeeCalculatorTest {
     LocalDate date = LocalDate.of(2024, 2, 29);
     LocalDate feeMonth = LocalDate.of(2024, 2, 1);
     LocalDate previousMonthEnd = LocalDate.of(2024, 1, 31);
-    BigDecimal fundAum = new BigDecimal("100000000");
+    BigDecimal assetValue = new BigDecimal("100000000");
     BigDecimal totalAum = new BigDecimal("500000000");
     BigDecimal tierRate = new BigDecimal("0.00035");
     BigDecimal vatRate = new BigDecimal("0.22");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(aumRepository.getAumReferenceDate(TUK75, date)).thenReturn(date);
-    when(aumRepository.getAum(TUK75, date)).thenReturn(Optional.of(fundAum));
-    when(aumRepository.getHistoricalMaxTotalAum(previousMonthEnd)).thenReturn(totalAum);
+    when(positionCalculationRepository.getLatestDateUpTo(TUK75, date))
+        .thenReturn(Optional.of(date));
+    when(positionCalculationRepository.getTotalMarketValue(TUK75, date))
+        .thenReturn(Optional.of(assetValue));
+    when(positionCalculationRepository.getLatestDateUpTo(previousMonthEnd))
+        .thenReturn(Optional.of(previousMonthEnd));
+    when(positionCalculationRepository.getTotalMarketValueAllFunds(previousMonthEnd))
+        .thenReturn(Optional.of(totalAum));
     when(tierRepository.findRateForAum(totalAum, feeMonth)).thenReturn(tierRate);
     when(vatRateProvider.getVatRate(feeMonth)).thenReturn(vatRate);
 
@@ -106,17 +122,17 @@ class DepotFeeCalculatorTest {
     assertThat(result.daysInYear()).isEqualTo(366);
 
     BigDecimal expectedDailyNet =
-        fundAum.multiply(tierRate).divide(BigDecimal.valueOf(366), 6, RoundingMode.HALF_UP);
+        assetValue.multiply(tierRate).divide(BigDecimal.valueOf(366), 6, RoundingMode.HALF_UP);
     assertThat(result.dailyAmountNet()).isEqualByComparingTo(expectedDailyNet);
   }
 
   @Test
-  void calculate_returnsZeroAccrualWhenNoAumData() {
+  void calculate_returnsZeroAccrualWhenNoPositionData() {
     LocalDate date = LocalDate.of(2025, 1, 15);
     LocalDate feeMonth = LocalDate.of(2025, 1, 1);
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(aumRepository.getAumReferenceDate(TUK75, date)).thenReturn(null);
+    when(positionCalculationRepository.getLatestDateUpTo(TUK75, date)).thenReturn(Optional.empty());
 
     FeeAccrual result = calculator.calculate(TUK75, date);
 

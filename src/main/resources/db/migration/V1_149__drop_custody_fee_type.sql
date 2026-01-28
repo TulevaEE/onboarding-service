@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS investment_custody_fee_instrument_type;

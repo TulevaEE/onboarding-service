@@ -16,10 +16,6 @@ public enum TulevaFund {
   private final int pillar;
   private final String isin;
 
-  public String getAumKey() {
-    return "AUM_" + isin;
-  }
-
   public static List<TulevaFund> getPillar2Funds() {
     return Arrays.stream(values()).filter(fund -> fund.pillar == 2).toList();
   }

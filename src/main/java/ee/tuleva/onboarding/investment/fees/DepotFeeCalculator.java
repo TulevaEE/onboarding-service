@@ -8,6 +8,7 @@ import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.investment.TulevaFund;
+import ee.tuleva.onboarding.investment.calculation.PositionCalculationRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
@@ -20,30 +21,32 @@ public class DepotFeeCalculator implements FeeCalculator {
   private static final BigDecimal MIN_ANNUAL_RATE = new BigDecimal("0.00020");
 
   private final DepotFeeTierRepository tierRepository;
-  private final AumRepository aumRepository;
+  private final PositionCalculationRepository positionCalculationRepository;
   private final FeeMonthResolver feeMonthResolver;
   private final VatRateProvider vatRateProvider;
 
   @Override
   public FeeAccrual calculate(TulevaFund fund, LocalDate calendarDate) {
     LocalDate feeMonth = feeMonthResolver.resolveFeeMonth(calendarDate);
-    LocalDate referenceDate = aumRepository.getAumReferenceDate(fund, calendarDate);
+    LocalDate referenceDate =
+        positionCalculationRepository.getLatestDateUpTo(fund, calendarDate).orElse(null);
 
     if (referenceDate == null) {
       return zeroAccrual(fund, DEPOT, calendarDate, feeMonth);
     }
 
-    BigDecimal fundAum = aumRepository.getAum(fund, referenceDate).orElse(ZERO);
+    BigDecimal assetValue =
+        positionCalculationRepository.getTotalMarketValue(fund, referenceDate).orElse(ZERO);
     int daysInYear = daysInYear(calendarDate);
 
     LocalDate previousMonthEnd = feeMonth.minusDays(1);
-    BigDecimal historicalMaxAum = aumRepository.getHistoricalMaxTotalAum(previousMonthEnd);
+    BigDecimal historicalMaxAum = getHistoricalMaxTotalValue(previousMonthEnd);
 
     BigDecimal annualRate = determineDepotRate(historicalMaxAum, feeMonth);
     BigDecimal vatRate = vatRateProvider.getVatRate(feeMonth);
 
     BigDecimal dailyFeeNet =
-        fundAum.multiply(annualRate).divide(BigDecimal.valueOf(daysInYear), 6, HALF_UP);
+        assetValue.multiply(annualRate).divide(BigDecimal.valueOf(daysInYear), 6, HALF_UP);
 
     BigDecimal dailyFeeGross = dailyFeeNet.multiply(ONE.add(vatRate)).setScale(6, HALF_UP);
 
@@ -52,7 +55,7 @@ public class DepotFeeCalculator implements FeeCalculator {
         .feeType(DEPOT)
         .accrualDate(calendarDate)
         .feeMonth(feeMonth)
-        .baseValue(fundAum)
+        .baseValue(assetValue)
         .annualRate(annualRate)
         .dailyAmountNet(dailyFeeNet)
         .dailyAmountGross(dailyFeeGross)
@@ -70,5 +73,13 @@ public class DepotFeeCalculator implements FeeCalculator {
   private BigDecimal determineDepotRate(BigDecimal totalAum, LocalDate feeMonth) {
     BigDecimal tierRate = tierRepository.findRateForAum(totalAum, feeMonth);
     return tierRate.max(MIN_ANNUAL_RATE);
+  }
+
+  private BigDecimal getHistoricalMaxTotalValue(LocalDate upToDate) {
+    LocalDate latestDate = positionCalculationRepository.getLatestDateUpTo(upToDate).orElse(null);
+    if (latestDate == null) {
+      return ZERO;
+    }
+    return positionCalculationRepository.getTotalMarketValueAllFunds(latestDate).orElse(ZERO);
   }
 }

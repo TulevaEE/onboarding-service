@@ -450,7 +450,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     }
 
     @Test
-    void doesNotMarkMessageAsProcessedWhenIbanDiffers() {
+    void createsNewPaymentWhenIbanDiffers() {
       // given - existing payment with different IBAN but same description
       var existingPayment =
           paymentMatchingXmlTemplate().externalId(null).remitterIban("EE999DIFFERENT").build();
@@ -459,9 +459,10 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
       // when - XML arrives with EE157700771001802057
       var messageId = processXmlMessage(XML_TEMPLATE);
 
-      // then - message should not be marked as processed due to IBAN mismatch
+      // then - new payment is created and message is processed
+      assertThat(repository.findAll()).hasSize(2);
       var message = bankingMessageRepository.findById(messageId).orElseThrow();
-      assertThat(message.getProcessedAt()).isNull();
+      assertThat(message.getProcessedAt()).isNotNull();
     }
 
     @Test
@@ -505,7 +506,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     }
 
     @Test
-    void doesNotMarkMessageAsProcessedWhenAmountDiffers() {
+    void createsNewPaymentWhenAmountDiffers() {
       // given - existing payment with different amount but same description
       var existingPayment =
           paymentMatchingXmlTemplate().externalId(null).amount(new BigDecimal("50.00")).build();
@@ -514,9 +515,10 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
       // when - XML arrives with 100.50
       var messageId = processXmlMessage(XML_TEMPLATE);
 
-      // then - message should not be marked as processed due to amount mismatch
+      // then - new payment is created and message is processed
+      assertThat(repository.findAll()).hasSize(2);
       var message = bankingMessageRepository.findById(messageId).orElseThrow();
-      assertThat(message.getProcessedAt()).isNull();
+      assertThat(message.getProcessedAt()).isNotNull();
     }
 
     @Test

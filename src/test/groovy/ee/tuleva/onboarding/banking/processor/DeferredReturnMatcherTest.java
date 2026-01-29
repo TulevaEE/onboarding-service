@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.banking.processor;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentFixture.aPayment;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -35,7 +34,6 @@ class DeferredReturnMatcherTest {
   void matchesUserCancelledReturn() {
     User user = sampleUser().build();
     var originalPaymentId = UUID.randomUUID();
-    var returnReference = deriveReturnReference(originalPaymentId);
     var endToEndId = originalPaymentId.toString().replace("-", "");
     var originalPayment =
         aPayment()
@@ -54,19 +52,18 @@ class DeferredReturnMatcherTest {
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
-    when(savingsFundLedger.hasLedgerEntry(returnReference)).thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId)).thenReturn(false);
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
 
     verify(savingsFundLedger)
-        .recordPaymentCancelled(user, new BigDecimal("50.00"), returnReference);
+        .recordPaymentCancelled(user, new BigDecimal("50.00"), originalPaymentId);
   }
 
   @Test
   void matchesUnattributedBounceBack() {
     var originalPaymentId = UUID.randomUUID();
-    var returnReference = deriveReturnReference(originalPaymentId);
     var endToEndId = originalPaymentId.toString().replace("-", "");
     var originalPayment =
         aPayment()
@@ -85,18 +82,17 @@ class DeferredReturnMatcherTest {
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
-    when(savingsFundLedger.hasLedgerEntry(returnReference)).thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId)).thenReturn(false);
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
 
     verify(savingsFundLedger)
-        .bounceBackUnattributedPayment(new BigDecimal("75.00"), returnReference);
+        .bounceBackUnattributedPayment(new BigDecimal("75.00"), originalPaymentId);
   }
 
   @Test
   void fallsBackToIbanAndAmountMatch() {
     var originalPaymentId = UUID.randomUUID();
-    var returnReference = deriveReturnReference(originalPaymentId);
     var originalPayment =
         aPayment()
             .id(originalPaymentId)
@@ -117,18 +113,17 @@ class DeferredReturnMatcherTest {
     when(savingFundPaymentRepository.findOriginalPaymentByIbanAndAmount(
             "EE112233445566778899", new BigDecimal("-75.00")))
         .thenReturn(Optional.of(originalPayment));
-    when(savingsFundLedger.hasLedgerEntry(returnReference)).thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId)).thenReturn(false);
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
 
     verify(savingsFundLedger)
-        .bounceBackUnattributedPayment(new BigDecimal("75.00"), returnReference);
+        .bounceBackUnattributedPayment(new BigDecimal("75.00"), originalPaymentId);
   }
 
   @Test
   void skipsWhenReturnLedgerEntryAlreadyExists() {
     var originalPaymentId = UUID.randomUUID();
-    var returnReference = deriveReturnReference(originalPaymentId);
     var endToEndId = originalPaymentId.toString().replace("-", "");
     var originalPayment =
         aPayment().id(originalPaymentId).userId(null).amount(new BigDecimal("50.00")).build();
@@ -137,7 +132,7 @@ class DeferredReturnMatcherTest {
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
-    when(savingsFundLedger.hasLedgerEntry(returnReference)).thenReturn(true);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId)).thenReturn(true);
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
 
@@ -158,7 +153,6 @@ class DeferredReturnMatcherTest {
   @Test
   void matchedReturn_transitionsOriginalFromToBeReturnedToReturned() {
     var originalPaymentId = UUID.randomUUID();
-    var returnReference = deriveReturnReference(originalPaymentId);
     var endToEndId = originalPaymentId.toString().replace("-", "");
     var originalPayment =
         aPayment()
@@ -177,7 +171,7 @@ class DeferredReturnMatcherTest {
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
-    when(savingsFundLedger.hasLedgerEntry(returnReference)).thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId)).thenReturn(false);
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
 
@@ -187,7 +181,6 @@ class DeferredReturnMatcherTest {
   @Test
   void matchedReturn_transitionsOriginalFromReceivedThroughToBeReturnedToReturned() {
     var originalPaymentId = UUID.randomUUID();
-    var returnReference = deriveReturnReference(originalPaymentId);
     var endToEndId = originalPaymentId.toString().replace("-", "");
     var originalPayment =
         aPayment()
@@ -206,7 +199,7 @@ class DeferredReturnMatcherTest {
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
-    when(savingsFundLedger.hasLedgerEntry(returnReference)).thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId)).thenReturn(false);
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
 
@@ -219,7 +212,6 @@ class DeferredReturnMatcherTest {
   void matchedReturn_transitionsOriginalFromVerifiedThroughToBeReturnedToReturned() {
     User user = sampleUser().build();
     var originalPaymentId = UUID.randomUUID();
-    var returnReference = deriveReturnReference(originalPaymentId);
     var endToEndId = originalPaymentId.toString().replace("-", "");
     var originalPayment =
         aPayment()
@@ -238,7 +230,7 @@ class DeferredReturnMatcherTest {
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
-    when(savingsFundLedger.hasLedgerEntry(returnReference)).thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId)).thenReturn(false);
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
@@ -252,7 +244,6 @@ class DeferredReturnMatcherTest {
   void matchedReturn_skipsStatusChangeWhenAlreadyReturned() {
     User user = sampleUser().build();
     var originalPaymentId = UUID.randomUUID();
-    var returnReference = deriveReturnReference(originalPaymentId);
     var endToEndId = originalPaymentId.toString().replace("-", "");
     var originalPayment =
         aPayment()
@@ -271,7 +262,7 @@ class DeferredReturnMatcherTest {
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
-    when(savingsFundLedger.hasLedgerEntry(returnReference)).thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId)).thenReturn(false);
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
@@ -283,7 +274,6 @@ class DeferredReturnMatcherTest {
   void matchedReturn_addsReturnReasonForVerifiedPayments() {
     User user = sampleUser().build();
     var originalPaymentId = UUID.randomUUID();
-    var returnReference = deriveReturnReference(originalPaymentId);
     var endToEndId = originalPaymentId.toString().replace("-", "");
     var originalPayment =
         aPayment()
@@ -303,7 +293,7 @@ class DeferredReturnMatcherTest {
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
-    when(savingsFundLedger.hasLedgerEntry(returnReference)).thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId)).thenReturn(false);
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
@@ -330,9 +320,5 @@ class DeferredReturnMatcherTest {
 
     verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
     verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
-  }
-
-  private static UUID deriveReturnReference(UUID paymentId) {
-    return UUID.nameUUIDFromBytes((paymentId + ":return").getBytes(UTF_8));
   }
 }

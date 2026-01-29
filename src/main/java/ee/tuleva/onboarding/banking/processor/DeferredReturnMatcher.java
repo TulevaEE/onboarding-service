@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
@@ -64,9 +62,9 @@ public class DeferredReturnMatcher {
   }
 
   private void completePaymentReturn(SavingFundPayment originalPayment) {
-    var returnReference = deriveReturnReference(originalPayment.getId());
+    var originalPaymentId = originalPayment.getId();
 
-    if (savingsFundLedger.hasLedgerEntry(returnReference)) {
+    if (savingsFundLedger.hasLedgerEntry(originalPaymentId)) {
       return;
     }
 
@@ -74,22 +72,18 @@ public class DeferredReturnMatcher {
       var user = userService.getByIdOrThrow(originalPayment.getUserId());
       log.info(
           "Deferred return matching: creating ledger entry for user-cancelled payment: paymentId={}, amount={}",
-          originalPayment.getId(),
+          originalPaymentId,
           originalPayment.getAmount());
-      savingsFundLedger.recordPaymentCancelled(user, originalPayment.getAmount(), returnReference);
+      savingsFundLedger.recordPaymentCancelled(user, originalPayment.getAmount(), originalPaymentId);
     } else {
       log.info(
           "Deferred return matching: creating ledger entry for unattributed payment bounce back: paymentId={}, amount={}",
-          originalPayment.getId(),
+          originalPaymentId,
           originalPayment.getAmount());
-      savingsFundLedger.bounceBackUnattributedPayment(originalPayment.getAmount(), returnReference);
+      savingsFundLedger.bounceBackUnattributedPayment(originalPayment.getAmount(), originalPaymentId);
     }
 
     transitionToReturned(originalPayment);
-  }
-
-  private UUID deriveReturnReference(UUID paymentId) {
-    return UUID.nameUUIDFromBytes((paymentId + ":return").getBytes(UTF_8));
   }
 
   private void transitionToReturned(SavingFundPayment originalPayment) {

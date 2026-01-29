@@ -49,5 +49,9 @@ class LedgerTransactionService {
     return ledgerTransactionRepository.existsByExternalReference(externalReference);
   }
 
+  public long countByExternalReference(UUID externalReference) {
+    return ledgerTransactionRepository.countByExternalReference(externalReference);
+  }
+
   public record LedgerEntryDto(LedgerAccount account, BigDecimal amount) {}
 }

@@ -133,6 +133,8 @@ public class SavingsFundLedger {
   @Transactional
   public LedgerTransaction recordPaymentCancelled(
       User user, BigDecimal amount, UUID externalReference) {
+    ensureReservationExists(user, amount, externalReference);
+
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userCashReservedAccount = getUserCashReservedAccount(userParty);
     LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
@@ -149,6 +151,14 @@ public class SavingsFundLedger {
         metadata,
         entry(userCashReservedAccount, amount),
         entry(incomingPaymentsAccount, amount.negate()));
+  }
+
+  private void ensureReservationExists(User user, BigDecimal amount, UUID externalReference) {
+    long transactionCount = ledgerTransactionService.countByExternalReference(externalReference);
+    boolean reservationAlreadyExists = transactionCount > 1;
+    if (!reservationAlreadyExists) {
+      reservePaymentForCancellation(user, amount, externalReference);
+    }
   }
 
   @Transactional
@@ -227,6 +237,8 @@ public class SavingsFundLedger {
   @Transactional
   public LedgerTransaction bounceBackUnattributedPayment(
       BigDecimal amount, UUID externalReference) {
+    ensureUnattributedPaymentRecorded(amount, externalReference);
+
     LedgerAccount unreconciledAccount = getUnreconciledBankReceiptsAccount();
     LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
 
@@ -238,6 +250,14 @@ public class SavingsFundLedger {
         metadata,
         entry(unreconciledAccount, amount),
         entry(incomingPaymentsAccount, amount.negate()));
+  }
+
+  private void ensureUnattributedPaymentRecorded(BigDecimal amount, UUID externalReference) {
+    long transactionCount = ledgerTransactionService.countByExternalReference(externalReference);
+    boolean alreadyRecorded = transactionCount > 0;
+    if (!alreadyRecorded) {
+      recordUnattributedPayment(amount, externalReference);
+    }
   }
 
   @Transactional

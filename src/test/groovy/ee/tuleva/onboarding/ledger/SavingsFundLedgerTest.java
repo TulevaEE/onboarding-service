@@ -86,6 +86,18 @@ class SavingsFundLedgerTest {
   }
 
   @Test
+  void bounceBackUnattributedPayment_createsUnattributedRecordWhenMissing() {
+    var amount = new BigDecimal("300.00");
+    var externalReference = randomUUID();
+    // No recordUnattributedPayment call — simulates direct bounce back
+
+    savingsFundLedger.bounceBackUnattributedPayment(amount, externalReference);
+
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
   void reservePaymentForCancellation_movesCashToReserved() {
     var amount = new BigDecimal("500.00");
     var externalReference = randomUUID();
@@ -122,6 +134,20 @@ class SavingsFundLedgerTest {
     assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
     verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void recordPaymentCancelled_createsReservationWhenMissing() {
+    var amount = new BigDecimal("500.00");
+    var externalReference = randomUUID();
+    savingsFundLedger.recordPaymentReceived(testUser, amount, externalReference);
+    // No reservePaymentForCancellation call — simulates manual return
+
+    savingsFundLedger.recordPaymentCancelled(testUser, amount, externalReference);
+
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
   }
 
   @Test

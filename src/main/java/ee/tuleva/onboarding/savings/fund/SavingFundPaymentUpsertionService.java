@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
+import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.CREATED;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.Objects;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -78,9 +80,16 @@ public class SavingFundPaymentUpsertionService {
   }
 
   private Optional<SavingFundPayment> findExistingPayment(SavingFundPayment payment) {
-    log.debug("Looking for matching payment by description: {}", payment.getDescription());
+    log.debug(
+        "Looking for matching payment by description, amount, and remitter IBAN: {}, {}, {}",
+        payment.getDescription(),
+        payment.getAmount(),
+        payment.getRemitterIban());
     return repository.findRecentPayments(payment.getDescription()).stream()
         .filter(p -> p.getExternalId() == null)
+        .filter(p -> p.getStatus() == CREATED)
+        .filter(p -> p.getAmount().compareTo(payment.getAmount()) == 0)
+        .filter(p -> Objects.equals(p.getRemitterIban(), payment.getRemitterIban()))
         .findFirst();
   }
 

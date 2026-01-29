@@ -1,10 +1,15 @@
 package ee.tuleva.onboarding.banking.processor;
 
+import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.user.UserService;
+import java.util.Set;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -59,7 +64,9 @@ public class DeferredReturnMatcher {
   }
 
   private void completePaymentReturn(SavingFundPayment originalPayment) {
-    if (savingsFundLedger.hasLedgerEntry(originalPayment.getId())) {
+    var returnReference = deriveReturnReference(originalPayment.getId());
+
+    if (savingsFundLedger.hasLedgerEntry(returnReference)) {
       return;
     }
 
@@ -69,15 +76,45 @@ public class DeferredReturnMatcher {
           "Deferred return matching: creating ledger entry for user-cancelled payment: paymentId={}, amount={}",
           originalPayment.getId(),
           originalPayment.getAmount());
-      savingsFundLedger.recordPaymentCancelled(
-          user, originalPayment.getAmount(), originalPayment.getId());
+      savingsFundLedger.recordPaymentCancelled(user, originalPayment.getAmount(), returnReference);
     } else {
       log.info(
           "Deferred return matching: creating ledger entry for unattributed payment bounce back: paymentId={}, amount={}",
           originalPayment.getId(),
           originalPayment.getAmount());
-      savingsFundLedger.bounceBackUnattributedPayment(
-          originalPayment.getAmount(), originalPayment.getId());
+      savingsFundLedger.bounceBackUnattributedPayment(originalPayment.getAmount(), returnReference);
+    }
+
+    transitionToReturned(originalPayment);
+  }
+
+  private UUID deriveReturnReference(UUID paymentId) {
+    return UUID.nameUUIDFromBytes((paymentId + ":return").getBytes(UTF_8));
+  }
+
+  private void transitionToReturned(SavingFundPayment originalPayment) {
+    var status = originalPayment.getStatus();
+    if (status == RETURNED) {
+      return;
+    }
+
+    var paymentId = originalPayment.getId();
+
+    if (status == VERIFIED) {
+      if (originalPayment.getReturnReason() == null) {
+        savingFundPaymentRepository.addReturnReason(paymentId, "Returned via deferred matching");
+      }
+      savingFundPaymentRepository.changeStatus(paymentId, TO_BE_RETURNED);
+    } else if (status == RECEIVED) {
+      savingFundPaymentRepository.changeStatus(paymentId, TO_BE_RETURNED);
+    }
+
+    if (Set.of(RECEIVED, VERIFIED, TO_BE_RETURNED).contains(status)) {
+      savingFundPaymentRepository.changeStatus(paymentId, RETURNED);
+      log.info(
+          "Deferred return matching: transitioned original payment to RETURNED: paymentId={}, previousStatus={}",
+          paymentId,
+          status);
     }
   }
 }

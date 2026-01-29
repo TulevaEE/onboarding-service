@@ -69,7 +69,7 @@ public class SavingFundPaymentRepository {
   public List<SavingFundPayment> findRecentPayments(String description) {
     return jdbcTemplate.query(
         """
-        select * from saving_fund_payment where description=:description and created_at > :recent
+        select * from saving_fund_payment where description=:description and created_at > :recent order by created_at asc
         """,
         Map.of("description", description, "recent", Timestamp.from(Instant.now().minus(30, DAYS))),
         this::rowMapper);
@@ -175,8 +175,6 @@ public class SavingFundPaymentRepository {
         select * from saving_fund_payment
         where status = 'PROCESSED'
           and amount < 0
-          and end_to_end_id is not null
-          and length(end_to_end_id) = 32
         """,
         this::rowMapper);
   }

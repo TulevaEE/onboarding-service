@@ -122,6 +122,213 @@ class SavingFundPaymentUpsertionServiceTest {
   }
 
   @Test
+  void upsert_doesNotMatchExistingPaymentWithDifferentAmount() {
+    var existingPayment =
+        SavingFundPayment.builder()
+            .id(UUID.randomUUID())
+            .amount(new BigDecimal("2079.00"))
+            .currency(EUR)
+            .description("37508295796")
+            .remitterIban("EE123")
+            .remitterName("JAAN TAMM")
+            .build();
+
+    var incomingPayment =
+        SavingFundPayment.builder()
+            .amount(new BigDecimal("400.00"))
+            .currency(EUR)
+            .description("37508295796")
+            .externalId("EXT456")
+            .remitterIban("EE123")
+            .remitterName("JAAN TAMM")
+            .receivedBefore(Instant.now())
+            .build();
+
+    when(repository.findByExternalId("EXT456")).thenReturn(Optional.empty());
+    when(repository.findRecentPayments("37508295796")).thenReturn(List.of(existingPayment));
+    when(repository.savePaymentData(incomingPayment)).thenReturn(UUID.randomUUID());
+
+    service.upsert(
+        incomingPayment,
+        p -> SavingFundPayment.Status.RECEIVED,
+        p -> SavingFundPayment.Status.RECEIVED);
+
+    verify(repository).savePaymentData(incomingPayment);
+    verify(repository, never()).updatePaymentData(any(), any());
+  }
+
+  @Test
+  void upsert_matchesCorrectPaymentWhenMultipleExistWithSameDescription() {
+    var matchingPaymentId = UUID.randomUUID();
+    var matchingPayment =
+        SavingFundPayment.builder()
+            .id(matchingPaymentId)
+            .amount(new BigDecimal("2079.00"))
+            .currency(EUR)
+            .description("30101129876")
+            .remitterIban("EE123")
+            .remitterName("KATI KARU")
+            .build();
+
+    var nonMatchingPayment =
+        SavingFundPayment.builder()
+            .id(UUID.randomUUID())
+            .amount(new BigDecimal("400.00"))
+            .currency(EUR)
+            .description("30101129876")
+            .remitterIban("EE123")
+            .remitterName("KATI KARU")
+            .build();
+
+    var incomingPayment =
+        SavingFundPayment.builder()
+            .amount(new BigDecimal("2079.00"))
+            .currency(EUR)
+            .description("30101129876")
+            .externalId("EXT789")
+            .remitterIban("EE123")
+            .remitterName("KATI KARU")
+            .beneficiaryIban("EE456")
+            .beneficiaryName("TULEVA AS")
+            .receivedBefore(Instant.now())
+            .build();
+
+    when(repository.findByExternalId("EXT789")).thenReturn(Optional.empty());
+    when(repository.findRecentPayments("30101129876"))
+        .thenReturn(List.of(nonMatchingPayment, matchingPayment));
+
+    service.upsert(
+        incomingPayment,
+        p -> SavingFundPayment.Status.RECEIVED,
+        p -> SavingFundPayment.Status.RECEIVED);
+
+    verify(repository).updatePaymentData(eq(matchingPaymentId), any());
+    verify(repository, never()).savePaymentData(any());
+  }
+
+  @Test
+  void upsert_matchesOldestUnclaimedPaymentWhenDuplicatesExist() {
+    var firstPaymentId = UUID.randomUUID();
+    var firstPayment =
+        SavingFundPayment.builder()
+            .id(firstPaymentId)
+            .amount(new BigDecimal("400.00"))
+            .currency(EUR)
+            .description("30101129876")
+            .remitterIban("EE123")
+            .remitterName("KATI KARU")
+            .build();
+
+    var secondPaymentId = UUID.randomUUID();
+    var secondPayment =
+        SavingFundPayment.builder()
+            .id(secondPaymentId)
+            .amount(new BigDecimal("400.00"))
+            .currency(EUR)
+            .description("30101129876")
+            .remitterIban("EE123")
+            .remitterName("KATI KARU")
+            .build();
+
+    var firstIncoming =
+        SavingFundPayment.builder()
+            .amount(new BigDecimal("400.00"))
+            .currency(EUR)
+            .description("30101129876")
+            .externalId("EXT_FIRST")
+            .remitterIban("EE123")
+            .remitterName("KATI KARU")
+            .beneficiaryIban("EE456")
+            .beneficiaryName("TULEVA AS")
+            .receivedBefore(Instant.now())
+            .build();
+
+    var secondIncoming =
+        SavingFundPayment.builder()
+            .amount(new BigDecimal("400.00"))
+            .currency(EUR)
+            .description("30101129876")
+            .externalId("EXT_SECOND")
+            .remitterIban("EE123")
+            .remitterName("KATI KARU")
+            .beneficiaryIban("EE456")
+            .beneficiaryName("TULEVA AS")
+            .receivedBefore(Instant.now())
+            .build();
+
+    when(repository.findByExternalId("EXT_FIRST")).thenReturn(Optional.empty());
+    when(repository.findByExternalId("EXT_SECOND")).thenReturn(Optional.empty());
+    when(repository.findRecentPayments("30101129876"))
+        .thenReturn(List.of(firstPayment, secondPayment));
+
+    service.upsert(
+        firstIncoming,
+        p -> SavingFundPayment.Status.RECEIVED,
+        p -> SavingFundPayment.Status.RECEIVED);
+
+    verify(repository).updatePaymentData(eq(firstPaymentId), any());
+
+    // After first upsert, firstPayment now has externalId set
+    firstPayment =
+        SavingFundPayment.builder()
+            .id(firstPaymentId)
+            .amount(new BigDecimal("400.00"))
+            .currency(EUR)
+            .description("30101129876")
+            .externalId("EXT_FIRST")
+            .remitterIban("EE123")
+            .remitterName("KATI KARU")
+            .build();
+
+    when(repository.findRecentPayments("30101129876"))
+        .thenReturn(List.of(firstPayment, secondPayment));
+
+    service.upsert(
+        secondIncoming,
+        p -> SavingFundPayment.Status.RECEIVED,
+        p -> SavingFundPayment.Status.RECEIVED);
+
+    verify(repository).updatePaymentData(eq(secondPaymentId), any());
+  }
+
+  @Test
+  void upsert_doesNotMatchCancelledPayment() {
+    var cancelledPayment =
+        SavingFundPayment.builder()
+            .id(UUID.randomUUID())
+            .amount(new BigDecimal("1.01"))
+            .currency(EUR)
+            .description("39107050268")
+            .remitterIban("EE337700771002259573")
+            .remitterName("MATI METS")
+            .status(SavingFundPayment.Status.TO_BE_RETURNED)
+            .build();
+
+    var incomingPayment =
+        SavingFundPayment.builder()
+            .amount(new BigDecimal("1.01"))
+            .currency(EUR)
+            .description("39107050268")
+            .externalId("EXT999")
+            .remitterIban("EE337700771002259573")
+            .remitterName("MATI METS")
+            .receivedBefore(Instant.now())
+            .build();
+
+    when(repository.findByExternalId("EXT999")).thenReturn(Optional.empty());
+    when(repository.findRecentPayments("39107050268")).thenReturn(List.of(cancelledPayment));
+    when(repository.savePaymentData(incomingPayment)).thenReturn(UUID.randomUUID());
+
+    service.upsert(
+        incomingPayment,
+        p -> SavingFundPayment.Status.RECEIVED,
+        p -> SavingFundPayment.Status.RECEIVED);
+
+    verify(repository).savePaymentData(incomingPayment);
+    verify(repository, never()).updatePaymentData(any(), any());
+  }
+
+  @Test
   @DisplayName("upsert throws exception when names don't match")
   void upsert_throwsExceptionWhenNamesDontMatch() {
     var existingPaymentId = UUID.randomUUID();

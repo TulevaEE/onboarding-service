@@ -41,3 +41,6 @@ src/main/resources/application-dev.yml
 # Infrastructure files stored in S3 (see README.md - Infrastructure Management section)
 infrastructure/
 .env
+
+# Test data with real bank statements
+src/test/resources/banking/seb/real-data/

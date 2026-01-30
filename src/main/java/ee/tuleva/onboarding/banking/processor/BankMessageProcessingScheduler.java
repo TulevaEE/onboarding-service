@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -14,7 +15,7 @@ public class BankMessageProcessingScheduler {
 
   private final ApplicationEventPublisher eventPublisher;
 
-  // @Scheduled(fixedRateString = "1m")
+  @Scheduled(fixedRateString = "1m")
   @SchedulerLock(
       name = "BankMessageProcessingScheduler_processMessages",
       lockAtMostFor = "50s",

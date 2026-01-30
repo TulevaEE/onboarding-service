@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.banking.processor;
 
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
+import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -44,7 +46,17 @@ public class BankOperationProcessor {
     var amount = normalizeAmount(entry.amount());
     var clearingAccount = accountType.getLedgerAccount();
 
-    if (savingsFundLedger.hasLedgerEntry(externalReference)) {
+    TransactionType transactionType = mapSubFamilyCode(subFamilyCode);
+    if (transactionType == null) {
+      log.warn(
+          "Unknown bank operation SubFmlyCd: subFamilyCode={}, externalId={}, amount={}",
+          subFamilyCode,
+          entry.externalId(),
+          entry.amount());
+      return;
+    }
+
+    if (savingsFundLedger.hasLedgerEntry(externalReference, transactionType)) {
       log.debug(
           "Ledger entry already exists: subFamilyCode={}, externalRef={}",
           subFamilyCode,
@@ -80,13 +92,16 @@ public class BankOperationProcessor {
             entry.remittanceInformation());
         savingsFundLedger.recordBankAdjustment(amount, externalReference, clearingAccount);
       }
-      default ->
-          log.warn(
-              "Unknown bank operation SubFmlyCd: subFamilyCode={}, externalId={}, amount={}",
-              subFamilyCode,
-              entry.externalId(),
-              entry.amount());
     }
+  }
+
+  private TransactionType mapSubFamilyCode(String subFamilyCode) {
+    return switch (subFamilyCode) {
+      case INTR -> INTEREST_RECEIVED;
+      case FEES -> BANK_FEE;
+      case ADJT -> BANK_ADJUSTMENT;
+      default -> null;
+    };
   }
 
   private BigDecimal normalizeAmount(BigDecimal amount) {

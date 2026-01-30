@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.INTEREST_RECEIVED;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -69,7 +70,7 @@ class BankOperationProcessorTest {
   @Test
   void processBankOperation_skipsAlreadyRecordedEntry() {
     var entry = createBankOperationEntry("INTR", new BigDecimal("5.00"));
-    when(savingsFundLedger.hasLedgerEntry(any(UUID.class))).thenReturn(true);
+    when(savingsFundLedger.hasLedgerEntry(any(UUID.class), eq(INTEREST_RECEIVED))).thenReturn(true);
 
     processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
 

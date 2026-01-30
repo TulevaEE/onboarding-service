@@ -7,6 +7,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -119,8 +120,12 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
   @Override
   public Optional<FundValue> save(FundValue fundValue) {
     Map<String, Object> values = buildParamsMap(fundValue);
-    int rowsAffected = jdbcTemplate.update(INSERT_IF_NOT_EXISTS_QUERY, values);
-    return rowsAffected > 0 ? Optional.of(fundValue) : Optional.empty();
+    try {
+      int rowsAffected = jdbcTemplate.update(INSERT_IF_NOT_EXISTS_QUERY, values);
+      return rowsAffected > 0 ? Optional.of(fundValue) : Optional.empty();
+    } catch (DuplicateKeyException e) {
+      return Optional.empty();
+    }
   }
 
   private Map<String, Object> buildParamsMap(FundValue fundValue) {

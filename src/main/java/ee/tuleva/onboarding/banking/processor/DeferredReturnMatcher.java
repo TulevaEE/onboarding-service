@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.banking.processor;
 
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_CANCELLED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
@@ -64,11 +66,10 @@ public class DeferredReturnMatcher {
   private void completePaymentReturn(SavingFundPayment originalPayment) {
     var originalPaymentId = originalPayment.getId();
 
-    if (savingsFundLedger.hasLedgerEntry(originalPaymentId)) {
-      return;
-    }
-
     if (originalPayment.getUserId() != null) {
+      if (savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)) {
+        return;
+      }
       var user = userService.getByIdOrThrow(originalPayment.getUserId());
       log.info(
           "Deferred return matching: creating ledger entry for user-cancelled payment: paymentId={}, amount={}",
@@ -77,6 +78,9 @@ public class DeferredReturnMatcher {
       savingsFundLedger.recordPaymentCancelled(
           user, originalPayment.getAmount(), originalPaymentId);
     } else {
+      if (savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK)) {
+        return;
+      }
       log.info(
           "Deferred return matching: creating ledger entry for unattributed payment bounce back: paymentId={}, amount={}",
           originalPaymentId,

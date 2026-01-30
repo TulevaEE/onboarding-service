@@ -1,12 +1,11 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.*;
-import static ee.tuleva.onboarding.ledger.SavingsFundTransactionType.*;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
-import static ee.tuleva.onboarding.ledger.SystemAccount.BANK_FEE;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
+import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import ee.tuleva.onboarding.user.User;
 import jakarta.transaction.Transactional;
@@ -102,6 +101,7 @@ public class SavingsFundLedger {
             PERSONAL_CODE.key, user.getPersonalCode());
 
     return ledgerTransactionService.createTransaction(
+        PAYMENT_RECEIVED,
         Instant.now(clock),
         externalReference,
         metadata,
@@ -123,6 +123,7 @@ public class SavingsFundLedger {
             PERSONAL_CODE.key, user.getPersonalCode());
 
     return ledgerTransactionService.createTransaction(
+        PAYMENT_CANCEL_REQUESTED,
         Instant.now(clock),
         externalReference,
         metadata,
@@ -146,6 +147,7 @@ public class SavingsFundLedger {
             PERSONAL_CODE.key, user.getPersonalCode());
 
     return ledgerTransactionService.createTransaction(
+        PAYMENT_CANCELLED,
         Instant.now(clock),
         externalReference,
         metadata,
@@ -154,8 +156,9 @@ public class SavingsFundLedger {
   }
 
   private void ensureReservationExists(User user, BigDecimal amount, UUID externalReference) {
-    long transactionCount = ledgerTransactionService.countByExternalReference(externalReference);
-    boolean reservationAlreadyExists = transactionCount > 1;
+    boolean reservationAlreadyExists =
+        ledgerTransactionService.existsByExternalReferenceAndTransactionType(
+            externalReference, PAYMENT_CANCEL_REQUESTED);
     if (!reservationAlreadyExists) {
       reservePaymentForCancellation(user, amount, externalReference);
     }
@@ -169,6 +172,7 @@ public class SavingsFundLedger {
     Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, UNATTRIBUTED_PAYMENT.name());
 
     return ledgerTransactionService.createTransaction(
+        UNATTRIBUTED_PAYMENT,
         Instant.now(clock),
         externalReference,
         metadata,
@@ -189,6 +193,7 @@ public class SavingsFundLedger {
             PERSONAL_CODE.key, user.getPersonalCode());
 
     return ledgerTransactionService.createTransaction(
+        PAYMENT_RESERVED,
         Instant.now(clock),
         metadata,
         entry(userCashAccount, amount),
@@ -212,6 +217,7 @@ public class SavingsFundLedger {
             NAV_PER_UNIT.key, navPerUnit);
 
     return ledgerTransactionService.createTransaction(
+        FUND_SUBSCRIPTION,
         Instant.now(clock),
         metadata,
         entry(userCashReservedAccount, cashAmount),
@@ -228,6 +234,7 @@ public class SavingsFundLedger {
     Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, FUND_TRANSFER.name());
 
     return ledgerTransactionService.createTransaction(
+        FUND_TRANSFER,
         Instant.now(clock),
         metadata,
         entry(incomingPaymentsAccount, amount.negate()),
@@ -245,6 +252,7 @@ public class SavingsFundLedger {
     Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, PAYMENT_BOUNCE_BACK.name());
 
     return ledgerTransactionService.createTransaction(
+        PAYMENT_BOUNCE_BACK,
         Instant.now(clock),
         externalReference,
         metadata,
@@ -253,8 +261,9 @@ public class SavingsFundLedger {
   }
 
   private void ensureUnattributedPaymentRecorded(BigDecimal amount, UUID externalReference) {
-    long transactionCount = ledgerTransactionService.countByExternalReference(externalReference);
-    boolean alreadyRecorded = transactionCount > 0;
+    boolean alreadyRecorded =
+        ledgerTransactionService.existsByExternalReferenceAndTransactionType(
+            externalReference, UNATTRIBUTED_PAYMENT);
     if (!alreadyRecorded) {
       recordUnattributedPayment(amount, externalReference);
     }
@@ -273,6 +282,7 @@ public class SavingsFundLedger {
             PERSONAL_CODE.key, user.getPersonalCode());
 
     return ledgerTransactionService.createTransaction(
+        LATE_ATTRIBUTION,
         Instant.now(clock),
         metadata,
         entry(unreconciledAccount, amount),
@@ -292,6 +302,7 @@ public class SavingsFundLedger {
             PERSONAL_CODE.key, user.getPersonalCode());
 
     return ledgerTransactionService.createTransaction(
+        REDEMPTION_RESERVED,
         Instant.now(clock),
         metadata,
         entry(userUnitsAccount, fundUnits),
@@ -311,6 +322,7 @@ public class SavingsFundLedger {
             PERSONAL_CODE.key, user.getPersonalCode());
 
     return ledgerTransactionService.createTransaction(
+        REDEMPTION_CANCELLED,
         Instant.now(clock),
         metadata,
         entry(userUnitsReservedAccount, fundUnits),
@@ -345,21 +357,15 @@ public class SavingsFundLedger {
       metadataBuilder.put(REDEMPTION_REQUEST_ID.key, redemptionRequestId);
     }
 
-    UUID externalReference =
-        redemptionRequestId != null ? derivePricingReference(redemptionRequestId) : null;
-
     return ledgerTransactionService.createTransaction(
+        REDEMPTION_REQUEST,
         Instant.now(clock),
-        externalReference,
+        redemptionRequestId,
         metadataBuilder,
         entry(userUnitsReservedAccount, fundUnits),
         entry(unitsOutstandingAccount, fundUnits.negate()),
         entry(userCashRedemptionAccount, cashAmount.negate()),
         entry(userRedemptionsAccount, cashAmount));
-  }
-
-  private UUID derivePricingReference(UUID redemptionRequestId) {
-    return UUID.nameUUIDFromBytes((redemptionRequestId + ":pricing").getBytes(UTF_8));
   }
 
   @Transactional
@@ -370,6 +376,7 @@ public class SavingsFundLedger {
     Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, FUND_CASH_TRANSFER.name());
 
     return ledgerTransactionService.createTransaction(
+        FUND_CASH_TRANSFER,
         Instant.now(clock),
         metadata,
         entry(fundCashAccount, amount.negate()),
@@ -399,30 +406,25 @@ public class SavingsFundLedger {
       metadataBuilder.put(REDEMPTION_REQUEST_ID.key, redemptionRequestId);
     }
 
-    UUID externalReference =
-        redemptionRequestId != null ? derivePayoutReference(redemptionRequestId) : null;
-
     return ledgerTransactionService.createTransaction(
+        REDEMPTION_PAYOUT,
         Instant.now(clock),
-        externalReference,
+        redemptionRequestId,
         metadataBuilder,
         entry(payoutsCashAccount, amount.negate()),
         entry(userCashRedemptionAccount, amount));
   }
 
-  private UUID derivePayoutReference(UUID redemptionRequestId) {
-    return UUID.nameUUIDFromBytes((redemptionRequestId + ":payout").getBytes(UTF_8));
-  }
-
   @Transactional
   public LedgerTransaction recordBankFee(
       BigDecimal amount, UUID externalReference, SystemAccount clearingAccount) {
-    LedgerAccount bankFeeExpenseAccount = getSystemAccount(BANK_FEE);
+    LedgerAccount bankFeeExpenseAccount = getSystemAccount(SystemAccount.BANK_FEE);
     LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount);
 
-    Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, BANK_FEE.name());
+    Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, TransactionType.BANK_FEE.name());
 
     return ledgerTransactionService.createTransaction(
+        TransactionType.BANK_FEE,
         Instant.now(clock),
         externalReference,
         metadata,
@@ -439,6 +441,7 @@ public class SavingsFundLedger {
     Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, INTEREST_RECEIVED.name());
 
     return ledgerTransactionService.createTransaction(
+        INTEREST_RECEIVED,
         Instant.now(clock),
         externalReference,
         metadata,
@@ -453,9 +456,10 @@ public class SavingsFundLedger {
     LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount);
 
     Map<String, Object> metadata =
-        Map.of(OPERATION_TYPE.key, SavingsFundTransactionType.BANK_ADJUSTMENT.name());
+        Map.of(OPERATION_TYPE.key, TransactionType.BANK_ADJUSTMENT.name());
 
     return ledgerTransactionService.createTransaction(
+        TransactionType.BANK_ADJUSTMENT,
         Instant.now(clock),
         externalReference,
         metadata,
@@ -535,11 +539,16 @@ public class SavingsFundLedger {
     return ledgerTransactionService.existsByExternalReference(externalReference);
   }
 
+  public boolean hasLedgerEntry(UUID externalReference, TransactionType transactionType) {
+    return ledgerTransactionService.existsByExternalReferenceAndTransactionType(
+        externalReference, transactionType);
+  }
+
   public boolean hasPricingEntry(UUID redemptionRequestId) {
-    return hasLedgerEntry(derivePricingReference(redemptionRequestId));
+    return hasLedgerEntry(redemptionRequestId, REDEMPTION_REQUEST);
   }
 
   public boolean hasPayoutEntry(UUID redemptionRequestId) {
-    return hasLedgerEntry(derivePayoutReference(redemptionRequestId));
+    return hasLedgerEntry(redemptionRequestId, REDEMPTION_PAYOUT);
   }
 }

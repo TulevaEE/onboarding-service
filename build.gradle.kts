@@ -146,7 +146,7 @@ dependencies {
     implementation("org.springframework.modulith:spring-modulith-starter-core")
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
 
-    testImplementation("com.h2database:h2")
+    testImplementation("com.h2database:h2:2.4.240")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(module = "spock-core")
         exclude(module = "junit-vintage-engine")

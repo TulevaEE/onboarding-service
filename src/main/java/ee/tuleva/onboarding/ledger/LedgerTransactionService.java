@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
-
+import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -18,19 +17,23 @@ class LedgerTransactionService {
 
   @Transactional
   public LedgerTransaction createTransaction(
-      Instant transactionDate, Map<String, Object> metadata, LedgerEntryDto... ledgerEntryDtos) {
-    return createTransaction(transactionDate, null, metadata, ledgerEntryDtos);
+      TransactionType transactionType,
+      Instant transactionDate,
+      Map<String, Object> metadata,
+      LedgerEntryDto... ledgerEntryDtos) {
+    return createTransaction(transactionType, transactionDate, null, metadata, ledgerEntryDtos);
   }
 
   @Transactional
   public LedgerTransaction createTransaction(
+      TransactionType transactionType,
       Instant transactionDate,
       UUID externalReference,
       Map<String, Object> metadata,
       LedgerEntryDto... ledgerEntryDtos) {
     var transaction =
         LedgerTransaction.builder()
-            .transactionType(TRANSFER)
+            .transactionType(transactionType)
             .transactionDate(transactionDate)
             .externalReference(externalReference)
             .metadata(metadata)
@@ -49,8 +52,10 @@ class LedgerTransactionService {
     return ledgerTransactionRepository.existsByExternalReference(externalReference);
   }
 
-  public long countByExternalReference(UUID externalReference) {
-    return ledgerTransactionRepository.countByExternalReference(externalReference);
+  public boolean existsByExternalReferenceAndTransactionType(
+      UUID externalReference, TransactionType transactionType) {
+    return ledgerTransactionRepository.existsByExternalReferenceAndTransactionType(
+        externalReference, transactionType);
   }
 
   public record LedgerEntryDto(LedgerAccount account, BigDecimal amount) {}

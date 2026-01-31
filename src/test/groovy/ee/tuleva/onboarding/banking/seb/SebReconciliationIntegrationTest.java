@@ -7,7 +7,6 @@ import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
-import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.Clock;
@@ -17,28 +16,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
-@TestPropertySource(
-    properties = {
-      "swedbank-gateway.enabled=false",
-      "seb-gateway.enabled=true",
-      "seb-gateway.url=https://test.example.com",
-      "seb-gateway.orgId=test-org",
-      "seb-gateway.keystore.path=src/test/resources/banking/seb/test-seb-gateway.p12",
-      "seb-gateway.keystore.password=testpass",
-      "seb-gateway.reconciliation-delay=0s",
-      "seb-gateway.accounts.DEPOSIT_EUR=EE001234567890123456",
-      "seb-gateway.accounts.WITHDRAWAL_EUR=EE001234567890123457",
-      "seb-gateway.accounts.FUND_INVESTMENT_EUR=EE001234567890123458"
-    })
-@Import({TestSchedulerLockConfiguration.class, TestSebSchedulerConfiguration.class})
-@Transactional
+@SebIntegrationTest
 class SebReconciliationIntegrationTest {
 
   @Autowired private SavingFundPaymentRepository paymentRepository;

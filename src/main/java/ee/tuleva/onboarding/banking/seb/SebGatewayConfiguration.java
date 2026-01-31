@@ -12,6 +12,8 @@ import java.io.File;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
+import java.time.Clock;
+import java.time.Duration;
 import java.util.Collections;
 import javax.net.ssl.SSLContext;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +32,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.web.client.RestClient;
 
 @Configuration
@@ -41,7 +44,6 @@ import org.springframework.web.client.RestClient;
   SebGatewayClient.class,
   SebPaymentRequestListener.class,
   SebBankStatementListener.class,
-  SebReconciliationListener.class,
   SebBankStatementProcessor.class,
   SebReconciliator.class,
   SebStatementFetcher.class
@@ -147,10 +149,18 @@ public class SebGatewayConfiguration {
       ApplicationEventPublisher eventPublisher) {
     return new SebStatementFetchingScheduler(eventPublisher);
   }
+
+  @Bean
+  SebReconciliationListener sebReconciliationListener(
+      SebReconciliator reconciliator, TaskScheduler taskScheduler, Clock clock) {
+    return new SebReconciliationListener(
+        reconciliator, taskScheduler, clock, properties.reconciliationDelay());
+  }
 }
 
 @ConfigurationProperties(prefix = "seb-gateway")
-record SebGatewayProperties(boolean enabled, String url, String orgId, Keystore keystore) {
+record SebGatewayProperties(
+    boolean enabled, String url, String orgId, Keystore keystore, Duration reconciliationDelay) {
   record Keystore(String path, String password) {}
 }
 

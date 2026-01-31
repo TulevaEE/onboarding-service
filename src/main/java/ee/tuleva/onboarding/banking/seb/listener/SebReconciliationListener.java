@@ -6,16 +6,23 @@ import static ee.tuleva.onboarding.banking.statement.BankStatement.BankStatement
 
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankStatementReceived;
 import ee.tuleva.onboarding.banking.seb.reconciliation.SebReconciliator;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
+import org.springframework.scheduling.TaskScheduler;
 
 @Slf4j
 @RequiredArgsConstructor
 public class SebReconciliationListener {
 
   private final SebReconciliator reconciliator;
+  private final TaskScheduler taskScheduler;
+  private final Clock clock;
+  private final Duration reconciliationDelay;
 
   @Order(RECONCILE)
   @EventListener
@@ -26,6 +33,16 @@ public class SebReconciliationListener {
     if (event.statement().getType() != HISTORIC_STATEMENT) {
       return;
     }
+
+    Instant scheduledTime = clock.instant().plus(reconciliationDelay);
+    log.info(
+        "Scheduling reconciliation: messageId={}, delay={}",
+        event.messageId(),
+        reconciliationDelay);
+    taskScheduler.schedule(() -> executeReconciliation(event), scheduledTime);
+  }
+
+  private void executeReconciliation(BankStatementReceived event) {
     try {
       reconciliator.reconcile(event.statement());
     } catch (Exception e) {

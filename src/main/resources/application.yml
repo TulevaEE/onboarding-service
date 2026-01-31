@@ -90,6 +90,7 @@ seb-gateway:
     password: changeit
   url: ''
   org-id: ''
+  reconciliation-delay: 5m
   accounts:
     DEPOSIT_EUR: 'SEB_DEPOSIT_PLACEHOLDER'
     WITHDRAWAL_EUR: 'SEB_WITHDRAWAL_PLACEHOLDER'

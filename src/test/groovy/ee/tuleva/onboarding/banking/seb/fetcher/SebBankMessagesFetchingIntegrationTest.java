@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTran
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
 import ee.tuleva.onboarding.banking.seb.SebGatewayClient;
+import ee.tuleva.onboarding.banking.seb.TestSebSchedulerConfiguration;
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,7 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Transactional
-@Import(TestSchedulerLockConfiguration.class)
+@Import({TestSchedulerLockConfiguration.class, TestSebSchedulerConfiguration.class})
 @TestPropertySource(
     properties = {
       "swedbank-gateway.enabled=false",
@@ -38,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
       "seb-gateway.orgId=test-org",
       "seb-gateway.keystore.path=src/test/resources/banking/seb/test-seb-gateway.p12",
       "seb-gateway.keystore.password=testpass",
+      "seb-gateway.reconciliation-delay=0s",
       "seb-gateway.accounts.DEPOSIT_EUR=EE123456789012345678",
       "seb-gateway.accounts.WITHDRAWAL_EUR=EE987654321098765432",
       "seb-gateway.accounts.FUND_INVESTMENT_EUR=EE111222333444555666"

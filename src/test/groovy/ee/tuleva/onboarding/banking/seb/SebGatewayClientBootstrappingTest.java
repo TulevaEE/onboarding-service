@@ -31,12 +31,13 @@ import org.springframework.test.context.TestPropertySource;
     properties = {
       "seb-gateway.enabled=true",
       "seb-gateway.url=https://localhost:8443",
+      "seb-gateway.reconciliation-delay=0s",
       // See .env.sample for instructions on how to set these
       "seb-gateway.org-id=${SEB_GATEWAY_ORG_ID}",
       "seb-gateway.keystore.path=${SEB_GATEWAY_KEYSTORE_PATH}",
       "seb-gateway.keystore.password=${SEB_GATEWAY_KEYSTORE_PASSWORD}"
     })
-@Import(LocalProxySebTlsStrategyFactory.class)
+@Import({TestSebSchedulerConfiguration.class, LocalProxySebTlsStrategyFactory.class})
 @Disabled(
 """
   Run manually to bootstrap test fixtures - requires proxying through a whitelisted IP.

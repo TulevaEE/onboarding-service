@@ -63,11 +63,16 @@ import org.springframework.transaction.annotation.Transactional;
       "seb-gateway.org-id=${SEB_GATEWAY_ORG_ID}",
       "seb-gateway.keystore.path=${SEB_GATEWAY_KEYSTORE_PATH}",
       "seb-gateway.keystore.password=${SEB_GATEWAY_KEYSTORE_PASSWORD}",
+      "seb-gateway.reconciliation-delay=0s",
       "seb-gateway.accounts.DEPOSIT_EUR=EE241010220306719221",
       "seb-gateway.accounts.WITHDRAWAL_EUR=EE381010220306717223",
       "seb-gateway.accounts.FUND_INVESTMENT_EUR=EE381010220306717224" // Not provisioned
     })
-@Import({TestSchedulerLockConfiguration.class, LocalProxySebTlsStrategyFactory.class})
+@Import({
+  TestSchedulerLockConfiguration.class,
+  TestSebSchedulerConfiguration.class,
+  LocalProxySebTlsStrategyFactory.class
+})
 @RecordApplicationEvents
 @Transactional
 @Disabled("Run manually - requires AWS SSM proxy to SEB test gateway")

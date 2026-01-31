@@ -71,11 +71,12 @@ import org.springframework.transaction.annotation.Transactional;
       "seb-gateway.orgId=test-org",
       "seb-gateway.keystore.path=src/test/resources/banking/seb/test-seb-gateway.p12",
       "seb-gateway.keystore.password=testpass",
+      "seb-gateway.reconciliation-delay=0s",
       "seb-gateway.accounts.DEPOSIT_EUR=EE711010220306707220",
       "seb-gateway.accounts.WITHDRAWAL_EUR=EE801010220306711229",
       "seb-gateway.accounts.FUND_INVESTMENT_EUR=EE861010220306591229"
     })
-@Import(TestSchedulerLockConfiguration.class)
+@Import({TestSchedulerLockConfiguration.class, TestSebSchedulerConfiguration.class})
 @Transactional
 @Disabled("Manual test - requires real bank XML files in src/test/resources/banking/seb/real-data/")
 class SebEndToEndPaymentProcessingManualIntegrationTest {

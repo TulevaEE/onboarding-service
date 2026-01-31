@@ -12,6 +12,7 @@ import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
@@ -82,7 +83,8 @@ public class SavingsFundLedger {
     PAYER_IBAN("payerIban"),
     CUSTOMER_IBAN("customerIban"),
     NAV_PER_UNIT("navPerUnit"),
-    REDEMPTION_REQUEST_ID("redemptionRequestId");
+    REDEMPTION_REQUEST_ID("redemptionRequestId"),
+    DESCRIPTION("description");
 
     private final String key;
   }
@@ -366,7 +368,7 @@ public class SavingsFundLedger {
     LedgerAccount unitsOutstandingAccount = getFundUnitsOutstandingAccount();
     LedgerAccount userRedemptionsAccount = getUserRedemptionsAccount(userParty);
 
-    var metadataBuilder = new java.util.HashMap<String, Object>();
+    var metadataBuilder = new HashMap<String, Object>();
     metadataBuilder.put(OPERATION_TYPE.key, REDEMPTION_REQUEST.name());
     metadataBuilder.put(USER_ID.key, user.getId());
     metadataBuilder.put(PERSONAL_CODE.key, user.getPersonalCode());
@@ -415,7 +417,7 @@ public class SavingsFundLedger {
     LedgerAccount userCashRedemptionAccount = getUserCashRedemptionAccount(userParty);
     LedgerAccount payoutsCashAccount = getPayoutsCashClearingAccount();
 
-    var metadataBuilder = new java.util.HashMap<String, Object>();
+    var metadataBuilder = new HashMap<String, Object>();
     metadataBuilder.put(OPERATION_TYPE.key, REDEMPTION_PAYOUT.name());
     metadataBuilder.put(USER_ID.key, user.getId());
     metadataBuilder.put(PERSONAL_CODE.key, user.getPersonalCode());
@@ -431,6 +433,58 @@ public class SavingsFundLedger {
         metadataBuilder,
         entry(payoutsCashAccount, amount.negate()),
         entry(userCashRedemptionAccount, amount));
+  }
+
+  @Transactional
+  public LedgerTransaction recordAdjustment(
+      String debitAccountName,
+      String debitPersonalCode,
+      String creditAccountName,
+      String creditPersonalCode,
+      BigDecimal amount,
+      UUID externalReference,
+      String description) {
+    boolean debitIsUser = debitPersonalCode != null;
+    boolean creditIsUser = creditPersonalCode != null;
+
+    if (debitIsUser && creditIsUser) {
+      throw new IllegalArgumentException("At least one account must be a system account");
+    }
+
+    LedgerAccount debitAccount =
+        debitIsUser
+            ? resolveUserAccount(debitPersonalCode, UserAccount.valueOf(debitAccountName))
+            : getSystemAccount(SystemAccount.valueOf(debitAccountName));
+
+    LedgerAccount creditAccount =
+        creditIsUser
+            ? resolveUserAccount(creditPersonalCode, UserAccount.valueOf(creditAccountName))
+            : getSystemAccount(SystemAccount.valueOf(creditAccountName));
+
+    var metadataBuilder = new HashMap<String, Object>();
+    metadataBuilder.put(OPERATION_TYPE.key, ADJUSTMENT.name());
+    if (description != null) {
+      metadataBuilder.put(DESCRIPTION.key, description);
+    }
+
+    return ledgerTransactionService.createTransaction(
+        ADJUSTMENT,
+        Instant.now(clock),
+        externalReference,
+        metadataBuilder,
+        entry(debitAccount, amount),
+        entry(creditAccount, amount.negate()));
+  }
+
+  private LedgerAccount resolveUserAccount(String personalCode, UserAccount userAccount) {
+    LedgerParty party =
+        ledgerPartyService
+            .getParty(personalCode)
+            .orElseThrow(
+                () ->
+                    new IllegalArgumentException(
+                        "Ledger party not found: personalCode=" + personalCode));
+    return getUserAccount(party, userAccount);
   }
 
   @Transactional

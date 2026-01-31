@@ -1,11 +1,18 @@
 package ee.tuleva.onboarding.admin;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ee.tuleva.onboarding.ledger.LedgerTransaction;
+import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -23,6 +30,7 @@ class AdminControllerTest {
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private ApplicationEventPublisher eventPublisher;
+  @MockitoBean private SavingsFundLedger savingsFundLedger;
 
   @Test
   void fetchSebHistory_withValidToken_returnsOk() throws Exception {
@@ -59,5 +67,50 @@ class AdminControllerTest {
                 .param("from", "2026-01-01")
                 .param("to", "2026-01-31"))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void createAdjustment_withValidToken_returnsTransactionId() throws Exception {
+    var transactionId = UUID.randomUUID();
+    var transaction = LedgerTransaction.builder().id(transactionId).build();
+    when(savingsFundLedger.recordAdjustment(any(), any(), any(), any(), any(), any(), any()))
+        .thenReturn(transaction);
+
+    mockMvc
+        .perform(
+            post("/admin/adjustments")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "debitAccount": "INCOMING_PAYMENTS_CLEARING",
+                      "creditAccount": "BANK_ADJUSTMENT",
+                      "amount": 100.00,
+                      "description": "Test adjustment"
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.transactionId").value(transactionId.toString()));
+  }
+
+  @Test
+  void createAdjustment_withInvalidToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/adjustments")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "debitAccount": "INCOMING_PAYMENTS_CLEARING",
+                      "creditAccount": "BANK_ADJUSTMENT",
+                      "amount": 100.00
+                    }
+                    """))
+        .andExpect(status().isUnauthorized());
   }
 }

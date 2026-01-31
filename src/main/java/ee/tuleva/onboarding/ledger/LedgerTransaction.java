@@ -53,7 +53,8 @@ public class LedgerTransaction {
     REDEMPTION_PAYOUT,
     INTEREST_RECEIVED,
     BANK_FEE,
-    BANK_ADJUSTMENT
+    BANK_ADJUSTMENT,
+    ADJUSTMENT
   }
 
   @Id

@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static java.math.BigDecimal.ZERO;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
 import ee.tuleva.onboarding.user.User;
@@ -338,6 +339,64 @@ class SavingsFundLedgerTest {
     assertThat(getSystemAccount(INTEREST_INCOME).getBalance())
         .isEqualByComparingTo(amount.negate());
     verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void recordAdjustment_systemToSystem_createsCorrectLedgerEntries() {
+    var amount = new BigDecimal("50.00");
+
+    var transaction =
+        savingsFundLedger.recordAdjustment(
+            "INCOMING_PAYMENTS_CLEARING",
+            null,
+            "BANK_ADJUSTMENT",
+            null,
+            amount,
+            null,
+            "Test adjustment");
+
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("ADJUSTMENT");
+    assertThat(transaction.getMetadata().get("description")).isEqualTo("Test adjustment");
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
+    assertThat(getSystemAccount(BANK_ADJUSTMENT).getBalance())
+        .isEqualByComparingTo(amount.negate());
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void recordAdjustment_userToSystem_createsCorrectLedgerEntries() {
+    var amount = new BigDecimal("25.00");
+    savingsFundLedger.recordPaymentReceived(testUser, amount, randomUUID());
+
+    var transaction =
+        savingsFundLedger.recordAdjustment(
+            "CASH",
+            testUser.getPersonalCode(),
+            "INCOMING_PAYMENTS_CLEARING",
+            null,
+            amount,
+            null,
+            "User to system adjustment");
+
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("ADJUSTMENT");
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void recordAdjustment_userToUser_throwsException() {
+    savingsFundLedger.recordPaymentReceived(testUser, new BigDecimal("100.00"), randomUUID());
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            savingsFundLedger.recordAdjustment(
+                "CASH",
+                "38001010001",
+                "CASH",
+                "38001010001",
+                new BigDecimal("10.00"),
+                null,
+                "Invalid"));
   }
 
   @Test

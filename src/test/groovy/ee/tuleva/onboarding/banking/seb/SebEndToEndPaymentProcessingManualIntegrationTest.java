@@ -9,7 +9,6 @@ import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
-import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -41,13 +40,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.annotation.Import;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Manual integration test for processing real SEB bank XML messages.
@@ -62,22 +58,13 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>The statement date is automatically extracted from the XML's closing balance (CLBD) date.
  */
-@SpringBootTest
+@SebIntegrationTest
 @TestPropertySource(
     properties = {
-      "swedbank-gateway.enabled=false",
-      "seb-gateway.enabled=true",
-      "seb-gateway.url=https://test.example.com",
-      "seb-gateway.orgId=test-org",
-      "seb-gateway.keystore.path=src/test/resources/banking/seb/test-seb-gateway.p12",
-      "seb-gateway.keystore.password=testpass",
-      "seb-gateway.reconciliation-delay=0s",
       "seb-gateway.accounts.DEPOSIT_EUR=EE711010220306707220",
       "seb-gateway.accounts.WITHDRAWAL_EUR=EE801010220306711229",
       "seb-gateway.accounts.FUND_INVESTMENT_EUR=EE861010220306591229"
     })
-@Import({TestSchedulerLockConfiguration.class, TestSebSchedulerConfiguration.class})
-@Transactional
 @Disabled("Manual test - requires real bank XML files in src/test/resources/banking/seb/real-data/")
 class SebEndToEndPaymentProcessingManualIntegrationTest {
 

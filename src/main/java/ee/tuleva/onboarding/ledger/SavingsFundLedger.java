@@ -134,6 +134,7 @@ public class SavingsFundLedger {
   @Transactional
   public LedgerTransaction recordPaymentCancelled(
       User user, BigDecimal amount, UUID externalReference) {
+    ensurePaymentReceivedExists(user, amount, externalReference);
     ensureReservationExists(user, amount, externalReference);
 
     LedgerParty userParty = getUserParty(user);
@@ -153,6 +154,15 @@ public class SavingsFundLedger {
         metadata,
         entry(userCashReservedAccount, amount),
         entry(incomingPaymentsAccount, amount.negate()));
+  }
+
+  private void ensurePaymentReceivedExists(User user, BigDecimal amount, UUID externalReference) {
+    boolean paymentReceivedExists =
+        ledgerTransactionService.existsByExternalReferenceAndTransactionType(
+            externalReference, PAYMENT_RECEIVED);
+    if (!paymentReceivedExists) {
+      recordPaymentReceived(user, amount, externalReference);
+    }
   }
 
   private void ensureReservationExists(User user, BigDecimal amount, UUID externalReference) {

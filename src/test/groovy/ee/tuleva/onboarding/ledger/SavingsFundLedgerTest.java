@@ -151,6 +151,19 @@ class SavingsFundLedgerTest {
   }
 
   @Test
+  void recordPaymentCancelled_createsPaymentReceivedWhenMissing() {
+    var amount = new BigDecimal("500.00");
+    var externalReference = randomUUID();
+    // No recordPaymentReceived call — simulates cancellation without prior PAYMENT_RECEIVED
+
+    savingsFundLedger.recordPaymentCancelled(testUser, amount, externalReference);
+
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
   void completeSubscriptionFlow_allBalancesCorrect() {
     var cashAmount = new BigDecimal("1000.00");
     var fundUnits = new BigDecimal("10.00000");

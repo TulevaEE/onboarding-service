@@ -37,5 +37,7 @@ public class SavingsFundReservationJob {
             log.error("Reservation failed for payment {}", payment, e);
           }
         });
+
+    log.info("Payment reservation job completed: processedPayments={}", paymentsToReserve.size());
   }
 }

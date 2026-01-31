@@ -134,6 +134,14 @@ public class SavingsFundLedger {
   @Transactional
   public LedgerTransaction recordPaymentCancelled(
       User user, BigDecimal amount, UUID externalReference) {
+    boolean unattributedPaymentExists =
+        ledgerTransactionService.existsByExternalReferenceAndTransactionType(
+            externalReference, UNATTRIBUTED_PAYMENT);
+
+    if (unattributedPaymentExists) {
+      return bounceBackUnattributedPayment(amount, externalReference);
+    }
+
     ensurePaymentReceivedExists(user, amount, externalReference);
     ensureReservationExists(user, amount, externalReference);
 
@@ -157,10 +165,10 @@ public class SavingsFundLedger {
   }
 
   private void ensurePaymentReceivedExists(User user, BigDecimal amount, UUID externalReference) {
-    boolean paymentReceivedExists =
+    boolean alreadyRecorded =
         ledgerTransactionService.existsByExternalReferenceAndTransactionType(
             externalReference, PAYMENT_RECEIVED);
-    if (!paymentReceivedExists) {
+    if (!alreadyRecorded) {
       recordPaymentReceived(user, amount, externalReference);
     }
   }

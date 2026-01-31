@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static java.math.BigDecimal.ZERO;
@@ -148,6 +149,21 @@ class SavingsFundLedgerTest {
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void recordPaymentCancelled_bouncesBackWhenUnattributedPaymentExists() {
+    var amount = new BigDecimal("500.00");
+    var externalReference = randomUUID();
+
+    savingsFundLedger.recordUnattributedPayment(amount, externalReference);
+    savingsFundLedger.recordPaymentCancelled(testUser, amount, externalReference);
+
+    assertThat(savingsFundLedger.hasLedgerEntry(externalReference, PAYMENT_RECEIVED)).isFalse();
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
   }
 
   @Test

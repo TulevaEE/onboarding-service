@@ -12,8 +12,9 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 
 class SavingFundPaymentUpsertionServiceTest {
@@ -78,7 +79,6 @@ class SavingFundPaymentUpsertionServiceTest {
   }
 
   @Test
-  @DisplayName("upsert merges payment with flexible name matching")
   void upsert_mergesPaymentWithFlexibleNameMatching() {
     var existingPaymentId = UUID.randomUUID();
     var existingPayment =
@@ -328,8 +328,51 @@ class SavingFundPaymentUpsertionServiceTest {
     verify(repository, never()).updatePaymentData(any(), any());
   }
 
+  @ParameterizedTest
+  @EnumSource(
+      value = SavingFundPayment.Status.class,
+      names = {"RETURNED", "PROCESSED", "FROZEN"})
+  void upsert_enrichesTerminalPaymentWithoutCreatingDuplicate(SavingFundPayment.Status status) {
+    var existingPaymentId = UUID.randomUUID();
+    var existingPayment =
+        SavingFundPayment.builder()
+            .id(existingPaymentId)
+            .amount(new BigDecimal("1.01"))
+            .currency(EUR)
+            .description("39107050268")
+            .remitterIban("EE337700771002259573")
+            .remitterName("MATI METS")
+            .status(status)
+            .build();
+
+    var externalId = "EXT_" + status;
+    var incomingPayment =
+        SavingFundPayment.builder()
+            .amount(new BigDecimal("1.01"))
+            .currency(EUR)
+            .description("39107050268")
+            .externalId(externalId)
+            .remitterIban("EE337700771002259573")
+            .remitterName("MATI METS")
+            .beneficiaryIban("EE456")
+            .beneficiaryName("TULEVA AS")
+            .receivedBefore(Instant.now())
+            .build();
+
+    when(repository.findByExternalId(externalId)).thenReturn(Optional.empty());
+    when(repository.findRecentPayments("39107050268")).thenReturn(List.of(existingPayment));
+
+    service.upsert(
+        incomingPayment,
+        p -> SavingFundPayment.Status.RECEIVED,
+        p -> SavingFundPayment.Status.RECEIVED);
+
+    verify(repository).updatePaymentData(eq(existingPaymentId), any());
+    verify(repository, never()).savePaymentData(any());
+    verify(repository, never()).changeStatus(any(), any());
+  }
+
   @Test
-  @DisplayName("upsert throws exception when names don't match")
   void upsert_throwsExceptionWhenNamesDontMatch() {
     var existingPaymentId = UUID.randomUUID();
     var existingPayment =

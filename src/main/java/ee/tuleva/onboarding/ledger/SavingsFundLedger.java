@@ -447,8 +447,9 @@ public class SavingsFundLedger {
     boolean debitIsUser = debitPersonalCode != null;
     boolean creditIsUser = creditPersonalCode != null;
 
-    if (debitIsUser && creditIsUser) {
-      throw new IllegalArgumentException("At least one account must be a system account");
+    if (debitIsUser && creditIsUser && !debitPersonalCode.equals(creditPersonalCode)) {
+      throw new IllegalArgumentException(
+          "Both accounts must belong to the same user or at least one must be a system account");
     }
 
     LedgerAccount debitAccount =

@@ -1,11 +1,9 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.CREATED;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.Objects;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +13,9 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class SavingFundPaymentUpsertionService {
+
+  private static final Set<SavingFundPayment.Status> MATCHABLE_STATUSES =
+      Set.of(CREATED, RETURNED, PROCESSED, FROZEN);
 
   private final SavingFundPaymentRepository repository;
   private final SavingFundDeadlinesService savingFundDeadlinesService;
@@ -57,10 +58,19 @@ public class SavingFundPaymentUpsertionService {
     var existingPayment = findExistingPayment(payment);
 
     if (existingPayment.isPresent()) {
-      log.info("Found existing payment, updating: {}", existingPayment.get().getId());
-      updatePayment(existingPayment.get(), payment);
-      var status = onUpdate.apply(payment);
-      repository.changeStatus(existingPayment.get().getId(), status);
+      var existing = existingPayment.get();
+      if (existing.getStatus() != CREATED) {
+        log.info(
+            "Found existing payment in terminal state, enriching data without status change: id={}, status={}",
+            existing.getId(),
+            existing.getStatus());
+        updatePayment(existing, payment);
+      } else {
+        log.info("Found existing payment, updating: {}", existing.getId());
+        updatePayment(existing, payment);
+        var status = onUpdate.apply(payment);
+        repository.changeStatus(existing.getId(), status);
+      }
     } else {
       log.info("No existing payment found, inserting new payment");
       var paymentId = repository.savePaymentData(payment);
@@ -97,7 +107,7 @@ public class SavingFundPaymentUpsertionService {
         payment.getRemitterIban());
     return repository.findRecentPayments(payment.getDescription()).stream()
         .filter(p -> p.getExternalId() == null)
-        .filter(p -> p.getStatus() == CREATED)
+        .filter(p -> MATCHABLE_STATUSES.contains(p.getStatus()))
         .filter(p -> p.getAmount().compareTo(payment.getAmount()) == 0)
         .filter(p -> Objects.equals(p.getRemitterIban(), payment.getRemitterIban()))
         .findFirst();

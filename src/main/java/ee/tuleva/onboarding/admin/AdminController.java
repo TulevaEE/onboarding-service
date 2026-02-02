@@ -3,7 +3,9 @@ package ee.tuleva.onboarding.admin;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import jakarta.transaction.Transactional;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,29 +51,41 @@ public class AdminController {
     return "Fetched SEB history for all accounts from " + from + " to " + to;
   }
 
+  @Transactional
   @PostMapping("/adjustments")
-  public Map<String, String> createAdjustment(
-      @RequestHeader("X-Admin-Token") String token, @RequestBody AdjustmentRequest request) {
+  public List<Map<String, String>> createAdjustments(
+      @RequestHeader("X-Admin-Token") String token, @RequestBody List<AdjustmentRequest> requests) {
 
     validateToken(token);
 
-    log.info(
-        "Admin triggered adjustment: debitAccount={}, creditAccount={}, amount={}",
-        request.debitAccount(),
-        request.creditAccount(),
-        request.amount());
+    log.info("Admin triggered adjustments: count={}", requests.size());
 
-    var transaction =
-        savingsFundLedger.recordAdjustment(
-            request.debitAccount(),
-            request.debitPersonalCode(),
-            request.creditAccount(),
-            request.creditPersonalCode(),
-            request.amount(),
-            request.externalReference(),
-            request.description());
+    var results =
+        requests.stream()
+            .map(
+                request -> {
+                  var transaction =
+                      savingsFundLedger.recordAdjustment(
+                          request.debitAccount(),
+                          request.debitPersonalCode(),
+                          request.creditAccount(),
+                          request.creditPersonalCode(),
+                          request.amount(),
+                          request.externalReference(),
+                          request.description());
+                  log.info(
+                      "Adjustment recorded: transactionId={}, debitAccount={}, creditAccount={}, amount={}, description={}",
+                      transaction.getId(),
+                      request.debitAccount(),
+                      request.creditAccount(),
+                      request.amount(),
+                      request.description());
+                  return Map.of("transactionId", transaction.getId().toString());
+                })
+            .toList();
 
-    return Map.of("transactionId", transaction.getId().toString());
+    log.info("All adjustments completed: count={}", results.size());
+    return results;
   }
 
   private void validateToken(String token) {

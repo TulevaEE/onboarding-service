@@ -1,8 +1,9 @@
 package ee.tuleva.onboarding.admin;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -70,7 +71,7 @@ class AdminControllerTest {
   }
 
   @Test
-  void createAdjustment_withValidToken_returnsTransactionId() throws Exception {
+  void createAdjustments_withValidToken_returnsTransactionIds() throws Exception {
     var transactionId = UUID.randomUUID();
     var transaction = LedgerTransaction.builder().id(transactionId).build();
     when(savingsFundLedger.recordAdjustment(any(), any(), any(), any(), any(), any(), any()))
@@ -84,33 +85,42 @@ class AdminControllerTest {
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
-                    {
-                      "debitAccount": "INCOMING_PAYMENTS_CLEARING",
-                      "creditAccount": "BANK_ADJUSTMENT",
-                      "amount": 100.00,
-                      "description": "Test adjustment"
-                    }
+                    [
+                      {
+                        "debitAccount": "CASH_RESERVED",
+                        "debitPersonalCode": "39107050268",
+                        "creditAccount": "CASH",
+                        "creditPersonalCode": "39107050268",
+                        "amount": 1.01,
+                        "description": "Reverse duplicate"
+                      },
+                      {
+                        "debitAccount": "CASH_RESERVED",
+                        "debitPersonalCode": "48709090311",
+                        "creditAccount": "CASH",
+                        "creditPersonalCode": "48709090311",
+                        "amount": 500.00,
+                        "description": "Reverse duplicate"
+                      }
+                    ]
                     """))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.transactionId").value(transactionId.toString()));
+        .andExpect(jsonPath("$", hasSize(2)))
+        .andExpect(jsonPath("$[0].transactionId").value(transactionId.toString()));
+
+    verify(savingsFundLedger, times(2))
+        .recordAdjustment(any(), any(), any(), any(), any(), any(), any());
   }
 
   @Test
-  void createAdjustment_withInvalidToken_returnsUnauthorized() throws Exception {
+  void createAdjustments_withInvalidToken_returnsUnauthorized() throws Exception {
     mockMvc
         .perform(
             post("/admin/adjustments")
                 .with(csrf())
                 .header("X-Admin-Token", "wrong-token")
                 .contentType(APPLICATION_JSON)
-                .content(
-                    """
-                    {
-                      "debitAccount": "INCOMING_PAYMENTS_CLEARING",
-                      "creditAccount": "BANK_ADJUSTMENT",
-                      "amount": 100.00
-                    }
-                    """))
+                .content("[]"))
         .andExpect(status().isUnauthorized());
   }
 }

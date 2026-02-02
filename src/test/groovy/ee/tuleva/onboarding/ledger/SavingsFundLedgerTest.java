@@ -383,7 +383,7 @@ class SavingsFundLedgerTest {
   }
 
   @Test
-  void recordAdjustment_userToUser_throwsException() {
+  void recordAdjustment_differentUsersToUser_throwsException() {
     savingsFundLedger.recordPaymentReceived(testUser, new BigDecimal("100.00"), randomUUID());
 
     assertThrows(
@@ -393,10 +393,29 @@ class SavingsFundLedgerTest {
                 "CASH",
                 "38001010001",
                 "CASH",
-                "38001010001",
+                "38001010002",
                 new BigDecimal("10.00"),
                 null,
-                "Invalid"));
+                "Invalid cross-user"));
+  }
+
+  @Test
+  void recordAdjustment_sameUserDifferentAccounts_succeeds() {
+    savingsFundLedger.recordPaymentReceived(testUser, new BigDecimal("100.00"), randomUUID());
+    savingsFundLedger.reservePaymentForSubscription(testUser, new BigDecimal("100.00"));
+
+    var transaction =
+        savingsFundLedger.recordAdjustment(
+            "CASH_RESERVED",
+            "38001010001",
+            "CASH",
+            "38001010001",
+            new BigDecimal("10.00"),
+            null,
+            "Reverse duplicate reservation");
+
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("ADJUSTMENT");
+    verifyDoubleEntry(transaction);
   }
 
   @Test

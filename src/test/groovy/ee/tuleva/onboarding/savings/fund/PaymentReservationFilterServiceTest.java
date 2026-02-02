@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@Disabled
 class PaymentReservationFilterServiceTest {
 
   private PublicHolidays publicHolidays;
@@ -25,6 +24,7 @@ class PaymentReservationFilterServiceTest {
     publicHolidays = new PublicHolidays();
   }
 
+  @Disabled
   @Test
   @DisplayName("filters using previous working day cutoff when before 16:00 on working day")
   void filtersUsingPreviousWorkingDayCutoffBeforeSixteen() {
@@ -47,6 +47,7 @@ class PaymentReservationFilterServiceTest {
     assertThat(result).containsExactly(paymentBeforeCutoff);
   }
 
+  @Disabled
   @Test
   @DisplayName("filters using today's cutoff when on working day after 16:00")
   void filtersUsingTodaysCutoffAfterSixteen() {
@@ -69,6 +70,7 @@ class PaymentReservationFilterServiceTest {
     assertThat(result).containsExactly(paymentBeforeCutoff);
   }
 
+  @Disabled
   @Test
   @DisplayName("filters using previous working day cutoff when on weekend")
   void filtersUsingPreviousWorkingDayCutoffOnWeekend() {
@@ -91,6 +93,7 @@ class PaymentReservationFilterServiceTest {
     assertThat(result).containsExactly(paymentBeforeCutoff);
   }
 
+  @Disabled
   @Test
   @DisplayName("filters using previous working day cutoff when on public holidays")
   void filtersUsingPreviousWorkingDayCutoffOnPublicHoliday() {
@@ -113,6 +116,7 @@ class PaymentReservationFilterServiceTest {
     assertThat(result).containsExactly(paymentBeforeCutoff);
   }
 
+  @Disabled
   @Test
   @DisplayName("filters payments correctly with various scenarios")
   void filtersPaymentsWithVariousScenarios() {
@@ -150,6 +154,38 @@ class PaymentReservationFilterServiceTest {
                 paymentFromFriday));
 
     assertThat(result).containsExactlyInAnyOrder(paymentBeforeCutoff, paymentFromFriday);
+  }
+
+  @Test
+  void filtersPaymentsUsingInitialOfferingCutoff() {
+    var clock = Clock.fixed(Instant.parse("2026-02-01T10:00:00Z"), UTC);
+    var service = new PaymentReservationFilterService(clock, publicHolidays);
+
+    var initialOfferingCutoff = Instant.parse("2026-01-31T22:00:00Z");
+    var beforeCutoff = initialOfferingCutoff.minusSeconds(1);
+    var afterCutoff = initialOfferingCutoff.plusSeconds(1);
+
+    var paymentBeforeCutoff =
+        createReservableSavingFundPayment().receivedBefore(beforeCutoff).build();
+    var paymentAfterCutoff =
+        createReservableSavingFundPayment().receivedBefore(afterCutoff).build();
+    var cancelledPayment =
+        createReservableSavingFundPayment()
+            .receivedBefore(beforeCutoff)
+            .cancelledAt(Instant.now())
+            .build();
+    var paymentWithoutReceivedBefore =
+        createReservableSavingFundPayment().receivedBefore(null).build();
+
+    var result =
+        service.filterPaymentsToReserve(
+            List.of(
+                paymentBeforeCutoff,
+                paymentAfterCutoff,
+                cancelledPayment,
+                paymentWithoutReceivedBefore));
+
+    assertThat(result).containsExactly(paymentBeforeCutoff);
   }
 
   private SavingFundPayment.SavingFundPaymentBuilder createReservableSavingFundPayment() {

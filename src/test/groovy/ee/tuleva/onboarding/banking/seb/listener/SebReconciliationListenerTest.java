@@ -105,7 +105,6 @@ class SebReconciliationListenerTest {
         type,
         new BankStatementAccount("EE123456789012345678", "Test Company", "12345678"),
         List.of(),
-        List.of(),
-        Instant.now());
+        List.of());
   }
 }

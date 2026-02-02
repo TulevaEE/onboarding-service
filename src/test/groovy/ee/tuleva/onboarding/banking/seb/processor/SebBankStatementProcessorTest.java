@@ -26,7 +26,6 @@ import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -116,8 +115,7 @@ class SebBankStatementProcessorTest {
             BankStatementType.INTRA_DAY_REPORT,
             new BankStatementAccount(accountIban, "Tuleva Fondid AS", "14118923"),
             List.of(),
-            List.of(),
-            Instant.now());
+            List.of());
     when(sebAccountConfiguration.getAccountType(accountIban)).thenReturn(accountType);
     when(paymentExtractor.extractPayments(bankStatement)).thenReturn(List.of(payment));
 

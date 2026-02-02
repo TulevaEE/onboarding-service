@@ -602,4 +602,73 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     eventPublisher.publishEvent(new ProcessBankMessagesRequested());
     return saved.getId();
   }
+
+  @Nested
+  @Transactional
+  class Camt053HistoricStatementTests {
+
+    // XML template with camt.053 (historic statement) format - single CREDIT transaction
+    private static final String CAMT053_XML_TEMPLATE =
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
+            + "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.053.001.02\"> "
+            + "<BkToCstmrStmt> "
+            + "<GrpHdr> <MsgId>test</MsgId> <CreDtTm>2025-10-01T12:00:00</CreDtTm> </GrpHdr> "
+            + "<Stmt> "
+            + "<Id>test-stmt-1</Id> "
+            + "<CreDtTm>2025-10-01T12:00:00</CreDtTm> "
+            + "<FrToDt> "
+            + "<FrDtTm>2025-10-01T00:00:00</FrDtTm> "
+            + "<ToDtTm>2025-10-01T23:59:59</ToDtTm> "
+            + "</FrToDt> "
+            + "<Acct> "
+            + "<Id> <IBAN>EE442200221092874625</IBAN> </Id> "
+            + "<Ownr> <Nm>TULEVA FONDID AS</Nm> "
+            + "<Id> <OrgId> <Othr> <Id>14118923</Id> </Othr> </OrgId> </Id> "
+            + "</Ownr> "
+            + "</Acct> "
+            + "<Ntry> "
+            + "<NtryRef>2025100199999-1</NtryRef>"
+            + "<Amt Ccy=\"EUR\">250.75</Amt> "
+            + "<CdtDbtInd>CRDT</CdtDbtInd> "
+            + "<Sts>BOOK</Sts> "
+            + "<BookgDt> <Dt>2025-10-01</Dt> </BookgDt> "
+            + "<NtryDtls> <TxDtls> "
+            + "<Refs> <AcctSvcrRef>2025100199999-1</AcctSvcrRef> </Refs> "
+            + "<AmtDtls> <TxAmt> <Amt Ccy=\"EUR\">250.75</Amt> </TxAmt> </AmtDtls> "
+            + "<RltdPties> "
+            + "<Dbtr> <Nm>Mari Metsik</Nm> "
+            + "<Id> <PrvtId> <Othr> <Id>48501010001</Id> </Othr> </PrvtId> </Id> "
+            + "</Dbtr> "
+            + "<DbtrAcct> <Id> <IBAN>EE381010220123456789</IBAN> </Id> </DbtrAcct> "
+            + "</RltdPties> "
+            + "<RmtInf> <Ustrd>Historic statement payment</Ustrd> </RmtInf> "
+            + "</TxDtls> </NtryDtls> "
+            + "</Ntry> "
+            + "</Stmt> "
+            + "</BkToCstmrStmt> "
+            + "</Document>";
+
+    @Test
+    void processesHistoricStatementAndStoresPaymentsInDatabase() {
+      // when
+      processXmlMessage(CAMT053_XML_TEMPLATE);
+
+      // then
+      assertThat(repository.findAll()).hasSize(1);
+      var savedPayment = repository.findAll().iterator().next();
+      assertThat(savedPayment.getAmount()).isEqualByComparingTo(new BigDecimal("250.75"));
+      assertThat(savedPayment.getCurrency()).isEqualTo(Currency.EUR);
+      assertThat(savedPayment.getDescription()).isEqualTo("Historic statement payment");
+      assertThat(savedPayment.getRemitterIban()).isEqualTo("EE381010220123456789");
+      assertThat(savedPayment.getRemitterIdCode()).isEqualTo("48501010001");
+      assertThat(savedPayment.getRemitterName()).isEqualTo("Mari Metsik");
+      assertThat(savedPayment.getBeneficiaryIban()).isEqualTo("EE442200221092874625");
+      assertThat(savedPayment.getBeneficiaryIdCode()).isEqualTo("14118923");
+      assertThat(savedPayment.getBeneficiaryName()).isEqualTo("TULEVA FONDID AS");
+      assertThat(savedPayment.getExternalId()).isEqualTo("2025100199999-1");
+      assertThat(savedPayment.getStatus()).isEqualTo(SavingFundPayment.Status.RECEIVED);
+      assertThat(savedPayment.getReceivedBefore())
+          .isEqualTo(Instant.parse("2025-10-01T20:59:59.999999Z"));
+    }
+  }
 }

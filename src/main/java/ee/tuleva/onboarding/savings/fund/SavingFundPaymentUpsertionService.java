@@ -38,19 +38,9 @@ public class SavingFundPaymentUpsertionService {
     if (payment.getExternalId() != null) {
       var existingById = repository.findByExternalId(payment.getExternalId());
       if (existingById.isPresent()) {
-        var existing = existingById.get();
-        if (isEarlier(payment.getReceivedBefore(), existing.getReceivedBefore())) {
-          log.debug(
-              "Payment with external ID {} already exists, updating receivedBefore: existing={}, incoming={}",
-              payment.getExternalId(),
-              existing.getReceivedBefore(),
-              payment.getReceivedBefore());
-          repository.updateReceivedBefore(existing.getId(), payment.getReceivedBefore());
-        } else {
-          log.info(
-              "Payment with external ID {} already exists, nothing to upsert",
-              payment.getExternalId());
-        }
+        log.info(
+            "Payment with external ID {} already exists, nothing to upsert",
+            payment.getExternalId());
         return;
       }
     }
@@ -201,9 +191,5 @@ public class SavingFundPaymentUpsertionService {
               fieldName, existingValue, newValue));
     }
     return existingValue;
-  }
-
-  private boolean isEarlier(Instant incoming, Instant existing) {
-    return incoming != null && (existing == null || incoming.isBefore(existing));
   }
 }

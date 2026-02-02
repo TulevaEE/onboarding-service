@@ -45,8 +45,8 @@ public class SebGatewayClient {
             uriBuilder ->
                 uriBuilder
                     .path("/v1/accounts/{iban}/transactions")
-                    .queryParam("dateFrom", dateFrom.format(DATE_FORMAT))
-                    .queryParam("dateTo", dateTo.format(DATE_FORMAT))
+                    .queryParam("from", dateFrom.format(DATE_FORMAT))
+                    .queryParam("to", dateTo.format(DATE_FORMAT))
                     .queryParam("page", 1)
                     .queryParam("size", 3000)
                     .build(iban))

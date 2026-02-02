@@ -44,3 +44,6 @@ infrastructure/
 
 # Test data with real bank statements
 src/test/resources/banking/seb/real-data/
+
+# Claude Code local settings
+.claude/settings.local.json

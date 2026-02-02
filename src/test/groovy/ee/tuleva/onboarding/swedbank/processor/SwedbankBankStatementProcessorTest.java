@@ -28,7 +28,6 @@ import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -217,8 +216,7 @@ class SwedbankBankStatementProcessorTest {
             BankStatementType.INTRA_DAY_REPORT,
             new BankStatementAccount(accountIban, "Tuleva Fondid AS", "14118923"),
             List.of(),
-            List.of(),
-            Instant.now());
+            List.of());
     when(swedbankAccountConfiguration.getAccountType(accountIban)).thenReturn(accountType);
     when(paymentExtractor.extractPayments(bankStatement)).thenReturn(List.of(payment));
 

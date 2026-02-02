@@ -6,7 +6,6 @@ import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.currency.Currency;
 import java.math.RoundingMode;
-import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
@@ -31,16 +30,15 @@ public class SavingFundPaymentExtractor {
 
   private List<SavingFundPayment> extractPaymentsFromStatement(BankStatement statement) {
     var account = statement.getBankStatementAccount();
-    var receivedBefore = statement.getReceivedBefore();
 
     return statement.getEntries().stream()
         .filter(entry -> entry.details() != null)
-        .map(entry -> convertToSavingFundPayment(entry, account, receivedBefore))
+        .map(entry -> convertToSavingFundPayment(entry, account))
         .toList();
   }
 
   private SavingFundPayment convertToSavingFundPayment(
-      BankStatementEntry entry, BankStatementAccount account, Instant receivedBefore) {
+      BankStatementEntry entry, BankStatementAccount account) {
 
     if (!Objects.equals(entry.currencyCode(), "EUR")) {
       throw new PaymentProcessingException(
@@ -69,7 +67,7 @@ public class SavingFundPaymentExtractor {
             .description(entry.remittanceInformation())
             .externalId(entry.externalId())
             .endToEndId(entry.endToEndId())
-            .receivedBefore(receivedBefore);
+            .receivedBefore(entry.receivedBefore());
 
     if (entry.transactionType() == TransactionType.CREDIT) {
       builder

@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.banking.iso20022.camt052.BankToCustomerAccountReport
 import ee.tuleva.onboarding.banking.iso20022.camt052.DateTimePeriodDetails;
 import ee.tuleva.onboarding.banking.iso20022.camt053.AccountStatement2;
 import ee.tuleva.onboarding.banking.iso20022.camt053.BankToCustomerStatementV02;
-import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
 import javax.xml.datatype.XMLGregorianCalendar;
@@ -29,7 +28,6 @@ public class BankStatement {
   private final List<BankStatementBalance> balances;
   // TODO check entries against TtlCdtNtries and TttlDbtEntries count from balances?
   private final List<BankStatementEntry> entries;
-  private final Instant receivedBefore;
 
   public static BankStatement from(BankToCustomerAccountReportV02 accountReport, ZoneId timezone) {
     var report = Require.exactlyOne(accountReport.getRpt(), "report");
@@ -44,33 +42,29 @@ public class BankStatement {
   static BankStatement from(AccountReport11 report, ZoneId timezone) {
     var account = BankStatementAccount.from(report);
     var balances = report.getBal().stream().map(BankStatementBalance::from).toList();
-    var entries = report.getNtry().stream().map(BankStatementEntry::from).toList();
 
     DateTimePeriodDetails fromAndToDateTime =
         Require.notNull(report.getFrToDt(), "fromAndToDateTime");
     XMLGregorianCalendar toDateTime = Require.notNull(fromAndToDateTime.getToDtTm(), "toDateTime");
-
     var receivedBefore =
         toDateTime.toGregorianCalendar().toZonedDateTime().withZoneSameLocal(timezone).toInstant();
 
-    return new BankStatement(INTRA_DAY_REPORT, account, balances, entries, receivedBefore);
+    var entries =
+        report.getNtry().stream()
+            .map(entry -> BankStatementEntry.from(entry, receivedBefore))
+            .toList();
+
+    return new BankStatement(INTRA_DAY_REPORT, account, balances, entries);
   }
 
   static BankStatement from(AccountStatement2 statement, ZoneId timezone) {
     var accountType = BankStatementAccount.from(statement);
     var balances = statement.getBal().stream().map(BankStatementBalance::from).toList();
-    var entries = statement.getNtry().stream().map(BankStatementEntry::from).toList();
-    var receivedBefore =
-        statement.getFrToDt() != null && statement.getFrToDt().getToDtTm() != null
-            ? statement
-                .getFrToDt()
-                .getToDtTm()
-                .toGregorianCalendar()
-                .toZonedDateTime()
-                .withZoneSameLocal(timezone)
-                .toInstant()
-            : null;
+    var entries =
+        statement.getNtry().stream()
+            .map(entry -> BankStatementEntry.from(entry, timezone))
+            .toList();
 
-    return new BankStatement(HISTORIC_STATEMENT, accountType, balances, entries, receivedBefore);
+    return new BankStatement(HISTORIC_STATEMENT, accountType, balances, entries);
   }
 }

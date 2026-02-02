@@ -46,8 +46,7 @@ class ReconciliatorTest {
         new BankStatementAccount("EE123456789012345678", "Test Company", "12345678");
     List<BankStatementEntry> entries = List.of();
     BankStatement bankStatement =
-        new BankStatement(
-            HISTORIC_STATEMENT, account, List.of(closingBalance), entries, Instant.now());
+        new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), entries);
 
     LedgerAccount ledgerAccount =
         systemAccountWithBalance(matchingBalance, toEstonianTime(balanceDate.minusDays(1)));
@@ -69,8 +68,7 @@ class ReconciliatorTest {
     BankStatementAccount account =
         new BankStatementAccount("EE987700771001802057", "Test Company", "12345678");
     BankStatement bankStatement =
-        new BankStatement(
-            HISTORIC_STATEMENT, account, List.of(closingBalance), List.of(), Instant.now());
+        new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), List.of());
 
     LedgerAccount ledgerAccount =
         systemAccountWithBalance(ledgerBalance, toEstonianTime(balanceDate.minusDays(1)));
@@ -89,8 +87,7 @@ class ReconciliatorTest {
     BankStatementAccount account =
         new BankStatementAccount("EE123456789012345678", "Test Company", "12345678");
     BankStatement bankStatement =
-        new BankStatement(
-            HISTORIC_STATEMENT, account, List.of(openingBalance), List.of(), Instant.now());
+        new BankStatement(HISTORIC_STATEMENT, account, List.of(openingBalance), List.of());
 
     assertThrows(NoSuchElementException.class, () -> reconciliator.reconcile(bankStatement));
   }
@@ -108,11 +105,7 @@ class ReconciliatorTest {
         new BankStatementAccount("EE123456789012345678", "Test Company", "12345678");
     BankStatement bankStatement =
         new BankStatement(
-            HISTORIC_STATEMENT,
-            account,
-            List.of(openingBalance, closingBalance),
-            List.of(),
-            Instant.now());
+            HISTORIC_STATEMENT, account, List.of(openingBalance, closingBalance), List.of());
 
     LedgerAccount ledgerAccount =
         systemAccountWithBalance(matchingBalance, toEstonianTime(balanceDate.minusDays(1)));

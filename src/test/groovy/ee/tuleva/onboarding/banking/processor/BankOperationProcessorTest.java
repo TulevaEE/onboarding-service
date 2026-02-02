@@ -107,6 +107,7 @@ class BankOperationProcessorTest {
         "Test payment",
         "test-ref",
         null,
+        null,
         null);
   }
 
@@ -119,6 +120,7 @@ class BankOperationProcessorTest {
         "Bank operation",
         "bank-op-ref",
         null,
-        subFamilyCode);
+        subFamilyCode,
+        null);
   }
 }

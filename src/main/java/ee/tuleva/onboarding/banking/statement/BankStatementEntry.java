@@ -2,12 +2,17 @@ package ee.tuleva.onboarding.banking.statement;
 
 import static ee.tuleva.onboarding.banking.iso20022.camt052.CreditDebitCode.CRDT;
 
+import ee.tuleva.onboarding.banking.converter.XmlGregorianCalendarToLocalDateConverter;
 import ee.tuleva.onboarding.banking.iso20022.camt052.GenericPersonIdentification1;
 import ee.tuleva.onboarding.banking.iso20022.camt052.Party6Choice;
 import ee.tuleva.onboarding.banking.iso20022.camt052.ReportEntry2;
 import ee.tuleva.onboarding.banking.iso20022.camt053.CreditDebitCode;
+import ee.tuleva.onboarding.banking.iso20022.camt053.DateAndDateTimeChoice;
 import jakarta.annotation.Nullable;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -22,7 +27,8 @@ public record BankStatementEntry(
     String remittanceInformation,
     String externalId,
     @Nullable String endToEndId,
-    @Nullable String subFamilyCode) {
+    @Nullable String subFamilyCode,
+    @Nullable Instant receivedBefore) {
 
   @RequiredArgsConstructor
   public static final class CounterPartyDetails {
@@ -137,7 +143,8 @@ public record BankStatementEntry(
     }
   }
 
-  static BankStatementEntry from(ee.tuleva.onboarding.banking.iso20022.camt053.ReportEntry2 entry) {
+  static BankStatementEntry from(
+      ee.tuleva.onboarding.banking.iso20022.camt053.ReportEntry2 entry, ZoneId timezone) {
     var counterPartyDetails = CounterPartyDetails.from(entry);
     var creditOrDebit = entry.getCdtDbtInd();
     var creditDebitCoefficient =
@@ -174,6 +181,8 @@ public record BankStatementEntry(
 
     var subFamilyCode = extractSubFamilyCode(entry);
 
+    var receivedBefore = extractReceivedBefore(entry.getBookgDt(), timezone);
+
     return new BankStatementEntry(
         counterPartyDetails,
         entryAmount,
@@ -182,7 +191,18 @@ public record BankStatementEntry(
         remittanceInformation,
         externalId,
         endToEndId,
-        subFamilyCode);
+        subFamilyCode,
+        receivedBefore);
+  }
+
+  @Nullable
+  private static Instant extractReceivedBefore(
+      @Nullable DateAndDateTimeChoice bookingDate, ZoneId timezone) {
+    return Optional.ofNullable(bookingDate)
+        .map(DateAndDateTimeChoice::getDt)
+        .map(dt -> new XmlGregorianCalendarToLocalDateConverter().convert(dt))
+        .map(date -> date.atTime(LocalTime.MAX).atZone(timezone).toInstant())
+        .orElse(null);
   }
 
   @Nullable
@@ -197,7 +217,7 @@ public record BankStatementEntry(
         .orElse(null);
   }
 
-  static BankStatementEntry from(ReportEntry2 entry) {
+  static BankStatementEntry from(ReportEntry2 entry, Instant receivedBefore) {
     var counterPartyDetails = CounterPartyDetails.from(entry);
     var creditOrDebit = entry.getCdtDbtInd();
     var creditDebitCoefficient = creditOrDebit == CRDT ? BigDecimal.ONE : new BigDecimal("-1.0");
@@ -240,7 +260,8 @@ public record BankStatementEntry(
         remittanceInformation,
         externalId,
         endToEndId,
-        subFamilyCode);
+        subFamilyCode,
+        receivedBefore);
   }
 
   @Nullable

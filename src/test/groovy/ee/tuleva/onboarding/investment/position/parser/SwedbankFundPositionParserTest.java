@@ -136,7 +136,7 @@ class SwedbankFundPositionParserTest {
   }
 
   @Test
-  void parse_parsesNav() {
+  void parse_parsesNavWithDefaultAccountName() {
     String csv =
         HEADER
             + "\n"
@@ -148,8 +148,28 @@ class SwedbankFundPositionParserTest {
     FundPosition position = positions.getFirst();
     assertThat(position.getFund()).isEqualTo(TUK75);
     assertThat(position.getAccountType()).isEqualTo(NAV);
-    assertThat(position.getAccountName()).isNull();
+    assertThat(position.getAccountName()).isEqualTo("TotalNetAsset");
     assertThat(position.getQuantity()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
+  void parse_usesAssetTypeAsFallbackAccountName() {
+    List<Map<String, Object>> rawData =
+        List.of(
+            Map.of(
+                "NAVDate", "05.01.2026",
+                "Portfolio", "Tuleva Maailma Aktsiate Pensionifond",
+                "AssetType", "Equities",
+                "ISIN", "IE00BFG1TM61",
+                "Quantity", new BigDecimal("1000"),
+                "AssetCurr", "EUR",
+                "PricePC", new BigDecimal("10"),
+                "MarketValuePC", new BigDecimal("10000")));
+
+    List<FundPosition> positions = parser.parse(rawData);
+
+    assertThat(positions).hasSize(1);
+    assertThat(positions.getFirst().getAccountName()).isEqualTo("Equities");
   }
 
   @Test

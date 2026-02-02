@@ -39,15 +39,22 @@ public class IssuingJob {
   }
 
   private List<SavingFundPayment> getReservedPaymentsDependingOnCurrentTime() {
-    var todaysCutoff = getCutoff(LocalDate.now(clock));
-    var currentTime = clock.instant();
-    var isTodayWorkingDay =
-        new PublicHolidays().isWorkingDay(currentTime.atZone(CUTOFF_TIMEZONE).toLocalDate());
-    if (currentTime.isBefore(todaysCutoff) || !isTodayWorkingDay) {
-      return getReservedPaymentsFromBeforeSecondToLastWorkingDay();
-    }
+    var cutoffTime = Instant.parse("2026-01-31T22:00:00Z"); // Initial offering cut-off time
+    var reservedPayments = savingFundPaymentRepository.findPaymentsWithStatus(RESERVED);
 
-    return getReservedPaymentsFromBeforeLastWorkingDay();
+    return reservedPayments.stream()
+        .filter(payment -> payment.getReceivedBefore().isBefore(cutoffTime))
+        .toList();
+
+    // var todaysCutoff = getCutoff(LocalDate.now(clock));
+    // var currentTime = clock.instant();
+    // var isTodayWorkingDay =
+    //     new PublicHolidays().isWorkingDay(currentTime.atZone(CUTOFF_TIMEZONE).toLocalDate());
+    // if (currentTime.isBefore(todaysCutoff) || !isTodayWorkingDay) {
+    //   return getReservedPaymentsFromBeforeSecondToLastWorkingDay();
+    // }
+    //
+    // return getReservedPaymentsFromBeforeLastWorkingDay();
   }
 
   private List<SavingFundPayment> getReservedPaymentsFromBeforeSecondToLastWorkingDay() {

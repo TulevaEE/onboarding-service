@@ -18,6 +18,7 @@ import java.time.*;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,6 +51,7 @@ class IssuingJobTest {
     return paymentReservedDate.getDayOfWeek();
   }
 
+  @Disabled
   @Test
   @DisplayName("processes RESERVED payments from yesterday before cutoff, ignores those from today")
   void processMessages() {
@@ -102,6 +104,7 @@ class IssuingJobTest {
     verify(issuerService, never()).processPayment(reservedPaymentToday, nav);
   }
 
+  @Disabled
   @Test
   @DisplayName("when running before 16:00, only includes payments from two working days before")
   void before16TwoWorkingDaysBefore() {
@@ -177,6 +180,7 @@ class IssuingJobTest {
         .processPayment(reservedPaymentFromTwoDaysBeforeButMadeAfterCutoff, nav);
   }
 
+  @Disabled
   @Test
   @DisplayName("when running on weekend, only includes payments from two working days before")
   void runOnWeekend() {
@@ -252,6 +256,7 @@ class IssuingJobTest {
         .processPayment(reservedPaymentFromTwoDaysBeforeButMadeAfterCutoff, nav);
   }
 
+  @Disabled
   @Test
   @DisplayName(
       "processes RESERVED payments from yesterday before cutoff, ignores those from yesterday made after cutoff")
@@ -305,6 +310,7 @@ class IssuingJobTest {
     verify(issuerService, never()).processPayment(reservedPaymentAfterCutoff, nav);
   }
 
+  @Disabled
   @Test
   @DisplayName("when running on monday, does not process reserved payment from weekend")
   void doesNotProcessWeekendReserved() {
@@ -363,6 +369,7 @@ class IssuingJobTest {
     verify(issuerService, never()).processPayment(reservedPaymentFromWeekend, nav);
   }
 
+  @Disabled
   @Test
   @DisplayName(
       "when running on day after holidays, process payment from before holidays but does not process reserved payment from public holiday")
@@ -424,5 +431,51 @@ class IssuingJobTest {
 
     verify(issuerService, times(1)).processPayment(reservedPaymentFromMondayBeforeChristmas, nav);
     verify(issuerService, never()).processPayment(reservedPaymentMadeOnPublicHoliday, nav);
+  }
+
+  @Test
+  void issuesPaymentsBeforeInitialOfferingCutoff() {
+    var now = Instant.parse("2026-02-01T10:00:00Z");
+    var clock = Clock.fixed(now, UTC);
+    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository, navProvider);
+
+    var nav = BigDecimal.ONE;
+    var initialOfferingCutoff = Instant.parse("2026-01-31T22:00:00Z");
+
+    var paymentBeforeCutoff =
+        SavingFundPayment.builder()
+            .id(UUID.randomUUID())
+            .amount(new BigDecimal("500.00"))
+            .currency(Currency.EUR)
+            .description("Monthly contribution")
+            .remitterIban("EE34370400440532013000")
+            .remitterName("John Doe")
+            .beneficiaryIban("EE987654321098765432")
+            .beneficiaryName("Tuleva Savings Account")
+            .receivedBefore(initialOfferingCutoff.minusSeconds(1))
+            .status(RESERVED)
+            .build();
+
+    var paymentAfterCutoff =
+        SavingFundPayment.builder()
+            .id(UUID.randomUUID())
+            .amount(new BigDecimal("500.00"))
+            .currency(Currency.EUR)
+            .description("Monthly contribution")
+            .remitterIban("EE34370400440532013000")
+            .remitterName("John Doe")
+            .beneficiaryIban("EE987654321098765432")
+            .beneficiaryName("Tuleva Savings Account")
+            .receivedBefore(initialOfferingCutoff.plusSeconds(1))
+            .status(RESERVED)
+            .build();
+
+    when(paymentRepository.findPaymentsWithStatus(RESERVED))
+        .thenReturn(List.of(paymentBeforeCutoff, paymentAfterCutoff));
+
+    issuingJob.runJob();
+
+    verify(issuerService, times(1)).processPayment(paymentBeforeCutoff, nav);
+    verify(issuerService, never()).processPayment(paymentAfterCutoff, nav);
   }
 }

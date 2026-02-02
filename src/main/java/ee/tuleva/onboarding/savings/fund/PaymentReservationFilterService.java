@@ -18,8 +18,8 @@ public class PaymentReservationFilterService {
   private final PublicHolidays publicHolidays;
 
   public List<SavingFundPayment> filterPaymentsToReserve(List<SavingFundPayment> payments) {
-    var cutoffTime = Instant.parse("2026-01-31T22:00:00Z"); // Initial offering cut-off time
-    // var previousCutoffTime = getCutoffTime(cutoffTime.minusSeconds(1));
+    var cutoffTime = getCutoffTime(clock.instant());
+    var previousCutoffTime = getCutoffTime(cutoffTime.minusSeconds(1));
 
     var paymentsToReserve =
         payments.stream()
@@ -28,17 +28,16 @@ public class PaymentReservationFilterService {
             .filter(payment -> payment.getCancelledAt() == null)
             .toList();
 
-    //    paymentsToReserve.forEach(
-    //        payment -> {
-    //          if (payment.getReceivedBefore().isBefore(previousCutoffTime)) {
-    //            log.error(
-    //                "Old payment detected: payment {} was received at {} which is before the
-    // previous cutoff time {}",
-    //                payment.getId(),
-    //                payment.getReceivedBefore(),
-    //                cutoffTime);
-    //          }
-    //        });
+    paymentsToReserve.forEach(
+        payment -> {
+          if (payment.getReceivedBefore().isBefore(previousCutoffTime)) {
+            log.error(
+                "Old payment detected: payment {} was received at {} which is before the previous cutoff time {}",
+                payment.getId(),
+                payment.getReceivedBefore(),
+                cutoffTime);
+          }
+        });
 
     return paymentsToReserve;
   }

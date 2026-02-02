@@ -19,7 +19,10 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -73,7 +76,6 @@ class SavingsFundReservationJobIntegrationTest {
 
   @Test
   @DisplayName("does not process payment after cutoff")
-  @Disabled
   void doesNotProcessPaymentAfterCutoff() {
     var afterCutoff = Instant.parse("2025-01-06T15:00:00Z"); // Monday 17:00 EET
 

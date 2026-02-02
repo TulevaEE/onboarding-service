@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.banking.statement;
 
 import static ee.tuleva.onboarding.banking.iso20022.camt052.CreditDebitCode.CRDT;
+import static java.time.temporal.ChronoUnit.MICROS;
 
 import ee.tuleva.onboarding.banking.converter.XmlGregorianCalendarToLocalDateConverter;
 import ee.tuleva.onboarding.banking.iso20022.camt052.GenericPersonIdentification1;
@@ -196,12 +197,12 @@ public record BankStatementEntry(
   }
 
   @Nullable
-  private static Instant extractReceivedBefore(
+  static Instant extractReceivedBefore(
       @Nullable DateAndDateTimeChoice bookingDate, ZoneId timezone) {
     return Optional.ofNullable(bookingDate)
         .map(DateAndDateTimeChoice::getDt)
         .map(dt -> new XmlGregorianCalendarToLocalDateConverter().convert(dt))
-        .map(date -> date.atTime(LocalTime.MAX).atZone(timezone).toInstant())
+        .map(date -> date.atTime(LocalTime.MAX).atZone(timezone).toInstant().truncatedTo(MICROS))
         .orElse(null);
   }
 

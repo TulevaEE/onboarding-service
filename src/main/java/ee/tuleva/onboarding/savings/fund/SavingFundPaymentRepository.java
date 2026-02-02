@@ -322,6 +322,16 @@ public class SavingFundPaymentRepository {
         "UPDATE saving_fund_payment SET cancelled_at=NOW() WHERE id=:id", Map.of("id", paymentId));
   }
 
+  public void updateReceivedBefore(UUID paymentId, Instant receivedBefore) {
+    jdbcTemplate.update(
+        "UPDATE saving_fund_payment SET received_before=:received_before WHERE id=:id",
+        Map.of(
+            "id",
+            paymentId,
+            "received_before",
+            receivedBefore != null ? Timestamp.from(receivedBefore) : null));
+  }
+
   private Status getAndLockCurrentStatus(UUID paymentId) {
     return jdbcTemplate.queryForObject(
         "select status from saving_fund_payment where id=:id for update",

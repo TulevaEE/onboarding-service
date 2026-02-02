@@ -450,6 +450,25 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     }
 
     @Test
+    void updatesReceivedBeforeWhenIncomingIsEarlier() {
+      // given - payment already exists with a later receivedBefore timestamp
+      var existingReceivedBefore = Instant.parse("2025-10-01T12:00:00Z");
+      var existingPayment =
+          paymentMatchingXmlTemplate().receivedBefore(existingReceivedBefore).build();
+      var existingId = repository.savePaymentData(existingPayment);
+      repository.changeStatus(existingId, SavingFundPayment.Status.RECEIVED);
+
+      // when - XML arrives with earlier receivedBefore (09:00:00Z from ToDtTm)
+      processXmlMessage(XML_TEMPLATE);
+
+      // then - receivedBefore is updated to the earlier value, no new payment created
+      assertThat(repository.findAll()).hasSize(1);
+      var payment = repository.findByExternalId("2025100112345-1").orElseThrow();
+      assertThat(payment.getId()).isEqualTo(existingId);
+      assertThat(payment.getReceivedBefore()).isEqualTo(Instant.parse("2025-10-01T09:00:00Z"));
+    }
+
+    @Test
     void createsNewPaymentWhenIbanDiffers() {
       // given - existing payment with different IBAN but same description
       var existingPayment =

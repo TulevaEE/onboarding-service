@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -37,7 +38,7 @@ public class FundAccountPaymentJob {
   private final ApplicationEventPublisher eventPublisher;
   private final EndToEndIdConverter endToEndIdConverter;
 
-  // @Scheduled(fixedRateString = "1m")
+  @Scheduled(fixedRateString = "1m")
   @SchedulerLock(
       name = "FundAccountPaymentJob_runJob",
       lockAtMostFor = "50s",

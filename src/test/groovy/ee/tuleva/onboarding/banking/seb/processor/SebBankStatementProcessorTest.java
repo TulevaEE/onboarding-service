@@ -286,4 +286,78 @@ class SebBankStatementProcessorTest {
     verifyNoInteractions(redemptionStatusService);
     verify(paymentService).upsert(eq(outgoingPayment), any());
   }
+
+  @Test
+  void incomingInternalTransfer_depositToFundInvestment_isSkipped() {
+    var incomingPayment =
+        aPayment().amount(new BigDecimal("1000.00")).remitterIban(DEPOSIT_ACCOUNT_IBAN).build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(incomingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
+    when(sebAccountConfiguration.getAccountType(DEPOSIT_ACCOUNT_IBAN)).thenReturn(DEPOSIT_EUR);
+
+    processor.processStatement(bankStatement);
+
+    verify(paymentService, never()).upsert(any(), any());
+    verify(paymentService, never()).upsert(any(), any(), any());
+  }
+
+  @Test
+  void incomingInternalTransfer_fundInvestmentToWithdrawal_isSkipped() {
+    var incomingPayment =
+        aPayment().amount(new BigDecimal("1000.00")).remitterIban(FUND_INVESTMENT_IBAN).build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(incomingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
+    when(sebAccountConfiguration.getAccountType(FUND_INVESTMENT_IBAN))
+        .thenReturn(FUND_INVESTMENT_EUR);
+
+    processor.processStatement(bankStatement);
+
+    verify(paymentService, never()).upsert(any(), any());
+    verify(paymentService, never()).upsert(any(), any(), any());
+  }
+
+  @Test
+  void incomingInternalTransfer_fundInvestmentToDeposit_isSkipped() {
+    var incomingPayment =
+        aPayment().amount(new BigDecimal("1000.00")).remitterIban(FUND_INVESTMENT_IBAN).build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(incomingPayment, DEPOSIT_ACCOUNT_IBAN, DEPOSIT_EUR);
+    when(sebAccountConfiguration.getAccountType(FUND_INVESTMENT_IBAN))
+        .thenReturn(FUND_INVESTMENT_EUR);
+
+    processor.processStatement(bankStatement);
+
+    verify(paymentService, never()).upsert(any(), any());
+    verify(paymentService, never()).upsert(any(), any(), any());
+  }
+
+  @Test
+  void incomingExternalPayment_isProcessedNormally() {
+    var incomingPayment =
+        aPayment().amount(new BigDecimal("200.00")).remitterIban(EXTERNAL_ACCOUNT_IBAN).build();
+    var bankStatement = setupMocksForPayment(incomingPayment);
+    when(sebAccountConfiguration.getAccountType(EXTERNAL_ACCOUNT_IBAN)).thenReturn(null);
+
+    processor.processStatement(bankStatement);
+
+    verify(paymentService).upsert(eq(incomingPayment), any(), any());
+  }
+
+  @Test
+  void outgoingInternalTransfer_isProcessedNormally() {
+    var outgoingPayment =
+        aPayment()
+            .amount(new BigDecimal("-100.00"))
+            .beneficiaryIban(FUND_INVESTMENT_IBAN)
+            .remitterIban(DEPOSIT_ACCOUNT_IBAN)
+            .build();
+    var bankStatement = setupMocksForPayment(outgoingPayment);
+    when(sebAccountConfiguration.getAccountType(FUND_INVESTMENT_IBAN))
+        .thenReturn(FUND_INVESTMENT_EUR);
+
+    processor.processStatement(bankStatement);
+
+    verify(paymentService).upsert(eq(outgoingPayment), any(), any());
+    verify(savingsFundLedger).transferToFundAccount(new BigDecimal("100.00"));
+  }
 }

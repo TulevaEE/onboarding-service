@@ -78,6 +78,14 @@ public class SwedbankBankStatementProcessor {
   }
 
   private void processPayment(SavingFundPayment payment, BankAccountType accountType) {
+    if (isInternalTransferIncoming(payment)) {
+      log.debug(
+          "Skipping incoming internal transfer: endToEndId={}, remitterIban={}",
+          payment.getEndToEndId(),
+          payment.getRemitterIban());
+      return;
+    }
+
     switch (accountType) {
       case DEPOSIT_EUR ->
           paymentService.upsert(
@@ -86,6 +94,11 @@ public class SwedbankBankStatementProcessor {
       case FUND_INVESTMENT_EUR ->
           paymentService.upsert(payment, this::processFundInvestmentPaymentOnInsert);
     }
+  }
+
+  private boolean isInternalTransferIncoming(SavingFundPayment payment) {
+    return isIncomingPayment(payment)
+        && swedbankAccountConfiguration.getAccountType(payment.getRemitterIban()) != null;
   }
 
   private void handleDepositAccountPayment(SavingFundPayment payment) {

@@ -33,7 +33,6 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class SwedbankBankStatementProcessorTest {
@@ -67,7 +66,6 @@ class SwedbankBankStatementProcessorTest {
           endToEndIdConverter);
 
   @Test
-  @DisplayName("Outgoing to fund account creates ledger transfer entry")
   void outgoingToFundAccount_createsLedgerTransferEntry() {
     var outgoingPayment =
         aPayment().amount(new BigDecimal("-100.00")).beneficiaryIban(FUND_INVESTMENT_IBAN).build();
@@ -81,8 +79,6 @@ class SwedbankBankStatementProcessorTest {
   }
 
   @Test
-  @DisplayName(
-      "Outgoing return with user-cancelled original creates payment cancelled ledger entry")
   void outgoingReturn_userCancelled_createsPaymentCancelledLedgerEntry() {
     User user = sampleUser().build();
     var originalPaymentId = UUID.randomUUID();
@@ -114,7 +110,6 @@ class SwedbankBankStatementProcessorTest {
   }
 
   @Test
-  @DisplayName("Outgoing return with unattributed original creates bounce back ledger entry")
   void outgoingReturn_unattributed_createsBounceBackLedgerEntry() {
     var originalPaymentId = UUID.randomUUID();
     var endToEndId = originalPaymentId.toString().replace("-", "");
@@ -144,7 +139,6 @@ class SwedbankBankStatementProcessorTest {
   }
 
   @Test
-  @DisplayName("Outgoing return with no original found does not create ledger entry")
   void outgoingReturn_originalNotFound_doesNotCreateLedgerEntry() {
     var returnPayment =
         aPayment()
@@ -164,7 +158,6 @@ class SwedbankBankStatementProcessorTest {
   }
 
   @Test
-  @DisplayName("User-cancelled return throws when user not found")
   void userCancelledReturn_throwsWhenUserNotFound() {
     Long missingUserId = 99999L;
     var originalPaymentId = UUID.randomUUID();
@@ -193,7 +186,6 @@ class SwedbankBankStatementProcessorTest {
   }
 
   @Test
-  @DisplayName("Incoming payment does not create ledger entry in processor")
   void incomingPayment_doesNotCreateLedgerEntry() {
     var incomingPayment = aPayment().amount(new BigDecimal("200.00")).build();
     var bankStatement = setupMocksForPayment(incomingPayment);
@@ -244,8 +236,6 @@ class SwedbankBankStatementProcessorTest {
   }
 
   @Test
-  @DisplayName(
-      "WITHDRAWAL_EUR outgoing payment creates ledger entry and marks RedemptionRequest as PROCESSED")
   void withdrawalOutgoing_createsLedgerEntryAndMarksRedemptionAsProcessed() {
     User user = sampleUser().build();
     var redemptionRequestId = UUID.randomUUID();
@@ -280,7 +270,6 @@ class SwedbankBankStatementProcessorTest {
   }
 
   @Test
-  @DisplayName("WITHDRAWAL_EUR outgoing payment skips ledger entry if already exists")
   void withdrawalOutgoing_skipsLedgerEntryIfAlreadyExists() {
     User user = sampleUser().build();
     var redemptionRequestId = UUID.randomUUID();
@@ -312,7 +301,6 @@ class SwedbankBankStatementProcessorTest {
   }
 
   @Test
-  @DisplayName("WITHDRAWAL_EUR outgoing payment throws when user not found")
   void withdrawalOutgoing_throwsWhenUserNotFound() {
     Long missingUserId = 99999L;
     var redemptionRequestId = UUID.randomUUID();
@@ -341,8 +329,6 @@ class SwedbankBankStatementProcessorTest {
   }
 
   @Test
-  @DisplayName(
-      "WITHDRAWAL_EUR outgoing payment with no matching RedemptionRequest does not change status")
   void withdrawalOutgoing_noMatchingRedemption_doesNotChangeStatus() {
     var endToEndId = "12345678123456781234567812345678";
     var outgoingPayment =
@@ -362,7 +348,6 @@ class SwedbankBankStatementProcessorTest {
   }
 
   @Test
-  @DisplayName("WITHDRAWAL_EUR incoming from FUND_INVESTMENT logs batch transfer")
   void withdrawalIncoming_fromFundInvestment_logsBatchTransfer() {
     var incomingPayment =
         aPayment().amount(new BigDecimal("1000.00")).remitterIban(FUND_INVESTMENT_IBAN).build();
@@ -377,8 +362,6 @@ class SwedbankBankStatementProcessorTest {
   }
 
   @Test
-  @DisplayName(
-      "FUND_INVESTMENT_EUR outgoing to WITHDRAWAL creates transferFromFundAccount ledger entry")
   void fundInvestmentOutgoing_toWithdrawal_createsLedgerEntry() {
     var outgoingPayment =
         aPayment()
@@ -395,5 +378,79 @@ class SwedbankBankStatementProcessorTest {
     verify(savingsFundLedger).transferFromFundAccount(new BigDecimal("1000.00"));
     verifyNoInteractions(redemptionStatusService);
     verify(paymentService).upsert(eq(outgoingPayment), any());
+  }
+
+  @Test
+  void incomingInternalTransfer_depositToFundInvestment_isSkipped() {
+    var incomingPayment =
+        aPayment().amount(new BigDecimal("1000.00")).remitterIban(DEPOSIT_ACCOUNT_IBAN).build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(incomingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
+    when(swedbankAccountConfiguration.getAccountType(DEPOSIT_ACCOUNT_IBAN)).thenReturn(DEPOSIT_EUR);
+
+    processor.processStatement(bankStatement);
+
+    verify(paymentService, never()).upsert(any(), any());
+    verify(paymentService, never()).upsert(any(), any(), any());
+  }
+
+  @Test
+  void incomingInternalTransfer_fundInvestmentToWithdrawal_isSkipped() {
+    var incomingPayment =
+        aPayment().amount(new BigDecimal("1000.00")).remitterIban(FUND_INVESTMENT_IBAN).build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(incomingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
+    when(swedbankAccountConfiguration.getAccountType(FUND_INVESTMENT_IBAN))
+        .thenReturn(FUND_INVESTMENT_EUR);
+
+    processor.processStatement(bankStatement);
+
+    verify(paymentService, never()).upsert(any(), any());
+    verify(paymentService, never()).upsert(any(), any(), any());
+  }
+
+  @Test
+  void incomingInternalTransfer_fundInvestmentToDeposit_isSkipped() {
+    var incomingPayment =
+        aPayment().amount(new BigDecimal("1000.00")).remitterIban(FUND_INVESTMENT_IBAN).build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(incomingPayment, DEPOSIT_ACCOUNT_IBAN, DEPOSIT_EUR);
+    when(swedbankAccountConfiguration.getAccountType(FUND_INVESTMENT_IBAN))
+        .thenReturn(FUND_INVESTMENT_EUR);
+
+    processor.processStatement(bankStatement);
+
+    verify(paymentService, never()).upsert(any(), any());
+    verify(paymentService, never()).upsert(any(), any(), any());
+  }
+
+  @Test
+  void incomingExternalPayment_isProcessedNormally() {
+    var incomingPayment =
+        aPayment().amount(new BigDecimal("200.00")).remitterIban(EXTERNAL_ACCOUNT_IBAN).build();
+    var bankStatement = setupMocksForPayment(incomingPayment);
+    when(swedbankAccountConfiguration.getAccountType(EXTERNAL_ACCOUNT_IBAN)).thenReturn(null);
+
+    processor.processStatement(bankStatement);
+
+    verify(paymentService).upsert(eq(incomingPayment), any(), any());
+  }
+
+  @Test
+  void outgoingInternalTransfer_isProcessedNormally() {
+    var outgoingPayment =
+        aPayment()
+            .amount(new BigDecimal("-100.00"))
+            .beneficiaryIban(FUND_INVESTMENT_IBAN)
+            .remitterIban(DEPOSIT_ACCOUNT_IBAN)
+            .build();
+    var bankStatement = setupMocksForPayment(outgoingPayment);
+    when(swedbankAccountConfiguration.getAccountType(FUND_INVESTMENT_IBAN))
+        .thenReturn(FUND_INVESTMENT_EUR);
+
+    processor.processStatement(bankStatement);
+
+    verify(paymentService).upsert(eq(outgoingPayment), any(), any());
+    verify(savingsFundLedger).transferToFundAccount(new BigDecimal("100.00"));
   }
 }

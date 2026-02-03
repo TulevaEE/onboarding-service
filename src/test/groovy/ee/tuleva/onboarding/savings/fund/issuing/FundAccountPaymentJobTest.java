@@ -65,9 +65,9 @@ class FundAccountPaymentJobTest {
 
     var paymentRequest = paymentEventCaptor.getValue().paymentRequest();
     assertThat(paymentRequest.amount()).isEqualTo(new BigDecimal("90.40"));
-    assertThat(paymentRequest.remitterName()).isEqualTo("Tuleva Fondid AS");
+    assertThat(paymentRequest.remitterName()).isEqualTo("Tuleva Täiendav Kogumisfond");
     assertThat(paymentRequest.remitterIban()).isEqualTo("deposit-IBAN");
-    assertThat(paymentRequest.beneficiaryName()).isEqualTo("Tuleva Fondid AS");
+    assertThat(paymentRequest.beneficiaryName()).isEqualTo("Tuleva Täiendav Kogumisfond");
     assertThat(paymentRequest.beneficiaryIban()).isEqualTo("investment-IBAN");
     assertThat(paymentRequest.description()).isEqualTo("Subscriptions");
 

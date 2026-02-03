@@ -121,8 +121,8 @@ class SebGatewayManualIntegrationTest {
   void submitPaymentRequest() {
     var paymentRequest =
         PaymentRequest.builder()
-            .remitterName("Tuleva Fondid AS")
-            .remitterId("14118923")
+            .remitterName("Tuleva Täiendav Kogumisfond")
+            .remitterId("1162")
             .remitterIban("EE241010220306719221")
             .beneficiaryName("Test Recipient")
             .beneficiaryIban("EE381010220306717223")

@@ -78,7 +78,7 @@ public class FundAccountPaymentJob {
     var paymentRequest =
         PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(id))
             .remitterIban(bankAccountConfiguration.getAccountIban(DEPOSIT_EUR))
-            .beneficiaryName("Tuleva Fondid AS")
+            .beneficiaryName("Tuleva Täiendav Kogumisfond")
             .beneficiaryIban(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
             .amount(total)
             .description("Subscriptions")

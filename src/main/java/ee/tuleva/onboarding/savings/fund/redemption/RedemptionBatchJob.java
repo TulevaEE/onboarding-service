@@ -165,7 +165,7 @@ public class RedemptionBatchJob {
     PaymentRequest paymentRequest =
         PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(batchId))
             .remitterIban(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
-            .beneficiaryName("Tuleva Fondid AS")
+            .beneficiaryName("Tuleva Täiendav Kogumisfond")
             .beneficiaryIban(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
             .amount(totalAmount)
             .description("Redemptions batch")

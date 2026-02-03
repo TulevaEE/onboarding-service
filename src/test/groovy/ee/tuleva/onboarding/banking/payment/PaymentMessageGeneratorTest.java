@@ -23,8 +23,8 @@ class PaymentMessageGeneratorTest {
   void generate() throws IOException, SAXException {
     var paymentRequest =
         PaymentRequest.builder()
-            .remitterName("Tuleva AS")
-            .remitterId("14118923")
+            .remitterName("Tuleva Täiendav Kogumisfond")
+            .remitterId("1162")
             .remitterIban("EE121283519985595614")
             .beneficiaryName("John Doe")
             .beneficiaryIban("EE461277288334943840")
@@ -59,7 +59,7 @@ class PaymentMessageGeneratorTest {
       <NbOfTxs>1</NbOfTxs>
       <CtrlSum>111.03</CtrlSum>
       <InitgPty>
-        <Nm>Tuleva AS</Nm>
+        <Nm>Tuleva Täiendav Kogumisfond</Nm>
       </InitgPty>
     </GrpHdr>
     <PmtInf>
@@ -76,11 +76,11 @@ class PaymentMessageGeneratorTest {
         <Dt>2020-01-01</Dt>
       </ReqdExctnDt>
       <Dbtr>
-        <Nm>Tuleva AS</Nm>
+        <Nm>Tuleva Täiendav Kogumisfond</Nm>
         <Id>
           <OrgId>
             <Othr>
-              <Id>14118923</Id>
+              <Id>1162</Id>
             </Othr>
           </OrgId>
         </Id>

@@ -59,6 +59,7 @@ class SebRedemptionIntegrationTest {
   void setUp() {
     ClockHolder.setClock(Clock.fixed(FRIDAY, ZoneId.of("UTC")));
     when(navProvider.getCurrentNav()).thenReturn(BigDecimal.ONE);
+    when(navProvider.getCurrentNavForIssuing()).thenReturn(BigDecimal.ONE);
 
     testUser =
         userRepository.save(sampleUser().id(null).member(null).personalCode("39901019992").build());

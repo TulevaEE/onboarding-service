@@ -51,7 +51,7 @@ class RedemptionBatchJobTest {
 
   @BeforeEach
   void setUp() {
-    lenient().when(navProvider.getCurrentNav()).thenReturn(BigDecimal.ONE);
+    lenient().when(navProvider.getCurrentNavForIssuing()).thenReturn(BigDecimal.ONE);
   }
 
   private RedemptionBatchJob createBatchJob(Instant now) {

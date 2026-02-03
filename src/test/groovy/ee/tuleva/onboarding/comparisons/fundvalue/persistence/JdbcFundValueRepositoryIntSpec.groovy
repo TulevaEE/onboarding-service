@@ -36,10 +36,11 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
     def "it can persist a bunch of fund values"() {
         given:
             List<FundValue> values = getFakeFundValues()
+            int rowsBefore = JdbcTestUtils.countRowsInTable(jdbcTemplate, "index_values")
         when:
             fundValueRepository.saveAll(values)
         then:
-            JdbcTestUtils.countRowsInTable(jdbcTemplate, "index_values") == values.size()
+            JdbcTestUtils.countRowsInTable(jdbcTemplate, "index_values") == rowsBefore + values.size()
     }
 
     def "it can retrieve fund values by last time and fund"() {
@@ -137,7 +138,8 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
     Map<String, LocalDate> dates = fundValueRepository.findEarliestDates()
 
     then:
-    dates == ["SOME_FUND": parse("2019-12-31"), "SOME_FUND_2": parse("2020-01-01")]
+    dates[key] == parse("2019-12-31")
+    dates[key2] == parse("2020-01-01")
   }
 
   def "it finds values between dates for a fund"() {

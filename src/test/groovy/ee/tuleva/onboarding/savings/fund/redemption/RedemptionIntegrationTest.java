@@ -70,6 +70,7 @@ class RedemptionIntegrationTest {
     ClockHolder.setClock(Clock.fixed(NOW, ZoneId.of("UTC")));
     doNothing().when(swedbankGatewayClient).sendPaymentRequest(any(), any());
     lenient().when(navProvider.getCurrentNav()).thenReturn(BigDecimal.ONE);
+    lenient().when(navProvider.getCurrentNavForIssuing()).thenReturn(BigDecimal.ONE);
 
     testUser =
         userRepository.save(sampleUser().id(null).member(null).personalCode("39901019992").build());

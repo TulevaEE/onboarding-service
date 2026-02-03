@@ -82,6 +82,6 @@ public class IssuingJob {
   }
 
   private BigDecimal getNAV() {
-    return navProvider.getCurrentNav();
+    return navProvider.getCurrentNavForIssuing();
   }
 }

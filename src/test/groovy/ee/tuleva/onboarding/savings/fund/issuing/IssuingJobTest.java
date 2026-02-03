@@ -35,7 +35,7 @@ class IssuingJobTest {
     paymentRepository = mock(SavingFundPaymentRepository.class);
     issuerService = mock(IssuerService.class);
     navProvider = mock(SavingsFundNavProvider.class);
-    when(navProvider.getCurrentNav()).thenReturn(BigDecimal.ONE);
+    when(navProvider.getCurrentNavForIssuing()).thenReturn(BigDecimal.ONE);
   }
 
   boolean isReservedDateWorkingDay(SavingFundPayment payment) {

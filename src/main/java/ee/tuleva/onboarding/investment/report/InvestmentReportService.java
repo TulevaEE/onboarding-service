@@ -28,11 +28,12 @@ public class InvestmentReportService {
       LocalDate reportDate,
       InputStream csvStream,
       char delimiter,
+      int headerRowIndex,
       Map<String, Object> metadata) {
 
     byte[] csvBytes = readAllBytes(csvStream);
     List<Map<String, Object>> rawData =
-        csvConverter.convert(new ByteArrayInputStream(csvBytes), delimiter);
+        csvConverter.convert(new ByteArrayInputStream(csvBytes), delimiter, headerRowIndex);
 
     Optional<InvestmentReport> existing =
         repository.findByProviderAndReportTypeAndReportDate(provider, reportType, reportDate);

@@ -16,4 +16,12 @@ public interface ReportSource {
   String getBucket();
 
   String getKey(ReportType reportType, LocalDate date);
+
+  default char getCsvDelimiter() {
+    return ';';
+  }
+
+  default int getHeaderRowIndex() {
+    return 0;
+  }
 }

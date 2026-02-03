@@ -48,7 +48,7 @@ public class SwedbankFundPositionParser implements FundPositionParser {
       Set.of(AccountType.CASH, AccountType.LIABILITY, AccountType.RECEIVABLES);
 
   @Override
-  public List<FundPosition> parse(List<Map<String, Object>> rawData) {
+  public List<FundPosition> parse(List<Map<String, Object>> rawData, LocalDate reportDate) {
     return rawData.stream().map(this::parseRow).flatMap(Optional::stream).toList();
   }
 

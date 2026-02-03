@@ -21,6 +21,7 @@ class SwedbankFundPositionParserTest {
 
   private final SwedbankFundPositionParser parser = new SwedbankFundPositionParser();
   private final CsvToJsonConverter csvConverter = new CsvToJsonConverter();
+  private static final LocalDate REPORT_DATE = LocalDate.of(2026, 1, 26);
 
   private static final String HEADER =
       "ReportDate;NAVDate;Portfolio;AssetType;FundCurr;ISIN;AssetName;Quantity;AssetCurr;PricePC;PriceQC;BookCostPC;BookCostQC;BookPriceQC;ValuationPC;MarketValuePC;ValuationQC;InterestPC;InterestQC; ;GainPC;GainQC;PriceEffect;FxEffect;InstrumentType;PrctNav;IssuerName;TNA;pGroupCode;MaturityDate;FxRate;Security_ID;Detailed Asset Type;Trade ID;Trade Date;ClassCode";
@@ -32,7 +33,7 @@ class SwedbankFundPositionParserTest {
             + "\n"
             + "06.01.2026;05.01.2026;Tuleva Maailma Aktsiate Pensionifond;Equities;EUR;IE00BFG1TM61;ISHARES DEVELOPED WLD ESG SC I;7819299.01;EUR;33.944;33.944;178294725.4;178294725.4;22.8;265418285.6;265418285.6;265418285.6;0;0;;87123560.22;87123560.22;87123560.22;0;Equity Fund;28.853;Blackrock Asset Management Ire;0;18;;1;BDWTEIA;Equity Fund;;;";
 
-    List<FundPosition> positions = parser.parse(toJson(csv));
+    List<FundPosition> positions = parser.parse(toJson(csv), REPORT_DATE);
 
     assertThat(positions).hasSize(1);
 
@@ -55,7 +56,7 @@ class SwedbankFundPositionParserTest {
             + "\n"
             + "06.01.2026;05.01.2026;Tuleva Maailma Aktsiate Pensionifond;Cash & Cash Equiv;EUR;;ULEOODEPOSIIT-SWEDBANK(EUR) .99% Due 06.01.2026;13303338.79;EUR;;;13303338.79;13303338.79;1;13303338.79;13303703.89;13303338.79;365.1;365.1;;0;0;0;0;Money Market;1.446;SWEDBANK AS;0;18;;1;MM-HANSA-ONEUR;Overnight Deposit;;;";
 
-    List<FundPosition> positions = parser.parse(toJson(csv));
+    List<FundPosition> positions = parser.parse(toJson(csv), REPORT_DATE);
 
     assertThat(positions).hasSize(1);
     FundPosition position = positions.getFirst();
@@ -76,7 +77,7 @@ class SwedbankFundPositionParserTest {
             + "\n"
             + "06.01.2026;05.01.2026;Tuleva Maailma Volakirjade Pensionifond;Fixed Income;EUR;IE0005032192;ISHS EURO CREDIT BOND INDEX FD;121790.7;EUR;23.345;23.345;2844755.99;2844755.99;23.36;2843203.91;2843203.91;2843203.91;0;0;;-1552.08;-1552.08;-1552.08;0;Fixed Income Fund;24.72;Blackrock Asset Management Ire;0;18;;1;BAREUBD;Fixed Income Fund;;;";
 
-    List<FundPosition> positions = parser.parse(toJson(csv));
+    List<FundPosition> positions = parser.parse(toJson(csv), REPORT_DATE);
 
     assertThat(positions).hasSize(1);
     assertThat(positions.getFirst().getFund()).isEqualTo(TUK00);
@@ -91,7 +92,7 @@ class SwedbankFundPositionParserTest {
             + "\n"
             + "06.01.2026;05.01.2026;Tuleva Vabatahtlik Pensionifon;Equities;EUR;IE0009FT4LX4;BLACKROCK CCF DEV WRLD ESG IDX;8659561.903;EUR;15.37;15.37;100128802;100128802;11.56;133097466.4;133097466.4;133097466.4;0;0;;32968664.46;32968664.46;32968664.46;0;Equity Fund;28.444;BlackRock Advisors UK Ltd;0;18;;1;BLESIXE;Equity Fund;;;";
 
-    List<FundPosition> positions = parser.parse(toJson(csv));
+    List<FundPosition> positions = parser.parse(toJson(csv), REPORT_DATE);
 
     assertThat(positions).hasSize(1);
     assertThat(positions.getFirst().getFund()).isEqualTo(TUV100);
@@ -104,7 +105,7 @@ class SwedbankFundPositionParserTest {
             + "\n"
             + "06.01.2026;05.01.2026;Tuleva Maailma Aktsiate Pensionifond;Liabilities;EUR;;Management Fee Payable;-190567.45;EUR;0;0;0;0;0;-190567.45;-190567.45;-190567.45;0;0;;0;0;0;0;Liabilities;-0.021;;0;18;;1;;;;;";
 
-    List<FundPosition> positions = parser.parse(toJson(csv));
+    List<FundPosition> positions = parser.parse(toJson(csv), REPORT_DATE);
 
     assertThat(positions).hasSize(1);
     FundPosition position = positions.getFirst();
@@ -123,7 +124,7 @@ class SwedbankFundPositionParserTest {
             + "\n"
             + "06.01.2026;05.01.2026;Tuleva Maailma Aktsiate Pensionifond;Asset;EUR;;Other receivables;49371.68;EUR;0;0;0;0;0;49371.68;49371.68;49371.68;0;0;;0;0;0;0;Asset;0.005;;0;18;;1;;;;;";
 
-    List<FundPosition> positions = parser.parse(toJson(csv));
+    List<FundPosition> positions = parser.parse(toJson(csv), REPORT_DATE);
 
     assertThat(positions).hasSize(1);
     FundPosition position = positions.getFirst();
@@ -142,7 +143,7 @@ class SwedbankFundPositionParserTest {
             + "\n"
             + "06.01.2026;05.01.2026;Tuleva Maailma Aktsiate Pensionifond;TotalNetAsset;EUR;;;0;;0;0;0;0;;0;;0;0;0;;0;0;0;0;TotalNetAsset;0;;919901794.7;18;;;;;;;";
 
-    List<FundPosition> positions = parser.parse(toJson(csv));
+    List<FundPosition> positions = parser.parse(toJson(csv), REPORT_DATE);
 
     assertThat(positions).hasSize(1);
     FundPosition position = positions.getFirst();
@@ -166,7 +167,7 @@ class SwedbankFundPositionParserTest {
                 "PricePC", new BigDecimal("10"),
                 "MarketValuePC", new BigDecimal("10000")));
 
-    List<FundPosition> positions = parser.parse(rawData);
+    List<FundPosition> positions = parser.parse(rawData, REPORT_DATE);
 
     assertThat(positions).hasSize(1);
     assertThat(positions.getFirst().getAccountName()).isEqualTo("Equities");
@@ -180,7 +181,7 @@ class SwedbankFundPositionParserTest {
             + "06.01.2026;05.01.2026;Tuleva Maailma Aktsiate Pensionifond;Equities;EUR;IE00BFG1TM61;Asset 1;1000;EUR;10;10;0;0;0;0;10000;0;0;0;;0;0;0;0;Equity Fund;0;;0;18;;1;;;;;\n"
             + "06.01.2026;05.01.2026;Tuleva Maailma Volakirjade Pensionifond;Fixed Income;EUR;IE0005032192;Asset 2;2000;EUR;20;20;0;0;0;0;40000;0;0;0;;0;0;0;0;Fixed Income Fund;0;;0;18;;1;;;;;";
 
-    List<FundPosition> positions = parser.parse(toJson(csv));
+    List<FundPosition> positions = parser.parse(toJson(csv), REPORT_DATE);
 
     assertThat(positions).hasSize(2);
     assertThat(positions.get(0).getFund()).isEqualTo(TUK75);
@@ -202,7 +203,7 @@ class SwedbankFundPositionParserTest {
                 "PricePC", new BigDecimal("10"),
                 "MarketValuePC", new BigDecimal("10000")));
 
-    List<FundPosition> positions = parser.parse(rawData);
+    List<FundPosition> positions = parser.parse(rawData, REPORT_DATE);
 
     assertThat(positions).isEmpty();
   }
@@ -222,14 +223,14 @@ class SwedbankFundPositionParserTest {
                 "PricePC", new BigDecimal("10"),
                 "MarketValuePC", new BigDecimal("10000")));
 
-    List<FundPosition> positions = parser.parse(rawData);
+    List<FundPosition> positions = parser.parse(rawData, REPORT_DATE);
 
     assertThat(positions).isEmpty();
   }
 
   @Test
   void parse_returnsEmptyListForEmptyInput() {
-    List<FundPosition> positions = parser.parse(List.of());
+    List<FundPosition> positions = parser.parse(List.of(), REPORT_DATE);
 
     assertThat(positions).isEmpty();
   }

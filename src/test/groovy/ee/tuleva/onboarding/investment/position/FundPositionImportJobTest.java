@@ -2,11 +2,13 @@ package ee.tuleva.onboarding.investment.position;
 
 import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.TulevaFund.TUV100;
+import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
@@ -27,15 +29,17 @@ class FundPositionImportJobTest {
   @Mock private FundPositionRepository repository;
   @Mock private InvestmentReportService reportService;
 
-  private SwedbankFundPositionParser parser;
+  private SwedbankFundPositionParser swedbankParser;
+  private SebFundPositionParser sebParser;
   private FundPositionImportService importService;
   private FundPositionImportJob job;
 
   @BeforeEach
   void setUp() {
-    parser = new SwedbankFundPositionParser();
+    swedbankParser = new SwedbankFundPositionParser();
+    sebParser = new SebFundPositionParser();
     importService = new FundPositionImportService(repository);
-    job = new FundPositionImportJob(parser, importService, reportService);
+    job = new FundPositionImportJob(swedbankParser, sebParser, importService, reportService);
   }
 
   private static final List<Map<String, Object>> SAMPLE_RAW_DATA =
@@ -74,7 +78,7 @@ class FundPositionImportJobTest {
               Map.entry("AssetCurr", "EUR"),
               Map.entry("MarketValuePC", "6000000")));
 
-  private InvestmentReport createReport(LocalDate date) {
+  private InvestmentReport createSwedbankReport(LocalDate date) {
     return InvestmentReport.builder()
         .provider(SWEDBANK)
         .reportType(POSITIONS)
@@ -86,23 +90,23 @@ class FundPositionImportJobTest {
   }
 
   @Test
-  void importForDate_parsesAndSavesPositions() {
+  void importForProviderAndDate_parsesAndSavesPositions() {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SWEDBANK, POSITIONS, date))
-        .thenReturn(Optional.of(createReport(date)));
+        .thenReturn(Optional.of(createSwedbankReport(date)));
     when(repository.existsByReportingDateAndFundAndAccountName(any(), any(), any()))
         .thenReturn(false);
 
-    job.importForDate(date);
+    job.importForProviderAndDate(SWEDBANK, date);
 
     verify(repository, times(3)).save(any(FundPosition.class));
   }
 
   @Test
-  void importForDate_skipsExistingPositions() {
+  void importForProviderAndDate_skipsExistingPositions() {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SWEDBANK, POSITIONS, date))
-        .thenReturn(Optional.of(createReport(date)));
+        .thenReturn(Optional.of(createSwedbankReport(date)));
     when(repository.existsByReportingDateAndFundAndAccountName(
             LocalDate.of(2026, 1, 5), TUK75, "ISHARES DEV WLD ESG"))
         .thenReturn(true);
@@ -113,28 +117,28 @@ class FundPositionImportJobTest {
             LocalDate.of(2026, 1, 5), TUV100, "ISHARES USA ESG"))
         .thenReturn(false);
 
-    job.importForDate(date);
+    job.importForProviderAndDate(SWEDBANK, date);
 
     verify(repository, times(2)).save(any(FundPosition.class));
   }
 
   @Test
-  void importForDate_handlesNoReportInDatabase() {
+  void importForProviderAndDate_handlesNoReportInDatabase() {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SWEDBANK, POSITIONS, date)).thenReturn(Optional.empty());
 
-    job.importForDate(date);
+    job.importForProviderAndDate(SWEDBANK, date);
 
     verify(repository, never()).save(any());
   }
 
   @Test
-  void runImport_processesMultipleDays() {
+  void runImport_processesMultipleDaysForBothProviders() {
     when(reportService.getReport(any(), any(), any())).thenReturn(Optional.empty());
 
     job.runImport();
 
-    verify(reportService, times(7)).getReport(any(), any(), any());
+    verify(reportService, times(14)).getReport(any(), any(), any());
   }
 
   @Test
@@ -143,6 +147,16 @@ class FundPositionImportJobTest {
 
     job.runImport();
 
-    verify(reportService, times(7)).getReport(any(), any(), any());
+    verify(reportService, times(14)).getReport(any(), any(), any());
+  }
+
+  @Test
+  void runImport_processesBothProviders() {
+    when(reportService.getReport(any(), any(), any())).thenReturn(Optional.empty());
+
+    job.runImport();
+
+    verify(reportService, times(7)).getReport(eq(SWEDBANK), eq(POSITIONS), any());
+    verify(reportService, times(7)).getReport(eq(SEB), eq(POSITIONS), any());
   }
 }

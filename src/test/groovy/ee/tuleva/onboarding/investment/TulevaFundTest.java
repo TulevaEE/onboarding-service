@@ -20,7 +20,7 @@ class TulevaFundTest {
   void getPillar3Funds_returnsPillar3FundsOnly() {
     List<TulevaFund> funds = getPillar3Funds();
 
-    assertThat(funds).containsExactly(TUV100);
+    assertThat(funds).containsExactly(TUV100, TKF100);
     assertThat(funds).allMatch(fund -> fund.getPillar() == 3);
   }
 
@@ -29,5 +29,6 @@ class TulevaFundTest {
     assertThat(TUK75.getCode()).isEqualTo("TUK75");
     assertThat(TUK00.getCode()).isEqualTo("TUK00");
     assertThat(TUV100.getCode()).isEqualTo("TUV100");
+    assertThat(TKF100.getCode()).isEqualTo("TKF100");
   }
 }

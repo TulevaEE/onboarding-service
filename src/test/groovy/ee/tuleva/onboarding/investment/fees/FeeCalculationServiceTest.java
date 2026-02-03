@@ -40,8 +40,8 @@ class FeeCalculationServiceTest {
 
     service.calculateDailyFees(date);
 
-    verify(calculator1, times(3)).calculate(any(), eq(date));
-    verify(calculator2, times(3)).calculate(any(), eq(date));
+    verify(calculator1, times(4)).calculate(any(), eq(date));
+    verify(calculator2, times(4)).calculate(any(), eq(date));
   }
 
   @Test
@@ -69,8 +69,8 @@ class FeeCalculationServiceTest {
 
     service.backfillFees(startDate, endDate);
 
-    verify(calculator1, times(9)).calculate(any(), any());
-    verify(calculator2, times(9)).calculate(any(), any());
+    verify(calculator1, times(12)).calculate(any(), any());
+    verify(calculator2, times(12)).calculate(any(), any());
   }
 
   private FeeAccrual createAccrual(TulevaFund fund, FeeType feeType, LocalDate date) {

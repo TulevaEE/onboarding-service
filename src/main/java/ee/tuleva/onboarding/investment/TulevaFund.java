@@ -10,7 +10,8 @@ import lombok.RequiredArgsConstructor;
 public enum TulevaFund {
   TUK75("TUK75", 2, "EE3600109435"),
   TUK00("TUK00", 2, "EE3600109443"),
-  TUV100("TUV100", 3, "EE3600001707");
+  TUV100("TUV100", 3, "EE3600001707"),
+  TKF100("TKF100", 3, "EE0000003283");
 
   private final String code;
   private final int pillar;

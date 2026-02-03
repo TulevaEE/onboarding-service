@@ -49,7 +49,7 @@ public class FundPositionImportJob {
     @Scheduled(cron = PARSE_MORNING, zone = TIMEZONE),
     @Scheduled(cron = PARSE_AFTERNOON, zone = TIMEZONE)
   })
-  @SchedulerLock(name = "FundPositionImportJob", lockAtMostFor = "55m", lockAtLeastFor = "5m")
+  @SchedulerLock(name = "FundPositionImportJob", lockAtMostFor = "55m", lockAtLeastFor = "4m")
   public void runImport() {
     LocalDate today = LocalDate.now();
     IntStream.rangeClosed(1, LOOKBACK_DAYS)

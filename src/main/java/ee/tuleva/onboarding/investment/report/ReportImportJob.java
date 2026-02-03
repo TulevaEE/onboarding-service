@@ -33,7 +33,7 @@ public class ReportImportJob {
     @Scheduled(cron = IMPORT_MORNING, zone = TIMEZONE),
     @Scheduled(cron = IMPORT_AFTERNOON, zone = TIMEZONE)
   })
-  @SchedulerLock(name = "ReportImportJob", lockAtMostFor = "55m", lockAtLeastFor = "5m")
+  @SchedulerLock(name = "ReportImportJob", lockAtMostFor = "55m", lockAtLeastFor = "4m")
   public void runImport() {
     LocalDate today = LocalDate.now();
     IntStream.rangeClosed(1, LOOKBACK_DAYS)

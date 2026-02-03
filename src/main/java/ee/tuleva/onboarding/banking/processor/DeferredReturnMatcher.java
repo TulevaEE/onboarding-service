@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.banking.processor;
 
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_CANCELLED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
@@ -28,7 +26,10 @@ public class DeferredReturnMatcher {
   @EventListener
   @Transactional
   public void onBankMessagesProcessed(BankMessagesProcessingCompleted event) {
-    var unmatchedReturns = savingFundPaymentRepository.findUnmatchedOutgoingReturns();
+    var unmatchedReturns =
+        savingFundPaymentRepository.findUnmatchedOutgoingReturns().stream()
+            .filter(returnPayment -> !hasLedgerEntryForOriginalPayment(returnPayment))
+            .toList();
 
     if (unmatchedReturns.isEmpty()) {
       return;
@@ -44,6 +45,13 @@ public class DeferredReturnMatcher {
     log.info(
         "Deferred return matching: completed processing of unmatched returns: processedReturns={}",
         unmatchedReturns.size());
+  }
+
+  private boolean hasLedgerEntryForOriginalPayment(SavingFundPayment returnPayment) {
+    return savingFundPaymentRepository
+        .findOriginalPaymentForReturn(returnPayment.getEndToEndId())
+        .map(original -> savingsFundLedger.hasLedgerEntry(original.getId()))
+        .orElse(false);
   }
 
   private void matchReturn(SavingFundPayment returnPayment) {
@@ -66,10 +74,11 @@ public class DeferredReturnMatcher {
   private void completePaymentReturn(SavingFundPayment originalPayment) {
     var originalPaymentId = originalPayment.getId();
 
+    if (savingsFundLedger.hasLedgerEntry(originalPaymentId)) {
+      return;
+    }
+
     if (originalPayment.getUserId() != null) {
-      if (savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)) {
-        return;
-      }
       var user = userService.getByIdOrThrow(originalPayment.getUserId());
       log.info(
           "Deferred return matching: creating ledger entry for user-cancelled payment: paymentId={}, amount={}",
@@ -78,9 +87,6 @@ public class DeferredReturnMatcher {
       savingsFundLedger.recordPaymentCancelled(
           user, originalPayment.getAmount(), originalPaymentId);
     } else {
-      if (savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK)) {
-        return;
-      }
       log.info(
           "Deferred return matching: creating ledger entry for unattributed payment bounce back: paymentId={}, amount={}",
           originalPaymentId,

@@ -39,6 +39,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -59,6 +60,7 @@ class SavingsFundPaymentIntegrationTest {
   @Autowired private SwedbankAccountConfiguration swedbankAccountConfiguration;
   @Autowired private FundValueRepository fundValueRepository;
   @Autowired private SavingsFundConfiguration savingsFundConfiguration;
+  @Autowired private JdbcClient jdbcClient;
 
   // Monday 2025-09-29 17:00 EET (15:00 UTC) - after 16:00 cutoff
   private static final Instant NOW = Instant.parse("2025-09-29T15:00:00Z");
@@ -83,11 +85,18 @@ class SavingsFundPaymentIntegrationTest {
     // Mark user as onboarded to savings fund
     savingsFundOnboardingRepository.saveOnboardingStatus(testUser.getPersonalCode(), COMPLETED);
 
+    // Delete any existing NAV values for savings fund to ensure test isolation
+    jdbcClient
+        .sql("DELETE FROM index_values WHERE key = :isin")
+        .param("isin", savingsFundConfiguration.getIsin())
+        .update();
+
     // Insert NAV for savings fund (NAV = 1.0 for easy calculation in tests)
+    // NAV date must be the previous working day (Friday 2025-09-26 for Monday 2025-09-29)
     fundValueRepository.save(
         new FundValue(
             savingsFundConfiguration.getIsin(),
-            LocalDate.of(2025, 9, 29),
+            LocalDate.of(2025, 9, 26),
             BigDecimal.ONE,
             "MANUAL",
             NOW));

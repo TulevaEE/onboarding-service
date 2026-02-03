@@ -13,6 +13,8 @@ import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
@@ -26,6 +28,7 @@ import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -54,6 +57,8 @@ class SavingsFundPaymentIntegrationTest {
   @Autowired private LedgerService ledgerService;
   @Autowired private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Autowired private SwedbankAccountConfiguration swedbankAccountConfiguration;
+  @Autowired private FundValueRepository fundValueRepository;
+  @Autowired private SavingsFundConfiguration savingsFundConfiguration;
 
   // Monday 2025-09-29 17:00 EET (15:00 UTC) - after 16:00 cutoff
   private static final Instant NOW = Instant.parse("2025-09-29T15:00:00Z");
@@ -77,6 +82,15 @@ class SavingsFundPaymentIntegrationTest {
 
     // Mark user as onboarded to savings fund
     savingsFundOnboardingRepository.saveOnboardingStatus(testUser.getPersonalCode(), COMPLETED);
+
+    // Insert NAV for savings fund (NAV = 1.0 for easy calculation in tests)
+    fundValueRepository.save(
+        new FundValue(
+            savingsFundConfiguration.getIsin(),
+            LocalDate.of(2025, 9, 29),
+            BigDecimal.ONE,
+            "MANUAL",
+            NOW));
   }
 
   @AfterEach

@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.account
 
+import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.ledger.LedgerService
+import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider
 import ee.tuleva.onboarding.user.UserService
@@ -17,12 +19,15 @@ class SavingsFundStatementServiceSpec extends Specification {
   LedgerService ledgerService = Mock()
   SavingsFundOnboardingService savingsFundOnboardingService = Mock()
   SavingsFundNavProvider navProvider = Mock()
+  FundRepository fundRepository = Mock()
+  SavingsFundConfiguration savingsFundConfiguration = Mock()
 
-  SavingsFundStatementService service = new SavingsFundStatementService(userService, ledgerService, savingsFundOnboardingService, navProvider)
+  SavingsFundStatementService service = new SavingsFundStatementService(userService, ledgerService, savingsFundOnboardingService, navProvider, fundRepository, savingsFundConfiguration)
 
   def "returns savings account statement"() {
     given:
     def user = sampleUser().build()
+    def savingsFund = additionalSavingsFund()
 
     def fundUnits = fundUnitsAccountWithBalance(2.0)
     def fundUnitsReserved = fundUnitsReservedAccountWithBalance(1.0)
@@ -36,12 +41,14 @@ class SavingsFundStatementServiceSpec extends Specification {
     ledgerService.getUserAccount(user, FUND_UNITS_RESERVED) >> fundUnitsReserved
     ledgerService.getUserAccount(user, SUBSCRIPTIONS) >> subscriptions
     ledgerService.getUserAccount(user, REDEMPTIONS) >> redemptions
+    savingsFundConfiguration.getIsin() >> savingsFund.isin
+    fundRepository.findByIsin(savingsFund.isin) >> savingsFund
 
     when:
     FundBalance savingsAccountStatement = service.getAccountStatement(user)
 
     then:
-    savingsAccountStatement.fund == additionalSavingsFund()
+    savingsAccountStatement.fund == savingsFund
     savingsAccountStatement.units == 2
     savingsAccountStatement.value == 2.25
     savingsAccountStatement.unavailableUnits == 1

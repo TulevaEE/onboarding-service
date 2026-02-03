@@ -168,6 +168,9 @@ morningstar:
 async:
   enabled: true
 
+savings-fund:
+  isin: EE0000003283
+
 payment-provider:
   url: https://sandbox-stargate.montonio.com/api
   use-fake-notification-url: true

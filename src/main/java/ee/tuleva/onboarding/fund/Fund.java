@@ -50,7 +50,6 @@ public class Fund implements Comparable<Fund> {
 
   @NotNull private String shortName;
 
-  @NotNull
   @Min(2)
   @Max(3)
   private Integer pillar;

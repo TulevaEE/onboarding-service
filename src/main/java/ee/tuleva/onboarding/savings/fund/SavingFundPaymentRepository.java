@@ -175,6 +175,7 @@ public class SavingFundPaymentRepository {
         select * from saving_fund_payment
         where status = 'PROCESSED'
           and amount < 0
+          and not (remitter_name = beneficiary_name)
         """,
         this::rowMapper);
   }

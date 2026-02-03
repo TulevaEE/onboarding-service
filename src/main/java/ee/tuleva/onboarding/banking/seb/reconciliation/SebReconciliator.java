@@ -5,8 +5,7 @@ import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.Statem
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.ledger.LedgerService;
-import java.time.LocalTime;
-import java.time.ZoneId;
+import java.time.Clock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +16,7 @@ public class SebReconciliator {
 
   private final LedgerService ledgerService;
   private final SebAccountConfiguration sebAccountConfiguration;
+  private final Clock clock;
 
   @Transactional
   public void reconcile(BankStatement bankStatement) {
@@ -26,12 +26,7 @@ public class SebReconciliator {
             .findFirst()
             .orElseThrow();
 
-    var bankBalanceTime =
-        closingBankBalance
-            .time()
-            .atStartOfDay(ZoneId.of("Europe/Tallinn"))
-            .with(LocalTime.MAX)
-            .toInstant();
+    var reconciliationTime = clock.instant();
 
     var iban = bankStatement.getBankStatementAccount().iban();
     var bankStatementAccount = sebAccountConfiguration.getAccountType(iban);
@@ -43,7 +38,7 @@ public class SebReconciliator {
 
     var ledgerSystemAccount = bankStatementAccount.getLedgerAccount();
     var ledgerAccountBalance =
-        ledgerService.getSystemAccount(ledgerSystemAccount).getBalanceAt(bankBalanceTime);
+        ledgerService.getSystemAccount(ledgerSystemAccount).getBalanceAt(reconciliationTime);
 
     log.info(
         "Reconciling: bankAccount={}, closingBalance={}, ledgerAccount={}, ledgerBalance={}",

@@ -5,8 +5,7 @@ import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.Statem
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
-import java.time.LocalTime;
-import java.time.ZoneId;
+import java.time.Clock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -16,6 +15,7 @@ public class Reconciliator {
 
   private final LedgerService ledgerService;
   private final SwedbankAccountConfiguration swedbankAccountConfiguration;
+  private final Clock clock;
 
   public void reconcile(BankStatement bankStatement) {
     var closingBankBalance =
@@ -24,12 +24,7 @@ public class Reconciliator {
             .findFirst()
             .orElseThrow();
 
-    var bankBalanceTime =
-        closingBankBalance
-            .time()
-            .atStartOfDay(ZoneId.of("Europe/Tallinn"))
-            .with(LocalTime.MAX)
-            .toInstant();
+    var reconciliationTime = clock.instant();
 
     var iban = bankStatement.getBankStatementAccount().iban();
     var bankStatementAccount = swedbankAccountConfiguration.getAccountType(iban);
@@ -41,7 +36,7 @@ public class Reconciliator {
 
     var ledgerSystemAccount = bankStatementAccount.getLedgerAccount();
     var ledgerAccountBalance =
-        ledgerService.getSystemAccount(ledgerSystemAccount).getBalanceAt(bankBalanceTime);
+        ledgerService.getSystemAccount(ledgerSystemAccount).getBalanceAt(reconciliationTime);
 
     log.info(
         "Reconciling: bankAccount={}, closingBalance={}, ledgerAccount={}, ledgerBalance={}",

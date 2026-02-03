@@ -15,9 +15,9 @@ import ee.tuleva.onboarding.banking.statement.BankStatementBalance;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.junit.jupiter.api.Test;
@@ -29,8 +29,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class SebReconciliatorTest {
 
+  private static final Instant RECONCILIATION_TIME = Instant.parse("2024-01-16T01:05:00Z");
+
   @Mock private LedgerService ledgerService;
   @Mock private SebAccountConfiguration sebAccountConfiguration;
+  @Mock private Clock clock;
 
   @InjectMocks private SebReconciliator reconciliator;
 
@@ -47,8 +50,9 @@ class SebReconciliatorTest {
         new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), List.of());
 
     LedgerAccount ledgerAccount =
-        systemAccountWithBalance(matchingBalance, toEstonianTime(balanceDate.minusDays(1)));
+        systemAccountWithBalance(matchingBalance, RECONCILIATION_TIME.minusSeconds(60));
 
+    when(clock.instant()).thenReturn(RECONCILIATION_TIME);
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount())).thenReturn(ledgerAccount);
     when(sebAccountConfiguration.getAccountType("EE123456789012345678")).thenReturn(DEPOSIT_EUR);
 
@@ -68,8 +72,9 @@ class SebReconciliatorTest {
         new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), List.of());
 
     LedgerAccount ledgerAccount =
-        systemAccountWithBalance(ledgerBalance, toEstonianTime(balanceDate.minusDays(1)));
+        systemAccountWithBalance(ledgerBalance, RECONCILIATION_TIME.minusSeconds(60));
 
+    when(clock.instant()).thenReturn(RECONCILIATION_TIME);
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount())).thenReturn(ledgerAccount);
     when(sebAccountConfiguration.getAccountType("EE987700771001802057")).thenReturn(DEPOSIT_EUR);
 
@@ -104,15 +109,12 @@ class SebReconciliatorTest {
             HISTORIC_STATEMENT, account, List.of(openingBalance, closingBalance), List.of());
 
     LedgerAccount ledgerAccount =
-        systemAccountWithBalance(matchingBalance, toEstonianTime(balanceDate.minusDays(1)));
+        systemAccountWithBalance(matchingBalance, RECONCILIATION_TIME.minusSeconds(60));
 
+    when(clock.instant()).thenReturn(RECONCILIATION_TIME);
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount())).thenReturn(ledgerAccount);
     when(sebAccountConfiguration.getAccountType("EE123456789012345678")).thenReturn(DEPOSIT_EUR);
 
     assertDoesNotThrow(() -> reconciliator.reconcile(bankStatement));
-  }
-
-  private static Instant toEstonianTime(LocalDate date) {
-    return date.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
   }
 }

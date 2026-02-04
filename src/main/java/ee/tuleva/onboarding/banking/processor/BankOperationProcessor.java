@@ -49,11 +49,13 @@ public class BankOperationProcessor {
 
     TransactionType transactionType = mapSubFamilyCode(subFamilyCode);
     if (transactionType == null) {
-      log.warn(
-          "Unknown bank operation SubFmlyCd: subFamilyCode={}, externalId={}, amount={}",
+      log.error(
+          "Unknown bank operation SubFmlyCd: subFamilyCode={}, externalId={}, amount={}, account={}, iban={}",
           subFamilyCode,
           entry.externalId(),
-          entry.amount());
+          entry.amount(),
+          accountType,
+          accountIban);
       return;
     }
 
@@ -86,7 +88,7 @@ public class BankOperationProcessor {
       }
       case ADJT -> {
         log.info(
-            "Bank fee adjustment: amount={}, externalRef={}, account={}, description={}",
+            "Bank adjustment: amount={}, externalRef={}, account={}, description={}",
             amount,
             externalReference,
             accountType,

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.admin;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -45,6 +46,22 @@ class AdminControllerTest {
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("2026-01-01")))
         .andExpect(content().string(containsString("2026-01-31")));
+  }
+
+  @Test
+  void fetchSebHistory_withAccountParam_fetchesOnlyThatAccount() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/fetch-seb-history")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("from", "2026-01-01")
+                .param("to", "2026-01-31")
+                .param("account", "FUND_INVESTMENT_EUR"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("FUND_INVESTMENT_EUR")))
+        .andExpect(content().string(not(containsString("DEPOSIT_EUR"))))
+        .andExpect(content().string(not(containsString("WITHDRAWAL_EUR"))));
   }
 
   @Test

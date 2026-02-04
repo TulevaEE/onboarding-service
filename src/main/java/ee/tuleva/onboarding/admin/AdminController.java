@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTran
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import jakarta.transaction.Transactional;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -37,18 +38,21 @@ public class AdminController {
   public String fetchSebHistory(
       @RequestHeader("X-Admin-Token") String token,
       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+      @RequestParam(required = false) BankAccountType account) {
 
     validateToken(token);
 
-    log.info("Admin triggered SEB history fetch: from={}, to={}", from, to);
+    var accounts = account != null ? List.of(account) : Arrays.asList(BankAccountType.values());
 
-    for (BankAccountType account : BankAccountType.values()) {
-      log.info("Fetching SEB history: account={}", account);
-      eventPublisher.publishEvent(new FetchSebHistoricTransactionsRequested(account, from, to));
+    log.info("Admin triggered SEB history fetch: from={}, to={}, accounts={}", from, to, accounts);
+
+    for (BankAccountType bankAccount : accounts) {
+      log.info("Fetching SEB history: account={}", bankAccount);
+      eventPublisher.publishEvent(new FetchSebHistoricTransactionsRequested(bankAccount, from, to));
     }
 
-    return "Fetched SEB history for all accounts from " + from + " to " + to;
+    return "Fetched SEB history for " + accounts + " from " + from + " to " + to;
   }
 
   @Transactional

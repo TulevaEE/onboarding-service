@@ -32,11 +32,13 @@ public class IssuingJob {
   @SchedulerLock(name = "IssuingJob_runJob", lockAtMostFor = "50s", lockAtLeastFor = "10s")
   public void runJob() {
     var payments = getReservedPaymentsDependingOnCurrentTime();
+    log.info("Running issuing job for {} payments", payments.size());
     var nav = getNAV();
     log.info("Running issuing job for {} payments with nav {}", payments.size(), nav);
     for (SavingFundPayment payment : payments) {
       issuerService.processPayment(payment, nav);
     }
+    log.info("Issuing job completed: processed {} payments", payments.size());
   }
 
   private List<SavingFundPayment> getReservedPaymentsDependingOnCurrentTime() {

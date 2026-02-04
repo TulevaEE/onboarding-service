@@ -12,8 +12,8 @@ import ee.tuleva.onboarding.kyc.KycCheckPerformedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -37,11 +37,9 @@ class SavingsFundOnboardingIntegrationTest {
   @BeforeEach
   void setUp() {
     user = userRepository.save(sampleUserNonMember().personalCode("39802077017").id(null).build());
-    repository.saveOnboardingStatus(user.getPersonalCode(), WHITELISTED);
   }
 
   @Test
-  @DisplayName("KycCheckPerformedEvent with NONE risk sets status to COMPLETED")
   void onKycCheckPerformed_mapsNoneRiskToCompleted() {
     var event =
         new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(NONE, Map.of()));
@@ -52,7 +50,6 @@ class SavingsFundOnboardingIntegrationTest {
   }
 
   @Test
-  @DisplayName("KycCheckPerformedEvent with LOW risk sets status to COMPLETED")
   void onKycCheckPerformed_mapsLowRiskToCompleted() {
     var event =
         new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(LOW, Map.of()));
@@ -63,7 +60,6 @@ class SavingsFundOnboardingIntegrationTest {
   }
 
   @Test
-  @DisplayName("KycCheckPerformedEvent with MEDIUM risk sets status to PENDING")
   void onKycCheckPerformed_mapsMediumRiskToPending() {
     var event =
         new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(MEDIUM, Map.of()));
@@ -74,7 +70,6 @@ class SavingsFundOnboardingIntegrationTest {
   }
 
   @Test
-  @DisplayName("KycCheckPerformedEvent with HIGH risk sets status to REJECTED")
   void onKycCheckPerformed_mapsHighRiskToRejected() {
     var event =
         new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(HIGH, Map.of()));
@@ -85,7 +80,6 @@ class SavingsFundOnboardingIntegrationTest {
   }
 
   @Test
-  @DisplayName("KycCheckPerformedEvent does not update status if already COMPLETED")
   void onKycCheckPerformed_doesNotUpdateIfAlreadyCompleted() {
     repository.saveOnboardingStatus(user.getPersonalCode(), COMPLETED);
     var event =
@@ -97,7 +91,19 @@ class SavingsFundOnboardingIntegrationTest {
   }
 
   @Test
-  @DisplayName("KycCheckPerformedEvent publishes TrackableEvent when status changes")
+  void onKycCheckPerformed_createsRecordWhenNoneExists() {
+    assertThat(repository.findStatusByPersonalCode(user.getPersonalCode()))
+        .isEqualTo(Optional.empty());
+
+    var event =
+        new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(LOW, Map.of()));
+
+    eventPublisher.publishEvent(event);
+
+    assertThat(repository.findStatusByPersonalCode(user.getPersonalCode())).contains(COMPLETED);
+  }
+
+  @Test
   void onKycCheckPerformed_publishesTrackableEventOnStatusChange() {
     var event =
         new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(LOW, Map.of()));
@@ -110,7 +116,6 @@ class SavingsFundOnboardingIntegrationTest {
     var trackableEvent = trackableEvents.getFirst();
     assertThat(trackableEvent.getType()).isEqualTo(SAVINGS_FUND_ONBOARDING_STATUS_CHANGE);
     assertThat(trackableEvent.getPerson().getPersonalCode()).isEqualTo(user.getPersonalCode());
-    assertThat(trackableEvent.getData())
-        .isEqualTo(Map.of("oldStatus", WHITELISTED, "newStatus", COMPLETED));
+    assertThat(trackableEvent.getData()).isEqualTo(Map.of("newStatus", COMPLETED));
   }
 }

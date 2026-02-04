@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.HIGH;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.WHITELISTED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -13,13 +12,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.kyc.*;
-import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -44,7 +41,6 @@ class KycSurveyControllerIntegrationTest {
   @Autowired private MockMvc mockMvc;
   @Autowired private KycSurveyRepository kycSurveyRepository;
   @Autowired private UserRepository userRepository;
-  @Autowired private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Autowired private ApplicationEvents applicationEvents;
   @Autowired private TestKycChecker testKycChecker;
 
@@ -55,7 +51,6 @@ class KycSurveyControllerIntegrationTest {
   void setUp() {
     testKycChecker.reset();
     user = userRepository.save(sampleUserNonMember().id(null).personalCode("48805051231").build());
-    savingsFundOnboardingRepository.saveOnboardingStatus(user.getPersonalCode(), WHITELISTED);
 
     var authPerson = authenticatedPersonFromUser(user).build();
 
@@ -65,7 +60,6 @@ class KycSurveyControllerIntegrationTest {
   }
 
   @Test
-  @DisplayName("POST /v1/kyc/surveys persists survey to database")
   void post_persistsSurveyToDatabase() throws Exception {
     String requestBody =
         """
@@ -169,8 +163,6 @@ class KycSurveyControllerIntegrationTest {
   }
 
   @Test
-  @DisplayName(
-      "POST /v1/kyc/surveys publishes HIGH risk KycCheckPerformedEvent when checker returns HIGH risk")
   void post_publishesHighRiskEvent_whenCheckerReturnsHighRisk() throws Exception {
     testKycChecker.givenKycCheck(user.getId(), new KycCheck(HIGH, Map.of("score", 100)));
 

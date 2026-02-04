@@ -3,11 +3,11 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.*;
 
-import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.kyc.KycCheck.RiskLevel;
 import ee.tuleva.onboarding.user.User;
+import java.util.HashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -24,12 +24,6 @@ public class SavingsFundOnboardingService {
     return savingsFundOnboardingRepository.isOnboardingCompleted(user.getPersonalCode());
   }
 
-  public boolean isWhitelisted(Person person) {
-    return savingsFundOnboardingRepository
-        .findStatusByPersonalCode(person.getPersonalCode())
-        .isPresent();
-  }
-
   public SavingsFundOnboardingStatus getOnboardingStatus(User user) {
     return savingsFundOnboardingRepository
         .findStatusByPersonalCode(user.getPersonalCode())
@@ -40,20 +34,22 @@ public class SavingsFundOnboardingService {
     SavingsFundOnboardingStatus oldStatus =
         savingsFundOnboardingRepository
             .findStatusByPersonalCode(user.getPersonalCode())
-            .orElseThrow();
+            .orElse(null);
     if (oldStatus == COMPLETED) {
       return;
     }
     SavingsFundOnboardingStatus newStatus = mapRiskLevelToStatus(kycCheck.riskLevel());
-    if (oldStatus == newStatus) {
+    if (newStatus == oldStatus) {
       return;
     }
     savingsFundOnboardingRepository.saveOnboardingStatus(user.getPersonalCode(), newStatus);
+    Map<String, Object> eventData = new HashMap<>();
+    if (oldStatus != null) {
+      eventData.put("oldStatus", oldStatus);
+    }
+    eventData.put("newStatus", newStatus);
     eventPublisher.publishEvent(
-        new TrackableEvent(
-            user,
-            SAVINGS_FUND_ONBOARDING_STATUS_CHANGE,
-            Map.of("oldStatus", oldStatus, "newStatus", newStatus)));
+        new TrackableEvent(user, SAVINGS_FUND_ONBOARDING_STATUS_CHANGE, eventData));
   }
 
   private SavingsFundOnboardingStatus mapRiskLevelToStatus(RiskLevel riskLevel) {

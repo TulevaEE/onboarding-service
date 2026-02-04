@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.ASSET;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 class SavingsFundLedgerTest {
 
   @Autowired LedgerService ledgerService;
+  @Autowired LedgerAccountService ledgerAccountService;
   @Autowired SavingsFundLedger savingsFundLedger;
 
   User testUser = sampleUser().personalCode("38001010001").build();
@@ -435,6 +438,50 @@ class SavingsFundLedgerTest {
     verifyDoubleEntry(transaction);
   }
 
+  @Test
+  void recordTradeSettlement_createsCorrectDoubleEntry() {
+    var amount = new BigDecimal("-209025.86");
+    var externalReference = randomUUID();
+    var isin = "LU1291102447";
+
+    var transaction =
+        savingsFundLedger.recordTradeSettlement(
+            amount,
+            externalReference,
+            FUND_INVESTMENT_CASH_CLEARING,
+            isin,
+            "EJAP",
+            "BNP Paribas Easy MSCI Japan ESG Filtered");
+
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("TRADE_SETTLEMENT");
+    assertThat(transaction.getMetadata().get("instrument")).isEqualTo(isin);
+    assertThat(transaction.getMetadata().get("ticker")).isEqualTo("EJAP");
+    assertThat(transaction.getMetadata().get("displayName"))
+        .isEqualTo("BNP Paribas Easy MSCI Japan ESG Filtered");
+    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
+    assertThat(getFundInvestmentCashClearingAccount().getBalance()).isEqualByComparingTo(amount);
+    assertThat(getTradeSettlementAccount(isin).getBalance()).isEqualByComparingTo(amount.negate());
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void recordTradeSettlement_createsPerInstrumentAccounts() {
+    var amount1 = new BigDecimal("-209025.86");
+    var amount2 = new BigDecimal("-995467.50");
+    var isin1 = "LU1291102447";
+    var isin2 = "IE00BJZ2DC62";
+
+    savingsFundLedger.recordTradeSettlement(
+        amount1, randomUUID(), FUND_INVESTMENT_CASH_CLEARING, isin1, "EJAP", "BNP Japan");
+    savingsFundLedger.recordTradeSettlement(
+        amount2, randomUUID(), FUND_INVESTMENT_CASH_CLEARING, isin2, "XRSM", "Xtrackers USA");
+
+    assertThat(getTradeSettlementAccount(isin1).getBalance())
+        .isEqualByComparingTo(amount1.negate());
+    assertThat(getTradeSettlementAccount(isin2).getBalance())
+        .isEqualByComparingTo(amount2.negate());
+  }
+
   private void setupUserWithFundUnits(
       BigDecimal cashAmount, BigDecimal fundUnits, BigDecimal navPerUnit) {
     savingsFundLedger.recordPaymentReceived(testUser, cashAmount, randomUUID());
@@ -497,6 +544,12 @@ class SavingsFundLedgerTest {
 
   private LedgerAccount getPayoutsCashClearingAccount() {
     return getSystemAccount(PAYOUTS_CASH_CLEARING);
+  }
+
+  private LedgerAccount getTradeSettlementAccount(String isin) {
+    return ledgerAccountService
+        .findSystemAccountByName("TRADE_SETTLEMENT:" + isin, ASSET, EUR)
+        .orElseThrow();
   }
 
   private static void verifyDoubleEntry(LedgerTransaction transaction) {

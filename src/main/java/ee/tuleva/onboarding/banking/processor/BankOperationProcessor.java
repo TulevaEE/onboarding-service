@@ -23,8 +23,10 @@ public class BankOperationProcessor {
   private static final String COMM = "COMM";
   private static final String INTR = "INTR";
   private static final String ADJT = "ADJT";
+  private static final String TRAD = "TRAD";
 
   private final SavingsFundLedger savingsFundLedger;
+  private final TradeSettlementParser tradeSettlementParser;
 
   public void processBankOperation(
       BankStatementEntry entry, String accountIban, BankAccountType accountType) {
@@ -95,6 +97,31 @@ public class BankOperationProcessor {
             entry.remittanceInformation());
         savingsFundLedger.recordBankAdjustment(amount, externalReference, clearingAccount);
       }
+      case TRAD -> {
+        var fundTicker = tradeSettlementParser.parse(entry.remittanceInformation());
+        if (fundTicker.isEmpty()) {
+          log.error(
+              "Trade settlement with unknown ticker: externalRef={}, remittanceInfo={}",
+              externalReference,
+              entry.remittanceInformation());
+          return;
+        }
+        var ticker = fundTicker.get();
+        log.info(
+            "Trade settlement: amount={}, externalRef={}, account={}, ticker={}, isin={}",
+            amount,
+            externalReference,
+            accountType,
+            ticker.getYahooTicker(),
+            ticker.getIsin());
+        savingsFundLedger.recordTradeSettlement(
+            amount,
+            externalReference,
+            clearingAccount,
+            ticker.getIsin(),
+            ticker.getYahooTicker().split("\\.")[0],
+            ticker.getDisplayName());
+      }
     }
   }
 
@@ -103,6 +130,7 @@ public class BankOperationProcessor {
       case INTR -> INTEREST_RECEIVED;
       case FEES, COMM -> BANK_FEE;
       case ADJT -> BANK_ADJUSTMENT;
+      case TRAD -> TRADE_SETTLEMENT;
       default -> null;
     };
   }

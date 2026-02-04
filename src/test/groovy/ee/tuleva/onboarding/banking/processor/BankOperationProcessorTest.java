@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
+import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.INTEREST_RECEIVED;
+import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -22,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class BankOperationProcessorTest {
 
   @Mock SavingsFundLedger savingsFundLedger;
+  @Mock TradeSettlementParser tradeSettlementParser;
 
   @InjectMocks BankOperationProcessor processor;
 
@@ -108,6 +111,42 @@ class BankOperationProcessorTest {
     verifyNoInteractions(savingsFundLedger);
   }
 
+  @Test
+  void processBankOperation_recordsTradeSettlement() {
+    var amount = new BigDecimal("-209025.86");
+    var remittanceInfo = "DLA0553690/EJAP GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448";
+    var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
+    var fundTicker =
+        ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker.BNP_JAPAN_ESG_FILTERED;
+
+    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(fundTicker));
+
+    processor.processBankOperation(entry, "EE123456789012345678", FUND_INVESTMENT_EUR);
+
+    verify(savingsFundLedger)
+        .recordTradeSettlement(
+            eq(amount),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq("LU1291102447"),
+            eq("EJAP"),
+            eq("BNP Paribas Easy MSCI Japan ESG Filtered"));
+  }
+
+  @Test
+  void processBankOperation_skipsTradeSettlementWithUnknownTicker() {
+    var amount = new BigDecimal("-100000.00");
+    var remittanceInfo = "DLA0553690/ZZZZ GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448";
+    var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
+
+    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.empty());
+
+    processor.processBankOperation(entry, "EE123456789012345678", FUND_INVESTMENT_EUR);
+
+    verify(savingsFundLedger, never())
+        .recordTradeSettlement(any(), any(), any(), any(), any(), any());
+  }
+
   private BankStatementEntry createEntryWithCounterparty() {
     var counterparty = new BankStatementEntry.CounterPartyDetails("Test", "EE123", null);
     return new BankStatementEntry(
@@ -123,12 +162,17 @@ class BankOperationProcessorTest {
   }
 
   private BankStatementEntry createBankOperationEntry(String subFamilyCode, BigDecimal amount) {
+    return createBankOperationEntry(subFamilyCode, amount, "Bank operation");
+  }
+
+  private BankStatementEntry createBankOperationEntry(
+      String subFamilyCode, BigDecimal amount, String remittanceInformation) {
     return new BankStatementEntry(
         null,
         amount,
         "EUR",
         amount.compareTo(BigDecimal.ZERO) >= 0 ? TransactionType.CREDIT : TransactionType.DEBIT,
-        "Bank operation",
+        remittanceInformation,
         "bank-op-ref",
         null,
         subFamilyCode,

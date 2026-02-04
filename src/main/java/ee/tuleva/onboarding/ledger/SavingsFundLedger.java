@@ -5,6 +5,8 @@ import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.*;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 
+import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
+import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import ee.tuleva.onboarding.user.User;
@@ -84,7 +86,10 @@ public class SavingsFundLedger {
     CUSTOMER_IBAN("customerIban"),
     NAV_PER_UNIT("navPerUnit"),
     REDEMPTION_REQUEST_ID("redemptionRequestId"),
-    DESCRIPTION("description");
+    DESCRIPTION("description"),
+    INSTRUMENT("instrument"),
+    TICKER("ticker"),
+    DISPLAY_NAME("displayName");
 
     private final String key;
   }
@@ -623,5 +628,42 @@ public class SavingsFundLedger {
 
   public boolean hasPayoutEntry(UUID redemptionRequestId) {
     return hasLedgerEntry(redemptionRequestId, REDEMPTION_PAYOUT);
+  }
+
+  @Transactional
+  public LedgerTransaction recordTradeSettlement(
+      BigDecimal amount,
+      UUID externalReference,
+      SystemAccount clearingAccount,
+      String isin,
+      String ticker,
+      String displayName) {
+    LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount);
+    LedgerAccount tradeSettlementAccount = getTradeSettlementAccount(isin);
+
+    Map<String, Object> metadata =
+        Map.of(
+            OPERATION_TYPE.key, TRADE_SETTLEMENT.name(),
+            INSTRUMENT.key, isin,
+            TICKER.key, ticker,
+            DISPLAY_NAME.key, displayName);
+
+    return ledgerTransactionService.createTransaction(
+        TRADE_SETTLEMENT,
+        Instant.now(clock),
+        externalReference,
+        metadata,
+        entry(clearingLedgerAccount, amount),
+        entry(tradeSettlementAccount, amount.negate()));
+  }
+
+  private LedgerAccount getTradeSettlementAccount(String isin) {
+    String accountName = "TRADE_SETTLEMENT:" + isin;
+    return ledgerAccountService
+        .findSystemAccountByName(accountName, AccountType.ASSET, AssetType.EUR)
+        .orElseGet(
+            () ->
+                ledgerAccountService.createSystemAccount(
+                    accountName, AccountType.ASSET, AssetType.EUR));
   }
 }

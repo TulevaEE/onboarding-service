@@ -75,4 +75,19 @@ class FundTickerTest {
   void nonParisTradedEtfReturnsEmptyEuronextParisStorageKey() {
     assertThat(ISHARES_USA_ESG_SCREENED.getEuronextParisStorageKey()).isEmpty();
   }
+
+  @Test
+  void findByTicker_findsXetraTicker() {
+    assertThat(findByTicker("EJAP")).contains(BNP_JAPAN_ESG_FILTERED);
+  }
+
+  @Test
+  void findByTicker_findsAnotherTicker() {
+    assertThat(findByTicker("XRSM")).contains(XTRACKERS_USA_ESG_SCREENED);
+  }
+
+  @Test
+  void findByTicker_returnsEmptyForUnknown() {
+    assertThat(findByTicker("ZZZZ")).isEmpty();
+  }
 }

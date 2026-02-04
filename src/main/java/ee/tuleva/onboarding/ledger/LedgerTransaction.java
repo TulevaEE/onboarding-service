@@ -54,7 +54,8 @@ public class LedgerTransaction {
     INTEREST_RECEIVED,
     BANK_FEE,
     BANK_ADJUSTMENT,
-    ADJUSTMENT
+    ADJUSTMENT,
+    TRADE_SETTLEMENT
   }
 
   @Id

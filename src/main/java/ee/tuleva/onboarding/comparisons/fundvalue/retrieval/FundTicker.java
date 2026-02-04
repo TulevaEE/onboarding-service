@@ -80,6 +80,18 @@ public enum FundTicker {
     return Arrays.stream(values()).filter(ticker -> ticker.getIsin().equals(isin)).findFirst();
   }
 
+  public static Optional<FundTicker> findByTicker(String ticker) {
+    return Arrays.stream(values())
+        .filter(
+            fundTicker -> {
+              String yahooTicker = fundTicker.getYahooTicker();
+              int dotIndex = yahooTicker.indexOf('.');
+              String shortTicker = dotIndex > 0 ? yahooTicker.substring(0, dotIndex) : yahooTicker;
+              return shortTicker.equals(ticker);
+            })
+        .findFirst();
+  }
+
   public static List<String> getXetraIsins() {
     return Arrays.stream(values())
         .filter(ticker -> ticker.getEodhdTicker().endsWith(".XETRA"))

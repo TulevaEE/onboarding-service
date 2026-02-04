@@ -32,6 +32,10 @@ public class IssuingJob {
   @SchedulerLock(name = "IssuingJob_runJob", lockAtMostFor = "50s", lockAtLeastFor = "10s")
   public void runJob() {
     var payments = getReservedPaymentsDependingOnCurrentTime();
+    if (payments.isEmpty()) {
+      log.info("No payments to issue, skipping");
+      return;
+    }
     log.info("Running issuing job for {} payments", payments.size());
     var nav = getNAV();
     log.info("Running issuing job for {} payments with nav {}", payments.size(), nav);

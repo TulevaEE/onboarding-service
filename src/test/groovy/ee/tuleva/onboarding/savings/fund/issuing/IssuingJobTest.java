@@ -35,7 +35,7 @@ class IssuingJobTest {
     paymentRepository = mock(SavingFundPaymentRepository.class);
     issuerService = mock(IssuerService.class);
     navProvider = mock(SavingsFundNavProvider.class);
-    when(navProvider.getCurrentNavForIssuing()).thenReturn(BigDecimal.ONE);
+    lenient().when(navProvider.getCurrentNavForIssuing()).thenReturn(BigDecimal.ONE);
   }
 
   boolean isReservedDateWorkingDay(SavingFundPayment payment) {
@@ -424,5 +424,19 @@ class IssuingJobTest {
 
     verify(issuerService, times(1)).processPayment(reservedPaymentFromMondayBeforeChristmas, nav);
     verify(issuerService, never()).processPayment(reservedPaymentMadeOnPublicHoliday, nav);
+  }
+
+  @Test
+  void skipsNavFetchWhenNoPaymentsToProcess() {
+    var now = Instant.parse("2025-01-03T14:00:00Z");
+    var clock = Clock.fixed(now, UTC);
+    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository, navProvider);
+
+    when(paymentRepository.findPaymentsWithStatus(RESERVED)).thenReturn(List.of());
+
+    issuingJob.runJob();
+
+    verify(navProvider, never()).getCurrentNavForIssuing();
+    verifyNoInteractions(issuerService);
   }
 }

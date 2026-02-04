@@ -89,6 +89,17 @@ class BankOperationProcessorTest {
   }
 
   @Test
+  void processBankOperation_recordsBankFeeForCommissionCode() {
+    var amount = new BigDecimal("-0.48");
+    var entry = createBankOperationEntry("COMM", amount);
+
+    processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
+
+    verify(savingsFundLedger)
+        .recordBankFee(eq(amount), any(UUID.class), eq(INCOMING_PAYMENTS_CLEARING));
+  }
+
+  @Test
   void processBankOperation_handlesNullSubFamilyCode() {
     var entry = createBankOperationEntry(null, new BigDecimal("10.00"));
 

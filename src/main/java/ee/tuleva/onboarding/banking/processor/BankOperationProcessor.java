@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 public class BankOperationProcessor {
 
   private static final String FEES = "FEES";
+  private static final String COMM = "COMM";
   private static final String INTR = "INTR";
   private static final String ADJT = "ADJT";
 
@@ -74,7 +75,7 @@ public class BankOperationProcessor {
             entry.remittanceInformation());
         savingsFundLedger.recordInterestReceived(amount, externalReference, clearingAccount);
       }
-      case FEES -> {
+      case FEES, COMM -> {
         log.info(
             "Bank fee charged: amount={}, externalRef={}, account={}, description={}",
             amount,
@@ -98,7 +99,7 @@ public class BankOperationProcessor {
   private TransactionType mapSubFamilyCode(String subFamilyCode) {
     return switch (subFamilyCode) {
       case INTR -> INTEREST_RECEIVED;
-      case FEES -> BANK_FEE;
+      case FEES, COMM -> BANK_FEE;
       case ADJT -> BANK_ADJUSTMENT;
       default -> null;
     };

@@ -40,21 +40,22 @@ public class SebReconciliator {
     var ledgerAccountBalance =
         ledgerService.getSystemAccount(ledgerSystemAccount).getBalanceAt(reconciliationTime);
 
-    log.info(
-        "Reconciling: bankAccount={}, closingBalance={}, ledgerAccount={}, ledgerBalance={}",
-        bankStatementAccount,
-        closingBankBalance.balance(),
-        ledgerSystemAccount,
-        ledgerAccountBalance);
-
     if (ledgerAccountBalance.compareTo(closingBankBalance.balance()) != 0) {
+      var diff = ledgerAccountBalance.subtract(closingBankBalance.balance());
       throw new IllegalStateException(
-          "Bank statement reconciliation failed: bankAccount=%s, closingBalance=%s, ledgerAccount=%s, ledgerBalance=%s"
+          "Bank statement reconciliation failed: bankAccount=%s, closingBalance=%s, ledgerAccount=%s, ledgerBalance=%s, diff=%s"
               .formatted(
                   bankStatementAccount,
                   closingBankBalance.balance(),
                   ledgerSystemAccount,
-                  ledgerAccountBalance));
+                  ledgerAccountBalance,
+                  diff));
     }
+
+    log.info(
+        "Reconciliation successful: bankAccount={}, balance={}, ledgerAccount={}",
+        bankStatementAccount,
+        closingBankBalance.balance(),
+        ledgerSystemAccount);
   }
 }

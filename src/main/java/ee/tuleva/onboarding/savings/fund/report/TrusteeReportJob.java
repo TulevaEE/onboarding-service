@@ -32,7 +32,7 @@ class TrusteeReportJob {
   private final TrusteeReportCsvGenerator csvGenerator;
   private final EmailService emailService;
 
-  @Scheduled(cron = "0 0 17 * * *", zone = TIMEZONE)
+  @Scheduled(cron = "0 15 16 * * *", zone = TIMEZONE)
   @SchedulerLock(name = "TrusteeReportJob", lockAtMostFor = "23h", lockAtLeastFor = "30m")
   public void sendReport() {
     var today = LocalDate.now(clock());

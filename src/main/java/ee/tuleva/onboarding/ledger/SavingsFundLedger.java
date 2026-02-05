@@ -20,6 +20,7 @@ import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
@@ -66,6 +67,7 @@ import org.springframework.stereotype.Service;
  * attributeLatePayment             UNRECONCILED_BANK_RECEIPTS → User:CASH
  * </pre>
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SavingsFundLedger {
@@ -147,6 +149,17 @@ public class SavingsFundLedger {
 
     if (unattributedPaymentExists) {
       return bounceBackUnattributedPayment(amount, externalReference);
+    }
+
+    var existing =
+        ledgerTransactionService.findByExternalReferenceAndTransactionType(
+            externalReference, PAYMENT_CANCELLED);
+    if (existing.isPresent()) {
+      log.error(
+          "Duplicate PAYMENT_CANCELLED prevented: externalReference={}",
+          externalReference,
+          new Exception("Duplicate caller stacktrace"));
+      return existing.get();
     }
 
     ensurePaymentReceivedExists(user, amount, externalReference);
@@ -269,6 +282,17 @@ public class SavingsFundLedger {
   @Transactional
   public LedgerTransaction bounceBackUnattributedPayment(
       BigDecimal amount, UUID externalReference) {
+    var existing =
+        ledgerTransactionService.findByExternalReferenceAndTransactionType(
+            externalReference, PAYMENT_BOUNCE_BACK);
+    if (existing.isPresent()) {
+      log.error(
+          "Duplicate PAYMENT_BOUNCE_BACK prevented: externalReference={}",
+          externalReference,
+          new Exception("Duplicate caller stacktrace"));
+      return existing.get();
+    }
+
     ensureUnattributedPaymentRecorded(amount, externalReference);
 
     LedgerAccount unreconciledAccount = getUnreconciledBankReceiptsAccount();

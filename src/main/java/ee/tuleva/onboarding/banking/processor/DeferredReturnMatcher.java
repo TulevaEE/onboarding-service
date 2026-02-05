@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.banking.processor;
 
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_CANCELLED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
@@ -28,7 +30,7 @@ public class DeferredReturnMatcher {
   public void onBankMessagesProcessed(BankMessagesProcessingCompleted event) {
     var unmatchedReturns =
         savingFundPaymentRepository.findUnmatchedOutgoingReturns().stream()
-            .filter(returnPayment -> !hasLedgerEntryForOriginalPayment(returnPayment))
+            .filter(returnPayment -> !hasReturnLedgerEntry(returnPayment))
             .toList();
 
     if (unmatchedReturns.isEmpty()) {
@@ -47,10 +49,13 @@ public class DeferredReturnMatcher {
         unmatchedReturns.size());
   }
 
-  private boolean hasLedgerEntryForOriginalPayment(SavingFundPayment returnPayment) {
+  private boolean hasReturnLedgerEntry(SavingFundPayment returnPayment) {
     return savingFundPaymentRepository
         .findOriginalPaymentForReturn(returnPayment.getEndToEndId())
-        .map(original -> savingsFundLedger.hasLedgerEntry(original.getId()))
+        .map(
+            original ->
+                savingsFundLedger.hasLedgerEntry(original.getId(), PAYMENT_BOUNCE_BACK)
+                    || savingsFundLedger.hasLedgerEntry(original.getId(), PAYMENT_CANCELLED))
         .orElse(false);
   }
 
@@ -74,7 +79,8 @@ public class DeferredReturnMatcher {
   private void completePaymentReturn(SavingFundPayment originalPayment) {
     var originalPaymentId = originalPayment.getId();
 
-    if (savingsFundLedger.hasLedgerEntry(originalPaymentId)) {
+    if (savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK)
+        || savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)) {
       return;
     }
 

@@ -552,6 +552,36 @@ class SavingsFundLedgerTest {
         .orElseThrow();
   }
 
+  @Test
+  void bounceBackUnattributedPayment_isIdempotent() {
+    var amount = new BigDecimal("300.00");
+    var externalReference = randomUUID();
+    savingsFundLedger.recordUnattributedPayment(amount, externalReference);
+
+    var first = savingsFundLedger.bounceBackUnattributedPayment(amount, externalReference);
+    var second = savingsFundLedger.bounceBackUnattributedPayment(amount, externalReference);
+
+    assertThat(second).isEqualTo(first);
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void recordPaymentCancelled_isIdempotent() {
+    var amount = new BigDecimal("500.00");
+    var externalReference = randomUUID();
+    savingsFundLedger.recordPaymentReceived(testUser, amount, externalReference);
+    savingsFundLedger.reservePaymentForCancellation(testUser, amount, externalReference);
+
+    var first = savingsFundLedger.recordPaymentCancelled(testUser, amount, externalReference);
+    var second = savingsFundLedger.recordPaymentCancelled(testUser, amount, externalReference);
+
+    assertThat(second).isEqualTo(first);
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+  }
+
   private static void verifyDoubleEntry(LedgerTransaction transaction) {
     List<LedgerEntry> entries = transaction.getEntries();
     assertThat(entries.size()).isGreaterThan(1);

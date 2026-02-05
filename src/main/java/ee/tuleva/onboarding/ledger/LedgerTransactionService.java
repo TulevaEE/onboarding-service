@@ -5,6 +5,7 @@ import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -55,6 +56,12 @@ class LedgerTransactionService {
   public boolean existsByExternalReferenceAndTransactionType(
       UUID externalReference, TransactionType transactionType) {
     return ledgerTransactionRepository.existsByExternalReferenceAndTransactionType(
+        externalReference, transactionType);
+  }
+
+  Optional<LedgerTransaction> findByExternalReferenceAndTransactionType(
+      UUID externalReference, TransactionType transactionType) {
+    return ledgerTransactionRepository.findByExternalReferenceAndTransactionType(
         externalReference, transactionType);
   }
 

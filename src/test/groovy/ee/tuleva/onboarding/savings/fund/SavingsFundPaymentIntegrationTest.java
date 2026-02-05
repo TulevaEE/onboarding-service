@@ -359,6 +359,52 @@ class SavingsFundPaymentIntegrationTest {
   }
 
   @Test
+  void deferredReturnMatcher_createsBounceback_whenUnattributedPaymentExists() {
+    var differentUser =
+        userRepository.save(
+            User.builder()
+                .firstName("Maria")
+                .lastName("Mets")
+                .personalCode("48806046007")
+                .email("maria.mets@example.com")
+                .phoneNumber("+372 5555 6666")
+                .build());
+
+    savingsFundOnboardingRepository.saveOnboardingStatus(
+        differentUser.getPersonalCode(), COMPLETED);
+
+    // Step 1: Process incoming payment with mismatched personal code
+    var xml = createUnverifiablePaymentXml();
+    persistXmlMessage(xml, NOW);
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    var payment = paymentRepository.findAll().getFirst();
+    var paymentId = payment.getId();
+
+    // Step 2: Verification → UNATTRIBUTED_PAYMENT + TO_BE_RETURNED
+    paymentVerificationJob.runJob();
+
+    payment = paymentRepository.findById(paymentId).orElseThrow();
+    assertThat(payment.getStatus()).isEqualTo(TO_BE_RETURNED);
+
+    // At this point, UNATTRIBUTED_PAYMENT ledger entry exists but no PAYMENT_BOUNCE_BACK
+    var paymentAmount = new BigDecimal("50.00");
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance())
+        .isEqualByComparingTo(paymentAmount.negate());
+    assertThat(getIncomingPaymentsClearingAccount().getBalance())
+        .isEqualByComparingTo(paymentAmount);
+
+    // Step 3: Process return payment XML in a SEPARATE batch (deferred scenario)
+    var returnXml = createReturnPaymentXml(paymentId);
+    persistXmlMessage(returnXml, NOW);
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    // The DeferredReturnMatcher should fire and create PAYMENT_BOUNCE_BACK
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
   @DisplayName(
       "Unverified payment flow: XML → RECEIVED → TO_BE_RETURNED with bounce back ledger entries")
   void unverifiedPaymentWithBounceBack() {

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.fund;
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.stream.StreamSupport.stream;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService;
@@ -10,8 +11,6 @@ import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SystemAccount;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
@@ -53,27 +52,41 @@ class FundService {
   private PensionFundStatistics fallbackNavStatistics(Fund fund) {
     return fundValueRepository
         .findLastValueForFund(fund.getIsin())
-        .map(
-            fundValue ->
-                PensionFundStatistics.builder()
-                    .nav(fundValue.value())
-                    .volume(calculateVolume(fund, fundValue.value(), fundValue.date()))
-                    .build())
+        .map(latestFundValue -> buildSavingsFundStatistics(fund, latestFundValue))
         .orElseGet(PensionFundStatistics::getNull);
   }
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
-  private BigDecimal calculateVolume(Fund fund, BigDecimal nav, LocalDate navDate) {
+  private PensionFundStatistics buildSavingsFundStatistics(Fund fund, FundValue latestFundValue) {
     if (!savingsFundConfiguration.getIsin().equals(fund.getIsin())) {
-      return null;
+      return PensionFundStatistics.builder().nav(latestFundValue.value()).build();
     }
-    var endOfNavDate = navDate.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
-    BigDecimal outstandingUnits =
-        ledgerService
-            .getSystemAccount(SystemAccount.FUND_UNITS_OUTSTANDING)
-            .getBalanceAt(endOfNavDate);
-    return outstandingUnits.multiply(nav).setScale(2, HALF_UP);
+
+    var account = ledgerService.getSystemAccount(SystemAccount.FUND_UNITS_OUTSTANDING);
+    var currentBalance = account.getBalance();
+    var cutoff = latestFundValue.date().plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
+    var balanceAtCutoff = account.getBalanceAt(cutoff);
+
+    boolean issuanceCompleted = currentBalance.compareTo(balanceAtCutoff) != 0;
+
+    if (issuanceCompleted) {
+      var nav = latestFundValue.value();
+      return PensionFundStatistics.builder()
+          .nav(nav)
+          .volume(currentBalance.multiply(nav).setScale(2, HALF_UP))
+          .build();
+    }
+
+    var previousNav =
+        fundValueRepository
+            .getLatestValue(fund.getIsin(), latestFundValue.date().minusDays(1))
+            .map(FundValue::value)
+            .orElse(latestFundValue.value());
+    return PensionFundStatistics.builder()
+        .nav(previousNav)
+        .volume(currentBalance.multiply(previousNav).setScale(2, HALF_UP))
+        .build();
   }
 
   private Iterable<Fund> fundsBy(Optional<String> fundManagerName) {

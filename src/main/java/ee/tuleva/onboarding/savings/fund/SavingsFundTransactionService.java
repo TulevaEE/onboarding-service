@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.cashflows.CashFlow;
 import ee.tuleva.onboarding.ledger.LedgerEntry;
 import ee.tuleva.onboarding.ledger.LedgerService;
+import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.UserAccount;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +31,7 @@ public class SavingsFundTransactionService {
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final SavingsFundConfiguration savingsFundConfiguration;
 
+  @Transactional
   public List<Transaction> getTransactions(Person person) {
     User user = userService.findByPersonalCode(person.getPersonalCode()).orElseThrow();
 
@@ -54,12 +57,16 @@ public class SavingsFundTransactionService {
   }
 
   private Transaction toTransaction(LedgerEntry entry, CashFlow.Type type, String isin) {
-    return new Transaction(
-        entry.getAmount().negate(),
-        EUR,
-        entry.getTransaction().getTransactionDate(),
-        isin,
-        type,
-        null);
+    LedgerTransaction ledgerTransaction = entry.getTransaction();
+
+    return Transaction.builder()
+        .amount(entry.getAmount().negate())
+        .currency(EUR)
+        .time(ledgerTransaction.getTransactionDate())
+        .isin(isin)
+        .type(type)
+        .units(ledgerTransaction.findUserFundUnits().orElseThrow())
+        .nav(ledgerTransaction.findNavPerUnit().orElseThrow())
+        .build();
   }
 }

@@ -65,10 +65,33 @@ class SavingsFundTransactionServiceTest {
 
     assertThat(transactions)
         .containsExactly(
-            new Transaction(new BigDecimal("50.00"), EUR, newerDate, isin, CONTRIBUTION_CASH, null),
-            new Transaction(new BigDecimal("-25.00"), EUR, newerDate, isin, SUBTRACTION, null),
-            new Transaction(
-                new BigDecimal("100.00"), EUR, olderDate, isin, CONTRIBUTION_CASH, null));
+            Transaction.builder()
+                .amount(new BigDecimal("50.00"))
+                .currency(EUR)
+                .time(newerDate)
+                .isin(isin)
+                .type(CONTRIBUTION_CASH)
+                .units(new BigDecimal("5.00000"))
+                .nav(new BigDecimal("10.0"))
+                .build(),
+            Transaction.builder()
+                .amount(new BigDecimal("-25.00"))
+                .currency(EUR)
+                .time(newerDate)
+                .isin(isin)
+                .type(SUBTRACTION)
+                .units(new BigDecimal("2.50000"))
+                .nav(new BigDecimal("10.0"))
+                .build(),
+            Transaction.builder()
+                .amount(new BigDecimal("100.00"))
+                .currency(EUR)
+                .time(olderDate)
+                .isin(isin)
+                .type(CONTRIBUTION_CASH)
+                .units(new BigDecimal("10.00000"))
+                .nav(new BigDecimal("10.0"))
+                .build());
   }
 
   @Test

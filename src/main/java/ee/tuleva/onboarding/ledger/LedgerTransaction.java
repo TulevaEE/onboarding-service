@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
+import static jakarta.persistence.CascadeType.ALL;
 import static jakarta.persistence.EnumType.STRING;
 import static jakarta.persistence.GenerationType.UUID;
 import static java.math.BigDecimal.ZERO;
@@ -82,7 +83,7 @@ public class LedgerTransaction {
   /*@Column(name = "event_log_id", nullable = false)
   private Integer eventLogId; // TODO event log map*/
 
-  @OneToMany(mappedBy = "transaction", cascade = CascadeType.ALL)
+  @OneToMany(mappedBy = "transaction", cascade = ALL)
   @Size(min = 2, message = "Transaction must have at least 2 entries for double-entry bookkeeping")
   @Builder.Default
   private List<LedgerEntry> entries = new ArrayList<>();
@@ -115,5 +116,17 @@ public class LedgerTransaction {
     account.addEntry(entry);
 
     return entry;
+  }
+
+  public Optional<BigDecimal> findUserFundUnits() {
+    return entries.stream()
+        .filter(LedgerEntry::isUserFundUnit)
+        .findFirst()
+        .map(entry -> entry.getAmount().abs());
+  }
+
+  public Optional<BigDecimal> findNavPerUnit() {
+    Object navValue = metadata.get("navPerUnit");
+    return Optional.ofNullable(navValue).map(value -> new BigDecimal(value.toString()));
   }
 }

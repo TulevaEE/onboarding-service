@@ -8,8 +8,7 @@ import org.springframework.test.web.servlet.MockMvc
 
 import java.time.Instant
 
-import static org.hamcrest.Matchers.hasSize
-import static org.hamcrest.Matchers.is
+import static org.hamcrest.Matchers.*
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
@@ -28,22 +27,22 @@ class TransactionControllerSpec extends BaseControllerSpec {
   def "delegates to transaction service"() {
     given:
     def transactions = [
-        new Transaction(
-            new BigDecimal("100.00"),
-            Currency.EUR,
-            Instant.parse("2025-02-01T00:00:00Z"),
-            "EE0000003283",
-            CashFlow.Type.CONTRIBUTION_CASH,
-            null
-        ),
-        new Transaction(
-            new BigDecimal("-50.00"),
-            Currency.EUR,
-            Instant.parse("2025-01-01T00:00:00Z"),
-            "EE123",
-            CashFlow.Type.SUBTRACTION,
-            "comment"
-        )
+        Transaction.builder()
+            .amount(new BigDecimal("100.00"))
+            .currency(Currency.EUR)
+            .time(Instant.parse("2025-02-01T00:00:00Z"))
+            .isin("EE0000003283")
+            .type(CashFlow.Type.CONTRIBUTION_CASH)
+            .units(new BigDecimal("10.00000"))
+            .nav(new BigDecimal("10.0"))
+            .build(),
+        Transaction.builder()
+            .amount(new BigDecimal("-50.00"))
+            .currency(Currency.EUR)
+            .time(Instant.parse("2025-01-01T00:00:00Z"))
+            .isin("EE123")
+            .type(CashFlow.Type.SUBTRACTION)
+            .build()
     ]
     transactionService.getTransactions(_ as Person) >> transactions
 
@@ -53,8 +52,9 @@ class TransactionControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$', hasSize(2)))
         .andExpect(jsonPath('$[0].isin', is("EE0000003283")))
         .andExpect(jsonPath('$[0].type', is("CONTRIBUTION_CASH")))
+        .andExpect(jsonPath('$[0].units').value(10.0))
+        .andExpect(jsonPath('$[0].nav').value(10.0))
         .andExpect(jsonPath('$[1].isin', is("EE123")))
         .andExpect(jsonPath('$[1].type', is("SUBTRACTION")))
-        .andExpect(jsonPath('$[1].comment', is("comment")))
   }
 }

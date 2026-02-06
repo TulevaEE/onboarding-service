@@ -25,9 +25,9 @@ class CashFlowFixture {
             "3": CashFlow.builder().time(randomTime).priceTime(priceTime).amount(250.0).currency(EUR).isin("3").build(),
         ])
         .transactions([
-            CashFlow.builder().time(randomTime).priceTime(priceTime).amount(-100.0).currency(EUR).isin("1").type(SUBTRACTION).comment("sub1").build(),
-            CashFlow.builder().time(randomTime).priceTime(priceTime).amount(-20.0).currency(EUR).isin("2").type(SUBTRACTION).comment("sub2").build(),
-            CashFlow.builder().time(randomTime).priceTime(priceTime).amount(-25.0).currency(EUR).isin("3").type(SUBTRACTION).comment("sub3").build(),
+            CashFlow.builder().time(randomTime).priceTime(priceTime).amount(-100.0).currency(EUR).isin("1").type(SUBTRACTION).units(10.0).nav(10.0).build(),
+            CashFlow.builder().time(randomTime).priceTime(priceTime).amount(-20.0).currency(EUR).isin("2").type(SUBTRACTION).units(2.0).nav(10.0).build(),
+            CashFlow.builder().time(randomTime).priceTime(priceTime).amount(-25.0).currency(EUR).isin("3").type(SUBTRACTION).units(2.5).nav(10.0).build(),
         ]).build()
   }
 
@@ -45,7 +45,7 @@ class CashFlowFixture {
         .transactions([
             CashFlow.builder().time(time).priceTime(time).amount(amount).currency(currency).isin(null).type(CASH).build(),
             CashFlow.builder().time(time.plusSeconds(1)).priceTime(time.plusSeconds(1)).amount(amount.negate()).currency(currency).isin(null).type(CASH).build(),
-            CashFlow.builder().time(time.plusSeconds(1)).priceTime(time.plusSeconds(1)).amount(10.01).currency(currency).isin(TULEVA_3RD_PILLAR_FUND_ISIN).type(CONTRIBUTION_CASH).build(),
+            CashFlow.builder().time(time.plusSeconds(1)).priceTime(time.plusSeconds(1)).amount(10.01).currency(currency).isin(TULEVA_3RD_PILLAR_FUND_ISIN).type(CONTRIBUTION_CASH).units(1.0).nav(10.01).build(),
         ]).build()
   }
 }

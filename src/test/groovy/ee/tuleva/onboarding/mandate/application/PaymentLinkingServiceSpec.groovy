@@ -83,27 +83,27 @@ class PaymentLinkingServiceSpec extends Specification {
   }
 
   private CashFlow transaction(Instant createdTime = defaultTransactionTime) {
-    return new CashFlow(null, createdTime, null, aPaymentAmount, EUR, CASH, null)
+    return CashFlow.builder().time(createdTime).amount(aPaymentAmount).currency(EUR).type(CASH).build()
   }
 
   private CashFlow negativeTransaction(Instant createdTime = defaultNegativeTransactionTime) {
-    return new CashFlow(null, createdTime, null, -aPaymentAmount, EUR, CASH, null)
+    return CashFlow.builder().time(createdTime).amount(-aPaymentAmount).currency(EUR).type(CASH).build()
   }
 
   private CashFlow refundTransaction(Instant createdTime = defaultRefundTransactionTime) {
-    return new CashFlow(null, createdTime, null, -aPaymentAmount, EUR, REFUND, null)
+    return CashFlow.builder().time(createdTime).amount(-aPaymentAmount).currency(EUR).type(REFUND).build()
   }
 
   private CashFlow tulevaContributionHigh(Instant createdTime = defaultContributionTime) {
-    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, createdTime, defaultPriceTime, contributionAmountHigh, EUR, CONTRIBUTION_CASH, null)
+    return CashFlow.builder().isin(TULEVA_3RD_PILLAR_FUND_ISIN).time(createdTime).priceTime(defaultPriceTime).amount(contributionAmountHigh).currency(EUR).type(CONTRIBUTION_CASH).build()
   }
 
   private CashFlow tulevaContributionLow(Instant createdTime = defaultContributionTime) {
-    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, createdTime, defaultPriceTime, contributionAmountLow, EUR, CONTRIBUTION_CASH, null)
+    return CashFlow.builder().isin(TULEVA_3RD_PILLAR_FUND_ISIN).time(createdTime).priceTime(defaultPriceTime).amount(contributionAmountLow).currency(EUR).type(CONTRIBUTION_CASH).build()
   }
 
   private CashFlow foreignContribution(Instant createdTime = defaultContributionTime) {
-    return new CashFlow("OTHERISIN", createdTime, defaultPriceTime, contributionAmountHigh, EUR, CONTRIBUTION_CASH, null)
+    return CashFlow.builder().isin("OTHERISIN").time(createdTime).priceTime(defaultPriceTime).amount(contributionAmountHigh).currency(EUR).type(CONTRIBUTION_CASH).build()
   }
 
   private Application<PaymentApplicationDetails> aCompletePaymentApplication(Long id = 123L, Instant createdTime = defaultPaymentTime) {

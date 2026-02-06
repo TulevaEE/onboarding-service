@@ -5,11 +5,15 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.USER_ACCO
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FUND_SUBSCRIPTION;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REDEMPTION_PAYOUT;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static java.math.BigDecimal.ZERO;
+import static java.math.RoundingMode.*;
 
 import ee.tuleva.onboarding.ledger.LedgerAccount.LedgerAccountBuilder;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -218,7 +222,11 @@ public class LedgerAccountFixture {
     return systemAccountWithBalance(balance, Instant.now());
   }
 
-  public record EntryFixture(BigDecimal amount, Instant transactionDate) {}
+  public record EntryFixture(BigDecimal amount, Instant transactionDate, BigDecimal navPerUnit) {
+    public EntryFixture(BigDecimal amount, Instant transactionDate) {
+      this(amount, transactionDate, new BigDecimal("10.0"));
+    }
+  }
 
   public static LedgerAccount subscriptionsAccountWithEntries(List<EntryFixture> entries) {
     LedgerAccount account =
@@ -229,15 +237,26 @@ public class LedgerAccountFixture {
             .accountType(INCOME)
             .build();
 
+    LedgerAccount fundUnitsAccount =
+        LedgerAccount.builder()
+            .name(FUND_UNITS.name())
+            .purpose(USER_ACCOUNT)
+            .assetType(FUND_UNIT)
+            .accountType(LIABILITY)
+            .build();
+
     entries.forEach(
         entry -> {
+          BigDecimal navPerUnit = entry.navPerUnit();
+          BigDecimal fundUnits = entry.amount().divide(navPerUnit, 5, HALF_UP);
           LedgerTransaction transaction =
               LedgerTransaction.builder()
-                  .transactionType(LedgerTransaction.TransactionType.FUND_SUBSCRIPTION)
+                  .transactionType(FUND_SUBSCRIPTION)
                   .transactionDate(entry.transactionDate())
-                  .metadata(Map.of("test", "fixture"))
+                  .metadata(Map.of("navPerUnit", navPerUnit))
                   .build();
           transaction.addEntry(account, entry.amount().negate());
+          transaction.addEntry(fundUnitsAccount, fundUnits.negate());
         });
 
     return account;
@@ -252,15 +271,26 @@ public class LedgerAccountFixture {
             .accountType(EXPENSE)
             .build();
 
+    LedgerAccount fundUnitsReservedAccount =
+        LedgerAccount.builder()
+            .name(FUND_UNITS_RESERVED.name())
+            .purpose(USER_ACCOUNT)
+            .assetType(FUND_UNIT)
+            .accountType(LIABILITY)
+            .build();
+
     entries.forEach(
         entry -> {
+          BigDecimal navPerUnit = entry.navPerUnit();
+          BigDecimal fundUnits = entry.amount().divide(navPerUnit, 5, RoundingMode.HALF_UP);
           LedgerTransaction transaction =
               LedgerTransaction.builder()
-                  .transactionType(LedgerTransaction.TransactionType.REDEMPTION_PAYOUT)
+                  .transactionType(REDEMPTION_PAYOUT)
                   .transactionDate(entry.transactionDate())
-                  .metadata(Map.of("test", "fixture"))
+                  .metadata(Map.of("navPerUnit", navPerUnit))
                   .build();
           transaction.addEntry(account, entry.amount());
+          transaction.addEntry(fundUnitsReservedAccount, fundUnits);
         });
 
     return account;

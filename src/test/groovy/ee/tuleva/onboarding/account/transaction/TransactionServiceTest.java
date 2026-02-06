@@ -52,8 +52,15 @@ class TransactionServiceTest {
 
     Instant newestDate = Instant.parse("2099-01-01T00:00:00Z");
     var savingsTransaction =
-        new Transaction(
-            new BigDecimal("100.00"), EUR, newestDate, "EE0000003283", CONTRIBUTION_CASH, null);
+        Transaction.builder()
+            .amount(new BigDecimal("100.00"))
+            .currency(EUR)
+            .time(newestDate)
+            .isin("EE0000003283")
+            .type(CONTRIBUTION_CASH)
+            .units(new BigDecimal("10.00000"))
+            .nav(new BigDecimal("10.0000"))
+            .build();
 
     when(cashFlowService.getCashFlowStatement(person)).thenReturn(cashFlowStatement);
     when(savingsFundTransactionService.getTransactions(person))

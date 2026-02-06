@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.*;
 import static jakarta.persistence.EnumType.STRING;
 import static jakarta.persistence.GenerationType.UUID;
 import static java.math.BigDecimal.ZERO;
@@ -118,6 +119,10 @@ public class LedgerAccount {
             })
         .map(LedgerEntry::getAmount)
         .reduce(ZERO, BigDecimal::add);
+  }
+
+  boolean isUserAccount() {
+    return purpose == USER_ACCOUNT;
   }
 
   void addEntry(LedgerEntry entry) {

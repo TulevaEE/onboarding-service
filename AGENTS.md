@@ -447,6 +447,21 @@ class MyControllerTest {
   - **Compose small functions**: Build complex behavior by composing simple, focused functions
     - ❌ Bad: One large method doing multiple things with mutations
     - ✅ Good: Several small methods returning values that are combined
+- **Law of Demeter (Principle of Least Knowledge)**: An object should only talk to its immediate friends, not strangers
+  - Don't chain through objects: `a.getB().getC().doSomething()` - this couples you to the entire chain
+  - Instead, push behavior down: give each object a method that encapsulates the knowledge it needs
+  - ❌ Bad: `entry.getAccount().getPurpose() == USER_ACCOUNT` - reaching through entry to account's internals
+  - ✅ Good: `account.isUserAccount()` + `entry.isUserFundUnit()` - each object answers questions about itself
+  - Ask, don't inspect: instead of pulling data out of an object and making decisions, ask the object to make the decision
+  - ❌ Bad: `if (transaction.getEntries().stream().filter(e -> e.getAssetType() == FUND_UNIT)...)` - pulling internals out
+  - ✅ Good: `transaction.findUserFundUnits()` - let the object that owns the data answer the question
+  - This makes code more resilient to change: if internal structure changes, only the owning class needs updating
+- **OOP: Push behavior to where the data lives**: Methods should live on the class that owns the data they operate on
+  - If you're writing a method that mostly accesses another object's fields, move it to that object
+  - Create small, focused query methods on domain objects (e.g., `isUserAccount()`, `isUserFundUnit()`, `findUserFundUnits()`)
+  - This naturally leads to better encapsulation and testability
+  - ❌ Bad: Utility/service method that inspects an object's internals from the outside
+  - ✅ Good: Domain object method that encapsulates its own logic
 - **Write code as if using Kotlin (immutable and null-safe)**:
   - **Default to immutability**: Prevent reassignment where it matters
     - Use `final` keyword for **fields** (instance variables) and **public API parameters** (method parameters in public/protected methods)

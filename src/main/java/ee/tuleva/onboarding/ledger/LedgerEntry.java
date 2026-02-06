@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.*;
 import static jakarta.persistence.EnumType.STRING;
 import static jakarta.persistence.GenerationType.UUID;
 import static org.hibernate.generator.EventType.INSERT;
@@ -62,4 +63,8 @@ public class LedgerEntry {
   @Column(nullable = false, updatable = false, insertable = false)
   @Generated(event = INSERT)
   private Instant createdAt;
+
+  boolean isUserFundUnit() {
+    return assetType == FUND_UNIT && account.isUserAccount();
+  }
 }

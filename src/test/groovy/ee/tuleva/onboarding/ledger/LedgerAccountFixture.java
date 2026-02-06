@@ -11,6 +11,7 @@ import static java.math.BigDecimal.ZERO;
 import ee.tuleva.onboarding.ledger.LedgerAccount.LedgerAccountBuilder;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 public class LedgerAccountFixture {
@@ -215,5 +216,53 @@ public class LedgerAccountFixture {
 
   public static LedgerAccount systemAccountWithBalance(BigDecimal balance) {
     return systemAccountWithBalance(balance, Instant.now());
+  }
+
+  public record EntryFixture(BigDecimal amount, Instant transactionDate) {}
+
+  public static LedgerAccount subscriptionsAccountWithEntries(List<EntryFixture> entries) {
+    LedgerAccount account =
+        LedgerAccount.builder()
+            .name(SUBSCRIPTIONS.name())
+            .purpose(USER_ACCOUNT)
+            .assetType(EUR)
+            .accountType(INCOME)
+            .build();
+
+    entries.forEach(
+        entry -> {
+          LedgerTransaction transaction =
+              LedgerTransaction.builder()
+                  .transactionType(LedgerTransaction.TransactionType.FUND_SUBSCRIPTION)
+                  .transactionDate(entry.transactionDate())
+                  .metadata(Map.of("test", "fixture"))
+                  .build();
+          transaction.addEntry(account, entry.amount().negate());
+        });
+
+    return account;
+  }
+
+  public static LedgerAccount redemptionsAccountWithEntries(List<EntryFixture> entries) {
+    LedgerAccount account =
+        LedgerAccount.builder()
+            .name(REDEMPTIONS.name())
+            .purpose(USER_ACCOUNT)
+            .assetType(EUR)
+            .accountType(EXPENSE)
+            .build();
+
+    entries.forEach(
+        entry -> {
+          LedgerTransaction transaction =
+              LedgerTransaction.builder()
+                  .transactionType(LedgerTransaction.TransactionType.REDEMPTION_PAYOUT)
+                  .transactionDate(entry.transactionDate())
+                  .metadata(Map.of("test", "fixture"))
+                  .build();
+          transaction.addEntry(account, entry.amount());
+        });
+
+    return account;
   }
 }

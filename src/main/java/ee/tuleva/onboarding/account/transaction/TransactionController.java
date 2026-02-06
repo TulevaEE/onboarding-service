@@ -1,10 +1,6 @@
 package ee.tuleva.onboarding.account.transaction;
 
-import static java.util.Comparator.reverseOrder;
-
-import ee.tuleva.onboarding.account.CashFlowService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -18,17 +14,12 @@ import org.springframework.web.bind.annotation.RestController;
 @AllArgsConstructor
 public class TransactionController {
 
-  private final CashFlowService cashFlowService;
+  private final TransactionService transactionService;
 
   @GetMapping("/transactions")
   @Operation(summary = "Get a list of transactions")
   public List<Transaction> getTransactions(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    CashFlowStatement cashFlowStatement = cashFlowService.getCashFlowStatement(authenticatedPerson);
-    return cashFlowStatement.getTransactions().stream()
-        .filter(cashFlow -> cashFlow.isContribution() || cashFlow.isSubtraction())
-        .map(Transaction::from)
-        .sorted(reverseOrder())
-        .toList();
+    return transactionService.getTransactions(authenticatedPerson);
   }
 }

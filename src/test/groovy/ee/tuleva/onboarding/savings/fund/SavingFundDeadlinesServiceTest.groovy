@@ -57,9 +57,9 @@ class SavingFundDeadlinesServiceTest extends Specification {
 
     where:
     receivedStr                    | createdStr                    | expectedDeadline
-    "2025-09-29T12:00:00Z"         | "2025-09-29T10:00:00Z"        | "2025-10-01T13:00:00Z"
-    "2025-09-30T12:00:00Z"         | "2025-09-30T10:00:00Z"        | "2025-10-02T13:00:00Z"
-    null                           | "2025-09-30T13:00:00Z"        | "2025-10-03T13:00:00Z"
+    "2025-09-29T12:00:00Z"         | "2025-09-29T10:00:00Z"        | "2025-09-30T13:00:00Z"
+    "2025-09-30T12:00:00Z"         | "2025-09-30T10:00:00Z"        | "2025-10-01T13:00:00Z"
+    null                           | "2025-09-30T13:00:00Z"        | "2025-10-02T13:00:00Z"
   }
 
   def "getCancellationDeadline_shouldReturnCorrectDeadlineForRedemptionRequest"() {
@@ -98,8 +98,8 @@ class SavingFundDeadlinesServiceTest extends Specification {
 
     where:
     requestedAtStr                 | expectedDeadline
-    "2025-09-29T12:00:00Z"         | "2025-10-01T13:00:00Z"
-    "2025-09-30T09:00:00Z"         | "2025-10-02T13:00:00Z"
-    "2025-09-30T13:00:00Z"         | "2025-10-03T13:00:00Z"
+    "2025-09-29T12:00:00Z"         | "2025-09-30T13:00:00Z"
+    "2025-09-30T09:00:00Z"         | "2025-10-01T13:00:00Z"
+    "2025-09-30T13:00:00Z"         | "2025-10-02T13:00:00Z"
   }
 }

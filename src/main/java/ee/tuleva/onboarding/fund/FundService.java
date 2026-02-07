@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SystemAccount;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
+import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
@@ -71,7 +72,7 @@ class FundService {
     boolean issuanceCompleted = currentBalance.compareTo(balanceAtCutoff) != 0;
 
     if (issuanceCompleted) {
-      var nav = latestFundValue.value();
+      var nav = toNavScale(latestFundValue.value());
       return PensionFundStatistics.builder()
           .nav(nav)
           .volume(currentBalance.multiply(nav).setScale(2, HALF_UP))
@@ -79,14 +80,19 @@ class FundService {
     }
 
     var previousNav =
-        fundValueRepository
-            .getLatestValue(fund.getIsin(), latestFundValue.date().minusDays(1))
-            .map(FundValue::value)
-            .orElse(latestFundValue.value());
+        toNavScale(
+            fundValueRepository
+                .getLatestValue(fund.getIsin(), latestFundValue.date().minusDays(1))
+                .map(FundValue::value)
+                .orElse(latestFundValue.value()));
     return PensionFundStatistics.builder()
         .nav(previousNav)
         .volume(currentBalance.multiply(previousNav).setScale(2, HALF_UP))
         .build();
+  }
+
+  private BigDecimal toNavScale(BigDecimal nav) {
+    return nav.setScale(4);
   }
 
   private Iterable<Fund> fundsBy(Optional<String> fundManagerName) {

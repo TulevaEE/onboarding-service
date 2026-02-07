@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CAS
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.SUBTRACTION;
 import static ee.tuleva.onboarding.ledger.UserAccount.REDEMPTIONS;
 import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
+import static java.math.RoundingMode.HALF_UP;
 import static java.util.Comparator.reverseOrder;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
@@ -16,6 +17,7 @@ import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.UserAccount;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -67,7 +69,11 @@ public class SavingsFundTransactionService {
         .isin(isin)
         .type(type)
         .units(ledgerTransaction.findUserFundUnits().orElseThrow())
-        .nav(ledgerTransaction.findNavPerUnit().orElseThrow())
+        .nav(toNavScale(ledgerTransaction.findNavPerUnit().orElseThrow()))
         .build();
+  }
+
+  private BigDecimal toNavScale(BigDecimal nav) {
+    return nav.setScale(4, HALF_UP);
   }
 }

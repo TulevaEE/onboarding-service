@@ -37,7 +37,18 @@ public class SavingsFundNavProvider {
               + fundValue.date());
     }
 
-    return fundValue.value();
+    BigDecimal nav = fundValue.value();
+    if (nav.scale() > 4) {
+      throw new IllegalStateException(
+          "Unexpected NAV scale for savings fund: isin="
+              + configuration.getIsin()
+              + ", nav="
+              + nav
+              + ", scale="
+              + nav.scale());
+    }
+
+    return nav;
   }
 
   private FundValue getFundValue() {

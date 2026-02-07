@@ -82,6 +82,21 @@ class SavingsFundNavProviderTest {
   }
 
   @Test
+  void getCurrentNavForIssuing_throwsWhenNavScaleExceedsFourDecimalPlaces() {
+    BigDecimal navWithTooManyDecimals = new BigDecimal("1.12345");
+    when(configuration.getIsin()).thenReturn(ISIN);
+    when(publicHolidays.previousWorkingDay(TODAY)).thenReturn(LAST_WORKING_DAY);
+    when(fundValueRepository.findLastValueForFund(ISIN))
+        .thenReturn(
+            Optional.of(
+                new FundValue(
+                    ISIN, LAST_WORKING_DAY, navWithTooManyDecimals, "MANUAL", Instant.now())));
+
+    assertThatThrownBy(() -> navProvider.getCurrentNavForIssuing())
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
   void getCurrentNavForIssuing_throwsWhenNavIsStale() {
     LocalDate staleDate = LocalDate.of(2019, 12, 30);
     when(configuration.getIsin()).thenReturn(ISIN);

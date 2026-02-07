@@ -151,7 +151,7 @@ class FundServiceSpec extends Specification {
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
     localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
     def navDate = LocalDate.parse("2025-01-20")
-    def nav = 1.12345
+    def nav = 1.1234
     fundValueRepository.findLastValueForFund(savingsFund.isin) >> Optional.of(
         aFundValue(savingsFund.isin, navDate, nav))
     savingsFundConfiguration.getIsin() >> "EE0000003283"
@@ -167,7 +167,7 @@ class FundServiceSpec extends Specification {
     then:
     def fund = response.first()
     fund.nav == nav
-    fund.volume == new BigDecimal("11796.23")
+    fund.volume == new BigDecimal("11795.70")
   }
 
   def "during gap: uses previous NAV when issuance has not run yet"() {
@@ -237,7 +237,7 @@ class FundServiceSpec extends Specification {
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
     localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
     def navDate = LocalDate.parse("2025-01-17")
-    def nav = 1.12345
+    def nav = 1.1234
     fundValueRepository.findLastValueForFund(savingsFund.isin) >> Optional.of(
         aFundValue(savingsFund.isin, navDate, nav))
     savingsFundConfiguration.getIsin() >> "EE0000003283"
@@ -253,7 +253,7 @@ class FundServiceSpec extends Specification {
     then:
     def fund = response.first()
     fund.nav == nav
-    fund.volume == new BigDecimal("11796.23")
+    fund.volume == new BigDecimal("11795.70")
   }
 
   def "no previous NAV exists: falls back to current NAV during gap"() {
@@ -309,6 +309,36 @@ class FundServiceSpec extends Specification {
     then:
     def fund = response.first()
     fund.volume == new BigDecimal("0.00")
+  }
+
+  def "savings fund NAV has 4 decimal places"() {
+    given:
+    def savingsFund = additionalSavingsFund()
+    fundRepository.findAll() >> [savingsFund]
+    pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
+    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
+    def navDate = LocalDate.parse("2025-01-20")
+    fundValueRepository.findLastValueForFund(savingsFund.isin) >> Optional.of(
+        aFundValue(savingsFund.isin, navDate, nav))
+    savingsFundConfiguration.getIsin() >> "EE0000003283"
+    def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
+    def outstandingUnitsAccount = Mock(LedgerAccount)
+    outstandingUnitsAccount.getBalance() >> new BigDecimal("10500.00000")
+    outstandingUnitsAccount.getBalanceAt(cutoff) >> new BigDecimal("10000.00000")
+    ledgerService.getSystemAccount(SystemAccount.FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+
+    when:
+    def response = fundService.getFunds(Optional.empty())
+
+    then:
+    def fund = response.first()
+    fund.nav == new BigDecimal(expectedNav)
+    fund.nav.scale() == 4
+
+    where:
+    nav      | expectedNav
+    1.0      | "1.0000"
+    1.23450  | "1.2345"
   }
 
   def "non-savings fund returns null volume"() {

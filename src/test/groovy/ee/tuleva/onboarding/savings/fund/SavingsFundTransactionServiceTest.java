@@ -84,7 +84,7 @@ class SavingsFundTransactionServiceTest {
                 isin,
                 CONTRIBUTION_CASH,
                 new BigDecimal("5.00000"),
-                new BigDecimal("10.0")),
+                new BigDecimal("10.0000")),
             tuple(
                 new BigDecimal("-25.00"),
                 EUR,
@@ -92,7 +92,7 @@ class SavingsFundTransactionServiceTest {
                 isin,
                 SUBTRACTION,
                 new BigDecimal("2.50000"),
-                new BigDecimal("10.0")),
+                new BigDecimal("10.0000")),
             tuple(
                 new BigDecimal("100.00"),
                 EUR,
@@ -100,7 +100,7 @@ class SavingsFundTransactionServiceTest {
                 isin,
                 CONTRIBUTION_CASH,
                 new BigDecimal("10.00000"),
-                new BigDecimal("10.0")));
+                new BigDecimal("10.0000")));
 
     assertThat(transactions.stream().map(Transaction::id).distinct()).hasSize(3);
   }

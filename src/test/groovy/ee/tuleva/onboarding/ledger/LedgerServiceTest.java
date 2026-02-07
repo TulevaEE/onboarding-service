@@ -2,9 +2,11 @@ package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.sampleLedgerAccount;
+import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.user.User;
 import java.util.Optional;
@@ -13,7 +15,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 class LedgerServiceTest {
@@ -27,13 +28,45 @@ class LedgerServiceTest {
   LedgerAccount account = sampleLedgerAccount().build();
 
   @Test
+  void initializeUserAccounts_createsPartyAndAllAccounts() {
+    when(ledgerPartyService.getParty(user)).thenReturn(Optional.empty());
+    when(ledgerPartyService.createParty(user)).thenReturn(party);
+
+    for (var userAccount : UserAccount.values()) {
+      when(ledgerAccountService.findUserAccount(party, userAccount)).thenReturn(Optional.empty());
+    }
+
+    ledgerService.initializeUserAccounts(user);
+
+    verify(ledgerPartyService).createParty(user);
+    for (var userAccount : UserAccount.values()) {
+      verify(ledgerAccountService).createUserAccount(eq(party), eq(userAccount));
+    }
+  }
+
+  @Test
+  void initializeUserAccounts_skipsIfPartyAlreadyExists() {
+    when(ledgerPartyService.getParty(user)).thenReturn(Optional.of(party));
+
+    for (var userAccount : UserAccount.values()) {
+      when(ledgerAccountService.findUserAccount(party, userAccount))
+          .thenReturn(Optional.of(account));
+    }
+
+    ledgerService.initializeUserAccounts(user);
+
+    verify(ledgerPartyService, never()).createParty(user);
+    for (var userAccount : UserAccount.values()) {
+      verify(ledgerAccountService, never()).createUserAccount(eq(party), eq(userAccount));
+    }
+  }
+
+  @Test
   void getUserAccount_createsPartyAndAccountWhenNotFound() {
-    when(ledgerPartyService.getParty(user))
-        .thenReturn(Optional.empty())
-        .thenReturn(Optional.of(party));
-    when(ledgerAccountService.findUserAccount(party, SUBSCRIPTIONS))
-        .thenReturn(Optional.empty())
-        .thenReturn(Optional.of(account));
+    when(ledgerPartyService.getParty(user)).thenReturn(Optional.empty());
+    when(ledgerPartyService.createParty(user)).thenReturn(party);
+    when(ledgerAccountService.findUserAccount(party, SUBSCRIPTIONS)).thenReturn(Optional.empty());
+    when(ledgerAccountService.createUserAccount(party, SUBSCRIPTIONS)).thenReturn(account);
 
     assertThat(ledgerService.getUserAccount(user, SUBSCRIPTIONS)).isEqualTo(account);
   }
@@ -48,40 +81,11 @@ class LedgerServiceTest {
   }
 
   @Test
-  void getUserAccount_retriesPartyLookupOnConstraintViolation() {
-    when(ledgerPartyService.getParty(user))
-        .thenReturn(Optional.empty())
-        .thenReturn(Optional.of(party));
-    when(ledgerPartyService.createParty(user))
-        .thenThrow(new DataIntegrityViolationException("ux_party_type_owner"));
-    when(ledgerAccountService.findUserAccount(party, SUBSCRIPTIONS))
-        .thenReturn(Optional.of(account));
+  void getSystemAccount_createsWhenNotFound() {
+    when(ledgerAccountService.findSystemAccount(INCOMING_PAYMENTS_CLEARING))
+        .thenReturn(Optional.empty());
+    when(ledgerAccountService.createSystemAccount(INCOMING_PAYMENTS_CLEARING)).thenReturn(account);
 
-    assertThat(ledgerService.getUserAccount(user, SUBSCRIPTIONS)).isEqualTo(account);
-  }
-
-  @Test
-  void getUserAccount_retriesAccountLookupOnConstraintViolation() {
-    when(ledgerPartyService.getParty(user)).thenReturn(Optional.of(party));
-    when(ledgerAccountService.findUserAccount(party, SUBSCRIPTIONS))
-        .thenReturn(Optional.empty())
-        .thenReturn(Optional.of(account));
-    when(ledgerAccountService.createUserAccount(party, SUBSCRIPTIONS))
-        .thenThrow(new DataIntegrityViolationException("ux_account_owner_name"));
-
-    assertThat(ledgerService.getUserAccount(user, SUBSCRIPTIONS)).isEqualTo(account);
-  }
-
-  @Test
-  void getSystemAccount_retriesOnConstraintViolation() {
-    var systemAccount = SystemAccount.INCOMING_PAYMENTS_CLEARING;
-
-    when(ledgerAccountService.findSystemAccount(systemAccount))
-        .thenReturn(Optional.empty())
-        .thenReturn(Optional.of(account));
-    when(ledgerAccountService.createSystemAccount(systemAccount))
-        .thenThrow(new DataIntegrityViolationException("ux_account_system_name"));
-
-    assertThat(ledgerService.getSystemAccount(systemAccount)).isEqualTo(account);
+    assertThat(ledgerService.getSystemAccount(INCOMING_PAYMENTS_CLEARING)).isEqualTo(account);
   }
 }

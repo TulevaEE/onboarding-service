@@ -43,6 +43,9 @@ public class SavingsFundOnboardingService {
       return;
     }
     savingsFundOnboardingRepository.saveOnboardingStatus(user.getPersonalCode(), newStatus);
+    if (newStatus == COMPLETED) {
+      eventPublisher.publishEvent(new SavingsFundOnboardingCompletedEvent(user));
+    }
     Map<String, Object> eventData = new HashMap<>();
     if (oldStatus != null) {
       eventData.put("oldStatus", oldStatus);

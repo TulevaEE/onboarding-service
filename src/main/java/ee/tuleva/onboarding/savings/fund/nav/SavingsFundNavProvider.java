@@ -38,14 +38,14 @@ public class SavingsFundNavProvider {
     }
 
     BigDecimal nav = fundValue.value();
-    if (nav.scale() > 4) {
+    if (nav.stripTrailingZeros().scale() > 4) {
       throw new IllegalStateException(
           "Unexpected NAV scale for savings fund: isin="
               + configuration.getIsin()
               + ", nav="
               + nav
               + ", scale="
-              + nav.scale());
+              + nav.stripTrailingZeros().scale());
     }
 
     return nav;

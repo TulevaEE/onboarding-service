@@ -82,6 +82,36 @@ class SavingsFundNavProviderTest {
   }
 
   @Test
+  void getCurrentNavForIssuing_acceptsNavWithTrailingZeros() {
+    BigDecimal navWithTrailingZeros = new BigDecimal("1.00000");
+    when(configuration.getIsin()).thenReturn(ISIN);
+    when(publicHolidays.previousWorkingDay(TODAY)).thenReturn(LAST_WORKING_DAY);
+    when(fundValueRepository.findLastValueForFund(ISIN))
+        .thenReturn(
+            Optional.of(
+                new FundValue(
+                    ISIN, LAST_WORKING_DAY, navWithTrailingZeros, "MANUAL", Instant.now())));
+
+    BigDecimal result = navProvider.getCurrentNavForIssuing();
+
+    assertThat(result).isEqualByComparingTo(BigDecimal.ONE);
+  }
+
+  @Test
+  void getCurrentNavForIssuing_acceptsNavWithFourMeaningfulDecimals() {
+    BigDecimal nav = new BigDecimal("1.23450");
+    when(configuration.getIsin()).thenReturn(ISIN);
+    when(publicHolidays.previousWorkingDay(TODAY)).thenReturn(LAST_WORKING_DAY);
+    when(fundValueRepository.findLastValueForFund(ISIN))
+        .thenReturn(
+            Optional.of(new FundValue(ISIN, LAST_WORKING_DAY, nav, "MANUAL", Instant.now())));
+
+    BigDecimal result = navProvider.getCurrentNavForIssuing();
+
+    assertThat(result).isEqualByComparingTo(new BigDecimal("1.2345"));
+  }
+
+  @Test
   void getCurrentNavForIssuing_throwsWhenNavScaleExceedsFourDecimalPlaces() {
     BigDecimal navWithTooManyDecimals = new BigDecimal("1.12345");
     when(configuration.getIsin()).thenReturn(ISIN);

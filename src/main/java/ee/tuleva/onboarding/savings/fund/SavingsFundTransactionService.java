@@ -60,6 +60,7 @@ public class SavingsFundTransactionService {
     LedgerTransaction ledgerTransaction = entry.getTransaction();
 
     return Transaction.builder()
+        .id(ledgerTransaction.getId())
         .amount(entry.getAmount().negate())
         .currency(EUR)
         .time(ledgerTransaction.getTransactionDate())

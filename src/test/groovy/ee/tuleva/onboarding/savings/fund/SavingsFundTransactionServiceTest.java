@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.REDEMPTIONS;
 import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
@@ -63,35 +64,45 @@ class SavingsFundTransactionServiceTest {
 
     List<Transaction> transactions = service.getTransactions(user);
 
+    assertThat(transactions).hasSize(3);
+    assertThat(transactions).allSatisfy(transaction -> assertThat(transaction.id()).isNotNull());
+
     assertThat(transactions)
+        .extracting(
+            Transaction::amount,
+            Transaction::currency,
+            Transaction::time,
+            Transaction::isin,
+            Transaction::type,
+            Transaction::units,
+            Transaction::nav)
         .containsExactly(
-            Transaction.builder()
-                .amount(new BigDecimal("50.00"))
-                .currency(EUR)
-                .time(newerDate)
-                .isin(isin)
-                .type(CONTRIBUTION_CASH)
-                .units(new BigDecimal("5.00000"))
-                .nav(new BigDecimal("10.0"))
-                .build(),
-            Transaction.builder()
-                .amount(new BigDecimal("-25.00"))
-                .currency(EUR)
-                .time(newerDate)
-                .isin(isin)
-                .type(SUBTRACTION)
-                .units(new BigDecimal("2.50000"))
-                .nav(new BigDecimal("10.0"))
-                .build(),
-            Transaction.builder()
-                .amount(new BigDecimal("100.00"))
-                .currency(EUR)
-                .time(olderDate)
-                .isin(isin)
-                .type(CONTRIBUTION_CASH)
-                .units(new BigDecimal("10.00000"))
-                .nav(new BigDecimal("10.0"))
-                .build());
+            tuple(
+                new BigDecimal("50.00"),
+                EUR,
+                newerDate,
+                isin,
+                CONTRIBUTION_CASH,
+                new BigDecimal("5.00000"),
+                new BigDecimal("10.0")),
+            tuple(
+                new BigDecimal("-25.00"),
+                EUR,
+                newerDate,
+                isin,
+                SUBTRACTION,
+                new BigDecimal("2.50000"),
+                new BigDecimal("10.0")),
+            tuple(
+                new BigDecimal("100.00"),
+                EUR,
+                olderDate,
+                isin,
+                CONTRIBUTION_CASH,
+                new BigDecimal("10.00000"),
+                new BigDecimal("10.0")));
+
+    assertThat(transactions.stream().map(Transaction::id).distinct()).hasSize(3);
   }
 
   @Test

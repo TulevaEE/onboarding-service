@@ -17,6 +17,7 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public class LedgerAccountFixture {
 
@@ -251,6 +252,7 @@ public class LedgerAccountFixture {
           BigDecimal fundUnits = entry.amount().divide(navPerUnit, 5, HALF_UP);
           LedgerTransaction transaction =
               LedgerTransaction.builder()
+                  .id(UUID.randomUUID())
                   .transactionType(FUND_SUBSCRIPTION)
                   .transactionDate(entry.transactionDate())
                   .metadata(Map.of("navPerUnit", navPerUnit))
@@ -285,6 +287,7 @@ public class LedgerAccountFixture {
           BigDecimal fundUnits = entry.amount().divide(navPerUnit, 5, RoundingMode.HALF_UP);
           LedgerTransaction transaction =
               LedgerTransaction.builder()
+                  .id(UUID.randomUUID())
                   .transactionType(REDEMPTION_PAYOUT)
                   .transactionDate(entry.transactionDate())
                   .metadata(Map.of("navPerUnit", navPerUnit))

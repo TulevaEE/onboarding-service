@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -31,11 +32,18 @@ class TrusteeReportJob {
   private final TrusteeReportRepository repository;
   private final TrusteeReportCsvGenerator csvGenerator;
   private final EmailService emailService;
+  private final PublicHolidays publicHolidays;
 
   @Scheduled(cron = "0 15 16 * * *", zone = TIMEZONE)
   @SchedulerLock(name = "TrusteeReportJob", lockAtMostFor = "23h", lockAtLeastFor = "30m")
   public void sendReport() {
     var today = LocalDate.now(clock());
+
+    if (!publicHolidays.isWorkingDay(today)) {
+      log.info("Skipping trustee report on non-working day: date={}", today);
+      return;
+    }
+
     log.info("Generating trustee report: date={}", today);
 
     var rows = repository.findAll();

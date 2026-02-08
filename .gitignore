@@ -47,3 +47,6 @@ src/test/resources/banking/seb/real-data/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# TDD Guard data (generated test results)
+.claude/tdd-guard/data/

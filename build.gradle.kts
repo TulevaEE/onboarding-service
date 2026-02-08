@@ -172,6 +172,8 @@ dependencies {
     testImplementation("io.github.origin-energy:java-snapshot-testing-spock:4.0.8")
     testImplementation("io.github.origin-energy:java-snapshot-testing-plugin-jackson:4.0.8")
     testImplementation("io.github.origin-energy:java-snapshot-testing-junit5:4.0.8")
+
+    testImplementation("com.github.ErkoRisthein:tdd-guard:junit5-v0.1.0")
 }
 
 dependencyManagement {
@@ -200,6 +202,10 @@ tasks {
         }
         useJUnitPlatform()
         shouldRunAfter(spotlessCheck)
+
+        systemProperty("tddguard.projectRoot", project.rootDir.absolutePath)
+        systemProperty("tddguard.testSourceDirs", "src/test/java,src/test/groovy")
+        systemProperty("tddguard.mainSourceDirs", "src/main/java")
 
         // Enable parallel test execution for faster builds
         // CircleCI Large has 4 vCPUs, so use all 4 cores

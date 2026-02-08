@@ -253,29 +253,24 @@ The application follows domain-driven design with these main domains:
 - **Coverage is necessary but not sufficient**: High coverage without good test quality is meaningless
 - **Verify against CLAUDE.md principles**: After completing any change, review your code against the principles in this file and fix any violations
 
-#### Test-First Bug Fixing
-When fixing bugs, always follow the test-first approach:
-1. **Write a failing test first**: Create a test case that reproduces the bug
-2. **Verify the test fails**: Run the test to confirm it captures the buggy behavior
-3. **Fix the code**: Implement the minimal fix to make the test pass
-4. **Verify the test passes**: Run the test to confirm the fix works
+#### Strict TDD: Red-Green-Refactor
 
-This approach ensures:
-- The bug is properly understood before fixing
-- The fix is verified to actually resolve the issue
-- Regression protection is in place for the future
+**This project enforces strict Test-Driven Development. Never write production code without a failing test first.**
 
-#### Test-Driven Development (TDD)
-When implementing new features, follow TDD:
-1. **Write failing tests first**: Create test cases for the expected behavior
-2. **Verify tests fail**: Run tests to confirm they fail as expected
-3. **Implement the code**: Write the minimal code to make tests pass
-4. **Verify tests pass**: Run tests to confirm the implementation works
+The cycle for every change — bug fixes, new features, and refactors:
 
-This approach ensures:
-- Requirements are clearly understood before implementation
-- The implementation meets the specified requirements
-- Test coverage is built-in from the start
+1. **Red**: Write a failing test that describes the desired behavior. Run it and confirm it fails.
+2. **Green**: Write the minimal production code to make the test pass. Nothing more.
+3. **Refactor**: Clean up the code while keeping tests green.
+
+Repeat in small increments. Each cycle should be minutes, not hours.
+
+**Rules:**
+- Never write production code without a failing test demanding it
+- Never write more test code than is sufficient to fail (compilation failures count as failures)
+- Never write more production code than is sufficient to pass the currently failing test
+- Run tests after every change — both after writing the test (must fail) and after writing the code (must pass)
+- If you find yourself writing production code "just to be safe" without a test, stop and write the test first
 
 #### Test Behavior, Not Implementation
 - **Always test behavior, not implementation details**: Tests should assert on the output/result, not on how it's achieved

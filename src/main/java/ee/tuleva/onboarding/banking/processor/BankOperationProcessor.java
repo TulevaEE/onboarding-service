@@ -24,6 +24,7 @@ public class BankOperationProcessor {
   private static final String INTR = "INTR";
   private static final String ADJT = "ADJT";
   private static final String TRAD = "TRAD";
+  private static final String SUBS = "SUBS";
 
   private final SavingsFundLedger savingsFundLedger;
   private final TradeSettlementParser tradeSettlementParser;
@@ -97,7 +98,7 @@ public class BankOperationProcessor {
             entry.remittanceInformation());
         savingsFundLedger.recordBankAdjustment(amount, externalReference, clearingAccount);
       }
-      case TRAD -> {
+      case TRAD, SUBS -> {
         var fundTicker = tradeSettlementParser.parse(entry.remittanceInformation());
         if (fundTicker.isEmpty()) {
           log.error(
@@ -130,7 +131,7 @@ public class BankOperationProcessor {
       case INTR -> INTEREST_RECEIVED;
       case FEES, COMM -> BANK_FEE;
       case ADJT -> BANK_ADJUSTMENT;
-      case TRAD -> TRADE_SETTLEMENT;
+      case TRAD, SUBS -> TRADE_SETTLEMENT;
       default -> null;
     };
   }

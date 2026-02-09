@@ -147,6 +147,29 @@ class BankOperationProcessorTest {
         .recordTradeSettlement(any(), any(), any(), any(), any(), any());
   }
 
+  @Test
+  void processBankOperation_recordsTradeSettlementForSubsCode() {
+    var amount = new BigDecimal("-32765.60");
+    var remittanceInfo = "DLA0553698/BDWTEIA ID/24.4021/32765.6/Buy/ SNORAS, AGBLLT2XXXX, 14448";
+    var entry = createBankOperationEntry("SUBS", amount, remittanceInfo);
+    var fundTicker =
+        ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker
+            .ISHARES_DEVELOPED_WORLD_ESG_SCREENED;
+
+    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(fundTicker));
+
+    processor.processBankOperation(entry, "EE123456789012345678", FUND_INVESTMENT_EUR);
+
+    verify(savingsFundLedger)
+        .recordTradeSettlement(
+            eq(amount),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq("IE00BFG1TM61"),
+            eq("0P000152G5"),
+            eq("iShares Developed World ESG Screened Index Fund"));
+  }
+
   private BankStatementEntry createEntryWithCounterparty() {
     var counterparty = new BankStatementEntry.CounterPartyDetails("Test", "EE123", null);
     return new BankStatementEntry(

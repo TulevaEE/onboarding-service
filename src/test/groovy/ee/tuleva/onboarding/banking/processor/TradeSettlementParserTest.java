@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.banking.processor;
 
-import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker.BNP_JAPAN_ESG_FILTERED;
-import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker.XTRACKERS_USA_ESG_SCREENED;
+import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
@@ -29,6 +28,14 @@ class TradeSettlementParserTest {
     var result = parser.parse("DLA0553690/ZZZZ GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448");
 
     assertThat(result).isEmpty();
+  }
+
+  @Test
+  void parse_resolvesMutualFundByBloombergTicker() {
+    var result =
+        parser.parse("DLA0553698/BDWTEIA ID/24.4021/32765.6/Buy/ SNORAS, AGBLLT2XXXX, 14448");
+
+    assertThat(result).contains(ISHARES_DEVELOPED_WORLD_ESG_SCREENED);
   }
 
   @Test

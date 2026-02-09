@@ -21,6 +21,6 @@ class TradeSettlementParser {
     int spaceIndex = tickerSegment.indexOf(' ');
     String ticker = spaceIndex > 0 ? tickerSegment.substring(0, spaceIndex) : tickerSegment;
 
-    return FundTicker.findByTicker(ticker);
+    return FundTicker.findByTicker(ticker).or(() -> FundTicker.findByBloombergTicker(ticker));
   }
 }

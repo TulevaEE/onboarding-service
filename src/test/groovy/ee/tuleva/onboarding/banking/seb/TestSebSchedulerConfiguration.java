@@ -3,15 +3,17 @@ package ee.tuleva.onboarding.banking.seb;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.ScheduledFuture;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Fallback;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.Trigger;
 
-@TestConfiguration
+@Configuration
 public class TestSebSchedulerConfiguration {
 
   @Bean
+  @Fallback
   public TaskScheduler taskScheduler() {
     return new ImmediateTaskScheduler();
   }

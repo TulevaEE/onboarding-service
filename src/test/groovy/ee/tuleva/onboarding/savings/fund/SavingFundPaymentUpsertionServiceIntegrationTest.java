@@ -1,19 +1,19 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
+import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
-import static ee.tuleva.onboarding.swedbank.Swedbank.SWEDBANK_GATEWAY_TIME_ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
+import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerService;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -40,7 +40,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
   @Autowired private BankingMessageRepository bankingMessageRepository;
   @Autowired private ApplicationEventPublisher eventPublisher;
   @Autowired private LedgerService ledgerService;
-  @Autowired private SwedbankAccountConfiguration swedbankAccountConfiguration;
+  @Autowired private SebAccountConfiguration sebAccountConfiguration;
 
   private static final Instant NOW = Instant.parse("2025-10-01T12:00:00Z");
 
@@ -122,11 +122,11 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     // given - a failed message with malformed XML
     var failedMessage =
         BankingMessage.builder()
-            .bankType(BankType.SWEDBANK)
+            .bankType(BankType.SEB)
             .requestId("test-failed")
             .trackingId("test-failed")
             .rawResponse("<malformed xml")
-            .timezone(SWEDBANK_GATEWAY_TIME_ZONE.getId())
+            .timezone(SEB_GATEWAY_TIME_ZONE.getId())
             .receivedAt(NOW.minus(Duration.ofHours(2)))
             .failedAt(NOW.minus(Duration.ofHours(1)))
             .build();
@@ -135,11 +135,11 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     // and a successful message with valid XML
     var successMessage =
         BankingMessage.builder()
-            .bankType(BankType.SWEDBANK)
+            .bankType(BankType.SEB)
             .requestId("test-success")
             .trackingId("test-success")
             .rawResponse(XML_TEMPLATE)
-            .timezone(SWEDBANK_GATEWAY_TIME_ZONE.getId())
+            .timezone(SEB_GATEWAY_TIME_ZONE.getId())
             .receivedAt(NOW)
             .build();
     var savedSuccessMessage = bankingMessageRepository.save(successMessage);
@@ -221,7 +221,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
   void paymentsFromNonDepositAccountsAreAlsoSavedButDirectlyProcessed() {
     // given - XML with WITHDRAWAL_EUR account IBAN
     var withdrawalAccountIban =
-        swedbankAccountConfiguration.getAccountIban(
+        sebAccountConfiguration.getAccountIban(
             ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR);
     var withdrawalAccountXml =
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
@@ -330,7 +330,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
   @Test
   void outgoingPaymentToInvestmentAccountCreatesLedgerEntry() {
     // given - get the actual INVESTMENT_EUR IBAN from configuration
-    var investmentIban = swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR);
+    var investmentIban = sebAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR);
 
     // and - XML with outgoing DEBIT transaction to INVESTMENT_EUR account
     var outgoingToInvestmentXml =
@@ -539,11 +539,11 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     private UUID processXmlMessage(String xml) {
       var message =
           BankingMessage.builder()
-              .bankType(BankType.SWEDBANK)
+              .bankType(BankType.SEB)
               .requestId("test")
               .trackingId("test")
               .rawResponse(xml)
-              .timezone(SWEDBANK_GATEWAY_TIME_ZONE.getId())
+              .timezone(SEB_GATEWAY_TIME_ZONE.getId())
               .receivedAt(NOW)
               .build();
       var saved = bankingMessageRepository.save(message);
@@ -572,11 +572,11 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
   private UUID processXmlMessage(String xml) {
     var message =
         BankingMessage.builder()
-            .bankType(BankType.SWEDBANK)
+            .bankType(BankType.SEB)
             .requestId("test")
             .trackingId("test")
             .rawResponse(xml)
-            .timezone(SWEDBANK_GATEWAY_TIME_ZONE.getId())
+            .timezone(SEB_GATEWAY_TIME_ZONE.getId())
             .receivedAt(NOW)
             .build();
     var saved = bankingMessageRepository.save(message);

@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.banking.seb.SebGatewayClient;
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerService;
@@ -22,7 +23,6 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
-import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
@@ -60,7 +60,7 @@ class RedemptionIntegrationTest {
   @Autowired UserRepository userRepository;
   @Autowired SavingFundPaymentRepository savingFundPaymentRepository;
 
-  @MockitoBean SwedbankGatewayClient swedbankGatewayClient;
+  @MockitoBean SebGatewayClient sebGatewayClient;
   @MockitoBean SavingsFundNavProvider navProvider;
 
   User testUser;
@@ -68,7 +68,7 @@ class RedemptionIntegrationTest {
   @BeforeEach
   void setUp() {
     ClockHolder.setClock(Clock.fixed(NOW, ZoneId.of("UTC")));
-    doNothing().when(swedbankGatewayClient).sendPaymentRequest(any(), any());
+    doReturn("").when(sebGatewayClient).submitPaymentFile(any(), any());
     lenient().when(navProvider.getCurrentNav()).thenReturn(BigDecimal.ONE);
     lenient().when(navProvider.getCurrentNavForIssuing()).thenReturn(BigDecimal.ONE);
 
@@ -435,6 +435,6 @@ class RedemptionIntegrationTest {
     assertThat(cashRedemptionAfterSecond).isEqualByComparingTo(cashRedemptionAfterFirst);
 
     // Payments sent only once (batch + individual)
-    verify(swedbankGatewayClient, times(2)).sendPaymentRequest(any(), any());
+    verify(sebGatewayClient, times(2)).submitPaymentFile(any(), any());
   }
 }

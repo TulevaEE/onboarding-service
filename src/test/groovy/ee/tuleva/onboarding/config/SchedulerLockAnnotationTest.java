@@ -45,8 +45,6 @@ class SchedulerLockAnnotationTest {
           ee.tuleva.onboarding.savings.fund.SavingsFundReservationJob.class,
           ee.tuleva.onboarding.savings.fund.issuing.FundAccountPaymentJob.class,
           ee.tuleva.onboarding.savings.fund.issuing.IssuingJob.class,
-          ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessageReceiver.class,
-          ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.class,
           ee.tuleva.onboarding.banking.processor.BankMessageProcessingScheduler.class,
         };
 

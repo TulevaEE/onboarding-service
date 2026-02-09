@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @TestPropertySource(
     properties = {
-      "swedbank-gateway.enabled=false",
       "seb-gateway.enabled=true",
       "seb-gateway.url=https://test.example.com",
       "seb-gateway.orgId=test-org",

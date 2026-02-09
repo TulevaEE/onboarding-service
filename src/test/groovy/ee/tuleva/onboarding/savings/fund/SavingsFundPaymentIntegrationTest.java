@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
+import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
-import static ee.tuleva.onboarding.swedbank.Swedbank.SWEDBANK_GATEWAY_TIME_ZONE;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
+import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
@@ -21,7 +22,6 @@ import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.savings.fund.issuing.FundAccountPaymentJob;
 import ee.tuleva.onboarding.savings.fund.issuing.IssuingJob;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
@@ -57,7 +57,7 @@ class SavingsFundPaymentIntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private LedgerService ledgerService;
   @Autowired private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
-  @Autowired private SwedbankAccountConfiguration swedbankAccountConfiguration;
+  @Autowired private SebAccountConfiguration sebAccountConfiguration;
   @Autowired private FundValueRepository fundValueRepository;
   @Autowired private SavingsFundConfiguration savingsFundConfiguration;
   @Autowired private JdbcClient jdbcClient;
@@ -199,7 +199,7 @@ class SavingsFundPaymentIntegrationTest {
     payment = paymentRepository.findById(paymentId).orElseThrow();
     assertThat(payment.getStatus()).isEqualTo(PROCESSED);
 
-    var investmentIban = swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR);
+    var investmentIban = sebAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR);
 
     var outgoingToInvestmentXml =
         createOutgoingToInvestmentAccountXml(investmentIban, paymentAmount);
@@ -315,11 +315,11 @@ class SavingsFundPaymentIntegrationTest {
   private void persistXmlMessage(String xml, Instant receivedAt) {
     var message =
         BankingMessage.builder()
-            .bankType(BankType.SWEDBANK)
+            .bankType(BankType.SEB)
             .requestId("test-e2e")
             .trackingId("test-e2e")
             .rawResponse(xml)
-            .timezone(SWEDBANK_GATEWAY_TIME_ZONE.getId())
+            .timezone(SEB_GATEWAY_TIME_ZONE.getId())
             .receivedAt(receivedAt)
             .build();
     bankingMessageRepository.save(message);

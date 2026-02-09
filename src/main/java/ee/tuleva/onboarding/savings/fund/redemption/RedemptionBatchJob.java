@@ -75,10 +75,10 @@ public class RedemptionBatchJob {
   }
 
   private Instant getCutoffForProcessing() {
-    var todaysCutoff = getCutoff(LocalDate.now(clock));
+    var today = todayInTallinn();
+    var todaysCutoff = getCutoff(today);
     var currentTime = clock.instant();
-    var isTodayWorkingDay =
-        publicHolidays.isWorkingDay(currentTime.atZone(CUTOFF_TIMEZONE).toLocalDate());
+    var isTodayWorkingDay = publicHolidays.isWorkingDay(today);
 
     if (currentTime.isBefore(todaysCutoff) || !isTodayWorkingDay) {
       return getSecondToLastWorkingDayCutoff();
@@ -87,14 +87,18 @@ public class RedemptionBatchJob {
   }
 
   private Instant getSecondToLastWorkingDayCutoff() {
-    var lastWorkingDay = publicHolidays.previousWorkingDay(LocalDate.now(clock));
+    var lastWorkingDay = publicHolidays.previousWorkingDay(todayInTallinn());
     var secondToLastWorkingDay = publicHolidays.previousWorkingDay(lastWorkingDay);
     return getCutoff(secondToLastWorkingDay);
   }
 
   private Instant getLastWorkingDayCutoff() {
-    var lastWorkingDay = publicHolidays.previousWorkingDay(LocalDate.now(clock));
+    var lastWorkingDay = publicHolidays.previousWorkingDay(todayInTallinn());
     return getCutoff(lastWorkingDay);
+  }
+
+  private LocalDate todayInTallinn() {
+    return clock.instant().atZone(CUTOFF_TIMEZONE).toLocalDate();
   }
 
   private Instant getCutoff(LocalDate date) {

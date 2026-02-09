@@ -1,12 +1,13 @@
 package ee.tuleva.onboarding.savings.fund.issuing;
 
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
+import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentFixture.aPayment;
 import static java.time.DayOfWeek.*;
 import static java.time.ZoneOffset.UTC;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.HOURS;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
-import static shadow.org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -424,6 +425,98 @@ class IssuingJobTest {
 
     verify(issuerService, times(1)).processPayment(reservedPaymentFromMondayBeforeChristmas, nav);
     verify(issuerService, never()).processPayment(reservedPaymentMadeOnPublicHoliday, nav);
+  }
+
+  @Test
+  void atMidnightTallinnOnMonday_usesBeforeCutoffBranch() {
+    var sundayNightUtc = Instant.parse("2025-01-12T22:00:00Z"); // Mon 00:00 Tallinn
+    var clock = Clock.fixed(sundayNightUtc, UTC);
+    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository, navProvider);
+
+    var nav = BigDecimal.ONE;
+
+    var paymentBeforeThursdayCutoff =
+        aPayment().receivedBefore(Instant.parse("2025-01-09T13:00:00Z")).status(RESERVED).build();
+
+    var paymentAfterThursdayCutoff =
+        aPayment().receivedBefore(Instant.parse("2025-01-09T15:00:00Z")).status(RESERVED).build();
+
+    when(paymentRepository.findPaymentsWithStatus(RESERVED))
+        .thenReturn(List.of(paymentBeforeThursdayCutoff, paymentAfterThursdayCutoff));
+
+    issuingJob.runJob();
+
+    verify(issuerService, times(1)).processPayment(paymentBeforeThursdayCutoff, nav);
+    verify(issuerService, never()).processPayment(paymentAfterThursdayCutoff, nav);
+  }
+
+  @Test
+  void atMidnightTallinnOnMondayDuringSummerDst_usesBeforeCutoffBranch() {
+    var sundayNightUtc = Instant.parse("2025-07-13T21:00:00Z"); // Mon 00:00 Tallinn (UTC+3)
+    var clock = Clock.fixed(sundayNightUtc, UTC);
+    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository, navProvider);
+
+    var nav = BigDecimal.ONE;
+
+    var paymentBeforeThursdayCutoff =
+        aPayment().receivedBefore(Instant.parse("2025-07-10T12:00:00Z")).status(RESERVED).build();
+
+    var paymentAfterThursdayCutoff =
+        aPayment().receivedBefore(Instant.parse("2025-07-10T14:00:00Z")).status(RESERVED).build();
+
+    when(paymentRepository.findPaymentsWithStatus(RESERVED))
+        .thenReturn(List.of(paymentBeforeThursdayCutoff, paymentAfterThursdayCutoff));
+
+    issuingJob.runJob();
+
+    verify(issuerService, times(1)).processPayment(paymentBeforeThursdayCutoff, nav);
+    verify(issuerService, never()).processPayment(paymentAfterThursdayCutoff, nav);
+  }
+
+  @Test
+  void fridayNightInTallinn_usesSameCutoffAsFridayAfterCutoff() {
+    var fridayNightUtc = Instant.parse("2025-01-10T22:00:00Z"); // Sat 00:00 Tallinn
+    var clock = Clock.fixed(fridayNightUtc, UTC);
+    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository, navProvider);
+
+    var nav = BigDecimal.ONE;
+
+    var paymentBeforeThursdayCutoff =
+        aPayment().receivedBefore(Instant.parse("2025-01-09T13:00:00Z")).status(RESERVED).build();
+
+    var paymentAfterThursdayCutoff =
+        aPayment().receivedBefore(Instant.parse("2025-01-09T15:00:00Z")).status(RESERVED).build();
+
+    when(paymentRepository.findPaymentsWithStatus(RESERVED))
+        .thenReturn(List.of(paymentBeforeThursdayCutoff, paymentAfterThursdayCutoff));
+
+    issuingJob.runJob();
+
+    verify(issuerService, times(1)).processPayment(paymentBeforeThursdayCutoff, nav);
+    verify(issuerService, never()).processPayment(paymentAfterThursdayCutoff, nav);
+  }
+
+  @Test
+  void midweekMidnightTallinn_usesBeforeCutoffBranch() {
+    var wednesdayNightUtc = Instant.parse("2025-01-08T22:00:00Z"); // Thu 00:00 Tallinn
+    var clock = Clock.fixed(wednesdayNightUtc, UTC);
+    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository, navProvider);
+
+    var nav = BigDecimal.ONE;
+
+    var paymentBeforeTuesdayCutoff =
+        aPayment().receivedBefore(Instant.parse("2025-01-07T13:00:00Z")).status(RESERVED).build();
+
+    var paymentAfterTuesdayCutoff =
+        aPayment().receivedBefore(Instant.parse("2025-01-07T15:00:00Z")).status(RESERVED).build();
+
+    when(paymentRepository.findPaymentsWithStatus(RESERVED))
+        .thenReturn(List.of(paymentBeforeTuesdayCutoff, paymentAfterTuesdayCutoff));
+
+    issuingJob.runJob();
+
+    verify(issuerService, times(1)).processPayment(paymentBeforeTuesdayCutoff, nav);
+    verify(issuerService, never()).processPayment(paymentAfterTuesdayCutoff, nav);
   }
 
   @Test

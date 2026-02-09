@@ -185,6 +185,57 @@ class RedemptionBatchJobTest {
   }
 
   @Test
+  void atMidnightTallinnOnMonday_usesBeforeCutoffBranch() {
+    var sundayNightUtc = Instant.parse("2025-01-12T22:00:00Z"); // Mon 00:00 Tallinn
+    var batchJob = createBatchJob(sundayNightUtc);
+
+    var cutoffCaptor = ArgumentCaptor.forClass(Instant.class);
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
+            eq(VERIFIED), cutoffCaptor.capture()))
+        .thenReturn(List.of());
+
+    batchJob.runJob();
+
+    var capturedCutoff = cutoffCaptor.getValue();
+    var cutoffDate = capturedCutoff.atZone(ZoneId.of("Europe/Tallinn")).toLocalDate();
+    assertThat(cutoffDate).isEqualTo(LocalDate.of(2025, 1, 9));
+  }
+
+  @Test
+  void atMidnightTallinnOnMondayDuringSummerDst_usesBeforeCutoffBranch() {
+    var sundayNightUtc = Instant.parse("2025-07-13T21:00:00Z"); // Mon 00:00 Tallinn (UTC+3)
+    var batchJob = createBatchJob(sundayNightUtc);
+
+    var cutoffCaptor = ArgumentCaptor.forClass(Instant.class);
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
+            eq(VERIFIED), cutoffCaptor.capture()))
+        .thenReturn(List.of());
+
+    batchJob.runJob();
+
+    var capturedCutoff = cutoffCaptor.getValue();
+    var cutoffDate = capturedCutoff.atZone(ZoneId.of("Europe/Tallinn")).toLocalDate();
+    assertThat(cutoffDate).isEqualTo(LocalDate.of(2025, 7, 10));
+  }
+
+  @Test
+  void fridayNightInTallinn_usesSameCutoffAsFridayAfterCutoff() {
+    var fridayNightUtc = Instant.parse("2025-01-10T22:00:00Z"); // Sat 00:00 Tallinn
+    var batchJob = createBatchJob(fridayNightUtc);
+
+    var cutoffCaptor = ArgumentCaptor.forClass(Instant.class);
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
+            eq(VERIFIED), cutoffCaptor.capture()))
+        .thenReturn(List.of());
+
+    batchJob.runJob();
+
+    var capturedCutoff = cutoffCaptor.getValue();
+    var cutoffDate = capturedCutoff.atZone(ZoneId.of("Europe/Tallinn")).toLocalDate();
+    assertThat(cutoffDate).isEqualTo(LocalDate.of(2025, 1, 9));
+  }
+
+  @Test
   @DisplayName("runJob handles individual payout errors")
   void runJob_handlesPayoutErrors() {
     var now = Instant.parse("2025-01-15T15:00:00Z");

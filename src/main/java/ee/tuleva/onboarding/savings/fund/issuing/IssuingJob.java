@@ -46,10 +46,10 @@ public class IssuingJob {
   }
 
   private List<SavingFundPayment> getReservedPaymentsDependingOnCurrentTime() {
-    var todaysCutoff = getCutoff(LocalDate.now(clock));
+    var today = todayInTallinn();
+    var todaysCutoff = getCutoff(today);
     var currentTime = clock.instant();
-    var isTodayWorkingDay =
-        new PublicHolidays().isWorkingDay(currentTime.atZone(CUTOFF_TIMEZONE).toLocalDate());
+    var isTodayWorkingDay = new PublicHolidays().isWorkingDay(today);
     if (currentTime.isBefore(todaysCutoff) || !isTodayWorkingDay) {
       return getReservedPaymentsFromBeforeSecondToLastWorkingDay();
     }
@@ -62,7 +62,7 @@ public class IssuingJob {
 
     var publicHolidays = new PublicHolidays();
     var secondToLastWorkingDay =
-        publicHolidays.previousWorkingDay(publicHolidays.previousWorkingDay(LocalDate.now(clock)));
+        publicHolidays.previousWorkingDay(publicHolidays.previousWorkingDay(todayInTallinn()));
 
     var reservedTransactionCutoff = getCutoff(secondToLastWorkingDay);
 
@@ -74,13 +74,17 @@ public class IssuingJob {
   private List<SavingFundPayment> getReservedPaymentsFromBeforeLastWorkingDay() {
     var reservedPayments = savingFundPaymentRepository.findPaymentsWithStatus(RESERVED);
 
-    var lastWorkingDay = new PublicHolidays().previousWorkingDay(LocalDate.now(clock));
+    var lastWorkingDay = new PublicHolidays().previousWorkingDay(todayInTallinn());
 
     var reservedTransactionCutoff = getCutoff(lastWorkingDay);
 
     return reservedPayments.stream()
         .filter(payment -> payment.getReceivedBefore().isBefore(reservedTransactionCutoff))
         .collect(toList());
+  }
+
+  private LocalDate todayInTallinn() {
+    return clock.instant().atZone(CUTOFF_TIMEZONE).toLocalDate();
   }
 
   private Instant getCutoff(LocalDate date) {

@@ -11,6 +11,7 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.List;
@@ -37,7 +38,7 @@ class TrusteeReportJob {
   @Scheduled(cron = "0 15 16 * * *", zone = TIMEZONE)
   @SchedulerLock(name = "TrusteeReportJob", lockAtMostFor = "23h", lockAtLeastFor = "30m")
   public void sendReport() {
-    var today = LocalDate.now(clock());
+    var today = clock().instant().atZone(ZoneId.of(TIMEZONE)).toLocalDate();
 
     if (!publicHolidays.isWorkingDay(today)) {
       log.info("Skipping trustee report on non-working day: date={}", today);

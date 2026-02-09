@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.time.TestClockHolder.clock;
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
@@ -11,6 +12,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Optional;
@@ -124,6 +126,25 @@ class SavingsFundNavProviderTest {
 
     assertThatThrownBy(() -> navProvider.getCurrentNavForIssuing())
         .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void getCurrentNavForIssuing_usesEstonianTimezoneForDate() {
+    var fridayNightUtc = Instant.parse("2025-01-10T22:00:00Z"); // Sat 00:00 Tallinn
+    ClockHolder.setClock(Clock.fixed(fridayNightUtc, UTC));
+
+    var saturday = LocalDate.of(2025, 1, 11);
+    var friday = LocalDate.of(2025, 1, 10);
+
+    BigDecimal expectedNav = new BigDecimal("1.2345");
+    when(configuration.getIsin()).thenReturn(ISIN);
+    when(publicHolidays.previousWorkingDay(saturday)).thenReturn(friday);
+    when(fundValueRepository.findLastValueForFund(ISIN))
+        .thenReturn(Optional.of(new FundValue(ISIN, friday, expectedNav, "MANUAL", Instant.now())));
+
+    BigDecimal result = navProvider.getCurrentNavForIssuing();
+
+    assertThat(result).isEqualTo(expectedNav);
   }
 
   @Test

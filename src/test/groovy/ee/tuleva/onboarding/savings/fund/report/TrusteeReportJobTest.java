@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Base64;
@@ -104,6 +105,16 @@ class TrusteeReportJobTest {
   void skipsReportOnWeekend() {
     var saturday = LocalDate.of(2020, 1, 4); // Saturday
     setClockTo(saturday);
+
+    createJob().sendReport();
+
+    verifyNoInteractions(emailService);
+  }
+
+  @Test
+  void skipsReportWhenSaturdayInTallinnButFridayInUtc() {
+    var fridayNightUtc = Instant.parse("2025-01-10T22:00:00Z"); // Sat 00:00 Tallinn
+    ClockHolder.setClock(Clock.fixed(fridayNightUtc, UTC));
 
     createJob().sendReport();
 

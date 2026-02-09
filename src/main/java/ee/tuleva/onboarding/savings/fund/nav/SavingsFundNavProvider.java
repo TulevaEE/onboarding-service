@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -24,8 +25,9 @@ public class SavingsFundNavProvider {
 
   public BigDecimal getCurrentNavForIssuing() {
     FundValue fundValue = getFundValue();
-    LocalDate expectedDate =
-        publicHolidays.previousWorkingDay(LocalDate.now(ClockHolder.getClock()));
+    LocalDate today =
+        ClockHolder.getClock().instant().atZone(ZoneId.of("Europe/Tallinn")).toLocalDate();
+    LocalDate expectedDate = publicHolidays.previousWorkingDay(today);
 
     if (!fundValue.date().equals(expectedDate)) {
       throw new IllegalStateException(

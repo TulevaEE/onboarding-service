@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.banking.xml;
 
+import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.CLOSE;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.OPEN;
-import static ee.tuleva.onboarding.swedbank.Swedbank.SWEDBANK_GATEWAY_TIME_ZONE;
 import static org.junit.jupiter.api.Assertions.*;
 
 import ee.tuleva.onboarding.banking.converter.LocalDateToXmlGregorianCalendarConverter;
@@ -44,7 +44,7 @@ public class Iso20022MarshallerTest {
         statementRequestMessageGenerator.generateIntraDayReportRequest(
             "EE_TEST_IBAN",
             UUID.fromString("cdb18c2e-ad18-4f08-93a6-1f91492fb9f5"),
-            SWEDBANK_GATEWAY_TIME_ZONE);
+            SEB_GATEWAY_TIME_ZONE);
 
     var requestXml = marshaller.marshalToString(request);
 
@@ -70,8 +70,7 @@ public class Iso20022MarshallerTest {
 
     assertEquals(4, entries.size());
 
-    var parsed =
-        BankStatement.from(response.getValue().getBkToCstmrStmt(), SWEDBANK_GATEWAY_TIME_ZONE);
+    var parsed = BankStatement.from(response.getValue().getBkToCstmrStmt(), SEB_GATEWAY_TIME_ZONE);
 
     assertEquals("EE062200221055091966", parsed.getBankStatementAccount().iban());
     assertEquals(2, parsed.getBalances().size());

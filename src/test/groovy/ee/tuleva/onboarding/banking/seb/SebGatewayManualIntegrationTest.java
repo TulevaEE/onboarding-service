@@ -58,7 +58,6 @@ import org.springframework.transaction.annotation.Transactional;
 @TestPropertySource(
     properties = {
       "seb-gateway.enabled=true",
-      "swedbank-gateway.enabled=false",
       "seb-gateway.url=https://localhost:8443",
       "seb-gateway.org-id=${SEB_GATEWAY_ORG_ID}",
       "seb-gateway.keystore.path=${SEB_GATEWAY_KEYSTORE_PATH}",

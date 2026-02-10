@@ -46,15 +46,15 @@ public class PaymentEmailService {
                     user, response.getId(), emailType, response.getStatus()));
   }
 
-  void sendSavingsFundPaymentEmail(User user, EmailType emailType, Locale locale) {
+  void sendSavingsFundPaymentEmail(
+      User user, EmailType emailType, PillarSuggestion pillarSuggestion, Locale locale) {
     String templateName = emailType.getTemplateName(locale);
+    Map<String, Object> mergeVars = new HashMap<>(getNameMergeVars(user));
+    mergeVars.putAll(getPillarSuggestionMergeVars(pillarSuggestion));
+
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
-            user.getEmail(),
-            templateName,
-            Map.of("fname", user.getFirstName()),
-            List.of("savings_fund"),
-            null);
+            user.getEmail(), templateName, mergeVars, getSavingsFundTags(pillarSuggestion), null);
     emailService
         .send(user, mandrillMessage, templateName)
         .ifPresent(
@@ -93,6 +93,21 @@ public class PaymentEmailService {
       tags.add("suggest_member");
     }
 
+    return tags;
+  }
+
+  private List<String> getSavingsFundTags(PillarSuggestion pillarSuggestion) {
+    List<String> tags = new ArrayList<>();
+    tags.add("savings_fund");
+    if (pillarSuggestion.isSuggestPaymentRate()) {
+      tags.add("suggest_payment_rate");
+    }
+    if (pillarSuggestion.isSuggestSecondPillar()) {
+      tags.add("suggest_2");
+    }
+    if (pillarSuggestion.isSuggestMembership()) {
+      tags.add("suggest_member");
+    }
     return tags;
   }
 

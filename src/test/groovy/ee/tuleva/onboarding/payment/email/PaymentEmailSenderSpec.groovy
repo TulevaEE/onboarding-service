@@ -77,41 +77,65 @@ class PaymentEmailSenderSpec extends Specification {
     given:
     def user = sampleUser().build()
     def locale = ENGLISH
+    def contactDetails = new ContactDetails()
+    def conversion = notFullyConverted()
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
 
     def savingsPaymentCreatedEvent = new SavingsPaymentCreatedEvent(this, user, locale)
+
+    1 * contactDetailsService.getContactDetails(user) >> contactDetails
+    1 * conversionService.getConversion(user) >> conversion
+    1 * paymentRateService.getPaymentRates(user) >> paymentRates
 
     when:
     paymentEmailSender.sendEmails(savingsPaymentCreatedEvent)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, EmailType.SAVINGS_FUND_PAYMENT_SUCCESS, locale)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, EmailType.SAVINGS_FUND_PAYMENT_SUCCESS, pillarSuggestion, locale)
   }
 
   def "send email on savings payment cancel"() {
     given:
     def user = sampleUser().build()
     def locale = ENGLISH
+    def contactDetails = new ContactDetails()
+    def conversion = notFullyConverted()
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
 
     def savingsPaymentCancelledEvent = new SavingsPaymentCancelledEvent(this, user, locale)
+
+    1 * contactDetailsService.getContactDetails(user) >> contactDetails
+    1 * conversionService.getConversion(user) >> conversion
+    1 * paymentRateService.getPaymentRates(user) >> paymentRates
 
     when:
     paymentEmailSender.sendEmails(savingsPaymentCancelledEvent)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, EmailType.SAVINGS_FUND_PAYMENT_CANCEL, locale)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, EmailType.SAVINGS_FUND_PAYMENT_CANCEL, pillarSuggestion, locale)
   }
 
   def "send email on savings payment failure"() {
     given:
     def user = sampleUser().build()
     def locale = ENGLISH
+    def contactDetails = new ContactDetails()
+    def conversion = notFullyConverted()
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
 
     def savingsPaymentFailedEvent = new SavingsPaymentFailedEvent(this, user, locale)
+
+    1 * contactDetailsService.getContactDetails(user) >> contactDetails
+    1 * conversionService.getConversion(user) >> conversion
+    1 * paymentRateService.getPaymentRates(user) >> paymentRates
 
     when:
     paymentEmailSender.sendEmails(savingsPaymentFailedEvent)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, EmailType.SAVINGS_FUND_PAYMENT_FAIL, locale)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, EmailType.SAVINGS_FUND_PAYMENT_FAIL, pillarSuggestion, locale)
   }
 }

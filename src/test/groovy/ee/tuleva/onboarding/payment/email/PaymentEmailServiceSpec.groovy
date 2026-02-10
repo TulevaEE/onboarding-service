@@ -77,9 +77,20 @@ class PaymentEmailServiceSpec extends Specification {
   def "send savings fund payment emails"() {
     given:
     def user = sampleUser().build()
+    def conversion = notConverted()
+    def contactDetails = contactDetailsFixture()
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
     def message = new MandrillMessage()
-    var mergeVars = ["fname": user.firstName]
-    def tags = ["savings_fund"]
+    var mergeVars = [
+        "fname"              : user.firstName,
+        "lname"              : user.lastName,
+        "suggestPaymentRate" : pillarSuggestion.suggestPaymentRate,
+        "suggestMembership"  : pillarSuggestion.suggestMembership,
+        "suggestSecondPillar": pillarSuggestion.suggestSecondPillar,
+        "suggestThirdPillar" : pillarSuggestion.suggestThirdPillar
+    ]
+    def tags = ["savings_fund", "suggest_payment_rate", "suggest_2"]
     def locale = Locale.ENGLISH
 
     def mandrillResponse = new MandrillMessageStatus().tap {
@@ -88,7 +99,7 @@ class PaymentEmailServiceSpec extends Specification {
     }
 
     when:
-    paymentEmailService.sendSavingsFundPaymentEmail(user, emailType, locale)
+    paymentEmailService.sendSavingsFundPaymentEmail(user, emailType, pillarSuggestion, locale)
 
     then:
     1 * emailService.send(user, message, templateName) >> Optional.of(mandrillResponse)

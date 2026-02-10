@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static java.math.BigDecimal.ZERO;
+import static java.util.Comparator.comparing;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
@@ -78,6 +79,8 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
                     new FundValue(storageKey, priceData.date(), priceData.close(), PROVIDER, now))
             .toList();
 
+    logLatestValue(storageKey, allValues);
+
     List<FundValue> nonZeroValues =
         allValues.stream().filter(fundValue -> fundValue.value().compareTo(ZERO) != 0).toList();
 
@@ -102,6 +105,19 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
     }
 
     return filteredValues;
+  }
+
+  private void logLatestValue(String identifier, List<FundValue> values) {
+    if (values.isEmpty()) {
+      log.info("Deutsche Boerse API response: ticker={}, no values returned", identifier);
+      return;
+    }
+    var latest = values.stream().max(comparing(FundValue::date)).orElseThrow();
+    log.info(
+        "Deutsche Boerse API response: ticker={}, latestDate={}, value={}",
+        identifier,
+        latest.date(),
+        latest.value());
   }
 
   private boolean isClosingPriceAvailable(ZonedDateTime nowInCET) {

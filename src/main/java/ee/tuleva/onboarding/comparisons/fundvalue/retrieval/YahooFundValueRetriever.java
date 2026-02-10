@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import static java.math.BigDecimal.ZERO;
 import static java.time.ZoneOffset.UTC;
+import static java.util.Comparator.comparing;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -90,6 +91,8 @@ public class YahooFundValueRetriever implements ComparisonIndexRetriever {
                 i -> new FundValue(fundName, timestamps.get(i), fundValues.get(i), PROVIDER, now))
             .toList();
 
+    logLatestValue(fundName, allValues);
+
     List<FundValue> nonZeroValues =
         allValues.stream()
             .filter(
@@ -102,6 +105,19 @@ public class YahooFundValueRetriever implements ComparisonIndexRetriever {
     }
 
     return filterIntradayValues(nonZeroValues);
+  }
+
+  private void logLatestValue(String identifier, List<FundValue> values) {
+    if (values.isEmpty()) {
+      log.info("Yahoo API response: ticker={}, no values returned", identifier);
+      return;
+    }
+    var latest = values.stream().max(comparing(FundValue::date)).orElseThrow();
+    log.info(
+        "Yahoo API response: ticker={}, latestDate={}, value={}",
+        identifier,
+        latest.date(),
+        latest.value());
   }
 
   private List<LocalDate> parseTimestamps(List<Long> epochTimestamps) {

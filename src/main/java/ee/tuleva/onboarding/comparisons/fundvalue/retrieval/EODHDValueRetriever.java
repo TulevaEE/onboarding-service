@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import static java.math.BigDecimal.ZERO;
+import static java.util.Comparator.comparing;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -73,6 +74,8 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
                         ticker, eodhdResponse.date(), eodhdResponse.adjustedClose(), PROVIDER, now))
             .toList();
 
+    logLatestValue(ticker, allValues);
+
     List<FundValue> nonZeroValues =
         allValues.stream().filter(fundValue -> fundValue.value().compareTo(ZERO) != 0).toList();
 
@@ -82,6 +85,19 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
     }
 
     return nonZeroValues;
+  }
+
+  private void logLatestValue(String identifier, List<FundValue> values) {
+    if (values.isEmpty()) {
+      log.info("EODHD API response: ticker={}, no values returned", identifier);
+      return;
+    }
+    var latest = values.stream().max(comparing(FundValue::date)).orElseThrow();
+    log.info(
+        "EODHD API response: ticker={}, latestDate={}, value={}",
+        identifier,
+        latest.date(),
+        latest.value());
   }
 
   private String stripProviderSuffix(String ticker) {

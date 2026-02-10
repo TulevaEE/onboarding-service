@@ -1,18 +1,20 @@
 package ee.tuleva.onboarding.savings.fund.issuing;
 
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
-import static java.util.stream.Collectors.toList;
+import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
+import ee.tuleva.onboarding.savings.fund.notification.IssuingCompletedEvent;
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +29,7 @@ public class IssuingJob {
   private final IssuerService issuerService;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final SavingsFundNavProvider navProvider;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Scheduled(fixedRateString = "1m")
   @SchedulerLock(name = "IssuingJob_runJob", lockAtMostFor = "50s", lockAtLeastFor = "10s")
@@ -39,10 +42,16 @@ public class IssuingJob {
     log.info("Running issuing job for {} payments", payments.size());
     var nav = getNAV();
     log.info("Running issuing job for {} payments with nav {}", payments.size(), nav);
+    var totalAmount = ZERO;
+    var totalFundUnits = ZERO;
     for (SavingFundPayment payment : payments) {
-      issuerService.processPayment(payment, nav);
+      var result = issuerService.processPayment(payment, nav);
+      totalAmount = totalAmount.add(result.cashAmount());
+      totalFundUnits = totalFundUnits.add(result.fundUnits());
     }
     log.info("Issuing job completed: processed {} payments", payments.size());
+    eventPublisher.publishEvent(
+        new IssuingCompletedEvent(payments.size(), totalAmount, totalFundUnits, nav));
   }
 
   private List<SavingFundPayment> getReservedPaymentsDependingOnCurrentTime() {
@@ -68,7 +77,7 @@ public class IssuingJob {
 
     return reservedPayments.stream()
         .filter(payment -> payment.getReceivedBefore().isBefore(reservedTransactionCutoff))
-        .collect(toList());
+        .toList();
   }
 
   private List<SavingFundPayment> getReservedPaymentsFromBeforeLastWorkingDay() {
@@ -80,7 +89,7 @@ public class IssuingJob {
 
     return reservedPayments.stream()
         .filter(payment -> payment.getReceivedBefore().isBefore(reservedTransactionCutoff))
-        .collect(toList());
+        .toList();
   }
 
   private LocalDate todayInTallinn() {

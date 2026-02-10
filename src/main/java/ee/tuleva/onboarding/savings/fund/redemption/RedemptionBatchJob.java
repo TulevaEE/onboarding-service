@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
+import ee.tuleva.onboarding.savings.fund.notification.RedemptionBatchCompletedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
@@ -159,7 +160,9 @@ public class RedemptionBatchJob {
 
     if (totalCashAmount.compareTo(ZERO) > 0) {
       transferFromFundAccount(totalCashAmount);
-      processIndividualPayouts(toProcess);
+      int payoutCount = processIndividualPayouts(toProcess);
+      eventPublisher.publishEvent(
+          new RedemptionBatchCompletedEvent(toProcess.size(), payoutCount, totalCashAmount, nav));
     }
   }
 
@@ -180,7 +183,8 @@ public class RedemptionBatchJob {
     log.info("Sent batch transfer request: batchId={}, amount={}", batchId, totalAmount);
   }
 
-  private void processIndividualPayouts(List<RedemptionRequest> requests) {
+  private int processIndividualPayouts(List<RedemptionRequest> requests) {
+    int payoutCount = 0;
     for (RedemptionRequest request : requests) {
       RedemptionRequest updated =
           redemptionRequestRepository.findById(request.getId()).orElseThrow();
@@ -203,6 +207,7 @@ public class RedemptionBatchJob {
         eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, updated.getId()));
 
         markAsRedeemed(updated.getId());
+        payoutCount++;
 
         log.info(
             "Processed individual payout: id={}, amount={}, iban={}, beneficiaryName={}",
@@ -215,6 +220,7 @@ public class RedemptionBatchJob {
         handleError(updated.getId(), e);
       }
     }
+    return payoutCount;
   }
 
   private void markAsRedeemed(UUID requestId) {

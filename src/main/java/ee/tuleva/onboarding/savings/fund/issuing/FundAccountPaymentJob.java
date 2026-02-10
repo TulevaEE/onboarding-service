@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
+import ee.tuleva.onboarding.savings.fund.notification.SubscriptionBatchSentEvent;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
@@ -86,5 +87,6 @@ public class FundAccountPaymentJob {
     log.info(
         "Preparing subscriptions payment to investment account with the amount of {} EUR", total);
     eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, id));
+    eventPublisher.publishEvent(new SubscriptionBatchSentEvent(payments.size(), total));
   }
 }

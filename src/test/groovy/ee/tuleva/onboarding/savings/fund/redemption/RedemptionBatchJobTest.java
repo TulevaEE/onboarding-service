@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
+import ee.tuleva.onboarding.savings.fund.notification.RedemptionBatchCompletedEvent;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.time.*;
@@ -480,5 +481,52 @@ class RedemptionBatchJobTest {
 
     verify(savingsFundLedger, never())
         .redeemFundUnitsFromReserved(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void runJob_publishesRedemptionBatchCompletedEvent() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var batchJob = createBatchJob(now);
+
+    var user = sampleUser().build();
+    var requestId = UUID.randomUUID();
+    var customerIban = "EE123456789012345678";
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .userId(user.getId())
+            .status(VERIFIED)
+            .customerIban(customerIban)
+            .requestedAt(now.minus(1, DAYS))
+            .build();
+
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+        .thenReturn("EE111111111111111111");
+    when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+        .thenReturn("EE222222222222222222");
+    when(savingFundPaymentRepository.findRemitterNameByIban(user.getId(), customerIban))
+        .thenReturn(Optional.of("John Smith"));
+
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> callback = invocation.getArgument(0);
+              return callback.doInTransaction(null);
+            })
+        .when(transactionTemplate)
+        .execute(any());
+
+    batchJob.runJob();
+
+    var captor = ArgumentCaptor.forClass(RedemptionBatchCompletedEvent.class);
+    verify(eventPublisher).publishEvent(captor.capture());
+    var event = captor.getValue();
+    assertThat(event.requestCount()).isEqualTo(1);
+    assertThat(event.payoutCount()).isEqualTo(1);
+    assertThat(event.totalCashAmount()).isEqualByComparingTo(new BigDecimal("10.00"));
+    assertThat(event.nav()).isEqualTo(BigDecimal.ONE);
   }
 }

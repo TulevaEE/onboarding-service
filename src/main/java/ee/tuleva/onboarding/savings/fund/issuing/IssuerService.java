@@ -23,7 +23,7 @@ class IssuerService {
   private final SavingFundPaymentRepository savingFundPaymentRepository;
 
   @Transactional
-  void processPayment(SavingFundPayment payment, BigDecimal nav) {
+  IssuingResult processPayment(SavingFundPayment payment, BigDecimal nav) {
     var unitsAmount = payment.getAmount().divide(nav, 5, HALF_DOWN); // TODO rounding mode, scale?
     var cashAmount = payment.getAmount();
 
@@ -31,5 +31,6 @@ class IssuerService {
     savingsFundLedger.issueFundUnitsFromReserved(user, cashAmount, unitsAmount, nav);
 
     savingFundPaymentRepository.changeStatus(payment.getId(), ISSUED);
+    return new IssuingResult(cashAmount, unitsAmount);
   }
 }

@@ -551,6 +551,10 @@ class MyControllerTest {
 - **Only mock injected dependencies**: Typically only mock class dependencies that are injected via constructor or field injection
 - **Prefer real instances**: Always prefer using real instances of data objects over mocks
 - **Never mock or spy on data classes**: Don't use Mockito spies or mocks for POJOs, DTOs, or entity classes
+- **Avoid ArgumentCaptor**: ArgumentCaptor tightly couples tests to implementation details. Prefer asserting on return values (pure functions), and when side effects are unavoidable, use direct `verify` with the expected object instead of capturing and inspecting:
+  - ✅ Best: `assertThat(service.process(input)).isEqualTo(expectedResult)` — test pure input/output, no mocks needed
+  - ✅ Acceptable: `verify(publisher).publishEvent(new MyEvent(2, amount))` — when side effects are unavoidable
+  - ❌ Bad: `var captor = ArgumentCaptor.forClass(MyEvent.class); verify(publisher).publishEvent(captor.capture()); assertThat(captor.getValue().count()).isEqualTo(2);`
 
 #### Test Data
 - **Use Test Fixtures**: Create and use TestFixture classes for generating test data

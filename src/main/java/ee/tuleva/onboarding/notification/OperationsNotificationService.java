@@ -8,6 +8,7 @@ public interface OperationsNotificationService {
     AML,
     WITHDRAWALS,
     CAPITAL_TRANSFER,
-    INVESTMENT
+    INVESTMENT,
+    SAVINGS
   }
 }

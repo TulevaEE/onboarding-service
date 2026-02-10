@@ -335,6 +335,7 @@ slack:
     "withdrawals": ${SLACK_WITHDRAWALS_WEBHOOK_URL}
     "capital_transfer": ${SLACK_CAPITAL_TRANSFER_WEBHOOK_URL}
     "investment": ${SLACK_INVESTMENT_WEBHOOK_URL:}
+    "savings": ${SLACK_SAVINGS_WEBHOOK_URL:}
 
 #Sentry environment configuration
 ---

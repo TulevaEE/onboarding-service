@@ -7,8 +7,12 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.List;
 import lombok.ToString;
@@ -25,13 +29,19 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
 
   @ToString.Include public static final String KEY = "EODHD_VALUE";
   public static final String PROVIDER = "EODHD";
+  private static final ZoneId EUROPE_BERLIN = ZoneId.of("Europe/Berlin");
+  private static final LocalTime CLOSING_PRICE_FINALIZED_TIME = LocalTime.of(6, 0);
 
   private final RestClient restClient;
+  private final Clock clock;
   private final String apiToken;
 
   public EODHDValueRetriever(
-      RestClient.Builder restClientBuilder, @Value("${eodhd.api-token:}") String apiToken) {
+      RestClient.Builder restClientBuilder,
+      Clock clock,
+      @Value("${eodhd.api-token:}") String apiToken) {
     this.restClient = restClientBuilder.build();
+    this.clock = clock;
     this.apiToken = apiToken;
   }
 
@@ -84,7 +94,24 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
       log.warn("Filtered out {} zero-values for ticker {} in date range", filteredCount, ticker);
     }
 
-    return nonZeroValues;
+    ZonedDateTime nowInCET = ZonedDateTime.now(clock).withZoneSameInstant(EUROPE_BERLIN);
+    LocalDate cutoff = latestFinalizedDate(nowInCET);
+
+    return nonZeroValues.stream().filter(fundValue -> !fundValue.date().isAfter(cutoff)).toList();
+  }
+
+  private String stripProviderSuffix(String ticker) {
+    return ticker.endsWith("." + PROVIDER) ? ticker.substring(0, ticker.lastIndexOf(".")) : ticker;
+  }
+
+  private String buildUri(String ticker, LocalDate startDate, LocalDate endDate) {
+    return UriComponentsBuilder.fromUriString("https://eodhd.com/api/eod/{ticker}")
+        .queryParam("api_token", apiToken)
+        .queryParam("fmt", "json")
+        .queryParam("from", startDate)
+        .queryParam("to", endDate)
+        .buildAndExpand(ticker)
+        .toUriString();
   }
 
   private void logLatestValue(String identifier, List<FundValue> values) {
@@ -100,18 +127,11 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
         latest.value());
   }
 
-  private String stripProviderSuffix(String ticker) {
-    return ticker.endsWith("." + PROVIDER) ? ticker.substring(0, ticker.lastIndexOf(".")) : ticker;
-  }
-
-  private String buildUri(String ticker, LocalDate startDate, LocalDate endDate) {
-    return UriComponentsBuilder.fromUriString("https://eodhd.com/api/eod/{ticker}")
-        .queryParam("api_token", apiToken)
-        .queryParam("fmt", "json")
-        .queryParam("from", startDate)
-        .queryParam("to", endDate)
-        .buildAndExpand(ticker)
-        .toUriString();
+  private LocalDate latestFinalizedDate(ZonedDateTime nowInExchangeTimezone) {
+    if (nowInExchangeTimezone.toLocalTime().isBefore(CLOSING_PRICE_FINALIZED_TIME)) {
+      return nowInExchangeTimezone.toLocalDate().minusDays(2);
+    }
+    return nowInExchangeTimezone.toLocalDate().minusDays(1);
   }
 
   record EODHDResponse(

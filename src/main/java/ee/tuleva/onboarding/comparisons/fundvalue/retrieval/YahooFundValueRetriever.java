@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.stream.IntStream;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -33,18 +32,13 @@ public class YahooFundValueRetriever implements ComparisonIndexRetriever {
 
   public static final List<String> FUND_TICKERS = FundTicker.getYahooTickers();
 
-  static final ZoneId EUROPE_BERLIN = ZoneId.of("Europe/Berlin");
-  static final LocalTime MARKET_CLOSE_BUFFER = LocalTime.of(18, 30);
+  private static final ZoneId EUROPE_BERLIN = ZoneId.of("Europe/Berlin");
+  private static final LocalTime CLOSING_PRICE_FINALIZED_TIME = LocalTime.of(6, 0);
 
   private final RestClient restClient;
   private final Clock clock;
 
-  @Autowired
-  public YahooFundValueRetriever(RestClient.Builder restClientBuilder) {
-    this(restClientBuilder, Clock.system(EUROPE_BERLIN));
-  }
-
-  YahooFundValueRetriever(RestClient.Builder restClientBuilder, Clock clock) {
+  public YahooFundValueRetriever(RestClient.Builder restClientBuilder, Clock clock) {
     this.restClient = restClientBuilder.build();
     this.clock = clock;
   }
@@ -104,26 +98,10 @@ public class YahooFundValueRetriever implements ComparisonIndexRetriever {
       log.warn("Filtered out {} zero-values for fund {} in date range", filteredCount, fundName);
     }
 
-    return filterIntradayValues(nonZeroValues);
-  }
+    ZonedDateTime nowInCET = ZonedDateTime.now(clock).withZoneSameInstant(EUROPE_BERLIN);
+    LocalDate cutoff = latestFinalizedDate(nowInCET);
 
-  private void logLatestValue(String identifier, List<FundValue> values) {
-    if (values.isEmpty()) {
-      log.info("Yahoo API response: ticker={}, no values returned", identifier);
-      return;
-    }
-    var latest = values.stream().max(comparing(FundValue::date)).orElseThrow();
-    log.info(
-        "Yahoo API response: ticker={}, latestDate={}, value={}",
-        identifier,
-        latest.date(),
-        latest.value());
-  }
-
-  private List<LocalDate> parseTimestamps(List<Long> epochTimestamps) {
-    return epochTimestamps.stream()
-        .map(timestamp -> Instant.ofEpochSecond(timestamp).atZone(UTC).toLocalDate())
-        .toList();
+    return nonZeroValues.stream().filter(fundValue -> !fundValue.date().isAfter(cutoff)).toList();
   }
 
   private String buildFetchUri(String fundName, LocalDate startDate, LocalDate endDate) {
@@ -141,17 +119,30 @@ public class YahooFundValueRetriever implements ComparisonIndexRetriever {
         .toUriString();
   }
 
-  List<FundValue> filterIntradayValues(List<FundValue> values) {
-    LocalDate today = LocalDate.now(clock);
-    if (isAfterMarketClose()) {
-      return values;
-    }
-    return values.stream().filter(value -> value.date().isBefore(today)).toList();
+  private List<LocalDate> parseTimestamps(List<Long> epochTimestamps) {
+    return epochTimestamps.stream()
+        .map(timestamp -> Instant.ofEpochSecond(timestamp).atZone(UTC).toLocalDate())
+        .toList();
   }
 
-  boolean isAfterMarketClose() {
-    ZonedDateTime now = ZonedDateTime.now(clock);
-    return now.toLocalTime().isAfter(MARKET_CLOSE_BUFFER);
+  private void logLatestValue(String identifier, List<FundValue> values) {
+    if (values.isEmpty()) {
+      log.info("Yahoo API response: ticker={}, no values returned", identifier);
+      return;
+    }
+    var latest = values.stream().max(comparing(FundValue::date)).orElseThrow();
+    log.info(
+        "Yahoo API response: ticker={}, latestDate={}, value={}",
+        identifier,
+        latest.date(),
+        latest.value());
+  }
+
+  private LocalDate latestFinalizedDate(ZonedDateTime nowInExchangeTimezone) {
+    if (nowInExchangeTimezone.toLocalTime().isBefore(CLOSING_PRICE_FINALIZED_TIME)) {
+      return nowInExchangeTimezone.toLocalDate().minusDays(2);
+    }
+    return nowInExchangeTimezone.toLocalDate().minusDays(1);
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Set;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,11 +29,37 @@ class ModularityTest {
   }
 
   @Test
+  @DisplayName("Ledger module does not depend on domain modules")
+  void ledgerDoesNotDependOnDomainModules() {
+    // Ledger is core infrastructure - it should not depend on domain modules
+    var forbiddenDependencies = Set.of("investment", "savings");
+
+    var ledgerModule =
+        modules.stream().filter(module -> module.getName().equals("ledger")).findFirst();
+
+    assertThat(ledgerModule).isPresent();
+
+    var ledgerDependencies =
+        ledgerModule.get().getDependencies(modules).stream()
+            .map(dep -> dep.getTargetModule().getName())
+            .filter(forbiddenDependencies::contains)
+            .toList();
+
+    assertThat(ledgerDependencies)
+        .as("Ledger module should not depend on domain modules")
+        .isEmpty();
+  }
+
+  @Test
   @DisplayName("No other module depends on investment module")
   void noModuleDependsOnInvestment() {
+    // savings is allowed to depend on investment because NAV calculation needs investment data
+    var allowedDependents = Set.of("savings");
+
     var modulesWithInvestmentDependency =
         modules.stream()
             .filter(module -> !module.getName().equals("investment"))
+            .filter(module -> !allowedDependents.contains(module.getName()))
             .filter(
                 module ->
                     module.getDependencies(modules).stream()

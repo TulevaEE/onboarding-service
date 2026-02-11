@@ -1,14 +1,24 @@
 package ee.tuleva.onboarding.investment.position;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.*;
+import static ee.tuleva.onboarding.investment.position.AccountType.*;
+import static java.math.BigDecimal.ZERO;
 
+import ee.tuleva.onboarding.investment.TulevaFund;
+import ee.tuleva.onboarding.investment.calculation.PositionCalculation;
+import ee.tuleva.onboarding.investment.calculation.PositionCalculationService;
 import ee.tuleva.onboarding.investment.position.parser.FundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.report.ReportProvider;
 import ee.tuleva.onboarding.investment.report.ReportType;
+import ee.tuleva.onboarding.ledger.NavLedgerRepository;
+import ee.tuleva.onboarding.ledger.NavPositionLedger;
+import ee.tuleva.onboarding.ledger.SystemAccount;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +42,10 @@ public class FundPositionImportJob {
   private final FundPositionParser parser;
   private final FundPositionImportService importService;
   private final InvestmentReportService reportService;
+  private final PositionCalculationService positionCalculationService;
+  private final FundPositionRepository fundPositionRepository;
+  private final NavPositionLedger navPositionLedger;
+  private final NavLedgerRepository navLedgerRepository;
 
   @Schedules({
     @Scheduled(cron = PARSE_MORNING, zone = TIMEZONE),
@@ -72,5 +86,56 @@ public class FundPositionImportJob {
         date,
         imported,
         report.get().getRawData().size());
+
+    positions.stream()
+        .map(FundPosition::getFund)
+        .distinct()
+        .forEach(fund -> recordPositionsToLedger(fund, date));
+  }
+
+  private void recordPositionsToLedger(TulevaFund fund, LocalDate date) {
+    BigDecimal securitiesDelta =
+        calculateDelta(fund, SystemAccount.SECURITIES_VALUE, calculateSecuritiesValue(fund, date));
+    BigDecimal cashDelta =
+        calculateDelta(fund, SystemAccount.CASH_POSITION, calculatePositionValue(fund, date, CASH));
+    BigDecimal receivablesDelta =
+        calculateDelta(
+            fund, SystemAccount.TRADE_RECEIVABLES, calculatePositionValue(fund, date, RECEIVABLES));
+    BigDecimal payablesDelta =
+        calculateDelta(
+            fund, SystemAccount.TRADE_PAYABLES, calculatePositionValue(fund, date, LIABILITY));
+
+    navPositionLedger.recordPositions(
+        fund.name(), date, securitiesDelta, cashDelta, receivablesDelta, payablesDelta);
+    log.info(
+        "Recorded position deltas to ledger: fund={}, date={}, securities={}, cash={}, receivables={}, payables={}",
+        fund,
+        date,
+        securitiesDelta,
+        cashDelta,
+        receivablesDelta,
+        payablesDelta);
+  }
+
+  private BigDecimal calculateDelta(TulevaFund fund, SystemAccount account, BigDecimal newValue) {
+    BigDecimal currentBalance =
+        navLedgerRepository.getPositionBalanceByFund(account.name(), fund.name());
+    return newValue.subtract(currentBalance);
+  }
+
+  private BigDecimal calculateSecuritiesValue(TulevaFund fund, LocalDate date) {
+    return positionCalculationService.calculate(fund, date).stream()
+        .map(PositionCalculation::calculatedMarketValue)
+        .filter(Objects::nonNull)
+        .reduce(ZERO, BigDecimal::add);
+  }
+
+  private BigDecimal calculatePositionValue(TulevaFund fund, LocalDate date, AccountType type) {
+    return fundPositionRepository
+        .findByReportingDateAndFundAndAccountType(date, fund, type)
+        .stream()
+        .map(FundPosition::getMarketValue)
+        .filter(Objects::nonNull)
+        .reduce(ZERO, BigDecimal::add);
   }
 }

@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.investment.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -32,6 +33,23 @@ public class FeeAccrualRepository {
         .param("beforeDate", beforeDate)
         .query(BigDecimal.class)
         .single();
+  }
+
+  public Optional<FeeAccrual> findByFundAndAccrualDateAndFeeType(
+      TulevaFund fund, LocalDate accrualDate, FeeType feeType) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT * FROM investment_fee_accrual
+            WHERE fund_code = :fundCode
+              AND accrual_date = :accrualDate
+              AND fee_type = :feeType
+            """)
+        .param("fundCode", fund.name())
+        .param("accrualDate", accrualDate)
+        .param("feeType", feeType.name())
+        .query(FeeAccrual::fromResultSet)
+        .optional();
   }
 
   public void save(FeeAccrual accrual) {

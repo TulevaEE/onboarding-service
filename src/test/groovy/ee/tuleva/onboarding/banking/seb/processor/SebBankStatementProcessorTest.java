@@ -62,7 +62,6 @@ class SebBankStatementProcessorTest {
           paymentService,
           sebAccountConfiguration,
           savingsFundLedger,
-          savingFundPaymentRepository,
           userService,
           redemptionRequestRepository,
           redemptionStatusService,

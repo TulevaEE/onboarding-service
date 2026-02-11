@@ -12,7 +12,7 @@ import spock.lang.Specification
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPayment
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
 
-class MontonioCallbackServiceSpec extends Specification {
+class MontonioNotificationBodyServiceSpec extends Specification {
   UserService userService = Mock()
   MontonioCallbackService paymentProviderCallbackService
   PaymentRepository paymentRepository = Mock()

@@ -98,4 +98,16 @@ class SavingsFundNotifierTest {
             "Savings fund trustee report sent: date=2026-02-11, rows=42, NAV=9.9918, issuedUnits=10.00000, issuedAmount=100.00, redeemedUnits=5.00000, redeemedAmount=50.00, totalOutstandingUnits=1005.00000",
             SAVINGS);
   }
+
+  @Test
+  void onDeferredReturnMatchingCompleted_sendsNotification() {
+    var event = new DeferredReturnMatchingCompletedEvent(2, 1, new BigDecimal("125.00"));
+
+    notifier.onDeferredReturnMatchingCompleted(event);
+
+    verify(notificationService)
+        .sendMessage(
+            "Deferred return matching: matchedCount=2, unmatchedCount=1, totalAmount=125.00 EUR",
+            SAVINGS);
+  }
 }

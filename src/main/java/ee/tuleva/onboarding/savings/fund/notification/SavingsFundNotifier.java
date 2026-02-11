@@ -69,9 +69,31 @@ public class SavingsFundNotifier {
   public void onPaymentsReturned(PaymentsReturnedEvent event) {
     try {
       notificationService.sendMessage(
-          "Savings fund returns: payments=%d".formatted(event.paymentCount()), SAVINGS);
+          "Savings fund returns: payments=%d, totalAmount=%s EUR"
+              .formatted(event.paymentCount(), event.totalAmount()),
+          SAVINGS);
     } catch (Exception e) {
       log.error("Failed to send payments returned notification", e);
+    }
+  }
+
+  @EventListener
+  public void onTrusteeReportSent(TrusteeReportSentEvent event) {
+    try {
+      notificationService.sendMessage(
+          "Savings fund trustee report sent: date=%s, rows=%d, NAV=%s, issuedUnits=%s, issuedAmount=%s, redeemedUnits=%s, redeemedAmount=%s, totalOutstandingUnits=%s"
+              .formatted(
+                  event.reportDate(),
+                  event.rowCount(),
+                  event.nav(),
+                  event.issuedUnits(),
+                  event.issuedAmount(),
+                  event.redeemedUnits(),
+                  event.redeemedAmount(),
+                  event.totalOutstandingUnits()),
+          SAVINGS);
+    } catch (Exception e) {
+      log.error("Failed to send trustee report notification", e);
     }
   }
 }

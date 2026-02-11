@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.savings.fund.notification.PaymentsReturnedEvent;
+import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,21 +26,21 @@ class PaymentReturningJobTest {
 
   @Test
   void runJob_publishesPaymentsReturnedEvent() {
-    var payment1 = aPayment().status(TO_BE_RETURNED).build();
-    var payment2 = aPayment().status(TO_BE_RETURNED).build();
+    var payment1 = aPayment().status(TO_BE_RETURNED).amount(new BigDecimal("100.00")).build();
+    var payment2 = aPayment().status(TO_BE_RETURNED).amount(new BigDecimal("50.00")).build();
     var payments = List.of(payment1, payment2);
 
     when(savingFundPaymentRepository.findPaymentsWithStatus(TO_BE_RETURNED)).thenReturn(payments);
 
     job.runJob();
 
-    verify(eventPublisher).publishEvent(new PaymentsReturnedEvent(2));
+    verify(eventPublisher).publishEvent(new PaymentsReturnedEvent(2, new BigDecimal("150.00")));
   }
 
   @Test
   void runJob_reportsOnlySuccessfulReturnsInEvent() {
-    var payment1 = aPayment().status(TO_BE_RETURNED).build();
-    var payment2 = aPayment().status(TO_BE_RETURNED).build();
+    var payment1 = aPayment().status(TO_BE_RETURNED).amount(new BigDecimal("100.00")).build();
+    var payment2 = aPayment().status(TO_BE_RETURNED).amount(new BigDecimal("50.00")).build();
     var payments = List.of(payment1, payment2);
 
     when(savingFundPaymentRepository.findPaymentsWithStatus(TO_BE_RETURNED)).thenReturn(payments);
@@ -50,7 +51,7 @@ class PaymentReturningJobTest {
 
     job.runJob();
 
-    verify(eventPublisher).publishEvent(new PaymentsReturnedEvent(1));
+    verify(eventPublisher).publishEvent(new PaymentsReturnedEvent(1, new BigDecimal("100.00")));
   }
 
   @Test

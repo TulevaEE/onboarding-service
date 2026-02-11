@@ -1,3 +1,5 @@
 package ee.tuleva.onboarding.savings.fund.notification;
 
-public record PaymentsReturnedEvent(int paymentCount) {}
+import java.math.BigDecimal;
+
+public record PaymentsReturnedEvent(int paymentCount, BigDecimal totalAmount) {}

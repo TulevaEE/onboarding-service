@@ -25,6 +25,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class SebReconciliatorTest {
@@ -34,6 +35,7 @@ class SebReconciliatorTest {
   @Mock private LedgerService ledgerService;
   @Mock private SebAccountConfiguration sebAccountConfiguration;
   @Mock private Clock clock;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   @InjectMocks private SebReconciliator reconciliator;
 
@@ -60,6 +62,32 @@ class SebReconciliatorTest {
   }
 
   @Test
+  void reconcile_shouldPublishMatchedEvent_whenBalancesMatch() {
+    BigDecimal matchingBalance = new BigDecimal("1000.00");
+    LocalDate balanceDate = LocalDate.of(2024, 1, 15);
+
+    BankStatementBalance closingBalance =
+        new BankStatementBalance(CLOSE, balanceDate, matchingBalance);
+    BankStatementAccount account =
+        new BankStatementAccount("EE123456789012345678", "Test Company", "12345678");
+    BankStatement bankStatement =
+        new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), List.of());
+
+    LedgerAccount ledgerAccount =
+        systemAccountWithBalance(matchingBalance, RECONCILIATION_TIME.minusSeconds(60));
+
+    when(clock.instant()).thenReturn(RECONCILIATION_TIME);
+    when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount())).thenReturn(ledgerAccount);
+    when(sebAccountConfiguration.getAccountType("EE123456789012345678")).thenReturn(DEPOSIT_EUR);
+
+    reconciliator.reconcile(bankStatement);
+
+    verify(eventPublisher)
+        .publishEvent(
+            new ReconciliationCompletedEvent(DEPOSIT_EUR, matchingBalance, matchingBalance, true));
+  }
+
+  @Test
   void reconcile_shouldThrowException_whenBalancesDoNotMatch() {
     BigDecimal bankBalance = new BigDecimal("1000.00");
     BigDecimal ledgerBalance = new BigDecimal("999.99");
@@ -79,6 +107,32 @@ class SebReconciliatorTest {
     when(sebAccountConfiguration.getAccountType("EE987700771001802057")).thenReturn(DEPOSIT_EUR);
 
     assertThrows(IllegalStateException.class, () -> reconciliator.reconcile(bankStatement));
+  }
+
+  @Test
+  void reconcile_shouldPublishMismatchedEvent_whenBalancesDoNotMatch() {
+    BigDecimal bankBalance = new BigDecimal("1000.00");
+    BigDecimal ledgerBalance = new BigDecimal("999.99");
+    LocalDate balanceDate = LocalDate.of(2024, 1, 15);
+
+    BankStatementBalance closingBalance = new BankStatementBalance(CLOSE, balanceDate, bankBalance);
+    BankStatementAccount account =
+        new BankStatementAccount("EE987700771001802057", "Test Company", "12345678");
+    BankStatement bankStatement =
+        new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), List.of());
+
+    LedgerAccount ledgerAccount =
+        systemAccountWithBalance(ledgerBalance, RECONCILIATION_TIME.minusSeconds(60));
+
+    when(clock.instant()).thenReturn(RECONCILIATION_TIME);
+    when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount())).thenReturn(ledgerAccount);
+    when(sebAccountConfiguration.getAccountType("EE987700771001802057")).thenReturn(DEPOSIT_EUR);
+
+    assertThrows(IllegalStateException.class, () -> reconciliator.reconcile(bankStatement));
+
+    verify(eventPublisher)
+        .publishEvent(
+            new ReconciliationCompletedEvent(DEPOSIT_EUR, bankBalance, ledgerBalance, false));
   }
 
   @Test

@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.ledger.LedgerService;
 import java.time.Clock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
@@ -17,6 +18,7 @@ public class SebReconciliator {
   private final LedgerService ledgerService;
   private final SebAccountConfiguration sebAccountConfiguration;
   private final Clock clock;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Transactional
   public void reconcile(BankStatement bankStatement) {
@@ -41,6 +43,10 @@ public class SebReconciliator {
         ledgerService.getSystemAccount(ledgerSystemAccount).getBalanceAt(reconciliationTime);
 
     if (ledgerAccountBalance.compareTo(closingBankBalance.balance()) != 0) {
+      eventPublisher.publishEvent(
+          new ReconciliationCompletedEvent(
+              bankStatementAccount, closingBankBalance.balance(), ledgerAccountBalance, false));
+
       var diff = ledgerAccountBalance.subtract(closingBankBalance.balance());
       throw new IllegalStateException(
           "Bank statement reconciliation failed: bankAccount=%s, closingBalance=%s, ledgerAccount=%s, ledgerBalance=%s, diff=%s"
@@ -51,6 +57,10 @@ public class SebReconciliator {
                   ledgerAccountBalance,
                   diff));
     }
+
+    eventPublisher.publishEvent(
+        new ReconciliationCompletedEvent(
+            bankStatementAccount, closingBankBalance.balance(), ledgerAccountBalance, true));
 
     log.info(
         "Reconciliation successful: bankAccount={}, balance={}, ledgerAccount={}",

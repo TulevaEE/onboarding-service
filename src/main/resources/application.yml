@@ -70,26 +70,14 @@ truststore:
   path: "test_keys/truststore.jks"
   password: changeit
 
-swedbank-gateway:
-  enabled: false
-  keystore:
-    path: "src/main/resources/empty-swedbank-keystore.p12"
-    password: changeit
-  url: ''
-  client-id: ''
-  agreement-id: ''
-  accounts:
-    DEPOSIT_EUR: ''
-    WITHDRAWAL_EUR: ''
-    FUND_INVESTMENT_EUR: ''
-
 seb-gateway:
   enabled: false
   keystore:
-    path: "src/main/resources/empty-swedbank-keystore.p12"
+    path: "src/main/resources/empty-keystore.p12"
     password: changeit
   url: ''
   org-id: ''
+  reconciliation-delay: 5m
   accounts:
     DEPOSIT_EUR: 'SEB_DEPOSIT_PLACEHOLDER'
     WITHDRAWAL_EUR: 'SEB_WITHDRAWAL_PLACEHOLDER'
@@ -167,6 +155,9 @@ morningstar:
 async:
   enabled: true
 
+savings-fund:
+  isin: EE0000003283
+
 payment-provider:
   url: https://sandbox-stargate.montonio.com/api
   use-fake-notification-url: true
@@ -214,19 +205,6 @@ spring:
     activate:
       on-profile:
         - dev
-
-swedbank-gateway:
-  enabled: false
-  keystore:
-    path: "test_keys/swedbank-gateway.p12"
-    password: changeit
-  url: 'https://psd2.api.swedbank.com/partner/sandbox/v1/sgw/'
-  client-id: ${SWEDBANK_GATEWAY_CLIENT_ID:mock_client_id}
-  agreement-id: ${SWEDBANK_GATEWAY_AGREEMENT_ID:1234}
-  accounts:
-    DEPOSIT_EUR: ${SWEDBANK_GATEWAY_DEPOSIT_EUR_ACCOUNT_IBAN:EE_TEST_IBAN}
-    WITHDRAWAL_EUR: ${SWEDBANK_GATEWAY_WITHDRAWAL_EUR_ACCOUNT_IBAN:EE_TEST_IBAN_2}
-    FUND_INVESTMENT_EUR: ${SWEDBANK_GATEWAY_INVESTMENT_EUR_ACCOUNT_IBAN:EE_TEST_IBAN_3}
 
 seb-gateway:
   enabled: true
@@ -282,21 +260,8 @@ smartid:
 truststore:
   path: "/truststore.jks"
 
-swedbank-gateway:
-  enabled: ${SWEDBANK_GATEWAY_ENABLED:true}
-  keystore:
-    path: "/swedbank-gateway.p12"
-    password: ${SWEDBANK_GATEWAY_KEYSTORE_PASSWORD}
-  client-id: ${SWEDBANK_GATEWAY_CLIENT_ID}
-  agreement-id: ${SWEDBANK_GATEWAY_AGREEMENT_ID}
-  url: 'https://psd2.api.swedbank.com/partner/v1/sgw/'
-  accounts:
-    DEPOSIT_EUR: ${SWEDBANK_GATEWAY_DEPOSIT_EUR_ACCOUNT_IBAN}
-    WITHDRAWAL_EUR: ${SWEDBANK_GATEWAY_WITHDRAWAL_EUR_ACCOUNT_IBAN}
-    FUND_INVESTMENT_EUR: ${SWEDBANK_GATEWAY_INVESTMENT_EUR_ACCOUNT_IBAN}
-
 seb-gateway:
-  enabled: ${SEB_GATEWAY_ENABLED:false}
+  enabled: ${SEB_GATEWAY_ENABLED:true}
   keystore:
     path: ${SEB_GATEWAY_KEYSTORE_PATH:/seb-gateway.p12}
     password: ${SEB_GATEWAY_KEYSTORE_PASSWORD:changeit}
@@ -370,6 +335,7 @@ slack:
     "withdrawals": ${SLACK_WITHDRAWALS_WEBHOOK_URL}
     "capital_transfer": ${SLACK_CAPITAL_TRANSFER_WEBHOOK_URL}
     "investment": ${SLACK_INVESTMENT_WEBHOOK_URL:}
+    "savings": ${SLACK_SAVINGS_WEBHOOK_URL:}
 
 #Sentry environment configuration
 ---

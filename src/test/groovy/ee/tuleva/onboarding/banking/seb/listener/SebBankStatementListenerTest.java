@@ -9,7 +9,6 @@ import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankStatementReceive
 import ee.tuleva.onboarding.banking.seb.processor.SebBankStatementProcessor;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -33,7 +32,7 @@ class SebBankStatementListenerTest {
 
     listener.processStatement(event);
 
-    verify(processor).processStatement(statement, messageId);
+    verify(processor).processStatement(statement);
   }
 
   @Test
@@ -51,7 +50,6 @@ class SebBankStatementListenerTest {
         INTRA_DAY_REPORT,
         new BankStatementAccount("EE123456789012345678", "Test Company", "12345678"),
         List.of(),
-        List.of(),
-        Instant.now());
+        List.of());
   }
 }

@@ -68,8 +68,16 @@ public class PaymentEmailSender {
   }
 
   private void sendSavingsFundEmail(PaymentEvent event) {
+    User user = event.getUser();
+    ContactDetails contactDetails = contactDetailsService.getContactDetails(user);
+    ConversionResponse conversion = conversionService.getConversion(user);
+    PaymentRates paymentRates = paymentRateService.getPaymentRates(user);
+
+    PillarSuggestion pillarSuggestion =
+        new PillarSuggestion(user, contactDetails, conversion, paymentRates);
+
     EmailType emailType = getEmailTypeForSavingsFundEvent(event);
-    emailService.sendSavingsFundPaymentEmail(event.getUser(), emailType, event.getLocale());
+    emailService.sendSavingsFundPaymentEmail(user, emailType, pillarSuggestion, event.getLocale());
   }
 
   private void sendThirdPillarEmail(PaymentCreatedEvent event) {

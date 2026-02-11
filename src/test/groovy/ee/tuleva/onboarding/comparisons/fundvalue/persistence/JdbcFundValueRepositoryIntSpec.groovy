@@ -7,12 +7,9 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.WorldIndexValueRetri
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.GlobalStockIndexRetriever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.test.jdbc.JdbcTestUtils
 import org.springframework.transaction.annotation.Transactional
 import spock.lang.Specification
 
-import javax.sql.DataSource
 import java.time.Instant
 import java.time.LocalDate
 
@@ -23,23 +20,25 @@ import static java.time.LocalDate.parse
 @Transactional
 class JdbcFundValueRepositoryIntSpec extends Specification {
 
-    JdbcTemplate jdbcTemplate
-
-    @Autowired
-    void setDataSource(DataSource dataSource) {
-        jdbcTemplate = new JdbcTemplate(dataSource)
-    }
-
     @Autowired
     JdbcFundValueRepository fundValueRepository
 
     def "it can persist a bunch of fund values"() {
         given:
-            List<FundValue> values = getFakeFundValues()
+            def uniqueKey1 = "PERSIST_TEST_" + UUID.randomUUID()
+            def uniqueKey2 = "PERSIST_TEST_" + UUID.randomUUID()
+            def today = LocalDate.now()
+            def yesterday = LocalDate.now().minusDays(1)
+            List<FundValue> values = [
+                aFundValue(uniqueKey1, today, 100.12345),
+                aFundValue(uniqueKey1, yesterday, 10.12345),
+                aFundValue(uniqueKey2, today, 200.12345),
+                aFundValue(uniqueKey2, yesterday, 20.12345),
+            ]
         when:
-            fundValueRepository.saveAll(values)
+            def savedValues = fundValueRepository.saveAll(values)
         then:
-            JdbcTestUtils.countRowsInTable(jdbcTemplate, "index_values") == values.size()
+            savedValues.size() == values.size()
     }
 
     def "it can retrieve fund values by last time and fund"() {
@@ -121,8 +120,8 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
 
   def "it finds all earliest dates"() {
     given:
-    String key = "SOME_FUND"
-    String key2 = "SOME_FUND_2"
+    String key = "EARLIEST_DATES_TEST_" + UUID.randomUUID()
+    String key2 = "EARLIEST_DATES_TEST_" + UUID.randomUUID()
     List<FundValue> valuesWithDifferentDates = [
         aFundValue(key2, parse("2020-03-01"), 104.12345),
         aFundValue(key2, parse("2020-02-01"), 103.12345),
@@ -137,7 +136,8 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
     Map<String, LocalDate> dates = fundValueRepository.findEarliestDates()
 
     then:
-    dates == ["SOME_FUND": parse("2019-12-31"), "SOME_FUND_2": parse("2020-01-01")]
+    dates[key] == parse("2019-12-31")
+    dates[key2] == parse("2020-01-01")
   }
 
   def "it finds values between dates for a fund"() {

@@ -14,6 +14,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class SavingFundPaymentUpsertionService {
 
+  private static final Set<SavingFundPayment.Status> MATCHABLE_STATUSES =
+      Set.of(CREATED, RETURNED, PROCESSED, FROZEN);
+
   private final SavingFundPaymentRepository repository;
   private final SavingFundDeadlinesService savingFundDeadlinesService;
   private final NameMatcher nameMatcher;
@@ -45,10 +48,19 @@ public class SavingFundPaymentUpsertionService {
     var existingPayment = findExistingPayment(payment);
 
     if (existingPayment.isPresent()) {
-      log.info("Found existing payment, updating: {}", existingPayment.get().getId());
-      updatePayment(existingPayment.get(), payment);
-      var status = onUpdate.apply(payment);
-      repository.changeStatus(existingPayment.get().getId(), status);
+      var existing = existingPayment.get();
+      if (existing.getStatus() != CREATED) {
+        log.info(
+            "Found existing payment in terminal state, enriching data without status change: id={}, status={}",
+            existing.getId(),
+            existing.getStatus());
+        updatePayment(existing, payment);
+      } else {
+        log.info("Found existing payment, updating: {}", existing.getId());
+        updatePayment(existing, payment);
+        var status = onUpdate.apply(payment);
+        repository.changeStatus(existing.getId(), status);
+      }
     } else {
       log.info("No existing payment found, inserting new payment");
       var paymentId = repository.savePaymentData(payment);
@@ -78,9 +90,16 @@ public class SavingFundPaymentUpsertionService {
   }
 
   private Optional<SavingFundPayment> findExistingPayment(SavingFundPayment payment) {
-    log.debug("Looking for matching payment by description: {}", payment.getDescription());
+    log.debug(
+        "Looking for matching payment by description, amount, and remitter IBAN: {}, {}, {}",
+        payment.getDescription(),
+        payment.getAmount(),
+        payment.getRemitterIban());
     return repository.findRecentPayments(payment.getDescription()).stream()
         .filter(p -> p.getExternalId() == null)
+        .filter(p -> MATCHABLE_STATUSES.contains(p.getStatus()))
+        .filter(p -> p.getAmount().compareTo(payment.getAmount()) == 0)
+        .filter(p -> Objects.equals(p.getRemitterIban(), payment.getRemitterIban()))
         .findFirst();
   }
 

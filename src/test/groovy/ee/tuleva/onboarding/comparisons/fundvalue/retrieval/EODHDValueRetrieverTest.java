@@ -1,24 +1,31 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import static java.math.BigDecimal.ZERO;
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.time.ClockConfig;
+import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.client.MockRestServiceServer;
 
 @RestClientTest(EODHDValueRetriever.class)
+@Import(ClockConfig.class)
 @TestPropertySource(properties = "eodhd.api-token=test-token")
 class EODHDValueRetrieverTest {
 
@@ -29,6 +36,7 @@ class EODHDValueRetrieverTest {
   @AfterEach
   void cleanup() {
     server.reset();
+    ClockHolder.setDefaultClock();
   }
 
   @Test
@@ -186,6 +194,43 @@ class EODHDValueRetrieverTest {
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
 
     assertThat(result).isEmpty();
+  }
+
+  @Test
+  void alwaysExcludesTodaysData() {
+    // 2024-01-04 20:00 UTC = 21:00 CET (well after any market close)
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2024-01-04T20:00:00Z"), UTC));
+
+    var mockResponse =
+        """
+        [
+          {"date": "2024-01-02", "open": 100.00, "high": 101.00, "low": 99.50, "close": 100.50, "adjusted_close": 100.50, "volume": 12345},
+          {"date": "2024-01-03", "open": 100.50, "high": 102.00, "low": 100.00, "close": 101.25, "adjusted_close": 101.25, "volume": 23456},
+          {"date": "2024-01-04", "open": 101.25, "high": 103.00, "low": 101.00, "close": 102.00, "adjusted_close": 102.00, "volume": 34567}
+        ]
+        """;
+
+    FundTicker.getEodhdTickers()
+        .forEach(
+            ticker ->
+                server
+                    .expect(
+                        requestTo(
+                            "https://eodhd.com/api/eod/"
+                                + expectedApiTicker(ticker)
+                                + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-04"))
+                    .andRespond(withSuccess(mockResponse, MediaType.APPLICATION_JSON)));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
+
+    // At 21:00 CET on Jan 4: latestFinalizedDate = Jan 3 (yesterday)
+    // Jan 4 (today) is always excluded
+    assertThat(result)
+        .isNotEmpty()
+        .anyMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 2)))
+        .anyMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 3)))
+        .noneMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 4)));
   }
 
   private String expectedApiTicker(String storageTicker) {

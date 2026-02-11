@@ -6,11 +6,7 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebCurrentDayTransactionsRequested;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebEodTransactionsRequested;
-import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
 import ee.tuleva.onboarding.time.ClockHolder;
-import java.time.Clock;
-import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -93,48 +89,5 @@ class SebStatementFetchingSchedulerTest {
 
     verify(eventPublisher, times(BankAccountType.values().length))
         .publishEvent(any(FetchSebEodTransactionsRequested.class));
-  }
-
-  @Test
-  void fetchLast7DaysTransactions_publishesEventsWithCorrectDateRange() {
-    LocalDate today = LocalDate.of(2025, 1, 15);
-    LocalDate sevenDaysAgo = LocalDate.of(2025, 1, 8);
-    ClockHolder.setClock(
-        Clock.fixed(today.atStartOfDay().toInstant(ZoneOffset.UTC), ZoneOffset.UTC));
-
-    scheduler.fetchLast7DaysTransactions();
-
-    var captor = ArgumentCaptor.forClass(FetchSebHistoricTransactionsRequested.class);
-    verify(eventPublisher, times(BankAccountType.values().length)).publishEvent(captor.capture());
-
-    List<FetchSebHistoricTransactionsRequested> events = captor.getAllValues();
-    assertThat(events).hasSize(BankAccountType.values().length);
-
-    for (BankAccountType accountType : BankAccountType.values()) {
-      assertThat(events)
-          .anyMatch(
-              event ->
-                  event.accountType() == accountType
-                      && event.dateFrom().equals(sevenDaysAgo)
-                      && event.dateTo().equals(today));
-    }
-  }
-
-  @Test
-  void fetchLast7DaysTransactions_continuesOnError() {
-    LocalDate today = LocalDate.of(2025, 1, 15);
-    ClockHolder.setClock(
-        Clock.fixed(today.atStartOfDay().toInstant(ZoneOffset.UTC), ZoneOffset.UTC));
-
-    doThrow(new RuntimeException("Error"))
-        .doNothing()
-        .doNothing()
-        .when(eventPublisher)
-        .publishEvent(any(FetchSebHistoricTransactionsRequested.class));
-
-    scheduler.fetchLast7DaysTransactions();
-
-    verify(eventPublisher, times(BankAccountType.values().length))
-        .publishEvent(any(FetchSebHistoricTransactionsRequested.class));
   }
 }

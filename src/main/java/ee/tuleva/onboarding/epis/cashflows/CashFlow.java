@@ -30,7 +30,8 @@ public class CashFlow implements Comparable<CashFlow> {
   private BigDecimal amount;
   private Currency currency;
   private Type type;
-  private String comment;
+  private BigDecimal units;
+  private BigDecimal nav;
 
   public Instant getPriceTime() {
     if (priceTime != null) {
@@ -74,13 +75,13 @@ public class CashFlow implements Comparable<CashFlow> {
         .thenComparing(CashFlow::getAmount)
         .thenComparing(CashFlow::getCurrency)
         .thenComparing(CashFlow::getType)
-        .thenComparing(CashFlow::getComment, nullsLast(String::compareToIgnoreCase))
         .compare(this, other);
   }
 
   @Override
   public String toString() {
-    return "{%s, %s, %s, %s, %s, %s}".formatted(isin, time, amount, type, comment, priceTime);
+    return "{%s, %s, %s, %s, %s, units=%s, nav=%s}"
+        .formatted(isin, time, amount, type, priceTime, units, nav);
   }
 
   public enum Type {

@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
+import ee.tuleva.onboarding.savings.fund.notification.SubscriptionBatchSentEvent;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
@@ -22,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -37,7 +39,7 @@ public class FundAccountPaymentJob {
   private final ApplicationEventPublisher eventPublisher;
   private final EndToEndIdConverter endToEndIdConverter;
 
-  // @Scheduled(fixedRateString = "1m")
+  @Scheduled(fixedRateString = "1m")
   @SchedulerLock(
       name = "FundAccountPaymentJob_runJob",
       lockAtMostFor = "50s",
@@ -77,7 +79,7 @@ public class FundAccountPaymentJob {
     var paymentRequest =
         PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(id))
             .remitterIban(bankAccountConfiguration.getAccountIban(DEPOSIT_EUR))
-            .beneficiaryName("Tuleva Fondid AS")
+            .beneficiaryName("Tuleva Täiendav Kogumisfond")
             .beneficiaryIban(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
             .amount(total)
             .description("Subscriptions")
@@ -85,5 +87,6 @@ public class FundAccountPaymentJob {
     log.info(
         "Preparing subscriptions payment to investment account with the amount of {} EUR", total);
     eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, id));
+    eventPublisher.publishEvent(new SubscriptionBatchSentEvent(payments.size(), total));
   }
 }

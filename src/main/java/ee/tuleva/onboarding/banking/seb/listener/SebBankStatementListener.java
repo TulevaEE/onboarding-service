@@ -24,6 +24,6 @@ public class SebBankStatementListener {
     if (event.bankType() != SEB) {
       return;
     }
-    processor.processStatement(event.statement(), event.messageId());
+    processor.processStatement(event.statement());
   }
 }

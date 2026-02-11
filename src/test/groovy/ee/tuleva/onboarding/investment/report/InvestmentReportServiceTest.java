@@ -48,6 +48,7 @@ class InvestmentReportServiceTest {
             LocalDate.of(2026, 1, 15),
             inputStream,
             ';',
+            0,
             Map.of("filename", "test.csv"));
 
     assertThat(result.getProvider()).isEqualTo(SWEDBANK);
@@ -85,6 +86,7 @@ class InvestmentReportServiceTest {
             LocalDate.of(2026, 1, 15),
             inputStream,
             ';',
+            0,
             Map.of("updated", "true"));
 
     assertThat(result.getId()).isEqualTo(1L);

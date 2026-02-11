@@ -418,4 +418,35 @@ class SavingFundPaymentRepositoryTest {
         .save(User.builder().firstName("John").lastName("Smith").personalCode(personalCode).build())
         .getId();
   }
+
+  @Test
+  void findUnmatchedOutgoingReturns_excludesInternalTransfers() {
+    var regularReturn =
+        repository.savePaymentData(
+            createPayment()
+                .externalId("regular-return")
+                .remitterName("Tuleva Fondid AS")
+                .beneficiaryName("Customer Name")
+                .amount(new BigDecimal("-100.00"))
+                .build());
+    var internalTransfer =
+        repository.savePaymentData(
+            createPayment()
+                .externalId("internal-transfer")
+                .remitterName("Tuleva Fondid AS")
+                .beneficiaryName("Tuleva Fondid AS")
+                .amount(new BigDecimal("-530000.00"))
+                .build());
+    var incomingPayment =
+        repository.savePaymentData(
+            createPayment().externalId("incoming").amount(new BigDecimal("50.00")).build());
+
+    updatePaymentStatus(regularReturn, PROCESSED);
+    updatePaymentStatus(internalTransfer, PROCESSED);
+    updatePaymentStatus(incomingPayment, PROCESSED);
+
+    var unmatchedReturns = repository.findUnmatchedOutgoingReturns();
+
+    assertThat(unmatchedReturns).extracting("id").containsExactly(regularReturn);
+  }
 }

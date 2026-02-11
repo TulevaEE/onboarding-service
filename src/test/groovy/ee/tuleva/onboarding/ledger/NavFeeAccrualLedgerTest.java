@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRANSFER;
 import static ee.tuleva.onboarding.ledger.SystemAccount.DEPOT_FEE_ACCRUAL;
 import static ee.tuleva.onboarding.ledger.SystemAccount.MANAGEMENT_FEE_ACCRUAL;
 import static ee.tuleva.onboarding.ledger.SystemAccount.NAV_EQUITY;
@@ -9,6 +10,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -67,14 +69,14 @@ class NavFeeAccrualLedgerTest {
     setupAccountMocks();
 
     when(ledgerTransactionService.createTransaction(
-            any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navFeeAccrualLedger.recordFeeAccrual(
         "TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"));
 
     verify(ledgerTransactionService)
-        .createTransaction(eq(Instant.now(clock)), any(), entriesCaptor.capture());
+        .createTransaction(eq(TRANSFER), eq(Instant.now(clock)), any(), entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(2);
@@ -90,14 +92,14 @@ class NavFeeAccrualLedgerTest {
     setupAccountMocks();
 
     when(ledgerTransactionService.createTransaction(
-            any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navFeeAccrualLedger.recordFeeAccrual(
         "TKF100", accrualDate, DEPOT_FEE_ACCRUAL, new BigDecimal("16.44"));
 
     verify(ledgerTransactionService)
-        .createTransaction(eq(Instant.now(clock)), any(), entriesCaptor.capture());
+        .createTransaction(eq(TRANSFER), eq(Instant.now(clock)), any(), entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(2);
@@ -113,14 +115,14 @@ class NavFeeAccrualLedgerTest {
     setupAccountMocks();
 
     when(ledgerTransactionService.createTransaction(
-            any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navFeeAccrualLedger.recordFeeAccrual(
         "TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"));
 
     verify(ledgerTransactionService)
-        .createTransaction(eq(Instant.now(clock)), any(), entriesCaptor.capture());
+        .createTransaction(eq(TRANSFER), eq(Instant.now(clock)), any(), entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     BigDecimal total =
@@ -135,7 +137,8 @@ class NavFeeAccrualLedgerTest {
     navFeeAccrualLedger.recordFeeAccrual("TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, null);
 
     verify(ledgerTransactionService, never())
-        .createTransaction(any(Instant.class), any(), any(LedgerEntryDto[].class));
+        .createTransaction(
+            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class));
   }
 
   @Test
@@ -145,7 +148,8 @@ class NavFeeAccrualLedgerTest {
     navFeeAccrualLedger.recordFeeAccrual("TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, ZERO);
 
     verify(ledgerTransactionService, never())
-        .createTransaction(any(Instant.class), any(), any(LedgerEntryDto[].class));
+        .createTransaction(
+            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class));
   }
 
   @Test
@@ -154,7 +158,7 @@ class NavFeeAccrualLedgerTest {
     setupAccountMocks();
 
     when(ledgerTransactionService.createTransaction(
-            any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navFeeAccrualLedger.recordFeeAccrual(
@@ -162,7 +166,10 @@ class NavFeeAccrualLedgerTest {
 
     verify(ledgerTransactionService)
         .createTransaction(
-            any(Instant.class), metadataCaptor.capture(), any(LedgerEntryDto[].class));
+            any(TransactionType.class),
+            any(Instant.class),
+            metadataCaptor.capture(),
+            any(LedgerEntryDto[].class));
 
     Map<String, Object> metadata = metadataCaptor.getValue();
     assertThat(metadata).containsEntry("operationType", "FEE_ACCRUAL");

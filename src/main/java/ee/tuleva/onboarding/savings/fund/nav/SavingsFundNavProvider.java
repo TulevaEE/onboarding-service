@@ -1,10 +1,13 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
-import static ee.tuleva.onboarding.investment.TulevaFund.TKF100;
-
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
+import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -13,11 +16,48 @@ import org.springframework.stereotype.Service;
 public class SavingsFundNavProvider {
 
   private final FundValueRepository fundValueRepository;
+  private final SavingsFundConfiguration configuration;
+  private final PublicHolidays publicHolidays;
 
   public BigDecimal getCurrentNav() {
+    return getFundValue().value();
+  }
+
+  public BigDecimal getCurrentNavForIssuing() {
+    FundValue fundValue = getFundValue();
+    LocalDate today =
+        ClockHolder.getClock().instant().atZone(ZoneId.of("Europe/Tallinn")).toLocalDate();
+    LocalDate expectedDate = publicHolidays.previousWorkingDay(today);
+
+    if (!fundValue.date().equals(expectedDate)) {
+      throw new IllegalStateException(
+          "Stale NAV for savings fund: isin="
+              + configuration.getIsin()
+              + ", expectedDate="
+              + expectedDate
+              + ", actualDate="
+              + fundValue.date());
+    }
+
+    BigDecimal nav = fundValue.value();
+    if (nav.stripTrailingZeros().scale() > 4) {
+      throw new IllegalStateException(
+          "Unexpected NAV scale for savings fund: isin="
+              + configuration.getIsin()
+              + ", nav="
+              + nav
+              + ", scale="
+              + nav.stripTrailingZeros().scale());
+    }
+
+    return nav;
+  }
+
+  private FundValue getFundValue() {
+    String isin = configuration.getIsin();
     return fundValueRepository
-        .findLastValueForFund(TKF100.getIsin())
-        .map(FundValue::value)
-        .orElse(BigDecimal.ONE);
+        .findLastValueForFund(isin)
+        .orElseThrow(
+            () -> new IllegalStateException("NAV not found for savings fund: isin=" + isin));
   }
 }

@@ -1,13 +1,14 @@
 package ee.tuleva.onboarding.account.transaction
 
 import ee.tuleva.onboarding.BaseControllerSpec
-import ee.tuleva.onboarding.account.CashFlowService
 import ee.tuleva.onboarding.auth.principal.Person
+import ee.tuleva.onboarding.currency.Currency
+import ee.tuleva.onboarding.epis.cashflows.CashFlow
 import org.springframework.test.web.servlet.MockMvc
 
-import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture
-import static org.hamcrest.Matchers.hasSize
-import static org.hamcrest.Matchers.is
+import java.time.Instant
+
+import static org.hamcrest.Matchers.*
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
@@ -16,45 +17,44 @@ class TransactionControllerSpec extends BaseControllerSpec {
 
   MockMvc mockMvc
 
-  CashFlowService cashFlowService = Mock()
-  TransactionController transactionController = new TransactionController(cashFlowService)
+  TransactionService transactionService = Mock()
+  TransactionController transactionController = new TransactionController(transactionService)
 
   def setup() {
     mockMvc = mockMvc(transactionController)
   }
 
-  def "can get all transactions"() {
+  def "delegates to transaction service"() {
     given:
-    def cashFlowStatement = cashFlowFixture()
-    def cashFlows = cashFlowStatement.getTransactions()
-    cashFlowService.getCashFlowStatement(_ as Person) >> cashFlowStatement
+    def transactions = [
+        Transaction.builder()
+            .amount(new BigDecimal("100.00"))
+            .currency(Currency.EUR)
+            .time(Instant.parse("2025-02-01T00:00:00Z"))
+            .isin("EE0000003283")
+            .type(CashFlow.Type.CONTRIBUTION_CASH)
+            .units(new BigDecimal("10.00000"))
+            .nav(new BigDecimal("10.0"))
+            .build(),
+        Transaction.builder()
+            .amount(new BigDecimal("-50.00"))
+            .currency(Currency.EUR)
+            .time(Instant.parse("2025-01-01T00:00:00Z"))
+            .isin("EE123")
+            .type(CashFlow.Type.SUBTRACTION)
+            .build()
+    ]
+    transactionService.getTransactions(_ as Person) >> transactions
+
     expect:
     mockMvc.perform(get("/v1/transactions"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath('$[0]', is([
-            amount  : cashFlows[1].amount.doubleValue(),
-            currency: cashFlows[1].currency.name(),
-            time    : cashFlows[1].time.toString(),
-            isin    : cashFlows[1].isin,
-            type    : cashFlows[1].type.toString(),
-            comment : cashFlows[1].comment.toString()
-        ])))
-        .andExpect(jsonPath('$[1]', is([
-            amount  : cashFlows[2].amount.doubleValue(),
-            currency: cashFlows[2].currency.name(),
-            time    : cashFlows[2].time.toString(),
-            isin    : cashFlows[2].isin,
-            type    : cashFlows[2].type.toString(),
-            comment : cashFlows[2].comment.toString()
-        ])))
-        .andExpect(jsonPath('$[2]', is([
-            amount  : cashFlows[0].amount.doubleValue(),
-            currency: cashFlows[0].currency.name(),
-            time    : cashFlows[0].time.toString(),
-            isin    : cashFlows[0].isin,
-            type    : cashFlows[0].type.toString(),
-            comment : cashFlows[0].comment.toString()
-        ])))
-        .andExpect(jsonPath('$', hasSize(3)))
+        .andExpect(jsonPath('$', hasSize(2)))
+        .andExpect(jsonPath('$[0].isin', is("EE0000003283")))
+        .andExpect(jsonPath('$[0].type', is("CONTRIBUTION_CASH")))
+        .andExpect(jsonPath('$[0].units').value(10.0))
+        .andExpect(jsonPath('$[0].nav').value(10.0))
+        .andExpect(jsonPath('$[1].isin', is("EE123")))
+        .andExpect(jsonPath('$[1].type', is("SUBTRACTION")))
   }
 }

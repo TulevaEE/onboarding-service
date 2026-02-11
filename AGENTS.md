@@ -198,7 +198,7 @@ The application follows domain-driven design with these main domains:
     ```
   - Use JdbcClient in both production code and tests for consistency
 ### Time Handling
-- **Never use `Instant.now()` or `LocalDate.now()` directly**: Always use `ClockHolder` and `TestClockHolder` for testability
+- **Never use `Instant.now()` or `LocalDate.now()` directly**: Inject `Clock` as a constructor dependency and use `Instant.now(clock)` / `LocalDate.now(clock)` for testability. Prefer constructor-injected `Clock` over static `ClockHolder` — it makes dependencies explicit, avoids hidden global state, and follows standard DI principles
 
 ### HTTP Client
 - **Prefer RestClient over RestTemplate**: Use Spring's modern `RestClient` (introduced in Spring Framework 6.1) instead of `RestTemplate`
@@ -253,29 +253,24 @@ The application follows domain-driven design with these main domains:
 - **Coverage is necessary but not sufficient**: High coverage without good test quality is meaningless
 - **Verify against CLAUDE.md principles**: After completing any change, review your code against the principles in this file and fix any violations
 
-#### Test-First Bug Fixing
-When fixing bugs, always follow the test-first approach:
-1. **Write a failing test first**: Create a test case that reproduces the bug
-2. **Verify the test fails**: Run the test to confirm it captures the buggy behavior
-3. **Fix the code**: Implement the minimal fix to make the test pass
-4. **Verify the test passes**: Run the test to confirm the fix works
+#### Strict TDD: Red-Green-Refactor
 
-This approach ensures:
-- The bug is properly understood before fixing
-- The fix is verified to actually resolve the issue
-- Regression protection is in place for the future
+**This project enforces strict Test-Driven Development. Never write production code without a failing test first.**
 
-#### Test-Driven Development (TDD)
-When implementing new features, follow TDD:
-1. **Write failing tests first**: Create test cases for the expected behavior
-2. **Verify tests fail**: Run tests to confirm they fail as expected
-3. **Implement the code**: Write the minimal code to make tests pass
-4. **Verify tests pass**: Run tests to confirm the implementation works
+The cycle for every change — bug fixes, new features, and refactors:
 
-This approach ensures:
-- Requirements are clearly understood before implementation
-- The implementation meets the specified requirements
-- Test coverage is built-in from the start
+1. **Red**: Write a failing test that describes the desired behavior. Run it and confirm it fails.
+2. **Green**: Write the minimal production code to make the test pass. Nothing more.
+3. **Refactor**: Clean up the code while keeping tests green.
+
+Repeat in small increments. Each cycle should be minutes, not hours.
+
+**Rules:**
+- Never write production code without a failing test demanding it
+- Never write more test code than is sufficient to fail (compilation failures count as failures)
+- Never write more production code than is sufficient to pass the currently failing test
+- Run tests after every change — both after writing the test (must fail) and after writing the code (must pass)
+- If you find yourself writing production code "just to be safe" without a test, stop and write the test first
 
 #### Test Behavior, Not Implementation
 - **Always test behavior, not implementation details**: Tests should assert on the output/result, not on how it's achieved
@@ -447,6 +442,21 @@ class MyControllerTest {
   - **Compose small functions**: Build complex behavior by composing simple, focused functions
     - ❌ Bad: One large method doing multiple things with mutations
     - ✅ Good: Several small methods returning values that are combined
+- **Law of Demeter (Principle of Least Knowledge)**: An object should only talk to its immediate friends, not strangers
+  - Don't chain through objects: `a.getB().getC().doSomething()` - this couples you to the entire chain
+  - Instead, push behavior down: give each object a method that encapsulates the knowledge it needs
+  - ❌ Bad: `entry.getAccount().getPurpose() == USER_ACCOUNT` - reaching through entry to account's internals
+  - ✅ Good: `account.isUserAccount()` + `entry.isUserFundUnit()` - each object answers questions about itself
+  - Ask, don't inspect: instead of pulling data out of an object and making decisions, ask the object to make the decision
+  - ❌ Bad: `if (transaction.getEntries().stream().filter(e -> e.getAssetType() == FUND_UNIT)...)` - pulling internals out
+  - ✅ Good: `transaction.findUserFundUnits()` - let the object that owns the data answer the question
+  - This makes code more resilient to change: if internal structure changes, only the owning class needs updating
+- **OOP: Push behavior to where the data lives**: Methods should live on the class that owns the data they operate on
+  - If you're writing a method that mostly accesses another object's fields, move it to that object
+  - Create small, focused query methods on domain objects (e.g., `isUserAccount()`, `isUserFundUnit()`, `findUserFundUnits()`)
+  - This naturally leads to better encapsulation and testability
+  - ❌ Bad: Utility/service method that inspects an object's internals from the outside
+  - ✅ Good: Domain object method that encapsulates its own logic
 - **Write code as if using Kotlin (immutable and null-safe)**:
   - **Default to immutability**: Prevent reassignment where it matters
     - Use `final` keyword for **fields** (instance variables) and **public API parameters** (method parameters in public/protected methods)
@@ -541,6 +551,10 @@ class MyControllerTest {
 - **Only mock injected dependencies**: Typically only mock class dependencies that are injected via constructor or field injection
 - **Prefer real instances**: Always prefer using real instances of data objects over mocks
 - **Never mock or spy on data classes**: Don't use Mockito spies or mocks for POJOs, DTOs, or entity classes
+- **Avoid ArgumentCaptor**: ArgumentCaptor tightly couples tests to implementation details. Prefer asserting on return values (pure functions), and when side effects are unavoidable, use direct `verify` with the expected object instead of capturing and inspecting:
+  - ✅ Best: `assertThat(service.process(input)).isEqualTo(expectedResult)` — test pure input/output, no mocks needed
+  - ✅ Acceptable: `verify(publisher).publishEvent(new MyEvent(2, amount))` — when side effects are unavoidable
+  - ❌ Bad: `var captor = ArgumentCaptor.forClass(MyEvent.class); verify(publisher).publishEvent(captor.capture()); assertThat(captor.getValue().count()).isEqualTo(2);`
 
 #### Test Data
 - **Use Test Fixtures**: Create and use TestFixture classes for generating test data

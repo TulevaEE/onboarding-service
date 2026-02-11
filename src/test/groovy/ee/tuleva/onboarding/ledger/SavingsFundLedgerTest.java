@@ -1,11 +1,15 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.ASSET;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static java.math.BigDecimal.ZERO;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
 import ee.tuleva.onboarding.user.User;
@@ -21,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 class SavingsFundLedgerTest {
 
   @Autowired LedgerService ledgerService;
+  @Autowired LedgerAccountService ledgerAccountService;
   @Autowired SavingsFundLedger savingsFundLedger;
 
   User testUser = sampleUser().personalCode("38001010001").build();
@@ -86,6 +91,18 @@ class SavingsFundLedgerTest {
   }
 
   @Test
+  void bounceBackUnattributedPayment_createsUnattributedRecordWhenMissing() {
+    var amount = new BigDecimal("300.00");
+    var externalReference = randomUUID();
+    // No recordUnattributedPayment call — simulates direct bounce back
+
+    savingsFundLedger.bounceBackUnattributedPayment(amount, externalReference);
+
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
   void reservePaymentForCancellation_movesCashToReserved() {
     var amount = new BigDecimal("500.00");
     var externalReference = randomUUID();
@@ -122,6 +139,48 @@ class SavingsFundLedgerTest {
     assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
     verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void recordPaymentCancelled_createsReservationWhenMissing() {
+    var amount = new BigDecimal("500.00");
+    var externalReference = randomUUID();
+    savingsFundLedger.recordPaymentReceived(testUser, amount, externalReference);
+    // No reservePaymentForCancellation call — simulates manual return
+
+    savingsFundLedger.recordPaymentCancelled(testUser, amount, externalReference);
+
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void recordPaymentCancelled_bouncesBackWhenUnattributedPaymentExists() {
+    var amount = new BigDecimal("500.00");
+    var externalReference = randomUUID();
+
+    savingsFundLedger.recordUnattributedPayment(amount, externalReference);
+    savingsFundLedger.recordPaymentCancelled(testUser, amount, externalReference);
+
+    assertThat(savingsFundLedger.hasLedgerEntry(externalReference, PAYMENT_RECEIVED)).isFalse();
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void recordPaymentCancelled_createsPaymentReceivedWhenMissing() {
+    var amount = new BigDecimal("500.00");
+    var externalReference = randomUUID();
+    // No recordPaymentReceived call — simulates cancellation without prior PAYMENT_RECEIVED
+
+    savingsFundLedger.recordPaymentCancelled(testUser, amount, externalReference);
+
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
   }
 
   @Test
@@ -258,7 +317,8 @@ class SavingsFundLedgerTest {
     var amount = new BigDecimal("-1.50");
     var externalReference = randomUUID();
 
-    var transaction = savingsFundLedger.recordBankFee(amount, externalReference);
+    var transaction =
+        savingsFundLedger.recordBankFee(amount, externalReference, INCOMING_PAYMENTS_CLEARING);
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("BANK_FEE");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
@@ -272,7 +332,9 @@ class SavingsFundLedgerTest {
     var amount = new BigDecimal("5.00");
     var externalReference = randomUUID();
 
-    var transaction = savingsFundLedger.recordInterestReceived(amount, externalReference);
+    var transaction =
+        savingsFundLedger.recordInterestReceived(
+            amount, externalReference, INCOMING_PAYMENTS_CLEARING);
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("INTEREST_RECEIVED");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
@@ -283,11 +345,90 @@ class SavingsFundLedgerTest {
   }
 
   @Test
+  void recordAdjustment_systemToSystem_createsCorrectLedgerEntries() {
+    var amount = new BigDecimal("50.00");
+
+    var transaction =
+        savingsFundLedger.recordAdjustment(
+            "INCOMING_PAYMENTS_CLEARING",
+            null,
+            "BANK_ADJUSTMENT",
+            null,
+            amount,
+            null,
+            "Test adjustment");
+
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("ADJUSTMENT");
+    assertThat(transaction.getMetadata().get("description")).isEqualTo("Test adjustment");
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
+    assertThat(getSystemAccount(BANK_ADJUSTMENT).getBalance())
+        .isEqualByComparingTo(amount.negate());
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void recordAdjustment_userToSystem_createsCorrectLedgerEntries() {
+    var amount = new BigDecimal("25.00");
+    savingsFundLedger.recordPaymentReceived(testUser, amount, randomUUID());
+
+    var transaction =
+        savingsFundLedger.recordAdjustment(
+            "CASH",
+            testUser.getPersonalCode(),
+            "INCOMING_PAYMENTS_CLEARING",
+            null,
+            amount,
+            null,
+            "User to system adjustment");
+
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("ADJUSTMENT");
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void recordAdjustment_differentUsersToUser_throwsException() {
+    savingsFundLedger.recordPaymentReceived(testUser, new BigDecimal("100.00"), randomUUID());
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            savingsFundLedger.recordAdjustment(
+                "CASH",
+                "38001010001",
+                "CASH",
+                "38001010002",
+                new BigDecimal("10.00"),
+                null,
+                "Invalid cross-user"));
+  }
+
+  @Test
+  void recordAdjustment_sameUserDifferentAccounts_succeeds() {
+    savingsFundLedger.recordPaymentReceived(testUser, new BigDecimal("100.00"), randomUUID());
+    savingsFundLedger.reservePaymentForSubscription(testUser, new BigDecimal("100.00"));
+
+    var transaction =
+        savingsFundLedger.recordAdjustment(
+            "CASH_RESERVED",
+            "38001010001",
+            "CASH",
+            "38001010001",
+            new BigDecimal("10.00"),
+            null,
+            "Reverse duplicate reservation");
+
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("ADJUSTMENT");
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
   void recordBankAdjustment_createsCorrectLedgerEntries() {
     var amount = new BigDecimal("0.500");
     var externalReference = randomUUID();
 
-    var transaction = savingsFundLedger.recordBankAdjustment(amount, externalReference);
+    var transaction =
+        savingsFundLedger.recordBankAdjustment(
+            amount, externalReference, INCOMING_PAYMENTS_CLEARING);
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("BANK_ADJUSTMENT");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
@@ -295,6 +436,50 @@ class SavingsFundLedgerTest {
         .isEqualByComparingTo(amount.negate());
     assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
     verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void recordTradeSettlement_createsCorrectDoubleEntry() {
+    var amount = new BigDecimal("-209025.86");
+    var externalReference = randomUUID();
+    var isin = "LU1291102447";
+
+    var transaction =
+        savingsFundLedger.recordTradeSettlement(
+            amount,
+            externalReference,
+            FUND_INVESTMENT_CASH_CLEARING,
+            isin,
+            "EJAP",
+            "BNP Paribas Easy MSCI Japan ESG Filtered");
+
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("TRADE_SETTLEMENT");
+    assertThat(transaction.getMetadata().get("instrument")).isEqualTo(isin);
+    assertThat(transaction.getMetadata().get("ticker")).isEqualTo("EJAP");
+    assertThat(transaction.getMetadata().get("displayName"))
+        .isEqualTo("BNP Paribas Easy MSCI Japan ESG Filtered");
+    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
+    assertThat(getFundInvestmentCashClearingAccount().getBalance()).isEqualByComparingTo(amount);
+    assertThat(getTradeSettlementAccount(isin).getBalance()).isEqualByComparingTo(amount.negate());
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void recordTradeSettlement_createsPerInstrumentAccounts() {
+    var amount1 = new BigDecimal("-209025.86");
+    var amount2 = new BigDecimal("-995467.50");
+    var isin1 = "LU1291102447";
+    var isin2 = "IE00BJZ2DC62";
+
+    savingsFundLedger.recordTradeSettlement(
+        amount1, randomUUID(), FUND_INVESTMENT_CASH_CLEARING, isin1, "EJAP", "BNP Japan");
+    savingsFundLedger.recordTradeSettlement(
+        amount2, randomUUID(), FUND_INVESTMENT_CASH_CLEARING, isin2, "XRSM", "Xtrackers USA");
+
+    assertThat(getTradeSettlementAccount(isin1).getBalance())
+        .isEqualByComparingTo(amount1.negate());
+    assertThat(getTradeSettlementAccount(isin2).getBalance())
+        .isEqualByComparingTo(amount2.negate());
   }
 
   private void setupUserWithFundUnits(
@@ -359,6 +544,42 @@ class SavingsFundLedgerTest {
 
   private LedgerAccount getPayoutsCashClearingAccount() {
     return getSystemAccount(PAYOUTS_CASH_CLEARING);
+  }
+
+  private LedgerAccount getTradeSettlementAccount(String isin) {
+    return ledgerAccountService
+        .findSystemAccountByName("TRADE_SETTLEMENT:" + isin, ASSET, EUR)
+        .orElseThrow();
+  }
+
+  @Test
+  void bounceBackUnattributedPayment_isIdempotent() {
+    var amount = new BigDecimal("300.00");
+    var externalReference = randomUUID();
+    savingsFundLedger.recordUnattributedPayment(amount, externalReference);
+
+    var first = savingsFundLedger.bounceBackUnattributedPayment(amount, externalReference);
+    var second = savingsFundLedger.bounceBackUnattributedPayment(amount, externalReference);
+
+    assertThat(second).isEqualTo(first);
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void recordPaymentCancelled_isIdempotent() {
+    var amount = new BigDecimal("500.00");
+    var externalReference = randomUUID();
+    savingsFundLedger.recordPaymentReceived(testUser, amount, externalReference);
+    savingsFundLedger.reservePaymentForCancellation(testUser, amount, externalReference);
+
+    var first = savingsFundLedger.recordPaymentCancelled(testUser, amount, externalReference);
+    var second = savingsFundLedger.recordPaymentCancelled(testUser, amount, externalReference);
+
+    assertThat(second).isEqualTo(first);
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
   }
 
   private static void verifyDoubleEntry(LedgerTransaction transaction) {

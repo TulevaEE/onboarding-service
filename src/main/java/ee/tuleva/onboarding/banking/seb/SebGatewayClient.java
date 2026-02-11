@@ -32,7 +32,13 @@ public class SebGatewayClient {
     log.info("Fetching current day transactions: iban={}", iban);
     return sebGatewayRestClient
         .get()
-        .uri("/v1/accounts/{iban}/current-transactions", iban)
+        .uri(
+            uriBuilder ->
+                uriBuilder
+                    .path("/v1/accounts/{iban}/current-transactions")
+                    .queryParam("page", 1)
+                    .queryParam("size", 3000)
+                    .build(iban))
         .retrieve()
         .body(String.class);
   }
@@ -45,8 +51,8 @@ public class SebGatewayClient {
             uriBuilder ->
                 uriBuilder
                     .path("/v1/accounts/{iban}/transactions")
-                    .queryParam("dateFrom", dateFrom.format(DATE_FORMAT))
-                    .queryParam("dateTo", dateTo.format(DATE_FORMAT))
+                    .queryParam("from", dateFrom.format(DATE_FORMAT))
+                    .queryParam("to", dateTo.format(DATE_FORMAT))
                     .queryParam("page", 1)
                     .queryParam("size", 3000)
                     .build(iban))
@@ -77,8 +83,9 @@ public class SebGatewayClient {
         .uri("/v1/imported-payment-files")
         .contentType(APPLICATION_XML_UTF8)
         .header("Idempotency-Key", idempotencyKey)
-        .header("digest", digest)
-        .header("signature", signature)
+        .header("Digest", digest)
+        .header("Signature", signature)
+        .header("Name-Check-Preferred", "true")
         .body(body)
         .retrieve()
         .body(String.class);

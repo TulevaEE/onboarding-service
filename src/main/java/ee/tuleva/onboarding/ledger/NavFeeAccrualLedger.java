@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRANSFER;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
@@ -39,6 +40,7 @@ public class NavFeeAccrualLedger {
             accrualDate.toString());
 
     ledgerTransactionService.createTransaction(
+        TRANSFER,
         Instant.now(clock),
         metadata,
         entry(getNavEquityAccount(), amount),

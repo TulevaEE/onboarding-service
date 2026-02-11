@@ -71,6 +71,17 @@ class EmailServiceSpec extends Specification {
     scheduledEmailInfo.get() == info
   }
 
+  def "Can send system email without template"() {
+    given:
+    def systemMessage = new MandrillMessage()
+
+    when:
+    service.sendSystemEmail(systemMessage)
+
+    then:
+    1 * mandrillMessagesApi.send(systemMessage, false) >> [mandrillMessageStatus]
+  }
+
   def "can create new mandrill messages"() {
     when:
     MandrillMessage message = service.newMandrillMessage(

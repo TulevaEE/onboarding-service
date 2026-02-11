@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
+import ee.tuleva.onboarding.savings.fund.notification.RedemptionBatchCompletedEvent;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.time.*;
@@ -51,7 +52,7 @@ class RedemptionBatchJobTest {
 
   @BeforeEach
   void setUp() {
-    lenient().when(navProvider.getCurrentNav()).thenReturn(BigDecimal.ONE);
+    lenient().when(navProvider.getCurrentNavForIssuing()).thenReturn(BigDecimal.ONE);
   }
 
   private RedemptionBatchJob createBatchJob(Instant now) {
@@ -182,6 +183,57 @@ class RedemptionBatchJobTest {
     var capturedCutoff = cutoffCaptor.getValue();
     var cutoffDate = capturedCutoff.atZone(ZoneId.of("Europe/Tallinn")).toLocalDate();
     assertThat(cutoffDate).isEqualTo(LocalDate.of(2025, 1, 16));
+  }
+
+  @Test
+  void atMidnightTallinnOnMonday_usesBeforeCutoffBranch() {
+    var sundayNightUtc = Instant.parse("2025-01-12T22:00:00Z"); // Mon 00:00 Tallinn
+    var batchJob = createBatchJob(sundayNightUtc);
+
+    var cutoffCaptor = ArgumentCaptor.forClass(Instant.class);
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
+            eq(VERIFIED), cutoffCaptor.capture()))
+        .thenReturn(List.of());
+
+    batchJob.runJob();
+
+    var capturedCutoff = cutoffCaptor.getValue();
+    var cutoffDate = capturedCutoff.atZone(ZoneId.of("Europe/Tallinn")).toLocalDate();
+    assertThat(cutoffDate).isEqualTo(LocalDate.of(2025, 1, 9));
+  }
+
+  @Test
+  void atMidnightTallinnOnMondayDuringSummerDst_usesBeforeCutoffBranch() {
+    var sundayNightUtc = Instant.parse("2025-07-13T21:00:00Z"); // Mon 00:00 Tallinn (UTC+3)
+    var batchJob = createBatchJob(sundayNightUtc);
+
+    var cutoffCaptor = ArgumentCaptor.forClass(Instant.class);
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
+            eq(VERIFIED), cutoffCaptor.capture()))
+        .thenReturn(List.of());
+
+    batchJob.runJob();
+
+    var capturedCutoff = cutoffCaptor.getValue();
+    var cutoffDate = capturedCutoff.atZone(ZoneId.of("Europe/Tallinn")).toLocalDate();
+    assertThat(cutoffDate).isEqualTo(LocalDate.of(2025, 7, 10));
+  }
+
+  @Test
+  void fridayNightInTallinn_usesSameCutoffAsFridayAfterCutoff() {
+    var fridayNightUtc = Instant.parse("2025-01-10T22:00:00Z"); // Sat 00:00 Tallinn
+    var batchJob = createBatchJob(fridayNightUtc);
+
+    var cutoffCaptor = ArgumentCaptor.forClass(Instant.class);
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
+            eq(VERIFIED), cutoffCaptor.capture()))
+        .thenReturn(List.of());
+
+    batchJob.runJob();
+
+    var capturedCutoff = cutoffCaptor.getValue();
+    var cutoffDate = capturedCutoff.atZone(ZoneId.of("Europe/Tallinn")).toLocalDate();
+    assertThat(cutoffDate).isEqualTo(LocalDate.of(2025, 1, 9));
   }
 
   @Test
@@ -429,5 +481,52 @@ class RedemptionBatchJobTest {
 
     verify(savingsFundLedger, never())
         .redeemFundUnitsFromReserved(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void runJob_publishesRedemptionBatchCompletedEvent() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var batchJob = createBatchJob(now);
+
+    var user = sampleUser().build();
+    var requestId = UUID.randomUUID();
+    var customerIban = "EE123456789012345678";
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .userId(user.getId())
+            .status(VERIFIED)
+            .customerIban(customerIban)
+            .requestedAt(now.minus(1, DAYS))
+            .build();
+
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+        .thenReturn("EE111111111111111111");
+    when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+        .thenReturn("EE222222222222222222");
+    when(savingFundPaymentRepository.findRemitterNameByIban(user.getId(), customerIban))
+        .thenReturn(Optional.of("John Smith"));
+
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> callback = invocation.getArgument(0);
+              return callback.doInTransaction(null);
+            })
+        .when(transactionTemplate)
+        .execute(any());
+
+    batchJob.runJob();
+
+    var captor = ArgumentCaptor.forClass(RedemptionBatchCompletedEvent.class);
+    verify(eventPublisher).publishEvent(captor.capture());
+    var event = captor.getValue();
+    assertThat(event.requestCount()).isEqualTo(1);
+    assertThat(event.payoutCount()).isEqualTo(1);
+    assertThat(event.totalCashAmount()).isEqualByComparingTo(new BigDecimal("10.00"));
+    assertThat(event.nav()).isEqualTo(BigDecimal.ONE);
   }
 }

@@ -34,7 +34,7 @@ class SebGatewayClientTest {
             requestTo(
                 "/v1/accounts/"
                     + IBAN
-                    + "/transactions?dateFrom=2026-01-01&dateTo=2026-01-31&page=1&size=3000"))
+                    + "/transactions?from=2026-01-01&to=2026-01-31&page=1&size=3000"))
         .andRespond(withSuccess("<xml/>", MediaType.APPLICATION_XML));
 
     String result = client.getTransactions(IBAN, dateFrom, dateTo);
@@ -58,7 +58,7 @@ class SebGatewayClientTest {
   @Test
   void getCurrentTransactions_callsCorrectEndpoint() {
     server
-        .expect(requestTo("/v1/accounts/" + IBAN + "/current-transactions"))
+        .expect(requestTo("/v1/accounts/" + IBAN + "/current-transactions?page=1&size=3000"))
         .andRespond(withSuccess("<current/>", MediaType.APPLICATION_XML));
 
     String result = client.getCurrentTransactions(IBAN);

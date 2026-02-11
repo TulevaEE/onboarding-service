@@ -1,0 +1,17 @@
+ALTER TYPE ledger.transaction_type ADD VALUE 'PAYMENT_RECEIVED';
+ALTER TYPE ledger.transaction_type ADD VALUE 'PAYMENT_CANCEL_REQUESTED';
+ALTER TYPE ledger.transaction_type ADD VALUE 'PAYMENT_CANCELLED';
+ALTER TYPE ledger.transaction_type ADD VALUE 'UNATTRIBUTED_PAYMENT';
+ALTER TYPE ledger.transaction_type ADD VALUE 'PAYMENT_BOUNCE_BACK';
+ALTER TYPE ledger.transaction_type ADD VALUE 'PAYMENT_RESERVED';
+ALTER TYPE ledger.transaction_type ADD VALUE 'FUND_SUBSCRIPTION';
+ALTER TYPE ledger.transaction_type ADD VALUE 'FUND_TRANSFER';
+ALTER TYPE ledger.transaction_type ADD VALUE 'LATE_ATTRIBUTION';
+ALTER TYPE ledger.transaction_type ADD VALUE 'REDEMPTION_RESERVED';
+ALTER TYPE ledger.transaction_type ADD VALUE 'REDEMPTION_CANCELLED';
+ALTER TYPE ledger.transaction_type ADD VALUE 'REDEMPTION_REQUEST';
+ALTER TYPE ledger.transaction_type ADD VALUE 'FUND_CASH_TRANSFER';
+ALTER TYPE ledger.transaction_type ADD VALUE 'REDEMPTION_PAYOUT';
+ALTER TYPE ledger.transaction_type ADD VALUE 'INTEREST_RECEIVED';
+ALTER TYPE ledger.transaction_type ADD VALUE 'BANK_FEE';
+ALTER TYPE ledger.transaction_type ADD VALUE 'BANK_ADJUSTMENT';

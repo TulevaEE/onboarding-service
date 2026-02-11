@@ -1,31 +1,41 @@
 package ee.tuleva.onboarding.account.transaction;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Comparator.comparing;
-import static java.util.Comparator.nullsLast;
 
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.epis.cashflows.CashFlow;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
+import lombok.Builder;
 import org.jetbrains.annotations.NotNull;
 
+@Builder
 public record Transaction(
+    UUID id,
     BigDecimal amount,
     Currency currency,
     Instant time,
     String isin,
     CashFlow.Type type,
-    String comment)
+    BigDecimal units,
+    BigDecimal nav)
     implements Comparable<Transaction> {
 
   public static Transaction from(CashFlow cashFlow) {
-    return new Transaction(
-        cashFlow.getAmount(),
-        cashFlow.getCurrency(),
-        cashFlow.getTime(),
-        cashFlow.getIsin(),
-        cashFlow.getType(),
-        cashFlow.getComment());
+    String seed =
+        cashFlow.getTime() + cashFlow.getIsin() + cashFlow.getAmount() + cashFlow.getType();
+    return Transaction.builder()
+        .id(UUID.nameUUIDFromBytes(seed.getBytes(UTF_8)))
+        .amount(cashFlow.getAmount())
+        .currency(cashFlow.getCurrency())
+        .time(cashFlow.getTime())
+        .isin(cashFlow.getIsin())
+        .type(cashFlow.getType())
+        .units(cashFlow.getUnits())
+        .nav(cashFlow.getNav())
+        .build();
   }
 
   @Override
@@ -34,7 +44,6 @@ public record Transaction(
         .thenComparing(Transaction::amount)
         .thenComparing(Transaction::currency)
         .thenComparing(Transaction::type)
-        .thenComparing(Transaction::comment, nullsLast(String::compareToIgnoreCase))
         .compare(this, other);
   }
 }

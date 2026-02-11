@@ -17,8 +17,8 @@ public record PaymentRequest(
 
   public static PaymentRequestBuilder tulevaPaymentBuilder(String id) {
     return PaymentRequest.builder()
-        .remitterName("Tuleva Fondid AS")
-        .remitterId("14118923")
+        .remitterName("Tuleva Täiendav Kogumisfond")
+        .remitterId("1162")
         .ourId(id)
         .endToEndId(id);
   }

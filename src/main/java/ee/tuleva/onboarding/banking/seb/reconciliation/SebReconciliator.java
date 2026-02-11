@@ -5,10 +5,10 @@ import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.Statem
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.ledger.LedgerService;
-import java.time.LocalTime;
-import java.time.ZoneId;
+import java.time.Clock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
@@ -17,6 +17,8 @@ public class SebReconciliator {
 
   private final LedgerService ledgerService;
   private final SebAccountConfiguration sebAccountConfiguration;
+  private final Clock clock;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Transactional
   public void reconcile(BankStatement bankStatement) {
@@ -26,12 +28,7 @@ public class SebReconciliator {
             .findFirst()
             .orElseThrow();
 
-    var bankBalanceTime =
-        closingBankBalance
-            .time()
-            .atStartOfDay(ZoneId.of("Europe/Tallinn"))
-            .with(LocalTime.MAX)
-            .toInstant();
+    var reconciliationTime = clock.instant();
 
     var iban = bankStatement.getBankStatementAccount().iban();
     var bankStatementAccount = sebAccountConfiguration.getAccountType(iban);
@@ -43,23 +40,32 @@ public class SebReconciliator {
 
     var ledgerSystemAccount = bankStatementAccount.getLedgerAccount();
     var ledgerAccountBalance =
-        ledgerService.getSystemAccount(ledgerSystemAccount).getBalanceAt(bankBalanceTime);
-
-    log.info(
-        "Reconciling: bankAccount={}, closingBalance={}, ledgerAccount={}, ledgerBalance={}",
-        bankStatementAccount,
-        closingBankBalance.balance(),
-        ledgerSystemAccount,
-        ledgerAccountBalance);
+        ledgerService.getSystemAccount(ledgerSystemAccount).getBalanceAt(reconciliationTime);
 
     if (ledgerAccountBalance.compareTo(closingBankBalance.balance()) != 0) {
+      eventPublisher.publishEvent(
+          new ReconciliationCompletedEvent(
+              bankStatementAccount, closingBankBalance.balance(), ledgerAccountBalance, false));
+
+      var diff = ledgerAccountBalance.subtract(closingBankBalance.balance());
       throw new IllegalStateException(
-          "Bank statement reconciliation failed: bankAccount=%s, closingBalance=%s, ledgerAccount=%s, ledgerBalance=%s"
+          "Bank statement reconciliation failed: bankAccount=%s, closingBalance=%s, ledgerAccount=%s, ledgerBalance=%s, diff=%s"
               .formatted(
                   bankStatementAccount,
                   closingBankBalance.balance(),
                   ledgerSystemAccount,
-                  ledgerAccountBalance));
+                  ledgerAccountBalance,
+                  diff));
     }
+
+    eventPublisher.publishEvent(
+        new ReconciliationCompletedEvent(
+            bankStatementAccount, closingBankBalance.balance(), ledgerAccountBalance, true));
+
+    log.info(
+        "Reconciliation successful: bankAccount={}, balance={}, ledgerAccount={}",
+        bankStatementAccount,
+        closingBankBalance.balance(),
+        ledgerSystemAccount);
   }
 }

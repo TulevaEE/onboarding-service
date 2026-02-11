@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRANSFER;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
@@ -62,7 +63,7 @@ public class NavPositionLedger {
             "operationType", "POSITION_UPDATE", "fund", fund, "reportDate", reportDate.toString());
 
     ledgerTransactionService.createTransaction(
-        Instant.now(clock), metadata, entries.toArray(new LedgerEntryDto[0]));
+        TRANSFER, Instant.now(clock), metadata, entries.toArray(new LedgerEntryDto[0]));
   }
 
   private LedgerAccount getSecuritiesAccount() {

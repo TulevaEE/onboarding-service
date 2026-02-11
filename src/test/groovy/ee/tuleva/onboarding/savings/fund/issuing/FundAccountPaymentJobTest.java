@@ -18,6 +18,7 @@ import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
+import ee.tuleva.onboarding.savings.fund.notification.SubscriptionBatchSentEvent;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -65,9 +66,9 @@ class FundAccountPaymentJobTest {
 
     var paymentRequest = paymentEventCaptor.getValue().paymentRequest();
     assertThat(paymentRequest.amount()).isEqualTo(new BigDecimal("90.40"));
-    assertThat(paymentRequest.remitterName()).isEqualTo("Tuleva Fondid AS");
+    assertThat(paymentRequest.remitterName()).isEqualTo("Tuleva Täiendav Kogumisfond");
     assertThat(paymentRequest.remitterIban()).isEqualTo("deposit-IBAN");
-    assertThat(paymentRequest.beneficiaryName()).isEqualTo("Tuleva Fondid AS");
+    assertThat(paymentRequest.beneficiaryName()).isEqualTo("Tuleva Täiendav Kogumisfond");
     assertThat(paymentRequest.beneficiaryIban()).isEqualTo("investment-IBAN");
     assertThat(paymentRequest.description()).isEqualTo("Subscriptions");
 
@@ -89,5 +90,29 @@ class FundAccountPaymentJobTest {
     job.createPaymentRequest();
 
     verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void createPaymentRequest_publishesSubscriptionBatchSentEvent() {
+    var payments =
+        List.of(
+            SavingFundPayment.builder().id(UUID.randomUUID()).amount(new BigDecimal("40")).build(),
+            SavingFundPayment.builder()
+                .id(UUID.randomUUID())
+                .amount(new BigDecimal("50.40"))
+                .build());
+    when(savingFundPaymentRepository.findPaymentsWithStatus(ISSUED)).thenReturn(payments);
+    when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+        .thenReturn("investment-IBAN");
+    when(bankAccountConfiguration.getAccountIban(DEPOSIT_EUR)).thenReturn("deposit-IBAN");
+
+    job.createPaymentRequest();
+
+    var captor = ArgumentCaptor.forClass(SubscriptionBatchSentEvent.class);
+    verify(eventPublisher).publishEvent(captor.capture());
+    var event = captor.getValue();
+    assertThat(event.paymentCount()).isEqualTo(2);
+    assertThat(event.totalAmount()).isEqualTo(new BigDecimal("90.40"));
   }
 }

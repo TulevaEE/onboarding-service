@@ -20,4 +20,6 @@ public final class BankMessageEvents {
       BankAccountType accountType, LocalDate dateFrom, LocalDate dateTo) {}
 
   public record ProcessBankMessagesRequested() {}
+
+  public record BankMessagesProcessingCompleted() {}
 }

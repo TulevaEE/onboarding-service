@@ -17,7 +17,6 @@ import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.Optional;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,7 +34,7 @@ public class SebBankStatementProcessor {
   private final EndToEndIdConverter endToEndIdConverter;
   private final BankOperationProcessor bankOperationProcessor;
 
-  public void processStatement(BankStatement bankStatement, UUID messageId) {
+  public void processStatement(BankStatement bankStatement) {
     log.info(
         "Processing bank statement: type={}, entries={}",
         bankStatement.getType(),
@@ -57,7 +56,8 @@ public class SebBankStatementProcessor {
 
     bankStatement.getEntries().stream()
         .filter(entry -> entry.details() == null)
-        .forEach(entry -> bankOperationProcessor.processBankOperation(entry, messageId));
+        .forEach(
+            entry -> bankOperationProcessor.processBankOperation(entry, accountIban, accountType));
   }
 
   private SavingFundPayment.Status resolveDepositAccountStatus(SavingFundPayment payment) {
@@ -82,6 +82,14 @@ public class SebBankStatementProcessor {
   }
 
   private void processPayment(SavingFundPayment payment, BankAccountType accountType) {
+    if (isInternalTransferIncoming(payment)) {
+      log.debug(
+          "Skipping incoming internal transfer: endToEndId={}, remitterIban={}",
+          payment.getEndToEndId(),
+          payment.getRemitterIban());
+      return;
+    }
+
     switch (accountType) {
       case DEPOSIT_EUR ->
           paymentService.upsert(
@@ -90,6 +98,11 @@ public class SebBankStatementProcessor {
       case FUND_INVESTMENT_EUR ->
           paymentService.upsert(payment, this::processFundInvestmentPaymentOnInsert);
     }
+  }
+
+  private boolean isInternalTransferIncoming(SavingFundPayment payment) {
+    return isIncomingPayment(payment)
+        && sebAccountConfiguration.getAccountType(payment.getRemitterIban()) != null;
   }
 
   private void handleDepositAccountPayment(SavingFundPayment payment) {

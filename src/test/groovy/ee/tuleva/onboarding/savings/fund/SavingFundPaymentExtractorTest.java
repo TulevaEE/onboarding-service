@@ -93,29 +93,29 @@ class SavingFundPaymentExtractorTest {
     // given
     var account =
         createBankStatementAccount("EE442200221092874625", "TULEVA FONDID AS", "14118923");
+    var receivedBefore = java.time.Instant.parse("2025-09-29T15:37:46Z");
     var creditEntry =
-        createCreditEntry(
+        createCreditEntryWithReceivedBefore(
             new BigDecimal("0.10"),
             "EE157700771001802057",
             "Jüri Tamm",
             "39910273027",
             "39910273027",
-            "2025092900654847-1");
-    var receiveBefore = java.time.Instant.parse("2025-09-29T15:37:46Z");
+            "2025092900654847-1",
+            receivedBefore);
     var statement =
         new BankStatement(
             BankStatement.BankStatementType.INTRA_DAY_REPORT,
             account,
             List.of(),
-            List.of(creditEntry),
-            receiveBefore);
+            List.of(creditEntry));
 
     // when
     List<SavingFundPayment> payments = extractor.extractPayments(statement);
 
     // then
     assertThat(payments).hasSize(1);
-    assertThat(payments.get(0).getReceivedBefore()).isEqualTo(receiveBefore);
+    assertThat(payments.get(0).getReceivedBefore()).isEqualTo(receivedBefore);
   }
 
   @Test
@@ -134,6 +134,7 @@ class SavingFundPaymentExtractorTest {
             TransactionType.CREDIT,
             "Test payment",
             "test-ref",
+            null,
             null,
             null);
 
@@ -242,7 +243,8 @@ class SavingFundPaymentExtractorTest {
             "Konto kuutasu",
             "fee-ref",
             null,
-            "FEES");
+            "FEES",
+            null);
 
     var statement = createBankStatement(account, List.of(paymentEntry, bankOperationEntry));
 
@@ -257,7 +259,7 @@ class SavingFundPaymentExtractorTest {
   private BankStatement createBankStatement(
       BankStatementAccount account, List<BankStatementEntry> entries) {
     return new BankStatement(
-        BankStatement.BankStatementType.INTRA_DAY_REPORT, account, List.of(), entries, null);
+        BankStatement.BankStatementType.INTRA_DAY_REPORT, account, List.of(), entries);
   }
 
   private BankStatementAccount createBankStatementAccount(String iban, String name, String idCode) {
@@ -274,7 +276,37 @@ class SavingFundPaymentExtractorTest {
     var counterParty =
         createCounterPartyDetails(counterPartyName, counterPartyIban, counterPartyIdCode);
     return new BankStatementEntry(
-        counterParty, amount, "EUR", TransactionType.CREDIT, description, externalId, null, null);
+        counterParty,
+        amount,
+        "EUR",
+        TransactionType.CREDIT,
+        description,
+        externalId,
+        null,
+        null,
+        null);
+  }
+
+  private BankStatementEntry createCreditEntryWithReceivedBefore(
+      BigDecimal amount,
+      String counterPartyIban,
+      String counterPartyName,
+      String counterPartyIdCode,
+      String description,
+      String externalId,
+      java.time.Instant receivedBefore) {
+    var counterParty =
+        createCounterPartyDetails(counterPartyName, counterPartyIban, counterPartyIdCode);
+    return new BankStatementEntry(
+        counterParty,
+        amount,
+        "EUR",
+        TransactionType.CREDIT,
+        description,
+        externalId,
+        null,
+        null,
+        receivedBefore);
   }
 
   private BankStatementEntry createDebitEntry(
@@ -287,7 +319,15 @@ class SavingFundPaymentExtractorTest {
     var counterParty =
         createCounterPartyDetails(counterPartyName, counterPartyIban, counterPartyIdCode);
     return new BankStatementEntry(
-        counterParty, amount, "EUR", TransactionType.DEBIT, description, externalId, null, null);
+        counterParty,
+        amount,
+        "EUR",
+        TransactionType.DEBIT,
+        description,
+        externalId,
+        null,
+        null,
+        null);
   }
 
   private BankStatementEntry.CounterPartyDetails createCounterPartyDetails(

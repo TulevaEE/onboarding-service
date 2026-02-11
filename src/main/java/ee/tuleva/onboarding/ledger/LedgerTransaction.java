@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
+import static jakarta.persistence.CascadeType.ALL;
 import static jakarta.persistence.EnumType.STRING;
 import static jakarta.persistence.GenerationType.UUID;
 import static java.math.BigDecimal.ZERO;
@@ -36,7 +37,26 @@ import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 public class LedgerTransaction {
 
   public enum TransactionType {
-    TRANSFER
+    TRANSFER,
+    PAYMENT_RECEIVED,
+    PAYMENT_CANCEL_REQUESTED,
+    PAYMENT_CANCELLED,
+    UNATTRIBUTED_PAYMENT,
+    PAYMENT_BOUNCE_BACK,
+    PAYMENT_RESERVED,
+    FUND_SUBSCRIPTION,
+    FUND_TRANSFER,
+    LATE_ATTRIBUTION,
+    REDEMPTION_RESERVED,
+    REDEMPTION_CANCELLED,
+    REDEMPTION_REQUEST,
+    FUND_CASH_TRANSFER,
+    REDEMPTION_PAYOUT,
+    INTEREST_RECEIVED,
+    BANK_FEE,
+    BANK_ADJUSTMENT,
+    ADJUSTMENT,
+    TRADE_SETTLEMENT
   }
 
   @Id
@@ -63,7 +83,7 @@ public class LedgerTransaction {
   /*@Column(name = "event_log_id", nullable = false)
   private Integer eventLogId; // TODO event log map*/
 
-  @OneToMany(mappedBy = "transaction", cascade = CascadeType.ALL)
+  @OneToMany(mappedBy = "transaction", cascade = ALL)
   @Size(min = 2, message = "Transaction must have at least 2 entries for double-entry bookkeeping")
   @Builder.Default
   private List<LedgerEntry> entries = new ArrayList<>();
@@ -96,5 +116,17 @@ public class LedgerTransaction {
     account.addEntry(entry);
 
     return entry;
+  }
+
+  public Optional<BigDecimal> findUserFundUnits() {
+    return entries.stream()
+        .filter(LedgerEntry::isUserFundUnit)
+        .findFirst()
+        .map(entry -> entry.getAmount().abs());
+  }
+
+  public Optional<BigDecimal> findNavPerUnit() {
+    Object navValue = metadata.get("navPerUnit");
+    return Optional.ofNullable(navValue).map(value -> new BigDecimal(value.toString()));
   }
 }

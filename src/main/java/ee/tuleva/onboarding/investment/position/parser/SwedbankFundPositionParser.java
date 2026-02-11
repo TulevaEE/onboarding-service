@@ -48,7 +48,7 @@ public class SwedbankFundPositionParser implements FundPositionParser {
       Set.of(AccountType.CASH, AccountType.LIABILITY, AccountType.RECEIVABLES);
 
   @Override
-  public List<FundPosition> parse(List<Map<String, Object>> rawData) {
+  public List<FundPosition> parse(List<Map<String, Object>> rawData, LocalDate reportDate) {
     return rawData.stream().map(this::parseRow).flatMap(Optional::stream).toList();
   }
 
@@ -68,6 +68,15 @@ public class SwedbankFundPositionParser implements FundPositionParser {
         return Optional.empty();
       }
 
+      String accountName = getString(row, "AssetName");
+      if (accountName == null) {
+        accountName = assetType;
+      }
+      if (accountName == null) {
+        log.warn("Missing account name, skipping: row={}", row);
+        return Optional.empty();
+      }
+
       BigDecimal marketPrice = parseMarketPrice(row, accountType);
 
       FundPosition position =
@@ -75,7 +84,7 @@ public class SwedbankFundPositionParser implements FundPositionParser {
               .reportingDate(getDate(row, "NAVDate"))
               .fund(fund)
               .accountType(accountType)
-              .accountName(getString(row, "AssetName"))
+              .accountName(accountName)
               .accountId(getString(row, "ISIN"))
               .quantity(getBigDecimal(row, "Quantity"))
               .marketPrice(marketPrice)

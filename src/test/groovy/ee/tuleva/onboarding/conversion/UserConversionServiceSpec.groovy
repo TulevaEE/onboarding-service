@@ -343,19 +343,19 @@ class UserConversionServiceSpec extends Specification {
 
     cashFlowService.getCashFlowStatement(samplePerson) >> CashFlowStatement.builder()
         .transactions([
-            new CashFlow(secondPillar, Instant.parse("2018-12-31T00:00:00+02:00"), null, 100.0, EUR, CONTRIBUTION_CASH, null),
-            new CashFlow(secondPillar, Instant.parse("2019-01-01T00:00:00+02:00"), null, 1.0, EUR, CONTRIBUTION_CASH, null),
-            new CashFlow(secondPillar, Instant.parse("2019-11-20T00:00:00+02:00"), null, 1.0, EUR, CONTRIBUTION_CASH, null),
-            new CashFlow(secondPillar, Instant.parse("2019-12-20T00:00:00+02:00"), null, 1.0, EUR, SUBTRACTION, null),
-            new CashFlow(secondPillar, Instant.parse("2019-12-21T00:00:00+02:00"), null, 1.0, EUR, SUBTRACTION, null),
+            CashFlow.builder().isin(secondPillar).time(Instant.parse("2018-12-31T00:00:00+02:00")).amount(100.0).currency(EUR).type(CONTRIBUTION_CASH).build(),
+            CashFlow.builder().isin(secondPillar).time(Instant.parse("2019-01-01T00:00:00+02:00")).amount(1.0).currency(EUR).type(CONTRIBUTION_CASH).build(),
+            CashFlow.builder().isin(secondPillar).time(Instant.parse("2019-11-20T00:00:00+02:00")).amount(1.0).currency(EUR).type(CONTRIBUTION_CASH).build(),
+            CashFlow.builder().isin(secondPillar).time(Instant.parse("2019-12-20T00:00:00+02:00")).amount(1.0).currency(EUR).type(SUBTRACTION).build(),
+            CashFlow.builder().isin(secondPillar).time(Instant.parse("2019-12-21T00:00:00+02:00")).amount(1.0).currency(EUR).type(SUBTRACTION).build(),
 
-            new CashFlow(thirdPillar, Instant.parse("2018-12-31T00:00:00+02:00"), null, 100.0, EUR, CONTRIBUTION_CASH, null),
-            new CashFlow(thirdPillar, Instant.parse("2019-01-01T00:00:00+02:00"), null, 1.0, EUR, CONTRIBUTION_CASH, null),
-            new CashFlow(thirdPillar, Instant.parse("2019-01-02T00:00:00+02:00"), null, 1.0, EUR, CONTRIBUTION_CASH, null),
-            new CashFlow(thirdPillar, Instant.parse("2019-11-20T00:00:00+02:00"), null, 1.0, EUR, CONTRIBUTION_CASH, null),
-            new CashFlow(thirdPillar, Instant.parse("2019-12-20T00:00:00+02:00"), null, 20.0, EUR, CONTRIBUTION, null),
-            new CashFlow(thirdPillar, Instant.parse("2019-12-20T00:00:00+02:00"), null, 1.0, EUR, SUBTRACTION, null),
-            new CashFlow(thirdPillar, Instant.parse("2019-12-21T00:00:00+02:00"), null, 1.0, EUR, SUBTRACTION, null),
+            CashFlow.builder().isin(thirdPillar).time(Instant.parse("2018-12-31T00:00:00+02:00")).amount(100.0).currency(EUR).type(CONTRIBUTION_CASH).build(),
+            CashFlow.builder().isin(thirdPillar).time(Instant.parse("2019-01-01T00:00:00+02:00")).amount(1.0).currency(EUR).type(CONTRIBUTION_CASH).build(),
+            CashFlow.builder().isin(thirdPillar).time(Instant.parse("2019-01-02T00:00:00+02:00")).amount(1.0).currency(EUR).type(CONTRIBUTION_CASH).build(),
+            CashFlow.builder().isin(thirdPillar).time(Instant.parse("2019-11-20T00:00:00+02:00")).amount(1.0).currency(EUR).type(CONTRIBUTION_CASH).build(),
+            CashFlow.builder().isin(thirdPillar).time(Instant.parse("2019-12-20T00:00:00+02:00")).amount(20.0).currency(EUR).type(CONTRIBUTION).build(),
+            CashFlow.builder().isin(thirdPillar).time(Instant.parse("2019-12-20T00:00:00+02:00")).amount(1.0).currency(EUR).type(SUBTRACTION).build(),
+            CashFlow.builder().isin(thirdPillar).time(Instant.parse("2019-12-21T00:00:00+02:00")).amount(1.0).currency(EUR).type(SUBTRACTION).build(),
         ])
         .build()
 

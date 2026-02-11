@@ -82,8 +82,12 @@ async:
 web-eid:
   origin: https://localhost:3000
 
-swedbank-gateway:
+seb-gateway:
   enabled: true
+  keystore:
+    path: "src/test/resources/banking/seb/test-seb-gateway.p12"
+    password: testpass
+  reconciliation-delay: 0s
   accounts:
     DEPOSIT_EUR: EE442200221092874625
     WITHDRAWAL_EUR: EE987700771001802057

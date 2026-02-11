@@ -24,7 +24,8 @@ public class SlackService implements OperationsNotificationService {
     AML("aml"),
     WITHDRAWALS("withdrawals"),
     CAPITAL_TRANSFER("capital_transfer"),
-    INVESTMENT("investment");
+    INVESTMENT("investment"),
+    SAVINGS("savings");
 
     private final String configurationKey;
   }

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.banking.message.BankMessageType.PAYMENT_ORDER_CONFIRMATION;
 
+import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankStatementReceived;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankMessageType;
@@ -43,6 +44,7 @@ public class BankMessageDelegator {
       processMessage(message);
     }
     log.info("Finished processing bank messages: processedMessages={}", messages.size());
+    eventPublisher.publishEvent(new BankMessagesProcessingCompleted());
   }
 
   private void processMessage(BankingMessage message) {

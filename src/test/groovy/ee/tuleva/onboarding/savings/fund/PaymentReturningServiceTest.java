@@ -64,8 +64,8 @@ class PaymentReturningServiceTest {
     var expectedId = originalPayment.getId().toString().replace("-", "");
     var expectedPaymentRequest =
         PaymentRequest.builder()
-            .remitterName("Tuleva Fondid AS")
-            .remitterId("14118923")
+            .remitterName("Tuleva Täiendav Kogumisfond")
+            .remitterId("1162")
             .remitterIban("IBAN-22")
             .beneficiaryName("John Doe")
             .beneficiaryIban("IBAN-11")

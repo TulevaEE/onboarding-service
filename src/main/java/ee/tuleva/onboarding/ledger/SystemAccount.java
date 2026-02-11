@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.ASSET;
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.Category.*;
@@ -41,7 +40,12 @@ public enum SystemAccount {
   NAV_EQUITY(LIABILITY, EUR, NAV_CALCULATION, "Equity account balancing NAV positions"),
 
   // NAV calculation - Manual adjustments
-  BLACKROCK_ADJUSTMENT(ASSET, EUR, NAV_CALCULATION, "Partner rebates/fees adjustment");
+  BLACKROCK_ADJUSTMENT(ASSET, EUR, NAV_CALCULATION, "Partner rebates/fees adjustment"),
+
+  // Bank operations
+  BANK_FEE(EXPENSE, EUR, BANK_RECONCILIATION, "Bank transaction fees"),
+  INTEREST_INCOME(INCOME, EUR, BANK_RECONCILIATION, "Interest income from bank accounts"),
+  BANK_ADJUSTMENT(EXPENSE, EUR, BANK_RECONCILIATION, "Bank adjustments");
 
   private final AccountType accountType;
   private final AssetType assetType;

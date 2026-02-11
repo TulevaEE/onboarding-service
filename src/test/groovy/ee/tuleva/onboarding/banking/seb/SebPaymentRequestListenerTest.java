@@ -31,8 +31,8 @@ class SebPaymentRequestListenerTest {
   void onRequestPayment_sendsPaymentToSebGateway() {
     var paymentRequest =
         PaymentRequest.builder()
-            .remitterName("Tuleva Fondid AS")
-            .remitterId("14118923")
+            .remitterName("Tuleva Täiendav Kogumisfond")
+            .remitterId("1162")
             .remitterIban(SEB_IBAN)
             .beneficiaryName("John Doe")
             .beneficiaryIban("EE461277288334943840")
@@ -58,8 +58,8 @@ class SebPaymentRequestListenerTest {
     var nonSebIban = "EE999999999999999999";
     var paymentRequest =
         PaymentRequest.builder()
-            .remitterName("Tuleva Fondid AS")
-            .remitterId("14118923")
+            .remitterName("Tuleva Täiendav Kogumisfond")
+            .remitterId("1162")
             .remitterIban(nonSebIban)
             .beneficiaryName("John Doe")
             .beneficiaryIban("EE461277288334943840")

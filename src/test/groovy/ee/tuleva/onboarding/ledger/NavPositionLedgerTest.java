@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRANSFER;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -7,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -71,14 +73,14 @@ class NavPositionLedgerTest {
     setupAccountMocks();
 
     when(ledgerTransactionService.createTransaction(
-            any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
         "TKF100", reportDate, new BigDecimal("900000.00"), ZERO, ZERO, ZERO);
 
     verify(ledgerTransactionService)
-        .createTransaction(eq(Instant.now(clock)), any(), entriesCaptor.capture());
+        .createTransaction(eq(TRANSFER), eq(Instant.now(clock)), any(), entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(2);
@@ -94,14 +96,14 @@ class NavPositionLedgerTest {
     setupAccountMocks();
 
     when(ledgerTransactionService.createTransaction(
-            any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
         "TKF100", reportDate, ZERO, new BigDecimal("50000.00"), ZERO, ZERO);
 
     verify(ledgerTransactionService)
-        .createTransaction(eq(Instant.now(clock)), any(), entriesCaptor.capture());
+        .createTransaction(eq(TRANSFER), eq(Instant.now(clock)), any(), entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(2);
@@ -117,14 +119,14 @@ class NavPositionLedgerTest {
     setupAccountMocks();
 
     when(ledgerTransactionService.createTransaction(
-            any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
         "TKF100", reportDate, ZERO, ZERO, new BigDecimal("10000.00"), ZERO);
 
     verify(ledgerTransactionService)
-        .createTransaction(eq(Instant.now(clock)), any(), entriesCaptor.capture());
+        .createTransaction(eq(TRANSFER), eq(Instant.now(clock)), any(), entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(2);
@@ -140,14 +142,14 @@ class NavPositionLedgerTest {
     setupAccountMocks();
 
     when(ledgerTransactionService.createTransaction(
-            any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
         "TKF100", reportDate, ZERO, ZERO, ZERO, new BigDecimal("-5000.00"));
 
     verify(ledgerTransactionService)
-        .createTransaction(eq(Instant.now(clock)), any(), entriesCaptor.capture());
+        .createTransaction(eq(TRANSFER), eq(Instant.now(clock)), any(), entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(2);
@@ -163,7 +165,7 @@ class NavPositionLedgerTest {
     setupAccountMocks();
 
     when(ledgerTransactionService.createTransaction(
-            any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
@@ -175,7 +177,7 @@ class NavPositionLedgerTest {
         new BigDecimal("-5000.00"));
 
     verify(ledgerTransactionService)
-        .createTransaction(eq(Instant.now(clock)), any(), entriesCaptor.capture());
+        .createTransaction(eq(TRANSFER), eq(Instant.now(clock)), any(), entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(8);
@@ -200,7 +202,8 @@ class NavPositionLedgerTest {
     navPositionLedger.recordPositions("TKF100", reportDate, ZERO, ZERO, ZERO, ZERO);
 
     verify(ledgerTransactionService, never())
-        .createTransaction(any(Instant.class), any(), any(LedgerEntryDto[].class));
+        .createTransaction(
+            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class));
   }
 
   @Test
@@ -209,7 +212,7 @@ class NavPositionLedgerTest {
     setupAccountMocks();
 
     when(ledgerTransactionService.createTransaction(
-            any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
@@ -217,7 +220,10 @@ class NavPositionLedgerTest {
 
     verify(ledgerTransactionService)
         .createTransaction(
-            any(Instant.class), metadataCaptor.capture(), any(LedgerEntryDto[].class));
+            any(TransactionType.class),
+            any(Instant.class),
+            metadataCaptor.capture(),
+            any(LedgerEntryDto[].class));
 
     Map<String, Object> metadata = metadataCaptor.getValue();
     assertThat(metadata).containsEntry("operationType", "POSITION_UPDATE");

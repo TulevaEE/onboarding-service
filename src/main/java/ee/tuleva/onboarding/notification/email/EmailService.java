@@ -125,6 +125,27 @@ public class EmailService {
     }
   }
 
+  public void sendSystemEmail(MandrillMessage message) {
+    if (mandrillApi == null) {
+      log.warn("Mandrill not initialised, not sending system email");
+      return;
+    }
+
+    try {
+      log.info("Sending system email: to={}", message.getTo());
+      MandrillMessageStatus response = mandrillApi.messages().send(message, false)[0];
+      log.info(
+          "Mandrill API response: status={}, id={}, rejectReason={}",
+          response.getStatus(),
+          response.getId(),
+          response.getRejectReason());
+    } catch (MandrillApiError mandrillApiError) {
+      log.error(mandrillApiError.getMandrillErrorAsJson(), mandrillApiError);
+    } catch (IOException e) {
+      log.error(e.getLocalizedMessage(), e);
+    }
+  }
+
   public Optional<MandrillScheduledMessageInfo> cancelScheduledEmail(String mandrillMessageId) {
     try {
       return Optional.of(mandrillApi.messages().cancelScheduled(mandrillMessageId));

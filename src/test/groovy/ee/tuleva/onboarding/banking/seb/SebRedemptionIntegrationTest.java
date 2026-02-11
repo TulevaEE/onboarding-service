@@ -11,7 +11,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
@@ -34,27 +33,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
-@TestPropertySource(
-    properties = {
-      "swedbank-gateway.enabled=false",
-      "seb-gateway.enabled=true",
-      "seb-gateway.url=https://test.example.com",
-      "seb-gateway.orgId=test-org",
-      "seb-gateway.keystore.path=src/test/resources/banking/seb/test-seb-gateway.p12",
-      "seb-gateway.keystore.password=testpass",
-      "seb-gateway.accounts.DEPOSIT_EUR=EE001234567890123456",
-      "seb-gateway.accounts.WITHDRAWAL_EUR=EE001234567890123457",
-      "seb-gateway.accounts.FUND_INVESTMENT_EUR=EE001234567890123458"
-    })
-@Import(TestSchedulerLockConfiguration.class)
-@Transactional
+@SebIntegrationTest
 class SebRedemptionIntegrationTest {
 
   private static final String SEB_DEPOSIT_IBAN = "EE001234567890123456";
@@ -78,6 +59,7 @@ class SebRedemptionIntegrationTest {
   void setUp() {
     ClockHolder.setClock(Clock.fixed(FRIDAY, ZoneId.of("UTC")));
     when(navProvider.getCurrentNav()).thenReturn(BigDecimal.ONE);
+    when(navProvider.getCurrentNavForIssuing()).thenReturn(BigDecimal.ONE);
 
     testUser =
         userRepository.save(sampleUser().id(null).member(null).personalCode("39901019992").build());

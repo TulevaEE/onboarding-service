@@ -2,26 +2,30 @@ package ee.tuleva.onboarding.investment.position;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.*;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
+import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
+import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
+import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.investment.TulevaFund;
 import ee.tuleva.onboarding.investment.calculation.PositionCalculation;
 import ee.tuleva.onboarding.investment.calculation.PositionCalculationService;
 import ee.tuleva.onboarding.investment.position.parser.FundPositionParser;
+import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
+import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.report.ReportProvider;
-import ee.tuleva.onboarding.investment.report.ReportType;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.NavPositionLedger;
 import ee.tuleva.onboarding.ledger.SystemAccount;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.IntStream;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
@@ -31,15 +35,13 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 @Profile({"production", "staging"})
 public class FundPositionImportJob {
 
   private static final int LOOKBACK_DAYS = 7;
-  private static final ReportProvider PROVIDER = ReportProvider.SWEDBANK;
-  private static final ReportType REPORT_TYPE = ReportType.POSITIONS;
+  private static final List<ReportProvider> PROVIDERS = List.of(SWEDBANK, SEB);
 
-  private final FundPositionParser parser;
+  private final Map<ReportProvider, FundPositionParser> parsers;
   private final FundPositionImportService importService;
   private final InvestmentReportService reportService;
   private final PositionCalculationService positionCalculationService;
@@ -47,42 +49,74 @@ public class FundPositionImportJob {
   private final NavPositionLedger navPositionLedger;
   private final NavLedgerRepository navLedgerRepository;
 
+  public FundPositionImportJob(
+      SwedbankFundPositionParser swedbankParser,
+      SebFundPositionParser sebParser,
+      FundPositionImportService importService,
+      InvestmentReportService reportService,
+      PositionCalculationService positionCalculationService,
+      FundPositionRepository fundPositionRepository,
+      NavPositionLedger navPositionLedger,
+      NavLedgerRepository navLedgerRepository) {
+    this.parsers = Map.of(SWEDBANK, swedbankParser, SEB, sebParser);
+    this.importService = importService;
+    this.reportService = reportService;
+    this.positionCalculationService = positionCalculationService;
+    this.fundPositionRepository = fundPositionRepository;
+    this.navPositionLedger = navPositionLedger;
+    this.navLedgerRepository = navLedgerRepository;
+  }
+
   @Schedules({
     @Scheduled(cron = PARSE_MORNING, zone = TIMEZONE),
     @Scheduled(cron = PARSE_AFTERNOON, zone = TIMEZONE)
   })
-  @SchedulerLock(name = "FundPositionImportJob", lockAtMostFor = "55m", lockAtLeastFor = "5m")
+  @SchedulerLock(name = "FundPositionImportJob", lockAtMostFor = "55m", lockAtLeastFor = "4m")
   public void runImport() {
     LocalDate today = LocalDate.now();
     IntStream.rangeClosed(1, LOOKBACK_DAYS)
         .mapToObj(today::minusDays)
         .forEach(
             date -> {
-              try {
-                importForDate(date);
-              } catch (Exception e) {
-                log.error("Import failed, continuing with next date: date={}", date, e);
+              for (ReportProvider provider : PROVIDERS) {
+                try {
+                  importForProviderAndDate(provider, date);
+                } catch (Exception e) {
+                  log.error(
+                      "Import failed, continuing with next: provider={}, date={}",
+                      provider,
+                      date,
+                      e);
+                }
               }
             });
   }
 
-  public void importForDate(LocalDate date) {
-    log.info("Starting fund position import: provider={}, date={}", PROVIDER, date);
+  public void importForProviderAndDate(ReportProvider provider, LocalDate date) {
+    log.info("Starting fund position import: provider={}, date={}", provider, date);
 
-    Optional<InvestmentReport> report = reportService.getReport(PROVIDER, REPORT_TYPE, date);
+    Optional<InvestmentReport> report = reportService.getReport(provider, POSITIONS, date);
     if (report.isEmpty()) {
-      log.info("No positions report in database: provider={}, date={}", PROVIDER, date);
+      log.info("No positions report in database: provider={}, date={}", provider, date);
       return;
     }
 
-    List<FundPosition> positions = parser.parse(report.get().getRawData());
+    FundPositionParser parser = parsers.get(provider);
+    if (parser == null) {
+      log.warn("No parser configured for provider: provider={}", provider);
+      return;
+    }
+
+    InvestmentReport investmentReport = report.get();
+    List<FundPosition> positions =
+        parser.parse(investmentReport.getRawData(), investmentReport.getReportDate());
     log.info(
-        "Parsed fund positions: provider={}, date={}, count={}", PROVIDER, date, positions.size());
+        "Parsed fund positions: provider={}, date={}, count={}", provider, date, positions.size());
 
     int imported = importService.importPositions(positions);
     log.info(
         "Fund position import completed: provider={}, date={}, imported={}, rowCount={}",
-        PROVIDER,
+        provider,
         date,
         imported,
         report.get().getRawData().size());

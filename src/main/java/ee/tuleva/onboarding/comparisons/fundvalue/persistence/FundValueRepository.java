@@ -19,5 +19,7 @@ public interface FundValueRepository {
 
   Map<String, LocalDate> findEarliestDates();
 
+  Optional<FundValue> getLatestValue(String key, LocalDate date);
+
   List<FundValue> findValuesBetweenDates(String fundKey, LocalDate startDate, LocalDate endDate);
 }

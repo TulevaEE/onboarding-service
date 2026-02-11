@@ -38,4 +38,9 @@ public class SebReportSource extends AbstractReportSource {
         };
     return "seb/" + date.format(DATE_FORMAT) + suffix;
   }
+
+  @Override
+  public int getHeaderRowIndex() {
+    return 5;
+  }
 }

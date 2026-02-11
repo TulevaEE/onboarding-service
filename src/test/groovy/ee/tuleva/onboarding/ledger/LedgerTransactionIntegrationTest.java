@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRANSFER;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static ee.tuleva.onboarding.ledger.UserAccount.CASH;
 import static java.math.BigDecimal.ZERO;
@@ -55,6 +56,7 @@ public class LedgerTransactionIntegrationTest {
     var systemAccount = getSystemAccount();
 
     ledgerTransactionService.createTransaction(
+        TRANSFER,
         Instant.now(clock),
         Map.of("operationType", "TEST_TRANSACTION"),
         new LedgerEntryDto(cashAccount, new BigDecimal("1000.00")),
@@ -67,6 +69,7 @@ public class LedgerTransactionIntegrationTest {
     assertThat(getSystemAccount().getEntries().size()).isEqualTo(1);
 
     ledgerTransactionService.createTransaction(
+        TRANSFER,
         Instant.now(clock),
         Map.of("operationType", "TEST_TRANSACTION_2"),
         new LedgerEntryDto(cashAccount, new BigDecimal("-1000.00")),
@@ -89,18 +92,21 @@ public class LedgerTransactionIntegrationTest {
     UUID externalReference2 = UUID.randomUUID();
 
     ledgerTransactionService.createTransaction(
+        TRANSFER,
         Instant.now(clock),
         Map.of("operationType", "PAYMENT", "externalReference", externalReference1.toString()),
         new LedgerEntryDto(cashAccount, new BigDecimal("100.00")),
         new LedgerEntryDto(systemAccount, new BigDecimal("-100.00")));
 
     ledgerTransactionService.createTransaction(
+        TRANSFER,
         Instant.now(clock),
         Map.of("operationType", "PAYMENT", "externalReference", externalReference2.toString()),
         new LedgerEntryDto(cashAccount, new BigDecimal("200.00")),
         new LedgerEntryDto(systemAccount, new BigDecimal("-200.00")));
 
     ledgerTransactionService.createTransaction(
+        TRANSFER,
         Instant.now(clock),
         Map.of("operationType", "OTHER_TRANSACTION"),
         new LedgerEntryDto(cashAccount, new BigDecimal("300.00")),

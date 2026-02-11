@@ -29,4 +29,8 @@ class LedgerPartyService {
     return Optional.ofNullable(
         ledgerPartyRepository.findByOwnerId(person.getPersonalCode())); // TODO party representative
   }
+
+  public Optional<LedgerParty> getParty(String personalCode) {
+    return Optional.ofNullable(ledgerPartyRepository.findByOwnerId(personalCode));
+  }
 }

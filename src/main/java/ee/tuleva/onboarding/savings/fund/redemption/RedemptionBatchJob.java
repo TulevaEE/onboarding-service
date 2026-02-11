@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
+import ee.tuleva.onboarding.savings.fund.notification.RedemptionBatchCompletedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
@@ -30,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -55,7 +57,7 @@ public class RedemptionBatchJob {
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final EndToEndIdConverter endToEndIdConverter;
 
-  // @Scheduled(fixedRateString = "1m")
+  @Scheduled(fixedRateString = "1m")
   @SchedulerLock(name = "RedemptionBatchJob", lockAtMostFor = "50s", lockAtLeastFor = "10s")
   public void runJob() {
     Instant cutoff = getCutoffForProcessing();
@@ -74,10 +76,10 @@ public class RedemptionBatchJob {
   }
 
   private Instant getCutoffForProcessing() {
-    var todaysCutoff = getCutoff(LocalDate.now(clock));
+    var today = todayInTallinn();
+    var todaysCutoff = getCutoff(today);
     var currentTime = clock.instant();
-    var isTodayWorkingDay =
-        publicHolidays.isWorkingDay(currentTime.atZone(CUTOFF_TIMEZONE).toLocalDate());
+    var isTodayWorkingDay = publicHolidays.isWorkingDay(today);
 
     if (currentTime.isBefore(todaysCutoff) || !isTodayWorkingDay) {
       return getSecondToLastWorkingDayCutoff();
@@ -86,14 +88,18 @@ public class RedemptionBatchJob {
   }
 
   private Instant getSecondToLastWorkingDayCutoff() {
-    var lastWorkingDay = publicHolidays.previousWorkingDay(LocalDate.now(clock));
+    var lastWorkingDay = publicHolidays.previousWorkingDay(todayInTallinn());
     var secondToLastWorkingDay = publicHolidays.previousWorkingDay(lastWorkingDay);
     return getCutoff(secondToLastWorkingDay);
   }
 
   private Instant getLastWorkingDayCutoff() {
-    var lastWorkingDay = publicHolidays.previousWorkingDay(LocalDate.now(clock));
+    var lastWorkingDay = publicHolidays.previousWorkingDay(todayInTallinn());
     return getCutoff(lastWorkingDay);
+  }
+
+  private LocalDate todayInTallinn() {
+    return clock.instant().atZone(CUTOFF_TIMEZONE).toLocalDate();
   }
 
   private Instant getCutoff(LocalDate date) {
@@ -154,7 +160,9 @@ public class RedemptionBatchJob {
 
     if (totalCashAmount.compareTo(ZERO) > 0) {
       transferFromFundAccount(totalCashAmount);
-      processIndividualPayouts(toProcess);
+      int payoutCount = processIndividualPayouts(toProcess);
+      eventPublisher.publishEvent(
+          new RedemptionBatchCompletedEvent(toProcess.size(), payoutCount, totalCashAmount, nav));
     }
   }
 
@@ -165,7 +173,7 @@ public class RedemptionBatchJob {
     PaymentRequest paymentRequest =
         PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(batchId))
             .remitterIban(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
-            .beneficiaryName("Tuleva Fondid AS")
+            .beneficiaryName("Tuleva Täiendav Kogumisfond")
             .beneficiaryIban(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
             .amount(totalAmount)
             .description("Redemptions batch")
@@ -175,7 +183,8 @@ public class RedemptionBatchJob {
     log.info("Sent batch transfer request: batchId={}, amount={}", batchId, totalAmount);
   }
 
-  private void processIndividualPayouts(List<RedemptionRequest> requests) {
+  private int processIndividualPayouts(List<RedemptionRequest> requests) {
+    int payoutCount = 0;
     for (RedemptionRequest request : requests) {
       RedemptionRequest updated =
           redemptionRequestRepository.findById(request.getId()).orElseThrow();
@@ -198,6 +207,7 @@ public class RedemptionBatchJob {
         eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, updated.getId()));
 
         markAsRedeemed(updated.getId());
+        payoutCount++;
 
         log.info(
             "Processed individual payout: id={}, amount={}, iban={}, beneficiaryName={}",
@@ -210,6 +220,7 @@ public class RedemptionBatchJob {
         handleError(updated.getId(), e);
       }
     }
+    return payoutCount;
   }
 
   private void markAsRedeemed(UUID requestId) {
@@ -243,6 +254,6 @@ public class RedemptionBatchJob {
   }
 
   private BigDecimal getNAV() {
-    return navProvider.getCurrentNav();
+    return navProvider.getCurrentNavForIssuing();
   }
 }

@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
+import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
-import static ee.tuleva.onboarding.swedbank.Swedbank.SWEDBANK_GATEWAY_TIME_ZONE;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -13,19 +13,22 @@ import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
+import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.savings.fund.issuing.FundAccountPaymentJob;
 import ee.tuleva.onboarding.savings.fund.issuing.IssuingJob;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -36,6 +39,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -53,7 +57,10 @@ class SavingsFundPaymentIntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private LedgerService ledgerService;
   @Autowired private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
-  @Autowired private SwedbankAccountConfiguration swedbankAccountConfiguration;
+  @Autowired private SebAccountConfiguration sebAccountConfiguration;
+  @Autowired private FundValueRepository fundValueRepository;
+  @Autowired private SavingsFundConfiguration savingsFundConfiguration;
+  @Autowired private JdbcClient jdbcClient;
 
   // Monday 2025-09-29 17:00 EET (15:00 UTC) - after 16:00 cutoff
   private static final Instant NOW = Instant.parse("2025-09-29T15:00:00Z");
@@ -77,6 +84,22 @@ class SavingsFundPaymentIntegrationTest {
 
     // Mark user as onboarded to savings fund
     savingsFundOnboardingRepository.saveOnboardingStatus(testUser.getPersonalCode(), COMPLETED);
+
+    // Delete any existing NAV values for savings fund to ensure test isolation
+    jdbcClient
+        .sql("DELETE FROM index_values WHERE key = :isin")
+        .param("isin", savingsFundConfiguration.getIsin())
+        .update();
+
+    // Insert NAV for savings fund (NAV = 1.0 for easy calculation in tests)
+    // NAV date must be the previous working day (Friday 2025-09-26 for Monday 2025-09-29)
+    fundValueRepository.save(
+        new FundValue(
+            savingsFundConfiguration.getIsin(),
+            LocalDate.of(2025, 9, 26),
+            BigDecimal.ONE,
+            "MANUAL",
+            NOW));
   }
 
   @AfterEach
@@ -176,7 +199,7 @@ class SavingsFundPaymentIntegrationTest {
     payment = paymentRepository.findById(paymentId).orElseThrow();
     assertThat(payment.getStatus()).isEqualTo(PROCESSED);
 
-    var investmentIban = swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR);
+    var investmentIban = sebAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR);
 
     var outgoingToInvestmentXml =
         createOutgoingToInvestmentAccountXml(investmentIban, paymentAmount);
@@ -292,11 +315,11 @@ class SavingsFundPaymentIntegrationTest {
   private void persistXmlMessage(String xml, Instant receivedAt) {
     var message =
         BankingMessage.builder()
-            .bankType(BankType.SWEDBANK)
+            .bankType(BankType.SEB)
             .requestId("test-e2e")
             .trackingId("test-e2e")
             .rawResponse(xml)
-            .timezone(SWEDBANK_GATEWAY_TIME_ZONE.getId())
+            .timezone(SEB_GATEWAY_TIME_ZONE.getId())
             .receivedAt(receivedAt)
             .build();
     bankingMessageRepository.save(message);
@@ -333,6 +356,52 @@ class SavingsFundPaymentIntegrationTest {
 
   private LedgerAccount getUnreconciledBankReceiptsAccount() {
     return ledgerService.getSystemAccount(UNRECONCILED_BANK_RECEIPTS);
+  }
+
+  @Test
+  void deferredReturnMatcher_createsBounceback_whenUnattributedPaymentExists() {
+    var differentUser =
+        userRepository.save(
+            User.builder()
+                .firstName("Maria")
+                .lastName("Mets")
+                .personalCode("48806046007")
+                .email("maria.mets@example.com")
+                .phoneNumber("+372 5555 6666")
+                .build());
+
+    savingsFundOnboardingRepository.saveOnboardingStatus(
+        differentUser.getPersonalCode(), COMPLETED);
+
+    // Step 1: Process incoming payment with mismatched personal code
+    var xml = createUnverifiablePaymentXml();
+    persistXmlMessage(xml, NOW);
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    var payment = paymentRepository.findAll().getFirst();
+    var paymentId = payment.getId();
+
+    // Step 2: Verification → UNATTRIBUTED_PAYMENT + TO_BE_RETURNED
+    paymentVerificationJob.runJob();
+
+    payment = paymentRepository.findById(paymentId).orElseThrow();
+    assertThat(payment.getStatus()).isEqualTo(TO_BE_RETURNED);
+
+    // At this point, UNATTRIBUTED_PAYMENT ledger entry exists but no PAYMENT_BOUNCE_BACK
+    var paymentAmount = new BigDecimal("50.00");
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance())
+        .isEqualByComparingTo(paymentAmount.negate());
+    assertThat(getIncomingPaymentsClearingAccount().getBalance())
+        .isEqualByComparingTo(paymentAmount);
+
+    // Step 3: Process return payment XML in a SEPARATE batch (deferred scenario)
+    var returnXml = createReturnPaymentXml(paymentId);
+    persistXmlMessage(returnXml, NOW);
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    // The DeferredReturnMatcher should fire and create PAYMENT_BOUNCE_BACK
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
   }
 
   @Test

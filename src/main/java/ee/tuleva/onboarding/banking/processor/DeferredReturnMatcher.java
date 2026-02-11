@@ -65,8 +65,10 @@ public class DeferredReturnMatcher {
         unmatchedCount,
         totalAmount);
 
-    eventPublisher.publishEvent(
-        new DeferredReturnMatchingCompletedEvent(matchedCount, unmatchedCount, totalAmount));
+    if (matchedCount > 0) {
+      eventPublisher.publishEvent(
+          new DeferredReturnMatchingCompletedEvent(matchedCount, unmatchedCount, totalAmount));
+    }
   }
 
   private boolean hasReturnLedgerEntry(SavingFundPayment returnPayment) {

@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentFixture.aPayment;
-import static java.math.BigDecimal.ZERO;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -369,7 +368,7 @@ class DeferredReturnMatcherTest {
 
     verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
     verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
-    verify(eventPublisher).publishEvent(new DeferredReturnMatchingCompletedEvent(0, 1, ZERO));
+    verify(eventPublisher, never()).publishEvent(any());
   }
 
   @Test

@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.validation;
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Severity.CRITICAL;
+import static ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Severity.INFO;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.stream.Collectors.toMap;
@@ -14,13 +16,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResul
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Severity;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -35,7 +31,7 @@ public class FundValueIntegrityChecker {
   private static final int DATABASE_SCALE = 5;
   private static final BigDecimal SAME_PROVIDER_THRESHOLD_PERCENT = new BigDecimal("0.0001");
   private static final BigDecimal CROSS_PROVIDER_THRESHOLD_PERCENT = new BigDecimal("0.001");
-  private static final LocalDate CROSS_PROVIDER_CHECK_START_DATE = LocalDate.of(2026, 1, 24);
+  private static final LocalDate CROSS_PROVIDER_CHECK_START_DATE = LocalDate.of(2026, 2, 11);
   private static final int FUND_NAME_WIDTH = 49;
   private static final String CHECK_MARK = "✅";
   private static final String CROSS_MARK = "❌";
@@ -63,7 +59,7 @@ public class FundValueIntegrityChecker {
     }
 
     boolean hasCriticalIssues() {
-      return crossProviderDiscrepancies.stream().anyMatch(d -> d.severity() == Severity.CRITICAL);
+      return crossProviderDiscrepancies.stream().anyMatch(d -> d.severity() == CRITICAL);
     }
   }
 
@@ -143,7 +139,7 @@ public class FundValueIntegrityChecker {
               xetraByDate,
               "EODHD",
               eodhdByDate,
-              Severity.CRITICAL,
+              CRITICAL,
               "Exchange vs EODHD");
       discrepancies.addAll(exchangeVsEodhdDiscrepancies);
       exchangeOk = exchangeVsEodhdDiscrepancies.isEmpty() && !xetraByDate.isEmpty();
@@ -158,7 +154,7 @@ public class FundValueIntegrityChecker {
               euronextByDate,
               "EODHD",
               eodhdByDate,
-              Severity.CRITICAL,
+              CRITICAL,
               "Exchange vs EODHD");
       discrepancies.addAll(exchangeVsEodhdDiscrepancies);
       exchangeOk = exchangeVsEodhdDiscrepancies.isEmpty() && !euronextByDate.isEmpty();
@@ -171,7 +167,7 @@ public class FundValueIntegrityChecker {
             eodhdByDate,
             "Yahoo",
             yahooByDate,
-            Severity.INFO,
+            INFO,
             "EODHD vs Yahoo");
     discrepancies.addAll(eodhdVsYahooDiscrepancies);
 
@@ -349,9 +345,8 @@ public class FundValueIntegrityChecker {
       summary.append(
           String.format("  %s All funds have consistent prices across providers%n", CHECK_MARK));
     } else {
-      long criticalCount =
-          latestDayIssues.stream().filter(d -> d.severity() == Severity.CRITICAL).count();
-      long infoCount = latestDayIssues.stream().filter(d -> d.severity() == Severity.INFO).count();
+      long criticalCount = latestDayIssues.stream().filter(d -> d.severity() == CRITICAL).count();
+      long infoCount = latestDayIssues.stream().filter(d -> d.severity() == INFO).count();
 
       if (criticalCount > 0) {
         summary.append(
@@ -359,7 +354,7 @@ public class FundValueIntegrityChecker {
                 "  %s %d critical issue(s) found - investigate before NAV calculation%n",
                 CROSS_MARK, criticalCount));
         latestDayIssues.stream()
-            .filter(d -> d.severity() == Severity.CRITICAL)
+            .filter(d -> d.severity() == CRITICAL)
             .forEach(
                 d ->
                     summary.append(
@@ -404,7 +399,7 @@ public class FundValueIntegrityChecker {
   private String buildCrossProviderSummaryTable(
       LocalDate startDate, LocalDate endDate, List<TickerCheckResult> results) {
     StringBuilder table = new StringBuilder();
-    table.append(String.format("Cross-Provider Comparison (%s to %s):%n", startDate, endDate));
+    table.append(String.format("Cross-Provider Comparison (%s):%n", endDate));
     table.append(String.format("  Anchor hierarchy: Exchange (Xetra/Euronext) → EODHD → Yahoo%n"));
     table.append(
         String.format(
@@ -415,15 +410,30 @@ public class FundValueIntegrityChecker {
     for (TickerCheckResult result : results) {
       String eodhdStatus = result.eodhdOk() ? CHECK_MARK : CROSS_MARK;
 
+      boolean hasExchangeDiscrepancyOnEndDate =
+          result.crossProviderDiscrepancies().stream()
+              .anyMatch(
+                  d ->
+                      d.date().equals(endDate)
+                          && d.severity() == CRITICAL
+                          && d.comparisonDescription().contains("Exchange vs EODHD"));
+
       String exchangeStatus;
       if (result.ticker().getXetraStorageKey().isPresent()
           || result.ticker().getEuronextParisStorageKey().isPresent()) {
-        exchangeStatus = result.exchangeOk() ? CHECK_MARK : CROSS_MARK;
+        exchangeStatus = hasExchangeDiscrepancyOnEndDate ? CROSS_MARK : CHECK_MARK;
       } else {
         exchangeStatus = NOT_APPLICABLE;
       }
 
-      String yahooStatus = result.yahooOk() ? CHECK_MARK : WARNING_MARK;
+      boolean hasYahooDiscrepancyOnEndDate =
+          result.crossProviderDiscrepancies().stream()
+              .anyMatch(
+                  d ->
+                      d.date().equals(endDate)
+                          && d.comparisonDescription().contains("EODHD vs Yahoo"));
+
+      String yahooStatus = hasYahooDiscrepancyOnEndDate ? WARNING_MARK : CHECK_MARK;
 
       table.append(
           formatCrossProviderRow(
@@ -447,7 +457,7 @@ public class FundValueIntegrityChecker {
     for (TickerCheckResult result : results) {
       List<Discrepancy> criticalDiscrepancies =
           result.crossProviderDiscrepancies().stream()
-              .filter(d -> d.severity() == Severity.CRITICAL)
+              .filter(d -> d.severity() == CRITICAL)
               .toList();
 
       String status;
@@ -498,14 +508,14 @@ public class FundValueIntegrityChecker {
   private List<Discrepancy> collectCriticalIssues(List<TickerCheckResult> results) {
     return results.stream()
         .flatMap(r -> r.crossProviderDiscrepancies().stream())
-        .filter(d -> d.severity() == Severity.CRITICAL)
+        .filter(d -> d.severity() == CRITICAL)
         .toList();
   }
 
   private List<Discrepancy> collectInfoIssues(List<TickerCheckResult> results) {
     return results.stream()
         .flatMap(r -> r.crossProviderDiscrepancies().stream())
-        .filter(d -> d.severity() == Severity.INFO)
+        .filter(d -> d.severity() == INFO)
         .toList();
   }
 
@@ -682,7 +692,7 @@ public class FundValueIntegrityChecker {
                       xetraByDate,
                       "EODHD",
                       eodhdByDate,
-                      Severity.CRITICAL,
+                      CRITICAL,
                       "Exchange vs EODHD"));
             });
 
@@ -700,7 +710,7 @@ public class FundValueIntegrityChecker {
                       euronextByDate,
                       "EODHD",
                       eodhdByDate,
-                      Severity.CRITICAL,
+                      CRITICAL,
                       "Exchange vs EODHD"));
             });
 
@@ -711,7 +721,7 @@ public class FundValueIntegrityChecker {
             eodhdByDate,
             "Yahoo",
             yahooByDate,
-            Severity.INFO,
+            INFO,
             "EODHD vs Yahoo"));
 
     return discrepancies;

@@ -172,7 +172,7 @@ public class FundValueIntegrityChecker {
     discrepancies.addAll(eodhdVsYahooDiscrepancies);
 
     boolean eodhdOk = !eodhdByDate.isEmpty();
-    boolean yahooOk = eodhdVsYahooDiscrepancies.isEmpty() && !yahooByDate.isEmpty();
+    boolean yahooOk = !yahooByDate.isEmpty();
 
     return new CrossProviderCheckResult(eodhdOk, exchangeOk, yahooOk, discrepancies);
   }
@@ -433,7 +433,8 @@ public class FundValueIntegrityChecker {
                       d.date().equals(endDate)
                           && d.comparisonDescription().contains("EODHD vs Yahoo"));
 
-      String yahooStatus = hasYahooDiscrepancyOnEndDate ? WARNING_MARK : CHECK_MARK;
+      String yahooStatus =
+          !result.yahooOk() ? CROSS_MARK : hasYahooDiscrepancyOnEndDate ? WARNING_MARK : CHECK_MARK;
 
       table.append(
           formatCrossProviderRow(

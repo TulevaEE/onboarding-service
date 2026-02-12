@@ -57,17 +57,17 @@ class TrusteeReportJob {
     emailService.sendSystemEmail(message);
     log.info("Trustee report sent: date={}, rows={}", today, rows.size());
 
-    var lastRow = rows.getLast();
+    var latestRow = rows.getFirst();
     eventPublisher.publishEvent(
         new TrusteeReportSentEvent(
             today,
             rows.size(),
-            lastRow.nav(),
-            lastRow.issuedUnits(),
-            lastRow.issuedAmount(),
-            lastRow.redeemedUnits(),
-            lastRow.redeemedAmount(),
-            lastRow.totalOutstandingUnits()));
+            latestRow.nav(),
+            latestRow.issuedUnits(),
+            latestRow.issuedAmount(),
+            latestRow.redeemedUnits(),
+            latestRow.redeemedAmount(),
+            latestRow.totalOutstandingUnits()));
   }
 
   private MandrillMessage buildMessage(LocalDate reportDate, byte[] csvBytes) {

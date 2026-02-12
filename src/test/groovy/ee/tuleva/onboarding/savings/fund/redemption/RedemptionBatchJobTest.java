@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -73,7 +72,6 @@ class RedemptionBatchJobTest {
   }
 
   @Test
-  @DisplayName("runJob does nothing when no verified requests exist")
   void runJob_noRequests() {
     var now = Instant.parse("2025-01-15T15:00:00Z");
     var batchJob = createBatchJob(now);
@@ -88,7 +86,6 @@ class RedemptionBatchJobTest {
   }
 
   @Test
-  @DisplayName("after 16:00 on working day, processes requests from before last working day cutoff")
   void runJob_afterCutoff_processesRequestsFromLastWorkingDay() {
     var now = Instant.parse("2025-01-15T15:00:00Z"); // 17:00 Tallinn time (after cutoff)
     var batchJob = createBatchJob(now);
@@ -144,8 +141,6 @@ class RedemptionBatchJobTest {
   }
 
   @Test
-  @DisplayName(
-      "before 16:00 on working day, processes requests from before second-to-last working day cutoff")
   void runJob_beforeCutoff_processesRequestsFromSecondToLastWorkingDay() {
     var now = Instant.parse("2025-01-15T12:00:00Z"); // 14:00 Tallinn time (before cutoff)
     var batchJob = createBatchJob(now);
@@ -166,7 +161,6 @@ class RedemptionBatchJobTest {
   }
 
   @Test
-  @DisplayName("on weekend, processes requests from before second-to-last working day cutoff")
   void runJob_onWeekend_processesOlderRequests() {
     var now = Instant.parse("2025-01-18T14:00:00Z"); // Saturday
     var batchJob = createBatchJob(now);
@@ -237,7 +231,6 @@ class RedemptionBatchJobTest {
   }
 
   @Test
-  @DisplayName("runJob handles individual payout errors")
   void runJob_handlesPayoutErrors() {
     var now = Instant.parse("2025-01-15T15:00:00Z");
     var batchJob = createBatchJob(now);
@@ -287,7 +280,6 @@ class RedemptionBatchJobTest {
   }
 
   @Test
-  @DisplayName("runJob marks request as failed and saves error reason on processing error")
   void runJob_marksRequestAsFailed() {
     var now = Instant.parse("2025-01-15T15:00:00Z");
     var batchJob = createBatchJob(now);
@@ -310,7 +302,6 @@ class RedemptionBatchJobTest {
   }
 
   @Test
-  @DisplayName("runJob skips already priced requests")
   void runJob_skipsAlreadyPricedRequests() {
     var now = Instant.parse("2025-01-15T15:00:00Z");
     var batchJob = createBatchJob(now);
@@ -354,7 +345,6 @@ class RedemptionBatchJobTest {
   }
 
   @Test
-  @DisplayName("runJob uses deterministic payment ID for individual payouts")
   void runJob_usesDeterministicPaymentId() {
     var now = Instant.parse("2025-01-15T15:00:00Z");
     var batchJob = createBatchJob(now);
@@ -401,7 +391,6 @@ class RedemptionBatchJobTest {
   }
 
   @Test
-  @DisplayName("runJob running twice does not reprocess already redeemed requests")
   void runJob_runningTwice_doesNotReprocessRedeemedRequests() {
     var now = Instant.parse("2025-01-15T15:00:00Z");
     var batchJob = createBatchJob(now);
@@ -450,7 +439,6 @@ class RedemptionBatchJobTest {
   }
 
   @Test
-  @DisplayName("runJob skips pricing when ledger entry already exists")
   void runJob_skipsPricingWhenLedgerEntryExists() {
     var now = Instant.parse("2025-01-15T15:00:00Z");
     var batchJob = createBatchJob(now);

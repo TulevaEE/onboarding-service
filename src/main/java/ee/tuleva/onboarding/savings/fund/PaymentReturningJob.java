@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
+import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.savings.fund.notification.PaymentsReturnedEvent;
 import java.util.List;
@@ -27,10 +28,12 @@ public class PaymentReturningJob {
     List<SavingFundPayment> paymentsToBeReturned =
         savingFundPaymentRepository.findPaymentsWithStatus(TO_BE_RETURNED);
     var successCount = 0;
+    var totalAmount = ZERO;
     for (var payment : paymentsToBeReturned) {
       try {
         paymentReturningService.createReturn(payment);
         successCount++;
+        totalAmount = totalAmount.add(payment.getAmount());
       } catch (Exception e) {
         log.error("Payment return failed: payment={}", payment, e);
       }
@@ -38,7 +41,7 @@ public class PaymentReturningJob {
     log.info("Payment returning job completed: payments={}", successCount);
 
     if (successCount > 0) {
-      eventPublisher.publishEvent(new PaymentsReturnedEvent(successCount));
+      eventPublisher.publishEvent(new PaymentsReturnedEvent(successCount, totalAmount));
     }
   }
 }

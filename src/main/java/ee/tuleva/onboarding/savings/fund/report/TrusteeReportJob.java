@@ -10,6 +10,7 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.savings.fund.notification.TrusteeReportSentEvent;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -18,6 +19,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -34,6 +36,7 @@ class TrusteeReportJob {
   private final TrusteeReportCsvGenerator csvGenerator;
   private final EmailService emailService;
   private final PublicHolidays publicHolidays;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Scheduled(cron = "0 15 16 * * *", zone = TIMEZONE)
   @SchedulerLock(name = "TrusteeReportJob", lockAtMostFor = "23h", lockAtLeastFor = "30m")
@@ -53,6 +56,18 @@ class TrusteeReportJob {
 
     emailService.sendSystemEmail(message);
     log.info("Trustee report sent: date={}, rows={}", today, rows.size());
+
+    var lastRow = rows.getLast();
+    eventPublisher.publishEvent(
+        new TrusteeReportSentEvent(
+            today,
+            rows.size(),
+            lastRow.nav(),
+            lastRow.issuedUnits(),
+            lastRow.issuedAmount(),
+            lastRow.redeemedUnits(),
+            lastRow.redeemedAmount(),
+            lastRow.totalOutstandingUnits()));
   }
 
   private MandrillMessage buildMessage(LocalDate reportDate, byte[] csvBytes) {

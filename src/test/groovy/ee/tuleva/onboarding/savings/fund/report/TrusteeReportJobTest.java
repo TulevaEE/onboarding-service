@@ -12,6 +12,7 @@ import static org.mockito.Mockito.*;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.savings.fund.notification.TrusteeReportSentEvent;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.Clock;
 import java.time.Instant;
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class TrusteeReportJobTest {
@@ -32,6 +34,7 @@ class TrusteeReportJobTest {
   @Mock private TrusteeReportRepository repository;
   @Mock private TrusteeReportCsvGenerator csvGenerator;
   @Mock private EmailService emailService;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   private final PublicHolidays publicHolidays = new PublicHolidays();
 
@@ -41,7 +44,8 @@ class TrusteeReportJobTest {
   }
 
   private TrusteeReportJob createJob() {
-    return new TrusteeReportJob(repository, csvGenerator, emailService, publicHolidays);
+    return new TrusteeReportJob(
+        repository, csvGenerator, emailService, publicHolidays, eventPublisher);
   }
 
   private void setClockTo(LocalDate date) {
@@ -99,6 +103,9 @@ class TrusteeReportJobTest {
     assertThat(attachment.getName()).isEqualTo("TKF100_osakute_registri_valjavote_2020-01-02.csv");
     assertThat(attachment.getType()).isEqualTo("text/csv");
     assertThat(Base64.getDecoder().decode(attachment.getContent())).isEqualTo(csvBytes);
+
+    verify(eventPublisher)
+        .publishEvent(new TrusteeReportSentEvent(workingDay, 1, ONE, ZERO, ZERO, ZERO, ZERO, ZERO));
   }
 
   @Test
@@ -108,7 +115,7 @@ class TrusteeReportJobTest {
 
     createJob().sendReport();
 
-    verifyNoInteractions(emailService);
+    verifyNoInteractions(emailService, eventPublisher);
   }
 
   @Test
@@ -118,7 +125,7 @@ class TrusteeReportJobTest {
 
     createJob().sendReport();
 
-    verifyNoInteractions(emailService);
+    verifyNoInteractions(emailService, eventPublisher);
   }
 
   @Test
@@ -128,6 +135,6 @@ class TrusteeReportJobTest {
 
     createJob().sendReport();
 
-    verifyNoInteractions(emailService);
+    verifyNoInteractions(emailService, eventPublisher);
   }
 }

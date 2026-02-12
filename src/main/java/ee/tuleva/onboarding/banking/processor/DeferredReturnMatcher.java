@@ -3,15 +3,19 @@ package ee.tuleva.onboarding.banking.processor;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_CANCELLED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
+import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
+import ee.tuleva.onboarding.savings.fund.notification.DeferredReturnMatchingCompletedEvent;
 import ee.tuleva.onboarding.user.UserService;
+import java.math.BigDecimal;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +28,7 @@ public class DeferredReturnMatcher {
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final SavingsFundLedger savingsFundLedger;
   private final UserService userService;
+  private final ApplicationEventPublisher eventPublisher;
 
   @EventListener
   @Transactional
@@ -40,13 +45,30 @@ public class DeferredReturnMatcher {
     log.info(
         "Deferred return matching: found {} unmatched outgoing returns", unmatchedReturns.size());
 
+    var matchedCount = 0;
+    var unmatchedCount = 0;
+    var totalAmount = ZERO;
+
     for (SavingFundPayment returnPayment : unmatchedReturns) {
-      matchReturn(returnPayment);
+      var amount = matchReturn(returnPayment);
+      if (amount != null) {
+        matchedCount++;
+        totalAmount = totalAmount.add(amount);
+      } else {
+        unmatchedCount++;
+      }
     }
 
     log.info(
-        "Deferred return matching: completed processing of unmatched returns: processedReturns={}",
-        unmatchedReturns.size());
+        "Deferred return matching completed: matchedCount={}, unmatchedCount={}, totalAmount={}",
+        matchedCount,
+        unmatchedCount,
+        totalAmount);
+
+    if (matchedCount > 0) {
+      eventPublisher.publishEvent(
+          new DeferredReturnMatchingCompletedEvent(matchedCount, unmatchedCount, totalAmount));
+    }
   }
 
   private boolean hasReturnLedgerEntry(SavingFundPayment returnPayment) {
@@ -59,21 +81,26 @@ public class DeferredReturnMatcher {
         .orElse(false);
   }
 
-  private void matchReturn(SavingFundPayment returnPayment) {
-    savingFundPaymentRepository
-        .findOriginalPaymentForReturn(returnPayment.getEndToEndId())
-        .or(
-            () ->
-                savingFundPaymentRepository.findOriginalPaymentByIbanAndAmount(
-                    returnPayment.getBeneficiaryIban(), returnPayment.getAmount()))
-        .ifPresentOrElse(
-            this::completePaymentReturn,
-            () ->
-                log.warn(
-                    "Deferred return matching: original payment not found: endToEndId={}, beneficiaryIban={}, amount={}",
-                    returnPayment.getEndToEndId(),
-                    returnPayment.getBeneficiaryIban(),
-                    returnPayment.getAmount()));
+  private BigDecimal matchReturn(SavingFundPayment returnPayment) {
+    var original =
+        savingFundPaymentRepository
+            .findOriginalPaymentForReturn(returnPayment.getEndToEndId())
+            .or(
+                () ->
+                    savingFundPaymentRepository.findOriginalPaymentByIbanAndAmount(
+                        returnPayment.getBeneficiaryIban(), returnPayment.getAmount()));
+
+    if (original.isPresent()) {
+      completePaymentReturn(original.get());
+      return original.get().getAmount();
+    }
+
+    log.warn(
+        "Deferred return matching: original payment not found: endToEndId={}, beneficiaryIban={}, amount={}",
+        returnPayment.getEndToEndId(),
+        returnPayment.getBeneficiaryIban(),
+        returnPayment.getAmount());
+    return null;
   }
 
   private void completePaymentReturn(SavingFundPayment originalPayment) {

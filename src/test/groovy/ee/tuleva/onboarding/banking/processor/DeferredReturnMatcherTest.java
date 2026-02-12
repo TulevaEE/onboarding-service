@@ -11,6 +11,7 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
+import ee.tuleva.onboarding.savings.fund.notification.DeferredReturnMatchingCompletedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class DeferredReturnMatcherTest {
@@ -29,6 +31,7 @@ class DeferredReturnMatcherTest {
   @Mock SavingFundPaymentRepository savingFundPaymentRepository;
   @Mock SavingsFundLedger savingsFundLedger;
   @Mock UserService userService;
+  @Mock ApplicationEventPublisher eventPublisher;
 
   @InjectMocks DeferredReturnMatcher deferredReturnMatcher;
 
@@ -63,6 +66,8 @@ class DeferredReturnMatcherTest {
 
     verify(savingsFundLedger)
         .recordPaymentCancelled(user, new BigDecimal("50.00"), originalPaymentId);
+    verify(eventPublisher)
+        .publishEvent(new DeferredReturnMatchingCompletedEvent(1, 0, new BigDecimal("50.00")));
   }
 
   @Test
@@ -180,6 +185,7 @@ class DeferredReturnMatcherTest {
 
     verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
     verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
+    verify(eventPublisher, never()).publishEvent(any());
   }
 
   @Test
@@ -362,6 +368,7 @@ class DeferredReturnMatcherTest {
 
     verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
     verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
+    verify(eventPublisher, never()).publishEvent(any());
   }
 
   @Test

@@ -5,6 +5,7 @@ import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -69,10 +70,44 @@ class SavingsFundNotifierTest {
 
   @Test
   void onPaymentsReturned_sendsNotification() {
-    var event = new PaymentsReturnedEvent(2);
+    var event = new PaymentsReturnedEvent(2, new BigDecimal("200.00"));
 
     notifier.onPaymentsReturned(event);
 
-    verify(notificationService).sendMessage("Savings fund returns: payments=2", SAVINGS);
+    verify(notificationService)
+        .sendMessage("Savings fund returns: payments=2, totalAmount=200.00 EUR", SAVINGS);
+  }
+
+  @Test
+  void onTrusteeReportSent_sendsNotification() {
+    var event =
+        new TrusteeReportSentEvent(
+            LocalDate.of(2026, 2, 11),
+            42,
+            new BigDecimal("9.9918"),
+            new BigDecimal("10.00000"),
+            new BigDecimal("100.00"),
+            new BigDecimal("5.00000"),
+            new BigDecimal("50.00"),
+            new BigDecimal("1005.00000"));
+
+    notifier.onTrusteeReportSent(event);
+
+    verify(notificationService)
+        .sendMessage(
+            "Savings fund trustee report sent: date=2026-02-11, rows=42, NAV=9.9918, issuedUnits=10.00000, issuedAmount=100.00, redeemedUnits=5.00000, redeemedAmount=50.00, totalOutstandingUnits=1005.00000",
+            SAVINGS);
+  }
+
+  @Test
+  void onDeferredReturnMatchingCompleted_sendsNotification() {
+    var event = new DeferredReturnMatchingCompletedEvent(2, 1, new BigDecimal("125.00"));
+
+    notifier.onDeferredReturnMatchingCompleted(event);
+
+    verify(notificationService)
+        .sendMessage(
+            "Deferred return matching: matchedCount=2, unmatchedCount=1, totalAmount=125.00 EUR",
+            SAVINGS);
   }
 }

@@ -51,8 +51,7 @@ class SavingsFundNotifierTest {
 
     verify(notificationService)
         .sendMessage(
-            "Savings fund subscription batch sent to SEB: payments=3, totalAmount=1500.00 EUR",
-            SAVINGS);
+            "Savings fund subscription batch sent to SEB: totalAmount=1500.00 EUR", SAVINGS);
   }
 
   @Test

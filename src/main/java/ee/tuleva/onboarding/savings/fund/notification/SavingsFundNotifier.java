@@ -44,8 +44,8 @@ public class SavingsFundNotifier {
   public void onSubscriptionBatchSent(SubscriptionBatchSentEvent event) {
     try {
       notificationService.sendMessage(
-          "Savings fund subscription batch sent to SEB: payments=%d, totalAmount=%s EUR"
-              .formatted(event.paymentCount(), event.totalAmount()),
+          "Savings fund subscription batch sent to SEB: totalAmount=%s EUR"
+              .formatted(event.totalAmount()),
           SAVINGS);
     } catch (Exception e) {
       log.error("Failed to send subscription batch notification", e);

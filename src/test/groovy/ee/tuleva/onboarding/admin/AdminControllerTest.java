@@ -130,6 +130,35 @@ class AdminControllerTest {
   }
 
   @Test
+  void createAdjustments_withDynamicAccountTypes_returnsTransactionIds() throws Exception {
+    var transactionId = UUID.randomUUID();
+    var transaction = LedgerTransaction.builder().id(transactionId).build();
+    when(savingsFundLedger.recordAdjustment(any(), any(), any(), any(), any(), any(), any()))
+        .thenReturn(transaction);
+
+    mockMvc
+        .perform(
+            post("/admin/adjustments")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    [
+                      {
+                        "debitAccount": "TRADE_UNIT_SETTLEMENT:TKF100:LU1291102447",
+                        "creditAccount": "SECURITIES_CUSTODY:TKF100:LU1291102447",
+                        "amount": 11704,
+                        "description": "Trade unit backfill"
+                      }
+                    ]
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$", hasSize(1)))
+        .andExpect(jsonPath("$[0].transactionId").value(transactionId.toString()));
+  }
+
+  @Test
   void createAdjustments_withInvalidToken_returnsUnauthorized() throws Exception {
     mockMvc
         .perform(

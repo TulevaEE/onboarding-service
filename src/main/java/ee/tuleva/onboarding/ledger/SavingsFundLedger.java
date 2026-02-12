@@ -5,8 +5,6 @@ import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.*;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 
-import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
-import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import ee.tuleva.onboarding.user.User;
@@ -484,12 +482,12 @@ public class SavingsFundLedger {
     LedgerAccount debitAccount =
         debitIsUser
             ? resolveUserAccount(debitPersonalCode, UserAccount.valueOf(debitAccountName))
-            : getSystemAccount(SystemAccount.valueOf(debitAccountName));
+            : resolveSystemAccount(debitAccountName);
 
     LedgerAccount creditAccount =
         creditIsUser
             ? resolveUserAccount(creditPersonalCode, UserAccount.valueOf(creditAccountName))
-            : getSystemAccount(SystemAccount.valueOf(creditAccountName));
+            : resolveSystemAccount(creditAccountName);
 
     var metadataBuilder = new HashMap<String, Object>();
     metadataBuilder.put(OPERATION_TYPE.key, ADJUSTMENT.name());
@@ -504,6 +502,26 @@ public class SavingsFundLedger {
         metadataBuilder,
         entry(debitAccount, amount),
         entry(creditAccount, amount.negate()));
+  }
+
+  private LedgerAccount resolveSystemAccount(String accountName) {
+    try {
+      return getSystemAccount(SystemAccount.valueOf(accountName));
+    } catch (IllegalArgumentException e) {
+      var systemAccount = SystemAccount.fromAccountName(accountName);
+      return findOrCreateInstrumentAccount(systemAccount, accountName);
+    }
+  }
+
+  private LedgerAccount findOrCreateInstrumentAccount(
+      SystemAccount systemAccount, String accountName) {
+    return ledgerAccountService
+        .findSystemAccountByName(
+            accountName, systemAccount.getAccountType(), systemAccount.getAssetType())
+        .orElseGet(
+            () ->
+                ledgerAccountService.createSystemAccount(
+                    accountName, systemAccount.getAccountType(), systemAccount.getAssetType()));
   }
 
   private LedgerAccount resolveUserAccount(String personalCode, UserAccount userAccount) {
@@ -657,13 +675,21 @@ public class SavingsFundLedger {
   @Transactional
   public LedgerTransaction recordTradeSettlement(
       BigDecimal amount,
+      BigDecimal units,
       UUID externalReference,
       SystemAccount clearingAccount,
       String isin,
       String ticker,
       String displayName) {
     LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount);
-    LedgerAccount tradeSettlementAccount = getTradeSettlementAccount(isin);
+    LedgerAccount tradeSettlementAccount =
+        findOrCreateInstrumentAccount(
+            TRADE_CASH_SETTLEMENT, TRADE_CASH_SETTLEMENT.getAccountName(isin));
+    LedgerAccount securityUnitsAccount =
+        findOrCreateInstrumentAccount(
+            TRADE_UNIT_SETTLEMENT, TRADE_UNIT_SETTLEMENT.getAccountName(isin));
+    LedgerAccount securitiesCustodyAccount =
+        findOrCreateInstrumentAccount(SECURITIES_CUSTODY, SECURITIES_CUSTODY.getAccountName(isin));
 
     Map<String, Object> metadata =
         Map.of(
@@ -678,16 +704,8 @@ public class SavingsFundLedger {
         externalReference,
         metadata,
         entry(clearingLedgerAccount, amount),
-        entry(tradeSettlementAccount, amount.negate()));
-  }
-
-  private LedgerAccount getTradeSettlementAccount(String isin) {
-    String accountName = "TRADE_SETTLEMENT:" + isin;
-    return ledgerAccountService
-        .findSystemAccountByName(accountName, AccountType.ASSET, AssetType.EUR)
-        .orElseGet(
-            () ->
-                ledgerAccountService.createSystemAccount(
-                    accountName, AccountType.ASSET, AssetType.EUR));
+        entry(tradeSettlementAccount, amount.negate()),
+        entry(securityUnitsAccount, units.negate()),
+        entry(securitiesCustodyAccount, units));
   }
 }

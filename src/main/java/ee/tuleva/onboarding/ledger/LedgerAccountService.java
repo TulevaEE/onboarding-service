@@ -45,7 +45,7 @@ class LedgerAccountService {
   public Optional<LedgerAccount> findSystemAccount(SystemAccount systemAccount) {
     return ledgerAccountRepository.findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
         null,
-        systemAccount.name(),
+        systemAccount.getAccountName(),
         SYSTEM_ACCOUNT,
         systemAccount.getAssetType(),
         systemAccount.getAccountType());
@@ -53,7 +53,9 @@ class LedgerAccountService {
 
   public LedgerAccount createSystemAccount(SystemAccount systemAccount) {
     return createSystemAccount(
-        systemAccount.name(), systemAccount.getAccountType(), systemAccount.getAssetType());
+        systemAccount.getAccountName(),
+        systemAccount.getAccountType(),
+        systemAccount.getAssetType());
   }
 
   Optional<LedgerAccount> findSystemAccountByName(

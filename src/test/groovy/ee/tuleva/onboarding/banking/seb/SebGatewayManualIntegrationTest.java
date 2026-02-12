@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import ee.tuleva.onboarding.LoadDotEnv;
+import ee.tuleva.onboarding.banking.BankAccountType;
+import ee.tuleva.onboarding.banking.event.BankMessageEvents;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankStatementReceived;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebCurrentDayTransactionsRequested;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebEodTransactionsRequested;
@@ -14,6 +16,7 @@ import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Disabled;
@@ -97,6 +100,18 @@ class SebGatewayManualIntegrationTest {
               assertThat(event.statement()).isNotNull();
               assertThat(event.statement().getEntries()).isNotEmpty();
             });
+  }
+
+  @Test
+  void fetchJanuaryTransactions() {
+    for (BankAccountType account : BankAccountType.values()) {
+      eventPublisher.publishEvent(
+          new BankMessageEvents.FetchSebHistoricTransactionsRequested(
+              account, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 28)));
+    }
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    System.out.println("Fetched and processed January transactions for all accounts");
   }
 
   @Test

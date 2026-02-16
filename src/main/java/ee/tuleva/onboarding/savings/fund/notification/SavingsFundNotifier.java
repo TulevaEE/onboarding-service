@@ -81,8 +81,8 @@ public class SavingsFundNotifier {
   public void onDeferredReturnMatchingCompleted(DeferredReturnMatchingCompletedEvent event) {
     try {
       notificationService.sendMessage(
-          "Deferred return matching: matchedCount=%d, unmatchedCount=%d, totalAmount=%s EUR"
-              .formatted(event.matchedCount(), event.unmatchedCount(), event.totalAmount()),
+          "Deferred return matching: matchedCount=%d, totalAmount=%s EUR"
+              .formatted(event.matchedCount(), event.totalAmount()),
           SAVINGS);
     } catch (Exception e) {
       log.error("Failed to send deferred return matching notification", e);

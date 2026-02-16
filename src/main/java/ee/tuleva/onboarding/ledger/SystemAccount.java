@@ -1,11 +1,10 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.investment.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
+import static ee.tuleva.onboarding.ledger.SystemAccount.Fund.TKF100;
 
-import ee.tuleva.onboarding.investment.TulevaFund;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import java.util.Arrays;
@@ -28,16 +27,16 @@ public enum SystemAccount {
   TRADE_UNIT_SETTLEMENT(TKF100, ASSET, FUND_UNIT),
   SECURITIES_CUSTODY(TKF100, LIABILITY, FUND_UNIT);
 
-  private final TulevaFund fund;
+  private final Fund fund;
   private final AccountType accountType;
   private final AssetType assetType;
 
   public String getAccountName() {
-    return name() + ":" + fund.getCode();
+    return name() + ":" + fund.name();
   }
 
   public String getAccountName(String instrument) {
-    return name() + ":" + fund.getCode() + ":" + instrument;
+    return name() + ":" + fund.name() + ":" + instrument;
   }
 
   public static SystemAccount fromAccountName(String accountName) {
@@ -45,5 +44,9 @@ public enum SystemAccount {
         .filter(sa -> accountName.equals(sa.name()) || accountName.startsWith(sa.name() + ":"))
         .findFirst()
         .orElseThrow(() -> new IllegalArgumentException("Unknown system account: " + accountName));
+  }
+
+  enum Fund {
+    TKF100
   }
 }

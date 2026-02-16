@@ -10,75 +10,98 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum FundTicker {
   ISHARES_USA_ESG_SCREENED(
-      "SGAS.DE", "SGAS.XETRA", "IE00BFNM3G45", "iShares MSCI USA ESG Screened", "SGAS"),
+      "SGAS.DE", "SGAS.XETRA", "IE00BFNM3G45", "iShares MSCI USA ESG Screened", "SGAS", null),
   ISHARES_EUROPE_ESG_SCREENED(
-      "SLMC.DE", "SLMC.XETRA", "IE00BFNM3D14", "iShares MSCI Europe ESG Screened", "SLMC"),
+      "SLMC.DE", "SLMC.XETRA", "IE00BFNM3D14", "iShares MSCI Europe ESG Screened", "SLMC", null),
   ISHARES_JAPAN_ESG_SCREENED(
-      "SGAJ.DE", "SGAJ.XETRA", "IE00BFNM3L97", "iShares MSCI Japan ESG Screened", "SGAJ"),
+      "SGAJ.DE", "SGAJ.XETRA", "IE00BFNM3L97", "iShares MSCI Japan ESG Screened", "SGAJ", null),
   INVESCO_EMERGING_MARKETS_ESG(
-      "ESGM.DE", "ESGM.XETRA", "IE00BMDBMY19", "Invesco MSCI Emerging Markets ESG", "ESGM"),
+      "ESGM.DE", "ESGM.XETRA", "IE00BMDBMY19", "Invesco MSCI Emerging Markets ESG", "ESGM", null),
   XTRACKERS_USA_ESG_SCREENED(
-      "XRSM.DE", "XRSM.XETRA", "IE00BJZ2DC62", "Xtrackers MSCI USA ESG Screened", "XRSM"),
+      "XRSM.DE", "XRSM.XETRA", "IE00BJZ2DC62", "Xtrackers MSCI USA ESG Screened", "XRSM", null),
   XTRACKERS_CANADA_ESG_SCREENED(
-      "D5BH.DE", "D5BH.XETRA", "LU0476289540", "Xtrackers MSCI Canada ESG Screened", "D5BH"),
+      "D5BH.DE", "D5BH.XETRA", "LU0476289540", "Xtrackers MSCI Canada ESG Screened", "D5BH", null),
   VANGUARD_NORTH_AMERICA_ALL_CAP(
-      "V3YA.DE", "V3YA.XETRA", "IE000O58J820", "Vanguard ESG North America All Cap", "V3YA"),
+      "V3YA.DE", "V3YA.XETRA", "IE000O58J820", "Vanguard ESG North America All Cap", "V3YA", null),
   BNP_EUROPE_ESG_FILTERED(
-      "EEUX.DE", "EEUX.XETRA", "LU1291099718", "BNP Paribas Easy MSCI Europe ESG Filtered", "EEUX"),
+      "EEUX.DE",
+      "EEUX.XETRA",
+      "LU1291099718",
+      "BNP Paribas Easy MSCI Europe ESG Filtered",
+      "EEUX",
+      null),
   BNP_PACIFIC_EX_JAPAN_ESG(
-      "PAC.DE", "PAC.XETRA", "LU1291106356", "BNP Paribas Easy MSCI Pacific ex Japan ESG", "PAC"),
+      "PAC.DE",
+      "PAC.XETRA",
+      "LU1291106356",
+      "BNP Paribas Easy MSCI Pacific ex Japan ESG",
+      "PAC",
+      null),
   BNP_JAPAN_ESG_FILTERED(
-      "EJAP.DE", "EJAP.XETRA", "LU1291102447", "BNP Paribas Easy MSCI Japan ESG Filtered", "EJAP"),
+      "EJAP.DE",
+      "EJAP.XETRA",
+      "LU1291102447",
+      "BNP Paribas Easy MSCI Japan ESG Filtered",
+      "EJAP",
+      null),
   AMUNDI_USA_SCREENED(
-      "USAS.PA", "USAS.PA.EODHD", "IE000F60HVH9", "Amundi MSCI USA Screened", "USAS"),
+      "USAS.PA", "USAS.PA.EODHD", "IE000F60HVH9", "Amundi MSCI USA Screened", "USAS", null),
   ISHARES_DEVELOPED_WORLD_ESG_SCREENED(
       "0P000152G5.F",
       "IE00BFG1TM61.EUFUND",
       "IE00BFG1TM61",
       "iShares Developed World ESG Screened Index Fund",
-      "BDWTEIA"),
-  ISHARES_EURO_GOVERNMENT_BOND(
-      "0P00006OK2.F",
-      "IE0031080751.EUFUND",
-      "IE0031080751",
-      "iShares Euro Government Bond Index Fund",
-      "BARGVBI"),
+      "BDWTEIA",
+      "270890"),
   CCF_DEVELOPED_WORLD_SCREENED(
       "0P0001N0Z0.F",
       "IE0009FT4LX4.EUFUND",
       "IE0009FT4LX4",
       "CCF Developed World Screened Index Fund",
-      "BLESIXE"),
+      "BLESIXE",
+      null),
   ISHARES_EMERGING_MARKETS_SCREENED(
       "0P0001MGOG.F",
       "IE00BKPTWY98.EUFUND",
       "IE00BKPTWY98",
       "iShares Emerging Markets Screened Equity Index Fund",
-      "BEMEFLE"),
+      "BEMEFLE",
+      "316649"),
   ISHARES_EURO_AGGREGATE_BOND(
       "0P0000YXER.F",
       "LU0826455353.EUFUND",
       "LU0826455353",
       "iShares Euro Aggregate Bond Index Fund",
-      "BGIEAX2"),
+      "BGIEAX2",
+      "254318"),
+  ISHARES_EURO_GOVERNMENT_BOND(
+      "0P00006OK2.F",
+      "IE0031080751.EUFUND",
+      "IE0031080751",
+      "iShares Euro Government Bond Index Fund",
+      "BARGVBI",
+      "269084"),
   ISHARES_GLOBAL_GOVERNMENT_BOND(
       "0P0001A3RC.F",
       "LU0839970364.EUFUND",
       "LU0839970364",
       "iShares Global Government Bond Index Fund",
-      "BGGGX2E"),
+      "BGGGX2E",
+      "297052"),
   ISHARES_EURO_CREDIT_BOND(
       "0P0000STQT.F",
       "IE0005032192.EUFUND",
       "IE0005032192",
       "iShares Euro Credit Bond Index Fund",
-      "BAREUBD");
+      "BAREUBD",
+      "229056");
 
   private final String yahooTicker;
   private final String eodhdTicker;
   private final String isin;
   private final String displayName;
   private final String bloombergTicker;
+  private final String blackrockProductId;
 
   public static List<String> getYahooTickers() {
     return Arrays.stream(values()).map(FundTicker::getYahooTicker).toList();
@@ -134,6 +157,19 @@ public enum FundTicker {
   public Optional<String> getEuronextParisStorageKey() {
     if (eodhdTicker.endsWith(".PA.EODHD")) {
       return Optional.of(isin + ".XPAR");
+    }
+    return Optional.empty();
+  }
+
+  public static List<FundTicker> getBlackrockFunds() {
+    return Arrays.stream(values())
+        .filter(ticker -> ticker.getBlackrockProductId() != null)
+        .toList();
+  }
+
+  public Optional<String> getBlackrockStorageKey() {
+    if (blackrockProductId != null) {
+      return Optional.of(isin + ".BLACKROCK");
     }
     return Optional.empty();
   }

@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.report;
 
+import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
+
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -22,7 +24,7 @@ class TrusteeReportRepository {
           FROM ledger.entry e
           JOIN ledger.transaction t ON e.transaction_id = t.id
           JOIN ledger.account a ON e.account_id = a.id
-          WHERE a.name = 'FUND_UNITS_OUTSTANDING'
+          WHERE a.name = :fundUnitsAccountName
             AND a.purpose = 'SYSTEM_ACCOUNT'
           GROUP BY CAST(t.transaction_date AS DATE)
         ),
@@ -53,6 +55,10 @@ class TrusteeReportRepository {
         ORDER BY u.report_date DESC
         """;
 
-    return jdbcClient.sql(sql).query(TrusteeReportRow.class).list();
+    return jdbcClient
+        .sql(sql)
+        .param("fundUnitsAccountName", FUND_UNITS_OUTSTANDING.getAccountName())
+        .query(TrusteeReportRow.class)
+        .list();
   }
 }

@@ -113,19 +113,22 @@ class BankOperationProcessorTest {
 
   @Test
   void processBankOperation_recordsTradeSettlement() {
-    var amount = new BigDecimal("-209025.86");
+    var amount = new BigDecimal("-209080.26");
     var remittanceInfo = "DLA0553690/EJAP GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448";
     var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
     var fundTicker =
         ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker.BNP_JAPAN_ESG_FILTERED;
+    var tradeInfo =
+        new TradeSettlementParser.TradeSettlementInfo(fundTicker, new BigDecimal("11704"));
 
-    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(fundTicker));
+    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
 
     processor.processBankOperation(entry, "EE123456789012345678", FUND_INVESTMENT_EUR);
 
     verify(savingsFundLedger)
         .recordTradeSettlement(
             eq(amount),
+            eq(new BigDecimal("11704.00000")),
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq("LU1291102447"),
@@ -144,25 +147,29 @@ class BankOperationProcessorTest {
     processor.processBankOperation(entry, "EE123456789012345678", FUND_INVESTMENT_EUR);
 
     verify(savingsFundLedger, never())
-        .recordTradeSettlement(any(), any(), any(), any(), any(), any());
+        .recordTradeSettlement(any(), any(), any(), any(), any(), any(), any());
   }
 
   @Test
   void processBankOperation_recordsTradeSettlementForSubsCode() {
-    var amount = new BigDecimal("-32765.60");
-    var remittanceInfo = "DLA0553698/BDWTEIA ID/24.4021/32765.6/Buy/ SNORAS, AGBLLT2XXXX, 14448";
+    var amount = new BigDecimal("-1071209.00");
+    var remittanceInfo =
+        "DLA0544429/BDWTEIA/31426.66/34.085995776/Buy/ BlackRock Asset Management Ireland Ltd";
     var entry = createBankOperationEntry("SUBS", amount, remittanceInfo);
     var fundTicker =
         ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker
             .ISHARES_DEVELOPED_WORLD_ESG_SCREENED;
+    var tradeInfo =
+        new TradeSettlementParser.TradeSettlementInfo(fundTicker, new BigDecimal("31426.66"));
 
-    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(fundTicker));
+    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
 
     processor.processBankOperation(entry, "EE123456789012345678", FUND_INVESTMENT_EUR);
 
     verify(savingsFundLedger)
         .recordTradeSettlement(
             eq(amount),
+            eq(new BigDecimal("31426.66000")),
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq("IE00BFG1TM61"),

@@ -45,7 +45,7 @@ class LedgerAccountService {
   public Optional<LedgerAccount> findSystemAccount(SystemAccount systemAccount) {
     return ledgerAccountRepository.findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
         null,
-        systemAccount.name(),
+        systemAccount.getAccountName(),
         SYSTEM_ACCOUNT,
         systemAccount.getAssetType(),
         systemAccount.getAccountType());
@@ -53,13 +53,19 @@ class LedgerAccountService {
 
   public LedgerAccount createSystemAccount(SystemAccount systemAccount) {
     return createSystemAccount(
-        systemAccount.name(), systemAccount.getAccountType(), systemAccount.getAssetType());
+        systemAccount.getAccountName(),
+        systemAccount.getAccountType(),
+        systemAccount.getAssetType());
   }
 
   Optional<LedgerAccount> findSystemAccountByName(
       String name, AccountType accountType, AssetType assetType) {
     return ledgerAccountRepository.findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
         null, name, SYSTEM_ACCOUNT, assetType, accountType);
+  }
+
+  int countAccountsWithPositiveBalance(UserAccount userAccount) {
+    return ledgerAccountRepository.countWithPositiveBalance(userAccount.name(), USER_ACCOUNT);
   }
 
   LedgerAccount createSystemAccount(String name, AccountType accountType, AssetType assetType) {

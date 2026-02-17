@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.report;
 
+import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -31,7 +32,7 @@ class TrusteeReportRepositoryTest {
 
   @BeforeEach
   void setUp() {
-    fundUnitsAccountId = createSystemAccount("FUND_UNITS_OUTSTANDING", "FUND_UNIT");
+    fundUnitsAccountId = createSystemAccount(FUND_UNITS_OUTSTANDING.getAccountName(), "FUND_UNIT");
     subscriptionsAccountId = createUserAccount("SUBSCRIPTIONS", "EUR");
     redemptionsAccountId = createUserAccount("REDEMPTIONS", "EUR");
   }

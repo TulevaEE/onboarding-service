@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.fund;
 
+import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
+import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.stream.StreamSupport.stream;
 
@@ -8,7 +10,6 @@ import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepositor
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService;
 import ee.tuleva.onboarding.ledger.LedgerService;
-import ee.tuleva.onboarding.ledger.SystemAccount;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
 import java.math.BigDecimal;
@@ -64,10 +65,11 @@ class FundService {
       return PensionFundStatistics.builder().nav(latestFundValue.value()).build();
     }
 
-    var account = ledgerService.getSystemAccount(SystemAccount.FUND_UNITS_OUTSTANDING);
+    var account = ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING);
     var currentBalance = account.getBalance();
     var cutoff = latestFundValue.date().plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
     var balanceAtCutoff = account.getBalanceAt(cutoff);
+    var peopleCount = ledgerService.countAccountsWithPositiveBalance(FUND_UNITS);
 
     boolean issuanceCompleted = currentBalance.compareTo(balanceAtCutoff) != 0;
 
@@ -76,6 +78,7 @@ class FundService {
       return PensionFundStatistics.builder()
           .nav(nav)
           .volume(currentBalance.multiply(nav).setScale(2, HALF_UP))
+          .activeCount(peopleCount)
           .build();
     }
 
@@ -88,6 +91,7 @@ class FundService {
     return PensionFundStatistics.builder()
         .nav(previousNav)
         .volume(currentBalance.multiply(previousNav).setScale(2, HALF_UP))
+        .activeCount(peopleCount)
         .build();
   }
 

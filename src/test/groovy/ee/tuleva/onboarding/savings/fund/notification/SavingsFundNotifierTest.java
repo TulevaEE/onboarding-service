@@ -51,8 +51,7 @@ class SavingsFundNotifierTest {
 
     verify(notificationService)
         .sendMessage(
-            "Savings fund subscription batch sent to SEB: payments=3, totalAmount=1500.00 EUR",
-            SAVINGS);
+            "Savings fund subscription batch sent to SEB: totalAmount=1500.00 EUR", SAVINGS);
   }
 
   @Test
@@ -106,8 +105,6 @@ class SavingsFundNotifierTest {
     notifier.onDeferredReturnMatchingCompleted(event);
 
     verify(notificationService)
-        .sendMessage(
-            "Deferred return matching: matchedCount=2, unmatchedCount=1, totalAmount=125.00 EUR",
-            SAVINGS);
+        .sendMessage("Deferred return matching: matchedCount=2, totalAmount=125.00 EUR", SAVINGS);
   }
 }

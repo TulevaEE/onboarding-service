@@ -2,7 +2,9 @@ package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.ASSET;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
@@ -29,6 +31,16 @@ class SavingsFundLedgerTest {
   @Autowired SavingsFundLedger savingsFundLedger;
 
   User testUser = sampleUser().personalCode("38001010001").build();
+
+  @Test
+  void systemAccounts_areFundQualified() {
+    savingsFundLedger.recordPaymentReceived(testUser, new BigDecimal("100.00"), randomUUID());
+
+    assertThat(getIncomingPaymentsClearingAccount().getName())
+        .isEqualTo("INCOMING_PAYMENTS_CLEARING:TKF100");
+    assertThat(getFundUnitsOutstandingAccount().getName())
+        .isEqualTo("FUND_UNITS_OUTSTANDING:TKF100");
+  }
 
   @Test
   void recordPaymentReceived_createsCorrectLedgerEntries() {
@@ -439,14 +451,16 @@ class SavingsFundLedgerTest {
   }
 
   @Test
-  void recordTradeSettlement_createsCorrectDoubleEntry() {
+  void recordTradeSettlement_createsCorrectFourEntryTransaction() {
     var amount = new BigDecimal("-209025.86");
+    var units = new BigDecimal("11704.00000");
     var externalReference = randomUUID();
     var isin = "LU1291102447";
 
     var transaction =
         savingsFundLedger.recordTradeSettlement(
             amount,
+            units,
             externalReference,
             FUND_INVESTMENT_CASH_CLEARING,
             isin,
@@ -459,27 +473,63 @@ class SavingsFundLedgerTest {
     assertThat(transaction.getMetadata().get("displayName"))
         .isEqualTo("BNP Paribas Easy MSCI Japan ESG Filtered");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
+    assertThat(transaction.getEntries()).hasSize(4);
     assertThat(getFundInvestmentCashClearingAccount().getBalance()).isEqualByComparingTo(amount);
     assertThat(getTradeSettlementAccount(isin).getBalance()).isEqualByComparingTo(amount.negate());
+    assertThat(getSecurityUnitsAccount(isin).getBalance()).isEqualByComparingTo(units.negate());
+    assertThat(getSecuritiesCustodyAccount(isin).getBalance()).isEqualByComparingTo(units);
     verifyDoubleEntry(transaction);
   }
 
   @Test
   void recordTradeSettlement_createsPerInstrumentAccounts() {
     var amount1 = new BigDecimal("-209025.86");
+    var units1 = new BigDecimal("11704.00000");
     var amount2 = new BigDecimal("-995467.50");
+    var units2 = new BigDecimal("19422.00000");
     var isin1 = "LU1291102447";
     var isin2 = "IE00BJZ2DC62";
 
     savingsFundLedger.recordTradeSettlement(
-        amount1, randomUUID(), FUND_INVESTMENT_CASH_CLEARING, isin1, "EJAP", "BNP Japan");
+        amount1, units1, randomUUID(), FUND_INVESTMENT_CASH_CLEARING, isin1, "EJAP", "BNP Japan");
     savingsFundLedger.recordTradeSettlement(
-        amount2, randomUUID(), FUND_INVESTMENT_CASH_CLEARING, isin2, "XRSM", "Xtrackers USA");
+        amount2,
+        units2,
+        randomUUID(),
+        FUND_INVESTMENT_CASH_CLEARING,
+        isin2,
+        "XRSM",
+        "Xtrackers USA");
 
     assertThat(getTradeSettlementAccount(isin1).getBalance())
         .isEqualByComparingTo(amount1.negate());
     assertThat(getTradeSettlementAccount(isin2).getBalance())
         .isEqualByComparingTo(amount2.negate());
+    assertThat(getSecurityUnitsAccount(isin1).getBalance()).isEqualByComparingTo(units1.negate());
+    assertThat(getSecurityUnitsAccount(isin2).getBalance()).isEqualByComparingTo(units2.negate());
+  }
+
+  @Test
+  void recordAdjustment_withDynamicSystemAccounts_createsAccountsOnTheFly() {
+    var units = new BigDecimal("11704.00000");
+
+    var transaction =
+        savingsFundLedger.recordAdjustment(
+            "TRADE_UNIT_SETTLEMENT:TKF100:LU1291102447",
+            null,
+            "SECURITIES_CUSTODY:TKF100:LU1291102447",
+            null,
+            units,
+            null,
+            "Trade unit backfill");
+
+    assertThat(transaction.getTransactionType())
+        .isEqualTo(LedgerTransaction.TransactionType.ADJUSTMENT);
+    assertThat(transaction.getEntries()).hasSize(2);
+    assertThat(getSecurityUnitsAccount("LU1291102447").getBalance()).isEqualByComparingTo(units);
+    assertThat(getSecuritiesCustodyAccount("LU1291102447").getBalance())
+        .isEqualByComparingTo(units.negate());
+    verifyDoubleEntry(transaction);
   }
 
   private void setupUserWithFundUnits(
@@ -548,7 +598,19 @@ class SavingsFundLedgerTest {
 
   private LedgerAccount getTradeSettlementAccount(String isin) {
     return ledgerAccountService
-        .findSystemAccountByName("TRADE_SETTLEMENT:" + isin, ASSET, EUR)
+        .findSystemAccountByName("TRADE_CASH_SETTLEMENT:TKF100:" + isin, ASSET, EUR)
+        .orElseThrow();
+  }
+
+  private LedgerAccount getSecurityUnitsAccount(String isin) {
+    return ledgerAccountService
+        .findSystemAccountByName("TRADE_UNIT_SETTLEMENT:TKF100:" + isin, ASSET, FUND_UNIT)
+        .orElseThrow();
+  }
+
+  private LedgerAccount getSecuritiesCustodyAccount(String isin) {
+    return ledgerAccountService
+        .findSystemAccountByName("SECURITIES_CUSTODY:TKF100:" + isin, LIABILITY, FUND_UNIT)
         .orElseThrow();
   }
 

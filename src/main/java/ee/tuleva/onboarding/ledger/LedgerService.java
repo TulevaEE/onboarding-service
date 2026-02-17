@@ -31,6 +31,10 @@ public class LedgerService {
         .orElseGet(() -> ledgerAccountService.createUserAccount(userParty, userAccount));
   }
 
+  public int countAccountsWithPositiveBalance(UserAccount userAccount) {
+    return ledgerAccountService.countAccountsWithPositiveBalance(userAccount);
+  }
+
   public LedgerAccount getSystemAccount(SystemAccount systemAccount) {
     return ledgerAccountService
         .findSystemAccount(systemAccount)

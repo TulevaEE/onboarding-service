@@ -1,13 +1,10 @@
 package ee.tuleva.onboarding.fund
 
-
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService
 import ee.tuleva.onboarding.ledger.LedgerAccount
 import ee.tuleva.onboarding.ledger.LedgerService
-import ee.tuleva.onboarding.ledger.SystemAccount
-import ee.tuleva.onboarding.locale.LocaleConfiguration
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration
 import spock.lang.Specification
@@ -17,8 +14,10 @@ import java.time.ZoneId
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
 import static ee.tuleva.onboarding.fund.FundFixture.additionalSavingsFund
+import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING
+import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS
+import static ee.tuleva.onboarding.locale.LocaleConfiguration.DEFAULT_LOCALE
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
-import static java.util.stream.Collectors.toList
 
 class FundServiceSpec extends Specification {
 
@@ -45,7 +44,7 @@ class FundServiceSpec extends Specification {
     def peopleCount = 123
     pensionFundStatisticsService.getCachedStatistics() >>
       [new PensionFundStatistics(tulevaFund.isin, volume, nav, peopleCount)]
-    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
+    localeService.getCurrentLocale() >> DEFAULT_LOCALE
     fundValueRepository.findLastValueForFund(_ as String) >> Optional.empty()
 
     when:
@@ -99,10 +98,10 @@ class FundServiceSpec extends Specification {
           return fund2 <=> fund1
         }
       })
-      .collect(toList())
+      .toList()
     fundRepository.findAllByFundManagerNameIgnoreCase(fundManagerName) >> funds
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
-    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
+    localeService.getCurrentLocale() >> DEFAULT_LOCALE
     fundValueRepository.findLastValueForFund(_ as String) >> Optional.empty()
 
     when:
@@ -127,7 +126,7 @@ class FundServiceSpec extends Specification {
     fundRepository.findAllByFundManagerNameIgnoreCase(fundManagerName) >> funds
     def tulevaFund = funds.first()
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
-    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
+    localeService.getCurrentLocale() >> DEFAULT_LOCALE
     fundValueRepository.findLastValueForFund(tulevaFund.isin) >> Optional.of(
         aFundValue(tulevaFund.isin, LocalDate.parse("2023-11-03"),123.0))
     fundValueRepository.findLastValueForFund(_ as String) >> Optional.empty()
@@ -149,7 +148,7 @@ class FundServiceSpec extends Specification {
     def savingsFund = additionalSavingsFund()
     fundRepository.findAll() >> [savingsFund]
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
-    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
+    localeService.getCurrentLocale() >> DEFAULT_LOCALE
     def navDate = LocalDate.parse("2025-01-20")
     def nav = 1.1234
     fundValueRepository.findLastValueForFund(savingsFund.isin) >> Optional.of(
@@ -157,9 +156,10 @@ class FundServiceSpec extends Specification {
     savingsFundConfiguration.getIsin() >> "EE0000003283"
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
     def outstandingUnitsAccount = Mock(LedgerAccount)
-    outstandingUnitsAccount.getBalance() >> new BigDecimal("10500.00000")
-    outstandingUnitsAccount.getBalanceAt(cutoff) >> new BigDecimal("10000.00000")
-    ledgerService.getSystemAccount(SystemAccount.FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    outstandingUnitsAccount.getBalance() >> 10500.00000
+    outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
+    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
 
     when:
     def response = fundService.getFunds(Optional.empty())
@@ -167,7 +167,8 @@ class FundServiceSpec extends Specification {
     then:
     def fund = response.first()
     fund.nav == nav
-    fund.volume == new BigDecimal("11795.70")
+    fund.volume == 11795.70
+    fund.peopleCount == 42
   }
 
   def "during gap: uses previous NAV when issuance has not run yet"() {
@@ -175,7 +176,7 @@ class FundServiceSpec extends Specification {
     def savingsFund = additionalSavingsFund()
     fundRepository.findAll() >> [savingsFund]
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
-    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
+    localeService.getCurrentLocale() >> DEFAULT_LOCALE
     def navDate = LocalDate.parse("2025-01-20")
     def nav = 1.12345
     fundValueRepository.findLastValueForFund(savingsFund.isin) >> Optional.of(
@@ -187,9 +188,10 @@ class FundServiceSpec extends Specification {
     savingsFundConfiguration.getIsin() >> "EE0000003283"
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
     def outstandingUnitsAccount = Mock(LedgerAccount)
-    outstandingUnitsAccount.getBalance() >> new BigDecimal("10000.00000")
-    outstandingUnitsAccount.getBalanceAt(cutoff) >> new BigDecimal("10000.00000")
-    ledgerService.getSystemAccount(SystemAccount.FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    outstandingUnitsAccount.getBalance() >> 10000.00000
+    outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
+    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
 
     when:
     def response = fundService.getFunds(Optional.empty())
@@ -197,7 +199,8 @@ class FundServiceSpec extends Specification {
     then:
     def fund = response.first()
     fund.nav == previousNav
-    fund.volume == new BigDecimal("11100.00")
+    fund.volume == 11100.00
+    fund.peopleCount == 42
   }
 
   def "weekend gap: uses previous NAV before Monday issuance"() {
@@ -205,7 +208,7 @@ class FundServiceSpec extends Specification {
     def savingsFund = additionalSavingsFund()
     fundRepository.findAll() >> [savingsFund]
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
-    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
+    localeService.getCurrentLocale() >> DEFAULT_LOCALE
     def navDate = LocalDate.parse("2025-01-17")
     def nav = 1.12345
     fundValueRepository.findLastValueForFund(savingsFund.isin) >> Optional.of(
@@ -217,9 +220,10 @@ class FundServiceSpec extends Specification {
     savingsFundConfiguration.getIsin() >> "EE0000003283"
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
     def outstandingUnitsAccount = Mock(LedgerAccount)
-    outstandingUnitsAccount.getBalance() >> new BigDecimal("10000.00000")
-    outstandingUnitsAccount.getBalanceAt(cutoff) >> new BigDecimal("10000.00000")
-    ledgerService.getSystemAccount(SystemAccount.FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    outstandingUnitsAccount.getBalance() >> 10000.00000
+    outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
+    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
 
     when:
     def response = fundService.getFunds(Optional.empty())
@@ -227,7 +231,8 @@ class FundServiceSpec extends Specification {
     then:
     def fund = response.first()
     fund.nav == previousNav
-    fund.volume == new BigDecimal("11100.00")
+    fund.volume == 11100.00
+    fund.peopleCount == 42
   }
 
   def "weekend after issuance: uses latest NAV and current balance"() {
@@ -235,7 +240,7 @@ class FundServiceSpec extends Specification {
     def savingsFund = additionalSavingsFund()
     fundRepository.findAll() >> [savingsFund]
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
-    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
+    localeService.getCurrentLocale() >> DEFAULT_LOCALE
     def navDate = LocalDate.parse("2025-01-17")
     def nav = 1.1234
     fundValueRepository.findLastValueForFund(savingsFund.isin) >> Optional.of(
@@ -243,9 +248,10 @@ class FundServiceSpec extends Specification {
     savingsFundConfiguration.getIsin() >> "EE0000003283"
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
     def outstandingUnitsAccount = Mock(LedgerAccount)
-    outstandingUnitsAccount.getBalance() >> new BigDecimal("10500.00000")
-    outstandingUnitsAccount.getBalanceAt(cutoff) >> new BigDecimal("10000.00000")
-    ledgerService.getSystemAccount(SystemAccount.FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    outstandingUnitsAccount.getBalance() >> 10500.00000
+    outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
+    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
 
     when:
     def response = fundService.getFunds(Optional.empty())
@@ -253,7 +259,8 @@ class FundServiceSpec extends Specification {
     then:
     def fund = response.first()
     fund.nav == nav
-    fund.volume == new BigDecimal("11795.70")
+    fund.volume == 11795.70
+    fund.peopleCount == 42
   }
 
   def "no previous NAV exists: falls back to current NAV during gap"() {
@@ -261,7 +268,7 @@ class FundServiceSpec extends Specification {
     def savingsFund = additionalSavingsFund()
     fundRepository.findAll() >> [savingsFund]
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
-    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
+    localeService.getCurrentLocale() >> DEFAULT_LOCALE
     def navDate = LocalDate.parse("2025-01-17")
     def nav = 1.00000
     fundValueRepository.findLastValueForFund(savingsFund.isin) >> Optional.of(
@@ -270,9 +277,10 @@ class FundServiceSpec extends Specification {
     savingsFundConfiguration.getIsin() >> "EE0000003283"
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
     def outstandingUnitsAccount = Mock(LedgerAccount)
-    outstandingUnitsAccount.getBalance() >> new BigDecimal("10000.00000")
-    outstandingUnitsAccount.getBalanceAt(cutoff) >> new BigDecimal("10000.00000")
-    ledgerService.getSystemAccount(SystemAccount.FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    outstandingUnitsAccount.getBalance() >> 10000.00000
+    outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
+    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
 
     when:
     def response = fundService.getFunds(Optional.empty())
@@ -280,7 +288,8 @@ class FundServiceSpec extends Specification {
     then:
     def fund = response.first()
     fund.nav == nav
-    fund.volume == new BigDecimal("10000.00")
+    fund.volume == 10000.00
+    fund.peopleCount == 42
   }
 
   def "zero balance: volume is zero during gap"() {
@@ -288,7 +297,7 @@ class FundServiceSpec extends Specification {
     def savingsFund = additionalSavingsFund()
     fundRepository.findAll() >> [savingsFund]
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
-    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
+    localeService.getCurrentLocale() >> DEFAULT_LOCALE
     def navDate = LocalDate.parse("2025-01-17")
     def nav = 1.12345
     fundValueRepository.findLastValueForFund(savingsFund.isin) >> Optional.of(
@@ -299,16 +308,18 @@ class FundServiceSpec extends Specification {
     savingsFundConfiguration.getIsin() >> "EE0000003283"
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
     def outstandingUnitsAccount = Mock(LedgerAccount)
-    outstandingUnitsAccount.getBalance() >> BigDecimal.ZERO
-    outstandingUnitsAccount.getBalanceAt(cutoff) >> BigDecimal.ZERO
-    ledgerService.getSystemAccount(SystemAccount.FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    outstandingUnitsAccount.getBalance() >> 0.0
+    outstandingUnitsAccount.getBalanceAt(cutoff) >> 0.0
+    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
 
     when:
     def response = fundService.getFunds(Optional.empty())
 
     then:
     def fund = response.first()
-    fund.volume == new BigDecimal("0.00")
+    fund.volume == 0.00
+    fund.peopleCount == 42
   }
 
   def "savings fund NAV has 4 decimal places"() {
@@ -316,29 +327,30 @@ class FundServiceSpec extends Specification {
     def savingsFund = additionalSavingsFund()
     fundRepository.findAll() >> [savingsFund]
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
-    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
+    localeService.getCurrentLocale() >> DEFAULT_LOCALE
     def navDate = LocalDate.parse("2025-01-20")
     fundValueRepository.findLastValueForFund(savingsFund.isin) >> Optional.of(
         aFundValue(savingsFund.isin, navDate, nav))
     savingsFundConfiguration.getIsin() >> "EE0000003283"
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
     def outstandingUnitsAccount = Mock(LedgerAccount)
-    outstandingUnitsAccount.getBalance() >> new BigDecimal("10500.00000")
-    outstandingUnitsAccount.getBalanceAt(cutoff) >> new BigDecimal("10000.00000")
-    ledgerService.getSystemAccount(SystemAccount.FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    outstandingUnitsAccount.getBalance() >> 10500.00000
+    outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
+    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
 
     when:
     def response = fundService.getFunds(Optional.empty())
 
     then:
     def fund = response.first()
-    fund.nav == new BigDecimal(expectedNav)
+    fund.nav == expectedNav
     fund.nav.scale() == 4
 
     where:
     nav      | expectedNav
-    1.0      | "1.0000"
-    1.23450  | "1.2345"
+    1.0      | 1.0000
+    1.23450  | 1.2345
   }
 
   def "non-savings fund returns null volume"() {
@@ -350,7 +362,7 @@ class FundServiceSpec extends Specification {
     fundRepository.findAllByFundManagerNameIgnoreCase(fundManagerName) >> funds
     def tulevaFund = funds.first()
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
-    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
+    localeService.getCurrentLocale() >> DEFAULT_LOCALE
     fundValueRepository.findLastValueForFund(tulevaFund.isin) >> Optional.of(
         aFundValue(tulevaFund.isin, LocalDate.parse("2023-11-03"), 123.0))
     fundValueRepository.findLastValueForFund(_ as String) >> Optional.empty()

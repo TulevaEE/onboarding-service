@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.savings.fund.notification.TrusteeReportSentEvent;
 import ee.tuleva.onboarding.time.ClockHolder;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -58,17 +59,27 @@ class TrusteeReportJobTest {
     var workingDay = LocalDate.of(2020, 1, 2); // Thursday
     setClockTo(workingDay);
 
-    var rows =
-        List.of(
-            TrusteeReportRow.builder()
-                .reportDate(workingDay)
-                .nav(ONE)
-                .issuedUnits(ZERO)
-                .issuedAmount(ZERO)
-                .redeemedUnits(ZERO)
-                .redeemedAmount(ZERO)
-                .totalOutstandingUnits(ZERO)
-                .build());
+    var todayRow =
+        TrusteeReportRow.builder()
+            .reportDate(workingDay)
+            .nav(ONE)
+            .issuedUnits(ZERO)
+            .issuedAmount(ZERO)
+            .redeemedUnits(ZERO)
+            .redeemedAmount(ZERO)
+            .totalOutstandingUnits(ZERO)
+            .build();
+    var olderRow =
+        TrusteeReportRow.builder()
+            .reportDate(workingDay.minusDays(1))
+            .nav(new BigDecimal("999"))
+            .issuedUnits(new BigDecimal("999"))
+            .issuedAmount(new BigDecimal("999"))
+            .redeemedUnits(new BigDecimal("999"))
+            .redeemedAmount(new BigDecimal("999"))
+            .totalOutstandingUnits(new BigDecimal("999"))
+            .build();
+    var rows = List.of(todayRow, olderRow);
     var csvBytes = "csv-content".getBytes(UTF_8);
 
     when(repository.findAll()).thenReturn(rows);
@@ -105,7 +116,7 @@ class TrusteeReportJobTest {
     assertThat(Base64.getDecoder().decode(attachment.getContent())).isEqualTo(csvBytes);
 
     verify(eventPublisher)
-        .publishEvent(new TrusteeReportSentEvent(workingDay, 1, ONE, ZERO, ZERO, ZERO, ZERO, ZERO));
+        .publishEvent(new TrusteeReportSentEvent(workingDay, 2, ONE, ZERO, ZERO, ZERO, ZERO, ZERO));
   }
 
   @Test

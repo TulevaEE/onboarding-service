@@ -99,30 +99,35 @@ public class BankOperationProcessor {
         savingsFundLedger.recordBankAdjustment(amount, externalReference, clearingAccount);
       }
       case TRAD, SUBS -> {
-        var fundTicker = tradeSettlementParser.parse(entry.remittanceInformation());
-        if (fundTicker.isEmpty()) {
+        var tradeInfo = tradeSettlementParser.parse(entry.remittanceInformation());
+        if (tradeInfo.isEmpty()) {
           log.error(
               "Trade settlement with unknown ticker: externalRef={}, remittanceInfo={}",
               externalReference,
               entry.remittanceInformation());
           return;
         }
-        var ticker = fundTicker.get();
+        var info = tradeInfo.get();
+        var ticker = info.ticker();
+        var units = info.units().setScale(5, RoundingMode.HALF_UP);
         log.info(
-            "Trade settlement: amount={}, externalRef={}, account={}, ticker={}, isin={}",
+            "Trade settlement: amount={}, units={}, externalRef={}, account={}, ticker={}, isin={}",
             amount,
+            units,
             externalReference,
             accountType,
             ticker.getYahooTicker(),
             ticker.getIsin());
         savingsFundLedger.recordTradeSettlement(
             amount,
+            units,
             externalReference,
             clearingAccount,
             ticker.getIsin(),
             ticker.getYahooTicker().split("\\.")[0],
             ticker.getDisplayName());
       }
+      default -> throw new IllegalStateException("Unexpected value: " + subFamilyCode);
     }
   }
 

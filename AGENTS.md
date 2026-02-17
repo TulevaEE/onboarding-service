@@ -300,6 +300,11 @@ Repeat in small increments. Each cycle should be minutes, not hours.
   - ❌ Bad: `given: "Database has one value"`
   - ✅ Good: `given:` followed by clear, self-documenting code
 
+#### Groovy Test Conventions
+- **Use Groovy BigDecimal literals**: In Groovy tests, all decimal number literals are `BigDecimal` by default. Use plain numeric literals instead of `new BigDecimal("...")` for better readability:
+  - ❌ Bad: `new BigDecimal("10500.00000")`
+  - ✅ Good: `10500.00000`
+
 #### Controller Tests with @WebMvcTest
 - **Use `@WebMvcTest` for controller tests**: This loads only the web layer without the full application context
 - **Use `@WithMockUser` for security**: Bypasses Spring Security authentication

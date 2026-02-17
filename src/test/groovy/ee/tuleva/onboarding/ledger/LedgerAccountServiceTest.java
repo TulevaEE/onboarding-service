@@ -1,12 +1,10 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.USER_ACCOUNT;
-import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.fundUnitsAccountWithBalance;
+import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
-import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -21,17 +19,12 @@ class LedgerAccountServiceTest {
   @InjectMocks private LedgerAccountService ledgerAccountService;
 
   @Test
-  void countAccountsWithPositiveBalance_countsOnlyAccountsWithPositiveBalance() {
-    var accountWithUnits = fundUnitsAccountWithBalance(new BigDecimal("100.00000"));
-    var accountWithZero = fundUnitsAccountWithBalance(BigDecimal.ZERO);
-    var anotherAccountWithUnits = fundUnitsAccountWithBalance(new BigDecimal("50.00000"));
+  void countAccountsWithPositiveBalance_delegatesToRepository() {
+    when(ledgerAccountRepository.countWithPositiveBalance(FUND_UNITS.name(), USER_ACCOUNT))
+        .thenReturn(42);
 
-    when(ledgerAccountRepository.findAllByNameAndPurpose(
-            UserAccount.FUND_UNITS.name(), USER_ACCOUNT))
-        .thenReturn(List.of(accountWithUnits, accountWithZero, anotherAccountWithUnits));
+    int count = ledgerAccountService.countAccountsWithPositiveBalance(FUND_UNITS);
 
-    int count = ledgerAccountService.countAccountsWithPositiveBalance(UserAccount.FUND_UNITS);
-
-    assertThat(count).isEqualTo(2);
+    assertThat(count).isEqualTo(42);
   }
 }

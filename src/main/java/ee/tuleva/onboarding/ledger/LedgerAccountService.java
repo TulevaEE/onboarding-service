@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.USER_ACCOUNT;
-import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
@@ -66,10 +65,7 @@ class LedgerAccountService {
   }
 
   int countAccountsWithPositiveBalance(UserAccount userAccount) {
-    return (int)
-        ledgerAccountRepository.findAllByNameAndPurpose(userAccount.name(), USER_ACCOUNT).stream()
-            .filter(account -> account.getBalance().compareTo(ZERO) < 0)
-            .count();
+    return ledgerAccountRepository.countWithPositiveBalance(userAccount.name(), USER_ACCOUNT);
   }
 
   LedgerAccount createSystemAccount(String name, AccountType accountType, AssetType assetType) {

@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.TulevaFund.getPillar2Funds;
 import static ee.tuleva.onboarding.investment.TulevaFund.getPillar3Funds;
+import static ee.tuleva.onboarding.investment.TulevaFund.getSavingsFunds;
 import static ee.tuleva.onboarding.investment.calculation.PriceSource.EODHD;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.NO_PRICE_DATA;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.OK;
@@ -19,6 +20,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -158,8 +160,9 @@ class PositionCalculationJobTest {
   }
 
   @Test
-  void calculatePositionsAfternoon_processesPillarIIIFunds() {
-    List<TulevaFund> expectedFunds = getPillar3Funds();
+  void calculatePositionsAfternoon_processesPillarIIIAndSavingsFunds() {
+    var expectedFunds =
+        Stream.concat(getPillar3Funds().stream(), getSavingsFunds().stream()).toList();
     when(calculationService.calculateForLatestDate(expectedFunds)).thenReturn(List.of());
 
     job.calculatePositionsAfternoon();

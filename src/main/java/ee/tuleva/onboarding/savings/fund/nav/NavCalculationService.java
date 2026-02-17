@@ -23,7 +23,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class NavCalculationService {
 
-  private static final int NAV_PRECISION = 5;
+  private static final int NAV_PRECISION = 4;
 
   private final FundPositionRepository fundPositionRepository;
   private final NavLedgerRepository navLedgerRepository;

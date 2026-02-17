@@ -3,12 +3,14 @@ package ee.tuleva.onboarding.investment.calculation;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.*;
 import static ee.tuleva.onboarding.investment.TulevaFund.getPillar2Funds;
 import static ee.tuleva.onboarding.investment.TulevaFund.getPillar3Funds;
+import static ee.tuleva.onboarding.investment.TulevaFund.getSavingsFunds;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.NO_PRICE_DATA;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.PRICE_DISCREPANCY;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.YAHOO_MISSING;
 
 import ee.tuleva.onboarding.investment.TulevaFund;
 import java.util.List;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -41,7 +43,8 @@ public class PositionCalculationJob {
       lockAtMostFor = "55m",
       lockAtLeastFor = "5m")
   public void calculatePositionsAfternoon() {
-    calculateForFunds(getPillar3Funds());
+    calculateForFunds(
+        Stream.concat(getPillar3Funds().stream(), getSavingsFunds().stream()).toList());
   }
 
   public void calculateForFunds(List<TulevaFund> funds) {

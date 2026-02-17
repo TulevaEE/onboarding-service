@@ -153,10 +153,10 @@ class NavPositionLedgerTest {
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(2);
-    assertThat(entries[0].account()).isEqualTo(navEquityAccount);
-    assertThat(entries[0].amount()).isEqualByComparingTo("5000.00");
-    assertThat(entries[1].account()).isEqualTo(payablesAccount);
-    assertThat(entries[1].amount()).isEqualByComparingTo("-5000.00");
+    assertThat(entries[0].account()).isEqualTo(payablesAccount);
+    assertThat(entries[0].amount()).isEqualByComparingTo("-5000.00");
+    assertThat(entries[1].account()).isEqualTo(navEquityAccount);
+    assertThat(entries[1].amount()).isEqualByComparingTo("5000.00");
   }
 
   @Test

@@ -75,7 +75,7 @@ public class FundPositionImportJob {
   @SchedulerLock(name = "FundPositionImportJob", lockAtMostFor = "55m", lockAtLeastFor = "4m")
   public void runImport() {
     LocalDate today = LocalDate.now();
-    IntStream.rangeClosed(1, LOOKBACK_DAYS)
+    IntStream.iterate(LOOKBACK_DAYS, i -> i >= 1, i -> i - 1)
         .mapToObj(today::minusDays)
         .forEach(
             date -> {

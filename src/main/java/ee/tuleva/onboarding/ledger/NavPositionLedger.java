@@ -50,8 +50,8 @@ public class NavPositionLedger {
     }
 
     if (payablesValue.signum() != 0) {
-      entries.add(entry(getNavEquityAccount(), payablesValue.abs()));
-      entries.add(entry(getPayablesAccount(), payablesValue.abs().negate()));
+      entries.add(entry(getPayablesAccount(), payablesValue));
+      entries.add(entry(getNavEquityAccount(), payablesValue.negate()));
     }
 
     if (entries.isEmpty()) {

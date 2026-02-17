@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.admin;
 
-import static ee.tuleva.onboarding.investment.TulevaFund.TKF100;
-
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -104,6 +102,7 @@ public class AdminController {
   @PostMapping("/calculate-nav")
   public NavCalculationResult calculateNav(
       @RequestHeader("X-Admin-Token") String token,
+      @RequestParam(defaultValue = "TKF100") String fundCode,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
       @RequestParam(defaultValue = "true") boolean publish) {
 
@@ -111,9 +110,13 @@ public class AdminController {
 
     LocalDate calculationDate = date != null ? date : LocalDate.now(clock);
 
-    log.info("Admin triggered NAV calculation: date={}, publish={}", calculationDate, publish);
+    log.info(
+        "Admin triggered NAV calculation: fund={}, date={}, publish={}",
+        fundCode,
+        calculationDate,
+        publish);
 
-    NavCalculationResult result = navCalculationService.calculate(TKF100, calculationDate);
+    NavCalculationResult result = navCalculationService.calculate(fundCode, calculationDate);
 
     if (publish) {
       navPublisher.publish(result);

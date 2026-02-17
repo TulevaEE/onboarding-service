@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.admin;
 
-import static ee.tuleva.onboarding.investment.TulevaFund.TKF100;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
@@ -13,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ee.tuleva.onboarding.investment.TulevaFund;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
@@ -185,7 +185,7 @@ class AdminControllerTest {
   @Test
   void calculateNav_withValidToken_calculatesAndPublishes() throws Exception {
     var result = sampleNavResult(LocalDate.of(2026, 2, 17));
-    when(navCalculationService.calculate(TKF100, LocalDate.of(2026, 2, 17))).thenReturn(result);
+    when(navCalculationService.calculate("TKF100", LocalDate.of(2026, 2, 17))).thenReturn(result);
 
     mockMvc
         .perform(
@@ -203,7 +203,7 @@ class AdminControllerTest {
   @Test
   void calculateNav_withPublishFalse_calculatesButDoesNotPublish() throws Exception {
     var result = sampleNavResult(LocalDate.of(2026, 2, 17));
-    when(navCalculationService.calculate(TKF100, LocalDate.of(2026, 2, 17))).thenReturn(result);
+    when(navCalculationService.calculate("TKF100", LocalDate.of(2026, 2, 17))).thenReturn(result);
 
     mockMvc
         .perform(
@@ -231,7 +231,7 @@ class AdminControllerTest {
 
   private NavCalculationResult sampleNavResult(LocalDate date) {
     return NavCalculationResult.builder()
-        .fund(TKF100)
+        .fund(TulevaFund.fromCode("TKF100"))
         .calculationDate(date)
         .securitiesValue(new BigDecimal("800000"))
         .cashPosition(new BigDecimal("200000"))

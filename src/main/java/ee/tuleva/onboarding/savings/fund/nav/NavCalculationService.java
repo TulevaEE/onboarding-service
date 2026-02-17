@@ -41,6 +41,10 @@ public class NavCalculationService {
   private final BlackrockAdjustmentComponent blackrockAdjustmentComponent;
   private final Clock clock;
 
+  public NavCalculationResult calculate(String fundCode, LocalDate calculationDate) {
+    return calculate(TulevaFund.fromCode(fundCode), calculationDate);
+  }
+
   public NavCalculationResult calculate(TulevaFund fund, LocalDate calculationDate) {
     log.info("Starting NAV calculation: fund={}, date={}", fund, calculationDate);
 

@@ -28,7 +28,8 @@ public class ReceivablesComponent implements NavComponent {
 
   @Override
   public BigDecimal calculate(NavComponentContext context) {
-    BigDecimal balance = navLedgerRepository.getSystemAccountBalance(TRADE_RECEIVABLES.name());
+    BigDecimal balance =
+        navLedgerRepository.getSystemAccountBalance(TRADE_RECEIVABLES.getAccountName());
     return balance != null ? balance : ZERO;
   }
 

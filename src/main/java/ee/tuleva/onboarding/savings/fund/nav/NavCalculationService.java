@@ -141,12 +141,13 @@ public class NavCalculationService {
   }
 
   private BigDecimal getUnitsOutstanding() {
-    BigDecimal balance = navLedgerRepository.getSystemAccountBalance(FUND_UNITS_OUTSTANDING.name());
-    if (balance.signum() > 0) {
+    BigDecimal balance =
+        navLedgerRepository.getSystemAccountBalance(FUND_UNITS_OUTSTANDING.getAccountName());
+    if (balance.signum() < 0) {
       throw new IllegalStateException(
-          "FUND_UNITS_OUTSTANDING should be negative (liability), but was: " + balance);
+          "FUND_UNITS_OUTSTANDING should be positive, but was: " + balance);
     }
-    return balance.negate();
+    return balance;
   }
 
   private BigDecimal calculatePreliminaryNav(

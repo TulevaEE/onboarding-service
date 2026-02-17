@@ -63,7 +63,7 @@ class FundPositionImportJobTest {
             navPositionLedger,
             navLedgerRepository);
 
-    lenient().when(navLedgerRepository.getPositionBalanceByFund(any(), any())).thenReturn(ZERO);
+    lenient().when(navLedgerRepository.getSystemAccountBalance(any())).thenReturn(ZERO);
   }
 
   private static final List<Map<String, Object>> SAMPLE_RAW_DATA =
@@ -283,13 +283,13 @@ class FundPositionImportJobTest {
     when(repository.findByReportingDateAndFundAndAccountType(date, TUK75, AccountType.LIABILITY))
         .thenReturn(List.of());
 
-    when(navLedgerRepository.getPositionBalanceByFund(SECURITIES_VALUE.name(), TUK75.name()))
+    when(navLedgerRepository.getSystemAccountBalance(SECURITIES_VALUE.getAccountName()))
         .thenReturn(new BigDecimal("90000"));
-    when(navLedgerRepository.getPositionBalanceByFund(CASH_POSITION.name(), TUK75.name()))
+    when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName()))
         .thenReturn(new BigDecimal("40000"));
-    when(navLedgerRepository.getPositionBalanceByFund(TRADE_RECEIVABLES.name(), TUK75.name()))
+    when(navLedgerRepository.getSystemAccountBalance(TRADE_RECEIVABLES.getAccountName()))
         .thenReturn(ZERO);
-    when(navLedgerRepository.getPositionBalanceByFund(TRADE_PAYABLES.name(), TUK75.name()))
+    when(navLedgerRepository.getSystemAccountBalance(TRADE_PAYABLES.getAccountName()))
         .thenReturn(ZERO);
 
     job.importForProviderAndDate(SWEDBANK, date);

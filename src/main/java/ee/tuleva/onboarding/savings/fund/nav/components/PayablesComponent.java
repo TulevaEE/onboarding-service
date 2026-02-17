@@ -27,7 +27,8 @@ public class PayablesComponent implements NavComponent {
 
   @Override
   public BigDecimal calculate(NavComponentContext context) {
-    BigDecimal balance = navLedgerRepository.getSystemAccountBalance(TRADE_PAYABLES.name());
+    BigDecimal balance =
+        navLedgerRepository.getSystemAccountBalance(TRADE_PAYABLES.getAccountName());
     if (balance == null) {
       return ZERO;
     }

@@ -40,22 +40,4 @@ public class NavLedgerRepository {
         .query(BigDecimal.class)
         .single();
   }
-
-  public BigDecimal getPositionBalanceByFund(String accountName, String fund) {
-    return jdbcClient
-        .sql(
-            """
-            SELECT COALESCE(SUM(e.amount), 0) AS total_balance
-            FROM ledger.entry e
-            JOIN ledger.account a ON e.account_id = a.id
-            JOIN ledger.transaction t ON e.transaction_id = t.id
-            WHERE a.name = :accountName
-              AND a.purpose = 'SYSTEM_ACCOUNT'
-              AND t.metadata->>'fund' = :fund
-            """)
-        .param("accountName", accountName)
-        .param("fund", fund)
-        .query(BigDecimal.class)
-        .single();
-  }
 }

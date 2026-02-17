@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.nav.components;
 
 import static ee.tuleva.onboarding.investment.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.SystemAccount.CASH_POSITION;
+import static ee.tuleva.onboarding.savings.fund.nav.components.NavComponent.NavComponentType.ASSET;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -32,7 +33,7 @@ class CashPositionComponentTest {
             .positionReportDate(LocalDate.of(2026, 2, 1))
             .build();
 
-    when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.name()))
+    when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName()))
         .thenReturn(new BigDecimal("50000.00"));
 
     BigDecimal result = component.calculate(context);
@@ -49,7 +50,8 @@ class CashPositionComponentTest {
             .positionReportDate(LocalDate.of(2026, 2, 1))
             .build();
 
-    when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.name())).thenReturn(ZERO);
+    when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName()))
+        .thenReturn(ZERO);
 
     BigDecimal result = component.calculate(context);
 
@@ -65,7 +67,8 @@ class CashPositionComponentTest {
             .positionReportDate(LocalDate.of(2026, 2, 1))
             .build();
 
-    when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.name())).thenReturn(null);
+    when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName()))
+        .thenReturn(null);
 
     BigDecimal result = component.calculate(context);
 
@@ -79,7 +82,7 @@ class CashPositionComponentTest {
 
   @Test
   void getType_returnsAsset() {
-    assertThat(component.getType()).isEqualTo(NavComponent.NavComponentType.ASSET);
+    assertThat(component.getType()).isEqualTo(ASSET);
   }
 
   @Test

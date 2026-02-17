@@ -99,7 +99,7 @@ public class NavLedgerReconciliation {
   }
 
   private BigDecimal getLedgerBalance(SystemAccount account) {
-    BigDecimal balance = navLedgerRepository.getSystemAccountBalance(account.name());
+    BigDecimal balance = navLedgerRepository.getSystemAccountBalance(account.getAccountName());
     return balance != null ? balance : ZERO;
   }
 

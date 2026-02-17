@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.nav.components;
 
 import static ee.tuleva.onboarding.investment.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.savings.fund.nav.components.NavComponent.NavComponentType.LIABILITY;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -82,7 +83,7 @@ class RedemptionsComponentTest {
 
   @Test
   void getType_returnsLiability() {
-    assertThat(component.getType()).isEqualTo(NavComponent.NavComponentType.LIABILITY);
+    assertThat(component.getType()).isEqualTo(LIABILITY);
   }
 
   @Test

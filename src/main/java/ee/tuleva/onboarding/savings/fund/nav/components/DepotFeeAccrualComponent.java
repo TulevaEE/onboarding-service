@@ -28,7 +28,8 @@ public class DepotFeeAccrualComponent implements NavComponent {
 
   @Override
   public BigDecimal calculate(NavComponentContext context) {
-    BigDecimal balance = navLedgerRepository.getSystemAccountBalance(DEPOT_FEE_ACCRUAL.name());
+    BigDecimal balance =
+        navLedgerRepository.getSystemAccountBalance(DEPOT_FEE_ACCRUAL.getAccountName());
     if (balance == null) {
       return ZERO;
     }

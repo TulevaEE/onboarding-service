@@ -28,7 +28,8 @@ public class SecuritiesValueComponent implements NavComponent {
 
   @Override
   public BigDecimal calculate(NavComponentContext context) {
-    BigDecimal balance = navLedgerRepository.getSystemAccountBalance(SECURITIES_VALUE.name());
+    BigDecimal balance =
+        navLedgerRepository.getSystemAccountBalance(SECURITIES_VALUE.getAccountName());
     return balance != null ? balance : ZERO;
   }
 

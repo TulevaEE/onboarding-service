@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.savings.fund.nav.components;
 
 import static ee.tuleva.onboarding.investment.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.ledger.SystemAccount.BLACKROCK_ADJUSTMENT;
+import static ee.tuleva.onboarding.savings.fund.nav.components.NavComponent.NavComponentType.ASSET;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -31,7 +33,7 @@ class BlackrockAdjustmentComponentTest {
             .positionReportDate(LocalDate.of(2025, 1, 15))
             .build();
 
-    when(navLedgerRepository.getSystemAccountBalance("BLACKROCK_ADJUSTMENT"))
+    when(navLedgerRepository.getSystemAccountBalance(BLACKROCK_ADJUSTMENT.getAccountName()))
         .thenReturn(new BigDecimal("500.00"));
 
     BigDecimal result = component.calculate(context);
@@ -48,7 +50,7 @@ class BlackrockAdjustmentComponentTest {
             .positionReportDate(LocalDate.of(2025, 1, 15))
             .build();
 
-    when(navLedgerRepository.getSystemAccountBalance("BLACKROCK_ADJUSTMENT"))
+    when(navLedgerRepository.getSystemAccountBalance(BLACKROCK_ADJUSTMENT.getAccountName()))
         .thenReturn(new BigDecimal("-300.00"));
 
     BigDecimal result = component.calculate(context);
@@ -65,7 +67,8 @@ class BlackrockAdjustmentComponentTest {
             .positionReportDate(LocalDate.of(2025, 1, 15))
             .build();
 
-    when(navLedgerRepository.getSystemAccountBalance("BLACKROCK_ADJUSTMENT")).thenReturn(ZERO);
+    when(navLedgerRepository.getSystemAccountBalance(BLACKROCK_ADJUSTMENT.getAccountName()))
+        .thenReturn(ZERO);
 
     BigDecimal result = component.calculate(context);
 
@@ -81,7 +84,8 @@ class BlackrockAdjustmentComponentTest {
             .positionReportDate(LocalDate.of(2025, 1, 15))
             .build();
 
-    when(navLedgerRepository.getSystemAccountBalance("BLACKROCK_ADJUSTMENT")).thenReturn(null);
+    when(navLedgerRepository.getSystemAccountBalance(BLACKROCK_ADJUSTMENT.getAccountName()))
+        .thenReturn(null);
 
     BigDecimal result = component.calculate(context);
 
@@ -95,7 +99,7 @@ class BlackrockAdjustmentComponentTest {
 
   @Test
   void getType_returnsAsset() {
-    assertThat(component.getType()).isEqualTo(NavComponent.NavComponentType.ASSET);
+    assertThat(component.getType()).isEqualTo(ASSET);
   }
 
   @Test

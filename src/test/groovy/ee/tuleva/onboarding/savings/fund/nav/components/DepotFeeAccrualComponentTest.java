@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.nav.components;
 
 import static ee.tuleva.onboarding.investment.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.SystemAccount.DEPOT_FEE_ACCRUAL;
+import static ee.tuleva.onboarding.savings.fund.nav.components.NavComponent.NavComponentType.LIABILITY;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -33,7 +34,7 @@ class DepotFeeAccrualComponentTest {
             .positionReportDate(LocalDate.of(2026, 2, 1))
             .build();
 
-    when(navLedgerRepository.getSystemAccountBalance(DEPOT_FEE_ACCRUAL.name()))
+    when(navLedgerRepository.getSystemAccountBalance(DEPOT_FEE_ACCRUAL.getAccountName()))
         .thenReturn(new BigDecimal("-16.44"));
 
     BigDecimal result = component.calculate(context);
@@ -50,7 +51,8 @@ class DepotFeeAccrualComponentTest {
             .positionReportDate(LocalDate.of(2026, 2, 1))
             .build();
 
-    when(navLedgerRepository.getSystemAccountBalance(DEPOT_FEE_ACCRUAL.name())).thenReturn(ZERO);
+    when(navLedgerRepository.getSystemAccountBalance(DEPOT_FEE_ACCRUAL.getAccountName()))
+        .thenReturn(ZERO);
 
     BigDecimal result = component.calculate(context);
 
@@ -66,7 +68,8 @@ class DepotFeeAccrualComponentTest {
             .positionReportDate(LocalDate.of(2026, 2, 1))
             .build();
 
-    when(navLedgerRepository.getSystemAccountBalance(DEPOT_FEE_ACCRUAL.name())).thenReturn(null);
+    when(navLedgerRepository.getSystemAccountBalance(DEPOT_FEE_ACCRUAL.getAccountName()))
+        .thenReturn(null);
 
     BigDecimal result = component.calculate(context);
 
@@ -80,7 +83,7 @@ class DepotFeeAccrualComponentTest {
 
   @Test
   void getType_returnsLiability() {
-    assertThat(component.getType()).isEqualTo(NavComponent.NavComponentType.LIABILITY);
+    assertThat(component.getType()).isEqualTo(LIABILITY);
   }
 
   @Test
@@ -92,7 +95,7 @@ class DepotFeeAccrualComponentTest {
             .positionReportDate(LocalDate.of(2026, 2, 1))
             .build();
 
-    when(navLedgerRepository.getSystemAccountBalance(DEPOT_FEE_ACCRUAL.name()))
+    when(navLedgerRepository.getSystemAccountBalance(DEPOT_FEE_ACCRUAL.getAccountName()))
         .thenReturn(new BigDecimal("16.44"));
 
     assertThrows(IllegalStateException.class, () -> component.calculate(context));

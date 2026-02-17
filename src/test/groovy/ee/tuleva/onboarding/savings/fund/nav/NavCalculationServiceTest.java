@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.investment.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -65,8 +66,8 @@ class NavCalculationServiceTest {
 
     when(fundPositionRepository.findLatestReportingDateByFundAndAsOfDate(TKF100, calcDate))
         .thenReturn(Optional.of(calcDate));
-    when(navLedgerRepository.getSystemAccountBalance("FUND_UNITS_OUTSTANDING"))
-        .thenReturn(new BigDecimal("-100000.00000"));
+    when(navLedgerRepository.getSystemAccountBalance(FUND_UNITS_OUTSTANDING.getAccountName()))
+        .thenReturn(new BigDecimal("100000.00000"));
 
     when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("900000.00"));
     when(cashPositionComponent.calculate(any())).thenReturn(new BigDecimal("50000.00"));
@@ -115,7 +116,8 @@ class NavCalculationServiceTest {
 
     when(fundPositionRepository.findLatestReportingDateByFundAndAsOfDate(TKF100, calcDate))
         .thenReturn(Optional.of(calcDate));
-    when(navLedgerRepository.getSystemAccountBalance("FUND_UNITS_OUTSTANDING")).thenReturn(ZERO);
+    when(navLedgerRepository.getSystemAccountBalance(FUND_UNITS_OUTSTANDING.getAccountName()))
+        .thenReturn(ZERO);
 
     when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("1000.00"));
     when(cashPositionComponent.calculate(any())).thenReturn(ZERO);
@@ -150,8 +152,8 @@ class NavCalculationServiceTest {
 
     when(fundPositionRepository.findLatestReportingDateByFundAndAsOfDate(TKF100, calcDate))
         .thenReturn(Optional.of(calcDate));
-    when(navLedgerRepository.getSystemAccountBalance("FUND_UNITS_OUTSTANDING"))
-        .thenReturn(new BigDecimal("-100000.00000"));
+    when(navLedgerRepository.getSystemAccountBalance(FUND_UNITS_OUTSTANDING.getAccountName()))
+        .thenReturn(new BigDecimal("100000.00000"));
 
     when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("1000000.00"));
     when(cashPositionComponent.calculate(any())).thenReturn(ZERO);

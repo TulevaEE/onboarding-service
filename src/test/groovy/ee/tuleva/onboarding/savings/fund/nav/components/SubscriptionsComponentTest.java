@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.nav.components;
 
 import static ee.tuleva.onboarding.investment.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.savings.fund.nav.components.NavComponent.NavComponentType.ASSET;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -62,7 +63,7 @@ class SubscriptionsComponentTest {
 
   @Test
   void getType_returnsAsset() {
-    assertThat(component.getType()).isEqualTo(NavComponent.NavComponentType.ASSET);
+    assertThat(component.getType()).isEqualTo(ASSET);
   }
 
   @Test

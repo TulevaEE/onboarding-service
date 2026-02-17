@@ -28,7 +28,8 @@ public class CashPositionComponent implements NavComponent {
 
   @Override
   public BigDecimal calculate(NavComponentContext context) {
-    BigDecimal balance = navLedgerRepository.getSystemAccountBalance(CASH_POSITION.name());
+    BigDecimal balance =
+        navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName());
     return balance != null ? balance : ZERO;
   }
 

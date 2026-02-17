@@ -130,13 +130,12 @@ public class FundPositionImportJob {
 
   private void recordPositionsToLedger(TulevaFund fund, LocalDate date) {
     BigDecimal securitiesDelta =
-        calculateDelta(fund, SECURITIES_VALUE, calculateSecuritiesValue(fund, date));
-    BigDecimal cashDelta =
-        calculateDelta(fund, CASH_POSITION, calculatePositionValue(fund, date, CASH));
+        calculateDelta(SECURITIES_VALUE, calculateSecuritiesValue(fund, date));
+    BigDecimal cashDelta = calculateDelta(CASH_POSITION, calculatePositionValue(fund, date, CASH));
     BigDecimal receivablesDelta =
-        calculateDelta(fund, TRADE_RECEIVABLES, calculatePositionValue(fund, date, RECEIVABLES));
+        calculateDelta(TRADE_RECEIVABLES, calculatePositionValue(fund, date, RECEIVABLES));
     BigDecimal payablesDelta =
-        calculateDelta(fund, TRADE_PAYABLES, calculatePositionValue(fund, date, LIABILITY));
+        calculateDelta(TRADE_PAYABLES, calculatePositionValue(fund, date, LIABILITY));
 
     navPositionLedger.recordPositions(
         fund.name(), date, securitiesDelta, cashDelta, receivablesDelta, payablesDelta);
@@ -150,9 +149,9 @@ public class FundPositionImportJob {
         payablesDelta);
   }
 
-  private BigDecimal calculateDelta(TulevaFund fund, SystemAccount account, BigDecimal newValue) {
+  private BigDecimal calculateDelta(SystemAccount account, BigDecimal newValue) {
     BigDecimal currentBalance =
-        navLedgerRepository.getPositionBalanceByFund(account.name(), fund.name());
+        navLedgerRepository.getSystemAccountBalance(account.getAccountName());
     return newValue.subtract(currentBalance);
   }
 

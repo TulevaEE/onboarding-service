@@ -3,7 +3,11 @@ package ee.tuleva.onboarding.admin;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
+import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
+import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
 import jakarta.transaction.Transactional;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
@@ -30,6 +34,9 @@ public class AdminController {
 
   private final ApplicationEventPublisher eventPublisher;
   private final SavingsFundLedger savingsFundLedger;
+  private final NavCalculationService navCalculationService;
+  private final NavPublisher navPublisher;
+  private final Clock clock;
 
   @Value("${admin.api-token:}")
   private String adminApiToken;
@@ -90,6 +97,33 @@ public class AdminController {
 
     log.info("All adjustments completed: count={}", results.size());
     return results;
+  }
+
+  @PostMapping("/calculate-nav")
+  public NavCalculationResult calculateNav(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam(defaultValue = "TKF100") String fundCode,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+      @RequestParam(defaultValue = "true") boolean publish) {
+
+    validateToken(token);
+
+    LocalDate calculationDate = date != null ? date : LocalDate.now(clock);
+
+    log.info(
+        "Admin triggered NAV calculation: fund={}, date={}, publish={}",
+        fundCode,
+        calculationDate,
+        publish);
+
+    NavCalculationResult result = navCalculationService.calculate(fundCode, calculationDate);
+
+    if (publish) {
+      navPublisher.publish(result);
+      log.info("NAV published: date={}, navPerUnit={}", calculationDate, result.navPerUnit());
+    }
+
+    return result;
   }
 
   private void validateToken(String token) {

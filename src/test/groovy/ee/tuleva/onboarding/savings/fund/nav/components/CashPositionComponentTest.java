@@ -1,0 +1,92 @@
+package ee.tuleva.onboarding.savings.fund.nav.components;
+
+import static ee.tuleva.onboarding.investment.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.ledger.SystemAccount.CASH_POSITION;
+import static ee.tuleva.onboarding.savings.fund.nav.components.NavComponent.NavComponentType.ASSET;
+import static java.math.BigDecimal.ZERO;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
+
+import ee.tuleva.onboarding.ledger.NavLedgerRepository;
+import ee.tuleva.onboarding.savings.fund.nav.NavComponentContext;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+@ExtendWith(MockitoExtension.class)
+class CashPositionComponentTest {
+
+  @Mock private NavLedgerRepository navLedgerRepository;
+
+  @InjectMocks private CashPositionComponent component;
+
+  @Test
+  void calculate_returnsCashPositionFromLedger() {
+    var context =
+        NavComponentContext.builder()
+            .fund(TKF100)
+            .calculationDate(LocalDate.of(2026, 2, 1))
+            .positionReportDate(LocalDate.of(2026, 2, 1))
+            .build();
+
+    when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName()))
+        .thenReturn(new BigDecimal("50000.00"));
+
+    BigDecimal result = component.calculate(context);
+
+    assertThat(result).isEqualByComparingTo("50000.00");
+  }
+
+  @Test
+  void calculate_returnsZeroWhenNoLedgerBalance() {
+    var context =
+        NavComponentContext.builder()
+            .fund(TKF100)
+            .calculationDate(LocalDate.of(2026, 2, 1))
+            .positionReportDate(LocalDate.of(2026, 2, 1))
+            .build();
+
+    when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName()))
+        .thenReturn(ZERO);
+
+    BigDecimal result = component.calculate(context);
+
+    assertThat(result).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void calculate_returnsZeroWhenLedgerBalanceIsNull() {
+    var context =
+        NavComponentContext.builder()
+            .fund(TKF100)
+            .calculationDate(LocalDate.of(2026, 2, 1))
+            .positionReportDate(LocalDate.of(2026, 2, 1))
+            .build();
+
+    when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName()))
+        .thenReturn(null);
+
+    BigDecimal result = component.calculate(context);
+
+    assertThat(result).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void getName_returnsCash() {
+    assertThat(component.getName()).isEqualTo("cash");
+  }
+
+  @Test
+  void getType_returnsAsset() {
+    assertThat(component.getType()).isEqualTo(ASSET);
+  }
+
+  @Test
+  void requiresPreliminaryNav_returnsFalse() {
+    assertThat(component.requiresPreliminaryNav()).isFalse();
+  }
+}

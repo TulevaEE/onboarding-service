@@ -20,4 +20,6 @@ interface LedgerAccountRepository extends CrudRepository<LedgerAccount, UUID> {
       AccountType accountType);
 
   List<LedgerAccount> findAllByOwner(LedgerParty owner);
+
+  List<LedgerAccount> findAllByNameAndPurpose(String name, AccountPurpose purpose);
 }

@@ -56,8 +56,8 @@ epis:
 
 logging.level:
   ee.tuleva: DEBUG
-  org.hibernate.type: TRACE
-  org.springframework.test.context.cache: DEBUG
+  #org.hibernate.type: TRACE
+  #org.springframework.test.context.cache: DEBUG
 
 morningstar:
   host: localhost

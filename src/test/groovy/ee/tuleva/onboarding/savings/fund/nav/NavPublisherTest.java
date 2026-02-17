@@ -23,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class NavPublisherTest {
 
   @Mock private FundValueRepository fundValueRepository;
+  @Mock private NavNotifier navNotifier;
 
   @InjectMocks private NavPublisher navPublisher;
 
@@ -73,5 +74,7 @@ class NavPublisherTest {
     assertThat(aumValue.value()).isEqualByComparingTo("969941.07");
     assertThat(aumValue.provider()).isEqualTo("TULEVA");
     assertThat(aumValue.updatedAt()).isEqualTo(calcTime);
+
+    verify(navNotifier).notify(result);
   }
 }

@@ -15,11 +15,13 @@ public class NavPublisher {
   private static final String NAV_PROVIDER = "TULEVA";
 
   private final FundValueRepository fundValueRepository;
+  private final NavNotifier navNotifier;
 
   @Transactional
   public void publish(NavCalculationResult result) {
     publishNav(result);
     publishAum(result);
+    navNotifier.notify(result);
 
     log.info(
         "Published NAV: fund={}, date={}, navPerUnit={}, aum={}",

@@ -64,7 +64,7 @@ class NavPipelineIntegrationTest {
     importPositionReport(pair.positionReportFile, navData.navDate);
     recordPositionsToLedger(navData);
     recordFeeAccruals(navData);
-    insertEodhdPrices(pair.calculationDate);
+    insertPrices(pair.calculationDate);
     issueFundUnits(navData.unitsOutstanding);
     entityManager.flush();
 
@@ -82,8 +82,8 @@ class NavPipelineIntegrationTest {
     assertThat(result.pendingSubscriptions()).isEqualByComparingTo(ZERO);
     assertThat(result.pendingRedemptions()).isEqualByComparingTo(ZERO);
     assertThat(result.blackrockAdjustment()).isEqualByComparingTo(ZERO);
-    assertThat(result.navPerUnit().setScale(3, HALF_UP))
-        .isEqualByComparingTo(navData.expectedNavPerUnit.setScale(3, HALF_UP));
+    assertThat(result.navPerUnit().setScale(4, HALF_UP))
+        .isEqualByComparingTo(navData.expectedNavPerUnit.setScale(4, HALF_UP));
   }
 
   @SneakyThrows
@@ -153,9 +153,8 @@ class NavPipelineIntegrationTest {
   }
 
   @SneakyThrows
-  private void insertEodhdPrices(LocalDate calculationDate) {
-    var priceLines =
-        Files.readAllLines(Path.of("src/test/resources/nav-test-data/eodhd-prices.csv"));
+  private void insertPrices(LocalDate calculationDate) {
+    var priceLines = Files.readAllLines(Path.of("src/test/resources/nav-test-data/prices.csv"));
     for (int i = 1; i < priceLines.size(); i++) {
       String[] parts = priceLines.get(i).split(",");
       LocalDate priceDate = LocalDate.parse(parts[1]);

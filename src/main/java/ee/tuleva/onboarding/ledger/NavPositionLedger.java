@@ -27,31 +27,36 @@ public class NavPositionLedger {
   public void recordPositions(
       String fund,
       LocalDate reportDate,
-      BigDecimal securitiesValue,
+      Map<String, BigDecimal> securitiesUnits,
       BigDecimal cashValue,
       BigDecimal receivablesValue,
       BigDecimal payablesValue) {
 
     List<LedgerEntryDto> entries = new ArrayList<>();
 
-    if (securitiesValue.signum() != 0) {
-      entries.add(entry(getSecuritiesAccount(), securitiesValue));
-      entries.add(entry(getNavEquityAccount(), securitiesValue.negate()));
-    }
+    securitiesUnits.forEach(
+        (isin, units) -> {
+          if (units.signum() != 0) {
+            entries.add(entry(findOrCreateInstrumentAccount(SECURITIES_UNITS, isin), units));
+            entries.add(
+                entry(
+                    findOrCreateInstrumentAccount(SECURITIES_UNITS_EQUITY, isin), units.negate()));
+          }
+        });
 
     if (cashValue.signum() != 0) {
-      entries.add(entry(getCashAccount(), cashValue));
-      entries.add(entry(getNavEquityAccount(), cashValue.negate()));
+      entries.add(entry(getSystemAccount(CASH_POSITION), cashValue));
+      entries.add(entry(getSystemAccount(NAV_EQUITY), cashValue.negate()));
     }
 
     if (receivablesValue.signum() != 0) {
-      entries.add(entry(getReceivablesAccount(), receivablesValue));
-      entries.add(entry(getNavEquityAccount(), receivablesValue.negate()));
+      entries.add(entry(getSystemAccount(TRADE_RECEIVABLES), receivablesValue));
+      entries.add(entry(getSystemAccount(NAV_EQUITY), receivablesValue.negate()));
     }
 
     if (payablesValue.signum() != 0) {
-      entries.add(entry(getPayablesAccount(), payablesValue));
-      entries.add(entry(getNavEquityAccount(), payablesValue.negate()));
+      entries.add(entry(getSystemAccount(TRADE_PAYABLES), payablesValue));
+      entries.add(entry(getSystemAccount(NAV_EQUITY), payablesValue.negate()));
     }
 
     if (entries.isEmpty()) {
@@ -66,24 +71,15 @@ public class NavPositionLedger {
         TRANSFER, Instant.now(clock), metadata, entries.toArray(new LedgerEntryDto[0]));
   }
 
-  private LedgerAccount getSecuritiesAccount() {
-    return getSystemAccount(SECURITIES_VALUE);
-  }
-
-  private LedgerAccount getCashAccount() {
-    return getSystemAccount(CASH_POSITION);
-  }
-
-  private LedgerAccount getReceivablesAccount() {
-    return getSystemAccount(TRADE_RECEIVABLES);
-  }
-
-  private LedgerAccount getPayablesAccount() {
-    return getSystemAccount(TRADE_PAYABLES);
-  }
-
-  private LedgerAccount getNavEquityAccount() {
-    return getSystemAccount(NAV_EQUITY);
+  private LedgerAccount findOrCreateInstrumentAccount(SystemAccount systemAccount, String isin) {
+    String accountName = systemAccount.getAccountName(isin);
+    return ledgerAccountService
+        .findSystemAccountByName(
+            accountName, systemAccount.getAccountType(), systemAccount.getAssetType())
+        .orElseGet(
+            () ->
+                ledgerAccountService.createSystemAccount(
+                    accountName, systemAccount.getAccountType(), systemAccount.getAssetType()));
   }
 
   private LedgerAccount getSystemAccount(SystemAccount systemAccount) {

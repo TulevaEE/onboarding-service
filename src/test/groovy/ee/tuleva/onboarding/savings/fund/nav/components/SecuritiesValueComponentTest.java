@@ -1,16 +1,20 @@
 package ee.tuleva.onboarding.savings.fund.nav.components;
 
 import static ee.tuleva.onboarding.investment.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.ledger.SystemAccount.SECURITIES_VALUE;
+import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.OK;
 import static ee.tuleva.onboarding.savings.fund.nav.components.NavComponent.NavComponentType.ASSET;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.investment.calculation.PositionPriceResolver;
+import ee.tuleva.onboarding.investment.calculation.ResolvedPrice;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavComponentContext;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -21,37 +25,61 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class SecuritiesValueComponentTest {
 
   @Mock private NavLedgerRepository navLedgerRepository;
+  @Mock private PositionPriceResolver positionPriceResolver;
 
   @InjectMocks private SecuritiesValueComponent component;
 
   @Test
-  void calculate_returnsSecuritiesValueFromLedger() {
+  void calculate_multipliesUnitsByPricesForEachIsin() {
+    LocalDate priceDate = LocalDate.of(2026, 2, 1);
     var context =
         NavComponentContext.builder()
             .fund(TKF100)
-            .calculationDate(LocalDate.of(2026, 2, 1))
-            .positionReportDate(LocalDate.of(2026, 2, 1))
+            .calculationDate(priceDate)
+            .positionReportDate(priceDate)
+            .priceDate(priceDate)
             .build();
 
-    when(navLedgerRepository.getSystemAccountBalance(SECURITIES_VALUE.getAccountName()))
-        .thenReturn(new BigDecimal("900000.00"));
+    when(navLedgerRepository.getSecuritiesUnitBalances())
+        .thenReturn(
+            Map.of(
+                "IE00BFG1TM61", new BigDecimal("1000.00000"),
+                "IE00BMDBMY19", new BigDecimal("500.00000")));
+
+    when(positionPriceResolver.resolve("IE00BFG1TM61", priceDate))
+        .thenReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(new BigDecimal("33.875"))
+                    .validationStatus(OK)
+                    .priceDate(priceDate)
+                    .build()));
+    when(positionPriceResolver.resolve("IE00BMDBMY19", priceDate))
+        .thenReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(new BigDecimal("43.380"))
+                    .validationStatus(OK)
+                    .priceDate(priceDate)
+                    .build()));
 
     BigDecimal result = component.calculate(context);
 
-    assertThat(result).isEqualByComparingTo("900000.00");
+    assertThat(result).isEqualByComparingTo("55565.000");
   }
 
   @Test
-  void calculate_returnsZeroWhenNoLedgerBalance() {
+  void calculate_returnsZeroWhenNoUnitBalances() {
+    LocalDate priceDate = LocalDate.of(2026, 2, 1);
     var context =
         NavComponentContext.builder()
             .fund(TKF100)
-            .calculationDate(LocalDate.of(2026, 2, 1))
-            .positionReportDate(LocalDate.of(2026, 2, 1))
+            .calculationDate(priceDate)
+            .positionReportDate(priceDate)
+            .priceDate(priceDate)
             .build();
 
-    when(navLedgerRepository.getSystemAccountBalance(SECURITIES_VALUE.getAccountName()))
-        .thenReturn(ZERO);
+    when(navLedgerRepository.getSecuritiesUnitBalances()).thenReturn(Map.of());
 
     BigDecimal result = component.calculate(context);
 
@@ -59,16 +87,20 @@ class SecuritiesValueComponentTest {
   }
 
   @Test
-  void calculate_returnsZeroWhenLedgerBalanceIsNull() {
+  void calculate_skipsIsinsWithNoPriceData() {
+    LocalDate priceDate = LocalDate.of(2026, 2, 1);
     var context =
         NavComponentContext.builder()
             .fund(TKF100)
-            .calculationDate(LocalDate.of(2026, 2, 1))
-            .positionReportDate(LocalDate.of(2026, 2, 1))
+            .calculationDate(priceDate)
+            .positionReportDate(priceDate)
+            .priceDate(priceDate)
             .build();
 
-    when(navLedgerRepository.getSystemAccountBalance(SECURITIES_VALUE.getAccountName()))
-        .thenReturn(null);
+    when(navLedgerRepository.getSecuritiesUnitBalances())
+        .thenReturn(Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")));
+
+    when(positionPriceResolver.resolve("IE00BFG1TM61", priceDate)).thenReturn(Optional.empty());
 
     BigDecimal result = component.calculate(context);
 

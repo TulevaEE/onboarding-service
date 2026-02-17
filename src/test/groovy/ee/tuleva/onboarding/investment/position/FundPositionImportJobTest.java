@@ -12,9 +12,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.investment.TulevaFund;
-import ee.tuleva.onboarding.investment.calculation.PositionCalculation;
-import ee.tuleva.onboarding.investment.calculation.PositionCalculationService;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
@@ -38,7 +35,6 @@ class FundPositionImportJobTest {
 
   @Mock private FundPositionRepository repository;
   @Mock private InvestmentReportService reportService;
-  @Mock private PositionCalculationService positionCalculationService;
   @Mock private NavPositionLedger navPositionLedger;
   @Mock private NavLedgerRepository navLedgerRepository;
 
@@ -58,7 +54,6 @@ class FundPositionImportJobTest {
             sebParser,
             importService,
             reportService,
-            positionCalculationService,
             repository,
             navPositionLedger,
             navLedgerRepository);
@@ -120,8 +115,6 @@ class FundPositionImportJobTest {
         .thenReturn(Optional.of(createSwedbankReport(date)));
     when(repository.existsByReportingDateAndFundAndAccountName(any(), any(), any()))
         .thenReturn(false);
-    when(positionCalculationService.calculate(any(TulevaFund.class), any(LocalDate.class)))
-        .thenReturn(List.of());
     when(repository.findByReportingDateAndFundAndAccountType(any(), any(), any()))
         .thenReturn(List.of());
 
@@ -144,8 +137,6 @@ class FundPositionImportJobTest {
     when(repository.existsByReportingDateAndFundAndAccountName(
             LocalDate.of(2026, 1, 5), TUV100, "ISHARES USA ESG"))
         .thenReturn(false);
-    when(positionCalculationService.calculate(any(TulevaFund.class), any(LocalDate.class)))
-        .thenReturn(List.of());
     when(repository.findByReportingDateAndFundAndAccountType(any(), any(), any()))
         .thenReturn(List.of());
 
@@ -199,17 +190,14 @@ class FundPositionImportJobTest {
         .thenReturn(Optional.of(createSwedbankReport(date)));
     when(repository.existsByReportingDateAndFundAndAccountName(any(), any(), any()))
         .thenReturn(false);
-    when(positionCalculationService.calculate(any(TulevaFund.class), any(LocalDate.class)))
-        .thenReturn(List.of());
     when(repository.findByReportingDateAndFundAndAccountType(any(), any(), any()))
         .thenReturn(List.of());
 
     job.importForProviderAndDate(SWEDBANK, date);
 
+    verify(navPositionLedger).recordPositions(eq("TUK75"), eq(date), anyMap(), any(), any(), any());
     verify(navPositionLedger)
-        .recordPositions(eq("TUK75"), eq(date), any(BigDecimal.class), any(), any(), any());
-    verify(navPositionLedger)
-        .recordPositions(eq("TUV100"), eq(date), any(BigDecimal.class), any(), any(), any());
+        .recordPositions(eq("TUV100"), eq(date), anyMap(), any(), any(), any());
   }
 
   @Test
@@ -219,7 +207,7 @@ class FundPositionImportJobTest {
 
     job.importForProviderAndDate(SWEDBANK, date);
 
-    verify(navPositionLedger, never()).recordPositions(any(), any(), any(), any(), any(), any());
+    verify(navPositionLedger, never()).recordPositions(any(), any(), anyMap(), any(), any(), any());
   }
 
   @Test
@@ -262,11 +250,16 @@ class FundPositionImportJobTest {
     when(repository.existsByReportingDateAndFundAndAccountName(any(), any(), any()))
         .thenReturn(false);
 
-    when(positionCalculationService.calculate(TUK75, date))
+    when(repository.findByReportingDateAndFundAndAccountType(date, TUK75, AccountType.SECURITY))
         .thenReturn(
             List.of(
-                PositionCalculation.builder()
-                    .calculatedMarketValue(new BigDecimal("100000"))
+                FundPosition.builder()
+                    .fund(TUK75)
+                    .reportingDate(date)
+                    .accountType(AccountType.SECURITY)
+                    .accountId("IE00BFG1TM61")
+                    .quantity(new BigDecimal("1000"))
+                    .marketValue(new BigDecimal("100000"))
                     .build()));
 
     when(repository.findByReportingDateAndFundAndAccountType(date, TUK75, CASH))
@@ -283,8 +276,9 @@ class FundPositionImportJobTest {
     when(repository.findByReportingDateAndFundAndAccountType(date, TUK75, AccountType.LIABILITY))
         .thenReturn(List.of());
 
-    when(navLedgerRepository.getSystemAccountBalance(SECURITIES_VALUE.getAccountName()))
-        .thenReturn(new BigDecimal("90000"));
+    when(navLedgerRepository.getSystemAccountBalance(
+            SECURITIES_UNITS.getAccountName("IE00BFG1TM61")))
+        .thenReturn(new BigDecimal("900"));
     when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName()))
         .thenReturn(new BigDecimal("40000"));
     when(navLedgerRepository.getSystemAccountBalance(TRADE_RECEIVABLES.getAccountName()))
@@ -298,7 +292,7 @@ class FundPositionImportJobTest {
         .recordPositions(
             eq("TUK75"),
             eq(date),
-            eq(new BigDecimal("10000")),
+            eq(Map.of("IE00BFG1TM61", new BigDecimal("100"))),
             eq(new BigDecimal("10000")),
             eq(ZERO),
             eq(ZERO));

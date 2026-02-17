@@ -9,8 +9,6 @@ import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.investment.calculation.PositionCalculation;
-import ee.tuleva.onboarding.investment.calculation.PositionCalculationService;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
@@ -20,6 +18,7 @@ import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,7 +30,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class NavLedgerReconciliationTest {
 
   @Mock private NavLedgerRepository navLedgerRepository;
-  @Mock private PositionCalculationService positionCalculationService;
   @Mock private FundPositionRepository fundPositionRepository;
   @Mock private FeeAccrualRepository feeAccrualRepository;
 
@@ -41,14 +39,16 @@ class NavLedgerReconciliationTest {
   void reconcile_returnsEmptyResult_whenAllValuesMatch() {
     LocalDate date = LocalDate.of(2026, 2, 1);
 
-    when(navLedgerRepository.getSystemAccountBalance(SECURITIES_VALUE.getAccountName()))
-        .thenReturn(new BigDecimal("900000.00"));
-    when(positionCalculationService.calculate(TKF100, date))
+    when(navLedgerRepository.getSecuritiesUnitBalances())
+        .thenReturn(
+            Map.of(
+                "IE00BFG1TM61", new BigDecimal("1000.00000"),
+                "IE00BMDBMY19", new BigDecimal("500.00000")));
+    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(date, TKF100, SECURITY))
         .thenReturn(
             List.of(
-                PositionCalculation.builder()
-                    .calculatedMarketValue(new BigDecimal("900000.00"))
-                    .build()));
+                securityPosition("IE00BFG1TM61", new BigDecimal("1000.00000")),
+                securityPosition("IE00BMDBMY19", new BigDecimal("500.00000"))));
 
     when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName()))
         .thenReturn(new BigDecimal("50000.00"));
@@ -82,17 +82,13 @@ class NavLedgerReconciliationTest {
   }
 
   @Test
-  void reconcile_returnsDiscrepancy_whenSecuritiesValueDoesNotMatch() {
+  void reconcile_returnsDiscrepancy_whenSecuritiesUnitsDoNotMatch() {
     LocalDate date = LocalDate.of(2026, 2, 1);
 
-    when(navLedgerRepository.getSystemAccountBalance(SECURITIES_VALUE.getAccountName()))
-        .thenReturn(new BigDecimal("900000.00"));
-    when(positionCalculationService.calculate(TKF100, date))
-        .thenReturn(
-            List.of(
-                PositionCalculation.builder()
-                    .calculatedMarketValue(new BigDecimal("950000.00"))
-                    .build()));
+    when(navLedgerRepository.getSecuritiesUnitBalances())
+        .thenReturn(Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")));
+    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(date, TKF100, SECURITY))
+        .thenReturn(List.of(securityPosition("IE00BFG1TM61", new BigDecimal("1100.00000"))));
 
     when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName()))
         .thenReturn(ZERO);
@@ -122,9 +118,8 @@ class NavLedgerReconciliationTest {
     NavLedgerReconciliation.ReconciliationResult result = reconciliation.reconcile(TKF100, date);
 
     assertThat(result.discrepancies()).hasSize(1);
-    assertThat(result.discrepancies().getFirst().component()).isEqualTo("securities_value");
-    assertThat(result.discrepancies().getFirst().ledgerValue()).isEqualByComparingTo("900000.00");
-    assertThat(result.discrepancies().getFirst().externalValue()).isEqualByComparingTo("950000.00");
+    assertThat(result.discrepancies().getFirst().component())
+        .isEqualTo("securities_units:IE00BFG1TM61");
     assertThat(result.isReconciled()).isFalse();
   }
 
@@ -132,14 +127,10 @@ class NavLedgerReconciliationTest {
   void reconcile_returnsMultipleDiscrepancies_whenMultipleValuesDoNotMatch() {
     LocalDate date = LocalDate.of(2026, 2, 1);
 
-    when(navLedgerRepository.getSystemAccountBalance(SECURITIES_VALUE.getAccountName()))
-        .thenReturn(new BigDecimal("900000.00"));
-    when(positionCalculationService.calculate(TKF100, date))
-        .thenReturn(
-            List.of(
-                PositionCalculation.builder()
-                    .calculatedMarketValue(new BigDecimal("950000.00"))
-                    .build()));
+    when(navLedgerRepository.getSecuritiesUnitBalances())
+        .thenReturn(Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")));
+    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(date, TKF100, SECURITY))
+        .thenReturn(List.of(securityPosition("IE00BFG1TM61", new BigDecimal("1100.00000"))));
 
     when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName()))
         .thenReturn(new BigDecimal("50000.00"));
@@ -174,6 +165,10 @@ class NavLedgerReconciliationTest {
 
   private FundPosition position(BigDecimal marketValue) {
     return FundPosition.builder().marketValue(marketValue).build();
+  }
+
+  private FundPosition securityPosition(String isin, BigDecimal quantity) {
+    return FundPosition.builder().accountId(isin).quantity(quantity).build();
   }
 
   private FeeAccrual feeAccrual(FeeType feeType, BigDecimal dailyAmountNet) {

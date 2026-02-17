@@ -25,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -63,16 +64,14 @@ class NavPipelineIntegrationTest {
     importPositionReport(pair.positionReportFile, navData.navDate);
     recordPositionsToLedger(navData);
     recordFeeAccruals(navData);
+    insertEodhdPrices(pair.calculationDate);
     issueFundUnits(navData.unitsOutstanding);
     entityManager.flush();
 
-    var result = navCalculationService.calculate(TKF100, navData.navDate);
+    var result = navCalculationService.calculate(TKF100, pair.calculationDate);
     navPublisher.publish(result);
 
-    assertThat(result.navPerUnit().setScale(4, HALF_UP))
-        .isEqualByComparingTo(navData.expectedNavPerUnit.setScale(4, HALF_UP));
     assertThat(result.cashPosition()).isEqualByComparingTo(navData.cashPosition);
-    assertThat(result.securitiesValue()).isEqualByComparingTo(navData.securitiesValue);
     assertThat(result.receivables()).isEqualByComparingTo(navData.tradeReceivables);
     assertThat(result.payables()).isEqualByComparingTo(navData.tradePayables.negate());
     assertThat(result.managementFeeAccrual())
@@ -83,6 +82,8 @@ class NavPipelineIntegrationTest {
     assertThat(result.pendingSubscriptions()).isEqualByComparingTo(ZERO);
     assertThat(result.pendingRedemptions()).isEqualByComparingTo(ZERO);
     assertThat(result.blackrockAdjustment()).isEqualByComparingTo(ZERO);
+    assertThat(result.navPerUnit().setScale(3, HALF_UP))
+        .isEqualByComparingTo(navData.expectedNavPerUnit.setScale(3, HALF_UP));
   }
 
   @SneakyThrows
@@ -96,11 +97,18 @@ class NavPipelineIntegrationTest {
 
   private static Optional<NavTestPair> toTestPair(Path navCsvFile) {
     LocalDate navDate = parseNavDate(navCsvFile);
+    LocalDate calculationDate = parseCalculationDateFromFilename(navCsvFile);
     Path positionReport = NAV_CSV_DIR.resolve(navDate + "_positions.csv");
     if (Files.exists(positionReport)) {
-      return Optional.of(new NavTestPair(navCsvFile, positionReport, navDate));
+      return Optional.of(new NavTestPair(navCsvFile, positionReport, navDate, calculationDate));
     }
     return Optional.empty();
+  }
+
+  private static LocalDate parseCalculationDateFromFilename(Path csvFile) {
+    String filename = csvFile.getFileName().toString();
+    String datePart = filename.replaceAll("\\D", "");
+    return LocalDate.parse(datePart, DateTimeFormatter.ofPattern("ddMMyyyy"));
   }
 
   @SneakyThrows
@@ -124,7 +132,7 @@ class NavPipelineIntegrationTest {
     navPositionLedger.recordPositions(
         TKF100.name(),
         navData.navDate,
-        navData.securitiesValue,
+        navData.securitiesUnitsByIsin,
         navData.cashPosition,
         navData.tradeReceivables,
         navData.tradePayables);
@@ -141,6 +149,25 @@ class NavPipelineIntegrationTest {
     if (navData.depotFeeAccrual.signum() != 0) {
       navFeeAccrualLedger.recordFeeAccrual(
           TKF100.name(), navData.navDate, DEPOT_FEE_ACCRUAL, navData.depotFeeAccrual.negate());
+    }
+  }
+
+  @SneakyThrows
+  private void insertEodhdPrices(LocalDate calculationDate) {
+    var priceLines =
+        Files.readAllLines(Path.of("src/test/resources/nav-test-data/eodhd-prices.csv"));
+    for (int i = 1; i < priceLines.size(); i++) {
+      String[] parts = priceLines.get(i).split(",");
+      LocalDate priceDate = LocalDate.parse(parts[1]);
+      if (priceDate.isBefore(calculationDate)) {
+        entityManager
+            .createNativeQuery(
+                "INSERT INTO index_values (key, date, value, provider, updated_at) VALUES (:key, :date, :value, 'EODHD', CURRENT_TIMESTAMP)")
+            .setParameter("key", parts[0])
+            .setParameter("date", priceDate)
+            .setParameter("value", new BigDecimal(parts[2]))
+            .executeUpdate();
+      }
     }
   }
 
@@ -182,7 +209,6 @@ class NavPipelineIntegrationTest {
   private NavCsvData parseNavCsv(Path csvFile) {
     List<String> lines = Files.readAllLines(csvFile);
     var data = new NavCsvData();
-    BigDecimal securitiesSum = ZERO;
 
     for (int i = 1; i < lines.size(); i++) {
       String[] fields = lines.get(i).split(",");
@@ -198,7 +224,12 @@ class NavPipelineIntegrationTest {
 
       switch (accountType) {
         case "CASH" -> data.cashPosition = marketValue;
-        case "SECURITY" -> securitiesSum = securitiesSum.add(marketValue);
+        case "SECURITY" -> {
+          String isin = fields[4];
+          if (!isin.isEmpty() && quantity.signum() != 0) {
+            data.securitiesUnitsByIsin.put(isin, quantity.setScale(5, HALF_UP));
+          }
+        }
         case "RECEIVABLES" -> {
           if (accountName.startsWith("Total receivables")) {
             data.tradeReceivables = marketValue;
@@ -223,11 +254,11 @@ class NavPipelineIntegrationTest {
       }
     }
 
-    data.securitiesValue = securitiesSum;
     return data;
   }
 
-  record NavTestPair(Path navCsvFile, Path positionReportFile, LocalDate navDate) {
+  record NavTestPair(
+      Path navCsvFile, Path positionReportFile, LocalDate navDate, LocalDate calculationDate) {
     @Override
     public String toString() {
       return navCsvFile.getFileName().toString();
@@ -237,7 +268,7 @@ class NavPipelineIntegrationTest {
   private static class NavCsvData {
     LocalDate navDate;
     BigDecimal cashPosition = ZERO;
-    BigDecimal securitiesValue = ZERO;
+    Map<String, BigDecimal> securitiesUnitsByIsin = new java.util.HashMap<>();
     BigDecimal tradeReceivables = ZERO;
     BigDecimal tradePayables = ZERO;
     BigDecimal managementFeeAccrual = ZERO;

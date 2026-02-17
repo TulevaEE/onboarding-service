@@ -9,8 +9,6 @@ import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.investment.TulevaFund;
-import ee.tuleva.onboarding.investment.calculation.PositionCalculation;
-import ee.tuleva.onboarding.investment.calculation.PositionCalculationService;
 import ee.tuleva.onboarding.investment.position.parser.FundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
@@ -45,7 +43,6 @@ public class FundPositionImportJob {
   private final Map<ReportProvider, FundPositionParser> parsers;
   private final FundPositionImportService importService;
   private final InvestmentReportService reportService;
-  private final PositionCalculationService positionCalculationService;
   private final FundPositionRepository fundPositionRepository;
   private final NavPositionLedger navPositionLedger;
   private final NavLedgerRepository navLedgerRepository;
@@ -55,14 +52,12 @@ public class FundPositionImportJob {
       SebFundPositionParser sebParser,
       FundPositionImportService importService,
       InvestmentReportService reportService,
-      PositionCalculationService positionCalculationService,
       FundPositionRepository fundPositionRepository,
       NavPositionLedger navPositionLedger,
       NavLedgerRepository navLedgerRepository) {
     this.parsers = Map.of(SWEDBANK, swedbankParser, SEB, sebParser);
     this.importService = importService;
     this.reportService = reportService;
-    this.positionCalculationService = positionCalculationService;
     this.fundPositionRepository = fundPositionRepository;
     this.navPositionLedger = navPositionLedger;
     this.navLedgerRepository = navLedgerRepository;
@@ -129,8 +124,7 @@ public class FundPositionImportJob {
   }
 
   private void recordPositionsToLedger(TulevaFund fund, LocalDate date) {
-    BigDecimal securitiesDelta =
-        calculateDelta(SECURITIES_VALUE, calculateSecuritiesValue(fund, date));
+    Map<String, BigDecimal> securitiesUnitDeltas = calculateSecuritiesUnitDeltas(fund, date);
     BigDecimal cashDelta = calculateDelta(CASH_POSITION, calculatePositionValue(fund, date, CASH));
     BigDecimal receivablesDelta =
         calculateDelta(TRADE_RECEIVABLES, calculatePositionValue(fund, date, RECEIVABLES));
@@ -138,28 +132,42 @@ public class FundPositionImportJob {
         calculateDelta(TRADE_PAYABLES, calculatePositionValue(fund, date, LIABILITY));
 
     navPositionLedger.recordPositions(
-        fund.name(), date, securitiesDelta, cashDelta, receivablesDelta, payablesDelta);
+        fund.name(), date, securitiesUnitDeltas, cashDelta, receivablesDelta, payablesDelta);
     log.info(
-        "Recorded position deltas to ledger: fund={}, date={}, securities={}, cash={}, receivables={}, payables={}",
+        "Recorded position deltas to ledger: fund={}, date={}, securitiesIsins={}, cash={}, receivables={}, payables={}",
         fund,
         date,
-        securitiesDelta,
+        securitiesUnitDeltas.size(),
         cashDelta,
         receivablesDelta,
         payablesDelta);
+  }
+
+  private Map<String, BigDecimal> calculateSecuritiesUnitDeltas(TulevaFund fund, LocalDate date) {
+    List<FundPosition> securityPositions =
+        fundPositionRepository.findByReportingDateAndFundAndAccountType(date, fund, SECURITY);
+
+    Map<String, BigDecimal> deltas = new java.util.HashMap<>();
+    for (FundPosition position : securityPositions) {
+      String isin = position.getAccountId();
+      if (isin == null) {
+        continue;
+      }
+      BigDecimal newQuantity = position.getQuantity() != null ? position.getQuantity() : ZERO;
+      BigDecimal currentBalance =
+          navLedgerRepository.getSystemAccountBalance(SECURITIES_UNITS.getAccountName(isin));
+      BigDecimal delta = newQuantity.subtract(currentBalance);
+      if (delta.signum() != 0) {
+        deltas.put(isin, delta);
+      }
+    }
+    return deltas;
   }
 
   private BigDecimal calculateDelta(SystemAccount account, BigDecimal newValue) {
     BigDecimal currentBalance =
         navLedgerRepository.getSystemAccountBalance(account.getAccountName());
     return newValue.subtract(currentBalance);
-  }
-
-  private BigDecimal calculateSecuritiesValue(TulevaFund fund, LocalDate date) {
-    return positionCalculationService.calculate(fund, date).stream()
-        .map(PositionCalculation::calculatedMarketValue)
-        .filter(Objects::nonNull)
-        .reduce(ZERO, BigDecimal::add);
   }
 
   private BigDecimal calculatePositionValue(TulevaFund fund, LocalDate date, AccountType type) {

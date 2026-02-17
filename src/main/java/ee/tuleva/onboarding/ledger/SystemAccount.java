@@ -38,7 +38,14 @@ public enum SystemAccount {
       TKF100, LIABILITY, FUND_UNIT, FUND_OPERATIONS, "Total units issued to investors"),
 
   // NAV calculation - Position data (from SEB)
-  SECURITIES_VALUE(TKF100, ASSET, EUR, NAV_CALCULATION, "Securities market value from custodian"),
+  SECURITIES_UNITS(
+      TKF100, ASSET, FUND_UNIT, NAV_CALCULATION, "Securities unit holdings from custodian"),
+  SECURITIES_UNITS_EQUITY(
+      TKF100,
+      LIABILITY,
+      FUND_UNIT,
+      NAV_CALCULATION,
+      "Balancing account for securities unit holdings"),
   CASH_POSITION(TKF100, ASSET, EUR, NAV_CALCULATION, "Cash balance from custodian"),
   TRADE_RECEIVABLES(TKF100, ASSET, EUR, NAV_CALCULATION, "Trade settlement receivables"),
   TRADE_PAYABLES(TKF100, LIABILITY, EUR, NAV_CALCULATION, "Trade settlement payables"),

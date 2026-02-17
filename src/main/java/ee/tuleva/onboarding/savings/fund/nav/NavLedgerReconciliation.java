@@ -7,8 +7,6 @@ import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.investment.TulevaFund;
-import ee.tuleva.onboarding.investment.calculation.PositionCalculation;
-import ee.tuleva.onboarding.investment.calculation.PositionCalculationService;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
@@ -19,9 +17,7 @@ import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.SystemAccount;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,34 +27,52 @@ import org.springframework.stereotype.Service;
 public class NavLedgerReconciliation {
 
   private final NavLedgerRepository navLedgerRepository;
-  private final PositionCalculationService positionCalculationService;
   private final FundPositionRepository fundPositionRepository;
   private final FeeAccrualRepository feeAccrualRepository;
 
   public ReconciliationResult reconcile(TulevaFund fund, LocalDate date) {
-    List<Discrepancy> discrepancies =
-        Stream.of(
-                compareSecuritiesValue(fund, date),
-                compareCashPosition(fund, date),
-                compareReceivables(fund, date),
-                comparePayables(fund, date),
-                compareManagementFeeAccrual(fund, date),
-                compareDepotFeeAccrual(fund, date))
-            .flatMap(Optional::stream)
-            .toList();
+    List<Discrepancy> discrepancies = new ArrayList<>();
+    discrepancies.addAll(compareSecuritiesUnits(fund, date));
+    Stream.of(
+            compareCashPosition(fund, date),
+            compareReceivables(fund, date),
+            comparePayables(fund, date),
+            compareManagementFeeAccrual(fund, date),
+            compareDepotFeeAccrual(fund, date))
+        .flatMap(Optional::stream)
+        .forEach(discrepancies::add);
 
     return new ReconciliationResult(fund, date, discrepancies);
   }
 
-  private Optional<Discrepancy> compareSecuritiesValue(TulevaFund fund, LocalDate date) {
-    BigDecimal ledgerValue = getLedgerBalance(SECURITIES_VALUE);
-    BigDecimal externalValue =
-        positionCalculationService.calculate(fund, date).stream()
-            .map(PositionCalculation::calculatedMarketValue)
-            .filter(Objects::nonNull)
-            .reduce(ZERO, BigDecimal::add);
+  private List<Discrepancy> compareSecuritiesUnits(TulevaFund fund, LocalDate date) {
+    Map<String, BigDecimal> ledgerBalances = navLedgerRepository.getSecuritiesUnitBalances();
+    Map<String, BigDecimal> externalQuantities = new HashMap<>();
+    fundPositionRepository
+        .findByReportingDateAndFundAndAccountType(date, fund, SECURITY)
+        .forEach(
+            position -> {
+              if (position.getAccountId() != null) {
+                externalQuantities.merge(
+                    position.getAccountId(),
+                    position.getQuantity() != null ? position.getQuantity() : ZERO,
+                    BigDecimal::add);
+              }
+            });
 
-    return createDiscrepancyIfDifferent("securities_value", ledgerValue, externalValue);
+    Set<String> allIsins = new HashSet<>(ledgerBalances.keySet());
+    allIsins.addAll(externalQuantities.keySet());
+
+    return allIsins.stream()
+        .map(
+            isin -> {
+              BigDecimal ledgerValue = ledgerBalances.getOrDefault(isin, ZERO);
+              BigDecimal externalValue = externalQuantities.getOrDefault(isin, ZERO);
+              return createDiscrepancyIfDifferent(
+                  "securities_units:" + isin, ledgerValue, externalValue);
+            })
+        .flatMap(Optional::stream)
+        .toList();
   }
 
   private Optional<Discrepancy> compareCashPosition(TulevaFund fund, LocalDate date) {

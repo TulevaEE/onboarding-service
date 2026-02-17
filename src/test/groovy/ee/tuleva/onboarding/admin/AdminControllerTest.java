@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.admin;
 
+import static ee.tuleva.onboarding.investment.TulevaFund.TKF100;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
@@ -14,6 +15,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
+import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
+import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
+import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +42,9 @@ class AdminControllerTest {
 
   @MockitoBean private ApplicationEventPublisher eventPublisher;
   @MockitoBean private SavingsFundLedger savingsFundLedger;
+  @MockitoBean private NavCalculationService navCalculationService;
+  @MockitoBean private NavPublisher navPublisher;
+  @MockitoBean private Clock clock;
 
   @Test
   void fetchSebHistory_withValidToken_returnsOk() throws Exception {
@@ -139,5 +151,75 @@ class AdminControllerTest {
                 .contentType(APPLICATION_JSON)
                 .content("[]"))
         .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void calculateNav_withValidToken_calculatesAndPublishes() throws Exception {
+    var result = sampleNavResult(LocalDate.of(2026, 2, 17));
+    when(navCalculationService.calculate(TKF100, LocalDate.of(2026, 2, 17))).thenReturn(result);
+
+    mockMvc
+        .perform(
+            post("/admin/calculate-nav")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("date", "2026-02-17"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.navPerUnit").value(1.0))
+        .andExpect(jsonPath("$.aum").value(1000000));
+
+    verify(navPublisher).publish(result);
+  }
+
+  @Test
+  void calculateNav_withPublishFalse_calculatesButDoesNotPublish() throws Exception {
+    var result = sampleNavResult(LocalDate.of(2026, 2, 17));
+    when(navCalculationService.calculate(TKF100, LocalDate.of(2026, 2, 17))).thenReturn(result);
+
+    mockMvc
+        .perform(
+            post("/admin/calculate-nav")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("date", "2026-02-17")
+                .param("publish", "false"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.navPerUnit").value(1.0));
+
+    verify(navPublisher, never()).publish(any());
+  }
+
+  @Test
+  void calculateNav_withInvalidToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/calculate-nav")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .param("date", "2026-02-17"))
+        .andExpect(status().isUnauthorized());
+  }
+
+  private NavCalculationResult sampleNavResult(LocalDate date) {
+    return NavCalculationResult.builder()
+        .fund(TKF100)
+        .calculationDate(date)
+        .securitiesValue(new BigDecimal("800000"))
+        .cashPosition(new BigDecimal("200000"))
+        .receivables(BigDecimal.ZERO)
+        .pendingSubscriptions(BigDecimal.ZERO)
+        .pendingRedemptions(BigDecimal.ZERO)
+        .managementFeeAccrual(BigDecimal.ZERO)
+        .depotFeeAccrual(BigDecimal.ZERO)
+        .payables(BigDecimal.ZERO)
+        .blackrockAdjustment(BigDecimal.ZERO)
+        .aum(new BigDecimal("1000000"))
+        .unitsOutstanding(new BigDecimal("1000000"))
+        .navPerUnit(BigDecimal.ONE)
+        .positionReportDate(date)
+        .priceDate(date)
+        .calculatedAt(Instant.parse("2026-02-17T15:30:00Z"))
+        .componentDetails(Map.of())
+        .build();
   }
 }

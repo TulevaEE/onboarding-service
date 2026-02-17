@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.SystemAccount.MANAGEMENT_FEE_ACCRUAL;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
@@ -82,6 +83,21 @@ class ManagementFeeAccrualComponentTest {
   @Test
   void getType_returnsLiability() {
     assertThat(component.getType()).isEqualTo(NavComponent.NavComponentType.LIABILITY);
+  }
+
+  @Test
+  void calculate_throwsWhenBalanceIsPositive() {
+    var context =
+        NavComponentContext.builder()
+            .fund(TKF100)
+            .calculationDate(LocalDate.of(2026, 2, 1))
+            .positionReportDate(LocalDate.of(2026, 2, 1))
+            .build();
+
+    when(navLedgerRepository.getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL.name()))
+        .thenReturn(new BigDecimal("52.05"));
+
+    assertThrows(IllegalStateException.class, () -> component.calculate(context));
   }
 
   @Test

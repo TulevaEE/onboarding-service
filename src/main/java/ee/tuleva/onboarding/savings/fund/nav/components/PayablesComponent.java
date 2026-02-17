@@ -31,7 +31,11 @@ public class PayablesComponent implements NavComponent {
     if (balance == null) {
       return ZERO;
     }
-    return balance.abs();
+    if (balance.signum() > 0) {
+      throw new IllegalStateException(
+          "TRADE_PAYABLES should be negative (liability), but was: " + balance);
+    }
+    return balance.negate();
   }
 
   @Override

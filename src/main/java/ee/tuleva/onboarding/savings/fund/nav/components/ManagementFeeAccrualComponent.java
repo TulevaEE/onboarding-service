@@ -32,7 +32,11 @@ public class ManagementFeeAccrualComponent implements NavComponent {
     if (balance == null) {
       return ZERO;
     }
-    return balance.abs();
+    if (balance.signum() > 0) {
+      throw new IllegalStateException(
+          "MANAGEMENT_FEE_ACCRUAL should be negative (liability), but was: " + balance);
+    }
+    return balance.negate();
   }
 
   @Override

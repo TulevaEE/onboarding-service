@@ -166,7 +166,7 @@ public class NavCalculationService {
         payables
             .add(managementFeeAccrual)
             .add(depotFeeAccrual)
-            .add(blackrockAdjustment.min(ZERO).abs());
+            .add(blackrockAdjustment.min(ZERO).negate());
 
     return assets.subtract(liabilities);
   }

@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
+import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.investment.TulevaFund;
@@ -129,15 +130,13 @@ public class FundPositionImportJob {
 
   private void recordPositionsToLedger(TulevaFund fund, LocalDate date) {
     BigDecimal securitiesDelta =
-        calculateDelta(fund, SystemAccount.SECURITIES_VALUE, calculateSecuritiesValue(fund, date));
+        calculateDelta(fund, SECURITIES_VALUE, calculateSecuritiesValue(fund, date));
     BigDecimal cashDelta =
-        calculateDelta(fund, SystemAccount.CASH_POSITION, calculatePositionValue(fund, date, CASH));
+        calculateDelta(fund, CASH_POSITION, calculatePositionValue(fund, date, CASH));
     BigDecimal receivablesDelta =
-        calculateDelta(
-            fund, SystemAccount.TRADE_RECEIVABLES, calculatePositionValue(fund, date, RECEIVABLES));
+        calculateDelta(fund, TRADE_RECEIVABLES, calculatePositionValue(fund, date, RECEIVABLES));
     BigDecimal payablesDelta =
-        calculateDelta(
-            fund, SystemAccount.TRADE_PAYABLES, calculatePositionValue(fund, date, LIABILITY));
+        calculateDelta(fund, TRADE_PAYABLES, calculatePositionValue(fund, date, LIABILITY));
 
     navPositionLedger.recordPositions(
         fund.name(), date, securitiesDelta, cashDelta, receivablesDelta, payablesDelta);

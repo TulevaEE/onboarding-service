@@ -41,6 +41,6 @@ public record NavCalculationResult(
         .add(managementFeeAccrual)
         .add(depotFeeAccrual)
         .add(payables)
-        .add(blackrockAdjustment.min(BigDecimal.ZERO).abs()); // TODO: negate instead of abs?
+        .add(blackrockAdjustment.min(BigDecimal.ZERO).negate());
   }
 }

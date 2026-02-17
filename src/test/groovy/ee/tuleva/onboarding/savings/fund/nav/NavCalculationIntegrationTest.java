@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJU
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
 import static java.math.BigDecimal.ZERO;
+import static java.math.RoundingMode.HALF_UP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
@@ -19,7 +20,6 @@ import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import ee.tuleva.onboarding.user.User;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -58,8 +58,20 @@ class NavCalculationIntegrationTest {
 
     var result = navCalculationService.calculate(TKF100, calculationDate);
 
-    assertThat(result.navPerUnit().setScale(4, RoundingMode.HALF_UP))
-        .isEqualByComparingTo(csvData.expectedNavPerUnit.setScale(4, RoundingMode.HALF_UP));
+    assertThat(result.navPerUnit().setScale(4, HALF_UP))
+        .isEqualByComparingTo(csvData.expectedNavPerUnit.setScale(4, HALF_UP));
+    assertThat(result.cashPosition()).isEqualByComparingTo(csvData.cashPosition);
+    assertThat(result.securitiesValue()).isEqualByComparingTo(csvData.securitiesValue);
+    assertThat(result.receivables()).isEqualByComparingTo(csvData.tradeReceivables);
+    assertThat(result.payables()).isEqualByComparingTo(csvData.tradePayables.negate());
+    assertThat(result.managementFeeAccrual())
+        .isEqualByComparingTo(csvData.managementFeeAccrual.negate());
+    assertThat(result.depotFeeAccrual()).isEqualByComparingTo(csvData.depotFeeAccrual.negate());
+    assertThat(result.unitsOutstanding().setScale(3, HALF_UP))
+        .isEqualByComparingTo(csvData.unitsOutstanding.setScale(3, HALF_UP));
+    assertThat(result.pendingSubscriptions()).isEqualByComparingTo(ZERO);
+    assertThat(result.pendingRedemptions()).isEqualByComparingTo(ZERO);
+    assertThat(result.blackrockAdjustment()).isEqualByComparingTo(ZERO);
   }
 
   @SneakyThrows
@@ -124,7 +136,7 @@ class NavCalculationIntegrationTest {
         ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING);
     LedgerAccount userFundUnitsAccount = ledgerService.getUserAccount(testUser, FUND_UNITS);
 
-    BigDecimal units = unitsOutstanding.setScale(5, RoundingMode.HALF_UP);
+    BigDecimal units = unitsOutstanding.setScale(5, HALF_UP);
 
     var transaction =
         LedgerTransaction.builder()

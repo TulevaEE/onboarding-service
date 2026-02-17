@@ -13,7 +13,7 @@ nav_date,fund_code,account_type,account_name,account_id,quantity,market_price,cu
 2026-02-11,TKF100,LIABILITY,Total payables of unsettled transactions,,-271299.52,1,EUR,-271299.52
 2026-02-11,TKF100,RECEIVABLES,Receivables of outstanding units,,0.00,1,EUR,0.00
 2026-02-11,TKF100,LIABILITY,Payables of redeemed units,,0.00,1,EUR,0.00
-2026-02-11,TKF100,LIABILITY_FEE,Management fee,,-206.81,1,EUR,-206.81
+2026-02-11,TKF100,LIABILITY_FEE,Management fee,,-259.54,1,EUR,-259.54
 2026-02-11,TKF100,LIABILITY_FEE,Custody fee,,0.00,1,EUR,0.00
 2026-02-11,TKF100,UNITS,Total outstanding units:,EE0000003283,6255534.260,0.9986,EUR,6246790.34
 2026-02-11,TKF100,NAV,Net Asset Value,EE0000003283,1.00,0.9986,EUR,1.00

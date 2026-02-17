@@ -71,6 +71,18 @@ class NavPipelineIntegrationTest {
 
     assertThat(result.navPerUnit().setScale(4, HALF_UP))
         .isEqualByComparingTo(navData.expectedNavPerUnit.setScale(4, HALF_UP));
+    assertThat(result.cashPosition()).isEqualByComparingTo(navData.cashPosition);
+    assertThat(result.securitiesValue()).isEqualByComparingTo(navData.securitiesValue);
+    assertThat(result.receivables()).isEqualByComparingTo(navData.tradeReceivables);
+    assertThat(result.payables()).isEqualByComparingTo(navData.tradePayables.negate());
+    assertThat(result.managementFeeAccrual())
+        .isEqualByComparingTo(navData.managementFeeAccrual.negate());
+    assertThat(result.depotFeeAccrual()).isEqualByComparingTo(navData.depotFeeAccrual.negate());
+    assertThat(result.unitsOutstanding().setScale(3, HALF_UP))
+        .isEqualByComparingTo(navData.unitsOutstanding.setScale(3, HALF_UP));
+    assertThat(result.pendingSubscriptions()).isEqualByComparingTo(ZERO);
+    assertThat(result.pendingRedemptions()).isEqualByComparingTo(ZERO);
+    assertThat(result.blackrockAdjustment()).isEqualByComparingTo(ZERO);
   }
 
   @SneakyThrows

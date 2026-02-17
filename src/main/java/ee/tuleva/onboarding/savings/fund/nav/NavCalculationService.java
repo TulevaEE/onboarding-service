@@ -25,9 +25,6 @@ public class NavCalculationService {
 
   private static final int NAV_PRECISION = 5;
 
-  // TODO: not used?
-  private static final BigDecimal NAV_CHANGE_THRESHOLD_PERCENT = new BigDecimal("5.0");
-
   private final FundPositionRepository fundPositionRepository;
   private final NavLedgerRepository navLedgerRepository;
   private final SecuritiesValueComponent securitiesValueComponent;

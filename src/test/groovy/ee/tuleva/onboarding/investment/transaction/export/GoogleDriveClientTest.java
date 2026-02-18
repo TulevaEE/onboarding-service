@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction.export;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.*;
 
 import java.util.List;
@@ -15,12 +16,15 @@ class GoogleDriveClientTest {
   @Test
   void findFolder_returnsIdWhenFolderExists() {
     var restClient = mock(RestClient.class);
-    stubGet(
-        restClient, Map.of("files", List.of(Map.of("id", "folder-123", "name", "2026_tehingud"))));
+    var spec =
+        stubGet(
+            restClient,
+            Map.of("files", List.of(Map.of("id", "folder-123", "name", "2026_tehingud"))));
 
     var result = new GoogleDriveClient(restClient).findFolder("parent-id", "2026_tehingud");
 
     assertThat(result).isEqualTo("folder-123");
+    verify(spec).uri(contains("supportsAllDrives=true"), any(Object[].class));
   }
 
   @Test
@@ -36,11 +40,12 @@ class GoogleDriveClientTest {
   @Test
   void createFolder_returnsNewFolderId() {
     var restClient = mock(RestClient.class);
-    stubPost(restClient, Map.of("id", "new-folder-456"));
+    var bodyUriSpec = stubPost(restClient, Map.of("id", "new-folder-456"));
 
     var result = new GoogleDriveClient(restClient).createFolder("parent-id", "02.2026");
 
     assertThat(result).isEqualTo("new-folder-456");
+    verify(bodyUriSpec).uri(contains("supportsAllDrives=true"), any(Object[].class));
   }
 
   @Test
@@ -68,21 +73,24 @@ class GoogleDriveClientTest {
   @Test
   void uploadFile_returnsWebViewLink() {
     var restClient = mock(RestClient.class);
-    stubPost(
-        restClient,
-        Map.of(
-            "id", "file-789",
-            "webViewLink", "https://drive.google.com/file/d/file-789/view"));
+    var bodyUriSpec =
+        stubPost(
+            restClient,
+            Map.of(
+                "id", "file-789",
+                "webViewLink", "https://drive.google.com/file/d/file-789/view"));
 
     var result =
         new GoogleDriveClient(restClient)
             .uploadFile("folder-id", "SEB_TKF100_indeksfondid_16022026.xlsx", new byte[] {1, 2, 3});
 
     assertThat(result).isEqualTo("https://drive.google.com/file/d/file-789/view");
+    verify(bodyUriSpec).uri(contains("supportsAllDrives=true"), any(Object[].class));
   }
 
   @SuppressWarnings("unchecked")
-  private static void stubGet(RestClient restClient, Map<String, Object> response) {
+  private static RestClient.RequestHeadersUriSpec<?> stubGet(
+      RestClient restClient, Map<String, Object> response) {
     var spec = mock(RestClient.RequestHeadersUriSpec.class);
     when(restClient.get()).thenReturn(spec);
     when(spec.uri(any(String.class), any(Object[].class))).thenReturn(spec);
@@ -90,10 +98,12 @@ class GoogleDriveClientTest {
 
     var responseSpec = spec.retrieve();
     when(responseSpec.body(any(ParameterizedTypeReference.class))).thenReturn(response);
+    return spec;
   }
 
   @SuppressWarnings("unchecked")
-  private static void stubPost(RestClient restClient, Map<String, Object> response) {
+  private static RestClient.RequestBodyUriSpec stubPost(
+      RestClient restClient, Map<String, Object> response) {
     var bodyUriSpec = mock(RestClient.RequestBodyUriSpec.class);
     var responseSpec = mock(RestClient.ResponseSpec.class);
 
@@ -103,5 +113,6 @@ class GoogleDriveClientTest {
     lenient().when(bodyUriSpec.body(any(Object.class))).thenReturn(bodyUriSpec);
     lenient().when(bodyUriSpec.retrieve()).thenReturn(responseSpec);
     lenient().when(responseSpec.body(any(ParameterizedTypeReference.class))).thenReturn(response);
+    return bodyUriSpec;
   }
 }

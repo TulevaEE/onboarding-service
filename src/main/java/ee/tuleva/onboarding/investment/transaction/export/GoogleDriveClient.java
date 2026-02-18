@@ -27,7 +27,9 @@ class GoogleDriveClient {
     Map<String, Object> response =
         restClient
             .get()
-            .uri("/files?q={query}&fields=files(id,name)", query)
+            .uri(
+                "/files?q={query}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true",
+                query)
             .retrieve()
             .body(MAP_TYPE);
 
@@ -45,7 +47,7 @@ class GoogleDriveClient {
     Map<String, Object> response =
         restClient
             .post()
-            .uri("/files?fields={fields}", "id")
+            .uri("/files?fields={fields}&supportsAllDrives=true", "id")
             .contentType(MediaType.APPLICATION_JSON)
             .body(metadata)
             .retrieve()
@@ -72,7 +74,9 @@ class GoogleDriveClient {
     Map<String, Object> response =
         restClient
             .post()
-            .uri("/upload/drive/v3/files?uploadType=multipart&fields={fields}", "id,webViewLink")
+            .uri(
+                "/upload/drive/v3/files?uploadType=multipart&fields={fields}&supportsAllDrives=true",
+                "id,webViewLink")
             .contentType(MediaType.parseMediaType("multipart/related; boundary=" + boundary))
             .body(multipartBody)
             .retrieve()

@@ -156,8 +156,7 @@ class NavPipelineIntegrationTest {
     jdbcClient
         .sql(
             """
-            MERGE INTO investment_fee_rate (fund_code, fee_type, annual_rate, valid_from, created_by)
-            KEY (fund_code, fee_type, valid_from)
+            INSERT INTO investment_fee_rate (fund_code, fee_type, annual_rate, valid_from, created_by)
             VALUES (:fundCode, :feeType, :annualRate, :validFrom, 'TEST')
             """)
         .param("fundCode", fund.name())
@@ -171,8 +170,7 @@ class NavPipelineIntegrationTest {
     jdbcClient
         .sql(
             """
-            MERGE INTO investment_depot_fee_tier (min_aum, annual_rate, valid_from)
-            KEY (min_aum, valid_from)
+            INSERT INTO investment_depot_fee_tier (min_aum, annual_rate, valid_from)
             VALUES (:minAum, :annualRate, :validFrom)
             """)
         .param("minAum", 0)

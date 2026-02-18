@@ -84,7 +84,7 @@ public enum FundTicker {
       "IE0031080751",
       "iShares Euro Government Bond Index Fund",
       "BARGVBI",
-      "269084",
+      "229063",
       "0P00006OK2"),
   ISHARES_GLOBAL_GOVERNMENT_BOND(
       "0P0001A3RC.F",

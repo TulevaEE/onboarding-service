@@ -78,11 +78,7 @@ public class FundPositionImportJob {
                 try {
                   importForProviderAndDate(provider, date);
                 } catch (Exception e) {
-                  log.error(
-                      "Import failed, continuing with next: provider={}, date={}",
-                      provider,
-                      date,
-                      e);
+                  log.error("Fund position import failed: provider={}, date={}", provider, date, e);
                 }
               }
             });
@@ -131,16 +127,16 @@ public class FundPositionImportJob {
     BigDecimal payablesDelta =
         calculateDelta(TRADE_PAYABLES, calculatePositionValue(fund, date, LIABILITY));
 
-    navPositionLedger.recordPositions(
-        fund.name(), date, securitiesUnitDeltas, cashDelta, receivablesDelta, payablesDelta);
     log.info(
-        "Recorded position deltas to ledger: fund={}, date={}, securitiesIsins={}, cash={}, receivables={}, payables={}",
+        "Recording position deltas to ledger: fund={}, date={}, securitiesUnitDeltas={}, cash={}, receivables={}, payables={}",
         fund,
         date,
-        securitiesUnitDeltas.size(),
+        securitiesUnitDeltas,
         cashDelta,
         receivablesDelta,
         payablesDelta);
+    navPositionLedger.recordPositions(
+        fund.name(), date, securitiesUnitDeltas, cashDelta, receivablesDelta, payablesDelta);
   }
 
   private Map<String, BigDecimal> calculateSecuritiesUnitDeltas(TulevaFund fund, LocalDate date) {

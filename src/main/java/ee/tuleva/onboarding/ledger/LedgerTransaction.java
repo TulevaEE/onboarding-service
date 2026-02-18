@@ -6,6 +6,7 @@ import static jakarta.persistence.GenerationType.UUID;
 import static java.math.BigDecimal.ZERO;
 import static org.hibernate.generator.EventType.INSERT;
 
+import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import ee.tuleva.onboarding.ledger.validation.AssetTypeConsistency;
 import ee.tuleva.onboarding.ledger.validation.BalancedTransaction;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
@@ -104,9 +105,11 @@ public class LedgerTransaction {
       throw new IllegalArgumentException("Amount cannot be null");
     }
 
+    BigDecimal normalizedAmount = normalizeScale(amount, account.getAssetType());
+
     var entry =
         LedgerEntry.builder()
-            .amount(amount)
+            .amount(normalizedAmount)
             .assetType(account.getAssetType())
             .account(account)
             .transaction(this)
@@ -128,5 +131,13 @@ public class LedgerTransaction {
   public Optional<BigDecimal> findNavPerUnit() {
     Object navValue = metadata.get("navPerUnit");
     return Optional.ofNullable(navValue).map(value -> new BigDecimal(value.toString()));
+  }
+
+  private static BigDecimal normalizeScale(BigDecimal amount, AssetType assetType) {
+    int strippedScale = amount.stripTrailingZeros().scale();
+    if (strippedScale <= assetType.getMaxPrecision()) {
+      return amount.setScale(assetType.getMaxPrecision());
+    }
+    return amount;
   }
 }

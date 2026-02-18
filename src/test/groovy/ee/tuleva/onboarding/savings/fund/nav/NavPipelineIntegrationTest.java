@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
@@ -10,10 +11,13 @@ import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
+import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
+import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionImportService;
+import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.ledger.*;
@@ -46,6 +50,7 @@ class NavPipelineIntegrationTest {
   @Autowired InvestmentReportService investmentReportService;
   @Autowired SebFundPositionParser sebFundPositionParser;
   @Autowired FundPositionImportService fundPositionImportService;
+  @Autowired FundPositionRepository fundPositionRepository;
   @Autowired NavPositionLedger navPositionLedger;
   @Autowired NavFeeAccrualLedger navFeeAccrualLedger;
   @Autowired NavCalculationService navCalculationService;
@@ -129,10 +134,18 @@ class NavPipelineIntegrationTest {
   }
 
   private void recordPositionsToLedger(NavCsvData navData) {
+    var securityPositions =
+        fundPositionRepository.findByReportingDateAndFundAndAccountType(
+            navData.navDate, TKF100, SECURITY);
+    Map<String, BigDecimal> securitiesUnits =
+        securityPositions.stream()
+            .filter(position -> position.getAccountId() != null)
+            .collect(toMap(FundPosition::getAccountId, FundPosition::getQuantity));
+
     navPositionLedger.recordPositions(
         TKF100.name(),
         navData.navDate,
-        navData.securitiesUnitsByIsin,
+        securitiesUnits,
         navData.cashPosition,
         navData.tradeReceivables,
         navData.tradePayables);
@@ -223,12 +236,7 @@ class NavPipelineIntegrationTest {
 
       switch (accountType) {
         case "CASH" -> data.cashPosition = marketValue;
-        case "SECURITY" -> {
-          String isin = fields[4];
-          if (!isin.isEmpty() && quantity.signum() != 0) {
-            data.securitiesUnitsByIsin.put(isin, quantity.setScale(5, HALF_UP));
-          }
-        }
+        case "SECURITY" -> {}
         case "RECEIVABLES" -> {
           if (accountName.startsWith("Total receivables")) {
             data.tradeReceivables = marketValue;
@@ -267,7 +275,6 @@ class NavPipelineIntegrationTest {
   private static class NavCsvData {
     LocalDate navDate;
     BigDecimal cashPosition = ZERO;
-    Map<String, BigDecimal> securitiesUnitsByIsin = new java.util.HashMap<>();
     BigDecimal tradeReceivables = ZERO;
     BigDecimal tradePayables = ZERO;
     BigDecimal managementFeeAccrual = ZERO;

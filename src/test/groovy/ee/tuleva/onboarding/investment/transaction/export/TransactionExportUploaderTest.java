@@ -29,8 +29,8 @@ class TransactionExportUploaderTest {
             "sebEtfXlsx", new byte[] {3, 4},
             "ftEtfXlsx", new byte[] {5, 6});
 
-    when(driveClient.getOrCreateFolder("root-id", "2026_tehingud")).thenReturn("year-folder-id");
-    when(driveClient.getOrCreateFolder("year-folder-id", "02.2026")).thenReturn("month-folder-id");
+    when(driveClient.getOrCreateFolder("root-id", "2026")).thenReturn("year-folder-id");
+    when(driveClient.getOrCreateFolder("year-folder-id", "02")).thenReturn("month-folder-id");
 
     when(driveClient.uploadFile(
             "month-folder-id",
@@ -62,8 +62,8 @@ class TransactionExportUploaderTest {
     var timestamp = Instant.parse("2026-03-05T09:15:00Z");
     var exports = Map.of("sebFundXlsx", new byte[] {1, 2});
 
-    when(driveClient.getOrCreateFolder("root-id", "2026_tehingud")).thenReturn("year-id");
-    when(driveClient.getOrCreateFolder("year-id", "03.2026")).thenReturn("month-id");
+    when(driveClient.getOrCreateFolder("root-id", "2026")).thenReturn("year-id");
+    when(driveClient.getOrCreateFolder("year-id", "03")).thenReturn("month-id");
     when(driveClient.uploadFile(
             "month-id", "SEB_TKF100_indeksfondid_2026-03-05T09_15_00.xlsx", new byte[] {1, 2}))
         .thenReturn("https://drive.google.com/fund-only");

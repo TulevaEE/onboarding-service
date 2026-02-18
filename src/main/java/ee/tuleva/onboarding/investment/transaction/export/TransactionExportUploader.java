@@ -15,8 +15,8 @@ public class TransactionExportUploader {
 
   private static final DateTimeFormatter TIMESTAMP =
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH_mm_ss").withZone(ZoneOffset.UTC);
-  private static final DateTimeFormatter MONTH_YEAR =
-      DateTimeFormatter.ofPattern("MM.yyyy").withZone(ZoneOffset.UTC);
+  private static final DateTimeFormatter MONTH =
+      DateTimeFormatter.ofPattern("MM").withZone(ZoneOffset.UTC);
 
   private static final Map<String, String> FILE_NAME_PATTERNS =
       Map.of(
@@ -33,8 +33,8 @@ public class TransactionExportUploader {
     }
 
     var year = timestamp.atZone(ZoneOffset.UTC).getYear();
-    var yearFolder = driveClient.getOrCreateFolder(rootFolderId, year + "_tehingud");
-    var monthFolder = driveClient.getOrCreateFolder(yearFolder, MONTH_YEAR.format(timestamp));
+    var yearFolder = driveClient.getOrCreateFolder(rootFolderId, String.valueOf(year));
+    var monthFolder = driveClient.getOrCreateFolder(yearFolder, MONTH.format(timestamp));
 
     var fileTimestamp = TIMESTAMP.format(timestamp);
     Map<String, String> urls = new HashMap<>();

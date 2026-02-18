@@ -45,4 +45,14 @@ public interface FundPositionRepository extends JpaRepository<FundPosition, Long
       WHERE fp.fund = :fund AND fp.reportingDate <= :asOfDate
       """)
   Optional<LocalDate> findLatestReportingDateByFundAndAsOfDate(TulevaFund fund, LocalDate asOfDate);
+
+  @Query(
+      """
+      SELECT COALESCE(SUM(fp.marketValue), 0) FROM FundPosition fp
+      WHERE fp.fund = :fund
+      AND fp.reportingDate = :reportingDate
+      AND fp.accountType IN :accountTypes
+      """)
+  BigDecimal sumMarketValueByFundAndAccountTypes(
+      TulevaFund fund, LocalDate reportingDate, List<AccountType> accountTypes);
 }

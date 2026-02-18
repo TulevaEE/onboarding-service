@@ -11,6 +11,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.investment.calculation.PositionCalculationRepository;
+import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -29,6 +30,7 @@ class ManagementFeeCalculatorTest {
   @Mock private PositionCalculationRepository positionCalculationRepository;
   @Mock private FeeAccrualRepository feeAccrualRepository;
   @Mock private FeeMonthResolver feeMonthResolver;
+  @Mock private FundPositionRepository fundPositionRepository;
 
   @InjectMocks private ManagementFeeCalculator calculator;
 
@@ -62,7 +64,7 @@ class ManagementFeeCalculatorTest {
     assertThat(result.annualRate()).isEqualTo(annualRate);
 
     BigDecimal expectedDailyFee =
-        baseValue.multiply(annualRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP);
+        baseValue.multiply(annualRate).divide(BigDecimal.valueOf(365), 2, RoundingMode.HALF_UP);
     assertThat(result.dailyAmountNet()).isEqualByComparingTo(expectedDailyFee);
     assertThat(result.dailyAmountGross()).isEqualByComparingTo(expectedDailyFee);
     assertThat(result.vatRate()).isNull();

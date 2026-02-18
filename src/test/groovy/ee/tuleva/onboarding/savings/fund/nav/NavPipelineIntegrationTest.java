@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.savings.fund.nav;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
+import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
@@ -20,6 +20,7 @@ import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionImportService;
+import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
@@ -33,6 +34,8 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -56,6 +59,7 @@ class NavPipelineIntegrationTest {
   @Autowired SebFundPositionParser sebFundPositionParser;
   @Autowired FundPositionImportService fundPositionImportService;
   @Autowired FundPositionRepository fundPositionRepository;
+  @Autowired FundPositionLedgerService fundPositionLedgerService;
   @Autowired NavPositionLedger navPositionLedger;
   @Autowired NavFeeAccrualLedger navFeeAccrualLedger;
   @Autowired NavCalculationService navCalculationService;
@@ -101,11 +105,26 @@ class NavPipelineIntegrationTest {
   @Test
   void feeCalculationOnlyAffectsNavEnabledFundInLedger() {
     LocalDate date = LocalDate.of(2025, 3, 15);
+    BigDecimal tkf100Aum = new BigDecimal("50000000");
 
-    insertPositionCalculation(TKF100, date, new BigDecimal("50000000"));
+    insertPositionCalculation(TKF100, date, tkf100Aum);
     insertPositionCalculation(TUK75, date, new BigDecimal("1000000000"));
     insertPositionCalculation(TKF100, LocalDate.of(2025, 2, 28), new BigDecimal("48000000"));
     insertPositionCalculation(TUK75, LocalDate.of(2025, 2, 28), new BigDecimal("980000000"));
+
+    fundPositionRepository.save(
+        FundPosition.builder()
+            .reportingDate(date)
+            .fund(TKF100)
+            .accountType(CASH)
+            .accountName("Cash")
+            .marketValue(tkf100Aum)
+            .currency("EUR")
+            .createdAt(Instant.now())
+            .build());
+    entityManager.flush();
+    navPositionLedger.recordPositions(TKF100.name(), date, Map.of(), tkf100Aum, ZERO, ZERO);
+    entityManager.flush();
 
     insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0025"));
     insertFeeRate(TUK75, "MANAGEMENT", new BigDecimal("0.0025"));
@@ -116,7 +135,7 @@ class NavPipelineIntegrationTest {
 
     int ledgerTransactionCount =
         jdbcClient.sql("SELECT COUNT(*) FROM ledger.transaction").query(Integer.class).single();
-    assertThat(ledgerTransactionCount).isEqualTo(2);
+    assertThat(ledgerTransactionCount).isEqualTo(3);
 
     BigDecimal managementFeeBalance = getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL);
     BigDecimal depotFeeBalance = getSystemAccountBalance(DEPOT_FEE_ACCRUAL);
@@ -137,6 +156,58 @@ class NavPipelineIntegrationTest {
     assertThat(depotFeeBalance).isNotEqualByComparingTo(ZERO);
   }
 
+  @Test
+  void feeCalculationMatchesSebNavReports() {
+    insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0016"), LocalDate.of(2026, 2, 1));
+    insertFeeRate(TKF100, "DEPOT", ZERO, LocalDate.of(2026, 2, 1));
+    insertDepotFeeTier(new BigDecimal("0.00035"));
+    insertPrices(LocalDate.of(2026, 3, 1));
+
+    LocalDate feb2 = LocalDate.of(2026, 2, 2);
+    fundPositionRepository.save(
+        FundPosition.builder()
+            .reportingDate(feb2)
+            .fund(TKF100)
+            .accountType(CASH)
+            .accountName("Cash account in SEB Pank")
+            .marketValue(new BigDecimal("5301827.32"))
+            .currency("EUR")
+            .createdAt(Instant.now())
+            .build());
+    entityManager.flush();
+    fundPositionLedgerService.recordPositionsToLedger(TKF100, feb2);
+    entityManager.flush();
+    feeCalculationService.calculateDailyFeesForFund(TKF100, feb2);
+    entityManager.flush();
+
+    List<NavCsvData> allNavData = parseAllNavCsvsSorted();
+    LocalDate previousNavDate = feb2;
+
+    for (NavCsvData navData : allNavData) {
+      LocalDate gapDay = previousNavDate.plusDays(1);
+      while (gapDay.isBefore(navData.navDate)) {
+        feeCalculationService.calculateDailyFeesForFund(TKF100, gapDay);
+        gapDay = gapDay.plusDays(1);
+      }
+
+      navData.positions.forEach(fundPositionRepository::save);
+      entityManager.flush();
+      fundPositionLedgerService.recordPositionsToLedger(TKF100, navData.navDate);
+      entityManager.flush();
+      insertPositionCalculation(TKF100, navData.navDate, navData.securitiesTotal);
+
+      feeCalculationService.calculateDailyFeesForFund(TKF100, navData.navDate);
+      entityManager.flush();
+
+      previousNavDate = navData.navDate;
+    }
+
+    BigDecimal cumulativeFee = getCumulativeManagementFee();
+    assertThat(cumulativeFee.setScale(2, HALF_UP))
+        .as("Cumulative management fee through %s", allNavData.getLast().navDate)
+        .isEqualByComparingTo(new BigDecimal("425.46"));
+  }
+
   private void insertPositionCalculation(TulevaFund fund, LocalDate date, BigDecimal marketValue) {
     jdbcClient
         .sql(
@@ -149,6 +220,43 @@ class NavPipelineIntegrationTest {
         .param("fundCode", fund.name())
         .param("date", date)
         .param("marketValue", marketValue)
+        .update();
+  }
+
+  @SneakyThrows
+  private List<NavCsvData> parseAllNavCsvsSorted() {
+    return Files.list(NAV_CSV_DIR)
+        .filter(path -> path.getFileName().toString().startsWith("TKF NAV"))
+        .sorted()
+        .map(this::parseNavCsv)
+        .sorted(Comparator.comparing(data -> data.navDate))
+        .toList();
+  }
+
+  private BigDecimal getCumulativeManagementFee() {
+    return jdbcClient
+        .sql(
+            """
+            SELECT COALESCE(SUM(daily_amount_net), 0)
+            FROM investment_fee_accrual
+            WHERE fund_code = 'TKF100' AND fee_type = 'MANAGEMENT'
+            """)
+        .query(BigDecimal.class)
+        .single();
+  }
+
+  private void insertFeeRate(
+      TulevaFund fund, String feeType, BigDecimal annualRate, LocalDate validFrom) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fee_rate (fund_code, fee_type, annual_rate, valid_from, created_by)
+            VALUES (:fundCode, :feeType, :annualRate, :validFrom, 'TEST')
+            """)
+        .param("fundCode", fund.name())
+        .param("feeType", feeType)
+        .param("annualRate", annualRate)
+        .param("validFrom", validFrom)
         .update();
   }
 
@@ -336,18 +444,74 @@ class NavPipelineIntegrationTest {
         data.navDate = LocalDate.parse(fields[0]);
       }
 
+      String accountId = fields[4];
+      String currency = fields[7];
+
       switch (accountType) {
-        case "CASH" -> data.cashPosition = marketValue;
-        case "SECURITY" -> {}
+        case "CASH" -> {
+          data.cashPosition = marketValue;
+          data.positions.add(
+              FundPosition.builder()
+                  .reportingDate(data.navDate)
+                  .fund(TKF100)
+                  .accountType(CASH)
+                  .accountName(accountName)
+                  .quantity(quantity)
+                  .marketPrice(marketPrice)
+                  .currency(currency)
+                  .marketValue(marketValue)
+                  .createdAt(Instant.now())
+                  .build());
+        }
+        case "SECURITY" -> {
+          data.securitiesTotal = data.securitiesTotal.add(marketValue);
+          data.positions.add(
+              FundPosition.builder()
+                  .reportingDate(data.navDate)
+                  .fund(TKF100)
+                  .accountType(SECURITY)
+                  .accountName(accountName)
+                  .accountId(accountId.isEmpty() ? null : accountId)
+                  .quantity(quantity)
+                  .marketPrice(marketPrice)
+                  .currency(currency)
+                  .marketValue(marketValue)
+                  .createdAt(Instant.now())
+                  .build());
+        }
         case "RECEIVABLES" -> {
           if (accountName.startsWith("Total receivables")) {
             data.tradeReceivables = marketValue;
           }
+          data.positions.add(
+              FundPosition.builder()
+                  .reportingDate(data.navDate)
+                  .fund(TKF100)
+                  .accountType(RECEIVABLES)
+                  .accountName(accountName)
+                  .quantity(quantity)
+                  .marketPrice(marketPrice)
+                  .currency(currency)
+                  .marketValue(marketValue)
+                  .createdAt(Instant.now())
+                  .build());
         }
         case "LIABILITY" -> {
           if (accountName.startsWith("Total payables")) {
             data.tradePayables = marketValue;
           }
+          data.positions.add(
+              FundPosition.builder()
+                  .reportingDate(data.navDate)
+                  .fund(TKF100)
+                  .accountType(LIABILITY)
+                  .accountName(accountName)
+                  .quantity(quantity)
+                  .marketPrice(marketPrice)
+                  .currency(currency)
+                  .marketValue(marketValue)
+                  .createdAt(Instant.now())
+                  .build());
         }
         case "LIABILITY_FEE" -> {
           if (accountName.startsWith("Management fee")) {
@@ -383,5 +547,7 @@ class NavPipelineIntegrationTest {
     BigDecimal depotFeeAccrual = ZERO;
     BigDecimal unitsOutstanding = ZERO;
     BigDecimal expectedNavPerUnit = ZERO;
+    BigDecimal securitiesTotal = ZERO;
+    final List<FundPosition> positions = new ArrayList<>();
   }
 }

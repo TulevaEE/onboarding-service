@@ -128,6 +128,7 @@ class FeeCalculationIntegrationTest {
     insertPositionCalculation(
         TulevaFund.TUV100, LocalDate.of(2024, 12, 31), new BigDecimal("290000000"));
     insertPositionCalculation(TKF100, LocalDate.of(2024, 12, 31), new BigDecimal("48000000"));
+    insertFundPosition(TKF100, LocalDate.of(2025, 1, 15), new BigDecimal("50000000"));
   }
 
   private void insertPositionCalculation(TulevaFund fund, LocalDate date, BigDecimal marketValue) {
@@ -163,6 +164,20 @@ class FeeCalculationIntegrationTest {
         .param("feeType", feeType)
         .param("annualRate", annualRate)
         .param("validFrom", LocalDate.of(2025, 1, 1))
+        .update();
+  }
+
+  private void insertFundPosition(TulevaFund fund, LocalDate date, BigDecimal marketValue) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fund_position
+            (reporting_date, fund_code, account_type, account_name, market_value, currency, created_at)
+            VALUES (:date, :fundCode, 'CASH', 'Test cash', :marketValue, 'EUR', now())
+            """)
+        .param("date", date)
+        .param("fundCode", fund.name())
+        .param("marketValue", marketValue)
         .update();
   }
 

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
@@ -15,6 +16,8 @@ import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
+import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionImportService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
@@ -35,10 +38,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest(webEnvironment = RANDOM_PORT)
@@ -56,6 +61,8 @@ class NavPipelineIntegrationTest {
   @Autowired NavCalculationService navCalculationService;
   @Autowired NavPublisher navPublisher;
   @Autowired LedgerService ledgerService;
+  @Autowired FeeCalculationService feeCalculationService;
+  @Autowired JdbcClient jdbcClient;
   @Autowired EntityManager entityManager;
 
   User testUser = sampleUser().personalCode("38001010001").build();
@@ -89,6 +96,103 @@ class NavPipelineIntegrationTest {
     assertThat(result.blackrockAdjustment()).isEqualByComparingTo(ZERO);
     assertThat(result.navPerUnit().setScale(4, HALF_UP))
         .isEqualByComparingTo(navData.expectedNavPerUnit.setScale(4, HALF_UP));
+  }
+
+  @Test
+  void feeCalculationOnlyAffectsNavEnabledFundInLedger() {
+    LocalDate date = LocalDate.of(2025, 3, 15);
+
+    insertPositionCalculation(TKF100, date, new BigDecimal("50000000"));
+    insertPositionCalculation(TUK75, date, new BigDecimal("1000000000"));
+    insertPositionCalculation(TKF100, LocalDate.of(2025, 2, 28), new BigDecimal("48000000"));
+    insertPositionCalculation(TUK75, LocalDate.of(2025, 2, 28), new BigDecimal("980000000"));
+
+    insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0025"));
+    insertFeeRate(TUK75, "MANAGEMENT", new BigDecimal("0.0025"));
+    insertDepotFeeTier(new BigDecimal("0.00035"));
+
+    feeCalculationService.calculateDailyFees(date);
+    entityManager.flush();
+
+    int ledgerTransactionCount =
+        jdbcClient.sql("SELECT COUNT(*) FROM ledger.transaction").query(Integer.class).single();
+    assertThat(ledgerTransactionCount).isEqualTo(2);
+
+    BigDecimal managementFeeBalance = getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL);
+    BigDecimal depotFeeBalance = getSystemAccountBalance(DEPOT_FEE_ACCRUAL);
+
+    BigDecimal tkf100ManagementFee =
+        jdbcClient
+            .sql(
+                """
+                SELECT daily_amount_net FROM investment_fee_accrual
+                WHERE fund_code = 'TKF100' AND fee_type = 'MANAGEMENT' AND accrual_date = :date
+                """)
+            .param("date", date)
+            .query(BigDecimal.class)
+            .single();
+
+    assertThat(managementFeeBalance.abs().setScale(2, HALF_UP))
+        .isEqualByComparingTo(tkf100ManagementFee.setScale(2, HALF_UP));
+    assertThat(depotFeeBalance).isNotEqualByComparingTo(ZERO);
+  }
+
+  private void insertPositionCalculation(TulevaFund fund, LocalDate date, BigDecimal marketValue) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_position_calculation
+            (isin, fund_code, date, quantity, calculated_market_value, validation_status, created_at)
+            VALUES (:isin, :fundCode, :date, 1, :marketValue, 'OK', now())
+            """)
+        .param("isin", "TEST_ISIN_" + fund.name())
+        .param("fundCode", fund.name())
+        .param("date", date)
+        .param("marketValue", marketValue)
+        .update();
+  }
+
+  private void insertFeeRate(TulevaFund fund, String feeType, BigDecimal annualRate) {
+    jdbcClient
+        .sql(
+            """
+            MERGE INTO investment_fee_rate (fund_code, fee_type, annual_rate, valid_from, created_by)
+            KEY (fund_code, fee_type, valid_from)
+            VALUES (:fundCode, :feeType, :annualRate, :validFrom, 'TEST')
+            """)
+        .param("fundCode", fund.name())
+        .param("feeType", feeType)
+        .param("annualRate", annualRate)
+        .param("validFrom", LocalDate.of(2025, 1, 1))
+        .update();
+  }
+
+  private void insertDepotFeeTier(BigDecimal annualRate) {
+    jdbcClient
+        .sql(
+            """
+            MERGE INTO investment_depot_fee_tier (min_aum, annual_rate, valid_from)
+            KEY (min_aum, valid_from)
+            VALUES (:minAum, :annualRate, :validFrom)
+            """)
+        .param("minAum", 0)
+        .param("annualRate", annualRate)
+        .param("validFrom", LocalDate.of(2025, 1, 1))
+        .update();
+  }
+
+  private BigDecimal getSystemAccountBalance(SystemAccount systemAccount) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT COALESCE(SUM(e.amount), 0)
+            FROM ledger.entry e
+            JOIN ledger.account a ON e.account_id = a.id
+            WHERE a.name = :accountName
+            """)
+        .param("accountName", systemAccount.getAccountName())
+        .query(BigDecimal.class)
+        .single();
   }
 
   @SneakyThrows

@@ -24,6 +24,7 @@ public class DepotFeeCalculator implements FeeCalculator {
   private final PositionCalculationRepository positionCalculationRepository;
   private final FeeMonthResolver feeMonthResolver;
   private final VatRateProvider vatRateProvider;
+  private final FeeRateRepository feeRateRepository;
 
   @Override
   public FeeAccrual calculate(TulevaFund fund, LocalDate calendarDate) {
@@ -39,10 +40,7 @@ public class DepotFeeCalculator implements FeeCalculator {
         positionCalculationRepository.getTotalMarketValue(fund, referenceDate).orElse(ZERO);
     int daysInYear = daysInYear(calendarDate);
 
-    LocalDate previousMonthEnd = feeMonth.minusDays(1);
-    BigDecimal historicalMaxAum = getHistoricalMaxTotalValue(previousMonthEnd);
-
-    BigDecimal annualRate = determineDepotRate(historicalMaxAum, feeMonth);
+    BigDecimal annualRate = determineDepotRate(fund, feeMonth);
     BigDecimal vatRate = vatRateProvider.getVatRate(feeMonth);
 
     BigDecimal dailyFeeNet =
@@ -70,8 +68,17 @@ public class DepotFeeCalculator implements FeeCalculator {
     return DEPOT;
   }
 
-  private BigDecimal determineDepotRate(BigDecimal totalAum, LocalDate feeMonth) {
-    BigDecimal tierRate = tierRepository.findRateForAum(totalAum, feeMonth);
+  private BigDecimal determineDepotRate(TulevaFund fund, LocalDate feeMonth) {
+    return feeRateRepository
+        .findValidRate(fund, DEPOT, feeMonth)
+        .map(FeeRate::annualRate)
+        .orElseGet(() -> determineDepotRateFromTier(feeMonth));
+  }
+
+  private BigDecimal determineDepotRateFromTier(LocalDate feeMonth) {
+    LocalDate previousMonthEnd = feeMonth.minusDays(1);
+    BigDecimal historicalMaxAum = getHistoricalMaxTotalValue(previousMonthEnd);
+    BigDecimal tierRate = tierRepository.findRateForAum(historicalMaxAum, feeMonth);
     return tierRate.max(MIN_ANNUAL_RATE);
   }
 

@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -68,15 +69,21 @@ class NavFeeAccrualLedgerTest {
     LocalDate accrualDate = LocalDate.of(2026, 2, 1);
     setupAccountMocks();
 
+    when(ledgerTransactionService.existsByExternalReference(any())).thenReturn(false);
     when(ledgerTransactionService.createTransaction(
-            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navFeeAccrualLedger.recordFeeAccrual(
         "TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"));
 
     verify(ledgerTransactionService)
-        .createTransaction(eq(TRANSFER), eq(Instant.now(clock)), any(), entriesCaptor.capture());
+        .createTransaction(
+            eq(TRANSFER), eq(Instant.now(clock)), any(UUID.class), any(), entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(2);
@@ -91,15 +98,21 @@ class NavFeeAccrualLedgerTest {
     LocalDate accrualDate = LocalDate.of(2026, 2, 1);
     setupAccountMocks();
 
+    when(ledgerTransactionService.existsByExternalReference(any())).thenReturn(false);
     when(ledgerTransactionService.createTransaction(
-            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navFeeAccrualLedger.recordFeeAccrual(
         "TKF100", accrualDate, DEPOT_FEE_ACCRUAL, new BigDecimal("16.44"));
 
     verify(ledgerTransactionService)
-        .createTransaction(eq(TRANSFER), eq(Instant.now(clock)), any(), entriesCaptor.capture());
+        .createTransaction(
+            eq(TRANSFER), eq(Instant.now(clock)), any(UUID.class), any(), entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(2);
@@ -114,15 +127,21 @@ class NavFeeAccrualLedgerTest {
     LocalDate accrualDate = LocalDate.of(2026, 2, 1);
     setupAccountMocks();
 
+    when(ledgerTransactionService.existsByExternalReference(any())).thenReturn(false);
     when(ledgerTransactionService.createTransaction(
-            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navFeeAccrualLedger.recordFeeAccrual(
         "TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"));
 
     verify(ledgerTransactionService)
-        .createTransaction(eq(TRANSFER), eq(Instant.now(clock)), any(), entriesCaptor.capture());
+        .createTransaction(
+            eq(TRANSFER), eq(Instant.now(clock)), any(UUID.class), any(), entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     BigDecimal total =
@@ -136,9 +155,7 @@ class NavFeeAccrualLedgerTest {
 
     navFeeAccrualLedger.recordFeeAccrual("TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, null);
 
-    verify(ledgerTransactionService, never())
-        .createTransaction(
-            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class));
+    verifyNoInteractions(ledgerTransactionService);
   }
 
   @Test
@@ -147,9 +164,7 @@ class NavFeeAccrualLedgerTest {
 
     navFeeAccrualLedger.recordFeeAccrual("TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, ZERO);
 
-    verify(ledgerTransactionService, never())
-        .createTransaction(
-            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class));
+    verifyNoInteractions(ledgerTransactionService);
   }
 
   @Test
@@ -157,8 +172,13 @@ class NavFeeAccrualLedgerTest {
     LocalDate accrualDate = LocalDate.of(2026, 2, 1);
     setupAccountMocks();
 
+    when(ledgerTransactionService.existsByExternalReference(any())).thenReturn(false);
     when(ledgerTransactionService.createTransaction(
-            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navFeeAccrualLedger.recordFeeAccrual(
@@ -168,6 +188,7 @@ class NavFeeAccrualLedgerTest {
         .createTransaction(
             any(TransactionType.class),
             any(Instant.class),
+            any(UUID.class),
             metadataCaptor.capture(),
             any(LedgerEntryDto[].class));
 
@@ -176,5 +197,89 @@ class NavFeeAccrualLedgerTest {
     assertThat(metadata).containsEntry("fund", "TKF100");
     assertThat(metadata).containsEntry("feeType", "MANAGEMENT_FEE_ACCRUAL");
     assertThat(metadata).containsEntry("accrualDate", "2026-02-01");
+  }
+
+  @Test
+  void recordFeeAccrual_skipsWhenEntryAlreadyExists() {
+    LocalDate accrualDate = LocalDate.of(2026, 2, 1);
+    UUID expectedRef =
+        UUID.nameUUIDFromBytes("TKF100:2026-02-01:MANAGEMENT_FEE_ACCRUAL".getBytes());
+
+    when(ledgerTransactionService.existsByExternalReference(expectedRef)).thenReturn(true);
+
+    navFeeAccrualLedger.recordFeeAccrual(
+        "TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"));
+
+    verify(ledgerTransactionService, never())
+        .createTransaction(
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class));
+  }
+
+  @Test
+  void recordFeeAccrual_generatesDeterministicReference() {
+    LocalDate accrualDate = LocalDate.of(2026, 2, 1);
+    setupAccountMocks();
+
+    UUID expectedRef =
+        UUID.nameUUIDFromBytes("TKF100:2026-02-01:MANAGEMENT_FEE_ACCRUAL".getBytes());
+
+    when(ledgerTransactionService.existsByExternalReference(expectedRef)).thenReturn(false);
+    when(ledgerTransactionService.createTransaction(
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
+        .thenReturn(transaction);
+
+    navFeeAccrualLedger.recordFeeAccrual(
+        "TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"));
+
+    verify(ledgerTransactionService)
+        .createTransaction(
+            eq(TRANSFER),
+            eq(Instant.now(clock)),
+            eq(expectedRef),
+            any(),
+            any(LedgerEntryDto[].class));
+  }
+
+  @Test
+  void settleFeeAccrual_reducesLiabilityAndCash() {
+    LocalDate settlementDate = LocalDate.of(2026, 2, 28);
+    setupAccountMocks();
+    LedgerAccount cashPositionAccount = mock(LedgerAccount.class);
+    when(ledgerAccountService.findSystemAccount(SystemAccount.CASH_POSITION))
+        .thenReturn(Optional.of(cashPositionAccount));
+
+    UUID expectedRef =
+        UUID.nameUUIDFromBytes("TKF100:2026-02-28:MANAGEMENT_FEE_ACCRUAL:SETTLEMENT".getBytes());
+
+    when(ledgerTransactionService.existsByExternalReference(expectedRef)).thenReturn(false);
+    when(ledgerTransactionService.createTransaction(
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
+        .thenReturn(transaction);
+
+    navFeeAccrualLedger.settleFeeAccrual(
+        "TKF100", settlementDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("1500.00"));
+
+    verify(ledgerTransactionService)
+        .createTransaction(
+            eq(TRANSFER), eq(Instant.now(clock)), eq(expectedRef), any(), entriesCaptor.capture());
+
+    LedgerEntryDto[] entries = entriesCaptor.getValue();
+    assertThat(entries).hasSize(2);
+    assertThat(entries[0].account()).isEqualTo(managementFeeAccount);
+    assertThat(entries[0].amount()).isEqualByComparingTo("1500.00");
+    assertThat(entries[1].account()).isEqualTo(cashPositionAccount);
+    assertThat(entries[1].amount()).isEqualByComparingTo("-1500.00");
   }
 }

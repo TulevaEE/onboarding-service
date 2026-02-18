@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.fees;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -10,9 +11,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -23,8 +24,20 @@ class DepotFeeCalculatorTest {
   @Mock private PositionCalculationRepository positionCalculationRepository;
   @Mock private FeeMonthResolver feeMonthResolver;
   @Mock private VatRateProvider vatRateProvider;
+  @Mock private FeeRateRepository feeRateRepository;
 
-  @InjectMocks private DepotFeeCalculator calculator;
+  private DepotFeeCalculator calculator;
+
+  @BeforeEach
+  void setUp() {
+    calculator =
+        new DepotFeeCalculator(
+            tierRepository,
+            positionCalculationRepository,
+            feeMonthResolver,
+            vatRateProvider,
+            feeRateRepository);
+  }
 
   @Test
   void calculate_returnsCorrectDailyFeeWithVat() {
@@ -144,5 +157,78 @@ class DepotFeeCalculatorTest {
   @Test
   void getFeeType_returnsDepot() {
     assertThat(calculator.getFeeType()).isEqualTo(FeeType.DEPOT);
+  }
+
+  @Test
+  void calculate_usesFundSpecificRateWhenPresent() {
+    LocalDate date = LocalDate.of(2025, 7, 15);
+    LocalDate feeMonth = LocalDate.of(2025, 7, 1);
+    BigDecimal assetValue = new BigDecimal("500000000");
+    BigDecimal fundRate = new BigDecimal("0.00050");
+    BigDecimal vatRate = new BigDecimal("0.24");
+
+    when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
+    when(positionCalculationRepository.getLatestDateUpTo(TKF100, date))
+        .thenReturn(Optional.of(date));
+    when(positionCalculationRepository.getTotalMarketValue(TKF100, date))
+        .thenReturn(Optional.of(assetValue));
+    when(feeRateRepository.findValidRate(TKF100, FeeType.DEPOT, feeMonth))
+        .thenReturn(Optional.of(new FeeRate(1L, TKF100, FeeType.DEPOT, fundRate, feeMonth, null)));
+    when(vatRateProvider.getVatRate(feeMonth)).thenReturn(vatRate);
+
+    FeeAccrual result = calculator.calculate(TKF100, date);
+
+    assertThat(result.annualRate()).isEqualByComparingTo(fundRate);
+  }
+
+  @Test
+  void calculate_returnsZeroFeeWhenFundRateIsZero() {
+    LocalDate date = LocalDate.of(2025, 7, 15);
+    LocalDate feeMonth = LocalDate.of(2025, 7, 1);
+    BigDecimal assetValue = new BigDecimal("500000000");
+    BigDecimal vatRate = new BigDecimal("0.24");
+
+    when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
+    when(positionCalculationRepository.getLatestDateUpTo(TKF100, date))
+        .thenReturn(Optional.of(date));
+    when(positionCalculationRepository.getTotalMarketValue(TKF100, date))
+        .thenReturn(Optional.of(assetValue));
+    when(feeRateRepository.findValidRate(TKF100, FeeType.DEPOT, feeMonth))
+        .thenReturn(Optional.of(new FeeRate(1L, TKF100, FeeType.DEPOT, ZERO, feeMonth, null)));
+    when(vatRateProvider.getVatRate(feeMonth)).thenReturn(vatRate);
+
+    FeeAccrual result = calculator.calculate(TKF100, date);
+
+    assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
+    assertThat(result.dailyAmountNet()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void calculate_fallsBackToTierWhenNoFundRate() {
+    LocalDate date = LocalDate.of(2025, 7, 15);
+    LocalDate feeMonth = LocalDate.of(2025, 7, 1);
+    LocalDate previousMonthEnd = LocalDate.of(2025, 6, 30);
+    BigDecimal assetValue = new BigDecimal("500000000");
+    BigDecimal totalAum = new BigDecimal("1400000000");
+    BigDecimal tierRate = new BigDecimal("0.00025");
+    BigDecimal vatRate = new BigDecimal("0.24");
+
+    when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
+    when(positionCalculationRepository.getLatestDateUpTo(TUK75, date))
+        .thenReturn(Optional.of(date));
+    when(positionCalculationRepository.getTotalMarketValue(TUK75, date))
+        .thenReturn(Optional.of(assetValue));
+    when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, feeMonth))
+        .thenReturn(Optional.empty());
+    when(positionCalculationRepository.getLatestDateUpTo(previousMonthEnd))
+        .thenReturn(Optional.of(previousMonthEnd));
+    when(positionCalculationRepository.getTotalMarketValueAllFunds(previousMonthEnd))
+        .thenReturn(Optional.of(totalAum));
+    when(tierRepository.findRateForAum(totalAum, feeMonth)).thenReturn(tierRate);
+    when(vatRateProvider.getVatRate(feeMonth)).thenReturn(vatRate);
+
+    FeeAccrual result = calculator.calculate(TUK75, date);
+
+    assertThat(result.annualRate()).isEqualByComparingTo(tierRate);
   }
 }

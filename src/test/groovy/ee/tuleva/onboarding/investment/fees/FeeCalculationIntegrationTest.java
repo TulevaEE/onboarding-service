@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.investment.fees;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +23,7 @@ class FeeCalculationIntegrationTest {
 
   @Autowired private FeeCalculationService feeCalculationService;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private EntityManager entityManager;
 
   private static final LocalDate TEST_DATE = LocalDate.of(2025, 1, 15);
 
@@ -62,13 +65,34 @@ class FeeCalculationIntegrationTest {
 
   @Test
   void calculateDailyFeesForFund_isIdempotent() {
-    feeCalculationService.calculateDailyFeesForFund(TUK75, TEST_DATE);
-    var firstAccrual = findAccrual(TUK75, FeeType.MANAGEMENT, TEST_DATE);
+    feeCalculationService.calculateDailyFeesForFund(TKF100, TEST_DATE);
+    entityManager.flush();
+    var firstAccrual = findAccrual(TKF100, FeeType.MANAGEMENT, TEST_DATE);
+    int ledgerEntriesAfterFirst = countLedgerEntries();
 
-    feeCalculationService.calculateDailyFeesForFund(TUK75, TEST_DATE);
-    var secondAccrual = findAccrual(TUK75, FeeType.MANAGEMENT, TEST_DATE);
+    feeCalculationService.calculateDailyFeesForFund(TKF100, TEST_DATE);
+    entityManager.flush();
+    var secondAccrual = findAccrual(TKF100, FeeType.MANAGEMENT, TEST_DATE);
+    int ledgerEntriesAfterSecond = countLedgerEntries();
 
     assertThat(secondAccrual.dailyAmountNet()).isEqualByComparingTo(firstAccrual.dailyAmountNet());
+    assertThat(ledgerEntriesAfterSecond).isEqualTo(ledgerEntriesAfterFirst);
+  }
+
+  @Test
+  void calculateDailyFees_onlyRecordsToLedgerForNavEnabledFunds() {
+    feeCalculationService.calculateDailyFees(TEST_DATE);
+    entityManager.flush();
+
+    int ledgerTransactionCount =
+        jdbcClient.sql("SELECT COUNT(*) FROM ledger.transaction").query(Integer.class).single();
+
+    int expectedTransactions = 2; // management + depot for TKF100 only
+    assertThat(ledgerTransactionCount).isEqualTo(expectedTransactions);
+
+    for (TulevaFund fund : TulevaFund.values()) {
+      assertThat(findAccrual(fund, FeeType.MANAGEMENT, TEST_DATE)).isNotNull();
+    }
   }
 
   private FeeAccrual findAccrual(TulevaFund fund, FeeType feeType, LocalDate accrualDate) {
@@ -85,6 +109,10 @@ class FeeCalculationIntegrationTest {
         .single();
   }
 
+  private int countLedgerEntries() {
+    return jdbcClient.sql("SELECT COUNT(*) FROM ledger.entry").query(Integer.class).single();
+  }
+
   private void insertTestPositionData() {
     insertPositionCalculation(TUK75, LocalDate.of(2025, 1, 15), new BigDecimal("1000000000"));
     insertPositionCalculation(TUK75, LocalDate.of(2025, 1, 14), new BigDecimal("995000000"));
@@ -93,11 +121,13 @@ class FeeCalculationIntegrationTest {
         TulevaFund.TUK00, LocalDate.of(2025, 1, 15), new BigDecimal("100000000"));
     insertPositionCalculation(
         TulevaFund.TUV100, LocalDate.of(2025, 1, 15), new BigDecimal("300000000"));
+    insertPositionCalculation(TKF100, LocalDate.of(2025, 1, 15), new BigDecimal("50000000"));
     insertPositionCalculation(TUK75, LocalDate.of(2024, 12, 31), new BigDecimal("980000000"));
     insertPositionCalculation(
         TulevaFund.TUK00, LocalDate.of(2024, 12, 31), new BigDecimal("95000000"));
     insertPositionCalculation(
         TulevaFund.TUV100, LocalDate.of(2024, 12, 31), new BigDecimal("290000000"));
+    insertPositionCalculation(TKF100, LocalDate.of(2024, 12, 31), new BigDecimal("48000000"));
   }
 
   private void insertPositionCalculation(TulevaFund fund, LocalDate date, BigDecimal marketValue) {
@@ -116,6 +146,12 @@ class FeeCalculationIntegrationTest {
   }
 
   private void insertFeeRates() {
+    for (TulevaFund fund : TulevaFund.values()) {
+      insertFeeRate(fund.name(), "MANAGEMENT", new BigDecimal("0.0025"));
+    }
+  }
+
+  private void insertFeeRate(String fundCode, String feeType, BigDecimal annualRate) {
     jdbcClient
         .sql(
             """
@@ -123,9 +159,9 @@ class FeeCalculationIntegrationTest {
             KEY (fund_code, fee_type, valid_from)
             VALUES (:fundCode, :feeType, :annualRate, :validFrom, 'TEST')
             """)
-        .param("fundCode", "TUK75")
-        .param("feeType", "MANAGEMENT")
-        .param("annualRate", new BigDecimal("0.0025"))
+        .param("fundCode", fundCode)
+        .param("feeType", feeType)
+        .param("annualRate", annualRate)
         .param("validFrom", LocalDate.of(2025, 1, 1))
         .update();
   }

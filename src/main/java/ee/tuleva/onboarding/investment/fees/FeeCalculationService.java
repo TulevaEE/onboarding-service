@@ -43,11 +43,13 @@ public class FeeCalculationService {
     for (FeeCalculator calculator : feeCalculators) {
       FeeAccrual accrual = calculator.calculate(fund, date);
       feeAccrualRepository.save(accrual);
-      BigDecimal amount = roundForLedger(accrual.dailyAmountNet());
-      SystemAccount feeAccount = FEE_TYPE_ACCOUNTS.get(accrual.feeType());
-      navFeeAccrualLedger.recordFeeAccrual(fund.name(), date, feeAccount, amount);
+      if (fund.hasNavCalculation()) {
+        BigDecimal amount = roundForLedger(accrual.dailyAmountNet());
+        SystemAccount feeAccount = FEE_TYPE_ACCOUNTS.get(accrual.feeType());
+        navFeeAccrualLedger.recordFeeAccrual(fund.name(), date, feeAccount, amount);
+      }
     }
-    log.debug("Recorded fee accruals to ledger: fund={}, date={}", fund, date);
+    log.debug("Recorded fee accruals: fund={}, date={}", fund, date);
   }
 
   private BigDecimal roundForLedger(BigDecimal amount) {

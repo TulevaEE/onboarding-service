@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.investment.fees;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
+import static ee.tuleva.onboarding.fund.TulevaFund.*;
 import static ee.tuleva.onboarding.ledger.SystemAccount.DEPOT_FEE_ACCRUAL;
 import static ee.tuleva.onboarding.ledger.SystemAccount.MANAGEMENT_FEE_ACCRUAL;
 import static java.math.BigDecimal.ZERO;
@@ -12,6 +11,7 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -84,7 +84,7 @@ class FeeCalculationServiceTest {
   }
 
   @Test
-  void calculateDailyFeesForFund_recordsToLedgerForEachFeeType() {
+  void calculateDailyFeesForFund_doesNotRecordToLedgerForNonNavFund() {
     LocalDate date = LocalDate.of(2025, 1, 15);
     FeeAccrual accrual1 = createAccrual(TUV100, FeeType.MANAGEMENT, date);
     FeeAccrual accrual2 = createAccrual(TUV100, FeeType.DEPOT, date);
@@ -94,14 +94,28 @@ class FeeCalculationServiceTest {
 
     service.calculateDailyFeesForFund(TUV100, date);
 
-    verify(navFeeAccrualLedger)
-        .recordFeeAccrual(eq("TUV100"), eq(date), eq(MANAGEMENT_FEE_ACCRUAL), any());
-    verify(navFeeAccrualLedger)
-        .recordFeeAccrual(eq("TUV100"), eq(date), eq(DEPOT_FEE_ACCRUAL), any());
+    verifyNoInteractions(navFeeAccrualLedger);
   }
 
   @Test
-  void calculateDailyFees_recordsToLedgerForAllFunds() {
+  void calculateDailyFeesForFund_recordsToLedgerForNavEnabledFund() {
+    LocalDate date = LocalDate.of(2025, 1, 15);
+    FeeAccrual accrual1 = createAccrual(TKF100, FeeType.MANAGEMENT, date);
+    FeeAccrual accrual2 = createAccrual(TKF100, FeeType.DEPOT, date);
+
+    when(calculator1.calculate(TKF100, date)).thenReturn(accrual1);
+    when(calculator2.calculate(TKF100, date)).thenReturn(accrual2);
+
+    service.calculateDailyFeesForFund(TKF100, date);
+
+    verify(navFeeAccrualLedger)
+        .recordFeeAccrual(eq("TKF100"), eq(date), eq(MANAGEMENT_FEE_ACCRUAL), any());
+    verify(navFeeAccrualLedger)
+        .recordFeeAccrual(eq("TKF100"), eq(date), eq(DEPOT_FEE_ACCRUAL), any());
+  }
+
+  @Test
+  void calculateDailyFees_recordsToLedgerOnlyForNavEnabledFunds() {
     LocalDate date = LocalDate.of(2025, 1, 15);
     FeeAccrual accrual = createAccrual(TUK75, FeeType.MANAGEMENT, date);
 
@@ -110,8 +124,11 @@ class FeeCalculationServiceTest {
 
     service.calculateDailyFees(date);
 
-    int totalCalls = FUND_COUNT * 2; // 2 calculators per fund
-    verify(navFeeAccrualLedger, times(totalCalls)).recordFeeAccrual(any(), eq(date), any(), any());
+    long navFundCount =
+        Arrays.stream(TulevaFund.values()).filter(TulevaFund::hasNavCalculation).count();
+    int expectedLedgerCalls = (int) navFundCount * 2; // 2 calculators per NAV fund
+    verify(navFeeAccrualLedger, times(expectedLedgerCalls))
+        .recordFeeAccrual(any(), eq(date), any(), any());
   }
 
   private FeeAccrual createAccrual(TulevaFund fund, FeeType feeType, LocalDate date) {

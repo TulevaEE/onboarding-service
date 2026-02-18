@@ -4,6 +4,8 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static java.math.BigDecimal.ZERO;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.calculation.PositionCalculationRepository;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
@@ -16,6 +18,7 @@ import ee.tuleva.onboarding.investment.portfolio.PositionLimit;
 import ee.tuleva.onboarding.investment.portfolio.PositionLimitRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -42,7 +45,8 @@ public class TransactionInputService {
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   private final FundLimitRepository fundLimitRepository;
   private final PositionLimitRepository positionLimitRepository;
-  private final LedgerBalanceRepository ledgerBalanceRepository;
+  private final NavLedgerRepository navLedgerRepository;
+  private final FundValueRepository fundValueRepository;
   private final TransactionOrderRepository orderRepository;
 
   public FundTransactionInput gatherInput(
@@ -84,10 +88,11 @@ public class TransactionInputService {
     BigDecimal receivables = ZERO;
 
     if (fund == TKF100) {
-      BigDecimal unreconciledBankReceipts = ledgerBalanceRepository.getUnreconciledBankReceipts();
-      BigDecimal fundUnitsReservedValue = ledgerBalanceRepository.getFundUnitsReservedValue();
+      BigDecimal unreconciledBankReceipts =
+          navLedgerRepository.getSystemAccountBalance("UNRECONCILED_BANK_RECEIPTS");
+      BigDecimal fundUnitsReservedValue = getFundUnitsReservedValue();
       liabilities = liabilities.add(unreconciledBankReceipts).add(fundUnitsReservedValue);
-      receivables = ledgerBalanceRepository.getIncomingPaymentsClearing();
+      receivables = navLedgerRepository.getSystemAccountBalance("INCOMING_PAYMENTS_CLEARING");
     }
 
     liabilities = liabilities.add(getAdjustment(manualAdjustments, "additionalLiabilities"));
@@ -193,6 +198,19 @@ public class TransactionInputService {
                 ModelPortfolioAllocation::getIsin,
                 ModelPortfolioAllocation::getInstrumentType,
                 (a, b) -> b));
+  }
+
+  private BigDecimal getFundUnitsReservedValue() {
+    BigDecimal units = navLedgerRepository.getFundUnitsBalance("FUND_UNITS_RESERVED");
+    if (units.signum() == 0) {
+      return ZERO;
+    }
+    BigDecimal nav =
+        fundValueRepository
+            .findLastValueForFund(TKF100.getIsin())
+            .map(FundValue::value)
+            .orElse(ZERO);
+    return units.multiply(nav);
   }
 
   private BigDecimal getAdjustment(Map<String, Object> adjustments, String key) {

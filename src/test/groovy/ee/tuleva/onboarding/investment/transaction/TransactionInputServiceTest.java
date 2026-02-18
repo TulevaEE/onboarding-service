@@ -10,6 +10,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.investment.calculation.InvestmentPositionCalculation;
 import ee.tuleva.onboarding.investment.calculation.PositionCalculationRepository;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
@@ -17,6 +19,7 @@ import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.*;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -39,7 +42,8 @@ class TransactionInputServiceTest {
   @Mock private ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   @Mock private FundLimitRepository fundLimitRepository;
   @Mock private PositionLimitRepository positionLimitRepository;
-  @Mock private LedgerBalanceRepository ledgerBalanceRepository;
+  @Mock private NavLedgerRepository navLedgerRepository;
+  @Mock private FundValueRepository fundValueRepository;
   @Mock private TransactionOrderRepository orderRepository;
 
   @InjectMocks private TransactionInputService service;
@@ -265,9 +269,15 @@ class TransactionInputServiceTest {
     when(fundLimitRepository.findLatestByFund(TKF100)).thenReturn(Optional.empty());
     when(positionLimitRepository.findLatestByFund(TKF100)).thenReturn(List.of());
 
-    when(ledgerBalanceRepository.getIncomingPaymentsClearing()).thenReturn(new BigDecimal("10000"));
-    when(ledgerBalanceRepository.getUnreconciledBankReceipts()).thenReturn(new BigDecimal("2000"));
-    when(ledgerBalanceRepository.getFundUnitsReservedValue()).thenReturn(new BigDecimal("5000"));
+    when(navLedgerRepository.getSystemAccountBalance("INCOMING_PAYMENTS_CLEARING"))
+        .thenReturn(new BigDecimal("10000"));
+    when(navLedgerRepository.getSystemAccountBalance("UNRECONCILED_BANK_RECEIPTS"))
+        .thenReturn(new BigDecimal("2000"));
+    when(navLedgerRepository.getFundUnitsBalance("FUND_UNITS_RESERVED"))
+        .thenReturn(new BigDecimal("100"));
+    when(fundValueRepository.findLastValueForFund("EE0000003283"))
+        .thenReturn(
+            Optional.of(new FundValue("EE0000003283", null, new BigDecimal("50"), null, null)));
 
     var result = service.gatherInput(TKF100, AS_OF_DATE, Map.of());
 
@@ -297,7 +307,7 @@ class TransactionInputServiceTest {
 
     assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("1000"));
     assertThat(result.receivables()).isEqualByComparingTo(ZERO);
-    org.mockito.Mockito.verifyNoInteractions(ledgerBalanceRepository);
+    org.mockito.Mockito.verifyNoInteractions(navLedgerRepository);
   }
 
   @Test

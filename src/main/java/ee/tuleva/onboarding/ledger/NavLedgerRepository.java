@@ -32,6 +32,22 @@ public class NavLedgerRepository {
         .single();
   }
 
+  public BigDecimal getFundUnitsBalance(String accountName) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT COALESCE(SUM(e.amount), 0) AS total_balance
+            FROM ledger.entry e
+            JOIN ledger.account a ON e.account_id = a.id
+            WHERE a.name = :accountName
+              AND a.purpose = 'USER_ACCOUNT'
+              AND a.asset_type = 'FUND_UNIT'
+            """)
+        .param("accountName", accountName)
+        .query(BigDecimal.class)
+        .single();
+  }
+
   public BigDecimal getSystemAccountBalance(String accountName) {
     return jdbcClient
         .sql(

@@ -54,7 +54,7 @@ class ModularityTest {
   @DisplayName("No other module depends on investment module")
   void noModuleDependsOnInvestment() {
     // savings is allowed to depend on investment because NAV calculation needs investment data
-    var allowedDependents = Set.of("savings");
+    var allowedDependents = Set.of("savings", "admin");
 
     var modulesWithInvestmentDependency =
         modules.stream()

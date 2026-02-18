@@ -75,7 +75,7 @@ class GoogleDriveClient {
         restClient
             .post()
             .uri(
-                "/upload/drive/v3/files?uploadType=multipart&fields={fields}&supportsAllDrives=true",
+                "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields={fields}&supportsAllDrives=true",
                 "id,webViewLink")
             .contentType(MediaType.parseMediaType("multipart/related; boundary=" + boundary))
             .body(multipartBody)

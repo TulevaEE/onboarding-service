@@ -85,7 +85,8 @@ class GoogleDriveClientTest {
             .uploadFile("folder-id", "SEB_TKF100_indeksfondid_16022026.xlsx", new byte[] {1, 2, 3});
 
     assertThat(result).isEqualTo("https://drive.google.com/file/d/file-789/view");
-    verify(bodyUriSpec).uri(contains("supportsAllDrives=true"), any(Object[].class));
+    verify(bodyUriSpec)
+        .uri(contains("https://www.googleapis.com/upload/drive/v3/files"), any(Object[].class));
   }
 
   @SuppressWarnings("unchecked")

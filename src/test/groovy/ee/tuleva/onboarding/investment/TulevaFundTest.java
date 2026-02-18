@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.investment;
 
-import static ee.tuleva.onboarding.investment.TulevaFund.*;
+import static ee.tuleva.onboarding.fund.TulevaFund.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ee.tuleva.onboarding.fund.TulevaFund;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 

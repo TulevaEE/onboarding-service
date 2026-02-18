@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.fees;
 
-import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;

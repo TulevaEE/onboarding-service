@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.investment.calculation;
 
-import static ee.tuleva.onboarding.investment.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.calculation.PriceSource.EODHD;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.NO_PRICE_DATA;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.OK;
@@ -11,7 +11,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.investment.TulevaFund;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import java.math.BigDecimal;

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
-import static ee.tuleva.onboarding.investment.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;

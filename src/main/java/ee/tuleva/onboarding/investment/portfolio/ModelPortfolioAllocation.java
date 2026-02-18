@@ -1,8 +1,11 @@
 package ee.tuleva.onboarding.investment.portfolio;
 
+import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.EnumType.STRING;
 
-import ee.tuleva.onboarding.investment.TulevaFund;
+import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.transaction.InstrumentType;
+import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Enumerated;
@@ -52,10 +55,22 @@ public class ModelPortfolioAllocation {
   @Nullable
   private Provider provider;
 
+  @Enumerated(STRING)
+  @Nullable
+  private InstrumentType instrumentType;
+
+  @Enumerated(STRING)
+  @Nullable
+  private OrderVenue orderVenue;
+
+  @Nullable private String bbgTicker;
+
+  @Builder.Default private boolean fastSell = false;
+
   private Instant createdAt;
 
   @PrePersist
   protected void onCreate() {
-    createdAt = Instant.now();
+    createdAt = clock().instant();
   }
 }

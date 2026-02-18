@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.investment.fees;
 
 import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.investment.TulevaFund;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import java.time.LocalDate;
 import java.time.Year;
 

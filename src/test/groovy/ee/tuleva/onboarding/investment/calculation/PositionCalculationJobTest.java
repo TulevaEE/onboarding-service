@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.investment.calculation;
 
-import static ee.tuleva.onboarding.investment.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.TulevaFund.getPillar2Funds;
-import static ee.tuleva.onboarding.investment.TulevaFund.getPillar3Funds;
-import static ee.tuleva.onboarding.investment.TulevaFund.getSavingsFunds;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.fund.TulevaFund.getPillar2Funds;
+import static ee.tuleva.onboarding.fund.TulevaFund.getPillar3Funds;
+import static ee.tuleva.onboarding.fund.TulevaFund.getSavingsFunds;
 import static ee.tuleva.onboarding.investment.calculation.PriceSource.EODHD;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.NO_PRICE_DATA;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.OK;
@@ -15,7 +15,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.investment.TulevaFund;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;

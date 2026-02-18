@@ -20,4 +20,6 @@ public final class JobRunSchedule {
   // Position calculation (30 minutes after import, after parsing completes)
   public static final String CALCULATE_MORNING = "0 30 11 * * *";
   public static final String CALCULATE_AFTERNOON = "0 30 15 * * *";
+
+  public static final String TRANSACTION_COMMAND = "0 * * * * *";
 }

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.portfolio;
 
-import ee.tuleva.onboarding.investment.TulevaFund;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;

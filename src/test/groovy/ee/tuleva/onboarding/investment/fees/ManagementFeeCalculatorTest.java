@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.fees;
 
-import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
 import static java.math.BigDecimal.ZERO;

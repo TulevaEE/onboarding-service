@@ -3,10 +3,11 @@ package ee.tuleva.onboarding.investment.position.parser;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.investment.TulevaFund;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -14,17 +15,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class SebFundPositionParser implements FundPositionParser {
 
+  private final Clock clock;
+
   private static final Set<String> FUND_CODES =
-      Arrays.stream(TulevaFund.values())
-          .map(TulevaFund::getCode)
-          .collect(java.util.stream.Collectors.toSet());
+      Arrays.stream(TulevaFund.values()).map(TulevaFund::getCode).collect(Collectors.toSet());
 
   private static final Set<AccountType> UNIT_PRICE_ACCOUNT_TYPES =
       Set.of(AccountType.CASH, AccountType.LIABILITY, AccountType.RECEIVABLES);
@@ -74,7 +78,7 @@ public class SebFundPositionParser implements FundPositionParser {
               .marketPrice(marketPrice)
               .currency(getString(row, "Currency"))
               .marketValue(getBigDecimal(row, "Market Value (EUR)"))
-              .createdAt(Instant.now())
+              .createdAt(Instant.now(clock))
               .build();
 
       return Optional.of(position);
@@ -89,13 +93,11 @@ public class SebFundPositionParser implements FundPositionParser {
     if (clientName != null && FUND_CODES.contains(clientName)) {
       return clientName;
     }
-    for (Object value : row.values()) {
-      String strValue = toString(value);
-      if (strValue != null && FUND_CODES.contains(strValue)) {
-        return strValue;
-      }
-    }
-    return null;
+    return row.values().stream()
+        .map(this::toString)
+        .filter(value -> value != null && FUND_CODES.contains(value))
+        .findFirst()
+        .orElse(null);
   }
 
   private boolean isSkippableRow(String accountColumn) {

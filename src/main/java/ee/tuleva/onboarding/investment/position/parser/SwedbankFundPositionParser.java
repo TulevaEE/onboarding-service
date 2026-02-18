@@ -1,15 +1,16 @@
 package ee.tuleva.onboarding.investment.position.parser;
 
-import static ee.tuleva.onboarding.investment.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.TulevaFund.TUV100;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.investment.TulevaFund;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -17,12 +18,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class SwedbankFundPositionParser implements FundPositionParser {
+
+  private final Clock clock;
 
   private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
@@ -90,7 +95,7 @@ public class SwedbankFundPositionParser implements FundPositionParser {
               .marketPrice(marketPrice)
               .currency(getString(row, "AssetCurr"))
               .marketValue(getBigDecimal(row, "MarketValuePC"))
-              .createdAt(Instant.now())
+              .createdAt(Instant.now(clock))
               .build();
 
       return Optional.of(position);

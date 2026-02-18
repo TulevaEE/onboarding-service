@@ -1,14 +1,14 @@
 package ee.tuleva.onboarding.investment.calculation;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.getPillar2Funds;
+import static ee.tuleva.onboarding.fund.TulevaFund.getPillar3Funds;
+import static ee.tuleva.onboarding.fund.TulevaFund.getSavingsFunds;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.*;
-import static ee.tuleva.onboarding.investment.TulevaFund.getPillar2Funds;
-import static ee.tuleva.onboarding.investment.TulevaFund.getPillar3Funds;
-import static ee.tuleva.onboarding.investment.TulevaFund.getSavingsFunds;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.NO_PRICE_DATA;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.PRICE_DISCREPANCY;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.YAHOO_MISSING;
 
-import ee.tuleva.onboarding.investment.TulevaFund;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;

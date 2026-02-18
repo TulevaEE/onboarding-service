@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.investment.position;
 
-import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.TulevaFund.TUV100;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.NavPositionLedger;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -45,8 +46,8 @@ class FundPositionImportJobTest {
 
   @BeforeEach
   void setUp() {
-    swedbankParser = new SwedbankFundPositionParser();
-    sebParser = new SebFundPositionParser();
+    swedbankParser = new SwedbankFundPositionParser(Clock.systemUTC());
+    sebParser = new SebFundPositionParser(Clock.systemUTC());
     importService = new FundPositionImportService(repository);
     job =
         new FundPositionImportJob(

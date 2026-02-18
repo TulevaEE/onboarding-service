@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.investment.calculation;
 
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 
-import ee.tuleva.onboarding.investment.TulevaFund;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import java.math.BigDecimal;

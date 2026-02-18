@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.investment.fees;
 
-import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.TulevaFund.TUV100;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.ledger.SystemAccount.DEPOT_FEE_ACCRUAL;
 import static ee.tuleva.onboarding.ledger.SystemAccount.MANAGEMENT_FEE_ACCRUAL;
 import static java.math.BigDecimal.ZERO;
@@ -9,7 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.investment.TulevaFund;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import java.time.LocalDate;
 import java.util.List;

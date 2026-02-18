@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.investment.position.parser;
 
-import static ee.tuleva.onboarding.investment.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.TulevaFund.TUV100;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static java.math.BigDecimal.ONE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.investment.report.CsvToJsonConverter;
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +20,8 @@ import org.junit.jupiter.api.Test;
 
 class SwedbankFundPositionParserTest {
 
-  private final SwedbankFundPositionParser parser = new SwedbankFundPositionParser();
+  private final SwedbankFundPositionParser parser =
+      new SwedbankFundPositionParser(Clock.systemUTC());
   private final CsvToJsonConverter csvConverter = new CsvToJsonConverter();
   private static final LocalDate REPORT_DATE = LocalDate.of(2026, 1, 26);
 

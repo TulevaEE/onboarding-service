@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.investment.fees;
 
-import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ee.tuleva.onboarding.investment.TulevaFund;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;

@@ -337,6 +337,11 @@ slack:
     "investment": ${SLACK_INVESTMENT_WEBHOOK_URL:}
     "savings": ${SLACK_SAVINGS_WEBHOOK_URL:}
 
+google-drive:
+  enabled: ${GOOGLE_DRIVE_ENABLED:false}
+  service-account-json: ${GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON:}
+  root-folder-id: ${GOOGLE_DRIVE_ROOT_FOLDER_ID:}
+
 #Sentry environment configuration
 ---
 spring:

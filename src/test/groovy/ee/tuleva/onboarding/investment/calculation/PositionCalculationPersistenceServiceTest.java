@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.calculation;
 
-import static ee.tuleva.onboarding.investment.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.calculation.PriceSource.EODHD;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.OK;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -10,7 +10,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.investment.TulevaFund;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -18,8 +18,6 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -30,10 +28,9 @@ class PositionCalculationPersistenceServiceTest {
   private static final String ISIN = "IE00BFNM3G45";
   private static final TulevaFund FUND = TUK75;
   private static final LocalDate DATE = LocalDate.of(2025, 1, 10);
+  private static final Instant CREATED_AT = Instant.parse("2025-01-10T12:00:00Z");
 
   @Mock private PositionCalculationRepository repository;
-
-  @Captor private ArgumentCaptor<InvestmentPositionCalculation> entityCaptor;
 
   @InjectMocks private PositionCalculationPersistenceService service;
 
@@ -44,16 +41,22 @@ class PositionCalculationPersistenceServiceTest {
 
     service.save(calculation);
 
-    verify(repository).save(entityCaptor.capture());
-    InvestmentPositionCalculation saved = entityCaptor.getValue();
-    assertThat(saved.getIsin()).isEqualTo(ISIN);
-    assertThat(saved.getFund()).isEqualTo(FUND);
-    assertThat(saved.getDate()).isEqualTo(DATE);
-    assertThat(saved.getQuantity()).isEqualByComparingTo(new BigDecimal("1000"));
-    assertThat(saved.getUsedPrice()).isEqualByComparingTo(new BigDecimal("100.00"));
-    assertThat(saved.getCalculatedMarketValue()).isEqualByComparingTo(new BigDecimal("100000.00"));
-    assertThat(saved.getPriceSource()).isEqualTo(EODHD);
-    assertThat(saved.getValidationStatus()).isEqualTo(OK);
+    var expectedEntity =
+        InvestmentPositionCalculation.builder()
+            .isin(ISIN)
+            .fund(FUND)
+            .date(DATE)
+            .quantity(new BigDecimal("1000"))
+            .eodhdPrice(new BigDecimal("100.00"))
+            .yahooPrice(new BigDecimal("100.05"))
+            .usedPrice(new BigDecimal("100.00"))
+            .priceSource(EODHD)
+            .calculatedMarketValue(new BigDecimal("100000.00"))
+            .validationStatus(OK)
+            .priceDiscrepancyPercent(new BigDecimal("0.05"))
+            .createdAt(CREATED_AT)
+            .build();
+    verify(repository).save(expectedEntity);
   }
 
   @Test
@@ -77,12 +80,12 @@ class PositionCalculationPersistenceServiceTest {
 
     service.save(calculation);
 
-    verify(repository).save(entityCaptor.capture());
-    InvestmentPositionCalculation saved = entityCaptor.getValue();
-    assertThat(saved.getId()).isEqualTo(1L);
-    assertThat(saved.getQuantity()).isEqualByComparingTo(new BigDecimal("1000"));
-    assertThat(saved.getUsedPrice()).isEqualByComparingTo(new BigDecimal("100.00"));
-    assertThat(saved.getCalculatedMarketValue()).isEqualByComparingTo(new BigDecimal("100000.00"));
+    verify(repository).save(existingEntity);
+    assertThat(existingEntity.getId()).isEqualTo(1L);
+    assertThat(existingEntity.getQuantity()).isEqualByComparingTo(new BigDecimal("1000"));
+    assertThat(existingEntity.getUsedPrice()).isEqualByComparingTo(new BigDecimal("100.00"));
+    assertThat(existingEntity.getCalculatedMarketValue())
+        .isEqualByComparingTo(new BigDecimal("100000.00"));
   }
 
   @Test
@@ -99,7 +102,7 @@ class PositionCalculationPersistenceServiceTest {
             .priceSource(EODHD)
             .calculatedMarketValue(new BigDecimal("100000.00"))
             .validationStatus(OK)
-            .createdAt(Instant.now())
+            .createdAt(CREATED_AT)
             .build();
 
     when(repository.findByIsinAndFundAndDate(any(), any(), any())).thenReturn(Optional.empty());
@@ -129,7 +132,7 @@ class PositionCalculationPersistenceServiceTest {
         .calculatedMarketValue(new BigDecimal("100000.00"))
         .validationStatus(OK)
         .priceDiscrepancyPercent(new BigDecimal("0.05"))
-        .createdAt(Instant.now())
+        .createdAt(CREATED_AT)
         .build();
   }
 }

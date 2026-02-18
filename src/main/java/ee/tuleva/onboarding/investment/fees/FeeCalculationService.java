@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.investment.fees.FeeType.*;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.math.RoundingMode.HALF_UP;
 
-import ee.tuleva.onboarding.investment.TulevaFund;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SystemAccount;
 import java.math.BigDecimal;

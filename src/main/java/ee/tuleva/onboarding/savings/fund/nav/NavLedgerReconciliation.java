@@ -6,7 +6,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.investment.TulevaFund;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;

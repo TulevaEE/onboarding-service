@@ -52,49 +52,56 @@ public enum FundTicker {
       "IE00BFG1TM61",
       "iShares Developed World ESG Screened Index Fund",
       "BDWTEIA",
-      "270890"),
+      "270890",
+      "0P000152G5"),
   CCF_DEVELOPED_WORLD_SCREENED(
       "0P0001N0Z0.F",
       "IE0009FT4LX4.EUFUND",
       "IE0009FT4LX4",
       "CCF Developed World Screened Index Fund",
       "BLESIXE",
-      null),
+      null,
+      "0P0001N0Z0"),
   ISHARES_EMERGING_MARKETS_SCREENED(
       "0P0001MGOG.F",
       "IE00BKPTWY98.EUFUND",
       "IE00BKPTWY98",
       "iShares Emerging Markets Screened Equity Index Fund",
       "BEMEFLE",
-      "316649"),
+      "316649",
+      "0P0001MGOG"),
   ISHARES_EURO_AGGREGATE_BOND(
       "0P0000YXER.F",
       "LU0826455353.EUFUND",
       "LU0826455353",
       "iShares Euro Aggregate Bond Index Fund",
       "BGIEAX2",
-      "254318"),
+      "254318",
+      "0P0000YXER"),
   ISHARES_EURO_GOVERNMENT_BOND(
       "0P00006OK2.F",
       "IE0031080751.EUFUND",
       "IE0031080751",
       "iShares Euro Government Bond Index Fund",
       "BARGVBI",
-      "269084"),
+      "269084",
+      "0P00006OK2"),
   ISHARES_GLOBAL_GOVERNMENT_BOND(
       "0P0001A3RC.F",
       "LU0839970364.EUFUND",
       "LU0839970364",
       "iShares Global Government Bond Index Fund",
       "BGGGX2E",
-      "297052"),
+      "297052",
+      "0P0001A3RC"),
   ISHARES_EURO_CREDIT_BOND(
       "0P0000STQT.F",
       "IE0005032192.EUFUND",
       "IE0005032192",
       "iShares Euro Credit Bond Index Fund",
       "BAREUBD",
-      "229056");
+      "229056",
+      "0P0000STQT");
 
   private final String yahooTicker;
   private final String eodhdTicker;
@@ -102,6 +109,21 @@ public enum FundTicker {
   private final String displayName;
   private final String bloombergTicker;
   private final String blackrockProductId;
+  private final String morningstarId;
+
+  FundTicker(
+      String yahooTicker,
+      String eodhdTicker,
+      String isin,
+      String displayName,
+      String bloombergTicker,
+      String blackrockProductId) {
+    this(yahooTicker, eodhdTicker, isin, displayName, bloombergTicker, blackrockProductId, null);
+  }
+
+  public static List<FundTicker> getMorningstarFunds() {
+    return Arrays.stream(values()).filter(ticker -> ticker.getMorningstarId() != null).toList();
+  }
 
   public static List<String> getYahooTickers() {
     return Arrays.stream(values()).map(FundTicker::getYahooTicker).toList();
@@ -165,6 +187,13 @@ public enum FundTicker {
     return Arrays.stream(values())
         .filter(ticker -> ticker.getBlackrockProductId() != null)
         .toList();
+  }
+
+  public Optional<String> getMorningstarStorageKey() {
+    if (morningstarId != null) {
+      return Optional.of(isin + ".MORNINGSTAR");
+    }
+    return Optional.empty();
   }
 
   public Optional<String> getBlackrockStorageKey() {

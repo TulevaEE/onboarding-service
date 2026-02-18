@@ -90,4 +90,20 @@ class FundTickerTest {
   void findByTicker_returnsEmptyForUnknown() {
     assertThat(findByTicker("ZZZZ")).isEmpty();
   }
+
+  @Test
+  void getMorningstarFundsReturnsExactlySevenEntries() {
+    assertThat(getMorningstarFunds()).hasSize(7);
+  }
+
+  @Test
+  void mutualFundReturnsMorningstarStorageKey() {
+    assertThat(ISHARES_DEVELOPED_WORLD_ESG_SCREENED.getMorningstarStorageKey())
+        .hasValue("IE00BFG1TM61.MORNINGSTAR");
+  }
+
+  @Test
+  void etfReturnsEmptyMorningstarStorageKey() {
+    assertThat(ISHARES_USA_ESG_SCREENED.getMorningstarStorageKey()).isEmpty();
+  }
 }

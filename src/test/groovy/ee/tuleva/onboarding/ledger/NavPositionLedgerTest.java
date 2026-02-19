@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.ledger;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.ASSET;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRANSFER;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.POSITION_UPDATE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.math.BigDecimal.ZERO;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -60,7 +60,9 @@ class NavPositionLedgerTest {
   void setUp() {
     navPositionLedger =
         new NavPositionLedger(ledgerAccountService, ledgerTransactionService, clock);
-    when(ledgerTransactionService.existsByExternalReference(any(UUID.class))).thenReturn(false);
+    when(ledgerTransactionService.existsByExternalReferenceAndTransactionType(
+            any(UUID.class), eq(POSITION_UPDATE)))
+        .thenReturn(false);
   }
 
   private void setupAccountMocks() {
@@ -109,7 +111,11 @@ class NavPositionLedgerTest {
 
     verify(ledgerTransactionService)
         .createTransaction(
-            eq(TRANSFER), eq(Instant.now(clock)), any(UUID.class), any(), entriesCaptor.capture());
+            eq(POSITION_UPDATE),
+            eq(Instant.now(clock)),
+            any(UUID.class),
+            any(),
+            entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(2);
@@ -137,7 +143,11 @@ class NavPositionLedgerTest {
 
     verify(ledgerTransactionService)
         .createTransaction(
-            eq(TRANSFER), eq(Instant.now(clock)), any(UUID.class), any(), entriesCaptor.capture());
+            eq(POSITION_UPDATE),
+            eq(Instant.now(clock)),
+            any(UUID.class),
+            any(),
+            entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(2);
@@ -165,7 +175,11 @@ class NavPositionLedgerTest {
 
     verify(ledgerTransactionService)
         .createTransaction(
-            eq(TRANSFER), eq(Instant.now(clock)), any(UUID.class), any(), entriesCaptor.capture());
+            eq(POSITION_UPDATE),
+            eq(Instant.now(clock)),
+            any(UUID.class),
+            any(),
+            entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(2);
@@ -193,7 +207,11 @@ class NavPositionLedgerTest {
 
     verify(ledgerTransactionService)
         .createTransaction(
-            eq(TRANSFER), eq(Instant.now(clock)), any(UUID.class), any(), entriesCaptor.capture());
+            eq(POSITION_UPDATE),
+            eq(Instant.now(clock)),
+            any(UUID.class),
+            any(),
+            entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(2);
@@ -228,7 +246,11 @@ class NavPositionLedgerTest {
 
     verify(ledgerTransactionService)
         .createTransaction(
-            eq(TRANSFER), eq(Instant.now(clock)), any(UUID.class), any(), entriesCaptor.capture());
+            eq(POSITION_UPDATE),
+            eq(Instant.now(clock)),
+            any(UUID.class),
+            any(),
+            entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(10);
@@ -287,7 +309,9 @@ class NavPositionLedgerTest {
   @Test
   void recordPositions_skipsWhenAlreadyRecorded() {
     LocalDate reportDate = LocalDate.of(2026, 2, 1);
-    when(ledgerTransactionService.existsByExternalReference(any(UUID.class))).thenReturn(true);
+    when(ledgerTransactionService.existsByExternalReferenceAndTransactionType(
+            any(UUID.class), eq(POSITION_UPDATE)))
+        .thenReturn(true);
 
     navPositionLedger.recordPositions(
         "TKF100",
@@ -332,7 +356,7 @@ class NavPositionLedgerTest {
 
     verify(ledgerTransactionService)
         .createTransaction(
-            eq(TRANSFER),
+            eq(POSITION_UPDATE),
             any(Instant.class),
             eq(expectedReference),
             any(),

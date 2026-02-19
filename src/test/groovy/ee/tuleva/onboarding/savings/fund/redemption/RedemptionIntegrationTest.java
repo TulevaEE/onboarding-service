@@ -204,14 +204,16 @@ class RedemptionIntegrationTest {
     var cashAmount = new BigDecimal("100.00");
 
     // Step 1: Reserve units (happens when redemption request created)
-    savingsFundLedger.reserveFundUnitsForRedemption(testUser, fundUnits);
+    var redemptionRequestId = UUID.randomUUID();
+    savingsFundLedger.reserveFundUnitsForRedemption(testUser, fundUnits, redemptionRequestId);
 
     // Step 2: Price and redeem (happens in batch job at T+2)
-    savingsFundLedger.redeemFundUnitsFromReserved(testUser, fundUnits, cashAmount, navPerUnit);
+    savingsFundLedger.redeemFundUnitsFromReserved(
+        testUser, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
 
     // Steps 3 & 4: Transfer and payout (happens during bank statement reconciliation)
-    savingsFundLedger.transferFromFundAccount(cashAmount);
-    savingsFundLedger.recordRedemptionPayout(testUser, cashAmount, VALID_IBAN);
+    savingsFundLedger.transferFromFundAccount(cashAmount, redemptionRequestId);
+    savingsFundLedger.recordRedemptionPayout(testUser, cashAmount, VALID_IBAN, redemptionRequestId);
 
     var fundsUnitsBalance = getUserFundUnitsAccount().getBalance();
     var reservedUnitsBalance = getUserFundUnitsReservedAccount().getBalance();
@@ -315,10 +317,12 @@ class RedemptionIntegrationTest {
 
   private void setupUserWithFundUnits(BigDecimal cashAmount, BigDecimal fundUnits) {
     var navPerUnit = cashAmount.divide(fundUnits, 5, HALF_UP);
-    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, UUID.randomUUID());
-    savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount);
-    savingsFundLedger.issueFundUnitsFromReserved(testUser, cashAmount, fundUnits, navPerUnit);
-    savingsFundLedger.transferToFundAccount(cashAmount);
+    var paymentId = UUID.randomUUID();
+    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, paymentId);
+    savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount, paymentId);
+    savingsFundLedger.issueFundUnitsFromReserved(
+        testUser, cashAmount, fundUnits, navPerUnit, paymentId);
+    savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
   }
 
   private LedgerAccount getUserFundUnitsAccount() {

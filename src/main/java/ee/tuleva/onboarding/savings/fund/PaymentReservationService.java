@@ -23,7 +23,7 @@ public class PaymentReservationService {
     log.info("Processing reservation for payment {}", payment.getId());
 
     var user = userService.getByIdOrThrow(payment.getUserId());
-    savingsFundLedger.reservePaymentForSubscription(user, payment.getAmount());
+    savingsFundLedger.reservePaymentForSubscription(user, payment.getAmount(), payment.getId());
 
     log.info("Reservation completed for payment {}", payment.getId());
     savingFundPaymentRepository.changeStatus(payment.getId(), RESERVED);

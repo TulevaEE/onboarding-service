@@ -72,7 +72,8 @@ class SebBankStatementProcessorTest {
 
     processor.processStatement(bankStatement);
 
-    verify(savingsFundLedger).transferToFundAccount(new BigDecimal("100.00"));
+    verify(savingsFundLedger)
+        .transferToFundAccount(new BigDecimal("100.00"), outgoingPayment.getId());
   }
 
   @Test
@@ -99,7 +100,7 @@ class SebBankStatementProcessorTest {
 
     processor.processStatement(bankStatement);
 
-    verify(savingsFundLedger, never()).transferToFundAccount(any());
+    verify(savingsFundLedger, never()).transferToFundAccount(any(), any());
     verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
     verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
   }
@@ -282,7 +283,8 @@ class SebBankStatementProcessorTest {
 
     processor.processStatement(bankStatement);
 
-    verify(savingsFundLedger).transferFromFundAccount(new BigDecimal("1000.00"));
+    verify(savingsFundLedger)
+        .transferFromFundAccount(new BigDecimal("1000.00"), outgoingPayment.getId());
     verifyNoInteractions(redemptionStatusService);
     verify(paymentService).upsert(eq(outgoingPayment), any());
   }
@@ -358,6 +360,7 @@ class SebBankStatementProcessorTest {
     processor.processStatement(bankStatement);
 
     verify(paymentService).upsert(eq(outgoingPayment), any(), any());
-    verify(savingsFundLedger).transferToFundAccount(new BigDecimal("100.00"));
+    verify(savingsFundLedger)
+        .transferToFundAccount(new BigDecimal("100.00"), outgoingPayment.getId());
   }
 }

@@ -71,7 +71,8 @@ class SavingsFundReservationJobIntegrationTest {
     assertThat(payments).hasSize(1);
     var payment = payments.getFirst();
     assertThat(payment.getStatus()).isEqualTo(RESERVED);
-    verify(ledger).reservePaymentForSubscription(eq(user), eq(payment.getAmount()));
+    verify(ledger)
+        .reservePaymentForSubscription(eq(user), eq(payment.getAmount()), eq(payment.getId()));
   }
 
   @Test
@@ -90,7 +91,7 @@ class SavingsFundReservationJobIntegrationTest {
     assertThat(payments).hasSize(1);
     var payment = payments.getFirst();
     assertThat(payment.getStatus()).isEqualTo(VERIFIED);
-    verify(ledger, never()).reservePaymentForSubscription(any(), any());
+    verify(ledger, never()).reservePaymentForSubscription(any(), any(), any());
   }
 
   @Test
@@ -102,7 +103,7 @@ class SavingsFundReservationJobIntegrationTest {
     doThrow(new RuntimeException("Ledger error"))
         .when(ledger)
         .reservePaymentForSubscription(
-            any(), argThat(amount -> amount.compareTo(new BigDecimal("999.00")) == 0));
+            any(), argThat(amount -> amount.compareTo(new BigDecimal("999.00")) == 0), any());
 
     // Payment that will cause ledger to throw an exception
     var invalidPaymentId =
@@ -136,8 +137,12 @@ class SavingsFundReservationJobIntegrationTest {
     assertThat(validPayment.getStatus()).isEqualTo(RESERVED);
 
     // Ledger should be called for both payments, but only valid one succeeds
-    verify(ledger).reservePaymentForSubscription(eq(user), eq(invalidPayment.getAmount()));
-    verify(ledger).reservePaymentForSubscription(eq(user), eq(validPayment.getAmount()));
+    verify(ledger)
+        .reservePaymentForSubscription(
+            eq(user), eq(invalidPayment.getAmount()), eq(invalidPayment.getId()));
+    verify(ledger)
+        .reservePaymentForSubscription(
+            eq(user), eq(validPayment.getAmount()), eq(validPayment.getId()));
   }
 
   private SavingFundPayment.SavingFundPaymentBuilder createPayment() {

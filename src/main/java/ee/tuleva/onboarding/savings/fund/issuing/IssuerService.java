@@ -28,7 +28,8 @@ class IssuerService {
     var cashAmount = payment.getAmount();
 
     var user = userService.getByIdOrThrow(payment.getUserId());
-    savingsFundLedger.issueFundUnitsFromReserved(user, cashAmount, unitsAmount, nav);
+    savingsFundLedger.issueFundUnitsFromReserved(
+        user, cashAmount, unitsAmount, nav, payment.getId());
 
     savingFundPaymentRepository.changeStatus(payment.getId(), ISSUED);
     return new IssuingResult(cashAmount, unitsAmount);

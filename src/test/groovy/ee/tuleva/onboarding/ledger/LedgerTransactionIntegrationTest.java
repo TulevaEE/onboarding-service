@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRANSFER;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJUSTMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static ee.tuleva.onboarding.ledger.UserAccount.CASH;
 import static java.math.BigDecimal.ZERO;
@@ -13,11 +13,12 @@ import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.junit.jupiter.api.*;
+import java.util.stream.StreamSupport;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,15 +50,15 @@ public class LedgerTransactionIntegrationTest {
   }
 
   @Test
-  @DisplayName("should create transaction")
   public void shouldCreateTransaction() {
     User user = sampleUser().build();
     var cashAccount = getCashAccount(user);
     var systemAccount = getSystemAccount();
 
     ledgerTransactionService.createTransaction(
-        TRANSFER,
+        ADJUSTMENT,
         Instant.now(clock),
+        UUID.randomUUID(),
         Map.of("operationType", "TEST_TRANSACTION"),
         new LedgerEntryDto(cashAccount, new BigDecimal("1000.00")),
         new LedgerEntryDto(systemAccount, new BigDecimal("-1000.00")));
@@ -69,8 +70,9 @@ public class LedgerTransactionIntegrationTest {
     assertThat(getSystemAccount().getEntries().size()).isEqualTo(1);
 
     ledgerTransactionService.createTransaction(
-        TRANSFER,
+        ADJUSTMENT,
         Instant.now(clock),
+        UUID.randomUUID(),
         Map.of("operationType", "TEST_TRANSACTION_2"),
         new LedgerEntryDto(cashAccount, new BigDecimal("-1000.00")),
         new LedgerEntryDto(systemAccount, new BigDecimal("1000.00")));
@@ -92,22 +94,25 @@ public class LedgerTransactionIntegrationTest {
     UUID externalReference2 = UUID.randomUUID();
 
     ledgerTransactionService.createTransaction(
-        TRANSFER,
+        ADJUSTMENT,
         Instant.now(clock),
+        externalReference1,
         Map.of("operationType", "PAYMENT", "externalReference", externalReference1.toString()),
         new LedgerEntryDto(cashAccount, new BigDecimal("100.00")),
         new LedgerEntryDto(systemAccount, new BigDecimal("-100.00")));
 
     ledgerTransactionService.createTransaction(
-        TRANSFER,
+        ADJUSTMENT,
         Instant.now(clock),
+        externalReference2,
         Map.of("operationType", "PAYMENT", "externalReference", externalReference2.toString()),
         new LedgerEntryDto(cashAccount, new BigDecimal("200.00")),
         new LedgerEntryDto(systemAccount, new BigDecimal("-200.00")));
 
     ledgerTransactionService.createTransaction(
-        TRANSFER,
+        ADJUSTMENT,
         Instant.now(clock),
+        UUID.randomUUID(),
         Map.of("operationType", "OTHER_TRANSACTION"),
         new LedgerEntryDto(cashAccount, new BigDecimal("300.00")),
         new LedgerEntryDto(systemAccount, new BigDecimal("-300.00")));
@@ -138,13 +143,12 @@ public class LedgerTransactionIntegrationTest {
 
   private List<LedgerTransaction> findByExternalReference(
       Iterable<LedgerTransaction> transactions, String externalReference) {
-    List<LedgerTransaction> result = new ArrayList<>();
-    for (LedgerTransaction transaction : transactions) {
-      Object ref = transaction.getMetadata().get("externalReference");
-      if (ref != null && externalReference.equals(ref.toString())) {
-        result.add(transaction);
-      }
-    }
-    return result;
+    return StreamSupport.stream(transactions.spliterator(), false)
+        .filter(
+            transaction -> {
+              Object ref = transaction.getMetadata().get("externalReference");
+              return ref != null && externalReference.equals(ref.toString());
+            })
+        .toList();
   }
 }

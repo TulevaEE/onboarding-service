@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRANSFER;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.POSITION_UPDATE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -37,7 +37,8 @@ public class NavPositionLedger {
       BigDecimal payablesValue) {
 
     UUID externalReference = generatePositionReference(fund, reportDate);
-    if (ledgerTransactionService.existsByExternalReference(externalReference)) {
+    if (ledgerTransactionService.existsByExternalReferenceAndTransactionType(
+        externalReference, POSITION_UPDATE)) {
       log.debug("Position update already recorded: fund={}, reportDate={}", fund, reportDate);
       return;
     }
@@ -78,7 +79,7 @@ public class NavPositionLedger {
             "operationType", "POSITION_UPDATE", "fund", fund, "reportDate", reportDate.toString());
 
     ledgerTransactionService.createTransaction(
-        TRANSFER,
+        POSITION_UPDATE,
         Instant.now(clock),
         externalReference,
         metadata,

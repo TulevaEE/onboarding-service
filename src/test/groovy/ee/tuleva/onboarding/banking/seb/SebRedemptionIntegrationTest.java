@@ -95,10 +95,12 @@ class SebRedemptionIntegrationTest {
 
   private void setupUserWithFundUnits(BigDecimal cashAmount, BigDecimal fundUnits) {
     var navPerUnit = cashAmount.divide(fundUnits, 5, HALF_UP);
-    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, UUID.randomUUID());
-    savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount);
-    savingsFundLedger.issueFundUnitsFromReserved(testUser, cashAmount, fundUnits, navPerUnit);
-    savingsFundLedger.transferToFundAccount(cashAmount);
+    var paymentId = UUID.randomUUID();
+    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, paymentId);
+    savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount, paymentId);
+    savingsFundLedger.issueFundUnitsFromReserved(
+        testUser, cashAmount, fundUnits, navPerUnit, paymentId);
+    savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
   }
 
   private void setupUserDepositIban(String iban) {

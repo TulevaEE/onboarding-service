@@ -17,6 +17,7 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -70,20 +71,6 @@ class SavingsFundLedgerTest {
     assertThat(getUnreconciledBankReceiptsAccount().getBalance())
         .isEqualByComparingTo(amount.negate());
     assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
-    verifyDoubleEntry(transaction);
-  }
-
-  @Test
-  void attributeLatePayment_transfersFromUnreconciledToUser() {
-    var amount = new BigDecimal("750.00");
-    savingsFundLedger.recordUnattributedPayment(amount, randomUUID());
-
-    var transaction = savingsFundLedger.attributeLatePayment(testUser, amount);
-
-    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("LATE_ATTRIBUTION");
-    assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
-    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(amount.negate());
     verifyDoubleEntry(transaction);
   }
 
@@ -200,12 +187,15 @@ class SavingsFundLedgerTest {
     var cashAmount = new BigDecimal("1000.00");
     var fundUnits = new BigDecimal("10.00000");
     var navPerUnit = new BigDecimal("100.00");
+    var paymentId = randomUUID();
 
-    var paymentTx = savingsFundLedger.recordPaymentReceived(testUser, cashAmount, randomUUID());
-    var reserveTx = savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount);
+    var paymentTx = savingsFundLedger.recordPaymentReceived(testUser, cashAmount, paymentId);
+    var reserveTx =
+        savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount, paymentId);
     var subscriptionTx =
-        savingsFundLedger.issueFundUnitsFromReserved(testUser, cashAmount, fundUnits, navPerUnit);
-    var transferTx = savingsFundLedger.transferToFundAccount(cashAmount);
+        savingsFundLedger.issueFundUnitsFromReserved(
+            testUser, cashAmount, fundUnits, navPerUnit, paymentId);
+    var transferTx = savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
 
     verifyDoubleEntry(paymentTx);
     verifyDoubleEntry(reserveTx);
@@ -231,14 +221,20 @@ class SavingsFundLedgerTest {
     var redeemAmount = new BigDecimal("300.00");
     var navPerUnit = new BigDecimal("100.00");
     var customerIban = "EE777888999000111222";
-    setupUserWithFundUnits(initialAmount, initialUnits, navPerUnit);
+    var paymentId = randomUUID();
+    setupUserWithFundUnits(initialAmount, initialUnits, navPerUnit, paymentId);
 
-    var reserveTx = savingsFundLedger.reserveFundUnitsForRedemption(testUser, redeemUnits);
+    var redemptionRequestId = randomUUID();
+    var reserveTx =
+        savingsFundLedger.reserveFundUnitsForRedemption(testUser, redeemUnits, redemptionRequestId);
     var redemptionTx =
         savingsFundLedger.redeemFundUnitsFromReserved(
-            testUser, redeemUnits, redeemAmount, navPerUnit);
-    var cashTransferTx = savingsFundLedger.transferFromFundAccount(redeemAmount);
-    var payoutTx = savingsFundLedger.recordRedemptionPayout(testUser, redeemAmount, customerIban);
+            testUser, redeemUnits, redeemAmount, navPerUnit, redemptionRequestId);
+    var cashTransferTx =
+        savingsFundLedger.transferFromFundAccount(redeemAmount, redemptionRequestId);
+    var payoutTx =
+        savingsFundLedger.recordRedemptionPayout(
+            testUser, redeemAmount, customerIban, redemptionRequestId);
 
     verifyDoubleEntry(reserveTx);
     verifyDoubleEntry(redemptionTx);
@@ -250,27 +246,6 @@ class SavingsFundLedgerTest {
     assertThat(getUserReservedUnitsAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getUserRedemptionsAccount().getBalance()).isEqualByComparingTo(redeemAmount);
     assertThat(getPayoutsCashClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
-  }
-
-  @Test
-  void hasLedgerEntry_detectsEntriesByExternalReference() {
-    var amount = new BigDecimal("500.00");
-    var paymentRef = randomUUID();
-    var bounceBackRef = randomUUID();
-    var receivedRef = randomUUID();
-
-    assertThat(savingsFundLedger.hasLedgerEntry(paymentRef)).isFalse();
-
-    savingsFundLedger.recordUnattributedPayment(amount, paymentRef);
-    assertThat(savingsFundLedger.hasLedgerEntry(paymentRef)).isTrue();
-
-    savingsFundLedger.bounceBackUnattributedPayment(amount, bounceBackRef);
-    assertThat(savingsFundLedger.hasLedgerEntry(bounceBackRef)).isTrue();
-
-    savingsFundLedger.recordPaymentReceived(testUser, amount, receivedRef);
-    assertThat(savingsFundLedger.hasLedgerEntry(receivedRef)).isTrue();
-
-    assertThat(savingsFundLedger.hasLedgerEntry(randomUUID())).isFalse();
   }
 
   @Test
@@ -294,20 +269,25 @@ class SavingsFundLedgerTest {
     var navPerUnit = new BigDecimal("100.00");
     var customerIban = "EE123456789012345678";
 
-    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, randomUUID());
-    savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount);
-    savingsFundLedger.issueFundUnitsFromReserved(testUser, cashAmount, fundUnits, navPerUnit);
-    savingsFundLedger.transferToFundAccount(cashAmount);
+    var paymentId = randomUUID();
+    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, paymentId);
+    savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount, paymentId);
+    savingsFundLedger.issueFundUnitsFromReserved(
+        testUser, cashAmount, fundUnits, navPerUnit, paymentId);
+    savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
 
     assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(fundUnits.negate());
     assertThat(getFundUnitsOutstandingAccount().getBalance()).isEqualByComparingTo(fundUnits);
     assertThat(getUserSubscriptionsAccount().getBalance())
         .isEqualByComparingTo(cashAmount.negate());
 
-    savingsFundLedger.reserveFundUnitsForRedemption(testUser, fundUnits);
-    savingsFundLedger.redeemFundUnitsFromReserved(testUser, fundUnits, cashAmount, navPerUnit);
-    savingsFundLedger.transferFromFundAccount(cashAmount);
-    savingsFundLedger.recordRedemptionPayout(testUser, cashAmount, customerIban);
+    var redemptionRequestId = randomUUID();
+    savingsFundLedger.reserveFundUnitsForRedemption(testUser, fundUnits, redemptionRequestId);
+    savingsFundLedger.redeemFundUnitsFromReserved(
+        testUser, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
+    savingsFundLedger.transferFromFundAccount(cashAmount, redemptionRequestId);
+    savingsFundLedger.recordRedemptionPayout(
+        testUser, cashAmount, customerIban, redemptionRequestId);
 
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
@@ -381,7 +361,8 @@ class SavingsFundLedgerTest {
   @Test
   void recordAdjustment_userToSystem_createsCorrectLedgerEntries() {
     var amount = new BigDecimal("25.00");
-    savingsFundLedger.recordPaymentReceived(testUser, amount, randomUUID());
+    var paymentId = randomUUID();
+    savingsFundLedger.recordPaymentReceived(testUser, amount, paymentId);
 
     var transaction =
         savingsFundLedger.recordAdjustment(
@@ -399,7 +380,8 @@ class SavingsFundLedgerTest {
 
   @Test
   void recordAdjustment_differentUsersToUser_throwsException() {
-    savingsFundLedger.recordPaymentReceived(testUser, new BigDecimal("100.00"), randomUUID());
+    var paymentId = randomUUID();
+    savingsFundLedger.recordPaymentReceived(testUser, new BigDecimal("100.00"), paymentId);
 
     assertThrows(
         IllegalArgumentException.class,
@@ -416,8 +398,9 @@ class SavingsFundLedgerTest {
 
   @Test
   void recordAdjustment_sameUserDifferentAccounts_succeeds() {
-    savingsFundLedger.recordPaymentReceived(testUser, new BigDecimal("100.00"), randomUUID());
-    savingsFundLedger.reservePaymentForSubscription(testUser, new BigDecimal("100.00"));
+    var paymentId = randomUUID();
+    savingsFundLedger.recordPaymentReceived(testUser, new BigDecimal("100.00"), paymentId);
+    savingsFundLedger.reservePaymentForSubscription(testUser, new BigDecimal("100.00"), paymentId);
 
     var transaction =
         savingsFundLedger.recordAdjustment(
@@ -533,11 +516,12 @@ class SavingsFundLedgerTest {
   }
 
   private void setupUserWithFundUnits(
-      BigDecimal cashAmount, BigDecimal fundUnits, BigDecimal navPerUnit) {
-    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, randomUUID());
-    savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount);
-    savingsFundLedger.issueFundUnitsFromReserved(testUser, cashAmount, fundUnits, navPerUnit);
-    savingsFundLedger.transferToFundAccount(cashAmount);
+      BigDecimal cashAmount, BigDecimal fundUnits, BigDecimal navPerUnit, UUID paymentId) {
+    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, paymentId);
+    savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount, paymentId);
+    savingsFundLedger.issueFundUnitsFromReserved(
+        testUser, cashAmount, fundUnits, navPerUnit, paymentId);
+    savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
   }
 
   private LedgerAccount getUserAccount(UserAccount userAccount) {

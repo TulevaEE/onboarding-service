@@ -38,6 +38,7 @@ import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 public class LedgerTransaction {
 
   public enum TransactionType {
+    @Deprecated // Use more specific types instead
     TRANSFER,
     PAYMENT_RECEIVED,
     PAYMENT_CANCEL_REQUESTED,
@@ -47,7 +48,6 @@ public class LedgerTransaction {
     PAYMENT_RESERVED,
     FUND_SUBSCRIPTION,
     FUND_TRANSFER,
-    LATE_ATTRIBUTION,
     REDEMPTION_RESERVED,
     REDEMPTION_CANCELLED,
     REDEMPTION_REQUEST,
@@ -57,7 +57,10 @@ public class LedgerTransaction {
     BANK_FEE,
     BANK_ADJUSTMENT,
     ADJUSTMENT,
-    TRADE_SETTLEMENT
+    TRADE_SETTLEMENT,
+    POSITION_UPDATE,
+    FEE_ACCRUAL,
+    FEE_SETTLEMENT
   }
 
   @Id

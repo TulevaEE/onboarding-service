@@ -45,7 +45,8 @@ class IssuerServiceTest {
     issuerService.processPayment(payment, ONE);
 
     var issuedUnits = TEN.divide(ONE, 5, HALF_DOWN);
-    verify(savingsFundLedger).issueFundUnitsFromReserved(user, TEN, issuedUnits, ONE);
+    verify(savingsFundLedger)
+        .issueFundUnitsFromReserved(user, TEN, issuedUnits, ONE, payment.getId());
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), ISSUED);
   }
 

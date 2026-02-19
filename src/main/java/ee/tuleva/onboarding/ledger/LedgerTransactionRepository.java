@@ -9,8 +9,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 interface LedgerTransactionRepository extends JpaRepository<LedgerTransaction, UUID> {
 
-  boolean existsByExternalReference(UUID externalReference);
-
   boolean existsByExternalReferenceAndTransactionType(
       UUID externalReference, TransactionType transactionType);
 

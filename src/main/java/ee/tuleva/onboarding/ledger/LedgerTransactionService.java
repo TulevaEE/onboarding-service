@@ -20,15 +20,6 @@ class LedgerTransactionService {
   public LedgerTransaction createTransaction(
       TransactionType transactionType,
       Instant transactionDate,
-      Map<String, Object> metadata,
-      LedgerEntryDto... ledgerEntryDtos) {
-    return createTransaction(transactionType, transactionDate, null, metadata, ledgerEntryDtos);
-  }
-
-  @Transactional
-  public LedgerTransaction createTransaction(
-      TransactionType transactionType,
-      Instant transactionDate,
       UUID externalReference,
       Map<String, Object> metadata,
       LedgerEntryDto... ledgerEntryDtos) {
@@ -45,10 +36,6 @@ class LedgerTransactionService {
     }
 
     return ledgerTransactionRepository.save(transaction);
-  }
-
-  public boolean existsByExternalReference(UUID externalReference) {
-    return ledgerTransactionRepository.existsByExternalReference(externalReference);
   }
 
   public boolean existsByExternalReferenceAndTransactionType(

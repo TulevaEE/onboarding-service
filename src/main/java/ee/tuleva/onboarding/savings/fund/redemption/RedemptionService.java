@@ -13,10 +13,10 @@ import ee.tuleva.onboarding.savings.fund.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
-import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -42,6 +42,7 @@ public class RedemptionService {
   private final SavingsFundNavProvider navProvider;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final SavingFundDeadlinesService deadlinesService;
+  private final Clock clock;
 
   @Transactional
   public RedemptionRequest createRedemptionRequest(
@@ -62,8 +63,6 @@ public class RedemptionService {
 
     validateFundUnits(fundUnits, availableUnits);
 
-    savingsFundLedger.reserveFundUnitsForRedemption(user, fundUnits);
-
     RedemptionRequest request =
         RedemptionRequest.builder()
             .userId(userId)
@@ -74,6 +73,8 @@ public class RedemptionService {
             .build();
 
     RedemptionRequest saved = redemptionRequestRepository.save(request);
+
+    savingsFundLedger.reserveFundUnitsForRedemption(user, fundUnits, saved.getId());
     log.info(
         "Created redemption request: id={}, userId={}, requestedAmount={}, fundUnits={}, nav={}, customerIban={}",
         saved.getId(),
@@ -126,14 +127,14 @@ public class RedemptionService {
     validateCancellationDeadline(request);
 
     User user = userService.getByIdOrThrow(userId);
-    savingsFundLedger.cancelRedemptionReservation(user, request.getFundUnits());
+    savingsFundLedger.cancelRedemptionReservation(user, request.getFundUnits(), request.getId());
     redemptionStatusService.changeStatus(id, CANCELLED);
     log.info("Cancelled redemption request: id={}, userId={}", id, userId);
   }
 
   private void validateCancellationDeadline(RedemptionRequest request) {
     Instant deadline = deadlinesService.getCancellationDeadline(request);
-    Instant now = ClockHolder.clock().instant();
+    Instant now = Instant.now(clock);
 
     if (now.isAfter(deadline)) {
       throw new IllegalStateException(

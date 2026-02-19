@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRANSFER;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_ACCRUAL;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_SETTLEMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -33,7 +34,8 @@ public class NavFeeAccrualLedger {
     }
 
     UUID externalReference = generateAccrualReference(fund, accrualDate, feeAccount);
-    if (ledgerTransactionService.existsByExternalReference(externalReference)) {
+    if (ledgerTransactionService.existsByExternalReferenceAndTransactionType(
+        externalReference, FEE_ACCRUAL)) {
       log.debug(
           "Fee accrual already recorded: fund={}, date={}, feeAccount={}",
           fund,
@@ -54,7 +56,7 @@ public class NavFeeAccrualLedger {
             accrualDate.toString());
 
     ledgerTransactionService.createTransaction(
-        TRANSFER,
+        FEE_ACCRUAL,
         Instant.now(clock),
         externalReference,
         metadata,
@@ -70,7 +72,8 @@ public class NavFeeAccrualLedger {
     }
 
     UUID externalReference = generateSettlementReference(fund, settlementDate, feeAccount);
-    if (ledgerTransactionService.existsByExternalReference(externalReference)) {
+    if (ledgerTransactionService.existsByExternalReferenceAndTransactionType(
+        externalReference, FEE_SETTLEMENT)) {
       log.debug(
           "Fee settlement already recorded: fund={}, date={}, feeAccount={}",
           fund,
@@ -91,7 +94,7 @@ public class NavFeeAccrualLedger {
             settlementDate.toString());
 
     ledgerTransactionService.createTransaction(
-        TRANSFER,
+        FEE_SETTLEMENT,
         Instant.now(clock),
         externalReference,
         metadata,

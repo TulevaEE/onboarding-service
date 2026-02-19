@@ -110,7 +110,7 @@ public class SebBankStatementProcessor {
       log.info(
           "Creating ledger entry for transfer to fund investment account: amount={}",
           payment.getAmount().negate());
-      savingsFundLedger.transferToFundAccount(payment.getAmount().negate());
+      savingsFundLedger.transferToFundAccount(payment.getAmount().negate(), payment.getId());
     } else if (isOutgoingReturn(payment)) {
       log.info(
           "Outgoing return detected, deferring matching to post-processing pass: endToEndId={}, beneficiaryIban={}, amount={}",
@@ -202,7 +202,7 @@ public class SebBankStatementProcessor {
     if (isOutgoingToWithdrawalAccount(payment)) {
       var amount = payment.getAmount().negate();
       log.info("Creating ledger entry for batch transfer to withdrawal account: amount={}", amount);
-      savingsFundLedger.transferFromFundAccount(amount);
+      savingsFundLedger.transferFromFundAccount(amount, payment.getId());
     } else {
       log.debug(
           "FUND_INVESTMENT_EUR payment: amount={}, beneficiaryIban={}",

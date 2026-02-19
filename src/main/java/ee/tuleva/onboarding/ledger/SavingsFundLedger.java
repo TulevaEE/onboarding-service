@@ -65,7 +65,6 @@ import org.springframework.stereotype.Service;
  * <pre>
  * recordUnattributedPayment        INCOMING_PAYMENTS_CLEARING → UNRECONCILED_BANK_RECEIPTS
  * bounceBackUnattributedPayment    UNRECONCILED_BANK_RECEIPTS → INCOMING_PAYMENTS_CLEARING
- * attributeLatePayment             UNRECONCILED_BANK_RECEIPTS → User:CASH
  * </pre>
  */
 @Slf4j
@@ -220,7 +219,8 @@ public class SavingsFundLedger {
   }
 
   @Transactional
-  public LedgerTransaction reservePaymentForSubscription(User user, BigDecimal amount) {
+  public LedgerTransaction reservePaymentForSubscription(
+      User user, BigDecimal amount, UUID externalReference) {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userCashAccount = getUserCashAccount(userParty);
     LedgerAccount userCashReservedAccount = getUserCashReservedAccount(userParty);
@@ -234,6 +234,7 @@ public class SavingsFundLedger {
     return ledgerTransactionService.createTransaction(
         PAYMENT_RESERVED,
         Instant.now(clock),
+        externalReference,
         metadata,
         entry(userCashAccount, amount),
         entry(userCashReservedAccount, amount.negate()));
@@ -241,7 +242,11 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction issueFundUnitsFromReserved(
-      User user, BigDecimal cashAmount, BigDecimal fundUnits, BigDecimal navPerUnit) {
+      User user,
+      BigDecimal cashAmount,
+      BigDecimal fundUnits,
+      BigDecimal navPerUnit,
+      UUID externalReference) {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userCashReservedAccount = getUserCashReservedAccount(userParty);
     LedgerAccount userUnitsAccount = getUserUnitsAccount(userParty);
@@ -258,6 +263,7 @@ public class SavingsFundLedger {
     return ledgerTransactionService.createTransaction(
         FUND_SUBSCRIPTION,
         Instant.now(clock),
+        externalReference,
         metadata,
         entry(userCashReservedAccount, cashAmount),
         entry(userSubscriptionsAccount, cashAmount.negate()),
@@ -266,7 +272,7 @@ public class SavingsFundLedger {
   }
 
   @Transactional
-  public LedgerTransaction transferToFundAccount(BigDecimal amount) {
+  public LedgerTransaction transferToFundAccount(BigDecimal amount, UUID externalReference) {
     LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
     LedgerAccount fundCashAccount = getFundInvestmentCashClearingAccount();
 
@@ -275,6 +281,7 @@ public class SavingsFundLedger {
     return ledgerTransactionService.createTransaction(
         FUND_TRANSFER,
         Instant.now(clock),
+        externalReference,
         metadata,
         entry(incomingPaymentsAccount, amount.negate()),
         entry(fundCashAccount, amount));
@@ -320,27 +327,8 @@ public class SavingsFundLedger {
   }
 
   @Transactional
-  public LedgerTransaction attributeLatePayment(User user, BigDecimal amount) {
-    LedgerParty userParty = getUserParty(user);
-    LedgerAccount userCashAccount = getUserCashAccount(userParty);
-    LedgerAccount unreconciledAccount = getUnreconciledBankReceiptsAccount();
-
-    Map<String, Object> metadata =
-        Map.of(
-            OPERATION_TYPE.key, LATE_ATTRIBUTION.name(),
-            USER_ID.key, user.getId(),
-            PERSONAL_CODE.key, user.getPersonalCode());
-
-    return ledgerTransactionService.createTransaction(
-        LATE_ATTRIBUTION,
-        Instant.now(clock),
-        metadata,
-        entry(unreconciledAccount, amount),
-        entry(userCashAccount, amount.negate()));
-  }
-
-  @Transactional
-  public LedgerTransaction reserveFundUnitsForRedemption(User user, BigDecimal fundUnits) {
+  public LedgerTransaction reserveFundUnitsForRedemption(
+      User user, BigDecimal fundUnits, UUID externalReference) {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userUnitsAccount = getUserUnitsAccount(userParty);
     LedgerAccount userUnitsReservedAccount = getUserUnitsReservedAccount(userParty);
@@ -354,13 +342,15 @@ public class SavingsFundLedger {
     return ledgerTransactionService.createTransaction(
         REDEMPTION_RESERVED,
         Instant.now(clock),
+        externalReference,
         metadata,
         entry(userUnitsAccount, fundUnits),
         entry(userUnitsReservedAccount, fundUnits.negate()));
   }
 
   @Transactional
-  public LedgerTransaction cancelRedemptionReservation(User user, BigDecimal fundUnits) {
+  public LedgerTransaction cancelRedemptionReservation(
+      User user, BigDecimal fundUnits, UUID externalReference) {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userUnitsAccount = getUserUnitsAccount(userParty);
     LedgerAccount userUnitsReservedAccount = getUserUnitsReservedAccount(userParty);
@@ -374,15 +364,10 @@ public class SavingsFundLedger {
     return ledgerTransactionService.createTransaction(
         REDEMPTION_CANCELLED,
         Instant.now(clock),
+        externalReference,
         metadata,
         entry(userUnitsReservedAccount, fundUnits),
         entry(userUnitsAccount, fundUnits.negate()));
-  }
-
-  @Transactional
-  public LedgerTransaction redeemFundUnitsFromReserved(
-      User user, BigDecimal fundUnits, BigDecimal cashAmount, BigDecimal navPerUnit) {
-    return redeemFundUnitsFromReserved(user, fundUnits, cashAmount, navPerUnit, null);
   }
 
   @Transactional
@@ -419,7 +404,7 @@ public class SavingsFundLedger {
   }
 
   @Transactional
-  public LedgerTransaction transferFromFundAccount(BigDecimal amount) {
+  public LedgerTransaction transferFromFundAccount(BigDecimal amount, UUID externalReference) {
     LedgerAccount fundCashAccount = getFundInvestmentCashClearingAccount();
     LedgerAccount payoutsCashAccount = getPayoutsCashClearingAccount();
 
@@ -428,16 +413,10 @@ public class SavingsFundLedger {
     return ledgerTransactionService.createTransaction(
         FUND_CASH_TRANSFER,
         Instant.now(clock),
+        externalReference,
         metadata,
         entry(fundCashAccount, amount.negate()),
         entry(payoutsCashAccount, amount));
-  }
-
-  // TODO: remove, only used in tests
-  @Transactional
-  public LedgerTransaction recordRedemptionPayout(
-      User user, BigDecimal amount, String customerIban) {
-    return recordRedemptionPayout(user, amount, customerIban, null);
   }
 
   @Transactional
@@ -656,10 +635,6 @@ public class SavingsFundLedger {
 
   private LedgerAccount getPayoutsCashClearingAccount() {
     return getSystemAccount(PAYOUTS_CASH_CLEARING);
-  }
-
-  public boolean hasLedgerEntry(UUID externalReference) {
-    return ledgerTransactionService.existsByExternalReference(externalReference);
   }
 
   public boolean hasLedgerEntry(UUID externalReference, TransactionType transactionType) {

@@ -86,7 +86,8 @@ public class SwedbankFundPositionParser implements FundPositionParser {
 
       FundPosition position =
           FundPosition.builder()
-              .reportingDate(getDate(row, "NAVDate"))
+              .navDate(getDate(row, "NAVDate"))
+              .reportDate(getDate(row, "ReportDate"))
               .fund(fund)
               .accountType(accountType)
               .accountName(accountName)

@@ -71,7 +71,7 @@ public class ManagementFeeCalculator implements FeeCalculator {
   private LocalDate resolveReferenceDate(TulevaFund fund, LocalDate calendarDate) {
     if (fund.hasNavCalculation()) {
       return fundPositionRepository
-          .findLatestReportingDateByFundAndAsOfDate(fund, calendarDate)
+          .findLatestNavDateByFundAndAsOfDate(fund, calendarDate)
           .orElse(null);
     }
     return positionCalculationRepository.getLatestDateUpTo(fund, calendarDate).orElse(null);

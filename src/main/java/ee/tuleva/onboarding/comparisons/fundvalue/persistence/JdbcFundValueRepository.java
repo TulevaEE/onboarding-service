@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,23 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
       SELECT *
       FROM index_values
       WHERE key = :key AND date = :date
+      LIMIT 1
+      """;
+
+  private static final String FIND_LATEST_VALUE_WITH_CUTOFF_QUERY =
+      """
+      SELECT *
+      FROM index_values
+      WHERE key = :key AND date <= :date AND updated_at <= :updatedBefore
+      ORDER BY date DESC
+      LIMIT 1
+      """;
+
+  private static final String FIND_FUND_VALUE_WITH_CUTOFF_QUERY =
+      """
+      SELECT *
+      FROM index_values
+      WHERE key = :key AND date = :date AND updated_at <= :updatedBefore
       LIMIT 1
       """;
 
@@ -165,6 +183,28 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
     List<FundValue> result =
         jdbcTemplate.query(
             FIND_LATEST_VALUE_QUERY, Map.of("key", key, "date", date), new FundValueRowMapper());
+    return result.isEmpty() ? Optional.empty() : Optional.of(result.getFirst());
+  }
+
+  @Override
+  public Optional<FundValue> getLatestValue(String key, LocalDate date, Instant updatedBefore) {
+    var params = new HashMap<String, Object>();
+    params.put("key", key);
+    params.put("date", date);
+    params.put("updatedBefore", java.sql.Timestamp.from(updatedBefore));
+    List<FundValue> result =
+        jdbcTemplate.query(FIND_LATEST_VALUE_WITH_CUTOFF_QUERY, params, new FundValueRowMapper());
+    return result.isEmpty() ? Optional.empty() : Optional.of(result.getFirst());
+  }
+
+  @Override
+  public Optional<FundValue> getValueForDate(String key, LocalDate date, Instant updatedBefore) {
+    var params = new HashMap<String, Object>();
+    params.put("key", key);
+    params.put("date", date);
+    params.put("updatedBefore", java.sql.Timestamp.from(updatedBefore));
+    List<FundValue> result =
+        jdbcTemplate.query(FIND_FUND_VALUE_WITH_CUTOFF_QUERY, params, new FundValueRowMapper());
     return result.isEmpty() ? Optional.empty() : Optional.of(result.getFirst());
   }
 

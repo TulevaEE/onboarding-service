@@ -49,7 +49,7 @@ public class NavLedgerReconciliation {
     Map<String, BigDecimal> ledgerBalances = navLedgerRepository.getSecuritiesUnitBalances();
     Map<String, BigDecimal> externalQuantities = new HashMap<>();
     fundPositionRepository
-        .findByReportingDateAndFundAndAccountType(date, fund, SECURITY)
+        .findByNavDateAndFundAndAccountType(date, fund, SECURITY)
         .forEach(
             position -> {
               if (position.getAccountId() != null) {
@@ -118,7 +118,7 @@ public class NavLedgerReconciliation {
 
   private BigDecimal getPositionValue(TulevaFund fund, LocalDate date, AccountType accountType) {
     return fundPositionRepository
-        .findByReportingDateAndFundAndAccountType(date, fund, accountType)
+        .findByNavDateAndFundAndAccountType(date, fund, accountType)
         .stream()
         .map(FundPosition::getMarketValue)
         .filter(Objects::nonNull)

@@ -11,6 +11,8 @@ import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.OK;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.PRICE_DISCREPANCY;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.YAHOO_MISSING;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -19,6 +21,7 @@ import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -33,6 +36,8 @@ class PositionCalculationJobTest {
   private static final TulevaFund FUND = TUK75;
   private static final String ISIN = "IE00BFNM3G45";
   private static final LocalDate DATE = LocalDate.of(2026, 1, 15);
+  private static final LocalTime MORNING_CUTOFF = LocalTime.of(11, 30);
+  private static final LocalTime AFTERNOON_CUTOFF = LocalTime.of(15, 30);
 
   @Mock private PositionCalculationService calculationService;
   @Mock private PositionCalculationPersistenceService persistenceService;
@@ -43,7 +48,8 @@ class PositionCalculationJobTest {
   @Test
   void calculateForFunds_withOkStatus_savesWithoutNotification() {
     List<PositionCalculation> calculations = List.of(createCalculation(OK));
-    when(calculationService.calculateForLatestDate(any(List.class))).thenReturn(calculations);
+    when(calculationService.calculateForLatestDate(any(List.class), isNull()))
+        .thenReturn(calculations);
 
     job.calculateForFunds(List.of(FUND));
 
@@ -74,7 +80,7 @@ class PositionCalculationJobTest {
             .createdAt(Instant.now())
             .build();
 
-    when(calculationService.calculateForLatestDate(any(List.class)))
+    when(calculationService.calculateForLatestDate(any(List.class), isNull()))
         .thenReturn(List.of(calculation));
 
     job.calculateForFunds(List.of(FUND));
@@ -99,7 +105,7 @@ class PositionCalculationJobTest {
             .createdAt(Instant.now())
             .build();
 
-    when(calculationService.calculateForLatestDate(any(List.class)))
+    when(calculationService.calculateForLatestDate(any(List.class), isNull()))
         .thenReturn(List.of(calculation));
 
     job.calculateForFunds(List.of(FUND));
@@ -119,7 +125,7 @@ class PositionCalculationJobTest {
             .createdAt(Instant.now())
             .build();
 
-    when(calculationService.calculateForLatestDate(any(List.class)))
+    when(calculationService.calculateForLatestDate(any(List.class), isNull()))
         .thenReturn(List.of(calculation));
 
     job.calculateForFunds(List.of(FUND));
@@ -129,7 +135,7 @@ class PositionCalculationJobTest {
 
   @Test
   void calculateForFunds_withException_doesNotThrow() {
-    when(calculationService.calculateForLatestDate(any(List.class)))
+    when(calculationService.calculateForLatestDate(any(List.class), isNull()))
         .thenThrow(new RuntimeException("Test exception"));
 
     job.calculateForFunds(List.of(FUND));
@@ -141,33 +147,35 @@ class PositionCalculationJobTest {
   void calculateForFunds_withMultipleFunds_processesAll() {
     List<TulevaFund> funds = List.of(TUK75, TUK00);
     List<PositionCalculation> calculations = List.of(createCalculation(OK));
-    when(calculationService.calculateForLatestDate(funds)).thenReturn(calculations);
+    when(calculationService.calculateForLatestDate(eq(funds), isNull())).thenReturn(calculations);
 
     job.calculateForFunds(funds);
 
-    verify(calculationService).calculateForLatestDate(funds);
+    verify(calculationService).calculateForLatestDate(funds, null);
     verify(persistenceService).saveAll(calculations);
   }
 
   @Test
   void calculatePositionsMorning_processesPillarIIFunds() {
     List<TulevaFund> expectedFunds = getPillar2Funds();
-    when(calculationService.calculateForLatestDate(expectedFunds)).thenReturn(List.of());
+    when(calculationService.calculateForLatestDate(eq(expectedFunds), eq(MORNING_CUTOFF)))
+        .thenReturn(List.of());
 
     job.calculatePositionsMorning();
 
-    verify(calculationService).calculateForLatestDate(expectedFunds);
+    verify(calculationService).calculateForLatestDate(expectedFunds, MORNING_CUTOFF);
   }
 
   @Test
   void calculatePositionsAfternoon_processesPillarIIIAndSavingsFunds() {
     var expectedFunds =
         Stream.concat(getPillar3Funds().stream(), getSavingsFunds().stream()).toList();
-    when(calculationService.calculateForLatestDate(expectedFunds)).thenReturn(List.of());
+    when(calculationService.calculateForLatestDate(eq(expectedFunds), eq(AFTERNOON_CUTOFF)))
+        .thenReturn(List.of());
 
     job.calculatePositionsAfternoon();
 
-    verify(calculationService).calculateForLatestDate(expectedFunds);
+    verify(calculationService).calculateForLatestDate(expectedFunds, AFTERNOON_CUTOFF);
   }
 
   @Test
@@ -188,7 +196,7 @@ class PositionCalculationJobTest {
             .createdAt(Instant.now())
             .build();
 
-    when(calculationService.calculateForLatestDate(any(List.class)))
+    when(calculationService.calculateForLatestDate(any(List.class), isNull()))
         .thenReturn(List.of(calculation));
 
     job.calculateForFunds(List.of(FUND));
@@ -200,7 +208,7 @@ class PositionCalculationJobTest {
   void calculateForFunds_withCurrentPrice_doesNotNotifyStalePrice() {
     PositionCalculation calculation = createCalculation(OK);
 
-    when(calculationService.calculateForLatestDate(any(List.class)))
+    when(calculationService.calculateForLatestDate(any(List.class), isNull()))
         .thenReturn(List.of(calculation));
 
     job.calculateForFunds(List.of(FUND));

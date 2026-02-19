@@ -64,7 +64,7 @@ class NavCalculationServiceTest {
   void calculate_performsTwoPassCalculationWithRedemptions() {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
 
-    when(fundPositionRepository.findLatestReportingDateByFundAndAsOfDate(TKF100, calcDate))
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, calcDate))
         .thenReturn(Optional.of(calcDate));
     when(navLedgerRepository.getSystemAccountBalance(FUND_UNITS_OUTSTANDING.getAccountName()))
         .thenReturn(new BigDecimal("100000.00000"));
@@ -114,7 +114,7 @@ class NavCalculationServiceTest {
   void calculate_returnsNavOfOneWhenNoUnitsOutstanding() {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
 
-    when(fundPositionRepository.findLatestReportingDateByFundAndAsOfDate(TKF100, calcDate))
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, calcDate))
         .thenReturn(Optional.of(calcDate));
     when(navLedgerRepository.getSystemAccountBalance(FUND_UNITS_OUTSTANDING.getAccountName()))
         .thenReturn(ZERO);
@@ -138,7 +138,7 @@ class NavCalculationServiceTest {
   void calculate_throwsWhenNoPositionReport() {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
 
-    when(fundPositionRepository.findLatestReportingDateByFundAndAsOfDate(TKF100, calcDate))
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, calcDate))
         .thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.calculate(TKF100, calcDate))
@@ -150,7 +150,7 @@ class NavCalculationServiceTest {
   void calculate_handlesNegativeBlackrockAdjustmentAsLiability() {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
 
-    when(fundPositionRepository.findLatestReportingDateByFundAndAsOfDate(TKF100, calcDate))
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, calcDate))
         .thenReturn(Optional.of(calcDate));
     when(navLedgerRepository.getSystemAccountBalance(FUND_UNITS_OUTSTANDING.getAccountName()))
         .thenReturn(new BigDecimal("100000.00000"));

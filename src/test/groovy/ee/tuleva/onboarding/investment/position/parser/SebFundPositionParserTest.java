@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,7 @@ class SebFundPositionParserTest {
   private final SebFundPositionParser parser = new SebFundPositionParser(Clock.systemUTC());
   private final CsvToJsonConverter csvConverter = new CsvToJsonConverter();
   private static final LocalDate REPORT_DATE = LocalDate.of(2026, 1, 26);
+  private static final LocalDate NAV_DATE = LocalDate.of(2026, 1, 25);
 
   @Test
   void parse_parsesCashRow() {
@@ -40,7 +42,8 @@ class SebFundPositionParserTest {
     assertThat(positions).hasSize(1);
 
     FundPosition position = positions.getFirst();
-    assertThat(position.getReportingDate()).isEqualTo(REPORT_DATE);
+    assertThat(position.getNavDate()).isEqualTo(REPORT_DATE);
+    assertThat(position.getReportDate()).isEqualTo(REPORT_DATE);
     assertThat(position.getFund()).isEqualTo(TKF100);
     assertThat(position.getAccountType()).isEqualTo(CASH);
     assertThat(position.getAccountName()).isEqualTo("Cash account in SEB Pank");
@@ -49,6 +52,37 @@ class SebFundPositionParserTest {
     assertThat(position.getMarketPrice()).isEqualByComparingTo(ONE);
     assertThat(position.getCurrency()).isEqualTo("EUR");
     assertThat(position.getMarketValue()).isEqualByComparingTo(new BigDecimal("5302814.90"));
+  }
+
+  @Test
+  void parse_extractsDatesFromHeaders() {
+    Map<String, Object> sentRow = new HashMap<>();
+    sentRow.put("Tuleva Fondid AS", "2026-01-26");
+    sentRow.put("Fund Management Company:", "Sent:");
+
+    Map<String, Object> asOfRow = new HashMap<>();
+    asOfRow.put("Tuleva Fondid AS", "2026-01-25");
+    asOfRow.put("Fund Management Company:", "As of:");
+
+    List<Map<String, Object>> rawData =
+        List.of(
+            sentRow,
+            asOfRow,
+            Map.of(
+                "Client name", "TKF100",
+                "Account", "EE861010220306591229",
+                "Name", "Cash account in SEB Pank",
+                "Quantity", new BigDecimal("5302814.90"),
+                "Market price", new BigDecimal("1.000"),
+                "Currency", "EUR",
+                "Market Value (EUR)", new BigDecimal("5302814.90")));
+
+    List<FundPosition> positions = parser.parse(rawData, null);
+
+    assertThat(positions).hasSize(1);
+    FundPosition position = positions.getFirst();
+    assertThat(position.getNavDate()).isEqualTo(NAV_DATE);
+    assertThat(position.getReportDate()).isEqualTo(REPORT_DATE);
   }
 
   @Test
@@ -173,7 +207,7 @@ class SebFundPositionParserTest {
   }
 
   @Test
-  void parse_returnsEmptyWhenNoReportDate() {
+  void parse_fallsBackToReportDateWhenNoHeaders() {
     List<Map<String, Object>> rawData =
         List.of(
             Map.of(
@@ -184,9 +218,12 @@ class SebFundPositionParserTest {
                 "Currency", "EUR",
                 "Market Value (EUR)", new BigDecimal("1000")));
 
-    List<FundPosition> positions = parser.parse(rawData, null);
+    List<FundPosition> positions = parser.parse(rawData, REPORT_DATE);
 
-    assertThat(positions).isEmpty();
+    assertThat(positions).hasSize(1);
+    FundPosition position = positions.getFirst();
+    assertThat(position.getNavDate()).isEqualTo(REPORT_DATE);
+    assertThat(position.getReportDate()).isEqualTo(REPORT_DATE);
   }
 
   @Test

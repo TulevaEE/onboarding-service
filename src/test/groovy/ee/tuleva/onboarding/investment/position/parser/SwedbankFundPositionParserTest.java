@@ -40,7 +40,8 @@ class SwedbankFundPositionParserTest {
     assertThat(positions).hasSize(1);
 
     FundPosition position = positions.getFirst();
-    assertThat(position.getReportingDate()).isEqualTo(LocalDate.of(2026, 1, 5));
+    assertThat(position.getNavDate()).isEqualTo(LocalDate.of(2026, 1, 5));
+    assertThat(position.getReportDate()).isEqualTo(LocalDate.of(2026, 1, 6));
     assertThat(position.getFund()).isEqualTo(TUK75);
     assertThat(position.getAccountType()).isEqualTo(SECURITY);
     assertThat(position.getAccountName()).isEqualTo("ISHARES DEVELOPED WLD ESG SC I");

@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -27,32 +28,38 @@ public class PositionPriceResolver {
   private final FundValueProvider fundValueProvider;
 
   public Optional<ResolvedPrice> resolve(String isin, LocalDate date) {
-    return FundTicker.findByIsin(isin).map(ticker -> resolveForTicker(ticker, date));
+    return resolve(isin, date, null);
   }
 
-  private ResolvedPrice resolveForTicker(FundTicker ticker, LocalDate date) {
-    FundValue eodhdValue = fetchLatestValue(ticker.getEodhdTicker(), date);
+  public Optional<ResolvedPrice> resolve(String isin, LocalDate date, Instant updatedBefore) {
+    return FundTicker.findByIsin(isin).map(ticker -> resolveForTicker(ticker, date, updatedBefore));
+  }
+
+  private ResolvedPrice resolveForTicker(FundTicker ticker, LocalDate date, Instant updatedBefore) {
+    FundValue eodhdValue = fetchLatestValue(ticker.getEodhdTicker(), date, updatedBefore);
     if (eodhdValue == null) {
       return buildNoPriceDataResult();
     }
 
     LocalDate priceDate = eodhdValue.date();
-    FundValue yahooValue = fetchValueForDate(ticker.getYahooTicker(), priceDate);
+    FundValue yahooValue = fetchValueForDate(ticker.getYahooTicker(), priceDate, updatedBefore);
     return determineResult(eodhdValue, yahooValue);
   }
 
-  private FundValue fetchLatestValue(String tickerKey, LocalDate maxDate) {
-    return fundValueProvider
-        .getLatestValue(tickerKey, maxDate)
-        .filter(fundValue -> fundValue.value().compareTo(ZERO) != 0)
-        .orElse(null);
+  private FundValue fetchLatestValue(String tickerKey, LocalDate maxDate, Instant updatedBefore) {
+    Optional<FundValue> result =
+        updatedBefore != null
+            ? fundValueProvider.getLatestValue(tickerKey, maxDate, updatedBefore)
+            : fundValueProvider.getLatestValue(tickerKey, maxDate);
+    return result.filter(fundValue -> fundValue.value().compareTo(ZERO) != 0).orElse(null);
   }
 
-  private FundValue fetchValueForDate(String tickerKey, LocalDate date) {
-    return fundValueProvider
-        .getValueForDate(tickerKey, date)
-        .filter(fundValue -> fundValue.value().compareTo(ZERO) != 0)
-        .orElse(null);
+  private FundValue fetchValueForDate(String tickerKey, LocalDate date, Instant updatedBefore) {
+    Optional<FundValue> result =
+        updatedBefore != null
+            ? fundValueProvider.getValueForDate(tickerKey, date, updatedBefore)
+            : fundValueProvider.getValueForDate(tickerKey, date);
+    return result.filter(fundValue -> fundValue.value().compareTo(ZERO) != 0).orElse(null);
   }
 
   private ResolvedPrice determineResult(FundValue eodhdValue, FundValue yahooValue) {

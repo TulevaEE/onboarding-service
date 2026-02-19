@@ -133,7 +133,7 @@ public class NavCalculationService {
 
   private LocalDate getPositionReportDate(TulevaFund fund, LocalDate calculationDate) {
     return fundPositionRepository
-        .findLatestReportingDateByFundAndAsOfDate(fund, calculationDate)
+        .findLatestNavDateByFundAndAsOfDate(fund, calculationDate)
         .orElse(null);
   }
 

@@ -31,7 +31,9 @@ public class FundPosition {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  @NotNull private LocalDate reportingDate;
+  @NotNull private LocalDate navDate;
+
+  private LocalDate reportDate;
 
   @NotNull
   @Enumerated(STRING)

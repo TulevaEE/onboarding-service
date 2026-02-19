@@ -49,7 +49,7 @@ public class FundPositionLedgerService {
 
   private Map<String, BigDecimal> calculateSecuritiesUnitDeltas(TulevaFund fund, LocalDate date) {
     List<FundPosition> securityPositions =
-        fundPositionRepository.findByReportingDateAndFundAndAccountType(date, fund, SECURITY);
+        fundPositionRepository.findByNavDateAndFundAndAccountType(date, fund, SECURITY);
 
     Map<String, BigDecimal> deltas = new HashMap<>();
     for (FundPosition position : securityPositions) {
@@ -75,9 +75,7 @@ public class FundPositionLedgerService {
   }
 
   private BigDecimal calculatePositionValue(TulevaFund fund, LocalDate date, AccountType type) {
-    return fundPositionRepository
-        .findByReportingDateAndFundAndAccountType(date, fund, type)
-        .stream()
+    return fundPositionRepository.findByNavDateAndFundAndAccountType(date, fund, type).stream()
         .map(FundPosition::getMarketValue)
         .filter(Objects::nonNull)
         .reduce(ZERO, BigDecimal::add);

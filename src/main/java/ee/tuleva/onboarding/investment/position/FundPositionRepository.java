@@ -10,20 +10,23 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface FundPositionRepository extends JpaRepository<FundPosition, Long> {
 
-  boolean existsByReportingDateAndFundAndAccountName(
-      LocalDate reportingDate, TulevaFund fund, String accountName);
+  boolean existsByNavDateAndFundAndAccountName(
+      LocalDate navDate, TulevaFund fund, String accountName);
 
-  List<FundPosition> findByReportingDateAndFundAndAccountType(
-      LocalDate reportingDate, TulevaFund fund, AccountType accountType);
+  FundPosition findByNavDateAndFundAndAccountName(
+      LocalDate navDate, TulevaFund fund, String accountName);
 
-  @Query("SELECT MAX(fp.reportingDate) FROM FundPosition fp WHERE fp.fund = :fund")
-  Optional<LocalDate> findLatestReportingDateByFund(TulevaFund fund);
+  List<FundPosition> findByNavDateAndFundAndAccountType(
+      LocalDate navDate, TulevaFund fund, AccountType accountType);
+
+  @Query("SELECT MAX(fp.navDate) FROM FundPosition fp WHERE fp.fund = :fund")
+  Optional<LocalDate> findLatestNavDateByFund(TulevaFund fund);
 
   @Query(
       """
       SELECT fp.marketValue FROM FundPosition fp
-      WHERE fp.fund = :fund AND fp.accountId = :accountId AND fp.reportingDate <= :asOfDate
-      ORDER BY fp.reportingDate DESC
+      WHERE fp.fund = :fund AND fp.accountId = :accountId AND fp.navDate <= :asOfDate
+      ORDER BY fp.navDate DESC
       LIMIT 1
       """)
   Optional<BigDecimal> findMarketValueByFundAndAccountId(
@@ -32,27 +35,27 @@ public interface FundPositionRepository extends JpaRepository<FundPosition, Long
   @Query(
       """
       SELECT COALESCE(SUM(fp.marketValue), 0) FROM FundPosition fp
-      WHERE fp.fund = :fund AND fp.reportingDate = (
-          SELECT MAX(fp2.reportingDate) FROM FundPosition fp2
-          WHERE fp2.fund = :fund AND fp2.reportingDate <= :asOfDate
+      WHERE fp.fund = :fund AND fp.navDate = (
+          SELECT MAX(fp2.navDate) FROM FundPosition fp2
+          WHERE fp2.fund = :fund AND fp2.navDate <= :asOfDate
       )
       """)
   BigDecimal sumMarketValueByFund(TulevaFund fund, LocalDate asOfDate);
 
   @Query(
       """
-      SELECT MAX(fp.reportingDate) FROM FundPosition fp
-      WHERE fp.fund = :fund AND fp.reportingDate <= :asOfDate
+      SELECT MAX(fp.navDate) FROM FundPosition fp
+      WHERE fp.fund = :fund AND fp.navDate <= :asOfDate
       """)
-  Optional<LocalDate> findLatestReportingDateByFundAndAsOfDate(TulevaFund fund, LocalDate asOfDate);
+  Optional<LocalDate> findLatestNavDateByFundAndAsOfDate(TulevaFund fund, LocalDate asOfDate);
 
   @Query(
       """
       SELECT COALESCE(SUM(fp.marketValue), 0) FROM FundPosition fp
       WHERE fp.fund = :fund
-      AND fp.reportingDate = :reportingDate
+      AND fp.navDate = :navDate
       AND fp.accountType IN :accountTypes
       """)
   BigDecimal sumMarketValueByFundAndAccountTypes(
-      TulevaFund fund, LocalDate reportingDate, List<AccountType> accountTypes);
+      TulevaFund fund, LocalDate navDate, List<AccountType> accountTypes);
 }

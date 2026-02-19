@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -153,6 +154,25 @@ class PositionPriceResolverTest {
     assertThat(result).isPresent();
     ResolvedPrice resolved = result.get();
     assertThat(resolved.validationStatus()).isEqualTo(YAHOO_MISSING);
+    assertThat(resolved.usedPrice()).isEqualTo(eodhdPrice);
+  }
+
+  @Test
+  void resolve_withUpdatedBeforeCutoff_usesFilteredQueries() {
+    Instant cutoff = Instant.parse("2025-01-11T09:30:00Z");
+    BigDecimal eodhdPrice = new BigDecimal("100.00");
+    BigDecimal yahooPrice = new BigDecimal("100.05");
+
+    when(fundValueProvider.getLatestValue(EODHD_TICKER, DATE, cutoff))
+        .thenReturn(Optional.of(new FundValue(EODHD_TICKER, DATE, eodhdPrice, null, null)));
+    when(fundValueProvider.getValueForDate(YAHOO_TICKER, DATE, cutoff))
+        .thenReturn(Optional.of(new FundValue(YAHOO_TICKER, DATE, yahooPrice, null, null)));
+
+    Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE, cutoff);
+
+    assertThat(result).isPresent();
+    ResolvedPrice resolved = result.get();
+    assertThat(resolved.validationStatus()).isEqualTo(OK);
     assertThat(resolved.usedPrice()).isEqualTo(eodhdPrice);
   }
 

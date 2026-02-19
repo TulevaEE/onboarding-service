@@ -237,10 +237,10 @@ class NavCalculationIntegrationTest {
     entityManager.persist(transaction);
   }
 
-  private void setupFundPosition(LocalDate reportingDate) {
+  private void setupFundPosition(LocalDate navDate) {
     var position =
         FundPosition.builder()
-            .reportingDate(reportingDate)
+            .navDate(navDate)
             .fund(TKF100)
             .accountType(NAV)
             .accountName("Net Asset Value")

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.report;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -11,4 +12,7 @@ public interface InvestmentReportRepository extends JpaRepository<InvestmentRepo
 
   Optional<InvestmentReport> findByProviderAndReportTypeAndReportDate(
       ReportProvider provider, ReportType reportType, LocalDate reportDate);
+
+  List<InvestmentReport> findAllByProviderAndReportType(
+      ReportProvider provider, ReportType reportType);
 }

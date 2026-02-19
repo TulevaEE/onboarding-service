@@ -35,18 +35,45 @@ public class SebFundPositionParser implements FundPositionParser {
 
   @Override
   public List<FundPosition> parse(List<Map<String, Object>> rawData, LocalDate reportDate) {
-    if (reportDate == null) {
-      log.warn("No report date provided for SEB data");
-      return List.of();
+    LocalDate navDate = extractHeaderDate(rawData, "As of:");
+    LocalDate sentDate = extractHeaderDate(rawData, "Sent:");
+
+    if (navDate == null) {
+      log.warn("No 'As of' date found in SEB data, falling back to report date");
+      navDate = reportDate;
+    }
+    if (sentDate == null) {
+      log.warn("No 'Sent' date found in SEB data, falling back to report date");
+      sentDate = reportDate;
     }
 
+    LocalDate effectiveNavDate = navDate;
+    LocalDate effectiveReportDate = sentDate;
     return rawData.stream()
-        .map(row -> parseRow(row, reportDate))
+        .map(row -> parseRow(row, effectiveNavDate, effectiveReportDate))
         .flatMap(Optional::stream)
         .toList();
   }
 
-  private Optional<FundPosition> parseRow(Map<String, Object> row, LocalDate reportDate) {
+  private LocalDate extractHeaderDate(List<Map<String, Object>> rawData, String headerLabel) {
+    for (Map<String, Object> row : rawData) {
+      String fundManagementColumn = getString(row, "Fund Management Company:");
+      if (headerLabel.equals(fundManagementColumn)) {
+        String dateValue = getString(row, "Tuleva Fondid AS");
+        if (dateValue != null) {
+          try {
+            return LocalDate.parse(dateValue);
+          } catch (Exception e) {
+            log.warn("Failed to parse '{}' date: value={}", headerLabel, dateValue);
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  private Optional<FundPosition> parseRow(
+      Map<String, Object> row, LocalDate navDate, LocalDate reportDate) {
     try {
       String fundCode = extractFundCode(row);
       if (fundCode == null) {
@@ -69,7 +96,8 @@ public class SebFundPositionParser implements FundPositionParser {
 
       FundPosition position =
           FundPosition.builder()
-              .reportingDate(reportDate)
+              .navDate(navDate)
+              .reportDate(reportDate)
               .fund(fund)
               .accountType(accountType)
               .accountName(accountName)

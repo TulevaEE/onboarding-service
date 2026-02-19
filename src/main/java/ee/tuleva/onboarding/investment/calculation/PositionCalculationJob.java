@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.PRICE
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.YAHOO_MISSING;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,9 @@ import org.springframework.stereotype.Component;
 @Profile({"production", "staging"})
 public class PositionCalculationJob {
 
+  private static final LocalTime MORNING_CUTOFF = LocalTime.of(11, 30);
+  private static final LocalTime AFTERNOON_CUTOFF = LocalTime.of(15, 30);
+
   private final PositionCalculationService calculationService;
   private final PositionCalculationPersistenceService persistenceService;
   private final PositionCalculationNotifier notifier;
@@ -34,7 +38,7 @@ public class PositionCalculationJob {
       lockAtMostFor = "55m",
       lockAtLeastFor = "5m")
   public void calculatePositionsMorning() {
-    calculateForFunds(getPillar2Funds());
+    calculateForFunds(getPillar2Funds(), MORNING_CUTOFF);
   }
 
   @Scheduled(cron = CALCULATE_AFTERNOON, zone = TIMEZONE)
@@ -44,14 +48,20 @@ public class PositionCalculationJob {
       lockAtLeastFor = "5m")
   public void calculatePositionsAfternoon() {
     calculateForFunds(
-        Stream.concat(getPillar3Funds().stream(), getSavingsFunds().stream()).toList());
+        Stream.concat(getPillar3Funds().stream(), getSavingsFunds().stream()).toList(),
+        AFTERNOON_CUTOFF);
   }
 
   public void calculateForFunds(List<TulevaFund> funds) {
+    calculateForFunds(funds, null);
+  }
+
+  public void calculateForFunds(List<TulevaFund> funds, LocalTime cutoffTime) {
     log.info("Starting position calculation: funds={}", funds);
 
     try {
-      List<PositionCalculation> calculations = calculationService.calculateForLatestDate(funds);
+      List<PositionCalculation> calculations =
+          calculationService.calculateForLatestDate(funds, cutoffTime);
       persistenceService.saveAll(calculations);
 
       notifyIssues(calculations);

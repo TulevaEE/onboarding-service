@@ -172,7 +172,7 @@ class FeeCalculationIntegrationTest {
         .sql(
             """
             INSERT INTO investment_fund_position
-            (reporting_date, fund_code, account_type, account_name, market_value, currency, created_at)
+            (nav_date, fund_code, account_type, account_name, market_value, currency, created_at)
             VALUES (:date, :fundCode, 'CASH', 'Test cash', :marketValue, 'EUR', now())
             """)
         .param("date", date)

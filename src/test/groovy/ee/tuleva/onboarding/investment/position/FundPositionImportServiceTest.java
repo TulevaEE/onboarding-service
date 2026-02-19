@@ -28,8 +28,7 @@ class FundPositionImportServiceTest {
   @Test
   void importPositions_savesNewPositions() {
     FundPosition position = createPosition(TUK75, "Asset 1");
-    when(repository.existsByReportingDateAndFundAndAccountName(any(), any(), any()))
-        .thenReturn(false);
+    when(repository.existsByNavDateAndFundAndAccountName(any(), any(), any())).thenReturn(false);
 
     int imported = service.importPositions(List.of(position));
 
@@ -40,8 +39,8 @@ class FundPositionImportServiceTest {
   @Test
   void importPositions_skipsExistingPositions() {
     FundPosition position = createPosition(TUK75, "Asset 1");
-    when(repository.existsByReportingDateAndFundAndAccountName(
-            position.getReportingDate(), position.getFund(), position.getAccountName()))
+    when(repository.existsByNavDateAndFundAndAccountName(
+            position.getNavDate(), position.getFund(), position.getAccountName()))
         .thenReturn(true);
 
     int imported = service.importPositions(List.of(position));
@@ -55,11 +54,11 @@ class FundPositionImportServiceTest {
     FundPosition existing = createPosition(TUK75, "Existing Asset");
     FundPosition newPosition = createPosition(TUK00, "New Asset");
 
-    when(repository.existsByReportingDateAndFundAndAccountName(
-            existing.getReportingDate(), existing.getFund(), existing.getAccountName()))
+    when(repository.existsByNavDateAndFundAndAccountName(
+            existing.getNavDate(), existing.getFund(), existing.getAccountName()))
         .thenReturn(true);
-    when(repository.existsByReportingDateAndFundAndAccountName(
-            newPosition.getReportingDate(), newPosition.getFund(), newPosition.getAccountName()))
+    when(repository.existsByNavDateAndFundAndAccountName(
+            newPosition.getNavDate(), newPosition.getFund(), newPosition.getAccountName()))
         .thenReturn(false);
 
     int imported = service.importPositions(List.of(existing, newPosition));
@@ -79,7 +78,7 @@ class FundPositionImportServiceTest {
 
   private FundPosition createPosition(TulevaFund fund, String accountName) {
     return FundPosition.builder()
-        .reportingDate(LocalDate.of(2026, 1, 6))
+        .navDate(LocalDate.of(2026, 1, 6))
         .fund(fund)
         .accountType(SECURITY)
         .accountName(accountName)

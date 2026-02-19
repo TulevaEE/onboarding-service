@@ -70,8 +70,7 @@ class TransactionInputServiceTest {
             .accountType(CASH)
             .marketValue(new BigDecimal("100000"))
             .build();
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(
-            positionDate, TUV100, CASH))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of(cashPosition));
 
     when(feeAccrualRepository.getAccruedFeesForMonth(
@@ -135,8 +134,7 @@ class TransactionInputServiceTest {
         .thenReturn(Optional.of(positionDate));
     when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
         .thenReturn(List.of());
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(
-            positionDate, TUV100, CASH))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
     when(feeAccrualRepository.getAccruedFeesForMonth(
             eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
@@ -158,8 +156,7 @@ class TransactionInputServiceTest {
         .thenReturn(Optional.of(positionDate));
     when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
         .thenReturn(List.of());
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(
-            positionDate, TUV100, CASH))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
     when(feeAccrualRepository.getAccruedFeesForMonth(
             eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
@@ -197,8 +194,7 @@ class TransactionInputServiceTest {
         .thenReturn(Optional.of(positionDate));
     when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
         .thenReturn(List.of());
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(
-            positionDate, TUV100, CASH))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
     when(feeAccrualRepository.getAccruedFeesForMonth(
             eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
@@ -257,8 +253,7 @@ class TransactionInputServiceTest {
             .accountType(CASH)
             .marketValue(new BigDecimal("200000"))
             .build();
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(
-            positionDate, TKF100, CASH))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TKF100, CASH))
         .thenReturn(List.of(cashPosition));
 
     when(feeAccrualRepository.getAccruedFeesForMonth(
@@ -293,8 +288,7 @@ class TransactionInputServiceTest {
         .thenReturn(Optional.of(positionDate));
     when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
         .thenReturn(List.of());
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(
-            positionDate, TUV100, CASH))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
     when(feeAccrualRepository.getAccruedFeesForMonth(
             eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
@@ -317,8 +311,7 @@ class TransactionInputServiceTest {
         .thenReturn(Optional.of(positionDate));
     when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
         .thenReturn(List.of());
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(
-            positionDate, TUV100, CASH))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
     when(feeAccrualRepository.getAccruedFeesForMonth(
             eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
@@ -346,8 +339,7 @@ class TransactionInputServiceTest {
         .thenReturn(Optional.of(positionDate));
     when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
         .thenReturn(List.of());
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(
-            positionDate, TUV100, CASH))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
     when(feeAccrualRepository.getAccruedFeesForMonth(
             eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
@@ -387,8 +379,7 @@ class TransactionInputServiceTest {
     when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
         .thenReturn(List.of(positionWithValue, positionWithoutValue));
 
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(
-            positionDate, TUV100, CASH))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
     when(feeAccrualRepository.getAccruedFeesForMonth(
             eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
@@ -411,8 +402,7 @@ class TransactionInputServiceTest {
         .thenReturn(Optional.of(positionDate));
     when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
         .thenReturn(List.of());
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(
-            positionDate, TUV100, CASH))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
     when(feeAccrualRepository.getAccruedFeesForMonth(
             eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
@@ -434,8 +424,7 @@ class TransactionInputServiceTest {
         .thenReturn(Optional.of(positionDate));
     when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
         .thenReturn(List.of());
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(
-            positionDate, TUV100, CASH))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
     when(feeAccrualRepository.getAccruedFeesForMonth(
             eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
@@ -472,8 +461,7 @@ class TransactionInputServiceTest {
         .thenReturn(Optional.of(positionDate));
     when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
         .thenReturn(List.of());
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(
-            positionDate, TUV100, CASH))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(
             List.of(
                 FundPosition.builder()

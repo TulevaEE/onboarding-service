@@ -108,48 +108,46 @@ class FundPositionRepositoryTest {
   }
 
   @Test
-  void findLatestReportingDateByFundAndAsOfDate_returnsExactDate() {
+  void findLatestNavDateByFundAndAsOfDate_returnsExactDate() {
     LocalDate reportingDate = LocalDate.of(2025, 1, 15);
     savePosition(TUV100, "IE00TEST1234", reportingDate, new BigDecimal("5000000.00"));
 
-    var result =
-        fundPositionRepository.findLatestReportingDateByFundAndAsOfDate(TUV100, reportingDate);
+    var result = fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, reportingDate);
 
     assertThat(result).isPresent();
     assertThat(result.get()).isEqualTo(reportingDate);
   }
 
   @Test
-  void findLatestReportingDateByFundAndAsOfDate_returnsLatestDateBeforeAsOfDate() {
+  void findLatestNavDateByFundAndAsOfDate_returnsLatestDateBeforeAsOfDate() {
     LocalDate friday = LocalDate.of(2025, 1, 17);
     LocalDate saturday = LocalDate.of(2025, 1, 18);
     savePosition(TUV100, "IE00TEST1234", friday, new BigDecimal("5000000.00"));
 
-    var result = fundPositionRepository.findLatestReportingDateByFundAndAsOfDate(TUV100, saturday);
+    var result = fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, saturday);
 
     assertThat(result).isPresent();
     assertThat(result.get()).isEqualTo(friday);
   }
 
   @Test
-  void findLatestReportingDateByFundAndAsOfDate_returnsEmptyWhenNoDataBeforeDate() {
+  void findLatestNavDateByFundAndAsOfDate_returnsEmptyWhenNoDataBeforeDate() {
     LocalDate reportingDate = LocalDate.of(2025, 1, 15);
     savePosition(TUV100, "IE00TEST1234", reportingDate, new BigDecimal("5000000.00"));
 
     var result =
-        fundPositionRepository.findLatestReportingDateByFundAndAsOfDate(
+        fundPositionRepository.findLatestNavDateByFundAndAsOfDate(
             TUV100, LocalDate.of(2025, 1, 14));
 
     assertThat(result).isEmpty();
   }
 
   @Test
-  void findLatestReportingDateByFundAndAsOfDate_filtersByFund() {
+  void findLatestNavDateByFundAndAsOfDate_filtersByFund() {
     LocalDate reportingDate = LocalDate.of(2025, 1, 15);
     savePosition(TUK75, "IE00TEST1234", reportingDate, new BigDecimal("5000000.00"));
 
-    var result =
-        fundPositionRepository.findLatestReportingDateByFundAndAsOfDate(TUV100, reportingDate);
+    var result = fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, reportingDate);
 
     assertThat(result).isEmpty();
   }
@@ -160,7 +158,7 @@ class FundPositionRepositoryTest {
         FundPosition.builder()
             .fund(fund)
             .accountId(accountId)
-            .reportingDate(reportingDate)
+            .navDate(reportingDate)
             .marketValue(marketValue)
             .accountType(AccountType.SECURITY)
             .accountName("Position " + accountId)

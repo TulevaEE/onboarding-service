@@ -129,7 +129,7 @@ class NavPipelineIntegrationTest {
 
     fundPositionRepository.save(
         FundPosition.builder()
-            .reportingDate(date)
+            .navDate(date)
             .fund(TKF100)
             .accountType(CASH)
             .accountName("Cash")
@@ -181,7 +181,7 @@ class NavPipelineIntegrationTest {
     LocalDate feb2 = LocalDate.of(2026, 2, 2);
     fundPositionRepository.save(
         FundPosition.builder()
-            .reportingDate(feb2)
+            .navDate(feb2)
             .fund(TKF100)
             .accountType(CASH)
             .accountName("Cash account in SEB Pank")
@@ -360,7 +360,7 @@ class NavPipelineIntegrationTest {
 
   private void recordPositionsToLedger(NavCsvData navData) {
     var securityPositions =
-        fundPositionRepository.findByReportingDateAndFundAndAccountType(
+        fundPositionRepository.findByNavDateAndFundAndAccountType(
             navData.navDate, TKF100, SECURITY);
     Map<String, BigDecimal> securitiesUnits =
         securityPositions.stream()
@@ -467,7 +467,7 @@ class NavPipelineIntegrationTest {
           data.cashPosition = marketValue;
           data.positions.add(
               FundPosition.builder()
-                  .reportingDate(data.navDate)
+                  .navDate(data.navDate)
                   .fund(TKF100)
                   .accountType(CASH)
                   .accountName(accountName)
@@ -482,7 +482,7 @@ class NavPipelineIntegrationTest {
           data.securitiesTotal = data.securitiesTotal.add(marketValue);
           data.positions.add(
               FundPosition.builder()
-                  .reportingDate(data.navDate)
+                  .navDate(data.navDate)
                   .fund(TKF100)
                   .accountType(SECURITY)
                   .accountName(accountName)
@@ -500,7 +500,7 @@ class NavPipelineIntegrationTest {
           }
           data.positions.add(
               FundPosition.builder()
-                  .reportingDate(data.navDate)
+                  .navDate(data.navDate)
                   .fund(TKF100)
                   .accountType(RECEIVABLES)
                   .accountName(accountName)
@@ -517,7 +517,7 @@ class NavPipelineIntegrationTest {
           }
           data.positions.add(
               FundPosition.builder()
-                  .reportingDate(data.navDate)
+                  .navDate(data.navDate)
                   .fund(TKF100)
                   .accountType(LIABILITY)
                   .accountName(accountName)

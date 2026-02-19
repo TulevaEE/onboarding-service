@@ -44,7 +44,7 @@ class NavLedgerReconciliationTest {
             Map.of(
                 "IE00BFG1TM61", new BigDecimal("1000.00000"),
                 "IE00BMDBMY19", new BigDecimal("500.00000")));
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(date, TKF100, SECURITY))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(date, TKF100, SECURITY))
         .thenReturn(
             List.of(
                 securityPosition("IE00BFG1TM61", new BigDecimal("1000.00000")),
@@ -52,17 +52,17 @@ class NavLedgerReconciliationTest {
 
     when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName()))
         .thenReturn(new BigDecimal("50000.00"));
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(date, TKF100, CASH))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(date, TKF100, CASH))
         .thenReturn(List.of(position(new BigDecimal("50000.00"))));
 
     when(navLedgerRepository.getSystemAccountBalance(TRADE_RECEIVABLES.getAccountName()))
         .thenReturn(new BigDecimal("1000.00"));
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(date, TKF100, RECEIVABLES))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(date, TKF100, RECEIVABLES))
         .thenReturn(List.of(position(new BigDecimal("1000.00"))));
 
     when(navLedgerRepository.getSystemAccountBalance(TRADE_PAYABLES.getAccountName()))
         .thenReturn(new BigDecimal("-500.00"));
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(date, TKF100, LIABILITY))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(date, TKF100, LIABILITY))
         .thenReturn(List.of(position(new BigDecimal("-500.00"))));
 
     when(navLedgerRepository.getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL.getAccountName()))
@@ -87,22 +87,22 @@ class NavLedgerReconciliationTest {
 
     when(navLedgerRepository.getSecuritiesUnitBalances())
         .thenReturn(Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")));
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(date, TKF100, SECURITY))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(date, TKF100, SECURITY))
         .thenReturn(List.of(securityPosition("IE00BFG1TM61", new BigDecimal("1100.00000"))));
 
     when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName()))
         .thenReturn(ZERO);
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(date, TKF100, CASH))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(date, TKF100, CASH))
         .thenReturn(List.of());
 
     when(navLedgerRepository.getSystemAccountBalance(TRADE_RECEIVABLES.getAccountName()))
         .thenReturn(ZERO);
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(date, TKF100, RECEIVABLES))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(date, TKF100, RECEIVABLES))
         .thenReturn(List.of());
 
     when(navLedgerRepository.getSystemAccountBalance(TRADE_PAYABLES.getAccountName()))
         .thenReturn(ZERO);
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(date, TKF100, LIABILITY))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(date, TKF100, LIABILITY))
         .thenReturn(List.of());
 
     when(navLedgerRepository.getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL.getAccountName()))
@@ -129,22 +129,22 @@ class NavLedgerReconciliationTest {
 
     when(navLedgerRepository.getSecuritiesUnitBalances())
         .thenReturn(Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")));
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(date, TKF100, SECURITY))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(date, TKF100, SECURITY))
         .thenReturn(List.of(securityPosition("IE00BFG1TM61", new BigDecimal("1100.00000"))));
 
     when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName()))
         .thenReturn(new BigDecimal("50000.00"));
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(date, TKF100, CASH))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(date, TKF100, CASH))
         .thenReturn(List.of(position(new BigDecimal("55000.00"))));
 
     when(navLedgerRepository.getSystemAccountBalance(TRADE_RECEIVABLES.getAccountName()))
         .thenReturn(ZERO);
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(date, TKF100, RECEIVABLES))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(date, TKF100, RECEIVABLES))
         .thenReturn(List.of());
 
     when(navLedgerRepository.getSystemAccountBalance(TRADE_PAYABLES.getAccountName()))
         .thenReturn(ZERO);
-    when(fundPositionRepository.findByReportingDateAndFundAndAccountType(date, TKF100, LIABILITY))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(date, TKF100, LIABILITY))
         .thenReturn(List.of());
 
     when(navLedgerRepository.getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL.getAccountName()))

@@ -130,7 +130,7 @@ public class TransactionInputService {
 
   private BigDecimal getCashBalance(TulevaFund fund, LocalDate date) {
     List<FundPosition> cashPositions =
-        fundPositionRepository.findByReportingDateAndFundAndAccountType(date, fund, CASH);
+        fundPositionRepository.findByNavDateAndFundAndAccountType(date, fund, CASH);
     return cashPositions.stream()
         .map(FundPosition::getMarketValue)
         .filter(Objects::nonNull)

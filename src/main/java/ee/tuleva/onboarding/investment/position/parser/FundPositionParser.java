@@ -8,4 +8,9 @@ import java.util.Map;
 public interface FundPositionParser {
 
   List<FundPosition> parse(List<Map<String, Object>> rawData, LocalDate reportDate);
+
+  default List<FundPosition> parse(
+      List<Map<String, Object>> rawData, LocalDate reportDate, Map<String, Object> metadata) {
+    return parse(rawData, reportDate);
+  }
 }

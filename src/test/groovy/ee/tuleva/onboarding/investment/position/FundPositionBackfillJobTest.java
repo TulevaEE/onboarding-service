@@ -73,7 +73,8 @@ class FundPositionBackfillJobTest {
         .thenReturn(List.of(sebReport));
     when(reportRepository.findAllByProviderAndReportType(SWEDBANK, POSITIONS))
         .thenReturn(List.of());
-    when(sebParser.parse(sebReport.getRawData(), sebReport.getReportDate()))
+    when(sebParser.parse(
+            sebReport.getRawData(), sebReport.getReportDate(), sebReport.getMetadata()))
         .thenReturn(List.of(parsedPosition));
     when(positionRepository.findByNavDateAndFundAndAccountName(
             REPORT_DATE, TKF100, "Cash account in SEB Pank"))
@@ -155,7 +156,8 @@ class FundPositionBackfillJobTest {
         .thenReturn(List.of(sebReport));
     when(reportRepository.findAllByProviderAndReportType(SWEDBANK, POSITIONS))
         .thenReturn(List.of());
-    when(sebParser.parse(sebReport.getRawData(), sebReport.getReportDate()))
+    when(sebParser.parse(
+            sebReport.getRawData(), sebReport.getReportDate(), sebReport.getMetadata()))
         .thenReturn(List.of(parsedPosition));
     when(positionRepository.findByNavDateAndFundAndAccountName(any(), any(), any()))
         .thenReturn(null);
@@ -189,7 +191,8 @@ class FundPositionBackfillJobTest {
         .thenReturn(List.of(sebReport));
     when(reportRepository.findAllByProviderAndReportType(SWEDBANK, POSITIONS))
         .thenReturn(List.of());
-    when(sebParser.parse(sebReport.getRawData(), sebReport.getReportDate()))
+    when(sebParser.parse(
+            sebReport.getRawData(), sebReport.getReportDate(), sebReport.getMetadata()))
         .thenReturn(List.of(parsedPosition));
     when(positionRepository.findByNavDateAndFundAndAccountName(REPORT_DATE, TKF100, "Cash account"))
         .thenReturn(null);

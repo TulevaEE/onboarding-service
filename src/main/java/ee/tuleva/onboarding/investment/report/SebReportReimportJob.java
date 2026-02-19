@@ -4,8 +4,12 @@ import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 
 import ee.tuleva.onboarding.investment.position.FundPositionBackfillJob;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +30,7 @@ public class SebReportReimportJob {
   private final InvestmentReportService reportService;
   private final FundPositionBackfillJob backfillJob;
 
-  @Scheduled(cron = "0 35 16 19 2 *", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 15 17 19 2 *", zone = "Europe/Tallinn")
   @SchedulerLock(name = "SebReportReimportJob", lockAtMostFor = "55m", lockAtLeastFor = "4m")
   @Transactional
   public void reimportAndBackfill() {
@@ -44,15 +48,24 @@ public class SebReportReimportJob {
         continue;
       }
 
-      reportService.saveReport(
-          SEB,
-          POSITIONS,
-          report.getReportDate(),
-          stream.get(),
-          sebReportSource.getCsvDelimiter(),
-          sebReportSource.getHeaderRowIndex(),
-          report.getMetadata());
-      reimported++;
+      try {
+        byte[] csvBytes = stream.get().readAllBytes();
+
+        Map<String, Object> metadata = new HashMap<>(report.getMetadata());
+        metadata.putAll(sebReportSource.extractCsvMetadata(csvBytes));
+
+        reportService.saveReport(
+            SEB,
+            POSITIONS,
+            report.getReportDate(),
+            new ByteArrayInputStream(csvBytes),
+            sebReportSource.getCsvDelimiter(),
+            sebReportSource.getHeaderRowIndex(),
+            metadata);
+        reimported++;
+      } catch (IOException e) {
+        log.error("Failed to read CSV for SEB report: reportDate={}", report.getReportDate(), e);
+      }
     }
 
     log.info("SEB report reimport completed: reimported={}", reimported);

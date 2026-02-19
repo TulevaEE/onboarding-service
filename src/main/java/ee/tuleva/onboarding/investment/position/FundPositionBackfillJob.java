@@ -82,7 +82,8 @@ public class FundPositionBackfillJob {
 
   private List<FundPosition> parseReport(InvestmentReport report, ReportProvider provider) {
     return switch (provider) {
-      case SEB -> sebParser.parse(report.getRawData(), report.getReportDate());
+      case SEB ->
+          sebParser.parse(report.getRawData(), report.getReportDate(), report.getMetadata());
       case SWEDBANK -> swedbankParser.parse(report.getRawData(), report.getReportDate());
     };
   }

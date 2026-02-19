@@ -13,6 +13,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -126,5 +127,42 @@ class ReportSourceTest {
   void abstractSource_getBucket_returnsBucketName() {
     SwedbankReportSource source = new SwedbankReportSource(s3Client);
     assertThat(source.getBucket()).isEqualTo("tuleva-investment-reports");
+  }
+
+  @Test
+  void sebSource_extractCsvMetadata_extractsSentAndAsOfDates() {
+    SebReportSource source = new SebReportSource(s3Client);
+    String csv =
+        "Sent:;2026-01-26;;;;\n"
+            + "As of:;2026-01-25;;;;\n"
+            + "Fund name:;TKF100;;;;\n"
+            + "Fund Management Company:;Tuleva Fondid AS;;;;\n"
+            + "\n"
+            + "Client name;Account;ISIN;Name;Quantity\n"
+            + "TKF100;EE123;;Cash;1000\n";
+
+    Map<String, Object> metadata = source.extractCsvMetadata(csv.getBytes(StandardCharsets.UTF_8));
+
+    assertThat(metadata).isEqualTo(Map.of("sentDate", "2026-01-26", "asOfDate", "2026-01-25"));
+  }
+
+  @Test
+  void sebSource_extractCsvMetadata_returnsEmptyMapWhenNoDatesFound() {
+    SebReportSource source = new SebReportSource(s3Client);
+    String csv = "Client name;Account\nTKF100;EE123\n";
+
+    Map<String, Object> metadata = source.extractCsvMetadata(csv.getBytes(StandardCharsets.UTF_8));
+
+    assertThat(metadata).isEmpty();
+  }
+
+  @Test
+  void swedbankSource_extractCsvMetadata_returnsEmptyMap() {
+    SwedbankReportSource source = new SwedbankReportSource(s3Client);
+
+    Map<String, Object> metadata =
+        source.extractCsvMetadata("some;csv;data".getBytes(StandardCharsets.UTF_8));
+
+    assertThat(metadata).isEmpty();
   }
 }

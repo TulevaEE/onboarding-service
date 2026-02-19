@@ -207,6 +207,60 @@ class SebFundPositionParserTest {
   }
 
   @Test
+  void parse_extractsDatesFromMetadata() {
+    List<Map<String, Object>> rawData =
+        List.of(
+            Map.of(
+                "Client name", "TKF100",
+                "Account", "EE861010220306591229",
+                "Name", "Cash account in SEB Pank",
+                "Quantity", new BigDecimal("1000"),
+                "Currency", "EUR",
+                "Market Value (EUR)", new BigDecimal("1000")));
+
+    Map<String, Object> metadata = Map.of("sentDate", "2026-01-26", "asOfDate", "2026-01-25");
+
+    List<FundPosition> positions = parser.parse(rawData, REPORT_DATE, metadata);
+
+    assertThat(positions).hasSize(1);
+    FundPosition position = positions.getFirst();
+    assertThat(position.getNavDate()).isEqualTo(NAV_DATE);
+    assertThat(position.getReportDate()).isEqualTo(REPORT_DATE);
+  }
+
+  @Test
+  void parse_metadataTakesPrecedenceOverRawDataHeaders() {
+    Map<String, Object> sentRow = new HashMap<>();
+    sentRow.put("Tuleva Fondid AS", "2026-01-20");
+    sentRow.put("Fund Management Company:", "Sent:");
+
+    Map<String, Object> asOfRow = new HashMap<>();
+    asOfRow.put("Tuleva Fondid AS", "2026-01-19");
+    asOfRow.put("Fund Management Company:", "As of:");
+
+    List<Map<String, Object>> rawData =
+        List.of(
+            sentRow,
+            asOfRow,
+            Map.of(
+                "Client name", "TKF100",
+                "Account", "EE861010220306591229",
+                "Name", "Cash account",
+                "Quantity", new BigDecimal("1000"),
+                "Currency", "EUR",
+                "Market Value (EUR)", new BigDecimal("1000")));
+
+    Map<String, Object> metadata = Map.of("sentDate", "2026-01-26", "asOfDate", "2026-01-25");
+
+    List<FundPosition> positions = parser.parse(rawData, REPORT_DATE, metadata);
+
+    assertThat(positions).hasSize(1);
+    FundPosition position = positions.getFirst();
+    assertThat(position.getNavDate()).isEqualTo(NAV_DATE);
+    assertThat(position.getReportDate()).isEqualTo(REPORT_DATE);
+  }
+
+  @Test
   void parse_fallsBackToReportDateWhenNoHeaders() {
     List<Map<String, Object>> rawData =
         List.of(

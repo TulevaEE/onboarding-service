@@ -2,10 +2,12 @@ package ee.tuleva.onboarding.investment.report;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.*;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -77,18 +79,20 @@ public class ReportImportJob {
     }
 
     try (InputStream csvStream = stream.get()) {
-      Map<String, Object> metadata =
-          Map.of(
-              "s3Bucket", source.getBucket(),
-              "s3Key", source.getKey(reportType, date),
-              "importTimestamp", Instant.now().toString());
+      byte[] csvBytes = csvStream.readAllBytes();
+
+      Map<String, Object> metadata = new HashMap<>();
+      metadata.put("s3Bucket", source.getBucket());
+      metadata.put("s3Key", source.getKey(reportType, date));
+      metadata.put("importTimestamp", Instant.now().toString());
+      metadata.putAll(source.extractCsvMetadata(csvBytes));
 
       InvestmentReport report =
           reportService.saveReport(
               provider,
               reportType,
               date,
-              csvStream,
+              new ByteArrayInputStream(csvBytes),
               source.getCsvDelimiter(),
               source.getHeaderRowIndex(),
               metadata);

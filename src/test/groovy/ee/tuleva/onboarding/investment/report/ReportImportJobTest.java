@@ -10,6 +10,7 @@ import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,7 @@ class ReportImportJobTest {
             Optional.of(new ByteArrayInputStream(SAMPLE_CSV.getBytes(StandardCharsets.UTF_8))));
     when(source.getBucket()).thenReturn("tuleva-investment-reports");
     when(source.getKey(POSITIONS, date)).thenReturn("portfolio/2026-01-15.csv");
+    when(source.extractCsvMetadata(any())).thenReturn(Map.of());
 
     job.importForDate(date);
 

@@ -35,8 +35,21 @@ public class SebFundPositionParser implements FundPositionParser {
 
   @Override
   public List<FundPosition> parse(List<Map<String, Object>> rawData, LocalDate reportDate) {
-    LocalDate navDate = extractHeaderDate(rawData, "As of:");
-    LocalDate sentDate = extractHeaderDate(rawData, "Sent:");
+    return parse(rawData, reportDate, Map.of());
+  }
+
+  @Override
+  public List<FundPosition> parse(
+      List<Map<String, Object>> rawData, LocalDate reportDate, Map<String, Object> metadata) {
+    LocalDate navDate = extractMetadataDate(metadata, "asOfDate");
+    LocalDate sentDate = extractMetadataDate(metadata, "sentDate");
+
+    if (navDate == null) {
+      navDate = extractHeaderDate(rawData, "As of:");
+    }
+    if (sentDate == null) {
+      sentDate = extractHeaderDate(rawData, "Sent:");
+    }
 
     if (navDate == null) {
       log.warn("No 'As of' date found in SEB data, falling back to report date");
@@ -53,6 +66,19 @@ public class SebFundPositionParser implements FundPositionParser {
         .map(row -> parseRow(row, effectiveNavDate, effectiveReportDate))
         .flatMap(Optional::stream)
         .toList();
+  }
+
+  private LocalDate extractMetadataDate(Map<String, Object> metadata, String key) {
+    Object value = metadata.get(key);
+    if (value == null) {
+      return null;
+    }
+    try {
+      return LocalDate.parse(value.toString());
+    } catch (Exception e) {
+      log.warn("Failed to parse metadata date: key={}, value={}", key, value);
+      return null;
+    }
   }
 
   private LocalDate extractHeaderDate(List<Map<String, Object>> rawData, String headerLabel) {

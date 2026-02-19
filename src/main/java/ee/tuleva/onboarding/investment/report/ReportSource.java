@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.report;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public interface ReportSource {
@@ -23,5 +24,9 @@ public interface ReportSource {
 
   default int getHeaderRowIndex() {
     return 0;
+  }
+
+  default Map<String, Object> extractCsvMetadata(byte[] csvBytes) {
+    return Map.of();
   }
 }

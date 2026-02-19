@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.report;
 
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.investment.position.FundPositionBackfillJob;
@@ -31,7 +32,8 @@ class SebReportReimportJobTest {
   private static final LocalDate REPORT_DATE = LocalDate.of(2026, 1, 26);
 
   @Test
-  void reimportAndBackfill_reimportsSebReportsAndTriggersBackfill() {
+  void reimportAndBackfill_extractsMetadataAndReimports() {
+    byte[] csvBytes = "Sent:;2026-01-26\nAs of:;2026-01-25\ndata".getBytes();
     InvestmentReport existingReport =
         InvestmentReport.builder()
             .provider(SEB)
@@ -42,18 +44,33 @@ class SebReportReimportJobTest {
             .createdAt(Instant.now())
             .build();
 
-    InputStream csvStream = new ByteArrayInputStream("header;data\nval1;val2".getBytes());
-
     when(reportRepository.findAllByProviderAndReportType(SEB, POSITIONS))
         .thenReturn(List.of(existingReport));
-    when(sebReportSource.fetch(POSITIONS, REPORT_DATE)).thenReturn(Optional.of(csvStream));
+    when(sebReportSource.fetch(POSITIONS, REPORT_DATE))
+        .thenReturn(Optional.of(new ByteArrayInputStream(csvBytes)));
+    when(sebReportSource.extractCsvMetadata(csvBytes))
+        .thenReturn(Map.of("sentDate", "2026-01-26", "asOfDate", "2026-01-25"));
     when(sebReportSource.getCsvDelimiter()).thenReturn(';');
-    when(sebReportSource.getHeaderRowIndex()).thenReturn(0);
+    when(sebReportSource.getHeaderRowIndex()).thenReturn(5);
 
     job.reimportAndBackfill();
 
     verify(reportService)
-        .saveReport(SEB, POSITIONS, REPORT_DATE, csvStream, ';', 0, existingReport.getMetadata());
+        .saveReport(
+            eq(SEB),
+            eq(POSITIONS),
+            eq(REPORT_DATE),
+            any(InputStream.class),
+            eq(';'),
+            eq(5),
+            eq(
+                Map.of(
+                    "s3Bucket",
+                    "tuleva-investment-reports",
+                    "sentDate",
+                    "2026-01-26",
+                    "asOfDate",
+                    "2026-01-25")));
     verify(backfillJob).backfillDates();
   }
 

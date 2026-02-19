@@ -41,6 +41,6 @@ public class SebReportSource extends AbstractReportSource {
 
   @Override
   public int getHeaderRowIndex() {
-    return 5;
+    return 0;
   }
 }

@@ -3,10 +3,15 @@ package ee.tuleva.onboarding.investment.report;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 
+import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.calculation.PositionCalculationPersistenceService;
+import ee.tuleva.onboarding.investment.calculation.PositionCalculationService;
 import ee.tuleva.onboarding.investment.position.FundPositionBackfillJob;
+import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,8 +34,11 @@ public class SebReportReimportJob {
   private final SebReportSource sebReportSource;
   private final InvestmentReportService reportService;
   private final FundPositionBackfillJob backfillJob;
+  private final FundPositionRepository positionRepository;
+  private final PositionCalculationService calculationService;
+  private final PositionCalculationPersistenceService calculationPersistenceService;
 
-  @Scheduled(cron = "0 25 17 19 2 *", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 20 18 19 2 *", zone = "Europe/Tallinn")
   @SchedulerLock(name = "SebReportReimportJob", lockAtMostFor = "55m", lockAtLeastFor = "4m")
   @Transactional
   public void reimportAndBackfill() {
@@ -71,5 +79,25 @@ public class SebReportReimportJob {
     log.info("SEB report reimport completed: reimported={}", reimported);
 
     backfillJob.backfillDates();
+
+    recalculateAllPositions();
+  }
+
+  private void recalculateAllPositions() {
+    log.info("Starting position recalculation for all funds");
+
+    int totalRecalculated = 0;
+    for (TulevaFund fund : TulevaFund.values()) {
+      List<LocalDate> navDates = positionRepository.findDistinctNavDatesByFund(fund);
+      log.info("Recalculating positions: fund={}, dateCount={}", fund, navDates.size());
+
+      for (LocalDate date : navDates) {
+        var calculations = calculationService.calculate(fund, date);
+        calculationPersistenceService.saveAll(calculations);
+        totalRecalculated += calculations.size();
+      }
+    }
+
+    log.info("Position recalculation completed: totalRecalculated={}", totalRecalculated);
   }
 }

@@ -23,6 +23,10 @@ public interface FundPositionRepository extends JpaRepository<FundPosition, Long
   Optional<LocalDate> findLatestNavDateByFund(TulevaFund fund);
 
   @Query(
+      "SELECT DISTINCT fp.navDate FROM FundPosition fp WHERE fp.fund = :fund ORDER BY fp.navDate")
+  List<LocalDate> findDistinctNavDatesByFund(TulevaFund fund);
+
+  @Query(
       """
       SELECT fp.marketValue FROM FundPosition fp
       WHERE fp.fund = :fund AND fp.accountId = :accountId AND fp.navDate <= :asOfDate

@@ -1,11 +1,16 @@
 package ee.tuleva.onboarding.investment.report;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.investment.calculation.PositionCalculation;
+import ee.tuleva.onboarding.investment.calculation.PositionCalculationPersistenceService;
+import ee.tuleva.onboarding.investment.calculation.PositionCalculationService;
 import ee.tuleva.onboarding.investment.position.FundPositionBackfillJob;
+import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.time.Instant;
@@ -26,13 +31,17 @@ class SebReportReimportJobTest {
   @Mock private SebReportSource sebReportSource;
   @Mock private InvestmentReportService reportService;
   @Mock private FundPositionBackfillJob backfillJob;
+  @Mock private FundPositionRepository positionRepository;
+  @Mock private PositionCalculationService calculationService;
+  @Mock private PositionCalculationPersistenceService calculationPersistenceService;
 
   @InjectMocks private SebReportReimportJob job;
 
   private static final LocalDate REPORT_DATE = LocalDate.of(2026, 1, 26);
+  private static final LocalDate NAV_DATE = LocalDate.of(2026, 1, 25);
 
   @Test
-  void reimportAndBackfill_extractsMetadataAndReimports() {
+  void reimportAndBackfill_extractsMetadataReimportsAndRecalculates() {
     byte[] csvBytes = "Sent:;2026-01-26\nAs of:;2026-01-25\ndata".getBytes();
     InvestmentReport existingReport =
         InvestmentReport.builder()
@@ -53,6 +62,14 @@ class SebReportReimportJobTest {
     when(sebReportSource.getCsvDelimiter()).thenReturn(';');
     when(sebReportSource.getHeaderRowIndex()).thenReturn(5);
 
+    when(positionRepository.findDistinctNavDatesByFund(TUK75)).thenReturn(List.of(NAV_DATE));
+    when(positionRepository.findDistinctNavDatesByFund(argThat(fund -> fund != TUK75)))
+        .thenReturn(List.of());
+
+    var calculation =
+        PositionCalculation.builder().isin("US1234567890").fund(TUK75).date(NAV_DATE).build();
+    when(calculationService.calculate(TUK75, NAV_DATE)).thenReturn(List.of(calculation));
+
     job.reimportAndBackfill();
 
     verify(reportService)
@@ -72,6 +89,8 @@ class SebReportReimportJobTest {
                     "asOfDate",
                     "2026-01-25")));
     verify(backfillJob).backfillDates();
+    verify(calculationService).calculate(TUK75, NAV_DATE);
+    verify(calculationPersistenceService).saveAll(List.of(calculation));
   }
 
   @Test
@@ -89,6 +108,7 @@ class SebReportReimportJobTest {
     when(reportRepository.findAllByProviderAndReportType(SEB, POSITIONS))
         .thenReturn(List.of(existingReport));
     when(sebReportSource.fetch(POSITIONS, REPORT_DATE)).thenReturn(Optional.empty());
+    when(positionRepository.findDistinctNavDatesByFund(any())).thenReturn(List.of());
 
     job.reimportAndBackfill();
 
@@ -100,6 +120,7 @@ class SebReportReimportJobTest {
   @Test
   void reimportAndBackfill_handlesNoReports() {
     when(reportRepository.findAllByProviderAndReportType(SEB, POSITIONS)).thenReturn(List.of());
+    when(positionRepository.findDistinctNavDatesByFund(any())).thenReturn(List.of());
 
     job.reimportAndBackfill();
 

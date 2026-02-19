@@ -10,8 +10,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.investment.calculation.PositionCalculationRepository;
-import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -27,10 +25,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ManagementFeeCalculatorTest {
 
   @Mock private FeeRateRepository feeRateRepository;
-  @Mock private PositionCalculationRepository positionCalculationRepository;
+  @Mock private FundAumResolver fundAumResolver;
   @Mock private FeeAccrualRepository feeAccrualRepository;
   @Mock private FeeMonthResolver feeMonthResolver;
-  @Mock private FundPositionRepository fundPositionRepository;
 
   @InjectMocks private ManagementFeeCalculator calculator;
 
@@ -44,10 +41,8 @@ class ManagementFeeCalculatorTest {
     BigDecimal annualRate = new BigDecimal("0.00215");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(positionCalculationRepository.getLatestDateUpTo(TUK75, date))
-        .thenReturn(Optional.of(date));
-    when(positionCalculationRepository.getTotalMarketValue(TUK75, date))
-        .thenReturn(Optional.of(positionValue));
+    when(fundAumResolver.resolveReferenceDate(TUK75, date)).thenReturn(date);
+    when(fundAumResolver.resolveBaseValue(TUK75, date)).thenReturn(positionValue);
     when(feeAccrualRepository.getAccruedFeesForMonth(
             TUK75, feeMonth, List.of(MANAGEMENT, DEPOT), date))
         .thenReturn(accruedFees);
@@ -77,7 +72,7 @@ class ManagementFeeCalculatorTest {
     LocalDate feeMonth = LocalDate.of(2025, 1, 1);
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(positionCalculationRepository.getLatestDateUpTo(TUK75, date)).thenReturn(Optional.empty());
+    when(fundAumResolver.resolveReferenceDate(TUK75, date)).thenReturn(null);
 
     FeeAccrual result = calculator.calculate(TUK75, date);
 
@@ -94,10 +89,8 @@ class ManagementFeeCalculatorTest {
     LocalDate feeMonth = LocalDate.of(2025, 1, 1);
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(positionCalculationRepository.getLatestDateUpTo(TUK75, date))
-        .thenReturn(Optional.of(date));
-    when(positionCalculationRepository.getTotalMarketValue(TUK75, date))
-        .thenReturn(Optional.of(BigDecimal.TEN));
+    when(fundAumResolver.resolveReferenceDate(TUK75, date)).thenReturn(date);
+    when(fundAumResolver.resolveBaseValue(TUK75, date)).thenReturn(BigDecimal.TEN);
     when(feeAccrualRepository.getAccruedFeesForMonth(eq(TUK75), eq(feeMonth), any(), eq(date)))
         .thenReturn(ZERO);
     when(feeRateRepository.findValidRate(TUK75, MANAGEMENT, date)).thenReturn(Optional.empty());
@@ -115,10 +108,8 @@ class ManagementFeeCalculatorTest {
     BigDecimal annualRate = new BigDecimal("0.002");
 
     when(feeMonthResolver.resolveFeeMonth(saturday)).thenReturn(feeMonth);
-    when(positionCalculationRepository.getLatestDateUpTo(TUK75, saturday))
-        .thenReturn(Optional.of(friday));
-    when(positionCalculationRepository.getTotalMarketValue(TUK75, friday))
-        .thenReturn(Optional.of(positionValue));
+    when(fundAumResolver.resolveReferenceDate(TUK75, saturday)).thenReturn(friday);
+    when(fundAumResolver.resolveBaseValue(TUK75, friday)).thenReturn(positionValue);
     when(feeAccrualRepository.getAccruedFeesForMonth(
             TUK75, feeMonth, List.of(MANAGEMENT, DEPOT), saturday))
         .thenReturn(ZERO);
@@ -141,10 +132,8 @@ class ManagementFeeCalculatorTest {
     BigDecimal annualRate = new BigDecimal("0.00215");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(positionCalculationRepository.getLatestDateUpTo(TUK75, date))
-        .thenReturn(Optional.of(date));
-    when(positionCalculationRepository.getTotalMarketValue(TUK75, date))
-        .thenReturn(Optional.of(positionValue));
+    when(fundAumResolver.resolveReferenceDate(TUK75, date)).thenReturn(date);
+    when(fundAumResolver.resolveBaseValue(TUK75, date)).thenReturn(positionValue);
     when(feeAccrualRepository.getAccruedFeesForMonth(
             TUK75, feeMonth, List.of(MANAGEMENT, DEPOT), date))
         .thenReturn(accruedFees);

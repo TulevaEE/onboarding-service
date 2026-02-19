@@ -22,6 +22,7 @@ class DepotFeeCalculatorTest {
 
   @Mock private DepotFeeTierRepository tierRepository;
   @Mock private PositionCalculationRepository positionCalculationRepository;
+  @Mock private FundAumResolver fundAumResolver;
   @Mock private FeeMonthResolver feeMonthResolver;
   @Mock private VatRateProvider vatRateProvider;
   @Mock private FeeRateRepository feeRateRepository;
@@ -34,6 +35,7 @@ class DepotFeeCalculatorTest {
         new DepotFeeCalculator(
             tierRepository,
             positionCalculationRepository,
+            fundAumResolver,
             feeMonthResolver,
             vatRateProvider,
             feeRateRepository);
@@ -50,10 +52,8 @@ class DepotFeeCalculatorTest {
     BigDecimal vatRate = new BigDecimal("0.24");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(positionCalculationRepository.getLatestDateUpTo(TUK75, date))
-        .thenReturn(Optional.of(date));
-    when(positionCalculationRepository.getTotalMarketValue(TUK75, date))
-        .thenReturn(Optional.of(assetValue));
+    when(fundAumResolver.resolveReferenceDate(TUK75, date)).thenReturn(date);
+    when(fundAumResolver.resolveBaseValue(TUK75, date)).thenReturn(assetValue);
     when(positionCalculationRepository.getLatestDateUpTo(previousMonthEnd))
         .thenReturn(Optional.of(previousMonthEnd));
     when(positionCalculationRepository.getTotalMarketValueAllFunds(previousMonthEnd))
@@ -92,10 +92,8 @@ class DepotFeeCalculatorTest {
     BigDecimal vatRate = new BigDecimal("0.24");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(positionCalculationRepository.getLatestDateUpTo(TUK75, date))
-        .thenReturn(Optional.of(date));
-    when(positionCalculationRepository.getTotalMarketValue(TUK75, date))
-        .thenReturn(Optional.of(assetValue));
+    when(fundAumResolver.resolveReferenceDate(TUK75, date)).thenReturn(date);
+    when(fundAumResolver.resolveBaseValue(TUK75, date)).thenReturn(assetValue);
     when(positionCalculationRepository.getLatestDateUpTo(previousMonthEnd))
         .thenReturn(Optional.of(previousMonthEnd));
     when(positionCalculationRepository.getTotalMarketValueAllFunds(previousMonthEnd))
@@ -119,10 +117,8 @@ class DepotFeeCalculatorTest {
     BigDecimal vatRate = new BigDecimal("0.22");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(positionCalculationRepository.getLatestDateUpTo(TUK75, date))
-        .thenReturn(Optional.of(date));
-    when(positionCalculationRepository.getTotalMarketValue(TUK75, date))
-        .thenReturn(Optional.of(assetValue));
+    when(fundAumResolver.resolveReferenceDate(TUK75, date)).thenReturn(date);
+    when(fundAumResolver.resolveBaseValue(TUK75, date)).thenReturn(assetValue);
     when(positionCalculationRepository.getLatestDateUpTo(previousMonthEnd))
         .thenReturn(Optional.of(previousMonthEnd));
     when(positionCalculationRepository.getTotalMarketValueAllFunds(previousMonthEnd))
@@ -145,7 +141,7 @@ class DepotFeeCalculatorTest {
     LocalDate feeMonth = LocalDate.of(2025, 1, 1);
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(positionCalculationRepository.getLatestDateUpTo(TUK75, date)).thenReturn(Optional.empty());
+    when(fundAumResolver.resolveReferenceDate(TUK75, date)).thenReturn(null);
 
     FeeAccrual result = calculator.calculate(TUK75, date);
 
@@ -168,10 +164,8 @@ class DepotFeeCalculatorTest {
     BigDecimal vatRate = new BigDecimal("0.24");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(positionCalculationRepository.getLatestDateUpTo(TKF100, date))
-        .thenReturn(Optional.of(date));
-    when(positionCalculationRepository.getTotalMarketValue(TKF100, date))
-        .thenReturn(Optional.of(assetValue));
+    when(fundAumResolver.resolveReferenceDate(TKF100, date)).thenReturn(date);
+    when(fundAumResolver.resolveBaseValue(TKF100, date)).thenReturn(assetValue);
     when(feeRateRepository.findValidRate(TKF100, FeeType.DEPOT, feeMonth))
         .thenReturn(Optional.of(new FeeRate(1L, TKF100, FeeType.DEPOT, fundRate, feeMonth, null)));
     when(vatRateProvider.getVatRate(feeMonth)).thenReturn(vatRate);
@@ -189,10 +183,8 @@ class DepotFeeCalculatorTest {
     BigDecimal vatRate = new BigDecimal("0.24");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(positionCalculationRepository.getLatestDateUpTo(TKF100, date))
-        .thenReturn(Optional.of(date));
-    when(positionCalculationRepository.getTotalMarketValue(TKF100, date))
-        .thenReturn(Optional.of(assetValue));
+    when(fundAumResolver.resolveReferenceDate(TKF100, date)).thenReturn(date);
+    when(fundAumResolver.resolveBaseValue(TKF100, date)).thenReturn(assetValue);
     when(feeRateRepository.findValidRate(TKF100, FeeType.DEPOT, feeMonth))
         .thenReturn(Optional.of(new FeeRate(1L, TKF100, FeeType.DEPOT, ZERO, feeMonth, null)));
     when(vatRateProvider.getVatRate(feeMonth)).thenReturn(vatRate);
@@ -201,6 +193,29 @@ class DepotFeeCalculatorTest {
 
     assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
     assertThat(result.dailyAmountNet()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void calculate_usesNavDataSourceForNavFund() {
+    LocalDate date = LocalDate.of(2025, 7, 15);
+    LocalDate feeMonth = LocalDate.of(2025, 7, 1);
+    LocalDate navDate = LocalDate.of(2025, 7, 14);
+    BigDecimal navAssetValue = new BigDecimal("750000000");
+    BigDecimal fundRate = new BigDecimal("0.00030");
+    BigDecimal vatRate = new BigDecimal("0.24");
+
+    when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
+    when(fundAumResolver.resolveReferenceDate(TKF100, date)).thenReturn(navDate);
+    when(fundAumResolver.resolveBaseValue(TKF100, navDate)).thenReturn(navAssetValue);
+    when(feeRateRepository.findValidRate(TKF100, FeeType.DEPOT, feeMonth))
+        .thenReturn(Optional.of(new FeeRate(1L, TKF100, FeeType.DEPOT, fundRate, feeMonth, null)));
+    when(vatRateProvider.getVatRate(feeMonth)).thenReturn(vatRate);
+
+    FeeAccrual result = calculator.calculate(TKF100, date);
+
+    assertThat(result.referenceDate()).isEqualTo(navDate);
+    assertThat(result.baseValue()).isEqualByComparingTo(navAssetValue);
+    assertThat(result.annualRate()).isEqualByComparingTo(fundRate);
   }
 
   @Test
@@ -214,10 +229,8 @@ class DepotFeeCalculatorTest {
     BigDecimal vatRate = new BigDecimal("0.24");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(positionCalculationRepository.getLatestDateUpTo(TUK75, date))
-        .thenReturn(Optional.of(date));
-    when(positionCalculationRepository.getTotalMarketValue(TUK75, date))
-        .thenReturn(Optional.of(assetValue));
+    when(fundAumResolver.resolveReferenceDate(TUK75, date)).thenReturn(date);
+    when(fundAumResolver.resolveBaseValue(TUK75, date)).thenReturn(assetValue);
     when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, feeMonth))
         .thenReturn(Optional.empty());
     when(positionCalculationRepository.getLatestDateUpTo(previousMonthEnd))

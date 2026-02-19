@@ -22,6 +22,7 @@ public class DepotFeeCalculator implements FeeCalculator {
 
   private final DepotFeeTierRepository tierRepository;
   private final PositionCalculationRepository positionCalculationRepository;
+  private final FundAumResolver fundAumResolver;
   private final FeeMonthResolver feeMonthResolver;
   private final VatRateProvider vatRateProvider;
   private final FeeRateRepository feeRateRepository;
@@ -29,15 +30,13 @@ public class DepotFeeCalculator implements FeeCalculator {
   @Override
   public FeeAccrual calculate(TulevaFund fund, LocalDate calendarDate) {
     LocalDate feeMonth = feeMonthResolver.resolveFeeMonth(calendarDate);
-    LocalDate referenceDate =
-        positionCalculationRepository.getLatestDateUpTo(fund, calendarDate).orElse(null);
+    LocalDate referenceDate = fundAumResolver.resolveReferenceDate(fund, calendarDate);
 
     if (referenceDate == null) {
       return zeroAccrual(fund, DEPOT, calendarDate, feeMonth);
     }
 
-    BigDecimal assetValue =
-        positionCalculationRepository.getTotalMarketValue(fund, referenceDate).orElse(ZERO);
+    BigDecimal assetValue = fundAumResolver.resolveBaseValue(fund, referenceDate);
     int daysInYear = daysInYear(calendarDate);
 
     BigDecimal annualRate = determineDepotRate(fund, feeMonth);

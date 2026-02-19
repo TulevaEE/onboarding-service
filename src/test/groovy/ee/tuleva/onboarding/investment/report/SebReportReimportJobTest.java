@@ -15,6 +15,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -68,7 +69,9 @@ class SebReportReimportJobTest {
 
     var calculation =
         PositionCalculation.builder().isin("US1234567890").fund(TUK75).date(NAV_DATE).build();
-    when(calculationService.calculate(TUK75, NAV_DATE)).thenReturn(List.of(calculation));
+    LocalTime morningCutoff = LocalTime.of(11, 30);
+    when(calculationService.calculate(TUK75, NAV_DATE, morningCutoff))
+        .thenReturn(List.of(calculation));
 
     job.reimportAndBackfill();
 
@@ -89,7 +92,7 @@ class SebReportReimportJobTest {
                     "asOfDate",
                     "2026-01-25")));
     verify(backfillJob).backfillDates();
-    verify(calculationService).calculate(TUK75, NAV_DATE);
+    verify(calculationService).calculate(TUK75, NAV_DATE, morningCutoff);
     verify(calculationPersistenceService).saveAll(List.of(calculation));
   }
 

@@ -12,6 +12,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Profile({"production", "staging"})
 public class SebReportReimportJob {
 
+  private static final LocalTime MORNING_CUTOFF = LocalTime.of(11, 30);
+  private static final LocalTime AFTERNOON_CUTOFF = LocalTime.of(15, 30);
+
   private final InvestmentReportRepository reportRepository;
   private final SebReportSource sebReportSource;
   private final InvestmentReportService reportService;
@@ -38,7 +42,7 @@ public class SebReportReimportJob {
   private final PositionCalculationService calculationService;
   private final PositionCalculationPersistenceService calculationPersistenceService;
 
-  @Scheduled(cron = "0 20 18 19 2 *", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 5 19 19 2 *", zone = "Europe/Tallinn")
   @SchedulerLock(name = "SebReportReimportJob", lockAtMostFor = "55m", lockAtLeastFor = "4m")
   @Transactional
   public void reimportAndBackfill() {
@@ -88,16 +92,25 @@ public class SebReportReimportJob {
 
     int totalRecalculated = 0;
     for (TulevaFund fund : TulevaFund.values()) {
+      LocalTime cutoffTime = getCutoffTime(fund);
       List<LocalDate> navDates = positionRepository.findDistinctNavDatesByFund(fund);
-      log.info("Recalculating positions: fund={}, dateCount={}", fund, navDates.size());
+      log.info(
+          "Recalculating positions: fund={}, dateCount={}, cutoffTime={}",
+          fund,
+          navDates.size(),
+          cutoffTime);
 
       for (LocalDate date : navDates) {
-        var calculations = calculationService.calculate(fund, date);
+        var calculations = calculationService.calculate(fund, date, cutoffTime);
         calculationPersistenceService.saveAll(calculations);
         totalRecalculated += calculations.size();
       }
     }
 
     log.info("Position recalculation completed: totalRecalculated={}", totalRecalculated);
+  }
+
+  private LocalTime getCutoffTime(TulevaFund fund) {
+    return TulevaFund.getPillar2Funds().contains(fund) ? MORNING_CUTOFF : AFTERNOON_CUTOFF;
   }
 }

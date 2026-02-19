@@ -185,25 +185,7 @@ class AdminControllerTest {
   }
 
   @Test
-  void calculateNav_withValidToken_calculatesAndPublishes() throws Exception {
-    var result = sampleNavResult(LocalDate.of(2026, 2, 17));
-    when(navCalculationService.calculate("TKF100", LocalDate.of(2026, 2, 17))).thenReturn(result);
-
-    mockMvc
-        .perform(
-            post("/admin/calculate-nav")
-                .with(csrf())
-                .header("X-Admin-Token", "valid-token")
-                .param("date", "2026-02-17"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.navPerUnit").value(1.0))
-        .andExpect(jsonPath("$.aum").value(1000000));
-
-    verify(navPublisher).publish(result);
-  }
-
-  @Test
-  void calculateNav_withPublishFalse_calculatesButDoesNotPublish() throws Exception {
+  void calculateNav_withPublishTrue_calculatesAndPublishes() throws Exception {
     var result = sampleNavResult(LocalDate.of(2026, 2, 17));
     when(navCalculationService.calculate("TKF100", LocalDate.of(2026, 2, 17))).thenReturn(result);
 
@@ -213,7 +195,25 @@ class AdminControllerTest {
                 .with(csrf())
                 .header("X-Admin-Token", "valid-token")
                 .param("date", "2026-02-17")
-                .param("publish", "false"))
+                .param("publish", "true"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.navPerUnit").value(1.0))
+        .andExpect(jsonPath("$.aum").value(1000000));
+
+    verify(navPublisher).publish(result);
+  }
+
+  @Test
+  void calculateNav_defaultsToNotPublishing() throws Exception {
+    var result = sampleNavResult(LocalDate.of(2026, 2, 17));
+    when(navCalculationService.calculate("TKF100", LocalDate.of(2026, 2, 17))).thenReturn(result);
+
+    mockMvc
+        .perform(
+            post("/admin/calculate-nav")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("date", "2026-02-17"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.navPerUnit").value(1.0));
 

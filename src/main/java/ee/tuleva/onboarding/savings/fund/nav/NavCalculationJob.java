@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import java.time.Clock;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,27 +19,38 @@ import org.springframework.stereotype.Component;
 public class NavCalculationJob {
 
   private final NavCalculationService navCalculationService;
-  private final NavPublisher navPublisher;
+  private final NavNotifier navNotifier;
   private final PublicHolidays publicHolidays;
+  private final Clock clock;
 
   @Scheduled(cron = "0 30 15 * * MON-FRI", zone = "Europe/Tallinn")
   @SchedulerLock(name = "NavCalculationJob_TKF100", lockAtMostFor = "30m", lockAtLeastFor = "5m")
   public void calculateDailyNav() {
-    LocalDate today = LocalDate.now(clock());
+    LocalDate today = LocalDate.now(clock);
 
     if (!publicHolidays.isWorkingDay(today)) {
       log.info("Skipping NAV calculation on non-working day: date={}", today);
       return;
     }
 
-    log.info("Starting scheduled NAV calculation: fund={}, date={}", TKF100, today);
+    LocalDate calculationDate = publicHolidays.previousWorkingDay(today);
+
+    log.info(
+        "Starting scheduled NAV calculation: fund={}, calculationDate={}", TKF100, calculationDate);
 
     try {
-      NavCalculationResult result = navCalculationService.calculate(TKF100, today);
-      navPublisher.publish(result);
-      log.info("Completed scheduled NAV calculation: fund={}, date={}", TKF100, today);
+      NavCalculationResult result = navCalculationService.calculate(TKF100, calculationDate);
+      navNotifier.notify(result);
+      log.info(
+          "Completed scheduled NAV calculation: fund={}, calculationDate={}",
+          TKF100,
+          calculationDate);
     } catch (Exception exception) {
-      log.error("Failed scheduled NAV calculation: fund={}, date={}", TKF100, today, exception);
+      log.error(
+          "Failed scheduled NAV calculation: fund={}, calculationDate={}",
+          TKF100,
+          calculationDate,
+          exception);
       throw exception;
     }
   }

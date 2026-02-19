@@ -106,7 +106,7 @@ public class AdminController {
       @RequestHeader("X-Admin-Token") String token,
       @RequestParam(defaultValue = "TKF100") String fundCode,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-      @RequestParam(defaultValue = "true") boolean publish) {
+      @RequestParam(defaultValue = "false") boolean publish) {
 
     validateToken(token);
 

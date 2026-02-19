@@ -9,51 +9,174 @@ import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepositor
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Optional;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class SavingsFundNavProviderTest {
 
+  private static final String ISIN = "EE0000003283";
+  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
+
   @Mock private FundValueRepository fundValueRepository;
   @Mock private PublicHolidays publicHolidays;
 
-  @InjectMocks private SavingsFundNavProvider provider;
-
-  @BeforeEach
-  void setUp() {
-    var configuration = new SavingsFundConfiguration();
-    provider = new SavingsFundNavProvider(fundValueRepository, configuration, publicHolidays);
+  private SavingsFundNavProvider provider(String timeInTallinn) {
+    var instant = java.time.LocalDateTime.parse(timeInTallinn).atZone(TALLINN).toInstant();
+    var clock = Clock.fixed(instant, TALLINN);
+    return new SavingsFundNavProvider(
+        fundValueRepository, new SavingsFundConfiguration(), publicHolidays, clock);
   }
 
   @Test
-  void getCurrentNav_returnsNavFromIndexValues() {
+  void safeMaxNavDate_afterCutoffOnWorkingDay_returnsPreviousWorkingDay() {
+    var provider = provider("2025-01-15T17:00:00");
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
+    when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
+
+    assertThat(provider.safeMaxNavDate()).isEqualTo(yesterday);
+  }
+
+  @Test
+  void safeMaxNavDate_atExactlyCutoffOnWorkingDay_returnsPreviousWorkingDay() {
+    var provider = provider("2025-01-15T16:00:00");
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
+    when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
+
+    assertThat(provider.safeMaxNavDate()).isEqualTo(yesterday);
+  }
+
+  @Test
+  void safeMaxNavDate_beforeCutoffOnWorkingDay_returnsTwoWorkingDaysBack() {
+    var provider = provider("2025-01-15T10:00:00");
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    LocalDate twoDaysBack = LocalDate.of(2025, 1, 13);
+    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
+    when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
+    when(publicHolidays.previousWorkingDay(yesterday)).thenReturn(twoDaysBack);
+
+    assertThat(provider.safeMaxNavDate()).isEqualTo(twoDaysBack);
+  }
+
+  @Test
+  void safeMaxNavDate_onSaturday_returnsTwoWorkingDaysBack() {
+    var provider = provider("2025-01-18T12:00:00");
+    LocalDate saturday = LocalDate.of(2025, 1, 18);
+    LocalDate friday = LocalDate.of(2025, 1, 17);
+    LocalDate thursday = LocalDate.of(2025, 1, 16);
+    when(publicHolidays.isWorkingDay(saturday)).thenReturn(false);
+    when(publicHolidays.previousWorkingDay(saturday)).thenReturn(friday);
+    when(publicHolidays.previousWorkingDay(friday)).thenReturn(thursday);
+
+    assertThat(provider.safeMaxNavDate()).isEqualTo(thursday);
+  }
+
+  @Test
+  void getCurrentNav_usesDateBoundedQuery() {
+    var provider = provider("2025-01-15T17:00:00");
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
+    when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
     var fundValue =
-        new FundValue(
-            "EE0000003283",
-            LocalDate.of(2025, 1, 15),
-            new BigDecimal("9.69941"),
-            "TULEVA",
-            Instant.now());
-    when(fundValueRepository.findLastValueForFund("EE0000003283"))
-        .thenReturn(Optional.of(fundValue));
+        new FundValue(ISIN, yesterday, new BigDecimal("9.69941"), "TULEVA", Instant.now());
+    when(fundValueRepository.getLatestValue(ISIN, yesterday)).thenReturn(Optional.of(fundValue));
 
-    BigDecimal result = provider.getCurrentNav();
-
-    assertThat(result).isEqualByComparingTo("9.69941");
+    assertThat(provider.getCurrentNav()).isEqualByComparingTo("9.69941");
   }
 
   @Test
   void getCurrentNav_throwsWhenNoNavFound() {
-    when(fundValueRepository.findLastValueForFund("EE0000003283")).thenReturn(Optional.empty());
+    var provider = provider("2025-01-15T17:00:00");
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
+    when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
+    when(fundValueRepository.getLatestValue(ISIN, yesterday)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> provider.getCurrentNav()).isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void getCurrentNavForIssuing_returnsNavWhenDateMatches() {
+    var provider = provider("2025-01-15T17:00:00");
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    LocalDate dayBefore = LocalDate.of(2025, 1, 13);
+    when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
+    when(publicHolidays.previousWorkingDay(yesterday)).thenReturn(dayBefore);
+    var fundValue =
+        new FundValue(ISIN, yesterday, new BigDecimal("9.6994"), "TULEVA", Instant.now());
+    var previousValue =
+        new FundValue(ISIN, dayBefore, new BigDecimal("9.6500"), "TULEVA", Instant.now());
+    when(fundValueRepository.findLastValueForFund(ISIN)).thenReturn(Optional.of(fundValue));
+    when(fundValueRepository.getLatestValue(ISIN, dayBefore))
+        .thenReturn(Optional.of(previousValue));
+
+    assertThat(provider.getCurrentNavForIssuing()).isEqualByComparingTo("9.6994");
+  }
+
+  @Test
+  void getCurrentNavForIssuing_throwsWhenDateDoesNotMatch() {
+    var provider = provider("2025-01-15T17:00:00");
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
+    var staleValue =
+        new FundValue(
+            ISIN, LocalDate.of(2025, 1, 10), new BigDecimal("9.6994"), "TULEVA", Instant.now());
+    when(fundValueRepository.findLastValueForFund(ISIN)).thenReturn(Optional.of(staleValue));
+
+    assertThatThrownBy(() -> provider.getCurrentNavForIssuing())
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void getCurrentNavForIssuing_throwsWhenNavDeviatesMoreThan20Percent() {
+    var provider = provider("2025-01-15T17:00:00");
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    LocalDate dayBefore = LocalDate.of(2025, 1, 13);
+    when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
+    when(publicHolidays.previousWorkingDay(yesterday)).thenReturn(dayBefore);
+    var currentNav =
+        new FundValue(ISIN, yesterday, new BigDecimal("500.0000"), "TULEVA", Instant.now());
+    var previousNav =
+        new FundValue(ISIN, dayBefore, new BigDecimal("10.0000"), "TULEVA", Instant.now());
+    when(fundValueRepository.findLastValueForFund(ISIN)).thenReturn(Optional.of(currentNav));
+    when(fundValueRepository.getLatestValue(ISIN, dayBefore)).thenReturn(Optional.of(previousNav));
+
+    assertThatThrownBy(() -> provider.getCurrentNavForIssuing())
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void getCurrentNavForIssuing_allowsNavChangeWithin20Percent() {
+    var provider = provider("2025-01-15T17:00:00");
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    LocalDate dayBefore = LocalDate.of(2025, 1, 13);
+    when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
+    when(publicHolidays.previousWorkingDay(yesterday)).thenReturn(dayBefore);
+    var currentNav =
+        new FundValue(ISIN, yesterday, new BigDecimal("10.5000"), "TULEVA", Instant.now());
+    var previousNav =
+        new FundValue(ISIN, dayBefore, new BigDecimal("10.0000"), "TULEVA", Instant.now());
+    when(fundValueRepository.findLastValueForFund(ISIN)).thenReturn(Optional.of(currentNav));
+    when(fundValueRepository.getLatestValue(ISIN, dayBefore)).thenReturn(Optional.of(previousNav));
+
+    assertThat(provider.getCurrentNavForIssuing()).isEqualByComparingTo("10.5000");
   }
 }

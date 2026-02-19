@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
+import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
 import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.util.List;
@@ -32,6 +33,7 @@ class FundService {
   private final LocaleService localeService;
   private final LedgerService ledgerService;
   private final SavingsFundConfiguration savingsFundConfiguration;
+  private final SavingsFundNavProvider savingsFundNavProvider;
 
   List<ExtendedApiFundResponse> getFunds(Optional<String> fundManagerName) {
     return stream(fundsBy(fundManagerName).spliterator(), false)
@@ -52,9 +54,14 @@ class FundService {
   }
 
   private PensionFundStatistics fallbackNavStatistics(Fund fund) {
-    return fundValueRepository
-        .findLastValueForFund(fund.getIsin())
-        .map(latestFundValue -> buildSavingsFundStatistics(fund, latestFundValue))
+    boolean isSavingsFund = savingsFundConfiguration.getIsin().equals(fund.getIsin());
+    Optional<FundValue> latestValue =
+        isSavingsFund
+            ? fundValueRepository.getLatestValue(
+                fund.getIsin(), savingsFundNavProvider.safeMaxNavDate())
+            : fundValueRepository.findLastValueForFund(fund.getIsin());
+    return latestValue
+        .map(fundValue -> buildSavingsFundStatistics(fund, fundValue))
         .orElseGet(PensionFundStatistics::getNull);
   }
 

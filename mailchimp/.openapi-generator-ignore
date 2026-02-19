@@ -1,0 +1,2 @@
+**/model/*.java
+!**/model/PostMessages*.java

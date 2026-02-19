@@ -28,6 +28,7 @@ plugins {
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "2.5.4"
     id("com.diffplug.spotless") version "8.1.0"
+    id("org.openapi.generator") version "7.20.0"
     id("io.freefair.lombok") version "9.1.0"
     jacoco
 }
@@ -131,7 +132,7 @@ dependencies {
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 
-    implementation("com.github.ErkoRisthein:mailchimp-transactional-api-java:1.0.59")
+    implementation("org.openapitools:jackson-databind-nullable:0.2.9")
     implementation("com.github.ErkoRisthein:mailchimp-marketing-api-java:3.0.90-fix3")
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
@@ -373,12 +374,42 @@ tasks {
 
 tasks.named<JavaCompile>("compileJava") {
     dependsOn(tasks.named("generateXSDClasses"))
+    dependsOn(tasks.named("openApiGenerate"))
+}
+
+openApiGenerate {
+    generatorName.set("java")
+    inputSpec.set("$rootDir/mailchimp/mailchimp-transactional-api.openapi.json")
+    outputDir.set("${layout.buildDirectory.get()}/generated/mailchimp-transactional-api")
+    library.set("resttemplate")
+    apiPackage.set("io.github.erkoristhein.mailchimp.api")
+    modelPackage.set("io.github.erkoristhein.mailchimp.model")
+    invokerPackage.set("io.github.erkoristhein.mailchimp")
+    configOptions.set(
+        mapOf(
+            "useJakartaEe" to "true",
+            "hideGenerationTimestamp" to "true",
+        ),
+    )
+    ignoreFileOverride.set("$rootDir/mailchimp/.openapi-generator-ignore")
+    skipValidateSpec.set(true)
+    generateApiTests.set(false)
+    generateModelTests.set(false)
+    globalProperties.set(
+        mapOf(
+            "apis" to "Messages",
+            "models" to "",
+            "supportingFiles" to
+                "ApiClient.java,JavaTimeFormatter.java,RFC3339DateFormat.java,RFC3339InstantDeserializer.java,RFC3339JavaTimeModule.java,BaseApi.java,Authentication.java,ApiKeyAuth.java,HttpBasicAuth.java,HttpBearerAuth.java",
+        ),
+    )
 }
 
 sourceSets {
     main {
         java {
             srcDir("${layout.buildDirectory.get()}/generated-sources/iso20022")
+            srcDir("${layout.buildDirectory.get()}/generated/mailchimp-transactional-api/src/main/java")
         }
     }
 }

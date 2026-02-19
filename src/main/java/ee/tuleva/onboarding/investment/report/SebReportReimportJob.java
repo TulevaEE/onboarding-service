@@ -30,7 +30,7 @@ public class SebReportReimportJob {
   private final InvestmentReportService reportService;
   private final FundPositionBackfillJob backfillJob;
 
-  @Scheduled(cron = "0 15 17 19 2 *", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 25 17 19 2 *", zone = "Europe/Tallinn")
   @SchedulerLock(name = "SebReportReimportJob", lockAtMostFor = "55m", lockAtLeastFor = "4m")
   @Transactional
   public void reimportAndBackfill() {

@@ -354,7 +354,8 @@ class NavPipelineIntegrationTest {
     var report =
         investmentReportService.saveReport(
             SEB, POSITIONS, reportDate, new ByteArrayInputStream(csvBytes), ';', 5, Map.of());
-    var positions = sebFundPositionParser.parse(report.getRawData(), reportDate);
+    var positions =
+        sebFundPositionParser.parse(report.getRawData(), reportDate, report.getMetadata());
     fundPositionImportService.importPositions(positions);
   }
 

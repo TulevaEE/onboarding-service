@@ -86,7 +86,10 @@ public class FundPositionImportJob {
 
     InvestmentReport investmentReport = report.get();
     List<FundPosition> positions =
-        parser.parse(investmentReport.getRawData(), investmentReport.getReportDate());
+        parser.parse(
+            investmentReport.getRawData(),
+            investmentReport.getReportDate(),
+            investmentReport.getMetadata());
     log.info(
         "Parsed fund positions: provider={}, date={}, count={}", provider, date, positions.size());
 

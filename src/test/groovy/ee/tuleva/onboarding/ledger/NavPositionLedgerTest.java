@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRANSFER;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.math.BigDecimal.ZERO;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -20,6 +21,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,6 +60,7 @@ class NavPositionLedgerTest {
   void setUp() {
     navPositionLedger =
         new NavPositionLedger(ledgerAccountService, ledgerTransactionService, clock);
+    when(ledgerTransactionService.existsByExternalReference(any(UUID.class))).thenReturn(false);
   }
 
   private void setupAccountMocks() {
@@ -89,7 +92,11 @@ class NavPositionLedgerTest {
     setupAccountMocks();
 
     when(ledgerTransactionService.createTransaction(
-            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
@@ -101,7 +108,8 @@ class NavPositionLedgerTest {
         ZERO);
 
     verify(ledgerTransactionService)
-        .createTransaction(eq(TRANSFER), eq(Instant.now(clock)), any(), entriesCaptor.capture());
+        .createTransaction(
+            eq(TRANSFER), eq(Instant.now(clock)), any(UUID.class), any(), entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(2);
@@ -117,14 +125,19 @@ class NavPositionLedgerTest {
     setupAccountMocks();
 
     when(ledgerTransactionService.createTransaction(
-            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
         "TKF100", reportDate, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
 
     verify(ledgerTransactionService)
-        .createTransaction(eq(TRANSFER), eq(Instant.now(clock)), any(), entriesCaptor.capture());
+        .createTransaction(
+            eq(TRANSFER), eq(Instant.now(clock)), any(UUID.class), any(), entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(2);
@@ -140,14 +153,19 @@ class NavPositionLedgerTest {
     setupAccountMocks();
 
     when(ledgerTransactionService.createTransaction(
-            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
         "TKF100", reportDate, Map.of(), ZERO, new BigDecimal("10000.00"), ZERO);
 
     verify(ledgerTransactionService)
-        .createTransaction(eq(TRANSFER), eq(Instant.now(clock)), any(), entriesCaptor.capture());
+        .createTransaction(
+            eq(TRANSFER), eq(Instant.now(clock)), any(UUID.class), any(), entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(2);
@@ -163,14 +181,19 @@ class NavPositionLedgerTest {
     setupAccountMocks();
 
     when(ledgerTransactionService.createTransaction(
-            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
         "TKF100", reportDate, Map.of(), ZERO, ZERO, new BigDecimal("-5000.00"));
 
     verify(ledgerTransactionService)
-        .createTransaction(eq(TRANSFER), eq(Instant.now(clock)), any(), entriesCaptor.capture());
+        .createTransaction(
+            eq(TRANSFER), eq(Instant.now(clock)), any(UUID.class), any(), entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(2);
@@ -186,7 +209,11 @@ class NavPositionLedgerTest {
     setupAccountMocks();
 
     when(ledgerTransactionService.createTransaction(
-            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
@@ -200,7 +227,8 @@ class NavPositionLedgerTest {
         new BigDecimal("-5000.00"));
 
     verify(ledgerTransactionService)
-        .createTransaction(eq(TRANSFER), eq(Instant.now(clock)), any(), entriesCaptor.capture());
+        .createTransaction(
+            eq(TRANSFER), eq(Instant.now(clock)), any(UUID.class), any(), entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     assertThat(entries).hasSize(10);
@@ -214,7 +242,11 @@ class NavPositionLedgerTest {
 
     verify(ledgerTransactionService, never())
         .createTransaction(
-            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class));
+            any(TransactionType.class),
+            any(Instant.class),
+            any(),
+            any(),
+            any(LedgerEntryDto[].class));
   }
 
   @Test
@@ -223,7 +255,11 @@ class NavPositionLedgerTest {
     setupAccountMocks();
 
     when(ledgerTransactionService.createTransaction(
-            any(TransactionType.class), any(Instant.class), any(), any(LedgerEntryDto[].class)))
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
@@ -238,6 +274,7 @@ class NavPositionLedgerTest {
         .createTransaction(
             any(TransactionType.class),
             any(Instant.class),
+            any(UUID.class),
             metadataCaptor.capture(),
             any(LedgerEntryDto[].class));
 
@@ -245,5 +282,60 @@ class NavPositionLedgerTest {
     assertThat(metadata).containsEntry("operationType", "POSITION_UPDATE");
     assertThat(metadata).containsEntry("fund", "TKF100");
     assertThat(metadata).containsEntry("reportDate", "2026-02-01");
+  }
+
+  @Test
+  void recordPositions_skipsWhenAlreadyRecorded() {
+    LocalDate reportDate = LocalDate.of(2026, 2, 1);
+    when(ledgerTransactionService.existsByExternalReference(any(UUID.class))).thenReturn(true);
+
+    navPositionLedger.recordPositions(
+        "TKF100",
+        reportDate,
+        Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")),
+        ZERO,
+        ZERO,
+        ZERO);
+
+    verify(ledgerTransactionService, never())
+        .createTransaction(
+            any(TransactionType.class),
+            any(Instant.class),
+            any(),
+            any(),
+            any(LedgerEntryDto[].class));
+  }
+
+  @Test
+  void recordPositions_passesDeterministicExternalReference() {
+    LocalDate reportDate = LocalDate.of(2026, 2, 1);
+    setupAccountMocks();
+
+    when(ledgerTransactionService.createTransaction(
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
+        .thenReturn(transaction);
+
+    navPositionLedger.recordPositions(
+        "TKF100",
+        reportDate,
+        Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")),
+        ZERO,
+        ZERO,
+        ZERO);
+
+    UUID expectedReference =
+        UUID.nameUUIDFromBytes("POSITION_UPDATE:TKF100:2026-02-01".getBytes(UTF_8));
+
+    verify(ledgerTransactionService)
+        .createTransaction(
+            eq(TRANSFER),
+            any(Instant.class),
+            eq(expectedReference),
+            any(),
+            any(LedgerEntryDto[].class));
   }
 }

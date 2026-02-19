@@ -103,6 +103,21 @@ class NavPipelineIntegrationTest {
   }
 
   @Test
+  void recordPositions_isIdempotent() {
+    LocalDate date = LocalDate.of(2026, 2, 1);
+    Map<String, BigDecimal> units = Map.of("IE00BFG1TM61", new BigDecimal("1000.00000"));
+
+    navPositionLedger.recordPositions("TKF100", date, units, ZERO, ZERO, ZERO);
+    entityManager.flush();
+    navPositionLedger.recordPositions("TKF100", date, units, ZERO, ZERO, ZERO);
+    entityManager.flush();
+
+    int count =
+        jdbcClient.sql("SELECT COUNT(*) FROM ledger.transaction").query(Integer.class).single();
+    assertThat(count).isEqualTo(1);
+  }
+
+  @Test
   void feeCalculationOnlyAffectsNavEnabledFundInLedger() {
     LocalDate date = LocalDate.of(2025, 3, 15);
     BigDecimal tkf100Aum = new BigDecimal("50000000");

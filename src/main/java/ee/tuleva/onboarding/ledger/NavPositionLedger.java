@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRANSFER;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import java.math.BigDecimal;
@@ -11,12 +12,15 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class NavPositionLedger {
 
   private final LedgerAccountService ledgerAccountService;
@@ -31,6 +35,12 @@ public class NavPositionLedger {
       BigDecimal cashValue,
       BigDecimal receivablesValue,
       BigDecimal payablesValue) {
+
+    UUID externalReference = generatePositionReference(fund, reportDate);
+    if (ledgerTransactionService.existsByExternalReference(externalReference)) {
+      log.debug("Position update already recorded: fund={}, reportDate={}", fund, reportDate);
+      return;
+    }
 
     List<LedgerEntryDto> entries = new ArrayList<>();
 
@@ -68,7 +78,11 @@ public class NavPositionLedger {
             "operationType", "POSITION_UPDATE", "fund", fund, "reportDate", reportDate.toString());
 
     ledgerTransactionService.createTransaction(
-        TRANSFER, Instant.now(clock), metadata, entries.toArray(new LedgerEntryDto[0]));
+        TRANSFER,
+        Instant.now(clock),
+        externalReference,
+        metadata,
+        entries.toArray(new LedgerEntryDto[0]));
   }
 
   private LedgerAccount findOrCreateInstrumentAccount(SystemAccount systemAccount, String isin) {
@@ -86,6 +100,11 @@ public class NavPositionLedger {
     return ledgerAccountService
         .findSystemAccount(systemAccount)
         .orElseGet(() -> ledgerAccountService.createSystemAccount(systemAccount));
+  }
+
+  private UUID generatePositionReference(String fund, LocalDate reportDate) {
+    String key = "POSITION_UPDATE:" + fund + ":" + reportDate;
+    return UUID.nameUUIDFromBytes(key.getBytes(UTF_8));
   }
 
   private LedgerEntryDto entry(LedgerAccount account, BigDecimal amount) {

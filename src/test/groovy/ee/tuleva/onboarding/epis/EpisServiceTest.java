@@ -438,7 +438,7 @@ class EpisServiceTest {
     LocalDate startDate = LocalDate.of(2023, 1, 1);
     LocalDate endDate = LocalDate.of(2023, 1, 31);
     String expectedUrl =
-        UriComponentsBuilder.fromHttpUrl("http://epis")
+        UriComponentsBuilder.fromUriString("http://epis")
             .pathSegment("transactions")
             .queryParam("startDate", startDate.toString())
             .queryParam("endDate", endDate.toString())
@@ -472,7 +472,7 @@ class EpisServiceTest {
     String securityTo = "ISIN456";
     boolean pikFlag = true;
     String expectedUrl =
-        UriComponentsBuilder.fromHttpUrl("http://epis")
+        UriComponentsBuilder.fromUriString("http://epis")
             .pathSegment("exchange-transactions")
             .queryParam("startDate", startDate.toString())
             .queryParam("pikFlag", pikFlag)
@@ -509,7 +509,7 @@ class EpisServiceTest {
     LocalDate fromDate = LocalDate.of(2024, 1, 1);
     LocalDate toDate = LocalDate.of(2024, 3, 31);
     String expectedUrl =
-        UriComponentsBuilder.fromHttpUrl("http://epis")
+        UriComponentsBuilder.fromUriString("http://epis")
             .pathSegment("fund-transactions")
             .queryParam("isin", isin)
             .queryParam("fromDate", fromDate.toString())
@@ -540,7 +540,7 @@ class EpisServiceTest {
     setupServiceTokenGeneration();
     LocalDate requestDate = LocalDate.of(2024, 5, 7);
     String expectedUrl =
-        UriComponentsBuilder.fromHttpUrl("http://epis")
+        UriComponentsBuilder.fromUriString("http://epis")
             .pathSegment("fund-balances")
             .queryParam("requestDate", requestDate.toString())
             .toUriString();
@@ -584,7 +584,7 @@ class EpisServiceTest {
     // given
     setupServiceTokenGeneration();
     String expectedUrl =
-        UriComponentsBuilder.fromHttpUrl("http://epis").pathSegment("unit-owners").toUriString();
+        UriComponentsBuilder.fromUriString("http://epis").pathSegment("unit-owners").toUriString();
 
     UnitOwnerDto[] mockResponseArray = {
       UnitOwnerDto.builder().personId("38001010000").name("OwnerA").build(),

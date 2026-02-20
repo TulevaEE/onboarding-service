@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.notification.slack
 
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.web.client.RestClientTest
-import org.springframework.boot.test.mock.mockito.MockBean
+import org.springframework.boot.restclient.test.autoconfigure.RestClientTest
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.core.env.Environment
 import org.springframework.http.MediaType
 import org.springframework.test.web.client.MockRestServiceServer
@@ -24,7 +24,7 @@ class SlackServiceSpec extends Specification {
   @Autowired
   MockRestServiceServer server
 
-  @MockBean
+  @MockitoBean
   SlackWebhookConfiguration webhookConfiguration
 
   Environment environment = Mock()

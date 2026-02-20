@@ -24,7 +24,7 @@ import lombok.ToString;
 import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.Type;
-import org.hibernate.dialect.PostgreSQLEnumJdbcType;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 @Entity
 @Table(name = "transaction", schema = "ledger")

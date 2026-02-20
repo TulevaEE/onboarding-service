@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.epis;
 import ee.tuleva.onboarding.error.RestResponseErrorHandler;
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.boot.restclient.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestTemplate;
@@ -18,8 +18,8 @@ public class EpisRestTemplateConfiguration {
     log.info("Creating dedicated 'episRestTemplate' with 320 seconds timeouts.");
     return restTemplateBuilder
         .errorHandler(errorHandler)
-        .setConnectTimeout(Duration.ofSeconds(320))
-        .setReadTimeout(Duration.ofSeconds(320))
+        .connectTimeout(Duration.ofSeconds(320))
+        .readTimeout(Duration.ofSeconds(320))
         .build();
   }
 }

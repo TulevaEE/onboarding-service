@@ -3,10 +3,11 @@ package ee.tuleva.onboarding.epis.mandate.details;
 import static ee.tuleva.onboarding.capital.transfer.iban.IbanValidator.isValid;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.io.Serializable;
 import java.util.Arrays;
 import lombok.Getter;
 
-public record BankAccountDetails(BankAccountType type, String accountIban) {
+public record BankAccountDetails(BankAccountType type, String accountIban) implements Serializable {
   @JsonIgnore
   public Bank bank() {
     return Bank.fromIban(accountIban);

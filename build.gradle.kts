@@ -18,13 +18,13 @@ buildscript {
     }
 }
 
-val springCloudVersion = "2025.0.1"
-val springModulithVersion = "1.4.6"
+val springCloudVersion = "2025.1.1"
+val springModulithVersion = "2.0.2"
 
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.5.9"
+    id("org.springframework.boot") version "4.0.2"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "2.5.4"
     id("com.diffplug.spotless") version "8.1.0"
@@ -72,13 +72,15 @@ repositories {
 }
 
 dependencies {
+    implementation("org.springframework.boot:spring-boot-starter-classic")
+    implementation("org.springframework.boot:spring-boot-jackson2")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-security")
-    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
     implementation("org.springframework.boot:spring-boot-starter-cache")
-    implementation("org.springframework.boot:spring-boot-starter-aop")
-    implementation("org.springframework.boot:spring-boot-starter-json")
+    implementation("org.springframework.boot:spring-boot-starter-aspectj")
+    implementation("org.springframework.boot:spring-boot-starter-jackson")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     compileOnly("org.jspecify:jspecify:1.0.0")
 
@@ -87,8 +89,8 @@ dependencies {
 
     implementation("com.nimbusds:nimbus-jose-jwt:10.6")
 
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.15")
-    implementation("org.springdoc:springdoc-openapi-starter-common:2.8.15")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.1")
+    implementation("org.springdoc:springdoc-openapi-starter-common:3.0.1")
     implementation("org.springframework.session:spring-session-jdbc")
 
     runtimeOnly("org.postgresql:postgresql")
@@ -123,15 +125,15 @@ dependencies {
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.29.0")
+    implementation("io.sentry:sentry-spring-boot-4:8.29.0")
     implementation("io.sentry:sentry-logback:8.29.0")
 
-    implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.14.1")
+    implementation("io.hypersistence:hypersistence-utils-hibernate-73:3.15.2")
 
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 
-    implementation("com.github.ErkoRisthein:mailchimp-transactional-api-java:1.0.59")
+    implementation("com.github.ErkoRisthein:mailchimp-transactional-api-java:bc3af49c1a")
     implementation("com.github.ErkoRisthein:mailchimp-marketing-api-java:3.0.90-fix3")
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
@@ -148,10 +150,11 @@ dependencies {
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
 
     testImplementation("com.h2database:h2:2.4.240")
-    testImplementation("org.springframework.boot:spring-boot-starter-test") {
+    testImplementation("org.springframework.boot:spring-boot-starter-test-classic") {
         exclude(module = "spock-core")
         exclude(module = "junit-vintage-engine")
     }
+    testImplementation("org.springframework.boot:spring-boot-resttestclient")
     testImplementation("org.spockframework:spock-core:2.4-groovy-5.0") {
         exclude(group = "org.apache.groovy")
     }
@@ -161,8 +164,8 @@ dependencies {
     testImplementation("org.apache.groovy:groovy:5.0.3")
     testImplementation("org.apache.groovy:groovy-json:5.0.3")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
-    testImplementation("org.testcontainers:postgresql")
-    testImplementation("org.testcontainers:jdbc")
+    testImplementation("org.testcontainers:postgresql:1.21.4")
+    testImplementation("org.testcontainers:jdbc:1.21.4")
 
     // TODO: migrate to WireMock
     testImplementation("org.mock-server:mockserver-netty:5.15.0")

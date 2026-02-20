@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import ee.tuleva.onboarding.country.ValidIso2CountryCode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.io.Serializable;
 import java.util.List;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -25,7 +26,7 @@ import java.util.List;
   @JsonSubTypes.Type(value = KycSurveyResponseItem.SourceOfIncome.class, name = "SOURCE_OF_INCOME"),
   @JsonSubTypes.Type(value = KycSurveyResponseItem.Terms.class, name = "TERMS"),
 })
-public sealed interface KycSurveyResponseItem {
+public sealed interface KycSurveyResponseItem extends Serializable {
 
   record Citizenship(@Valid CountriesValue value) implements KycSurveyResponseItem {}
 
@@ -47,23 +48,26 @@ public sealed interface KycSurveyResponseItem {
   record Terms(OptionValue<TermsAccepted> value) implements KycSurveyResponseItem {}
 
   // Value types
-  record TextValue(String type, String value) {}
+  record TextValue(String type, String value) implements Serializable {}
 
-  record OptionValue<T>(String type, T value) {}
+  record OptionValue<T>(String type, T value) implements Serializable {}
 
-  record MultiOptionValue<T>(String type, List<T> value) {}
+  record MultiOptionValue<T>(String type, List<T> value) implements Serializable {}
 
-  record CountriesValue(String type, List<@ValidIso2CountryCode String> value) {}
+  record CountriesValue(String type, List<@ValidIso2CountryCode String> value)
+      implements Serializable {}
 
-  record EmailValue(String type, @NotBlank @jakarta.validation.constraints.Email String value) {}
+  record EmailValue(String type, @NotBlank @jakarta.validation.constraints.Email String value)
+      implements Serializable {}
 
-  record AddressValue(String type, @Valid AddressDetails value) {}
+  record AddressValue(String type, @Valid AddressDetails value) implements Serializable {}
 
   record AddressDetails(
       @NotBlank String street,
       @NotBlank String city,
       @NotBlank String postalCode,
-      @NotBlank @ValidIso2CountryCode String countryCode) {}
+      @NotBlank @ValidIso2CountryCode String countryCode)
+      implements Serializable {}
 
   // Union types for fields that can be either option or text ("Other")
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -71,7 +75,7 @@ public sealed interface KycSurveyResponseItem {
     @JsonSubTypes.Type(value = InvestmentGoalsValue.Option.class, name = "OPTION"),
     @JsonSubTypes.Type(value = InvestmentGoalsValue.Text.class, name = "TEXT"),
   })
-  sealed interface InvestmentGoalsValue {
+  sealed interface InvestmentGoalsValue extends Serializable {
     record Option(InvestmentGoal value) implements InvestmentGoalsValue {}
 
     record Text(String value) implements InvestmentGoalsValue {}
@@ -82,7 +86,7 @@ public sealed interface KycSurveyResponseItem {
     @JsonSubTypes.Type(value = SourceOfIncomeValueItem.Option.class, name = "OPTION"),
     @JsonSubTypes.Type(value = SourceOfIncomeValueItem.Text.class, name = "TEXT"),
   })
-  sealed interface SourceOfIncomeValueItem {
+  sealed interface SourceOfIncomeValueItem extends Serializable {
     record Option(IncomeSource value) implements SourceOfIncomeValueItem {}
 
     record Text(String value) implements SourceOfIncomeValueItem {}

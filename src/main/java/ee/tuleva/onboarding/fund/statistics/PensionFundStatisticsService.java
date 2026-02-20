@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.boot.restclient.RestTemplateBuilder;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Profile;
@@ -32,8 +32,8 @@ public class PensionFundStatisticsService {
   public PensionFundStatisticsService(RestTemplateBuilder restTemplateBuilder) {
     restTemplate =
         restTemplateBuilder
-            .setConnectTimeout(ofSeconds(60))
-            .setReadTimeout(ofSeconds(60))
+            .connectTimeout(ofSeconds(60))
+            .readTimeout(ofSeconds(60))
             .additionalMessageConverters(new Jaxb2RootElementHttpMessageConverter())
             .build();
   }

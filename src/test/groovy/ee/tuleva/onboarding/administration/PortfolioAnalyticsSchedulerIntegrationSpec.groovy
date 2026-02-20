@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.administration
 
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.mock.mockito.MockBean
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import spock.lang.Specification
 
 import static org.mockito.ArgumentMatchers.any
@@ -11,7 +11,7 @@ import static org.mockito.Mockito.*
 @SpringBootTest
 class PortfolioAnalyticsSchedulerIntegrationSpec extends Specification{
 
-  @MockBean
+  @MockitoBean
   private PortfolioAnalyticsSource portfolioAnalyticsSource
 
   @Autowired

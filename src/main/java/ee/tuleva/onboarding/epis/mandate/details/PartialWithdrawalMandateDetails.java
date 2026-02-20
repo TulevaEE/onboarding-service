@@ -35,7 +35,8 @@ public class PartialWithdrawalMandateDetails extends MandateDetails {
     this.taxResidency = taxResidency;
   }
 
-  public record FundWithdrawalAmount(String isin, int percentage, BigDecimal units) {}
+  public record FundWithdrawalAmount(String isin, int percentage, BigDecimal units)
+      implements java.io.Serializable {}
 
   @Override
   public ApplicationType getApplicationType() {

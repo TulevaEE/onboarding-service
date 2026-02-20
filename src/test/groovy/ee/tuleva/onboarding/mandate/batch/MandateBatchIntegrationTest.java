@@ -26,17 +26,19 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.resttestclient.TestRestTemplate;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.data.util.Streamable;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 // Signing tests are in MandateBatchSigningController (non-integration test)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
+@AutoConfigureTestRestTemplate
 public class MandateBatchIntegrationTest {
 
   @LocalServerPort int randomServerPort;
@@ -46,9 +48,9 @@ public class MandateBatchIntegrationTest {
   @Autowired private MandateBatchRepository mandateBatchRepository;
   @Autowired private MandateRepository mandateRepository;
 
-  @MockBean private EpisService episService;
-  @MockBean private AmlAutoChecker amlAutoChecker;
-  @MockBean private WithdrawalEligibilityService withdrawalEligibilityService;
+  @MockitoBean private EpisService episService;
+  @MockitoBean private AmlAutoChecker amlAutoChecker;
+  @MockitoBean private WithdrawalEligibilityService withdrawalEligibilityService;
 
   @AfterEach
   void cleanup() {

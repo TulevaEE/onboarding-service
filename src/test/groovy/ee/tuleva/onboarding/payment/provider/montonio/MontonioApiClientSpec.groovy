@@ -5,7 +5,7 @@ import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.payment.PaymentData
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.test.autoconfigure.web.client.RestClientTest
+import org.springframework.boot.restclient.test.autoconfigure.RestClientTest
 import org.springframework.http.MediaType
 import org.springframework.test.web.client.MockRestServiceServer
 import spock.lang.Specification

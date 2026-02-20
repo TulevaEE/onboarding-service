@@ -7,8 +7,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import java.io.IOException;
+import java.net.URI;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.stereotype.Component;
@@ -23,7 +25,8 @@ public class RestResponseErrorHandler extends DefaultResponseErrorHandler {
   private final ObjectMapper mapper;
 
   @Override
-  public void handleError(ClientHttpResponse response) throws IOException {
+  public void handleError(URI url, HttpMethod method, ClientHttpResponse response)
+      throws IOException {
     HttpStatusCode statusCode = response.getStatusCode();
     if (statusCode.is4xxClientError() || statusCode == INTERNAL_SERVER_ERROR) {
       String responseBody = StreamUtils.copyToString(response.getBody(), UTF_8);
@@ -46,6 +49,6 @@ public class RestResponseErrorHandler extends DefaultResponseErrorHandler {
       throw new ErrorsResponseException(errorsResponse);
     }
 
-    super.handleError(response);
+    super.handleError(url, method, response);
   }
 }

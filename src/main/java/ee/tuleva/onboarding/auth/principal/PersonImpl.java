@@ -2,13 +2,14 @@ package ee.tuleva.onboarding.auth.principal;
 
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import jakarta.validation.constraints.NotBlank;
+import java.io.Serializable;
 import lombok.*;
 
 @Value
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE)
 @AllArgsConstructor
 @Builder(toBuilder = true)
-public class PersonImpl implements Person {
+public class PersonImpl implements Person, Serializable {
   @ValidPersonalCode String personalCode;
   @NotBlank String firstName;
   @NotBlank String lastName;

@@ -5,8 +5,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
-import org.springframework.boot.web.client.RestTemplateBuilder;
-import org.springframework.boot.web.client.RestTemplateCustomizer;
+import org.springframework.boot.restclient.RestTemplateBuilder;
+import org.springframework.boot.restclient.RestTemplateCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -25,8 +25,8 @@ public class RestTemplateConfiguration {
       RestTemplateBuilder restTemplateBuilder, RestResponseErrorHandler errorHandler) {
     return restTemplateBuilder
         .errorHandler(errorHandler)
-        .setConnectTimeout(Duration.ofSeconds(60))
-        .setReadTimeout(Duration.ofSeconds(60))
+        .connectTimeout(Duration.ofSeconds(60))
+        .readTimeout(Duration.ofSeconds(60))
         .build();
   }
 
@@ -34,7 +34,6 @@ public class RestTemplateConfiguration {
   RestTemplateCustomizer loggingRestTemplateCustomizer() {
     return restTemplate -> {
       SimpleClientHttpRequestFactory simpleClient = new SimpleClientHttpRequestFactory();
-      simpleClient.setOutputStreaming(false);
       restTemplate.setRequestFactory(new BufferingClientHttpRequestFactory(simpleClient));
       restTemplate
           .getInterceptors()

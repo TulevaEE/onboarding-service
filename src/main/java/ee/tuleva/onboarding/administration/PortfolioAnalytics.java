@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.administration;
 
-import io.hypersistence.utils.hibernate.type.json.JsonType;
+import static org.hibernate.type.SqlTypes.JSON;
+
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
@@ -10,7 +11,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.Type;
+import org.hibernate.annotations.JdbcTypeCode;
 
 @Entity
 @Builder
@@ -26,7 +27,6 @@ public class PortfolioAnalytics {
 
   @NotNull
   @Builder.Default
-  @Type(JsonType.class)
-  @Column(columnDefinition = "jsonb")
+  @JdbcTypeCode(JSON)
   private List<Map<String, Object>> content = List.of();
 }

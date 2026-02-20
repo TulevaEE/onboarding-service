@@ -18,7 +18,7 @@ import java.util.UUID;
 import lombok.*;
 import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.JdbcType;
-import org.hibernate.dialect.PostgreSQLEnumJdbcType;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 import org.jetbrains.annotations.Nullable;
 
 @Entity

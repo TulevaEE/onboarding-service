@@ -34,7 +34,7 @@ class RestResponseErrorHandlerSpec extends Specification {
     def response = new MockClientHttpResponse("{}".getBytes(), HttpStatus.NOT_FOUND)
 
     when:
-    errorHandler.handleError(response)
+    errorHandler.handleError(URI.create("http://test"), org.springframework.http.HttpMethod.GET, response)
 
     then:
     thrown(ErrorsResponseException)
@@ -45,7 +45,7 @@ class RestResponseErrorHandlerSpec extends Specification {
     def response = new MockClientHttpResponse("{}".getBytes(), HttpStatus.INTERNAL_SERVER_ERROR)
 
     when:
-    errorHandler.handleError(response)
+    errorHandler.handleError(URI.create("http://test"), org.springframework.http.HttpMethod.GET, response)
 
     then:
     thrown(ErrorsResponseException)
@@ -56,7 +56,7 @@ class RestResponseErrorHandlerSpec extends Specification {
     def response = new MockClientHttpResponse("<html></html>".getBytes(), HttpStatus.GATEWAY_TIMEOUT)
 
     when:
-    errorHandler.handleError(response)
+    errorHandler.handleError(URI.create("http://test"), org.springframework.http.HttpMethod.GET, response)
 
     then:
     thrown(HttpServerErrorException)
@@ -76,7 +76,7 @@ class RestResponseErrorHandlerSpec extends Specification {
     def response = new MockClientHttpResponse(htmlResponseBody.getBytes(), HttpStatus.FORBIDDEN)
 
     when:
-    errorHandler.handleError(response)
+    errorHandler.handleError(URI.create("http://test"), org.springframework.http.HttpMethod.GET, response)
 
     then:
     def exception = thrown(IOException)
@@ -104,7 +104,7 @@ class RestResponseErrorHandlerSpec extends Specification {
     def response = new MockClientHttpResponse(xmlResponseBody.getBytes(), HttpStatus.INTERNAL_SERVER_ERROR)
 
     when:
-    errorHandler.handleError(response)
+    errorHandler.handleError(URI.create("http://test"), org.springframework.http.HttpMethod.GET, response)
 
     then:
     def exception = thrown(IOException)
@@ -126,7 +126,7 @@ class RestResponseErrorHandlerSpec extends Specification {
     def response = new MockClientHttpResponse(malformedJson.getBytes(), HttpStatus.BAD_REQUEST)
 
     when:
-    errorHandler.handleError(response)
+    errorHandler.handleError(URI.create("http://test"), org.springframework.http.HttpMethod.GET, response)
 
     then:
     def exception = thrown(IOException)
@@ -147,7 +147,7 @@ class RestResponseErrorHandlerSpec extends Specification {
     def response = new MockClientHttpResponse("".getBytes(), HttpStatus.FORBIDDEN)
 
     when:
-    errorHandler.handleError(response)
+    errorHandler.handleError(URI.create("http://test"), org.springframework.http.HttpMethod.GET, response)
 
     then:
     def exception = thrown(IOException)
@@ -168,7 +168,7 @@ class RestResponseErrorHandlerSpec extends Specification {
     def response = new MockClientHttpResponse(largeHtmlResponse.getBytes(), HttpStatus.FORBIDDEN)
 
     when:
-    errorHandler.handleError(response)
+    errorHandler.handleError(URI.create("http://test"), org.springframework.http.HttpMethod.GET, response)
 
     then:
     def exception = thrown(IOException)
@@ -190,7 +190,7 @@ class RestResponseErrorHandlerSpec extends Specification {
     def response = new MockClientHttpResponse(validJsonError.getBytes(), HttpStatus.BAD_REQUEST)
 
     when:
-    errorHandler.handleError(response)
+    errorHandler.handleError(URI.create("http://test"), org.springframework.http.HttpMethod.GET, response)
 
     then:
     thrown(ErrorsResponseException)

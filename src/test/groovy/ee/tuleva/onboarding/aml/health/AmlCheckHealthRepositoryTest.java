@@ -19,7 +19,7 @@ import java.util.Optional;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 
 @DataJpaTest
 class AmlCheckHealthRepositoryTest {
@@ -49,7 +49,7 @@ class AmlCheckHealthRepositoryTest {
           type VARCHAR(255) NOT NULL,
           success BOOLEAN NOT NULL,
           metadata VARCHAR(4000),
-          created_time TIMESTAMP NOT NULL
+          created_time TIMESTAMP WITH TIME ZONE NOT NULL
       );
       """;
 

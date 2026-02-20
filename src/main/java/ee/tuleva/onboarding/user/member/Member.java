@@ -11,7 +11,7 @@ import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.time.Instant;
 import lombok.*;
-import org.hibernate.annotations.Where;
+import org.hibernate.annotations.SQLRestriction;
 
 @Data
 @Builder
@@ -20,7 +20,7 @@ import org.hibernate.annotations.Where;
 @AllArgsConstructor
 @NoArgsConstructor
 @ToString(exclude = {"user"})
-@Where(clause = "active = true")
+@SQLRestriction("active = true")
 public class Member implements Serializable {
 
   @Id

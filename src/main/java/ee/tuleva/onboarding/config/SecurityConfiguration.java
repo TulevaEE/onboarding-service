@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.config;
 import static ee.tuleva.onboarding.auth.authority.Authority.*;
 import static org.springframework.http.HttpMethod.*;
 import static org.springframework.security.config.http.SessionCreationPolicy.IF_REQUIRED;
-import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
 
 import ee.tuleva.onboarding.auth.jwt.JwtAuthorizationFilter;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
@@ -15,6 +14,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 
 @Configuration
 // @EnableWebSecurity(debug = true)
@@ -78,7 +78,8 @@ public class SecurityConfiguration {
         .logout(
             logout ->
                 logout
-                    .logoutRequestMatcher(antMatcher(GET, "/v1/logout"))
+                    .logoutRequestMatcher(
+                        PathPatternRequestMatcher.withDefaults().matcher(GET, "/v1/logout"))
                     .logoutSuccessHandler(
                         (request, response, authentication) -> response.setStatus(200)))
         .addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class);

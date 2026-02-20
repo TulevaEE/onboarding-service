@@ -1,15 +1,16 @@
 package ee.tuleva.onboarding.aml;
 
+import static org.hibernate.type.SqlTypes.JSON;
+
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
-import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.*;
-import org.hibernate.annotations.Type;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.springframework.data.annotation.CreatedDate;
 
 @Entity
@@ -34,9 +35,7 @@ public class AmlCheck {
 
   @NotNull
   @Builder.Default
-  @Type(JsonType.class)
-  @Column(columnDefinition = "jsonb")
-  @Convert(disableConversion = true)
+  @JdbcTypeCode(JSON)
   private Map<String, Object> metadata = new HashMap<>();
 
   @CreatedDate private Instant createdTime;

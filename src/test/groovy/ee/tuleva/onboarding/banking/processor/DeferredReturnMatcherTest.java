@@ -8,6 +8,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.banking.BankAccountConfiguration;
+import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
@@ -18,6 +20,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -28,12 +31,22 @@ import org.springframework.context.ApplicationEventPublisher;
 @ExtendWith(MockitoExtension.class)
 class DeferredReturnMatcherTest {
 
+  private static final String DEPOSIT_IBAN = "EE123456789012345678";
+
   @Mock SavingFundPaymentRepository savingFundPaymentRepository;
   @Mock SavingsFundLedger savingsFundLedger;
   @Mock UserService userService;
   @Mock ApplicationEventPublisher eventPublisher;
+  @Mock BankAccountConfiguration bankAccountConfiguration;
 
   @InjectMocks DeferredReturnMatcher deferredReturnMatcher;
+
+  @BeforeEach
+  void setUp() {
+    lenient()
+        .when(bankAccountConfiguration.getAccountIban(BankAccountType.DEPOSIT_EUR))
+        .thenReturn(DEPOSIT_IBAN);
+  }
 
   @Test
   void matchesUserCancelledReturn() {
@@ -53,7 +66,7 @@ class DeferredReturnMatcherTest {
             .beneficiaryIban("EE112233445566778899")
             .endToEndId(endToEndId)
             .build();
-    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns())
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
@@ -87,7 +100,7 @@ class DeferredReturnMatcherTest {
             .beneficiaryIban("EE112233445566778899")
             .endToEndId(endToEndId)
             .build();
-    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns())
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
@@ -117,7 +130,7 @@ class DeferredReturnMatcherTest {
             .beneficiaryIban("EE112233445566778899")
             .endToEndId(null)
             .build();
-    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns())
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(any()))
         .thenReturn(Optional.empty());
@@ -146,7 +159,7 @@ class DeferredReturnMatcherTest {
             .amount(new BigDecimal("50.00"))
             .build();
     var returnPayment = aPayment().amount(new BigDecimal("-50.00")).endToEndId(endToEndId).build();
-    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns())
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
@@ -166,7 +179,7 @@ class DeferredReturnMatcherTest {
     var originalPayment =
         aPayment().id(originalPaymentId).userId(null).amount(new BigDecimal("50.00")).build();
     var returnPayment = aPayment().amount(new BigDecimal("-50.00")).endToEndId(endToEndId).build();
-    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns())
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
@@ -179,7 +192,8 @@ class DeferredReturnMatcherTest {
 
   @Test
   void noOpWhenNoUnmatchedReturns() {
-    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns()).thenReturn(List.of());
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of());
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
 
@@ -205,7 +219,7 @@ class DeferredReturnMatcherTest {
             .beneficiaryIban("EE112233445566778899")
             .endToEndId(endToEndId)
             .build();
-    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns())
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
@@ -235,7 +249,7 @@ class DeferredReturnMatcherTest {
             .beneficiaryIban("EE112233445566778899")
             .endToEndId(endToEndId)
             .build();
-    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns())
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
@@ -268,7 +282,7 @@ class DeferredReturnMatcherTest {
             .beneficiaryIban("EE112233445566778899")
             .endToEndId(endToEndId)
             .build();
-    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns())
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
@@ -302,7 +316,7 @@ class DeferredReturnMatcherTest {
             .beneficiaryIban("EE112233445566778899")
             .endToEndId(endToEndId)
             .build();
-    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns())
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
@@ -335,7 +349,7 @@ class DeferredReturnMatcherTest {
             .beneficiaryIban("EE112233445566778899")
             .endToEndId(endToEndId)
             .build();
-    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns())
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
@@ -357,7 +371,7 @@ class DeferredReturnMatcherTest {
             .beneficiaryIban("EE112233445566778899")
             .endToEndId("nonexistent12345678901234567890")
             .build();
-    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns())
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(any()))
         .thenReturn(Optional.empty());
@@ -384,7 +398,7 @@ class DeferredReturnMatcherTest {
             .status(RETURNED)
             .build();
     var returnPayment = aPayment().amount(new BigDecimal("-100.00")).endToEndId(endToEndId).build();
-    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns())
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
         .thenReturn(List.of(returnPayment));
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
         .thenReturn(Optional.of(originalPayment));
@@ -397,5 +411,15 @@ class DeferredReturnMatcherTest {
 
     verify(savingsFundLedger)
         .recordPaymentCancelled(user, new BigDecimal("100.00"), originalPaymentId);
+  }
+
+  @Test
+  void queriesOnlyDepositAccountReturns() {
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of());
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(savingFundPaymentRepository).findUnmatchedOutgoingReturns(DEPOSIT_IBAN);
   }
 }

@@ -169,14 +169,16 @@ public class SavingFundPaymentRepository {
                     .contains(payment.getStatus()));
   }
 
-  public List<SavingFundPayment> findUnmatchedOutgoingReturns() {
+  public List<SavingFundPayment> findUnmatchedOutgoingReturns(String remitterIban) {
     return jdbcTemplate.query(
         """
         select * from saving_fund_payment
         where status = 'PROCESSED'
           and amount < 0
+          and remitter_iban = :remitter_iban
           and not (remitter_name = beneficiary_name)
         """,
+        Map.of("remitter_iban", remitterIban),
         this::rowMapper);
   }
 

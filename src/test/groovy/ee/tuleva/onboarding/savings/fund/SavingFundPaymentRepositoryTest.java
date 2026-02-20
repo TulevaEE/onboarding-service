@@ -445,8 +445,39 @@ class SavingFundPaymentRepositoryTest {
     updatePaymentStatus(internalTransfer, PROCESSED);
     updatePaymentStatus(incomingPayment, PROCESSED);
 
-    var unmatchedReturns = repository.findUnmatchedOutgoingReturns();
+    var unmatchedReturns = repository.findUnmatchedOutgoingReturns("IBAN-1");
 
     assertThat(unmatchedReturns).extracting("id").containsExactly(regularReturn);
+  }
+
+  @Test
+  void findUnmatchedOutgoingReturns_filtersbyRemitterIban() {
+    var depositIban = "EE111111111111111111";
+    var withdrawalIban = "EE999999999999999999";
+    var depositReturn =
+        repository.savePaymentData(
+            createPayment()
+                .externalId("deposit-return")
+                .remitterIban(depositIban)
+                .remitterName("Tuleva Fondid AS")
+                .beneficiaryName("Customer Name")
+                .amount(new BigDecimal("-100.00"))
+                .build());
+    var withdrawalPayout =
+        repository.savePaymentData(
+            createPayment()
+                .externalId("withdrawal-payout")
+                .remitterIban(withdrawalIban)
+                .remitterName("Tuleva Fondid AS")
+                .beneficiaryName("Customer Name")
+                .amount(new BigDecimal("-3663.21"))
+                .build());
+
+    updatePaymentStatus(depositReturn, PROCESSED);
+    updatePaymentStatus(withdrawalPayout, PROCESSED);
+
+    var unmatchedReturns = repository.findUnmatchedOutgoingReturns(depositIban);
+
+    assertThat(unmatchedReturns).extracting("id").containsExactly(depositReturn);
   }
 }

@@ -1,10 +1,12 @@
 package ee.tuleva.onboarding.banking.processor;
 
+import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_CANCELLED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import static java.math.BigDecimal.ZERO;
 
+import ee.tuleva.onboarding.banking.BankAccountConfiguration;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
@@ -29,12 +31,14 @@ public class DeferredReturnMatcher {
   private final SavingsFundLedger savingsFundLedger;
   private final UserService userService;
   private final ApplicationEventPublisher eventPublisher;
+  private final BankAccountConfiguration bankAccountConfiguration;
 
   @EventListener
   @Transactional
   public void onBankMessagesProcessed(BankMessagesProcessingCompleted event) {
+    var depositIban = bankAccountConfiguration.getAccountIban(DEPOSIT_EUR);
     var unmatchedReturns =
-        savingFundPaymentRepository.findUnmatchedOutgoingReturns().stream()
+        savingFundPaymentRepository.findUnmatchedOutgoingReturns(depositIban).stream()
             .filter(returnPayment -> !hasReturnLedgerEntry(returnPayment))
             .toList();
 

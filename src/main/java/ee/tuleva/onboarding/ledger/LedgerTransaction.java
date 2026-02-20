@@ -5,11 +5,11 @@ import static jakarta.persistence.EnumType.STRING;
 import static jakarta.persistence.GenerationType.UUID;
 import static java.math.BigDecimal.ZERO;
 import static org.hibernate.generator.EventType.INSERT;
+import static org.hibernate.type.SqlTypes.JSON;
 
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import ee.tuleva.onboarding.ledger.validation.AssetTypeConsistency;
 import ee.tuleva.onboarding.ledger.validation.BalancedTransaction;
-import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -23,7 +23,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.JdbcType;
-import org.hibernate.annotations.Type;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 @Entity
@@ -78,8 +78,7 @@ public class LedgerTransaction {
   @Column(name = "external_reference")
   private UUID externalReference;
 
-  @Type(JsonType.class)
-  @Column(columnDefinition = "JSONB")
+  @JdbcTypeCode(JSON)
   @NotNull
   @Builder.Default
   private Map<String, Object> metadata = new HashMap<>();

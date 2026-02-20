@@ -1,8 +1,7 @@
 package ee.tuleva.onboarding.event;
 
-import io.hypersistence.utils.hibernate.type.json.JsonType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
+import static org.hibernate.type.SqlTypes.JSON;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -15,7 +14,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.Type;
+import org.hibernate.annotations.JdbcTypeCode;
 
 @Data
 @Builder
@@ -36,8 +35,6 @@ public class EventLog {
 
   private String type;
 
-  @Type(JsonType.class)
-  @Column(columnDefinition = "jsonb")
-  @Convert(disableConversion = true)
+  @JdbcTypeCode(JSON)
   private Map<String, Object> data;
 }

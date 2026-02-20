@@ -2,11 +2,10 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.EnumType.STRING;
+import static org.hibernate.type.SqlTypes.JSON;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
-import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
@@ -21,7 +20,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.Type;
+import org.hibernate.annotations.JdbcTypeCode;
 
 @Data
 @Builder
@@ -49,9 +48,7 @@ public class TransactionBatch {
 
   @NotNull
   @Builder.Default
-  @Type(JsonType.class)
-  @Column(columnDefinition = "jsonb")
-  @Convert(disableConversion = true)
+  @JdbcTypeCode(JSON)
   private Map<String, Object> metadata = Map.of();
 
   private Instant createdAt;

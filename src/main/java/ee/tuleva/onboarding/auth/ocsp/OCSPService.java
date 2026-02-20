@@ -24,7 +24,7 @@ import org.bouncycastle.cert.ocsp.OCSPException;
 import org.bouncycastle.cert.ocsp.OCSPResp;
 import org.bouncycastle.cert.ocsp.RevokedStatus;
 import org.bouncycastle.cert.ocsp.SingleResp;
-import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.boot.restclient.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -45,7 +45,7 @@ public class OCSPService {
 
   public OCSPService(RestTemplateBuilder restTemplateBuilder, Clock clock) {
     restTemplate =
-        restTemplateBuilder.setConnectTimeout(ofSeconds(60)).setReadTimeout(ofSeconds(60)).build();
+        restTemplateBuilder.connectTimeout(ofSeconds(60)).readTimeout(ofSeconds(60)).build();
     this.clock = clock;
   }
 

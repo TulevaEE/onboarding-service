@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.listing
 
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.listing.ListingsFixture.*

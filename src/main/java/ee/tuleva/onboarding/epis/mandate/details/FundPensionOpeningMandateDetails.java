@@ -27,7 +27,8 @@ public class FundPensionOpeningMandateDetails extends MandateDetails {
     this.bankAccountDetails = bankAccountDetails;
   }
 
-  public record FundPensionDuration(int durationYears, boolean recommendedDuration) {}
+  public record FundPensionDuration(int durationYears, boolean recommendedDuration)
+      implements java.io.Serializable {}
 
   @Override
   public ApplicationType getApplicationType() {

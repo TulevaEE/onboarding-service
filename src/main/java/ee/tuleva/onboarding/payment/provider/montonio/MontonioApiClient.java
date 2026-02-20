@@ -34,7 +34,7 @@ public class MontonioApiClient {
   }
 
   private String ordersUri() {
-    return UriComponentsBuilder.fromHttpUrl(montonioUrl).path("/orders").build().toUriString();
+    return UriComponentsBuilder.fromUriString(montonioUrl).path("/orders").build().toUriString();
   }
 
   public record MontonioOrderResponse(String paymentUrl) {}

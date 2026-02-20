@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.kyc.survey;
 
 import static org.hibernate.generator.EventType.INSERT;
+import static org.hibernate.type.SqlTypes.JSON;
 
-import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -12,7 +12,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Generated;
-import org.hibernate.annotations.Type;
+import org.hibernate.annotations.JdbcTypeCode;
 
 @Entity
 @Table(name = "kyc_survey")
@@ -28,8 +28,7 @@ public class KycSurvey {
   @Column(name = "user_id")
   private Long userId;
 
-  @Type(JsonType.class)
-  @Column(columnDefinition = "jsonb")
+  @JdbcTypeCode(JSON)
   @NotNull
   private KycSurveyResponse survey;
 

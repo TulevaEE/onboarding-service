@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.ledger;
 import static jakarta.persistence.EnumType.STRING;
 import static jakarta.persistence.GenerationType.UUID;
 import static org.hibernate.generator.EventType.INSERT;
+import static org.hibernate.type.SqlTypes.JSON;
 
-import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -13,7 +13,7 @@ import java.util.UUID;
 import lombok.*;
 import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.JdbcType;
-import org.hibernate.annotations.Type;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 @Entity
@@ -43,8 +43,8 @@ public class LedgerParty {
   // TODO currently personal ID, can add party representative logic later for children and companies
   private String ownerId;
 
-  @Type(JsonType.class)
-  @Column(columnDefinition = "JSONB", nullable = false)
+  @JdbcTypeCode(JSON)
+  @Column(nullable = false)
   @NotNull
   private Map<String, Object> details;
 

@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.parser.FundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
@@ -28,7 +29,7 @@ import org.springframework.stereotype.Component;
 @Profile({"production", "staging"})
 public class FundPositionImportJob {
 
-  private static final int LOOKBACK_DAYS = 7;
+  private static final int LOOKBACK_DAYS = 30;
   private static final List<ReportProvider> PROVIDERS = List.of(SWEDBANK, SEB);
 
   private final Map<ReportProvider, FundPositionParser> parsers;
@@ -103,6 +104,7 @@ public class FundPositionImportJob {
 
     positions.stream()
         .map(FundPosition::getFund)
+        .filter(TulevaFund::hasNavCalculation)
         .distinct()
         .forEach(fund -> fundPositionLedgerService.recordPositionsToLedger(fund, date));
   }

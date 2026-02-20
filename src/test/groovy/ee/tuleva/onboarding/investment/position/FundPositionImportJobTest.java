@@ -143,7 +143,7 @@ class FundPositionImportJobTest {
 
     job.runImport();
 
-    verify(reportService, times(14)).getReport(any(), any(), any());
+    verify(reportService, times(60)).getReport(any(), any(), any());
   }
 
   @Test
@@ -152,7 +152,7 @@ class FundPositionImportJobTest {
 
     job.runImport();
 
-    verify(reportService, times(14)).getReport(any(), any(), any());
+    verify(reportService, times(60)).getReport(any(), any(), any());
   }
 
   @Test
@@ -161,12 +161,12 @@ class FundPositionImportJobTest {
 
     job.runImport();
 
-    verify(reportService, times(7)).getReport(eq(SWEDBANK), eq(POSITIONS), any());
-    verify(reportService, times(7)).getReport(eq(SEB), eq(POSITIONS), any());
+    verify(reportService, times(30)).getReport(eq(SWEDBANK), eq(POSITIONS), any());
+    verify(reportService, times(30)).getReport(eq(SEB), eq(POSITIONS), any());
   }
 
   @Test
-  void importForProviderAndDate_recordsPositionsToLedgerForEachFund() {
+  void importForProviderAndDate_onlyRecordsToLedgerForNavCalculationFunds() {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SWEDBANK, POSITIONS, date))
         .thenReturn(Optional.of(createSwedbankReport(date)));
@@ -174,8 +174,8 @@ class FundPositionImportJobTest {
 
     job.importForProviderAndDate(SWEDBANK, date);
 
-    verify(fundPositionLedgerService).recordPositionsToLedger(TUK75, date);
-    verify(fundPositionLedgerService).recordPositionsToLedger(TUV100, date);
+    verify(fundPositionLedgerService, never())
+        .recordPositionsToLedger(any(TulevaFund.class), any());
   }
 
   @Test

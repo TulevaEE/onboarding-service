@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate;
 
 import static ee.tuleva.onboarding.mandate.MandateType.*;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
+import static org.hibernate.type.SqlTypes.JSON;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
@@ -12,7 +13,6 @@ import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
 import ee.tuleva.onboarding.mandate.payment.rate.ValidPaymentRate;
 import ee.tuleva.onboarding.user.User;
-import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Max;
@@ -23,7 +23,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
 import lombok.*;
-import org.hibernate.annotations.Type;
+import org.hibernate.annotations.JdbcTypeCode;
 
 @Data
 @Entity
@@ -64,21 +64,17 @@ public class Mandate implements Serializable {
   private List<FundTransferExchange>
       fundTransferExchanges; // TODO: refactor this field into details
 
-  @Type(JsonType.class)
-  @Column(name = "address", columnDefinition = "jsonb")
+  @JdbcTypeCode(JSON)
+  @Column(name = "address")
   @NotNull
   @JsonView(MandateView.Default.class)
   private Country address;
 
-  @Type(JsonType.class)
-  @Column(columnDefinition = "jsonb")
-  @Convert(disableConversion = true)
+  @JdbcTypeCode(JSON)
   @NotNull
   private Map<String, Object> metadata = new HashMap<>(); // TODO: refactor this field into details
 
-  @Type(JsonType.class)
-  @Column(columnDefinition = "jsonb")
-  @Convert(disableConversion = true)
+  @JdbcTypeCode(JSON)
   @JsonView(MandateView.Default.class)
   private MandateDetails details;
 

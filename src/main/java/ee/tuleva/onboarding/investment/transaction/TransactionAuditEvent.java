@@ -1,10 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
+import static org.hibernate.type.SqlTypes.JSON;
 
-import io.hypersistence.utils.hibernate.type.json.JsonType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -20,7 +18,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.Type;
+import org.hibernate.annotations.JdbcTypeCode;
 
 @Data
 @Builder
@@ -44,9 +42,7 @@ public class TransactionAuditEvent {
 
   @NotNull
   @Builder.Default
-  @Type(JsonType.class)
-  @Column(columnDefinition = "jsonb")
-  @Convert(disableConversion = true)
+  @JdbcTypeCode(JSON)
   private Map<String, Object> payload = Map.of();
 
   private Instant createdAt;

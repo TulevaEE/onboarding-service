@@ -139,7 +139,7 @@ dependencies {
     implementation("software.amazon.awssdk:s3:2.41.1")
     implementation("commons-io:commons-io:2.21.0")
     implementation("org.apache.commons:commons-csv:1.14.1")
-    implementation("org.apache.poi:poi-ooxml:5.3.0")
+    implementation("org.apache.poi:poi-ooxml:5.5.1")
 
     implementation("net.javacrumbs.shedlock:shedlock-spring:7.5.0")
     implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.5.0")

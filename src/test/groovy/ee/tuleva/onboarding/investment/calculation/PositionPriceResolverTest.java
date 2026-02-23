@@ -3,13 +3,11 @@ package ee.tuleva.onboarding.investment.calculation;
 import static ee.tuleva.onboarding.investment.calculation.PriceSource.EODHD;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.NO_PRICE_DATA;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.OK;
-import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.PRICE_DISCREPANCY;
-import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.YAHOO_MISSING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
+import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -25,20 +23,18 @@ class PositionPriceResolverTest {
 
   private static final String ISIN = "IE00BFNM3G45";
   private static final String EODHD_TICKER = "SGAS.XETRA";
-  private static final String YAHOO_TICKER = "SGAS.DE";
   private static final LocalDate DATE = LocalDate.of(2025, 1, 10);
   private static final LocalDate OLDER_DATE = LocalDate.of(2025, 1, 7);
 
-  @Mock private FundValueProvider fundValueProvider;
+  @Mock private PriorityPriceProvider priorityPriceProvider;
 
   @InjectMocks private PositionPriceResolver resolver;
 
   @Test
-  void resolve_withBothPricesWithinThreshold_returnsOkStatus() {
-    BigDecimal eodhdPrice = new BigDecimal("100.00");
-    BigDecimal yahooPrice = new BigDecimal("100.05");
-    mockEodhdLatestPrice(eodhdPrice, DATE);
-    mockYahooExactPrice(yahooPrice, DATE);
+  void resolve_withPriceAvailable_returnsOkStatus() {
+    BigDecimal price = new BigDecimal("100.00");
+    FundValue fundValue = new FundValue(EODHD_TICKER, DATE, price, "EODHD", null);
+    when(priorityPriceProvider.resolve(ISIN, DATE, null)).thenReturn(Optional.of(fundValue));
 
     Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
 
@@ -46,48 +42,13 @@ class PositionPriceResolverTest {
     ResolvedPrice resolved = result.get();
     assertThat(resolved.validationStatus()).isEqualTo(OK);
     assertThat(resolved.priceSource()).isEqualTo(EODHD);
-    assertThat(resolved.usedPrice()).isEqualTo(eodhdPrice);
-    assertThat(resolved.eodhdPrice()).isEqualTo(eodhdPrice);
-    assertThat(resolved.yahooPrice()).isEqualTo(yahooPrice);
+    assertThat(resolved.usedPrice()).isEqualTo(price);
     assertThat(resolved.priceDate()).isEqualTo(DATE);
   }
 
   @Test
-  void resolve_withPriceDiscrepancyAboveThreshold_returnsPriceDiscrepancyStatus() {
-    BigDecimal eodhdPrice = new BigDecimal("100.00");
-    BigDecimal yahooPrice = new BigDecimal("101.00");
-    mockEodhdLatestPrice(eodhdPrice, DATE);
-    mockYahooExactPrice(yahooPrice, DATE);
-
-    Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
-
-    assertThat(result).isPresent();
-    ResolvedPrice resolved = result.get();
-    assertThat(resolved.validationStatus()).isEqualTo(PRICE_DISCREPANCY);
-    assertThat(resolved.priceSource()).isEqualTo(EODHD);
-    assertThat(resolved.usedPrice()).isEqualTo(eodhdPrice);
-    assertThat(resolved.discrepancyPercent()).isGreaterThan(new BigDecimal("0.1"));
-  }
-
-  @Test
-  void resolve_withEodhdPriceOnly_returnsYahooMissingStatus() {
-    BigDecimal eodhdPrice = new BigDecimal("100.00");
-    mockEodhdLatestPrice(eodhdPrice, DATE);
-    mockYahooExactPrice(null, DATE);
-
-    Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
-
-    assertThat(result).isPresent();
-    ResolvedPrice resolved = result.get();
-    assertThat(resolved.validationStatus()).isEqualTo(YAHOO_MISSING);
-    assertThat(resolved.priceSource()).isEqualTo(EODHD);
-    assertThat(resolved.usedPrice()).isEqualTo(eodhdPrice);
-    assertThat(resolved.yahooPrice()).isNull();
-  }
-
-  @Test
-  void resolve_withNoEodhdPrice_returnsNoPriceDataStatus() {
-    mockEodhdLatestPrice(null, DATE);
+  void resolve_withNoPriceData_returnsNoPriceDataStatus() {
+    when(priorityPriceProvider.resolve(ISIN, DATE, null)).thenReturn(Optional.empty());
 
     Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
 
@@ -99,106 +60,47 @@ class PositionPriceResolverTest {
   }
 
   @Test
-  void resolve_withEodhdFromOlderDate_fetchesYahooForSameDate() {
-    BigDecimal eodhdPrice = new BigDecimal("99.00");
-    BigDecimal yahooPrice = new BigDecimal("99.05");
-    mockEodhdLatestPrice(eodhdPrice, OLDER_DATE);
-    mockYahooExactPrice(yahooPrice, OLDER_DATE);
+  void resolve_withOlderPriceDate_returnsPriceDateFromProvider() {
+    BigDecimal price = new BigDecimal("99.00");
+    FundValue fundValue = new FundValue(EODHD_TICKER, OLDER_DATE, price, "EODHD", null);
+    when(priorityPriceProvider.resolve(ISIN, DATE, null)).thenReturn(Optional.of(fundValue));
 
     Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
 
     assertThat(result).isPresent();
-    ResolvedPrice resolved = result.get();
-    assertThat(resolved.validationStatus()).isEqualTo(OK);
-    assertThat(resolved.priceSource()).isEqualTo(EODHD);
-    assertThat(resolved.usedPrice()).isEqualTo(eodhdPrice);
-    assertThat(resolved.priceDate()).isEqualTo(OLDER_DATE);
+    assertThat(result.get().priceDate()).isEqualTo(OLDER_DATE);
   }
 
   @Test
-  void resolve_withEodhdFromOlderDateAndNoYahoo_returnsYahooMissing() {
-    BigDecimal eodhdPrice = new BigDecimal("99.00");
-    mockEodhdLatestPrice(eodhdPrice, OLDER_DATE);
-    mockYahooExactPrice(null, OLDER_DATE);
-
-    Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
-
-    assertThat(result).isPresent();
-    ResolvedPrice resolved = result.get();
-    assertThat(resolved.validationStatus()).isEqualTo(YAHOO_MISSING);
-    assertThat(resolved.usedPrice()).isEqualTo(eodhdPrice);
-    assertThat(resolved.priceDate()).isEqualTo(OLDER_DATE);
-  }
-
-  @Test
-  void resolve_withZeroEodhdPrice_returnsNoPriceDataStatus() {
-    when(fundValueProvider.getLatestValue(EODHD_TICKER, DATE))
-        .thenReturn(Optional.of(new FundValue(EODHD_TICKER, DATE, BigDecimal.ZERO, null, null)));
-
-    Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
-
-    assertThat(result).isPresent();
-    ResolvedPrice resolved = result.get();
-    assertThat(resolved.validationStatus()).isEqualTo(NO_PRICE_DATA);
-  }
-
-  @Test
-  void resolve_withZeroYahooPrice_returnsYahooMissing() {
-    BigDecimal eodhdPrice = new BigDecimal("100.00");
-    mockEodhdLatestPrice(eodhdPrice, DATE);
-    when(fundValueProvider.getValueForDate(YAHOO_TICKER, DATE))
-        .thenReturn(Optional.of(new FundValue(YAHOO_TICKER, DATE, BigDecimal.ZERO, null, null)));
-
-    Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
-
-    assertThat(result).isPresent();
-    ResolvedPrice resolved = result.get();
-    assertThat(resolved.validationStatus()).isEqualTo(YAHOO_MISSING);
-    assertThat(resolved.usedPrice()).isEqualTo(eodhdPrice);
-  }
-
-  @Test
-  void resolve_withUpdatedBeforeCutoff_usesFilteredQueries() {
+  void resolve_withUpdatedBeforeCutoff_passesThrough() {
     Instant cutoff = Instant.parse("2025-01-11T09:30:00Z");
-    BigDecimal eodhdPrice = new BigDecimal("100.00");
-    BigDecimal yahooPrice = new BigDecimal("100.05");
+    BigDecimal price = new BigDecimal("100.00");
+    FundValue fundValue = new FundValue(EODHD_TICKER, DATE, price, "EODHD", null);
 
-    when(fundValueProvider.getLatestValue(EODHD_TICKER, DATE, cutoff))
-        .thenReturn(Optional.of(new FundValue(EODHD_TICKER, DATE, eodhdPrice, null, null)));
-    when(fundValueProvider.getValueForDate(YAHOO_TICKER, DATE, cutoff))
-        .thenReturn(Optional.of(new FundValue(YAHOO_TICKER, DATE, yahooPrice, null, null)));
+    when(priorityPriceProvider.resolve(ISIN, DATE, cutoff)).thenReturn(Optional.of(fundValue));
 
     Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE, cutoff);
 
     assertThat(result).isPresent();
-    ResolvedPrice resolved = result.get();
-    assertThat(resolved.validationStatus()).isEqualTo(OK);
-    assertThat(resolved.usedPrice()).isEqualTo(eodhdPrice);
+    assertThat(result.get().validationStatus()).isEqualTo(OK);
+    assertThat(result.get().usedPrice()).isEqualTo(price);
   }
 
   @Test
   void resolve_withUnknownIsin_returnsEmpty() {
-    String unknownIsin = "UNKNOWN_ISIN";
-
-    Optional<ResolvedPrice> result = resolver.resolve(unknownIsin, DATE);
+    Optional<ResolvedPrice> result = resolver.resolve("UNKNOWN_ISIN", DATE);
 
     assertThat(result).isEmpty();
   }
 
-  private void mockEodhdLatestPrice(BigDecimal price, LocalDate priceDate) {
-    when(fundValueProvider.getLatestValue(EODHD_TICKER, DATE))
-        .thenReturn(toFundValue(EODHD_TICKER, price, priceDate));
-  }
+  @Test
+  void resolve_mapsProviderToPriceSource() {
+    FundValue fundValue = new FundValue("key", DATE, new BigDecimal("150.00"), "BLACKROCK", null);
+    when(priorityPriceProvider.resolve(ISIN, DATE, null)).thenReturn(Optional.of(fundValue));
 
-  private void mockYahooExactPrice(BigDecimal price, LocalDate priceDate) {
-    when(fundValueProvider.getValueForDate(YAHOO_TICKER, priceDate))
-        .thenReturn(toFundValue(YAHOO_TICKER, price, priceDate));
-  }
+    Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
 
-  private Optional<FundValue> toFundValue(String key, BigDecimal value, LocalDate date) {
-    if (value == null) {
-      return Optional.empty();
-    }
-    return Optional.of(new FundValue(key, date, value, null, null));
+    assertThat(result).isPresent();
+    assertThat(result.get().priceSource()).isEqualTo(PriceSource.BLACKROCK);
   }
 }

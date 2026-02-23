@@ -42,12 +42,6 @@ public class InvestmentPositionCalculation {
 
   @NotNull private BigDecimal quantity;
 
-  @Column(name = "eodhd_price")
-  private BigDecimal eodhdPrice;
-
-  @Column(name = "yahoo_price")
-  private BigDecimal yahooPrice;
-
   @Column(name = "used_price")
   private BigDecimal usedPrice;
 
@@ -63,8 +57,8 @@ public class InvestmentPositionCalculation {
   @Column(name = "validation_status")
   private ValidationStatus validationStatus;
 
-  @Column(name = "price_discrepancy_percent")
-  private BigDecimal priceDiscrepancyPercent;
+  @Column(name = "price_date")
+  private LocalDate priceDate;
 
   @Column(name = "created_at")
   private Instant createdAt;

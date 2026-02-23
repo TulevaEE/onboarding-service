@@ -5,8 +5,6 @@ import static ee.tuleva.onboarding.fund.TulevaFund.getPillar3Funds;
 import static ee.tuleva.onboarding.fund.TulevaFund.getSavingsFunds;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.*;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.NO_PRICE_DATA;
-import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.PRICE_DISCREPANCY;
-import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.YAHOO_MISSING;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import java.time.LocalTime;
@@ -78,20 +76,7 @@ public class PositionCalculationJob {
 
   private void notifyIssues(List<PositionCalculation> calculations) {
     for (PositionCalculation calculation : calculations) {
-      ValidationStatus status = calculation.validationStatus();
-
-      if (status == PRICE_DISCREPANCY) {
-        notifier.notifyPriceDiscrepancy(
-            calculation.fund(),
-            calculation.isin(),
-            calculation.date(),
-            calculation.eodhdPrice(),
-            calculation.yahooPrice(),
-            calculation.priceDiscrepancyPercent());
-      } else if (status == YAHOO_MISSING) {
-        notifier.notifyYahooMissing(
-            calculation.fund(), calculation.isin(), calculation.date(), calculation.eodhdPrice());
-      } else if (status == NO_PRICE_DATA) {
+      if (calculation.validationStatus() == NO_PRICE_DATA) {
         notifier.notifyNoPriceData(calculation.fund(), calculation.isin(), calculation.date());
       }
 

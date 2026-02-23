@@ -1,0 +1,4 @@
+ALTER TABLE investment_position_calculation ADD COLUMN price_date date;
+ALTER TABLE investment_position_calculation DROP COLUMN eodhd_price;
+ALTER TABLE investment_position_calculation DROP COLUMN yahoo_price;
+ALTER TABLE investment_position_calculation DROP COLUMN price_discrepancy_percent;

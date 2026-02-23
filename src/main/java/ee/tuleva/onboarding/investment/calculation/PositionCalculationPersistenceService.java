@@ -52,26 +52,22 @@ public class PositionCalculationPersistenceService {
         .fund(calculation.fund())
         .date(calculation.date())
         .quantity(calculation.quantity())
-        .eodhdPrice(calculation.eodhdPrice())
-        .yahooPrice(calculation.yahooPrice())
         .usedPrice(calculation.usedPrice())
         .priceSource(calculation.priceSource())
         .calculatedMarketValue(calculation.calculatedMarketValue())
         .validationStatus(calculation.validationStatus())
-        .priceDiscrepancyPercent(calculation.priceDiscrepancyPercent())
+        .priceDate(calculation.priceDate())
         .createdAt(calculation.createdAt())
         .build();
   }
 
   private void updateEntity(InvestmentPositionCalculation entity, PositionCalculation calculation) {
     entity.setQuantity(calculation.quantity());
-    entity.setEodhdPrice(calculation.eodhdPrice());
-    entity.setYahooPrice(calculation.yahooPrice());
     entity.setUsedPrice(calculation.usedPrice());
     entity.setPriceSource(calculation.priceSource());
     entity.setCalculatedMarketValue(calculation.calculatedMarketValue());
     entity.setValidationStatus(calculation.validationStatus());
-    entity.setPriceDiscrepancyPercent(calculation.priceDiscrepancyPercent());
+    entity.setPriceDate(calculation.priceDate());
     entity.setCreatedAt(calculation.createdAt());
   }
 }

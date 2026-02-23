@@ -97,13 +97,10 @@ public class PositionCalculationService {
         .fund(fund)
         .date(date)
         .quantity(quantity)
-        .eodhdPrice(resolvedPrice.eodhdPrice())
-        .yahooPrice(resolvedPrice.yahooPrice())
         .usedPrice(resolvedPrice.usedPrice())
         .priceSource(resolvedPrice.priceSource())
         .calculatedMarketValue(calculatedMarketValue)
         .validationStatus(resolvedPrice.validationStatus())
-        .priceDiscrepancyPercent(resolvedPrice.discrepancyPercent())
         .priceDate(resolvedPrice.priceDate())
         .createdAt(Instant.now())
         .build();

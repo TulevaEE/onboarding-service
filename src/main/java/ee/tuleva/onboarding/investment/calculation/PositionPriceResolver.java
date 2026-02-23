@@ -1,17 +1,11 @@
 package ee.tuleva.onboarding.investment.calculation;
 
-import static ee.tuleva.onboarding.investment.calculation.PriceSource.EODHD;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.NO_PRICE_DATA;
 import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.OK;
-import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.PRICE_DISCREPANCY;
-import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.YAHOO_MISSING;
-import static java.math.BigDecimal.ZERO;
-import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
+import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Optional;
@@ -22,100 +16,34 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class PositionPriceResolver {
 
-  private static final BigDecimal DISCREPANCY_THRESHOLD_PERCENT = new BigDecimal("0.1");
-  private static final int PERCENTAGE_SCALE = 4;
-
-  private final FundValueProvider fundValueProvider;
+  private final PriorityPriceProvider priorityPriceProvider;
 
   public Optional<ResolvedPrice> resolve(String isin, LocalDate date) {
     return resolve(isin, date, null);
   }
 
   public Optional<ResolvedPrice> resolve(String isin, LocalDate date, Instant updatedBefore) {
-    return FundTicker.findByIsin(isin).map(ticker -> resolveForTicker(ticker, date, updatedBefore));
-  }
-
-  private ResolvedPrice resolveForTicker(FundTicker ticker, LocalDate date, Instant updatedBefore) {
-    FundValue eodhdValue = fetchLatestValue(ticker.getEodhdTicker(), date, updatedBefore);
-    if (eodhdValue == null) {
-      return buildNoPriceDataResult();
+    if (FundTicker.findByIsin(isin).isEmpty()) {
+      return Optional.empty();
     }
 
-    LocalDate priceDate = eodhdValue.date();
-    FundValue yahooValue = fetchValueForDate(ticker.getYahooTicker(), priceDate, updatedBefore);
-    return determineResult(eodhdValue, yahooValue);
+    return Optional.of(
+        priorityPriceProvider
+            .resolve(isin, date, updatedBefore)
+            .map(this::toResolvedPrice)
+            .orElseGet(PositionPriceResolver::noPriceData));
   }
 
-  private FundValue fetchLatestValue(String tickerKey, LocalDate maxDate, Instant updatedBefore) {
-    Optional<FundValue> result =
-        updatedBefore != null
-            ? fundValueProvider.getLatestValue(tickerKey, maxDate, updatedBefore)
-            : fundValueProvider.getLatestValue(tickerKey, maxDate);
-    return result.filter(fundValue -> fundValue.value().compareTo(ZERO) != 0).orElse(null);
-  }
-
-  private FundValue fetchValueForDate(String tickerKey, LocalDate date, Instant updatedBefore) {
-    Optional<FundValue> result =
-        updatedBefore != null
-            ? fundValueProvider.getValueForDate(tickerKey, date, updatedBefore)
-            : fundValueProvider.getValueForDate(tickerKey, date);
-    return result.filter(fundValue -> fundValue.value().compareTo(ZERO) != 0).orElse(null);
-  }
-
-  private ResolvedPrice determineResult(FundValue eodhdValue, FundValue yahooValue) {
-    if (yahooValue != null) {
-      return resolveWithBothPrices(eodhdValue, yahooValue);
-    }
-
+  private ResolvedPrice toResolvedPrice(FundValue fundValue) {
     return ResolvedPrice.builder()
-        .eodhdPrice(eodhdValue.value())
-        .yahooPrice(null)
-        .usedPrice(eodhdValue.value())
-        .priceSource(EODHD)
-        .validationStatus(YAHOO_MISSING)
-        .discrepancyPercent(null)
-        .priceDate(eodhdValue.date())
+        .usedPrice(fundValue.value())
+        .priceSource(PriceSource.fromProviderName(fundValue.provider()))
+        .validationStatus(OK)
+        .priceDate(fundValue.date())
         .build();
   }
 
-  private ResolvedPrice buildNoPriceDataResult() {
-    return ResolvedPrice.builder()
-        .eodhdPrice(null)
-        .yahooPrice(null)
-        .usedPrice(null)
-        .priceSource(null)
-        .validationStatus(NO_PRICE_DATA)
-        .discrepancyPercent(null)
-        .priceDate(null)
-        .build();
-  }
-
-  private ResolvedPrice resolveWithBothPrices(FundValue eodhdValue, FundValue yahooValue) {
-    BigDecimal eodhdPrice = eodhdValue.value();
-    BigDecimal yahooPrice = yahooValue.value();
-    BigDecimal discrepancyPercent = calculateDiscrepancyPercent(eodhdPrice, yahooPrice);
-    boolean hasDiscrepancy = discrepancyPercent.compareTo(DISCREPANCY_THRESHOLD_PERCENT) > 0;
-
-    return ResolvedPrice.builder()
-        .eodhdPrice(eodhdPrice)
-        .yahooPrice(yahooPrice)
-        .usedPrice(eodhdPrice)
-        .priceSource(EODHD)
-        .validationStatus(hasDiscrepancy ? PRICE_DISCREPANCY : OK)
-        .discrepancyPercent(discrepancyPercent)
-        .priceDate(eodhdValue.date())
-        .build();
-  }
-
-  private BigDecimal calculateDiscrepancyPercent(BigDecimal eodhdPrice, BigDecimal yahooPrice) {
-    if (yahooPrice.compareTo(ZERO) == 0) {
-      return eodhdPrice.compareTo(ZERO) == 0 ? ZERO : new BigDecimal("100");
-    }
-
-    return eodhdPrice
-        .subtract(yahooPrice)
-        .abs()
-        .multiply(new BigDecimal("100"))
-        .divide(yahooPrice.abs(), PERCENTAGE_SCALE, HALF_UP);
+  private static ResolvedPrice noPriceData() {
+    return ResolvedPrice.builder().validationStatus(NO_PRICE_DATA).build();
   }
 }

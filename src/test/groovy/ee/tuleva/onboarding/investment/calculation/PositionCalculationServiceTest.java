@@ -45,12 +45,10 @@ class PositionCalculationServiceTest {
 
     ResolvedPrice resolvedPrice =
         ResolvedPrice.builder()
-            .eodhdPrice(price)
-            .yahooPrice(price)
             .usedPrice(price)
             .priceSource(EODHD)
             .validationStatus(OK)
-            .discrepancyPercent(BigDecimal.ZERO)
+            .priceDate(DATE)
             .build();
 
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(DATE, FUND, SECURITY))
@@ -105,12 +103,7 @@ class PositionCalculationServiceTest {
     position2.setFund(TUK00);
 
     ResolvedPrice resolvedPrice =
-        ResolvedPrice.builder()
-            .eodhdPrice(price)
-            .usedPrice(price)
-            .priceSource(EODHD)
-            .validationStatus(OK)
-            .build();
+        ResolvedPrice.builder().usedPrice(price).priceSource(EODHD).validationStatus(OK).build();
 
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(eq(DATE), any(), eq(SECURITY)))
         .thenReturn(List.of(position1));
@@ -126,14 +119,7 @@ class PositionCalculationServiceTest {
     BigDecimal quantity = new BigDecimal("1000");
     FundPosition position = createSecurityPosition(ISIN, quantity);
 
-    ResolvedPrice resolvedPrice =
-        ResolvedPrice.builder()
-            .eodhdPrice(null)
-            .yahooPrice(null)
-            .usedPrice(null)
-            .priceSource(null)
-            .validationStatus(NO_PRICE_DATA)
-            .build();
+    ResolvedPrice resolvedPrice = ResolvedPrice.builder().validationStatus(NO_PRICE_DATA).build();
 
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(DATE, FUND, SECURITY))
         .thenReturn(List.of(position));
@@ -151,12 +137,7 @@ class PositionCalculationServiceTest {
     BigDecimal price = new BigDecimal("100.00");
 
     ResolvedPrice resolvedPrice =
-        ResolvedPrice.builder()
-            .eodhdPrice(price)
-            .usedPrice(price)
-            .priceSource(EODHD)
-            .validationStatus(OK)
-            .build();
+        ResolvedPrice.builder().usedPrice(price).priceSource(EODHD).validationStatus(OK).build();
 
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(DATE, FUND, SECURITY))
         .thenReturn(List.of(position));
@@ -175,12 +156,7 @@ class PositionCalculationServiceTest {
     FundPosition position = createSecurityPosition(ISIN, quantity);
 
     ResolvedPrice resolvedPrice =
-        ResolvedPrice.builder()
-            .eodhdPrice(price)
-            .usedPrice(price)
-            .priceSource(EODHD)
-            .validationStatus(OK)
-            .build();
+        ResolvedPrice.builder().usedPrice(price).priceSource(EODHD).validationStatus(OK).build();
 
     when(fundPositionRepository.findLatestNavDateByFund(FUND)).thenReturn(Optional.of(DATE));
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(DATE, FUND, SECURITY))
@@ -214,12 +190,7 @@ class PositionCalculationServiceTest {
     FundPosition position2 = createSecurityPosition(ISIN, quantity);
 
     ResolvedPrice resolvedPrice =
-        ResolvedPrice.builder()
-            .eodhdPrice(price)
-            .usedPrice(price)
-            .priceSource(EODHD)
-            .validationStatus(OK)
-            .build();
+        ResolvedPrice.builder().usedPrice(price).priceSource(EODHD).validationStatus(OK).build();
 
     when(fundPositionRepository.findLatestNavDateByFund(TUK75)).thenReturn(Optional.of(date1));
     when(fundPositionRepository.findLatestNavDateByFund(TUK00)).thenReturn(Optional.of(date2));

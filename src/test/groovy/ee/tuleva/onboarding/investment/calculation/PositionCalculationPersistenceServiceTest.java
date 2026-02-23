@@ -47,13 +47,11 @@ class PositionCalculationPersistenceServiceTest {
             .fund(FUND)
             .date(DATE)
             .quantity(new BigDecimal("1000"))
-            .eodhdPrice(new BigDecimal("100.00"))
-            .yahooPrice(new BigDecimal("100.05"))
             .usedPrice(new BigDecimal("100.00"))
             .priceSource(EODHD)
             .calculatedMarketValue(new BigDecimal("100000.00"))
             .validationStatus(OK)
-            .priceDiscrepancyPercent(new BigDecimal("0.05"))
+            .priceDate(DATE)
             .createdAt(CREATED_AT)
             .build();
     verify(repository).save(expectedEntity);
@@ -97,11 +95,11 @@ class PositionCalculationPersistenceServiceTest {
             .fund(FUND)
             .date(DATE)
             .quantity(new BigDecimal("2000"))
-            .eodhdPrice(new BigDecimal("50.00"))
             .usedPrice(new BigDecimal("50.00"))
             .priceSource(EODHD)
             .calculatedMarketValue(new BigDecimal("100000.00"))
             .validationStatus(OK)
+            .priceDate(DATE)
             .createdAt(CREATED_AT)
             .build();
 
@@ -125,13 +123,11 @@ class PositionCalculationPersistenceServiceTest {
         .fund(FUND)
         .date(DATE)
         .quantity(new BigDecimal("1000"))
-        .eodhdPrice(new BigDecimal("100.00"))
-        .yahooPrice(new BigDecimal("100.05"))
         .usedPrice(new BigDecimal("100.00"))
         .priceSource(EODHD)
         .calculatedMarketValue(new BigDecimal("100000.00"))
         .validationStatus(OK)
-        .priceDiscrepancyPercent(new BigDecimal("0.05"))
+        .priceDate(DATE)
         .createdAt(CREATED_AT)
         .build();
   }

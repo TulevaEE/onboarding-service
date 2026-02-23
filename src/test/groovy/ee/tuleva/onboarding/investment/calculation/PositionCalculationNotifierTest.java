@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,40 +26,6 @@ class PositionCalculationNotifierTest {
   @Captor private ArgumentCaptor<String> messageCaptor;
 
   @InjectMocks private PositionCalculationNotifier notifier;
-
-  @Test
-  void notifyPriceDiscrepancy_sendsNotificationWithAllDetails() {
-    BigDecimal eodhdPrice = new BigDecimal("100.00");
-    BigDecimal yahooPrice = new BigDecimal("101.00");
-    BigDecimal discrepancyPercent = new BigDecimal("1.0");
-
-    notifier.notifyPriceDiscrepancy(FUND, ISIN, DATE, eodhdPrice, yahooPrice, discrepancyPercent);
-
-    verify(notificationSender).send(messageCaptor.capture());
-    String message = messageCaptor.getValue();
-    assertThat(message)
-        .contains("Price discrepancy")
-        .contains(FUND.name())
-        .contains(ISIN)
-        .contains("100.00")
-        .contains("101.00")
-        .contains("1.0");
-  }
-
-  @Test
-  void notifyYahooMissing_sendsNotificationWithDetails() {
-    BigDecimal eodhdPrice = new BigDecimal("100.00");
-
-    notifier.notifyYahooMissing(FUND, ISIN, DATE, eodhdPrice);
-
-    verify(notificationSender).send(messageCaptor.capture());
-    String message = messageCaptor.getValue();
-    assertThat(message)
-        .contains("Yahoo price missing")
-        .contains(FUND.name())
-        .contains(ISIN)
-        .contains("100.00");
-  }
 
   @Test
   void notifyNoPriceData_sendsBlockedNotification() {
@@ -90,20 +55,5 @@ class PositionCalculationNotifierTest {
         .contains("2025-01-10")
         .contains("2025-01-07")
         .contains("3 days old");
-  }
-
-  @Test
-  void notifyEodhdMissing_sendsNotificationWithDetails() {
-    BigDecimal yahooPrice = new BigDecimal("100.00");
-
-    notifier.notifyEodhdMissing(FUND, ISIN, DATE, yahooPrice);
-
-    verify(notificationSender).send(messageCaptor.capture());
-    String message = messageCaptor.getValue();
-    assertThat(message)
-        .contains("EODHD price missing")
-        .contains(FUND.name())
-        .contains(ISIN)
-        .contains("100.00");
   }
 }

@@ -2,12 +2,10 @@ package ee.tuleva.onboarding.investment.fees;
 
 import static ee.tuleva.onboarding.investment.fees.FeeType.*;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
-import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SystemAccount;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -44,16 +42,11 @@ public class FeeCalculationService {
       FeeAccrual accrual = calculator.calculate(fund, date);
       feeAccrualRepository.save(accrual);
       if (fund.hasNavCalculation()) {
-        BigDecimal amount = roundForLedger(accrual.dailyAmountNet());
         SystemAccount feeAccount = FEE_TYPE_ACCOUNTS.get(accrual.feeType());
-        navFeeAccrualLedger.recordFeeAccrual(fund.name(), date, feeAccount, amount);
+        navFeeAccrualLedger.recordFeeAccrual(accrual, feeAccount);
       }
     }
     log.debug("Recorded fee accruals: fund={}, date={}", fund, date);
-  }
-
-  private BigDecimal roundForLedger(BigDecimal amount) {
-    return amount != null ? amount.setScale(2, HALF_UP) : null;
   }
 
   @Transactional

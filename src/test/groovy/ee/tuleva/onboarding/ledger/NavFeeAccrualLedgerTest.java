@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
+import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_ACCRUAL;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_SETTLEMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.DEPOT_FEE_ACCRUAL;
@@ -11,6 +14,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.fees.FeeAccrual;
+import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import java.math.BigDecimal;
@@ -81,8 +87,8 @@ class NavFeeAccrualLedgerTest {
             any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
-    navFeeAccrualLedger.recordFeeAccrual(
-        "TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"));
+    FeeAccrual accrual = createAccrual(TKF100, MANAGEMENT, accrualDate, "52.0534", "52.0534", null);
+    navFeeAccrualLedger.recordFeeAccrual(accrual, MANAGEMENT_FEE_ACCRUAL);
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -116,8 +122,9 @@ class NavFeeAccrualLedgerTest {
             any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
-    navFeeAccrualLedger.recordFeeAccrual(
-        "TKF100", accrualDate, DEPOT_FEE_ACCRUAL, new BigDecimal("16.44"));
+    FeeAccrual accrual =
+        createAccrual(TKF100, DEPOT, accrualDate, "16.4412", "20.3871", new BigDecimal("0.24"));
+    navFeeAccrualLedger.recordFeeAccrual(accrual, DEPOT_FEE_ACCRUAL);
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -151,8 +158,8 @@ class NavFeeAccrualLedgerTest {
             any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
-    navFeeAccrualLedger.recordFeeAccrual(
-        "TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"));
+    FeeAccrual accrual = createAccrual(TKF100, MANAGEMENT, accrualDate, "52.0534", "52.0534", null);
+    navFeeAccrualLedger.recordFeeAccrual(accrual, MANAGEMENT_FEE_ACCRUAL);
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -171,8 +178,9 @@ class NavFeeAccrualLedgerTest {
   @Test
   void recordFeeAccrual_skipsWhenAmountIsNull() {
     LocalDate accrualDate = LocalDate.of(2026, 2, 1);
+    FeeAccrual accrual = createAccrual(TKF100, MANAGEMENT, accrualDate, null, null, null);
 
-    navFeeAccrualLedger.recordFeeAccrual("TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, null);
+    navFeeAccrualLedger.recordFeeAccrual(accrual, MANAGEMENT_FEE_ACCRUAL);
 
     verifyNoInteractions(ledgerTransactionService);
   }
@@ -180,14 +188,15 @@ class NavFeeAccrualLedgerTest {
   @Test
   void recordFeeAccrual_skipsWhenAmountIsZero() {
     LocalDate accrualDate = LocalDate.of(2026, 2, 1);
+    FeeAccrual accrual = createAccrual(TKF100, MANAGEMENT, accrualDate, "0", "0", null);
 
-    navFeeAccrualLedger.recordFeeAccrual("TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, ZERO);
+    navFeeAccrualLedger.recordFeeAccrual(accrual, MANAGEMENT_FEE_ACCRUAL);
 
     verifyNoInteractions(ledgerTransactionService);
   }
 
   @Test
-  void recordFeeAccrual_includesMetadataWithFundFeeTypeAndDate() {
+  void recordFeeAccrual_includesEnrichedMetadata() {
     LocalDate accrualDate = LocalDate.of(2026, 2, 1);
     setupAccountMocks();
 
@@ -202,8 +211,20 @@ class NavFeeAccrualLedgerTest {
             any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
-    navFeeAccrualLedger.recordFeeAccrual(
-        "TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"));
+    FeeAccrual accrual =
+        FeeAccrual.builder()
+            .fund(TKF100)
+            .feeType(MANAGEMENT)
+            .accrualDate(accrualDate)
+            .feeMonth(LocalDate.of(2026, 2, 1))
+            .baseValue(new BigDecimal("1000000000.00"))
+            .annualRate(new BigDecimal("0.00215"))
+            .dailyAmountNet(new BigDecimal("5891.21"))
+            .dailyAmountGross(new BigDecimal("5891.21"))
+            .daysInYear(365)
+            .referenceDate(LocalDate.of(2026, 1, 31))
+            .build();
+    navFeeAccrualLedger.recordFeeAccrual(accrual, MANAGEMENT_FEE_ACCRUAL);
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -217,7 +238,49 @@ class NavFeeAccrualLedgerTest {
     assertThat(metadata).containsEntry("operationType", "FEE_ACCRUAL");
     assertThat(metadata).containsEntry("fund", "TKF100");
     assertThat(metadata).containsEntry("feeType", "MANAGEMENT_FEE_ACCRUAL");
-    assertThat(metadata).containsEntry("accrualDate", "2026-02-01");
+    assertThat(metadata).containsEntry("accrualDate", LocalDate.of(2026, 2, 1));
+    assertThat(metadata).containsEntry("baseValue", new BigDecimal("1000000000.00"));
+    assertThat(metadata).containsEntry("annualRate", new BigDecimal("0.00215"));
+    assertThat(metadata).containsEntry("daysInYear", 365);
+    assertThat(metadata).containsEntry("referenceDate", LocalDate.of(2026, 1, 31));
+    assertThat(metadata).containsEntry("feeMonth", LocalDate.of(2026, 2, 1));
+    assertThat(metadata).containsEntry("dailyAmountNet", new BigDecimal("5891.21"));
+    assertThat(metadata).containsEntry("ledgerAmount", new BigDecimal("5891.21"));
+    assertThat(metadata).doesNotContainKey("vatRate");
+    assertThat(metadata).doesNotContainKey("dailyAmountGross");
+  }
+
+  @Test
+  void recordFeeAccrual_includesVatRateInMetadataForDepotFees() {
+    LocalDate accrualDate = LocalDate.of(2026, 2, 1);
+    setupAccountMocks();
+
+    when(ledgerTransactionService.existsByExternalReferenceAndTransactionType(
+            any(), eq(FEE_ACCRUAL)))
+        .thenReturn(false);
+    when(ledgerTransactionService.createTransaction(
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
+        .thenReturn(transaction);
+
+    FeeAccrual accrual =
+        createAccrual(TKF100, DEPOT, accrualDate, "16.4412", "20.3871", new BigDecimal("0.24"));
+    navFeeAccrualLedger.recordFeeAccrual(accrual, DEPOT_FEE_ACCRUAL);
+
+    verify(ledgerTransactionService)
+        .createTransaction(
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            metadataCaptor.capture(),
+            any(LedgerEntryDto[].class));
+
+    Map<String, Object> metadata = metadataCaptor.getValue();
+    assertThat(metadata).containsEntry("vatRate", new BigDecimal("0.24"));
+    assertThat(metadata).containsEntry("dailyAmountGross", new BigDecimal("20.3871"));
   }
 
   @Test
@@ -230,8 +293,8 @@ class NavFeeAccrualLedgerTest {
             expectedRef, FEE_ACCRUAL))
         .thenReturn(true);
 
-    navFeeAccrualLedger.recordFeeAccrual(
-        "TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"));
+    FeeAccrual accrual = createAccrual(TKF100, MANAGEMENT, accrualDate, "52.0534", "52.0534", null);
+    navFeeAccrualLedger.recordFeeAccrual(accrual, MANAGEMENT_FEE_ACCRUAL);
 
     verify(ledgerTransactionService, never())
         .createTransaction(
@@ -261,8 +324,8 @@ class NavFeeAccrualLedgerTest {
             any(LedgerEntryDto[].class)))
         .thenReturn(transaction);
 
-    navFeeAccrualLedger.recordFeeAccrual(
-        "TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"));
+    FeeAccrual accrual = createAccrual(TKF100, MANAGEMENT, accrualDate, "52.0534", "52.0534", null);
+    navFeeAccrualLedger.recordFeeAccrual(accrual, MANAGEMENT_FEE_ACCRUAL);
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -312,5 +375,27 @@ class NavFeeAccrualLedgerTest {
     assertThat(entries[0].amount()).isEqualByComparingTo("1500.00");
     assertThat(entries[1].account()).isEqualTo(cashPositionAccount);
     assertThat(entries[1].amount()).isEqualByComparingTo("-1500.00");
+  }
+
+  private FeeAccrual createAccrual(
+      TulevaFund fund,
+      FeeType feeType,
+      LocalDate accrualDate,
+      String dailyAmountNet,
+      String dailyAmountGross,
+      BigDecimal vatRate) {
+    return FeeAccrual.builder()
+        .fund(fund)
+        .feeType(feeType)
+        .accrualDate(accrualDate)
+        .feeMonth(accrualDate.withDayOfMonth(1))
+        .baseValue(new BigDecimal("1000000.00"))
+        .annualRate(new BigDecimal("0.00215"))
+        .dailyAmountNet(dailyAmountNet != null ? new BigDecimal(dailyAmountNet) : null)
+        .dailyAmountGross(dailyAmountGross != null ? new BigDecimal(dailyAmountGross) : null)
+        .vatRate(vatRate)
+        .daysInYear(365)
+        .referenceDate(accrualDate.minusDays(1))
+        .build();
   }
 }

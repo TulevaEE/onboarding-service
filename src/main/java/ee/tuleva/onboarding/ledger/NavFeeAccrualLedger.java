@@ -3,13 +3,16 @@ package ee.tuleva.onboarding.ledger;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_ACCRUAL;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_SETTLEMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
+import static java.math.RoundingMode.HALF_UP;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -27,11 +30,14 @@ public class NavFeeAccrualLedger {
   private final Clock clock;
 
   @Transactional
-  public void recordFeeAccrual(
-      String fund, LocalDate accrualDate, SystemAccount feeAccount, BigDecimal amount) {
-    if (amount == null || amount.signum() == 0) {
+  public void recordFeeAccrual(FeeAccrual accrual, SystemAccount feeAccount) {
+    BigDecimal ledgerAmount = roundForLedger(accrual.dailyAmountNet());
+    if (ledgerAmount == null || ledgerAmount.signum() == 0) {
       return;
     }
+
+    String fund = accrual.fund().name();
+    LocalDate accrualDate = accrual.accrualDate();
 
     UUID externalReference = generateAccrualReference(fund, accrualDate, feeAccount);
     if (ledgerTransactionService.existsByExternalReferenceAndTransactionType(
@@ -44,24 +50,40 @@ public class NavFeeAccrualLedger {
       return;
     }
 
-    Map<String, Object> metadata =
-        Map.of(
-            "operationType",
-            "FEE_ACCRUAL",
-            "fund",
-            fund,
-            "feeType",
-            feeAccount.name(),
-            "accrualDate",
-            accrualDate.toString());
+    Map<String, Object> metadata = buildAccrualMetadata(accrual, feeAccount, ledgerAmount);
 
     ledgerTransactionService.createTransaction(
         FEE_ACCRUAL,
         Instant.now(clock),
         externalReference,
         metadata,
-        entry(getNavEquityAccount(), amount),
-        entry(getSystemAccount(feeAccount), amount.negate()));
+        entry(getNavEquityAccount(), ledgerAmount),
+        entry(getSystemAccount(feeAccount), ledgerAmount.negate()));
+  }
+
+  private Map<String, Object> buildAccrualMetadata(
+      FeeAccrual accrual, SystemAccount feeAccount, BigDecimal ledgerAmount) {
+    var metadata = new HashMap<String, Object>();
+    metadata.put("operationType", "FEE_ACCRUAL");
+    metadata.put("fund", accrual.fund().name());
+    metadata.put("feeType", feeAccount.name());
+    metadata.put("accrualDate", accrual.accrualDate());
+    metadata.put("baseValue", accrual.baseValue());
+    metadata.put("annualRate", accrual.annualRate());
+    metadata.put("daysInYear", accrual.daysInYear());
+    metadata.put("referenceDate", accrual.referenceDate());
+    metadata.put("feeMonth", accrual.feeMonth());
+    metadata.put("dailyAmountNet", accrual.dailyAmountNet());
+    if (accrual.vatRate() != null) {
+      metadata.put("vatRate", accrual.vatRate());
+      metadata.put("dailyAmountGross", accrual.dailyAmountGross());
+    }
+    metadata.put("ledgerAmount", ledgerAmount);
+    return metadata;
+  }
+
+  private BigDecimal roundForLedger(BigDecimal amount) {
+    return amount != null ? amount.setScale(2, HALF_UP) : null;
   }
 
   @Transactional

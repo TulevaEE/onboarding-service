@@ -17,7 +17,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
+import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionImportService;
 import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
@@ -379,16 +381,30 @@ class NavPipelineIntegrationTest {
 
   private void recordFeeAccruals(NavCsvData navData) {
     if (navData.managementFeeAccrual.signum() != 0) {
-      navFeeAccrualLedger.recordFeeAccrual(
-          TKF100.name(),
-          navData.navDate,
-          MANAGEMENT_FEE_ACCRUAL,
-          navData.managementFeeAccrual.negate());
+      FeeAccrual managementAccrual =
+          buildTestFeeAccrual(
+              navData.navDate, FeeType.MANAGEMENT, navData.managementFeeAccrual.negate());
+      navFeeAccrualLedger.recordFeeAccrual(managementAccrual, MANAGEMENT_FEE_ACCRUAL);
     }
     if (navData.depotFeeAccrual.signum() != 0) {
-      navFeeAccrualLedger.recordFeeAccrual(
-          TKF100.name(), navData.navDate, DEPOT_FEE_ACCRUAL, navData.depotFeeAccrual.negate());
+      FeeAccrual depotAccrual =
+          buildTestFeeAccrual(navData.navDate, FeeType.DEPOT, navData.depotFeeAccrual.negate());
+      navFeeAccrualLedger.recordFeeAccrual(depotAccrual, DEPOT_FEE_ACCRUAL);
     }
+  }
+
+  private FeeAccrual buildTestFeeAccrual(LocalDate date, FeeType feeType, BigDecimal amount) {
+    return FeeAccrual.builder()
+        .fund(TKF100)
+        .feeType(feeType)
+        .accrualDate(date)
+        .feeMonth(date.withDayOfMonth(1))
+        .baseValue(ZERO)
+        .annualRate(ZERO)
+        .dailyAmountNet(amount)
+        .dailyAmountGross(amount)
+        .daysInYear(date.lengthOfYear())
+        .build();
   }
 
   @SneakyThrows

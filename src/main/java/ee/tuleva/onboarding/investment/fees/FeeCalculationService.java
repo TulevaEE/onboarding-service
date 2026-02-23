@@ -2,11 +2,14 @@ package ee.tuleva.onboarding.investment.fees;
 
 import static ee.tuleva.onboarding.investment.fees.FeeType.*;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
+import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SystemAccount;
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -43,10 +46,37 @@ public class FeeCalculationService {
       feeAccrualRepository.save(accrual);
       if (fund.hasNavCalculation()) {
         SystemAccount feeAccount = FEE_TYPE_ACCOUNTS.get(accrual.feeType());
-        navFeeAccrualLedger.recordFeeAccrual(accrual, feeAccount);
+        BigDecimal ledgerAmount = roundForLedger(accrual.dailyAmountNet());
+        Map<String, Object> metadata = buildAccrualMetadata(accrual, feeAccount, ledgerAmount);
+        navFeeAccrualLedger.recordFeeAccrual(fund.name(), date, feeAccount, ledgerAmount, metadata);
       }
     }
     log.debug("Recorded fee accruals: fund={}, date={}", fund, date);
+  }
+
+  private BigDecimal roundForLedger(BigDecimal amount) {
+    return amount != null ? amount.setScale(2, HALF_UP) : null;
+  }
+
+  private Map<String, Object> buildAccrualMetadata(
+      FeeAccrual accrual, SystemAccount feeAccount, BigDecimal ledgerAmount) {
+    var metadata = new HashMap<String, Object>();
+    metadata.put("operationType", "FEE_ACCRUAL");
+    metadata.put("fund", accrual.fund().name());
+    metadata.put("feeType", feeAccount.name());
+    metadata.put("accrualDate", accrual.accrualDate());
+    metadata.put("baseValue", accrual.baseValue());
+    metadata.put("annualRate", accrual.annualRate());
+    metadata.put("daysInYear", accrual.daysInYear());
+    metadata.put("referenceDate", accrual.referenceDate());
+    metadata.put("feeMonth", accrual.feeMonth());
+    metadata.put("dailyAmountNet", accrual.dailyAmountNet());
+    if (accrual.vatRate() != null) {
+      metadata.put("vatRate", accrual.vatRate());
+      metadata.put("dailyAmountGross", accrual.dailyAmountGross());
+    }
+    metadata.put("ledgerAmount", ledgerAmount);
+    return metadata;
   }
 
   @Transactional

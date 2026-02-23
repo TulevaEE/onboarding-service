@@ -36,6 +36,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -84,8 +85,9 @@ class NavPipelineIntegrationTest {
     recordPositionsToLedger(navData);
     recordFeeAccruals(navData);
     insertPrices(pair.calculationDate);
-    issueFundUnits(navData.unitsOutstanding);
+    issueFundUnits(navData.unitsOutstanding, navData.navDate);
     entityManager.flush();
+    entityManager.clear();
 
     var result = navCalculationService.calculate(TKF100, pair.calculationDate);
     navPublisher.publish(result);
@@ -424,17 +426,18 @@ class NavPipelineIntegrationTest {
     }
   }
 
-  private void issueFundUnits(BigDecimal unitsOutstanding) {
+  private void issueFundUnits(BigDecimal unitsOutstanding, LocalDate navDate) {
     LedgerAccount fundUnitsOutstandingAccount =
         ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING);
     LedgerAccount userFundUnitsAccount = ledgerService.getUserAccount(testUser, FUND_UNITS);
 
     BigDecimal units = unitsOutstanding.setScale(5, HALF_UP);
 
+    Instant transactionDate = navDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
     var transaction =
         LedgerTransaction.builder()
             .transactionType(ADJUSTMENT)
-            .transactionDate(Instant.now())
+            .transactionDate(transactionDate)
             .build();
 
     var systemEntry =

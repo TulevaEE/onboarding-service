@@ -59,7 +59,7 @@ class ManagementFeeCalculatorTest {
     assertThat(result.annualRate()).isEqualTo(annualRate);
 
     BigDecimal expectedDailyFee =
-        baseValue.multiply(annualRate).divide(BigDecimal.valueOf(365), 2, RoundingMode.HALF_UP);
+        baseValue.multiply(annualRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP);
     assertThat(result.dailyAmountNet()).isEqualByComparingTo(expectedDailyFee);
     assertThat(result.dailyAmountGross()).isEqualByComparingTo(expectedDailyFee);
     assertThat(result.vatRate()).isNull();

@@ -43,7 +43,7 @@ public class ManagementFeeCalculator implements FeeCalculator {
                         "No management fee rate found: fund=" + fund + ", date=" + referenceDate));
 
     BigDecimal dailyFee =
-        baseValue.multiply(rate.annualRate()).divide(BigDecimal.valueOf(daysInYear), 2, HALF_UP);
+        baseValue.multiply(rate.annualRate()).divide(BigDecimal.valueOf(daysInYear), 6, HALF_UP);
 
     return FeeAccrual.builder()
         .fund(fund)

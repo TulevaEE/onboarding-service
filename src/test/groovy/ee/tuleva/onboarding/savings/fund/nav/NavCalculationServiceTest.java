@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.fundUnitsOutstandingAccount;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -10,6 +11,8 @@ import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.investment.calculation.PositionPriceResolver;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.ledger.LedgerAccountFixture.EntryFixture;
+import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.savings.fund.nav.components.*;
 import java.math.BigDecimal;
@@ -17,6 +20,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +32,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class NavCalculationServiceTest {
 
   @Mock private FundPositionRepository fundPositionRepository;
+  @Mock private LedgerService ledgerService;
   @Mock private NavLedgerRepository navLedgerRepository;
   @Mock private SecuritiesValueComponent securitiesValueComponent;
   @Mock private CashPositionComponent cashPositionComponent;
@@ -49,6 +54,7 @@ class NavCalculationServiceTest {
     service =
         new NavCalculationService(
             fundPositionRepository,
+            ledgerService,
             navLedgerRepository,
             securitiesValueComponent,
             cashPositionComponent,
@@ -69,8 +75,8 @@ class NavCalculationServiceTest {
 
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, calcDate))
         .thenReturn(Optional.of(calcDate));
-    when(navLedgerRepository.getSystemAccountBalance(FUND_UNITS_OUTSTANDING.getAccountName()))
-        .thenReturn(new BigDecimal("100000.00000"));
+    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING))
+        .thenReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
 
     when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("900000.00"));
     when(cashPositionComponent.calculate(any())).thenReturn(new BigDecimal("50000.00"));
@@ -119,8 +125,8 @@ class NavCalculationServiceTest {
 
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, calcDate))
         .thenReturn(Optional.of(calcDate));
-    when(navLedgerRepository.getSystemAccountBalance(FUND_UNITS_OUTSTANDING.getAccountName()))
-        .thenReturn(ZERO);
+    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING))
+        .thenReturn(fundUnitsOutstandingAccount(ZERO));
 
     when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("1000.00"));
     when(cashPositionComponent.calculate(any())).thenReturn(ZERO);
@@ -155,8 +161,8 @@ class NavCalculationServiceTest {
 
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, calcDate))
         .thenReturn(Optional.of(calcDate));
-    when(navLedgerRepository.getSystemAccountBalance(FUND_UNITS_OUTSTANDING.getAccountName()))
-        .thenReturn(new BigDecimal("100000.00000"));
+    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING))
+        .thenReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
 
     when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("1000000.00"));
     when(cashPositionComponent.calculate(any())).thenReturn(ZERO);
@@ -171,5 +177,36 @@ class NavCalculationServiceTest {
     NavCalculationResult result = service.calculate(TKF100, calcDate);
 
     assertThat(result.aum()).isEqualByComparingTo("999700.00");
+  }
+
+  @Test
+  void calculate_usesSummerTimeCutoffForUnitsOutstanding() {
+    LocalDate summerDate = LocalDate.of(2025, 7, 15);
+
+    var account =
+        fundUnitsOutstandingAccount(
+            List.of(
+                new EntryFixture(
+                    new BigDecimal("80000.00000"), Instant.parse("2025-07-15T12:00:00Z")),
+                new EntryFixture(
+                    new BigDecimal("20000.00000"), Instant.parse("2025-07-15T13:30:00Z"))));
+
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, summerDate))
+        .thenReturn(Optional.of(summerDate));
+    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING)).thenReturn(account);
+
+    when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("1000000.00"));
+    when(cashPositionComponent.calculate(any())).thenReturn(ZERO);
+    when(receivablesComponent.calculate(any())).thenReturn(ZERO);
+    when(payablesComponent.calculate(any())).thenReturn(ZERO);
+    when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
+    when(managementFeeAccrualComponent.calculate(any())).thenReturn(ZERO);
+    when(depotFeeAccrualComponent.calculate(any())).thenReturn(ZERO);
+    when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
+    when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
+
+    NavCalculationResult result = service.calculate(TKF100, summerDate);
+
+    assertThat(result.unitsOutstanding()).isEqualByComparingTo("80000.00000");
   }
 }

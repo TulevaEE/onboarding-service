@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FUND_SUBSCRIPTION;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REDEMPTION_PAYOUT;
+import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.*;
@@ -221,6 +222,42 @@ public class LedgerAccountFixture {
 
   public static LedgerAccount systemAccountWithBalance(BigDecimal balance) {
     return systemAccountWithBalance(balance, Instant.now());
+  }
+
+  public static LedgerAccount fundUnitsOutstandingAccount(List<EntryFixture> entries) {
+    LedgerAccount account =
+        LedgerAccount.builder()
+            .name(FUND_UNITS_OUTSTANDING.getAccountName())
+            .purpose(SYSTEM_ACCOUNT)
+            .assetType(FUND_UNIT)
+            .accountType(LIABILITY)
+            .build();
+
+    LedgerAccount equityAccount =
+        LedgerAccount.builder()
+            .name(SystemAccount.NAV_EQUITY.getAccountName())
+            .purpose(SYSTEM_ACCOUNT)
+            .assetType(FUND_UNIT)
+            .accountType(ASSET)
+            .build();
+
+    entries.forEach(
+        entry -> {
+          LedgerTransaction transaction =
+              LedgerTransaction.builder()
+                  .transactionDate(entry.transactionDate())
+                  .metadata(Map.of("test", "fixture"))
+                  .build();
+          transaction.addEntry(account, entry.amount());
+          transaction.addEntry(equityAccount, entry.amount().negate());
+        });
+
+    return account;
+  }
+
+  public static LedgerAccount fundUnitsOutstandingAccount(BigDecimal balance) {
+    return fundUnitsOutstandingAccount(
+        List.of(new EntryFixture(balance, Instant.parse("2025-01-01T00:00:00Z"))));
   }
 
   public record EntryFixture(BigDecimal amount, Instant transactionDate, BigDecimal navPerUnit) {

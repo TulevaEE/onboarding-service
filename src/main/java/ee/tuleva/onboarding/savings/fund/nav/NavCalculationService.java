@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.calculation.PositionPriceResolver;
 import ee.tuleva.onboarding.investment.calculation.ResolvedPrice;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult.SecurityDetail;
 import ee.tuleva.onboarding.savings.fund.nav.components.*;
@@ -15,6 +16,8 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
@@ -27,8 +30,11 @@ import org.springframework.stereotype.Service;
 public class NavCalculationService {
 
   private static final int NAV_PRECISION = 4;
+  private static final LocalTime CUTOFF_TIME = LocalTime.of(16, 0);
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final FundPositionRepository fundPositionRepository;
+  private final LedgerService ledgerService;
   private final NavLedgerRepository navLedgerRepository;
   private final SecuritiesValueComponent securitiesValueComponent;
   private final CashPositionComponent cashPositionComponent;
@@ -73,7 +79,7 @@ public class NavCalculationService {
     BigDecimal depotFeeAccrual = depotFeeAccrualComponent.calculate(context);
     BigDecimal blackrockAdjustment = blackrockAdjustmentComponent.calculate(context);
 
-    BigDecimal unitsOutstanding = getUnitsOutstanding();
+    BigDecimal unitsOutstanding = getUnitsOutstanding(calculationDate);
     context.setUnitsOutstanding(unitsOutstanding);
 
     BigDecimal pendingRedemptions = ZERO;
@@ -134,9 +140,10 @@ public class NavCalculationService {
         .orElse(null);
   }
 
-  private BigDecimal getUnitsOutstanding() {
-    BigDecimal balance =
-        navLedgerRepository.getSystemAccountBalance(FUND_UNITS_OUTSTANDING.getAccountName());
+  private BigDecimal getUnitsOutstanding(LocalDate calculationDate) {
+    Instant cutoff = calculationDate.atTime(CUTOFF_TIME).atZone(ESTONIAN_ZONE).toInstant();
+    var account = ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING);
+    BigDecimal balance = account.getBalanceAt(cutoff);
     if (balance.signum() < 0) {
       throw new IllegalStateException(
           "FUND_UNITS_OUTSTANDING should be positive, but was: " + balance);

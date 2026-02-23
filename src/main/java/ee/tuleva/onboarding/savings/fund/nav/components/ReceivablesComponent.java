@@ -32,9 +32,4 @@ public class ReceivablesComponent implements NavComponent {
         navLedgerRepository.getSystemAccountBalance(TRADE_RECEIVABLES.getAccountName());
     return balance != null ? balance : ZERO;
   }
-
-  @Override
-  public boolean requiresPreliminaryNav() {
-    return false;
-  }
 }

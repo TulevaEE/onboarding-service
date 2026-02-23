@@ -15,7 +15,5 @@ public class NavComponentContext {
   private final LocalDate positionReportDate;
   private final LocalDate priceDate;
 
-  @Setter private BigDecimal preliminaryNav;
-  @Setter private BigDecimal preliminaryNavPerUnit;
   @Setter private BigDecimal unitsOutstanding;
 }

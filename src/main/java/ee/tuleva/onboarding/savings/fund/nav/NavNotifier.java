@@ -3,14 +3,9 @@ package ee.tuleva.onboarding.savings.fund.nav;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 import static java.util.Locale.US;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
-import ee.tuleva.onboarding.investment.calculation.PositionPriceResolver;
-import ee.tuleva.onboarding.investment.calculation.ResolvedPrice;
-import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult.SecurityDetail;
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -21,8 +16,6 @@ import org.springframework.stereotype.Component;
 class NavNotifier {
 
   private final OperationsNotificationService notificationService;
-  private final NavLedgerRepository navLedgerRepository;
-  private final PositionPriceResolver positionPriceResolver;
 
   void notify(NavCalculationResult result) {
     try {
@@ -77,38 +70,32 @@ class NavNotifier {
   }
 
   private void appendSecuritiesDetail(StringBuilder message, NavCalculationResult result) {
-    var unitBalances = navLedgerRepository.getSecuritiesUnitBalances();
-    if (unitBalances.isEmpty()) {
+    if (result.securitiesDetail() == null || result.securitiesDetail().isEmpty()) {
       return;
     }
 
     message.append("\nSecurities Detail:\n");
-    new TreeMap<>(unitBalances)
-        .forEach((isin, units) -> appendSecurityLine(message, isin, units, result.priceDate()));
+    result.securitiesDetail().forEach(detail -> appendSecurityLine(message, detail));
   }
 
-  private void appendSecurityLine(
-      StringBuilder message, String isin, BigDecimal units, LocalDate priceDate) {
-    var ticker = FundTicker.findByIsin(isin).map(FundTicker::getEodhdTicker).orElse("UNKNOWN");
-
-    var price =
-        positionPriceResolver.resolve(isin, priceDate).map(ResolvedPrice::usedPrice).orElse(null);
-
-    if (price != null) {
-      var marketValue = units.multiply(price);
+  private void appendSecurityLine(StringBuilder message, SecurityDetail detail) {
+    if (detail.price() != null) {
       message.append(
           String.format(
               US,
               "  %s (%s): %s × %s = %,.2f EUR\n",
-              isin,
-              ticker,
-              units.stripTrailingZeros().toPlainString(),
-              price.stripTrailingZeros().toPlainString(),
-              marketValue));
+              detail.isin(),
+              detail.ticker(),
+              detail.units().stripTrailingZeros().toPlainString(),
+              detail.price().stripTrailingZeros().toPlainString(),
+              detail.marketValue()));
     } else {
       message.append(
           "  %s (%s): %s units (no price)\n"
-              .formatted(isin, ticker, units.stripTrailingZeros().toPlainString()));
+              .formatted(
+                  detail.isin(),
+                  detail.ticker(),
+                  detail.units().stripTrailingZeros().toPlainString()));
     }
   }
 }

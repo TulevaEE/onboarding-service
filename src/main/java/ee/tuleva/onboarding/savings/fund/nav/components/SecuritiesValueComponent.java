@@ -46,9 +46,4 @@ public class SecuritiesValueComponent implements NavComponent {
         .map(price -> units.multiply(price).setScale(2, HALF_UP))
         .orElse(ZERO);
   }
-
-  @Override
-  public boolean requiresPreliminaryNav() {
-    return false;
-  }
 }

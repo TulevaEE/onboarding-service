@@ -4,7 +4,7 @@ import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Map;
+import java.util.List;
 import lombok.Builder;
 
 @Builder
@@ -26,7 +26,10 @@ public record NavCalculationResult(
     LocalDate positionReportDate,
     LocalDate priceDate,
     Instant calculatedAt,
-    Map<String, Object> componentDetails) {
+    List<SecurityDetail> securitiesDetail) {
+
+  public record SecurityDetail(
+      String isin, String ticker, BigDecimal units, BigDecimal price, BigDecimal marketValue) {}
 
   public BigDecimal totalAssets() {
     return securitiesValue

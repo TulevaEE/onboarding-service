@@ -5,15 +5,18 @@ import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.calculation.PositionPriceResolver;
+import ee.tuleva.onboarding.investment.calculation.ResolvedPrice;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
+import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult.SecurityDetail;
 import ee.tuleva.onboarding.savings.fund.nav.components.*;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
+import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -36,6 +39,7 @@ public class NavCalculationService {
   private final ManagementFeeAccrualComponent managementFeeAccrualComponent;
   private final DepotFeeAccrualComponent depotFeeAccrualComponent;
   private final BlackrockAdjustmentComponent blackrockAdjustmentComponent;
+  private final PositionPriceResolver positionPriceResolver;
   private final Clock clock;
 
   public NavCalculationResult calculate(String fundCode, LocalDate calculationDate) {
@@ -72,30 +76,23 @@ public class NavCalculationService {
     BigDecimal unitsOutstanding = getUnitsOutstanding();
     context.setUnitsOutstanding(unitsOutstanding);
 
-    BigDecimal preliminaryNav =
-        calculatePreliminaryNav(
-            securitiesValue,
-            cashPosition,
-            receivables,
-            payables,
-            pendingSubscriptions,
-            managementFeeAccrual,
-            depotFeeAccrual,
-            blackrockAdjustment);
-
-    BigDecimal preliminaryNavPerUnit = calculateNavPerUnit(preliminaryNav, unitsOutstanding);
-    context.setPreliminaryNav(preliminaryNav);
-    context.setPreliminaryNavPerUnit(preliminaryNavPerUnit);
-
     BigDecimal pendingRedemptions = ZERO;
     if (unitsOutstanding.signum() > 0) {
       pendingRedemptions = redemptionsComponent.calculate(context);
     }
 
-    BigDecimal aum = preliminaryNav.subtract(pendingRedemptions);
+    BigDecimal aum =
+        calculateAum(
+            securitiesValue,
+            cashPosition,
+            receivables,
+            payables,
+            pendingSubscriptions,
+            pendingRedemptions,
+            managementFeeAccrual,
+            depotFeeAccrual,
+            blackrockAdjustment);
     BigDecimal navPerUnit = calculateNavPerUnit(aum, unitsOutstanding);
-
-    Map<String, Object> componentDetails = buildComponentDetails(context);
 
     NavCalculationResult result =
         NavCalculationResult.builder()
@@ -116,7 +113,7 @@ public class NavCalculationService {
             .positionReportDate(positionReportDate)
             .priceDate(calculationDate)
             .calculatedAt(Instant.now(clock))
-            .componentDetails(componentDetails)
+            .securitiesDetail(buildSecuritiesDetail(calculationDate))
             .build();
 
     validateResult(result);
@@ -147,12 +144,13 @@ public class NavCalculationService {
     return balance;
   }
 
-  private BigDecimal calculatePreliminaryNav(
+  private BigDecimal calculateAum(
       BigDecimal securitiesValue,
       BigDecimal cashPosition,
       BigDecimal receivables,
       BigDecimal payables,
       BigDecimal pendingSubscriptions,
+      BigDecimal pendingRedemptions,
       BigDecimal managementFeeAccrual,
       BigDecimal depotFeeAccrual,
       BigDecimal blackrockAdjustment) {
@@ -166,6 +164,7 @@ public class NavCalculationService {
 
     BigDecimal liabilities =
         payables
+            .add(pendingRedemptions)
             .add(managementFeeAccrual)
             .add(depotFeeAccrual)
             .add(blackrockAdjustment.min(ZERO).negate());
@@ -180,20 +179,27 @@ public class NavCalculationService {
     return aum.divide(unitsOutstanding, NAV_PRECISION, HALF_UP);
   }
 
+  private List<SecurityDetail> buildSecuritiesDetail(LocalDate priceDate) {
+    return new TreeMap<>(navLedgerRepository.getSecuritiesUnitBalances())
+        .entrySet().stream()
+            .map(
+                entry -> {
+                  String isin = entry.getKey();
+                  BigDecimal units = entry.getValue();
+                  var resolvedPrice = positionPriceResolver.resolve(isin, priceDate);
+                  String ticker = resolvedPrice.map(ResolvedPrice::storageKey).orElse("UNKNOWN");
+                  BigDecimal price = resolvedPrice.map(ResolvedPrice::usedPrice).orElse(null);
+                  BigDecimal marketValue =
+                      price != null ? units.multiply(price).setScale(2, HALF_UP) : null;
+                  return new SecurityDetail(isin, ticker, units, price, marketValue);
+                })
+            .toList();
+  }
+
   private void validateResult(NavCalculationResult result) {
     if (result.navPerUnit().signum() <= 0) {
       throw new IllegalStateException(
           "NAV per unit must be positive: navPerUnit=" + result.navPerUnit());
     }
-  }
-
-  // TODO: use immutable Map.of()
-  private Map<String, Object> buildComponentDetails(NavComponentContext context) {
-    Map<String, Object> details = new HashMap<>();
-    details.put("positionReportDate", context.getPositionReportDate());
-    details.put("priceDate", context.getPriceDate());
-    details.put("preliminaryNav", context.getPreliminaryNav());
-    details.put("preliminaryNavPerUnit", context.getPreliminaryNavPerUnit());
-    return details;
   }
 }

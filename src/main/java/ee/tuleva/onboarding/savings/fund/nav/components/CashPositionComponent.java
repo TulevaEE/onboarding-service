@@ -32,9 +32,4 @@ public class CashPositionComponent implements NavComponent {
         navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName());
     return balance != null ? balance : ZERO;
   }
-
-  @Override
-  public boolean requiresPreliminaryNav() {
-    return false;
-  }
 }

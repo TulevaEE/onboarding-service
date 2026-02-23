@@ -9,7 +9,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.Map;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -75,7 +75,7 @@ class NavCalculationJobTest {
         .positionReportDate(date)
         .priceDate(date)
         .calculatedAt(Instant.now())
-        .componentDetails(Map.of())
+        .securitiesDetail(List.of())
         .build();
   }
 }

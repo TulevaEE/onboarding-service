@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.investment.calculation.PositionPriceResolver;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.savings.fund.nav.components.*;
@@ -37,6 +38,7 @@ class NavCalculationServiceTest {
   @Mock private ManagementFeeAccrualComponent managementFeeAccrualComponent;
   @Mock private DepotFeeAccrualComponent depotFeeAccrualComponent;
   @Mock private BlackrockAdjustmentComponent blackrockAdjustmentComponent;
+  @Mock private PositionPriceResolver positionPriceResolver;
 
   private NavCalculationService service;
   private Clock fixedClock;
@@ -57,6 +59,7 @@ class NavCalculationServiceTest {
             managementFeeAccrualComponent,
             depotFeeAccrualComponent,
             blackrockAdjustmentComponent,
+            positionPriceResolver,
             fixedClock);
   }
 

@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.savings.fund.nav.components;
 
-import static ee.tuleva.onboarding.ledger.UserAccount.CASH_RESERVED;
+import static ee.tuleva.onboarding.investment.position.AccountType.RECEIVABLES;
 import static ee.tuleva.onboarding.savings.fund.nav.components.NavComponent.NavComponentType.ASSET;
+import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.ledger.NavLedgerRepository;
+import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavComponentContext;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +14,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SubscriptionsComponent implements NavComponent {
 
-  private final NavLedgerRepository navLedgerRepository;
+  private final FundPositionRepository fundPositionRepository;
 
   @Override
   public String getName() {
@@ -27,16 +28,17 @@ public class SubscriptionsComponent implements NavComponent {
 
   @Override
   public BigDecimal calculate(NavComponentContext context) {
-    BigDecimal balance = navLedgerRepository.sumBalanceByAccountName(CASH_RESERVED.name());
-    if (balance.signum() > 0) {
+    var fund = context.getFund();
+    BigDecimal value =
+        fundPositionRepository
+            .findByNavDateAndFundAndAccountTypeAndAccountId(
+                context.getPositionReportDate(), fund, RECEIVABLES, fund.getIsin())
+            .map(position -> position.getMarketValue())
+            .orElse(ZERO);
+    if (value.signum() < 0) {
       throw new IllegalStateException(
-          "CASH_RESERVED should be negative (liability), but was: " + balance);
+          "Receivables of outstanding units should not be negative: value=" + value);
     }
-    return balance.negate();
-  }
-
-  @Override
-  public boolean requiresPreliminaryNav() {
-    return false;
+    return value;
   }
 }

@@ -7,7 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Map;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class NavCalculationResultTest {
@@ -31,7 +31,7 @@ class NavCalculationResultTest {
             .unitsOutstanding(new BigDecimal("100000.00000"))
             .navPerUnit(new BigDecimal("10.85500"))
             .calculatedAt(Instant.now())
-            .componentDetails(Map.of())
+            .securitiesDetail(List.of())
             .build();
 
     assertThat(result.totalAssets()).isEqualByComparingTo("1085500.00");
@@ -56,7 +56,7 @@ class NavCalculationResultTest {
             .unitsOutstanding(new BigDecimal("100000.00000"))
             .navPerUnit(new BigDecimal("10.49700"))
             .calculatedAt(Instant.now())
-            .componentDetails(Map.of())
+            .securitiesDetail(List.of())
             .build();
 
     assertThat(result.totalAssets()).isEqualByComparingTo("1050000.00");
@@ -81,7 +81,7 @@ class NavCalculationResultTest {
             .unitsOutstanding(new BigDecimal("100000.00000"))
             .navPerUnit(new BigDecimal("9.79941"))
             .calculatedAt(Instant.now())
-            .componentDetails(Map.of())
+            .securitiesDetail(List.of())
             .build();
 
     assertThat(result.totalLiabilities()).isEqualByComparingTo("20058.93");
@@ -106,7 +106,7 @@ class NavCalculationResultTest {
             .unitsOutstanding(new BigDecimal("100000.00000"))
             .navPerUnit(new BigDecimal("9.99700"))
             .calculatedAt(Instant.now())
-            .componentDetails(Map.of())
+            .securitiesDetail(List.of())
             .build();
 
     assertThat(result.totalLiabilities()).isEqualByComparingTo("300.00");

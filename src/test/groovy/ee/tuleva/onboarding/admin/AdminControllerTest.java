@@ -23,7 +23,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -278,7 +278,7 @@ class AdminControllerTest {
         .positionReportDate(date)
         .priceDate(date)
         .calculatedAt(Instant.parse("2026-02-17T15:30:00Z"))
-        .componentDetails(Map.of())
+        .securitiesDetail(List.of())
         .build();
   }
 }

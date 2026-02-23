@@ -9,4 +9,5 @@ public record ResolvedPrice(
     BigDecimal usedPrice,
     PriceSource priceSource,
     ValidationStatus validationStatus,
-    LocalDate priceDate) {}
+    LocalDate priceDate,
+    String storageKey) {}

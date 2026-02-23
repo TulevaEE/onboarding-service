@@ -100,9 +100,4 @@ class DepotFeeAccrualComponentTest {
 
     assertThrows(IllegalStateException.class, () -> component.calculate(context));
   }
-
-  @Test
-  void requiresPreliminaryNav_returnsFalse() {
-    assertThat(component.requiresPreliminaryNav()).isFalse();
-  }
 }

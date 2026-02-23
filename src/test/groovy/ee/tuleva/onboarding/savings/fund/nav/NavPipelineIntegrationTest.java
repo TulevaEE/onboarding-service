@@ -220,7 +220,7 @@ class NavPipelineIntegrationTest {
     BigDecimal cumulativeFee = getCumulativeManagementFee();
     assertThat(cumulativeFee.setScale(2, HALF_UP))
         .as("Cumulative management fee through %s", allNavData.getLast().navDate)
-        .isEqualByComparingTo(new BigDecimal("482.95"));
+        .isEqualByComparingTo(new BigDecimal("511.84"));
   }
 
   private void insertPositionCalculation(TulevaFund fund, LocalDate date, BigDecimal marketValue) {

@@ -11,8 +11,6 @@ public interface NavComponent {
 
   BigDecimal calculate(NavComponentContext context);
 
-  boolean requiresPreliminaryNav();
-
   enum NavComponentType {
     ASSET,
     LIABILITY

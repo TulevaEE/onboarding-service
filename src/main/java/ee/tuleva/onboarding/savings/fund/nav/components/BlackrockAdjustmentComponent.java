@@ -32,9 +32,4 @@ public class BlackrockAdjustmentComponent implements NavComponent {
         navLedgerRepository.getSystemAccountBalance(BLACKROCK_ADJUSTMENT.getAccountName());
     return balance != null ? balance : ZERO;
   }
-
-  @Override
-  public boolean requiresPreliminaryNav() {
-    return false;
-  }
 }

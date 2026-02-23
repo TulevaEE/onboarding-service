@@ -10,17 +10,13 @@ import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.investment.calculation.PositionPriceResolver;
-import ee.tuleva.onboarding.investment.calculation.ResolvedPrice;
-import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult.SecurityDetail;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Map;
-import java.util.Optional;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -31,29 +27,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class NavNotifierTest {
 
   @Mock private OperationsNotificationService notificationService;
-  @Mock private NavLedgerRepository navLedgerRepository;
-  @Mock private PositionPriceResolver positionPriceResolver;
 
   @InjectMocks private NavNotifier navNotifier;
 
   @Test
   void formatMessage_includesAllComponentsAndSecuritiesDetail() {
-    var priceDate = LocalDate.of(2026, 2, 17);
-    var result = aNavCalculationResult(priceDate);
-
-    when(navLedgerRepository.getSecuritiesUnitBalances())
-        .thenReturn(
-            Map.of(
-                "IE00BMDBMY19", new BigDecimal("13288.00000"),
-                "IE00BJZ2DC62", new BigDecimal("21180.00000")));
-
-    when(positionPriceResolver.resolve("IE00BMDBMY19", priceDate))
-        .thenReturn(
-            Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("43.380")).build()));
-
-    when(positionPriceResolver.resolve("IE00BJZ2DC62", priceDate))
-        .thenReturn(
-            Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("49.550")).build()));
+    var result = aNavCalculationResult(LocalDate.of(2026, 2, 17));
 
     var message = navNotifier.formatMessage(result);
 
@@ -79,7 +58,6 @@ class NavNotifierTest {
   @Test
   void notify_sendsMessageToSavingsChannel() {
     var result = aNavCalculationResult(LocalDate.of(2026, 2, 17));
-    when(navLedgerRepository.getSecuritiesUnitBalances()).thenReturn(Map.of());
 
     navNotifier.notify(result);
 
@@ -89,7 +67,6 @@ class NavNotifierTest {
   @Test
   void notify_doesNotPropagateExceptions() {
     var result = aNavCalculationResult(LocalDate.of(2026, 2, 17));
-    when(navLedgerRepository.getSecuritiesUnitBalances()).thenReturn(Map.of());
     doThrow(new RuntimeException("Slack down")).when(notificationService).sendMessage(any(), any());
 
     assertThatCode(() -> navNotifier.notify(result)).doesNotThrowAnyException();
@@ -114,7 +91,20 @@ class NavNotifierTest {
         .positionReportDate(date)
         .priceDate(date)
         .calculatedAt(Instant.parse("2026-02-17T13:30:00Z"))
-        .componentDetails(Map.of())
+        .securitiesDetail(
+            List.of(
+                new SecurityDetail(
+                    "IE00BMDBMY19",
+                    "ESGM.XETRA",
+                    new BigDecimal("13288.00000"),
+                    new BigDecimal("43.380"),
+                    new BigDecimal("576433.44")),
+                new SecurityDetail(
+                    "IE00BJZ2DC62",
+                    "XRSM.XETRA",
+                    new BigDecimal("21180.00000"),
+                    new BigDecimal("49.550"),
+                    new BigDecimal("1049469.00"))))
         .build();
   }
 }

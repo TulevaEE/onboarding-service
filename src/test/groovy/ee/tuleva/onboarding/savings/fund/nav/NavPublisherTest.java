@@ -11,7 +11,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepositor
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Map;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -51,7 +51,7 @@ class NavPublisherTest {
             .positionReportDate(calcDate)
             .priceDate(calcDate)
             .calculatedAt(calcTime)
-            .componentDetails(Map.of())
+            .securitiesDetail(List.of())
             .build();
 
     navPublisher.publish(result);

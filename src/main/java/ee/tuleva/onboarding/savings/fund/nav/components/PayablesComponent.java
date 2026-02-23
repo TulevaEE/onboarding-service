@@ -38,9 +38,4 @@ public class PayablesComponent implements NavComponent {
     }
     return balance.negate();
   }
-
-  @Override
-  public boolean requiresPreliminaryNav() {
-    return false;
-  }
 }

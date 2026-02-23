@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.savings.fund.nav.components;
 
-import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS_RESERVED;
-import static ee.tuleva.onboarding.savings.fund.nav.components.NavComponent.NavComponentType.LIABILITY;
+import static ee.tuleva.onboarding.investment.position.AccountType.LIABILITY;
+import static ee.tuleva.onboarding.savings.fund.nav.components.NavComponent.NavComponentType;
+import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.ledger.NavLedgerRepository;
+import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavComponentContext;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +14,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class RedemptionsComponent implements NavComponent {
 
-  private final NavLedgerRepository navLedgerRepository;
+  private final FundPositionRepository fundPositionRepository;
 
   @Override
   public String getName() {
@@ -22,33 +23,22 @@ public class RedemptionsComponent implements NavComponent {
 
   @Override
   public NavComponentType getType() {
-    return LIABILITY;
+    return NavComponentType.LIABILITY;
   }
 
   @Override
   public BigDecimal calculate(NavComponentContext context) {
-    BigDecimal balance = navLedgerRepository.sumBalanceByAccountName(FUND_UNITS_RESERVED.name());
-    if (balance.signum() > 0) {
+    var fund = context.getFund();
+    BigDecimal value =
+        fundPositionRepository
+            .findByNavDateAndFundAndAccountTypeAndAccountId(
+                context.getPositionReportDate(), fund, LIABILITY, fund.getIsin())
+            .map(position -> position.getMarketValue())
+            .orElse(ZERO);
+    if (value.signum() < 0) {
       throw new IllegalStateException(
-          "FUND_UNITS_RESERVED should be negative (liability), but was: " + balance);
+          "Payables of redeemed units should not be negative: value=" + value);
     }
-    BigDecimal reservedUnits = balance.negate();
-
-    if (reservedUnits.signum() == 0) {
-      return BigDecimal.ZERO;
-    }
-
-    BigDecimal preliminaryNavPerUnit = context.getPreliminaryNavPerUnit();
-    if (preliminaryNavPerUnit == null || preliminaryNavPerUnit.signum() == 0) {
-      throw new IllegalStateException(
-          "Preliminary NAV per unit is required for redemption calculation");
-    }
-
-    return reservedUnits.multiply(preliminaryNavPerUnit);
-  }
-
-  @Override
-  public boolean requiresPreliminaryNav() {
-    return true;
+    return value;
   }
 }

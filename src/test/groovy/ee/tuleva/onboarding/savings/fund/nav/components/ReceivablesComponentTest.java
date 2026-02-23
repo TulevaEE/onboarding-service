@@ -84,9 +84,4 @@ class ReceivablesComponentTest {
   void getType_returnsAsset() {
     assertThat(component.getType()).isEqualTo(ASSET);
   }
-
-  @Test
-  void requiresPreliminaryNav_returnsFalse() {
-    assertThat(component.requiresPreliminaryNav()).isFalse();
-  }
 }

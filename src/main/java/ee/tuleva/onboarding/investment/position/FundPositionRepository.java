@@ -58,4 +58,7 @@ public interface FundPositionRepository extends JpaRepository<FundPosition, Long
       """)
   BigDecimal sumMarketValueByFundAndAccountTypes(
       TulevaFund fund, LocalDate navDate, List<AccountType> accountTypes);
+
+  Optional<FundPosition> findByNavDateAndFundAndAccountTypeAndAccountId(
+      LocalDate navDate, TulevaFund fund, AccountType accountType, String accountId);
 }

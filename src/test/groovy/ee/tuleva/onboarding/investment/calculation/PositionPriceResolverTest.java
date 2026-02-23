@@ -44,6 +44,7 @@ class PositionPriceResolverTest {
     assertThat(resolved.priceSource()).isEqualTo(EODHD);
     assertThat(resolved.usedPrice()).isEqualTo(price);
     assertThat(resolved.priceDate()).isEqualTo(DATE);
+    assertThat(resolved.storageKey()).isEqualTo(EODHD_TICKER);
   }
 
   @Test
@@ -102,5 +103,6 @@ class PositionPriceResolverTest {
 
     assertThat(result).isPresent();
     assertThat(result.get().priceSource()).isEqualTo(PriceSource.BLACKROCK);
+    assertThat(result.get().storageKey()).isEqualTo("key");
   }
 }

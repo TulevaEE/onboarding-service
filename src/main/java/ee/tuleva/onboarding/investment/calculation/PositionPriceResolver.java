@@ -40,6 +40,7 @@ public class PositionPriceResolver {
         .priceSource(PriceSource.fromProviderName(fundValue.provider()))
         .validationStatus(OK)
         .priceDate(fundValue.date())
+        .storageKey(fundValue.key())
         .build();
   }
 

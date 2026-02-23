@@ -25,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -58,6 +59,7 @@ class NavCalculationIntegrationTest {
     setupLedgerBalances(csvData, calculationDate);
     setupFundPosition(csvData.navDate);
     entityManager.flush();
+    entityManager.clear();
 
     var result = navCalculationService.calculate(TKF100, calculationDate);
 
@@ -90,10 +92,10 @@ class NavCalculationIntegrationTest {
     insertPrices(calculationDate);
     createSystemAccountBalance(TRADE_RECEIVABLES, csvData.tradeReceivables, EUR);
     createSystemAccountBalance(TRADE_PAYABLES, csvData.tradePayables, EUR);
-    createSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL, csvData.managementFeeAccrual, EUR);
-    createSystemAccountBalance(DEPOT_FEE_ACCRUAL, csvData.depotFeeAccrual, EUR);
+    insertFeeAccrualRecord(csvData.navDate, "MANAGEMENT", csvData.managementFeeAccrual.negate());
+    insertFeeAccrualRecord(csvData.navDate, "DEPOT", csvData.depotFeeAccrual.negate());
     createSystemAccountBalance(BLACKROCK_ADJUSTMENT, ZERO, EUR);
-    createFundUnitsOutstandingBalance(csvData.unitsOutstanding);
+    createFundUnitsOutstandingBalance(csvData.unitsOutstanding, csvData.navDate);
   }
 
   private void createSystemAccountBalance(
@@ -203,17 +205,18 @@ class NavCalculationIntegrationTest {
     }
   }
 
-  private void createFundUnitsOutstandingBalance(BigDecimal unitsOutstanding) {
+  private void createFundUnitsOutstandingBalance(BigDecimal unitsOutstanding, LocalDate navDate) {
     LedgerAccount fundUnitsOutstandingAccount =
         ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING);
     LedgerAccount userFundUnitsAccount = ledgerService.getUserAccount(testUser, FUND_UNITS);
 
     BigDecimal units = unitsOutstanding.setScale(5, HALF_UP);
 
+    Instant transactionDate = navDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
     var transaction =
         LedgerTransaction.builder()
             .transactionType(ADJUSTMENT)
-            .transactionDate(Instant.now())
+            .transactionDate(transactionDate)
             .build();
 
     var systemEntry =
@@ -235,6 +238,23 @@ class NavCalculationIntegrationTest {
     transaction.getEntries().add(systemEntry);
     transaction.getEntries().add(userEntry);
     entityManager.persist(transaction);
+  }
+
+  private void insertFeeAccrualRecord(LocalDate navDate, String feeType, BigDecimal amount) {
+    if (amount.signum() == 0) return;
+    entityManager
+        .createNativeQuery(
+            """
+            INSERT INTO investment_fee_accrual (
+                fund_code, fee_type, accrual_date, fee_month, base_value,
+                annual_rate, daily_amount_net, daily_amount_gross, days_in_year
+            ) VALUES ('TKF100', :feeType, :accrualDate, :feeMonth, 0, 0, :amount, :amount, 365)
+            """)
+        .setParameter("feeType", feeType)
+        .setParameter("accrualDate", navDate)
+        .setParameter("feeMonth", navDate.withDayOfMonth(1))
+        .setParameter("amount", amount)
+        .executeUpdate();
   }
 
   private void setupFundPosition(LocalDate navDate) {

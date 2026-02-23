@@ -18,6 +18,7 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
+import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -63,7 +64,7 @@ class NavPipelineIntegrationTest {
   @Autowired FundPositionRepository fundPositionRepository;
   @Autowired FundPositionLedgerService fundPositionLedgerService;
   @Autowired NavPositionLedger navPositionLedger;
-  @Autowired NavFeeAccrualLedger navFeeAccrualLedger;
+  @Autowired FeeAccrualRepository feeAccrualRepository;
   @Autowired NavCalculationService navCalculationService;
   @Autowired NavPublisher navPublisher;
   @Autowired LedgerService ledgerService;
@@ -381,15 +382,13 @@ class NavPipelineIntegrationTest {
 
   private void recordFeeAccruals(NavCsvData navData) {
     if (navData.managementFeeAccrual.signum() != 0) {
-      FeeAccrual managementAccrual =
+      feeAccrualRepository.save(
           buildTestFeeAccrual(
-              navData.navDate, FeeType.MANAGEMENT, navData.managementFeeAccrual.negate());
-      navFeeAccrualLedger.recordFeeAccrual(managementAccrual, MANAGEMENT_FEE_ACCRUAL);
+              navData.navDate, FeeType.MANAGEMENT, navData.managementFeeAccrual.negate()));
     }
     if (navData.depotFeeAccrual.signum() != 0) {
-      FeeAccrual depotAccrual =
-          buildTestFeeAccrual(navData.navDate, FeeType.DEPOT, navData.depotFeeAccrual.negate());
-      navFeeAccrualLedger.recordFeeAccrual(depotAccrual, DEPOT_FEE_ACCRUAL);
+      feeAccrualRepository.save(
+          buildTestFeeAccrual(navData.navDate, FeeType.DEPOT, navData.depotFeeAccrual.negate()));
     }
   }
 

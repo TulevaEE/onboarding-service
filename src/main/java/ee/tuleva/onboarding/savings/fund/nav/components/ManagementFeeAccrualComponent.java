@@ -1,10 +1,9 @@
 package ee.tuleva.onboarding.savings.fund.nav.components;
 
-import static ee.tuleva.onboarding.ledger.SystemAccount.MANAGEMENT_FEE_ACCRUAL;
+import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
 import static ee.tuleva.onboarding.savings.fund.nav.components.NavComponent.NavComponentType.LIABILITY;
-import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.ledger.NavLedgerRepository;
+import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavComponentContext;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +13,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ManagementFeeAccrualComponent implements NavComponent {
 
-  private final NavLedgerRepository navLedgerRepository;
+  private final FeeAccrualRepository feeAccrualRepository;
 
   @Override
   public String getName() {
@@ -28,15 +27,13 @@ public class ManagementFeeAccrualComponent implements NavComponent {
 
   @Override
   public BigDecimal calculate(NavComponentContext context) {
-    BigDecimal balance =
-        navLedgerRepository.getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL.getAccountName());
-    if (balance == null) {
-      return ZERO;
-    }
-    if (balance.signum() > 0) {
+    BigDecimal accrued =
+        feeAccrualRepository.getAccruedFeeAsOf(
+            context.getFund(), MANAGEMENT, context.getPositionReportDate());
+    if (accrued.signum() < 0) {
       throw new IllegalStateException(
-          "MANAGEMENT_FEE_ACCRUAL should be negative (liability), but was: " + balance);
+          "Management fee accrual should be positive, but was: " + accrued);
     }
-    return balance.negate();
+    return accrued;
   }
 }

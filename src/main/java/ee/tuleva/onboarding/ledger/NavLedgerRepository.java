@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.ledger;
 import static ee.tuleva.onboarding.ledger.SystemAccount.SECURITIES_UNITS;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -104,7 +105,7 @@ public class NavLedgerRepository {
             GROUP BY a.name
             """)
         .param("prefix", SECURITIES_UNITS_PREFIX + "%")
-        .param("cutoff", cutoff)
+        .param("cutoff", Timestamp.from(cutoff))
         .query(
             (rs, rowNum) -> {
               String accountName = rs.getString("name");

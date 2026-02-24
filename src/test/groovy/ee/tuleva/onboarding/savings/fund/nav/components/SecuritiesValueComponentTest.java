@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.investment.calculation.ResolvedPrice;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavComponentContext;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
@@ -29,18 +30,21 @@ class SecuritiesValueComponentTest {
 
   @InjectMocks private SecuritiesValueComponent component;
 
+  private static final Instant CUTOFF = Instant.parse("2026-02-01T14:00:00Z");
+
   @Test
-  void calculate_multipliesUnitsByPricesForEachIsin() {
+  void calculate_multipliesUnitsByPricesAtCutoff() {
     LocalDate priceDate = LocalDate.of(2026, 2, 1);
     var context =
         NavComponentContext.builder()
             .fund(TKF100)
             .calculationDate(priceDate)
-            .positionReportDate(priceDate)
+            .positionReportDate(LocalDate.of(2026, 1, 31))
             .priceDate(priceDate)
+            .cutoff(CUTOFF)
             .build();
 
-    when(navLedgerRepository.getSecuritiesUnitBalances())
+    when(navLedgerRepository.getSecuritiesUnitBalancesAt(CUTOFF))
         .thenReturn(
             Map.of(
                 "IE00BFG1TM61", new BigDecimal("1000.00000"),
@@ -75,11 +79,12 @@ class SecuritiesValueComponentTest {
         NavComponentContext.builder()
             .fund(TKF100)
             .calculationDate(priceDate)
-            .positionReportDate(priceDate)
+            .positionReportDate(LocalDate.of(2026, 1, 31))
             .priceDate(priceDate)
+            .cutoff(CUTOFF)
             .build();
 
-    when(navLedgerRepository.getSecuritiesUnitBalances()).thenReturn(Map.of());
+    when(navLedgerRepository.getSecuritiesUnitBalancesAt(CUTOFF)).thenReturn(Map.of());
 
     BigDecimal result = component.calculate(context);
 
@@ -93,11 +98,12 @@ class SecuritiesValueComponentTest {
         NavComponentContext.builder()
             .fund(TKF100)
             .calculationDate(priceDate)
-            .positionReportDate(priceDate)
+            .positionReportDate(LocalDate.of(2026, 1, 31))
             .priceDate(priceDate)
+            .cutoff(CUTOFF)
             .build();
 
-    when(navLedgerRepository.getSecuritiesUnitBalances())
+    when(navLedgerRepository.getSecuritiesUnitBalancesAt(CUTOFF))
         .thenReturn(Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")));
 
     when(positionPriceResolver.resolve("IE00BFG1TM61", priceDate)).thenReturn(Optional.empty());

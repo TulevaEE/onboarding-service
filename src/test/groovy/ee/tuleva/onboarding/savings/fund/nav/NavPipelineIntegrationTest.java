@@ -28,12 +28,14 @@ import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.ledger.*;
+import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import jakarta.persistence.EntityManager;
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -81,30 +83,36 @@ class NavPipelineIntegrationTest {
   void fullPipelineProducesExpectedNav(NavTestPair pair) {
     var navData = parseNavCsv(pair.navCsvFile);
 
-    importPositionReport(pair.positionReportFile, navData.navDate);
-    recordPositionsToLedger(navData);
-    recordFeeAccruals(navData);
-    insertPrices(pair.calculationDate);
-    issueFundUnits(navData.unitsOutstanding, navData.navDate);
-    entityManager.flush();
-    entityManager.clear();
+    Instant ledgerTime = navData.navDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
+    ClockHolder.setClock(Clock.fixed(ledgerTime, ZoneId.of("UTC")));
+    try {
+      importPositionReport(pair.positionReportFile, navData.navDate);
+      recordPositionsToLedger(navData);
+      recordFeeAccruals(navData);
+      insertPrices(pair.calculationDate);
+      issueFundUnits(navData.unitsOutstanding, navData.navDate);
+      entityManager.flush();
+      entityManager.clear();
 
-    var result = navCalculationService.calculate(TKF100, pair.calculationDate);
-    navPublisher.publish(result);
+      var result = navCalculationService.calculate(TKF100, pair.calculationDate);
+      navPublisher.publish(result);
 
-    assertThat(result.cashPosition()).isEqualByComparingTo(navData.cashPosition);
-    assertThat(result.receivables()).isEqualByComparingTo(navData.tradeReceivables);
-    assertThat(result.payables()).isEqualByComparingTo(navData.tradePayables.negate());
-    assertThat(result.managementFeeAccrual())
-        .isEqualByComparingTo(navData.managementFeeAccrual.negate());
-    assertThat(result.depotFeeAccrual()).isEqualByComparingTo(navData.depotFeeAccrual.negate());
-    assertThat(result.unitsOutstanding().setScale(3, HALF_UP))
-        .isEqualByComparingTo(navData.unitsOutstanding.setScale(3, HALF_UP));
-    assertThat(result.pendingSubscriptions()).isEqualByComparingTo(ZERO);
-    assertThat(result.pendingRedemptions()).isEqualByComparingTo(ZERO);
-    assertThat(result.blackrockAdjustment()).isEqualByComparingTo(ZERO);
-    assertThat(result.navPerUnit().setScale(4, HALF_UP))
-        .isEqualByComparingTo(navData.expectedNavPerUnit.setScale(4, HALF_UP));
+      assertThat(result.cashPosition()).isEqualByComparingTo(navData.cashPosition);
+      assertThat(result.receivables()).isEqualByComparingTo(navData.tradeReceivables);
+      assertThat(result.payables()).isEqualByComparingTo(navData.tradePayables.negate());
+      assertThat(result.managementFeeAccrual())
+          .isEqualByComparingTo(navData.managementFeeAccrual.negate());
+      assertThat(result.depotFeeAccrual()).isEqualByComparingTo(navData.depotFeeAccrual.negate());
+      assertThat(result.unitsOutstanding().setScale(3, HALF_UP))
+          .isEqualByComparingTo(navData.unitsOutstanding.setScale(3, HALF_UP));
+      assertThat(result.pendingSubscriptions()).isEqualByComparingTo(ZERO);
+      assertThat(result.pendingRedemptions()).isEqualByComparingTo(ZERO);
+      assertThat(result.blackrockAdjustment()).isEqualByComparingTo(ZERO);
+      assertThat(result.navPerUnit().setScale(4, HALF_UP))
+          .isEqualByComparingTo(navData.expectedNavPerUnit.setScale(4, HALF_UP));
+    } finally {
+      ClockHolder.setDefaultClock();
+    }
   }
 
   @Test

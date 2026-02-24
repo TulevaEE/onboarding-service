@@ -32,7 +32,8 @@ public class SecuritiesValueComponent implements NavComponent {
 
   @Override
   public BigDecimal calculate(NavComponentContext context) {
-    Map<String, BigDecimal> unitBalances = navLedgerRepository.getSecuritiesUnitBalances();
+    Map<String, BigDecimal> unitBalances =
+        navLedgerRepository.getSecuritiesUnitBalancesAt(context.getCutoff());
     return unitBalances.entrySet().stream()
         .map(entry -> calculateIsinValue(entry.getKey(), entry.getValue(), context))
         .reduce(ZERO, BigDecimal::add);

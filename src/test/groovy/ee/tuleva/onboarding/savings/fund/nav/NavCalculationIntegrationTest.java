@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -78,6 +79,34 @@ class NavCalculationIntegrationTest {
         .isEqualByComparingTo(csvData.expectedNavPerUnit.setScale(4, HALF_UP));
   }
 
+  @Test
+  @SneakyThrows
+  void retroactiveNavCalculation_excludesFutureLedgerEntries() {
+    var csvFile = Path.of("src/test/resources/nav-test-data/TKF NAV Arvutamine 04022026.csv");
+    var csvData = parseCsv(csvFile);
+    var calculationDate = LocalDate.of(2026, 2, 4);
+
+    setupLedgerBalances(csvData, calculationDate);
+    setupFundPosition(csvData.navDate);
+
+    Instant futureTransactionDate =
+        LocalDate.of(2026, 2, 5).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
+    createSystemAccountBalance(CASH_POSITION, new BigDecimal("999999"), EUR, futureTransactionDate);
+    createFutureSecuritiesEntry(
+        "IE00BMDBMY19", new BigDecimal("50000.00000"), futureTransactionDate);
+    setupFundPosition(LocalDate.of(2026, 2, 5));
+
+    entityManager.flush();
+    entityManager.clear();
+
+    var result = navCalculationService.calculate(TKF100, calculationDate);
+
+    assertThat(result.cashPosition()).isEqualByComparingTo(csvData.cashPosition);
+    assertThat(result.positionReportDate()).isEqualTo(csvData.navDate);
+    assertThat(result.navPerUnit().setScale(4, HALF_UP))
+        .isEqualByComparingTo(csvData.expectedNavPerUnit.setScale(4, HALF_UP));
+  }
+
   @SneakyThrows
   static Stream<Path> navCsvFiles() {
     var directory = Path.of("src/test/resources/nav-test-data");
@@ -87,19 +116,23 @@ class NavCalculationIntegrationTest {
   }
 
   private void setupLedgerBalances(CsvData csvData, LocalDate calculationDate) {
-    createSystemAccountBalance(CASH_POSITION, csvData.cashPosition, EUR);
-    createSecuritiesUnitBalances(csvData);
+    Instant transactionDate = csvData.navDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
+    createSystemAccountBalance(CASH_POSITION, csvData.cashPosition, EUR, transactionDate);
+    createSecuritiesUnitBalances(csvData, transactionDate);
     insertPrices(calculationDate);
-    createSystemAccountBalance(TRADE_RECEIVABLES, csvData.tradeReceivables, EUR);
-    createSystemAccountBalance(TRADE_PAYABLES, csvData.tradePayables, EUR);
+    createSystemAccountBalance(TRADE_RECEIVABLES, csvData.tradeReceivables, EUR, transactionDate);
+    createSystemAccountBalance(TRADE_PAYABLES, csvData.tradePayables, EUR, transactionDate);
     insertFeeAccrualRecord(csvData.navDate, "MANAGEMENT", csvData.managementFeeAccrual.negate());
     insertFeeAccrualRecord(csvData.navDate, "DEPOT", csvData.depotFeeAccrual.negate());
-    createSystemAccountBalance(BLACKROCK_ADJUSTMENT, ZERO, EUR);
+    createSystemAccountBalance(BLACKROCK_ADJUSTMENT, ZERO, EUR, transactionDate);
     createFundUnitsOutstandingBalance(csvData.unitsOutstanding, csvData.navDate);
   }
 
   private void createSystemAccountBalance(
-      SystemAccount systemAccount, BigDecimal amount, AssetType assetType) {
+      SystemAccount systemAccount,
+      BigDecimal amount,
+      AssetType assetType,
+      Instant transactionDate) {
     if (amount.compareTo(ZERO) == 0) {
       ledgerService.getSystemAccount(systemAccount);
       ledgerService.getSystemAccount(NAV_EQUITY);
@@ -112,7 +145,7 @@ class NavCalculationIntegrationTest {
     var transaction =
         LedgerTransaction.builder()
             .transactionType(ADJUSTMENT)
-            .transactionDate(Instant.now())
+            .transactionDate(transactionDate)
             .build();
 
     var entry =
@@ -136,7 +169,7 @@ class NavCalculationIntegrationTest {
     entityManager.persist(transaction);
   }
 
-  private void createSecuritiesUnitBalances(CsvData csvData) {
+  private void createSecuritiesUnitBalances(CsvData csvData, Instant transactionDate) {
     csvData.securitiesUnitsByIsin.forEach(
         (isin, quantity) -> {
           BigDecimal units = quantity.setScale(5, HALF_UP);
@@ -162,7 +195,7 @@ class NavCalculationIntegrationTest {
           var transaction =
               LedgerTransaction.builder()
                   .transactionType(ADJUSTMENT)
-                  .transactionDate(Instant.now())
+                  .transactionDate(transactionDate)
                   .build();
 
           var entry =
@@ -334,6 +367,52 @@ class NavCalculationIntegrationTest {
 
     data.securitiesValue = securitiesSum;
     return data;
+  }
+
+  private void createFutureSecuritiesEntry(String isin, BigDecimal units, Instant transactionDate) {
+    var securitiesAccount =
+        LedgerAccount.builder()
+            .name(SECURITIES_UNITS.getAccountName(isin))
+            .purpose(LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT)
+            .accountType(SECURITIES_UNITS.getAccountType())
+            .assetType(SECURITIES_UNITS.getAssetType())
+            .build();
+    entityManager.persist(securitiesAccount);
+
+    var equityAccount =
+        LedgerAccount.builder()
+            .name(SECURITIES_UNITS_EQUITY.getAccountName(isin))
+            .purpose(LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT)
+            .accountType(SECURITIES_UNITS_EQUITY.getAccountType())
+            .assetType(SECURITIES_UNITS_EQUITY.getAssetType())
+            .build();
+    entityManager.persist(equityAccount);
+
+    var transaction =
+        LedgerTransaction.builder()
+            .transactionType(ADJUSTMENT)
+            .transactionDate(transactionDate)
+            .build();
+
+    var entry =
+        LedgerEntry.builder()
+            .amount(units)
+            .assetType(FUND_UNIT)
+            .account(securitiesAccount)
+            .transaction(transaction)
+            .build();
+
+    var counterEntry =
+        LedgerEntry.builder()
+            .amount(units.negate())
+            .assetType(FUND_UNIT)
+            .account(equityAccount)
+            .transaction(transaction)
+            .build();
+
+    transaction.getEntries().add(entry);
+    transaction.getEntries().add(counterEntry);
+    entityManager.persist(transaction);
   }
 
   private static class CsvData {

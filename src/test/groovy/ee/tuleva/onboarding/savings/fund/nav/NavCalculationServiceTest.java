@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.calculation.PositionPriceResolver;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.LedgerAccountFixture.EntryFixture;
@@ -32,6 +33,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class NavCalculationServiceTest {
 
   @Mock private FundPositionRepository fundPositionRepository;
+  @Mock private PublicHolidays publicHolidays;
   @Mock private LedgerService ledgerService;
   @Mock private NavLedgerRepository navLedgerRepository;
   @Mock private SecuritiesValueComponent securitiesValueComponent;
@@ -54,6 +56,7 @@ class NavCalculationServiceTest {
     service =
         new NavCalculationService(
             fundPositionRepository,
+            publicHolidays,
             ledgerService,
             navLedgerRepository,
             securitiesValueComponent,
@@ -72,9 +75,11 @@ class NavCalculationServiceTest {
   @Test
   void calculate_performsTwoPassCalculationWithRedemptions() {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
+    LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, calcDate))
-        .thenReturn(Optional.of(calcDate));
+    when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
+        .thenReturn(Optional.of(previousWorkingDay));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING))
         .thenReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
 
@@ -122,9 +127,11 @@ class NavCalculationServiceTest {
   @Test
   void calculate_returnsNavOfOneWhenNoUnitsOutstanding() {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
+    LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, calcDate))
-        .thenReturn(Optional.of(calcDate));
+    when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
+        .thenReturn(Optional.of(previousWorkingDay));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING))
         .thenReturn(fundUnitsOutstandingAccount(ZERO));
 
@@ -146,8 +153,10 @@ class NavCalculationServiceTest {
   @Test
   void calculate_throwsWhenNoPositionReport() {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
+    LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, calcDate))
+    when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.calculate(TKF100, calcDate))
@@ -158,9 +167,11 @@ class NavCalculationServiceTest {
   @Test
   void calculate_handlesNegativeBlackrockAdjustmentAsLiability() {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
+    LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, calcDate))
-        .thenReturn(Optional.of(calcDate));
+    when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
+        .thenReturn(Optional.of(previousWorkingDay));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING))
         .thenReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
 
@@ -180,8 +191,36 @@ class NavCalculationServiceTest {
   }
 
   @Test
+  void calculate_looksUpPositionReportBeforeCalculationDate() {
+    LocalDate calcDate = LocalDate.of(2025, 1, 15);
+    LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
+    LocalDate positionDate = LocalDate.of(2025, 1, 14);
+
+    when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
+        .thenReturn(Optional.of(positionDate));
+    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING))
+        .thenReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
+
+    when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("1000000.00"));
+    when(cashPositionComponent.calculate(any())).thenReturn(ZERO);
+    when(receivablesComponent.calculate(any())).thenReturn(ZERO);
+    when(payablesComponent.calculate(any())).thenReturn(ZERO);
+    when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
+    when(managementFeeAccrualComponent.calculate(any())).thenReturn(ZERO);
+    when(depotFeeAccrualComponent.calculate(any())).thenReturn(ZERO);
+    when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
+    when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
+
+    NavCalculationResult result = service.calculate(TKF100, calcDate);
+
+    assertThat(result.positionReportDate()).isEqualTo(positionDate);
+  }
+
+  @Test
   void calculate_usesSummerTimeCutoffForUnitsOutstanding() {
     LocalDate summerDate = LocalDate.of(2025, 7, 15);
+    LocalDate previousWorkingDay = LocalDate.of(2025, 7, 14);
 
     var account =
         fundUnitsOutstandingAccount(
@@ -191,8 +230,9 @@ class NavCalculationServiceTest {
                 new EntryFixture(
                     new BigDecimal("20000.00000"), Instant.parse("2025-07-15T13:30:00Z"))));
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, summerDate))
-        .thenReturn(Optional.of(summerDate));
+    when(publicHolidays.previousWorkingDay(summerDate)).thenReturn(previousWorkingDay);
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
+        .thenReturn(Optional.of(previousWorkingDay));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING)).thenReturn(account);
 
     when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("1000000.00"));

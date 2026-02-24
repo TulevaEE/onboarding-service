@@ -1,15 +1,17 @@
 package ee.tuleva.onboarding.savings.fund.nav.components;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.systemAccountWithBalance;
 import static ee.tuleva.onboarding.ledger.SystemAccount.BLACKROCK_ADJUSTMENT;
 import static ee.tuleva.onboarding.savings.fund.nav.components.NavComponent.NavComponentType.ASSET;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.ledger.NavLedgerRepository;
+import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.savings.fund.nav.NavComponentContext;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,21 +22,24 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class BlackrockAdjustmentComponentTest {
 
-  @Mock private NavLedgerRepository navLedgerRepository;
+  @Mock private LedgerService ledgerService;
 
   @InjectMocks private BlackrockAdjustmentComponent component;
 
+  private static final Instant CUTOFF = Instant.parse("2025-01-15T14:00:00Z");
+
   @Test
-  void calculate_returnsPositiveBalanceAsReceivable() {
+  void calculate_returnsBalanceAtCutoff() {
     var context =
         NavComponentContext.builder()
             .fund(TKF100)
             .calculationDate(LocalDate.of(2025, 1, 15))
-            .positionReportDate(LocalDate.of(2025, 1, 15))
+            .positionReportDate(LocalDate.of(2025, 1, 14))
+            .cutoff(CUTOFF)
             .build();
 
-    when(navLedgerRepository.getSystemAccountBalance(BLACKROCK_ADJUSTMENT.getAccountName()))
-        .thenReturn(new BigDecimal("500.00"));
+    when(ledgerService.getSystemAccount(BLACKROCK_ADJUSTMENT))
+        .thenReturn(systemAccountWithBalance(new BigDecimal("500.00"), CUTOFF.minusSeconds(1)));
 
     BigDecimal result = component.calculate(context);
 
@@ -42,16 +47,17 @@ class BlackrockAdjustmentComponentTest {
   }
 
   @Test
-  void calculate_returnsNegativeBalanceAsPayable() {
+  void calculate_returnsNegativeBalance() {
     var context =
         NavComponentContext.builder()
             .fund(TKF100)
             .calculationDate(LocalDate.of(2025, 1, 15))
-            .positionReportDate(LocalDate.of(2025, 1, 15))
+            .positionReportDate(LocalDate.of(2025, 1, 14))
+            .cutoff(CUTOFF)
             .build();
 
-    when(navLedgerRepository.getSystemAccountBalance(BLACKROCK_ADJUSTMENT.getAccountName()))
-        .thenReturn(new BigDecimal("-300.00"));
+    when(ledgerService.getSystemAccount(BLACKROCK_ADJUSTMENT))
+        .thenReturn(systemAccountWithBalance(new BigDecimal("-300.00"), CUTOFF.minusSeconds(1)));
 
     BigDecimal result = component.calculate(context);
 
@@ -59,33 +65,17 @@ class BlackrockAdjustmentComponentTest {
   }
 
   @Test
-  void calculate_returnsZeroWhenNoBalance() {
+  void calculate_returnsZeroWhenNoEntries() {
     var context =
         NavComponentContext.builder()
             .fund(TKF100)
             .calculationDate(LocalDate.of(2025, 1, 15))
-            .positionReportDate(LocalDate.of(2025, 1, 15))
+            .positionReportDate(LocalDate.of(2025, 1, 14))
+            .cutoff(CUTOFF)
             .build();
 
-    when(navLedgerRepository.getSystemAccountBalance(BLACKROCK_ADJUSTMENT.getAccountName()))
-        .thenReturn(ZERO);
-
-    BigDecimal result = component.calculate(context);
-
-    assertThat(result).isEqualByComparingTo(ZERO);
-  }
-
-  @Test
-  void calculate_returnsZeroWhenNull() {
-    var context =
-        NavComponentContext.builder()
-            .fund(TKF100)
-            .calculationDate(LocalDate.of(2025, 1, 15))
-            .positionReportDate(LocalDate.of(2025, 1, 15))
-            .build();
-
-    when(navLedgerRepository.getSystemAccountBalance(BLACKROCK_ADJUSTMENT.getAccountName()))
-        .thenReturn(null);
+    when(ledgerService.getSystemAccount(BLACKROCK_ADJUSTMENT))
+        .thenReturn(systemAccountWithBalance(ZERO));
 
     BigDecimal result = component.calculate(context);
 

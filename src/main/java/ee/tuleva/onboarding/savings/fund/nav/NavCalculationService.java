@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.calculation.PositionPriceResolver;
 import ee.tuleva.onboarding.investment.calculation.ResolvedPrice;
@@ -34,6 +35,7 @@ public class NavCalculationService {
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final FundPositionRepository fundPositionRepository;
+  private final PublicHolidays publicHolidays;
   private final LedgerService ledgerService;
   private final NavLedgerRepository navLedgerRepository;
   private final SecuritiesValueComponent securitiesValueComponent;
@@ -61,12 +63,15 @@ public class NavCalculationService {
           "No position report found: fund=" + fund + ", date=" + calculationDate);
     }
 
+    Instant cutoff = calculationDate.atTime(CUTOFF_TIME).atZone(ESTONIAN_ZONE).toInstant();
+
     NavComponentContext context =
         NavComponentContext.builder()
             .fund(fund)
             .calculationDate(calculationDate)
             .positionReportDate(positionReportDate)
             .priceDate(calculationDate)
+            .cutoff(cutoff)
             .build();
 
     // TODO: are all these components tracked in the ledger?
@@ -119,7 +124,7 @@ public class NavCalculationService {
             .positionReportDate(positionReportDate)
             .priceDate(calculationDate)
             .calculatedAt(Instant.now(clock))
-            .securitiesDetail(buildSecuritiesDetail(calculationDate))
+            .securitiesDetail(buildSecuritiesDetail(cutoff, calculationDate))
             .build();
 
     validateResult(result);
@@ -136,7 +141,8 @@ public class NavCalculationService {
 
   private LocalDate getPositionReportDate(TulevaFund fund, LocalDate calculationDate) {
     return fundPositionRepository
-        .findLatestNavDateByFundAndAsOfDate(fund, calculationDate)
+        .findLatestNavDateByFundAndAsOfDate(
+            fund, publicHolidays.previousWorkingDay(calculationDate))
         .orElse(null);
   }
 
@@ -186,8 +192,8 @@ public class NavCalculationService {
     return aum.divide(unitsOutstanding, NAV_PRECISION, HALF_UP);
   }
 
-  private List<SecurityDetail> buildSecuritiesDetail(LocalDate priceDate) {
-    return new TreeMap<>(navLedgerRepository.getSecuritiesUnitBalances())
+  private List<SecurityDetail> buildSecuritiesDetail(Instant cutoff, LocalDate priceDate) {
+    return new TreeMap<>(navLedgerRepository.getSecuritiesUnitBalancesAt(cutoff))
         .entrySet().stream()
             .map(
                 entry -> {

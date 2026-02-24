@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.ledger;
 import static ee.tuleva.onboarding.ledger.SystemAccount.SECURITIES_UNITS;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -76,6 +77,34 @@ public class NavLedgerRepository {
             GROUP BY a.name
             """)
         .param("prefix", SECURITIES_UNITS_PREFIX + "%")
+        .query(
+            (rs, rowNum) -> {
+              String accountName = rs.getString("name");
+              BigDecimal balance = rs.getBigDecimal("total_balance");
+              String isin = parseIsin(accountName);
+              balances.put(isin, balance);
+              return null;
+            })
+        .list();
+    return balances;
+  }
+
+  public Map<String, BigDecimal> getSecuritiesUnitBalancesAt(Instant cutoff) {
+    Map<String, BigDecimal> balances = new HashMap<>();
+    jdbcClient
+        .sql(
+            """
+            SELECT a.name, COALESCE(SUM(e.amount), 0) AS total_balance
+            FROM ledger.entry e
+            JOIN ledger.account a ON e.account_id = a.id
+            JOIN ledger.transaction t ON e.transaction_id = t.id
+            WHERE a.name LIKE :prefix
+              AND a.purpose = 'SYSTEM_ACCOUNT'
+              AND t.transaction_date <= :cutoff
+            GROUP BY a.name
+            """)
+        .param("prefix", SECURITIES_UNITS_PREFIX + "%")
+        .param("cutoff", cutoff)
         .query(
             (rs, rowNum) -> {
               String accountName = rs.getString("name");

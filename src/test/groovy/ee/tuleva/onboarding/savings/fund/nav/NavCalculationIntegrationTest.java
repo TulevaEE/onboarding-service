@@ -228,7 +228,8 @@ class NavCalculationIntegrationTest {
       LocalDate priceDate = LocalDate.parse(parts[1]);
       entityManager
           .createNativeQuery(
-              "INSERT INTO index_values (key, date, value, provider, updated_at) VALUES (:key, :date, :value, 'EODHD', CURRENT_TIMESTAMP)")
+              "INSERT INTO index_values (key, date, value, provider, updated_at) VALUES (:key,"
+                  + " :date, :value, 'EODHD', CURRENT_TIMESTAMP)")
           .setParameter("key", parts[0])
           .setParameter("date", priceDate)
           .setParameter("value", new BigDecimal(parts[2]))

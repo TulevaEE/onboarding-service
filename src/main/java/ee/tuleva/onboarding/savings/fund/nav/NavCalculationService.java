@@ -70,7 +70,7 @@ public class NavCalculationService {
             .fund(fund)
             .calculationDate(calculationDate)
             .positionReportDate(positionReportDate)
-            .priceDate(calculationDate)
+            .priceDate(positionReportDate)
             .cutoff(cutoff)
             .build();
 
@@ -122,9 +122,9 @@ public class NavCalculationService {
             .unitsOutstanding(unitsOutstanding)
             .navPerUnit(navPerUnit)
             .positionReportDate(positionReportDate)
-            .priceDate(calculationDate)
+            .priceDate(positionReportDate)
             .calculatedAt(Instant.now(clock))
-            .securitiesDetail(buildSecuritiesDetail(cutoff, calculationDate))
+            .securitiesDetail(buildSecuritiesDetail(cutoff, positionReportDate))
             .build();
 
     validateResult(result);

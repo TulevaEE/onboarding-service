@@ -119,7 +119,7 @@ class NavCalculationIntegrationTest {
     Instant transactionDate = csvData.navDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
     createSystemAccountBalance(CASH_POSITION, csvData.cashPosition, EUR, transactionDate);
     createSecuritiesUnitBalances(csvData, transactionDate);
-    insertPrices(calculationDate);
+    insertPrices();
     createSystemAccountBalance(TRADE_RECEIVABLES, csvData.tradeReceivables, EUR, transactionDate);
     createSystemAccountBalance(TRADE_PAYABLES, csvData.tradePayables, EUR, transactionDate);
     insertFeeAccrualRecord(csvData.navDate, "MANAGEMENT", csvData.managementFeeAccrual.negate());
@@ -221,20 +221,18 @@ class NavCalculationIntegrationTest {
   }
 
   @SneakyThrows
-  private void insertPrices(LocalDate calculationDate) {
+  private void insertPrices() {
     var priceLines = Files.readAllLines(Path.of("src/test/resources/nav-test-data/prices.csv"));
     for (int i = 1; i < priceLines.size(); i++) {
       String[] parts = priceLines.get(i).split(",");
       LocalDate priceDate = LocalDate.parse(parts[1]);
-      if (priceDate.isBefore(calculationDate)) {
-        entityManager
-            .createNativeQuery(
-                "INSERT INTO index_values (key, date, value, provider, updated_at) VALUES (:key, :date, :value, 'EODHD', CURRENT_TIMESTAMP)")
-            .setParameter("key", parts[0])
-            .setParameter("date", priceDate)
-            .setParameter("value", new BigDecimal(parts[2]))
-            .executeUpdate();
-      }
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO index_values (key, date, value, provider, updated_at) VALUES (:key, :date, :value, 'EODHD', CURRENT_TIMESTAMP)")
+          .setParameter("key", parts[0])
+          .setParameter("date", priceDate)
+          .setParameter("value", new BigDecimal(parts[2]))
+          .executeUpdate();
     }
   }
 

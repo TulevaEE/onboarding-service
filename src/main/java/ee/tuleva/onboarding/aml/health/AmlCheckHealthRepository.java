@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.aml.health;
 
 import ee.tuleva.onboarding.aml.AmlCheck;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -69,5 +70,5 @@ public interface AmlCheckHealthRepository extends JpaRepository<AmlCheck, Long> 
             ac.type = :checkType
     """,
       nativeQuery = true)
-  Optional<Instant> findLastCheckTimeByType(@Param("checkType") String checkType);
+  Optional<LocalDateTime> findLastCheckTimeByType(@Param("checkType") String checkType);
 }

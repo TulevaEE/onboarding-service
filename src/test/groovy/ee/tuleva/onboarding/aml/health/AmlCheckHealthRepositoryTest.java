@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.aml.health;
 
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.aml.AmlCheck;
@@ -11,6 +12,7 @@ import java.sql.Statement;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -104,7 +106,7 @@ class AmlCheckHealthRepositoryTest {
         AmlCheckType.DOCUMENT, NOW_INSTANT.minus(Duration.ofDays(1)), PERSONAL_CODE_1);
 
     // when
-    Optional<Instant> result =
+    Optional<LocalDateTime> result =
         repository.findLastCheckTimeByType(AmlCheckType.CONTACT_DETAILS.name());
 
     // then
@@ -124,12 +126,12 @@ class AmlCheckHealthRepositoryTest {
     createAndSaveAmlCheck(AmlCheckType.DOCUMENT, time3OtherType, PERSONAL_CODE_3);
 
     // when
-    Optional<Instant> result =
+    Optional<LocalDateTime> result =
         repository.findLastCheckTimeByType(AmlCheckType.CONTACT_DETAILS.name());
 
     // then
     assertThat(result).isPresent();
-    assertThat(result.get().truncatedTo(ChronoUnit.SECONDS))
+    assertThat(result.get().toInstant(UTC).truncatedTo(ChronoUnit.SECONDS))
         .isEqualTo(time2Latest.truncatedTo(ChronoUnit.SECONDS));
   }
 

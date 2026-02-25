@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.aml.health;
 
+import static java.time.ZoneOffset.UTC;
+
 import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.Duration;
@@ -42,7 +44,7 @@ public class AmlHealthCheckService {
     Duration effectiveThreshold = baseThreshold.plusNanos(graceNanos);
 
     Optional<Instant> lastCheckTimeOptional =
-        amlCheckHealthRepository.findLastCheckTimeByType(checkType);
+        amlCheckHealthRepository.findLastCheckTimeByType(checkType).map(ldt -> ldt.toInstant(UTC));
 
     if (lastCheckTimeOptional.isEmpty()) {
       log.warn(

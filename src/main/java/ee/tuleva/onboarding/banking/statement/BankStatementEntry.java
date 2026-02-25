@@ -157,18 +157,7 @@ public record BankStatementEntry(
     var transactionType =
         creditOrDebit == CreditDebitCode.CRDT ? TransactionType.CREDIT : TransactionType.DEBIT;
 
-    var remittanceInformationList =
-        entry.getNtryDtls().stream()
-            .flatMap(ntryDtl -> ntryDtl.getTxDtls().stream())
-            .flatMap(
-                txDtl ->
-                    Optional.ofNullable(txDtl.getRmtInf())
-                        .map(rmtInf -> rmtInf.getUstrd().stream())
-                        .orElse(Stream.empty()))
-            .filter(ustrd -> ustrd != null && !ustrd.isBlank())
-            .toList();
-    var remittanceInformation =
-        Require.exactlyOne(remittanceInformationList, "remittance information");
+    var remittanceInformation = extractRemittanceInformation(entry);
 
     var externalId = Optional.ofNullable(entry.getNtryRef()).orElseGet(entry::getAcctSvcrRef);
 
@@ -228,18 +217,7 @@ public record BankStatementEntry(
 
     var transactionType = creditOrDebit == CRDT ? TransactionType.CREDIT : TransactionType.DEBIT;
 
-    var remittanceInformationList =
-        entry.getNtryDtls().stream()
-            .flatMap(ntryDtl -> ntryDtl.getTxDtls().stream())
-            .flatMap(
-                txDtl ->
-                    Optional.ofNullable(txDtl.getRmtInf())
-                        .map(rmtInf -> rmtInf.getUstrd().stream())
-                        .orElse(Stream.empty()))
-            .filter(ustrd -> ustrd != null && !ustrd.isBlank())
-            .toList();
-    var remittanceInformation =
-        Require.exactlyOne(remittanceInformationList, "remittance information");
+    var remittanceInformation = extractRemittanceInformation(entry);
 
     var externalId = Optional.ofNullable(entry.getNtryRef()).orElseGet(entry::getAcctSvcrRef);
 
@@ -274,5 +252,88 @@ public record BankStatementEntry(
             ee.tuleva.onboarding.banking.iso20022.camt052.BankTransactionCodeStructure6
                 ::getSubFmlyCd)
         .orElse(null);
+  }
+
+  private static String extractRemittanceInformation(ReportEntry2 entry) {
+    var unstructured =
+        entry.getNtryDtls().stream()
+            .flatMap(ntryDtl -> ntryDtl.getTxDtls().stream())
+            .flatMap(
+                txDtl ->
+                    Optional.ofNullable(txDtl.getRmtInf())
+                        .map(rmtInf -> rmtInf.getUstrd().stream())
+                        .orElse(Stream.empty()))
+            .filter(value -> value != null && !value.isBlank())
+            .toList();
+
+    if (!unstructured.isEmpty()) {
+      return Require.exactlyOne(unstructured, "remittance information");
+    }
+
+    var structured =
+        entry.getNtryDtls().stream()
+            .flatMap(ntryDtl -> ntryDtl.getTxDtls().stream())
+            .flatMap(
+                txDtl ->
+                    Optional.ofNullable(txDtl.getRmtInf())
+                        .map(rmtInf -> rmtInf.getStrd().stream())
+                        .orElse(Stream.empty()))
+            .flatMap(BankStatementEntry::extractStructuredRemittance052)
+            .filter(value -> value != null && !value.isBlank())
+            .toList();
+
+    return Require.exactlyOne(structured, "remittance information");
+  }
+
+  private static Stream<String> extractStructuredRemittance052(
+      ee.tuleva.onboarding.banking.iso20022.camt052.StructuredRemittanceInformation7 strd) {
+    return Stream.concat(
+        Optional.ofNullable(strd.getCdtrRefInf())
+            .map(
+                ee.tuleva.onboarding.banking.iso20022.camt052.CreditorReferenceInformation2::getRef)
+            .stream(),
+        strd.getAddtlRmtInf().stream());
+  }
+
+  private static String extractRemittanceInformation(
+      ee.tuleva.onboarding.banking.iso20022.camt053.ReportEntry2 entry) {
+    var unstructured =
+        entry.getNtryDtls().stream()
+            .flatMap(ntryDtl -> ntryDtl.getTxDtls().stream())
+            .flatMap(
+                txDtl ->
+                    Optional.ofNullable(txDtl.getRmtInf())
+                        .map(rmtInf -> rmtInf.getUstrd().stream())
+                        .orElse(Stream.empty()))
+            .filter(value -> value != null && !value.isBlank())
+            .toList();
+
+    if (!unstructured.isEmpty()) {
+      return Require.exactlyOne(unstructured, "remittance information");
+    }
+
+    var structured =
+        entry.getNtryDtls().stream()
+            .flatMap(ntryDtl -> ntryDtl.getTxDtls().stream())
+            .flatMap(
+                txDtl ->
+                    Optional.ofNullable(txDtl.getRmtInf())
+                        .map(rmtInf -> rmtInf.getStrd().stream())
+                        .orElse(Stream.empty()))
+            .flatMap(BankStatementEntry::extractStructuredRemittance053)
+            .filter(value -> value != null && !value.isBlank())
+            .toList();
+
+    return Require.exactlyOne(structured, "remittance information");
+  }
+
+  private static Stream<String> extractStructuredRemittance053(
+      ee.tuleva.onboarding.banking.iso20022.camt053.StructuredRemittanceInformation7 strd) {
+    return Stream.concat(
+        Optional.ofNullable(strd.getCdtrRefInf())
+            .map(
+                ee.tuleva.onboarding.banking.iso20022.camt053.CreditorReferenceInformation2::getRef)
+            .stream(),
+        strd.getAddtlRmtInf().stream());
   }
 }

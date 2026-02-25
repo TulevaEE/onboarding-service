@@ -9,9 +9,7 @@ import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.springframework.http.HttpMethod.*;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
@@ -23,33 +21,25 @@ import ee.tuleva.onboarding.withdrawals.FundPensionStatus.FundPension;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.resttestclient.TestRestTemplate;
-import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.http.*;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.client.RestTestClient;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@AutoConfigureTestRestTemplate
+@AutoConfigureRestTestClient
 class WithdrawalsControllerIntegrationTest {
 
-  @LocalServerPort int randomServerPort;
-
-  @Autowired private TestRestTemplate restTemplate;
+  @Autowired private RestTestClient restTestClient;
 
   @MockitoBean private EpisService episService;
 
   @Autowired private ObjectMapper mapper;
 
   @Test
-  @DisplayName("get withdrawal eligibility")
-  void testWithdrawalEligibility() throws Exception {
-    String url = "http://localhost:" + randomServerPort + "/v1/withdrawals/eligibility";
-
+  void testWithdrawalEligibility() {
     var headers = getHeaders();
 
     var calculation = new FundPensionCalculationDto(20);
@@ -60,24 +50,24 @@ class WithdrawalsControllerIntegrationTest {
     when(episService.getFundPensionCalculation(any())).thenReturn(calculation);
     when(episService.getArrestsBankruptciesPresent(any())).thenReturn(arrestsBankrupticesDto);
 
-    HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
-
-    ResponseEntity<String> response = restTemplate.exchange(url, GET, requestEntity, String.class);
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    JsonNode jsonNode = (new ObjectMapper()).readTree(response.getBody());
-    assertThat(jsonNode.get("hasReachedEarlyRetirementAge").asBoolean()).isEqualTo(false);
-    assertThat(jsonNode.get("recommendedDurationYears").asInt())
-        .isEqualTo(calculation.durationYears());
-
-    assertThat(jsonNode.get("arrestsOrBankruptciesPresent").asBoolean()).isEqualTo(false);
+    restTestClient
+        .get()
+        .uri("/v1/withdrawals/eligibility")
+        .headers(h -> h.addAll(headers))
+        .exchange()
+        .expectStatus()
+        .isOk()
+        .expectBody()
+        .jsonPath("$.hasReachedEarlyRetirementAge")
+        .isEqualTo(false)
+        .jsonPath("$.recommendedDurationYears")
+        .isEqualTo(calculation.durationYears())
+        .jsonPath("$.arrestsOrBankruptciesPresent")
+        .isEqualTo(false);
   }
 
   @Test
-  @DisplayName("get fund pension status")
   void testFundPensionStatus() throws Exception {
-    String url = "http://localhost:" + randomServerPort + "/v1/withdrawals/fund-pension-status";
-
     var headers = getHeaders(sampleRetirementAgePerson);
 
     var secondPillarFundPensions =
@@ -96,14 +86,19 @@ class WithdrawalsControllerIntegrationTest {
     when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
     when(episService.getFundPensionStatus(any())).thenReturn(fundPensionStatus);
 
-    HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
+    var responseBody =
+        restTestClient
+            .get()
+            .uri("/v1/withdrawals/fund-pension-status")
+            .headers(h -> h.addAll(headers))
+            .exchange()
+            .expectStatus()
+            .isOk()
+            .expectBody(byte[].class)
+            .returnResult()
+            .getResponseBody();
 
-    ResponseEntity<String> response = restTemplate.exchange(url, GET, requestEntity, String.class);
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-
-    JsonNode jsonNode = mapper.readTree(response.getBody());
-
+    var jsonNode = mapper.readTree(responseBody);
     var responseFundPensions =
         mapper.readValue(jsonNode.get("fundPensions").toString(), FundPension[].class);
     assertThat(responseFundPensions.length).isEqualTo(2);
@@ -131,25 +126,21 @@ class WithdrawalsControllerIntegrationTest {
   }
 
   @Test
-  @DisplayName("get fund pension status doesn't call epis service for under 55s")
-  void testFundPensionStatusUnder55() throws Exception {
-    String url = "http://localhost:" + randomServerPort + "/v1/withdrawals/fund-pension-status";
-
+  void testFundPensionStatusUnder55() {
     var headers = getHeaders(samplePerson);
 
     when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
     when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
 
-    HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
-
-    ResponseEntity<String> response = restTemplate.exchange(url, GET, requestEntity, String.class);
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-
-    JsonNode jsonNode = mapper.readTree(response.getBody());
-
-    var responseSecondPillarFundPensions =
-        mapper.readValue(jsonNode.get("fundPensions").toString(), FundPensionDto[].class);
-    assertThat(responseSecondPillarFundPensions.length).isEqualTo(0);
+    restTestClient
+        .get()
+        .uri("/v1/withdrawals/fund-pension-status")
+        .headers(h -> h.addAll(headers))
+        .exchange()
+        .expectStatus()
+        .isOk()
+        .expectBody()
+        .jsonPath("$.fundPensions.length()")
+        .isEqualTo(0);
   }
 }

@@ -24,6 +24,7 @@ import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -50,10 +51,12 @@ public class NavCalculationService {
   private final PositionPriceResolver positionPriceResolver;
   private final Clock clock;
 
+  @Transactional
   public NavCalculationResult calculate(String fundCode, LocalDate calculationDate) {
     return calculate(TulevaFund.fromCode(fundCode), calculationDate);
   }
 
+  @Transactional
   public NavCalculationResult calculate(TulevaFund fund, LocalDate calculationDate) {
     log.info("Starting NAV calculation: fund={}, date={}", fund, calculationDate);
 

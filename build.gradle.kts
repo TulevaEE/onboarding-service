@@ -72,9 +72,9 @@ repositories {
 }
 
 dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-classic")
     implementation("org.springframework.boot:spring-boot-jackson2")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("org.springframework.boot:spring-boot-starter-restclient")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
@@ -99,13 +99,13 @@ dependencies {
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.13.0")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.13.0")
 
+    implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.jsoup:jsoup:1.22.1")
     implementation("commons-net:commons-net:3.12.0")
     implementation("org.apache.commons:commons-lang3")
-    implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.decampo:xirr:1.2")
     implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.9")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.4")
@@ -148,10 +148,15 @@ dependencies {
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
 
     testImplementation("com.h2database:h2:2.4.240")
-    testImplementation("org.springframework.boot:spring-boot-starter-test-classic") {
+    testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(module = "spock-core")
         exclude(module = "junit-vintage-engine")
     }
+    testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-jdbc-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-data-jdbc-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-restclient-test")
     testImplementation("org.springframework.boot:spring-boot-resttestclient")
     testImplementation("org.spockframework:spock-core:2.4-groovy-5.0") {
         exclude(group = "org.apache.groovy")
@@ -169,6 +174,7 @@ dependencies {
     testImplementation("org.mock-server:mockserver-netty:5.15.0")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.15.0")
 
+    testImplementation("org.springframework.boot:spring-boot-starter-security-test")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockftpserver:MockFtpServer:3.2.0")
     testImplementation("io.github.origin-energy:java-snapshot-testing-spock:4.0.8")

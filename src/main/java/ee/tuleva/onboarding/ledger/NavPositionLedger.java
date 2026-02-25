@@ -4,11 +4,13 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.POSI
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -23,8 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class NavPositionLedger {
 
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+
   private final LedgerAccountService ledgerAccountService;
   private final LedgerTransactionService ledgerTransactionService;
+  private final PublicHolidays publicHolidays;
   private final Clock clock;
 
   @Transactional
@@ -80,10 +85,20 @@ public class NavPositionLedger {
 
     ledgerTransactionService.createTransaction(
         POSITION_UPDATE,
-        Instant.now(clock),
+        transactionDate(reportDate),
         externalReference,
         metadata,
         entries.toArray(new LedgerEntryDto[0]));
+  }
+
+  private Instant transactionDate(LocalDate reportDate) {
+    Instant now = Instant.now(clock);
+    LocalDate expectedDate = publicHolidays.nextWorkingDay(reportDate);
+    LocalDate nowDate = now.atZone(ESTONIAN_ZONE).toLocalDate();
+    if (nowDate.equals(expectedDate)) {
+      return now;
+    }
+    return expectedDate.atTime(10, 0).atZone(ESTONIAN_ZONE).toInstant();
   }
 
   private LedgerAccount findOrCreateInstrumentAccount(SystemAccount systemAccount, String isin) {

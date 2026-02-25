@@ -116,6 +116,41 @@ class NavPipelineIntegrationTest {
   }
 
   @Test
+  void retroactiveNavCalculation_usesPositionDataFromRecordedDate() {
+    LocalDate feb3 = LocalDate.of(2026, 2, 3);
+    LocalDate feb5 = LocalDate.of(2026, 2, 5);
+    LocalDate calculationDate = LocalDate.of(2026, 2, 4);
+    BigDecimal feb3Cash = new BigDecimal("5792137.97");
+    BigDecimal feb5CashDelta = new BigDecimal("100000.00");
+
+    navPositionLedger.recordPositions(TKF100.name(), feb3, Map.of(), feb3Cash, ZERO, ZERO);
+    entityManager.flush();
+
+    navPositionLedger.recordPositions(TKF100.name(), feb5, Map.of(), feb5CashDelta, ZERO, ZERO);
+    entityManager.flush();
+
+    fundPositionRepository.save(
+        FundPosition.builder()
+            .navDate(feb3)
+            .fund(TKF100)
+            .accountType(CASH)
+            .accountName("Cash")
+            .marketValue(feb3Cash)
+            .currency("EUR")
+            .createdAt(Instant.now())
+            .build());
+
+    issueFundUnits(new BigDecimal("1000000.000"), feb3);
+    insertPrices(calculationDate);
+    entityManager.flush();
+    entityManager.clear();
+
+    var result = navCalculationService.calculate(TKF100, calculationDate);
+
+    assertThat(result.cashPosition()).isEqualByComparingTo(feb3Cash);
+  }
+
+  @Test
   void recordPositions_isIdempotent() {
     LocalDate date = LocalDate.of(2026, 2, 1);
     Map<String, BigDecimal> units = Map.of("IE00BFG1TM61", new BigDecimal("1000.00000"));

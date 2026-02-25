@@ -11,9 +11,11 @@ import ee.tuleva.onboarding.ledger.SystemAccount;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -52,11 +54,14 @@ public class FundPositionLedgerService {
         fundPositionRepository.findByNavDateAndFundAndAccountType(date, fund, SECURITY);
 
     Map<String, BigDecimal> deltas = new HashMap<>();
+    Set<String> reportedIsins = new HashSet<>();
+
     for (FundPosition position : securityPositions) {
       String isin = position.getAccountId();
       if (isin == null) {
         continue;
       }
+      reportedIsins.add(isin);
       BigDecimal newQuantity = position.getQuantity() != null ? position.getQuantity() : ZERO;
       BigDecimal currentBalance =
           navLedgerRepository.getSystemAccountBalance(SECURITIES_UNITS.getAccountName(isin));
@@ -65,6 +70,16 @@ public class FundPositionLedgerService {
         deltas.put(isin, delta);
       }
     }
+
+    navLedgerRepository
+        .getSecuritiesUnitBalances()
+        .forEach(
+            (isin, balance) -> {
+              if (!reportedIsins.contains(isin) && balance.signum() != 0) {
+                deltas.put(isin, balance.negate());
+              }
+            });
+
     return deltas;
   }
 

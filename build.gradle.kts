@@ -125,8 +125,8 @@ dependencies {
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-4:8.29.0")
-    implementation("io.sentry:sentry-logback:8.29.0")
+    implementation("io.sentry:sentry-spring-boot-4:8.33.0")
+    implementation("io.sentry:sentry-logback:8.33.0")
 
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")

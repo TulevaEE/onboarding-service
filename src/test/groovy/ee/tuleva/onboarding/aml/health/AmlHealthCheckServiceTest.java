@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.aml.health;
 
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -10,6 +11,7 @@ import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
@@ -55,7 +57,7 @@ class AmlHealthCheckServiceTest {
     when(mockAmlHealthThresholdCache.getThreshold(checkType.name()))
         .thenReturn(Optional.of(baseThreshold));
     when(mockAmlCheckHealthRepository.findLastCheckTimeByType(checkType.name()))
-        .thenReturn(Optional.of(lastCheckTime));
+        .thenReturn(Optional.of(LocalDateTime.ofInstant(lastCheckTime, UTC)));
 
     // when
     boolean isDelayed = amlHealthCheckService.isCheckTypeDelayed(checkType);
@@ -74,7 +76,7 @@ class AmlHealthCheckServiceTest {
     when(mockAmlHealthThresholdCache.getThreshold(checkType.name()))
         .thenReturn(Optional.of(baseThreshold));
     when(mockAmlCheckHealthRepository.findLastCheckTimeByType(checkType.name()))
-        .thenReturn(Optional.of(lastCheckTime));
+        .thenReturn(Optional.of(LocalDateTime.ofInstant(lastCheckTime, UTC)));
 
     // when
     boolean isDelayed = amlHealthCheckService.isCheckTypeDelayed(checkType);
@@ -96,7 +98,7 @@ class AmlHealthCheckServiceTest {
     when(mockAmlHealthThresholdCache.getThreshold(checkType.name()))
         .thenReturn(Optional.of(baseThreshold));
     when(mockAmlCheckHealthRepository.findLastCheckTimeByType(checkType.name()))
-        .thenReturn(Optional.of(lastCheckTime));
+        .thenReturn(Optional.of(LocalDateTime.ofInstant(lastCheckTime, UTC)));
 
     // when
     boolean isDelayed = amlHealthCheckService.isCheckTypeDelayed(checkType);
@@ -118,7 +120,7 @@ class AmlHealthCheckServiceTest {
     when(mockAmlHealthThresholdCache.getThreshold(checkType.name()))
         .thenReturn(Optional.of(baseThreshold));
     when(mockAmlCheckHealthRepository.findLastCheckTimeByType(checkType.name()))
-        .thenReturn(Optional.of(lastCheckTime));
+        .thenReturn(Optional.of(LocalDateTime.ofInstant(lastCheckTime, UTC)));
 
     // when
     boolean isDelayed = amlHealthCheckService.isCheckTypeDelayed(checkType);
@@ -137,7 +139,7 @@ class AmlHealthCheckServiceTest {
     when(mockAmlHealthThresholdCache.getThreshold(checkType.name()))
         .thenReturn(Optional.of(baseThreshold));
     when(mockAmlCheckHealthRepository.findLastCheckTimeByType(checkType.name()))
-        .thenReturn(Optional.of(lastCheckTime));
+        .thenReturn(Optional.of(LocalDateTime.ofInstant(lastCheckTime, UTC)));
 
     // when
     boolean isDelayed = amlHealthCheckService.isCheckTypeDelayed(checkType);
@@ -188,7 +190,7 @@ class AmlHealthCheckServiceTest {
     when(mockAmlHealthThresholdCache.getThreshold(checkType.name()))
         .thenReturn(Optional.of(baseThreshold));
     when(mockAmlCheckHealthRepository.findLastCheckTimeByType(checkType.name()))
-        .thenReturn(Optional.of(lastCheckTime));
+        .thenReturn(Optional.of(LocalDateTime.ofInstant(lastCheckTime, UTC)));
 
     // when
     boolean isDelayed = amlHealthCheckService.isCheckTypeDelayed(checkType);

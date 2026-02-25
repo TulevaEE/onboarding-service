@@ -10,8 +10,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.aml.AmlAutoChecker;
 import ee.tuleva.onboarding.epis.EpisService;
@@ -23,27 +21,21 @@ import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityDto;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.resttestclient.TestRestTemplate;
-import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.data.util.Streamable;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.client.RestTestClient;
 
-// Signing tests are in MandateBatchSigningController (non-integration test)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
-@AutoConfigureTestRestTemplate
-public class MandateBatchIntegrationTest {
+@AutoConfigureRestTestClient
+class MandateBatchIntegrationTest {
 
-  @LocalServerPort int randomServerPort;
+  @Autowired private RestTestClient restTestClient;
 
-  @Autowired private TestRestTemplate restTemplate;
+  @Autowired private ObjectMapper mapper;
 
   @Autowired private MandateBatchRepository mandateBatchRepository;
   @Autowired private MandateRepository mandateRepository;
@@ -58,11 +50,8 @@ public class MandateBatchIntegrationTest {
     mandateBatchRepository.deleteAll();
   }
 
-  void assertCorrectResponse(ResponseEntity<String> response) throws JsonProcessingException {
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-
-    ObjectMapper mapper = new ObjectMapper();
-    JsonNode jsonNode = mapper.readTree(response.getBody());
+  void assertCorrectResponse(byte[] responseBody) throws Exception {
+    var jsonNode = mapper.readTree(responseBody);
 
     MandateDto[] responseMandateDtos =
         mapper.readValue(jsonNode.get("mandates").toString(), MandateDto[].class);
@@ -102,10 +91,7 @@ public class MandateBatchIntegrationTest {
   }
 
   @Test
-  @DisplayName("create mandate batch")
   void testMandateCreation() throws Exception {
-    String url = "http://localhost:" + randomServerPort + "/v1/mandate-batches";
-
     var headers = getHeaders();
 
     var aFundPensionOpeningMandateDetails = MandateFixture.aFundPensionOpeningMandateDetails;
@@ -133,19 +119,25 @@ public class MandateBatchIntegrationTest {
     when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
     when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
 
-    HttpEntity<MandateBatchDto> request = new HttpEntity<>(aDto, headers);
+    var responseBody =
+        restTestClient
+            .post()
+            .uri("/v1/mandate-batches")
+            .headers(h -> h.addAll(headers))
+            .body(aDto)
+            .exchange()
+            .expectStatus()
+            .isOk()
+            .expectBody(byte[].class)
+            .returnResult()
+            .getResponseBody();
 
-    ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-
-    assertCorrectResponse(response);
+    assertCorrectResponse(responseBody);
     assertCanReadMandateBatch();
   }
 
   @Test
-  @DisplayName("create mandate batch throws before retirement")
   void testMandateCreationBeforeRetirementAge() {
-    String url = "http://localhost:" + randomServerPort + "/v1/mandate-batches";
-
     var headers = getHeaders();
 
     var aFundPensionOpeningMandateDetails = MandateFixture.aFundPensionOpeningMandateDetails;
@@ -173,19 +165,20 @@ public class MandateBatchIntegrationTest {
     when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
     when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
 
-    HttpEntity<MandateBatchDto> request = new HttpEntity<>(aDto, headers);
+    restTestClient
+        .post()
+        .uri("/v1/mandate-batches")
+        .headers(h -> h.addAll(headers))
+        .body(aDto)
+        .exchange()
+        .expectStatus()
+        .value(status -> assertThat(status).isNotEqualTo(200));
 
-    ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-
-    assertThat(response.getStatusCode()).isNotEqualTo(HttpStatus.OK);
     assertThat(Streamable.of(mandateBatchRepository.findAll()).toList().size()).isEqualTo(0);
   }
 
   @Test
-  @DisplayName("create mandate batch works for III pillar special case at 55+")
-  void testMandateCreationThirdPillarSpecialCase() throws JsonProcessingException {
-    String url = "http://localhost:" + randomServerPort + "/v1/mandate-batches";
-
+  void testMandateCreationThirdPillarSpecialCase() throws Exception {
     var headers = getHeaders();
 
     var aFundPensionOpeningMandateDetails =
@@ -215,19 +208,25 @@ public class MandateBatchIntegrationTest {
     when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
     when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
 
-    HttpEntity<MandateBatchDto> request = new HttpEntity<>(aDto, headers);
+    var responseBody =
+        restTestClient
+            .post()
+            .uri("/v1/mandate-batches")
+            .headers(h -> h.addAll(headers))
+            .body(aDto)
+            .exchange()
+            .expectStatus()
+            .isOk()
+            .expectBody(byte[].class)
+            .returnResult()
+            .getResponseBody();
 
-    ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-
-    assertCorrectResponse(response);
+    assertCorrectResponse(responseBody);
     assertCanReadMandateBatch();
   }
 
   @Test
-  @DisplayName("create mandate batch doesn't work when III pillar special case isn't available")
   void testMandateCreationThirdPillarSpecialCaseDisabled() {
-    String url = "http://localhost:" + randomServerPort + "/v1/mandate-batches";
-
     var headers = getHeaders();
 
     var aFundPensionOpeningMandateDetails =
@@ -257,11 +256,15 @@ public class MandateBatchIntegrationTest {
     when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
     when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
 
-    HttpEntity<MandateBatchDto> request = new HttpEntity<>(aDto, headers);
+    restTestClient
+        .post()
+        .uri("/v1/mandate-batches")
+        .headers(h -> h.addAll(headers))
+        .body(aDto)
+        .exchange()
+        .expectStatus()
+        .value(status -> assertThat(status).isNotEqualTo(200));
 
-    ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-
-    assertThat(response.getStatusCode()).isNotEqualTo(HttpStatus.OK);
     assertThat(Streamable.of(mandateBatchRepository.findAll()).toList().size()).isEqualTo(0);
   }
 }

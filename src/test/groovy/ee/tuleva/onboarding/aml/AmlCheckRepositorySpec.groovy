@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.aml
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.node.TextNode
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.node.StringNode
 import ee.tuleva.onboarding.user.User
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
@@ -23,7 +23,7 @@ class AmlCheckRepositorySpec extends Specification {
   @Autowired
   private AmlCheckRepository repository
 
-  ObjectMapper objectMapper = new ObjectMapper()
+  JsonMapper objectMapper = JsonMapper.builder().build()
 
   def "persisting and findById() works"() {
     given:
@@ -152,7 +152,7 @@ class AmlCheckRepositorySpec extends Specification {
     User sampleUser = sampleUser().build()
 
     def results = objectMapper.createArrayNode()
-    results.add(new TextNode("result1"))
+    results.add(new StringNode("result1"))
     def metadata = ["results": results]
 
     AmlCheck sampleCheck = AmlCheck.builder()

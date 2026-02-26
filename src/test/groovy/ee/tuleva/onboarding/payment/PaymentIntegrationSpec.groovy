@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.payment
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.json.JsonMapper
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.epis.account.FundBalanceDto
@@ -51,7 +49,7 @@ class PaymentIntegrationSpec extends Specification {
   EventLogRepository eventLogRepository
 
   @Autowired
-  ObjectMapper objectMapper
+  JsonMapper objectMapper
 
   @Autowired
   PaymentLinkingService paymentApplicationService
@@ -64,9 +62,7 @@ class PaymentIntegrationSpec extends Specification {
 
   MockServerClient mockServerClient
 
-  ObjectMapper mapper = JsonMapper.builder()
-      .addModule(new JavaTimeModule())
-      .build()
+  JsonMapper mapper = JsonMapper.builder().build()
 
   String aToken = "token-string"
   User aUser

@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.error;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import java.io.IOException;
@@ -16,13 +15,14 @@ import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.client.DefaultResponseErrorHandler;
+import tools.jackson.databind.json.JsonMapper;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class RestResponseErrorHandler extends DefaultResponseErrorHandler {
 
-  private final ObjectMapper mapper;
+  private final JsonMapper mapper;
 
   @Override
   public void handleError(URI url, HttpMethod method, ClientHttpResponse response)

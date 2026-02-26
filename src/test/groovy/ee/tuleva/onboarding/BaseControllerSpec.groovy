@@ -1,14 +1,13 @@
 package ee.tuleva.onboarding
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.SerializationFeature
+import tools.jackson.core.StreamWriteFeature
+import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.error.ErrorHandlingControllerAdvice
 import ee.tuleva.onboarding.error.converter.InputErrorsConverter
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory
 import org.springframework.core.MethodParameter
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter
+import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.setup.StandaloneMockMvcBuilder
 import org.springframework.web.bind.support.WebDataBinderFactory
@@ -29,7 +28,7 @@ Use @WebMvcTest instead
 @Deprecated(since = "Use @WebMvcTest instead")
 class BaseControllerSpec extends Specification {
 
-    protected final static ObjectMapper mapper = new ObjectMapper()
+    protected final static JsonMapper mapper = JsonMapper.builder().build()
 
     protected MockMvc mockMvc(Object... controllers) {
         getMockMvcWithControllerAdvice(controllers)
@@ -55,13 +54,11 @@ class BaseControllerSpec extends Specification {
                 .setControllerAdvice(new ErrorHandlingControllerAdvice())
     }
 
-  private MappingJackson2HttpMessageConverter jacksonMessageConverter() {
-        ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules()
-        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-        objectMapper.enable(JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN)
-        MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter()
-        converter.setObjectMapper(objectMapper)
-        return converter
+  private JacksonJsonHttpMessageConverter jacksonMessageConverter() {
+        JsonMapper objectMapper = JsonMapper.builder()
+            .enable(StreamWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN)
+            .build()
+        return new JacksonJsonHttpMessageConverter(objectMapper)
     }
 
     private HandlerMethodArgumentResolver authenticationPrincipalResolver(AuthenticatedPerson authenticatedPerson) {

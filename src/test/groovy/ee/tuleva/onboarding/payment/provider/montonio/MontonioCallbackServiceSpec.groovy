@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.payment.provider.montonio
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.payment.Payment
 import ee.tuleva.onboarding.payment.PaymentRepository
 import ee.tuleva.onboarding.user.User
@@ -18,7 +18,7 @@ class MontonioCallbackServiceSpec extends Specification {
   MontonioPaymentChannelConfiguration montonioPaymentChannelConfiguration = aPaymentProviderConfiguration()
   UserService userService = Mock(UserService)
   PaymentRepository paymentRepository = Mock(PaymentRepository)
-  ObjectMapper objectMapper = new ObjectMapper()
+  JsonMapper objectMapper = JsonMapper.builder().build()
   ApplicationEventPublisher eventPublisher = Mock(ApplicationEventPublisher)
 
   MontonioCallbackService service = new MontonioCallbackService(

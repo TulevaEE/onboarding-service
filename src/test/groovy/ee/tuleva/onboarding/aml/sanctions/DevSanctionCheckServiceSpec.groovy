@@ -1,17 +1,17 @@
 package ee.tuleva.onboarding.aml.sanctions
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.auth.principal.PersonImpl
 import ee.tuleva.onboarding.country.Country
 import spock.lang.Specification
 
 class DevSanctionCheckServiceSpec extends Specification {
 
-    ObjectMapper objectMapper
+    JsonMapper objectMapper
     DevSanctionCheckService service
 
     void setup() {
-        objectMapper = new ObjectMapper()
+        objectMapper = JsonMapper.builder().build()
         service = new DevSanctionCheckService(objectMapper)
     }
 

@@ -1,8 +1,5 @@
 package ee.tuleva.onboarding.aml.sanctions;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
@@ -19,18 +16,21 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
 
 @Service
 @Profile("!dev")
 public class OpenSanctionsService implements PepAndSanctionCheckService {
 
   private final RestTemplate restTemplate;
-  private final ObjectMapper objectMapper;
+  private final JsonMapper objectMapper;
 
   @Value("${opensanctions.url}")
   private String baseUrl;
 
-  public OpenSanctionsService(RestTemplateBuilder restTemplateBuilder, ObjectMapper objectMapper) {
+  public OpenSanctionsService(RestTemplateBuilder restTemplateBuilder, JsonMapper objectMapper) {
     this.restTemplate = restTemplateBuilder.rootUri(baseUrl).build();
     this.objectMapper = objectMapper;
   }

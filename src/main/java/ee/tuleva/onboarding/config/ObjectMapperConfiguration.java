@@ -1,21 +1,22 @@
 package ee.tuleva.onboarding.config;
 
-import static com.fasterxml.jackson.core.JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN;
-
-import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.springframework.boot.jackson2.autoconfigure.Jackson2ObjectMapperBuilderCustomizer;
+import org.springframework.boot.jackson.autoconfigure.JsonMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import tools.jackson.core.StreamWriteFeature;
+import tools.jackson.databind.DeserializationFeature;
 
 @Configuration
 public class ObjectMapperConfiguration {
 
   @Bean
-  public Jackson2ObjectMapperBuilderCustomizer customizeObjectMapper() {
-    return jacksonObjectMapperBuilder ->
-        jacksonObjectMapperBuilder
-            .featuresToEnable(WRITE_BIGDECIMAL_AS_PLAIN)
-            .modules(new Jdk8Module(), new JavaTimeModule());
+  public JsonMapperBuilderCustomizer customizeObjectMapper() {
+    return builder ->
+        builder
+            .enable(StreamWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN)
+            // Jackson 3 defaults to failing on null for primitives (Jackson 2 allowed it).
+            // External APIs (e.g. EPIS ContactDetails) may return null for primitive boolean
+            // fields.
+            .disable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES);
   }
 }

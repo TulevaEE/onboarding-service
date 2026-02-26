@@ -16,11 +16,6 @@ server:
       # cookie.domain: tuleva.ee # for session sharing across sub-domains
 
 spring:
-  jackson:
-    use-jackson2-defaults: true
-  http:
-    converters:
-      preferred-json-mapper: jackson2
   application:
     name: 'Onboarding Service'
   modulith:

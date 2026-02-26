@@ -11,11 +11,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.mockito.quality.Strictness.LENIENT;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import ee.tuleva.onboarding.aml.notification.AmlChecksRunEvent;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
@@ -54,6 +49,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.springframework.context.ApplicationEventPublisher;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.JsonNodeFactory;
+import tools.jackson.databind.node.ObjectNode;
 
 @MockitoSettings(strictness = LENIENT)
 @ExtendWith(MockitoExtension.class)
@@ -70,7 +70,7 @@ class AmlServiceTest {
   @Captor private ArgumentCaptor<AmlCheck> amlCheckCaptor;
   @Captor private ArgumentCaptor<TrackableEvent> trackableEventCaptor;
 
-  private static final ObjectMapper objectMapper = new ObjectMapper();
+  private static final JsonMapper objectMapper = JsonMapper.builder().build();
   private static final Instant FIXED_INSTANT = Instant.parse("2020-11-23T10:00:00Z");
   private static final Clock FIXED_CLOCK = Clock.fixed(FIXED_INSTANT, ZoneOffset.UTC);
   private Instant aYearAgoFromTestClock;

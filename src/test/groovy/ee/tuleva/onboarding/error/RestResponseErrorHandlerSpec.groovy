@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.error
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
@@ -13,7 +13,7 @@ import spock.lang.Specification
 
 class RestResponseErrorHandlerSpec extends Specification {
 
-  def objectMapper = new ObjectMapper()
+  def objectMapper = JsonMapper.builder().build()
   def errorHandler = new RestResponseErrorHandler(objectMapper)
   def logAppender = new ListAppender<ILoggingEvent>()
   def logger = LoggerFactory.getLogger(RestResponseErrorHandler) as Logger

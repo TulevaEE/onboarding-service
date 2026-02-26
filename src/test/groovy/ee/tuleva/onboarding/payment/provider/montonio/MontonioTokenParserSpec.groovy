@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.payment.provider.montonio
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import com.nimbusds.jose.JWSObject
 import ee.tuleva.onboarding.payment.PaymentData
 import ee.tuleva.onboarding.payment.provider.PaymentReference
@@ -18,7 +18,7 @@ class MontonioTokenParserSpec extends Specification {
 
   void setup() {
     montonioTokenParser = new MontonioTokenParser(
-        new ObjectMapper(),
+        JsonMapper.builder().build(),
         aPaymentProviderConfiguration(),
     )
   }

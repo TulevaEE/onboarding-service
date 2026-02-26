@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.payment.provider.montonio;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
 import ee.tuleva.onboarding.payment.PaymentData;
@@ -8,12 +7,13 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.json.JsonMapper;
 
 @Service
 @RequiredArgsConstructor
 public class MontonioOrderClient {
 
-  private final ObjectMapper objectMapper;
+  private final JsonMapper objectMapper;
 
   private final MontonioApiClient montonioApiClient;
 

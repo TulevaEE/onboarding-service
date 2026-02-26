@@ -1,14 +1,12 @@
 package ee.tuleva.onboarding.payment
 
-import com.fasterxml.jackson.databind.json.JsonMapper
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioPaymentLinkGenerator
 import ee.tuleva.onboarding.payment.recurring.CoopPankPaymentLinkGenerator
 import ee.tuleva.onboarding.payment.recurring.PaymentDateProvider
 import spock.lang.Specification
 
-import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsServiceStub.stubContactDetailsService
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.COOP_WEB
@@ -21,10 +19,7 @@ class SinglePaymentLinkGeneratorSpec extends Specification {
 
   def contactDetailsService = stubContactDetailsService()
   def paymentDateProvider = new PaymentDateProvider(clock)
-  def objectMapper = JsonMapper.builder()
-      .addModule(new JavaTimeModule())
-      .disable(WRITE_DATES_AS_TIMESTAMPS)
-      .build()
+  def objectMapper = JsonMapper.builder().build()
   def localeService = new LocaleService()
   CoopPankPaymentLinkGenerator coopPankPaymentLinkGenerator =
       new CoopPankPaymentLinkGenerator(contactDetailsService, objectMapper, localeService, paymentDateProvider)

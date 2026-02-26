@@ -1,4 +1,4 @@
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.payment.PaymentData
 import ee.tuleva.onboarding.payment.provider.PaymentProviderFixture
@@ -9,7 +9,7 @@ import static ee.tuleva.onboarding.payment.provider.montonio.MontonioFixture.aMo
 
 class MontonioOrderClientSpec extends Specification {
 
-  def objectMapper = Mock(ObjectMapper)
+  def objectMapper = Mock(JsonMapper)
   def montonioApiClient = Mock(MontonioApiClient)
   def paymentProviderConfiguration = PaymentProviderFixture.aPaymentProviderConfiguration()
 

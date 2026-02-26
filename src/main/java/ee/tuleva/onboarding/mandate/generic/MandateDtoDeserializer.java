@@ -1,29 +1,27 @@
 package ee.tuleva.onboarding.mandate.generic;
 
-import static ee.tuleva.onboarding.epis.mandate.details.MandateDetailsDeserializer.deserializeMandateTypeField;
-
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
 import ee.tuleva.onboarding.mandate.MandateType;
-import java.io.IOException;
 import java.time.Instant;
+import tools.jackson.core.JsonParser;
+import tools.jackson.databind.DeserializationContext;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ValueDeserializer;
 
-public class MandateDtoDeserializer extends JsonDeserializer<MandateDto<? extends MandateDetails>> {
+public class MandateDtoDeserializer
+    extends ValueDeserializer<MandateDto<? extends MandateDetails>> {
   @Override
   public MandateDto<? extends MandateDetails> deserialize(
-      JsonParser parser, DeserializationContext context) throws IOException {
-    ObjectMapper mapper = (ObjectMapper) parser.getCodec();
-
-    JsonNode root = mapper.readTree(parser);
+      JsonParser parser, DeserializationContext ctxt) {
+    JsonNode root = ctxt.readTree(parser);
 
     JsonNode detailsNode = root.get("details");
-    MandateType type = deserializeMandateTypeField(detailsNode);
+    MandateType type = MandateType.valueOf(detailsNode.get("mandateType").asText());
+    if (type == MandateType.UNKNOWN) {
+      throw new IllegalArgumentException("Unknown mandateType: " + type);
+    }
 
-    MandateDetails details = mapper.treeToValue(detailsNode, type.getMandateDetailsClass());
+    MandateDetails details = ctxt.readTreeAsValue(detailsNode, type.getMandateDetailsClass());
 
     var mandateDtoBuilder = MandateDto.builder();
 

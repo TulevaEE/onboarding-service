@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.payment.savings
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import com.nimbusds.jose.JWSObject
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment
@@ -13,7 +13,7 @@ import spock.lang.Specification
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
 
 class SavingsCallbackServiceSpec extends Specification {
-  MontonioTokenParser tokenParser = new MontonioTokenParser(new ObjectMapper(), aPaymentProviderConfiguration())
+  MontonioTokenParser tokenParser = new MontonioTokenParser(JsonMapper.builder().build(), aPaymentProviderConfiguration())
   SavingsCallbackService savingsCallbackService
   SavingFundPaymentRepository savingFundPaymentRepository = Mock()
   UserService userService = Mock()

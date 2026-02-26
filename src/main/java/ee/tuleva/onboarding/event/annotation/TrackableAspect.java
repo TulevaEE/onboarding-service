@@ -2,8 +2,6 @@ package ee.tuleva.onboarding.event.annotation;
 
 import static java.util.stream.Collectors.toMap;
 
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import java.util.Map;
@@ -15,6 +13,8 @@ import org.aspectj.lang.annotation.Before;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.JavaType;
+import tools.jackson.databind.json.JsonMapper;
 
 @Aspect
 @Component
@@ -23,7 +23,7 @@ public class TrackableAspect {
 
   private final ApplicationEventPublisher eventPublisher;
 
-  private final ObjectMapper objectMapper;
+  private final JsonMapper objectMapper;
 
   @Before("@annotation(trackable) && args(.., person)")
   public void track(JoinPoint joinPoint, Trackable trackable, Person person) {

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.listing
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import org.spockframework.spring.SpringBean
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
@@ -29,7 +29,7 @@ class ListingControllerSpec extends Specification {
   MockMvc mvc
 
   @Autowired
-  ObjectMapper objectMapper
+  JsonMapper objectMapper
 
   @SpringBean
   ListingService listingService = Mock()

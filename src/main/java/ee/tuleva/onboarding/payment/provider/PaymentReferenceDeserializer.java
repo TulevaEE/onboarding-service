@@ -1,17 +1,14 @@
 package ee.tuleva.onboarding.payment.provider;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
+import tools.jackson.core.JsonParser;
+import tools.jackson.databind.DeserializationContext;
+import tools.jackson.databind.ValueDeserializer;
 
-public class PaymentReferenceDeserializer extends JsonDeserializer<PaymentReference> {
+public class PaymentReferenceDeserializer extends ValueDeserializer<PaymentReference> {
   @Override
-  public PaymentReference deserialize(JsonParser p, DeserializationContext ctx) throws IOException {
+  public PaymentReference deserialize(JsonParser p, DeserializationContext ctxt) {
     String rawJson = p.getValueAsString();
     if (rawJson == null || rawJson.isEmpty()) return null;
-    ObjectMapper mapper = (ObjectMapper) p.getCodec();
-    return mapper.readValue(rawJson, PaymentReference.class);
+    return ctxt.readValue(ctxt.createParser(rawJson), PaymentReference.class);
   }
 }

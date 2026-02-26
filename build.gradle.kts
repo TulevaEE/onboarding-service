@@ -111,7 +111,7 @@ dependencies {
 
     xjc("org.glassfish.jaxb:jaxb-xjc:4.0.5")
 
-    implementation("ee.sk.smartid:smart-id-java-client:2.3.1") {
+    implementation("ee.sk.smartid:smart-id-java-client:3.1") {
         exclude(group = "org.bouncycastle")
     }
     implementation("ee.sk.mid:mid-rest-java-client:1.6") {

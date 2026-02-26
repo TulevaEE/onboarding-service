@@ -35,7 +35,7 @@ public class NavPublisher {
     FundValue navValue =
         new FundValue(
             result.fund().getIsin(),
-            result.calculationDate(),
+            result.positionReportDate(),
             result.navPerUnit(),
             NAV_PROVIDER,
             result.calculatedAt());
@@ -47,7 +47,7 @@ public class NavPublisher {
     FundValue aumValue =
         new FundValue(
             result.fund().getAumKey(),
-            result.calculationDate(),
+            result.positionReportDate(),
             result.aum(),
             NAV_PROVIDER,
             result.calculatedAt());

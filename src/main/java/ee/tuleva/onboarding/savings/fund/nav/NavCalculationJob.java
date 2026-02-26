@@ -33,23 +33,17 @@ public class NavCalculationJob {
       return;
     }
 
-    LocalDate calculationDate = publicHolidays.previousWorkingDay(today);
-
-    log.info(
-        "Starting scheduled NAV calculation: fund={}, calculationDate={}", TKF100, calculationDate);
+    log.info("Starting scheduled NAV calculation: fund={}, calculationDate={}", TKF100, today);
 
     try {
-      NavCalculationResult result = navCalculationService.calculate(TKF100, calculationDate);
+      NavCalculationResult result = navCalculationService.calculate(TKF100, today);
       navNotifier.notify(result);
-      log.info(
-          "Completed scheduled NAV calculation: fund={}, calculationDate={}",
-          TKF100,
-          calculationDate);
+      log.info("Completed scheduled NAV calculation: fund={}, calculationDate={}", TKF100, today);
     } catch (Exception exception) {
       log.error(
           "Failed scheduled NAV calculation: fund={}, calculationDate={}",
           TKF100,
-          calculationDate,
+          today,
           exception);
       throw exception;
     }

@@ -30,15 +30,13 @@ class NavCalculationJobTest {
     var job = new NavCalculationJob(navCalculationService, navNotifier, publicHolidays, clock);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
     when(publicHolidays.isWorkingDay(today)).thenReturn(true);
-    when(publicHolidays.previousWorkingDay(today)).thenReturn(previousWorkingDay);
-    NavCalculationResult result = buildTestResult(previousWorkingDay);
-    when(navCalculationService.calculate(TKF100, previousWorkingDay)).thenReturn(result);
+    NavCalculationResult result = buildTestResult(today);
+    when(navCalculationService.calculate(TKF100, today)).thenReturn(result);
 
     job.calculateDailyNav();
 
-    verify(navCalculationService).calculate(TKF100, previousWorkingDay);
+    verify(navCalculationService).calculate(TKF100, today);
     verify(navNotifier).notify(result);
   }
 

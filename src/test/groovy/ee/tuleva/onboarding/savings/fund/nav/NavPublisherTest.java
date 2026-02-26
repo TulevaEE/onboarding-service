@@ -28,14 +28,15 @@ class NavPublisherTest {
   @InjectMocks private NavPublisher navPublisher;
 
   @Test
-  void publish_savesNavAndAumToIndexValues() {
-    LocalDate calcDate = LocalDate.of(2025, 1, 15);
+  void publish_savesNavAndAumWithPositionReportDate() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
     Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
 
     var result =
         NavCalculationResult.builder()
             .fund(TKF100)
-            .calculationDate(calcDate)
+            .calculationDate(today)
             .securitiesValue(new BigDecimal("900000.00"))
             .cashPosition(new BigDecimal("50000.00"))
             .receivables(new BigDecimal("10000.00"))
@@ -48,8 +49,8 @@ class NavPublisherTest {
             .aum(new BigDecimal("969941.07"))
             .unitsOutstanding(new BigDecimal("100000.00000"))
             .navPerUnit(new BigDecimal("9.69941"))
-            .positionReportDate(calcDate)
-            .priceDate(calcDate)
+            .positionReportDate(yesterday)
+            .priceDate(yesterday)
             .calculatedAt(calcTime)
             .securitiesDetail(List.of())
             .build();
@@ -63,14 +64,14 @@ class NavPublisherTest {
 
     var navValue = savedValues.get(0);
     assertThat(navValue.key()).isEqualTo("EE0000003283");
-    assertThat(navValue.date()).isEqualTo(calcDate);
+    assertThat(navValue.date()).isEqualTo(yesterday);
     assertThat(navValue.value()).isEqualByComparingTo("9.69941");
     assertThat(navValue.provider()).isEqualTo("TULEVA");
     assertThat(navValue.updatedAt()).isEqualTo(calcTime);
 
     var aumValue = savedValues.get(1);
     assertThat(aumValue.key()).isEqualTo("AUM_EE0000003283");
-    assertThat(aumValue.date()).isEqualTo(calcDate);
+    assertThat(aumValue.date()).isEqualTo(yesterday);
     assertThat(aumValue.value()).isEqualByComparingTo("969941.07");
     assertThat(aumValue.provider()).isEqualTo("TULEVA");
     assertThat(aumValue.updatedAt()).isEqualTo(calcTime);

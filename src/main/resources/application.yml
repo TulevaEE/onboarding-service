@@ -38,6 +38,7 @@ spring:
     properties:
       hibernate:
         jdbc.lob.non_contextual_creation: true
+        type.json_format_mapper: ee.tuleva.onboarding.config.RuntimeTypeJacksonJsonFormatMapper
   cache:
     type: simple
   task:

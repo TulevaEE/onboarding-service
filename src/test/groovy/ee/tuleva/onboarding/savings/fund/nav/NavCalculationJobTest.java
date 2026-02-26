@@ -21,13 +21,13 @@ class NavCalculationJobTest {
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
   @Mock private NavCalculationService navCalculationService;
-  @Mock private NavNotifier navNotifier;
+  @Mock private NavPublisher navPublisher;
   @Mock private PublicHolidays publicHolidays;
 
   @Test
-  void calculateDailyNav_notifiesOnWorkingDay() {
+  void calculateDailyNav_publishesOnWorkingDay() {
     Clock clock = Clock.fixed(Instant.parse("2025-01-15T14:30:00Z"), TALLINN);
-    var job = new NavCalculationJob(navCalculationService, navNotifier, publicHolidays, clock);
+    var job = new NavCalculationJob(navCalculationService, navPublisher, publicHolidays, clock);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
     when(publicHolidays.isWorkingDay(today)).thenReturn(true);
@@ -37,13 +37,13 @@ class NavCalculationJobTest {
     job.calculateDailyNav();
 
     verify(navCalculationService).calculate(TKF100, today);
-    verify(navNotifier).notify(result);
+    verify(navPublisher).publish(result);
   }
 
   @Test
   void calculateDailyNav_skipsOnNonWorkingDay() {
     Clock clock = Clock.fixed(Instant.parse("2025-01-18T14:30:00Z"), TALLINN);
-    var job = new NavCalculationJob(navCalculationService, navNotifier, publicHolidays, clock);
+    var job = new NavCalculationJob(navCalculationService, navPublisher, publicHolidays, clock);
 
     LocalDate today = LocalDate.of(2025, 1, 18);
     when(publicHolidays.isWorkingDay(today)).thenReturn(false);
@@ -51,7 +51,7 @@ class NavCalculationJobTest {
     job.calculateDailyNav();
 
     verifyNoInteractions(navCalculationService);
-    verifyNoInteractions(navNotifier);
+    verifyNoInteractions(navPublisher);
   }
 
   private NavCalculationResult buildTestResult(LocalDate date) {

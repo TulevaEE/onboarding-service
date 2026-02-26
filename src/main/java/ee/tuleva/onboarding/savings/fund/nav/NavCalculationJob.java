@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 public class NavCalculationJob {
 
   private final NavCalculationService navCalculationService;
-  private final NavNotifier navNotifier;
+  private final NavPublisher navPublisher;
   private final PublicHolidays publicHolidays;
   private final Clock clock;
 
@@ -37,7 +37,7 @@ public class NavCalculationJob {
 
     try {
       NavCalculationResult result = navCalculationService.calculate(TKF100, today);
-      navNotifier.notify(result);
+      navPublisher.publish(result);
       log.info("Completed scheduled NAV calculation: fund={}, calculationDate={}", TKF100, today);
     } catch (Exception exception) {
       log.error(

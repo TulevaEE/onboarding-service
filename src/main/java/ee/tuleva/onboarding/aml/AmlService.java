@@ -131,7 +131,11 @@ public class AmlService {
 
   private boolean hasSuccessOverride(
       Person person, AmlCheckType overrideType, Iterable<JsonNode> results) {
-    List<String> ids = stream(results).map(result -> result.path("id").asText()).toList();
+    List<String> ids =
+        stream(results)
+            .filter(result -> result.hasNonNull("id"))
+            .map(result -> result.get("id").asText())
+            .toList();
     List<AmlCheck> successOverrides =
         amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
             person.getPersonalCode(), overrideType, true);

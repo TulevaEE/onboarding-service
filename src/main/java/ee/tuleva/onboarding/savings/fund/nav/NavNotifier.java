@@ -34,15 +34,20 @@ class NavNotifier {
   String formatMessage(NavCalculationResult result) {
     var message = new StringBuilder();
 
-    message.append(
-        "NAV Calculation — %s (%s)\n\n"
-            .formatted(result.fund().getCode(), result.calculationDate()));
+    message.append("NAV Calculation — %s\n\n".formatted(result.fund().getCode()));
 
-    message.append("Assets:\n");
+    message.append("Dates:\n");
+    message.append("  Calculation Date: %s\n".formatted(result.calculationDate()));
+    message.append("  NAV Date: %s\n".formatted(result.positionReportDate()));
+    message.append("  Price Date: %s\n".formatted(result.priceDate()));
+    message.append("  Calculated At: %s\n".formatted(result.calculatedAt()));
+
+    message.append("\nAssets:\n");
     appendAmount(message, "Securities", result.securitiesValue());
     appendAmount(message, "Cash", result.cashPosition());
     appendAmount(message, "Receivables", result.receivables());
     appendAmount(message, "Pending Subscriptions", result.pendingSubscriptions());
+    appendAmount(message, "BlackRock Adj", result.blackrockAdjustment());
 
     message.append("\nLiabilities:\n");
     appendAmount(message, "Payables", result.payables());

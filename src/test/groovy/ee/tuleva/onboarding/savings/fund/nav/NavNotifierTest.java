@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
-import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
@@ -32,12 +31,16 @@ class NavNotifierTest {
 
   @Test
   void formatMessage_includesAllComponentsAndSecuritiesDetail() {
-    var result = aNavCalculationResult(LocalDate.of(2026, 2, 17));
+    var result = aNavCalculationResult();
 
     var message = navNotifier.formatMessage(result);
 
     assertThat(message)
-        .contains("TKF100", "2026-02-17")
+        .contains("TKF100")
+        .contains("Calculation Date: 2026-02-18")
+        .contains("NAV Date: 2026-02-17")
+        .contains("Price Date: 2026-02-17")
+        .contains("Calculated At: 2026-02-18T13:30:00Z")
         .contains("6,388,454.59")
         .contains("504,842.47")
         .contains("1,234.56")
@@ -46,7 +49,8 @@ class NavNotifierTest {
         .contains("397.26")
         .contains("6.85")
         .contains("91,782.00")
-        .contains("6,920,210.52")
+        .contains("BlackRock Adj", "1,234.00")
+        .contains("6,921,444.52")
         .contains("95,642.89")
         .contains("6,824,567.63")
         .contains("693214.12345")
@@ -57,7 +61,7 @@ class NavNotifierTest {
 
   @Test
   void notify_sendsMessageToSavingsChannel() {
-    var result = aNavCalculationResult(LocalDate.of(2026, 2, 17));
+    var result = aNavCalculationResult();
 
     navNotifier.notify(result);
 
@@ -66,16 +70,16 @@ class NavNotifierTest {
 
   @Test
   void notify_doesNotPropagateExceptions() {
-    var result = aNavCalculationResult(LocalDate.of(2026, 2, 17));
+    var result = aNavCalculationResult();
     doThrow(new RuntimeException("Slack down")).when(notificationService).sendMessage(any(), any());
 
     assertThatCode(() -> navNotifier.notify(result)).doesNotThrowAnyException();
   }
 
-  private NavCalculationResult aNavCalculationResult(LocalDate date) {
+  private NavCalculationResult aNavCalculationResult() {
     return NavCalculationResult.builder()
         .fund(TKF100)
-        .calculationDate(date)
+        .calculationDate(LocalDate.of(2026, 2, 18))
         .securitiesValue(new BigDecimal("6388454.59"))
         .cashPosition(new BigDecimal("504842.47"))
         .receivables(new BigDecimal("1234.56"))
@@ -84,13 +88,13 @@ class NavNotifierTest {
         .managementFeeAccrual(new BigDecimal("397.26"))
         .depotFeeAccrual(new BigDecimal("6.85"))
         .payables(new BigDecimal("91782.00"))
-        .blackrockAdjustment(ZERO)
+        .blackrockAdjustment(new BigDecimal("1234.00"))
         .aum(new BigDecimal("6824567.63"))
         .unitsOutstanding(new BigDecimal("693214.12345"))
         .navPerUnit(new BigDecimal("9.8448"))
-        .positionReportDate(date)
-        .priceDate(date)
-        .calculatedAt(Instant.parse("2026-02-17T13:30:00Z"))
+        .positionReportDate(LocalDate.of(2026, 2, 17))
+        .priceDate(LocalDate.of(2026, 2, 17))
+        .calculatedAt(Instant.parse("2026-02-18T13:30:00Z"))
         .securitiesDetail(
             List.of(
                 new SecurityDetail(

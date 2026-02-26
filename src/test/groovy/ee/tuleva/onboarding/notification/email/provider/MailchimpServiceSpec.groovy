@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.notification.email.provider
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.notification.email.auto.EmailEvent
 import io.github.erkoristhein.mailchimp.api.MessagesApi
 import io.github.erkoristhein.mailchimp.marketing.api.CampaignsApi
@@ -235,8 +234,7 @@ class MailchimpServiceSpec extends Specification {
     }
     '''
 
-    def objectMapper = new ObjectMapper()
-    objectMapper.registerModule(new JavaTimeModule())
+    def objectMapper = JsonMapper.builder().build()
 
     when:
     def sentTo = objectMapper.readValue(jsonResponse, SentTo.class)

@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE;
 import static ee.tuleva.onboarding.payment.recurring.PaymentDateProvider.format;
 import static ee.tuleva.onboarding.payment.recurring.RecurringPaymentRequest.PaymentInterval.MONTHLY;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
@@ -16,13 +15,14 @@ import java.util.Locale;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.json.JsonMapper;
 
 @Service
 @AllArgsConstructor
 public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
 
   private final ContactDetailsService contactDetailsService;
-  private final ObjectMapper objectMapper;
+  private final JsonMapper objectMapper;
   private final LocaleService localeService;
   private final PaymentDateProvider paymentDateProvider;
 

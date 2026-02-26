@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.epis.mandate.command;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 
 @Getter
@@ -19,8 +21,12 @@ public class MandateCommandResponse extends MandateInProcess {
     this.successful = successful;
   }
 
+  @JsonCreator
   public MandateCommandResponse(
-      String processId, boolean successful, Integer errorCode, String errorMessage) {
+      @JsonProperty("processId") String processId,
+      @JsonProperty("successful") boolean successful,
+      @JsonProperty("errorCode") Integer errorCode,
+      @JsonProperty("errorMessage") String errorMessage) {
     super(processId);
 
     this.successful = successful;

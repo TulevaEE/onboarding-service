@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.auth.GrantType.GRANT_TYPE;
 import static ee.tuleva.onboarding.auth.GrantType.ID_CARD;
 import static ee.tuleva.onboarding.auth.idcard.IdCardSession.ID_DOCUMENT_TYPE;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.auth.AuthProvider;
 import ee.tuleva.onboarding.auth.GrantType;
 import ee.tuleva.onboarding.auth.idcard.IdCardSession;
@@ -17,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.json.JsonMapper;
 
 @Component
 @RequiredArgsConstructor
@@ -27,7 +27,7 @@ public class WebEidAuthProvider implements AuthProvider {
   private final WebEidAuthService webEidAuthService;
   private final GenericSessionStore sessionStore;
   private final PrincipalService principalService;
-  private final ObjectMapper objectMapper;
+  private final JsonMapper objectMapper;
 
   @Override
   public boolean supports(GrantType grantType) {

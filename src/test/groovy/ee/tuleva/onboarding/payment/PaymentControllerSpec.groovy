@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.payment
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment
@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class PaymentControllerSpec extends BaseControllerSpec {
 
-  ObjectMapper objectMapper = new ObjectMapper()
+  JsonMapper objectMapper = JsonMapper.builder().build()
 
   PaymentService paymentService = Mock()
 

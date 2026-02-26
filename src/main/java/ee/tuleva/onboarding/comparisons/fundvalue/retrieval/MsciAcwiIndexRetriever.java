@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 import static java.util.stream.StreamSupport.stream;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -15,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
+import tools.jackson.databind.JsonNode;
 
 @Service
 @Slf4j

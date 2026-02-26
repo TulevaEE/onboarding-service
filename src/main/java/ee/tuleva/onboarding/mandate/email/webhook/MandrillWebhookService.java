@@ -1,8 +1,5 @@
 package ee.tuleva.onboarding.mandate.email.webhook;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.event.EventLogRepository;
 import ee.tuleva.onboarding.mandate.email.persistence.Email;
@@ -18,6 +15,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 @Service
 @Slf4j
@@ -27,7 +27,7 @@ public class MandrillWebhookService {
   private final EmailRepository emailRepository;
   private final EventLogRepository eventLogRepository;
   private final MandrillSignatureVerifier signatureVerifier;
-  private final ObjectMapper objectMapper;
+  private final JsonMapper objectMapper;
 
   @Transactional
   public void handleWebhook(String mandrillEvents, String signature, HttpServletRequest request) {
@@ -59,7 +59,7 @@ public class MandrillWebhookService {
   private List<MandrillWebhookEvent> parseEvents(String mandrillEvents) {
     try {
       return objectMapper.readValue(mandrillEvents, new TypeReference<>() {});
-    } catch (JsonProcessingException e) {
+    } catch (JacksonException e) {
       log.error("Failed to parse Mandrill webhook events: payload={}", mandrillEvents, e);
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid JSON payload");
     }

@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.payment.provider.montonio;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.crypto.MACVerifier;
 import ee.tuleva.onboarding.payment.Payment;
@@ -21,6 +20,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.json.JsonMapper;
 
 @Service
 @RequiredArgsConstructor
@@ -30,7 +30,7 @@ public class MontonioCallbackService {
   private final MontonioPaymentChannelConfiguration montonioPaymentChannelConfiguration;
   private final UserService userService;
   private final PaymentRepository paymentRepository;
-  private final ObjectMapper objectMapper;
+  private final JsonMapper objectMapper;
   private final ApplicationEventPublisher eventPublisher;
 
   @SneakyThrows

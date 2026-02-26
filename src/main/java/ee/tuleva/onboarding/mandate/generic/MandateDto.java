@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.mandate.generic;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
 import ee.tuleva.onboarding.mandate.MandateType;
 import jakarta.annotation.Nullable;
@@ -9,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import lombok.Builder;
 import lombok.Data;
+import tools.jackson.databind.annotation.JsonDeserialize;
 
 @Data
 @Builder

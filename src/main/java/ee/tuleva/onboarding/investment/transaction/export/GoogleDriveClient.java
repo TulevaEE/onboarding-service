@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -8,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.json.JsonMapper;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -121,7 +121,7 @@ class GoogleDriveClient {
 
   private static String toJson(Map<String, Object> map) {
     try {
-      return new ObjectMapper().writeValueAsString(map);
+      return JsonMapper.builder().build().writeValueAsString(map);
     } catch (Exception e) {
       throw new IllegalStateException("Failed to serialize JSON", e);
     }

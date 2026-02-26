@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.NONE;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static java.util.stream.Collectors.toSet;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import ee.tuleva.onboarding.aml.notification.AmlChecksRunEvent;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
@@ -33,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.JsonNode;
 
 @Slf4j
 @Service

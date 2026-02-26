@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.auth.jwt;
 import static ee.tuleva.onboarding.auth.jwt.TokenType.*;
 import static ee.tuleva.onboarding.auth.jwt.TokenType.HANDOVER;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -21,6 +20,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.web.filter.OncePerRequestFilter;
+import tools.jackson.databind.json.JsonMapper;
 
 @RequiredArgsConstructor
 public class JwtAuthorizationFilter extends OncePerRequestFilter {
@@ -76,6 +76,6 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
     Map<String, String> errorResponse = JwtTokenUtil.getExpiredTokenErrorResponse();
     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
     response.setContentType("application/json");
-    response.getWriter().write(new ObjectMapper().writeValueAsString(errorResponse));
+    response.getWriter().write(JsonMapper.builder().build().writeValueAsString(errorResponse));
   }
 }

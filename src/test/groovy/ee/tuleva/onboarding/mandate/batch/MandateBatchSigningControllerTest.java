@@ -9,7 +9,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.mandate.MandateFixture;
 import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession;
@@ -28,6 +27,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -36,7 +36,7 @@ public class MandateBatchSigningControllerTest {
 
   @Autowired private MockMvc mvc;
 
-  @Autowired private ObjectMapper mapper;
+  @Autowired private JsonMapper mapper;
   @MockitoBean private MandateBatchSignatureService mandateBatchSignatureService;
 
   @Nested

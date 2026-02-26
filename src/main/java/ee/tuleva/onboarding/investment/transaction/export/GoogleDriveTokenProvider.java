@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.RSASSASigner;
 import java.security.KeyFactory;
@@ -14,6 +12,8 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 @Slf4j
 class GoogleDriveTokenProvider {
@@ -92,7 +92,7 @@ class GoogleDriveTokenProvider {
   private static JsonNode parseServiceAccountJson(String base64Json) {
     try {
       var json = new String(Base64.getDecoder().decode(base64Json));
-      return new ObjectMapper().readTree(json);
+      return JsonMapper.builder().build().readTree(json);
     } catch (Exception e) {
       throw new IllegalStateException("Failed to parse service account JSON", e);
     }

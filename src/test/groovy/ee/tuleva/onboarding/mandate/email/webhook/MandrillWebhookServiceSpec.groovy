@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.email.webhook
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.event.EventLog
 import ee.tuleva.onboarding.event.EventLogRepository
 import ee.tuleva.onboarding.mandate.email.persistence.Email
@@ -20,7 +20,7 @@ class MandrillWebhookServiceSpec extends Specification {
   EmailRepository emailRepository = Mock()
   EventLogRepository eventLogRepository = Mock()
   MandrillSignatureVerifier signatureVerifier = Mock()
-  ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules()
+  JsonMapper objectMapper = JsonMapper.builder().build()
   MandrillWebhookService service = new MandrillWebhookService(emailRepository, eventLogRepository, signatureVerifier, objectMapper)
   HttpServletRequest request = Mock()
 

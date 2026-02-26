@@ -10,7 +10,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.aml.AmlAutoChecker;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
@@ -28,6 +27,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.util.Streamable;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.client.RestTestClient;
+import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @AutoConfigureRestTestClient
@@ -35,7 +35,7 @@ class MandateBatchIntegrationTest {
 
   @Autowired private RestTestClient restTestClient;
 
-  @Autowired private ObjectMapper mapper;
+  @Autowired private JsonMapper mapper;
 
   @Autowired private MandateBatchRepository mandateBatchRepository;
   @Autowired private MandateRepository mandateRepository;

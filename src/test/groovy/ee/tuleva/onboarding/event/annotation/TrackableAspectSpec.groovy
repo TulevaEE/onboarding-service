@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.event.annotation
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.event.TrackableEvent
 import ee.tuleva.onboarding.event.TrackableEventType
@@ -14,7 +14,7 @@ import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 class TrackableAspectSpec extends Specification {
 
   ApplicationEventPublisher eventPublisher = Mock()
-  TrackableAspect trackableAspect = new TrackableAspect(eventPublisher, new ObjectMapper())
+  TrackableAspect trackableAspect = new TrackableAspect(eventPublisher, JsonMapper.builder().build())
 
   def "tracks methods annotated with @Trackable annotation"() {
     given:

@@ -11,9 +11,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.conversion.UserConversionService;
@@ -29,6 +26,9 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class AmlServiceIntegrationTest {
@@ -57,7 +57,7 @@ public class AmlServiceIntegrationTest {
   void setUp() {
     // given
     MatchResponse mockResponse = mock(MatchResponse.class);
-    ObjectMapper objectMapper = new ObjectMapper();
+    JsonMapper objectMapper = JsonMapper.builder().build();
 
     ArrayNode emptyArrayNode = objectMapper.createArrayNode();
     when(mockResponse.results()).thenReturn(emptyArrayNode);
@@ -174,7 +174,7 @@ public class AmlServiceIntegrationTest {
     User user = sampleUser().build();
     Country country = new Country("EE");
 
-    ObjectMapper objectMapper = new ObjectMapper();
+    JsonMapper objectMapper = JsonMapper.builder().build();
     ArrayNode results = objectMapper.createArrayNode();
     ObjectNode result = objectMapper.createObjectNode();
     result.put("match", true);

@@ -1,12 +1,11 @@
 package ee.tuleva.onboarding.kyc;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 @Repository
 @RequiredArgsConstructor
@@ -15,7 +14,7 @@ public class KycCheckRepository implements KycChecker {
   private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
 
   private final JdbcClient jdbcClient;
-  private final ObjectMapper objectMapper;
+  private final JsonMapper objectMapper;
 
   @Override
   public KycCheck check(Long userId) {
@@ -35,10 +34,6 @@ public class KycCheckRepository implements KycChecker {
     if (json == null || json.isEmpty()) {
       return Map.of();
     }
-    try {
-      return objectMapper.readValue(json, MAP_TYPE);
-    } catch (IOException e) {
-      throw new IllegalStateException("Failed to parse jsonb metadata", e);
-    }
+    return objectMapper.readValue(json, MAP_TYPE);
   }
 }

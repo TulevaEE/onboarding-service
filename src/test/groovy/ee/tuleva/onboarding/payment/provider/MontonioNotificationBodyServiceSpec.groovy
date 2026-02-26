@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.payment.provider
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.payment.PaymentRepository
 import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioCallbackService
@@ -23,7 +23,7 @@ class MontonioNotificationBodyServiceSpec extends Specification {
         aPaymentProviderConfiguration(),
         userService,
         paymentRepository,
-        new ObjectMapper(),
+        JsonMapper.builder().build(),
         eventPublisher
     )
   }

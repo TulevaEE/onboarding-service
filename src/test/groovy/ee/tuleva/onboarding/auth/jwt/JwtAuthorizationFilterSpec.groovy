@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.auth.jwt
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.auth.authority.Authority
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.PrincipalService
@@ -110,7 +110,7 @@ class JwtAuthorizationFilterSpec extends Specification {
     SecurityContextHolder.context.getAuthentication() == null
     response.status == HttpServletResponse.SC_UNAUTHORIZED
     response.contentType == "application/json"
-    def objectMapper = new ObjectMapper()
+    def objectMapper = JsonMapper.builder().build()
     Map<String, Object> actualResponse = objectMapper.readValue(response.contentAsString, Map.class)
     Map<String, Object> expectedResponse = JwtTokenUtil.getExpiredTokenErrorResponse()
     assert actualResponse == expectedResponse
@@ -144,7 +144,7 @@ class JwtAuthorizationFilterSpec extends Specification {
     SecurityContextHolder.context.getAuthentication() == null
     response.status == HttpServletResponse.SC_UNAUTHORIZED
     response.contentType == "application/json"
-    def objectMapper = new ObjectMapper()
+    def objectMapper = JsonMapper.builder().build()
     Map<String, Object> actualResponse = objectMapper.readValue(response.contentAsString, Map.class)
     Map<String, Object> expectedResponse = JwtTokenUtil.getExpiredTokenErrorResponse()
     assert actualResponse == expectedResponse

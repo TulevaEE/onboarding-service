@@ -4,8 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.country.Country;
@@ -25,6 +23,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.client.match.MockRestRequestMatchers;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 @RestClientTest(OpenSanctionsService.class)
 @TestPropertySource(properties = "opensanctions.url=https://dummyUrl")
@@ -34,7 +34,7 @@ class OpenSanctionsServiceTest {
 
   @Autowired private MockRestServiceServer server;
 
-  @Autowired private ObjectMapper objectMapper;
+  @Autowired private JsonMapper objectMapper;
 
   private final String baseUrlForMatching =
       "https://dummyUrl/match/default?algorithm=logic-v1&threshold=0.8&cutoff=0.7"
@@ -55,7 +55,7 @@ class OpenSanctionsServiceTest {
 
   @Test
   @DisplayName("Should find a match for a person with a valid Estonian address")
-  void canFindMatch() throws JsonProcessingException, JSONException {
+  void canFindMatch() throws JacksonException, JSONException {
     // given
     String firstName = "Peeter";
     String lastName = "Meeter";
@@ -150,7 +150,7 @@ class OpenSanctionsServiceTest {
         JSONCompareMode.STRICT);
   }
 
-  private String buildJsonArrayStringFromList(List<String> list) throws JsonProcessingException {
+  private String buildJsonArrayStringFromList(List<String> list) throws JacksonException {
     return objectMapper.writeValueAsString(list);
   }
 
@@ -160,7 +160,7 @@ class OpenSanctionsServiceTest {
       LocalDate birthDate,
       List<String> countriesInQueryResponse,
       String resultsJson)
-      throws JsonProcessingException {
+      throws JacksonException {
     String queryPropertiesCountriesJson = buildJsonArrayStringFromList(countriesInQueryResponse);
     String queryJsonSegment =
         String.format(
@@ -195,7 +195,7 @@ class OpenSanctionsServiceTest {
       LocalDate birthDate,
       List<String> countriesInRequest,
       String gender)
-      throws JsonProcessingException {
+      throws JacksonException {
     String requestBodyCountriesJson = buildJsonArrayStringFromList(countriesInRequest);
     return String.format(
         """
@@ -217,7 +217,7 @@ class OpenSanctionsServiceTest {
 
   @Test
   @DisplayName("Should use default country 'ee' in request when country is null")
-  void match_whenCountryIsNull_usesDefaultCountry() throws JsonProcessingException, JSONException {
+  void match_whenCountryIsNull_usesDefaultCountry() throws JacksonException, JSONException {
     // given
     String firstName = "Peeter";
     String lastName = "Meeter";
@@ -273,8 +273,7 @@ class OpenSanctionsServiceTest {
 
   @Test
   @DisplayName("Should use default country 'ee' in request when country code is null")
-  void match_whenCountryCodeIsNull_usesDefaultCountry()
-      throws JsonProcessingException, JSONException {
+  void match_whenCountryCodeIsNull_usesDefaultCountry() throws JacksonException, JSONException {
     // given
     String firstName = "Peeter";
     String lastName = "Meeter";
@@ -332,7 +331,7 @@ class OpenSanctionsServiceTest {
   @DisplayName(
       "Should use both 'ee' and country code in request when country has a different country code")
   void match_whenCountryHasDifferentCountryCode_usesBothCountries()
-      throws JsonProcessingException, JSONException {
+      throws JacksonException, JSONException {
     // given
     String firstName = "Peeter";
     String lastName = "Meeter";
@@ -387,9 +386,8 @@ class OpenSanctionsServiceTest {
   }
 
   @Test
-  @DisplayName("Should throw JsonProcessingException when API response JSON is malformed")
-  void match_whenResponseJsonIsMalformed_throwsJsonProcessingException()
-      throws JsonProcessingException {
+  @DisplayName("Should throw JacksonException when API response JSON is malformed")
+  void match_whenResponseJsonIsMalformed_throwsJacksonException() throws JacksonException {
     // given
     String firstName = "Peeter";
     String lastName = "Meeter";
@@ -417,7 +415,7 @@ class OpenSanctionsServiceTest {
     // when
     // then
     assertThrows(
-        JsonProcessingException.class,
+        JacksonException.class,
         () -> {
           openSanctionsService.match(person, country);
         });

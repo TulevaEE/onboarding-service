@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.payment.provider
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.locale.LocaleService
 import groovy.json.JsonSlurper
@@ -10,7 +10,7 @@ import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
 
 class PaymentInternalReferenceServiceSpec extends Specification {
 
-  ObjectMapper objectMapper = new ObjectMapper()
+  JsonMapper objectMapper = JsonMapper.builder().build()
 
   PaymentInternalReferenceService paymentInternalReferenceService
   LocaleService localeService = Mock()

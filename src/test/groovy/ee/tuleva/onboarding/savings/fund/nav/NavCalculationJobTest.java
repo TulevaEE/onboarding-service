@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund.nav;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueIndexingJob;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -12,6 +13,7 @@ import java.time.ZoneId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -23,11 +25,33 @@ class NavCalculationJobTest {
   @Mock private NavCalculationService navCalculationService;
   @Mock private NavPublisher navPublisher;
   @Mock private PublicHolidays publicHolidays;
+  @Mock private FundValueIndexingJob fundValueIndexingJob;
+
+  @Test
+  void calculateDailyNav_refreshesPricesBeforeCalculating() {
+    Clock clock = Clock.fixed(Instant.parse("2025-01-15T14:30:00Z"), TALLINN);
+    var job =
+        new NavCalculationJob(
+            navCalculationService, navPublisher, publicHolidays, fundValueIndexingJob, clock);
+
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
+    NavCalculationResult result = buildTestResult(today);
+    when(navCalculationService.calculate(TKF100, today)).thenReturn(result);
+
+    job.calculateDailyNav();
+
+    InOrder inOrder = inOrder(fundValueIndexingJob, navCalculationService);
+    inOrder.verify(fundValueIndexingJob).refreshAll();
+    inOrder.verify(navCalculationService).calculate(TKF100, today);
+  }
 
   @Test
   void calculateDailyNav_publishesOnWorkingDay() {
     Clock clock = Clock.fixed(Instant.parse("2025-01-15T14:30:00Z"), TALLINN);
-    var job = new NavCalculationJob(navCalculationService, navPublisher, publicHolidays, clock);
+    var job =
+        new NavCalculationJob(
+            navCalculationService, navPublisher, publicHolidays, fundValueIndexingJob, clock);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
     when(publicHolidays.isWorkingDay(today)).thenReturn(true);
@@ -43,13 +67,16 @@ class NavCalculationJobTest {
   @Test
   void calculateDailyNav_skipsOnNonWorkingDay() {
     Clock clock = Clock.fixed(Instant.parse("2025-01-18T14:30:00Z"), TALLINN);
-    var job = new NavCalculationJob(navCalculationService, navPublisher, publicHolidays, clock);
+    var job =
+        new NavCalculationJob(
+            navCalculationService, navPublisher, publicHolidays, fundValueIndexingJob, clock);
 
     LocalDate today = LocalDate.of(2025, 1, 18);
     when(publicHolidays.isWorkingDay(today)).thenReturn(false);
 
     job.calculateDailyNav();
 
+    verifyNoInteractions(fundValueIndexingJob);
     verifyNoInteractions(navCalculationService);
     verifyNoInteractions(navPublisher);
   }

@@ -40,6 +40,10 @@ public class FundValueIndexingJob {
       lockAtMostFor = "55m",
       lockAtLeastFor = "5m")
   public void runIndexingJob() {
+    refreshAll();
+  }
+
+  public void refreshAll() {
     log.info(
         "Running indexing job on retrievers: staticRetrievers={}, dynamicRetrievers={}",
         staticRetrievers,

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueIndexingJob;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -21,6 +22,7 @@ public class NavCalculationJob {
   private final NavCalculationService navCalculationService;
   private final NavPublisher navPublisher;
   private final PublicHolidays publicHolidays;
+  private final FundValueIndexingJob fundValueIndexingJob;
   private final Clock clock;
 
   @Scheduled(cron = "0 30 15 * * MON-FRI", zone = "Europe/Tallinn")
@@ -34,6 +36,8 @@ public class NavCalculationJob {
     }
 
     log.info("Starting scheduled NAV calculation: fund={}, calculationDate={}", TKF100, today);
+
+    fundValueIndexingJob.refreshAll();
 
     try {
       NavCalculationResult result = navCalculationService.calculate(TKF100, today);

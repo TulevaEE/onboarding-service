@@ -116,7 +116,9 @@ class TrusteeReportJobTest {
     assertThat(Base64.getDecoder().decode(attachment.getContent())).isEqualTo(csvBytes);
 
     verify(eventPublisher)
-        .publishEvent(new TrusteeReportSentEvent(workingDay, 2, ONE, ZERO, ZERO, ZERO, ZERO, ZERO));
+        .publishEvent(
+            new TrusteeReportSentEvent(
+                workingDay, 2, new BigDecimal("1.0000"), ZERO, ZERO, ZERO, ZERO, ZERO));
   }
 
   @Test

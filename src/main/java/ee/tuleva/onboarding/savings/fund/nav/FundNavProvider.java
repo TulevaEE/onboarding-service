@@ -1,11 +1,12 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import static java.math.RoundingMode.HALF_UP;
+import static java.math.RoundingMode.UNNECESSARY;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -16,31 +17,35 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class SavingsFundNavProvider {
+public class FundNavProvider {
 
   private static final LocalTime CUTOFF_TIME = LocalTime.of(16, 0);
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
   private static final BigDecimal MAX_DAILY_CHANGE = new BigDecimal("0.20");
 
   private final FundValueRepository fundValueRepository;
-  private final SavingsFundConfiguration configuration;
   private final PublicHolidays publicHolidays;
   private final Clock clock;
 
-  public BigDecimal getCurrentNav() {
-    String isin = configuration.getIsin();
+  public BigDecimal getDisplayNav(TulevaFund fund) {
+    String isin = fund.getIsin();
     LocalDate safeDate = safeMaxNavDate();
-    return fundValueRepository
-        .getLatestValue(isin, safeDate)
-        .orElseThrow(
-            () ->
-                new IllegalStateException(
-                    "NAV not found for savings fund: isin=" + isin + ", safeMaxDate=" + safeDate))
-        .value();
+    BigDecimal nav =
+        fundValueRepository
+            .getLatestValue(isin, safeDate)
+            .orElseThrow(
+                () ->
+                    new IllegalStateException(
+                        "NAV not found for savings fund: isin="
+                            + isin
+                            + ", safeMaxDate="
+                            + safeDate))
+            .value();
+    return nav.stripTrailingZeros().setScale(fund.getNavScale(), UNNECESSARY);
   }
 
-  public BigDecimal getCurrentNavForIssuing() {
-    String isin = configuration.getIsin();
+  public BigDecimal getVerifiedNavForIssuingAndRedeeming(TulevaFund fund) {
+    String isin = fund.getIsin();
     FundValue fundValue =
         fundValueRepository
             .findLastValueForFund(isin)
@@ -61,7 +66,7 @@ public class SavingsFundNavProvider {
     }
 
     BigDecimal nav = fundValue.value();
-    if (nav.stripTrailingZeros().scale() > 4) {
+    if (nav.stripTrailingZeros().scale() > fund.getNavScale()) {
       throw new IllegalStateException(
           "Unexpected NAV scale for savings fund: isin="
               + isin
@@ -70,6 +75,8 @@ public class SavingsFundNavProvider {
               + ", scale="
               + nav.stripTrailingZeros().scale());
     }
+
+    nav = nav.stripTrailingZeros().setScale(fund.getNavScale(), UNNECESSARY);
 
     validateReasonableChange(isin, nav, expectedDate);
 

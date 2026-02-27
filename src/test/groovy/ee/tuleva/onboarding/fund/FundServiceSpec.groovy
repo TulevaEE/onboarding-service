@@ -7,7 +7,7 @@ import ee.tuleva.onboarding.ledger.LedgerAccount
 import ee.tuleva.onboarding.ledger.LedgerService
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration
-import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider
+import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider
 import spock.lang.Specification
 
 import java.time.LocalDate
@@ -28,7 +28,7 @@ class FundServiceSpec extends Specification {
   def localeService = Mock(LocaleService)
   def ledgerService = Mock(LedgerService)
   def savingsFundConfiguration = Stub(SavingsFundConfiguration) { getIsin() >> "EE0000003283" }
-  def savingsFundNavProvider = Mock(SavingsFundNavProvider)
+  def savingsFundNavProvider = Mock(FundNavProvider)
 
   def fundService = new FundService(fundRepository, pensionFundStatisticsService,
       fundValueRepository, localeService, ledgerService, savingsFundConfiguration,

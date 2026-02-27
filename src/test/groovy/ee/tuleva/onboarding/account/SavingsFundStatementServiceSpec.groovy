@@ -4,7 +4,7 @@ import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.ledger.LedgerService
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService
-import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider
+import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
@@ -18,7 +18,7 @@ class SavingsFundStatementServiceSpec extends Specification {
   UserService userService = Mock()
   LedgerService ledgerService = Mock()
   SavingsFundOnboardingService savingsFundOnboardingService = Mock()
-  SavingsFundNavProvider navProvider = Mock()
+  FundNavProvider navProvider = Mock()
   FundRepository fundRepository = Mock()
   SavingsFundConfiguration savingsFundConfiguration = Mock()
 
@@ -36,7 +36,7 @@ class SavingsFundStatementServiceSpec extends Specification {
 
     userService.findByPersonalCode(user.personalCode) >> Optional.of(user)
     savingsFundOnboardingService.isOnboardingCompleted(user) >> true
-    navProvider.getCurrentNav() >> new BigDecimal("1.12345")
+    navProvider.getDisplayNav(_) >> new BigDecimal("1.12345")
     ledgerService.getUserAccount(user, FUND_UNITS) >> fundUnits
     ledgerService.getUserAccount(user, FUND_UNITS_RESERVED) >> fundUnitsReserved
     ledgerService.getUserAccount(user, SUBSCRIPTIONS) >> subscriptions

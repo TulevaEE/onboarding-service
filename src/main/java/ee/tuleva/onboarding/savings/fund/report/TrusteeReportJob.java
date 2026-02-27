@@ -2,8 +2,10 @@ package ee.tuleva.onboarding.savings.fund.report;
 
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.CC;
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.TO;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
+import static java.math.RoundingMode.UNNECESSARY;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
@@ -62,7 +64,7 @@ class TrusteeReportJob {
         new TrusteeReportSentEvent(
             today,
             rows.size(),
-            latestRow.nav(),
+            latestRow.nav().stripTrailingZeros().setScale(TKF100.getNavScale(), UNNECESSARY),
             latestRow.issuedUnits(),
             latestRow.issuedAmount(),
             latestRow.redeemedUnits(),

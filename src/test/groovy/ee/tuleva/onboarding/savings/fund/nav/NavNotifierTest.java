@@ -54,7 +54,7 @@ class NavNotifierTest {
         .contains("95,642.89")
         .contains("6,824,567.63")
         .contains("693214.12345")
-        .contains("9.8448")
+        .contains("NAV/Unit: 9.8440")
         .contains("IE00BMDBMY19", "ESGM.XETRA", "13288", "43.38", "576,433.44")
         .contains("IE00BJZ2DC62", "XRSM.XETRA", "21180", "49.55", "1,049,469.00");
   }
@@ -91,7 +91,7 @@ class NavNotifierTest {
         .blackrockAdjustment(new BigDecimal("1234.00"))
         .aum(new BigDecimal("6824567.63"))
         .unitsOutstanding(new BigDecimal("693214.12345"))
-        .navPerUnit(new BigDecimal("9.8448"))
+        .navPerUnit(new BigDecimal("9.8440"))
         .positionReportDate(LocalDate.of(2026, 2, 17))
         .priceDate(LocalDate.of(2026, 2, 17))
         .calculatedAt(Instant.parse("2026-02-18T13:30:00Z"))

@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.savings.fund.report;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static java.math.RoundingMode.HALF_UP;
+import static java.math.RoundingMode.UNNECESSARY;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.ByteArrayOutputStream;
@@ -57,7 +59,11 @@ class TrusteeReportCsvGenerator {
   }
 
   private static String formatNav(BigDecimal value) {
-    return value.setScale(4, HALF_UP).toPlainString().replace('.', ',');
+    return value
+        .stripTrailingZeros()
+        .setScale(TKF100.getNavScale(), UNNECESSARY)
+        .toPlainString()
+        .replace('.', ',');
   }
 
   private static String formatEuros(BigDecimal value) {

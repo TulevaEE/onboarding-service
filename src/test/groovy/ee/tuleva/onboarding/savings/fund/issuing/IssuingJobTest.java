@@ -14,7 +14,7 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
-import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
+import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.notification.IssuingCompletedEvent;
 import java.math.BigDecimal;
 import java.time.*;
@@ -30,7 +30,7 @@ class IssuingJobTest {
 
   private IssuerService issuerService;
   private SavingFundPaymentRepository paymentRepository;
-  private SavingsFundNavProvider navProvider;
+  private FundNavProvider navProvider;
   private ApplicationEventPublisher eventPublisher;
   private static final BigDecimal nav = ONE;
 
@@ -38,9 +38,9 @@ class IssuingJobTest {
   void setUp() {
     paymentRepository = mock(SavingFundPaymentRepository.class);
     issuerService = mock(IssuerService.class);
-    navProvider = mock(SavingsFundNavProvider.class);
+    navProvider = mock(FundNavProvider.class);
     eventPublisher = mock(ApplicationEventPublisher.class);
-    lenient().when(navProvider.getCurrentNavForIssuing()).thenReturn(nav);
+    lenient().when(navProvider.getVerifiedNavForIssuingAndRedeeming(any())).thenReturn(nav);
     lenient()
         .when(issuerService.processPayment(any(), any()))
         .thenReturn(new IssuingResult(ZERO, ZERO));
@@ -295,7 +295,7 @@ class IssuingJobTest {
 
     issuingJob.runJob();
 
-    verify(navProvider, never()).getCurrentNavForIssuing();
+    verify(navProvider, never()).getVerifiedNavForIssuingAndRedeeming(any());
     verifyNoInteractions(issuerService);
   }
 
@@ -304,7 +304,7 @@ class IssuingJobTest {
     var issuingJob = createIssuingJob(Instant.parse("2025-01-03T14:00:00Z"));
 
     var nav = new BigDecimal("9.9918");
-    when(navProvider.getCurrentNavForIssuing()).thenReturn(nav);
+    when(navProvider.getVerifiedNavForIssuingAndRedeeming(any())).thenReturn(nav);
 
     var payment1 =
         aPayment()

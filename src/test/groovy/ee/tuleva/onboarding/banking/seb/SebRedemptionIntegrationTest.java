@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Sta
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static java.math.RoundingMode.HALF_UP;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -17,7 +18,7 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus;
-import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
+import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionBatchJob;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionService;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;
@@ -51,15 +52,15 @@ class SebRedemptionIntegrationTest {
   @Autowired SavingFundPaymentRepository savingFundPaymentRepository;
 
   @MockitoBean SebGatewayClient sebGatewayClient;
-  @MockitoBean SavingsFundNavProvider navProvider;
+  @MockitoBean FundNavProvider navProvider;
 
   User testUser;
 
   @BeforeEach
   void setUp() {
     ClockHolder.setClock(Clock.fixed(FRIDAY, ZoneId.of("UTC")));
-    when(navProvider.getCurrentNav()).thenReturn(BigDecimal.ONE);
-    when(navProvider.getCurrentNavForIssuing()).thenReturn(BigDecimal.ONE);
+    when(navProvider.getDisplayNav(any())).thenReturn(BigDecimal.ONE);
+    when(navProvider.getVerifiedNavForIssuingAndRedeeming(any())).thenReturn(BigDecimal.ONE);
 
     testUser =
         userRepository.save(sampleUser().id(null).member(null).personalCode("39901019992").build());

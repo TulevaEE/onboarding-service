@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
@@ -7,7 +8,6 @@ import static org.mockito.Mockito.when;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -20,7 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class SavingsFundNavProviderTest {
+class FundNavProviderTest {
 
   private static final String ISIN = "EE0000003283";
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
@@ -28,11 +28,10 @@ class SavingsFundNavProviderTest {
   @Mock private FundValueRepository fundValueRepository;
   @Mock private PublicHolidays publicHolidays;
 
-  private SavingsFundNavProvider provider(String timeInTallinn) {
+  private FundNavProvider provider(String timeInTallinn) {
     var instant = java.time.LocalDateTime.parse(timeInTallinn).atZone(TALLINN).toInstant();
     var clock = Clock.fixed(instant, TALLINN);
-    return new SavingsFundNavProvider(
-        fundValueRepository, new SavingsFundConfiguration(), publicHolidays, clock);
+    return new FundNavProvider(fundValueRepository, publicHolidays, clock);
   }
 
   @Test
@@ -91,10 +90,10 @@ class SavingsFundNavProviderTest {
     when(publicHolidays.isWorkingDay(today)).thenReturn(true);
     when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
     var fundValue =
-        new FundValue(ISIN, yesterday, new BigDecimal("9.69941"), "TULEVA", Instant.now());
+        new FundValue(ISIN, yesterday, new BigDecimal("9.69940"), "TULEVA", Instant.now());
     when(fundValueRepository.getLatestValue(ISIN, yesterday)).thenReturn(Optional.of(fundValue));
 
-    assertThat(provider.getCurrentNav()).isEqualByComparingTo("9.69941");
+    assertThat(provider.getDisplayNav(TKF100)).isEqualByComparingTo("9.6994");
   }
 
   @Test
@@ -106,7 +105,8 @@ class SavingsFundNavProviderTest {
     when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
     when(fundValueRepository.getLatestValue(ISIN, yesterday)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> provider.getCurrentNav()).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> provider.getDisplayNav(TKF100))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -125,7 +125,8 @@ class SavingsFundNavProviderTest {
     when(fundValueRepository.getLatestValue(ISIN, dayBefore))
         .thenReturn(Optional.of(previousValue));
 
-    assertThat(provider.getCurrentNavForIssuing()).isEqualByComparingTo("9.6994");
+    assertThat(provider.getVerifiedNavForIssuingAndRedeeming(TKF100))
+        .isEqualByComparingTo("9.6994");
   }
 
   @Test
@@ -139,7 +140,7 @@ class SavingsFundNavProviderTest {
             ISIN, LocalDate.of(2025, 1, 10), new BigDecimal("9.6994"), "TULEVA", Instant.now());
     when(fundValueRepository.findLastValueForFund(ISIN)).thenReturn(Optional.of(staleValue));
 
-    assertThatThrownBy(() -> provider.getCurrentNavForIssuing())
+    assertThatThrownBy(() -> provider.getVerifiedNavForIssuingAndRedeeming(TKF100))
         .isInstanceOf(IllegalStateException.class);
   }
 
@@ -158,7 +159,7 @@ class SavingsFundNavProviderTest {
     when(fundValueRepository.findLastValueForFund(ISIN)).thenReturn(Optional.of(currentNav));
     when(fundValueRepository.getLatestValue(ISIN, dayBefore)).thenReturn(Optional.of(previousNav));
 
-    assertThatThrownBy(() -> provider.getCurrentNavForIssuing())
+    assertThatThrownBy(() -> provider.getVerifiedNavForIssuingAndRedeeming(TKF100))
         .isInstanceOf(IllegalStateException.class);
   }
 
@@ -177,6 +178,7 @@ class SavingsFundNavProviderTest {
     when(fundValueRepository.findLastValueForFund(ISIN)).thenReturn(Optional.of(currentNav));
     when(fundValueRepository.getLatestValue(ISIN, dayBefore)).thenReturn(Optional.of(previousNav));
 
-    assertThat(provider.getCurrentNavForIssuing()).isEqualByComparingTo("10.5000");
+    assertThat(provider.getVerifiedNavForIssuingAndRedeeming(TKF100))
+        .isEqualByComparingTo("10.5000");
   }
 }

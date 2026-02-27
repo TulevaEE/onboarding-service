@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.fund;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
 import static java.math.RoundingMode.HALF_UP;
@@ -12,7 +13,7 @@ import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
-import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
+import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.util.List;
@@ -33,7 +34,7 @@ class FundService {
   private final LocaleService localeService;
   private final LedgerService ledgerService;
   private final SavingsFundConfiguration savingsFundConfiguration;
-  private final SavingsFundNavProvider savingsFundNavProvider;
+  private final FundNavProvider fundNavProvider;
 
   List<ExtendedApiFundResponse> getFunds(Optional<String> fundManagerName) {
     return stream(fundsBy(fundManagerName).spliterator(), false)
@@ -57,8 +58,7 @@ class FundService {
     boolean isSavingsFund = savingsFundConfiguration.getIsin().equals(fund.getIsin());
     Optional<FundValue> latestValue =
         isSavingsFund
-            ? fundValueRepository.getLatestValue(
-                fund.getIsin(), savingsFundNavProvider.safeMaxNavDate())
+            ? fundValueRepository.getLatestValue(fund.getIsin(), fundNavProvider.safeMaxNavDate())
             : fundValueRepository.findLastValueForFund(fund.getIsin());
     return latestValue
         .map(fundValue -> buildSavingsFundStatistics(fund, fundValue))
@@ -103,7 +103,7 @@ class FundService {
   }
 
   private BigDecimal toNavScale(BigDecimal nav) {
-    return nav.setScale(4);
+    return nav.setScale(TKF100.getNavScale());
   }
 
   private Iterable<Fund> fundsBy(Optional<String> fundManagerName) {

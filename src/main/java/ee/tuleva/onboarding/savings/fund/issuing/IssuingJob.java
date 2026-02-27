@@ -1,12 +1,13 @@
 package ee.tuleva.onboarding.savings.fund.issuing;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
-import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
+import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.notification.IssuingCompletedEvent;
 import java.math.BigDecimal;
 import java.time.*;
@@ -28,7 +29,7 @@ public class IssuingJob {
   private final Clock clock;
   private final IssuerService issuerService;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
-  private final SavingsFundNavProvider navProvider;
+  private final FundNavProvider navProvider;
   private final ApplicationEventPublisher eventPublisher;
 
   @Scheduled(fixedRateString = "1m")
@@ -101,6 +102,6 @@ public class IssuingJob {
   }
 
   private BigDecimal getNAV() {
-    return navProvider.getCurrentNavForIssuing();
+    return navProvider.getVerifiedNavForIssuingAndRedeeming(TKF100);
   }
 }

@@ -62,8 +62,7 @@ class NavNotifier {
     message.append(
         "  Units Outstanding: %s\n"
             .formatted(result.unitsOutstanding().stripTrailingZeros().toPlainString()));
-    message.append(
-        "  NAV/Unit: %s\n".formatted(result.navPerUnit().stripTrailingZeros().toPlainString()));
+    message.append("  NAV/Unit: %s\n".formatted(result.navPerUnit().toPlainString()));
 
     appendSecuritiesDetail(message, result);
 

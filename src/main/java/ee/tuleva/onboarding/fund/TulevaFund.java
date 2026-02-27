@@ -16,7 +16,8 @@ public enum TulevaFund {
       "Tuleva Maailma Aktsiate Pensionifond",
       "VP68169",
       "EE421010220306592227",
-      false),
+      false,
+      5),
   TUK00(
       "TUK00",
       2,
@@ -24,7 +25,8 @@ public enum TulevaFund {
       "Tuleva Maailma V\u00f5lakirjade Pensionifond",
       "VP68170",
       "EE021010220306593225",
-      false),
+      false,
+      5),
   TUV100(
       "TUV100",
       3,
@@ -32,7 +34,8 @@ public enum TulevaFund {
       "Tuleva III Samba Pensionifond",
       "VP68959",
       "EE691010220306737229",
-      false),
+      false,
+      5),
   TKF100(
       "TKF100",
       null,
@@ -40,7 +43,8 @@ public enum TulevaFund {
       "Tuleva T\u00e4iendav Kogumisfond",
       "VP68168",
       "EE861010220306591229",
-      true);
+      true,
+      4);
 
   private final String code;
   private final @Nullable Integer pillar;
@@ -49,6 +53,7 @@ public enum TulevaFund {
   private final String securitiesAccount;
   private final String cashAccount;
   private final boolean navCalculation;
+  private final int navScale;
 
   public static List<TulevaFund> getPillar2Funds() {
     return Arrays.stream(values()).filter(fund -> fund.pillar != null && fund.pillar == 2).toList();

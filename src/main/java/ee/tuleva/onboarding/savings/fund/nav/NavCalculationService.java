@@ -31,7 +31,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class NavCalculationService {
 
-  private static final int NAV_PRECISION = 4;
   private static final LocalTime CUTOFF_TIME = LocalTime.of(16, 0);
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
@@ -106,7 +105,7 @@ public class NavCalculationService {
             managementFeeAccrual,
             depotFeeAccrual,
             blackrockAdjustment);
-    BigDecimal navPerUnit = calculateNavPerUnit(aum, unitsOutstanding);
+    BigDecimal navPerUnit = calculateNavPerUnit(aum, unitsOutstanding, fund);
 
     NavCalculationResult result =
         NavCalculationResult.builder()
@@ -188,11 +187,12 @@ public class NavCalculationService {
     return assets.subtract(liabilities);
   }
 
-  private BigDecimal calculateNavPerUnit(BigDecimal aum, BigDecimal unitsOutstanding) {
+  private BigDecimal calculateNavPerUnit(
+      BigDecimal aum, BigDecimal unitsOutstanding, TulevaFund fund) {
     if (unitsOutstanding.signum() == 0) {
       return BigDecimal.ONE;
     }
-    return aum.divide(unitsOutstanding, NAV_PRECISION, HALF_UP);
+    return aum.divide(unitsOutstanding, fund.getNavScale(), HALF_UP);
   }
 
   private List<SecurityDetail> buildSecuritiesDetail(Instant cutoff, LocalDate priceDate) {

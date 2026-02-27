@@ -18,7 +18,7 @@ import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
-import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
+import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.notification.RedemptionBatchCompletedEvent;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
@@ -46,12 +46,14 @@ class RedemptionBatchJobTest {
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private BankAccountConfiguration bankAccountConfiguration;
   @Mock private TransactionTemplate transactionTemplate;
-  @Mock private SavingsFundNavProvider navProvider;
+  @Mock private FundNavProvider navProvider;
   @Mock private SavingFundPaymentRepository savingFundPaymentRepository;
 
   @BeforeEach
   void setUp() {
-    lenient().when(navProvider.getCurrentNavForIssuing()).thenReturn(BigDecimal.ONE);
+    lenient()
+        .when(navProvider.getVerifiedNavForIssuingAndRedeeming(any()))
+        .thenReturn(BigDecimal.ONE);
   }
 
   private RedemptionBatchJob createBatchJob(Instant now) {

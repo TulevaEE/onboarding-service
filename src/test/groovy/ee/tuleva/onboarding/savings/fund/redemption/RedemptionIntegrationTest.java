@@ -22,7 +22,7 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
-import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
+import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
@@ -61,7 +61,7 @@ class RedemptionIntegrationTest {
   @Autowired SavingFundPaymentRepository savingFundPaymentRepository;
 
   @MockitoBean SebGatewayClient sebGatewayClient;
-  @MockitoBean SavingsFundNavProvider navProvider;
+  @MockitoBean FundNavProvider navProvider;
 
   User testUser;
 
@@ -69,8 +69,10 @@ class RedemptionIntegrationTest {
   void setUp() {
     ClockHolder.setClock(Clock.fixed(NOW, ZoneId.of("UTC")));
     doReturn("").when(sebGatewayClient).submitPaymentFile(any(), any());
-    lenient().when(navProvider.getCurrentNav()).thenReturn(BigDecimal.ONE);
-    lenient().when(navProvider.getCurrentNavForIssuing()).thenReturn(BigDecimal.ONE);
+    lenient().when(navProvider.getDisplayNav(any())).thenReturn(BigDecimal.ONE);
+    lenient()
+        .when(navProvider.getVerifiedNavForIssuingAndRedeeming(any()))
+        .thenReturn(BigDecimal.ONE);
 
     testUser =
         userRepository.save(sampleUser().id(null).member(null).personalCode("39901019992").build());
@@ -395,7 +397,7 @@ class RedemptionIntegrationTest {
     var availableFundUnits = new BigDecimal("100.00000");
     var maxWithdrawalValue = availableFundUnits.multiply(preciseNav).setScale(2, HALF_UP);
 
-    when(navProvider.getCurrentNav()).thenReturn(preciseNav);
+    when(navProvider.getDisplayNav(any())).thenReturn(preciseNav);
 
     var request =
         redemptionService.createRedemptionRequest(

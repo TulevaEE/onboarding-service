@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static java.math.BigDecimal.ZERO;
@@ -12,7 +13,7 @@ import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
-import ee.tuleva.onboarding.savings.fund.nav.SavingsFundNavProvider;
+import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
@@ -39,7 +40,7 @@ public class RedemptionService {
   private final SavingsFundLedger savingsFundLedger;
   private final UserService userService;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
-  private final SavingsFundNavProvider navProvider;
+  private final FundNavProvider navProvider;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final SavingFundDeadlinesService deadlinesService;
   private final Clock clock;
@@ -57,7 +58,7 @@ public class RedemptionService {
     validateOnboarding(user);
     validateIbanBelongsToUser(customerIban, userId);
 
-    BigDecimal nav = navProvider.getCurrentNav();
+    BigDecimal nav = navProvider.getDisplayNav(TKF100);
     BigDecimal availableUnits = getEffectiveAvailableFundUnits(user);
     BigDecimal fundUnits = convertAmountToFundUnits(amount, nav, availableUnits);
 

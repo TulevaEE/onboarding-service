@@ -3,8 +3,11 @@ package ee.tuleva.onboarding.savings.fund.notification;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import java.util.List;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -14,6 +17,9 @@ import org.springframework.stereotype.Component;
 public class SavingsFundNotifier {
 
   private final OperationsNotificationService notificationService;
+
+  @Value("${slack.savings-fund-mention-user-ids:}")
+  private List<String> mentionUserIds;
 
   @EventListener
   public void onReservationCompleted(ReservationCompletedEvent event) {
@@ -87,6 +93,46 @@ public class SavingsFundNotifier {
     } catch (Exception e) {
       log.error("Failed to send deferred return matching notification", e);
     }
+  }
+
+  @EventListener
+  public void onRedemptionRequested(RedemptionRequestedEvent event) {
+    try {
+      notificationService.sendMessage(
+          "%sTegemisel on väljamakse: %s EUR (%s osakut). Lunastuse ID: %s"
+              .formatted(
+                  formatMentions(),
+                  event.requestedAmount(),
+                  event.fundUnits(),
+                  event.redemptionRequestId()),
+          SAVINGS);
+    } catch (Exception e) {
+      log.error("Failed to send redemption requested notification", e);
+    }
+  }
+
+  @EventListener
+  public void onUnattributedPayment(UnattributedPaymentEvent event) {
+    try {
+      notificationService.sendMessage(
+          "%sKolmas isik kandis fondi kontole raha: %s EUR. Põhjus: %s. Makse ID: %s"
+              .formatted(
+                  formatMentions(), event.amount(), event.returnReason(), event.paymentId()),
+          SAVINGS);
+    } catch (Exception e) {
+      log.error("Failed to send unattributed payment notification", e);
+    }
+  }
+
+  private String formatMentions() {
+    if (mentionUserIds == null || mentionUserIds.isEmpty()) {
+      return "";
+    }
+    return mentionUserIds.stream()
+            .filter(id -> !id.isBlank())
+            .map(id -> "<@%s>".formatted(id))
+            .collect(Collectors.joining(" "))
+        + " ";
   }
 
   @EventListener

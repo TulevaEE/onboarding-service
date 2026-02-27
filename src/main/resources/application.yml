@@ -331,6 +331,7 @@ sentry:
   traces-sample-rate: 1.0
 
 slack:
+  savings-fund-mention-user-ids: ${SLACK_SAVINGS_FUND_MENTION_USER_IDS:}
   webhooks:
     "aml": ${SLACK_AML_WEBHOOK_URL:${SLACK_WEBHOOK_URL}}
     "withdrawals": ${SLACK_WITHDRAWALS_WEBHOOK_URL}

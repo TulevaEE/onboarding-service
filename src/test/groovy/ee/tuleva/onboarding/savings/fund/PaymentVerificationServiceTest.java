@@ -14,7 +14,6 @@ import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 
 class PaymentVerificationServiceTest {
@@ -60,8 +59,15 @@ class PaymentVerificationServiceTest {
 
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
-        .addReturnReason(payment.getId(), "selgituses olev isikukood ei klapi maksja isikukoodiga");
+        .addReturnReason(
+            payment.getId(), "selgituses olev isikukood ei klapi maksja isikukoodiga");
     verify(savingsFundLedger).recordUnattributedPayment(payment.getAmount(), payment.getId());
+    verify(applicationEventPublisher)
+        .publishEvent(
+            new UnattributedPaymentEvent(
+                payment.getId(),
+                payment.getAmount(),
+                "selgituses olev isikukood ei klapi maksja isikukoodiga"));
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -77,6 +83,10 @@ class PaymentVerificationServiceTest {
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "isik ei ole Tuleva klient");
     verify(savingsFundLedger).recordUnattributedPayment(payment.getAmount(), payment.getId());
+    verify(applicationEventPublisher)
+        .publishEvent(
+            new UnattributedPaymentEvent(
+                payment.getId(), payment.getAmount(), "isik ei ole Tuleva klient"));
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -93,8 +103,15 @@ class PaymentVerificationServiceTest {
     verify(savingsFundOnboardingService).isOnboardingCompleted(user);
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
-        .addReturnReason(payment.getId(), "see isik ei ole täiendava kogumisfondiga liitunud");
+        .addReturnReason(
+            payment.getId(), "see isik ei ole täiendava kogumisfondiga liitunud");
     verify(savingsFundLedger).recordUnattributedPayment(payment.getAmount(), payment.getId());
+    verify(applicationEventPublisher)
+        .publishEvent(
+            new UnattributedPaymentEvent(
+                payment.getId(),
+                payment.getAmount(),
+                "see isik ei ole täiendava kogumisfondiga liitunud"));
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -111,6 +128,12 @@ class PaymentVerificationServiceTest {
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "maksja nimi ei klapi Tuleva andmetega");
     verify(savingsFundLedger).recordUnattributedPayment(payment.getAmount(), payment.getId());
+    verify(applicationEventPublisher)
+        .publishEvent(
+            new UnattributedPaymentEvent(
+                payment.getId(),
+                payment.getAmount(),
+                "maksja nimi ei klapi Tuleva andmetega"));
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 

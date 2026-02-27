@@ -94,8 +94,7 @@ public class SavingsFundNotifier {
     try {
       notificationService.sendMessage(
           "Savings fund redemption requested: requestedAmount=%s EUR, fundUnits=%s, redemptionRequestId=%s"
-              .formatted(
-                  event.requestedAmount(), event.fundUnits(), event.redemptionRequestId()),
+              .formatted(event.requestedAmount(), event.fundUnits(), event.redemptionRequestId()),
           SAVINGS);
     } catch (Exception e) {
       log.error("Failed to send redemption requested notification", e);

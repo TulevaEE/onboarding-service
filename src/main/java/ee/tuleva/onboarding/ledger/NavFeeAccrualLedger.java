@@ -7,9 +7,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import java.math.BigDecimal;
-import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -22,9 +22,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class NavFeeAccrualLedger {
 
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+
   private final LedgerAccountService ledgerAccountService;
   private final LedgerTransactionService ledgerTransactionService;
-  private final Clock clock;
 
   @Transactional
   public void recordFeeAccrual(
@@ -48,9 +49,10 @@ public class NavFeeAccrualLedger {
       return;
     }
 
+    Instant transactionDate = accrualDate.atTime(12, 0).atZone(ESTONIAN_ZONE).toInstant();
     ledgerTransactionService.createTransaction(
         FEE_ACCRUAL,
-        Instant.now(clock),
+        transactionDate,
         externalReference,
         metadata,
         entry(getNavEquityAccount(), amount),
@@ -86,13 +88,14 @@ public class NavFeeAccrualLedger {
             "settlementDate",
             settlementDate.toString());
 
+    Instant transactionDate = settlementDate.atTime(12, 0).atZone(ESTONIAN_ZONE).toInstant();
     ledgerTransactionService.createTransaction(
         FEE_SETTLEMENT,
-        Instant.now(clock),
+        transactionDate,
         externalReference,
         metadata,
         entry(getSystemAccount(feeAccount), amount),
-        entry(getSystemAccount(CASH_POSITION), amount.negate()));
+        entry(getNavEquityAccount(), amount.negate()));
   }
 
   private UUID generateAccrualReference(

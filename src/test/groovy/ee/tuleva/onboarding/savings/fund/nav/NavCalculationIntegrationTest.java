@@ -273,19 +273,11 @@ class NavCalculationIntegrationTest {
 
   private void insertFeeAccrualRecord(LocalDate navDate, String feeType, BigDecimal amount) {
     if (amount.signum() == 0) return;
-    entityManager
-        .createNativeQuery(
-            """
-            INSERT INTO investment_fee_accrual (
-                fund_code, fee_type, accrual_date, fee_month, base_value,
-                annual_rate, daily_amount_net, daily_amount_gross, days_in_year
-            ) VALUES ('TKF100', :feeType, :accrualDate, :feeMonth, 0, 0, :amount, :amount, 365)
-            """)
-        .setParameter("feeType", feeType)
-        .setParameter("accrualDate", navDate)
-        .setParameter("feeMonth", navDate.withDayOfMonth(1))
-        .setParameter("amount", amount)
-        .executeUpdate();
+
+    SystemAccount feeAccount =
+        feeType.equals("MANAGEMENT") ? MANAGEMENT_FEE_ACCRUAL : DEPOT_FEE_ACCRUAL;
+    Instant transactionDate = navDate.atTime(12, 0).atZone(ZoneId.of("Europe/Tallinn")).toInstant();
+    createSystemAccountBalance(feeAccount, amount.negate(), EUR, transactionDate);
   }
 
   private void setupFundPosition(LocalDate navDate) {

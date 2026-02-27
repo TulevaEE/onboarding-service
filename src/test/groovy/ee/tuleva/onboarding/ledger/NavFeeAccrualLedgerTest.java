@@ -14,7 +14,6 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import java.math.BigDecimal;
-import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -35,6 +34,8 @@ import org.mockito.quality.Strictness;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class NavFeeAccrualLedgerTest {
 
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+
   @Mock private LedgerAccountService ledgerAccountService;
   @Mock private LedgerTransactionService ledgerTransactionService;
 
@@ -48,12 +49,9 @@ class NavFeeAccrualLedgerTest {
 
   private NavFeeAccrualLedger navFeeAccrualLedger;
 
-  private final Clock clock = Clock.fixed(Instant.parse("2026-02-01T12:00:00Z"), ZoneId.of("UTC"));
-
   @BeforeEach
   void setUp() {
-    navFeeAccrualLedger =
-        new NavFeeAccrualLedger(ledgerAccountService, ledgerTransactionService, clock);
+    navFeeAccrualLedger = new NavFeeAccrualLedger(ledgerAccountService, ledgerTransactionService);
   }
 
   private void setupAccountMocks() {
@@ -68,6 +66,7 @@ class NavFeeAccrualLedgerTest {
   @Test
   void recordFeeAccrual_recordsManagementFeeToLedger() {
     LocalDate accrualDate = LocalDate.of(2026, 2, 1);
+    Instant expectedTimestamp = accrualDate.atTime(12, 0).atZone(ESTONIAN_ZONE).toInstant();
     setupAccountMocks();
 
     when(ledgerTransactionService.existsByExternalReferenceAndTransactionType(
@@ -87,7 +86,7 @@ class NavFeeAccrualLedgerTest {
     verify(ledgerTransactionService)
         .createTransaction(
             eq(FEE_ACCRUAL),
-            eq(Instant.now(clock)),
+            eq(expectedTimestamp),
             any(UUID.class),
             any(),
             entriesCaptor.capture());
@@ -103,6 +102,7 @@ class NavFeeAccrualLedgerTest {
   @Test
   void recordFeeAccrual_recordsDepotFeeToLedger() {
     LocalDate accrualDate = LocalDate.of(2026, 2, 1);
+    Instant expectedTimestamp = accrualDate.atTime(12, 0).atZone(ESTONIAN_ZONE).toInstant();
     setupAccountMocks();
 
     when(ledgerTransactionService.existsByExternalReferenceAndTransactionType(
@@ -122,7 +122,7 @@ class NavFeeAccrualLedgerTest {
     verify(ledgerTransactionService)
         .createTransaction(
             eq(FEE_ACCRUAL),
-            eq(Instant.now(clock)),
+            eq(expectedTimestamp),
             any(UUID.class),
             any(),
             entriesCaptor.capture());
@@ -156,11 +156,7 @@ class NavFeeAccrualLedgerTest {
 
     verify(ledgerTransactionService)
         .createTransaction(
-            eq(FEE_ACCRUAL),
-            eq(Instant.now(clock)),
-            any(UUID.class),
-            any(),
-            entriesCaptor.capture());
+            eq(FEE_ACCRUAL), any(Instant.class), any(UUID.class), any(), entriesCaptor.capture());
 
     LedgerEntryDto[] entries = entriesCaptor.getValue();
     BigDecimal total =
@@ -242,6 +238,7 @@ class NavFeeAccrualLedgerTest {
   @Test
   void recordFeeAccrual_generatesDeterministicReference() {
     LocalDate accrualDate = LocalDate.of(2026, 2, 1);
+    Instant expectedTimestamp = accrualDate.atTime(12, 0).atZone(ESTONIAN_ZONE).toInstant();
     setupAccountMocks();
 
     UUID expectedRef =
@@ -264,19 +261,17 @@ class NavFeeAccrualLedgerTest {
     verify(ledgerTransactionService)
         .createTransaction(
             eq(FEE_ACCRUAL),
-            eq(Instant.now(clock)),
+            eq(expectedTimestamp),
             eq(expectedRef),
             any(),
             any(LedgerEntryDto[].class));
   }
 
   @Test
-  void settleFeeAccrual_reducesLiabilityAndCash() {
+  void settleFeeAccrual_reducesLiabilityAndCreditsNavEquity() {
     LocalDate settlementDate = LocalDate.of(2026, 2, 28);
+    Instant expectedTimestamp = settlementDate.atTime(12, 0).atZone(ESTONIAN_ZONE).toInstant();
     setupAccountMocks();
-    LedgerAccount cashPositionAccount = mock(LedgerAccount.class);
-    when(ledgerAccountService.findSystemAccount(SystemAccount.CASH_POSITION))
-        .thenReturn(Optional.of(cashPositionAccount));
 
     UUID expectedRef =
         UUID.nameUUIDFromBytes("TKF100:2026-02-28:MANAGEMENT_FEE_ACCRUAL:SETTLEMENT".getBytes());
@@ -298,7 +293,7 @@ class NavFeeAccrualLedgerTest {
     verify(ledgerTransactionService)
         .createTransaction(
             eq(FEE_SETTLEMENT),
-            eq(Instant.now(clock)),
+            eq(expectedTimestamp),
             eq(expectedRef),
             any(),
             entriesCaptor.capture());
@@ -307,7 +302,7 @@ class NavFeeAccrualLedgerTest {
     assertThat(entries).hasSize(2);
     assertThat(entries[0].account()).isEqualTo(managementFeeAccount);
     assertThat(entries[0].amount()).isEqualByComparingTo("1500.00");
-    assertThat(entries[1].account()).isEqualTo(cashPositionAccount);
+    assertThat(entries[1].account()).isEqualTo(navEquityAccount);
     assertThat(entries[1].amount()).isEqualByComparingTo("-1500.00");
   }
 }

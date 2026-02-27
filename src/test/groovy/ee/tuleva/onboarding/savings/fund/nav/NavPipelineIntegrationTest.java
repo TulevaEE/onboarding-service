@@ -68,6 +68,7 @@ class NavPipelineIntegrationTest {
   @Autowired FundPositionLedgerService fundPositionLedgerService;
   @Autowired NavPositionLedger navPositionLedger;
   @Autowired FeeAccrualRepository feeAccrualRepository;
+  @Autowired NavFeeAccrualLedger navFeeAccrualLedger;
   @Autowired NavCalculationService navCalculationService;
   @Autowired NavPublisher navPublisher;
   @Autowired LedgerService ledgerService;
@@ -163,6 +164,74 @@ class NavPipelineIntegrationTest {
     int count =
         jdbcClient.sql("SELECT COUNT(*) FROM ledger.transaction").query(Integer.class).single();
     assertThat(count).isEqualTo(1);
+  }
+
+  @Test
+  void monthEndFeeSettlement_settlesFeesWhenMonthChanges() {
+    BigDecimal aum = new BigDecimal("50000000");
+    LocalDate feb24 = LocalDate.of(2026, 2, 24);
+    LocalDate feb27 = LocalDate.of(2026, 2, 27);
+    LocalDate mar2 = LocalDate.of(2026, 3, 2);
+    LocalDate mar3 = LocalDate.of(2026, 3, 3);
+
+    saveCashPosition(feb24, aum);
+    saveCashPosition(feb27, aum);
+    saveCashPosition(mar2, aum);
+
+    navPositionLedger.recordPositions(TKF100.name(), feb27, Map.of(), aum, ZERO, ZERO);
+    navPositionLedger.recordPositions(TKF100.name(), mar2, Map.of(), aum, ZERO, ZERO);
+
+    insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), LocalDate.of(2026, 1, 1));
+    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.00035"), LocalDate.of(2026, 1, 1));
+
+    issueFundUnits(new BigDecimal("1000000.000"), feb24);
+    entityManager.flush();
+
+    for (int day = 25; day <= 28; day++) {
+      feeCalculationService.calculateDailyFeesForFund(TKF100, LocalDate.of(2026, 2, day));
+    }
+    for (int day = 1; day <= 2; day++) {
+      feeCalculationService.calculateDailyFeesForFund(TKF100, LocalDate.of(2026, 3, day));
+    }
+    entityManager.flush();
+    entityManager.clear();
+
+    // Monday NAV: positionReportDate=Feb 27, feeCutoff=Feb 28 00:00 EET
+    // Visible fees: Feb 25-27 (3 days), settlement (Feb 28 12:00) NOT visible
+    var mondayNav = navCalculationService.calculate(TKF100, mar2);
+
+    // Tuesday NAV: positionReportDate=Mar 2, feeCutoff=Mar 3 00:00 EET
+    // Feb fees settled (Feb 28 12:00 < Mar 3 00:00), only Mar 1-2 visible
+    var tuesdayNav = navCalculationService.calculate(TKF100, mar3);
+
+    // Daily management: 50,000,000 × 0.0029 / 365 → ledger 397.26/day
+    // Daily depot: 50,000,000 × 0.00035 / 365 → ledger 47.95/day
+    assertThat(mondayNav.managementFeeAccrual())
+        .as("Monday: 3 days of management fees (Feb 25-27)")
+        .isEqualByComparingTo(new BigDecimal("1191.78"));
+    assertThat(mondayNav.depotFeeAccrual())
+        .as("Monday: 3 days of depot fees (Feb 25-27)")
+        .isEqualByComparingTo(new BigDecimal("143.85"));
+
+    assertThat(tuesdayNav.managementFeeAccrual())
+        .as("Tuesday: 2 days of management fees (Mar 1-2), Feb settled")
+        .isEqualByComparingTo(new BigDecimal("794.52"));
+    assertThat(tuesdayNav.depotFeeAccrual())
+        .as("Tuesday: 2 days of depot fees (Mar 1-2), Feb settled")
+        .isEqualByComparingTo(new BigDecimal("95.90"));
+  }
+
+  private void saveCashPosition(LocalDate date, BigDecimal amount) {
+    fundPositionRepository.save(
+        FundPosition.builder()
+            .navDate(date)
+            .fund(TKF100)
+            .accountType(CASH)
+            .accountName("Cash")
+            .marketValue(amount)
+            .currency("EUR")
+            .createdAt(Instant.now())
+            .build());
   }
 
   @Test
@@ -427,13 +496,16 @@ class NavPipelineIntegrationTest {
 
   private void recordFeeAccruals(NavCsvData navData) {
     if (navData.managementFeeAccrual.signum() != 0) {
-      feeAccrualRepository.save(
-          buildTestFeeAccrual(
-              navData.navDate, FeeType.MANAGEMENT, navData.managementFeeAccrual.negate()));
+      BigDecimal amount = navData.managementFeeAccrual.negate();
+      feeAccrualRepository.save(buildTestFeeAccrual(navData.navDate, FeeType.MANAGEMENT, amount));
+      navFeeAccrualLedger.recordFeeAccrual(
+          TKF100.name(), navData.navDate, MANAGEMENT_FEE_ACCRUAL, amount, Map.of());
     }
     if (navData.depotFeeAccrual.signum() != 0) {
-      feeAccrualRepository.save(
-          buildTestFeeAccrual(navData.navDate, FeeType.DEPOT, navData.depotFeeAccrual.negate()));
+      BigDecimal amount = navData.depotFeeAccrual.negate();
+      feeAccrualRepository.save(buildTestFeeAccrual(navData.navDate, FeeType.DEPOT, amount));
+      navFeeAccrualLedger.recordFeeAccrual(
+          TKF100.name(), navData.navDate, DEPOT_FEE_ACCRUAL, amount, Map.of());
     }
   }
 

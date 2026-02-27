@@ -65,6 +65,24 @@ public class NavLedgerRepository {
         .single();
   }
 
+  public BigDecimal getSystemAccountBalanceBefore(String accountName, Instant before) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT COALESCE(SUM(e.amount), 0) AS total_balance
+            FROM ledger.entry e
+            JOIN ledger.account a ON e.account_id = a.id
+            JOIN ledger.transaction t ON e.transaction_id = t.id
+            WHERE a.name = :accountName
+              AND a.purpose = 'SYSTEM_ACCOUNT'
+              AND t.transaction_date < :before
+            """)
+        .param("accountName", accountName)
+        .param("before", Timestamp.from(before))
+        .query(BigDecimal.class)
+        .single();
+  }
+
   public Map<String, BigDecimal> getSecuritiesUnitBalances() {
     Map<String, BigDecimal> balances = new HashMap<>();
     jdbcClient

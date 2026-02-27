@@ -1,17 +1,19 @@
 package ee.tuleva.onboarding.savings.fund.nav.components;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
+import static ee.tuleva.onboarding.ledger.SystemAccount.DEPOT_FEE_ACCRUAL;
 import static ee.tuleva.onboarding.savings.fund.nav.components.NavComponent.NavComponentType.LIABILITY;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
+import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavComponentContext;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -21,12 +23,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class DepotFeeAccrualComponentTest {
 
-  @Mock private FeeAccrualRepository feeAccrualRepository;
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+
+  @Mock private NavLedgerRepository navLedgerRepository;
 
   @InjectMocks private DepotFeeAccrualComponent component;
 
   @Test
-  void calculate_returnsAccruedFeeAsOfPositionReportDate() {
+  void calculate_returnsLedgerBalanceWithFeeCutoff() {
     var positionReportDate = LocalDate.of(2026, 2, 20);
     var context =
         NavComponentContext.builder()
@@ -35,8 +39,11 @@ class DepotFeeAccrualComponentTest {
             .positionReportDate(positionReportDate)
             .build();
 
-    when(feeAccrualRepository.getAccruedFeeAsOf(TKF100, DEPOT, positionReportDate))
-        .thenReturn(new BigDecimal("16.44"));
+    Instant feeCutoff =
+        positionReportDate.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
+    when(navLedgerRepository.getSystemAccountBalanceBefore(
+            DEPOT_FEE_ACCRUAL.getAccountName(), feeCutoff))
+        .thenReturn(new BigDecimal("-16.44"));
 
     BigDecimal result = component.calculate(context);
 
@@ -53,7 +60,10 @@ class DepotFeeAccrualComponentTest {
             .positionReportDate(positionReportDate)
             .build();
 
-    when(feeAccrualRepository.getAccruedFeeAsOf(TKF100, DEPOT, positionReportDate))
+    Instant feeCutoff =
+        positionReportDate.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
+    when(navLedgerRepository.getSystemAccountBalanceBefore(
+            DEPOT_FEE_ACCRUAL.getAccountName(), feeCutoff))
         .thenReturn(ZERO);
 
     BigDecimal result = component.calculate(context);
@@ -72,7 +82,7 @@ class DepotFeeAccrualComponentTest {
   }
 
   @Test
-  void calculate_throwsWhenAccruedFeeIsNegative() {
+  void calculate_throwsWhenBalanceIsPositive() {
     var positionReportDate = LocalDate.of(2026, 2, 1);
     var context =
         NavComponentContext.builder()
@@ -81,8 +91,11 @@ class DepotFeeAccrualComponentTest {
             .positionReportDate(positionReportDate)
             .build();
 
-    when(feeAccrualRepository.getAccruedFeeAsOf(TKF100, DEPOT, positionReportDate))
-        .thenReturn(new BigDecimal("-16.44"));
+    Instant feeCutoff =
+        positionReportDate.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
+    when(navLedgerRepository.getSystemAccountBalanceBefore(
+            DEPOT_FEE_ACCRUAL.getAccountName(), feeCutoff))
+        .thenReturn(new BigDecimal("16.44"));
 
     assertThrows(IllegalStateException.class, () -> component.calculate(context));
   }

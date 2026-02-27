@@ -87,12 +87,13 @@ class NavNotifier {
       message.append(
           String.format(
               US,
-              "  %s (%s): %s × %s = %,.2f EUR\n",
+              "  %s (%s): %s × %s = %,.2f EUR [%s]\n",
               detail.isin(),
               detail.ticker(),
               detail.units().stripTrailingZeros().toPlainString(),
               detail.price().stripTrailingZeros().toPlainString(),
-              detail.marketValue()));
+              detail.marketValue(),
+              detail.priceDate()));
     } else {
       message.append(
           "  %s (%s): %s units (no price)\n"

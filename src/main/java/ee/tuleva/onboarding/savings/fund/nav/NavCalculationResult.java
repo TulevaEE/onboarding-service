@@ -29,7 +29,12 @@ public record NavCalculationResult(
     List<SecurityDetail> securitiesDetail) {
 
   public record SecurityDetail(
-      String isin, String ticker, BigDecimal units, BigDecimal price, BigDecimal marketValue) {}
+      String isin,
+      String ticker,
+      BigDecimal units,
+      BigDecimal price,
+      BigDecimal marketValue,
+      LocalDate priceDate) {}
 
   public BigDecimal totalAssets() {
     return securitiesValue

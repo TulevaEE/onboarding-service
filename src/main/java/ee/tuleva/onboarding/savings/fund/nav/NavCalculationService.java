@@ -205,9 +205,12 @@ public class NavCalculationService {
                   var resolvedPrice = positionPriceResolver.resolve(isin, priceDate);
                   String ticker = resolvedPrice.map(ResolvedPrice::storageKey).orElse("UNKNOWN");
                   BigDecimal price = resolvedPrice.map(ResolvedPrice::usedPrice).orElse(null);
+                  LocalDate resolvedPriceDate =
+                      resolvedPrice.map(ResolvedPrice::priceDate).orElse(null);
                   BigDecimal marketValue =
                       price != null ? units.multiply(price).setScale(2, HALF_UP) : null;
-                  return new SecurityDetail(isin, ticker, units, price, marketValue);
+                  return new SecurityDetail(
+                      isin, ticker, units, price, marketValue, resolvedPriceDate);
                 })
             .toList();
   }

@@ -59,8 +59,7 @@ class PaymentVerificationServiceTest {
 
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
-        .addReturnReason(
-            payment.getId(), "selgituses olev isikukood ei klapi maksja isikukoodiga");
+        .addReturnReason(payment.getId(), "selgituses olev isikukood ei klapi maksja isikukoodiga");
     verify(savingsFundLedger).recordUnattributedPayment(payment.getAmount(), payment.getId());
     verify(applicationEventPublisher)
         .publishEvent(
@@ -103,8 +102,7 @@ class PaymentVerificationServiceTest {
     verify(savingsFundOnboardingService).isOnboardingCompleted(user);
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
-        .addReturnReason(
-            payment.getId(), "see isik ei ole täiendava kogumisfondiga liitunud");
+        .addReturnReason(payment.getId(), "see isik ei ole täiendava kogumisfondiga liitunud");
     verify(savingsFundLedger).recordUnattributedPayment(payment.getAmount(), payment.getId());
     verify(applicationEventPublisher)
         .publishEvent(
@@ -131,9 +129,7 @@ class PaymentVerificationServiceTest {
     verify(applicationEventPublisher)
         .publishEvent(
             new UnattributedPaymentEvent(
-                payment.getId(),
-                payment.getAmount(),
-                "maksja nimi ei klapi Tuleva andmetega"));
+                payment.getId(), payment.getAmount(), "maksja nimi ei klapi Tuleva andmetega"));
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 

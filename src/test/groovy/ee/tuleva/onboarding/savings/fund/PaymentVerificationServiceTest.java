@@ -8,11 +8,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.savings.fund.notification.UnattributedPaymentEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 
 class PaymentVerificationServiceTest {
 
@@ -21,6 +24,7 @@ class PaymentVerificationServiceTest {
   SavingsFundOnboardingService savingsFundOnboardingService =
       mock(SavingsFundOnboardingService.class);
   SavingsFundLedger savingsFundLedger = mock(SavingsFundLedger.class);
+  ApplicationEventPublisher applicationEventPublisher = mock(ApplicationEventPublisher.class);
 
   PaymentVerificationService service =
       new PaymentVerificationService(
@@ -28,7 +32,7 @@ class PaymentVerificationServiceTest {
           userRepository,
           savingsFundOnboardingService,
           savingsFundLedger,
-          null,
+          applicationEventPublisher,
           new NameMatcher());
 
   @Test
@@ -41,6 +45,10 @@ class PaymentVerificationServiceTest {
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "selgituses puudub isikukood");
     verify(savingsFundLedger).recordUnattributedPayment(payment.getAmount(), payment.getId());
+    verify(applicationEventPublisher)
+        .publishEvent(
+            new UnattributedPaymentEvent(
+                payment.getId(), payment.getAmount(), "selgituses puudub isikukood"));
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 

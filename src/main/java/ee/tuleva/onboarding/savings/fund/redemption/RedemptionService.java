@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.savings.fund.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
+import ee.tuleva.onboarding.savings.fund.notification.RedemptionRequestedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +46,7 @@ public class RedemptionService {
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final SavingFundDeadlinesService deadlinesService;
   private final Clock clock;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
   @Transactional
   public RedemptionRequest createRedemptionRequest(
@@ -84,6 +87,9 @@ public class RedemptionService {
         fundUnits,
         nav,
         customerIban);
+
+    applicationEventPublisher.publishEvent(
+        new RedemptionRequestedEvent(saved.getId(), userId, amount, fundUnits));
 
     return saved;
   }

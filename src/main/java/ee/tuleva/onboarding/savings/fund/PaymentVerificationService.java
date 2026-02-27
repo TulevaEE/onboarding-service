@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIE
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
+import ee.tuleva.onboarding.savings.fund.notification.UnattributedPaymentEvent;
 import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.user.personalcode.PersonalCodeValidator;
 import java.util.Locale;
@@ -76,6 +77,9 @@ public class PaymentVerificationService {
     savingFundPaymentRepository.addReturnReason(payment.getId(), reason);
 
     savingsFundLedger.recordUnattributedPayment(payment.getAmount(), payment.getId());
+
+    applicationEventPublisher.publishEvent(
+        new UnattributedPaymentEvent(payment.getId(), payment.getAmount(), reason));
 
     Optional.ofNullable(payment.getUserId())
         .flatMap(userRepository::findById)

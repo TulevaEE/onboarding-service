@@ -163,8 +163,8 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.4-groovy-5.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy:5.0.3")
-    testImplementation("org.apache.groovy:groovy-json:5.0.3")
+    testImplementation("org.apache.groovy:groovy:5.0.4")
+    testImplementation("org.apache.groovy:groovy-json:5.0.4")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:postgresql:1.21.4")
     testImplementation("org.testcontainers:jdbc:1.21.4")

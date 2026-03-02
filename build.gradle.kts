@@ -84,7 +84,7 @@ dependencies {
     compileOnly("org.jspecify:jspecify:1.0.0")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
-    implementation("io.micrometer:micrometer-tracing-bridge-otel")
+    implementation("org.springframework.boot:spring-boot-micrometer-tracing-opentelemetry")
 
     implementation("com.nimbusds:nimbus-jose-jwt:10.6")
 

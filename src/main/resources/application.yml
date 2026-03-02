@@ -125,6 +125,11 @@ partner:
   issuer: "PARTNER AS"
   clientId: "TULEVA"
 
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+
 logging:
   level:
     ee:

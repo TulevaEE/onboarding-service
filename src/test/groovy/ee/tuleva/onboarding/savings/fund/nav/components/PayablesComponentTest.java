@@ -39,7 +39,7 @@ class PayablesComponentTest {
             .cutoff(CUTOFF)
             .build();
 
-    when(ledgerService.getSystemAccount(TRADE_PAYABLES))
+    when(ledgerService.getSystemAccount(TRADE_PAYABLES, TKF100))
         .thenReturn(systemAccountWithBalance(new BigDecimal("-5000.00"), CUTOFF.minusSeconds(1)));
 
     BigDecimal result = component.calculate(context);
@@ -57,7 +57,8 @@ class PayablesComponentTest {
             .cutoff(CUTOFF)
             .build();
 
-    when(ledgerService.getSystemAccount(TRADE_PAYABLES)).thenReturn(systemAccountWithBalance(ZERO));
+    when(ledgerService.getSystemAccount(TRADE_PAYABLES, TKF100))
+        .thenReturn(systemAccountWithBalance(ZERO));
 
     BigDecimal result = component.calculate(context);
 
@@ -74,7 +75,7 @@ class PayablesComponentTest {
             .cutoff(CUTOFF)
             .build();
 
-    when(ledgerService.getSystemAccount(TRADE_PAYABLES))
+    when(ledgerService.getSystemAccount(TRADE_PAYABLES, TKF100))
         .thenReturn(systemAccountWithBalance(new BigDecimal("5000.00"), CUTOFF.minusSeconds(1)));
 
     assertThrows(IllegalStateException.class, () -> component.calculate(context));

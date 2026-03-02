@@ -86,7 +86,7 @@ public class NavCalculationService {
     BigDecimal depotFeeAccrual = depotFeeAccrualComponent.calculate(context);
     BigDecimal blackrockAdjustment = blackrockAdjustmentComponent.calculate(context);
 
-    BigDecimal unitsOutstanding = getUnitsOutstanding(calculationDate);
+    BigDecimal unitsOutstanding = getUnitsOutstanding(fund, calculationDate);
     context.setUnitsOutstanding(unitsOutstanding);
 
     BigDecimal pendingRedemptions = ZERO;
@@ -126,7 +126,7 @@ public class NavCalculationService {
             .positionReportDate(positionReportDate)
             .priceDate(positionReportDate)
             .calculatedAt(Instant.now(clock))
-            .securitiesDetail(buildSecuritiesDetail(cutoff, positionReportDate))
+            .securitiesDetail(buildSecuritiesDetail(fund, cutoff, positionReportDate))
             .build();
 
     validateResult(result);
@@ -148,9 +148,9 @@ public class NavCalculationService {
         .orElse(null);
   }
 
-  private BigDecimal getUnitsOutstanding(LocalDate calculationDate) {
+  private BigDecimal getUnitsOutstanding(TulevaFund fund, LocalDate calculationDate) {
     Instant cutoff = calculationDate.atTime(CUTOFF_TIME).atZone(ESTONIAN_ZONE).toInstant();
-    var account = ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING);
+    var account = ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, fund);
     BigDecimal balance = account.getBalanceAt(cutoff);
     if (balance.signum() < 0) {
       throw new IllegalStateException(
@@ -195,8 +195,9 @@ public class NavCalculationService {
     return aum.divide(unitsOutstanding, fund.getNavScale(), HALF_UP);
   }
 
-  private List<SecurityDetail> buildSecuritiesDetail(Instant cutoff, LocalDate priceDate) {
-    return new TreeMap<>(navLedgerRepository.getSecuritiesUnitBalancesAt(cutoff))
+  private List<SecurityDetail> buildSecuritiesDetail(
+      TulevaFund fund, Instant cutoff, LocalDate priceDate) {
+    return new TreeMap<>(navLedgerRepository.getSecuritiesUnitBalancesAt(cutoff, fund))
         .entrySet().stream()
             .map(
                 entry -> {

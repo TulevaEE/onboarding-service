@@ -97,8 +97,8 @@ class NavCalculationTransactionTest {
 
   private void createBalanceEntry(
       SystemAccount systemAccount, BigDecimal amount, LedgerAccount.AssetType assetType) {
-    LedgerAccount account = ledgerService.getSystemAccount(systemAccount);
-    LedgerAccount navEquity = ledgerService.getSystemAccount(NAV_EQUITY);
+    LedgerAccount account = ledgerService.getSystemAccount(systemAccount, TKF100);
+    LedgerAccount navEquity = ledgerService.getSystemAccount(NAV_EQUITY, TKF100);
 
     if (amount.compareTo(ZERO) == 0) {
       return;
@@ -136,7 +136,8 @@ class NavCalculationTransactionTest {
   private void createFundUnitsOutstanding() {
     var testUser = sampleUser().build();
 
-    LedgerAccount fundUnitsOutstanding = ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING);
+    LedgerAccount fundUnitsOutstanding =
+        ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100);
     LedgerAccount userFundUnits = ledgerService.getUserAccount(testUser, FUND_UNITS);
 
     BigDecimal units = new BigDecimal("500.00000");

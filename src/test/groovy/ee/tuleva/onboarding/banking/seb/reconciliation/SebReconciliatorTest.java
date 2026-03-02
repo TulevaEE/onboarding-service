@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType.HISTORIC_STATEMENT;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.CLOSE;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.OPEN;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.systemAccountWithBalance;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -55,7 +56,8 @@ class SebReconciliatorTest {
         systemAccountWithBalance(matchingBalance, RECONCILIATION_TIME.minusSeconds(60));
 
     when(clock.instant()).thenReturn(RECONCILIATION_TIME);
-    when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount())).thenReturn(ledgerAccount);
+    when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
+        .thenReturn(ledgerAccount);
     when(sebAccountConfiguration.getAccountType("EE123456789012345678")).thenReturn(DEPOSIT_EUR);
 
     assertDoesNotThrow(() -> reconciliator.reconcile(bankStatement));
@@ -77,7 +79,8 @@ class SebReconciliatorTest {
         systemAccountWithBalance(matchingBalance, RECONCILIATION_TIME.minusSeconds(60));
 
     when(clock.instant()).thenReturn(RECONCILIATION_TIME);
-    when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount())).thenReturn(ledgerAccount);
+    when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
+        .thenReturn(ledgerAccount);
     when(sebAccountConfiguration.getAccountType("EE123456789012345678")).thenReturn(DEPOSIT_EUR);
 
     reconciliator.reconcile(bankStatement);
@@ -103,7 +106,8 @@ class SebReconciliatorTest {
         systemAccountWithBalance(ledgerBalance, RECONCILIATION_TIME.minusSeconds(60));
 
     when(clock.instant()).thenReturn(RECONCILIATION_TIME);
-    when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount())).thenReturn(ledgerAccount);
+    when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
+        .thenReturn(ledgerAccount);
     when(sebAccountConfiguration.getAccountType("EE987700771001802057")).thenReturn(DEPOSIT_EUR);
 
     assertThrows(IllegalStateException.class, () -> reconciliator.reconcile(bankStatement));
@@ -125,7 +129,8 @@ class SebReconciliatorTest {
         systemAccountWithBalance(ledgerBalance, RECONCILIATION_TIME.minusSeconds(60));
 
     when(clock.instant()).thenReturn(RECONCILIATION_TIME);
-    when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount())).thenReturn(ledgerAccount);
+    when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
+        .thenReturn(ledgerAccount);
     when(sebAccountConfiguration.getAccountType("EE987700771001802057")).thenReturn(DEPOSIT_EUR);
 
     assertThrows(IllegalStateException.class, () -> reconciliator.reconcile(bankStatement));
@@ -166,7 +171,8 @@ class SebReconciliatorTest {
         systemAccountWithBalance(matchingBalance, RECONCILIATION_TIME.minusSeconds(60));
 
     when(clock.instant()).thenReturn(RECONCILIATION_TIME);
-    when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount())).thenReturn(ledgerAccount);
+    when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
+        .thenReturn(ledgerAccount);
     when(sebAccountConfiguration.getAccountType("EE123456789012345678")).thenReturn(DEPOSIT_EUR);
 
     assertDoesNotThrow(() -> reconciliator.reconcile(bankStatement));

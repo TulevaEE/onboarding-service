@@ -38,7 +38,7 @@ class BlackrockAdjustmentComponentTest {
             .cutoff(CUTOFF)
             .build();
 
-    when(ledgerService.getSystemAccount(BLACKROCK_ADJUSTMENT))
+    when(ledgerService.getSystemAccount(BLACKROCK_ADJUSTMENT, TKF100))
         .thenReturn(systemAccountWithBalance(new BigDecimal("500.00"), CUTOFF.minusSeconds(1)));
 
     BigDecimal result = component.calculate(context);
@@ -56,7 +56,7 @@ class BlackrockAdjustmentComponentTest {
             .cutoff(CUTOFF)
             .build();
 
-    when(ledgerService.getSystemAccount(BLACKROCK_ADJUSTMENT))
+    when(ledgerService.getSystemAccount(BLACKROCK_ADJUSTMENT, TKF100))
         .thenReturn(systemAccountWithBalance(new BigDecimal("-300.00"), CUTOFF.minusSeconds(1)));
 
     BigDecimal result = component.calculate(context);
@@ -74,7 +74,7 @@ class BlackrockAdjustmentComponentTest {
             .cutoff(CUTOFF)
             .build();
 
-    when(ledgerService.getSystemAccount(BLACKROCK_ADJUSTMENT))
+    when(ledgerService.getSystemAccount(BLACKROCK_ADJUSTMENT, TKF100))
         .thenReturn(systemAccountWithBalance(ZERO));
 
     BigDecimal result = component.calculate(context);

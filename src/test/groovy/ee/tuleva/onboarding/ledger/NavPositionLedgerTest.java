@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.ASSET;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
@@ -73,24 +74,24 @@ class NavPositionLedgerTest {
 
   private void setupAccountMocks() {
     when(ledgerAccountService.findSystemAccountByName(
-            SECURITIES_UNITS.getAccountName("IE00BFG1TM61"), ASSET, FUND_UNIT))
+            SECURITIES_UNITS.getAccountName(TKF100, "IE00BFG1TM61"), ASSET, FUND_UNIT))
         .thenReturn(Optional.of(securitiesUnitsAccount1));
     when(ledgerAccountService.findSystemAccountByName(
-            SECURITIES_UNITS_EQUITY.getAccountName("IE00BFG1TM61"), LIABILITY, FUND_UNIT))
+            SECURITIES_UNITS_EQUITY.getAccountName(TKF100, "IE00BFG1TM61"), LIABILITY, FUND_UNIT))
         .thenReturn(Optional.of(securitiesUnitsEquityAccount1));
     when(ledgerAccountService.findSystemAccountByName(
-            SECURITIES_UNITS.getAccountName("IE00BMDBMY19"), ASSET, FUND_UNIT))
+            SECURITIES_UNITS.getAccountName(TKF100, "IE00BMDBMY19"), ASSET, FUND_UNIT))
         .thenReturn(Optional.of(securitiesUnitsAccount2));
     when(ledgerAccountService.findSystemAccountByName(
-            SECURITIES_UNITS_EQUITY.getAccountName("IE00BMDBMY19"), LIABILITY, FUND_UNIT))
+            SECURITIES_UNITS_EQUITY.getAccountName(TKF100, "IE00BMDBMY19"), LIABILITY, FUND_UNIT))
         .thenReturn(Optional.of(securitiesUnitsEquityAccount2));
-    when(ledgerAccountService.findSystemAccount(CASH_POSITION))
+    when(ledgerAccountService.findSystemAccount(CASH_POSITION, TKF100))
         .thenReturn(Optional.of(cashAccount));
-    when(ledgerAccountService.findSystemAccount(TRADE_RECEIVABLES))
+    when(ledgerAccountService.findSystemAccount(TRADE_RECEIVABLES, TKF100))
         .thenReturn(Optional.of(receivablesAccount));
-    when(ledgerAccountService.findSystemAccount(TRADE_PAYABLES))
+    when(ledgerAccountService.findSystemAccount(TRADE_PAYABLES, TKF100))
         .thenReturn(Optional.of(payablesAccount));
-    when(ledgerAccountService.findSystemAccount(NAV_EQUITY))
+    when(ledgerAccountService.findSystemAccount(NAV_EQUITY, TKF100))
         .thenReturn(Optional.of(navEquityAccount));
   }
 
@@ -108,12 +109,7 @@ class NavPositionLedgerTest {
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
-        "TKF100",
-        reportDate,
-        Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")),
-        ZERO,
-        ZERO,
-        ZERO);
+        TKF100, reportDate, Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")), ZERO, ZERO, ZERO);
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -149,7 +145,7 @@ class NavPositionLedgerTest {
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
-        "TKF100", reportDate, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
+        TKF100, reportDate, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -185,7 +181,7 @@ class NavPositionLedgerTest {
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
-        "TKF100", reportDate, Map.of(), ZERO, new BigDecimal("10000.00"), ZERO);
+        TKF100, reportDate, Map.of(), ZERO, new BigDecimal("10000.00"), ZERO);
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -221,7 +217,7 @@ class NavPositionLedgerTest {
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
-        "TKF100", reportDate, Map.of(), ZERO, ZERO, new BigDecimal("-5000.00"));
+        TKF100, reportDate, Map.of(), ZERO, ZERO, new BigDecimal("-5000.00"));
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -257,7 +253,7 @@ class NavPositionLedgerTest {
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
-        "TKF100",
+        TKF100,
         reportDate,
         Map.of(
             "IE00BFG1TM61", new BigDecimal("1000.00000"),
@@ -286,7 +282,7 @@ class NavPositionLedgerTest {
   void recordPositions_skipsWhenAllPositionsAreZero() {
     LocalDate reportDate = LocalDate.of(2026, 2, 1);
 
-    navPositionLedger.recordPositions("TKF100", reportDate, Map.of(), ZERO, ZERO, ZERO);
+    navPositionLedger.recordPositions(TKF100, reportDate, Map.of(), ZERO, ZERO, ZERO);
 
     verify(ledgerTransactionService, never())
         .createTransaction(
@@ -311,12 +307,7 @@ class NavPositionLedgerTest {
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
-        "TKF100",
-        reportDate,
-        Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")),
-        ZERO,
-        ZERO,
-        ZERO);
+        TKF100, reportDate, Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")), ZERO, ZERO, ZERO);
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -340,12 +331,7 @@ class NavPositionLedgerTest {
         .thenReturn(true);
 
     navPositionLedger.recordPositions(
-        "TKF100",
-        reportDate,
-        Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")),
-        ZERO,
-        ZERO,
-        ZERO);
+        TKF100, reportDate, Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")), ZERO, ZERO, ZERO);
 
     verify(ledgerTransactionService, never())
         .createTransaction(
@@ -376,7 +362,7 @@ class NavPositionLedgerTest {
         .thenReturn(transaction);
 
     realTimeLedger.recordPositions(
-        "TKF100", reportDate, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
+        TKF100, reportDate, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -401,7 +387,7 @@ class NavPositionLedgerTest {
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
-        "TKF100", reportDate, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
+        TKF100, reportDate, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -431,7 +417,7 @@ class NavPositionLedgerTest {
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
-        "TKF100", friday, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
+        TKF100, friday, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -456,12 +442,7 @@ class NavPositionLedgerTest {
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
-        "TKF100",
-        reportDate,
-        Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")),
-        ZERO,
-        ZERO,
-        ZERO);
+        TKF100, reportDate, Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")), ZERO, ZERO, ZERO);
 
     UUID expectedReference =
         UUID.nameUUIDFromBytes("POSITION_UPDATE:TKF100:2026-02-01".getBytes(UTF_8));

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.banking.seb.reconciliation;
 
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.CLOSE;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
@@ -40,7 +41,9 @@ public class SebReconciliator {
 
     var ledgerSystemAccount = bankStatementAccount.getLedgerAccount();
     var ledgerAccountBalance =
-        ledgerService.getSystemAccount(ledgerSystemAccount).getBalanceAt(reconciliationTime);
+        ledgerService
+            .getSystemAccount(ledgerSystemAccount, TKF100)
+            .getBalanceAt(reconciliationTime);
 
     if (ledgerAccountBalance.compareTo(closingBankBalance.balance()) != 0) {
       eventPublisher.publishEvent(

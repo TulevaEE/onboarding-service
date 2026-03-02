@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
@@ -344,7 +345,7 @@ class RedemptionIntegrationTest {
   }
 
   private LedgerAccount getFundUnitsOutstandingAccount() {
-    return ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING);
+    return ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100);
   }
 
   private void setupUserDepositIban(String iban) {

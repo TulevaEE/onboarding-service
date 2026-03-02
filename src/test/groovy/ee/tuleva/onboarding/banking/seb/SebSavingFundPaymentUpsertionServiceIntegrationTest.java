@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.banking.seb;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -381,8 +382,10 @@ class SebSavingFundPaymentUpsertionServiceIntegrationTest {
 
     // and - ledger entry is created: INCOMING_PAYMENTS_CLEARING decreases,
     // FUND_INVESTMENT_CASH_CLEARING increases
-    var incomingPaymentsAccount = ledgerService.getSystemAccount(INCOMING_PAYMENTS_CLEARING);
-    var fundInvestmentAccount = ledgerService.getSystemAccount(FUND_INVESTMENT_CASH_CLEARING);
+    var incomingPaymentsAccount =
+        ledgerService.getSystemAccount(INCOMING_PAYMENTS_CLEARING, TKF100);
+    var fundInvestmentAccount =
+        ledgerService.getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TKF100);
 
     assertThat(incomingPaymentsAccount.getBalance())
         .isEqualByComparingTo(new BigDecimal("-100.50"));

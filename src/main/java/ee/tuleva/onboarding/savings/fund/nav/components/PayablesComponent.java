@@ -27,7 +27,9 @@ public class PayablesComponent implements NavComponent {
   @Override
   public BigDecimal calculate(NavComponentContext context) {
     BigDecimal balance =
-        ledgerService.getSystemAccount(TRADE_PAYABLES).getBalanceAt(context.getCutoff());
+        ledgerService
+            .getSystemAccount(TRADE_PAYABLES, context.getFund())
+            .getBalanceAt(context.getCutoff());
     if (balance.signum() > 0) {
       throw new IllegalStateException(
           "TRADE_PAYABLES should be negative (liability), but was: " + balance);

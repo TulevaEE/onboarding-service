@@ -72,7 +72,7 @@ class FundService {
       return PensionFundStatistics.builder().nav(latestFundValue.value()).build();
     }
 
-    var account = ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING);
+    var account = ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100);
     var currentBalance = account.getBalance();
     var cutoff = latestFundValue.date().plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
     var balanceAtCutoff = account.getBalanceAt(cutoff);

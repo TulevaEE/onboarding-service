@@ -124,9 +124,9 @@ class FeeCalculationServiceTest {
     service.calculateDailyFeesForFund(TKF100, date);
 
     verify(navFeeAccrualLedger)
-        .recordFeeAccrual(eq("TKF100"), eq(date), eq(MANAGEMENT_FEE_ACCRUAL), any(), any());
+        .recordFeeAccrual(eq(TKF100), eq(date), eq(MANAGEMENT_FEE_ACCRUAL), any(), any());
     verify(navFeeAccrualLedger)
-        .recordFeeAccrual(eq("TKF100"), eq(date), eq(DEPOT_FEE_ACCRUAL), any(), any());
+        .recordFeeAccrual(eq(TKF100), eq(date), eq(DEPOT_FEE_ACCRUAL), any(), any());
   }
 
   @Test
@@ -144,7 +144,7 @@ class FeeCalculationServiceTest {
         Arrays.stream(TulevaFund.values()).filter(TulevaFund::hasNavCalculation).count();
     int expectedLedgerCalls = (int) navFundCount * 2; // 2 calculators per NAV fund
     verify(navFeeAccrualLedger, times(expectedLedgerCalls))
-        .recordFeeAccrual(any(String.class), any(LocalDate.class), any(), any(), any());
+        .recordFeeAccrual(any(TulevaFund.class), any(LocalDate.class), any(), any(), any());
   }
 
   @Test
@@ -161,20 +161,20 @@ class FeeCalculationServiceTest {
     Instant depotCutoff = managementCutoff;
 
     when(navLedgerRepository.getSystemAccountBalanceBefore(
-            MANAGEMENT_FEE_ACCRUAL.getAccountName(), managementCutoff))
+            MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100), managementCutoff))
         .thenReturn(new BigDecimal("-1500.00"));
     when(navLedgerRepository.getSystemAccountBalanceBefore(
-            DEPOT_FEE_ACCRUAL.getAccountName(), depotCutoff))
+            DEPOT_FEE_ACCRUAL.getAccountName(TKF100), depotCutoff))
         .thenReturn(new BigDecimal("-200.00"));
 
     service.calculateDailyFeesForFund(TKF100, mar1);
 
     verify(navFeeAccrualLedger)
         .settleFeeAccrual(
-            "TKF100", LocalDate.of(2026, 2, 28), MANAGEMENT_FEE_ACCRUAL, new BigDecimal("1500.00"));
+            TKF100, LocalDate.of(2026, 2, 28), MANAGEMENT_FEE_ACCRUAL, new BigDecimal("1500.00"));
     verify(navFeeAccrualLedger)
         .settleFeeAccrual(
-            "TKF100", LocalDate.of(2026, 2, 28), DEPOT_FEE_ACCRUAL, new BigDecimal("200.00"));
+            TKF100, LocalDate.of(2026, 2, 28), DEPOT_FEE_ACCRUAL, new BigDecimal("200.00"));
   }
 
   @Test
@@ -202,10 +202,10 @@ class FeeCalculationServiceTest {
 
     Instant cutoff = LocalDate.of(2026, 3, 1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
     when(navLedgerRepository.getSystemAccountBalanceBefore(
-            MANAGEMENT_FEE_ACCRUAL.getAccountName(), cutoff))
+            MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100), cutoff))
         .thenReturn(ZERO);
     when(navLedgerRepository.getSystemAccountBalanceBefore(
-            DEPOT_FEE_ACCRUAL.getAccountName(), cutoff))
+            DEPOT_FEE_ACCRUAL.getAccountName(TKF100), cutoff))
         .thenReturn(ZERO);
 
     service.calculateDailyFeesForFund(TKF100, mar1);

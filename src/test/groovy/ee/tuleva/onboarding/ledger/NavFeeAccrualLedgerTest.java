@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_ACCRUAL;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_SETTLEMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.DEPOT_FEE_ACCRUAL;
@@ -55,11 +56,11 @@ class NavFeeAccrualLedgerTest {
   }
 
   private void setupAccountMocks() {
-    when(ledgerAccountService.findSystemAccount(MANAGEMENT_FEE_ACCRUAL))
+    when(ledgerAccountService.findSystemAccount(MANAGEMENT_FEE_ACCRUAL, TKF100))
         .thenReturn(Optional.of(managementFeeAccount));
-    when(ledgerAccountService.findSystemAccount(DEPOT_FEE_ACCRUAL))
+    when(ledgerAccountService.findSystemAccount(DEPOT_FEE_ACCRUAL, TKF100))
         .thenReturn(Optional.of(depotFeeAccount));
-    when(ledgerAccountService.findSystemAccount(NAV_EQUITY))
+    when(ledgerAccountService.findSystemAccount(NAV_EQUITY, TKF100))
         .thenReturn(Optional.of(navEquityAccount));
   }
 
@@ -81,7 +82,7 @@ class NavFeeAccrualLedgerTest {
         .thenReturn(transaction);
 
     navFeeAccrualLedger.recordFeeAccrual(
-        "TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"), Map.of());
+        TKF100, accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"), Map.of());
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -117,7 +118,7 @@ class NavFeeAccrualLedgerTest {
         .thenReturn(transaction);
 
     navFeeAccrualLedger.recordFeeAccrual(
-        "TKF100", accrualDate, DEPOT_FEE_ACCRUAL, new BigDecimal("16.44"), Map.of());
+        TKF100, accrualDate, DEPOT_FEE_ACCRUAL, new BigDecimal("16.44"), Map.of());
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -152,7 +153,7 @@ class NavFeeAccrualLedgerTest {
         .thenReturn(transaction);
 
     navFeeAccrualLedger.recordFeeAccrual(
-        "TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"), Map.of());
+        TKF100, accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"), Map.of());
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -167,7 +168,7 @@ class NavFeeAccrualLedgerTest {
   @Test
   void recordFeeAccrual_skipsWhenAmountIsNull() {
     navFeeAccrualLedger.recordFeeAccrual(
-        "TKF100", LocalDate.of(2026, 2, 1), MANAGEMENT_FEE_ACCRUAL, null, Map.of());
+        TKF100, LocalDate.of(2026, 2, 1), MANAGEMENT_FEE_ACCRUAL, null, Map.of());
 
     verifyNoInteractions(ledgerTransactionService);
   }
@@ -175,7 +176,7 @@ class NavFeeAccrualLedgerTest {
   @Test
   void recordFeeAccrual_skipsWhenAmountIsZero() {
     navFeeAccrualLedger.recordFeeAccrual(
-        "TKF100", LocalDate.of(2026, 2, 1), MANAGEMENT_FEE_ACCRUAL, ZERO, Map.of());
+        TKF100, LocalDate.of(2026, 2, 1), MANAGEMENT_FEE_ACCRUAL, ZERO, Map.of());
 
     verifyNoInteractions(ledgerTransactionService);
   }
@@ -200,7 +201,7 @@ class NavFeeAccrualLedgerTest {
         Map.of(
             "operationType", "FEE_ACCRUAL", "fund", "TKF100", "feeType", "MANAGEMENT_FEE_ACCRUAL");
     navFeeAccrualLedger.recordFeeAccrual(
-        "TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"), metadata);
+        TKF100, accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"), metadata);
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -224,7 +225,7 @@ class NavFeeAccrualLedgerTest {
         .thenReturn(true);
 
     navFeeAccrualLedger.recordFeeAccrual(
-        "TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"), Map.of());
+        TKF100, accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"), Map.of());
 
     verify(ledgerTransactionService, never())
         .createTransaction(
@@ -256,7 +257,7 @@ class NavFeeAccrualLedgerTest {
         .thenReturn(transaction);
 
     navFeeAccrualLedger.recordFeeAccrual(
-        "TKF100", accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"), Map.of());
+        TKF100, accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"), Map.of());
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -288,7 +289,7 @@ class NavFeeAccrualLedgerTest {
         .thenReturn(transaction);
 
     navFeeAccrualLedger.settleFeeAccrual(
-        "TKF100", settlementDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("1500.00"));
+        TKF100, settlementDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("1500.00"));
 
     verify(ledgerTransactionService)
         .createTransaction(

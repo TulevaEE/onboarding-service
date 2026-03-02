@@ -38,7 +38,7 @@ class ReceivablesComponentTest {
             .cutoff(CUTOFF)
             .build();
 
-    when(ledgerService.getSystemAccount(TRADE_RECEIVABLES))
+    when(ledgerService.getSystemAccount(TRADE_RECEIVABLES, TKF100))
         .thenReturn(systemAccountWithBalance(new BigDecimal("10000.00"), CUTOFF.minusSeconds(1)));
 
     BigDecimal result = component.calculate(context);
@@ -56,7 +56,7 @@ class ReceivablesComponentTest {
             .cutoff(CUTOFF)
             .build();
 
-    when(ledgerService.getSystemAccount(TRADE_RECEIVABLES))
+    when(ledgerService.getSystemAccount(TRADE_RECEIVABLES, TKF100))
         .thenReturn(systemAccountWithBalance(ZERO));
 
     BigDecimal result = component.calculate(context);

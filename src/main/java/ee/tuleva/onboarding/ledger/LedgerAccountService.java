@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.ledger;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.USER_ACCOUNT;
 
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import java.util.List;
@@ -42,18 +43,16 @@ class LedgerAccountService {
     return ledgerAccountRepository.findAllByOwner(owner);
   }
 
-  public Optional<LedgerAccount> findSystemAccount(SystemAccount systemAccount) {
-    return ledgerAccountRepository.findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
-        null,
-        systemAccount.getAccountName(),
-        SYSTEM_ACCOUNT,
-        systemAccount.getAssetType(),
-        systemAccount.getAccountType());
+  Optional<LedgerAccount> findSystemAccount(SystemAccount systemAccount, TulevaFund fund) {
+    return findSystemAccountByName(
+        systemAccount.getAccountName(fund),
+        systemAccount.getAccountType(),
+        systemAccount.getAssetType());
   }
 
-  public LedgerAccount createSystemAccount(SystemAccount systemAccount) {
+  LedgerAccount createSystemAccount(SystemAccount systemAccount, TulevaFund fund) {
     return createSystemAccount(
-        systemAccount.getAccountName(),
+        systemAccount.getAccountName(fund),
         systemAccount.getAccountType(),
         systemAccount.getAssetType());
   }

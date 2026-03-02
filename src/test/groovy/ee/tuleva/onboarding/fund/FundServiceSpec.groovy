@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.fund
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100
+
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService
@@ -163,7 +165,7 @@ class FundServiceSpec extends Specification {
     def outstandingUnitsAccount = Mock(LedgerAccount)
     outstandingUnitsAccount.getBalance() >> 10500.00000
     outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
-    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100) >> outstandingUnitsAccount
     ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
 
     when:
@@ -197,7 +199,7 @@ class FundServiceSpec extends Specification {
     def outstandingUnitsAccount = Mock(LedgerAccount)
     outstandingUnitsAccount.getBalance() >> 10000.00000
     outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
-    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100) >> outstandingUnitsAccount
     ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
 
     when:
@@ -231,7 +233,7 @@ class FundServiceSpec extends Specification {
     def outstandingUnitsAccount = Mock(LedgerAccount)
     outstandingUnitsAccount.getBalance() >> 10000.00000
     outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
-    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100) >> outstandingUnitsAccount
     ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
 
     when:
@@ -261,7 +263,7 @@ class FundServiceSpec extends Specification {
     def outstandingUnitsAccount = Mock(LedgerAccount)
     outstandingUnitsAccount.getBalance() >> 10500.00000
     outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
-    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100) >> outstandingUnitsAccount
     ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
 
     when:
@@ -292,7 +294,7 @@ class FundServiceSpec extends Specification {
     def outstandingUnitsAccount = Mock(LedgerAccount)
     outstandingUnitsAccount.getBalance() >> 10000.00000
     outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
-    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100) >> outstandingUnitsAccount
     ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
 
     when:
@@ -325,7 +327,7 @@ class FundServiceSpec extends Specification {
     def outstandingUnitsAccount = Mock(LedgerAccount)
     outstandingUnitsAccount.getBalance() >> 0.0
     outstandingUnitsAccount.getBalanceAt(cutoff) >> 0.0
-    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100) >> outstandingUnitsAccount
     ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
 
     when:
@@ -353,7 +355,7 @@ class FundServiceSpec extends Specification {
     def outstandingUnitsAccount = Mock(LedgerAccount)
     outstandingUnitsAccount.getBalance() >> 10500.00000
     outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
-    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100) >> outstandingUnitsAccount
     ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
 
     when:
@@ -385,7 +387,7 @@ class FundServiceSpec extends Specification {
     def outstandingUnitsAccount = Mock(LedgerAccount)
     outstandingUnitsAccount.getBalance() >> 10500.00000
     outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
-    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING) >> outstandingUnitsAccount
+    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100) >> outstandingUnitsAccount
     ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
 
     when:

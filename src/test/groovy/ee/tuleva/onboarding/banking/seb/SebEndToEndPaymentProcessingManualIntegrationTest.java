@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.banking.seb;
 
 import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -189,7 +190,7 @@ class SebEndToEndPaymentProcessingManualIntegrationTest {
     // Print full ledger state
     System.out.println("\n=== Ledger State ===");
     for (var systemAccount : SystemAccount.values()) {
-      LedgerAccount account = ledgerService.getSystemAccount(systemAccount);
+      LedgerAccount account = ledgerService.getSystemAccount(systemAccount, TKF100);
       System.out.println(
           systemAccount
               + ": balance="
@@ -212,7 +213,8 @@ class SebEndToEndPaymentProcessingManualIntegrationTest {
         continue;
       }
 
-      LedgerAccount ledgerAccount = ledgerService.getSystemAccount(accountType.getLedgerAccount());
+      LedgerAccount ledgerAccount =
+          ledgerService.getSystemAccount(accountType.getLedgerAccount(), TKF100);
       BigDecimal ledgerBalance = ledgerAccount.getBalanceAt(endOfLastStatement);
 
       boolean matches = ledgerBalance.compareTo(expectedBalance) == 0;

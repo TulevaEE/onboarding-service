@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.sampleLedgerAccount;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
@@ -82,10 +83,12 @@ class LedgerServiceTest {
 
   @Test
   void getSystemAccount_createsWhenNotFound() {
-    when(ledgerAccountService.findSystemAccount(INCOMING_PAYMENTS_CLEARING))
+    when(ledgerAccountService.findSystemAccount(INCOMING_PAYMENTS_CLEARING, TKF100))
         .thenReturn(Optional.empty());
-    when(ledgerAccountService.createSystemAccount(INCOMING_PAYMENTS_CLEARING)).thenReturn(account);
+    when(ledgerAccountService.createSystemAccount(INCOMING_PAYMENTS_CLEARING, TKF100))
+        .thenReturn(account);
 
-    assertThat(ledgerService.getSystemAccount(INCOMING_PAYMENTS_CLEARING)).isEqualTo(account);
+    assertThat(ledgerService.getSystemAccount(INCOMING_PAYMENTS_CLEARING, TKF100))
+        .isEqualTo(account);
   }
 }

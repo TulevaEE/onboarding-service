@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -35,9 +36,9 @@ public class LedgerService {
     return ledgerAccountService.countAccountsWithPositiveBalance(userAccount);
   }
 
-  public LedgerAccount getSystemAccount(SystemAccount systemAccount) {
+  public LedgerAccount getSystemAccount(SystemAccount systemAccount, TulevaFund fund) {
     return ledgerAccountService
-        .findSystemAccount(systemAccount)
-        .orElseGet(() -> ledgerAccountService.createSystemAccount(systemAccount));
+        .findSystemAccount(systemAccount, fund)
+        .orElseGet(() -> ledgerAccountService.createSystemAccount(systemAccount, fund));
   }
 }

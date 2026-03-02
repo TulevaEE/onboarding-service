@@ -40,7 +40,7 @@ public class ManagementFeeAccrualComponent implements NavComponent {
             .toInstant();
     BigDecimal balance =
         navLedgerRepository.getSystemAccountBalanceBefore(
-            MANAGEMENT_FEE_ACCRUAL.getAccountName(), feeCutoff);
+            MANAGEMENT_FEE_ACCRUAL.getAccountName(context.getFund()), feeCutoff);
     if (balance.signum() > 0) {
       throw new IllegalStateException(
           "Management fee accrual balance should be non-positive, but was: " + balance);

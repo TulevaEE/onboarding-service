@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.ASSET;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
@@ -34,7 +35,7 @@ class NavLedgerRepositoryTest {
     createSecuritiesUnitsBalance("IE00BMDBMY19", new BigDecimal("500.00000"));
     entityManager.flush();
 
-    Map<String, BigDecimal> balances = navLedgerRepository.getSecuritiesUnitBalances();
+    Map<String, BigDecimal> balances = navLedgerRepository.getSecuritiesUnitBalances(TKF100);
 
     assertThat(balances).hasSize(2);
     assertThat(balances.get("IE00BFG1TM61")).isEqualByComparingTo("1000.00000");
@@ -43,7 +44,7 @@ class NavLedgerRepositoryTest {
 
   @Test
   void getSecuritiesUnitBalances_returnsEmptyMap_whenNoEntries() {
-    Map<String, BigDecimal> balances = navLedgerRepository.getSecuritiesUnitBalances();
+    Map<String, BigDecimal> balances = navLedgerRepository.getSecuritiesUnitBalances(TKF100);
 
     assertThat(balances).isEmpty();
   }
@@ -54,7 +55,7 @@ class NavLedgerRepositoryTest {
     createSecuritiesUnitsBalance("IE00BFG1TM61", new BigDecimal("200.00000"));
     entityManager.flush();
 
-    Map<String, BigDecimal> balances = navLedgerRepository.getSecuritiesUnitBalances();
+    Map<String, BigDecimal> balances = navLedgerRepository.getSecuritiesUnitBalances(TKF100);
 
     assertThat(balances).hasSize(1);
     assertThat(balances.get("IE00BFG1TM61")).isEqualByComparingTo("1200.00000");
@@ -65,12 +66,13 @@ class NavLedgerRepositoryTest {
     ZoneId eet = ZoneId.of("Europe/Tallinn");
     LedgerAccount feeAccount =
         ledgerAccountService
-            .findSystemAccount(MANAGEMENT_FEE_ACCRUAL)
-            .orElseGet(() -> ledgerAccountService.createSystemAccount(MANAGEMENT_FEE_ACCRUAL));
+            .findSystemAccount(MANAGEMENT_FEE_ACCRUAL, TKF100)
+            .orElseGet(
+                () -> ledgerAccountService.createSystemAccount(MANAGEMENT_FEE_ACCRUAL, TKF100));
     LedgerAccount equityAccount =
         ledgerAccountService
-            .findSystemAccount(NAV_EQUITY)
-            .orElseGet(() -> ledgerAccountService.createSystemAccount(NAV_EQUITY));
+            .findSystemAccount(NAV_EQUITY, TKF100)
+            .orElseGet(() -> ledgerAccountService.createSystemAccount(NAV_EQUITY, TKF100));
 
     Instant feb25 = LocalDate.of(2026, 2, 25).atTime(12, 0).atZone(eet).toInstant();
     Instant feb26 = LocalDate.of(2026, 2, 26).atTime(12, 0).atZone(eet).toInstant();
@@ -85,7 +87,7 @@ class NavLedgerRepositoryTest {
 
     BigDecimal balance =
         navLedgerRepository.getSystemAccountBalanceBefore(
-            MANAGEMENT_FEE_ACCRUAL.getAccountName(), cutoff);
+            MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100), cutoff);
 
     assertThat(balance).isEqualByComparingTo("-200.00");
   }
@@ -96,7 +98,7 @@ class NavLedgerRepositoryTest {
 
     BigDecimal balance =
         navLedgerRepository.getSystemAccountBalanceBefore(
-            MANAGEMENT_FEE_ACCRUAL.getAccountName(), cutoff);
+            MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100), cutoff);
 
     assertThat(balance).isEqualByComparingTo("0");
   }
@@ -128,8 +130,8 @@ class NavLedgerRepositoryTest {
   }
 
   private void createSecuritiesUnitsBalance(String isin, BigDecimal amount) {
-    String accountName = SECURITIES_UNITS.getAccountName(isin);
-    String equityAccountName = SECURITIES_UNITS_EQUITY.getAccountName(isin);
+    String accountName = SECURITIES_UNITS.getAccountName(TKF100, isin);
+    String equityAccountName = SECURITIES_UNITS_EQUITY.getAccountName(TKF100, isin);
     LedgerAccount account =
         ledgerAccountService
             .findSystemAccountByName(accountName, ASSET, FUND_UNIT)

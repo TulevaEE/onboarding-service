@@ -134,13 +134,13 @@ class NavCalculationIntegrationTest {
       AssetType assetType,
       Instant transactionDate) {
     if (amount.compareTo(ZERO) == 0) {
-      ledgerService.getSystemAccount(systemAccount);
-      ledgerService.getSystemAccount(NAV_EQUITY);
+      ledgerService.getSystemAccount(systemAccount, TKF100);
+      ledgerService.getSystemAccount(NAV_EQUITY, TKF100);
       return;
     }
 
-    LedgerAccount account = ledgerService.getSystemAccount(systemAccount);
-    LedgerAccount navEquity = ledgerService.getSystemAccount(NAV_EQUITY);
+    LedgerAccount account = ledgerService.getSystemAccount(systemAccount, TKF100);
+    LedgerAccount navEquity = ledgerService.getSystemAccount(NAV_EQUITY, TKF100);
 
     var transaction =
         LedgerTransaction.builder()
@@ -176,7 +176,7 @@ class NavCalculationIntegrationTest {
 
           var securitiesUnitsAccount =
               LedgerAccount.builder()
-                  .name(SECURITIES_UNITS.getAccountName(isin))
+                  .name(SECURITIES_UNITS.getAccountName(TKF100, isin))
                   .purpose(LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT)
                   .accountType(SECURITIES_UNITS.getAccountType())
                   .assetType(SECURITIES_UNITS.getAssetType())
@@ -185,7 +185,7 @@ class NavCalculationIntegrationTest {
 
           var securitiesUnitsEquityAccount =
               LedgerAccount.builder()
-                  .name(SECURITIES_UNITS_EQUITY.getAccountName(isin))
+                  .name(SECURITIES_UNITS_EQUITY.getAccountName(TKF100, isin))
                   .purpose(LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT)
                   .accountType(SECURITIES_UNITS_EQUITY.getAccountType())
                   .assetType(SECURITIES_UNITS_EQUITY.getAssetType())
@@ -238,7 +238,7 @@ class NavCalculationIntegrationTest {
 
   private void createFundUnitsOutstandingBalance(BigDecimal unitsOutstanding, LocalDate navDate) {
     LedgerAccount fundUnitsOutstandingAccount =
-        ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING);
+        ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100);
     LedgerAccount userFundUnitsAccount = ledgerService.getUserAccount(testUser, FUND_UNITS);
 
     BigDecimal units = unitsOutstanding.setScale(5, HALF_UP);
@@ -362,7 +362,7 @@ class NavCalculationIntegrationTest {
   private void createFutureSecuritiesEntry(String isin, BigDecimal units, Instant transactionDate) {
     var securitiesAccount =
         LedgerAccount.builder()
-            .name(SECURITIES_UNITS.getAccountName(isin))
+            .name(SECURITIES_UNITS.getAccountName(TKF100, isin))
             .purpose(LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT)
             .accountType(SECURITIES_UNITS.getAccountType())
             .assetType(SECURITIES_UNITS.getAssetType())
@@ -371,7 +371,7 @@ class NavCalculationIntegrationTest {
 
     var equityAccount =
         LedgerAccount.builder()
-            .name(SECURITIES_UNITS_EQUITY.getAccountName(isin))
+            .name(SECURITIES_UNITS_EQUITY.getAccountName(TKF100, isin))
             .purpose(LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT)
             .accountType(SECURITIES_UNITS_EQUITY.getAccountType())
             .assetType(SECURITIES_UNITS_EQUITY.getAssetType())

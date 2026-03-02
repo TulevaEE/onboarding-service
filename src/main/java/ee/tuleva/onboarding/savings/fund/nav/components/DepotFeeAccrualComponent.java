@@ -40,7 +40,7 @@ public class DepotFeeAccrualComponent implements NavComponent {
             .toInstant();
     BigDecimal balance =
         navLedgerRepository.getSystemAccountBalanceBefore(
-            DEPOT_FEE_ACCRUAL.getAccountName(), feeCutoff);
+            DEPOT_FEE_ACCRUAL.getAccountName(context.getFund()), feeCutoff);
     if (balance.signum() > 0) {
       throw new IllegalStateException(
           "Depot fee accrual balance should be non-positive, but was: " + balance);

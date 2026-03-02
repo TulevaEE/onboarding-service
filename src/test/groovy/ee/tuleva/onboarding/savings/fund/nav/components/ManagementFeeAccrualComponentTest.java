@@ -42,7 +42,7 @@ class ManagementFeeAccrualComponentTest {
     Instant feeCutoff =
         positionReportDate.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
     when(navLedgerRepository.getSystemAccountBalanceBefore(
-            MANAGEMENT_FEE_ACCRUAL.getAccountName(), feeCutoff))
+            MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100), feeCutoff))
         .thenReturn(new BigDecimal("-52.05"));
 
     BigDecimal result = component.calculate(context);
@@ -63,7 +63,7 @@ class ManagementFeeAccrualComponentTest {
     Instant feeCutoff =
         positionReportDate.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
     when(navLedgerRepository.getSystemAccountBalanceBefore(
-            MANAGEMENT_FEE_ACCRUAL.getAccountName(), feeCutoff))
+            MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100), feeCutoff))
         .thenReturn(ZERO);
 
     BigDecimal result = component.calculate(context);
@@ -94,7 +94,7 @@ class ManagementFeeAccrualComponentTest {
     Instant feeCutoff =
         positionReportDate.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
     when(navLedgerRepository.getSystemAccountBalanceBefore(
-            MANAGEMENT_FEE_ACCRUAL.getAccountName(), feeCutoff))
+            MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100), feeCutoff))
         .thenReturn(new BigDecimal("52.05"));
 
     assertThrows(IllegalStateException.class, () -> component.calculate(context));

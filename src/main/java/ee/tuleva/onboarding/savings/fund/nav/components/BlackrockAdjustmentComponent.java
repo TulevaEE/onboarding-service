@@ -27,6 +27,8 @@ public class BlackrockAdjustmentComponent implements NavComponent {
 
   @Override
   public BigDecimal calculate(NavComponentContext context) {
-    return ledgerService.getSystemAccount(BLACKROCK_ADJUSTMENT).getBalanceAt(context.getCutoff());
+    return ledgerService
+        .getSystemAccount(BLACKROCK_ADJUSTMENT, context.getFund())
+        .getBalanceAt(context.getCutoff());
   }
 }

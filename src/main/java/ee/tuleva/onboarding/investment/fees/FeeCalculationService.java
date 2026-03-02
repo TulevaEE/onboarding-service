@@ -55,7 +55,7 @@ public class FeeCalculationService {
         SystemAccount feeAccount = FEE_TYPE_ACCOUNTS.get(accrual.feeType());
         BigDecimal ledgerAmount = roundForLedger(accrual.dailyAmountNet());
         Map<String, Object> metadata = buildAccrualMetadata(accrual, feeAccount, ledgerAmount);
-        navFeeAccrualLedger.recordFeeAccrual(fund.name(), date, feeAccount, ledgerAmount, metadata);
+        navFeeAccrualLedger.recordFeeAccrual(fund, date, feeAccount, ledgerAmount, metadata);
       }
     }
     if (fund.hasNavCalculation()) {
@@ -74,11 +74,11 @@ public class FeeCalculationService {
         (feeType, feeAccount) -> {
           BigDecimal balance =
               navLedgerRepository.getSystemAccountBalanceBefore(
-                  feeAccount.getAccountName(), cutoff);
+                  feeAccount.getAccountName(fund), cutoff);
           BigDecimal settlementAmount = balance.negate();
           if (settlementAmount.signum() > 0) {
             navFeeAccrualLedger.settleFeeAccrual(
-                fund.name(), settlementDate, feeAccount, settlementAmount);
+                fund, settlementDate, feeAccount, settlementAmount);
           }
         });
   }

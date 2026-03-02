@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.*;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.OPERATION_TYPE;
@@ -585,8 +586,8 @@ public class SavingsFundLedger {
 
   private LedgerAccount getSystemAccount(SystemAccount systemAccount) {
     return ledgerAccountService
-        .findSystemAccount(systemAccount)
-        .orElseGet(() -> ledgerAccountService.createSystemAccount(systemAccount));
+        .findSystemAccount(systemAccount, TKF100)
+        .orElseGet(() -> ledgerAccountService.createSystemAccount(systemAccount, TKF100));
   }
 
   private LedgerAccount getUserCashAccount(LedgerParty owner) {
@@ -662,12 +663,13 @@ public class SavingsFundLedger {
     LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount);
     LedgerAccount tradeSettlementAccount =
         findOrCreateInstrumentAccount(
-            TRADE_CASH_SETTLEMENT, TRADE_CASH_SETTLEMENT.getAccountName(isin));
+            TRADE_CASH_SETTLEMENT, TRADE_CASH_SETTLEMENT.getAccountName(TKF100, isin));
     LedgerAccount securityUnitsAccount =
         findOrCreateInstrumentAccount(
-            TRADE_UNIT_SETTLEMENT, TRADE_UNIT_SETTLEMENT.getAccountName(isin));
+            TRADE_UNIT_SETTLEMENT, TRADE_UNIT_SETTLEMENT.getAccountName(TKF100, isin));
     LedgerAccount securitiesCustodyAccount =
-        findOrCreateInstrumentAccount(SECURITIES_CUSTODY, SECURITIES_CUSTODY.getAccountName(isin));
+        findOrCreateInstrumentAccount(
+            SECURITIES_CUSTODY, SECURITIES_CUSTODY.getAccountName(TKF100, isin));
 
     Map<String, Object> metadata =
         Map.of(

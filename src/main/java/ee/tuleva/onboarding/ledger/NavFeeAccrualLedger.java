@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -29,7 +30,7 @@ public class NavFeeAccrualLedger {
 
   @Transactional
   public void recordFeeAccrual(
-      String fund,
+      TulevaFund fund,
       LocalDate accrualDate,
       SystemAccount feeAccount,
       BigDecimal amount,
@@ -55,13 +56,13 @@ public class NavFeeAccrualLedger {
         transactionDate,
         externalReference,
         metadata,
-        entry(getNavEquityAccount(), amount),
-        entry(getSystemAccount(feeAccount), amount.negate()));
+        entry(getSystemAccount(NAV_EQUITY, fund), amount),
+        entry(getSystemAccount(feeAccount, fund), amount.negate()));
   }
 
   @Transactional
   public void settleFeeAccrual(
-      String fund, LocalDate settlementDate, SystemAccount feeAccount, BigDecimal amount) {
+      TulevaFund fund, LocalDate settlementDate, SystemAccount feeAccount, BigDecimal amount) {
     if (amount == null || amount.signum() == 0) {
       return;
     }
@@ -82,7 +83,7 @@ public class NavFeeAccrualLedger {
             "operationType",
             "FEE_SETTLEMENT",
             "fund",
-            fund,
+            fund.name(),
             "feeType",
             feeAccount.name(),
             "settlementDate",
@@ -94,31 +95,27 @@ public class NavFeeAccrualLedger {
         transactionDate,
         externalReference,
         metadata,
-        entry(getSystemAccount(feeAccount), amount),
-        entry(getNavEquityAccount(), amount.negate()));
+        entry(getSystemAccount(feeAccount, fund), amount),
+        entry(getSystemAccount(NAV_EQUITY, fund), amount.negate()));
   }
 
   private UUID generateAccrualReference(
-      String fund, LocalDate accrualDate, SystemAccount feeAccount) {
-    String key = fund + ":" + accrualDate + ":" + feeAccount.name();
+      TulevaFund fund, LocalDate accrualDate, SystemAccount feeAccount) {
+    String key = fund.name() + ":" + accrualDate + ":" + feeAccount.name();
     return UUID.nameUUIDFromBytes(key.getBytes(UTF_8));
   }
 
   // TODO: should come from the settlement payment instead
   private UUID generateSettlementReference(
-      String fund, LocalDate settlementDate, SystemAccount feeAccount) {
-    String key = fund + ":" + settlementDate + ":" + feeAccount.name() + ":SETTLEMENT";
+      TulevaFund fund, LocalDate settlementDate, SystemAccount feeAccount) {
+    String key = fund.name() + ":" + settlementDate + ":" + feeAccount.name() + ":SETTLEMENT";
     return UUID.nameUUIDFromBytes(key.getBytes(UTF_8));
   }
 
-  private LedgerAccount getNavEquityAccount() {
-    return getSystemAccount(NAV_EQUITY);
-  }
-
-  private LedgerAccount getSystemAccount(SystemAccount systemAccount) {
+  private LedgerAccount getSystemAccount(SystemAccount systemAccount, TulevaFund fund) {
     return ledgerAccountService
-        .findSystemAccount(systemAccount)
-        .orElseGet(() -> ledgerAccountService.createSystemAccount(systemAccount));
+        .findSystemAccount(systemAccount, fund)
+        .orElseGet(() -> ledgerAccountService.createSystemAccount(systemAccount, fund));
   }
 
   private LedgerEntryDto entry(LedgerAccount account, BigDecimal amount) {

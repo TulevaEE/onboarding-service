@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.report;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 
 import java.util.List;
@@ -57,7 +58,7 @@ class TrusteeReportRepository {
 
     return jdbcClient
         .sql(sql)
-        .param("fundUnitsAccountName", FUND_UNITS_OUTSTANDING.getAccountName())
+        .param("fundUnitsAccountName", FUND_UNITS_OUTSTANDING.getAccountName(TKF100))
         .query(TrusteeReportRow.class)
         .list();
   }

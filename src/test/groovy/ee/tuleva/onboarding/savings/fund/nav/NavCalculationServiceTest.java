@@ -80,7 +80,7 @@ class NavCalculationServiceTest {
     when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
-    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING))
+    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
         .thenReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
 
     when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("900000.00"));
@@ -132,7 +132,7 @@ class NavCalculationServiceTest {
     when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
-    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING))
+    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
         .thenReturn(fundUnitsOutstandingAccount(ZERO));
 
     when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("1000.00"));
@@ -172,7 +172,7 @@ class NavCalculationServiceTest {
     when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
-    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING))
+    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
         .thenReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
 
     when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("1000000.00"));
@@ -199,7 +199,7 @@ class NavCalculationServiceTest {
     when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(positionDate));
-    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING))
+    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
         .thenReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
 
     when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("1000000.00"));
@@ -233,7 +233,7 @@ class NavCalculationServiceTest {
     when(publicHolidays.previousWorkingDay(summerDate)).thenReturn(previousWorkingDay);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
-    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING)).thenReturn(account);
+    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100)).thenReturn(account);
 
     when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("1000000.00"));
     when(cashPositionComponent.calculate(any())).thenReturn(ZERO);

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.USER_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
@@ -227,7 +228,7 @@ public class LedgerAccountFixture {
   public static LedgerAccount fundUnitsOutstandingAccount(List<EntryFixture> entries) {
     LedgerAccount account =
         LedgerAccount.builder()
-            .name(FUND_UNITS_OUTSTANDING.getAccountName())
+            .name(FUND_UNITS_OUTSTANDING.getAccountName(TKF100))
             .purpose(SYSTEM_ACCOUNT)
             .assetType(FUND_UNIT)
             .accountType(LIABILITY)
@@ -235,7 +236,7 @@ public class LedgerAccountFixture {
 
     LedgerAccount equityAccount =
         LedgerAccount.builder()
-            .name(SystemAccount.NAV_EQUITY.getAccountName())
+            .name(SystemAccount.NAV_EQUITY.getAccountName(TKF100))
             .purpose(SYSTEM_ACCOUNT)
             .assetType(FUND_UNIT)
             .accountType(ASSET)

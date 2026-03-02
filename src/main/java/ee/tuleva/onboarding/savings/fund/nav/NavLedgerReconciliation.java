@@ -46,7 +46,7 @@ public class NavLedgerReconciliation {
   }
 
   private List<Discrepancy> compareSecuritiesUnits(TulevaFund fund, LocalDate date) {
-    Map<String, BigDecimal> ledgerBalances = navLedgerRepository.getSecuritiesUnitBalances();
+    Map<String, BigDecimal> ledgerBalances = navLedgerRepository.getSecuritiesUnitBalances(fund);
     Map<String, BigDecimal> externalQuantities = new HashMap<>();
     fundPositionRepository
         .findByNavDateAndFundAndAccountType(date, fund, SECURITY)
@@ -76,28 +76,28 @@ public class NavLedgerReconciliation {
   }
 
   private Optional<Discrepancy> compareCashPosition(TulevaFund fund, LocalDate date) {
-    BigDecimal ledgerValue = getLedgerBalance(CASH_POSITION);
+    BigDecimal ledgerValue = getLedgerBalance(CASH_POSITION, fund);
     BigDecimal externalValue = getPositionValue(fund, date, CASH);
 
     return createDiscrepancyIfDifferent("cash_position", ledgerValue, externalValue);
   }
 
   private Optional<Discrepancy> compareReceivables(TulevaFund fund, LocalDate date) {
-    BigDecimal ledgerValue = getLedgerBalance(TRADE_RECEIVABLES);
+    BigDecimal ledgerValue = getLedgerBalance(TRADE_RECEIVABLES, fund);
     BigDecimal externalValue = getPositionValue(fund, date, RECEIVABLES);
 
     return createDiscrepancyIfDifferent("receivables", ledgerValue, externalValue);
   }
 
   private Optional<Discrepancy> comparePayables(TulevaFund fund, LocalDate date) {
-    BigDecimal ledgerValue = getLedgerBalance(TRADE_PAYABLES);
+    BigDecimal ledgerValue = getLedgerBalance(TRADE_PAYABLES, fund);
     BigDecimal externalValue = getPositionValue(fund, date, LIABILITY);
 
     return createDiscrepancyIfDifferent("payables", ledgerValue, externalValue);
   }
 
   private Optional<Discrepancy> compareManagementFeeAccrual(TulevaFund fund, LocalDate date) {
-    BigDecimal ledgerValue = getLedgerBalance(MANAGEMENT_FEE_ACCRUAL);
+    BigDecimal ledgerValue = getLedgerBalance(MANAGEMENT_FEE_ACCRUAL, fund);
     BigDecimal externalValue = getFeeAccrualValue(fund, date, MANAGEMENT);
 
     return createDiscrepancyIfDifferent(
@@ -105,14 +105,14 @@ public class NavLedgerReconciliation {
   }
 
   private Optional<Discrepancy> compareDepotFeeAccrual(TulevaFund fund, LocalDate date) {
-    BigDecimal ledgerValue = getLedgerBalance(DEPOT_FEE_ACCRUAL);
+    BigDecimal ledgerValue = getLedgerBalance(DEPOT_FEE_ACCRUAL, fund);
     BigDecimal externalValue = getFeeAccrualValue(fund, date, DEPOT);
 
     return createDiscrepancyIfDifferent("depot_fee_accrual", ledgerValue, externalValue.negate());
   }
 
-  private BigDecimal getLedgerBalance(SystemAccount account) {
-    BigDecimal balance = navLedgerRepository.getSystemAccountBalance(account.getAccountName());
+  private BigDecimal getLedgerBalance(SystemAccount account, TulevaFund fund) {
+    BigDecimal balance = navLedgerRepository.getSystemAccountBalance(account.getAccountName(fund));
     return balance != null ? balance : ZERO;
   }
 

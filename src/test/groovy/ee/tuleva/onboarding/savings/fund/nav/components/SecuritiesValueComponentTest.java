@@ -44,7 +44,7 @@ class SecuritiesValueComponentTest {
             .cutoff(CUTOFF)
             .build();
 
-    when(navLedgerRepository.getSecuritiesUnitBalancesAt(CUTOFF))
+    when(navLedgerRepository.getSecuritiesUnitBalancesAt(CUTOFF, TKF100))
         .thenReturn(
             Map.of(
                 "IE00BFG1TM61", new BigDecimal("1000.00000"),
@@ -84,7 +84,7 @@ class SecuritiesValueComponentTest {
             .cutoff(CUTOFF)
             .build();
 
-    when(navLedgerRepository.getSecuritiesUnitBalancesAt(CUTOFF)).thenReturn(Map.of());
+    when(navLedgerRepository.getSecuritiesUnitBalancesAt(CUTOFF, TKF100)).thenReturn(Map.of());
 
     BigDecimal result = component.calculate(context);
 
@@ -103,7 +103,7 @@ class SecuritiesValueComponentTest {
             .cutoff(CUTOFF)
             .build();
 
-    when(navLedgerRepository.getSecuritiesUnitBalancesAt(CUTOFF))
+    when(navLedgerRepository.getSecuritiesUnitBalancesAt(CUTOFF, TKF100))
         .thenReturn(Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")));
 
     when(positionPriceResolver.resolve("IE00BFG1TM61", priceDate)).thenReturn(Optional.empty());

@@ -55,16 +55,17 @@ class FundPositionLedgerServiceTest {
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(DATE, TKF100, LIABILITY))
         .thenReturn(List.of());
 
-    when(navLedgerRepository.getSystemAccountBalance(SECURITIES_UNITS.getAccountName(ISIN_A)))
+    when(navLedgerRepository.getSystemAccountBalance(
+            SECURITIES_UNITS.getAccountName(TKF100, ISIN_A)))
         .thenReturn(new BigDecimal("500"));
-    when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName()))
+    when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName(TKF100)))
         .thenReturn(ZERO);
-    when(navLedgerRepository.getSystemAccountBalance(TRADE_RECEIVABLES.getAccountName()))
+    when(navLedgerRepository.getSystemAccountBalance(TRADE_RECEIVABLES.getAccountName(TKF100)))
         .thenReturn(ZERO);
-    when(navLedgerRepository.getSystemAccountBalance(TRADE_PAYABLES.getAccountName()))
+    when(navLedgerRepository.getSystemAccountBalance(TRADE_PAYABLES.getAccountName(TKF100)))
         .thenReturn(ZERO);
 
-    when(navLedgerRepository.getSecuritiesUnitBalances())
+    when(navLedgerRepository.getSecuritiesUnitBalances(TKF100))
         .thenReturn(
             Map.of(
                 ISIN_A, new BigDecimal("500"),
@@ -74,7 +75,7 @@ class FundPositionLedgerServiceTest {
 
     verify(navPositionLedger)
         .recordPositions(
-            TKF100.name(),
+            TKF100,
             DATE,
             Map.of(ISIN_A, new BigDecimal("500"), ISIN_B, new BigDecimal("-18430.331")),
             ZERO,

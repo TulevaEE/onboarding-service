@@ -31,11 +31,12 @@ public class FundPositionLedgerService {
 
   public void recordPositionsToLedger(TulevaFund fund, LocalDate date) {
     Map<String, BigDecimal> securitiesUnitDeltas = calculateSecuritiesUnitDeltas(fund, date);
-    BigDecimal cashDelta = calculateDelta(CASH_POSITION, calculatePositionValue(fund, date, CASH));
+    BigDecimal cashDelta =
+        calculateDelta(CASH_POSITION, fund, calculatePositionValue(fund, date, CASH));
     BigDecimal receivablesDelta =
-        calculateDelta(TRADE_RECEIVABLES, calculatePositionValue(fund, date, RECEIVABLES));
+        calculateDelta(TRADE_RECEIVABLES, fund, calculatePositionValue(fund, date, RECEIVABLES));
     BigDecimal payablesDelta =
-        calculateDelta(TRADE_PAYABLES, calculatePositionValue(fund, date, LIABILITY));
+        calculateDelta(TRADE_PAYABLES, fund, calculatePositionValue(fund, date, LIABILITY));
 
     log.info(
         "Recording position deltas to ledger: fund={}, date={}, securitiesUnitDeltas={}, cash={}, receivables={}, payables={}",
@@ -46,7 +47,7 @@ public class FundPositionLedgerService {
         receivablesDelta,
         payablesDelta);
     navPositionLedger.recordPositions(
-        fund.name(), date, securitiesUnitDeltas, cashDelta, receivablesDelta, payablesDelta);
+        fund, date, securitiesUnitDeltas, cashDelta, receivablesDelta, payablesDelta);
   }
 
   private Map<String, BigDecimal> calculateSecuritiesUnitDeltas(TulevaFund fund, LocalDate date) {
@@ -64,7 +65,7 @@ public class FundPositionLedgerService {
       reportedIsins.add(isin);
       BigDecimal newQuantity = position.getQuantity() != null ? position.getQuantity() : ZERO;
       BigDecimal currentBalance =
-          navLedgerRepository.getSystemAccountBalance(SECURITIES_UNITS.getAccountName(isin));
+          navLedgerRepository.getSystemAccountBalance(SECURITIES_UNITS.getAccountName(fund, isin));
       BigDecimal delta = newQuantity.subtract(currentBalance);
       if (delta.signum() != 0) {
         deltas.put(isin, delta);
@@ -72,7 +73,7 @@ public class FundPositionLedgerService {
     }
 
     navLedgerRepository
-        .getSecuritiesUnitBalances()
+        .getSecuritiesUnitBalances(fund)
         .forEach(
             (isin, balance) -> {
               if (!reportedIsins.contains(isin) && balance.signum() != 0) {
@@ -83,9 +84,9 @@ public class FundPositionLedgerService {
     return deltas;
   }
 
-  private BigDecimal calculateDelta(SystemAccount account, BigDecimal newValue) {
+  private BigDecimal calculateDelta(SystemAccount account, TulevaFund fund, BigDecimal newValue) {
     BigDecimal currentBalance =
-        navLedgerRepository.getSystemAccountBalance(account.getAccountName());
+        navLedgerRepository.getSystemAccountBalance(account.getAccountName(fund));
     return newValue.subtract(currentBalance);
   }
 

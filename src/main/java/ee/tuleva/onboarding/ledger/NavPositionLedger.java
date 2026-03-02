@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -34,7 +35,7 @@ public class NavPositionLedger {
 
   @Transactional
   public void recordPositions(
-      String fund,
+      TulevaFund fund,
       LocalDate reportDate,
       Map<String, BigDecimal> securitiesUnits,
       BigDecimal cashValue,
@@ -53,26 +54,27 @@ public class NavPositionLedger {
     securitiesUnits.forEach(
         (isin, units) -> {
           if (units.signum() != 0) {
-            entries.add(entry(findOrCreateInstrumentAccount(SECURITIES_UNITS, isin), units));
+            entries.add(entry(findOrCreateInstrumentAccount(SECURITIES_UNITS, fund, isin), units));
             entries.add(
                 entry(
-                    findOrCreateInstrumentAccount(SECURITIES_UNITS_EQUITY, isin), units.negate()));
+                    findOrCreateInstrumentAccount(SECURITIES_UNITS_EQUITY, fund, isin),
+                    units.negate()));
           }
         });
 
     if (cashValue.signum() != 0) {
-      entries.add(entry(getSystemAccount(CASH_POSITION), cashValue));
-      entries.add(entry(getSystemAccount(NAV_EQUITY), cashValue.negate()));
+      entries.add(entry(getSystemAccount(CASH_POSITION, fund), cashValue));
+      entries.add(entry(getSystemAccount(NAV_EQUITY, fund), cashValue.negate()));
     }
 
     if (receivablesValue.signum() != 0) {
-      entries.add(entry(getSystemAccount(TRADE_RECEIVABLES), receivablesValue));
-      entries.add(entry(getSystemAccount(NAV_EQUITY), receivablesValue.negate()));
+      entries.add(entry(getSystemAccount(TRADE_RECEIVABLES, fund), receivablesValue));
+      entries.add(entry(getSystemAccount(NAV_EQUITY, fund), receivablesValue.negate()));
     }
 
     if (payablesValue.signum() != 0) {
-      entries.add(entry(getSystemAccount(TRADE_PAYABLES), payablesValue));
-      entries.add(entry(getSystemAccount(NAV_EQUITY), payablesValue.negate()));
+      entries.add(entry(getSystemAccount(TRADE_PAYABLES, fund), payablesValue));
+      entries.add(entry(getSystemAccount(NAV_EQUITY, fund), payablesValue.negate()));
     }
 
     if (entries.isEmpty()) {
@@ -81,7 +83,12 @@ public class NavPositionLedger {
 
     Map<String, Object> metadata =
         Map.of(
-            "operationType", "POSITION_UPDATE", "fund", fund, "reportDate", reportDate.toString());
+            "operationType",
+            "POSITION_UPDATE",
+            "fund",
+            fund.name(),
+            "reportDate",
+            reportDate.toString());
 
     ledgerTransactionService.createTransaction(
         POSITION_UPDATE,
@@ -101,8 +108,9 @@ public class NavPositionLedger {
     return expectedDate.atTime(10, 0).atZone(ESTONIAN_ZONE).toInstant();
   }
 
-  private LedgerAccount findOrCreateInstrumentAccount(SystemAccount systemAccount, String isin) {
-    String accountName = systemAccount.getAccountName(isin);
+  private LedgerAccount findOrCreateInstrumentAccount(
+      SystemAccount systemAccount, TulevaFund fund, String isin) {
+    String accountName = systemAccount.getAccountName(fund, isin);
     return ledgerAccountService
         .findSystemAccountByName(
             accountName, systemAccount.getAccountType(), systemAccount.getAssetType())
@@ -112,14 +120,14 @@ public class NavPositionLedger {
                     accountName, systemAccount.getAccountType(), systemAccount.getAssetType()));
   }
 
-  private LedgerAccount getSystemAccount(SystemAccount systemAccount) {
+  private LedgerAccount getSystemAccount(SystemAccount systemAccount, TulevaFund fund) {
     return ledgerAccountService
-        .findSystemAccount(systemAccount)
-        .orElseGet(() -> ledgerAccountService.createSystemAccount(systemAccount));
+        .findSystemAccount(systemAccount, fund)
+        .orElseGet(() -> ledgerAccountService.createSystemAccount(systemAccount, fund));
   }
 
-  private UUID generatePositionReference(String fund, LocalDate reportDate) {
-    String key = "POSITION_UPDATE:" + fund + ":" + reportDate;
+  private UUID generatePositionReference(TulevaFund fund, LocalDate reportDate) {
+    String key = "POSITION_UPDATE:" + fund.name() + ":" + reportDate;
     return UUID.nameUUIDFromBytes(key.getBytes(UTF_8));
   }
 

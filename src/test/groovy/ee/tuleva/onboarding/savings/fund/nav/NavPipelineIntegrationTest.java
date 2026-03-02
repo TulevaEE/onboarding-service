@@ -124,10 +124,10 @@ class NavPipelineIntegrationTest {
     BigDecimal feb3Cash = new BigDecimal("5792137.97");
     BigDecimal feb5CashDelta = new BigDecimal("100000.00");
 
-    navPositionLedger.recordPositions(TKF100.name(), feb3, Map.of(), feb3Cash, ZERO, ZERO);
+    navPositionLedger.recordPositions(TKF100, feb3, Map.of(), feb3Cash, ZERO, ZERO);
     entityManager.flush();
 
-    navPositionLedger.recordPositions(TKF100.name(), feb5, Map.of(), feb5CashDelta, ZERO, ZERO);
+    navPositionLedger.recordPositions(TKF100, feb5, Map.of(), feb5CashDelta, ZERO, ZERO);
     entityManager.flush();
 
     fundPositionRepository.save(
@@ -156,9 +156,9 @@ class NavPipelineIntegrationTest {
     LocalDate date = LocalDate.of(2026, 2, 1);
     Map<String, BigDecimal> units = Map.of("IE00BFG1TM61", new BigDecimal("1000.00000"));
 
-    navPositionLedger.recordPositions("TKF100", date, units, ZERO, ZERO, ZERO);
+    navPositionLedger.recordPositions(TKF100, date, units, ZERO, ZERO, ZERO);
     entityManager.flush();
-    navPositionLedger.recordPositions("TKF100", date, units, ZERO, ZERO, ZERO);
+    navPositionLedger.recordPositions(TKF100, date, units, ZERO, ZERO, ZERO);
     entityManager.flush();
 
     int count =
@@ -174,51 +174,57 @@ class NavPipelineIntegrationTest {
     LocalDate mar2 = LocalDate.of(2026, 3, 2);
     LocalDate mar3 = LocalDate.of(2026, 3, 3);
 
-    saveCashPosition(feb24, aum);
-    saveCashPosition(feb27, aum);
-    saveCashPosition(mar2, aum);
+    Instant ledgerTime = feb24.atTime(10, 0).atZone(ZoneId.of("Europe/Tallinn")).toInstant();
+    ClockHolder.setClock(Clock.fixed(ledgerTime, ZoneId.of("UTC")));
+    try {
+      saveCashPosition(feb24, aum);
+      saveCashPosition(feb27, aum);
+      saveCashPosition(mar2, aum);
 
-    navPositionLedger.recordPositions(TKF100.name(), feb27, Map.of(), aum, ZERO, ZERO);
-    navPositionLedger.recordPositions(TKF100.name(), mar2, Map.of(), aum, ZERO, ZERO);
+      navPositionLedger.recordPositions(TKF100, feb27, Map.of(), aum, ZERO, ZERO);
+      navPositionLedger.recordPositions(TKF100, mar2, Map.of(), aum, ZERO, ZERO);
 
-    insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), LocalDate.of(2026, 1, 1));
-    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.00035"), LocalDate.of(2026, 1, 1));
+      insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), LocalDate.of(2026, 1, 1));
+      insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.00035"), LocalDate.of(2026, 1, 1));
 
-    issueFundUnits(new BigDecimal("1000000.000"), feb24);
-    entityManager.flush();
+      issueFundUnits(new BigDecimal("1000000.000"), feb24);
+      entityManager.flush();
 
-    for (int day = 25; day <= 28; day++) {
-      feeCalculationService.calculateDailyFeesForFund(TKF100, LocalDate.of(2026, 2, day));
+      for (int day = 25; day <= 28; day++) {
+        feeCalculationService.calculateDailyFeesForFund(TKF100, LocalDate.of(2026, 2, day));
+      }
+      for (int day = 1; day <= 2; day++) {
+        feeCalculationService.calculateDailyFeesForFund(TKF100, LocalDate.of(2026, 3, day));
+      }
+      entityManager.flush();
+      entityManager.clear();
+
+      // Monday NAV: positionReportDate=Feb 27, feeCutoff=Feb 28 00:00 EET
+      // Visible fees: Feb 25-27 (3 days), settlement (Feb 28 12:00) NOT visible
+      var mondayNav = navCalculationService.calculate(TKF100, mar2);
+
+      // Tuesday NAV: positionReportDate=Mar 2, feeCutoff=Mar 3 00:00 EET
+      // Feb fees settled (Feb 28 12:00 < Mar 3 00:00), only Mar 1-2 visible
+      var tuesdayNav = navCalculationService.calculate(TKF100, mar3);
+
+      // Daily management: 50,000,000 × 0.0029 / 365 → ledger 397.26/day
+      // Daily depot: 50,000,000 × 0.00035 / 365 → ledger 47.95/day
+      assertThat(mondayNav.managementFeeAccrual())
+          .as("Monday: 3 days of management fees (Feb 25-27)")
+          .isEqualByComparingTo(new BigDecimal("1191.78"));
+      assertThat(mondayNav.depotFeeAccrual())
+          .as("Monday: 3 days of depot fees (Feb 25-27)")
+          .isEqualByComparingTo(new BigDecimal("143.85"));
+
+      assertThat(tuesdayNav.managementFeeAccrual())
+          .as("Tuesday: 2 days of management fees (Mar 1-2), Feb settled")
+          .isEqualByComparingTo(new BigDecimal("794.52"));
+      assertThat(tuesdayNav.depotFeeAccrual())
+          .as("Tuesday: 2 days of depot fees (Mar 1-2), Feb settled")
+          .isEqualByComparingTo(new BigDecimal("95.90"));
+    } finally {
+      ClockHolder.setDefaultClock();
     }
-    for (int day = 1; day <= 2; day++) {
-      feeCalculationService.calculateDailyFeesForFund(TKF100, LocalDate.of(2026, 3, day));
-    }
-    entityManager.flush();
-    entityManager.clear();
-
-    // Monday NAV: positionReportDate=Feb 27, feeCutoff=Feb 28 00:00 EET
-    // Visible fees: Feb 25-27 (3 days), settlement (Feb 28 12:00) NOT visible
-    var mondayNav = navCalculationService.calculate(TKF100, mar2);
-
-    // Tuesday NAV: positionReportDate=Mar 2, feeCutoff=Mar 3 00:00 EET
-    // Feb fees settled (Feb 28 12:00 < Mar 3 00:00), only Mar 1-2 visible
-    var tuesdayNav = navCalculationService.calculate(TKF100, mar3);
-
-    // Daily management: 50,000,000 × 0.0029 / 365 → ledger 397.26/day
-    // Daily depot: 50,000,000 × 0.00035 / 365 → ledger 47.95/day
-    assertThat(mondayNav.managementFeeAccrual())
-        .as("Monday: 3 days of management fees (Feb 25-27)")
-        .isEqualByComparingTo(new BigDecimal("1191.78"));
-    assertThat(mondayNav.depotFeeAccrual())
-        .as("Monday: 3 days of depot fees (Feb 25-27)")
-        .isEqualByComparingTo(new BigDecimal("143.85"));
-
-    assertThat(tuesdayNav.managementFeeAccrual())
-        .as("Tuesday: 2 days of management fees (Mar 1-2), Feb settled")
-        .isEqualByComparingTo(new BigDecimal("794.52"));
-    assertThat(tuesdayNav.depotFeeAccrual())
-        .as("Tuesday: 2 days of depot fees (Mar 1-2), Feb settled")
-        .isEqualByComparingTo(new BigDecimal("95.90"));
   }
 
   private void saveCashPosition(LocalDate date, BigDecimal amount) {
@@ -255,7 +261,7 @@ class NavPipelineIntegrationTest {
             .createdAt(Instant.now())
             .build());
     entityManager.flush();
-    navPositionLedger.recordPositions(TKF100.name(), date, Map.of(), tkf100Aum, ZERO, ZERO);
+    navPositionLedger.recordPositions(TKF100, date, Map.of(), tkf100Aum, ZERO, ZERO);
     entityManager.flush();
 
     insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0025"));
@@ -428,7 +434,7 @@ class NavPipelineIntegrationTest {
             JOIN ledger.account a ON e.account_id = a.id
             WHERE a.name = :accountName
             """)
-        .param("accountName", systemAccount.getAccountName())
+        .param("accountName", systemAccount.getAccountName(TKF100))
         .query(BigDecimal.class)
         .single();
   }
@@ -486,7 +492,7 @@ class NavPipelineIntegrationTest {
             .collect(toMap(FundPosition::getAccountId, FundPosition::getQuantity));
 
     navPositionLedger.recordPositions(
-        TKF100.name(),
+        TKF100,
         navData.navDate,
         securitiesUnits,
         navData.cashPosition,
@@ -499,13 +505,13 @@ class NavPipelineIntegrationTest {
       BigDecimal amount = navData.managementFeeAccrual.negate();
       feeAccrualRepository.save(buildTestFeeAccrual(navData.navDate, FeeType.MANAGEMENT, amount));
       navFeeAccrualLedger.recordFeeAccrual(
-          TKF100.name(), navData.navDate, MANAGEMENT_FEE_ACCRUAL, amount, Map.of());
+          TKF100, navData.navDate, MANAGEMENT_FEE_ACCRUAL, amount, Map.of());
     }
     if (navData.depotFeeAccrual.signum() != 0) {
       BigDecimal amount = navData.depotFeeAccrual.negate();
       feeAccrualRepository.save(buildTestFeeAccrual(navData.navDate, FeeType.DEPOT, amount));
       navFeeAccrualLedger.recordFeeAccrual(
-          TKF100.name(), navData.navDate, DEPOT_FEE_ACCRUAL, amount, Map.of());
+          TKF100, navData.navDate, DEPOT_FEE_ACCRUAL, amount, Map.of());
     }
   }
 
@@ -543,7 +549,7 @@ class NavPipelineIntegrationTest {
 
   private void issueFundUnits(BigDecimal unitsOutstanding, LocalDate navDate) {
     LedgerAccount fundUnitsOutstandingAccount =
-        ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING);
+        ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100);
     LedgerAccount userFundUnitsAccount = ledgerService.getUserAccount(testUser, FUND_UNITS);
 
     BigDecimal units = unitsOutstanding.setScale(5, HALF_UP);

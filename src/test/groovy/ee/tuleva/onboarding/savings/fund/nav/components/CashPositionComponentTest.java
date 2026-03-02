@@ -38,7 +38,7 @@ class CashPositionComponentTest {
             .cutoff(CUTOFF)
             .build();
 
-    when(ledgerService.getSystemAccount(CASH_POSITION))
+    when(ledgerService.getSystemAccount(CASH_POSITION, TKF100))
         .thenReturn(systemAccountWithBalance(new BigDecimal("50000.00"), CUTOFF.minusSeconds(1)));
 
     BigDecimal result = component.calculate(context);
@@ -56,7 +56,7 @@ class CashPositionComponentTest {
             .cutoff(CUTOFF)
             .build();
 
-    when(ledgerService.getSystemAccount(CASH_POSITION))
+    when(ledgerService.getSystemAccount(CASH_POSITION, TKF100))
         .thenReturn(systemAccountWithBalance(new BigDecimal("50000.00"), CUTOFF.plusSeconds(3600)));
 
     BigDecimal result = component.calculate(context);

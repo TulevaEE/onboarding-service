@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.SystemAccount.SECURITIES_UNITS;
 
+import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -14,8 +15,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 @RequiredArgsConstructor
 public class NavLedgerRepository {
-
-  private static final String SECURITIES_UNITS_PREFIX = SECURITIES_UNITS.name() + ":";
 
   private final JdbcClient jdbcClient;
 
@@ -83,7 +82,8 @@ public class NavLedgerRepository {
         .single();
   }
 
-  public Map<String, BigDecimal> getSecuritiesUnitBalances() {
+  public Map<String, BigDecimal> getSecuritiesUnitBalances(TulevaFund fund) {
+    String prefix = SECURITIES_UNITS.getAccountName(fund) + ":";
     Map<String, BigDecimal> balances = new HashMap<>();
     jdbcClient
         .sql(
@@ -95,7 +95,7 @@ public class NavLedgerRepository {
               AND a.purpose = 'SYSTEM_ACCOUNT'
             GROUP BY a.name
             """)
-        .param("prefix", SECURITIES_UNITS_PREFIX + "%")
+        .param("prefix", prefix + "%")
         .query(
             (rs, rowNum) -> {
               String accountName = rs.getString("name");
@@ -108,7 +108,8 @@ public class NavLedgerRepository {
     return balances;
   }
 
-  public Map<String, BigDecimal> getSecuritiesUnitBalancesAt(Instant cutoff) {
+  public Map<String, BigDecimal> getSecuritiesUnitBalancesAt(Instant cutoff, TulevaFund fund) {
+    String prefix = SECURITIES_UNITS.getAccountName(fund) + ":";
     Map<String, BigDecimal> balances = new HashMap<>();
     jdbcClient
         .sql(
@@ -122,7 +123,7 @@ public class NavLedgerRepository {
               AND t.transaction_date <= :cutoff
             GROUP BY a.name
             """)
-        .param("prefix", SECURITIES_UNITS_PREFIX + "%")
+        .param("prefix", prefix + "%")
         .param("cutoff", Timestamp.from(cutoff))
         .query(
             (rs, rowNum) -> {

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
@@ -343,19 +344,19 @@ class SavingsFundPaymentIntegrationTest {
   }
 
   private LedgerAccount getIncomingPaymentsClearingAccount() {
-    return ledgerService.getSystemAccount(INCOMING_PAYMENTS_CLEARING);
+    return ledgerService.getSystemAccount(INCOMING_PAYMENTS_CLEARING, TKF100);
   }
 
   private LedgerAccount getFundInvestmentCashClearingAccount() {
-    return ledgerService.getSystemAccount(FUND_INVESTMENT_CASH_CLEARING);
+    return ledgerService.getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TKF100);
   }
 
   private LedgerAccount getFundUnitsOutstandingAccount() {
-    return ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING);
+    return ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100);
   }
 
   private LedgerAccount getUnreconciledBankReceiptsAccount() {
-    return ledgerService.getSystemAccount(UNRECONCILED_BANK_RECEIPTS);
+    return ledgerService.getSystemAccount(UNRECONCILED_BANK_RECEIPTS, TKF100);
   }
 
   @Test

@@ -483,6 +483,7 @@ public class MandateBatchServiceTest {
       verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
       verify(applicationEventPublisher, times(1))
           .publishEvent(any(AfterMandateBatchSignedEvent.class));
+      verify(signService, never()).getSignedFile(any(SmartIdSignatureSession.class));
     }
 
     @Test
@@ -523,6 +524,7 @@ public class MandateBatchServiceTest {
 
       verify(episService, times(1)).clearCache(user);
       verify(applicationEventPublisher, never()).publishEvent(any());
+      verify(signService, never()).getSignedFile(any(SmartIdSignatureSession.class));
     }
 
     @Test
@@ -552,6 +554,7 @@ public class MandateBatchServiceTest {
       assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
       verify(episService, never()).clearCache(any());
       verify(applicationEventPublisher, never()).publishEvent(any());
+      verify(signService, never()).getSignedFile(any(SmartIdSignatureSession.class));
     }
 
     @Test
@@ -656,6 +659,7 @@ public class MandateBatchServiceTest {
       verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
       verify(applicationEventPublisher, times(1))
           .publishEvent(any(AfterMandateBatchSignedEvent.class));
+      verify(signService, never()).getSignedFile(any(MobileIdSignatureSession.class));
     }
 
     @Test
@@ -696,6 +700,7 @@ public class MandateBatchServiceTest {
 
       verify(episService, times(1)).clearCache(user);
       verify(applicationEventPublisher, never()).publishEvent(any());
+      verify(signService, never()).getSignedFile(any(MobileIdSignatureSession.class));
     }
 
     @Test
@@ -725,6 +730,7 @@ public class MandateBatchServiceTest {
       assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
       verify(episService, never()).clearCache(any());
       verify(applicationEventPublisher, never()).publishEvent(any());
+      verify(signService, never()).getSignedFile(any(MobileIdSignatureSession.class));
     }
 
     @Test

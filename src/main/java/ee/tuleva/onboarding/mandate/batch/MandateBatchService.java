@@ -138,26 +138,28 @@ public class MandateBatchService {
 
   public SignatureStatus finalizeMobileSignature(
       Long userId, Long mandateBatchId, SmartIdSignatureSession session, Locale locale) {
+    User user = userService.getById(userId).orElseThrow();
+    MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
+
+    if (mandateBatch.isSigned()) {
+      return getBatchProcessingStatusAndHandleIfProcessed(user, mandateBatch, locale);
+    }
+
     var signedFile = Optional.ofNullable(signService.getSignedFile(session));
-    return checkIfFileSignedToStartProcessing(userId, mandateBatchId, signedFile, locale);
+    return persistSignedFileIfPresentAndStartProcessing(user, mandateBatch, signedFile, locale);
   }
 
   public SignatureStatus finalizeMobileSignature(
       Long userId, Long mandateBatchId, MobileIdSignatureSession session, Locale locale) {
-    var signedFile = Optional.ofNullable(signService.getSignedFile(session));
-    return checkIfFileSignedToStartProcessing(userId, mandateBatchId, signedFile, locale);
-  }
-
-  private SignatureStatus checkIfFileSignedToStartProcessing(
-      Long userId, Long mandateBatchId, Optional<byte[]> signedFile, Locale locale) {
     User user = userService.getById(userId).orElseThrow();
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
 
-    if (!mandateBatch.isSigned()) {
-      return persistSignedFileIfPresentAndStartProcessing(user, mandateBatch, signedFile, locale);
+    if (mandateBatch.isSigned()) {
+      return getBatchProcessingStatusAndHandleIfProcessed(user, mandateBatch, locale);
     }
 
-    return getBatchProcessingStatusAndHandleIfProcessed(user, mandateBatch, locale);
+    var signedFile = Optional.ofNullable(signService.getSignedFile(session));
+    return persistSignedFileIfPresentAndStartProcessing(user, mandateBatch, signedFile, locale);
   }
 
   private SignatureStatus persistFileSignedWithIdCard(

@@ -60,7 +60,7 @@ public enum FundTicker {
       "IE0009FT4LX4",
       "CCF Developed World Screened Index Fund",
       "BLESIXE",
-      null,
+      "320377",
       "0P0001N0Z0"),
   ISHARES_EMERGING_MARKETS_SCREENED(
       "0P0001MGOG.F",

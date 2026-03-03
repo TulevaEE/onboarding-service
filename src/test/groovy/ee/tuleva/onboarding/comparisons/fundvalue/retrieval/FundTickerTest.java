@@ -113,5 +113,6 @@ class FundTickerTest {
     assertThat(ISHARES_EURO_GOVERNMENT_BOND.getBlackrockProductId()).isEqualTo("229062");
     assertThat(ISHARES_GLOBAL_GOVERNMENT_BOND.getBlackrockProductId()).isEqualTo("287052");
     assertThat(ISHARES_EURO_CREDIT_BOND.getBlackrockProductId()).isEqualTo("229055");
+    assertThat(CCF_DEVELOPED_WORLD_SCREENED.getBlackrockProductId()).isEqualTo("320377");
   }
 }

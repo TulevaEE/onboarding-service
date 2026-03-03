@@ -55,7 +55,7 @@ public class BlackRockFundValueRetriever implements ComparisonIndexRetriever {
   private List<FundValue> retrieveValuesForFund(
       FundTicker fund, LocalDate startDate, LocalDate endDate) {
     var url =
-        "https://www.blackrock.com/se/individual/products/" + fund.getBlackrockProductId() + "/";
+        "https://www.blackrock.com/nl/individual/products/" + fund.getBlackrockProductId() + "/";
     var storageKey = fund.getBlackrockStorageKey().orElseThrow();
 
     String responseBody;

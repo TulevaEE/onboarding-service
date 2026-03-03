@@ -325,7 +325,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
     def blackrockKey = ticker.isin + ".BLACKROCK"
     def morningstarKey = ticker.isin + ".MORNINGSTAR"
 
-    FundValue blackrockValue = aFundValue(blackrockKey, date, 34.5732)
+    FundValue blackrockValue = aFundValue(blackrockKey, date, 34.6132)
     FundValue morningstarValue = aFundValue(morningstarKey, date, 34.56)
 
     fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> []

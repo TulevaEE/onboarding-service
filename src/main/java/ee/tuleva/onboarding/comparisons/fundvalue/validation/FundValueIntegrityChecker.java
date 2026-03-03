@@ -31,6 +31,7 @@ public class FundValueIntegrityChecker {
   private static final int DATABASE_SCALE = 5;
   private static final BigDecimal SAME_PROVIDER_THRESHOLD_PERCENT = new BigDecimal("0.0001");
   private static final BigDecimal CROSS_PROVIDER_THRESHOLD_PERCENT = new BigDecimal("0.001");
+  private static final BigDecimal NAV_ROUNDING_THRESHOLD_PERCENT = new BigDecimal("0.1");
   private static final int MORNINGSTAR_SCALE = 2;
   private static final LocalDate CROSS_PROVIDER_CHECK_START_DATE = LocalDate.of(2026, 2, 11);
   private static final int FUND_NAME_WIDTH = 49;
@@ -191,7 +192,8 @@ public class FundValueIntegrityChecker {
               morningstarByDate,
               CRITICAL,
               "BlackRock vs Morningstar",
-              MORNINGSTAR_SCALE);
+              MORNINGSTAR_SCALE,
+              NAV_ROUNDING_THRESHOLD_PERCENT);
       discrepancies.addAll(blackrockVsMorningstarDiscrepancies);
       blackrockOk = blackrockVsMorningstarDiscrepancies.isEmpty() && !blackrockByDate.isEmpty();
       morningstarOk = blackrockVsMorningstarDiscrepancies.isEmpty() && !morningstarByDate.isEmpty();
@@ -860,6 +862,28 @@ public class FundValueIntegrityChecker {
       Severity severity,
       String comparisonDescription,
       int comparisonScale) {
+    return compareProviders(
+        tickerName,
+        anchorProviderName,
+        anchorByDate,
+        comparedProviderName,
+        comparedByDate,
+        severity,
+        comparisonDescription,
+        comparisonScale,
+        CROSS_PROVIDER_THRESHOLD_PERCENT);
+  }
+
+  private List<Discrepancy> compareProviders(
+      String tickerName,
+      String anchorProviderName,
+      Map<LocalDate, BigDecimal> anchorByDate,
+      String comparedProviderName,
+      Map<LocalDate, BigDecimal> comparedByDate,
+      Severity severity,
+      String comparisonDescription,
+      int comparisonScale,
+      BigDecimal thresholdPercent) {
 
     return anchorByDate.entrySet().stream()
         .filter(entry -> comparedByDate.containsKey(entry.getKey()))
@@ -871,7 +895,7 @@ public class FundValueIntegrityChecker {
                   comparedByDate.get(date).setScale(comparisonScale, HALF_UP);
 
               BigDecimal percentageDiff = calculatePercentageDifference(anchorValue, comparedValue);
-              if (percentageDiff.compareTo(CROSS_PROVIDER_THRESHOLD_PERCENT) > 0) {
+              if (percentageDiff.compareTo(thresholdPercent) > 0) {
                 BigDecimal difference = anchorValue.subtract(comparedValue).abs();
                 return new Discrepancy(
                     tickerName + " (" + anchorProviderName + " vs " + comparedProviderName + ")",

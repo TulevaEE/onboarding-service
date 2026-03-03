@@ -106,4 +106,12 @@ class FundTickerTest {
   void etfReturnsEmptyMorningstarStorageKey() {
     assertThat(ISHARES_USA_ESG_SCREENED.getMorningstarStorageKey()).isEmpty();
   }
+
+  @Test
+  void blackrockProductIdsPointToCorrectShareClasses() {
+    assertThat(ISHARES_EMERGING_MARKETS_SCREENED.getBlackrockProductId()).isEqualTo("316651");
+    assertThat(ISHARES_EURO_GOVERNMENT_BOND.getBlackrockProductId()).isEqualTo("229062");
+    assertThat(ISHARES_GLOBAL_GOVERNMENT_BOND.getBlackrockProductId()).isEqualTo("287052");
+    assertThat(ISHARES_EURO_CREDIT_BOND.getBlackrockProductId()).isEqualTo("229055");
+  }
 }

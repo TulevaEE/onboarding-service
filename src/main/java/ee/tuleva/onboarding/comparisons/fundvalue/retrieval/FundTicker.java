@@ -68,7 +68,7 @@ public enum FundTicker {
       "IE00BKPTWY98",
       "iShares Emerging Markets Screened Equity Index Fund",
       "BEMEFLE",
-      "316649",
+      "316651",
       "0P0001MGOG"),
   ISHARES_EURO_AGGREGATE_BOND(
       "0P0000YXER.F",
@@ -84,7 +84,7 @@ public enum FundTicker {
       "IE0031080751",
       "iShares Euro Government Bond Index Fund",
       "BARGVBI",
-      "229063",
+      "229062",
       "0P00006OK2"),
   ISHARES_GLOBAL_GOVERNMENT_BOND(
       "0P0001A3RC.F",
@@ -92,7 +92,7 @@ public enum FundTicker {
       "LU0839970364",
       "iShares Global Government Bond Index Fund",
       "BGGGX2E",
-      "297052",
+      "287052",
       "0P0001A3RC"),
   ISHARES_EURO_CREDIT_BOND(
       "0P0000STQT.F",
@@ -100,7 +100,7 @@ public enum FundTicker {
       "IE0005032192",
       "iShares Euro Credit Bond Index Fund",
       "BAREUBD",
-      "229056",
+      "229055",
       "0P0000STQT");
 
   private final String yahooTicker;

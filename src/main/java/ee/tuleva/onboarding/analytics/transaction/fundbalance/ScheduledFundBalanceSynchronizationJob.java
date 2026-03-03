@@ -19,8 +19,8 @@ public class ScheduledFundBalanceSynchronizationJob {
   private final FundBalanceSynchronizer fundBalanceSynchronizer;
 
   @Schedules({
-    @Scheduled(cron = "0 0 11 3 11 ?", zone = "Europe/Tallinn"),
-    @Scheduled(cron = "0 0 18 * * ?", zone = "Europe/Tallinn")
+    @Scheduled(cron = "0 50 10 3 3 ?", zone = "Europe/Tallinn"),
+    @Scheduled(cron = "0 0 5 * * ?", zone = "Europe/Tallinn")
   })
   @SchedulerLock(
       name = "ScheduledFundBalanceSynchronizationJob_runDailySync",

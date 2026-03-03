@@ -290,7 +290,7 @@ class ListingServiceSpec extends Specification {
     sellMessage.contains(contacter.getPersonalCode().toString())
     sellMessage.contains(contacter.getPhoneNumber())
 
-    buyMessage.contains("soovib sulle sulle müüa oma liikmekapitali")
+    buyMessage.contains("soovib sulle müüa oma liikmekapitali")
     buyMessage.contains("raamatupidamislikus väärtuses 100.00 €")
     buyMessage.contains("hinnaga 200.00 €")
     buyMessage.contains("Siin on sulle müüja andmed:")

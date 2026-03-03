@@ -176,7 +176,7 @@ public class ListingService {
                 .formatted(
                     interestedUserName,
                     listing.isBuy()
-                        ? "soovib sulle sulle müüa oma liikmekapitali"
+                        ? "soovib sulle müüa oma liikmekapitali"
                         : "soovib osta sinu liikmekapitali",
                     bookValue,
                     totalAmount,

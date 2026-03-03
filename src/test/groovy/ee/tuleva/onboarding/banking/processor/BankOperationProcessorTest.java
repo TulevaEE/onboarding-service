@@ -13,6 +13,8 @@ import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,36 +40,48 @@ class BankOperationProcessorTest {
   }
 
   @Test
-  void processBankOperation_recordsInterestReceived() {
+  void processBankOperation_recordsInterestReceivedWithBookingDate() {
     var amount = new BigDecimal("5.00");
     var entry = createBankOperationEntry("INTR", amount);
 
     processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
 
     verify(savingsFundLedger)
-        .recordInterestReceived(eq(amount), any(UUID.class), eq(INCOMING_PAYMENTS_CLEARING));
+        .recordInterestReceived(
+            eq(amount),
+            any(UUID.class),
+            eq(INCOMING_PAYMENTS_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)));
   }
 
   @Test
-  void processBankOperation_recordsBankFee() {
+  void processBankOperation_recordsBankFeeWithBookingDate() {
     var amount = new BigDecimal("-1.00");
     var entry = createBankOperationEntry("FEES", amount);
 
     processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
 
     verify(savingsFundLedger)
-        .recordBankFee(eq(amount), any(UUID.class), eq(INCOMING_PAYMENTS_CLEARING));
+        .recordBankFee(
+            eq(amount),
+            any(UUID.class),
+            eq(INCOMING_PAYMENTS_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)));
   }
 
   @Test
-  void processBankOperation_recordsBankAdjustment() {
+  void processBankOperation_recordsBankAdjustmentWithBookingDate() {
     var amount = new BigDecimal("0.50");
     var entry = createBankOperationEntry("ADJT", amount);
 
     processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
 
     verify(savingsFundLedger)
-        .recordBankAdjustment(eq(amount), any(UUID.class), eq(INCOMING_PAYMENTS_CLEARING));
+        .recordBankAdjustment(
+            eq(amount),
+            any(UUID.class),
+            eq(INCOMING_PAYMENTS_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)));
   }
 
   @Test
@@ -99,7 +113,11 @@ class BankOperationProcessorTest {
     processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
 
     verify(savingsFundLedger)
-        .recordBankFee(eq(amount), any(UUID.class), eq(INCOMING_PAYMENTS_CLEARING));
+        .recordBankFee(
+            eq(amount),
+            any(UUID.class),
+            eq(INCOMING_PAYMENTS_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)));
   }
 
   @Test
@@ -112,7 +130,7 @@ class BankOperationProcessorTest {
   }
 
   @Test
-  void processBankOperation_recordsTradeSettlement() {
+  void processBankOperation_recordsTradeSettlementWithBookingDate() {
     var amount = new BigDecimal("-209080.26");
     var remittanceInfo = "DLA0553690/EJAP GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448";
     var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
@@ -133,7 +151,8 @@ class BankOperationProcessorTest {
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq("LU1291102447"),
             eq("EJAP"),
-            eq("BNP Paribas Easy MSCI Japan ESG Filtered"));
+            eq("BNP Paribas Easy MSCI Japan ESG Filtered"),
+            eq(LocalDate.of(2025, 10, 1)));
   }
 
   @Test
@@ -174,7 +193,8 @@ class BankOperationProcessorTest {
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq("IE00BFG1TM61"),
             eq("0P000152G5"),
-            eq("iShares Developed World ESG Screened Index Fund"));
+            eq("iShares Developed World ESG Screened Index Fund"),
+            eq(LocalDate.of(2025, 10, 1)));
   }
 
   private BankStatementEntry createEntryWithCounterparty() {
@@ -206,6 +226,6 @@ class BankOperationProcessorTest {
         "bank-op-ref",
         null,
         subFamilyCode,
-        null);
+        Instant.parse("2025-10-01T20:59:59.999999Z"));
   }
 }

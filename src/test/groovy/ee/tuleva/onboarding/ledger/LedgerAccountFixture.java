@@ -225,6 +225,28 @@ public class LedgerAccountFixture {
     return systemAccountWithBalance(balance, Instant.now());
   }
 
+  public static LedgerAccount systemAccountWithEntries(List<EntryFixture> entries) {
+    LedgerAccount account =
+        LedgerAccount.builder()
+            .name("SYSTEM_TEST_ACCOUNT")
+            .purpose(SYSTEM_ACCOUNT)
+            .assetType(EUR)
+            .accountType(ASSET)
+            .build();
+
+    entries.forEach(
+        entry -> {
+          LedgerTransaction transaction =
+              LedgerTransaction.builder()
+                  .transactionDate(entry.transactionDate())
+                  .metadata(Map.of("test", "fixture"))
+                  .build();
+          transaction.addEntry(account, entry.amount());
+        });
+
+    return account;
+  }
+
   public static LedgerAccount fundUnitsOutstandingAccount(List<EntryFixture> entries) {
     LedgerAccount account =
         LedgerAccount.builder()

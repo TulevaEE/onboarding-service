@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.Statem
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.OPEN;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.systemAccountWithBalance;
+import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.systemAccountWithEntries;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -14,9 +15,9 @@ import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
 import ee.tuleva.onboarding.banking.statement.BankStatementBalance;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
+import ee.tuleva.onboarding.ledger.LedgerAccountFixture.EntryFixture;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import java.math.BigDecimal;
-import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -31,11 +32,8 @@ import org.springframework.context.ApplicationEventPublisher;
 @ExtendWith(MockitoExtension.class)
 class SebReconciliatorTest {
 
-  private static final Instant RECONCILIATION_TIME = Instant.parse("2024-01-16T01:05:00Z");
-
   @Mock private LedgerService ledgerService;
   @Mock private SebAccountConfiguration sebAccountConfiguration;
-  @Mock private Clock clock;
   @Mock private ApplicationEventPublisher eventPublisher;
 
   @InjectMocks private SebReconciliator reconciliator;
@@ -53,9 +51,8 @@ class SebReconciliatorTest {
         new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), List.of());
 
     LedgerAccount ledgerAccount =
-        systemAccountWithBalance(matchingBalance, RECONCILIATION_TIME.minusSeconds(60));
+        systemAccountWithBalance(matchingBalance, Instant.parse("2024-01-15T12:00:00Z"));
 
-    when(clock.instant()).thenReturn(RECONCILIATION_TIME);
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
         .thenReturn(ledgerAccount);
     when(sebAccountConfiguration.getAccountType("EE123456789012345678")).thenReturn(DEPOSIT_EUR);
@@ -76,9 +73,8 @@ class SebReconciliatorTest {
         new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), List.of());
 
     LedgerAccount ledgerAccount =
-        systemAccountWithBalance(matchingBalance, RECONCILIATION_TIME.minusSeconds(60));
+        systemAccountWithBalance(matchingBalance, Instant.parse("2024-01-15T12:00:00Z"));
 
-    when(clock.instant()).thenReturn(RECONCILIATION_TIME);
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
         .thenReturn(ledgerAccount);
     when(sebAccountConfiguration.getAccountType("EE123456789012345678")).thenReturn(DEPOSIT_EUR);
@@ -103,9 +99,8 @@ class SebReconciliatorTest {
         new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), List.of());
 
     LedgerAccount ledgerAccount =
-        systemAccountWithBalance(ledgerBalance, RECONCILIATION_TIME.minusSeconds(60));
+        systemAccountWithBalance(ledgerBalance, Instant.parse("2024-01-15T12:00:00Z"));
 
-    when(clock.instant()).thenReturn(RECONCILIATION_TIME);
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
         .thenReturn(ledgerAccount);
     when(sebAccountConfiguration.getAccountType("EE987700771001802057")).thenReturn(DEPOSIT_EUR);
@@ -126,9 +121,8 @@ class SebReconciliatorTest {
         new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), List.of());
 
     LedgerAccount ledgerAccount =
-        systemAccountWithBalance(ledgerBalance, RECONCILIATION_TIME.minusSeconds(60));
+        systemAccountWithBalance(ledgerBalance, Instant.parse("2024-01-15T12:00:00Z"));
 
-    when(clock.instant()).thenReturn(RECONCILIATION_TIME);
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
         .thenReturn(ledgerAccount);
     when(sebAccountConfiguration.getAccountType("EE987700771001802057")).thenReturn(DEPOSIT_EUR);
@@ -153,6 +147,31 @@ class SebReconciliatorTest {
   }
 
   @Test
+  void reconcile_shouldIgnoreLedgerEntriesAfterBankStatementDate() {
+    LocalDate balanceDate = LocalDate.of(2024, 1, 15);
+    BigDecimal bankBalance = new BigDecimal("1000.00");
+
+    BankStatementBalance closingBalance = new BankStatementBalance(CLOSE, balanceDate, bankBalance);
+    BankStatementAccount account =
+        new BankStatementAccount("EE123456789012345678", "Test Company", "12345678");
+    BankStatement bankStatement =
+        new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), List.of());
+
+    LedgerAccount ledgerAccount =
+        systemAccountWithEntries(
+            List.of(
+                new EntryFixture(new BigDecimal("1000.00"), Instant.parse("2024-01-15T20:00:00Z")),
+                new EntryFixture(new BigDecimal("50.00"), Instant.parse("2024-01-15T22:30:00Z"))));
+
+    when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
+        .thenReturn(ledgerAccount);
+    when(sebAccountConfiguration.getAccountType("EE123456789012345678")).thenReturn(DEPOSIT_EUR);
+
+    // Should succeed: balance at Jan 15 = 1000.00, ignoring the +50 on Jan 16
+    assertDoesNotThrow(() -> reconciliator.reconcile(bankStatement));
+  }
+
+  @Test
   void reconcile_shouldHandleMultipleBalances_andUseClosingBalance() {
     BigDecimal matchingBalance = new BigDecimal("2000.00");
     LocalDate balanceDate = LocalDate.of(2024, 1, 15);
@@ -168,9 +187,8 @@ class SebReconciliatorTest {
             HISTORIC_STATEMENT, account, List.of(openingBalance, closingBalance), List.of());
 
     LedgerAccount ledgerAccount =
-        systemAccountWithBalance(matchingBalance, RECONCILIATION_TIME.minusSeconds(60));
+        systemAccountWithBalance(matchingBalance, Instant.parse("2024-01-15T12:00:00Z"));
 
-    when(clock.instant()).thenReturn(RECONCILIATION_TIME);
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
         .thenReturn(ledgerAccount);
     when(sebAccountConfiguration.getAccountType("EE123456789012345678")).thenReturn(DEPOSIT_EUR);

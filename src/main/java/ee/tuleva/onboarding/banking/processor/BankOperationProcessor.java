@@ -9,6 +9,8 @@ import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class BankOperationProcessor {
 
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
   private static final String FEES = "FEES";
   private static final String COMM = "COMM";
   private static final String INTR = "INTR";
@@ -70,6 +73,8 @@ public class BankOperationProcessor {
       return;
     }
 
+    var bookingDate = bookingDate(entry);
+
     switch (subFamilyCode) {
       case INTR -> {
         log.info(
@@ -78,7 +83,8 @@ public class BankOperationProcessor {
             externalReference,
             accountType,
             entry.remittanceInformation());
-        savingsFundLedger.recordInterestReceived(amount, externalReference, clearingAccount);
+        savingsFundLedger.recordInterestReceived(
+            amount, externalReference, clearingAccount, bookingDate);
       }
       case FEES, COMM -> {
         log.info(
@@ -87,7 +93,7 @@ public class BankOperationProcessor {
             externalReference,
             accountType,
             entry.remittanceInformation());
-        savingsFundLedger.recordBankFee(amount, externalReference, clearingAccount);
+        savingsFundLedger.recordBankFee(amount, externalReference, clearingAccount, bookingDate);
       }
       case ADJT -> {
         log.info(
@@ -96,7 +102,8 @@ public class BankOperationProcessor {
             externalReference,
             accountType,
             entry.remittanceInformation());
-        savingsFundLedger.recordBankAdjustment(amount, externalReference, clearingAccount);
+        savingsFundLedger.recordBankAdjustment(
+            amount, externalReference, clearingAccount, bookingDate);
       }
       case TRAD, SUBS -> {
         var tradeInfo = tradeSettlementParser.parse(entry.remittanceInformation());
@@ -125,7 +132,8 @@ public class BankOperationProcessor {
             clearingAccount,
             ticker.getIsin(),
             ticker.getYahooTicker().split("\\.")[0],
-            ticker.getDisplayName());
+            ticker.getDisplayName(),
+            bookingDate);
       }
       default -> throw new IllegalStateException("Unexpected value: " + subFamilyCode);
     }
@@ -139,6 +147,10 @@ public class BankOperationProcessor {
       case TRAD, SUBS -> TRADE_SETTLEMENT;
       default -> null;
     };
+  }
+
+  private static LocalDate bookingDate(BankStatementEntry entry) {
+    return entry.receivedBefore().atZone(ESTONIAN_ZONE).toLocalDate();
   }
 
   private BigDecimal normalizeAmount(BigDecimal amount) {

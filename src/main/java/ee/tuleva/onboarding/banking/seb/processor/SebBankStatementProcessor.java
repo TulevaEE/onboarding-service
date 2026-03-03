@@ -17,6 +17,8 @@ import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;
 import ee.tuleva.onboarding.user.UserService;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +26,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RequiredArgsConstructor
 public class SebBankStatementProcessor {
+
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final SavingFundPaymentExtractor paymentExtractor;
   private final SavingFundPaymentUpsertionService paymentService;
@@ -111,7 +115,8 @@ public class SebBankStatementProcessor {
       log.info(
           "Creating ledger entry for transfer to fund investment account: amount={}",
           payment.getAmount().negate());
-      savingsFundLedger.transferToFundAccount(payment.getAmount().negate(), payment.getId());
+      savingsFundLedger.transferToFundAccount(
+          payment.getAmount().negate(), payment.getId(), bookingDate(payment));
     } else if (isOutgoingReturn(payment)) {
       log.info(
           "Outgoing return detected, deferring matching to post-processing pass: endToEndId={}, beneficiaryIban={}, amount={}",
@@ -175,7 +180,7 @@ public class SebBankStatementProcessor {
           request.getId(),
           amount);
       savingsFundLedger.recordRedemptionPayout(
-          user, amount, request.getCustomerIban(), request.getId());
+          user, amount, request.getCustomerIban(), request.getId(), bookingDate(payment));
     }
     markRedemptionAsProcessed(request);
   }
@@ -203,12 +208,12 @@ public class SebBankStatementProcessor {
     if (isOutgoingToWithdrawalAccount(payment)) {
       var amount = payment.getAmount().negate();
       log.info("Creating ledger entry for batch transfer to withdrawal account: amount={}", amount);
-      savingsFundLedger.transferFromFundAccount(amount, payment.getId());
+      savingsFundLedger.transferFromFundAccount(amount, payment.getId(), bookingDate(payment));
     } else if (isManagementFeePayment(payment)) {
       var amount = payment.getAmount().negate();
       log.info("Creating ledger entry for management fee payment: amount={}", amount);
       savingsFundLedger.recordManagementFeePayment(
-          amount, payment.getId(), payment.getDescription());
+          amount, payment.getId(), payment.getDescription(), bookingDate(payment));
     } else {
       log.error(
           "Unhandled FUND_INVESTMENT_EUR payment: paymentId={}, amount={}, beneficiaryIban={}",
@@ -240,5 +245,9 @@ public class SebBankStatementProcessor {
     return payment.getAmount().compareTo(ZERO) < 0
         && sebAccountConfiguration.getAccountType(payment.getBeneficiaryIban())
             != FUND_INVESTMENT_EUR;
+  }
+
+  private static LocalDate bookingDate(SavingFundPayment payment) {
+    return payment.getReceivedBefore().atZone(ESTONIAN_ZONE).toLocalDate();
   }
 }

@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
+import ee.tuleva.onboarding.banking.seb.reconciliation.ReconciliationCompletedEvent;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -17,14 +18,18 @@ import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 
 @SebIntegrationTest
+@RecordApplicationEvents
 class SebReconciliationIntegrationTest {
 
   @Autowired private SavingFundPaymentRepository paymentRepository;
@@ -78,6 +83,190 @@ class SebReconciliationIntegrationTest {
             .getSystemAccount(SystemAccount.FUND_INVESTMENT_CASH_CLEARING, TulevaFund.TKF100)
             .getBalance();
     assertThat(ledgerBalance).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Autowired private ApplicationEvents applicationEvents;
+
+  @Test
+  void reconciliation_shouldIncludePaymentVerificationEntriesCreatedAfterMidnight() {
+    // Given - bank statement for Oct 1 with an incoming payment of 100.00
+    // Processing happens after midnight EET on Oct 2 (nightly batch)
+    ClockHolder.setClock(
+        Clock.fixed(Instant.parse("2025-10-01T22:00:00Z"), ZoneId.of("UTC"))); // = Oct 2 01:00
+    // EEST
+
+    // Simulate PaymentVerificationJob creating a ledger entry with Oct 1 booking date
+    // In production, PaymentVerificationService extracts this from payment.receivedBefore
+    savingsFundLedger.recordUnattributedPayment(
+        new BigDecimal("100.00"), randomUUID(), LocalDate.of(2025, 10, 1));
+
+    // Bank statement for Oct 1 with closing balance = 100.00
+    var xml = createDepositStatementWithClosingBalance("100.00", "2025-10-01");
+    persistMessage(xml);
+
+    // When
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    // Then — reconciliation should succeed (ledger includes the payment verification entry)
+    assertThat(
+            applicationEvents.stream(ReconciliationCompletedEvent.class)
+                .anyMatch(ReconciliationCompletedEvent::matched))
+        .isTrue();
+  }
+
+  @Test
+  void reconciliation_shouldIgnoreLedgerEntriesAfterBankStatementDate() {
+    // Given - a ledger entry on Oct 1 (bank statement date)
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2025-10-01T12:00:00Z"), ZoneId.of("UTC")));
+    savingsFundLedger.transferToFundAccount(new BigDecimal("1000.00"), randomUUID());
+
+    // Advance clock to Oct 2 (next day) — simulating re-import of Oct 1 EOD on Oct 2
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2025-10-02T12:00:00Z"), ZoneId.of("UTC")));
+
+    // Create an intraday entry that lands on Oct 2
+    savingsFundLedger.recordInterestReceived(
+        new BigDecimal("50.00"), randomUUID(), SystemAccount.FUND_INVESTMENT_CASH_CLEARING);
+
+    // Bank statement for Oct 1 with closing balance = 1000.00 (no change)
+    var xml = createFundInvestmentStatementWithClosingBalance("1000.00", "2025-10-01");
+    persistMessage(xml);
+
+    // When
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    // Then — reconciliation should succeed (ledger at Oct 1 = 1000.00)
+    assertThat(
+            applicationEvents.stream(ReconciliationCompletedEvent.class)
+                .anyMatch(ReconciliationCompletedEvent::matched))
+        .isTrue();
+  }
+
+  private String createDepositStatementWithClosingBalance(
+      String closingBalance, String balanceDate) {
+    return """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+          <BkToCstmrStmt>
+            <GrpHdr>
+              <MsgId>test-deposit-recon</MsgId>
+              <CreDtTm>2025-10-02T01:00:00</CreDtTm>
+            </GrpHdr>
+            <Stmt>
+              <Id>test-stmt-deposit</Id>
+              <CreDtTm>2025-10-02T01:00:00</CreDtTm>
+              <FrToDt>
+                <FrDtTm>%2$s</FrDtTm>
+                <ToDtTm>%2$s</ToDtTm>
+              </FrToDt>
+              <Acct>
+                <Id>
+                  <IBAN>EE001234567890123456</IBAN>
+                </Id>
+                <Ccy>EUR</Ccy>
+                <Ownr>
+                  <Nm>TULEVA FONDID AS</Nm>
+                  <Id>
+                    <OrgId>
+                      <Othr>
+                        <Id>14118923</Id>
+                      </Othr>
+                    </OrgId>
+                  </Id>
+                </Ownr>
+              </Acct>
+              <Bal>
+                <Tp>
+                  <CdOrPrtry>
+                    <Cd>OPBD</Cd>
+                  </CdOrPrtry>
+                </Tp>
+                <Amt Ccy="EUR">0.00</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Dt>
+                  <Dt>%2$s</Dt>
+                </Dt>
+              </Bal>
+              <Bal>
+                <Tp>
+                  <CdOrPrtry>
+                    <Cd>CLBD</Cd>
+                  </CdOrPrtry>
+                </Tp>
+                <Amt Ccy="EUR">%1$s</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Dt>
+                  <Dt>%2$s</Dt>
+                </Dt>
+              </Bal>
+            </Stmt>
+          </BkToCstmrStmt>
+        </Document>
+        """
+        .formatted(closingBalance, balanceDate);
+  }
+
+  private String createFundInvestmentStatementWithClosingBalance(
+      String closingBalance, String balanceDate) {
+    return """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+          <BkToCstmrStmt>
+            <GrpHdr>
+              <MsgId>test-recon-timing</MsgId>
+              <CreDtTm>2025-10-02T12:00:00</CreDtTm>
+            </GrpHdr>
+            <Stmt>
+              <Id>test-stmt-timing</Id>
+              <CreDtTm>2025-10-02T12:00:00</CreDtTm>
+              <FrToDt>
+                <FrDtTm>%2$s</FrDtTm>
+                <ToDtTm>%2$s</ToDtTm>
+              </FrToDt>
+              <Acct>
+                <Id>
+                  <IBAN>EE001234567890123458</IBAN>
+                </Id>
+                <Ccy>EUR</Ccy>
+                <Ownr>
+                  <Nm>TULEVA FONDID AS</Nm>
+                  <Id>
+                    <OrgId>
+                      <Othr>
+                        <Id>14118923</Id>
+                      </Othr>
+                    </OrgId>
+                  </Id>
+                </Ownr>
+              </Acct>
+              <Bal>
+                <Tp>
+                  <CdOrPrtry>
+                    <Cd>OPBD</Cd>
+                  </CdOrPrtry>
+                </Tp>
+                <Amt Ccy="EUR">%1$s</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Dt>
+                  <Dt>%2$s</Dt>
+                </Dt>
+              </Bal>
+              <Bal>
+                <Tp>
+                  <CdOrPrtry>
+                    <Cd>CLBD</Cd>
+                  </CdOrPrtry>
+                </Tp>
+                <Amt Ccy="EUR">%1$s</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Dt>
+                  <Dt>%2$s</Dt>
+                </Dt>
+              </Bal>
+            </Stmt>
+          </BkToCstmrStmt>
+        </Document>
+        """
+        .formatted(closingBalance, balanceDate);
   }
 
   private String createFundInvestmentStatementWithManagementFee() {

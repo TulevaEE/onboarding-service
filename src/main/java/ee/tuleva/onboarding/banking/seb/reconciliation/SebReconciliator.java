@@ -6,7 +6,7 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.ledger.LedgerService;
-import java.time.Clock;
+import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -16,9 +16,10 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SebReconciliator {
 
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+
   private final LedgerService ledgerService;
   private final SebAccountConfiguration sebAccountConfiguration;
-  private final Clock clock;
   private final ApplicationEventPublisher eventPublisher;
 
   @Transactional
@@ -29,7 +30,8 @@ public class SebReconciliator {
             .findFirst()
             .orElseThrow();
 
-    var reconciliationTime = clock.instant();
+    var reconciliationTime =
+        closingBankBalance.time().plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
 
     var iban = bankStatement.getBankStatementAccount().iban();
     var bankStatementAccount = sebAccountConfiguration.getAccountType(iban);

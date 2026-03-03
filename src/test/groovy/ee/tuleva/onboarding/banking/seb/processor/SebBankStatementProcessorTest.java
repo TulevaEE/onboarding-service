@@ -26,6 +26,8 @@ import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -63,9 +65,14 @@ class SebBankStatementProcessorTest {
           bankOperationProcessor);
 
   @Test
-  void outgoingToFundAccount_createsLedgerTransferEntry() {
+  void outgoingToFundAccount_createsLedgerTransferEntryWithBookingDate() {
+    var receivedBefore = Instant.parse("2025-10-01T20:59:59.999999Z");
     var outgoingPayment =
-        aPayment().amount(new BigDecimal("-100.00")).beneficiaryIban(FUND_INVESTMENT_IBAN).build();
+        aPayment()
+            .amount(new BigDecimal("-100.00"))
+            .beneficiaryIban(FUND_INVESTMENT_IBAN)
+            .receivedBefore(receivedBefore)
+            .build();
     var bankStatement = setupMocksForPayment(outgoingPayment);
     when(sebAccountConfiguration.getAccountType(FUND_INVESTMENT_IBAN))
         .thenReturn(FUND_INVESTMENT_EUR);
@@ -73,7 +80,8 @@ class SebBankStatementProcessorTest {
     processor.processStatement(bankStatement);
 
     verify(savingsFundLedger)
-        .transferToFundAccount(new BigDecimal("100.00"), outgoingPayment.getId());
+        .transferToFundAccount(
+            new BigDecimal("100.00"), outgoingPayment.getId(), LocalDate.of(2025, 10, 1));
   }
 
   @Test
@@ -149,6 +157,7 @@ class SebBankStatementProcessorTest {
     var redemptionRequestId = UUID.randomUUID();
     var endToEndId = endToEndIdConverter.toEndToEndId(redemptionRequestId);
     var customerIban = EXTERNAL_ACCOUNT_IBAN;
+    var receivedBefore = Instant.parse("2025-10-01T20:59:59.999999Z");
     var redemptionRequest =
         RedemptionRequest.builder()
             .id(redemptionRequestId)
@@ -161,6 +170,7 @@ class SebBankStatementProcessorTest {
             .amount(new BigDecimal("-500.00"))
             .beneficiaryIban(customerIban)
             .endToEndId(endToEndId)
+            .receivedBefore(receivedBefore)
             .build();
     var bankStatement =
         setupMocksForPaymentWithAccount(outgoingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
@@ -172,7 +182,12 @@ class SebBankStatementProcessorTest {
     processor.processStatement(bankStatement);
 
     verify(savingsFundLedger)
-        .recordRedemptionPayout(user, new BigDecimal("500.00"), customerIban, redemptionRequestId);
+        .recordRedemptionPayout(
+            user,
+            new BigDecimal("500.00"),
+            customerIban,
+            redemptionRequestId,
+            LocalDate.of(2025, 10, 1));
     verify(redemptionStatusService)
         .changeStatus(redemptionRequestId, RedemptionRequest.Status.PROCESSED);
   }
@@ -270,11 +285,13 @@ class SebBankStatementProcessorTest {
   }
 
   @Test
-  void fundInvestmentOutgoing_toWithdrawal_createsLedgerEntry() {
+  void fundInvestmentOutgoing_toWithdrawal_createsLedgerEntryWithBookingDate() {
+    var receivedBefore = Instant.parse("2025-10-01T20:59:59.999999Z");
     var outgoingPayment =
         aPayment()
             .amount(new BigDecimal("-1000.00"))
             .beneficiaryIban(WITHDRAWAL_ACCOUNT_IBAN)
+            .receivedBefore(receivedBefore)
             .build();
     var bankStatement =
         setupMocksForPaymentWithAccount(outgoingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
@@ -284,7 +301,8 @@ class SebBankStatementProcessorTest {
     processor.processStatement(bankStatement);
 
     verify(savingsFundLedger)
-        .transferFromFundAccount(new BigDecimal("1000.00"), outgoingPayment.getId());
+        .transferFromFundAccount(
+            new BigDecimal("1000.00"), outgoingPayment.getId(), LocalDate.of(2025, 10, 1));
     verifyNoInteractions(redemptionStatusService);
     verify(paymentService).upsert(eq(outgoingPayment), any());
   }
@@ -346,15 +364,17 @@ class SebBankStatementProcessorTest {
   }
 
   @Test
-  void fundInvestmentOutgoing_managementFee_createsLedgerEntry() {
+  void fundInvestmentOutgoing_managementFee_createsLedgerEntryWithBookingDate() {
     var managementCompanyName = "Tuleva Fondid AS";
     var description = "Valitsemistasu 02.-28.02.26";
+    var receivedBefore = Instant.parse("2025-10-01T20:59:59.999999Z");
     var outgoingPayment =
         aPayment()
             .amount(new BigDecimal("-742.34"))
             .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
             .beneficiaryName(managementCompanyName)
             .description(description)
+            .receivedBefore(receivedBefore)
             .build();
     var bankStatement =
         setupMocksForPaymentWithAccount(outgoingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
@@ -363,7 +383,11 @@ class SebBankStatementProcessorTest {
     processor.processStatement(bankStatement);
 
     verify(savingsFundLedger)
-        .recordManagementFeePayment(new BigDecimal("742.34"), outgoingPayment.getId(), description);
+        .recordManagementFeePayment(
+            new BigDecimal("742.34"),
+            outgoingPayment.getId(),
+            description,
+            LocalDate.of(2025, 10, 1));
   }
 
   @Test
@@ -388,11 +412,13 @@ class SebBankStatementProcessorTest {
 
   @Test
   void outgoingInternalTransfer_isProcessedNormally() {
+    var receivedBefore = Instant.parse("2025-10-01T20:59:59.999999Z");
     var outgoingPayment =
         aPayment()
             .amount(new BigDecimal("-100.00"))
             .beneficiaryIban(FUND_INVESTMENT_IBAN)
             .remitterIban(DEPOSIT_ACCOUNT_IBAN)
+            .receivedBefore(receivedBefore)
             .build();
     var bankStatement = setupMocksForPayment(outgoingPayment);
     when(sebAccountConfiguration.getAccountType(FUND_INVESTMENT_IBAN))
@@ -402,6 +428,7 @@ class SebBankStatementProcessorTest {
 
     verify(paymentService).upsert(eq(outgoingPayment), any(), any());
     verify(savingsFundLedger)
-        .transferToFundAccount(new BigDecimal("100.00"), outgoingPayment.getId());
+        .transferToFundAccount(
+            new BigDecimal("100.00"), outgoingPayment.getId(), LocalDate.of(2025, 10, 1));
   }
 }

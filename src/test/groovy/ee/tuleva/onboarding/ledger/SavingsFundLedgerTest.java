@@ -15,10 +15,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
+import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -33,6 +39,11 @@ class SavingsFundLedgerTest {
   @Autowired SavingsFundLedger savingsFundLedger;
 
   User testUser = sampleUser().personalCode("38001010001").build();
+
+  @AfterEach
+  void tearDown() {
+    ClockHolder.setDefaultClock();
+  }
 
   @Test
   void systemAccounts_areFundQualified() {
@@ -532,6 +543,30 @@ class SavingsFundLedgerTest {
     assertThat(getSecuritiesCustodyAccount("LU1291102447").getBalance())
         .isEqualByComparingTo(units.negate());
     verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void recordManagementFeePayment_withBookingDate_usesBookingDateWhenDifferentFromToday() {
+    // Clock is Oct 2 (15:00 EET), but booking date is Oct 1
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2025-10-02T12:00:00Z"), ZoneId.of("UTC")));
+
+    var transaction =
+        savingsFundLedger.recordManagementFeePayment(
+            new BigDecimal("742.34"), randomUUID(), "Valitsemistasu", LocalDate.of(2025, 10, 1));
+
+    assertThat(transaction.getTransactionDate()).isBefore(Instant.parse("2025-10-02T00:00:00Z"));
+  }
+
+  @Test
+  void recordManagementFeePayment_withBookingDate_usesClockWhenSameDay() {
+    var clockInstant = Instant.parse("2025-10-01T14:54:35Z");
+    ClockHolder.setClock(Clock.fixed(clockInstant, ZoneId.of("UTC")));
+
+    var transaction =
+        savingsFundLedger.recordManagementFeePayment(
+            new BigDecimal("742.34"), randomUUID(), "Valitsemistasu", LocalDate.of(2025, 10, 1));
+
+    assertThat(transaction.getTransactionDate()).isEqualTo(clockInstant);
   }
 
   private void setupUserWithFundUnits(

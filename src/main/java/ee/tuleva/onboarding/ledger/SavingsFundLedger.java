@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.REDEMPTIONS;
 import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
+import static java.time.temporal.ChronoUnit.MICROS;
 
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
@@ -16,6 +17,9 @@ import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -73,6 +77,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class SavingsFundLedger {
 
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+
   private final LedgerPartyService ledgerPartyService;
   private final LedgerAccountService ledgerAccountService;
   private final LedgerTransactionService ledgerTransactionService;
@@ -100,6 +106,12 @@ public class SavingsFundLedger {
   @Transactional
   public LedgerTransaction recordPaymentReceived(
       User user, BigDecimal amount, UUID externalReference) {
+    return recordPaymentReceived(user, amount, externalReference, LocalDate.now(clock));
+  }
+
+  @Transactional
+  public LedgerTransaction recordPaymentReceived(
+      User user, BigDecimal amount, UUID externalReference, LocalDate bookingDate) {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userCashAccount = getUserCashAccount(userParty);
     LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
@@ -112,7 +124,7 @@ public class SavingsFundLedger {
 
     return ledgerTransactionService.createTransaction(
         PAYMENT_RECEIVED,
-        Instant.now(clock),
+        transactionDate(bookingDate),
         externalReference,
         metadata,
         entry(incomingPaymentsAccount, amount),
@@ -205,6 +217,12 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction recordUnattributedPayment(BigDecimal amount, UUID externalReference) {
+    return recordUnattributedPayment(amount, externalReference, LocalDate.now(clock));
+  }
+
+  @Transactional
+  public LedgerTransaction recordUnattributedPayment(
+      BigDecimal amount, UUID externalReference, LocalDate bookingDate) {
     LedgerAccount unreconciledAccount = getUnreconciledBankReceiptsAccount();
     LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
 
@@ -212,7 +230,7 @@ public class SavingsFundLedger {
 
     return ledgerTransactionService.createTransaction(
         UNATTRIBUTED_PAYMENT,
-        Instant.now(clock),
+        transactionDate(bookingDate),
         externalReference,
         metadata,
         entry(incomingPaymentsAccount, amount),
@@ -274,6 +292,12 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction transferToFundAccount(BigDecimal amount, UUID externalReference) {
+    return transferToFundAccount(amount, externalReference, LocalDate.now(clock));
+  }
+
+  @Transactional
+  public LedgerTransaction transferToFundAccount(
+      BigDecimal amount, UUID externalReference, LocalDate bookingDate) {
     LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
     LedgerAccount fundCashAccount = getFundInvestmentCashClearingAccount();
 
@@ -281,7 +305,7 @@ public class SavingsFundLedger {
 
     return ledgerTransactionService.createTransaction(
         FUND_TRANSFER,
-        Instant.now(clock),
+        transactionDate(bookingDate),
         externalReference,
         metadata,
         entry(incomingPaymentsAccount, amount.negate()),
@@ -406,6 +430,12 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction transferFromFundAccount(BigDecimal amount, UUID externalReference) {
+    return transferFromFundAccount(amount, externalReference, LocalDate.now(clock));
+  }
+
+  @Transactional
+  public LedgerTransaction transferFromFundAccount(
+      BigDecimal amount, UUID externalReference, LocalDate bookingDate) {
     LedgerAccount fundCashAccount = getFundInvestmentCashClearingAccount();
     LedgerAccount payoutsCashAccount = getPayoutsCashClearingAccount();
 
@@ -413,7 +443,7 @@ public class SavingsFundLedger {
 
     return ledgerTransactionService.createTransaction(
         FUND_CASH_TRANSFER,
-        Instant.now(clock),
+        transactionDate(bookingDate),
         externalReference,
         metadata,
         entry(fundCashAccount, amount.negate()),
@@ -423,6 +453,17 @@ public class SavingsFundLedger {
   @Transactional
   public LedgerTransaction recordRedemptionPayout(
       User user, BigDecimal amount, String customerIban, UUID redemptionRequestId) {
+    return recordRedemptionPayout(
+        user, amount, customerIban, redemptionRequestId, LocalDate.now(clock));
+  }
+
+  @Transactional
+  public LedgerTransaction recordRedemptionPayout(
+      User user,
+      BigDecimal amount,
+      String customerIban,
+      UUID redemptionRequestId,
+      LocalDate bookingDate) {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userCashRedemptionAccount = getUserCashRedemptionAccount(userParty);
     LedgerAccount payoutsCashAccount = getPayoutsCashClearingAccount();
@@ -438,7 +479,7 @@ public class SavingsFundLedger {
 
     return ledgerTransactionService.createTransaction(
         REDEMPTION_PAYOUT,
-        Instant.now(clock),
+        transactionDate(bookingDate),
         redemptionRequestId,
         metadataBuilder,
         entry(payoutsCashAccount, amount.negate()),
@@ -521,6 +562,12 @@ public class SavingsFundLedger {
   @Transactional
   public LedgerTransaction recordManagementFeePayment(
       BigDecimal amount, UUID externalReference, String description) {
+    return recordManagementFeePayment(amount, externalReference, description, LocalDate.now(clock));
+  }
+
+  @Transactional
+  public LedgerTransaction recordManagementFeePayment(
+      BigDecimal amount, UUID externalReference, String description, LocalDate bookingDate) {
     LedgerAccount managementFeeAccount = getSystemAccount(MANAGEMENT_FEE);
     LedgerAccount clearingAccount = getFundInvestmentCashClearingAccount();
 
@@ -529,7 +576,7 @@ public class SavingsFundLedger {
 
     return ledgerTransactionService.createTransaction(
         MANAGEMENT_FEE_PAYMENT,
-        Instant.now(clock),
+        transactionDate(bookingDate),
         externalReference,
         metadata,
         entry(managementFeeAccount, amount),
@@ -539,6 +586,15 @@ public class SavingsFundLedger {
   @Transactional
   public LedgerTransaction recordBankFee(
       BigDecimal amount, UUID externalReference, SystemAccount clearingAccount) {
+    return recordBankFee(amount, externalReference, clearingAccount, LocalDate.now(clock));
+  }
+
+  @Transactional
+  public LedgerTransaction recordBankFee(
+      BigDecimal amount,
+      UUID externalReference,
+      SystemAccount clearingAccount,
+      LocalDate bookingDate) {
     LedgerAccount bankFeeExpenseAccount = getSystemAccount(SystemAccount.BANK_FEE);
     LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount);
 
@@ -546,7 +602,7 @@ public class SavingsFundLedger {
 
     return ledgerTransactionService.createTransaction(
         TransactionType.BANK_FEE,
-        Instant.now(clock),
+        transactionDate(bookingDate),
         externalReference,
         metadata,
         entry(bankFeeExpenseAccount, amount.negate()),
@@ -556,6 +612,15 @@ public class SavingsFundLedger {
   @Transactional
   public LedgerTransaction recordInterestReceived(
       BigDecimal amount, UUID externalReference, SystemAccount clearingAccount) {
+    return recordInterestReceived(amount, externalReference, clearingAccount, LocalDate.now(clock));
+  }
+
+  @Transactional
+  public LedgerTransaction recordInterestReceived(
+      BigDecimal amount,
+      UUID externalReference,
+      SystemAccount clearingAccount,
+      LocalDate bookingDate) {
     LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount);
     LedgerAccount interestIncomeAccount = getSystemAccount(INTEREST_INCOME);
 
@@ -563,7 +628,7 @@ public class SavingsFundLedger {
 
     return ledgerTransactionService.createTransaction(
         INTEREST_RECEIVED,
-        Instant.now(clock),
+        transactionDate(bookingDate),
         externalReference,
         metadata,
         entry(clearingLedgerAccount, amount),
@@ -573,6 +638,15 @@ public class SavingsFundLedger {
   @Transactional
   public LedgerTransaction recordBankAdjustment(
       BigDecimal amount, UUID externalReference, SystemAccount clearingAccount) {
+    return recordBankAdjustment(amount, externalReference, clearingAccount, LocalDate.now(clock));
+  }
+
+  @Transactional
+  public LedgerTransaction recordBankAdjustment(
+      BigDecimal amount,
+      UUID externalReference,
+      SystemAccount clearingAccount,
+      LocalDate bookingDate) {
     LedgerAccount bankAdjustmentAccount = getSystemAccount(SystemAccount.BANK_ADJUSTMENT);
     LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount);
 
@@ -581,11 +655,19 @@ public class SavingsFundLedger {
 
     return ledgerTransactionService.createTransaction(
         TransactionType.BANK_ADJUSTMENT,
-        Instant.now(clock),
+        transactionDate(bookingDate),
         externalReference,
         metadata,
         entry(bankAdjustmentAccount, amount.negate()),
         entry(clearingLedgerAccount, amount));
+  }
+
+  private Instant transactionDate(LocalDate bookingDate) {
+    Instant now = Instant.now(clock);
+    if (now.atZone(ESTONIAN_ZONE).toLocalDate().equals(bookingDate)) {
+      return now;
+    }
+    return bookingDate.atTime(LocalTime.MAX).atZone(ESTONIAN_ZONE).toInstant().truncatedTo(MICROS);
   }
 
   private LedgerEntryDto entry(LedgerAccount account, BigDecimal amount) {
@@ -678,6 +760,27 @@ public class SavingsFundLedger {
       String isin,
       String ticker,
       String displayName) {
+    return recordTradeSettlement(
+        amount,
+        units,
+        externalReference,
+        clearingAccount,
+        isin,
+        ticker,
+        displayName,
+        LocalDate.now(clock));
+  }
+
+  @Transactional
+  public LedgerTransaction recordTradeSettlement(
+      BigDecimal amount,
+      BigDecimal units,
+      UUID externalReference,
+      SystemAccount clearingAccount,
+      String isin,
+      String ticker,
+      String displayName,
+      LocalDate bookingDate) {
     LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount);
     LedgerAccount tradeSettlementAccount =
         findOrCreateInstrumentAccount(
@@ -698,7 +801,7 @@ public class SavingsFundLedger {
 
     return ledgerTransactionService.createTransaction(
         TRADE_SETTLEMENT,
-        Instant.now(clock),
+        transactionDate(bookingDate),
         externalReference,
         metadata,
         entry(clearingLedgerAccount, amount),

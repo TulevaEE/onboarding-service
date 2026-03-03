@@ -12,6 +12,8 @@ import ee.tuleva.onboarding.savings.fund.notification.UnattributedPaymentEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
@@ -43,7 +45,8 @@ class PaymentVerificationServiceTest {
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "selgituses puudub isikukood");
-    verify(savingsFundLedger).recordUnattributedPayment(payment.getAmount(), payment.getId());
+    verify(savingsFundLedger)
+        .recordUnattributedPayment(payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     verify(applicationEventPublisher)
         .publishEvent(
             new UnattributedPaymentEvent(
@@ -60,7 +63,8 @@ class PaymentVerificationServiceTest {
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "selgituses olev isikukood ei klapi maksja isikukoodiga");
-    verify(savingsFundLedger).recordUnattributedPayment(payment.getAmount(), payment.getId());
+    verify(savingsFundLedger)
+        .recordUnattributedPayment(payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     verify(applicationEventPublisher)
         .publishEvent(
             new UnattributedPaymentEvent(
@@ -81,7 +85,8 @@ class PaymentVerificationServiceTest {
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "isik ei ole Tuleva klient");
-    verify(savingsFundLedger).recordUnattributedPayment(payment.getAmount(), payment.getId());
+    verify(savingsFundLedger)
+        .recordUnattributedPayment(payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     verify(applicationEventPublisher)
         .publishEvent(
             new UnattributedPaymentEvent(
@@ -103,7 +108,8 @@ class PaymentVerificationServiceTest {
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "see isik ei ole täiendava kogumisfondiga liitunud");
-    verify(savingsFundLedger).recordUnattributedPayment(payment.getAmount(), payment.getId());
+    verify(savingsFundLedger)
+        .recordUnattributedPayment(payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     verify(applicationEventPublisher)
         .publishEvent(
             new UnattributedPaymentEvent(
@@ -125,7 +131,8 @@ class PaymentVerificationServiceTest {
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "maksja nimi ei klapi Tuleva andmetega");
-    verify(savingsFundLedger).recordUnattributedPayment(payment.getAmount(), payment.getId());
+    verify(savingsFundLedger)
+        .recordUnattributedPayment(payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     verify(applicationEventPublisher)
         .publishEvent(
             new UnattributedPaymentEvent(
@@ -144,7 +151,9 @@ class PaymentVerificationServiceTest {
 
     verify(userRepository).findByPersonalCode("37508295796");
     verify(savingsFundOnboardingService).isOnboardingCompleted(user);
-    verify(savingsFundLedger).recordPaymentReceived(user, payment.getAmount(), payment.getId());
+    verify(savingsFundLedger)
+        .recordPaymentReceived(
+            user, payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     var inOrder = inOrder(savingFundPaymentRepository);
     inOrder.verify(savingFundPaymentRepository).attachUser(payment.getId(), 123L);
     inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
@@ -162,7 +171,9 @@ class PaymentVerificationServiceTest {
 
     verify(userRepository).findByPersonalCode("37508295796");
     verify(savingsFundOnboardingService).isOnboardingCompleted(user);
-    verify(savingsFundLedger).recordPaymentReceived(user, payment.getAmount(), payment.getId());
+    verify(savingsFundLedger)
+        .recordPaymentReceived(
+            user, payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository).attachUser(payment.getId(), 444L);
     verifyNoMoreInteractions(savingFundPaymentRepository);
@@ -179,7 +190,9 @@ class PaymentVerificationServiceTest {
 
     verify(userRepository).findByPersonalCode("37508295796");
     verify(savingsFundOnboardingService).isOnboardingCompleted(user);
-    verify(savingsFundLedger).recordPaymentReceived(user, payment.getAmount(), payment.getId());
+    verify(savingsFundLedger)
+        .recordPaymentReceived(
+            user, payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository).attachUser(payment.getId(), 444L);
     verifyNoMoreInteractions(savingFundPaymentRepository);
@@ -196,7 +209,9 @@ class PaymentVerificationServiceTest {
 
     verify(userRepository).findByPersonalCode("37508295796");
     verify(savingsFundOnboardingService).isOnboardingCompleted(user);
-    verify(savingsFundLedger).recordPaymentReceived(user, payment.getAmount(), payment.getId());
+    verify(savingsFundLedger)
+        .recordPaymentReceived(
+            user, payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository).attachUser(payment.getId(), 123L);
     verifyNoMoreInteractions(savingFundPaymentRepository);
@@ -236,6 +251,7 @@ class PaymentVerificationServiceTest {
         .remitterIban("EE123456789012345678")
         .remitterIdCode(remitterIdCode)
         .description(description)
+        .receivedBefore(Instant.parse("2025-10-01T20:59:59.999999Z"))
         .build();
   }
 }

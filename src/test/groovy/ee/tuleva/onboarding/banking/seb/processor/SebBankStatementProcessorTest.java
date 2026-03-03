@@ -346,6 +346,47 @@ class SebBankStatementProcessorTest {
   }
 
   @Test
+  void fundInvestmentOutgoing_managementFee_createsLedgerEntry() {
+    var managementCompanyName = "Tuleva Fondid AS";
+    var description = "Valitsemistasu 02.-28.02.26";
+    var outgoingPayment =
+        aPayment()
+            .amount(new BigDecimal("-742.34"))
+            .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
+            .beneficiaryName(managementCompanyName)
+            .description(description)
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(outgoingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
+    when(sebAccountConfiguration.isManagementCompany(managementCompanyName)).thenReturn(true);
+
+    processor.processStatement(bankStatement);
+
+    verify(savingsFundLedger)
+        .recordManagementFeePayment(new BigDecimal("742.34"), outgoingPayment.getId(), description);
+  }
+
+  @Test
+  void fundInvestmentOutgoing_unknownPayment_doesNotCreateLedgerEntry() {
+    var outgoingPayment =
+        aPayment()
+            .amount(new BigDecimal("-500.00"))
+            .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
+            .beneficiaryName("Unknown Company")
+            .description("Some unknown payment")
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(outgoingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
+    when(sebAccountConfiguration.getAccountType(EXTERNAL_ACCOUNT_IBAN)).thenReturn(null);
+    when(sebAccountConfiguration.isManagementCompany("Unknown Company")).thenReturn(false);
+
+    processor.processStatement(bankStatement);
+
+    verify(savingsFundLedger, never()).recordManagementFeePayment(any(), any(), any());
+    verify(savingsFundLedger, never()).transferFromFundAccount(any(), any());
+  }
+
+  @Test
   void outgoingInternalTransfer_isProcessedNormally() {
     var outgoingPayment =
         aPayment()

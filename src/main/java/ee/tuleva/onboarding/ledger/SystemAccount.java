@@ -46,6 +46,9 @@ public enum SystemAccount {
   // NAV calculation - Manual adjustments
   BLACKROCK_ADJUSTMENT(ASSET, EUR, NAV_CALCULATION, "Partner rebates/fees adjustment"),
 
+  // Fund operations - expenses
+  MANAGEMENT_FEE(EXPENSE, EUR, FUND_OPERATIONS, "Management fee payments from fund account"),
+
   // Bank operations
   BANK_FEE(EXPENSE, EUR, BANK_RECONCILIATION, "Bank transaction fees"),
   INTEREST_INCOME(INCOME, EUR, BANK_RECONCILIATION, "Interest income from bank accounts"),

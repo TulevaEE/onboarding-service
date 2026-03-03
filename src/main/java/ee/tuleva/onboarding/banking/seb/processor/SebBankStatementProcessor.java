@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.banking.seb.processor;
 
-import static ee.tuleva.onboarding.banking.BankAccountType.*;
+import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
+import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.banking.BankAccountType;
@@ -203,12 +204,25 @@ public class SebBankStatementProcessor {
       var amount = payment.getAmount().negate();
       log.info("Creating ledger entry for batch transfer to withdrawal account: amount={}", amount);
       savingsFundLedger.transferFromFundAccount(amount, payment.getId());
+    } else if (isManagementFeePayment(payment)) {
+      var amount = payment.getAmount().negate();
+      log.info("Creating ledger entry for management fee payment: amount={}", amount);
+      savingsFundLedger.recordManagementFeePayment(
+          amount, payment.getId(), payment.getDescription());
     } else {
-      log.debug(
-          "FUND_INVESTMENT_EUR payment: amount={}, beneficiaryIban={}",
+      log.error(
+          "Unhandled FUND_INVESTMENT_EUR payment: paymentId={}, amount={}, beneficiaryIban={}",
+          payment.getId(),
           payment.getAmount(),
           payment.getBeneficiaryIban());
     }
+  }
+
+  private boolean isManagementFeePayment(SavingFundPayment payment) {
+    return isOutgoingPayment(payment)
+        && sebAccountConfiguration.isManagementCompany(payment.getBeneficiaryName())
+        && payment.getDescription() != null
+        && payment.getDescription().toLowerCase().contains("valitsemistasu");
   }
 
   private boolean isOutgoingToWithdrawalAccount(SavingFundPayment payment) {

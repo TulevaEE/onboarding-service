@@ -2,6 +2,21 @@
 
 This file provides guidance to AI coding agents when working with code in this repository.
 
+## IMPORTANT: TDD-First Planning
+
+**When planning work (in plan mode), structure the plan as TDD steps — not as a list of production code changes.** The plan determines execution order, so if the plan lists production code first, TDD will not happen.
+
+Every plan MUST follow this structure:
+1. **Failing integration test** — describe what the test asserts and why it will fail
+2. **For each unit of work**: failing unit test → minimal production code → green
+3. **Integration test turns green**
+4. **Full test suite — no regressions**
+
+❌ Bad plan: "1. Add migration 2. Add enum 3. Add method 4. Update config 5. Write tests"
+✅ Good plan: "1. Write failing integration test (expects X, fails because Y) 2. Write failing unit test for A → implement A 3. Write failing unit test for B → implement B 4. Integration test passes 5. Full suite green"
+
+The plan's job is to sequence the TEST steps. Production code changes are implementation details that happen inside each test step, not separate plan items.
+
 ## Commands
 
 ### Development
@@ -253,24 +268,53 @@ The application follows domain-driven design with these main domains:
 - **Coverage is necessary but not sufficient**: High coverage without good test quality is meaningless
 - **Verify against CLAUDE.md principles**: After completing any change, review your code against the principles in this file and fix any violations
 
-#### Strict TDD: Red-Green-Refactor
+#### Strict TDD: Two-Level Red-Green-Refactor
 
 **This project enforces strict Test-Driven Development. Never write production code without a failing test first.**
 
-The cycle for every change — bug fixes, new features, and refactors:
+**CRITICAL: Execute this process sequentially. Do NOT write all production code first and tests last — that defeats the entire purpose of TDD (API design feedback, proving tests catch bugs, minimal implementation). If you catch yourself batching production code, STOP and go back to writing the next failing test.**
 
-1. **Red**: Write a failing test that describes the desired behavior. Run it and confirm it fails.
-2. **Green**: Write the minimal production code to make the test pass. Nothing more.
+##### Planning as TDD Steps
+
+When planning work (in plan mode or mentally), structure the plan as a sequence of TDD steps — not as a list of production code changes. Each step should be: "write test X, see it fail, implement Y, see it pass." The plan deliverable is the test execution order, not the code change list.
+
+Example plan structure:
+1. Write failing integration test that reproduces the bug / describes the feature
+2. Write failing unit test for component A → implement component A → GREEN
+3. Write failing unit test for component B → implement component B → GREEN
+4. Integration test now GREEN
+5. Full test suite — no regressions
+
+❌ Bad plan: "Add enum, add migration, add method, add config, write tests"
+✅ Good plan: "Step 1: failing integration test. Step 2: failing unit test for X → implement X. Step 3: ..."
+
+##### Level 1: Macro TDD (Integration Test)
+
+Every feature or bug fix starts and ends with an integration test:
+
+1. **Write a failing integration test FIRST** that reproduces the bug or describes the end-to-end behavior. Run it — confirm it **FAILS (RED)**. This proves the test actually catches the problem.
+2. Execute Level 2 (Micro TDD) for each unit of work needed to make the integration test pass.
+3. **Re-run the integration test** — confirm it **PASSES (GREEN)**. This proves the feature works end-to-end.
+4. **Run the full test suite** — confirm no regressions.
+
+##### Level 2: Micro TDD (Unit Tests)
+
+For each unit of work within the feature:
+
+1. **Red**: Write a failing unit test that describes the desired behavior. Run it — confirm it **FAILS**.
+2. **Green**: Write the **minimal** production code to make the test pass. Nothing more. Run it — confirm it **PASSES**.
 3. **Refactor**: Clean up the code while keeping tests green.
 
 Repeat in small increments. Each cycle should be minutes, not hours.
 
-**Rules:**
-- Never write production code without a failing test demanding it
+##### Rules
+
+- **Never write production code without a failing test demanding it**
 - Never write more test code than is sufficient to fail (compilation failures count as failures)
 - Never write more production code than is sufficient to pass the currently failing test
-- Run tests after every change — both after writing the test (must fail) and after writing the code (must pass)
+- **Run tests after every change** — both after writing the test (must fail) and after writing the code (must pass). Do not skip test runs.
 - If you find yourself writing production code "just to be safe" without a test, stop and write the test first
+- **The order matters**: test → run → fail → code → run → pass. This is not a suggestion, it is the process.
 
 #### Test Behavior, Not Implementation
 - **Always test behavior, not implementation details**: Tests should assert on the output/result, not on how it's achieved

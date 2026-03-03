@@ -13,12 +13,15 @@ class SebAccountConfigurationTest {
   private static final String WITHDRAWAL_IBAN = "EE222222222222222222";
   private static final String FUND_INVESTMENT_IBAN = "EE333333333333333333";
 
+  private static final String MANAGEMENT_COMPANY_NAME = "Tuleva Fondid AS";
+
   private final SebAccountConfiguration configuration =
       new SebAccountConfiguration(
           Map.of(
               DEPOSIT_EUR, DEPOSIT_IBAN,
               WITHDRAWAL_EUR, WITHDRAWAL_IBAN,
-              FUND_INVESTMENT_EUR, FUND_INVESTMENT_IBAN));
+              FUND_INVESTMENT_EUR, FUND_INVESTMENT_IBAN),
+          MANAGEMENT_COMPANY_NAME);
 
   @Test
   void getAccountIban_returnsIbanForAccountType() {
@@ -31,7 +34,7 @@ class SebAccountConfigurationTest {
 
   @Test
   void getAccountIban_throwsWhenAccountNotConfigured() {
-    var emptyConfiguration = new SebAccountConfiguration(Map.of());
+    var emptyConfiguration = new SebAccountConfiguration(Map.of(), MANAGEMENT_COMPANY_NAME);
 
     assertThatThrownBy(() -> emptyConfiguration.getAccountIban(DEPOSIT_EUR))
         .isInstanceOf(IllegalStateException.class);
@@ -51,5 +54,17 @@ class SebAccountConfigurationTest {
     configuration.mapByIban();
 
     assertThat(configuration.getAccountType("EE999999999999999999")).isNull();
+  }
+
+  @Test
+  void isManagementCompany_matchesCaseInsensitively() {
+    assertThat(configuration.isManagementCompany("Tuleva Fondid AS")).isTrue();
+    assertThat(configuration.isManagementCompany("tuleva fondid as")).isTrue();
+    assertThat(configuration.isManagementCompany("TULEVA FONDID AS")).isTrue();
+  }
+
+  @Test
+  void isManagementCompany_returnsFalseForNonMatch() {
+    assertThat(configuration.isManagementCompany("Some Other Company")).isFalse();
   }
 }

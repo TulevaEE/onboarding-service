@@ -1,14 +1,20 @@
 package ee.tuleva.onboarding.banking.seb;
 
 import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
+import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
+import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.ledger.LedgerService;
+import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.ledger.SystemAccount;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.time.ClockHolder;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -24,6 +30,8 @@ class SebReconciliationIntegrationTest {
   @Autowired private SavingFundPaymentRepository paymentRepository;
   @Autowired private BankingMessageRepository bankingMessageRepository;
   @Autowired private ApplicationEventPublisher eventPublisher;
+  @Autowired private SavingsFundLedger savingsFundLedger;
+  @Autowired private LedgerService ledgerService;
 
   private static final Instant NOW = Instant.parse("2025-10-01T12:00:00Z");
 
@@ -55,6 +63,121 @@ class SebReconciliationIntegrationTest {
     var payment = payments.getFirst();
     assertThat(payment.getExternalId()).isEqualTo("2025100112345-1");
     assertThat(payment.getDescription()).isEqualTo("Test payment");
+  }
+
+  @Test
+  void fundInvestmentAccount_managementFeePayment_reconcilesSuccessfully() {
+    savingsFundLedger.transferToFundAccount(new BigDecimal("742.34"), randomUUID());
+    var xml = createFundInvestmentStatementWithManagementFee();
+    persistMessage(xml);
+
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    var ledgerBalance =
+        ledgerService
+            .getSystemAccount(SystemAccount.FUND_INVESTMENT_CASH_CLEARING, TulevaFund.TKF100)
+            .getBalance();
+    assertThat(ledgerBalance).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  private String createFundInvestmentStatementWithManagementFee() {
+    return """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+          <BkToCstmrStmt>
+            <GrpHdr>
+              <MsgId>test-mgmt-fee</MsgId>
+              <CreDtTm>2025-10-01T12:00:00</CreDtTm>
+            </GrpHdr>
+            <Stmt>
+              <Id>test-stmt-mgmt-fee</Id>
+              <CreDtTm>2025-10-01T12:00:00</CreDtTm>
+              <FrToDt>
+                <FrDtTm>2025-10-01T00:00:00</FrDtTm>
+                <ToDtTm>2025-10-01T23:59:59</ToDtTm>
+              </FrToDt>
+              <Acct>
+                <Id>
+                  <IBAN>EE001234567890123458</IBAN>
+                </Id>
+                <Ccy>EUR</Ccy>
+                <Ownr>
+                  <Nm>TULEVA FONDID AS</Nm>
+                  <Id>
+                    <OrgId>
+                      <Othr>
+                        <Id>14118923</Id>
+                      </Othr>
+                    </OrgId>
+                  </Id>
+                </Ownr>
+              </Acct>
+              <Bal>
+                <Tp>
+                  <CdOrPrtry>
+                    <Cd>OPBD</Cd>
+                  </CdOrPrtry>
+                </Tp>
+                <Amt Ccy="EUR">742.34</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Dt>
+                  <Dt>2025-10-01</Dt>
+                </Dt>
+              </Bal>
+              <Bal>
+                <Tp>
+                  <CdOrPrtry>
+                    <Cd>CLBD</Cd>
+                  </CdOrPrtry>
+                </Tp>
+                <Amt Ccy="EUR">0.00</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Dt>
+                  <Dt>2025-10-01</Dt>
+                </Dt>
+              </Bal>
+              <Ntry>
+                <NtryRef>2025100199999-1</NtryRef>
+                <Amt Ccy="EUR">742.34</Amt>
+                <CdtDbtInd>DBIT</CdtDbtInd>
+                <Sts>BOOK</Sts>
+                <BookgDt>
+                  <Dt>2025-10-01</Dt>
+                </BookgDt>
+                <ValDt>
+                  <Dt>2025-10-01</Dt>
+                </ValDt>
+                <AcctSvcrRef>2025100199999-1</AcctSvcrRef>
+                <NtryDtls>
+                  <TxDtls>
+                    <Refs>
+                      <AcctSvcrRef>2025100199999-1</AcctSvcrRef>
+                    </Refs>
+                    <AmtDtls>
+                      <TxAmt>
+                        <Amt Ccy="EUR">742.34</Amt>
+                      </TxAmt>
+                    </AmtDtls>
+                    <RltdPties>
+                      <Cdtr>
+                        <Nm>Tuleva Fondid AS</Nm>
+                      </Cdtr>
+                      <CdtrAcct>
+                        <Id>
+                          <IBAN>EE721010220306590220</IBAN>
+                        </Id>
+                      </CdtrAcct>
+                    </RltdPties>
+                    <RmtInf>
+                      <Ustrd>Valitsemistasu 02.-28.02.26</Ustrd>
+                    </RmtInf>
+                  </TxDtls>
+                </NtryDtls>
+              </Ntry>
+            </Stmt>
+          </BkToCstmrStmt>
+        </Document>
+        """;
   }
 
   private String createHistoricStatementWithMismatchedBalance() {

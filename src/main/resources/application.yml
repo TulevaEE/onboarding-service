@@ -79,6 +79,7 @@ seb-gateway:
   url: ''
   org-id: ''
   reconciliation-delay: 5m
+  management-company-name: 'Tuleva Fondid AS'
   accounts:
     DEPOSIT_EUR: 'SEB_DEPOSIT_PLACEHOLDER'
     WITHDRAWAL_EUR: 'SEB_WITHDRAWAL_PLACEHOLDER'

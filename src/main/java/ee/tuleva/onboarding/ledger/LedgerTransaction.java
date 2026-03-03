@@ -59,6 +59,7 @@ public class LedgerTransaction {
     ADJUSTMENT,
     TRADE_SETTLEMENT,
     POSITION_UPDATE,
+    MANAGEMENT_FEE_PAYMENT,
     FEE_ACCRUAL,
     FEE_SETTLEMENT
   }

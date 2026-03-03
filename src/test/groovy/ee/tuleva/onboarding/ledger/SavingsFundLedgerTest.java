@@ -306,6 +306,24 @@ class SavingsFundLedgerTest {
   }
 
   @Test
+  void recordManagementFeePayment_createsCorrectLedgerEntries() {
+    var feeAmount = new BigDecimal("742.34");
+    var externalReference = randomUUID();
+    var description = "Valitsemistasu 02.-28.02.26";
+
+    var transaction =
+        savingsFundLedger.recordManagementFeePayment(feeAmount, externalReference, description);
+
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("MANAGEMENT_FEE_PAYMENT");
+    assertThat(transaction.getMetadata().get("description")).isEqualTo(description);
+    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
+    assertThat(getSystemAccount(MANAGEMENT_FEE).getBalance()).isEqualByComparingTo(feeAmount);
+    assertThat(getFundInvestmentCashClearingAccount().getBalance())
+        .isEqualByComparingTo(feeAmount.negate());
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
   void recordBankFee_createsCorrectLedgerEntries() {
     var amount = new BigDecimal("-1.50");
     var externalReference = randomUUID();

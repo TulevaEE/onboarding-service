@@ -19,6 +19,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class SebAccountConfiguration implements BankAccountConfiguration {
 
   @Getter private final Map<BankAccountType, String> accounts;
+  @Getter private final String managementCompanyName;
   private Map<String, BankAccountType> accountsByIban;
 
   @Override
@@ -33,6 +34,10 @@ public class SebAccountConfiguration implements BankAccountConfiguration {
   @Nullable
   public BankAccountType getAccountType(String iban) {
     return accountsByIban.get(iban);
+  }
+
+  public boolean isManagementCompany(String name) {
+    return managementCompanyName.equalsIgnoreCase(name);
   }
 
   @PostConstruct

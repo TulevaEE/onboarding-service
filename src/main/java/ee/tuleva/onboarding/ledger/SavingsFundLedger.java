@@ -519,6 +519,24 @@ public class SavingsFundLedger {
   }
 
   @Transactional
+  public LedgerTransaction recordManagementFeePayment(
+      BigDecimal amount, UUID externalReference, String description) {
+    LedgerAccount managementFeeAccount = getSystemAccount(MANAGEMENT_FEE);
+    LedgerAccount clearingAccount = getFundInvestmentCashClearingAccount();
+
+    Map<String, Object> metadata =
+        Map.of(OPERATION_TYPE.key, MANAGEMENT_FEE_PAYMENT.name(), DESCRIPTION.key, description);
+
+    return ledgerTransactionService.createTransaction(
+        MANAGEMENT_FEE_PAYMENT,
+        Instant.now(clock),
+        externalReference,
+        metadata,
+        entry(managementFeeAccount, amount),
+        entry(clearingAccount, amount.negate()));
+  }
+
+  @Transactional
   public LedgerTransaction recordBankFee(
       BigDecimal amount, UUID externalReference, SystemAccount clearingAccount) {
     LedgerAccount bankFeeExpenseAccount = getSystemAccount(SystemAccount.BANK_FEE);

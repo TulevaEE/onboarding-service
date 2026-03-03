@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResul
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.OrphanedData;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Severity;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +44,7 @@ public class FundValueIntegrityChecker {
 
   private final YahooFundValueRetriever yahooFundValueRetriever;
   private final FundValueRepository fundValueRepository;
+  private final Clock clock;
 
   record TickerCheckResult(
       FundTicker ticker,
@@ -73,14 +75,19 @@ public class FundValueIntegrityChecker {
       lockAtMostFor = "55m",
       lockAtLeastFor = "5m")
   public void performIntegrityCheck() {
-    LocalDate endDate = LocalDate.now().minusDays(1);
+    runIntegrityCheck(LocalDate.now(clock).minusDays(1));
+  }
+
+  public String runIntegrityCheck(LocalDate endDate) {
     LocalDate crossProviderStartDate =
         endDate.minusDays(30).isBefore(CROSS_PROVIDER_CHECK_START_DATE)
             ? CROSS_PROVIDER_CHECK_START_DATE
             : endDate.minusDays(30);
 
     List<TickerCheckResult> results = collectAllResults(crossProviderStartDate, endDate);
-    logSummary(crossProviderStartDate, endDate, results);
+    String summary = buildSummary(crossProviderStartDate, endDate, results);
+    logSummary(summary, results);
+    return summary;
   }
 
   private List<TickerCheckResult> collectAllResults(LocalDate startDate, LocalDate endDate) {
@@ -324,7 +331,7 @@ public class FundValueIntegrityChecker {
         .toList();
   }
 
-  private void logSummary(LocalDate startDate, LocalDate endDate, List<TickerCheckResult> results) {
+  String buildSummary(LocalDate startDate, LocalDate endDate, List<TickerCheckResult> results) {
     StringBuilder summary = new StringBuilder();
     summary.append(
         String.format("Fund Value Integrity Check Summary (%s to %s):%n%n", startDate, endDate));
@@ -339,9 +346,7 @@ public class FundValueIntegrityChecker {
     List<Discrepancy> infoIssues = collectInfoIssues(results);
 
     if (criticalIssues.isEmpty()) {
-      if (infoIssues.isEmpty()) {
-        log.info("{}", summary);
-      } else {
+      if (!infoIssues.isEmpty()) {
         summary.append(
             String.format(
                 "%n%s Expected Yahoo discrepancies (%d):%n", INFO_MARK, infoIssues.size()));
@@ -349,7 +354,6 @@ public class FundValueIntegrityChecker {
             String.format(
                 "   (Yahoo often returns intra-day prices instead of actual EOD prices)%n"));
         appendIssuesSummary(summary, infoIssues, 3);
-        log.info("{}", summary);
       }
     } else {
       summary.append(
@@ -364,7 +368,17 @@ public class FundValueIntegrityChecker {
                 INFO_MARK, infoIssues.size()));
         appendIssuesSummary(summary, infoIssues, 3);
       }
+    }
+
+    return summary.toString();
+  }
+
+  private void logSummary(String summary, List<TickerCheckResult> results) {
+    boolean hasCriticalIssues = results.stream().anyMatch(TickerCheckResult::hasCriticalIssues);
+    if (hasCriticalIssues) {
       log.error("{}", summary);
+    } else {
+      log.info("{}", summary);
     }
   }
 

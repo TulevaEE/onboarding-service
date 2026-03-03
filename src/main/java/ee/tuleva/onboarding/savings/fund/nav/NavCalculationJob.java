@@ -23,6 +23,7 @@ public class NavCalculationJob {
   private final NavPublisher navPublisher;
   private final PublicHolidays publicHolidays;
   private final FundValueIndexingJob fundValueIndexingJob;
+  private final FundValueIntegrityNotifier integrityNotifier;
   private final Clock clock;
 
   @Scheduled(cron = "0 30 15 * * MON-FRI", zone = "Europe/Tallinn")
@@ -38,6 +39,7 @@ public class NavCalculationJob {
     log.info("Starting scheduled NAV calculation: fund={}, calculationDate={}", TKF100, today);
 
     fundValueIndexingJob.refreshAll();
+    integrityNotifier.notifyIntegrityCheck(today.minusDays(1));
 
     try {
       NavCalculationResult result = navCalculationService.calculate(TKF100, today);

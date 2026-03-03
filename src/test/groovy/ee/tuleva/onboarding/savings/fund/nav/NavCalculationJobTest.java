@@ -26,13 +26,19 @@ class NavCalculationJobTest {
   @Mock private NavPublisher navPublisher;
   @Mock private PublicHolidays publicHolidays;
   @Mock private FundValueIndexingJob fundValueIndexingJob;
+  @Mock private FundValueIntegrityNotifier integrityNotifier;
 
   @Test
   void calculateDailyNav_refreshesPricesBeforeCalculating() {
     Clock clock = Clock.fixed(Instant.parse("2025-01-15T14:30:00Z"), TALLINN);
     var job =
         new NavCalculationJob(
-            navCalculationService, navPublisher, publicHolidays, fundValueIndexingJob, clock);
+            navCalculationService,
+            navPublisher,
+            publicHolidays,
+            fundValueIndexingJob,
+            integrityNotifier,
+            clock);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
     when(publicHolidays.isWorkingDay(today)).thenReturn(true);
@@ -51,7 +57,12 @@ class NavCalculationJobTest {
     Clock clock = Clock.fixed(Instant.parse("2025-01-15T14:30:00Z"), TALLINN);
     var job =
         new NavCalculationJob(
-            navCalculationService, navPublisher, publicHolidays, fundValueIndexingJob, clock);
+            navCalculationService,
+            navPublisher,
+            publicHolidays,
+            fundValueIndexingJob,
+            integrityNotifier,
+            clock);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
     when(publicHolidays.isWorkingDay(today)).thenReturn(true);
@@ -65,11 +76,62 @@ class NavCalculationJobTest {
   }
 
   @Test
+  void calculateDailyNav_runsIntegrityCheckBetweenRefreshAndCalculation() {
+    Clock clock = Clock.fixed(Instant.parse("2025-01-15T14:30:00Z"), TALLINN);
+    var job =
+        new NavCalculationJob(
+            navCalculationService,
+            navPublisher,
+            publicHolidays,
+            fundValueIndexingJob,
+            integrityNotifier,
+            clock);
+
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = today.minusDays(1);
+    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
+    NavCalculationResult result = buildTestResult(today);
+    when(navCalculationService.calculate(TKF100, today)).thenReturn(result);
+
+    job.calculateDailyNav();
+
+    InOrder inOrder = inOrder(fundValueIndexingJob, integrityNotifier, navCalculationService);
+    inOrder.verify(fundValueIndexingJob).refreshAll();
+    inOrder.verify(integrityNotifier).notifyIntegrityCheck(yesterday);
+    inOrder.verify(navCalculationService).calculate(TKF100, today);
+  }
+
+  @Test
+  void calculateDailyNav_skipsIntegrityCheckOnNonWorkingDay() {
+    Clock clock = Clock.fixed(Instant.parse("2025-01-18T14:30:00Z"), TALLINN);
+    var job =
+        new NavCalculationJob(
+            navCalculationService,
+            navPublisher,
+            publicHolidays,
+            fundValueIndexingJob,
+            integrityNotifier,
+            clock);
+
+    LocalDate today = LocalDate.of(2025, 1, 18);
+    when(publicHolidays.isWorkingDay(today)).thenReturn(false);
+
+    job.calculateDailyNav();
+
+    verifyNoInteractions(integrityNotifier);
+  }
+
+  @Test
   void calculateDailyNav_skipsOnNonWorkingDay() {
     Clock clock = Clock.fixed(Instant.parse("2025-01-18T14:30:00Z"), TALLINN);
     var job =
         new NavCalculationJob(
-            navCalculationService, navPublisher, publicHolidays, fundValueIndexingJob, clock);
+            navCalculationService,
+            navPublisher,
+            publicHolidays,
+            fundValueIndexingJob,
+            integrityNotifier,
+            clock);
 
     LocalDate today = LocalDate.of(2025, 1, 18);
     when(publicHolidays.isWorkingDay(today)).thenReturn(false);

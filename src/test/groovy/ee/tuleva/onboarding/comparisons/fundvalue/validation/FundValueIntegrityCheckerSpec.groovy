@@ -6,7 +6,10 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.YahooFundValueRetriever
 import spock.lang.Specification
 
+import java.time.Clock
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
 import static ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Severity
@@ -15,10 +18,12 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   YahooFundValueRetriever yahooFundValueRetriever = Stub()
   FundValueRepository fundValueRepository = Stub()
+  Clock clock = Clock.fixed(Instant.parse("2026-02-12T12:00:00Z"), ZoneId.of("Europe/Tallinn"))
 
   FundValueIntegrityChecker checker = new FundValueIntegrityChecker(
       yahooFundValueRetriever,
-      fundValueRepository
+      fundValueRepository,
+      clock
   )
 
   def "should not report discrepancy when values differ only after 5 decimal places"() {
@@ -420,5 +425,41 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
     then:
     noExceptionThrown()
+  }
+
+  def "runIntegrityCheck returns summary string"() {
+    given:
+    LocalDate endDate = LocalDate.of(2024, 1, 15)
+
+    yahooFundValueRetriever.retrieveValuesForRange(_, _) >> FundTicker.values().collect {
+      aFundValue(it.yahooTicker, endDate, 100.00)
+    }
+
+    for (ticker in FundTicker.values()) {
+      def eodhdValue = aFundValue(ticker.eodhdTicker, endDate, 100.00)
+      def yahooValue = aFundValue(ticker.yahooTicker, endDate, 100.00)
+
+      fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, _, _) >> [yahooValue]
+      fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, _, _) >> [eodhdValue]
+
+      ticker.getXetraStorageKey().ifPresent { xetraKey ->
+        fundValueRepository.findValuesBetweenDates(xetraKey, _, _) >> [aFundValue(xetraKey, endDate, 100.00)]
+      }
+      ticker.getEuronextParisStorageKey().ifPresent { euronextKey ->
+        fundValueRepository.findValuesBetweenDates(euronextKey, _, _) >> [aFundValue(euronextKey, endDate, 100.00)]
+      }
+      ticker.getBlackrockStorageKey().ifPresent { blackrockKey ->
+        fundValueRepository.findValuesBetweenDates(blackrockKey, _, _) >> [aFundValue(blackrockKey, endDate, 100.00)]
+      }
+      ticker.getMorningstarStorageKey().ifPresent { morningstarKey ->
+        fundValueRepository.findValuesBetweenDates(morningstarKey, _, _) >> [aFundValue(morningstarKey, endDate, 100.00)]
+      }
+    }
+
+    when:
+    String summary = checker.runIntegrityCheck(endDate)
+
+    then:
+    summary.contains("Fund Value Integrity Check Summary")
   }
 }

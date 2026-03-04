@@ -68,67 +68,6 @@ class MultiFundNavVerificationTest {
 
       var result = navCalculationService.calculate(testCase.data.fund, testCase.calculationDate);
 
-      System.out.println("=== " + testCase + " ===");
-      System.out.println(
-          "Securities: expected="
-              + testCase.data.securitiesTotal
-              + " actual="
-              + result.securitiesValue());
-      System.out.println(
-          "Cash: expected=" + testCase.data.cashPosition + " actual=" + result.cashPosition());
-      System.out.println(
-          "Receivables: expected="
-              + testCase.data.tradeReceivables
-              + " actual="
-              + result.receivables());
-      System.out.println(
-          "Payables: expected="
-              + testCase.data.tradePayables.negate()
-              + " actual="
-              + result.payables());
-      System.out.println(
-          "Subscriptions: expected="
-              + testCase.data.pendingSubscriptions
-              + " actual="
-              + result.pendingSubscriptions());
-      System.out.println(
-          "MgmtFee: expected="
-              + testCase.data.managementFeeAccrual.negate()
-              + " actual="
-              + result.managementFeeAccrual());
-      System.out.println(
-          "DepotFee: expected="
-              + testCase.data.depotFeeAccrual.negate()
-              + " actual="
-              + result.depotFeeAccrual());
-      System.out.println(
-          "Units: expected="
-              + testCase.data.unitsOutstanding
-              + " actual="
-              + result.unitsOutstanding());
-      System.out.println("AUM: expected=" + testCase.data.expectedAum + " actual=" + result.aum());
-      System.out.println(
-          "NAV/unit: expected="
-              + testCase.data.expectedNavPerUnit
-              + " actual="
-              + result.navPerUnit());
-
-      result
-          .securitiesDetail()
-          .forEach(
-              detail ->
-                  System.out.println(
-                      "  Security: isin="
-                          + detail.isin()
-                          + " units="
-                          + detail.units()
-                          + " price="
-                          + detail.price()
-                          + " value="
-                          + detail.marketValue()
-                          + " priceDate="
-                          + detail.priceDate()));
-
       assertThat(result.cashPosition()).isEqualByComparingTo(testCase.data.cashPosition);
       assertThat(result.receivables()).isEqualByComparingTo(testCase.data.tradeReceivables);
       assertThat(result.payables()).isEqualByComparingTo(testCase.data.tradePayables.negate());
@@ -161,7 +100,7 @@ class MultiFundNavVerificationTest {
     var securityPositions =
         fundPositionRepository.findByNavDateAndFundAndAccountType(
             data.navDate, data.fund, SECURITY);
-    var securitiesUnits = new java.util.HashMap<String, BigDecimal>();
+    var securitiesUnits = new HashMap<String, BigDecimal>();
     securityPositions.stream()
         .filter(p -> p.getAccountId() != null)
         .forEach(p -> securitiesUnits.put(p.getAccountId(), p.getQuantity()));
@@ -179,12 +118,12 @@ class MultiFundNavVerificationTest {
     if (data.managementFeeAccrual.signum() != 0) {
       BigDecimal amount = data.managementFeeAccrual.negate();
       navFeeAccrualLedger.recordFeeAccrual(
-          data.fund, data.navDate, MANAGEMENT_FEE_ACCRUAL, amount, java.util.Map.of());
+          data.fund, data.navDate, MANAGEMENT_FEE_ACCRUAL, amount, Map.of());
     }
     if (data.depotFeeAccrual.signum() != 0) {
       BigDecimal amount = data.depotFeeAccrual.negate();
       navFeeAccrualLedger.recordFeeAccrual(
-          data.fund, data.navDate, DEPOT_FEE_ACCRUAL, amount, java.util.Map.of());
+          data.fund, data.navDate, DEPOT_FEE_ACCRUAL, amount, Map.of());
     }
   }
 

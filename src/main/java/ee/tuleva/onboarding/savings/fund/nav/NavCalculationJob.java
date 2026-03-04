@@ -30,7 +30,7 @@ public class NavCalculationJob {
   @Scheduled(cron = "0 30 15 * * MON-FRI", zone = "Europe/Tallinn")
   @SchedulerLock(name = "NavCalculationJob_TKF100", lockAtMostFor = "30m", lockAtLeastFor = "5m")
   public void calculateDailyNav() {
-    calculateForFund(TKF100);
+    calculateForFunds(List.of(TKF100));
   }
 
   @Scheduled(cron = "0 0 11 * * MON-FRI", zone = "Europe/Tallinn")
@@ -60,7 +60,7 @@ public class NavCalculationJob {
         .forEach(
             fund -> {
               try {
-                refreshAndCalculate(fund, today);
+                calculateAndPublish(fund, today);
               } catch (Exception e) {
                 log.error(
                     "Failed NAV calculation, continuing with next fund: fund={}, date={}",
@@ -71,30 +71,10 @@ public class NavCalculationJob {
             });
   }
 
-  private void calculateForFund(TulevaFund fund) {
-    LocalDate today = LocalDate.now(clock);
-
-    if (!publicHolidays.isWorkingDay(today)) {
-      log.info("Skipping NAV calculation on non-working day: date={}", today);
-      return;
-    }
-
-    log.info("Starting scheduled NAV calculation: fund={}, calculationDate={}", fund, today);
-
-    fundValueIndexingJob.refreshAll();
-
-    refreshAndCalculate(fund, today);
-  }
-
-  private void refreshAndCalculate(TulevaFund fund, LocalDate today) {
-    try {
-      NavCalculationResult result = navCalculationService.calculate(fund, today);
-      navPublisher.publish(result);
-      log.info("Completed scheduled NAV calculation: fund={}, calculationDate={}", fund, today);
-    } catch (Exception exception) {
-      log.error(
-          "Failed scheduled NAV calculation: fund={}, calculationDate={}", fund, today, exception);
-      throw exception;
-    }
+  private void calculateAndPublish(TulevaFund fund, LocalDate today) {
+    log.info("Starting NAV calculation: fund={}, date={}", fund, today);
+    NavCalculationResult result = navCalculationService.calculate(fund, today);
+    navPublisher.publish(result);
+    log.info("Completed NAV calculation: fund={}, date={}", fund, today);
   }
 }

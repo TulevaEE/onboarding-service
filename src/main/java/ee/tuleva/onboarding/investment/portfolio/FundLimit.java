@@ -46,6 +46,8 @@ public class FundLimit {
 
   @Nullable private BigDecimal minTransaction;
 
+  @Nullable private BigDecimal maxFreeCash;
+
   private Instant createdAt;
 
   @PrePersist

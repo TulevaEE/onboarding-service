@@ -1,6 +1,8 @@
-package ee.tuleva.onboarding.investment.portfolio;
+package ee.tuleva.onboarding.investment.check.limit;
 
+import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.EnumType.STRING;
+import static org.hibernate.type.SqlTypes.JSON;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import jakarta.persistence.Column;
@@ -12,54 +14,51 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.jspecify.annotations.Nullable;
+import org.hibernate.annotations.JdbcTypeCode;
 
 @Data
 @Builder
 @Entity
-@Table(name = "investment_position_limit")
+@Table(name = "investment_limit_check_event")
 @AllArgsConstructor
 @NoArgsConstructor
-public class PositionLimit {
+class LimitCheckEvent {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
-
-  @NotNull private LocalDate effectiveDate;
 
   @NotNull
   @Enumerated(STRING)
   @Column(name = "fund_code")
   private TulevaFund fund;
 
-  @Nullable private String isin;
+  @NotNull private LocalDate checkDate;
 
-  @Nullable private String ticker;
-
-  @Nullable private String label;
-
-  @Nullable private String indexGroup;
-
+  @NotNull
   @Enumerated(STRING)
-  @Nullable
-  private Provider provider;
+  private CheckType checkType;
 
-  @NotNull private BigDecimal softLimitPercent;
+  @NotNull private boolean breachesFound;
 
-  @NotNull private BigDecimal hardLimitPercent;
+  @NotNull
+  @Builder.Default
+  @JdbcTypeCode(JSON)
+  private Map<String, Object> result = Map.of();
 
   private Instant createdAt;
 
   @PrePersist
   protected void onCreate() {
-    createdAt = Instant.now();
+    if (createdAt == null) {
+      createdAt = clock().instant();
+    }
   }
 }

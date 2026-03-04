@@ -22,4 +22,6 @@ public final class JobRunSchedule {
   public static final String CALCULATE_AFTERNOON = "0 30 15 * * *";
 
   public static final String TRANSACTION_COMMAND = "0 * * * * *";
+
+  public static final String LIMIT_CHECK = "0 0 16 * * *";
 }

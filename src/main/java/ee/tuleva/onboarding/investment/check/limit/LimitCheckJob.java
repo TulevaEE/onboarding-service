@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.annotation.Schedules;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -19,7 +20,10 @@ public class LimitCheckJob {
   private final LimitCheckService limitCheckService;
   private final LimitCheckNotifier limitCheckNotifier;
 
-  @Scheduled(cron = LIMIT_CHECK, zone = TIMEZONE)
+  @Schedules({
+    @Scheduled(cron = "0 10 18 4 3 *", zone = TIMEZONE),
+    @Scheduled(cron = LIMIT_CHECK, zone = TIMEZONE)
+  })
   @SchedulerLock(name = "LimitCheckJob", lockAtMostFor = "30m", lockAtLeastFor = "5m")
   void runLimitChecks() {
     log.info("Starting limit check");

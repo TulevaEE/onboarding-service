@@ -1,10 +1,11 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.fund.TulevaFund.*;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueIndexingJob;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -26,19 +27,13 @@ class NavCalculationJobTest {
   @Mock private NavPublisher navPublisher;
   @Mock private PublicHolidays publicHolidays;
   @Mock private FundValueIndexingJob fundValueIndexingJob;
-  @Mock private FundValueIntegrityNotifier integrityNotifier;
 
   @Test
   void calculateDailyNav_refreshesPricesBeforeCalculating() {
     Clock clock = Clock.fixed(Instant.parse("2025-01-15T14:30:00Z"), TALLINN);
     var job =
         new NavCalculationJob(
-            navCalculationService,
-            navPublisher,
-            publicHolidays,
-            fundValueIndexingJob,
-            integrityNotifier,
-            clock);
+            navCalculationService, navPublisher, publicHolidays, fundValueIndexingJob, clock);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
     when(publicHolidays.isWorkingDay(today)).thenReturn(true);
@@ -57,12 +52,7 @@ class NavCalculationJobTest {
     Clock clock = Clock.fixed(Instant.parse("2025-01-15T14:30:00Z"), TALLINN);
     var job =
         new NavCalculationJob(
-            navCalculationService,
-            navPublisher,
-            publicHolidays,
-            fundValueIndexingJob,
-            integrityNotifier,
-            clock);
+            navCalculationService, navPublisher, publicHolidays, fundValueIndexingJob, clock);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
     when(publicHolidays.isWorkingDay(today)).thenReturn(true);
@@ -76,62 +66,11 @@ class NavCalculationJobTest {
   }
 
   @Test
-  void calculateDailyNav_runsIntegrityCheckBetweenRefreshAndCalculation() {
-    Clock clock = Clock.fixed(Instant.parse("2025-01-15T14:30:00Z"), TALLINN);
-    var job =
-        new NavCalculationJob(
-            navCalculationService,
-            navPublisher,
-            publicHolidays,
-            fundValueIndexingJob,
-            integrityNotifier,
-            clock);
-
-    LocalDate today = LocalDate.of(2025, 1, 15);
-    LocalDate yesterday = today.minusDays(1);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
-    NavCalculationResult result = buildTestResult(today);
-    when(navCalculationService.calculate(TKF100, today)).thenReturn(result);
-
-    job.calculateDailyNav();
-
-    InOrder inOrder = inOrder(fundValueIndexingJob, integrityNotifier, navCalculationService);
-    inOrder.verify(fundValueIndexingJob).refreshAll();
-    inOrder.verify(integrityNotifier).notifyIntegrityCheck(yesterday);
-    inOrder.verify(navCalculationService).calculate(TKF100, today);
-  }
-
-  @Test
-  void calculateDailyNav_skipsIntegrityCheckOnNonWorkingDay() {
-    Clock clock = Clock.fixed(Instant.parse("2025-01-18T14:30:00Z"), TALLINN);
-    var job =
-        new NavCalculationJob(
-            navCalculationService,
-            navPublisher,
-            publicHolidays,
-            fundValueIndexingJob,
-            integrityNotifier,
-            clock);
-
-    LocalDate today = LocalDate.of(2025, 1, 18);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(false);
-
-    job.calculateDailyNav();
-
-    verifyNoInteractions(integrityNotifier);
-  }
-
-  @Test
   void calculateDailyNav_skipsOnNonWorkingDay() {
     Clock clock = Clock.fixed(Instant.parse("2025-01-18T14:30:00Z"), TALLINN);
     var job =
         new NavCalculationJob(
-            navCalculationService,
-            navPublisher,
-            publicHolidays,
-            fundValueIndexingJob,
-            integrityNotifier,
-            clock);
+            navCalculationService, navPublisher, publicHolidays, fundValueIndexingJob, clock);
 
     LocalDate today = LocalDate.of(2025, 1, 18);
     when(publicHolidays.isWorkingDay(today)).thenReturn(false);
@@ -143,9 +82,107 @@ class NavCalculationJobTest {
     verifyNoInteractions(navPublisher);
   }
 
+  @Test
+  void calculatePillar2Nav_skipsOnNonWorkingDay() {
+    Clock clock = Clock.fixed(Instant.parse("2025-01-18T09:00:00Z"), TALLINN);
+    var job =
+        new NavCalculationJob(
+            navCalculationService, navPublisher, publicHolidays, fundValueIndexingJob, clock);
+
+    when(publicHolidays.isWorkingDay(LocalDate.of(2025, 1, 18))).thenReturn(false);
+
+    job.calculatePillar2Nav();
+
+    verifyNoInteractions(navCalculationService);
+    verifyNoInteractions(navPublisher);
+  }
+
+  @Test
+  void calculatePillar2Nav_continuesWhenOneFundFails() {
+    Clock clock = Clock.fixed(Instant.parse("2025-01-15T09:00:00Z"), TALLINN);
+    var job =
+        new NavCalculationJob(
+            navCalculationService, navPublisher, publicHolidays, fundValueIndexingJob, clock);
+
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
+
+    List<TulevaFund> pillar2Funds =
+        getPillar2Funds().stream().filter(TulevaFund::hasNavCalculation).toList();
+
+    TulevaFund firstFund = pillar2Funds.getFirst();
+    when(navCalculationService.calculate(firstFund, today))
+        .thenThrow(new RuntimeException("Price missing"));
+
+    for (int i = 1; i < pillar2Funds.size(); i++) {
+      var result = buildTestResult(pillar2Funds.get(i), today);
+      when(navCalculationService.calculate(pillar2Funds.get(i), today)).thenReturn(result);
+    }
+
+    job.calculatePillar2Nav();
+
+    for (int i = 1; i < pillar2Funds.size(); i++) {
+      verify(navCalculationService).calculate(pillar2Funds.get(i), today);
+    }
+  }
+
+  @Test
+  void calculatePillar2Nav_calculatesNavEnabledFunds() {
+    Clock clock = Clock.fixed(Instant.parse("2025-01-15T09:00:00Z"), TALLINN);
+    var job =
+        new NavCalculationJob(
+            navCalculationService, navPublisher, publicHolidays, fundValueIndexingJob, clock);
+
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
+
+    getPillar2Funds().stream()
+        .filter(TulevaFund::hasNavCalculation)
+        .forEach(
+            fund -> {
+              var result = buildTestResult(fund, today);
+              when(navCalculationService.calculate(fund, today)).thenReturn(result);
+            });
+
+    job.calculatePillar2Nav();
+
+    getPillar2Funds().stream()
+        .filter(TulevaFund::hasNavCalculation)
+        .forEach(fund -> verify(navCalculationService).calculate(fund, today));
+  }
+
+  @Test
+  void calculatePillar3Nav_calculatesNavEnabledFunds() {
+    Clock clock = Clock.fixed(Instant.parse("2025-01-15T13:00:00Z"), TALLINN);
+    var job =
+        new NavCalculationJob(
+            navCalculationService, navPublisher, publicHolidays, fundValueIndexingJob, clock);
+
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
+
+    getPillar3Funds().stream()
+        .filter(TulevaFund::hasNavCalculation)
+        .forEach(
+            fund -> {
+              var result = buildTestResult(fund, today);
+              when(navCalculationService.calculate(fund, today)).thenReturn(result);
+            });
+
+    job.calculatePillar3Nav();
+
+    getPillar3Funds().stream()
+        .filter(TulevaFund::hasNavCalculation)
+        .forEach(fund -> verify(navCalculationService).calculate(fund, today));
+  }
+
   private NavCalculationResult buildTestResult(LocalDate date) {
+    return buildTestResult(TKF100, date);
+  }
+
+  private NavCalculationResult buildTestResult(TulevaFund fund, LocalDate date) {
     return NavCalculationResult.builder()
-        .fund(TKF100)
+        .fund(fund)
         .calculationDate(date)
         .securitiesValue(new BigDecimal("900000.00"))
         .cashPosition(new BigDecimal("50000.00"))

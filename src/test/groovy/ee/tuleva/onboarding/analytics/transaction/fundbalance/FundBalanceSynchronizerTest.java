@@ -7,6 +7,7 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.TransactionFundBalanceDto;
+import ee.tuleva.onboarding.ledger.EpisUnitCountLedgerRecorder;
 import ee.tuleva.onboarding.time.FixedClockConfig;
 import java.time.LocalDate;
 import java.util.Collections;
@@ -26,6 +27,7 @@ class FundBalanceSynchronizerTest extends FixedClockConfig {
 
   @Mock private EpisService episService;
   @Mock private FundBalanceRepository repository;
+  @Mock private EpisUnitCountLedgerRecorder unitCountLedgerRecorder;
 
   @InjectMocks private FundBalanceSynchronizer synchronizer;
 
@@ -74,8 +76,6 @@ class FundBalanceSynchronizerTest extends FixedClockConfig {
       assertThat(savedEntities.get(1).getIsin()).isEqualTo(FundBalanceFixture.ISIN_2);
       assertThat(savedEntities.get(1).getRequestDate()).isEqualTo(syncDate);
       assertThat(savedEntities.get(1).getDateCreated()).isEqualTo(testLocalDateTime);
-
-      verifyNoMoreInteractions(repository);
     }
   }
 

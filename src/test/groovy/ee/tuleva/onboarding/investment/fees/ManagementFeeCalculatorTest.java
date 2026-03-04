@@ -1,19 +1,15 @@
 package ee.tuleva.onboarding.investment.fees;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,16 +32,11 @@ class ManagementFeeCalculatorTest {
     LocalDate date = LocalDate.of(2025, 1, 15);
     LocalDate feeMonth = LocalDate.of(2025, 1, 1);
     BigDecimal positionValue = new BigDecimal("1000000000");
-    BigDecimal accruedFees = new BigDecimal("50000");
-    BigDecimal baseValue = positionValue.add(accruedFees);
     BigDecimal annualRate = new BigDecimal("0.00215");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
     when(fundAumResolver.resolveReferenceDate(TUK75, date)).thenReturn(date);
     when(fundAumResolver.resolveBaseValue(TUK75, date)).thenReturn(positionValue);
-    when(feeAccrualRepository.getAccruedFeesForMonth(
-            TUK75, feeMonth, List.of(MANAGEMENT, DEPOT), date))
-        .thenReturn(accruedFees);
     when(feeRateRepository.findValidRate(TUK75, MANAGEMENT, date))
         .thenReturn(Optional.of(new FeeRate(1L, TUK75, MANAGEMENT, annualRate, date, null)));
 
@@ -55,11 +46,11 @@ class ManagementFeeCalculatorTest {
     assertThat(result.feeType()).isEqualTo(MANAGEMENT);
     assertThat(result.accrualDate()).isEqualTo(date);
     assertThat(result.feeMonth()).isEqualTo(feeMonth);
-    assertThat(result.baseValue()).isEqualTo(baseValue);
+    assertThat(result.baseValue()).isEqualTo(positionValue);
     assertThat(result.annualRate()).isEqualTo(annualRate);
 
     BigDecimal expectedDailyFee =
-        baseValue.multiply(annualRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP);
+        positionValue.multiply(annualRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP);
     assertThat(result.dailyAmountNet()).isEqualByComparingTo(expectedDailyFee);
     assertThat(result.dailyAmountGross()).isEqualByComparingTo(expectedDailyFee);
     assertThat(result.vatRate()).isNull();
@@ -91,8 +82,6 @@ class ManagementFeeCalculatorTest {
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
     when(fundAumResolver.resolveReferenceDate(TUK75, date)).thenReturn(date);
     when(fundAumResolver.resolveBaseValue(TUK75, date)).thenReturn(BigDecimal.TEN);
-    when(feeAccrualRepository.getAccruedFeesForMonth(eq(TUK75), eq(feeMonth), any(), eq(date)))
-        .thenReturn(ZERO);
     when(feeRateRepository.findValidRate(TUK75, MANAGEMENT, date)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> calculator.calculate(TUK75, date))
@@ -110,9 +99,6 @@ class ManagementFeeCalculatorTest {
     when(feeMonthResolver.resolveFeeMonth(saturday)).thenReturn(feeMonth);
     when(fundAumResolver.resolveReferenceDate(TUK75, saturday)).thenReturn(friday);
     when(fundAumResolver.resolveBaseValue(TUK75, friday)).thenReturn(positionValue);
-    when(feeAccrualRepository.getAccruedFeesForMonth(
-            TUK75, feeMonth, List.of(MANAGEMENT, DEPOT), saturday))
-        .thenReturn(ZERO);
     when(feeRateRepository.findValidRate(TUK75, MANAGEMENT, friday))
         .thenReturn(Optional.of(new FeeRate(1L, TUK75, MANAGEMENT, annualRate, friday, null)));
 
@@ -124,26 +110,21 @@ class ManagementFeeCalculatorTest {
   }
 
   @Test
-  void calculate_addsAccruedFeesToBaseValue() {
+  void calculate_navEnabledFund_doesNotAddAccruedFeesToBaseValue() {
     LocalDate date = LocalDate.of(2025, 1, 15);
     LocalDate feeMonth = LocalDate.of(2025, 1, 1);
     BigDecimal positionValue = new BigDecimal("1000000000");
-    BigDecimal accruedFees = new BigDecimal("100000");
     BigDecimal annualRate = new BigDecimal("0.00215");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
     when(fundAumResolver.resolveReferenceDate(TUK75, date)).thenReturn(date);
     when(fundAumResolver.resolveBaseValue(TUK75, date)).thenReturn(positionValue);
-    when(feeAccrualRepository.getAccruedFeesForMonth(
-            TUK75, feeMonth, List.of(MANAGEMENT, DEPOT), date))
-        .thenReturn(accruedFees);
     when(feeRateRepository.findValidRate(TUK75, MANAGEMENT, date))
         .thenReturn(Optional.of(new FeeRate(1L, TUK75, MANAGEMENT, annualRate, date, null)));
 
     FeeAccrual result = calculator.calculate(TUK75, date);
 
-    BigDecimal expectedBase = positionValue.add(accruedFees);
-    assertThat(result.baseValue()).isEqualTo(expectedBase);
+    assertThat(result.baseValue()).isEqualTo(positionValue);
   }
 
   @Test

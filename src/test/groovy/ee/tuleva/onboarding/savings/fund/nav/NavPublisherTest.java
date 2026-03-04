@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentCaptor.forClass;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
@@ -76,6 +76,39 @@ class NavPublisherTest {
     assertThat(aumValue.provider()).isEqualTo("TULEVA");
     assertThat(aumValue.updatedAt()).isEqualTo(calcTime);
 
+    verify(navNotifier).notify(result);
+  }
+
+  @Test
+  void publish_onlyNotifiesForPensionFund() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
+
+    var result =
+        NavCalculationResult.builder()
+            .fund(TUK75)
+            .calculationDate(today)
+            .securitiesValue(new BigDecimal("900000000.00"))
+            .cashPosition(new BigDecimal("50000000.00"))
+            .receivables(BigDecimal.ZERO)
+            .pendingSubscriptions(BigDecimal.ZERO)
+            .pendingRedemptions(BigDecimal.ZERO)
+            .managementFeeAccrual(BigDecimal.ZERO)
+            .depotFeeAccrual(BigDecimal.ZERO)
+            .payables(BigDecimal.ZERO)
+            .blackrockAdjustment(BigDecimal.ZERO)
+            .aum(new BigDecimal("950000000.00"))
+            .unitsOutstanding(new BigDecimal("100000000.00000"))
+            .navPerUnit(new BigDecimal("9.50000"))
+            .positionReportDate(today)
+            .priceDate(today)
+            .calculatedAt(calcTime)
+            .securitiesDetail(List.of())
+            .build();
+
+    navPublisher.publish(result);
+
+    verifyNoInteractions(fundValueRepository);
     verify(navNotifier).notify(result);
   }
 }

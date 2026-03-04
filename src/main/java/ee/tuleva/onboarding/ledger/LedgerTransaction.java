@@ -61,7 +61,8 @@ public class LedgerTransaction {
     POSITION_UPDATE,
     MANAGEMENT_FEE_PAYMENT,
     FEE_ACCRUAL,
-    FEE_SETTLEMENT
+    FEE_SETTLEMENT,
+    UNIT_COUNT_UPDATE
   }
 
   @Id

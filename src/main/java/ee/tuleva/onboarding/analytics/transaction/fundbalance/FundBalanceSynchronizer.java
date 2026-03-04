@@ -4,8 +4,12 @@ import ee.tuleva.onboarding.analytics.transaction.generic.AbstractTransactionSyn
 import ee.tuleva.onboarding.analytics.transaction.generic.SyncContext;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.TransactionFundBalanceDto;
+import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.ledger.EpisUnitCountLedgerRecorder;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Stream;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -18,10 +22,15 @@ public class FundBalanceSynchronizer
     extends AbstractTransactionSynchronizer<TransactionFundBalanceDto, FundBalance> {
 
   private final FundBalanceRepository repository;
+  private final EpisUnitCountLedgerRecorder unitCountLedgerRecorder;
 
-  public FundBalanceSynchronizer(EpisService episService, FundBalanceRepository repository) {
+  public FundBalanceSynchronizer(
+      EpisService episService,
+      FundBalanceRepository repository,
+      EpisUnitCountLedgerRecorder unitCountLedgerRecorder) {
     super(episService);
     this.repository = repository;
+    this.unitCountLedgerRecorder = unitCountLedgerRecorder;
   }
 
   @Getter
@@ -35,6 +44,27 @@ public class FundBalanceSynchronizer
     FundBalanceSyncContext context =
         FundBalanceSyncContext.builder().requestDate(requestDate).build();
     super.syncInternal(context);
+    recordUnitCounts(requestDate);
+  }
+
+  private void recordUnitCounts(LocalDate requestDate) {
+    Stream.concat(TulevaFund.getPillar2Funds().stream(), TulevaFund.getPillar3Funds().stream())
+        .filter(TulevaFund::hasNavCalculation)
+        .forEach(
+            fund -> {
+              try {
+                repository
+                    .findByIsinAndRequestDate(fund.getIsin(), requestDate)
+                    .ifPresent(
+                        balance -> {
+                          BigDecimal totalUnits =
+                              balance.getCountUnits().add(balance.getCountUnitsFm());
+                          unitCountLedgerRecorder.recordUnitCount(fund, requestDate, totalUnits);
+                        });
+              } catch (Exception e) {
+                log.error("Failed to record unit count: fund={}, date={}", fund, requestDate, e);
+              }
+            });
   }
 
   @Override

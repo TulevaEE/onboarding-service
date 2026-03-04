@@ -241,12 +241,13 @@ class NavPipelineIntegrationTest {
   }
 
   @Test
-  void feeCalculationOnlyAffectsNavEnabledFundInLedger() {
+  void feeCalculationRecordsFeesPerFundInLedger() {
     LocalDate date = LocalDate.of(2025, 3, 15);
     BigDecimal tkf100Aum = new BigDecimal("50000000");
+    BigDecimal tuk75Aum = new BigDecimal("1000000000");
 
     insertPositionCalculation(TKF100, date, tkf100Aum);
-    insertPositionCalculation(TUK75, date, new BigDecimal("1000000000"));
+    insertPositionCalculation(TUK75, date, tuk75Aum);
     insertPositionCalculation(TKF100, LocalDate.of(2025, 2, 28), new BigDecimal("48000000"));
     insertPositionCalculation(TUK75, LocalDate.of(2025, 2, 28), new BigDecimal("980000000"));
 
@@ -271,12 +272,9 @@ class NavPipelineIntegrationTest {
     feeCalculationService.calculateDailyFees(date);
     entityManager.flush();
 
-    int ledgerTransactionCount =
-        jdbcClient.sql("SELECT COUNT(*) FROM ledger.transaction").query(Integer.class).single();
-    assertThat(ledgerTransactionCount).isEqualTo(3);
-
-    BigDecimal managementFeeBalance = getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL);
-    BigDecimal depotFeeBalance = getSystemAccountBalance(DEPOT_FEE_ACCRUAL);
+    BigDecimal tkf100MgmtBalance = getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL, TKF100);
+    BigDecimal tuk75MgmtBalance = getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL, TUK75);
+    BigDecimal tkf100DepotBalance = getSystemAccountBalance(DEPOT_FEE_ACCRUAL, TKF100);
 
     BigDecimal tkf100ManagementFee =
         jdbcClient
@@ -289,9 +287,23 @@ class NavPipelineIntegrationTest {
             .query(BigDecimal.class)
             .single();
 
-    assertThat(managementFeeBalance.abs().setScale(2, HALF_UP))
+    BigDecimal tuk75ManagementFee =
+        jdbcClient
+            .sql(
+                """
+                SELECT daily_amount_net FROM investment_fee_accrual
+                WHERE fund_code = 'TUK75' AND fee_type = 'MANAGEMENT' AND accrual_date = :date
+                """)
+            .param("date", date)
+            .query(BigDecimal.class)
+            .single();
+
+    assertThat(tkf100MgmtBalance.abs().setScale(2, HALF_UP))
         .isEqualByComparingTo(tkf100ManagementFee.setScale(2, HALF_UP));
-    assertThat(depotFeeBalance).isNotEqualByComparingTo(ZERO);
+    assertThat(tuk75MgmtBalance.abs().setScale(2, HALF_UP))
+        .isEqualByComparingTo(tuk75ManagementFee.setScale(2, HALF_UP));
+    assertThat(tkf100DepotBalance).isNotEqualByComparingTo(ZERO);
+    assertThat(tkf100MgmtBalance).isNotEqualByComparingTo(tuk75MgmtBalance);
   }
 
   @Test
@@ -426,6 +438,10 @@ class NavPipelineIntegrationTest {
   }
 
   private BigDecimal getSystemAccountBalance(SystemAccount systemAccount) {
+    return getSystemAccountBalance(systemAccount, TKF100);
+  }
+
+  private BigDecimal getSystemAccountBalance(SystemAccount systemAccount, TulevaFund fund) {
     return jdbcClient
         .sql(
             """
@@ -434,7 +450,7 @@ class NavPipelineIntegrationTest {
             JOIN ledger.account a ON e.account_id = a.id
             WHERE a.name = :accountName
             """)
-        .param("accountName", systemAccount.getAccountName(TKF100))
+        .param("accountName", systemAccount.getAccountName(fund))
         .query(BigDecimal.class)
         .single();
   }

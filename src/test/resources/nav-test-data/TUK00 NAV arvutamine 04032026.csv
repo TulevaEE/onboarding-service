@@ -1,0 +1,15 @@
+nav_date,fund_code,account_type,account_name,account_id,quantity,market_price,currency,market_value
+2026-03-03,TUK00,SECURITY,iShares Euro Aggregate Bond Index Fund,LU0826455353,24475.69,117.2100,EUR,2868795.62
+2026-03-03,TUK00,SECURITY,iShares Euro Government Bond Index Fund,IE0031080751,125765.36,23.0460,EUR,2898388.49
+2026-03-03,TUK00,SECURITY,iShares Global Government Bond Index Fund,LU0839970364,30644.79,94.7900,EUR,2904819.64
+2026-03-03,TUK00,SECURITY,iShares Euro Credit Bond Index Fund,IE0005032192,121790.70,23.6880,EUR,2884978.10
+2026-03-03,TUK00,CASH,Cash account in SEB Pank,,267349.96,1.00,EUR,267349.96
+2026-03-03,TUK00,RECEIVABLES,Total receivables of unsettled transactions,,0.00,1.00,EUR,0.00
+2026-03-03,TUK00,LIABILITY,Total payables of unsettled transactions,,0.00,1.00,EUR,0.00
+2026-03-03,TUK00,RECEIVABLES,Receivables of outstanding units,EE3600109443,0.00,1.00,EUR,0.00
+2026-03-03,TUK00,RECEIVABLES,Other receivables,,0.00,1.00,EUR,0.00
+2026-03-03,TUK00,LIABILITY,Liabilities Other,,0.00,1.00,EUR,0.00
+2026-03-03,TUK00,LIABILITY,Payables of redeemed units,EE3600109443,0.00,1.00,EUR,0.00
+2026-03-03,TUK00,LIABILITY_FEE,Management fee,,-158.64,1.00,EUR,-158.64
+2026-03-03,TUK00,UNITS,Total outstanding units:,,19111915.115,0.61868,EUR,11824173.17
+2026-03-03,TUK00,NAV,Net Asset Value,,1.00,0.61868,EUR,0.62

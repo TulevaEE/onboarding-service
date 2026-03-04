@@ -19,8 +19,10 @@ public class NavPublisher {
 
   @Transactional
   public void publish(NavCalculationResult result) {
-    publishNav(result);
-    publishAum(result);
+    if (result.fund().isSavingsFund()) {
+      publishNav(result);
+      publishAum(result);
+    }
     navNotifier.notify(result);
 
     log.info(

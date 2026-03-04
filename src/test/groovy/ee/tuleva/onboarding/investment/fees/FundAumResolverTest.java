@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.investment.fees;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
-import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
@@ -49,20 +48,22 @@ class FundAumResolverTest {
   }
 
   @Test
-  void resolveReferenceDate_returnsPositionDate_forNonNavFund() {
+  void resolveReferenceDate_returnsNavDate_forPensionFund() {
     LocalDate date = LocalDate.of(2025, 7, 15);
+    LocalDate navDate = LocalDate.of(2025, 7, 14);
 
-    when(positionCalculationRepository.getLatestDateUpTo(TUK75, date))
-        .thenReturn(Optional.of(date));
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, date))
+        .thenReturn(Optional.of(navDate));
 
-    assertThat(resolver.resolveReferenceDate(TUK75, date)).isEqualTo(date);
+    assertThat(resolver.resolveReferenceDate(TUK75, date)).isEqualTo(navDate);
   }
 
   @Test
-  void resolveReferenceDate_returnsNull_whenNoPositionData() {
+  void resolveReferenceDate_returnsNull_whenNoPositionDataForPensionFund() {
     LocalDate date = LocalDate.of(2025, 7, 15);
 
-    when(positionCalculationRepository.getLatestDateUpTo(TUK75, date)).thenReturn(Optional.empty());
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, date))
+        .thenReturn(Optional.empty());
 
     assertThat(resolver.resolveReferenceDate(TUK75, date)).isNull();
   }
@@ -80,23 +81,25 @@ class FundAumResolverTest {
   }
 
   @Test
-  void resolveBaseValue_returnsTotalMarketValue_forNonNavFund() {
-    LocalDate date = LocalDate.of(2025, 7, 15);
-    BigDecimal positionValue = new BigDecimal("500000000");
+  void resolveBaseValue_returnsSumOfMarketValues_forPensionFund() {
+    LocalDate date = LocalDate.of(2025, 7, 14);
+    BigDecimal navValue = new BigDecimal("500000000");
 
-    when(positionCalculationRepository.getTotalMarketValue(TUK75, date))
-        .thenReturn(Optional.of(positionValue));
+    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+            TUK75, date, List.of(CASH, SECURITY, RECEIVABLES, LIABILITY)))
+        .thenReturn(navValue);
 
-    assertThat(resolver.resolveBaseValue(TUK75, date)).isEqualTo(positionValue);
+    assertThat(resolver.resolveBaseValue(TUK75, date)).isEqualTo(navValue);
   }
 
   @Test
-  void resolveBaseValue_returnsZero_whenNoPositionData() {
+  void resolveBaseValue_returnsNull_whenNoPositionData() {
     LocalDate date = LocalDate.of(2025, 7, 15);
 
-    when(positionCalculationRepository.getTotalMarketValue(TUK75, date))
-        .thenReturn(Optional.empty());
+    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+            TUK75, date, List.of(CASH, SECURITY, RECEIVABLES, LIABILITY)))
+        .thenReturn(null);
 
-    assertThat(resolver.resolveBaseValue(TUK75, date)).isEqualByComparingTo(ZERO);
+    assertThat(resolver.resolveBaseValue(TUK75, date)).isNull();
   }
 }

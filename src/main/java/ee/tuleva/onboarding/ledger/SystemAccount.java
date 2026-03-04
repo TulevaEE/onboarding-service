@@ -27,6 +27,8 @@ public enum SystemAccount {
   // Fund operations
   FUND_INVESTMENT_CASH_CLEARING(ASSET, EUR, FUND_OPERATIONS, "Cash reserved for unit purchases"),
   FUND_UNITS_OUTSTANDING(LIABILITY, FUND_UNIT, FUND_OPERATIONS, "Total units issued to investors"),
+  FUND_UNITS_EQUITY(
+      LIABILITY, FUND_UNIT, FUND_OPERATIONS, "Balancing account for fund units outstanding"),
 
   // NAV calculation - Position data (from SEB)
   SECURITIES_UNITS(ASSET, FUND_UNIT, NAV_CALCULATION, "Securities unit holdings from custodian"),

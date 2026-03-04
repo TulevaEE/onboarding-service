@@ -16,7 +16,7 @@ public enum TulevaFund {
       "Tuleva Maailma Aktsiate Pensionifond",
       "VP68169",
       "EE421010220306592227",
-      false,
+      true,
       5),
   TUK00(
       "TUK00",
@@ -25,7 +25,7 @@ public enum TulevaFund {
       "Tuleva Maailma V\u00f5lakirjade Pensionifond",
       "VP68170",
       "EE021010220306593225",
-      false,
+      true,
       5),
   TUV100(
       "TUV100",
@@ -34,8 +34,8 @@ public enum TulevaFund {
       "Tuleva III Samba Pensionifond",
       "VP68959",
       "EE691010220306737229",
-      false,
-      5),
+      true,
+      4),
   TKF100(
       "TKF100",
       null,
@@ -69,6 +69,10 @@ public enum TulevaFund {
 
   public boolean hasNavCalculation() {
     return navCalculation;
+  }
+
+  public boolean isSavingsFund() {
+    return pillar == null;
   }
 
   public String getAumKey() {

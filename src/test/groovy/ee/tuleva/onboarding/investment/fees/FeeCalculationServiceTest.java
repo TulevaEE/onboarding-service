@@ -73,6 +73,7 @@ class FeeCalculationServiceTest {
 
     when(calculator1.calculate(TUV100, date)).thenReturn(accrual1);
     when(calculator2.calculate(TUV100, date)).thenReturn(accrual2);
+    stubZeroLedgerBalance();
 
     service.calculateDailyFeesForFund(TUV100, date);
 
@@ -95,20 +96,6 @@ class FeeCalculationServiceTest {
     int expectedCalls = FUND_COUNT * daysInRange;
     verify(calculator1, times(expectedCalls)).calculate(any(), any());
     verify(calculator2, times(expectedCalls)).calculate(any(), any());
-  }
-
-  @Test
-  void calculateDailyFeesForFund_doesNotRecordToLedgerForNonNavFund() {
-    LocalDate date = LocalDate.of(2025, 1, 15);
-    FeeAccrual accrual1 = createAccrual(TUV100, FeeType.MANAGEMENT, date);
-    FeeAccrual accrual2 = createAccrual(TUV100, FeeType.DEPOT, date);
-
-    when(calculator1.calculate(TUV100, date)).thenReturn(accrual1);
-    when(calculator2.calculate(TUV100, date)).thenReturn(accrual2);
-
-    service.calculateDailyFeesForFund(TUV100, date);
-
-    verifyNoInteractions(navFeeAccrualLedger);
   }
 
   @Test
@@ -175,20 +162,6 @@ class FeeCalculationServiceTest {
     verify(navFeeAccrualLedger)
         .settleFeeAccrual(
             TKF100, LocalDate.of(2026, 2, 28), DEPOT_FEE_ACCRUAL, new BigDecimal("200.00"));
-  }
-
-  @Test
-  void calculateDailyFeesForFund_doesNotSettleForNonNavFund() {
-    LocalDate mar1 = LocalDate.of(2026, 3, 1);
-    FeeAccrual accrual1 = createAccrual(TUV100, FeeType.MANAGEMENT, mar1);
-    FeeAccrual accrual2 = createAccrual(TUV100, FeeType.DEPOT, mar1);
-
-    when(calculator1.calculate(TUV100, mar1)).thenReturn(accrual1);
-    when(calculator2.calculate(TUV100, mar1)).thenReturn(accrual2);
-
-    service.calculateDailyFeesForFund(TUV100, mar1);
-
-    verify(navFeeAccrualLedger, never()).settleFeeAccrual(any(), any(), any(), any());
   }
 
   @Test

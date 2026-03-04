@@ -17,4 +17,6 @@ public interface FundBalanceRepository extends JpaRepository<FundBalance, Long> 
 
   @Query("SELECT MAX(fb.requestDate) FROM FundBalance fb")
   Optional<LocalDate> findLatestRequestDate();
+
+  Optional<FundBalance> findByIsinAndRequestDate(String isin, LocalDate requestDate);
 }

@@ -87,7 +87,7 @@ class FeeCalculationIntegrationTest {
     int ledgerTransactionCount =
         jdbcClient.sql("SELECT COUNT(*) FROM ledger.transaction").query(Integer.class).single();
 
-    int expectedTransactions = 2; // management + depot for TKF100 only
+    int expectedTransactions = TulevaFund.values().length * 2; // management + depot for all funds
     assertThat(ledgerTransactionCount).isEqualTo(expectedTransactions);
 
     for (TulevaFund fund : TulevaFund.values()) {
@@ -129,6 +129,9 @@ class FeeCalculationIntegrationTest {
         TulevaFund.TUV100, LocalDate.of(2024, 12, 31), new BigDecimal("290000000"));
     insertPositionCalculation(TKF100, LocalDate.of(2024, 12, 31), new BigDecimal("48000000"));
     insertFundPosition(TKF100, LocalDate.of(2025, 1, 15), new BigDecimal("50000000"));
+    insertFundPosition(TUK75, LocalDate.of(2025, 1, 15), new BigDecimal("1000000000"));
+    insertFundPosition(TulevaFund.TUK00, LocalDate.of(2025, 1, 15), new BigDecimal("100000000"));
+    insertFundPosition(TulevaFund.TUV100, LocalDate.of(2025, 1, 15), new BigDecimal("300000000"));
   }
 
   private void insertPositionCalculation(TulevaFund fund, LocalDate date, BigDecimal marketValue) {

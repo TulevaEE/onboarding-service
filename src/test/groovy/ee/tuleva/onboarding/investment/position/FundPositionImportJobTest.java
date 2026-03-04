@@ -166,7 +166,7 @@ class FundPositionImportJobTest {
   }
 
   @Test
-  void importForProviderAndDate_onlyRecordsToLedgerForNavCalculationFunds() {
+  void importForProviderAndDate_recordsToLedgerForNavCalculationFunds() {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SWEDBANK, POSITIONS, date))
         .thenReturn(Optional.of(createSwedbankReport(date)));
@@ -174,8 +174,8 @@ class FundPositionImportJobTest {
 
     job.importForProviderAndDate(SWEDBANK, date);
 
-    verify(fundPositionLedgerService, never())
-        .recordPositionsToLedger(any(TulevaFund.class), any());
+    verify(fundPositionLedgerService).recordPositionsToLedger(TUK75, date);
+    verify(fundPositionLedgerService).recordPositionsToLedger(TUV100, date);
   }
 
   @Test

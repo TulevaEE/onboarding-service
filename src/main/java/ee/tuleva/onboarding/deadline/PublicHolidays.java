@@ -35,6 +35,21 @@ public class PublicHolidays {
     return date;
   }
 
+  public long countWorkingDaysBehind(LocalDate from, LocalDate to) {
+    if (!from.isBefore(to)) {
+      return 0;
+    }
+    long count = 0;
+    LocalDate date = from.plusDays(1);
+    while (!date.isAfter(to)) {
+      if (isWorkingDay(date)) {
+        count++;
+      }
+      date = date.plusDays(1);
+    }
+    return count;
+  }
+
   public boolean isWorkingDay(LocalDate date) {
     return !(date.getDayOfWeek() == SATURDAY
         || date.getDayOfWeek() == SUNDAY

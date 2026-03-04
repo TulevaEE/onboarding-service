@@ -9,21 +9,23 @@ Follow **Uncle Bob** (Clean Code, SOLID), **Kent Beck** (TDD, simple design), **
 - **Four Rules of Simple Design**: passes tests → reveals intention → no duplication → fewest elements.
 - **Refactor rigorously** — never create backwards-compatible shims, wrappers, or deprecation layers. Change the code directly and update all callers.
 - **Split into shippable milestones**: first refactor (no behavior change) → ship. Then make the behavior change → ship. Never mix refactoring and behavior changes in the same step.
-- **KISS / YAGNI** — simplest solution that works. Don't build for hypothetical future requirements. **Sandi Metz**: "duplication is far cheaper than the wrong abstraction."
+- **KISS / YAGNI** — simplest solution that works. Don't build for hypothetical future requirements: "duplication is far cheaper than the wrong abstraction."
 - **Boy Scout Rule** — always leave code cleaner than you found it.
-- **DORA four key metrics** — optimize for deployment frequency, lead time for changes, change failure rate, and time to restore service.
+- **DORA four key metrics** — optimize for deployment frequency, lead time for changes, change failure rate, and time to restore.
 
 ## TDD-First Planning
 
 **Structure plans as TDD steps — not production code changes.**
 
 1. **Failing integration test** — what it asserts and why it fails
-2. **For each unit of work**: failing unit test → minimal production code → green
+2. **For each unit of work**: failing unit test → minimal production code → green → refactor
 3. **Integration test turns green**
 4. **Full test suite — no regressions**
 
 ❌ "1. Add migration 2. Add enum 3. Add method 4. Write tests"
-✅ "1. Failing integration test 2. Failing unit test for A → implement A 3. Integration test passes 4. Full suite green"
+✅ "1. Failing integration test 2. Failing unit test for A → implement A → refactor 3. Integration test passes 4. Full suite green"
+
+**Bug fixes**: don't just reproduce the specific bug — ask what tests are missing that would catch this and similar bugs.
 
 ## Commands
 

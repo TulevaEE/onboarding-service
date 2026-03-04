@@ -3,9 +3,11 @@ package ee.tuleva.onboarding.savings.fund.nav;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 import static java.util.Locale.US;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult.SecurityDetail;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Component;
 class NavNotifier {
 
   private final OperationsNotificationService notificationService;
+  private final PublicHolidays publicHolidays;
 
   void notify(NavCalculationResult result) {
     try {
@@ -79,15 +82,20 @@ class NavNotifier {
     }
 
     message.append("\nSecurities Detail:\n");
-    result.securitiesDetail().forEach(detail -> appendSecurityLine(message, detail));
+    result
+        .securitiesDetail()
+        .forEach(detail -> appendSecurityLine(message, detail, result.priceDate()));
   }
 
-  private void appendSecurityLine(StringBuilder message, SecurityDetail detail) {
+  private void appendSecurityLine(
+      StringBuilder message, SecurityDetail detail, LocalDate targetPriceDate) {
+    String icon = stalenessIcon(detail.priceDate(), targetPriceDate);
     if (detail.price() != null) {
       message.append(
           String.format(
               US,
-              "  %s (%s): %s × %s = %,.2f EUR [%s]\n",
+              "  %s %s (%s): %s × %s = %,.2f EUR [%s]\n",
+              icon,
               detail.isin(),
               detail.ticker(),
               detail.units().stripTrailingZeros().toPlainString(),
@@ -96,11 +104,21 @@ class NavNotifier {
               detail.priceDate()));
     } else {
       message.append(
-          "  %s (%s): %s units (no price)\n"
+          "  ❌ %s (%s): %s units (no price)\n"
               .formatted(
                   detail.isin(),
                   detail.ticker(),
                   detail.units().stripTrailingZeros().toPlainString()));
     }
+  }
+
+  private String stalenessIcon(LocalDate priceDate, LocalDate targetPriceDate) {
+    if (priceDate == null) {
+      return "❌";
+    }
+    long daysBehind = publicHolidays.countWorkingDaysBehind(priceDate, targetPriceDate);
+    if (daysBehind == 0) return "✅";
+    if (daysBehind == 1) return "⚠️";
+    return "❌";
   }
 }

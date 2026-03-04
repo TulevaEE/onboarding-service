@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult.SecurityDetail;
 import java.math.BigDecimal;
@@ -20,12 +21,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class NavNotifierTest {
 
   @Mock private OperationsNotificationService notificationService;
+  @Spy private PublicHolidays publicHolidays;
 
   @InjectMocks private NavNotifier navNotifier;
 
@@ -55,8 +58,9 @@ class NavNotifierTest {
         .contains("6,824,567.63")
         .contains("693214.12345")
         .contains("NAV/Unit: 9.8440")
-        .contains("IE00BMDBMY19", "ESGM.XETRA", "13288", "43.38", "576,433.44", "2026-02-17")
-        .contains("IE00BJZ2DC62", "XRSM.XETRA", "21180", "49.55", "1,049,469.00", "2026-02-14");
+        .contains("✅", "IE00BMDBMY19", "ESGM.XETRA", "13288", "43.38", "576,433.44", "2026-02-17")
+        .contains(
+            "❌", "IE00BJZ2DC62", "XRSM.XETRA", "21180", "49.55", "1,049,469.00", "2026-02-12");
   }
 
   @Test
@@ -110,7 +114,7 @@ class NavNotifierTest {
                     new BigDecimal("21180.00000"),
                     new BigDecimal("49.550"),
                     new BigDecimal("1049469.00"),
-                    LocalDate.of(2026, 2, 14))))
+                    LocalDate.of(2026, 2, 12))))
         .build();
   }
 }

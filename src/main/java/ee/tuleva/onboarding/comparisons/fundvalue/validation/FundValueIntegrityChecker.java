@@ -7,6 +7,7 @@ import static java.math.RoundingMode.HALF_UP;
 import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.YahooFundValueRetriever;
@@ -14,6 +15,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResul
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.MissingData;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.OrphanedData;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Severity;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -44,6 +46,8 @@ public class FundValueIntegrityChecker {
 
   private final YahooFundValueRetriever yahooFundValueRetriever;
   private final FundValueRepository fundValueRepository;
+  private final PriorityPriceProvider priorityPriceProvider;
+  private final PublicHolidays publicHolidays;
   private final Clock clock;
 
   record TickerCheckResult(
@@ -339,8 +343,6 @@ public class FundValueIntegrityChecker {
     summary.append(buildLatestDaySummary(endDate, results));
     summary.append("\n");
     summary.append(buildCrossProviderSummaryTable(startDate, endDate, results));
-    summary.append("\n");
-    summary.append(buildTrendSummary(startDate, endDate, results));
 
     List<Discrepancy> criticalIssues = collectCriticalIssues(results);
     List<Discrepancy> infoIssues = collectInfoIssues(results);
@@ -518,6 +520,8 @@ public class FundValueIntegrityChecker {
       String yahooStatus =
           !result.yahooOk() ? CROSS_MARK : hasYahooDiscrepancyOnEndDate ? WARNING_MARK : CHECK_MARK;
 
+      String lastPriceStatus = formatLastPrice(result.ticker(), endDate);
+
       table.append(
           formatCrossProviderRow(
               truncateFundName(result.ticker().getDisplayName()),
@@ -525,69 +529,12 @@ public class FundValueIntegrityChecker {
               exchangeStatus,
               blackrockStatus,
               morningstarStatus,
-              yahooStatus));
+              yahooStatus,
+              lastPriceStatus));
     }
     table.append(formatCrossProviderFooter());
 
     return table.toString();
-  }
-
-  private String buildTrendSummary(
-      LocalDate startDate, LocalDate endDate, List<TickerCheckResult> results) {
-    StringBuilder summary = new StringBuilder();
-    summary.append(String.format("30-Day Trend Summary:%n"));
-    summary.append(formatTrendHeader());
-    summary.append(formatTrendSeparator());
-
-    for (TickerCheckResult result : results) {
-      List<Discrepancy> criticalDiscrepancies =
-          result.crossProviderDiscrepancies().stream()
-              .filter(d -> d.severity() == CRITICAL)
-              .toList();
-
-      String status;
-      String avgDiff;
-      String maxDiff;
-      String pattern;
-
-      if (criticalDiscrepancies.isEmpty()) {
-        status = CHECK_MARK;
-        avgDiff = "-";
-        maxDiff = "-";
-        pattern = "";
-      } else {
-        status = CROSS_MARK;
-        BigDecimal totalDiff =
-            criticalDiscrepancies.stream()
-                .map(Discrepancy::percentageDifference)
-                .reduce(ZERO, BigDecimal::add);
-        BigDecimal avgDiffValue =
-            totalDiff.divide(new BigDecimal(criticalDiscrepancies.size()), 4, HALF_UP);
-        BigDecimal maxDiffValue =
-            criticalDiscrepancies.stream()
-                .map(Discrepancy::percentageDifference)
-                .max(Comparator.naturalOrder())
-                .orElse(ZERO);
-
-        avgDiff = String.format("%.4f%%", avgDiffValue);
-        maxDiff = String.format("%.4f%%", maxDiffValue);
-        pattern =
-            criticalDiscrepancies.size() > 25
-                ? "Consistent"
-                : criticalDiscrepancies.size() > 10 ? "Frequent" : "Intermittent";
-      }
-
-      summary.append(
-          formatTrendRow(
-              truncateFundName(result.ticker().getDisplayName()),
-              status,
-              avgDiff,
-              maxDiff,
-              pattern));
-    }
-    summary.append(formatTrendFooter());
-
-    return summary.toString();
   }
 
   private List<Discrepancy> collectCriticalIssues(List<TickerCheckResult> results) {
@@ -652,28 +599,42 @@ public class FundValueIntegrityChecker {
     return name.substring(0, FUND_NAME_WIDTH - 3) + "...";
   }
 
+  private String formatLastPrice(FundTicker ticker, LocalDate endDate) {
+    return priorityPriceProvider
+        .resolve(ticker.getIsin(), endDate)
+        .map(
+            fundValue -> {
+              long daysBehind = publicHolidays.countWorkingDaysBehind(fundValue.date(), endDate);
+              String icon =
+                  daysBehind == 0 ? CHECK_MARK : daysBehind == 1 ? WARNING_MARK : CROSS_MARK;
+              return icon + " " + fundValue.date() + " " + fundValue.provider();
+            })
+        .orElse(CROSS_MARK + " no data");
+  }
+
   private String formatCrossProviderHeader() {
     return String.format(
         "┌─%-"
             + FUND_NAME_WIDTH
-            + "s─┬────────┬────────────┬────────────┬──────────────┬────────┐%n"
+            + "s─┬────────┬────────────┬────────────┬──────────────┬────────┬───────────────────────────┐%n"
             + "│ %-"
             + FUND_NAME_WIDTH
-            + "s │ %-6s │ %-10s │ %-10s │ %-12s │ %-6s │%n",
+            + "s │ %-6s │ %-10s │ %-10s │ %-12s │ %-6s │ %-25s │%n",
         "─".repeat(FUND_NAME_WIDTH),
         "Fund",
         "EODHD",
         "Exchange",
         "BlackRock",
         "Morningstar",
-        "Yahoo");
+        "Yahoo",
+        "Last Price");
   }
 
   private String formatCrossProviderSeparator() {
     return String.format(
         "├─%-"
             + FUND_NAME_WIDTH
-            + "s─┼────────┼────────────┼────────────┼──────────────┼────────┤%n",
+            + "s─┼────────┼────────────┼────────────┼──────────────┼────────┼───────────────────────────┤%n",
         "─".repeat(FUND_NAME_WIDTH));
   }
 
@@ -683,23 +644,26 @@ public class FundValueIntegrityChecker {
       String exchange,
       String blackrock,
       String morningstar,
-      String yahoo) {
+      String yahoo,
+      String lastPrice) {
     return String.format(
-        "│ %-" + FUND_NAME_WIDTH + "s │ %s │ %s │ %s │ %s │ %s │%n",
+        "│ %-" + FUND_NAME_WIDTH + "s │ %s │ %s │ %s │ %s │ %s │ %s │%n",
         fund,
         padCrossProviderStatus(eodhd, 6),
         padCrossProviderStatus(exchange, 10),
         padCrossProviderStatus(blackrock, 10),
         padCrossProviderStatus(morningstar, 12),
-        padCrossProviderStatus(yahoo, 6));
+        padCrossProviderStatus(yahoo, 6),
+        padCrossProviderStatus(lastPrice, 25));
   }
 
   private String padCrossProviderStatus(String status, int width) {
-    if (status.equals(CHECK_MARK)
-        || status.equals(CROSS_MARK)
-        || status.equals(WARNING_MARK)
-        || status.equals(INFO_MARK)) {
-      return status + " ".repeat(width - 1);
+    if (status.startsWith(CHECK_MARK)
+        || status.startsWith(CROSS_MARK)
+        || status.startsWith(WARNING_MARK)
+        || status.startsWith(INFO_MARK)) {
+      int padding = width - status.length();
+      return padding > 0 ? status + " ".repeat(padding) : status;
     }
     return String.format("%-" + width + "s", status);
   }
@@ -708,46 +672,7 @@ public class FundValueIntegrityChecker {
     return String.format(
         "└─%-"
             + FUND_NAME_WIDTH
-            + "s─┴────────┴────────────┴────────────┴──────────────┴────────┘%n",
-        "─".repeat(FUND_NAME_WIDTH));
-  }
-
-  private String formatTrendHeader() {
-    return String.format(
-        "┌─%-"
-            + FUND_NAME_WIDTH
-            + "s─┬────────┬──────────┬──────────┬─────────────┐%n"
-            + "│ %-"
-            + FUND_NAME_WIDTH
-            + "s │ %-6s │ %-8s │ %-8s │ %-11s │%n",
-        "─".repeat(FUND_NAME_WIDTH),
-        "Fund",
-        "Status",
-        "Avg Δ",
-        "Max Δ",
-        "Pattern");
-  }
-
-  private String formatTrendSeparator() {
-    return String.format(
-        "├─%-" + FUND_NAME_WIDTH + "s─┼────────┼──────────┼──────────┼─────────────┤%n",
-        "─".repeat(FUND_NAME_WIDTH));
-  }
-
-  private String formatTrendRow(
-      String fund, String status, String avgDiff, String maxDiff, String pattern) {
-    return String.format(
-        "│ %-" + FUND_NAME_WIDTH + "s │ %s │ %-8s │ %-8s │ %-11s │%n",
-        fund,
-        padCrossProviderStatus(status, 6),
-        avgDiff,
-        maxDiff,
-        pattern);
-  }
-
-  private String formatTrendFooter() {
-    return String.format(
-        "└─%-" + FUND_NAME_WIDTH + "s─┴────────┴──────────┴──────────┴─────────────┘%n",
+            + "s─┴────────┴────────────┴────────────┴──────────────┴────────┴───────────────────────────┘%n",
         "─".repeat(FUND_NAME_WIDTH));
   }
 

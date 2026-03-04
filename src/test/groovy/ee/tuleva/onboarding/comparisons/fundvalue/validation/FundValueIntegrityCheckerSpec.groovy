@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.validation
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
+import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.YahooFundValueRetriever
+import ee.tuleva.onboarding.deadline.PublicHolidays
 import spock.lang.Specification
 
 import java.time.Clock
@@ -18,11 +20,15 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   YahooFundValueRetriever yahooFundValueRetriever = Stub()
   FundValueRepository fundValueRepository = Stub()
+  PriorityPriceProvider priorityPriceProvider = Stub()
+  PublicHolidays publicHolidays = new PublicHolidays()
   Clock clock = Clock.fixed(Instant.parse("2026-02-12T12:00:00Z"), ZoneId.of("Europe/Tallinn"))
 
   FundValueIntegrityChecker checker = new FundValueIntegrityChecker(
       yahooFundValueRetriever,
       fundValueRepository,
+      priorityPriceProvider,
+      publicHolidays,
       clock
   )
 
@@ -395,6 +401,8 @@ class FundValueIntegrityCheckerSpec extends Specification {
     given:
     LocalDate date = LocalDate.of(2024, 1, 15)
 
+    priorityPriceProvider.resolve(_, _) >> Optional.empty()
+
     yahooFundValueRetriever.retrieveValuesForRange(_, _) >> FundTicker.values().collect {
       aFundValue(it.yahooTicker, date, 100.00)
     }
@@ -431,6 +439,8 @@ class FundValueIntegrityCheckerSpec extends Specification {
     given:
     LocalDate endDate = LocalDate.of(2024, 1, 15)
 
+    priorityPriceProvider.resolve(_, _) >> Optional.empty()
+
     yahooFundValueRetriever.retrieveValuesForRange(_, _) >> FundTicker.values().collect {
       aFundValue(it.yahooTicker, endDate, 100.00)
     }
@@ -461,5 +471,58 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
     then:
     summary.contains("Fund Value Integrity Check Summary")
+  }
+
+  def "should include Last Price column in cross-provider summary table"() {
+    given:
+    LocalDate endDate = LocalDate.of(2026, 3, 4)
+
+    def ticker1 = FundTicker.ISHARES_USA_ESG_SCREENED
+    def ticker2 = FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED
+
+    priorityPriceProvider.resolve(ticker1.isin, endDate) >> Optional.of(
+        new FundValue(ticker1.eodhdTicker, endDate, 100.00, "EODHD", null)
+    )
+    priorityPriceProvider.resolve(ticker2.isin, endDate) >> Optional.of(
+        new FundValue(ticker2.eodhdTicker, LocalDate.of(2026, 3, 2), 50.00, "BLACKROCK", null)
+    )
+
+    for (ticker in FundTicker.values()) {
+      if (ticker != ticker1 && ticker != ticker2) {
+        priorityPriceProvider.resolve(ticker.isin, endDate) >> Optional.empty()
+      }
+    }
+
+    yahooFundValueRetriever.retrieveValuesForRange(_, _) >> FundTicker.values().collect {
+      aFundValue(it.yahooTicker, endDate, 100.00)
+    }
+
+    for (ticker in FundTicker.values()) {
+      fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, _, _) >> [aFundValue(ticker.yahooTicker, endDate, 100.00)]
+      fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, _, _) >> [aFundValue(ticker.eodhdTicker, endDate, 100.00)]
+
+      ticker.getXetraStorageKey().ifPresent { xetraKey ->
+        fundValueRepository.findValuesBetweenDates(xetraKey, _, _) >> [aFundValue(xetraKey, endDate, 100.00)]
+      }
+      ticker.getEuronextParisStorageKey().ifPresent { euronextKey ->
+        fundValueRepository.findValuesBetweenDates(euronextKey, _, _) >> [aFundValue(euronextKey, endDate, 100.00)]
+      }
+      ticker.getBlackrockStorageKey().ifPresent { blackrockKey ->
+        fundValueRepository.findValuesBetweenDates(blackrockKey, _, _) >> [aFundValue(blackrockKey, endDate, 100.00)]
+      }
+      ticker.getMorningstarStorageKey().ifPresent { morningstarKey ->
+        fundValueRepository.findValuesBetweenDates(morningstarKey, _, _) >> [aFundValue(morningstarKey, endDate, 100.00)]
+      }
+    }
+
+    when:
+    String summary = checker.runIntegrityCheck(endDate)
+
+    then:
+    summary.contains("Last Price")
+    summary.contains("✅ 2026-03-04 EODHD")
+    summary.contains("❌ 2026-03-02 BLACKROCK")
+    summary.contains("❌ no data")
+    !summary.contains("30-Day Trend Summary")
   }
 }

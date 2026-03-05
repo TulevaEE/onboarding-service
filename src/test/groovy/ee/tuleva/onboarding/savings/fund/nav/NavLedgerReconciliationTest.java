@@ -58,7 +58,13 @@ class NavLedgerReconciliationTest {
     when(navLedgerRepository.getSystemAccountBalance(TRADE_RECEIVABLES.getAccountName(TKF100)))
         .thenReturn(new BigDecimal("1000.00"));
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(date, TKF100, RECEIVABLES))
-        .thenReturn(List.of(position(new BigDecimal("1000.00"))));
+        .thenReturn(
+            List.of(
+                position(new BigDecimal("1000.00")),
+                receivablePosition(TKF100.getIsin(), new BigDecimal("50000.00"))));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountTypeAndAccountId(
+            date, TKF100, RECEIVABLES, TKF100.getIsin()))
+        .thenReturn(Optional.of(receivablePosition(TKF100.getIsin(), new BigDecimal("50000.00"))));
 
     when(navLedgerRepository.getSystemAccountBalance(TRADE_PAYABLES.getAccountName(TKF100)))
         .thenReturn(new BigDecimal("-500.00"));
@@ -165,6 +171,10 @@ class NavLedgerReconciliationTest {
 
   private FundPosition position(BigDecimal marketValue) {
     return FundPosition.builder().marketValue(marketValue).build();
+  }
+
+  private FundPosition receivablePosition(String accountId, BigDecimal marketValue) {
+    return FundPosition.builder().accountId(accountId).marketValue(marketValue).build();
   }
 
   private FundPosition securityPosition(String isin, BigDecimal quantity) {

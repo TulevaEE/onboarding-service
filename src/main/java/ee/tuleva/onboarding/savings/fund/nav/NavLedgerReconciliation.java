@@ -20,8 +20,10 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class NavLedgerReconciliation {
@@ -84,9 +86,22 @@ public class NavLedgerReconciliation {
 
   private Optional<Discrepancy> compareReceivables(TulevaFund fund, LocalDate date) {
     BigDecimal ledgerValue = getLedgerBalance(TRADE_RECEIVABLES, fund);
-    BigDecimal externalValue = getPositionValue(fund, date, RECEIVABLES);
+    BigDecimal totalReceivables = getPositionValue(fund, date, RECEIVABLES);
+    BigDecimal pendingSubscriptions = getPendingSubscriptions(fund, date);
+    BigDecimal tradeReceivables = totalReceivables.subtract(pendingSubscriptions);
 
-    return createDiscrepancyIfDifferent("receivables", ledgerValue, externalValue);
+    if (tradeReceivables.signum() < 0) {
+      log.error(
+          "Trade receivables is negative after subtracting pending subscriptions:"
+              + " fund={}, date={}, totalReceivables={}, pendingSubscriptions={}, tradeReceivables={}",
+          fund,
+          date,
+          totalReceivables,
+          pendingSubscriptions,
+          tradeReceivables);
+    }
+
+    return createDiscrepancyIfDifferent("receivables", ledgerValue, tradeReceivables);
   }
 
   private Optional<Discrepancy> comparePayables(TulevaFund fund, LocalDate date) {
@@ -123,6 +138,13 @@ public class NavLedgerReconciliation {
         .map(FundPosition::getMarketValue)
         .filter(Objects::nonNull)
         .reduce(ZERO, BigDecimal::add);
+  }
+
+  private BigDecimal getPendingSubscriptions(TulevaFund fund, LocalDate date) {
+    return fundPositionRepository
+        .findByNavDateAndFundAndAccountTypeAndAccountId(date, fund, RECEIVABLES, fund.getIsin())
+        .map(FundPosition::getMarketValue)
+        .orElse(ZERO);
   }
 
   private BigDecimal getFeeAccrualValue(TulevaFund fund, LocalDate date, FeeType feeType) {

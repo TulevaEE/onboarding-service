@@ -34,7 +34,7 @@ public class FundPositionLedgerService {
     BigDecimal cashDelta =
         calculateDelta(CASH_POSITION, fund, calculatePositionValue(fund, date, CASH));
     BigDecimal receivablesDelta =
-        calculateDelta(TRADE_RECEIVABLES, fund, calculatePositionValue(fund, date, RECEIVABLES));
+        calculateDelta(TRADE_RECEIVABLES, fund, calculateTradeReceivables(fund, date));
     BigDecimal payablesDelta =
         calculateDelta(TRADE_PAYABLES, fund, calculatePositionValue(fund, date, LIABILITY));
 
@@ -88,6 +88,32 @@ public class FundPositionLedgerService {
     BigDecimal currentBalance =
         navLedgerRepository.getSystemAccountBalance(account.getAccountName(fund));
     return newValue.subtract(currentBalance);
+  }
+
+  private BigDecimal calculateTradeReceivables(TulevaFund fund, LocalDate date) {
+    BigDecimal totalReceivables = calculatePositionValue(fund, date, RECEIVABLES);
+    BigDecimal pendingSubscriptions = getPendingSubscriptions(fund, date);
+    BigDecimal tradeReceivables = totalReceivables.subtract(pendingSubscriptions);
+
+    if (tradeReceivables.signum() < 0) {
+      log.error(
+          "Trade receivables is negative after subtracting pending subscriptions:"
+              + " fund={}, date={}, totalReceivables={}, pendingSubscriptions={}, tradeReceivables={}",
+          fund,
+          date,
+          totalReceivables,
+          pendingSubscriptions,
+          tradeReceivables);
+    }
+
+    return tradeReceivables;
+  }
+
+  private BigDecimal getPendingSubscriptions(TulevaFund fund, LocalDate date) {
+    return fundPositionRepository
+        .findByNavDateAndFundAndAccountTypeAndAccountId(date, fund, RECEIVABLES, fund.getIsin())
+        .map(FundPosition::getMarketValue)
+        .orElse(ZERO);
   }
 
   private BigDecimal calculatePositionValue(TulevaFund fund, LocalDate date, AccountType type) {

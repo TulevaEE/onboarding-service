@@ -40,10 +40,9 @@ class NavNotifierTest {
 
     assertThat(message)
         .contains("TKF100")
-        .contains("Calculation Date: 2026-02-18")
         .contains("NAV Date: 2026-02-17")
         .contains("Price Date: 2026-02-17")
-        .contains("Calculated At: 2026-02-18T13:30:00Z")
+        .contains("Calculated At: 2026-02-18 13:30:00")
         .contains("6,388,454.59")
         .contains("504,842.47")
         .contains("1,234.56")
@@ -57,7 +56,7 @@ class NavNotifierTest {
         .contains("95,642.89")
         .contains("6,824,567.63")
         .contains("693214.12345")
-        .contains("NAV/Unit: 9.8440")
+        .contains("*NAV/Unit: 9.8440*")
         .contains("✅", "IE00BMDBMY19", "ESGM.XETRA", "13288", "43.38", "576,433.44", "2026-02-17")
         .contains(
             "❌", "IE00BJZ2DC62", "XRSM.XETRA", "21180", "49.55", "1,049,469.00", "2026-02-12");

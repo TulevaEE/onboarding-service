@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJUSTMENT;
@@ -13,6 +14,7 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 import ee.tuleva.onboarding.auth.UserFixture;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.FundPosition;
+import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.*;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -30,6 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.SneakyThrows;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,6 +48,7 @@ class MultiFundNavVerificationTest {
   @Autowired NavCalculationService navCalculationService;
   @Autowired NavPositionLedger navPositionLedger;
   @Autowired NavFeeAccrualLedger navFeeAccrualLedger;
+  @Autowired FundPositionLedgerService fundPositionLedgerService;
   @Autowired FundPositionRepository fundPositionRepository;
   @Autowired LedgerService ledgerService;
   @Autowired EntityManager entityManager;
@@ -88,6 +92,39 @@ class MultiFundNavVerificationTest {
       int csvScale = testCase.data.expectedNavPerUnit.stripTrailingZeros().scale();
       assertThat(result.navPerUnit().setScale(csvScale, HALF_UP))
           .isEqualByComparingTo(testCase.data.expectedNavPerUnit.setScale(csvScale, HALF_UP));
+    } finally {
+      ClockHolder.setDefaultClock();
+    }
+  }
+
+  @Test
+  @SneakyThrows
+  void navCalculation_doesNotDoubleCountReceivablesWhenUsingProductionLedgerPath() {
+    Path csvFile = NAV_CSV_DIR.resolve("TUV100 NAV arvutamine 03032026.csv");
+    FundNavCsvData data = parseMultiFundCsv(csvFile, TUV100);
+    LocalDate calculationDate = LocalDate.of(2026, 3, 3);
+
+    Instant ledgerTime = data.navDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
+    ClockHolder.setClock(Clock.fixed(ledgerTime, ZoneId.of("UTC")));
+    try {
+      data.positions.forEach(fundPositionRepository::save);
+      entityManager.flush();
+
+      fundPositionLedgerService.recordPositionsToLedger(TUV100, data.navDate);
+
+      setupFeeAccrualsInLedger(data);
+      setupUnitsOutstanding(data);
+      insertPricesFromCsv(data);
+      entityManager.flush();
+      entityManager.clear();
+
+      var result = navCalculationService.calculate(TUV100, calculationDate);
+
+      assertThat(result.receivables()).isEqualByComparingTo(data.tradeReceivables);
+      assertThat(result.pendingSubscriptions()).isEqualByComparingTo(data.pendingSubscriptions);
+      assertThat(result.aum().subtract(data.expectedAum).abs())
+          .as("AUM should not double-count receivables")
+          .isLessThan(new BigDecimal("1.00"));
     } finally {
       ClockHolder.setDefaultClock();
     }

@@ -67,7 +67,7 @@ class NavFeeAccrualLedgerTest {
   @Test
   void recordFeeAccrual_recordsManagementFeeToLedger() {
     LocalDate accrualDate = LocalDate.of(2026, 2, 1);
-    Instant expectedTimestamp = accrualDate.atTime(12, 0).atZone(ESTONIAN_ZONE).toInstant();
+    Instant expectedTimestamp = accrualDate.atTime(9, 0).atZone(ESTONIAN_ZONE).toInstant();
     setupAccountMocks();
 
     when(ledgerTransactionService.existsByExternalReferenceAndTransactionType(
@@ -103,7 +103,7 @@ class NavFeeAccrualLedgerTest {
   @Test
   void recordFeeAccrual_recordsDepotFeeToLedger() {
     LocalDate accrualDate = LocalDate.of(2026, 2, 1);
-    Instant expectedTimestamp = accrualDate.atTime(12, 0).atZone(ESTONIAN_ZONE).toInstant();
+    Instant expectedTimestamp = accrualDate.atTime(9, 0).atZone(ESTONIAN_ZONE).toInstant();
     setupAccountMocks();
 
     when(ledgerTransactionService.existsByExternalReferenceAndTransactionType(
@@ -239,7 +239,7 @@ class NavFeeAccrualLedgerTest {
   @Test
   void recordFeeAccrual_generatesDeterministicReference() {
     LocalDate accrualDate = LocalDate.of(2026, 2, 1);
-    Instant expectedTimestamp = accrualDate.atTime(12, 0).atZone(ESTONIAN_ZONE).toInstant();
+    Instant expectedTimestamp = accrualDate.atTime(9, 0).atZone(ESTONIAN_ZONE).toInstant();
     setupAccountMocks();
 
     UUID expectedRef =

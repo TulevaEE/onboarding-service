@@ -184,16 +184,18 @@ class MultiFundNavVerificationTest {
           Map.entry("IE0005032192", "IE0005032192.EUFUND"));
 
   private void insertPricesFromCsv(FundNavCsvData data) {
+    Instant updatedAt = data.navDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
     data.securityPrices.forEach(
         (isin, price) -> {
           String ticker = ISIN_TO_TICKER.get(isin);
           if (ticker != null) {
             entityManager
                 .createNativeQuery(
-                    "INSERT INTO index_values (key, date, value, provider, updated_at) VALUES (:key, :date, :value, 'EODHD', CURRENT_TIMESTAMP)")
+                    "INSERT INTO index_values (key, date, value, provider, updated_at) VALUES (:key, :date, :value, 'EODHD', :updatedAt)")
                 .setParameter("key", ticker)
                 .setParameter("date", data.navDate)
                 .setParameter("value", price)
+                .setParameter("updatedAt", java.sql.Timestamp.from(updatedAt))
                 .executeUpdate();
           }
         });

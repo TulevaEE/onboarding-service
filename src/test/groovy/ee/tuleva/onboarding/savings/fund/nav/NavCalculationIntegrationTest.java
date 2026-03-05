@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.position.AccountType.NAV;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
@@ -14,6 +15,7 @@ import static java.math.RoundingMode.HALF_UP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.*;
@@ -92,8 +94,8 @@ class NavCalculationIntegrationTest {
     Instant futureTransactionDate =
         LocalDate.of(2026, 2, 5).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
     createSystemAccountBalance(CASH_POSITION, new BigDecimal("999999"), EUR, futureTransactionDate);
-    createFutureSecuritiesEntry(
-        "IE00BMDBMY19", new BigDecimal("50000.00000"), futureTransactionDate);
+    createSecuritiesUnitBalance(
+        TKF100, "IE00BMDBMY19", new BigDecimal("50000.00000"), futureTransactionDate);
     setupFundPosition(LocalDate.of(2026, 2, 5));
 
     entityManager.flush();
@@ -105,6 +107,84 @@ class NavCalculationIntegrationTest {
     assertThat(result.positionReportDate()).isEqualTo(csvData.navDate);
     assertThat(result.navPerUnit().setScale(4, HALF_UP))
         .isEqualByComparingTo(csvData.expectedNavPerUnit.setScale(4, HALF_UP));
+  }
+
+  @Test
+  void navCalculation_usesPriceCutoffToFilterOutLatePublishedPrices() {
+    LocalDate calculationDate = LocalDate.of(2026, 3, 4);
+    LocalDate priceDate = LocalDate.of(2026, 3, 3);
+    Instant transactionDate = priceDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
+
+    // TUK75 cutoff is 11:00 EET = 09:00 UTC on calculation date
+    // EUFUND price published Mar 3 21:00 UTC (before cutoff) → should be used
+    // BLACKROCK price published Mar 4 15:00 UTC (after cutoff) → should be filtered out
+    insertPriceWithTimestamp(
+        "IE0009FT4LX4.EUFUND",
+        priceDate,
+        new BigDecimal("15.529"),
+        "EODHD",
+        Instant.parse("2026-03-03T21:00:00Z"));
+    insertPriceWithTimestamp(
+        "IE0009FT4LX4.BLACKROCK",
+        priceDate,
+        new BigDecimal("15.415"),
+        "BLACKROCK",
+        Instant.parse("2026-03-04T15:00:00Z"));
+
+    createSecuritiesUnitBalance(
+        TUK75, "IE0009FT4LX4", new BigDecimal("100000.00000"), transactionDate);
+    createSystemAccountBalance(
+        TUK75, CASH_POSITION, new BigDecimal("50000.00"), EUR, transactionDate);
+    createSystemAccountBalance(TUK75, TRADE_RECEIVABLES, ZERO, EUR, transactionDate);
+    createSystemAccountBalance(TUK75, TRADE_PAYABLES, ZERO, EUR, transactionDate);
+    createSystemAccountBalance(TUK75, BLACKROCK_ADJUSTMENT, ZERO, EUR, transactionDate);
+    insertFeeAccrualRecord(TUK75, priceDate, "MANAGEMENT", new BigDecimal("100.00"));
+    insertFeeAccrualRecord(TUK75, priceDate, "DEPOT", new BigDecimal("10.00"));
+    createFundUnitsOutstandingBalance(TUK75, new BigDecimal("100000.00000"), priceDate);
+    setupFundPosition(TUK75, priceDate);
+
+    entityManager.flush();
+    entityManager.clear();
+
+    var result = navCalculationService.calculate(TUK75, calculationDate);
+
+    // Should use EUFUND price (15.529), not BLACKROCK (15.415)
+    assertThat(result.securitiesValue()).isEqualByComparingTo("1552900.00");
+  }
+
+  @Test
+  void navCalculation_feeAccrualVisibleBeforeFundCutoff() {
+    LocalDate calculationDate = LocalDate.of(2026, 3, 4);
+    LocalDate priceDate = LocalDate.of(2026, 3, 3);
+    Instant transactionDate = priceDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
+
+    insertPriceWithTimestamp(
+        "IE0009FT4LX4.EUFUND",
+        priceDate,
+        new BigDecimal("15.529"),
+        "EODHD",
+        Instant.parse("2026-03-03T21:00:00Z"));
+
+    createSecuritiesUnitBalance(
+        TUK75, "IE0009FT4LX4", new BigDecimal("100000.00000"), transactionDate);
+    createSystemAccountBalance(
+        TUK75, CASH_POSITION, new BigDecimal("50000.00"), EUR, transactionDate);
+    createSystemAccountBalance(TUK75, TRADE_RECEIVABLES, ZERO, EUR, transactionDate);
+    createSystemAccountBalance(TUK75, TRADE_PAYABLES, ZERO, EUR, transactionDate);
+    createSystemAccountBalance(TUK75, BLACKROCK_ADJUSTMENT, ZERO, EUR, transactionDate);
+    insertFeeAccrualRecord(TUK75, priceDate, "MANAGEMENT", new BigDecimal("5300.00"));
+    insertFeeAccrualRecord(TUK75, priceDate, "DEPOT", ZERO);
+    createFundUnitsOutstandingBalance(TUK75, new BigDecimal("100000.00000"), priceDate);
+    setupFundPosition(TUK75, priceDate);
+
+    entityManager.flush();
+    entityManager.clear();
+
+    var result = navCalculationService.calculate(TUK75, calculationDate);
+
+    // Fee accrual at 9am EET (07:00 UTC) should be visible before TUK75 cutoff of 11:00 EET (09:00
+    // UTC)
+    assertThat(result.managementFeeAccrual()).isEqualByComparingTo("5300.00");
   }
 
   @SneakyThrows
@@ -133,91 +213,14 @@ class NavCalculationIntegrationTest {
       BigDecimal amount,
       AssetType assetType,
       Instant transactionDate) {
-    if (amount.compareTo(ZERO) == 0) {
-      ledgerService.getSystemAccount(systemAccount, TKF100);
-      ledgerService.getSystemAccount(NAV_EQUITY, TKF100);
-      return;
-    }
-
-    LedgerAccount account = ledgerService.getSystemAccount(systemAccount, TKF100);
-    LedgerAccount navEquity = ledgerService.getSystemAccount(NAV_EQUITY, TKF100);
-
-    var transaction =
-        LedgerTransaction.builder()
-            .transactionType(ADJUSTMENT)
-            .transactionDate(transactionDate)
-            .build();
-
-    var entry =
-        LedgerEntry.builder()
-            .amount(amount)
-            .assetType(assetType)
-            .account(account)
-            .transaction(transaction)
-            .build();
-
-    var counterEntry =
-        LedgerEntry.builder()
-            .amount(amount.negate())
-            .assetType(assetType)
-            .account(navEquity)
-            .transaction(transaction)
-            .build();
-
-    transaction.getEntries().add(entry);
-    transaction.getEntries().add(counterEntry);
-    entityManager.persist(transaction);
+    createSystemAccountBalance(TKF100, systemAccount, amount, assetType, transactionDate);
   }
 
   private void createSecuritiesUnitBalances(CsvData csvData, Instant transactionDate) {
     csvData.securitiesUnitsByIsin.forEach(
-        (isin, quantity) -> {
-          BigDecimal units = quantity.setScale(5, HALF_UP);
-
-          var securitiesUnitsAccount =
-              LedgerAccount.builder()
-                  .name(SECURITIES_UNITS.getAccountName(TKF100, isin))
-                  .purpose(LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT)
-                  .accountType(SECURITIES_UNITS.getAccountType())
-                  .assetType(SECURITIES_UNITS.getAssetType())
-                  .build();
-          entityManager.persist(securitiesUnitsAccount);
-
-          var securitiesUnitsEquityAccount =
-              LedgerAccount.builder()
-                  .name(SECURITIES_UNITS_EQUITY.getAccountName(TKF100, isin))
-                  .purpose(LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT)
-                  .accountType(SECURITIES_UNITS_EQUITY.getAccountType())
-                  .assetType(SECURITIES_UNITS_EQUITY.getAssetType())
-                  .build();
-          entityManager.persist(securitiesUnitsEquityAccount);
-
-          var transaction =
-              LedgerTransaction.builder()
-                  .transactionType(ADJUSTMENT)
-                  .transactionDate(transactionDate)
-                  .build();
-
-          var entry =
-              LedgerEntry.builder()
-                  .amount(units)
-                  .assetType(FUND_UNIT)
-                  .account(securitiesUnitsAccount)
-                  .transaction(transaction)
-                  .build();
-
-          var counterEntry =
-              LedgerEntry.builder()
-                  .amount(units.negate())
-                  .assetType(FUND_UNIT)
-                  .account(securitiesUnitsEquityAccount)
-                  .transaction(transaction)
-                  .build();
-
-          transaction.getEntries().add(entry);
-          transaction.getEntries().add(counterEntry);
-          entityManager.persist(transaction);
-        });
+        (isin, quantity) ->
+            createSecuritiesUnitBalance(
+                TKF100, isin, quantity.setScale(5, HALF_UP), transactionDate));
   }
 
   @SneakyThrows
@@ -226,74 +229,28 @@ class NavCalculationIntegrationTest {
     for (int i = 1; i < priceLines.size(); i++) {
       String[] parts = priceLines.get(i).split(",");
       LocalDate priceDate = LocalDate.parse(parts[1]);
+      Instant updatedAt = priceDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
       entityManager
           .createNativeQuery(
-              "INSERT INTO index_values (key, date, value, provider, updated_at) VALUES (:key, :date, :value, 'EODHD', CURRENT_TIMESTAMP)")
+              "INSERT INTO index_values (key, date, value, provider, updated_at) VALUES (:key, :date, :value, 'EODHD', :updatedAt)")
           .setParameter("key", parts[0])
           .setParameter("date", priceDate)
           .setParameter("value", new BigDecimal(parts[2]))
+          .setParameter("updatedAt", java.sql.Timestamp.from(updatedAt))
           .executeUpdate();
     }
   }
 
   private void createFundUnitsOutstandingBalance(BigDecimal unitsOutstanding, LocalDate navDate) {
-    LedgerAccount fundUnitsOutstandingAccount =
-        ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100);
-    LedgerAccount userFundUnitsAccount = ledgerService.getUserAccount(testUser, FUND_UNITS);
-
-    BigDecimal units = unitsOutstanding.setScale(5, HALF_UP);
-
-    Instant transactionDate = navDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
-    var transaction =
-        LedgerTransaction.builder()
-            .transactionType(ADJUSTMENT)
-            .transactionDate(transactionDate)
-            .build();
-
-    var systemEntry =
-        LedgerEntry.builder()
-            .amount(units)
-            .assetType(FUND_UNIT)
-            .account(fundUnitsOutstandingAccount)
-            .transaction(transaction)
-            .build();
-
-    var userEntry =
-        LedgerEntry.builder()
-            .amount(units.negate())
-            .assetType(FUND_UNIT)
-            .account(userFundUnitsAccount)
-            .transaction(transaction)
-            .build();
-
-    transaction.getEntries().add(systemEntry);
-    transaction.getEntries().add(userEntry);
-    entityManager.persist(transaction);
+    createFundUnitsOutstandingBalance(TKF100, unitsOutstanding, navDate);
   }
 
   private void insertFeeAccrualRecord(LocalDate navDate, String feeType, BigDecimal amount) {
-    if (amount.signum() == 0) return;
-
-    SystemAccount feeAccount =
-        feeType.equals("MANAGEMENT") ? MANAGEMENT_FEE_ACCRUAL : DEPOT_FEE_ACCRUAL;
-    Instant transactionDate = navDate.atTime(12, 0).atZone(ZoneId.of("Europe/Tallinn")).toInstant();
-    createSystemAccountBalance(feeAccount, amount.negate(), EUR, transactionDate);
+    insertFeeAccrualRecord(TKF100, navDate, feeType, amount);
   }
 
   private void setupFundPosition(LocalDate navDate) {
-    var position =
-        FundPosition.builder()
-            .navDate(navDate)
-            .fund(TKF100)
-            .accountType(NAV)
-            .accountName("Net Asset Value")
-            .accountId("EE0000003283")
-            .quantity(ONE)
-            .marketPrice(ONE)
-            .currency("EUR")
-            .marketValue(ONE)
-            .build();
-    fundPositionRepository.save(position);
+    setupFundPosition(TKF100, navDate);
   }
 
   private LocalDate parseCalculationDateFromFilename(Path csvFile) {
@@ -359,24 +316,38 @@ class NavCalculationIntegrationTest {
     return data;
   }
 
-  private void createFutureSecuritiesEntry(String isin, BigDecimal units, Instant transactionDate) {
-    var securitiesAccount =
+  private void insertPriceWithTimestamp(
+      String key, LocalDate date, BigDecimal value, String provider, Instant updatedAt) {
+    entityManager
+        .createNativeQuery(
+            "INSERT INTO index_values (key, date, value, provider, updated_at) VALUES (:key, :date, :value, :provider, :updatedAt)")
+        .setParameter("key", key)
+        .setParameter("date", date)
+        .setParameter("value", value)
+        .setParameter("provider", provider)
+        .setParameter("updatedAt", java.sql.Timestamp.from(updatedAt))
+        .executeUpdate();
+  }
+
+  private void createSecuritiesUnitBalance(
+      TulevaFund fund, String isin, BigDecimal units, Instant transactionDate) {
+    var securitiesUnitsAccount =
         LedgerAccount.builder()
-            .name(SECURITIES_UNITS.getAccountName(TKF100, isin))
+            .name(SECURITIES_UNITS.getAccountName(fund, isin))
             .purpose(LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT)
             .accountType(SECURITIES_UNITS.getAccountType())
             .assetType(SECURITIES_UNITS.getAssetType())
             .build();
-    entityManager.persist(securitiesAccount);
+    entityManager.persist(securitiesUnitsAccount);
 
-    var equityAccount =
+    var securitiesUnitsEquityAccount =
         LedgerAccount.builder()
-            .name(SECURITIES_UNITS_EQUITY.getAccountName(TKF100, isin))
+            .name(SECURITIES_UNITS_EQUITY.getAccountName(fund, isin))
             .purpose(LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT)
             .accountType(SECURITIES_UNITS_EQUITY.getAccountType())
             .assetType(SECURITIES_UNITS_EQUITY.getAssetType())
             .build();
-    entityManager.persist(equityAccount);
+    entityManager.persist(securitiesUnitsEquityAccount);
 
     var transaction =
         LedgerTransaction.builder()
@@ -388,7 +359,7 @@ class NavCalculationIntegrationTest {
         LedgerEntry.builder()
             .amount(units)
             .assetType(FUND_UNIT)
-            .account(securitiesAccount)
+            .account(securitiesUnitsAccount)
             .transaction(transaction)
             .build();
 
@@ -396,13 +367,117 @@ class NavCalculationIntegrationTest {
         LedgerEntry.builder()
             .amount(units.negate())
             .assetType(FUND_UNIT)
-            .account(equityAccount)
+            .account(securitiesUnitsEquityAccount)
             .transaction(transaction)
             .build();
 
     transaction.getEntries().add(entry);
     transaction.getEntries().add(counterEntry);
     entityManager.persist(transaction);
+  }
+
+  private void createSystemAccountBalance(
+      TulevaFund fund,
+      SystemAccount systemAccount,
+      BigDecimal amount,
+      AssetType assetType,
+      Instant transactionDate) {
+    if (amount.compareTo(ZERO) == 0) {
+      ledgerService.getSystemAccount(systemAccount, fund);
+      ledgerService.getSystemAccount(NAV_EQUITY, fund);
+      return;
+    }
+
+    LedgerAccount account = ledgerService.getSystemAccount(systemAccount, fund);
+    LedgerAccount navEquity = ledgerService.getSystemAccount(NAV_EQUITY, fund);
+
+    var transaction =
+        LedgerTransaction.builder()
+            .transactionType(ADJUSTMENT)
+            .transactionDate(transactionDate)
+            .build();
+
+    var entry =
+        LedgerEntry.builder()
+            .amount(amount)
+            .assetType(assetType)
+            .account(account)
+            .transaction(transaction)
+            .build();
+
+    var counterEntry =
+        LedgerEntry.builder()
+            .amount(amount.negate())
+            .assetType(assetType)
+            .account(navEquity)
+            .transaction(transaction)
+            .build();
+
+    transaction.getEntries().add(entry);
+    transaction.getEntries().add(counterEntry);
+    entityManager.persist(transaction);
+  }
+
+  private void insertFeeAccrualRecord(
+      TulevaFund fund, LocalDate navDate, String feeType, BigDecimal amount) {
+    if (amount.signum() == 0) return;
+
+    SystemAccount feeAccount =
+        feeType.equals("MANAGEMENT") ? MANAGEMENT_FEE_ACCRUAL : DEPOT_FEE_ACCRUAL;
+    Instant transactionDate = navDate.atTime(9, 0).atZone(ZoneId.of("Europe/Tallinn")).toInstant();
+    createSystemAccountBalance(fund, feeAccount, amount.negate(), EUR, transactionDate);
+  }
+
+  private void createFundUnitsOutstandingBalance(
+      TulevaFund fund, BigDecimal unitsOutstanding, LocalDate navDate) {
+    LedgerAccount fundUnitsOutstandingAccount =
+        ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, fund);
+    LedgerAccount userFundUnitsAccount = ledgerService.getUserAccount(testUser, FUND_UNITS);
+
+    BigDecimal units = unitsOutstanding.setScale(5, HALF_UP);
+
+    Instant transactionDate = navDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
+    var transaction =
+        LedgerTransaction.builder()
+            .transactionType(ADJUSTMENT)
+            .transactionDate(transactionDate)
+            .build();
+
+    var systemEntry =
+        LedgerEntry.builder()
+            .amount(units)
+            .assetType(FUND_UNIT)
+            .account(fundUnitsOutstandingAccount)
+            .transaction(transaction)
+            .build();
+
+    var userEntry =
+        LedgerEntry.builder()
+            .amount(units.negate())
+            .assetType(FUND_UNIT)
+            .account(userFundUnitsAccount)
+            .transaction(transaction)
+            .build();
+
+    transaction.getEntries().add(systemEntry);
+    transaction.getEntries().add(userEntry);
+    entityManager.persist(transaction);
+  }
+
+  private void setupFundPosition(TulevaFund fund, LocalDate navDate) {
+    var position =
+        FundPosition.builder()
+            .navDate(navDate)
+            .fund(fund)
+            .accountType(NAV)
+            .accountName("Net Asset Value")
+            .accountId(fund.getIsin())
+            .quantity(ONE)
+            .marketPrice(ONE)
+            .currency("EUR")
+            .marketValue(ONE)
+            .build();
+    fundPositionRepository.save(position);
   }
 
   private static class CsvData {

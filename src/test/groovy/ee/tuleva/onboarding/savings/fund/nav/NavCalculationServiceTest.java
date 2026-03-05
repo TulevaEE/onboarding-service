@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.OK;
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.fundUnitsOutstandingAccount;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 import static java.math.BigDecimal.ZERO;
@@ -11,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.calculation.PositionPriceResolver;
+import ee.tuleva.onboarding.investment.calculation.ResolvedPrice;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.LedgerAccountFixture.EntryFixture;
 import ee.tuleva.onboarding.ledger.LedgerService;
@@ -22,6 +25,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -248,5 +252,82 @@ class NavCalculationServiceTest {
     NavCalculationResult result = service.calculate(TKF100, summerDate);
 
     assertThat(result.unitsOutstanding()).isEqualByComparingTo("80000.00000");
+  }
+
+  @Test
+  void calculate_usesFundSpecificCutoffForUnitsOutstanding() {
+    // TUK75 cutoff is 11:00 EET = 09:00 UTC (winter)
+    LocalDate calcDate = LocalDate.of(2026, 1, 15);
+    LocalDate previousWorkingDay = LocalDate.of(2026, 1, 14);
+
+    var account =
+        fundUnitsOutstandingAccount(
+            TUK75,
+            List.of(
+                new EntryFixture(
+                    new BigDecimal("80000.00000"), Instant.parse("2026-01-15T08:00:00Z")),
+                new EntryFixture(
+                    new BigDecimal("20000.00000"), Instant.parse("2026-01-15T09:30:00Z"))));
+
+    when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, previousWorkingDay))
+        .thenReturn(Optional.of(previousWorkingDay));
+    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TUK75)).thenReturn(account);
+
+    when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("1000000.00"));
+    when(cashPositionComponent.calculate(any())).thenReturn(ZERO);
+    when(receivablesComponent.calculate(any())).thenReturn(ZERO);
+    when(payablesComponent.calculate(any())).thenReturn(ZERO);
+    when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
+    when(managementFeeAccrualComponent.calculate(any())).thenReturn(ZERO);
+    when(depotFeeAccrualComponent.calculate(any())).thenReturn(ZERO);
+    when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
+    when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
+
+    NavCalculationResult result = service.calculate(TUK75, calcDate);
+
+    // Only the 80000 entry (08:00 UTC) should be included; 20000 entry (09:30 UTC) is after cutoff
+    assertThat(result.unitsOutstanding()).isEqualByComparingTo("80000.00000");
+  }
+
+  @Test
+  void calculate_securitiesDetailUsesCutoffForPriceResolution() {
+    LocalDate calcDate = LocalDate.of(2025, 1, 15);
+    LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
+    // TKF100 cutoff 15:30 EET = 13:30 UTC (winter)
+    Instant expectedCutoff = Instant.parse("2025-01-15T13:30:00Z");
+
+    when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
+        .thenReturn(Optional.of(previousWorkingDay));
+    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
+        .thenReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
+
+    when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("1000000.00"));
+    when(cashPositionComponent.calculate(any())).thenReturn(ZERO);
+    when(receivablesComponent.calculate(any())).thenReturn(ZERO);
+    when(payablesComponent.calculate(any())).thenReturn(ZERO);
+    when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
+    when(managementFeeAccrualComponent.calculate(any())).thenReturn(ZERO);
+    when(depotFeeAccrualComponent.calculate(any())).thenReturn(ZERO);
+    when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
+    when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
+
+    when(navLedgerRepository.getSecuritiesUnitBalancesAt(expectedCutoff, TKF100))
+        .thenReturn(Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")));
+    when(positionPriceResolver.resolve("IE00BFG1TM61", previousWorkingDay, expectedCutoff))
+        .thenReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(new BigDecimal("34.00"))
+                    .validationStatus(OK)
+                    .priceDate(previousWorkingDay)
+                    .storageKey("IE00BFG1TM61.EUFUND")
+                    .build()));
+
+    NavCalculationResult result = service.calculate(TKF100, calcDate);
+
+    assertThat(result.securitiesDetail()).hasSize(1);
+    assertThat(result.securitiesDetail().getFirst().price()).isEqualByComparingTo("34.00");
   }
 }

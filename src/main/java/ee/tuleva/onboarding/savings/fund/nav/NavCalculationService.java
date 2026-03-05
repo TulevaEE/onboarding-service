@@ -17,7 +17,6 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.TreeMap;
@@ -31,7 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class NavCalculationService {
 
-  private static final LocalTime CUTOFF_TIME = LocalTime.of(16, 0);
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final FundPositionRepository fundPositionRepository;
@@ -65,7 +63,8 @@ public class NavCalculationService {
           "No position report found: fund=" + fund + ", date=" + calculationDate);
     }
 
-    Instant cutoff = calculationDate.atTime(CUTOFF_TIME).atZone(ESTONIAN_ZONE).toInstant();
+    Instant cutoff =
+        calculationDate.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
 
     NavComponentContext context =
         NavComponentContext.builder()
@@ -149,7 +148,8 @@ public class NavCalculationService {
   }
 
   private BigDecimal getUnitsOutstanding(TulevaFund fund, LocalDate calculationDate) {
-    Instant cutoff = calculationDate.atTime(CUTOFF_TIME).atZone(ESTONIAN_ZONE).toInstant();
+    Instant cutoff =
+        calculationDate.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
     var account = ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, fund);
     BigDecimal balance = account.getBalanceAt(cutoff);
     if (balance.signum() < 0) {
@@ -203,7 +203,7 @@ public class NavCalculationService {
                 entry -> {
                   String isin = entry.getKey();
                   BigDecimal units = entry.getValue();
-                  var resolvedPrice = positionPriceResolver.resolve(isin, priceDate);
+                  var resolvedPrice = positionPriceResolver.resolve(isin, priceDate, cutoff);
                   String ticker = resolvedPrice.map(ResolvedPrice::storageKey).orElse("UNKNOWN");
                   BigDecimal price = resolvedPrice.map(ResolvedPrice::usedPrice).orElse(null);
                   LocalDate resolvedPriceDate =

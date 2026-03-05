@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.USER_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
@@ -13,6 +12,7 @@ import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.*;
 
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.LedgerAccount.LedgerAccountBuilder;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -247,10 +247,11 @@ public class LedgerAccountFixture {
     return account;
   }
 
-  public static LedgerAccount fundUnitsOutstandingAccount(List<EntryFixture> entries) {
+  public static LedgerAccount fundUnitsOutstandingAccount(
+      TulevaFund fund, List<EntryFixture> entries) {
     LedgerAccount account =
         LedgerAccount.builder()
-            .name(FUND_UNITS_OUTSTANDING.getAccountName(TKF100))
+            .name(FUND_UNITS_OUTSTANDING.getAccountName(fund))
             .purpose(SYSTEM_ACCOUNT)
             .assetType(FUND_UNIT)
             .accountType(LIABILITY)
@@ -258,7 +259,7 @@ public class LedgerAccountFixture {
 
     LedgerAccount equityAccount =
         LedgerAccount.builder()
-            .name(SystemAccount.NAV_EQUITY.getAccountName(TKF100))
+            .name(SystemAccount.NAV_EQUITY.getAccountName(fund))
             .purpose(SYSTEM_ACCOUNT)
             .assetType(FUND_UNIT)
             .accountType(ASSET)
@@ -276,6 +277,10 @@ public class LedgerAccountFixture {
         });
 
     return account;
+  }
+
+  public static LedgerAccount fundUnitsOutstandingAccount(List<EntryFixture> entries) {
+    return fundUnitsOutstandingAccount(TulevaFund.TKF100, entries);
   }
 
   public static LedgerAccount fundUnitsOutstandingAccount(BigDecimal balance) {

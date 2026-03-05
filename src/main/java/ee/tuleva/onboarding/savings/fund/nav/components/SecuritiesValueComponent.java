@@ -42,7 +42,7 @@ public class SecuritiesValueComponent implements NavComponent {
   private BigDecimal calculateIsinValue(
       String isin, BigDecimal units, NavComponentContext context) {
     return positionPriceResolver
-        .resolve(isin, context.getPriceDate())
+        .resolve(isin, context.getPriceDate(), context.getCutoff())
         .map(ResolvedPrice::usedPrice)
         .map(price -> units.multiply(price).setScale(2, HALF_UP))
         .orElse(ZERO);

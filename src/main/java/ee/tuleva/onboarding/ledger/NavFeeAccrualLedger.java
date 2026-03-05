@@ -50,7 +50,7 @@ public class NavFeeAccrualLedger {
       return;
     }
 
-    Instant transactionDate = accrualDate.atTime(12, 0).atZone(ESTONIAN_ZONE).toInstant();
+    Instant transactionDate = accrualDate.atTime(9, 0).atZone(ESTONIAN_ZONE).toInstant();
     ledgerTransactionService.createTransaction(
         FEE_ACCRUAL,
         transactionDate,

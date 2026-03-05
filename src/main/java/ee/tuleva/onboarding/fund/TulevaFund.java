@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.fund;
 
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 import lombok.Getter;
@@ -17,7 +18,8 @@ public enum TulevaFund {
       "VP68169",
       "EE421010220306592227",
       true,
-      5),
+      5,
+      LocalTime.of(11, 0)),
   TUK00(
       "TUK00",
       2,
@@ -26,7 +28,8 @@ public enum TulevaFund {
       "VP68170",
       "EE021010220306593225",
       true,
-      5),
+      5,
+      LocalTime.of(11, 0)),
   TUV100(
       "TUV100",
       3,
@@ -35,7 +38,8 @@ public enum TulevaFund {
       "VP68959",
       "EE691010220306737229",
       true,
-      4),
+      4,
+      LocalTime.of(15, 0)),
   TKF100(
       "TKF100",
       null,
@@ -44,7 +48,8 @@ public enum TulevaFund {
       "VP68168",
       "EE861010220306591229",
       true,
-      4);
+      4,
+      LocalTime.of(15, 30));
 
   private final String code;
   private final @Nullable Integer pillar;
@@ -54,6 +59,7 @@ public enum TulevaFund {
   private final String cashAccount;
   private final boolean navCalculation;
   private final int navScale;
+  private final LocalTime navCutoffTime;
 
   public static List<TulevaFund> getPillar2Funds() {
     return Arrays.stream(values()).filter(fund -> fund.pillar != null && fund.pillar == 2).toList();

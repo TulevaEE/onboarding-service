@@ -50,7 +50,7 @@ class SecuritiesValueComponentTest {
                 "IE00BFG1TM61", new BigDecimal("1000.00000"),
                 "IE00BMDBMY19", new BigDecimal("500.00000")));
 
-    when(positionPriceResolver.resolve("IE00BFG1TM61", priceDate))
+    when(positionPriceResolver.resolve("IE00BFG1TM61", priceDate, CUTOFF))
         .thenReturn(
             Optional.of(
                 ResolvedPrice.builder()
@@ -58,7 +58,7 @@ class SecuritiesValueComponentTest {
                     .validationStatus(OK)
                     .priceDate(priceDate)
                     .build()));
-    when(positionPriceResolver.resolve("IE00BMDBMY19", priceDate))
+    when(positionPriceResolver.resolve("IE00BMDBMY19", priceDate, CUTOFF))
         .thenReturn(
             Optional.of(
                 ResolvedPrice.builder()
@@ -106,7 +106,8 @@ class SecuritiesValueComponentTest {
     when(navLedgerRepository.getSecuritiesUnitBalancesAt(CUTOFF, TKF100))
         .thenReturn(Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")));
 
-    when(positionPriceResolver.resolve("IE00BFG1TM61", priceDate)).thenReturn(Optional.empty());
+    when(positionPriceResolver.resolve("IE00BFG1TM61", priceDate, CUTOFF))
+        .thenReturn(Optional.empty());
 
     BigDecimal result = component.calculate(context);
 

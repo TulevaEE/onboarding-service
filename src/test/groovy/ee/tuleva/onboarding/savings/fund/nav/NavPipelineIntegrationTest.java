@@ -35,6 +35,7 @@ import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -552,12 +553,14 @@ class NavPipelineIntegrationTest {
       String[] parts = priceLines.get(i).split(",");
       LocalDate priceDate = LocalDate.parse(parts[1]);
       if (priceDate.isBefore(calculationDate)) {
+        Instant updatedAt = priceDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
         entityManager
             .createNativeQuery(
-                "INSERT INTO index_values (key, date, value, provider, updated_at) VALUES (:key, :date, :value, 'EODHD', CURRENT_TIMESTAMP)")
+                "INSERT INTO index_values (key, date, value, provider, updated_at) VALUES (:key, :date, :value, 'EODHD', :updatedAt)")
             .setParameter("key", parts[0])
             .setParameter("date", priceDate)
             .setParameter("value", new BigDecimal(parts[2]))
+            .setParameter("updatedAt", Timestamp.from(updatedAt))
             .executeUpdate();
       }
     }

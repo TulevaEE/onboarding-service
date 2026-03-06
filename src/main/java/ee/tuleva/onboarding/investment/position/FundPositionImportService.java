@@ -19,8 +19,11 @@ public class FundPositionImportService {
 
     for (FundPosition position : positions) {
       boolean exists =
-          repository.existsByNavDateAndFundAndAccountName(
-              position.getNavDate(), position.getFund(), position.getAccountName());
+          repository.existsByNavDateAndFundAndAccountTypeAndAccountName(
+              position.getNavDate(),
+              position.getFund(),
+              position.getAccountType(),
+              position.getAccountName());
 
       if (!exists) {
         repository.save(position);

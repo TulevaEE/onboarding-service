@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.investment.position;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
+import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
+import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
@@ -100,7 +102,8 @@ class FundPositionImportJobTest {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SWEDBANK, POSITIONS, date))
         .thenReturn(Optional.of(createSwedbankReport(date)));
-    when(repository.existsByNavDateAndFundAndAccountName(any(), any(), any())).thenReturn(false);
+    when(repository.existsByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
+        .thenReturn(false);
 
     job.importForProviderAndDate(SWEDBANK, date);
 
@@ -112,14 +115,14 @@ class FundPositionImportJobTest {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SWEDBANK, POSITIONS, date))
         .thenReturn(Optional.of(createSwedbankReport(date)));
-    when(repository.existsByNavDateAndFundAndAccountName(
-            LocalDate.of(2026, 1, 5), TUK75, "ISHARES DEV WLD ESG"))
+    when(repository.existsByNavDateAndFundAndAccountTypeAndAccountName(
+            LocalDate.of(2026, 1, 5), TUK75, SECURITY, "ISHARES DEV WLD ESG"))
         .thenReturn(true);
-    when(repository.existsByNavDateAndFundAndAccountName(
-            LocalDate.of(2026, 1, 5), TUK75, "Overnight Deposit"))
+    when(repository.existsByNavDateAndFundAndAccountTypeAndAccountName(
+            LocalDate.of(2026, 1, 5), TUK75, CASH, "Overnight Deposit"))
         .thenReturn(false);
-    when(repository.existsByNavDateAndFundAndAccountName(
-            LocalDate.of(2026, 1, 5), TUV100, "ISHARES USA ESG"))
+    when(repository.existsByNavDateAndFundAndAccountTypeAndAccountName(
+            LocalDate.of(2026, 1, 5), TUV100, SECURITY, "ISHARES USA ESG"))
         .thenReturn(false);
 
     job.importForProviderAndDate(SWEDBANK, date);
@@ -170,7 +173,8 @@ class FundPositionImportJobTest {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SWEDBANK, POSITIONS, date))
         .thenReturn(Optional.of(createSwedbankReport(date)));
-    when(repository.existsByNavDateAndFundAndAccountName(any(), any(), any())).thenReturn(false);
+    when(repository.existsByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
+        .thenReturn(false);
 
     job.importForProviderAndDate(SWEDBANK, date);
 

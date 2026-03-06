@@ -39,13 +39,16 @@ class LimitCheckService {
   private final FreeCashLimitChecker freeCashLimitChecker;
 
   List<LimitCheckResult> runChecks() {
-    var today = LocalDate.now(clock);
+    return runChecksAsOf(LocalDate.now(clock));
+  }
+
+  List<LimitCheckResult> runChecksAsOf(LocalDate asOfDate) {
     var results = new ArrayList<LimitCheckResult>();
 
     for (var fund : TulevaFund.values()) {
-      var latestDate = positionCalculationRepository.getLatestDateUpTo(fund, today);
+      var latestDate = positionCalculationRepository.getLatestDateUpTo(fund, asOfDate);
       if (latestDate.isEmpty()) {
-        log.warn("No position data for fund: fund={}", fund);
+        log.warn("No position data for fund: fund={}, asOfDate={}", fund, asOfDate);
         continue;
       }
 
@@ -55,6 +58,19 @@ class LimitCheckService {
     }
 
     return results;
+  }
+
+  List<LimitCheckResult> backfillChecks(int daysBack) {
+    var today = LocalDate.now(clock);
+    var allResults = new ArrayList<LimitCheckResult>();
+
+    for (int i = daysBack; i >= 0; i--) {
+      var asOfDate = today.minusDays(i);
+      var results = runChecksAsOf(asOfDate);
+      allResults.addAll(results);
+    }
+
+    return allResults;
   }
 
   private LimitCheckResult checkFund(TulevaFund fund, LocalDate checkDate) {

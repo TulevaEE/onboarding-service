@@ -141,10 +141,19 @@ public class NavCalculationService {
   }
 
   private LocalDate getPositionReportDate(TulevaFund fund, LocalDate calculationDate) {
-    return fundPositionRepository
-        .findLatestNavDateByFundAndAsOfDate(
-            fund, publicHolidays.previousWorkingDay(calculationDate))
-        .orElse(null);
+    LocalDate expectedDate = publicHolidays.previousWorkingDay(calculationDate);
+    LocalDate actual =
+        fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, expectedDate).orElse(null);
+    if (actual != null && !actual.equals(expectedDate)) {
+      throw new IllegalStateException(
+          "Position data missing: fund="
+              + fund
+              + ", expected="
+              + expectedDate
+              + ", latest="
+              + actual);
+    }
+    return actual;
   }
 
   private BigDecimal getUnitsOutstanding(TulevaFund fund, LocalDate calculationDate) {

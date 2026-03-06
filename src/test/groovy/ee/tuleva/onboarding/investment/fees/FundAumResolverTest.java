@@ -4,8 +4,10 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.calculation.PositionCalculationRepository;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import java.math.BigDecimal;
@@ -23,18 +25,19 @@ class FundAumResolverTest {
 
   @Mock private PositionCalculationRepository positionCalculationRepository;
   @Mock private FundPositionRepository fundPositionRepository;
+  @Mock private PublicHolidays publicHolidays;
 
   @InjectMocks private FundAumResolver resolver;
 
   @Test
-  void resolveReferenceDate_returnsNavDate_forNavFund() {
+  void resolveReferenceDate_returnsDate_whenPositionDataMatchesCalendarDate() {
     LocalDate date = LocalDate.of(2025, 7, 15);
-    LocalDate navDate = LocalDate.of(2025, 7, 14);
 
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, date))
-        .thenReturn(Optional.of(navDate));
+        .thenReturn(Optional.of(date));
+    when(publicHolidays.isWorkingDay(date)).thenReturn(true);
 
-    assertThat(resolver.resolveReferenceDate(TKF100, date)).isEqualTo(navDate);
+    assertThat(resolver.resolveReferenceDate(TKF100, date)).isEqualTo(date);
   }
 
   @Test
@@ -48,24 +51,28 @@ class FundAumResolverTest {
   }
 
   @Test
-  void resolveReferenceDate_returnsNavDate_forPensionFund() {
-    LocalDate date = LocalDate.of(2025, 7, 15);
-    LocalDate navDate = LocalDate.of(2025, 7, 14);
+  void resolveReferenceDate_throwsWhenPositionDataIsStaleOnWorkingDay() {
+    LocalDate wednesday = LocalDate.of(2026, 3, 4);
+    LocalDate tuesday = LocalDate.of(2026, 3, 3);
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, date))
-        .thenReturn(Optional.of(navDate));
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, wednesday))
+        .thenReturn(Optional.of(tuesday));
+    when(publicHolidays.isWorkingDay(wednesday)).thenReturn(true);
 
-    assertThat(resolver.resolveReferenceDate(TUK75, date)).isEqualTo(navDate);
+    assertThatThrownBy(() -> resolver.resolveReferenceDate(TUK75, wednesday))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
-  void resolveReferenceDate_returnsNull_whenNoPositionDataForPensionFund() {
-    LocalDate date = LocalDate.of(2025, 7, 15);
+  void resolveReferenceDate_allowsFallbackOnWeekend() {
+    LocalDate saturday = LocalDate.of(2026, 3, 7);
+    LocalDate friday = LocalDate.of(2026, 3, 6);
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, date))
-        .thenReturn(Optional.empty());
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, saturday))
+        .thenReturn(Optional.of(friday));
+    when(publicHolidays.isWorkingDay(saturday)).thenReturn(false);
 
-    assertThat(resolver.resolveReferenceDate(TUK75, date)).isNull();
+    assertThat(resolver.resolveReferenceDate(TUK75, saturday)).isEqualTo(friday);
   }
 
   @Test

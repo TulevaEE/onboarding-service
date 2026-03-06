@@ -169,6 +169,20 @@ class NavCalculationServiceTest {
   }
 
   @Test
+  void calculate_throwsWhenPositionDataIsStale() {
+    LocalDate calcDate = LocalDate.of(2025, 1, 15);
+    LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
+    LocalDate staleDate = LocalDate.of(2025, 1, 13);
+
+    when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
+        .thenReturn(Optional.of(staleDate));
+
+    assertThatThrownBy(() -> service.calculate(TKF100, calcDate))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
   void calculate_handlesNegativeBlackrockAdjustmentAsLiability() {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);

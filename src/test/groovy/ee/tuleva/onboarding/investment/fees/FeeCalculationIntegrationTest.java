@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.fees;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import jakarta.persistence.EntityManager;
@@ -77,6 +78,17 @@ class FeeCalculationIntegrationTest {
 
     assertThat(secondAccrual.dailyAmountNet()).isEqualByComparingTo(firstAccrual.dailyAmountNet());
     assertThat(ledgerEntriesAfterSecond).isEqualTo(ledgerEntriesAfterFirst);
+  }
+
+  @Test
+  void calculateDailyFeesForFund_throwsWhenPositionDataIsStale() {
+    LocalDate march4 = LocalDate.of(2026, 3, 4);
+    LocalDate march5 = LocalDate.of(2026, 3, 5);
+
+    insertFundPosition(TUK75, march4, new BigDecimal("948046732.95"));
+
+    assertThatThrownBy(() -> feeCalculationService.calculateDailyFeesForFund(TUK75, march5))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test

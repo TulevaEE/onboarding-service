@@ -20,7 +20,7 @@ public class FeeCalculationScheduledJob {
   private final FeeCalculationService feeCalculationService;
 
   @Scheduled(cron = FEE_CALCULATION, zone = TIMEZONE)
-  @SchedulerLock(name = "FeeCalculationScheduledJob", lockAtMostFor = "30m", lockAtLeastFor = "5m")
+  @SchedulerLock(name = "FeeCalculationScheduledJob", lockAtMostFor = "30m", lockAtLeastFor = "1m")
   public void calculateDailyFees() {
     LocalDate yesterday = LocalDate.now(clock()).minusDays(1);
     log.info("Starting daily fee calculation: date={}", yesterday);

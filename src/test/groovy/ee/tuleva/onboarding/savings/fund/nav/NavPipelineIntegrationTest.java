@@ -16,6 +16,7 @@ import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
@@ -74,6 +75,7 @@ class NavPipelineIntegrationTest {
   @Autowired NavPublisher navPublisher;
   @Autowired LedgerService ledgerService;
   @Autowired FeeCalculationService feeCalculationService;
+  @Autowired PublicHolidays publicHolidays;
   @Autowired JdbcClient jdbcClient;
   @Autowired EntityManager entityManager;
 
@@ -179,6 +181,8 @@ class NavPipelineIntegrationTest {
     ClockHolder.setClock(Clock.fixed(ledgerTime, ZoneId.of("UTC")));
     try {
       saveCashPosition(feb24, aum);
+      saveCashPosition(LocalDate.of(2026, 2, 25), aum);
+      saveCashPosition(LocalDate.of(2026, 2, 26), aum);
       saveCashPosition(feb27, aum);
       saveCashPosition(mar2, aum);
 
@@ -333,10 +337,14 @@ class NavPipelineIntegrationTest {
 
     List<NavCsvData> allNavData = parseAllNavCsvsSorted();
     LocalDate previousNavDate = feb2;
+    BigDecimal latestAum = new BigDecimal("5301827.32");
 
     for (NavCsvData navData : allNavData) {
       LocalDate gapDay = previousNavDate.plusDays(1);
       while (gapDay.isBefore(navData.navDate)) {
+        if (publicHolidays.isWorkingDay(gapDay)) {
+          saveCashPosition(gapDay, latestAum);
+        }
         feeCalculationService.calculateDailyFeesForFund(TKF100, gapDay);
         gapDay = gapDay.plusDays(1);
       }
@@ -350,6 +358,10 @@ class NavPipelineIntegrationTest {
       feeCalculationService.calculateDailyFeesForFund(TKF100, navData.navDate);
       entityManager.flush();
 
+      latestAum =
+          navData.positions.stream()
+              .map(FundPosition::getMarketValue)
+              .reduce(ZERO, BigDecimal::add);
       previousNavDate = navData.navDate;
     }
 

@@ -53,7 +53,11 @@ public class NavCalculationJob {
       return;
     }
 
-    fundValueIndexingJob.refreshAll();
+    try {
+      fundValueIndexingJob.refreshAll();
+    } catch (Exception e) {
+      log.error("Failed to refresh fund values, continuing with NAV calculation", e);
+    }
 
     funds.stream()
         .filter(TulevaFund::hasNavCalculation)

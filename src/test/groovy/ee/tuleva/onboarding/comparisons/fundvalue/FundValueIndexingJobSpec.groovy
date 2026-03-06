@@ -7,13 +7,17 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetri
 import org.springframework.core.env.Environment
 import spock.lang.Specification
 
-import java.time.Instant
+import java.time.Clock
 import java.time.LocalDate
+import java.time.ZoneId
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
 import static java.util.Collections.singletonList
 
 class FundValueIndexingJobSpec extends Specification {
+
+    static final LocalDate TODAY = LocalDate.parse("2026-03-06")
+    static final Clock CLOCK = Clock.fixed(TODAY.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant(), ZoneId.of("Europe/Tallinn"))
 
     FundValueRepository fundValueRepository = Mock(FundValueRepository)
     ComparisonIndexRetriever fundValueRetriever = Mock(ComparisonIndexRetriever)
@@ -23,25 +27,26 @@ class FundValueIndexingJobSpec extends Specification {
         fundValueRepository,
         singletonList(fundValueRetriever),
         Mock(Environment),
-        fundNavRetrieverFactory)
+        fundNavRetrieverFactory,
+        CLOCK)
 
     def "if no saved fund values found, downloads and saves from defined start time"() {
-        List<FundValue> fundValues = fakeFundValues()
         given:
+        List<FundValue> fundValues = fakeFundValues()
         fundValueRetriever.getKey() >> UnionStockIndexRetriever.KEY
         fundValueRepository.findLastValueForFund(UnionStockIndexRetriever.KEY) >> Optional.empty()
         fundValueRepository.save(_ as FundValue) >> { FundValue fv -> Optional.of(fv) }
         when:
         fundValueIndexingJob.runIndexingJob()
         then:
-        1 * fundValueRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, LocalDate.now()) >> fakeFundValues()
+        1 * fundValueRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> fakeFundValues()
         1 * fundValueRepository.save(fundValues[0]) >> Optional.of(fundValues[0])
         1 * fundValueRepository.save(fundValues[1]) >> Optional.of(fundValues[1])
     }
 
     def "if saved fund values found, downloads from the next day after last fund value"() {
-        List<FundValue> fundValues = fakeFundValues()
         given:
+        List<FundValue> fundValues = fakeFundValues()
         fundValueRetriever.getKey() >> UnionStockIndexRetriever.KEY
         def lastFundValueTime = LocalDate.parse("2018-05-01")
         def dayFromLastFundValueTime = LocalDate.parse("2018-05-02")
@@ -50,21 +55,96 @@ class FundValueIndexingJobSpec extends Specification {
         when:
         fundValueIndexingJob.runIndexingJob()
         then:
-        1 * fundValueRetriever.retrieveValuesForRange(dayFromLastFundValueTime, LocalDate.now()) >> fakeFundValues()
+        1 * fundValueRetriever.retrieveValuesForRange(dayFromLastFundValueTime, TODAY) >> fakeFundValues()
         1 * fundValueRepository.save(fundValues[0]) >> Optional.of(fundValues[0])
         1 * fundValueRepository.save(fundValues[1]) >> Optional.of(fundValues[1])
     }
 
     def "if last saved fund value was found today, does nothing"() {
         given:
-            fundValueRetriever.getKey() >> UnionStockIndexRetriever.KEY
-            def lastValueDate = LocalDate.now()
-            fundValueRepository.findLastValueForFund(UnionStockIndexRetriever.KEY) >> Optional.of(aFundValue(UnionStockIndexRetriever.KEY, lastValueDate, 120.0))
+        fundValueRetriever.getKey() >> UnionStockIndexRetriever.KEY
+        fundValueRepository.findLastValueForFund(UnionStockIndexRetriever.KEY) >> Optional.of(aFundValue(UnionStockIndexRetriever.KEY, TODAY, 120.0))
         when:
-            fundValueIndexingJob.runIndexingJob()
+        fundValueIndexingJob.runIndexingJob()
         then:
-            0 * fundValueRetriever.retrieveValuesForRange(_ as Instant, _ as Instant)
-            0 * fundValueRepository.saveAll(_ as List<FundValue>)
+        0 * fundValueRetriever.retrieveValuesForRange(_, _)
+        0 * fundValueRepository.saveAll(_ as List<FundValue>)
+    }
+
+    def "logs staleness error when EE fund last update is more than 1 week old"() {
+        given:
+        fundValueRetriever.getKey() >> "EE1234"
+        def staleDate = TODAY.minusWeeks(2)
+        fundValueRepository.findLastValueForFund("EE1234") >> Optional.of(aFundValue("EE1234", staleDate, 100.0))
+        fundValueRepository.save(_ as FundValue) >> { FundValue fv -> Optional.of(fv) }
+        when:
+        fundValueIndexingJob.runIndexingJob()
+        then:
+        1 * fundValueRetriever.retrieveValuesForRange(staleDate.plusDays(1), TODAY) >> []
+    }
+
+    def "refreshes all static retrievers"() {
+        given:
+        def retriever1 = Mock(ComparisonIndexRetriever)
+        def retriever2 = Mock(ComparisonIndexRetriever)
+        retriever1.getKey() >> "FUND_A"
+        retriever2.getKey() >> "FUND_B"
+        fundValueRepository.findLastValueForFund(_) >> Optional.empty()
+
+        def job = new FundValueIndexingJob(
+            fundValueRepository,
+            [retriever1, retriever2],
+            Mock(Environment),
+            fundNavRetrieverFactory,
+            CLOCK)
+
+        when:
+        job.refreshAll()
+
+        then:
+        1 * retriever1.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
+        1 * retriever2.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
+    }
+
+    def "continues refreshing other retrievers when one throws"() {
+        given:
+        def failingRetriever = Mock(ComparisonIndexRetriever)
+        def successRetriever = Mock(ComparisonIndexRetriever)
+        failingRetriever.getKey() >> "FAILING_FUND"
+        successRetriever.getKey() >> "SUCCESS_FUND"
+        fundValueRepository.findLastValueForFund(_) >> Optional.empty()
+
+        def job = new FundValueIndexingJob(
+            fundValueRepository,
+            [failingRetriever, successRetriever],
+            Mock(Environment),
+            fundNavRetrieverFactory,
+            CLOCK)
+
+        when:
+        job.refreshAll()
+
+        then:
+        1 * failingRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> { throw new RuntimeException("FTP connection failed") }
+        1 * successRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
+    }
+
+    def "after initDynamicRetrievers, refreshes both static and dynamic retrievers"() {
+        given:
+        def dynamicRetriever = Mock(ComparisonIndexRetriever)
+        dynamicRetriever.getKey() >> "DYNAMIC_FUND"
+        fundNavRetrieverFactory.createAll() >> [dynamicRetriever]
+
+        fundValueRetriever.getKey() >> UnionStockIndexRetriever.KEY
+        fundValueRepository.findLastValueForFund(_) >> Optional.empty()
+
+        when:
+        fundValueIndexingJob.initDynamicRetrievers()
+        fundValueIndexingJob.refreshAll()
+
+        then:
+        1 * fundValueRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
+        1 * dynamicRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
     }
 
     private static List<FundValue> fakeFundValues() {

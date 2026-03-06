@@ -5,6 +5,7 @@ import static java.util.Collections.emptyList;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundNavRetrieverFactory;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
@@ -30,6 +31,7 @@ public class FundValueIndexingJob {
   private final List<ComparisonIndexRetriever> staticRetrievers;
   private final Environment environment;
   private final FundNavRetrieverFactory fundNavRetrieverFactory;
+  private final Clock clock;
   private List<ComparisonIndexRetriever> dynamicRetrievers = emptyList();
 
   static final LocalDate EARLIEST_DATE = LocalDate.parse("2003-01-07");
@@ -49,40 +51,52 @@ public class FundValueIndexingJob {
         staticRetrievers,
         dynamicRetrievers);
     Stream.concat(staticRetrievers.stream(), dynamicRetrievers.stream())
-        .forEach(
-            retriever -> {
-              String fund = retriever.getKey();
-              log.info("Starting to update values for {}", fund);
-              Optional<FundValue> fundValue = fundValueRepository.findLastValueForFund(fund);
-              if (fundValue.isPresent()) {
-                LocalDate lastUpdate = fundValue.get().date();
-                if (!lastUpdate.equals(LocalDate.now())) {
-                  LocalDate startDate = lastUpdate.plusDays(1);
-                  logLastUpdateInfo(fund, lastUpdate, startDate);
-                  loadAndPersistDataForStartTime(retriever, startDate);
-                } else {
-                  log.info(
-                      "Last update for comparison fund {}: {}. Not updating", fund, lastUpdate);
-                }
-              } else {
-                log.info(
-                    "No info for comparison fund {} so downloading all data until today", fund);
-                loadAndPersistDataForStartTime(retriever, EARLIEST_DATE);
-              }
-            });
+        .forEach(this::refreshRetriever);
   }
 
-  private void logLastUpdateInfo(String fund, LocalDate lastUpdate, LocalDate startDate) {
+  private void refreshRetriever(ComparisonIndexRetriever retriever) {
+    String fund = retriever.getKey();
+    log.info("Starting to update values for {}", fund);
+    try {
+      Optional<LocalDate> startDate = getStartDate(fund);
+      if (startDate.isEmpty()) {
+        return;
+      }
+
+      fetchAndSave(retriever, startDate.get());
+    } catch (Exception e) {
+      log.error("Failed to refresh retriever: fund={}", fund, e);
+    }
+  }
+
+  private Optional<LocalDate> getStartDate(String fund) {
+    LocalDate today = LocalDate.now(clock);
+    Optional<FundValue> fundValue = fundValueRepository.findLastValueForFund(fund);
+
+    if (fundValue.isEmpty()) {
+      log.info("No info for comparison fund {} so downloading all data until today", fund);
+      return Optional.of(EARLIEST_DATE);
+    }
+
+    LocalDate lastUpdate = fundValue.get().date();
+    if (lastUpdate.equals(today)) {
+      log.info("Last update for comparison fund {}: {}. Not updating", fund, lastUpdate);
+      return Optional.empty();
+    }
+
+    LocalDate startDate = lastUpdate.plusDays(1);
     log.info(
         "Last update for comparison fund {}: {}. Updating from {}", fund, lastUpdate, startDate);
 
-    if (lastUpdate.isBefore(LocalDate.now().minusWeeks(1))
+    if (lastUpdate.isBefore(today.minusWeeks(1))
         && (fund.startsWith("EE") || fund.startsWith("EPI"))) {
       log.error(
           "Last update for comparison fund {} is more than 1 week old. Last update: {}",
           fund,
           lastUpdate);
     }
+
+    return Optional.of(startDate);
   }
 
   @EventListener(ApplicationReadyEvent.class)
@@ -98,16 +112,14 @@ public class FundValueIndexingJob {
     }
   }
 
-  private void loadAndPersistDataForStartTime(
-      ComparisonIndexRetriever comparisonIndexRetriever, LocalDate startDate) {
-    LocalDate endDate = LocalDate.now();
-    List<FundValue> valuesFetched =
-        comparisonIndexRetriever.retrieveValuesForRange(startDate, endDate);
+  private void fetchAndSave(ComparisonIndexRetriever retriever, LocalDate startDate) {
+    LocalDate endDate = LocalDate.now(clock);
+    List<FundValue> valuesFetched = retriever.retrieveValuesForRange(startDate, endDate);
     List<FundValue> valuesSaved =
         valuesFetched.stream().map(fundValueRepository::save).flatMap(Optional::stream).toList();
     log.info(
         "Fund value indexing complete: key={}, fetched={}, saved={}",
-        comparisonIndexRetriever.getKey(),
+        retriever.getKey(),
         valuesFetched.size(),
         valuesSaved.size());
   }

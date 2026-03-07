@@ -35,7 +35,7 @@ class LedgerTransactionService {
       transaction.addEntry(ledgerEntryDto.account, ledgerEntryDto.amount);
     }
 
-    return ledgerTransactionRepository.save(transaction);
+    return ledgerTransactionRepository.saveAndFlush(transaction);
   }
 
   public boolean existsByExternalReferenceAndTransactionType(

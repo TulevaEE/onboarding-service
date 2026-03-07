@@ -73,6 +73,7 @@ Prefer: `text` (not `varchar`), `timestamptz` (pairs with `Instant`), `bigint` f
 ### Preferences
 - Always use the latest Spring classes (`JdbcClient`, `RestClient`, etc.) over legacy equivalents
 - **Inject `Clock`** — never call `Instant.now()` / `LocalDate.now()` directly
+- **No `entityManager.flush()` in production code** — fix the underlying issue instead
 
 ## Testing
 

@@ -3,8 +3,10 @@ package ee.tuleva.onboarding.investment.fees;
 import static ee.tuleva.onboarding.investment.fees.FeeType.*;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.math.RoundingMode.HALF_UP;
+import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.calculation.ResolvedPrice;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.SystemAccount;
@@ -37,34 +39,6 @@ public class FeeCalculationService {
   private final NavFeeAccrualLedger navFeeAccrualLedger;
   private final NavLedgerRepository navLedgerRepository;
   private final FeeMonthResolver feeMonthResolver;
-
-  @Transactional
-  public void calculateDailyFees(LocalDate date) {
-    for (TulevaFund fund : TulevaFund.values()) {
-      calculateDailyFeesForFund(fund, date);
-    }
-  }
-
-  @Transactional
-  public void calculateDailyFeesForFund(TulevaFund fund, LocalDate date) {
-    log.debug("Calculating fees: fund={}, date={}", fund, date);
-    for (FeeCalculator calculator : feeCalculators) {
-      FeeAccrual accrual = calculator.calculate(fund, date);
-      feeAccrualRepository.save(accrual);
-      if (fund.hasNavCalculation()) {
-        SystemAccount feeAccount = FEE_TYPE_ACCOUNTS.get(accrual.feeType());
-        BigDecimal ledgerAmount = roundForLedger(accrual.dailyAmountNet());
-        Map<String, Object> metadata = buildAccrualMetadata(accrual, feeAccount, ledgerAmount);
-        navFeeAccrualLedger.recordFeeAccrual(fund, date, feeAccount, ledgerAmount, metadata);
-      }
-    }
-    if (fund.hasNavCalculation()) {
-      LocalDate feeMonth = feeMonthResolver.resolveFeeMonth(date);
-      LocalDate previousMonth = feeMonth.minusMonths(1);
-      settleMonthlyFeesIfNeeded(fund, previousMonth);
-    }
-    log.debug("Recorded fee accruals: fund={}, date={}", fund, date);
-  }
 
   private void settleMonthlyFeesIfNeeded(TulevaFund fund, LocalDate month) {
     Instant cutoff = month.plusMonths(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
@@ -109,15 +83,59 @@ public class FeeCalculationService {
   }
 
   @Transactional
-  public void backfillFees(LocalDate startDate, LocalDate endDate) {
-    log.info("Starting fee backfill: startDate={}, endDate={}", startDate, endDate);
+  public FeeResult calculateFeesForNav(
+      TulevaFund fund,
+      LocalDate positionReportDate,
+      BigDecimal baseValue,
+      Instant feeCutoff,
+      Map<String, ResolvedPrice> securityPrices) {
+    LocalDate startDate =
+        feeAccrualRepository
+            .findLatestAccrualDate(fund)
+            .map(d -> d.plusDays(1))
+            .orElse(positionReportDate);
 
-    LocalDate current = startDate;
-    while (!current.isAfter(endDate)) {
-      calculateDailyFees(current);
-      current = current.plusDays(1);
+    LocalDate previousFeeMonth = null;
+    for (LocalDate day = startDate; !day.isAfter(positionReportDate); day = day.plusDays(1)) {
+      LocalDate feeMonth = feeMonthResolver.resolveFeeMonth(day);
+      if (!feeMonth.equals(previousFeeMonth)) {
+        settleMonthlyFeesIfNeeded(fund, feeMonth.minusMonths(1));
+      }
+      recordDailyFees(fund, day, baseValue, securityPrices);
+      previousFeeMonth = feeMonth;
     }
 
-    log.info("Completed fee backfill: startDate={}, endDate={}", startDate, endDate);
+    BigDecimal mgmtFee =
+        navLedgerRepository
+            .getSystemAccountBalanceBefore(MANAGEMENT_FEE_ACCRUAL.getAccountName(fund), feeCutoff)
+            .negate();
+    BigDecimal depotFee =
+        navLedgerRepository
+            .getSystemAccountBalanceBefore(DEPOT_FEE_ACCRUAL.getAccountName(fund), feeCutoff)
+            .negate();
+    return new FeeResult(mgmtFee, depotFee);
+  }
+
+  private void recordDailyFees(
+      TulevaFund fund,
+      LocalDate date,
+      BigDecimal baseValue,
+      Map<String, ResolvedPrice> securityPrices) {
+    for (FeeCalculator calculator : feeCalculators) {
+      FeeAccrual accrual = calculator.calculate(fund, date, baseValue);
+      feeAccrualRepository.save(accrual);
+      SystemAccount feeAccount = FEE_TYPE_ACCOUNTS.get(accrual.feeType());
+      BigDecimal ledgerAmount = roundForLedger(accrual.dailyAmountNet());
+      Map<String, Object> metadata = buildAccrualMetadata(accrual, feeAccount, ledgerAmount);
+      if (securityPrices != null && !securityPrices.isEmpty()) {
+        metadata.put("securityPrices", formatSecurityPrices(securityPrices));
+      }
+      navFeeAccrualLedger.recordFeeAccrual(fund, date, feeAccount, ledgerAmount, metadata);
+    }
+  }
+
+  private Map<String, String> formatSecurityPrices(Map<String, ResolvedPrice> securityPrices) {
+    return securityPrices.entrySet().stream()
+        .collect(toMap(Map.Entry::getKey, e -> e.getValue().usedPrice().toPlainString()));
   }
 }

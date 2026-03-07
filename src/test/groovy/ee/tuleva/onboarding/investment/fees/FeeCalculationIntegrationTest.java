@@ -3,12 +3,12 @@ package ee.tuleva.onboarding.investment.fees;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
-import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,40 +22,43 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class FeeCalculationIntegrationTest {
 
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+  private static final LocalDate TEST_DATE = LocalDate.of(2025, 1, 15);
+  private static final BigDecimal BASE_VALUE = new BigDecimal("1000000000");
+
   @Autowired private FeeCalculationService feeCalculationService;
   @Autowired private JdbcClient jdbcClient;
-  @Autowired private EntityManager entityManager;
-
-  private static final LocalDate TEST_DATE = LocalDate.of(2025, 1, 15);
 
   @BeforeEach
   void setUp() {
-    insertTestPositionData();
+    insertPositionCalculations();
     insertFeeRates();
     insertDepotFeeTiers();
   }
 
   @Test
-  void calculateDailyFeesForFund_savesManagementFeeAccrual() {
-    feeCalculationService.calculateDailyFeesForFund(TUK75, TEST_DATE);
+  void calculateFeesForNav_savesManagementFeeAccrual() {
+    Instant feeCutoff = TEST_DATE.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
+
+    feeCalculationService.calculateFeesForNav(TUK75, TEST_DATE, BASE_VALUE, feeCutoff, null);
 
     var accrual = findAccrual(TUK75, FeeType.MANAGEMENT, TEST_DATE);
-
     assertThat(accrual.fund()).isEqualTo(TUK75);
     assertThat(accrual.feeType()).isEqualTo(FeeType.MANAGEMENT);
     assertThat(accrual.accrualDate()).isEqualTo(TEST_DATE);
     assertThat(accrual.feeMonth()).isEqualTo(LocalDate.of(2025, 1, 1));
-    assertThat(accrual.baseValue()).isEqualByComparingTo(new BigDecimal("1000000000"));
+    assertThat(accrual.baseValue()).isEqualByComparingTo(BASE_VALUE);
     assertThat(accrual.dailyAmountNet()).isPositive();
     assertThat(accrual.daysInYear()).isEqualTo(365);
   }
 
   @Test
-  void calculateDailyFeesForFund_savesDepotFeeAccrual() {
-    feeCalculationService.calculateDailyFeesForFund(TUK75, TEST_DATE);
+  void calculateFeesForNav_savesDepotFeeAccrual() {
+    Instant feeCutoff = TEST_DATE.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
+
+    feeCalculationService.calculateFeesForNav(TUK75, TEST_DATE, BASE_VALUE, feeCutoff, null);
 
     var accrual = findAccrual(TUK75, FeeType.DEPOT, TEST_DATE);
-
     assertThat(accrual.fund()).isEqualTo(TUK75);
     assertThat(accrual.feeType()).isEqualTo(FeeType.DEPOT);
     assertThat(accrual.accrualDate()).isEqualTo(TEST_DATE);
@@ -65,14 +68,14 @@ class FeeCalculationIntegrationTest {
   }
 
   @Test
-  void calculateDailyFeesForFund_isIdempotent() {
-    feeCalculationService.calculateDailyFeesForFund(TKF100, TEST_DATE);
-    entityManager.flush();
+  void calculateFeesForNav_isIdempotent() {
+    Instant feeCutoff = TEST_DATE.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
+
+    feeCalculationService.calculateFeesForNav(TKF100, TEST_DATE, BASE_VALUE, feeCutoff, null);
     var firstAccrual = findAccrual(TKF100, FeeType.MANAGEMENT, TEST_DATE);
     int ledgerEntriesAfterFirst = countLedgerEntries();
 
-    feeCalculationService.calculateDailyFeesForFund(TKF100, TEST_DATE);
-    entityManager.flush();
+    feeCalculationService.calculateFeesForNav(TKF100, TEST_DATE, BASE_VALUE, feeCutoff, null);
     var secondAccrual = findAccrual(TKF100, FeeType.MANAGEMENT, TEST_DATE);
     int ledgerEntriesAfterSecond = countLedgerEntries();
 
@@ -81,30 +84,14 @@ class FeeCalculationIntegrationTest {
   }
 
   @Test
-  void calculateDailyFeesForFund_throwsWhenPositionDataIsStale() {
-    LocalDate march4 = LocalDate.of(2026, 3, 4);
-    LocalDate march5 = LocalDate.of(2026, 3, 5);
+  void calculateFeesForNav_returnsFeeResult() {
+    Instant feeCutoff = TEST_DATE.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
 
-    insertFundPosition(TUK75, march4, new BigDecimal("948046732.95"));
+    FeeResult result =
+        feeCalculationService.calculateFeesForNav(TKF100, TEST_DATE, BASE_VALUE, feeCutoff, null);
 
-    assertThatThrownBy(() -> feeCalculationService.calculateDailyFeesForFund(TUK75, march5))
-        .isInstanceOf(IllegalStateException.class);
-  }
-
-  @Test
-  void calculateDailyFees_onlyRecordsToLedgerForNavEnabledFunds() {
-    feeCalculationService.calculateDailyFees(TEST_DATE);
-    entityManager.flush();
-
-    int ledgerTransactionCount =
-        jdbcClient.sql("SELECT COUNT(*) FROM ledger.transaction").query(Integer.class).single();
-
-    int expectedTransactions = TulevaFund.values().length * 2; // management + depot for all funds
-    assertThat(ledgerTransactionCount).isEqualTo(expectedTransactions);
-
-    for (TulevaFund fund : TulevaFund.values()) {
-      assertThat(findAccrual(fund, FeeType.MANAGEMENT, TEST_DATE)).isNotNull();
-    }
+    assertThat(result.managementFeeAccrual()).isPositive();
+    assertThat(result.depotFeeAccrual()).isPositive();
   }
 
   private FeeAccrual findAccrual(TulevaFund fund, FeeType feeType, LocalDate accrualDate) {
@@ -125,25 +112,13 @@ class FeeCalculationIntegrationTest {
     return jdbcClient.sql("SELECT COUNT(*) FROM ledger.entry").query(Integer.class).single();
   }
 
-  private void insertTestPositionData() {
-    insertPositionCalculation(TUK75, LocalDate.of(2025, 1, 15), new BigDecimal("1000000000"));
-    insertPositionCalculation(TUK75, LocalDate.of(2025, 1, 14), new BigDecimal("995000000"));
-    insertPositionCalculation(TUK75, LocalDate.of(2025, 1, 13), new BigDecimal("990000000"));
-    insertPositionCalculation(
-        TulevaFund.TUK00, LocalDate.of(2025, 1, 15), new BigDecimal("100000000"));
-    insertPositionCalculation(
-        TulevaFund.TUV100, LocalDate.of(2025, 1, 15), new BigDecimal("300000000"));
-    insertPositionCalculation(TKF100, LocalDate.of(2025, 1, 15), new BigDecimal("50000000"));
+  private void insertPositionCalculations() {
     insertPositionCalculation(TUK75, LocalDate.of(2024, 12, 31), new BigDecimal("980000000"));
     insertPositionCalculation(
         TulevaFund.TUK00, LocalDate.of(2024, 12, 31), new BigDecimal("95000000"));
     insertPositionCalculation(
         TulevaFund.TUV100, LocalDate.of(2024, 12, 31), new BigDecimal("290000000"));
     insertPositionCalculation(TKF100, LocalDate.of(2024, 12, 31), new BigDecimal("48000000"));
-    insertFundPosition(TKF100, LocalDate.of(2025, 1, 15), new BigDecimal("50000000"));
-    insertFundPosition(TUK75, LocalDate.of(2025, 1, 15), new BigDecimal("1000000000"));
-    insertFundPosition(TulevaFund.TUK00, LocalDate.of(2025, 1, 15), new BigDecimal("100000000"));
-    insertFundPosition(TulevaFund.TUV100, LocalDate.of(2025, 1, 15), new BigDecimal("300000000"));
   }
 
   private void insertPositionCalculation(TulevaFund fund, LocalDate date, BigDecimal marketValue) {
@@ -179,20 +154,6 @@ class FeeCalculationIntegrationTest {
         .param("feeType", feeType)
         .param("annualRate", annualRate)
         .param("validFrom", LocalDate.of(2025, 1, 1))
-        .update();
-  }
-
-  private void insertFundPosition(TulevaFund fund, LocalDate date, BigDecimal marketValue) {
-    jdbcClient
-        .sql(
-            """
-            INSERT INTO investment_fund_position
-            (nav_date, fund_code, account_type, account_name, market_value, currency, created_at)
-            VALUES (:date, :fundCode, 'CASH', 'Test cash', :marketValue, 'EUR', now())
-            """)
-        .param("date", date)
-        .param("fundCode", fund.name())
-        .param("marketValue", marketValue)
         .update();
   }
 

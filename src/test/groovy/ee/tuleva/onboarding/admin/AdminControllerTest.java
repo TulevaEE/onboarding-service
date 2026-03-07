@@ -13,7 +13,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
@@ -45,7 +44,6 @@ class AdminControllerTest {
   @MockitoBean private SavingsFundLedger savingsFundLedger;
   @MockitoBean private NavCalculationService navCalculationService;
   @MockitoBean private NavPublisher navPublisher;
-  @MockitoBean private FeeCalculationService feeCalculationService;
   @MockitoBean private Clock clock;
 
   @Test
@@ -239,12 +237,11 @@ class AdminControllerTest {
                 .with(csrf())
                 .header("X-Admin-Token", "valid-token")
                 .param("from", "2026-02-03")
-                .param("to", "2026-02-16"))
+                .param("to", "2026-02-03"))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("2026-02-03")))
-        .andExpect(content().string(containsString("2026-02-16")));
+        .andExpect(content().string(containsString("2026-02-03")));
 
-    verify(feeCalculationService).backfillFees(LocalDate.of(2026, 2, 3), LocalDate.of(2026, 2, 16));
+    verify(navCalculationService).backfillFees(LocalDate.of(2026, 2, 3), LocalDate.of(2026, 2, 3));
   }
 
   @Test

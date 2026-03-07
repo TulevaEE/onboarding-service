@@ -4,19 +4,21 @@ import static ee.tuleva.onboarding.fund.TulevaFund.*;
 import static ee.tuleva.onboarding.ledger.SystemAccount.DEPOT_FEE_ACCRUAL;
 import static ee.tuleva.onboarding.ledger.SystemAccount.MANAGEMENT_FEE_ACCRUAL;
 import static java.math.BigDecimal.ZERO;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.calculation.ResolvedPrice;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,7 +29,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class FeeCalculationServiceTest {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
-  private static final int FUND_COUNT = TulevaFund.values().length;
 
   @Mock private FeeCalculator calculator1;
   @Mock private FeeCalculator calculator2;
@@ -51,110 +52,127 @@ class FeeCalculationServiceTest {
   }
 
   @Test
-  void calculateDailyFees_calculatesForAllFunds() {
-    LocalDate date = LocalDate.of(2025, 1, 15);
-    FeeAccrual accrual = createAccrual(TUK75, FeeType.MANAGEMENT, date);
+  void calculateFeesForNav_calculatesAndRecordsForPendingDays() {
+    LocalDate positionReportDate = LocalDate.of(2025, 1, 13);
+    BigDecimal baseValue = new BigDecimal("12000000");
+    Instant feeCutoff =
+        positionReportDate.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
 
-    when(calculator1.calculate(any(), any())).thenReturn(accrual);
-    when(calculator2.calculate(any(), any())).thenReturn(accrual);
+    FeeAccrual mgmtAccrual = createAccrual(TKF100, FeeType.MANAGEMENT, positionReportDate);
+    FeeAccrual depotAccrual = createAccrual(TKF100, FeeType.DEPOT, positionReportDate);
+
+    when(feeAccrualRepository.findLatestAccrualDate(TKF100))
+        .thenReturn(Optional.of(LocalDate.of(2025, 1, 9)));
+    when(calculator1.calculate(eq(TKF100), any(LocalDate.class), eq(baseValue)))
+        .thenReturn(mgmtAccrual);
+    when(calculator2.calculate(eq(TKF100), any(LocalDate.class), eq(baseValue)))
+        .thenReturn(depotAccrual);
     stubZeroLedgerBalance();
+    when(navLedgerRepository.getSystemAccountBalanceBefore(
+            MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100), feeCutoff))
+        .thenReturn(new BigDecimal("-400.00"));
+    when(navLedgerRepository.getSystemAccountBalanceBefore(
+            DEPOT_FEE_ACCRUAL.getAccountName(TKF100), feeCutoff))
+        .thenReturn(new BigDecimal("-50.00"));
 
-    service.calculateDailyFees(date);
+    FeeResult result =
+        service.calculateFeesForNav(TKF100, positionReportDate, baseValue, feeCutoff, null);
 
-    verify(calculator1, times(FUND_COUNT)).calculate(any(), eq(date));
-    verify(calculator2, times(FUND_COUNT)).calculate(any(), eq(date));
+    for (int day = 10; day <= 13; day++) {
+      verify(calculator1).calculate(eq(TKF100), eq(LocalDate.of(2025, 1, day)), eq(baseValue));
+      verify(calculator2).calculate(eq(TKF100), eq(LocalDate.of(2025, 1, day)), eq(baseValue));
+    }
+    verify(feeAccrualRepository, times(8)).save(any(FeeAccrual.class));
+    assertThat(result.managementFeeAccrual()).isEqualByComparingTo("400.00");
+    assertThat(result.depotFeeAccrual()).isEqualByComparingTo("50.00");
   }
 
   @Test
-  void calculateDailyFeesForFund_savesAllAccruals() {
-    LocalDate date = LocalDate.of(2025, 1, 15);
-    FeeAccrual accrual1 = createAccrual(TUV100, FeeType.MANAGEMENT, date);
-    FeeAccrual accrual2 = createAccrual(TUV100, FeeType.DEPOT, date);
+  void calculateFeesForNav_defaultsToPositionReportDateWhenNoAccruals() {
+    LocalDate positionReportDate = LocalDate.of(2025, 1, 13);
+    BigDecimal baseValue = new BigDecimal("12000000");
+    Instant feeCutoff =
+        positionReportDate.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
 
-    when(calculator1.calculate(TUV100, date)).thenReturn(accrual1);
-    when(calculator2.calculate(TUV100, date)).thenReturn(accrual2);
+    FeeAccrual accrual = createAccrual(TKF100, FeeType.MANAGEMENT, positionReportDate);
+
+    when(feeAccrualRepository.findLatestAccrualDate(TKF100)).thenReturn(Optional.empty());
+    when(calculator1.calculate(eq(TKF100), eq(positionReportDate), eq(baseValue)))
+        .thenReturn(accrual);
+    when(calculator2.calculate(eq(TKF100), eq(positionReportDate), eq(baseValue)))
+        .thenReturn(accrual);
     stubZeroLedgerBalance();
 
-    service.calculateDailyFeesForFund(TUV100, date);
+    service.calculateFeesForNav(TKF100, positionReportDate, baseValue, feeCutoff, null);
 
-    verify(feeAccrualRepository, times(2)).save(any(FeeAccrual.class));
+    verify(calculator1, times(1)).calculate(eq(TKF100), eq(positionReportDate), eq(baseValue));
+    verify(calculator2, times(1)).calculate(eq(TKF100), eq(positionReportDate), eq(baseValue));
   }
 
   @Test
-  void backfillFees_calculatesForEachDayInRange() {
-    LocalDate startDate = LocalDate.of(2025, 1, 1);
-    LocalDate endDate = LocalDate.of(2025, 1, 3);
-    FeeAccrual accrual = createAccrual(TUK75, FeeType.MANAGEMENT, startDate);
+  void calculateFeesForNav_includesSecurityPricesInMetadata() {
+    LocalDate positionReportDate = LocalDate.of(2025, 1, 13);
+    BigDecimal baseValue = new BigDecimal("12000000");
+    Instant feeCutoff =
+        positionReportDate.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
 
-    when(calculator1.calculate(any(), any())).thenReturn(accrual);
-    when(calculator2.calculate(any(), any())).thenReturn(accrual);
+    FeeAccrual accrual = createAccrual(TKF100, FeeType.MANAGEMENT, positionReportDate);
+    Map<String, ResolvedPrice> securityPrices =
+        Map.of(
+            "IE00BFG1TM61",
+            ResolvedPrice.builder()
+                .usedPrice(new BigDecimal("11.50"))
+                .storageKey("IE00BFG1TM61.EUFUND")
+                .priceDate(positionReportDate)
+                .build());
+
+    when(feeAccrualRepository.findLatestAccrualDate(TKF100)).thenReturn(Optional.empty());
+    when(calculator1.calculate(eq(TKF100), eq(positionReportDate), eq(baseValue)))
+        .thenReturn(accrual);
+    when(calculator2.calculate(eq(TKF100), eq(positionReportDate), eq(baseValue)))
+        .thenReturn(accrual);
     stubZeroLedgerBalance();
 
-    service.backfillFees(startDate, endDate);
+    service.calculateFeesForNav(TKF100, positionReportDate, baseValue, feeCutoff, securityPrices);
 
-    int daysInRange = 3;
-    int expectedCalls = FUND_COUNT * daysInRange;
-    verify(calculator1, times(expectedCalls)).calculate(any(), any());
-    verify(calculator2, times(expectedCalls)).calculate(any(), any());
+    verify(navFeeAccrualLedger, atLeastOnce())
+        .recordFeeAccrual(
+            eq(TKF100),
+            eq(positionReportDate),
+            any(),
+            any(),
+            argThat(metadata -> metadata.containsKey("securityPrices")));
   }
 
   @Test
-  void calculateDailyFeesForFund_recordsToLedgerForNavEnabledFund() {
-    LocalDate date = LocalDate.of(2025, 1, 15);
-    FeeAccrual accrual1 = createAccrual(TKF100, FeeType.MANAGEMENT, date);
-    FeeAccrual accrual2 = createAccrual(TKF100, FeeType.DEPOT, date);
-
-    when(calculator1.calculate(TKF100, date)).thenReturn(accrual1);
-    when(calculator2.calculate(TKF100, date)).thenReturn(accrual2);
-    stubZeroLedgerBalance();
-
-    service.calculateDailyFeesForFund(TKF100, date);
-
-    verify(navFeeAccrualLedger)
-        .recordFeeAccrual(eq(TKF100), eq(date), eq(MANAGEMENT_FEE_ACCRUAL), any(), any());
-    verify(navFeeAccrualLedger)
-        .recordFeeAccrual(eq(TKF100), eq(date), eq(DEPOT_FEE_ACCRUAL), any(), any());
-  }
-
-  @Test
-  void calculateDailyFees_recordsToLedgerOnlyForNavEnabledFunds() {
-    LocalDate date = LocalDate.of(2025, 1, 15);
-    FeeAccrual accrual = createAccrual(TUK75, FeeType.MANAGEMENT, date);
-
-    when(calculator1.calculate(any(), any())).thenReturn(accrual);
-    when(calculator2.calculate(any(), any())).thenReturn(accrual);
-    stubZeroLedgerBalance();
-
-    service.calculateDailyFees(date);
-
-    long navFundCount =
-        Arrays.stream(TulevaFund.values()).filter(TulevaFund::hasNavCalculation).count();
-    int expectedLedgerCalls = (int) navFundCount * 2; // 2 calculators per NAV fund
-    verify(navFeeAccrualLedger, times(expectedLedgerCalls))
-        .recordFeeAccrual(any(TulevaFund.class), any(LocalDate.class), any(), any(), any());
-  }
-
-  @Test
-  void calculateDailyFeesForFund_settlesPreviousMonthForNavFund() {
+  void calculateFeesForNav_settlesPreviousMonth() {
     LocalDate mar1 = LocalDate.of(2026, 3, 1);
+    BigDecimal baseValue = new BigDecimal("12000000");
+    Instant feeCutoff = mar1.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
+
     FeeAccrual accrual1 = createAccrual(TKF100, FeeType.MANAGEMENT, mar1);
     FeeAccrual accrual2 = createAccrual(TKF100, FeeType.DEPOT, mar1);
 
-    when(calculator1.calculate(TKF100, mar1)).thenReturn(accrual1);
-    when(calculator2.calculate(TKF100, mar1)).thenReturn(accrual2);
+    when(feeAccrualRepository.findLatestAccrualDate(TKF100)).thenReturn(Optional.empty());
+    when(calculator1.calculate(eq(TKF100), eq(mar1), eq(baseValue))).thenReturn(accrual1);
+    when(calculator2.calculate(eq(TKF100), eq(mar1), eq(baseValue))).thenReturn(accrual2);
 
-    Instant managementCutoff =
+    Instant settlementCutoff =
         LocalDate.of(2026, 3, 1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
-    Instant depotCutoff = managementCutoff;
-
     when(navLedgerRepository.getSystemAccountBalanceBefore(
-            MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100), managementCutoff))
+            MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100), settlementCutoff))
         .thenReturn(new BigDecimal("-1500.00"));
     when(navLedgerRepository.getSystemAccountBalanceBefore(
-            DEPOT_FEE_ACCRUAL.getAccountName(TKF100), depotCutoff))
+            DEPOT_FEE_ACCRUAL.getAccountName(TKF100), settlementCutoff))
         .thenReturn(new BigDecimal("-200.00"));
+    when(navLedgerRepository.getSystemAccountBalanceBefore(
+            MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100), feeCutoff))
+        .thenReturn(ZERO);
+    when(navLedgerRepository.getSystemAccountBalanceBefore(
+            DEPOT_FEE_ACCRUAL.getAccountName(TKF100), feeCutoff))
+        .thenReturn(ZERO);
 
-    service.calculateDailyFeesForFund(TKF100, mar1);
+    service.calculateFeesForNav(TKF100, mar1, baseValue, feeCutoff, null);
 
     verify(navFeeAccrualLedger)
         .settleFeeAccrual(
@@ -165,38 +183,20 @@ class FeeCalculationServiceTest {
   }
 
   @Test
-  void calculateDailyFeesForFund_doesNotSettleWhenNoOutstandingBalance() {
-    LocalDate mar1 = LocalDate.of(2026, 3, 1);
-    FeeAccrual accrual1 = createAccrual(TKF100, FeeType.MANAGEMENT, mar1);
-    FeeAccrual accrual2 = createAccrual(TKF100, FeeType.DEPOT, mar1);
-
-    when(calculator1.calculate(TKF100, mar1)).thenReturn(accrual1);
-    when(calculator2.calculate(TKF100, mar1)).thenReturn(accrual2);
-
-    Instant cutoff = LocalDate.of(2026, 3, 1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
-    when(navLedgerRepository.getSystemAccountBalanceBefore(
-            MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100), cutoff))
-        .thenReturn(ZERO);
-    when(navLedgerRepository.getSystemAccountBalanceBefore(
-            DEPOT_FEE_ACCRUAL.getAccountName(TKF100), cutoff))
-        .thenReturn(ZERO);
-
-    service.calculateDailyFeesForFund(TKF100, mar1);
-
-    verify(navFeeAccrualLedger, never()).settleFeeAccrual(any(), any(), any(), any());
-  }
-
-  @Test
-  void calculateDailyFeesForFund_doesNotSettleMidMonth() {
+  void calculateFeesForNav_doesNotSettleMidMonth() {
     LocalDate feb15 = LocalDate.of(2026, 2, 15);
+    BigDecimal baseValue = new BigDecimal("12000000");
+    Instant feeCutoff = feb15.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
+
     FeeAccrual accrual1 = createAccrual(TKF100, FeeType.MANAGEMENT, feb15);
     FeeAccrual accrual2 = createAccrual(TKF100, FeeType.DEPOT, feb15);
 
-    when(calculator1.calculate(TKF100, feb15)).thenReturn(accrual1);
-    when(calculator2.calculate(TKF100, feb15)).thenReturn(accrual2);
+    when(feeAccrualRepository.findLatestAccrualDate(TKF100)).thenReturn(Optional.empty());
+    when(calculator1.calculate(eq(TKF100), eq(feb15), eq(baseValue))).thenReturn(accrual1);
+    when(calculator2.calculate(eq(TKF100), eq(feb15), eq(baseValue))).thenReturn(accrual2);
     stubZeroLedgerBalance();
 
-    service.calculateDailyFeesForFund(TKF100, feb15);
+    service.calculateFeesForNav(TKF100, feb15, baseValue, feeCutoff, null);
 
     verify(navFeeAccrualLedger, never()).settleFeeAccrual(any(), any(), any(), any());
   }

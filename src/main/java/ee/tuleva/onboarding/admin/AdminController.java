@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.admin;
 
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
-import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
@@ -37,7 +36,6 @@ public class AdminController {
   private final SavingsFundLedger savingsFundLedger;
   private final NavCalculationService navCalculationService;
   private final NavPublisher navPublisher;
-  private final FeeCalculationService feeCalculationService;
   private final Clock clock;
 
   @Value("${admin.api-token:}")
@@ -137,8 +135,7 @@ public class AdminController {
     validateToken(token);
 
     log.info("Admin triggered fee backfill: from={}, to={}", from, to);
-
-    feeCalculationService.backfillFees(from, to);
+    navCalculationService.backfillFees(from, to);
 
     return "Backfilled fees from " + from + " to " + to;
   }

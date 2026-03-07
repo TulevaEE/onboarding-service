@@ -25,6 +25,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @SpringBootTest(webEnvironment = RANDOM_PORT)
@@ -35,6 +36,7 @@ class NavCalculationTransactionTest {
   @Autowired FundPositionRepository fundPositionRepository;
   @Autowired EntityManager entityManager;
   @Autowired TransactionTemplate transactionTemplate;
+  @Autowired JdbcClient jdbcClient;
 
   static final LocalDate CALCULATION_DATE = LocalDate.of(2026, 2, 4);
   static final LocalDate NAV_DATE = LocalDate.of(2026, 2, 3);
@@ -50,6 +52,8 @@ class NavCalculationTransactionTest {
           entityManager.createNativeQuery("DELETE FROM ledger.account").executeUpdate();
           entityManager.createNativeQuery("DELETE FROM ledger.party").executeUpdate();
           entityManager.createNativeQuery("DELETE FROM investment_fund_position").executeUpdate();
+          entityManager.createNativeQuery("DELETE FROM investment_fee_accrual").executeUpdate();
+          entityManager.createNativeQuery("DELETE FROM investment_fee_rate").executeUpdate();
         });
   }
 
@@ -60,6 +64,7 @@ class NavCalculationTransactionTest {
           setupFundPosition();
           createSystemAccountBalances();
           createFundUnitsOutstanding();
+          insertFeeRates();
           entityManager.flush();
         });
 
@@ -169,5 +174,26 @@ class NavCalculationTransactionTest {
                 .build());
 
     entityManager.persist(transaction);
+  }
+
+  private void insertFeeRates() {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fee_rate (fund_code, fee_type, annual_rate, valid_from, created_by)
+            VALUES (:fundCode, 'MANAGEMENT', 0.0029, :validFrom, 'TEST')
+            """)
+        .param("fundCode", TKF100.name())
+        .param("validFrom", NAV_DATE)
+        .update();
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fee_rate (fund_code, fee_type, annual_rate, valid_from, created_by)
+            VALUES (:fundCode, 'DEPOT', 0.00035, :validFrom, 'TEST')
+            """)
+        .param("fundCode", TKF100.name())
+        .param("validFrom", NAV_DATE)
+        .update();
   }
 }

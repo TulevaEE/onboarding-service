@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.investment.fees;
 
 import static ee.tuleva.onboarding.investment.fees.FeeAccrualBuilder.daysInYear;
-import static ee.tuleva.onboarding.investment.fees.FeeAccrualBuilder.zeroAccrual;
 import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
@@ -22,28 +21,20 @@ public class DepotFeeCalculator implements FeeCalculator {
 
   private final DepotFeeTierRepository tierRepository;
   private final PositionCalculationRepository positionCalculationRepository;
-  private final FundAumResolver fundAumResolver;
   private final FeeMonthResolver feeMonthResolver;
   private final VatRateProvider vatRateProvider;
   private final FeeRateRepository feeRateRepository;
 
   @Override
-  public FeeAccrual calculate(TulevaFund fund, LocalDate calendarDate) {
+  public FeeAccrual calculate(TulevaFund fund, LocalDate calendarDate, BigDecimal baseValue) {
     LocalDate feeMonth = feeMonthResolver.resolveFeeMonth(calendarDate);
-    LocalDate referenceDate = fundAumResolver.resolveReferenceDate(fund, calendarDate);
-
-    if (referenceDate == null) {
-      return zeroAccrual(fund, DEPOT, calendarDate, feeMonth);
-    }
-
-    BigDecimal assetValue = fundAumResolver.resolveBaseValue(fund, referenceDate);
     int daysInYear = daysInYear(calendarDate);
 
     BigDecimal annualRate = determineDepotRate(fund, feeMonth);
     BigDecimal vatRate = vatRateProvider.getVatRate(feeMonth);
 
     BigDecimal dailyFeeNet =
-        assetValue.multiply(annualRate).divide(BigDecimal.valueOf(daysInYear), 6, HALF_UP);
+        baseValue.multiply(annualRate).divide(BigDecimal.valueOf(daysInYear), 6, HALF_UP);
 
     BigDecimal dailyFeeGross = dailyFeeNet.multiply(ONE.add(vatRate)).setScale(6, HALF_UP);
 
@@ -52,13 +43,13 @@ public class DepotFeeCalculator implements FeeCalculator {
         .feeType(DEPOT)
         .accrualDate(calendarDate)
         .feeMonth(feeMonth)
-        .baseValue(assetValue)
+        .baseValue(baseValue)
         .annualRate(annualRate)
         .dailyAmountNet(dailyFeeNet)
         .dailyAmountGross(dailyFeeGross)
         .vatRate(vatRate)
         .daysInYear(daysInYear)
-        .referenceDate(referenceDate)
+        .referenceDate(calendarDate)
         .build();
   }
 

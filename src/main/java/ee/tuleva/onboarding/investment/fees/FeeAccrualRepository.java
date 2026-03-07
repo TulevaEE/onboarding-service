@@ -69,6 +69,20 @@ public class FeeAccrualRepository {
         .optional();
   }
 
+  public Optional<LocalDate> findLatestAccrualDate(TulevaFund fund) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT accrual_date FROM investment_fee_accrual
+            WHERE fund_code = :fundCode
+            ORDER BY accrual_date DESC
+            LIMIT 1
+            """)
+        .param("fundCode", fund.name())
+        .query(LocalDate.class)
+        .optional();
+  }
+
   public void save(FeeAccrual accrual) {
     int updated =
         jdbcClient

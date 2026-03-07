@@ -28,6 +28,26 @@ class LimitCheckJobTest {
   }
 
   @Test
+  void backfillDelegatesToService() {
+    var results = List.of(mock(LimitCheckResult.class));
+    when(limitCheckService.backfillChecks(7)).thenReturn(results);
+
+    job.backfillLimitChecks();
+
+    verify(limitCheckService).backfillChecks(7);
+    verify(limitCheckNotifier, never()).notify(any());
+  }
+
+  @Test
+  void backfillSwallowsExceptions() {
+    when(limitCheckService.backfillChecks(7)).thenThrow(new RuntimeException("DB down"));
+
+    job.backfillLimitChecks();
+
+    verify(limitCheckNotifier, never()).notify(any());
+  }
+
+  @Test
   void swallowsExceptions() {
     when(limitCheckService.runChecks()).thenThrow(new RuntimeException("DB down"));
 

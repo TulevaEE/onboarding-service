@@ -203,6 +203,40 @@ class LimitCheckServiceTest {
     verify(reserveLimitChecker).check(fund, new BigDecimal("80000"), fundLimit);
   }
 
+  @Test
+  void runChecksAsOfUsesProvidedDate() {
+    service = createService();
+    var asOfDate = LocalDate.of(2026, 3, 2);
+
+    for (var fund : TulevaFund.values()) {
+      when(positionCalculationRepository.getLatestDateUpTo(fund, asOfDate))
+          .thenReturn(Optional.empty());
+    }
+
+    var results = service.runChecksAsOf(asOfDate);
+
+    assertThat(results).isEmpty();
+    for (var fund : TulevaFund.values()) {
+      verify(positionCalculationRepository).getLatestDateUpTo(fund, asOfDate);
+    }
+  }
+
+  @Test
+  void backfillChecksProcessesMultipleDays() {
+    service = createService();
+
+    for (var fund : TulevaFund.values()) {
+      when(positionCalculationRepository.getLatestDateUpTo(eq(fund), any(LocalDate.class)))
+          .thenReturn(Optional.empty());
+    }
+
+    var results = service.backfillChecks(2);
+
+    assertThat(results).isEmpty();
+    var fundCount = TulevaFund.values().length;
+    verify(positionCalculationRepository, times(3 * fundCount)).getLatestDateUpTo(any(), any());
+  }
+
   private LimitCheckService createService() {
     return new LimitCheckService(
         clock,

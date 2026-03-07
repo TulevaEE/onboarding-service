@@ -28,7 +28,8 @@ class FundPositionImportServiceTest {
   @Test
   void importPositions_savesNewPositions() {
     FundPosition position = createPosition(TUK75, "Asset 1");
-    when(repository.existsByNavDateAndFundAndAccountName(any(), any(), any())).thenReturn(false);
+    when(repository.existsByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
+        .thenReturn(false);
 
     int imported = service.importPositions(List.of(position));
 
@@ -39,8 +40,11 @@ class FundPositionImportServiceTest {
   @Test
   void importPositions_skipsExistingPositions() {
     FundPosition position = createPosition(TUK75, "Asset 1");
-    when(repository.existsByNavDateAndFundAndAccountName(
-            position.getNavDate(), position.getFund(), position.getAccountName()))
+    when(repository.existsByNavDateAndFundAndAccountTypeAndAccountName(
+            position.getNavDate(),
+            position.getFund(),
+            position.getAccountType(),
+            position.getAccountName()))
         .thenReturn(true);
 
     int imported = service.importPositions(List.of(position));
@@ -54,11 +58,17 @@ class FundPositionImportServiceTest {
     FundPosition existing = createPosition(TUK75, "Existing Asset");
     FundPosition newPosition = createPosition(TUK00, "New Asset");
 
-    when(repository.existsByNavDateAndFundAndAccountName(
-            existing.getNavDate(), existing.getFund(), existing.getAccountName()))
+    when(repository.existsByNavDateAndFundAndAccountTypeAndAccountName(
+            existing.getNavDate(),
+            existing.getFund(),
+            existing.getAccountType(),
+            existing.getAccountName()))
         .thenReturn(true);
-    when(repository.existsByNavDateAndFundAndAccountName(
-            newPosition.getNavDate(), newPosition.getFund(), newPosition.getAccountName()))
+    when(repository.existsByNavDateAndFundAndAccountTypeAndAccountName(
+            newPosition.getNavDate(),
+            newPosition.getFund(),
+            newPosition.getAccountType(),
+            newPosition.getAccountName()))
         .thenReturn(false);
 
     int imported = service.importPositions(List.of(existing, newPosition));

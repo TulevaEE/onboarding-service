@@ -349,19 +349,14 @@ class NavCalculationServiceTest {
   }
 
   @Test
-  void backfillFees_usesCurrentDayForWorkingDaysAndPreviousForWeekends() {
+  void backfillFees_calculatesFeesForAllDaysIncludingWeekends() {
     LocalDate friday = LocalDate.of(2026, 3, 6);
-    LocalDate saturday = LocalDate.of(2026, 3, 7);
     LocalDate sunday = LocalDate.of(2026, 3, 8);
+    LocalDate thursday = LocalDate.of(2026, 3, 5);
 
-    when(publicHolidays.isWorkingDay(friday)).thenReturn(true);
-    when(publicHolidays.isWorkingDay(saturday)).thenReturn(false);
-    when(publicHolidays.isWorkingDay(sunday)).thenReturn(false);
-    when(publicHolidays.previousWorkingDay(saturday)).thenReturn(friday);
-    when(publicHolidays.previousWorkingDay(sunday)).thenReturn(friday);
-
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, friday))
-        .thenReturn(Optional.of(friday));
+    when(publicHolidays.previousWorkingDay(any())).thenReturn(thursday);
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, thursday))
+        .thenReturn(Optional.of(thursday));
     when(securitiesValueComponent.calculate(any())).thenReturn(ZERO);
     when(cashPositionComponent.calculate(any())).thenReturn(new BigDecimal("1000000"));
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
@@ -375,7 +370,7 @@ class NavCalculationServiceTest {
         .calculateFeesForNav(eq(TKF100), any(), eq(new BigDecimal("1000000")), any(), any());
     verify(feeCalculationService).calculateFeesForNav(eq(TKF100), eq(friday), any(), any(), any());
     verify(feeCalculationService)
-        .calculateFeesForNav(eq(TKF100), eq(saturday), any(), any(), any());
+        .calculateFeesForNav(eq(TKF100), eq(LocalDate.of(2026, 3, 7)), any(), any(), any());
     verify(feeCalculationService).calculateFeesForNav(eq(TKF100), eq(sunday), any(), any(), any());
   }
 
@@ -383,8 +378,9 @@ class NavCalculationServiceTest {
   void backfillFees_skipsDateWithNoPositionReport() {
     LocalDate date = LocalDate.of(2026, 3, 6);
 
-    when(publicHolidays.isWorkingDay(date)).thenReturn(true);
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, date))
+    when(publicHolidays.previousWorkingDay(date)).thenReturn(LocalDate.of(2026, 3, 5));
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(
+            TKF100, LocalDate.of(2026, 3, 5)))
         .thenReturn(Optional.empty());
 
     service.backfillFees(TKF100, date, date);
@@ -393,45 +389,33 @@ class NavCalculationServiceTest {
   }
 
   @Test
-  void computeFeeBaseValue_looksUpExactNavDate() {
-    LocalDate navDate = LocalDate.of(2026, 3, 5);
+  void computeFeeBaseValue_usesSameDayPositionOnInceptionDate() {
+    LocalDate inceptionDate = TKF100.getInceptionDate();
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, navDate))
-        .thenReturn(Optional.of(navDate));
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, inceptionDate))
+        .thenReturn(Optional.of(inceptionDate));
     when(securitiesValueComponent.calculate(any())).thenReturn(ZERO);
     when(cashPositionComponent.calculate(any())).thenReturn(new BigDecimal("5500000.00"));
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
 
-    var result = service.computeFeeBaseValue(TKF100, navDate);
+    var result = service.computeFeeBaseValue(TKF100, inceptionDate);
 
     assertThat(result).isPresent();
-    assertThat(result.get().positionReportDate()).isEqualTo(navDate);
+    assertThat(result.get().positionReportDate()).isEqualTo(inceptionDate);
     assertThat(result.get().baseValue()).isEqualByComparingTo("5500000.00");
     verify(publicHolidays, never()).previousWorkingDay(any());
   }
 
   @Test
-  void computeFeeBaseValue_returnsEmptyWhenPositionDateDoesNotMatch() {
-    LocalDate navDate = LocalDate.of(2026, 3, 5);
-    LocalDate staleDate = LocalDate.of(2026, 3, 4);
-
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, navDate))
-        .thenReturn(Optional.of(staleDate));
-
-    var result = service.computeFeeBaseValue(TKF100, navDate);
-
-    assertThat(result).isEmpty();
-  }
-
-  @Test
   void computeFeeBaseValue_returnsEmptyWhenNoPositionReport() {
-    LocalDate navDate = LocalDate.of(2026, 3, 5);
-
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, navDate))
+    LocalDate date = LocalDate.of(2026, 1, 15);
+    when(publicHolidays.previousWorkingDay(date)).thenReturn(LocalDate.of(2026, 1, 14));
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(
+            TKF100, LocalDate.of(2026, 1, 14)))
         .thenReturn(Optional.empty());
 
-    var result = service.computeFeeBaseValue(TKF100, navDate);
+    var result = service.computeFeeBaseValue(TKF100, date);
 
     assertThat(result).isEmpty();
   }

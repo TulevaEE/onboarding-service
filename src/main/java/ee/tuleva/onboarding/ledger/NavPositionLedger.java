@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.POSI
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import java.math.BigDecimal;
@@ -29,6 +30,7 @@ public class NavPositionLedger {
 
   private final LedgerAccountService ledgerAccountService;
   private final LedgerTransactionService ledgerTransactionService;
+  private final PublicHolidays publicHolidays;
   private final Clock clock;
 
   @Transactional
@@ -90,19 +92,26 @@ public class NavPositionLedger {
 
     ledgerTransactionService.createTransaction(
         POSITION_UPDATE,
-        transactionDate(reportDate),
+        transactionDate(fund, reportDate),
         externalReference,
         metadata,
         entries.toArray(new LedgerEntryDto[0]));
   }
 
-  private Instant transactionDate(LocalDate reportDate) {
+  private Instant transactionDate(TulevaFund fund, LocalDate reportDate) {
     Instant now = Instant.now(clock);
     LocalDate nowDate = now.atZone(ESTONIAN_ZONE).toLocalDate();
     if (nowDate.equals(reportDate)) {
       return now;
     }
-    return reportDate.atTime(10, 0).atZone(ESTONIAN_ZONE).toInstant();
+    if (reportDate.equals(fund.getInceptionDate())) {
+      return reportDate.atTime(10, 0).atZone(ESTONIAN_ZONE).toInstant();
+    }
+    LocalDate expectedDate = publicHolidays.nextWorkingDay(reportDate);
+    if (nowDate.equals(expectedDate)) {
+      return now;
+    }
+    return expectedDate.atTime(10, 0).atZone(ESTONIAN_ZONE).toInstant();
   }
 
   private LedgerAccount findOrCreateInstrumentAccount(

@@ -250,40 +250,44 @@ public class NavCalculationService {
       LocalDate positionReportDate,
       Map<String, ResolvedPrice> securityPrices) {}
 
-  public Optional<FeeBaseValueResult> computeFeeBaseValue(
-      TulevaFund fund, LocalDate calculationDate) {
-    LocalDate positionReportDate = getPositionReportDate(fund, calculationDate);
-    if (positionReportDate == null) {
+  public Optional<FeeBaseValueResult> computeFeeBaseValue(TulevaFund fund, LocalDate navDate) {
+    LocalDate actual =
+        fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, navDate).orElse(null);
+    if (actual == null) {
+      return Optional.empty();
+    }
+    if (!actual.equals(navDate)) {
+      log.error("Position data mismatch: fund={}, expected={}, latest={}", fund, navDate, actual);
       return Optional.empty();
     }
 
-    Instant cutoff =
-        calculationDate.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
+    Instant cutoff = navDate.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
     NavComponentContext context =
         NavComponentContext.builder()
             .fund(fund)
-            .calculationDate(calculationDate)
-            .positionReportDate(positionReportDate)
-            .priceDate(positionReportDate)
+            .calculationDate(navDate)
+            .positionReportDate(navDate)
+            .priceDate(navDate)
             .cutoff(cutoff)
             .build();
     BigDecimal baseValue = calculateFeeBaseValue(context);
-    return Optional.of(
-        new FeeBaseValueResult(baseValue, positionReportDate, context.getSecurityPrices()));
+    return Optional.of(new FeeBaseValueResult(baseValue, navDate, context.getSecurityPrices()));
   }
 
   @Transactional
   public void backfillFees(TulevaFund fund, LocalDate from, LocalDate to) {
-    for (LocalDate navDate = from; !navDate.isAfter(to); navDate = navDate.plusDays(1)) {
+    for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
+      LocalDate navDate =
+          publicHolidays.isWorkingDay(date) ? date : publicHolidays.previousWorkingDay(date);
       var optional = computeFeeBaseValue(fund, navDate);
       if (optional.isEmpty()) {
         continue;
       }
-      log.info("Backfilling fees: fund={}, date={}", fund, navDate);
+      log.info("Backfilling fees: fund={}, date={}, navDate={}", fund, date, navDate);
       var result = optional.get();
-      Instant feeCutoff = navDate.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
+      Instant feeCutoff = date.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
       feeCalculationService.calculateFeesForNav(
-          fund, navDate, result.baseValue(), feeCutoff, result.securityPrices());
+          fund, date, result.baseValue(), feeCutoff, result.securityPrices());
     }
     log.info("Fee backfill completed: fund={}, from={}, to={}", fund, from, to);
   }

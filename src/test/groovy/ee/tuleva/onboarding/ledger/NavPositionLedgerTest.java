@@ -13,7 +13,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import java.math.BigDecimal;
@@ -40,7 +39,6 @@ class NavPositionLedgerTest {
 
   @Mock private LedgerAccountService ledgerAccountService;
   @Mock private LedgerTransactionService ledgerTransactionService;
-  @Mock private PublicHolidays publicHolidays;
 
   @Mock private LedgerAccount securitiesUnitsAccount1;
   @Mock private LedgerAccount securitiesUnitsEquityAccount1;
@@ -63,10 +61,7 @@ class NavPositionLedgerTest {
   @BeforeEach
   void setUp() {
     navPositionLedger =
-        new NavPositionLedger(
-            ledgerAccountService, ledgerTransactionService, publicHolidays, clock);
-    when(publicHolidays.nextWorkingDay(LocalDate.of(2026, 2, 1)))
-        .thenReturn(LocalDate.of(2026, 2, 2));
+        new NavPositionLedger(ledgerAccountService, ledgerTransactionService, clock);
     when(ledgerTransactionService.existsByExternalReferenceAndTransactionType(
             any(UUID.class), eq(POSITION_UPDATE)))
         .thenReturn(false);
@@ -115,7 +110,7 @@ class NavPositionLedgerTest {
         .createTransaction(
             eq(POSITION_UPDATE),
             eq(
-                LocalDate.of(2026, 2, 2)
+                LocalDate.of(2026, 2, 1)
                     .atTime(10, 0)
                     .atZone(ZoneId.of("Europe/Tallinn"))
                     .toInstant()),
@@ -151,7 +146,7 @@ class NavPositionLedgerTest {
         .createTransaction(
             eq(POSITION_UPDATE),
             eq(
-                LocalDate.of(2026, 2, 2)
+                LocalDate.of(2026, 2, 1)
                     .atTime(10, 0)
                     .atZone(ZoneId.of("Europe/Tallinn"))
                     .toInstant()),
@@ -187,7 +182,7 @@ class NavPositionLedgerTest {
         .createTransaction(
             eq(POSITION_UPDATE),
             eq(
-                LocalDate.of(2026, 2, 2)
+                LocalDate.of(2026, 2, 1)
                     .atTime(10, 0)
                     .atZone(ZoneId.of("Europe/Tallinn"))
                     .toInstant()),
@@ -223,7 +218,7 @@ class NavPositionLedgerTest {
         .createTransaction(
             eq(POSITION_UPDATE),
             eq(
-                LocalDate.of(2026, 2, 2)
+                LocalDate.of(2026, 2, 1)
                     .atTime(10, 0)
                     .atZone(ZoneId.of("Europe/Tallinn"))
                     .toInstant()),
@@ -266,7 +261,7 @@ class NavPositionLedgerTest {
         .createTransaction(
             eq(POSITION_UPDATE),
             eq(
-                LocalDate.of(2026, 2, 2)
+                LocalDate.of(2026, 2, 1)
                     .atTime(10, 0)
                     .atZone(ZoneId.of("Europe/Tallinn"))
                     .toInstant()),
@@ -343,15 +338,13 @@ class NavPositionLedgerTest {
   }
 
   @Test
-  void recordPositions_usesRealTimestampWhenProcessedOnNextWorkingDay() {
+  void recordPositions_usesRealTimestampWhenProcessedOnReportDate() {
     LocalDate reportDate = LocalDate.of(2026, 2, 3);
-    Instant realTimeNow = Instant.parse("2026-02-04T07:23:15Z");
+    Instant realTimeNow = Instant.parse("2026-02-03T07:23:15Z");
     Clock realTimeClock = Clock.fixed(realTimeNow, ZoneId.of("Europe/Tallinn"));
     var realTimeLedger =
-        new NavPositionLedger(
-            ledgerAccountService, ledgerTransactionService, publicHolidays, realTimeClock);
+        new NavPositionLedger(ledgerAccountService, ledgerTransactionService, realTimeClock);
 
-    when(publicHolidays.nextWorkingDay(reportDate)).thenReturn(LocalDate.of(2026, 2, 4));
     setupAccountMocks();
     when(ledgerTransactionService.createTransaction(
             any(TransactionType.class),
@@ -374,9 +367,8 @@ class NavPositionLedgerTest {
   }
 
   @Test
-  void recordPositions_usesFallbackTimestampWhenBackfilling() {
+  void recordPositions_usesFallbackTimestampOnReportDate() {
     LocalDate reportDate = LocalDate.of(2026, 2, 3);
-    when(publicHolidays.nextWorkingDay(reportDate)).thenReturn(LocalDate.of(2026, 2, 4));
     setupAccountMocks();
     when(ledgerTransactionService.createTransaction(
             any(TransactionType.class),
@@ -393,36 +385,10 @@ class NavPositionLedgerTest {
         .createTransaction(
             eq(POSITION_UPDATE),
             eq(
-                LocalDate.of(2026, 2, 4)
+                LocalDate.of(2026, 2, 3)
                     .atTime(10, 0)
                     .atZone(ZoneId.of("Europe/Tallinn"))
                     .toInstant()),
-            any(UUID.class),
-            any(),
-            any(LedgerEntryDto[].class));
-  }
-
-  @Test
-  void recordPositions_skipsWeekendForFridayReport() {
-    LocalDate friday = LocalDate.of(2026, 2, 6);
-    LocalDate monday = LocalDate.of(2026, 2, 9);
-    when(publicHolidays.nextWorkingDay(friday)).thenReturn(monday);
-    setupAccountMocks();
-    when(ledgerTransactionService.createTransaction(
-            any(TransactionType.class),
-            any(Instant.class),
-            any(UUID.class),
-            any(),
-            any(LedgerEntryDto[].class)))
-        .thenReturn(transaction);
-
-    navPositionLedger.recordPositions(
-        TKF100, friday, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
-
-    verify(ledgerTransactionService)
-        .createTransaction(
-            eq(POSITION_UPDATE),
-            eq(monday.atTime(10, 0).atZone(ZoneId.of("Europe/Tallinn")).toInstant()),
             any(UUID.class),
             any(),
             any(LedgerEntryDto[].class));

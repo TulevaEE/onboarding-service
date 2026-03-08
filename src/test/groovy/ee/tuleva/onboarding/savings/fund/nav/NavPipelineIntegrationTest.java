@@ -207,6 +207,48 @@ class NavPipelineIntegrationTest {
   }
 
   @Test
+  void computeFeeBaseValue_usesCorrectPositionForEachDay() {
+    LocalDate feb2 = LocalDate.of(2026, 2, 2); // inception, Monday
+    LocalDate feb3 = LocalDate.of(2026, 2, 3); // Tuesday
+
+    BigDecimal feb2Cash = new BigDecimal("5000000.00");
+    BigDecimal feb3Cash = new BigDecimal("6000000.00");
+
+    navPositionLedger.recordPositions(TKF100, feb2, Map.of(), feb2Cash, ZERO, ZERO);
+    navPositionLedger.recordPositions(TKF100, feb3, Map.of(), feb3Cash, ZERO, ZERO);
+
+    setupFundPosition(TKF100, feb2);
+    setupFundPosition(TKF100, feb3);
+
+    insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), feb2);
+    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.00035"), feb2);
+    issueFundUnits(new BigDecimal("1000000.000"), feb2);
+    entityManager.flush();
+    entityManager.clear();
+
+    var feb2Result = navCalculationService.computeFeeBaseValue(TKF100, feb2);
+    assertThat(feb2Result).isPresent();
+    assertThat(feb2Result.get().baseValue()).isEqualByComparingTo(feb2Cash);
+
+    var feb3Result = navCalculationService.computeFeeBaseValue(TKF100, feb3);
+    assertThat(feb3Result).isPresent();
+    assertThat(feb3Result.get().baseValue()).isEqualByComparingTo(feb2Cash.add(feb3Cash));
+  }
+
+  private void setupFundPosition(TulevaFund fund, LocalDate navDate) {
+    fundPositionRepository.save(
+        FundPosition.builder()
+            .navDate(navDate)
+            .fund(fund)
+            .accountType(CASH)
+            .accountName("Cash")
+            .marketValue(ZERO)
+            .currency("EUR")
+            .createdAt(Instant.now())
+            .build());
+  }
+
+  @Test
   void feeCalculationRecordsFeesPerFundInLedger() {
     LocalDate date = LocalDate.of(2025, 3, 15);
     BigDecimal tkf100Aum = new BigDecimal("50000000");

@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.config;
 
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import java.lang.reflect.Type;
 import org.hibernate.type.format.AbstractJsonFormatMapper;
 import org.hibernate.type.format.FormatMapperCreationContext;
@@ -20,6 +22,8 @@ public class RuntimeTypeJacksonJsonFormatMapper extends AbstractJsonFormatMapper
 
   public RuntimeTypeJacksonJsonFormatMapper() {
     this.objectMapper = new ObjectMapper().findAndRegisterModules();
+    this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    this.objectMapper.enable(JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN);
   }
 
   public RuntimeTypeJacksonJsonFormatMapper(FormatMapperCreationContext context) {

@@ -352,11 +352,14 @@ class NavCalculationServiceTest {
   void backfillFees_calculatesFeesForAllDaysIncludingWeekends() {
     LocalDate friday = LocalDate.of(2026, 3, 6);
     LocalDate sunday = LocalDate.of(2026, 3, 8);
-    LocalDate thursday = LocalDate.of(2026, 3, 5);
 
-    when(publicHolidays.previousWorkingDay(any())).thenReturn(thursday);
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, thursday))
-        .thenReturn(Optional.of(thursday));
+    // backfill for fri/sat/sun calls computeFeeBaseValue with +1 day:
+    // fri+1=sat, sat+1=sun, sun+1=mon — all resolve via previousWorkingDay to friday
+    when(publicHolidays.previousWorkingDay(LocalDate.of(2026, 3, 7))).thenReturn(friday);
+    when(publicHolidays.previousWorkingDay(LocalDate.of(2026, 3, 8))).thenReturn(friday);
+    when(publicHolidays.previousWorkingDay(LocalDate.of(2026, 3, 9))).thenReturn(friday);
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, friday))
+        .thenReturn(Optional.of(friday));
     when(securitiesValueComponent.calculate(any())).thenReturn(ZERO);
     when(cashPositionComponent.calculate(any())).thenReturn(new BigDecimal("1000000"));
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
@@ -375,12 +378,37 @@ class NavCalculationServiceTest {
   }
 
   @Test
+  void backfillFees_usesCalendarDatePositionNotPreviousWorkingDay() {
+    // Fee for Monday Mar 2 should use Monday's position, not Friday's
+    LocalDate monday = LocalDate.of(2026, 3, 2);
+    LocalDate tuesday = LocalDate.of(2026, 3, 3);
+
+    // backfill calls computeFeeBaseValue(fund, tuesday) → previousWorkingDay(tuesday) = monday
+    when(publicHolidays.previousWorkingDay(tuesday)).thenReturn(monday);
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, monday))
+        .thenReturn(Optional.of(monday));
+    when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("900000000"));
+    when(cashPositionComponent.calculate(any())).thenReturn(new BigDecimal("50000000"));
+    when(receivablesComponent.calculate(any())).thenReturn(ZERO);
+    when(payablesComponent.calculate(any())).thenReturn(ZERO);
+    when(feeCalculationService.calculateFeesForNav(any(), any(), any(), any(), any()))
+        .thenReturn(new FeeResult(ZERO, ZERO));
+
+    service.backfillFees(TUK75, monday, monday);
+
+    // Fee date is Monday, base value uses Monday's position (950M)
+    verify(feeCalculationService)
+        .calculateFeesForNav(eq(TUK75), eq(monday), eq(new BigDecimal("950000000")), any(), any());
+  }
+
+  @Test
   void backfillFees_skipsDateWithNoPositionReport() {
     LocalDate date = LocalDate.of(2026, 3, 6);
+    LocalDate nextDay = LocalDate.of(2026, 3, 7);
 
-    when(publicHolidays.previousWorkingDay(date)).thenReturn(LocalDate.of(2026, 3, 5));
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(
-            TKF100, LocalDate.of(2026, 3, 5)))
+    // backfill calls computeFeeBaseValue(fund, date+1) → previousWorkingDay(nextDay) = date
+    when(publicHolidays.previousWorkingDay(nextDay)).thenReturn(date);
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, date))
         .thenReturn(Optional.empty());
 
     service.backfillFees(TKF100, date, date);

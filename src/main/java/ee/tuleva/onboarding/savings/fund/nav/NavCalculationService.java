@@ -275,7 +275,7 @@ public class NavCalculationService {
   @Transactional
   public void backfillFees(TulevaFund fund, LocalDate from, LocalDate to) {
     for (LocalDate navDate = from; !navDate.isAfter(to); navDate = navDate.plusDays(1)) {
-      var optional = computeFeeBaseValue(fund, navDate);
+      var optional = computeFeeBaseValue(fund, navDate.plusDays(1));
       if (optional.isEmpty()) {
         continue;
       }

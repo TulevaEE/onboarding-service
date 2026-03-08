@@ -22,6 +22,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -149,7 +150,10 @@ public class NavCalculationService {
   }
 
   private LocalDate getPositionReportDate(TulevaFund fund, LocalDate calculationDate) {
-    LocalDate expectedDate = publicHolidays.previousWorkingDay(calculationDate);
+    LocalDate expectedDate =
+        calculationDate.equals(fund.getInceptionDate())
+            ? calculationDate
+            : publicHolidays.previousWorkingDay(calculationDate);
     LocalDate actual =
         fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, expectedDate).orElse(null);
     if (actual != null && !actual.equals(expectedDate)) {
@@ -246,11 +250,11 @@ public class NavCalculationService {
       LocalDate positionReportDate,
       Map<String, ResolvedPrice> securityPrices) {}
 
-  public FeeBaseValueResult computeFeeBaseValue(TulevaFund fund, LocalDate calculationDate) {
+  public Optional<FeeBaseValueResult> computeFeeBaseValue(
+      TulevaFund fund, LocalDate calculationDate) {
     LocalDate positionReportDate = getPositionReportDate(fund, calculationDate);
     if (positionReportDate == null) {
-      throw new IllegalStateException(
-          "No position report found: fund=" + fund + ", date=" + calculationDate);
+      return Optional.empty();
     }
 
     Instant cutoff =
@@ -264,20 +268,24 @@ public class NavCalculationService {
             .cutoff(cutoff)
             .build();
     BigDecimal baseValue = calculateFeeBaseValue(context);
-    return new FeeBaseValueResult(baseValue, positionReportDate, context.getSecurityPrices());
+    return Optional.of(
+        new FeeBaseValueResult(baseValue, positionReportDate, context.getSecurityPrices()));
   }
 
   @Transactional
-  public void backfillFees(LocalDate from, LocalDate to) {
+  public void backfillFees(TulevaFund fund, LocalDate from, LocalDate to) {
     for (LocalDate navDate = from; !navDate.isAfter(to); navDate = navDate.plusDays(1)) {
-      for (TulevaFund fund : TulevaFund.values()) {
-        var result = computeFeeBaseValue(fund, navDate);
-        Instant feeCutoff =
-            navDate.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
-        feeCalculationService.calculateFeesForNav(
-            fund, navDate, result.baseValue(), feeCutoff, result.securityPrices());
+      var optional = computeFeeBaseValue(fund, navDate);
+      if (optional.isEmpty()) {
+        continue;
       }
+      log.info("Backfilling fees: fund={}, date={}", fund, navDate);
+      var result = optional.get();
+      Instant feeCutoff = navDate.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
+      feeCalculationService.calculateFeesForNav(
+          fund, navDate, result.baseValue(), feeCutoff, result.securityPrices());
     }
+    log.info("Fee backfill completed: fund={}, from={}, to={}", fund, from, to);
   }
 
   private void validateResult(NavCalculationResult result) {

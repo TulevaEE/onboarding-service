@@ -230,18 +230,21 @@ class AdminControllerTest {
   }
 
   @Test
-  void backfillFees_callsServiceWithDateRange() throws Exception {
+  void backfillFees_callsServiceWithFundAndDateRange() throws Exception {
     mockMvc
         .perform(
             post("/admin/backfill-fees")
                 .with(csrf())
                 .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TKF100")
                 .param("from", "2026-02-03")
                 .param("to", "2026-02-03"))
         .andExpect(status().isOk())
+        .andExpect(content().string(containsString("TKF100")))
         .andExpect(content().string(containsString("2026-02-03")));
 
-    verify(navCalculationService).backfillFees(LocalDate.of(2026, 2, 3), LocalDate.of(2026, 2, 3));
+    verify(navCalculationService)
+        .backfillFees(TulevaFund.TKF100, LocalDate.of(2026, 2, 3), LocalDate.of(2026, 2, 3));
   }
 
   @Test
@@ -251,6 +254,7 @@ class AdminControllerTest {
             post("/admin/backfill-fees")
                 .with(csrf())
                 .header("X-Admin-Token", "wrong-token")
+                .param("fundCode", "TKF100")
                 .param("from", "2026-02-03")
                 .param("to", "2026-02-16"))
         .andExpect(status().isUnauthorized());

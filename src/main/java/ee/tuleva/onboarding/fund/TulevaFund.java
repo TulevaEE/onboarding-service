@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.fund;
 
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
@@ -19,7 +20,8 @@ public enum TulevaFund {
       "EE421010220306592227",
       true,
       5,
-      LocalTime.of(11, 0)),
+      LocalTime.parse("11:00"),
+      LocalDate.parse("2017-03-28")),
   TUK00(
       "TUK00",
       2,
@@ -29,7 +31,8 @@ public enum TulevaFund {
       "EE021010220306593225",
       true,
       5,
-      LocalTime.of(11, 0)),
+      LocalTime.parse("11:00"),
+      LocalDate.parse("2017-03-28")),
   TUV100(
       "TUV100",
       3,
@@ -39,7 +42,8 @@ public enum TulevaFund {
       "EE691010220306737229",
       true,
       4,
-      LocalTime.of(15, 0)),
+      LocalTime.parse("15:00"),
+      LocalDate.parse("2019-10-15")),
   TKF100(
       "TKF100",
       null,
@@ -49,7 +53,8 @@ public enum TulevaFund {
       "EE861010220306591229",
       true,
       4,
-      LocalTime.of(15, 30));
+      LocalTime.parse("15:30"),
+      LocalDate.parse("2026-02-02"));
 
   private final String code;
   private final @Nullable Integer pillar;
@@ -60,6 +65,7 @@ public enum TulevaFund {
   private final boolean navCalculation;
   private final int navScale;
   private final LocalTime navCutoffTime;
+  private final LocalDate inceptionDate;
 
   public static List<TulevaFund> getPillar2Funds() {
     return Arrays.stream(values()).filter(fund -> fund.pillar != null && fund.pillar == 2).toList();

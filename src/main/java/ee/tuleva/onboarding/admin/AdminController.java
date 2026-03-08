@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.admin;
 
+import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
+
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
@@ -44,8 +47,8 @@ public class AdminController {
   @PostMapping("/fetch-seb-history")
   public String fetchSebHistory(
       @RequestHeader("X-Admin-Token") String token,
-      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+      @RequestParam @DateTimeFormat(iso = DATE) LocalDate from,
+      @RequestParam @DateTimeFormat(iso = DATE) LocalDate to,
       @RequestParam(required = false) BankAccountType account) {
 
     validateToken(token);
@@ -103,7 +106,7 @@ public class AdminController {
   public NavCalculationResult calculateNav(
       @RequestHeader("X-Admin-Token") String token,
       @RequestParam(defaultValue = "TKF100") String fundCode,
-      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+      @RequestParam(required = false) @DateTimeFormat(iso = DATE) LocalDate date,
       @RequestParam(defaultValue = "false") boolean publish) {
 
     validateToken(token);
@@ -129,15 +132,17 @@ public class AdminController {
   @PostMapping("/backfill-fees")
   public String backfillFees(
       @RequestHeader("X-Admin-Token") String token,
-      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+      @RequestParam String fundCode,
+      @RequestParam @DateTimeFormat(iso = DATE) LocalDate from,
+      @RequestParam @DateTimeFormat(iso = DATE) LocalDate to) {
 
     validateToken(token);
 
-    log.info("Admin triggered fee backfill: from={}, to={}", from, to);
-    navCalculationService.backfillFees(from, to);
+    TulevaFund fund = TulevaFund.fromCode(fundCode);
+    log.info("Admin triggered fee backfill: fund={}, from={}, to={}", fund, from, to);
+    navCalculationService.backfillFees(fund, from, to);
 
-    return "Backfilled fees from " + from + " to " + to;
+    return "Backfilled fees for " + fundCode + " from " + from + " to " + to;
   }
 
   private void validateToken(String token) {

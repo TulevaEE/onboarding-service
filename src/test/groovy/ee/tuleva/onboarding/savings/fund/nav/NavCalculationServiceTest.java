@@ -313,6 +313,7 @@ class NavCalculationServiceTest {
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
     // TKF100 cutoff 15:30 EET = 13:30 UTC (winter)
     Instant expectedCutoff = Instant.parse("2025-01-15T13:30:00Z");
+    Instant expectedPriceCutoff = Instant.parse("2025-01-15T13:35:00Z");
 
     when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
@@ -332,7 +333,7 @@ class NavCalculationServiceTest {
 
     when(navLedgerRepository.getSecuritiesUnitBalancesAt(expectedCutoff, TKF100))
         .thenReturn(Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")));
-    when(positionPriceResolver.resolve("IE00BFG1TM61", previousWorkingDay, expectedCutoff))
+    when(positionPriceResolver.resolve("IE00BFG1TM61", previousWorkingDay, expectedPriceCutoff))
         .thenReturn(
             Optional.of(
                 ResolvedPrice.builder()

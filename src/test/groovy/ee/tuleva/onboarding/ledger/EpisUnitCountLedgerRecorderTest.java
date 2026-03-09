@@ -11,7 +11,9 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -31,7 +33,7 @@ class EpisUnitCountLedgerRecorderTest {
   private static final LocalDate DATE = LocalDate.of(2025, 3, 14);
 
   @Test
-  void recordUnitCount_recordsTotalUnits() {
+  void recordUnitCount_recordsTotalUnitsAtCutoffPlusOneMinute() {
     when(ledgerTransactionService.existsByExternalReferenceAndTransactionType(
             any(UUID.class), eq(UNIT_COUNT_UPDATE)))
         .thenReturn(false);
@@ -41,10 +43,14 @@ class EpisUnitCountLedgerRecorderTest {
 
     recorder.recordUnitCount(TUK75, DATE, new BigDecimal("1050000.00000"));
 
+    // TUK75 cutoff is 11:00 EET → transaction date should be 11:01 EET
+    Instant expectedTransactionDate =
+        DATE.atTime(11, 1).atZone(ZoneId.of("Europe/Tallinn")).toInstant();
+
     verify(ledgerTransactionService)
         .createTransaction(
             eq(UNIT_COUNT_UPDATE),
-            any(),
+            eq(expectedTransactionDate),
             any(UUID.class),
             any(),
             eq(new LedgerEntryDto(unitsAccount, new BigDecimal("1050000.00000"))),

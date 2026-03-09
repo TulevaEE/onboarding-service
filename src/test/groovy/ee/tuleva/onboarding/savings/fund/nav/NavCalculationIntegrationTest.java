@@ -159,6 +159,79 @@ class NavCalculationIntegrationTest {
   }
 
   @Test
+  void navCalculation_excludesEpisReconciliationUnitCountUpdate() {
+    LocalDate calculationDate = LocalDate.of(2026, 3, 6);
+    LocalDate priceDate = LocalDate.of(2026, 3, 5);
+    Instant transactionDate = priceDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
+
+    insertPriceWithTimestamp(
+        "IE0009FT4LX4.EUFUND",
+        priceDate,
+        new BigDecimal("15.529"),
+        "EODHD",
+        Instant.parse("2026-03-05T21:00:00Z"));
+
+    createSecuritiesUnitBalance(
+        TUK75, "IE0009FT4LX4", new BigDecimal("100000.00000"), transactionDate);
+    createSystemAccountBalance(
+        TUK75, CASH_POSITION, new BigDecimal("50000.00"), EUR, transactionDate);
+    createSystemAccountBalance(TUK75, TRADE_RECEIVABLES, ZERO, EUR, transactionDate);
+    createSystemAccountBalance(TUK75, TRADE_PAYABLES, ZERO, EUR, transactionDate);
+    createSystemAccountBalance(TUK75, BLACKROCK_ADJUSTMENT, ZERO, EUR, transactionDate);
+    createFundUnitsOutstandingBalance(TUK75, new BigDecimal("100000.00000"), priceDate);
+    setupFundPosition(TUK75, priceDate);
+
+    // Simulate EPIS reconciliation: UNIT_COUNT_UPDATE with delta +5000
+    // recorded at cutoff+1min (11:01 EET) — should be EXCLUDED from NAV calculation
+    // TUK75 cutoff is 11:00 EET
+    Instant afterCutoff =
+        calculationDate.atTime(11, 1).atZone(ZoneId.of("Europe/Tallinn")).toInstant();
+    addUnitCountUpdateEntry(TUK75, new BigDecimal("5000.00000"), afterCutoff);
+
+    entityManager.flush();
+    entityManager.clear();
+
+    var result = navCalculationService.calculate(TUK75, calculationDate);
+
+    // Units outstanding should be 100,000 (not 105,000)
+    assertThat(result.unitsOutstanding()).isEqualByComparingTo("100000.00000");
+  }
+
+  @Test
+  void navCalculation_includesPricesFetchedAtCutoffTime() {
+    LocalDate calculationDate = LocalDate.of(2026, 3, 4);
+    LocalDate priceDate = LocalDate.of(2026, 3, 3);
+    Instant transactionDate = priceDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
+
+    // TUK75 cutoff is 11:00 EET = 09:00 UTC
+    // Price fetched at cutoff + 1 second (simulating refresh that runs at cutoff time)
+    insertPriceWithTimestamp(
+        "IE0009FT4LX4.EUFUND",
+        priceDate,
+        new BigDecimal("15.529"),
+        "EODHD",
+        Instant.parse("2026-03-04T09:00:01Z"));
+
+    createSecuritiesUnitBalance(
+        TUK75, "IE0009FT4LX4", new BigDecimal("100000.00000"), transactionDate);
+    createSystemAccountBalance(
+        TUK75, CASH_POSITION, new BigDecimal("50000.00"), EUR, transactionDate);
+    createSystemAccountBalance(TUK75, TRADE_RECEIVABLES, ZERO, EUR, transactionDate);
+    createSystemAccountBalance(TUK75, TRADE_PAYABLES, ZERO, EUR, transactionDate);
+    createSystemAccountBalance(TUK75, BLACKROCK_ADJUSTMENT, ZERO, EUR, transactionDate);
+    createFundUnitsOutstandingBalance(TUK75, new BigDecimal("100000.00000"), priceDate);
+    setupFundPosition(TUK75, priceDate);
+
+    entityManager.flush();
+    entityManager.clear();
+
+    var result = navCalculationService.calculate(TUK75, calculationDate);
+
+    // Price fetched at cutoff+1s should be included (within 5-min buffer)
+    assertThat(result.securitiesValue()).isEqualByComparingTo("1552900.00");
+  }
+
+  @Test
   void navCalculation_feeAccrualVisibleBeforeFundCutoff() {
     LocalDate calculationDate = LocalDate.of(2026, 3, 4);
     LocalDate priceDate = LocalDate.of(2026, 3, 3);
@@ -480,6 +553,38 @@ class NavCalculationIntegrationTest {
             .marketValue(ONE)
             .build();
     fundPositionRepository.save(position);
+  }
+
+  private void addUnitCountUpdateEntry(TulevaFund fund, BigDecimal delta, Instant transactionDate) {
+    LedgerAccount fundUnitsOutstandingAccount =
+        ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, fund);
+    LedgerAccount fundUnitsEquityAccount = ledgerService.getSystemAccount(FUND_UNITS_EQUITY, fund);
+
+    var transaction =
+        LedgerTransaction.builder()
+            .transactionType(LedgerTransaction.TransactionType.UNIT_COUNT_UPDATE)
+            .transactionDate(transactionDate)
+            .build();
+
+    var systemEntry =
+        LedgerEntry.builder()
+            .amount(delta)
+            .assetType(FUND_UNIT)
+            .account(fundUnitsOutstandingAccount)
+            .transaction(transaction)
+            .build();
+
+    var equityEntry =
+        LedgerEntry.builder()
+            .amount(delta.negate())
+            .assetType(FUND_UNIT)
+            .account(fundUnitsEquityAccount)
+            .transaction(transaction)
+            .build();
+
+    transaction.getEntries().add(systemEntry);
+    transaction.getEntries().add(equityEntry);
+    entityManager.persist(transaction);
   }
 
   private static class CsvData {

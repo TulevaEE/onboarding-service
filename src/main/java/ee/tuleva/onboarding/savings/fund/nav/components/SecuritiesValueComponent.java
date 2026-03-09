@@ -52,7 +52,7 @@ public class SecuritiesValueComponent implements NavComponent {
       NavComponentContext context,
       Map<String, ResolvedPrice> securityPrices) {
     return positionPriceResolver
-        .resolve(isin, context.getPriceDate(), context.getCutoff())
+        .resolve(isin, context.getPriceDate(), context.getPriceCutoff())
         .map(
             resolved -> {
               securityPrices.put(isin, resolved);

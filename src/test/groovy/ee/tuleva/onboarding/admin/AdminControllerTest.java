@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceSynchronizer;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -44,6 +45,7 @@ class AdminControllerTest {
   @MockitoBean private SavingsFundLedger savingsFundLedger;
   @MockitoBean private NavCalculationService navCalculationService;
   @MockitoBean private NavPublisher navPublisher;
+  @MockitoBean private FundBalanceSynchronizer fundBalanceSynchronizer;
   @MockitoBean private Clock clock;
 
   @Test
@@ -258,6 +260,23 @@ class AdminControllerTest {
                 .param("from", "2026-02-03")
                 .param("to", "2026-02-16"))
         .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void backfillUnitCounts_callsSynchronizerWithDateRange() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/backfill-unit-counts")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("from", "2026-03-01")
+                .param("to", "2026-03-06"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("2026-03-01")))
+        .andExpect(content().string(containsString("2026-03-06")));
+
+    verify(fundBalanceSynchronizer)
+        .backfillUnitCounts(LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 6));
   }
 
   private NavCalculationResult sampleNavResult(LocalDate date) {

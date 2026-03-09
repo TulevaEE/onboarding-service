@@ -18,6 +18,7 @@ public class NavComponentContext {
   private final LocalDate positionReportDate;
   private final LocalDate priceDate;
   private final Instant cutoff;
+  private final Instant priceCutoff;
 
   @Setter private BigDecimal unitsOutstanding;
   @Setter private Map<String, ResolvedPrice> securityPrices;

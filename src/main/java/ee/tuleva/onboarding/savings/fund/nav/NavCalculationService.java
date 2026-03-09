@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult.SecurityDetail
 import ee.tuleva.onboarding.savings.fund.nav.components.*;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -68,6 +69,7 @@ public class NavCalculationService {
 
     Instant cutoff =
         calculationDate.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
+    Instant priceCutoff = cutoff.plus(Duration.ofMinutes(5));
 
     NavComponentContext context =
         NavComponentContext.builder()
@@ -76,6 +78,7 @@ public class NavCalculationService {
             .positionReportDate(positionReportDate)
             .priceDate(positionReportDate)
             .cutoff(cutoff)
+            .priceCutoff(priceCutoff)
             .build();
 
     BigDecimal securitiesValue = securitiesValueComponent.calculate(context);
@@ -134,7 +137,7 @@ public class NavCalculationService {
             .positionReportDate(positionReportDate)
             .priceDate(positionReportDate)
             .calculatedAt(Instant.now(clock))
-            .securitiesDetail(buildSecuritiesDetail(fund, cutoff, positionReportDate))
+            .securitiesDetail(buildSecuritiesDetail(fund, cutoff, priceCutoff, positionReportDate))
             .build();
 
     validateResult(result);
@@ -217,14 +220,14 @@ public class NavCalculationService {
   }
 
   private List<SecurityDetail> buildSecuritiesDetail(
-      TulevaFund fund, Instant cutoff, LocalDate priceDate) {
+      TulevaFund fund, Instant cutoff, Instant priceCutoff, LocalDate priceDate) {
     return new TreeMap<>(navLedgerRepository.getSecuritiesUnitBalancesAt(cutoff, fund))
         .entrySet().stream()
             .map(
                 entry -> {
                   String isin = entry.getKey();
                   BigDecimal units = entry.getValue();
-                  var resolvedPrice = positionPriceResolver.resolve(isin, priceDate, cutoff);
+                  var resolvedPrice = positionPriceResolver.resolve(isin, priceDate, priceCutoff);
                   String ticker = resolvedPrice.map(ResolvedPrice::storageKey).orElse("UNKNOWN");
                   BigDecimal price = resolvedPrice.map(ResolvedPrice::usedPrice).orElse(null);
                   LocalDate resolvedPriceDate =
@@ -259,6 +262,7 @@ public class NavCalculationService {
 
     Instant cutoff =
         calculationDate.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
+    Instant priceCutoff = cutoff.plus(Duration.ofMinutes(5));
     NavComponentContext context =
         NavComponentContext.builder()
             .fund(fund)
@@ -266,6 +270,7 @@ public class NavCalculationService {
             .positionReportDate(positionReportDate)
             .priceDate(positionReportDate)
             .cutoff(cutoff)
+            .priceCutoff(priceCutoff)
             .build();
     BigDecimal baseValue = calculateFeeBaseValue(context);
     return Optional.of(

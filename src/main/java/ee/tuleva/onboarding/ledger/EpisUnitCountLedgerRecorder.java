@@ -46,7 +46,8 @@ public class EpisUnitCountLedgerRecorder {
       return;
     }
 
-    Instant transactionDate = date.atTime(10, 0).atZone(ESTONIAN_ZONE).toInstant();
+    Instant transactionDate =
+        date.atTime(fund.getNavCutoffTime()).plusMinutes(1).atZone(ESTONIAN_ZONE).toInstant();
     Map<String, Object> metadata =
         Map.of(
             "operationType", "UNIT_COUNT_UPDATE",

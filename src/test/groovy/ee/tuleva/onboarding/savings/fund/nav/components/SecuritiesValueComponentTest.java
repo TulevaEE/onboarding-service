@@ -31,6 +31,7 @@ class SecuritiesValueComponentTest {
   @InjectMocks private SecuritiesValueComponent component;
 
   private static final Instant CUTOFF = Instant.parse("2026-02-01T14:00:00Z");
+  private static final Instant PRICE_CUTOFF = Instant.parse("2026-02-01T14:05:00Z");
 
   @Test
   void calculate_multipliesUnitsByPricesAtCutoff() {
@@ -42,6 +43,7 @@ class SecuritiesValueComponentTest {
             .positionReportDate(LocalDate.of(2026, 1, 31))
             .priceDate(priceDate)
             .cutoff(CUTOFF)
+            .priceCutoff(PRICE_CUTOFF)
             .build();
 
     when(navLedgerRepository.getSecuritiesUnitBalancesAt(CUTOFF, TKF100))
@@ -50,7 +52,7 @@ class SecuritiesValueComponentTest {
                 "IE00BFG1TM61", new BigDecimal("1000.00000"),
                 "IE00BMDBMY19", new BigDecimal("500.00000")));
 
-    when(positionPriceResolver.resolve("IE00BFG1TM61", priceDate, CUTOFF))
+    when(positionPriceResolver.resolve("IE00BFG1TM61", priceDate, PRICE_CUTOFF))
         .thenReturn(
             Optional.of(
                 ResolvedPrice.builder()
@@ -58,7 +60,7 @@ class SecuritiesValueComponentTest {
                     .validationStatus(OK)
                     .priceDate(priceDate)
                     .build()));
-    when(positionPriceResolver.resolve("IE00BMDBMY19", priceDate, CUTOFF))
+    when(positionPriceResolver.resolve("IE00BMDBMY19", priceDate, PRICE_CUTOFF))
         .thenReturn(
             Optional.of(
                 ResolvedPrice.builder()
@@ -82,6 +84,7 @@ class SecuritiesValueComponentTest {
             .positionReportDate(LocalDate.of(2026, 1, 31))
             .priceDate(priceDate)
             .cutoff(CUTOFF)
+            .priceCutoff(PRICE_CUTOFF)
             .build();
 
     when(navLedgerRepository.getSecuritiesUnitBalancesAt(CUTOFF, TKF100)).thenReturn(Map.of());
@@ -101,12 +104,13 @@ class SecuritiesValueComponentTest {
             .positionReportDate(LocalDate.of(2026, 1, 31))
             .priceDate(priceDate)
             .cutoff(CUTOFF)
+            .priceCutoff(PRICE_CUTOFF)
             .build();
 
     when(navLedgerRepository.getSecuritiesUnitBalancesAt(CUTOFF, TKF100))
         .thenReturn(Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")));
 
-    when(positionPriceResolver.resolve("IE00BFG1TM61", priceDate, CUTOFF))
+    when(positionPriceResolver.resolve("IE00BFG1TM61", priceDate, PRICE_CUTOFF))
         .thenReturn(Optional.empty());
 
     BigDecimal result = component.calculate(context);

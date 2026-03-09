@@ -47,6 +47,14 @@ public class FundBalanceSynchronizer
     recordUnitCounts(requestDate);
   }
 
+  @Transactional
+  public void backfillUnitCounts(LocalDate from, LocalDate to) {
+    for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
+      recordUnitCounts(date);
+    }
+    log.info("Unit count backfill completed: from={}, to={}", from, to);
+  }
+
   private void recordUnitCounts(LocalDate requestDate) {
     Stream.concat(TulevaFund.getPillar2Funds().stream(), TulevaFund.getPillar3Funds().stream())
         .filter(TulevaFund::hasNavCalculation)

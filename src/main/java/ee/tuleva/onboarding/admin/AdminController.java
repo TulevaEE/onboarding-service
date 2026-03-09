@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.admin;
 
 import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
 
+import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceSynchronizer;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -39,6 +40,7 @@ public class AdminController {
   private final SavingsFundLedger savingsFundLedger;
   private final NavCalculationService navCalculationService;
   private final NavPublisher navPublisher;
+  private final FundBalanceSynchronizer fundBalanceSynchronizer;
   private final Clock clock;
 
   @Value("${admin.api-token:}")
@@ -143,6 +145,20 @@ public class AdminController {
     navCalculationService.backfillFees(fund, from, to);
 
     return "Backfilled fees for " + fundCode + " from " + from + " to " + to;
+  }
+
+  @PostMapping("/backfill-unit-counts")
+  public String backfillUnitCounts(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam @DateTimeFormat(iso = DATE) LocalDate from,
+      @RequestParam @DateTimeFormat(iso = DATE) LocalDate to) {
+
+    validateToken(token);
+
+    log.info("Admin triggered unit count backfill: from={}, to={}", from, to);
+    fundBalanceSynchronizer.backfillUnitCounts(from, to);
+
+    return "Backfilled unit counts from " + from + " to " + to;
   }
 
   private void validateToken(String token) {

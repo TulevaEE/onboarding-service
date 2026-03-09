@@ -37,17 +37,17 @@ public class EpisUnitCountLedgerRecorder {
       return;
     }
 
+    Instant transactionDate =
+        date.atTime(fund.getNavCutoffTime()).plusMinutes(1).atZone(ESTONIAN_ZONE).toInstant();
+
     LedgerAccount unitsAccount = getSystemAccount(FUND_UNITS_OUTSTANDING, fund);
-    BigDecimal currentBalance = unitsAccount.getBalance();
+    BigDecimal currentBalance = unitsAccount.getBalanceAt(transactionDate);
     BigDecimal delta = totalUnits.subtract(currentBalance);
 
     if (delta.signum() == 0) {
       log.debug("Unit count unchanged: fund={}, date={}, units={}", fund, date, totalUnits);
       return;
     }
-
-    Instant transactionDate =
-        date.atTime(fund.getNavCutoffTime()).plusMinutes(1).atZone(ESTONIAN_ZONE).toInstant();
     Map<String, Object> metadata =
         Map.of(
             "operationType", "UNIT_COUNT_UPDATE",

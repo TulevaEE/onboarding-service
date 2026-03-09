@@ -105,7 +105,7 @@ class EpisUnitCountLedgerRecorderTest {
 
   private LedgerAccount mockAccountWithBalance(SystemAccount systemAccount, BigDecimal balance) {
     LedgerAccount account = mock(LedgerAccount.class);
-    when(account.getBalance()).thenReturn(balance);
+    when(account.getBalanceAt(any(Instant.class))).thenReturn(balance);
     when(ledgerAccountService.findSystemAccount(systemAccount, TUK75))
         .thenReturn(Optional.of(account));
     return account;

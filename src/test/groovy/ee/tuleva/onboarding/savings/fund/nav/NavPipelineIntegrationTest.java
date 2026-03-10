@@ -273,6 +273,32 @@ class NavPipelineIntegrationTest {
   }
 
   @Test
+  void computeFeeBaseValue_weekendUsesFridayPositions() {
+    LocalDate thu = LocalDate.of(2026, 2, 5);
+    LocalDate fri = LocalDate.of(2026, 2, 6);
+    LocalDate saturday = LocalDate.of(2026, 2, 7);
+    BigDecimal thuCash = new BigDecimal("5000000.00");
+    BigDecimal friCash = new BigDecimal("6000000.00");
+
+    saveFundPosition(thu, CASH, "Cash", thuCash);
+    saveFundPosition(fri, CASH, "Cash", friCash);
+    entityManager.flush();
+
+    fundPositionLedgerService.recordPositionsToLedger(TKF100, thu);
+    fundPositionLedgerService.recordPositionsToLedger(TKF100, fri);
+
+    insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), thu);
+    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.00035"), thu);
+    issueFundUnits(new BigDecimal("1000000.000"), thu);
+    entityManager.flush();
+    entityManager.clear();
+
+    var result = navCalculationService.computeFeeBaseValue(TKF100, saturday);
+    assertThat(result).isPresent();
+    assertThat(result.get().baseValue()).isEqualByComparingTo(friCash);
+  }
+
+  @Test
   void multiDayPositionBackfill_producesCorrectLedgerBalancesPerDay() {
     // Position dates (Tue-Thu)
     LocalDate pos1 = LocalDate.of(2026, 2, 3);

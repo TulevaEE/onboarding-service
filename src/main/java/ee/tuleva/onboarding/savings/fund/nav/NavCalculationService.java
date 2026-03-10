@@ -261,7 +261,11 @@ public class NavCalculationService {
     }
 
     Instant cutoff =
-        calculationDate.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
+        publicHolidays
+            .nextWorkingDay(positionReportDate)
+            .atTime(fund.getNavCutoffTime())
+            .atZone(ESTONIAN_ZONE)
+            .toInstant();
     Instant priceCutoff = cutoff.plus(Duration.ofMinutes(5));
     NavComponentContext context =
         NavComponentContext.builder()

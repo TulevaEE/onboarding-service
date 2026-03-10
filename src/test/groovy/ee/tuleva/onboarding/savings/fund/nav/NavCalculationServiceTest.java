@@ -359,6 +359,7 @@ class NavCalculationServiceTest {
     when(publicHolidays.previousWorkingDay(LocalDate.of(2026, 3, 7))).thenReturn(friday);
     when(publicHolidays.previousWorkingDay(LocalDate.of(2026, 3, 8))).thenReturn(friday);
     when(publicHolidays.previousWorkingDay(LocalDate.of(2026, 3, 9))).thenReturn(friday);
+    when(publicHolidays.nextWorkingDay(friday)).thenReturn(LocalDate.of(2026, 3, 9));
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, friday))
         .thenReturn(Optional.of(friday));
     when(securitiesValueComponent.calculate(any())).thenReturn(ZERO);
@@ -386,6 +387,7 @@ class NavCalculationServiceTest {
 
     // backfill calls computeFeeBaseValue(fund, tuesday) → previousWorkingDay(tuesday) = monday
     when(publicHolidays.previousWorkingDay(tuesday)).thenReturn(monday);
+    when(publicHolidays.nextWorkingDay(monday)).thenReturn(tuesday);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, monday))
         .thenReturn(Optional.of(monday));
     when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("900000000"));
@@ -423,6 +425,7 @@ class NavCalculationServiceTest {
 
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, inceptionDate))
         .thenReturn(Optional.of(inceptionDate));
+    when(publicHolidays.nextWorkingDay(inceptionDate)).thenReturn(LocalDate.of(2026, 2, 3));
     when(securitiesValueComponent.calculate(any())).thenReturn(ZERO);
     when(cashPositionComponent.calculate(any())).thenReturn(new BigDecimal("5500000.00"));
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);

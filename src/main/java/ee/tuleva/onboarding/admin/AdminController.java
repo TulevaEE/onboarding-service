@@ -6,6 +6,8 @@ import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceSynchro
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
+import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
@@ -41,6 +43,8 @@ public class AdminController {
   private final NavCalculationService navCalculationService;
   private final NavPublisher navPublisher;
   private final FundBalanceSynchronizer fundBalanceSynchronizer;
+  private final FundPositionLedgerService fundPositionLedgerService;
+  private final FundPositionRepository fundPositionRepository;
   private final Clock clock;
 
   @Value("${admin.api-token:}")
@@ -159,6 +163,23 @@ public class AdminController {
     fundBalanceSynchronizer.backfillUnitCounts(from, to);
 
     return "Backfilled unit counts from " + from + " to " + to;
+  }
+
+  @PostMapping("/backfill-positions")
+  public String backfillPositions(
+      @RequestHeader("X-Admin-Token") String token, @RequestParam String fundCode) {
+
+    validateToken(token);
+
+    TulevaFund fund = TulevaFund.fromCode(fundCode);
+    List<LocalDate> dates = fundPositionRepository.findDistinctNavDatesByFund(fund);
+    log.info("Admin triggered position backfill: fund={}, dates={}", fund, dates.size());
+
+    for (LocalDate date : dates) {
+      fundPositionLedgerService.recordPositionsToLedger(fund, date);
+    }
+
+    return "Backfilled positions for " + fundCode + " across " + dates.size() + " dates";
   }
 
   private void validateToken(String token) {

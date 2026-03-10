@@ -152,6 +152,29 @@ class FundPositionRepositoryTest {
     assertThat(result).isEmpty();
   }
 
+  @Test
+  void findDistinctNavDatesByFund_returnsOrderedDatesForFund() {
+    LocalDate day1 = LocalDate.of(2025, 1, 13);
+    LocalDate day2 = LocalDate.of(2025, 1, 14);
+    LocalDate day3 = LocalDate.of(2025, 1, 15);
+    savePosition(TUV100, "IE00TEST1234", day3, new BigDecimal("5000000.00"));
+    savePosition(TUV100, "IE00TEST1234", day1, new BigDecimal("4000000.00"));
+    savePosition(TUV100, "IE00TEST5678", day1, new BigDecimal("3000000.00"));
+    savePosition(TUV100, "IE00TEST1234", day2, new BigDecimal("4500000.00"));
+    savePosition(TUK75, "IE00TEST1234", day1, new BigDecimal("1000000.00"));
+
+    var result = fundPositionRepository.findDistinctNavDatesByFund(TUV100);
+
+    assertThat(result).containsExactly(day1, day2, day3);
+  }
+
+  @Test
+  void findDistinctNavDatesByFund_returnsEmptyWhenNoData() {
+    var result = fundPositionRepository.findDistinctNavDatesByFund(TUV100);
+
+    assertThat(result).isEmpty();
+  }
+
   private void savePosition(
       TulevaFund fund, String accountId, LocalDate reportingDate, BigDecimal marketValue) {
     FundPosition position =

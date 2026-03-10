@@ -14,6 +14,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceSynchronizer;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
+import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
@@ -46,6 +48,8 @@ class AdminControllerTest {
   @MockitoBean private NavCalculationService navCalculationService;
   @MockitoBean private NavPublisher navPublisher;
   @MockitoBean private FundBalanceSynchronizer fundBalanceSynchronizer;
+  @MockitoBean private FundPositionLedgerService fundPositionLedgerService;
+  @MockitoBean private FundPositionRepository fundPositionRepository;
   @MockitoBean private Clock clock;
 
   @Test
@@ -277,6 +281,38 @@ class AdminControllerTest {
 
     verify(fundBalanceSynchronizer)
         .backfillUnitCounts(LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 6));
+  }
+
+  @Test
+  void backfillPositions_callsRecordPositionsForEachDate() throws Exception {
+    var dates = List.of(LocalDate.of(2026, 2, 3), LocalDate.of(2026, 2, 4));
+    when(fundPositionRepository.findDistinctNavDatesByFund(TulevaFund.TKF100)).thenReturn(dates);
+
+    mockMvc
+        .perform(
+            post("/admin/backfill-positions")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TKF100"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("TKF100")))
+        .andExpect(content().string(containsString("2")));
+
+    verify(fundPositionLedgerService)
+        .recordPositionsToLedger(TulevaFund.TKF100, LocalDate.of(2026, 2, 3));
+    verify(fundPositionLedgerService)
+        .recordPositionsToLedger(TulevaFund.TKF100, LocalDate.of(2026, 2, 4));
+  }
+
+  @Test
+  void backfillPositions_rejectsInvalidToken() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/backfill-positions")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .param("fundCode", "TKF100"))
+        .andExpect(status().isUnauthorized());
   }
 
   private NavCalculationResult sampleNavResult(LocalDate date) {

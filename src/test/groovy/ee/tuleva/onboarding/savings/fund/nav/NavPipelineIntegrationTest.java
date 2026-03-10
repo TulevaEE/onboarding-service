@@ -19,8 +19,10 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
 import ee.tuleva.onboarding.investment.fees.FeeResult;
+import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionImportService;
+import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
@@ -63,6 +65,7 @@ class NavPipelineIntegrationTest {
   @Autowired FundPositionImportService fundPositionImportService;
   @Autowired FundPositionRepository fundPositionRepository;
   @Autowired NavPositionLedger navPositionLedger;
+  @Autowired FundPositionLedgerService fundPositionLedgerService;
   @Autowired NavCalculationService navCalculationService;
   @Autowired NavPublisher navPublisher;
   @Autowired LedgerService ledgerService;
@@ -267,6 +270,71 @@ class NavPipelineIntegrationTest {
     var feb3Result = navCalculationService.computeFeeBaseValue(TKF100, feb3);
     assertThat(feb3Result).isPresent();
     assertThat(feb3Result.get().baseValue()).isEqualByComparingTo(feb2Cash);
+  }
+
+  @Test
+  void multiDayPositionBackfill_producesCorrectLedgerBalancesPerDay() {
+    // Position dates (Tue-Thu)
+    LocalDate pos1 = LocalDate.of(2026, 2, 3);
+    LocalDate pos2 = LocalDate.of(2026, 2, 4);
+    LocalDate pos3 = LocalDate.of(2026, 2, 5);
+    // Calculation dates = next working day after position date
+    LocalDate calc1 = LocalDate.of(2026, 2, 4);
+    LocalDate calc2 = LocalDate.of(2026, 2, 5);
+    LocalDate calc3 = LocalDate.of(2026, 2, 6);
+    BigDecimal cash1 = new BigDecimal("5000000.00");
+    BigDecimal cash2 = new BigDecimal("5100000.00");
+    BigDecimal cash3 = new BigDecimal("5200000.00");
+
+    saveFundPosition(pos1, CASH, "Cash", cash1);
+    saveFundPosition(pos2, CASH, "Cash", cash2);
+    saveFundPosition(pos3, CASH, "Cash", cash3);
+    entityManager.flush();
+
+    fundPositionLedgerService.recordPositionsToLedger(TKF100, pos1);
+    fundPositionLedgerService.recordPositionsToLedger(TKF100, pos2);
+    fundPositionLedgerService.recordPositionsToLedger(TKF100, pos3);
+
+    insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), pos1);
+    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.00035"), pos1);
+    issueFundUnits(new BigDecimal("1000000.000"), pos1);
+    insertPrices(calc3);
+    entityManager.flush();
+    entityManager.clear();
+
+    var result1 = navCalculationService.calculate(TKF100, calc1);
+    assertThat(result1.cashPosition()).isEqualByComparingTo(cash1);
+
+    var result2 = navCalculationService.calculate(TKF100, calc2);
+    assertThat(result2.cashPosition()).isEqualByComparingTo(cash2);
+
+    var result3 = navCalculationService.calculate(TKF100, calc3);
+    assertThat(result3.cashPosition()).isEqualByComparingTo(cash3);
+  }
+
+  @Test
+  void multiDayPositionBackfill_feeBaseValuesMatchCorrectDayPositions() {
+    LocalDate day1 = LocalDate.of(2026, 2, 3);
+    LocalDate day2 = LocalDate.of(2026, 2, 4);
+    BigDecimal day1Cash = new BigDecimal("5000000.00");
+    BigDecimal day2Cash = new BigDecimal("6000000.00");
+
+    saveFundPosition(day1, CASH, "Cash", day1Cash);
+    saveFundPosition(day2, CASH, "Cash", day2Cash);
+    entityManager.flush();
+
+    fundPositionLedgerService.recordPositionsToLedger(TKF100, day1);
+    fundPositionLedgerService.recordPositionsToLedger(TKF100, day2);
+
+    insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), day1);
+    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.00035"), day1);
+    issueFundUnits(new BigDecimal("1000000.000"), day1);
+    entityManager.flush();
+    entityManager.clear();
+
+    var day2FeeBase = navCalculationService.computeFeeBaseValue(TKF100, day2);
+    assertThat(day2FeeBase).isPresent();
+    assertThat(day2FeeBase.get().baseValue()).isEqualByComparingTo(day1Cash);
   }
 
   @Test
@@ -621,6 +689,20 @@ class NavPipelineIntegrationTest {
     public String toString() {
       return navCsvFile.getFileName().toString();
     }
+  }
+
+  private void saveFundPosition(
+      LocalDate navDate, AccountType accountType, String accountName, BigDecimal marketValue) {
+    fundPositionRepository.save(
+        FundPosition.builder()
+            .navDate(navDate)
+            .fund(TKF100)
+            .accountType(accountType)
+            .accountName(accountName)
+            .marketValue(marketValue)
+            .currency("EUR")
+            .createdAt(Instant.now())
+            .build());
   }
 
   private static class NavCsvData {

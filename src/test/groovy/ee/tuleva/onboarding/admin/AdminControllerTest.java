@@ -285,7 +285,12 @@ class AdminControllerTest {
 
   @Test
   void backfillPositions_callsRecordPositionsForEachDate() throws Exception {
-    var dates = List.of(LocalDate.of(2026, 2, 3), LocalDate.of(2026, 2, 4));
+    var dates =
+        List.of(
+            LocalDate.of(2026, 2, 3),
+            LocalDate.of(2026, 2, 4),
+            LocalDate.of(2026, 3, 1),
+            LocalDate.of(2026, 3, 2));
     when(fundPositionRepository.findDistinctNavDatesByFund(TulevaFund.TKF100)).thenReturn(dates);
 
     mockMvc
@@ -293,15 +298,18 @@ class AdminControllerTest {
             post("/admin/backfill-positions")
                 .with(csrf())
                 .header("X-Admin-Token", "valid-token")
-                .param("fundCode", "TKF100"))
+                .param("fundCode", "TKF100")
+                .param("from", "2026-03-01")
+                .param("to", "2026-03-02"))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("TKF100")))
         .andExpect(content().string(containsString("2")));
 
     verify(fundPositionLedgerService)
-        .recordPositionsToLedger(TulevaFund.TKF100, LocalDate.of(2026, 2, 3));
+        .recordPositionsToLedger(TulevaFund.TKF100, LocalDate.of(2026, 3, 1));
     verify(fundPositionLedgerService)
-        .recordPositionsToLedger(TulevaFund.TKF100, LocalDate.of(2026, 2, 4));
+        .recordPositionsToLedger(TulevaFund.TKF100, LocalDate.of(2026, 3, 2));
+    verifyNoMoreInteractions(fundPositionLedgerService);
   }
 
   @Test

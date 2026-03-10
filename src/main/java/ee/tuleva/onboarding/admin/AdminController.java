@@ -167,12 +167,19 @@ public class AdminController {
 
   @PostMapping("/backfill-positions")
   public String backfillPositions(
-      @RequestHeader("X-Admin-Token") String token, @RequestParam String fundCode) {
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam String fundCode,
+      @RequestParam(required = false) @DateTimeFormat(iso = DATE) LocalDate from,
+      @RequestParam(required = false) @DateTimeFormat(iso = DATE) LocalDate to) {
 
     validateToken(token);
 
     TulevaFund fund = TulevaFund.fromCode(fundCode);
-    List<LocalDate> dates = fundPositionRepository.findDistinctNavDatesByFund(fund);
+    List<LocalDate> dates =
+        fundPositionRepository.findDistinctNavDatesByFund(fund).stream()
+            .filter(date -> from == null || !date.isBefore(from))
+            .filter(date -> to == null || !date.isAfter(to))
+            .toList();
     log.info("Admin triggered position backfill: fund={}, dates={}", fund, dates.size());
 
     for (LocalDate date : dates) {

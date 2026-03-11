@@ -62,6 +62,13 @@ class TulevaFundTest {
   }
 
   @Test
+  void navCronExpression() {
+    assertThat(TUK75.navCronExpression()).isEqualTo("0 0 11 * * MON-FRI");
+    assertThat(TUV100.navCronExpression()).isEqualTo("0 0 15 * * MON-FRI");
+    assertThat(TKF100.navCronExpression()).isEqualTo("0 20 15 * * MON-FRI");
+  }
+
+  @Test
   void fromCode_throwsForUnknownCode() {
     assertThatThrownBy(() -> fromCode("UNKNOWN"))
         .isInstanceOf(IllegalArgumentException.class)

@@ -27,19 +27,25 @@ public class NavCalculationJob {
   private final FundValueIndexingJob fundValueIndexingJob;
   private final Clock clock;
 
-  @Scheduled(cron = "0 30 15 * * MON-FRI", zone = "Europe/Tallinn")
+  @Scheduled(
+      cron = "#{T(ee.tuleva.onboarding.fund.TulevaFund).TKF100.navCronExpression()}",
+      zone = "Europe/Tallinn")
   @SchedulerLock(name = "NavCalculationJob_TKF100", lockAtMostFor = "30m", lockAtLeastFor = "5m")
   public void calculateDailyNav() {
     calculateForFunds(List.of(TKF100));
   }
 
-  @Scheduled(cron = "0 0 11 * * MON-FRI", zone = "Europe/Tallinn")
+  @Scheduled(
+      cron = "#{T(ee.tuleva.onboarding.fund.TulevaFund).TUK75.navCronExpression()}",
+      zone = "Europe/Tallinn")
   @SchedulerLock(name = "NavCalculationJob_Pillar2", lockAtMostFor = "30m", lockAtLeastFor = "5m")
   public void calculatePillar2Nav() {
     calculateForFunds(TulevaFund.getPillar2Funds());
   }
 
-  @Scheduled(cron = "0 0 15 * * MON-FRI", zone = "Europe/Tallinn")
+  @Scheduled(
+      cron = "#{T(ee.tuleva.onboarding.fund.TulevaFund).TUV100.navCronExpression()}",
+      zone = "Europe/Tallinn")
   @SchedulerLock(name = "NavCalculationJob_Pillar3", lockAtMostFor = "30m", lockAtLeastFor = "5m")
   public void calculatePillar3Nav() {
     calculateForFunds(TulevaFund.getPillar3Funds());

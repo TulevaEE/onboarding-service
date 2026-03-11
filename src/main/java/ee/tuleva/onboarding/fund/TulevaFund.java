@@ -26,7 +26,7 @@ public enum TulevaFund {
       "TUK00",
       2,
       "EE3600109443",
-      "Tuleva Maailma V\u00f5lakirjade Pensionifond",
+      "Tuleva Maailma Võlakirjade Pensionifond",
       "VP68170",
       "EE021010220306593225",
       true,
@@ -48,12 +48,12 @@ public enum TulevaFund {
       "TKF100",
       null,
       "EE0000003283",
-      "Tuleva T\u00e4iendav Kogumisfond",
+      "Tuleva Täiendav Kogumisfond",
       "VP68168",
       "EE861010220306591229",
       true,
       4,
-      LocalTime.parse("15:30"),
+      LocalTime.parse("15:20"),
       LocalDate.parse("2026-02-02"));
 
   private final String code;
@@ -85,6 +85,10 @@ public enum TulevaFund {
 
   public boolean isSavingsFund() {
     return pillar == null;
+  }
+
+  public String navCronExpression() {
+    return "0 %d %d * * MON-FRI".formatted(navCutoffTime.getMinute(), navCutoffTime.getHour());
   }
 
   public String getAumKey() {

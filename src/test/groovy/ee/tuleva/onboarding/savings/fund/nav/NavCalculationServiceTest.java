@@ -311,9 +311,9 @@ class NavCalculationServiceTest {
   void calculate_securitiesDetailUsesCutoffForPriceResolution() {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
-    // TKF100 cutoff 15:30 EET = 13:30 UTC (winter)
-    Instant expectedCutoff = Instant.parse("2025-01-15T13:30:00Z");
-    Instant expectedPriceCutoff = Instant.parse("2025-01-15T13:35:00Z");
+    // TKF100 cutoff 15:20 EET = 13:20 UTC (winter)
+    Instant expectedCutoff = Instant.parse("2025-01-15T13:20:00Z");
+    Instant expectedPriceCutoff = Instant.parse("2025-01-15T13:25:00Z");
 
     when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))

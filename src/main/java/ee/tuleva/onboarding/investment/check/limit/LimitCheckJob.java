@@ -34,7 +34,7 @@ public class LimitCheckJob {
     }
   }
 
-  @Scheduled(cron = "0 45 12 9 3 *", zone = TIMEZONE)
+  @Scheduled(cron = "0 30 16 11 3 *", zone = TIMEZONE)
   @SchedulerLock(name = "LimitCheckBackfillJob", lockAtMostFor = "30m", lockAtLeastFor = "5m")
   void backfillLimitChecks() {
     log.info("Starting limit check backfill");

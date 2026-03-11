@@ -18,6 +18,7 @@ import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
@@ -34,6 +35,7 @@ public class IssuingJob {
 
   @Scheduled(fixedRateString = "1m")
   @SchedulerLock(name = "IssuingJob_runJob", lockAtMostFor = "50s", lockAtLeastFor = "10s")
+  @Transactional
   public void runJob() {
     var payments = getReservedPaymentsDependingOnCurrentTime();
     if (payments.isEmpty()) {

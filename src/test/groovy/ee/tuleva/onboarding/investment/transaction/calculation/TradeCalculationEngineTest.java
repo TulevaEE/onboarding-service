@@ -539,4 +539,91 @@ class TradeCalculationEngineTest {
         result.trades().stream().filter(t -> t.tradeAmount().compareTo(ZERO) != 0).toList();
     assertThat(nonZeroTrades).isNotEmpty();
   }
+
+  @Test
+  void buy_deploysFreeCashWhenAllPositionsAbovePostCashTarget() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00A", new BigDecimal("245000")),
+                    new PositionSnapshot("IE00B", new BigDecimal("245000")),
+                    new PositionSnapshot("IE00C", new BigDecimal("245000")),
+                    new PositionSnapshot("IE00D", new BigDecimal("245000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00A", new BigDecimal("0.25")),
+                    new ModelWeight("IE00B", new BigDecimal("0.25")),
+                    new ModelWeight("IE00C", new BigDecimal("0.25")),
+                    new ModelWeight("IE00D", new BigDecimal("0.25"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(new BigDecimal("50000"))
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("20000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, BUY);
+
+    BigDecimal totalBuy =
+        result.trades().stream().map(TradeCalculation::tradeAmount).reduce(ZERO, BigDecimal::add);
+    assertThat(totalBuy)
+        .isCloseTo(new BigDecimal("20000"), org.assertj.core.data.Offset.offset(BigDecimal.ONE));
+  }
+
+  @Test
+  void buy_fallbackPrefersLeastOverweightFund() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00A", new BigDecimal("238000")),
+                    new PositionSnapshot("IE00B", new BigDecimal("250000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00A", new BigDecimal("0.50")),
+                    new ModelWeight("IE00B", new BigDecimal("0.50"))))
+            .grossPortfolioValue(new BigDecimal("500000"))
+            .cashBuffer(new BigDecimal("25000"))
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("12000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, BUY);
+
+    var tradeA =
+        result.trades().stream().filter(t -> t.isin().equals("IE00A")).findFirst().orElseThrow();
+    var tradeB =
+        result.trades().stream().filter(t -> t.isin().equals("IE00B")).findFirst().orElseThrow();
+
+    assertThat(tradeA.tradeAmount()).isGreaterThan(tradeB.tradeAmount());
+
+    BigDecimal totalBuy =
+        result.trades().stream().map(TradeCalculation::tradeAmount).reduce(ZERO, BigDecimal::add);
+    assertThat(totalBuy)
+        .isCloseTo(new BigDecimal("12000"), org.assertj.core.data.Offset.offset(BigDecimal.ONE));
+  }
+
+  @Test
+  void distributeAmountWithThreshold_eliminatesSmallestOneAtATime() {
+    var scores =
+        List.of(new BigDecimal("1"), new BigDecimal("1"), new BigDecimal("1"), new BigDecimal("1"));
+    var amount = new BigDecimal("15000");
+    var threshold = new BigDecimal("5000");
+
+    var result = engine.distributeAmountWithThreshold(scores, amount, threshold);
+
+    var nonZero = result.stream().filter(v -> v.compareTo(ZERO) > 0).toList();
+    assertThat(nonZero).hasSize(3);
+    nonZero.forEach(v -> assertThat(v).isGreaterThanOrEqualTo(new BigDecimal("4999")));
+    assertThat(result.stream().reduce(ZERO, BigDecimal::add))
+        .isCloseTo(amount, org.assertj.core.data.Offset.offset(BigDecimal.ONE));
+  }
 }

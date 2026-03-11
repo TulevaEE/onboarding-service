@@ -56,6 +56,11 @@ public class TradeCalculationEngine {
                 })
             .toList();
 
+    boolean allZero = scores.stream().allMatch(s -> s.compareTo(ZERO) == 0);
+    if (allZero && input.freeCash().compareTo(ZERO) > 0) {
+      scores = fallbackBuyScores(input.positions(), weightMap, netInvestable);
+    }
+
     return distributeAmountWithThreshold(scores, input.freeCash(), input.minTransactionThreshold());
   }
 
@@ -285,12 +290,20 @@ public class TradeCalculationEngine {
         break;
       }
 
-      boolean changed = false;
+      int smallestIndex = -1;
+      BigDecimal smallestAllocation = null;
       for (int i = 0; i < size; i++) {
         if (mask[i] && tempAllocations[i].compareTo(thresholdTolerance) < 0) {
-          mask[i] = false;
-          changed = true;
+          if (smallestAllocation == null || tempAllocations[i].compareTo(smallestAllocation) < 0) {
+            smallestIndex = i;
+            smallestAllocation = tempAllocations[i];
+          }
         }
+      }
+
+      boolean changed = smallestIndex >= 0;
+      if (changed) {
+        mask[smallestIndex] = false;
       }
 
       if (!changed) {
@@ -299,6 +312,27 @@ public class TradeCalculationEngine {
     }
 
     return List.of(allocations);
+  }
+
+  private List<BigDecimal> fallbackBuyScores(
+      List<PositionSnapshot> positions,
+      Map<String, BigDecimal> weightMap,
+      BigDecimal netInvestable) {
+    List<BigDecimal> surpluses =
+        positions.stream()
+            .map(
+                position -> {
+                  BigDecimal weight = weightMap.getOrDefault(position.isin(), ZERO);
+                  BigDecimal target = weight.multiply(netInvestable);
+                  return position.marketValue().subtract(target);
+                })
+            .toList();
+
+    BigDecimal maxSurplus = surpluses.stream().reduce(surpluses.getFirst(), BigDecimal::max);
+
+    return surpluses.stream()
+        .map(surplus -> maxSurplus.subtract(surplus).add(BigDecimal.ONE).max(ZERO))
+        .toList();
   }
 
   private boolean isOverSoftLimit(PositionSnapshot position, FundTransactionInput input) {

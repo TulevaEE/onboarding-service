@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.report;
 
 import java.io.InputStream;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +14,8 @@ public interface ReportSource {
   List<ReportType> getSupportedReportTypes();
 
   Optional<InputStream> fetch(ReportType reportType, LocalDate date);
+
+  Optional<Instant> getLastModified(ReportType reportType, LocalDate date);
 
   String getBucket();
 

@@ -1,13 +1,18 @@
 package ee.tuleva.onboarding.admin;
 
 import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
+import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
+import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceSynchronizer;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
 import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.report.ReportImportJob;
+import ee.tuleva.onboarding.investment.report.ReportProvider;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
@@ -23,13 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 @Slf4j
@@ -45,6 +44,8 @@ public class AdminController {
   private final FundBalanceSynchronizer fundBalanceSynchronizer;
   private final FundPositionLedgerService fundPositionLedgerService;
   private final FundPositionRepository fundPositionRepository;
+  private final ReportImportJob reportImportJob;
+  private final FundPositionImportJob fundPositionImportJob;
   private final Clock clock;
 
   @Value("${admin.api-token:}")
@@ -165,6 +166,23 @@ public class AdminController {
     return "Backfilled unit counts from " + from + " to " + to;
   }
 
+  @PostMapping("/reimport-positions")
+  public String reimportPositions(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam String provider,
+      @RequestParam @DateTimeFormat(iso = DATE) LocalDate date) {
+
+    validateToken(token);
+
+    ReportProvider reportProvider = ReportProvider.valueOf(provider);
+    log.info("Admin triggered position reimport: provider={}, date={}", reportProvider, date);
+
+    reportImportJob.importForDate(date);
+    fundPositionImportJob.importForProviderAndDate(reportProvider, date);
+
+    return "Reimported positions for " + provider + "/" + date;
+  }
+
   @PostMapping("/backfill-positions")
   public String backfillPositions(
       @RequestHeader("X-Admin-Token") String token,
@@ -191,10 +209,10 @@ public class AdminController {
 
   private void validateToken(String token) {
     if (adminApiToken.isBlank()) {
-      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Admin API not configured");
+      throw new ResponseStatusException(SERVICE_UNAVAILABLE, "Admin API not configured");
     }
     if (!adminApiToken.equals(token)) {
-      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid admin token");
+      throw new ResponseStatusException(UNAUTHORIZED, "Invalid admin token");
     }
   }
 }

@@ -44,10 +44,15 @@ class FundPositionImportJobTest {
   void setUp() {
     swedbankParser = new SwedbankFundPositionParser(Clock.systemUTC());
     sebParser = new SebFundPositionParser(Clock.systemUTC());
-    importService = new FundPositionImportService(repository);
+    importService = new FundPositionImportService(repository, Clock.systemUTC());
     job =
         new FundPositionImportJob(
-            swedbankParser, sebParser, importService, reportService, fundPositionLedgerService);
+            swedbankParser,
+            sebParser,
+            importService,
+            reportService,
+            fundPositionLedgerService,
+            Clock.systemUTC());
   }
 
   private static final List<Map<String, Object>> SAMPLE_RAW_DATA =
@@ -102,8 +107,8 @@ class FundPositionImportJobTest {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SWEDBANK, POSITIONS, date))
         .thenReturn(Optional.of(createSwedbankReport(date)));
-    when(repository.existsByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
-        .thenReturn(false);
+    when(repository.findByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
+        .thenReturn(Optional.empty());
 
     job.importForProviderAndDate(SWEDBANK, date);
 
@@ -115,15 +120,25 @@ class FundPositionImportJobTest {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SWEDBANK, POSITIONS, date))
         .thenReturn(Optional.of(createSwedbankReport(date)));
-    when(repository.existsByNavDateAndFundAndAccountTypeAndAccountName(
-            LocalDate.of(2026, 1, 5), TUK75, SECURITY, "ISHARES DEV WLD ESG"))
-        .thenReturn(true);
-    when(repository.existsByNavDateAndFundAndAccountTypeAndAccountName(
-            LocalDate.of(2026, 1, 5), TUK75, CASH, "Overnight Deposit"))
-        .thenReturn(false);
-    when(repository.existsByNavDateAndFundAndAccountTypeAndAccountName(
-            LocalDate.of(2026, 1, 5), TUV100, SECURITY, "ISHARES USA ESG"))
-        .thenReturn(false);
+    when(repository.findByNavDateAndFundAndAccountTypeAndAccountName(
+            eq(LocalDate.of(2026, 1, 5)), eq(TUK75), eq(SECURITY), eq("ISHARES DEV WLD ESG")))
+        .thenReturn(
+            Optional.of(
+                FundPosition.builder()
+                    .navDate(date)
+                    .fund(TUK75)
+                    .accountType(SECURITY)
+                    .accountName("ISHARES DEV WLD ESG")
+                    .quantity(new java.math.BigDecimal("1000000"))
+                    .marketPrice(null)
+                    .marketValue(new java.math.BigDecimal("33500000"))
+                    .build()));
+    when(repository.findByNavDateAndFundAndAccountTypeAndAccountName(
+            eq(LocalDate.of(2026, 1, 5)), eq(TUK75), eq(CASH), eq("Overnight Deposit")))
+        .thenReturn(Optional.empty());
+    when(repository.findByNavDateAndFundAndAccountTypeAndAccountName(
+            eq(LocalDate.of(2026, 1, 5)), eq(TUV100), eq(SECURITY), eq("ISHARES USA ESG")))
+        .thenReturn(Optional.empty());
 
     job.importForProviderAndDate(SWEDBANK, date);
 
@@ -173,8 +188,8 @@ class FundPositionImportJobTest {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SWEDBANK, POSITIONS, date))
         .thenReturn(Optional.of(createSwedbankReport(date)));
-    when(repository.existsByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
-        .thenReturn(false);
+    when(repository.findByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
+        .thenReturn(Optional.empty());
 
     job.importForProviderAndDate(SWEDBANK, date);
 

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.report;
 
 import java.io.InputStream;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
@@ -58,6 +60,23 @@ public abstract class AbstractReportSource implements ReportSource {
               + ", key="
               + key,
           e);
+    }
+  }
+
+  @Override
+  public Optional<Instant> getLastModified(ReportType reportType, LocalDate date) {
+    String key = getKey(reportType, date);
+    try {
+      HeadObjectRequest request = HeadObjectRequest.builder().bucket(BUCKET).key(key).build();
+      return Optional.ofNullable(s3Client.headObject(request).lastModified());
+    } catch (NoSuchKeyException e) {
+      return Optional.empty();
+    } catch (S3Exception e) {
+      if (e.statusCode() == 404 || e.statusCode() == 403) {
+        return Optional.empty();
+      }
+      throw new RuntimeException(
+          "S3 error checking last modified: provider=" + getProvider() + ", key=" + key, e);
     }
   }
 

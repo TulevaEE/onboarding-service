@@ -6,12 +6,15 @@ import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.position.FundPositionImportService.ImportResult;
 import ee.tuleva.onboarding.investment.position.parser.FundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.report.ReportProvider;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -19,14 +22,12 @@ import java.util.Optional;
 import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
-import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.annotation.Schedules;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-@Profile({"production", "staging"})
 public class FundPositionImportJob {
 
   private static final int LOOKBACK_DAYS = 30;
@@ -36,17 +37,20 @@ public class FundPositionImportJob {
   private final FundPositionImportService importService;
   private final InvestmentReportService reportService;
   private final FundPositionLedgerService fundPositionLedgerService;
+  private final Clock clock;
 
   public FundPositionImportJob(
       SwedbankFundPositionParser swedbankParser,
       SebFundPositionParser sebParser,
       FundPositionImportService importService,
       InvestmentReportService reportService,
-      FundPositionLedgerService fundPositionLedgerService) {
+      FundPositionLedgerService fundPositionLedgerService,
+      Clock clock) {
     this.parsers = Map.of(SWEDBANK, swedbankParser, SEB, sebParser);
     this.importService = importService;
     this.reportService = reportService;
     this.fundPositionLedgerService = fundPositionLedgerService;
+    this.clock = clock;
   }
 
   @Schedules({
@@ -55,7 +59,7 @@ public class FundPositionImportJob {
   })
   @SchedulerLock(name = "FundPositionImportJob", lockAtMostFor = "55m", lockAtLeastFor = "4m")
   public void runImport() {
-    LocalDate today = LocalDate.now();
+    LocalDate today = LocalDate.now(clock);
     IntStream.iterate(LOOKBACK_DAYS, i -> i >= 1, i -> i - 1)
         .mapToObj(today::minusDays)
         .forEach(
@@ -94,18 +98,33 @@ public class FundPositionImportJob {
     log.info(
         "Parsed fund positions: provider={}, date={}, count={}", provider, date, positions.size());
 
-    int imported = importService.importPositions(positions);
+    ImportResult result = importService.upsertPositions(positions);
     log.info(
-        "Fund position import completed: provider={}, date={}, imported={}, rowCount={}",
+        "Fund position import completed: provider={}, date={}, imported={}, updated={}, rowCount={}",
         provider,
         date,
-        imported,
-        report.get().getRawData().size());
+        result.imported(),
+        result.updated(),
+        investmentReport.getRawData().size());
 
-    positions.stream()
-        .map(FundPosition::getFund)
-        .filter(TulevaFund::hasNavCalculation)
-        .distinct()
-        .forEach(fund -> fundPositionLedgerService.recordPositionsToLedger(fund, date));
+    List<TulevaFund> navFunds =
+        positions.stream()
+            .map(FundPosition::getFund)
+            .filter(TulevaFund::hasNavCalculation)
+            .distinct()
+            .toList();
+
+    navFunds.forEach(fund -> fundPositionLedgerService.recordPositionsToLedger(fund, date));
+
+    if (result.updated() > 0) {
+      Instant correctionTimestamp =
+          Optional.ofNullable(investmentReport.getMetadata().get("s3LastModified"))
+              .map(Object::toString)
+              .map(Instant::parse)
+              .orElse(clock.instant());
+      navFunds.forEach(
+          fund ->
+              fundPositionLedgerService.correctPositionsInLedger(fund, date, correctionTimestamp));
+    }
   }
 }

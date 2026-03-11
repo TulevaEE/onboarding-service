@@ -49,6 +49,82 @@ public class NavPositionLedger {
       return;
     }
 
+    List<LedgerEntryDto> entries =
+        buildPositionEntries(fund, securitiesUnits, cashValue, receivablesValue, payablesValue);
+    if (entries.isEmpty()) {
+      return;
+    }
+
+    Map<String, Object> metadata =
+        Map.of(
+            "operationType",
+            "POSITION_UPDATE",
+            "fund",
+            fund.name(),
+            "reportDate",
+            reportDate.toString());
+
+    ledgerTransactionService.createTransaction(
+        POSITION_UPDATE,
+        transactionDate(fund, reportDate),
+        externalReference,
+        metadata,
+        entries.toArray(new LedgerEntryDto[0]));
+  }
+
+  @Transactional
+  public void recordPositionCorrection(
+      TulevaFund fund,
+      LocalDate reportDate,
+      Instant correctionTimestamp,
+      Map<String, BigDecimal> securitiesUnits,
+      BigDecimal cashValue,
+      BigDecimal receivablesValue,
+      BigDecimal payablesValue) {
+
+    UUID externalReference = generateCorrectionReference(fund, reportDate, correctionTimestamp);
+    if (ledgerTransactionService.existsByExternalReferenceAndTransactionType(
+        externalReference, POSITION_UPDATE)) {
+      log.debug(
+          "Position correction already recorded: fund={}, reportDate={}, correctionTimestamp={}",
+          fund,
+          reportDate,
+          correctionTimestamp);
+      return;
+    }
+
+    List<LedgerEntryDto> entries =
+        buildPositionEntries(fund, securitiesUnits, cashValue, receivablesValue, payablesValue);
+    if (entries.isEmpty()) {
+      return;
+    }
+
+    Map<String, Object> metadata =
+        Map.of(
+            "operationType",
+            "POSITION_CORRECTION",
+            "fund",
+            fund.name(),
+            "reportDate",
+            reportDate.toString(),
+            "correctionTimestamp",
+            correctionTimestamp.toString());
+
+    ledgerTransactionService.createTransaction(
+        POSITION_UPDATE,
+        transactionDate(fund, reportDate),
+        externalReference,
+        metadata,
+        entries.toArray(new LedgerEntryDto[0]));
+  }
+
+  private List<LedgerEntryDto> buildPositionEntries(
+      TulevaFund fund,
+      Map<String, BigDecimal> securitiesUnits,
+      BigDecimal cashValue,
+      BigDecimal receivablesValue,
+      BigDecimal payablesValue) {
+
     List<LedgerEntryDto> entries = new ArrayList<>();
 
     securitiesUnits.forEach(
@@ -77,25 +153,14 @@ public class NavPositionLedger {
       entries.add(entry(getSystemAccount(NAV_EQUITY, fund), payablesValue.negate()));
     }
 
-    if (entries.isEmpty()) {
-      return;
-    }
+    return entries;
+  }
 
-    Map<String, Object> metadata =
-        Map.of(
-            "operationType",
-            "POSITION_UPDATE",
-            "fund",
-            fund.name(),
-            "reportDate",
-            reportDate.toString());
-
-    ledgerTransactionService.createTransaction(
-        POSITION_UPDATE,
-        transactionDate(fund, reportDate),
-        externalReference,
-        metadata,
-        entries.toArray(new LedgerEntryDto[0]));
+  private UUID generateCorrectionReference(
+      TulevaFund fund, LocalDate reportDate, Instant correctionTimestamp) {
+    String key =
+        "POSITION_CORRECTION:" + fund.name() + ":" + reportDate + ":" + correctionTimestamp;
+    return UUID.nameUUIDFromBytes(key.getBytes(UTF_8));
   }
 
   private Instant transactionDate(TulevaFund fund, LocalDate reportDate) {

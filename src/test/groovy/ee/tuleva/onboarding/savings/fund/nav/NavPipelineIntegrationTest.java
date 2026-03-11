@@ -530,7 +530,7 @@ class NavPipelineIntegrationTest {
             SEB, POSITIONS, reportDate, new ByteArrayInputStream(csvBytes), ';', 5, Map.of());
     var positions =
         sebFundPositionParser.parse(report.getRawData(), reportDate, report.getMetadata());
-    fundPositionImportService.importPositions(positions);
+    fundPositionImportService.importNewPositions(positions);
   }
 
   private void recordPositionsToLedger(NavCsvData navData) {

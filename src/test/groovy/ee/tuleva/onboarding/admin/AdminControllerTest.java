@@ -14,8 +14,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceSynchronizer;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
 import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.report.ReportImportJob;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
@@ -50,6 +52,8 @@ class AdminControllerTest {
   @MockitoBean private FundBalanceSynchronizer fundBalanceSynchronizer;
   @MockitoBean private FundPositionLedgerService fundPositionLedgerService;
   @MockitoBean private FundPositionRepository fundPositionRepository;
+  @MockitoBean private ReportImportJob reportImportJob;
+  @MockitoBean private FundPositionImportJob fundPositionImportJob;
   @MockitoBean private Clock clock;
 
   @Test

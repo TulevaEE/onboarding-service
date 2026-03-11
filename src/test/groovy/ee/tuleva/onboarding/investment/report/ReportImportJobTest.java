@@ -8,7 +8,10 @@ import static org.mockito.Mockito.*;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -32,7 +35,7 @@ class ReportImportJobTest {
   @BeforeEach
   void setUp() {
     reportService = new InvestmentReportService(reportRepository, new CsvToJsonConverter());
-    job = new ReportImportJob(List.of(source), reportService);
+    job = new ReportImportJob(List.of(source), reportService, Clock.systemUTC());
   }
 
   private void setupReportRepositoryMocks() {
@@ -75,6 +78,56 @@ class ReportImportJobTest {
   }
 
   @Test
+  void importForDate_refetchesModifiedReport_forRecentDate() {
+    setupReportRepositoryMocks();
+    LocalDate date = LocalDate.now().minusDays(1);
+    Instant oldModified = Instant.parse("2026-02-05T08:00:00Z");
+    Instant newModified = Instant.parse("2026-02-05T14:00:00Z");
+
+    Map<String, Object> metadata = new HashMap<>();
+    metadata.put("s3LastModified", oldModified.toString());
+    InvestmentReport existing = InvestmentReport.builder().metadata(metadata).build();
+
+    when(source.getProvider()).thenReturn(SWEDBANK);
+    when(source.getSupportedReportTypes()).thenReturn(List.of(POSITIONS));
+    when(reportRepository.findByProviderAndReportTypeAndReportDate(SWEDBANK, POSITIONS, date))
+        .thenReturn(Optional.of(existing));
+    when(source.getLastModified(POSITIONS, date)).thenReturn(Optional.of(newModified));
+    when(source.fetch(eq(POSITIONS), eq(date)))
+        .thenReturn(
+            Optional.of(new ByteArrayInputStream(SAMPLE_CSV.getBytes(StandardCharsets.UTF_8))));
+    when(source.getBucket()).thenReturn("tuleva-investment-reports");
+    when(source.getKey(POSITIONS, date)).thenReturn("portfolio/" + date + ".csv");
+    when(source.extractCsvMetadata(any())).thenReturn(Map.of());
+
+    job.importForDate(date);
+
+    verify(source).fetch(POSITIONS, date);
+    verify(reportRepository).save(any(InvestmentReport.class));
+  }
+
+  @Test
+  void importForDate_skipsUnmodifiedReport_forRecentDate() {
+    LocalDate date = LocalDate.now().minusDays(1);
+    Instant lastModified = Instant.parse("2026-02-05T08:00:00Z");
+
+    Map<String, Object> metadata = new HashMap<>();
+    metadata.put("s3LastModified", lastModified.toString());
+    InvestmentReport existing = InvestmentReport.builder().metadata(metadata).build();
+
+    when(source.getProvider()).thenReturn(SWEDBANK);
+    when(source.getSupportedReportTypes()).thenReturn(List.of(POSITIONS));
+    when(reportRepository.findByProviderAndReportTypeAndReportDate(SWEDBANK, POSITIONS, date))
+        .thenReturn(Optional.of(existing));
+    when(source.getLastModified(POSITIONS, date)).thenReturn(Optional.of(lastModified));
+
+    job.importForDate(date);
+
+    verify(source, never()).fetch(any(), any());
+    verify(reportRepository, never()).save(any());
+  }
+
+  @Test
   void importForDate_handlesNoFilesFound() {
     LocalDate date = LocalDate.of(2026, 1, 15);
     when(source.getProvider()).thenReturn(SWEDBANK);
@@ -92,6 +145,7 @@ class ReportImportJobTest {
   void runImport_processesMultipleDays() {
     when(source.getProvider()).thenReturn(SWEDBANK);
     when(source.getSupportedReportTypes()).thenReturn(List.of(POSITIONS));
+    when(source.getLastModified(any(), any())).thenReturn(Optional.empty());
     when(reportRepository.findByProviderAndReportTypeAndReportDate(any(), any(), any()))
         .thenReturn(Optional.of(InvestmentReport.builder().build()));
 

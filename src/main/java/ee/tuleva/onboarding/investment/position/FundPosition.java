@@ -57,4 +57,6 @@ public class FundPosition {
   private BigDecimal marketValue;
 
   private Instant createdAt;
+
+  private Instant updatedAt;
 }

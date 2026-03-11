@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.NavPositionLedger;
 import ee.tuleva.onboarding.ledger.SystemAccount;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -29,26 +30,57 @@ public class FundPositionLedgerService {
   private final NavPositionLedger navPositionLedger;
   private final NavLedgerRepository navLedgerRepository;
 
+  public void correctPositionsInLedger(
+      TulevaFund fund, LocalDate date, Instant correctionTimestamp) {
+    PositionDeltas deltas = calculatePositionDeltas(fund, date);
+
+    log.info(
+        "Correcting position deltas in ledger: fund={}, date={}, correctionTimestamp={}, securitiesUnitDeltas={}, cash={}, receivables={}, payables={}",
+        fund,
+        date,
+        correctionTimestamp,
+        deltas.securitiesUnits,
+        deltas.cash,
+        deltas.receivables,
+        deltas.payables);
+    navPositionLedger.recordPositionCorrection(
+        fund,
+        date,
+        correctionTimestamp,
+        deltas.securitiesUnits,
+        deltas.cash,
+        deltas.receivables,
+        deltas.payables);
+  }
+
   public void recordPositionsToLedger(TulevaFund fund, LocalDate date) {
-    Map<String, BigDecimal> securitiesUnitDeltas = calculateSecuritiesUnitDeltas(fund, date);
-    BigDecimal cashDelta =
-        calculateDelta(CASH_POSITION, fund, calculatePositionValue(fund, date, CASH));
-    BigDecimal receivablesDelta =
-        calculateDelta(TRADE_RECEIVABLES, fund, calculateTradeReceivables(fund, date));
-    BigDecimal payablesDelta =
-        calculateDelta(TRADE_PAYABLES, fund, calculatePositionValue(fund, date, LIABILITY));
+    PositionDeltas deltas = calculatePositionDeltas(fund, date);
 
     log.info(
         "Recording position deltas to ledger: fund={}, date={}, securitiesUnitDeltas={}, cash={}, receivables={}, payables={}",
         fund,
         date,
-        securitiesUnitDeltas,
-        cashDelta,
-        receivablesDelta,
-        payablesDelta);
+        deltas.securitiesUnits,
+        deltas.cash,
+        deltas.receivables,
+        deltas.payables);
     navPositionLedger.recordPositions(
-        fund, date, securitiesUnitDeltas, cashDelta, receivablesDelta, payablesDelta);
+        fund, date, deltas.securitiesUnits, deltas.cash, deltas.receivables, deltas.payables);
   }
+
+  private PositionDeltas calculatePositionDeltas(TulevaFund fund, LocalDate date) {
+    return new PositionDeltas(
+        calculateSecuritiesUnitDeltas(fund, date),
+        calculateDelta(CASH_POSITION, fund, calculatePositionValue(fund, date, CASH)),
+        calculateDelta(TRADE_RECEIVABLES, fund, calculateTradeReceivables(fund, date)),
+        calculateDelta(TRADE_PAYABLES, fund, calculatePositionValue(fund, date, LIABILITY)));
+  }
+
+  private record PositionDeltas(
+      Map<String, BigDecimal> securitiesUnits,
+      BigDecimal cash,
+      BigDecimal receivables,
+      BigDecimal payables) {}
 
   private Map<String, BigDecimal> calculateSecuritiesUnitDeltas(TulevaFund fund, LocalDate date) {
     List<FundPosition> securityPositions =

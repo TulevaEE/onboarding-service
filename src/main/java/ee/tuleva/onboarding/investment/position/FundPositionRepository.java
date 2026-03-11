@@ -16,6 +16,9 @@ public interface FundPositionRepository extends JpaRepository<FundPosition, Long
   boolean existsByNavDateAndFundAndAccountTypeAndAccountName(
       LocalDate navDate, TulevaFund fund, AccountType accountType, String accountName);
 
+  Optional<FundPosition> findByNavDateAndFundAndAccountTypeAndAccountName(
+      LocalDate navDate, TulevaFund fund, AccountType accountType, String accountName);
+
   FundPosition findByNavDateAndFundAndAccountName(
       LocalDate navDate, TulevaFund fund, String accountName);
 

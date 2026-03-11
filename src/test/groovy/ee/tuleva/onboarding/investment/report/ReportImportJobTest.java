@@ -142,6 +142,35 @@ class ReportImportJobTest {
   }
 
   @Test
+  void importForProviderAndDate_importsOnlyMatchingProvider() {
+    setupReportRepositoryMocks();
+    LocalDate date = LocalDate.of(2026, 1, 15);
+    when(source.getProvider()).thenReturn(SWEDBANK);
+    when(source.getSupportedReportTypes()).thenReturn(List.of(POSITIONS));
+    when(source.fetch(eq(POSITIONS), eq(date)))
+        .thenReturn(
+            Optional.of(new ByteArrayInputStream(SAMPLE_CSV.getBytes(StandardCharsets.UTF_8))));
+    when(source.getBucket()).thenReturn("tuleva-investment-reports");
+    when(source.getKey(POSITIONS, date)).thenReturn("portfolio/2026-01-15.csv");
+    when(source.extractCsvMetadata(any())).thenReturn(Map.of());
+
+    job.importForProviderAndDate(SWEDBANK, date);
+
+    verify(reportRepository).save(any(InvestmentReport.class));
+  }
+
+  @Test
+  void importForProviderAndDate_skipsNonMatchingProvider() {
+    LocalDate date = LocalDate.of(2026, 1, 15);
+    when(source.getProvider()).thenReturn(SWEDBANK);
+
+    job.importForProviderAndDate(ReportProvider.SEB, date);
+
+    verify(source, never()).fetch(any(), any());
+    verify(reportRepository, never()).save(any());
+  }
+
+  @Test
   void runImport_processesMultipleDays() {
     when(source.getProvider()).thenReturn(SWEDBANK);
     when(source.getSupportedReportTypes()).thenReturn(List.of(POSITIONS));

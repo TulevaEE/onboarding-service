@@ -60,6 +60,19 @@ public class ReportImportJob {
     }
   }
 
+  public void importForProviderAndDate(ReportProvider provider, LocalDate date) {
+    log.info("Starting report import: provider={}, date={}", provider, date);
+
+    sources.stream()
+        .filter(source -> source.getProvider() == provider)
+        .forEach(
+            source -> {
+              for (ReportType reportType : source.getSupportedReportTypes()) {
+                importReport(source, reportType, date);
+              }
+            });
+  }
+
   private void importReport(ReportSource source, ReportType reportType, LocalDate date) {
     ReportProvider provider = source.getProvider();
 

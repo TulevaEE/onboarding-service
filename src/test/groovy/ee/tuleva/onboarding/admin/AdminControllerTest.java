@@ -317,6 +317,39 @@ class AdminControllerTest {
   }
 
   @Test
+  void reimportPositions_delegatesToJobsForProvider() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/reimport-positions")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("provider", "SEB")
+                .param("date", "2026-03-10"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("SEB")))
+        .andExpect(content().string(containsString("2026-03-10")));
+
+    verify(reportImportJob)
+        .importForProviderAndDate(
+            ee.tuleva.onboarding.investment.report.ReportProvider.SEB, LocalDate.of(2026, 3, 10));
+    verify(fundPositionImportJob)
+        .importForProviderAndDate(
+            ee.tuleva.onboarding.investment.report.ReportProvider.SEB, LocalDate.of(2026, 3, 10));
+  }
+
+  @Test
+  void reimportPositions_rejectsInvalidToken() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/reimport-positions")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .param("provider", "SEB")
+                .param("date", "2026-03-10"))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
   void backfillPositions_rejectsInvalidToken() throws Exception {
     mockMvc
         .perform(

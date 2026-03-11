@@ -177,7 +177,7 @@ public class AdminController {
     ReportProvider reportProvider = ReportProvider.valueOf(provider);
     log.info("Admin triggered position reimport: provider={}, date={}", reportProvider, date);
 
-    reportImportJob.importForDate(date);
+    reportImportJob.importForProviderAndDate(reportProvider, date);
     fundPositionImportJob.importForProviderAndDate(reportProvider, date);
 
     return "Reimported positions for " + provider + "/" + date;

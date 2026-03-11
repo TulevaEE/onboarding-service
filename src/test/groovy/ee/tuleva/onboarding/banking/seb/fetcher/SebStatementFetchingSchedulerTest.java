@@ -6,35 +6,23 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebCurrentDayTransactionsRequested;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebEodTransactionsRequested;
-import ee.tuleva.onboarding.time.ClockHolder;
 import java.util.List;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class SebStatementFetchingSchedulerTest {
 
-  private ApplicationEventPublisher eventPublisher;
-  private SebStatementFetchingScheduler scheduler;
-
-  @BeforeEach
-  void setup() {
-    eventPublisher = mock(ApplicationEventPublisher.class);
-    scheduler = new SebStatementFetchingScheduler(eventPublisher);
-  }
-
-  @AfterEach
-  void tearDown() {
-    ClockHolder.setDefaultClock();
-  }
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   @Test
   void fetchCurrentDayTransactions_publishesEventsForAllAccounts() {
+    var scheduler = new SebStatementFetchingScheduler(eventPublisher);
+
     scheduler.fetchCurrentDayTransactions();
 
     var captor = ArgumentCaptor.forClass(FetchSebCurrentDayTransactionsRequested.class);
@@ -50,6 +38,8 @@ class SebStatementFetchingSchedulerTest {
 
   @Test
   void fetchCurrentDayTransactions_continuesOnError() {
+    var scheduler = new SebStatementFetchingScheduler(eventPublisher);
+
     doThrow(new RuntimeException("Error"))
         .doNothing()
         .doNothing()
@@ -64,6 +54,8 @@ class SebStatementFetchingSchedulerTest {
 
   @Test
   void fetchEodTransactions_publishesEventsForAllAccounts() {
+    var scheduler = new SebStatementFetchingScheduler(eventPublisher);
+
     scheduler.fetchEodTransactions();
 
     var captor = ArgumentCaptor.forClass(FetchSebEodTransactionsRequested.class);
@@ -78,16 +70,18 @@ class SebStatementFetchingSchedulerTest {
   }
 
   @Test
-  void fetchEodTransactions_continuesOnError() {
-    doThrow(new RuntimeException("Error"))
-        .doNothing()
-        .doNothing()
+  void fetchEodTransactions_continuesOnError_andPublishesFailureEvent() {
+    var scheduler = new SebStatementFetchingScheduler(eventPublisher);
+
+    doThrow(new RuntimeException("404 LBR_EOD_STATEMENT_NOT_GENERATED"))
         .when(eventPublisher)
         .publishEvent(any(FetchSebEodTransactionsRequested.class));
 
     scheduler.fetchEodTransactions();
 
-    verify(eventPublisher, times(BankAccountType.values().length))
-        .publishEvent(any(FetchSebEodTransactionsRequested.class));
+    for (BankAccountType account : BankAccountType.values()) {
+      verify(eventPublisher)
+          .publishEvent(new SebEodFetchFailedEvent(account, "404 LBR_EOD_STATEMENT_NOT_GENERATED"));
+    }
   }
 }

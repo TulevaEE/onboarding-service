@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
+import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
 import org.apache.hc.core5.ssl.SSLContexts;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -66,7 +67,7 @@ public class SebGatewayConfiguration {
   @SneakyThrows
   public SebHttpSignature sebHttpSignature(KeyStore sebGatewayKeyStore) {
     PrivateKey privateKey = extractPrivateKey(sebGatewayKeyStore);
-    java.security.cert.X509Certificate certificate = extractCertificate(sebGatewayKeyStore);
+    X509Certificate certificate = extractCertificate(sebGatewayKeyStore);
     String keyId = SebHttpSignature.buildKeyId(certificate);
     log.info("SEB Gateway HTTP Signature keyId: {}", keyId);
     return new SebHttpSignature(privateKey, keyId);
@@ -166,5 +167,5 @@ record SebGatewayProperties(
 
 @FunctionalInterface
 interface SebTlsStrategyFactory {
-  org.apache.hc.client5.http.ssl.TlsSocketStrategy create(SSLContext sslContext);
+  TlsSocketStrategy create(SSLContext sslContext);
 }

@@ -31,7 +31,7 @@ public class SebStatementFetchingScheduler {
     }
   }
 
-  @Scheduled(cron = "0 0 1 * * *", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 0 1-6 * * *", zone = "Europe/Tallinn")
   @SchedulerLock(
       name = "SebStatementFetchingScheduler_fetchEodTransactions",
       lockAtMostFor = "23h",
@@ -43,6 +43,7 @@ public class SebStatementFetchingScheduler {
         eventPublisher.publishEvent(new FetchSebEodTransactionsRequested(account));
       } catch (Exception exception) {
         log.error("SEB end-of-day transactions fetch failed: account={}", account, exception);
+        eventPublisher.publishEvent(new SebEodFetchFailedEvent(account, exception.getMessage()));
       }
     }
   }

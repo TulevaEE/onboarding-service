@@ -36,6 +36,11 @@ public class NavFeeAccrualLedger {
       BigDecimal amount,
       Map<String, Object> metadata) {
     if (amount == null || amount.signum() == 0) {
+      log.info(
+          "Skipping zero fee accrual: fund={}, date={}, feeAccount={}",
+          fund,
+          accrualDate,
+          feeAccount.name());
       return;
     }
 
@@ -50,6 +55,12 @@ public class NavFeeAccrualLedger {
       return;
     }
 
+    log.info(
+        "Creating fee accrual ledger entry: fund={}, date={}, feeAccount={}, amount={}",
+        fund,
+        accrualDate,
+        feeAccount.name(),
+        amount);
     Instant transactionDate = accrualDate.atTime(9, 0).atZone(ESTONIAN_ZONE).toInstant();
     ledgerTransactionService.createTransaction(
         FEE_ACCRUAL,
@@ -64,6 +75,11 @@ public class NavFeeAccrualLedger {
   public void settleFeeAccrual(
       TulevaFund fund, LocalDate settlementDate, SystemAccount feeAccount, BigDecimal amount) {
     if (amount == null || amount.signum() == 0) {
+      log.info(
+          "Skipping zero fee accrual: fund={}, date={}, feeAccount={}",
+          fund,
+          accrualDate,
+          feeAccount.name());
       return;
     }
 

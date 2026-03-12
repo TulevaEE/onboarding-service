@@ -95,6 +95,13 @@ public class FeeCalculationService {
             .map(d -> d.plusDays(1))
             .orElse(positionReportDate);
 
+    log.info(
+        "calculateFeesForNav: fund={}, positionReportDate={}, startDate={}, willProcess={}",
+        fund,
+        positionReportDate,
+        startDate,
+        !startDate.isAfter(positionReportDate));
+
     LocalDate previousFeeMonth = null;
     for (LocalDate day = startDate; !day.isAfter(positionReportDate); day = day.plusDays(1)) {
       LocalDate feeMonth = feeMonthResolver.resolveFeeMonth(day);
@@ -126,6 +133,12 @@ public class FeeCalculationService {
       feeAccrualRepository.save(accrual);
       SystemAccount feeAccount = FEE_TYPE_ACCOUNTS.get(accrual.feeType());
       BigDecimal ledgerAmount = roundForLedger(accrual.dailyAmountNet());
+      log.info(
+          "recordDailyFees: fund={}, date={}, feeType={}, ledgerAmount={}",
+          fund,
+          date,
+          accrual.feeType(),
+          ledgerAmount);
       Map<String, Object> metadata = buildAccrualMetadata(accrual, feeAccount, ledgerAmount);
       if (securityPrices != null && !securityPrices.isEmpty()) {
         metadata.put("securityPrices", formatSecurityPrices(securityPrices));

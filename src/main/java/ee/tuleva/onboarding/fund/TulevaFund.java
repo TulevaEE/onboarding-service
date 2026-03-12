@@ -42,7 +42,7 @@ public enum TulevaFund {
       "EE691010220306737229",
       true,
       4,
-      LocalTime.parse("15:00"),
+      LocalTime.parse("15:20"),
       LocalDate.parse("2019-10-15")),
   TKF100(
       "TKF100",

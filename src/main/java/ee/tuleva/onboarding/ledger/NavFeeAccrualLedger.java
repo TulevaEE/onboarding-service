@@ -42,7 +42,7 @@ public class NavFeeAccrualLedger {
     UUID externalReference = generateAccrualReference(fund, accrualDate, feeAccount);
     if (ledgerTransactionService.existsByExternalReferenceAndTransactionType(
         externalReference, FEE_ACCRUAL)) {
-      log.debug(
+      log.info(
           "Fee accrual already recorded: fund={}, date={}, feeAccount={}",
           fund,
           accrualDate,
@@ -70,7 +70,7 @@ public class NavFeeAccrualLedger {
     UUID externalReference = generateSettlementReference(fund, settlementDate, feeAccount);
     if (ledgerTransactionService.existsByExternalReferenceAndTransactionType(
         externalReference, FEE_SETTLEMENT)) {
-      log.debug(
+      log.info(
           "Fee settlement already recorded: fund={}, date={}, feeAccount={}",
           fund,
           settlementDate,

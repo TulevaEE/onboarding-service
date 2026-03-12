@@ -76,9 +76,9 @@ public class NavFeeAccrualLedger {
       TulevaFund fund, LocalDate settlementDate, SystemAccount feeAccount, BigDecimal amount) {
     if (amount == null || amount.signum() == 0) {
       log.info(
-          "Skipping zero fee accrual: fund={}, date={}, feeAccount={}",
+          "Skipping zero fee settlement: fund={}, date={}, feeAccount={}",
           fund,
-          accrualDate,
+          settlementDate,
           feeAccount.name());
       return;
     }

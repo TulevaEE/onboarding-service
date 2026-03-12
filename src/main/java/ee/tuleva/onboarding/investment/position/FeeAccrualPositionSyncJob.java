@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.investment.position;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
-import static ee.tuleva.onboarding.investment.position.AccountType.LIABILITY;
+import static ee.tuleva.onboarding.investment.position.AccountType.FEE;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
@@ -81,7 +81,7 @@ public class FeeAccrualPositionSyncJob {
     return FundPosition.builder()
         .navDate(navDate)
         .fund(fund)
-        .accountType(LIABILITY)
+        .accountType(FEE)
         .accountName(accountName)
         .quantity(BigDecimal.ONE)
         .marketPrice(accrual.negate())

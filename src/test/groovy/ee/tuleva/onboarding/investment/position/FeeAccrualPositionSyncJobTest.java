@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.investment.position;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
-import static ee.tuleva.onboarding.investment.position.AccountType.LIABILITY;
+import static ee.tuleva.onboarding.investment.position.AccountType.FEE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -62,7 +62,7 @@ class FeeAccrualPositionSyncJobTest {
     var mgmtFee = positions.get(0);
     assertThat(mgmtFee.getFund()).isEqualTo(TKF100);
     assertThat(mgmtFee.getNavDate()).isEqualTo(navDate);
-    assertThat(mgmtFee.getAccountType()).isEqualTo(LIABILITY);
+    assertThat(mgmtFee.getAccountType()).isEqualTo(FEE);
     assertThat(mgmtFee.getAccountName()).isEqualTo("Management Fee Accrual");
     assertThat(mgmtFee.getMarketValue()).isEqualByComparingTo("-52.08");
     assertThat(mgmtFee.getCurrency()).isEqualTo("EUR");

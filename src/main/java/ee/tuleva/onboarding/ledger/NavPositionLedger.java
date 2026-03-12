@@ -173,7 +173,8 @@ public class NavPositionLedger {
       return reportDate.atTime(10, 0).atZone(ESTONIAN_ZONE).toInstant();
     }
     LocalDate expectedDate = publicHolidays.nextWorkingDay(reportDate);
-    if (nowDate.equals(expectedDate)) {
+    Instant cutoff = expectedDate.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
+    if (nowDate.equals(expectedDate) && now.isBefore(cutoff)) {
       return now;
     }
     return expectedDate.atTime(10, 0).atZone(ESTONIAN_ZONE).toInstant();

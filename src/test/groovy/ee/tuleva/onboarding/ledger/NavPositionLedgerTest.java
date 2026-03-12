@@ -403,6 +403,41 @@ class NavPositionLedgerTest {
   }
 
   @Test
+  void recordPositions_usesFixedTimestampWhenProcessedAfterCutoff() {
+    LocalDate reportDate = LocalDate.of(2026, 2, 3);
+    Instant afterCutoff = Instant.parse("2026-02-04T14:30:00Z");
+    Clock afterCutoffClock = Clock.fixed(afterCutoff, ZoneId.of("Europe/Tallinn"));
+    var afterCutoffLedger =
+        new NavPositionLedger(
+            ledgerAccountService, ledgerTransactionService, publicHolidays, afterCutoffClock);
+
+    when(publicHolidays.nextWorkingDay(reportDate)).thenReturn(LocalDate.of(2026, 2, 4));
+    setupAccountMocks();
+    when(ledgerTransactionService.createTransaction(
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
+        .thenReturn(transaction);
+
+    afterCutoffLedger.recordPositions(
+        TKF100, reportDate, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
+
+    verify(ledgerTransactionService)
+        .createTransaction(
+            eq(POSITION_UPDATE),
+            eq(
+                LocalDate.of(2026, 2, 4)
+                    .atTime(10, 0)
+                    .atZone(ZoneId.of("Europe/Tallinn"))
+                    .toInstant()),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class));
+  }
+
+  @Test
   void recordPositions_usesReportDateForInceptionDay() {
     LocalDate inceptionDate = TKF100.getInceptionDate();
     setupAccountMocks();

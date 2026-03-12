@@ -52,6 +52,25 @@ public class FeeAccrualRepository {
         .single();
   }
 
+  public BigDecimal getUnsettledAccrual(TulevaFund fund, FeeType feeType, LocalDate asOfDate) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT COALESCE(SUM(ROUND(daily_amount_net, 2)), 0)
+            FROM investment_fee_accrual
+            WHERE fund_code = :fundCode
+              AND fee_type = :feeType
+              AND fee_month = :feeMonth
+              AND accrual_date <= :asOfDate
+            """)
+        .param("fundCode", fund.name())
+        .param("feeType", feeType.name())
+        .param("feeMonth", asOfDate.withDayOfMonth(1))
+        .param("asOfDate", asOfDate)
+        .query(BigDecimal.class)
+        .single();
+  }
+
   public Optional<FeeAccrual> findByFundAndAccrualDateAndFeeType(
       TulevaFund fund, LocalDate accrualDate, FeeType feeType) {
     return jdbcClient

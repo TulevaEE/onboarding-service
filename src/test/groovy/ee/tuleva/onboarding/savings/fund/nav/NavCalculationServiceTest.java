@@ -93,7 +93,7 @@ class NavCalculationServiceTest {
     when(receivablesComponent.calculate(any())).thenReturn(new BigDecimal("10000.00"));
     when(payablesComponent.calculate(any())).thenReturn(new BigDecimal("5000.00"));
     when(subscriptionsComponent.calculate(any())).thenReturn(new BigDecimal("25000.00"));
-    BigDecimal expectedBaseValue = new BigDecimal("955000.00");
+    BigDecimal expectedBaseValue = new BigDecimal("980000.00");
     when(feeCalculationService.calculateFeesForNav(
             eq(TKF100), eq(previousWorkingDay), eq(expectedBaseValue), any(), any()))
         .thenReturn(new FeeResult(new BigDecimal("52.08"), new BigDecimal("6.85")));
@@ -366,6 +366,7 @@ class NavCalculationServiceTest {
     when(cashPositionComponent.calculate(any())).thenReturn(new BigDecimal("1000000"));
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
+    when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
     when(feeCalculationService.calculateFeesForNav(any(), any(), any(), any(), any()))
         .thenReturn(new FeeResult(ZERO, ZERO));
 
@@ -394,6 +395,7 @@ class NavCalculationServiceTest {
     when(cashPositionComponent.calculate(any())).thenReturn(new BigDecimal("50000000"));
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
+    when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
     when(feeCalculationService.calculateFeesForNav(any(), any(), any(), any(), any()))
         .thenReturn(new FeeResult(ZERO, ZERO));
 
@@ -430,6 +432,7 @@ class NavCalculationServiceTest {
     when(cashPositionComponent.calculate(any())).thenReturn(new BigDecimal("5500000.00"));
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
+    when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
 
     var result = service.computeFeeBaseValue(TKF100, inceptionDate);
 
@@ -437,6 +440,27 @@ class NavCalculationServiceTest {
     assertThat(result.get().positionReportDate()).isEqualTo(inceptionDate);
     assertThat(result.get().baseValue()).isEqualByComparingTo("5500000.00");
     verify(publicHolidays, never()).previousWorkingDay(any());
+  }
+
+  @Test
+  void computeFeeBaseValue_includesPendingSubscriptions() {
+    LocalDate calcDate = LocalDate.of(2026, 3, 11);
+    LocalDate previousWorkingDay = LocalDate.of(2026, 3, 10);
+
+    when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
+    when(publicHolidays.nextWorkingDay(previousWorkingDay)).thenReturn(calcDate);
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, previousWorkingDay))
+        .thenReturn(Optional.of(previousWorkingDay));
+    when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("900000.00"));
+    when(cashPositionComponent.calculate(any())).thenReturn(new BigDecimal("50000.00"));
+    when(receivablesComponent.calculate(any())).thenReturn(new BigDecimal("10000.00"));
+    when(payablesComponent.calculate(any())).thenReturn(new BigDecimal("5000.00"));
+    when(subscriptionsComponent.calculate(any())).thenReturn(new BigDecimal("24816.87"));
+
+    var result = service.computeFeeBaseValue(TUK75, calcDate);
+
+    assertThat(result).isPresent();
+    assertThat(result.get().baseValue()).isEqualByComparingTo("979816.87");
   }
 
   @Test

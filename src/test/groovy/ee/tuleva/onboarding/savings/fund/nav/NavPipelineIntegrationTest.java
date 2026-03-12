@@ -364,6 +364,40 @@ class NavPipelineIntegrationTest {
   }
 
   @Test
+  void computeFeeBaseValue_includesPendingSubscriptions() {
+    LocalDate posDate = LocalDate.of(2026, 2, 5);
+    LocalDate calcDate = LocalDate.of(2026, 2, 6);
+    BigDecimal cash = new BigDecimal("5000000.00");
+    BigDecimal pendingSubs = new BigDecimal("24816.87");
+
+    saveFundPosition(posDate, CASH, "Cash", cash);
+    fundPositionRepository.save(
+        FundPosition.builder()
+            .navDate(posDate)
+            .fund(TKF100)
+            .accountType(RECEIVABLES)
+            .accountName("Receivables of outstanding units")
+            .accountId(TKF100.getIsin())
+            .marketValue(pendingSubs)
+            .currency("EUR")
+            .createdAt(Instant.now())
+            .build());
+    entityManager.flush();
+
+    fundPositionLedgerService.recordPositionsToLedger(TKF100, posDate);
+
+    insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), posDate);
+    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.00035"), posDate);
+    issueFundUnits(new BigDecimal("1000000.000"), posDate);
+    entityManager.flush();
+    entityManager.clear();
+
+    var result = navCalculationService.computeFeeBaseValue(TKF100, calcDate);
+    assertThat(result).isPresent();
+    assertThat(result.get().baseValue()).isEqualByComparingTo(cash.add(pendingSubs));
+  }
+
+  @Test
   void feeCalculationRecordsFeesPerFundInLedger() {
     LocalDate date = LocalDate.of(2025, 3, 15);
     BigDecimal tkf100Aum = new BigDecimal("50000000");

@@ -87,7 +87,12 @@ public class NavCalculationService {
     BigDecimal payables = payablesComponent.calculate(context);
     BigDecimal pendingSubscriptions = subscriptionsComponent.calculate(context);
 
-    BigDecimal feeBaseValue = securitiesValue.add(cashPosition).add(receivables).subtract(payables);
+    BigDecimal feeBaseValue =
+        securitiesValue
+            .add(cashPosition)
+            .add(receivables)
+            .add(pendingSubscriptions)
+            .subtract(payables);
     Instant feeCutoff = positionReportDate.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
     FeeResult fees =
         feeCalculationService.calculateFeesForNav(
@@ -245,7 +250,12 @@ public class NavCalculationService {
     BigDecimal cashPosition = cashPositionComponent.calculate(context);
     BigDecimal receivables = receivablesComponent.calculate(context);
     BigDecimal payables = payablesComponent.calculate(context);
-    return securitiesValue.add(cashPosition).add(receivables).subtract(payables);
+    BigDecimal pendingSubscriptions = subscriptionsComponent.calculate(context);
+    return securitiesValue
+        .add(cashPosition)
+        .add(receivables)
+        .add(pendingSubscriptions)
+        .subtract(payables);
   }
 
   public record FeeBaseValueResult(

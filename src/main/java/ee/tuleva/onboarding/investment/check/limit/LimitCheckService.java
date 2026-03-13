@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -92,7 +93,12 @@ class LimitCheckService {
             fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, CASH));
     var liabilityTotal =
         sumMarketValues(
-            fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, LIABILITY));
+                fundPositionRepository.findByNavDateAndFundAndAccountType(
+                    checkDate, fund, LIABILITY))
+            .add(
+                sumMarketValues(
+                    fundPositionRepository.findByNavDateAndFundAndAccountType(
+                        checkDate, fund, FEE)));
 
     var positionLimits = positionLimitRepository.findLatestByFund(fund);
     var providerLimits = providerLimitRepository.findLatestByFund(fund);
@@ -118,7 +124,9 @@ class LimitCheckService {
   }
 
   private BigDecimal getPendingCashImpact(TulevaFund fund, LocalDate asOfDate) {
-    var unsettledOrders = transactionOrderRepository.findUnsettledOrders(fund, asOfDate);
+    var cutoff = asOfDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
+    var unsettledOrders =
+        transactionOrderRepository.findUnsettledOrdersAsOf(fund, asOfDate, cutoff);
     var pendingBuys =
         unsettledOrders.stream()
             .filter(order -> order.getTransactionType() == TransactionType.BUY)

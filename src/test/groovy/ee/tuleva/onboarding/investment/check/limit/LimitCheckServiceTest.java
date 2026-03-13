@@ -82,6 +82,8 @@ class LimitCheckServiceTest {
         .thenReturn(List.of(cashPosition));
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, LIABILITY))
         .thenReturn(List.of(liabilityPosition));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, FEE))
+        .thenReturn(List.of());
 
     var positionLimit =
         PositionLimit.builder()
@@ -117,7 +119,9 @@ class LimitCheckServiceTest {
             .weight(BigDecimal.ONE)
             .build();
     when(modelPortfolioAllocationRepository.findLatestByFund(fund)).thenReturn(List.of(allocation));
-    when(transactionOrderRepository.findUnsettledOrders(fund, today)).thenReturn(List.of());
+    var cutoff = today.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
+    when(transactionOrderRepository.findUnsettledOrdersAsOf(fund, today, cutoff))
+        .thenReturn(List.of());
 
     var positionBreach =
         new PositionBreach(
@@ -187,10 +191,13 @@ class LimitCheckServiceTest {
     var cash1 = FundPosition.builder().marketValue(new BigDecimal("50000")).fund(fund).build();
     var cash2 = FundPosition.builder().marketValue(new BigDecimal("30000")).fund(fund).build();
     var liability = FundPosition.builder().marketValue(new BigDecimal("10000")).fund(fund).build();
+    var feeAccrual = FundPosition.builder().marketValue(new BigDecimal("-5000")).fund(fund).build();
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, CASH))
         .thenReturn(List.of(cash1, cash2));
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, LIABILITY))
         .thenReturn(List.of(liability));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, FEE))
+        .thenReturn(List.of(feeAccrual));
 
     when(positionLimitRepository.findLatestByFund(fund)).thenReturn(List.of());
     when(providerLimitRepository.findLatestByFund(fund)).thenReturn(List.of());
@@ -202,7 +209,9 @@ class LimitCheckServiceTest {
             .build();
     when(fundLimitRepository.findLatestByFund(fund)).thenReturn(Optional.of(fundLimit));
     when(modelPortfolioAllocationRepository.findLatestByFund(fund)).thenReturn(List.of());
-    when(transactionOrderRepository.findUnsettledOrders(fund, today)).thenReturn(List.of());
+    var cutoff = today.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
+    when(transactionOrderRepository.findUnsettledOrdersAsOf(fund, today, cutoff))
+        .thenReturn(List.of());
     when(positionLimitChecker.check(any(), any(), any(), any())).thenReturn(List.of());
     when(providerLimitChecker.check(any(), any(), any(), any(), any())).thenReturn(List.of());
 
@@ -211,6 +220,9 @@ class LimitCheckServiceTest {
     service.runChecks();
 
     verify(reserveLimitChecker).check(fund, new BigDecimal("80000"), fundLimit);
+    // liabilityTotal = 10000 + (-5000) = 5000
+    verify(freeCashLimitChecker)
+        .check(fund, new BigDecimal("80000"), new BigDecimal("5000"), BigDecimal.ZERO, fundLimit);
   }
 
   @Test

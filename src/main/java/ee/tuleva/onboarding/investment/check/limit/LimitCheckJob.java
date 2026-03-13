@@ -34,13 +34,13 @@ public class LimitCheckJob {
     }
   }
 
-  @Scheduled(cron = "0 20 11 13 3 *", zone = TIMEZONE)
+  @Scheduled(cron = "0 45 16 13 3 *", zone = TIMEZONE)
   @SchedulerLock(name = "LimitCheckBackfillJob", lockAtMostFor = "30m", lockAtLeastFor = "5m")
   void backfillLimitChecks() {
     log.info("Starting limit check backfill");
 
     try {
-      var results = limitCheckService.backfillChecks(7);
+      var results = limitCheckService.backfillChecks(10);
       log.info("Limit check backfill completed: resultCount={}", results.size());
     } catch (Exception e) {
       log.error("Limit check backfill failed", e);

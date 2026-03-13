@@ -58,6 +58,8 @@ class LimitCheckServiceTest {
             .fund(fund)
             .calculatedMarketValue(new BigDecimal("100000"))
             .build();
+    var nonSecurityNav = new BigDecimal("100000");
+    var securitiesNav = new BigDecimal("900000");
     var totalNav = new BigDecimal("1000000");
 
     when(positionCalculationRepository.getLatestDateUpTo(fund, today))
@@ -65,8 +67,10 @@ class LimitCheckServiceTest {
     when(positionCalculationRepository.findByFundAndDate(fund, today))
         .thenReturn(List.of(position));
     when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-            fund, today, List.of(CASH, SECURITY, RECEIVABLES, LIABILITY)))
-        .thenReturn(totalNav);
+            fund, today, List.of(CASH, RECEIVABLES, LIABILITY)))
+        .thenReturn(nonSecurityNav);
+    when(positionCalculationRepository.getTotalMarketValue(fund, today))
+        .thenReturn(Optional.of(securitiesNav));
 
     var cashPosition =
         FundPosition.builder().marketValue(new BigDecimal("80000")).fund(fund).build();
@@ -172,8 +176,10 @@ class LimitCheckServiceTest {
         .thenReturn(Optional.of(today));
     when(positionCalculationRepository.findByFundAndDate(fund, today)).thenReturn(List.of());
     when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-            fund, today, List.of(CASH, SECURITY, RECEIVABLES, LIABILITY)))
+            fund, today, List.of(CASH, RECEIVABLES, LIABILITY)))
         .thenReturn(BigDecimal.ZERO);
+    when(positionCalculationRepository.getTotalMarketValue(fund, today))
+        .thenReturn(Optional.empty());
 
     var cash1 = FundPosition.builder().marketValue(new BigDecimal("50000")).fund(fund).build();
     var cash2 = FundPosition.builder().marketValue(new BigDecimal("30000")).fund(fund).build();

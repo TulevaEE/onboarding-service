@@ -75,9 +75,12 @@ class LimitCheckService {
 
   private LimitCheckResult checkFund(TulevaFund fund, LocalDate checkDate) {
     var positions = positionCalculationRepository.findByFundAndDate(fund, checkDate);
-    var totalNav =
+    var nonSecurityNav =
         fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-            fund, checkDate, List.of(CASH, SECURITY, RECEIVABLES, LIABILITY));
+            fund, checkDate, List.of(CASH, RECEIVABLES, LIABILITY));
+    var securitiesNav =
+        positionCalculationRepository.getTotalMarketValue(fund, checkDate).orElse(BigDecimal.ZERO);
+    var totalNav = nonSecurityNav.add(securitiesNav);
 
     var cashTotal =
         sumMarketValues(

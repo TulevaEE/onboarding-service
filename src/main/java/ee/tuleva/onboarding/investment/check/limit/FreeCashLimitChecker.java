@@ -15,6 +15,7 @@ class FreeCashLimitChecker {
       TulevaFund fund,
       BigDecimal cashTotal,
       BigDecimal liabilityTotal,
+      BigDecimal pendingCashImpact,
       @Nullable FundLimit fundLimit) {
     if (fundLimit == null
         || fundLimit.getMaxFreeCash() == null
@@ -22,7 +23,11 @@ class FreeCashLimitChecker {
       return null;
     }
 
-    var freeCash = cashTotal.add(liabilityTotal).subtract(fundLimit.getReserveSoft());
+    var freeCash =
+        cashTotal
+            .add(liabilityTotal)
+            .subtract(pendingCashImpact)
+            .subtract(fundLimit.getReserveSoft());
     var severity = freeCash.compareTo(fundLimit.getMaxFreeCash()) > 0 ? HARD : OK;
     return new FreeCashBreach(fund, freeCash, fundLimit.getMaxFreeCash(), severity);
   }

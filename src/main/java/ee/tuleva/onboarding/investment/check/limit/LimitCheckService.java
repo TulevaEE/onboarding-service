@@ -2,12 +2,16 @@ package ee.tuleva.onboarding.investment.check.limit;
 
 import static ee.tuleva.onboarding.investment.check.limit.CheckType.*;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
+import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.calculation.PositionCalculationRepository;
 import ee.tuleva.onboarding.investment.portfolio.*;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -37,6 +41,7 @@ class LimitCheckService {
   private final ProviderLimitChecker providerLimitChecker;
   private final ReserveLimitChecker reserveLimitChecker;
   private final FreeCashLimitChecker freeCashLimitChecker;
+  private final TransactionOrderRepository transactionOrderRepository;
 
   List<LimitCheckResult> runChecks() {
     return runChecksAsOf(LocalDate.now(clock));
@@ -97,8 +102,11 @@ class LimitCheckService {
     var positionBreaches = positionLimitChecker.check(fund, positions, totalNav, positionLimits);
     var providerBreaches =
         providerLimitChecker.check(fund, positions, totalNav, isinToProvider, providerLimits);
+    var pendingCashImpact = getPendingCashImpact(fund, checkDate);
+
     var reserveBreach = reserveLimitChecker.check(fund, cashTotal, fundLimit);
-    var freeCashBreach = freeCashLimitChecker.check(fund, cashTotal, liabilityTotal, fundLimit);
+    var freeCashBreach =
+        freeCashLimitChecker.check(fund, cashTotal, liabilityTotal, pendingCashImpact, fundLimit);
 
     saveEvent(fund, checkDate, POSITION, positionBreaches);
     saveEvent(fund, checkDate, PROVIDER, providerBreaches);
@@ -107,6 +115,23 @@ class LimitCheckService {
 
     return new LimitCheckResult(
         fund, checkDate, positionBreaches, providerBreaches, reserveBreach, freeCashBreach);
+  }
+
+  private BigDecimal getPendingCashImpact(TulevaFund fund, LocalDate asOfDate) {
+    var unsettledOrders = transactionOrderRepository.findUnsettledOrders(fund, asOfDate);
+    var pendingBuys =
+        unsettledOrders.stream()
+            .filter(order -> order.getTransactionType() == TransactionType.BUY)
+            .map(TransactionOrder::getOrderAmount)
+            .filter(Objects::nonNull)
+            .reduce(ZERO, BigDecimal::add);
+    var pendingSells =
+        unsettledOrders.stream()
+            .filter(order -> order.getTransactionType() == TransactionType.SELL)
+            .map(TransactionOrder::getOrderAmount)
+            .filter(Objects::nonNull)
+            .reduce(ZERO, BigDecimal::add);
+    return pendingBuys.subtract(pendingSells);
   }
 
   private BigDecimal sumMarketValues(List<FundPosition> positions) {

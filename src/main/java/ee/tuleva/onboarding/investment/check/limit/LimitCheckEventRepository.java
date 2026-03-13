@@ -8,4 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 interface LimitCheckEventRepository extends JpaRepository<LimitCheckEvent, Long> {
 
   List<LimitCheckEvent> findByFundAndCheckDate(TulevaFund fund, LocalDate checkDate);
+
+  void deleteByFundAndCheckDateAndCheckType(
+      TulevaFund fund, LocalDate checkDate, CheckType checkType);
 }

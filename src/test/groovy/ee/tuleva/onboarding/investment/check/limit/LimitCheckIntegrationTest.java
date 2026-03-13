@@ -43,6 +43,7 @@ class LimitCheckIntegrationTest {
       Clock.fixed(Instant.parse("2026-03-03T10:00:00Z"), ZoneId.of("Europe/Tallinn"));
 
   @Autowired private LimitCheckService limitCheckService;
+  @Autowired private LimitCheckEventRepository limitCheckEventRepository;
   @Autowired private JdbcClient jdbcClient;
 
   @BeforeEach
@@ -168,6 +169,21 @@ class LimitCheckIntegrationTest {
             .findFirst()
             .orElseThrow();
     assertThat(euroAggBond.severity()).isEqualTo(SOFT);
+  }
+
+  @Test
+  void rerunReplacesExistingEventsInsteadOfCreatingDuplicates() {
+    insertTuk75Data();
+
+    limitCheckService.runChecks();
+    limitCheckService.runChecks();
+
+    var events = limitCheckEventRepository.findByFundAndCheckDate(TUK75, NAV_DATE);
+    assertThat(events).hasSize(4);
+    assertThat(events)
+        .extracting(LimitCheckEvent::getCheckType)
+        .containsExactlyInAnyOrder(
+            CheckType.POSITION, CheckType.PROVIDER, CheckType.RESERVE, CheckType.FREE_CASH);
   }
 
   @Test

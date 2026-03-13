@@ -132,6 +132,8 @@ class LimitCheckService {
                   return false;
                 });
 
+    limitCheckEventRepository.deleteByFundAndCheckDateAndCheckType(fund, checkDate, checkType);
+
     var event =
         LimitCheckEvent.builder()
             .fund(fund)
@@ -151,6 +153,8 @@ class LimitCheckService {
       @org.jspecify.annotations.Nullable ReserveBreach breach) {
     var hasBreaches = breach != null && breach.severity() != BreachSeverity.OK;
 
+    limitCheckEventRepository.deleteByFundAndCheckDateAndCheckType(fund, checkDate, checkType);
+
     var event =
         LimitCheckEvent.builder()
             .fund(fund)
@@ -169,6 +173,8 @@ class LimitCheckService {
       CheckType checkType,
       @org.jspecify.annotations.Nullable FreeCashBreach breach) {
     var hasBreaches = breach != null && breach.severity() != BreachSeverity.OK;
+
+    limitCheckEventRepository.deleteByFundAndCheckDateAndCheckType(fund, checkDate, checkType);
 
     var event =
         LimitCheckEvent.builder()

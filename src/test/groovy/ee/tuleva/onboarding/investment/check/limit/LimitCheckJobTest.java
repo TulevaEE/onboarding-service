@@ -30,7 +30,7 @@ class LimitCheckJobTest {
   @Test
   void backfillDelegatesToService() {
     var results = List.of(mock(LimitCheckResult.class));
-    when(limitCheckService.backfillChecks(7)).thenReturn(results);
+    when(limitCheckService.backfillChecks(10)).thenReturn(results);
 
     job.backfillLimitChecks();
 

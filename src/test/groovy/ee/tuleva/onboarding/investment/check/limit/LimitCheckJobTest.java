@@ -34,13 +34,13 @@ class LimitCheckJobTest {
 
     job.backfillLimitChecks();
 
-    verify(limitCheckService).backfillChecks(7);
+    verify(limitCheckService).backfillChecks(10);
     verify(limitCheckNotifier, never()).notify(any());
   }
 
   @Test
   void backfillSwallowsExceptions() {
-    when(limitCheckService.backfillChecks(7)).thenThrow(new RuntimeException("DB down"));
+    when(limitCheckService.backfillChecks(10)).thenThrow(new RuntimeException("DB down"));
 
     job.backfillLimitChecks();
 

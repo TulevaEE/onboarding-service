@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.check.limit;
 
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.investment.position.FeeAccrualPositionSyncJob;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,6 +15,7 @@ class LimitCheckJobTest {
 
   @Mock LimitCheckService limitCheckService;
   @Mock LimitCheckNotifier limitCheckNotifier;
+  @Mock FeeAccrualPositionSyncJob feeAccrualPositionSyncJob;
   @InjectMocks LimitCheckJob job;
 
   @Test
@@ -28,13 +30,15 @@ class LimitCheckJobTest {
   }
 
   @Test
-  void backfillDelegatesToService() {
+  void backfillSyncsFeeAccrualPositionsBeforeChecks() {
     var results = List.of(mock(LimitCheckResult.class));
     when(limitCheckService.backfillChecks(10)).thenReturn(results);
 
     job.backfillLimitChecks();
 
-    verify(limitCheckService).backfillChecks(10);
+    var inOrder = inOrder(feeAccrualPositionSyncJob, limitCheckService);
+    inOrder.verify(feeAccrualPositionSyncJob).sync(10);
+    inOrder.verify(limitCheckService).backfillChecks(10);
     verify(limitCheckNotifier, never()).notify(any());
   }
 

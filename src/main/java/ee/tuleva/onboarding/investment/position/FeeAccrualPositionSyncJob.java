@@ -48,7 +48,7 @@ public class FeeAccrualPositionSyncJob {
     log.info("Fee accrual position backfill completed: positionsWritten={}", count);
   }
 
-  int sync(int daysBack) {
+  public int sync(int daysBack) {
     var today = LocalDate.now(clock);
     var cutoffDate = today.minusDays(daysBack);
     int total = 0;

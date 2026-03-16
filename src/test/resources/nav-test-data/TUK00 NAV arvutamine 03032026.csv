@@ -10,7 +10,7 @@ nav_date,fund_code,account_type,account_name,account_id,quantity,market_price,cu
 2026-03-02,TUK00,RECEIVABLES,Other receivables,,0.00,1.00,EUR,0.00
 2026-03-02,TUK00,LIABILITY,Liabilities Other,,0.00,1.00,EUR,0.00
 2026-03-02,TUK00,LIABILITY,Payables of redeemed units,EE3600109443,0.00,1.00,EUR,0.00
-2026-03-02,TUK00,LIABILITY_FEE,Management fee,,-105.86,1.00,EUR,-105.86
+2026-03-02,TUK00,LIABILITY_FEE,Management fee,,-105.84,1.00,EUR,-105.84
 2026-03-02,TUK00,LIABILITY_FEE,Custody fee,,0.00,1.00,EUR,0.00
 2026-03-02,TUK00,UNITS,Total outstanding units:,,19111732.067,0.620440,EUR,11857593.39
 2026-03-02,TUK00,NAV,Net Asset Value,,1.00,0.620440,EUR,0.62

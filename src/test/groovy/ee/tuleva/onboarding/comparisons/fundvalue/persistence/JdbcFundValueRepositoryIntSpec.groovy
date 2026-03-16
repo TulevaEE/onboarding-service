@@ -30,10 +30,10 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
             def today = LocalDate.now()
             def yesterday = LocalDate.now().minusDays(1)
             List<FundValue> values = [
-                aFundValue(uniqueKey1, today, 100.12345),
-                aFundValue(uniqueKey1, yesterday, 10.12345),
-                aFundValue(uniqueKey2, today, 200.12345),
-                aFundValue(uniqueKey2, yesterday, 20.12345),
+                aFundValue(uniqueKey1, yesterday, 100.12345),
+                aFundValue(uniqueKey1, today, 101.12345),
+                aFundValue(uniqueKey2, yesterday, 200.12345),
+                aFundValue(uniqueKey2, today, 201.12345),
             ]
         when:
             def savedValues = fundValueRepository.saveAll(values)
@@ -50,9 +50,9 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
             Optional<FundValue> marketLatestValue = fundValueRepository.findLastValueForFund(UnionStockIndexRetriever.KEY)
         then:
             epiLatestValue.isPresent()
-            epiLatestValue.get() == values[2]
+            epiLatestValue.get() == values[3]
             marketLatestValue.isPresent()
-            marketLatestValue.get() == values[0]
+            marketLatestValue.get() == values[1]
     }
 
     def "it handles missing fund values properly"() {
@@ -233,24 +233,61 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
     when:
     def valuesToSave = [
         aFundValue("BATCH_KEY", parse("2020-01-01"), 999.0, "DIFFERENT"),
-        aFundValue("BATCH_KEY", parse("2020-01-02"), 200.0, "YAHOO")
+        aFundValue("BATCH_KEY", parse("2020-01-02"), 101.0, "YAHOO")
     ]
     def savedValues = fundValueRepository.saveAll(valuesToSave)
 
     then:
     savedValues.size() == 1
     savedValues[0].date() == parse("2020-01-02")
-    savedValues[0].value() == 200.0
+    savedValues[0].value() == 101.0
+  }
+
+  def "save rejects anomalous values that deviate more than 20% from last stored value"() {
+    given:
+    def key = "SPIKE_TEST_" + UUID.randomUUID()
+    fundValueRepository.save(aFundValue(key, parse("2020-01-01"), 100.0))
+
+    when:
+    def spikeResult = fundValueRepository.save(aFundValue(key, parse("2020-01-02"), 150.0))
+
+    then:
+    spikeResult.isEmpty()
+    fundValueRepository.findLastValueForFund(key).get().date() == parse("2020-01-01")
+  }
+
+  def "save accepts values within 20% deviation"() {
+    given:
+    def key = "NORMAL_TEST_" + UUID.randomUUID()
+    fundValueRepository.save(aFundValue(key, parse("2020-01-01"), 100.0))
+
+    when:
+    def normalResult = fundValueRepository.save(aFundValue(key, parse("2020-01-02"), 115.0))
+
+    then:
+    normalResult.isPresent()
+    normalResult.get().value() == 115.0
+  }
+
+  def "save accepts first value for a new key without validation"() {
+    given:
+    def key = "FIRST_VALUE_" + UUID.randomUUID()
+
+    when:
+    def result = fundValueRepository.save(aFundValue(key, parse("2020-01-01"), 34343.14))
+
+    then:
+    result.isPresent()
   }
 
   private static List<FundValue> getFakeFundValues() {
         def today = LocalDate.now()
         def yesterday = LocalDate.now().minusDays(1)
         return [
-            aFundValue(UnionStockIndexRetriever.KEY, today, 100.12345),
-            aFundValue(UnionStockIndexRetriever.KEY, yesterday, 10.12345),
-            aFundValue(EpiIndex.EPI.key, today, 200.12345),
-            aFundValue(EpiIndex.EPI.key, yesterday, 20.12345),
+            aFundValue(UnionStockIndexRetriever.KEY, yesterday, 100.12345),
+            aFundValue(UnionStockIndexRetriever.KEY, today, 101.12345),
+            aFundValue(EpiIndex.EPI.key, yesterday, 200.12345),
+            aFundValue(EpiIndex.EPI.key, today, 201.12345),
         ]
     }
 }

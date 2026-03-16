@@ -187,19 +187,47 @@ class BlackRockFundValueRetrieverTest {
     // Date.UTC months are 0-indexed: 0=Jan, 1=Feb, etc.
     return """
         <html><script>
-        navData = [{x:Date.UTC(2024,0,2),y:Number((30.50).toFixed(2)),formattedX: "02.Jan.2024"},\
-        {x:Date.UTC(2024,0,3),y:Number((31.25).toFixed(2)),formattedX: "03.Jan.2024"},\
-        {x:Date.UTC(2024,0,4),y:Number((32.00).toFixed(2)),formattedX: "04.Jan.2024"}];
+        var navData = [{x:Date.UTC(2024,0,2),y:Number((30.50).toFixed(2)),formattedX: "02/jan/2024"},\
+        {x:Date.UTC(2024,0,3),y:Number((31.25).toFixed(2)),formattedX: "03/jan/2024"},\
+        {x:Date.UTC(2024,0,4),y:Number((32.00).toFixed(2)),formattedX: "04/jan/2024"}];
         </script></html>
         """;
+  }
+
+  @Test
+  void ignoresPerformanceDataAndOnlyParsesNavData() {
+    // BlackRock pages contain TWO data series with identical format:
+    // 1) performanceData — cumulative return index (month-end, values ~10000-34000)
+    // 2) navData — daily per-share NAV (values ~30-34)
+    // The parser must only use navData, not performanceData.
+    mockAllFunds(mockNavDataResponseWithPerformanceData());
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 31));
+
+    assertThat(result)
+        .isNotEmpty()
+        .allSatisfy(fundValue -> assertThat(fundValue.value()).isLessThan(new BigDecimal("100")));
   }
 
   private String mockNavDataResponseWithZero() {
     return """
         <html><script>
-        navData = [{x:Date.UTC(2024,0,2),y:Number((30.50).toFixed(2)),formattedX: "02.Jan.2024"},\
-        {x:Date.UTC(2024,0,3),y:Number((0).toFixed(2)),formattedX: "03.Jan.2024"},\
-        {x:Date.UTC(2024,0,4),y:Number((32.00).toFixed(2)),formattedX: "04.Jan.2024"}];
+        var navData = [{x:Date.UTC(2024,0,2),y:Number((30.50).toFixed(2)),formattedX: "02/jan/2024"},\
+        {x:Date.UTC(2024,0,3),y:Number((0).toFixed(2)),formattedX: "03/jan/2024"},\
+        {x:Date.UTC(2024,0,4),y:Number((32.00).toFixed(2)),formattedX: "04/jan/2024"}];
+        </script></html>
+        """;
+  }
+
+  private String mockNavDataResponseWithPerformanceData() {
+    return """
+        <html><script>
+        var performanceData = [{x:Date.UTC(2023,11,31),y:Number((33871.92).toFixed(2)),formattedX: "zo, 31 dec 2023"},\
+        {x:Date.UTC(2024,0,31),y:Number((34030.37).toFixed(2)),formattedX: "wo, 31 jan 2024"}];
+        var navData = [{x:Date.UTC(2024,0,2),y:Number((30.50).toFixed(2)),formattedX: "02/jan/2024"},\
+        {x:Date.UTC(2024,0,3),y:Number((31.25).toFixed(2)),formattedX: "03/jan/2024"},\
+        {x:Date.UTC(2024,0,4),y:Number((32.00).toFixed(2)),formattedX: "04/jan/2024"}];
         </script></html>
         """;
   }

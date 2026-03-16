@@ -28,6 +28,8 @@ public class BlackRockFundValueRetriever implements ComparisonIndexRetriever {
   public static final String PROVIDER = "BLACKROCK";
   private static final ZoneId BLACKROCK_TIMEZONE = ZoneId.of("Europe/Dublin");
   private static final LocalTime CLOSING_PRICE_FINALIZED_TIME = LocalTime.of(6, 0);
+  private static final Pattern NAV_DATA_SECTION_PATTERN =
+      Pattern.compile("var navData = \\[(.*?)\\];", Pattern.DOTALL);
   private static final Pattern NAV_DATA_PATTERN =
       Pattern.compile(
           "Date\\.UTC\\((\\d+),(\\d+),(\\d+)\\),y:Number\\(\\(([0-9.]+)\\)\\.toFixed\\(2\\)\\)");
@@ -103,8 +105,15 @@ public class BlackRockFundValueRetriever implements ComparisonIndexRetriever {
   }
 
   List<FundValue> parseNavData(String responseBody, String storageKey, Instant now) {
+    var sectionMatcher = NAV_DATA_SECTION_PATTERN.matcher(responseBody);
+    if (!sectionMatcher.find()) {
+      log.error("No navData section found in BlackRock response: storageKey={}", storageKey);
+      return List.of();
+    }
+    String navDataSection = sectionMatcher.group(1);
+
     List<FundValue> values = new ArrayList<>();
-    var matcher = NAV_DATA_PATTERN.matcher(responseBody);
+    var matcher = NAV_DATA_PATTERN.matcher(navDataSection);
 
     while (matcher.find()) {
       int year = Integer.parseInt(matcher.group(1));

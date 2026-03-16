@@ -2,12 +2,15 @@ package ee.tuleva.onboarding.comparisons.fundvalue.persistence;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -15,7 +18,10 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 @RequiredArgsConstructor
+@Slf4j
 public class JdbcFundValueRepository implements FundValueRepository, FundValueProvider {
+
+  static final BigDecimal MAX_DEVIATION = new BigDecimal("0.20");
 
   private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -137,6 +143,9 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
 
   @Override
   public Optional<FundValue> save(FundValue fundValue) {
+    if (isAnomalous(fundValue)) {
+      return Optional.empty();
+    }
     Map<String, Object> values = buildParamsMap(fundValue);
     try {
       int rowsAffected = jdbcTemplate.update(INSERT_IF_NOT_EXISTS_QUERY, values);
@@ -144,6 +153,34 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
     } catch (DuplicateKeyException e) {
       return Optional.empty();
     }
+  }
+
+  private boolean isAnomalous(FundValue fundValue) {
+    if (fundValue.key().startsWith("AUM_")) {
+      return false;
+    }
+    Optional<FundValue> lastValue = findLastValueForFund(fundValue.key());
+    if (lastValue.isEmpty()) {
+      return false;
+    }
+    BigDecimal previous = lastValue.get().value();
+    if (previous.signum() == 0) {
+      return false;
+    }
+    BigDecimal deviation =
+        fundValue.value().subtract(previous).abs().divide(previous, 4, RoundingMode.HALF_UP);
+    if (deviation.compareTo(MAX_DEVIATION) > 0) {
+      log.error(
+          "Anomalous fund value rejected: key={}, date={}, value={}, previousValue={}, previousDate={}, deviation={}%",
+          fundValue.key(),
+          fundValue.date(),
+          fundValue.value(),
+          previous,
+          lastValue.get().date(),
+          deviation.multiply(new BigDecimal("100")));
+      return true;
+    }
+    return false;
   }
 
   private Map<String, Object> buildParamsMap(FundValue fundValue) {

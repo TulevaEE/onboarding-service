@@ -207,15 +207,14 @@ public class NavPositionLedger {
         jdbcClient
             .sql(
                 """
-                WITH target_transactions AS (
+                DELETE FROM ledger.entry
+                WHERE transaction_id IN (
                   SELECT id FROM ledger.transaction
                   WHERE transaction_type = 'POSITION_UPDATE'
-                    AND metadata->>'fund' = :fundName
+                    AND CAST(metadata AS VARCHAR) LIKE :fundPattern
                 )
-                DELETE FROM ledger.entry
-                WHERE transaction_id IN (SELECT id FROM target_transactions)
                 """)
-            .param("fundName", fundName)
+            .param("fundPattern", "%\"fund\":\"" + fundName + "\"%")
             .update();
 
     int txDeleted =
@@ -224,9 +223,9 @@ public class NavPositionLedger {
                 """
                 DELETE FROM ledger.transaction
                 WHERE transaction_type = 'POSITION_UPDATE'
-                  AND metadata->>'fund' = :fundName
+                  AND CAST(metadata AS VARCHAR) LIKE :fundPattern
                 """)
-            .param("fundName", fundName)
+            .param("fundPattern", "%\"fund\":\"" + fundName + "\"%")
             .update();
 
     log.info(

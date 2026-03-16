@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.math.BigDecimal.ZERO;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
@@ -34,6 +35,7 @@ public class FundPositionLedgerService {
   private final NavFeeAccrualLedger navFeeAccrualLedger;
   private final FeeAccrualRepository feeAccrualRepository;
   private final NavLedgerRepository navLedgerRepository;
+  private final PublicHolidays publicHolidays;
 
   public void correctPositionsInLedger(
       TulevaFund fund, LocalDate date, Instant correctionTimestamp) {
@@ -66,9 +68,10 @@ public class FundPositionLedgerService {
     navFeeAccrualLedger.deleteFeeTransactionsByFund(fund);
     feeAccrualRepository.deleteByFund(fund);
 
+    LocalDate lastWorkingDayBefore = publicHolidays.previousWorkingDay(fromDate);
     List<LocalDate> dates =
         fundPositionRepository.findDistinctNavDatesByFund(fund).stream()
-            .filter(date -> !date.isBefore(fromDate))
+            .filter(date -> !date.isBefore(lastWorkingDayBefore))
             .toList();
 
     for (LocalDate date : dates) {

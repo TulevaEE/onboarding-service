@@ -8,6 +8,7 @@ import static java.math.BigDecimal.ZERO;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
@@ -31,6 +32,7 @@ class FundPositionLedgerServiceTest {
   @Mock private NavFeeAccrualLedger navFeeAccrualLedger;
   @Mock private FeeAccrualRepository feeAccrualRepository;
   @Mock private NavLedgerRepository navLedgerRepository;
+  @Mock private PublicHolidays publicHolidays;
 
   @InjectMocks private FundPositionLedgerService service;
 
@@ -89,14 +91,16 @@ class FundPositionLedgerServiceTest {
   }
 
   @Test
-  void rerecordPositions_deletesAndRerecordsFromDate() {
+  void rerecordPositions_includesLastWorkingDayBeforeFromDate() {
     var fromDate = LocalDate.of(2026, 3, 1);
-    var date1 = LocalDate.of(2026, 2, 28);
+    var febData = LocalDate.of(2026, 2, 20);
+    var lastWorkingDay = LocalDate.of(2026, 2, 27);
     var date2 = LocalDate.of(2026, 3, 1);
     var date3 = LocalDate.of(2026, 3, 2);
 
+    when(publicHolidays.previousWorkingDay(fromDate)).thenReturn(lastWorkingDay);
     when(fundPositionRepository.findDistinctNavDatesByFund(TUK75))
-        .thenReturn(List.of(date1, date2, date3));
+        .thenReturn(List.of(febData, lastWorkingDay, date2, date3));
 
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(any(), eq(TUK75), any()))
         .thenReturn(List.of());
@@ -108,10 +112,12 @@ class FundPositionLedgerServiceTest {
     verify(navPositionLedger).deletePositionUpdatesByFund(TUK75);
     verify(navFeeAccrualLedger).deleteFeeTransactionsByFund(TUK75);
     verify(feeAccrualRepository).deleteByFund(TUK75);
+    verify(navPositionLedger)
+        .recordPositions(eq(TUK75), eq(lastWorkingDay), any(), any(), any(), any());
     verify(navPositionLedger).recordPositions(eq(TUK75), eq(date2), any(), any(), any(), any());
     verify(navPositionLedger).recordPositions(eq(TUK75), eq(date3), any(), any(), any(), any());
     verify(navPositionLedger, never())
-        .recordPositions(eq(TUK75), eq(date1), any(), any(), any(), any());
+        .recordPositions(eq(TUK75), eq(febData), any(), any(), any(), any());
   }
 
   @Test

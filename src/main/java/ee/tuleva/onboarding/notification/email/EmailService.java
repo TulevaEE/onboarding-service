@@ -98,6 +98,12 @@ public class EmailService {
       return Optional.empty();
     }
 
+    if (user.getEmail() == null || user.getEmail().isBlank()) {
+      log.warn(
+          "User has no email, not sending: userId={}, templateName={}", user.getId(), templateName);
+      return Optional.empty();
+    }
+
     try {
       Date sendDate = sendAt != null ? Date.from(sendAt) : null;
       log.info(
@@ -119,8 +125,8 @@ public class EmailService {
     } catch (MandrillApiError mandrillApiError) {
       log.error(mandrillApiError.getMandrillErrorAsJson(), mandrillApiError);
       return Optional.empty();
-    } catch (IOException e) {
-      log.error(e.getLocalizedMessage(), e);
+    } catch (Exception e) {
+      log.error("Failed to send email: userId={}, templateName={}", user.getId(), templateName, e);
       return Optional.empty();
     }
   }
@@ -141,8 +147,8 @@ public class EmailService {
           response.getRejectReason());
     } catch (MandrillApiError mandrillApiError) {
       log.error(mandrillApiError.getMandrillErrorAsJson(), mandrillApiError);
-    } catch (IOException e) {
-      log.error(e.getLocalizedMessage(), e);
+    } catch (Exception e) {
+      log.error("Failed to send system email", e);
     }
   }
 

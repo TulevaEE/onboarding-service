@@ -82,6 +82,27 @@ class EmailServiceSpec extends Specification {
     1 * mandrillMessagesApi.send(systemMessage, false) >> [mandrillMessageStatus]
   }
 
+  def "does not send email when user has no email"() {
+    given:
+    def userWithoutEmail = sampleUser().email(null).build()
+
+    when:
+    def response = service.send(userWithoutEmail, message, templateName)
+
+    then:
+    response == Optional.empty()
+    0 * mandrillMessagesApi._
+  }
+
+  def "returns empty when Mandrill returns empty response"() {
+    when:
+    def response = service.send(user, message, templateName)
+
+    then:
+    1 * mandrillMessagesApi.sendTemplate(templateName, [:], message, false, null, null) >> new MandrillMessageStatus[0]
+    response == Optional.empty()
+  }
+
   def "can create new mandrill messages"() {
     when:
     MandrillMessage message = service.newMandrillMessage(

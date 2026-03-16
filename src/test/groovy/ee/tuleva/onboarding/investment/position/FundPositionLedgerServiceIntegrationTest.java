@@ -82,6 +82,42 @@ class FundPositionLedgerServiceIntegrationTest {
     assertThat(unitBalances.get("IE00BFG1TM61")).isEqualByComparingTo("8042414.77");
   }
 
+  @Test
+  void rerecordPositions_deletesOldPositionUpdatesBeforeRerecording() {
+    LocalDate feb27 = LocalDate.of(2026, 2, 27);
+
+    insertSecurity(feb27, "IE00BFG1TM61", 1000.00, 10.00, 10000.00);
+    insertPosition(feb27, CASH, "Cash account", null, 50000.00);
+    insertPosition(feb27, LIABILITY, "Total payables of unsettled transactions", null, -5000.00);
+    insertPosition(feb27, LIABILITY, "Payables of redeemed units", null, 0.00);
+    insertNavPosition(feb27);
+
+    entityManager.flush();
+    entityManager.clear();
+
+    // First record
+    fundPositionLedgerService.recordPositionsToLedger(TUK75, feb27);
+
+    BigDecimal cashAfterFirst =
+        navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName(TUK75));
+    assertThat(cashAfterFirst).isEqualByComparingTo("50000.00");
+
+    BigDecimal payablesAfterFirst =
+        navLedgerRepository.getSystemAccountBalance(TRADE_PAYABLES.getAccountName(TUK75));
+    assertThat(payablesAfterFirst).isEqualByComparingTo("-5000.00");
+
+    // Rerecord — should delete old entries and re-record, not double them
+    fundPositionLedgerService.rerecordPositions(TUK75, LocalDate.of(2026, 3, 1));
+
+    BigDecimal cashAfterRerecord =
+        navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName(TUK75));
+    assertThat(cashAfterRerecord).isEqualByComparingTo("50000.00");
+
+    BigDecimal payablesAfterRerecord =
+        navLedgerRepository.getSystemAccountBalance(TRADE_PAYABLES.getAccountName(TUK75));
+    assertThat(payablesAfterRerecord).isEqualByComparingTo("-5000.00");
+  }
+
   private void insertSecurity(
       LocalDate navDate, String isin, double quantity, double price, double marketValue) {
     fundPositionRepository.save(

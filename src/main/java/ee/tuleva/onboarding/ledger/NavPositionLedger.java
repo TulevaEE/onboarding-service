@@ -214,7 +214,7 @@ public class NavPositionLedger {
                     AND CAST(metadata AS VARCHAR) LIKE :fundPattern
                 )
                 """)
-            .param("fundPattern", "%\"fund\":\"" + fundName + "\"%")
+            .param("fundPattern", "%\"fund\":%\"" + fundName + "\"%")
             .update();
 
     int txDeleted =
@@ -225,7 +225,7 @@ public class NavPositionLedger {
                 WHERE transaction_type = 'POSITION_UPDATE'
                   AND CAST(metadata AS VARCHAR) LIKE :fundPattern
                 """)
-            .param("fundPattern", "%\"fund\":\"" + fundName + "\"%")
+            .param("fundPattern", "%\"fund\":%\"" + fundName + "\"%")
             .update();
 
     log.info(

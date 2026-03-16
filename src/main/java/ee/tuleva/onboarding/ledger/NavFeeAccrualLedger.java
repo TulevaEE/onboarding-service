@@ -131,7 +131,7 @@ public class NavFeeAccrualLedger {
                     AND CAST(metadata AS VARCHAR) LIKE :fundPattern
                 )
                 """)
-            .param("fundPattern", "%\"fund\":\"" + fundName + "\"%")
+            .param("fundPattern", "%\"fund\":%\"" + fundName + "\"%")
             .update();
 
     int txDeleted =
@@ -142,7 +142,7 @@ public class NavFeeAccrualLedger {
                 WHERE transaction_type IN ('FEE_ACCRUAL', 'FEE_SETTLEMENT')
                   AND CAST(metadata AS VARCHAR) LIKE :fundPattern
                 """)
-            .param("fundPattern", "%\"fund\":\"" + fundName + "\"%")
+            .param("fundPattern", "%\"fund\":%\"" + fundName + "\"%")
             .update();
 
     log.info(

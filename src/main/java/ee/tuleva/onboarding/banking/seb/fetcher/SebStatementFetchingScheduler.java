@@ -31,7 +31,7 @@ public class SebStatementFetchingScheduler {
     }
   }
 
-  @Scheduled(cron = "0 0 1-6 * * *", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 0 4-6 * * *", zone = "Europe/Tallinn")
   @SchedulerLock(
       name = "SebStatementFetchingScheduler_fetchEodTransactions",
       lockAtMostFor = "23h",

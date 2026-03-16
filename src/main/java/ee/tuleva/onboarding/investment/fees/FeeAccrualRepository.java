@@ -102,6 +102,13 @@ public class FeeAccrualRepository {
         .optional();
   }
 
+  public int deleteByFund(TulevaFund fund) {
+    return jdbcClient
+        .sql("DELETE FROM investment_fee_accrual WHERE fund_code = :fundCode")
+        .param("fundCode", fund.name())
+        .update();
+  }
+
   public void save(FeeAccrual accrual) {
     int updated =
         jdbcClient

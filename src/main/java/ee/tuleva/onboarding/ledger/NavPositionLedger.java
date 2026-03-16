@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +33,7 @@ public class NavPositionLedger {
   private final LedgerTransactionService ledgerTransactionService;
   private final PublicHolidays publicHolidays;
   private final Clock clock;
+  private final JdbcClient jdbcClient;
 
   @Transactional
   public void recordPositions(
@@ -196,6 +198,40 @@ public class NavPositionLedger {
     return ledgerAccountService
         .findSystemAccount(systemAccount, fund)
         .orElseGet(() -> ledgerAccountService.createSystemAccount(systemAccount, fund));
+  }
+
+  @Transactional
+  public int deletePositionUpdatesByFund(TulevaFund fund) {
+    String fundName = fund.name();
+    int deleted =
+        jdbcClient
+            .sql(
+                """
+                WITH target_transactions AS (
+                  SELECT id FROM ledger.transaction
+                  WHERE transaction_type = 'POSITION_UPDATE'
+                    AND metadata->>'fund' = :fundName
+                )
+                DELETE FROM ledger.entry
+                WHERE transaction_id IN (SELECT id FROM target_transactions)
+                """)
+            .param("fundName", fundName)
+            .update();
+
+    int txDeleted =
+        jdbcClient
+            .sql(
+                """
+                DELETE FROM ledger.transaction
+                WHERE transaction_type = 'POSITION_UPDATE'
+                  AND metadata->>'fund' = :fundName
+                """)
+            .param("fundName", fundName)
+            .update();
+
+    log.info(
+        "Deleted position updates: fund={}, transactions={}, entries={}", fund, txDeleted, deleted);
+    return txDeleted;
   }
 
   private UUID generatePositionReference(TulevaFund fund, LocalDate reportDate) {

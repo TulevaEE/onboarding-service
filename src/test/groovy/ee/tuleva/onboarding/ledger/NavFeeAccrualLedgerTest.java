@@ -39,6 +39,7 @@ class NavFeeAccrualLedgerTest {
 
   @Mock private LedgerAccountService ledgerAccountService;
   @Mock private LedgerTransactionService ledgerTransactionService;
+  @Mock private org.springframework.jdbc.core.simple.JdbcClient jdbcClient;
 
   @Mock private LedgerAccount managementFeeAccount;
   @Mock private LedgerAccount depotFeeAccount;
@@ -52,7 +53,8 @@ class NavFeeAccrualLedgerTest {
 
   @BeforeEach
   void setUp() {
-    navFeeAccrualLedger = new NavFeeAccrualLedger(ledgerAccountService, ledgerTransactionService);
+    navFeeAccrualLedger =
+        new NavFeeAccrualLedger(ledgerAccountService, ledgerTransactionService, jdbcClient);
   }
 
   private void setupAccountMocks() {

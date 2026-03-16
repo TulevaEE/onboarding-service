@@ -183,6 +183,23 @@ public class AdminController {
     return "Reimported positions for " + provider + "/" + date;
   }
 
+  @Transactional
+  @PostMapping("/rerecord-positions")
+  public String rerecordPositions(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam String fundCode,
+      @RequestParam @DateTimeFormat(iso = DATE) LocalDate fromDate) {
+
+    validateToken(token);
+
+    TulevaFund fund = TulevaFund.fromCode(fundCode);
+    log.info("Admin triggered position re-record: fund={}, fromDate={}", fund, fromDate);
+    fundPositionLedgerService.rerecordPositions(fund, fromDate);
+    navCalculationService.backfillFees(fund, fromDate, LocalDate.now(clock));
+
+    return "Re-recorded positions and fees for " + fundCode + " from " + fromDate;
+  }
+
   @PostMapping("/backfill-positions")
   public String backfillPositions(
       @RequestHeader("X-Admin-Token") String token,

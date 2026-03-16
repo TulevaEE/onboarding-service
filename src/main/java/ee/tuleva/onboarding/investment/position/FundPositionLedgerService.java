@@ -5,6 +5,8 @@ import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
+import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.NavPositionLedger;
 import ee.tuleva.onboarding.ledger.SystemAccount;
@@ -20,6 +22,7 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -28,6 +31,8 @@ public class FundPositionLedgerService {
 
   private final FundPositionRepository fundPositionRepository;
   private final NavPositionLedger navPositionLedger;
+  private final NavFeeAccrualLedger navFeeAccrualLedger;
+  private final FeeAccrualRepository feeAccrualRepository;
   private final NavLedgerRepository navLedgerRepository;
 
   public void correctPositionsInLedger(
@@ -53,6 +58,26 @@ public class FundPositionLedgerService {
         deltas.payables);
   }
 
+  @Transactional
+  public void rerecordPositions(TulevaFund fund, LocalDate fromDate) {
+    log.info("Re-recording positions and fees: fund={}, fromDate={}", fund, fromDate);
+
+    navPositionLedger.deletePositionUpdatesByFund(fund);
+    navFeeAccrualLedger.deleteFeeTransactionsByFund(fund);
+    feeAccrualRepository.deleteByFund(fund);
+
+    List<LocalDate> dates =
+        fundPositionRepository.findDistinctNavDatesByFund(fund).stream()
+            .filter(date -> !date.isBefore(fromDate))
+            .toList();
+
+    for (LocalDate date : dates) {
+      recordPositionsToLedger(fund, date);
+    }
+
+    log.info("Re-recorded positions and fees: fund={}, dates={}", fund, dates.size());
+  }
+
   public void recordPositionsToLedger(TulevaFund fund, LocalDate date) {
     PositionDeltas deltas = calculatePositionDeltas(fund, date);
 
@@ -73,7 +98,7 @@ public class FundPositionLedgerService {
         calculateSecuritiesUnitDeltas(fund, date),
         calculateDelta(CASH_POSITION, fund, calculatePositionValue(fund, date, CASH)),
         calculateDelta(TRADE_RECEIVABLES, fund, calculateTradeReceivables(fund, date)),
-        calculateDelta(TRADE_PAYABLES, fund, calculatePositionValue(fund, date, LIABILITY)));
+        calculateDelta(TRADE_PAYABLES, fund, calculateTradePayables(fund, date)));
   }
 
   private record PositionDeltas(
@@ -146,6 +171,21 @@ public class FundPositionLedgerService {
         .findByNavDateAndFundAndAccountTypeAndAccountId(date, fund, RECEIVABLES, fund.getIsin())
         .map(FundPosition::getMarketValue)
         .orElse(ZERO);
+  }
+
+  private BigDecimal calculateTradePayables(TulevaFund fund, LocalDate date) {
+    return fundPositionRepository.findByNavDateAndFundAndAccountType(date, fund, LIABILITY).stream()
+        .filter(p -> isTradePayable(p.getAccountName()))
+        .map(FundPosition::getMarketValue)
+        .filter(Objects::nonNull)
+        .reduce(ZERO, BigDecimal::add);
+  }
+
+  private boolean isTradePayable(String accountName) {
+    return accountName != null
+        && (accountName.contains("payables of unsettled transactions")
+            || accountName.contains("Trade Settlement Payable")
+            || accountName.contains("Payables of redeemed units"));
   }
 
   private BigDecimal calculatePositionValue(TulevaFund fund, LocalDate date, AccountType type) {

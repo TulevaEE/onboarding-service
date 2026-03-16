@@ -33,6 +33,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -41,6 +42,7 @@ class NavPositionLedgerTest {
   @Mock private LedgerAccountService ledgerAccountService;
   @Mock private LedgerTransactionService ledgerTransactionService;
   @Mock private PublicHolidays publicHolidays;
+  @Mock private JdbcClient jdbcClient;
 
   @Mock private LedgerAccount securitiesUnitsAccount1;
   @Mock private LedgerAccount securitiesUnitsEquityAccount1;
@@ -64,7 +66,7 @@ class NavPositionLedgerTest {
   void setUp() {
     navPositionLedger =
         new NavPositionLedger(
-            ledgerAccountService, ledgerTransactionService, publicHolidays, clock);
+            ledgerAccountService, ledgerTransactionService, publicHolidays, clock, jdbcClient);
     when(publicHolidays.nextWorkingDay(LocalDate.of(2026, 2, 1)))
         .thenReturn(LocalDate.of(2026, 2, 2));
     when(ledgerTransactionService.existsByExternalReferenceAndTransactionType(
@@ -349,7 +351,11 @@ class NavPositionLedgerTest {
     Clock realTimeClock = Clock.fixed(realTimeNow, ZoneId.of("Europe/Tallinn"));
     var realTimeLedger =
         new NavPositionLedger(
-            ledgerAccountService, ledgerTransactionService, publicHolidays, realTimeClock);
+            ledgerAccountService,
+            ledgerTransactionService,
+            publicHolidays,
+            realTimeClock,
+            jdbcClient);
 
     when(publicHolidays.nextWorkingDay(reportDate)).thenReturn(LocalDate.of(2026, 2, 4));
     setupAccountMocks();
@@ -409,7 +415,11 @@ class NavPositionLedgerTest {
     Clock afterCutoffClock = Clock.fixed(afterCutoff, ZoneId.of("Europe/Tallinn"));
     var afterCutoffLedger =
         new NavPositionLedger(
-            ledgerAccountService, ledgerTransactionService, publicHolidays, afterCutoffClock);
+            ledgerAccountService,
+            ledgerTransactionService,
+            publicHolidays,
+            afterCutoffClock,
+            jdbcClient);
 
     when(publicHolidays.nextWorkingDay(reportDate)).thenReturn(LocalDate.of(2026, 2, 4));
     setupAccountMocks();

@@ -288,6 +288,39 @@ class AdminControllerTest {
   }
 
   @Test
+  void rerecordPositions_rerecordsPositionsAndBackfillsFees() throws Exception {
+    when(clock.instant()).thenReturn(Instant.parse("2026-03-16T10:00:00Z"));
+    when(clock.getZone()).thenReturn(java.time.ZoneId.of("Europe/Tallinn"));
+
+    mockMvc
+        .perform(
+            post("/admin/rerecord-positions")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK75")
+                .param("fromDate", "2026-03-01"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("TUK75")))
+        .andExpect(content().string(containsString("2026-03-01")));
+
+    verify(fundPositionLedgerService).rerecordPositions(TulevaFund.TUK75, LocalDate.of(2026, 3, 1));
+    verify(navCalculationService)
+        .backfillFees(TulevaFund.TUK75, LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 16));
+  }
+
+  @Test
+  void rerecordPositions_rejectsInvalidToken() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/rerecord-positions")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .param("fundCode", "TUK75")
+                .param("fromDate", "2026-03-01"))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
   void backfillPositions_callsRecordPositionsForEachDate() throws Exception {
     var dates =
         List.of(

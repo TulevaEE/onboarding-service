@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,7 @@ public class NavFeeAccrualLedger {
 
   private final LedgerAccountService ledgerAccountService;
   private final LedgerTransactionService ledgerTransactionService;
+  private final JdbcClient jdbcClient;
 
   @Transactional
   public void recordFeeAccrual(
@@ -113,6 +115,43 @@ public class NavFeeAccrualLedger {
         metadata,
         entry(getSystemAccount(feeAccount, fund), amount),
         entry(getSystemAccount(NAV_EQUITY, fund), amount.negate()));
+  }
+
+  @Transactional
+  public int deleteFeeTransactionsByFund(TulevaFund fund) {
+    String fundName = fund.name();
+    int entriesDeleted =
+        jdbcClient
+            .sql(
+                """
+                WITH target_transactions AS (
+                  SELECT id FROM ledger.transaction
+                  WHERE transaction_type IN ('FEE_ACCRUAL', 'FEE_SETTLEMENT')
+                    AND metadata->>'fund' = :fundName
+                )
+                DELETE FROM ledger.entry
+                WHERE transaction_id IN (SELECT id FROM target_transactions)
+                """)
+            .param("fundName", fundName)
+            .update();
+
+    int txDeleted =
+        jdbcClient
+            .sql(
+                """
+                DELETE FROM ledger.transaction
+                WHERE transaction_type IN ('FEE_ACCRUAL', 'FEE_SETTLEMENT')
+                  AND metadata->>'fund' = :fundName
+                """)
+            .param("fundName", fundName)
+            .update();
+
+    log.info(
+        "Deleted fee transactions: fund={}, transactions={}, entries={}",
+        fund,
+        txDeleted,
+        entriesDeleted);
+    return txDeleted;
   }
 
   private UUID generateAccrualReference(

@@ -243,7 +243,7 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
     savedValues[0].value() == 101.0
   }
 
-  def "save rejects anomalous values that deviate more than 20% from last stored value"() {
+  def "save rejects anomalous values that deviate more than 20% from previous date"() {
     given:
     def key = "SPIKE_TEST_" + UUID.randomUUID()
     fundValueRepository.save(aFundValue(key, parse("2020-01-01"), 100.0))
@@ -256,7 +256,7 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
     fundValueRepository.findLastValueForFund(key).get().date() == parse("2020-01-01")
   }
 
-  def "save accepts values within 20% deviation"() {
+  def "save accepts values within 20% deviation from previous date"() {
     given:
     def key = "NORMAL_TEST_" + UUID.randomUUID()
     fundValueRepository.save(aFundValue(key, parse("2020-01-01"), 100.0))
@@ -275,6 +275,30 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
 
     when:
     def result = fundValueRepository.save(aFundValue(key, parse("2020-01-01"), 34343.14))
+
+    then:
+    result.isPresent()
+  }
+
+  def "save skips validation when no previous value exists within 7 days"() {
+    given:
+    def key = "GAP_TEST_" + UUID.randomUUID()
+    fundValueRepository.save(aFundValue(key, parse("2020-01-01"), 100.0))
+
+    when:
+    def result = fundValueRepository.save(aFundValue(key, parse("2020-01-20"), 50.0))
+
+    then:
+    result.isPresent()
+  }
+
+  def "save allows historical backfill of older dates"() {
+    given:
+    def key = "BACKFILL_TEST_" + UUID.randomUUID()
+    fundValueRepository.save(aFundValue(key, parse("2020-06-01"), 100.0))
+
+    when:
+    def result = fundValueRepository.save(aFundValue(key, parse("2020-01-01"), 10.0))
 
     then:
     result.isPresent()

@@ -159,11 +159,13 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
     if (fundValue.key().startsWith("AUM_")) {
       return false;
     }
-    Optional<FundValue> lastValue = findLastValueForFund(fundValue.key());
-    if (lastValue.isEmpty()) {
+    LocalDate previousDate = fundValue.date().minusDays(7);
+    Optional<FundValue> previousValue =
+        getLatestValue(fundValue.key(), fundValue.date().minusDays(1));
+    if (previousValue.isEmpty() || previousValue.get().date().isBefore(previousDate)) {
       return false;
     }
-    BigDecimal previous = lastValue.get().value();
+    BigDecimal previous = previousValue.get().value();
     if (previous.signum() == 0) {
       return false;
     }
@@ -176,7 +178,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
           fundValue.date(),
           fundValue.value(),
           previous,
-          lastValue.get().date(),
+          previousValue.get().date(),
           deviation.multiply(new BigDecimal("100")));
       return true;
     }

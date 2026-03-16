@@ -15,7 +15,6 @@ import ee.tuleva.onboarding.investment.calculation.PositionCalculationRepository
 import ee.tuleva.onboarding.investment.portfolio.*;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
-import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -43,7 +42,6 @@ class LimitCheckServiceTest {
   @Mock ProviderLimitChecker providerLimitChecker;
   @Mock ReserveLimitChecker reserveLimitChecker;
   @Mock FreeCashLimitChecker freeCashLimitChecker;
-  @Mock TransactionOrderRepository transactionOrderRepository;
 
   Clock clock = Clock.fixed(Instant.parse("2026-03-04T16:00:00Z"), ZoneId.of("Europe/Tallinn"));
 
@@ -119,9 +117,6 @@ class LimitCheckServiceTest {
             .weight(BigDecimal.ONE)
             .build();
     when(modelPortfolioAllocationRepository.findLatestByFund(fund)).thenReturn(List.of(allocation));
-    var cutoff = today.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
-    when(transactionOrderRepository.findUnsettledOrdersAsOf(fund, today, cutoff))
-        .thenReturn(List.of());
 
     var positionBreach =
         new PositionBreach(
@@ -209,9 +204,6 @@ class LimitCheckServiceTest {
             .build();
     when(fundLimitRepository.findLatestByFund(fund)).thenReturn(Optional.of(fundLimit));
     when(modelPortfolioAllocationRepository.findLatestByFund(fund)).thenReturn(List.of());
-    var cutoff = today.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
-    when(transactionOrderRepository.findUnsettledOrdersAsOf(fund, today, cutoff))
-        .thenReturn(List.of());
     when(positionLimitChecker.check(any(), any(), any(), any())).thenReturn(List.of());
     when(providerLimitChecker.check(any(), any(), any(), any(), any())).thenReturn(List.of());
 
@@ -272,7 +264,6 @@ class LimitCheckServiceTest {
         positionLimitChecker,
         providerLimitChecker,
         reserveLimitChecker,
-        freeCashLimitChecker,
-        transactionOrderRepository);
+        freeCashLimitChecker);
   }
 }

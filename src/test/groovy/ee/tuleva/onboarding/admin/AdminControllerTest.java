@@ -289,8 +289,8 @@ class AdminControllerTest {
 
   @Test
   void rerecordPositions_rerecordsPositionsAndBackfillsFees() throws Exception {
-    when(clock.instant()).thenReturn(Instant.parse("2026-03-16T10:00:00Z"));
-    when(clock.getZone()).thenReturn(java.time.ZoneId.of("Europe/Tallinn"));
+    when(fundPositionRepository.findLatestNavDateByFund(TulevaFund.TUK75))
+        .thenReturn(java.util.Optional.of(LocalDate.of(2026, 3, 13)));
 
     mockMvc
         .perform(
@@ -305,7 +305,7 @@ class AdminControllerTest {
 
     verify(fundPositionLedgerService).rerecordPositions(TulevaFund.TUK75, LocalDate.of(2026, 3, 1));
     verify(navCalculationService)
-        .backfillFees(TulevaFund.TUK75, LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 16));
+        .backfillFees(TulevaFund.TUK75, LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 13));
   }
 
   @Test

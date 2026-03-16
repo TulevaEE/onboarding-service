@@ -195,7 +195,8 @@ public class AdminController {
     TulevaFund fund = TulevaFund.fromCode(fundCode);
     log.info("Admin triggered position re-record: fund={}, fromDate={}", fund, fromDate);
     fundPositionLedgerService.rerecordPositions(fund, fromDate);
-    navCalculationService.backfillFees(fund, fromDate, LocalDate.now(clock));
+    LocalDate latestNavDate = fundPositionRepository.findLatestNavDateByFund(fund).orElse(fromDate);
+    navCalculationService.backfillFees(fund, fromDate, latestNavDate);
 
     return "Re-recorded positions and fees for " + fundCode + " from " + fromDate;
   }

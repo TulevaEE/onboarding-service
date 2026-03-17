@@ -5,6 +5,7 @@ import static jakarta.persistence.EnumType.STRING;
 import static jakarta.persistence.GenerationType.IDENTITY;
 
 import ee.tuleva.onboarding.currency.Currency;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
@@ -51,5 +52,6 @@ class NavReportRow {
 
   private BigDecimal marketValue;
 
+  @Column(insertable = false, updatable = false)
   private Instant createdAt;
 }

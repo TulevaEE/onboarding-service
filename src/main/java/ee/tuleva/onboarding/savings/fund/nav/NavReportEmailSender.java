@@ -21,12 +21,10 @@ class NavReportEmailSender {
   private static final DateTimeFormatter FILENAME_DATE_FORMAT =
       DateTimeFormatter.ofPattern("ddMMyyyy");
 
-  private final NavReportMapper navReportMapper;
   private final NavReportCsvGenerator navReportCsvGenerator;
   private final EmailService emailService;
 
-  void send(NavCalculationResult result) {
-    var rows = navReportMapper.map(result);
+  void send(List<NavReportRow> rows, NavCalculationResult result) {
     var csvBytes = navReportCsvGenerator.generate(rows);
 
     var fundCode = result.fund().getCode();

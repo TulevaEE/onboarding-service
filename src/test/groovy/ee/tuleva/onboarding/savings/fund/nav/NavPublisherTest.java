@@ -19,13 +19,16 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 class NavPublisherTest {
 
   @Mock private FundValueRepository fundValueRepository;
-  @Mock private NavNotifier navNotifier;
+  @Mock private NavReportMapper navReportMapper;
+  @Mock private NavReportRepository navReportRepository;
   @Mock private NavReportEmailSender navReportEmailSender;
+  @Mock private NavNotifier navNotifier;
 
   @InjectMocks private NavPublisher navPublisher;
 
@@ -79,7 +82,9 @@ class NavPublisherTest {
     assertThat(aumValue.updatedAt()).isEqualTo(calcTime);
 
     verify(navNotifier).notify(result);
-    verify(navReportEmailSender).send(result);
+    verify(navReportMapper).map(result);
+    verify(navReportRepository).saveAll(any());
+    verify(navReportEmailSender).send(any(), eq(result));
   }
 
   @Test
@@ -113,11 +118,11 @@ class NavPublisherTest {
 
     verifyNoInteractions(fundValueRepository);
     verify(navNotifier).notify(result);
-    verify(navReportEmailSender).send(result);
+    verify(navReportEmailSender).send(any(), eq(result));
   }
 
   @Test
-  void publish_continuesIfEmailSendFails() {
+  void publish_continuesIfReportPersistFails() {
     LocalDate today = LocalDate.of(2025, 1, 15);
     Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
 
@@ -143,7 +148,9 @@ class NavPublisherTest {
             .securitiesDetail(List.of())
             .build();
 
-    doThrow(new RuntimeException("email failed")).when(navReportEmailSender).send(result);
+    doThrow(new DataIntegrityViolationException("null value in column created_at"))
+        .when(navReportRepository)
+        .saveAll(any());
 
     navPublisher.publish(result);
 

@@ -6,8 +6,6 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -28,7 +26,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class NavReportMapperTest {
 
   @Mock private FundPositionRepository fundPositionRepository;
-  @Mock private NavReportRepository navReportRepository;
 
   @InjectMocks private NavReportMapper navReportMapper;
 
@@ -86,7 +83,6 @@ class NavReportMapperTest {
                 FundPosition.builder()
                     .accountName("iShares Developed World Screened Index Fund")
                     .build()));
-    when(navReportRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
     var rows = navReportMapper.map(result);
 
@@ -157,8 +153,6 @@ class NavReportMapperTest {
           assertThat(row.getFundCode()).isEqualTo("TKF100");
           assertThat(row.getCurrency()).isEqualTo(EUR);
         });
-
-    verify(navReportRepository).saveAll(rows);
   }
 
   @Test
@@ -201,7 +195,6 @@ class NavReportMapperTest {
                 FundPosition.builder()
                     .accountName("iShares Developed World Screened Index Fund")
                     .build()));
-    when(navReportRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
     var rows = navReportMapper.map(result);
 

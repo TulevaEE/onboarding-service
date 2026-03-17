@@ -94,6 +94,7 @@ Prefer: `text` over `varchar` unless the length is a domain invariant (e.g., `va
 - **AssertJ only**. Compare full objects/collections. Never assert on exception/log messages
 - Only mock injected dependencies. Never mock data classes. Prefer real instances and test fixtures
 - Avoid `ArgumentCaptor` — assert on return values or `verify` with expected object
+- **Prefer test slices** over `@SpringBootTest` — use `@WebMvcTest` for controllers, `@DataJpaTest` for repositories, etc. Only use `@SpringBootTest` when a slice won't cover the integration
 - Controller tests: `@WebMvcTest` + `@WithMockUser` + `@MockitoBean` (not `@MockBean`) + `.with(csrf())` + `@TestPropertySource` (not `ReflectionTestUtils`)
 
 ## Code Style

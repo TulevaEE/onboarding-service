@@ -2,10 +2,10 @@ package ee.tuleva.onboarding.savings.fund.nav;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -15,17 +15,31 @@ public class NavPublisher {
   private static final String NAV_PROVIDER = "TULEVA";
 
   private final FundValueRepository fundValueRepository;
-  private final NavNotifier navNotifier;
+  private final NavReportMapper navReportMapper;
+  private final NavReportRepository navReportRepository;
   private final NavReportEmailSender navReportEmailSender;
+  private final NavNotifier navNotifier;
 
-  @Transactional
   public void publish(NavCalculationResult result) {
     if (result.fund().isSavingsFund()) {
       publishNav(result);
       publishAum(result);
     }
+
+    List<NavReportRow> reportRows = List.of();
     try {
-      navReportEmailSender.send(result);
+      reportRows = navReportMapper.map(result);
+      navReportRepository.saveAll(reportRows);
+    } catch (Exception e) {
+      log.error(
+          "Failed to persist NAV report: fund={}, date={}",
+          result.fund(),
+          result.calculationDate(),
+          e);
+    }
+
+    try {
+      navReportEmailSender.send(reportRows, result);
     } catch (Exception e) {
       log.error(
           "Failed to send NAV report email: fund={}, date={}",
@@ -33,6 +47,7 @@ public class NavPublisher {
           result.calculationDate(),
           e);
     }
+
     navNotifier.notify(result);
 
     log.info(

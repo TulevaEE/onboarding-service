@@ -23,7 +23,6 @@ class NavReportMapper {
   private static final BigDecimal ONE = new BigDecimal("1.00");
 
   private final FundPositionRepository fundPositionRepository;
-  private final NavReportRepository navReportRepository;
 
   List<NavReportRow> map(NavCalculationResult result) {
     var rows = new ArrayList<NavReportRow>();
@@ -84,7 +83,7 @@ class NavReportMapper {
     rows.add(unitsRow(navDate, fundCode, result));
     rows.add(navRow(navDate, fundCode, result));
 
-    return navReportRepository.saveAll(rows);
+    return rows;
   }
 
   private NavReportRow securityRow(LocalDate navDate, TulevaFund fund, SecurityDetail detail) {

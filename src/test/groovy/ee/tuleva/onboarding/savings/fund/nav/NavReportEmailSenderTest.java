@@ -23,7 +23,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class NavReportEmailSenderTest {
 
-  @Mock private NavReportMapper navReportMapper;
   @Mock private NavReportCsvGenerator navReportCsvGenerator;
   @Mock private EmailService emailService;
 
@@ -56,10 +55,9 @@ class NavReportEmailSenderTest {
     var rows = List.of(NavReportRow.builder().navDate(navDate).fundCode("TKF100").build());
     var csvBytes = "csv-content".getBytes(UTF_8);
 
-    when(navReportMapper.map(result)).thenReturn(rows);
     when(navReportCsvGenerator.generate(rows)).thenReturn(csvBytes);
 
-    navReportEmailSender.send(result);
+    navReportEmailSender.send(rows, result);
 
     var messageCaptor = ArgumentCaptor.forClass(MandrillMessage.class);
     verify(emailService).sendSystemEmail(messageCaptor.capture());

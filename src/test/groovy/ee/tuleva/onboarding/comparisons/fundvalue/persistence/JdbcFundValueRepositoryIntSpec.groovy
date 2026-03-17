@@ -246,23 +246,27 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
   def "save rejects anomalous values that deviate more than 20% from previous date"() {
     given:
     def key = "SPIKE_TEST_" + UUID.randomUUID()
-    fundValueRepository.save(aFundValue(key, parse("2020-01-01"), 100.0))
+    def yesterday = LocalDate.now().minusDays(1)
+    def today = LocalDate.now()
+    fundValueRepository.save(aFundValue(key, yesterday, 100.0))
 
     when:
-    def spikeResult = fundValueRepository.save(aFundValue(key, parse("2020-01-02"), 150.0))
+    def spikeResult = fundValueRepository.save(aFundValue(key, today, 150.0))
 
     then:
     spikeResult.isEmpty()
-    fundValueRepository.findLastValueForFund(key).get().date() == parse("2020-01-01")
+    fundValueRepository.findLastValueForFund(key).get().date() == yesterday
   }
 
   def "save accepts values within 20% deviation from previous date"() {
     given:
     def key = "NORMAL_TEST_" + UUID.randomUUID()
-    fundValueRepository.save(aFundValue(key, parse("2020-01-01"), 100.0))
+    def yesterday = LocalDate.now().minusDays(1)
+    def today = LocalDate.now()
+    fundValueRepository.save(aFundValue(key, yesterday, 100.0))
 
     when:
-    def normalResult = fundValueRepository.save(aFundValue(key, parse("2020-01-02"), 115.0))
+    def normalResult = fundValueRepository.save(aFundValue(key, today, 115.0))
 
     then:
     normalResult.isPresent()
@@ -287,6 +291,18 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
 
     when:
     def result = fundValueRepository.save(aFundValue(key, parse("2020-01-20"), 50.0))
+
+    then:
+    result.isPresent()
+  }
+
+  def "save skips anomaly check for dates older than 1 year"() {
+    given:
+    def key = "OLD_SPIKE_" + UUID.randomUUID()
+    fundValueRepository.save(aFundValue(key, parse("2020-01-01"), 100.0))
+
+    when:
+    def result = fundValueRepository.save(aFundValue(key, parse("2020-01-02"), 150.0))
 
     then:
     result.isPresent()

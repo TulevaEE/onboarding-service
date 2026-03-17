@@ -159,6 +159,9 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
     if (fundValue.key().startsWith("AUM_")) {
       return false;
     }
+    if (fundValue.date().isBefore(LocalDate.now().minusYears(1))) {
+      return false;
+    }
     LocalDate previousDate = fundValue.date().minusDays(7);
     Optional<FundValue> previousValue =
         getLatestValue(fundValue.key(), fundValue.date().minusDays(1));

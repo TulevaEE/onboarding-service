@@ -42,6 +42,18 @@ public class IssuingJob {
       log.info("No payments to issue, skipping");
       return;
     }
+    var previousCutoff = getPreviousCutoff();
+    payments.forEach(
+        payment -> {
+          if (payment.getReceivedBefore() != null
+              && payment.getReceivedBefore().isBefore(previousCutoff)) {
+            log.error(
+                "Old payment detected: payment {} was received at {} which is before the previous cutoff time {}",
+                payment.getId(),
+                payment.getReceivedBefore(),
+                previousCutoff);
+          }
+        });
     log.info("Running issuing job for {} payments", payments.size());
     var nav = getNAV();
     log.info("Running issuing job for {} payments with nav {}", payments.size(), nav);
@@ -93,6 +105,23 @@ public class IssuingJob {
     return reservedPayments.stream()
         .filter(payment -> payment.getReceivedBefore().isBefore(reservedTransactionCutoff))
         .toList();
+  }
+
+  private Instant getPreviousCutoff() {
+    var today = todayInTallinn();
+    var todaysCutoff = getCutoff(today);
+    var currentTime = clock.instant();
+    var publicHolidays = new PublicHolidays();
+    var isTodayWorkingDay = publicHolidays.isWorkingDay(today);
+    if (currentTime.isBefore(todaysCutoff) || !isTodayWorkingDay) {
+      var thirdToLastWorkingDay =
+          publicHolidays.previousWorkingDay(
+              publicHolidays.previousWorkingDay(publicHolidays.previousWorkingDay(today)));
+      return getCutoff(thirdToLastWorkingDay);
+    }
+    var secondToLastWorkingDay =
+        publicHolidays.previousWorkingDay(publicHolidays.previousWorkingDay(today));
+    return getCutoff(secondToLastWorkingDay);
   }
 
   private LocalDate todayInTallinn() {

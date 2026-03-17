@@ -11,6 +11,10 @@ import static java.time.temporal.ChronoUnit.HOURS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
@@ -23,6 +27,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
@@ -332,5 +337,34 @@ class IssuingJobTest {
         .publishEvent(
             new IssuingCompletedEvent(
                 2, new BigDecimal("1500.00"), new BigDecimal("150.12301"), nav));
+  }
+
+  @Test
+  void logsErrorWhenPaymentIsOlderThanPreviousCutoff() {
+    // Friday Jan 10, 2025 at 18:00 EET (16:00 UTC) - after cutoff on working day
+    // Current cutoff = Thu Jan 9 at 16:00 EET = 14:00 UTC
+    // Previous cutoff = Wed Jan 8 at 16:00 EET = 14:00 UTC
+    var now = Instant.parse("2025-01-10T16:00:00Z");
+    var issuingJob = createIssuingJob(now);
+
+    var oldPayment =
+        aPayment().receivedBefore(Instant.parse("2025-01-07T10:00:00Z")).status(RESERVED).build();
+
+    var normalPayment =
+        aPayment().receivedBefore(Instant.parse("2025-01-09T10:00:00Z")).status(RESERVED).build();
+
+    when(paymentRepository.findPaymentsWithStatus(RESERVED))
+        .thenReturn(List.of(oldPayment, normalPayment));
+
+    var logAppender = new ListAppender<ILoggingEvent>();
+    var logger = (Logger) LoggerFactory.getLogger(IssuingJob.class);
+    logAppender.start();
+    logger.addAppender(logAppender);
+
+    issuingJob.runJob();
+
+    logger.detachAppender(logAppender);
+
+    assertThat(logAppender.list).filteredOn(event -> event.getLevel() == Level.ERROR).hasSize(1);
   }
 }

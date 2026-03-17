@@ -68,7 +68,7 @@ Flyway in `src/main/resources/db/migration/`. H2 compat migrations: `V1_{n-1}_1_
   ```
 
 ### PostgreSQL Types
-Prefer: `text` (not `varchar`), `timestamptz` (pairs with `Instant`), `bigint` for IDs, `numeric(19,2)` for money, `uuid` for external IDs, `jsonb` (not `json`), `boolean` (not int flags). Always index foreign keys.
+Prefer: `text` over `varchar` unless the length is a domain invariant (e.g., `varchar(3)` for ISO 4217 currency codes, `varchar(2)` for ISO country codes). Use `varchar(n)` when the spec guarantees the max length — use `text` when the limit would be arbitrary. Other preferences: `timestamptz` (pairs with `Instant`), `bigint` for IDs, `numeric(19,2)` for money, `uuid` for external IDs, `jsonb` (not `json`), `boolean` (not int flags). Always index foreign keys.
 
 ### Preferences
 - Always use the latest Spring classes (`JdbcClient`, `RestClient`, etc.) over legacy equivalents

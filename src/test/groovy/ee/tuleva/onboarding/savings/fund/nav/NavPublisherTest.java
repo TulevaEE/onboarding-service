@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentCaptor.forClass;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
@@ -24,6 +25,7 @@ class NavPublisherTest {
 
   @Mock private FundValueRepository fundValueRepository;
   @Mock private NavNotifier navNotifier;
+  @Mock private NavReportEmailSender navReportEmailSender;
 
   @InjectMocks private NavPublisher navPublisher;
 
@@ -77,6 +79,7 @@ class NavPublisherTest {
     assertThat(aumValue.updatedAt()).isEqualTo(calcTime);
 
     verify(navNotifier).notify(result);
+    verify(navReportEmailSender).send(result);
   }
 
   @Test
@@ -109,6 +112,42 @@ class NavPublisherTest {
     navPublisher.publish(result);
 
     verifyNoInteractions(fundValueRepository);
+    verify(navNotifier).notify(result);
+    verify(navReportEmailSender).send(result);
+  }
+
+  @Test
+  void publish_continuesIfEmailSendFails() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
+
+    var result =
+        NavCalculationResult.builder()
+            .fund(TKF100)
+            .calculationDate(today)
+            .securitiesValue(new BigDecimal("900000.00"))
+            .cashPosition(new BigDecimal("50000.00"))
+            .receivables(BigDecimal.ZERO)
+            .pendingSubscriptions(BigDecimal.ZERO)
+            .pendingRedemptions(BigDecimal.ZERO)
+            .managementFeeAccrual(BigDecimal.ZERO)
+            .depotFeeAccrual(BigDecimal.ZERO)
+            .payables(BigDecimal.ZERO)
+            .blackrockAdjustment(BigDecimal.ZERO)
+            .aum(new BigDecimal("950000.00"))
+            .unitsOutstanding(new BigDecimal("100000.00000"))
+            .navPerUnit(new BigDecimal("9.50000"))
+            .positionReportDate(today)
+            .priceDate(today)
+            .calculatedAt(calcTime)
+            .securitiesDetail(List.of())
+            .build();
+
+    doThrow(new RuntimeException("email failed")).when(navReportEmailSender).send(result);
+
+    navPublisher.publish(result);
+
+    verify(fundValueRepository, times(2)).save(any());
     verify(navNotifier).notify(result);
   }
 }

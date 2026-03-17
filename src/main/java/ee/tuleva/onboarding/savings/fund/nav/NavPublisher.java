@@ -16,12 +16,22 @@ public class NavPublisher {
 
   private final FundValueRepository fundValueRepository;
   private final NavNotifier navNotifier;
+  private final NavReportEmailSender navReportEmailSender;
 
   @Transactional
   public void publish(NavCalculationResult result) {
     if (result.fund().isSavingsFund()) {
       publishNav(result);
       publishAum(result);
+    }
+    try {
+      navReportEmailSender.send(result);
+    } catch (Exception e) {
+      log.error(
+          "Failed to send NAV report email: fund={}, date={}",
+          result.fund(),
+          result.calculationDate(),
+          e);
     }
     navNotifier.notify(result);
 

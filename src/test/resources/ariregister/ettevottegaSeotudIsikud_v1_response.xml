@@ -1,0 +1,26 @@
+<ns1:ettevottegaSeotudIsikud_v1Response xmlns:ns1="http://arireg.x-road.eu/producer/">
+  <ns1:paring>
+    <ns1:ariregistri_kood>14118923</ns1:ariregistri_kood>
+  </ns1:paring>
+  <ns1:keha>
+    <ns1:seosed>
+      <ns1:isiku_tyyp>F</ns1:isiku_tyyp>
+      <ns1:isiku_roll>J</ns1:isiku_roll>
+      <ns1:isiku_roll_tekstina>Juhatuse liige</ns1:isiku_roll_tekstina>
+      <ns1:eesnimi>Tõnu</ns1:eesnimi>
+      <ns1:nimi_arinimi>Pekk</ns1:nimi_arinimi>
+      <ns1:isikukood_registrikood>37201234567</ns1:isikukood_registrikood>
+      <ns1:algus_kpv>2017-04-03</ns1:algus_kpv>
+    </ns1:seosed>
+    <ns1:seosed>
+      <ns1:isiku_tyyp>F</ns1:isiku_tyyp>
+      <ns1:isiku_roll>N</ns1:isiku_roll>
+      <ns1:isiku_roll_tekstina>Nõukogu liige</ns1:isiku_roll_tekstina>
+      <ns1:eesnimi>Mari</ns1:eesnimi>
+      <ns1:nimi_arinimi>Maasikas</ns1:nimi_arinimi>
+      <ns1:isikukood_registrikood>48901234567</ns1:isikukood_registrikood>
+      <ns1:algus_kpv>2020-01-15</ns1:algus_kpv>
+      <ns1:lopp_kpv>2025-12-31</ns1:lopp_kpv>
+    </ns1:seosed>
+  </ns1:keha>
+</ns1:ettevottegaSeotudIsikud_v1Response>

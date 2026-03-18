@@ -108,6 +108,8 @@ dependencies {
     implementation("org.decampo:xirr:1.2")
     implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.9")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.4")
+    implementation("org.springframework.boot:spring-boot-starter-web-services")
+    testImplementation("org.springframework.ws:spring-ws-test")
 
     xjc("org.glassfish.jaxb:jaxb-xjc:4.0.5")
 
@@ -341,19 +343,25 @@ tasks {
         group = "code generation"
         description = "Generates Java classes from XSD files"
 
-        val xsdDir = file("$projectDir/src/main/resources/banking/iso20022")
-        val outputDir = file("${layout.buildDirectory.get()}/generated-sources/iso20022")
-        val rootSchemas =
+        val iso20022Dir = file("$projectDir/src/main/resources/banking/iso20022")
+        val iso20022OutputDir = file("${layout.buildDirectory.get()}/generated-sources/iso20022")
+        val iso20022Schemas =
             listOf(
-                file("$xsdDir/camt.060.001.03.xsd") to "ee.tuleva.onboarding.banking.iso20022.camt060",
-                file("$xsdDir/camt.052.001.02.xsd") to "ee.tuleva.onboarding.banking.iso20022.camt052",
-                file("$xsdDir/camt.053.001.02.xsd") to "ee.tuleva.onboarding.banking.iso20022.camt053",
+                file("$iso20022Dir/camt.060.001.03.xsd") to "ee.tuleva.onboarding.banking.iso20022.camt060",
+                file("$iso20022Dir/camt.052.001.02.xsd") to "ee.tuleva.onboarding.banking.iso20022.camt052",
+                file("$iso20022Dir/camt.053.001.02.xsd") to "ee.tuleva.onboarding.banking.iso20022.camt053",
+            )
+
+        val ariregisterDir = file("$projectDir/src/main/resources/ariregister")
+        val ariregisterOutputDir = file("${layout.buildDirectory.get()}/generated-sources/ariregister")
+        val ariregisterSchemas =
+            listOf(
+                file("$ariregisterDir/ettevottegaSeotudIsikud_v1.xsd") to "ee.tuleva.onboarding.ariregister.generated",
             )
 
         doLast {
-            outputDir.mkdirs()
-
-            rootSchemas.forEach { (schemaFile, packageName) ->
+            iso20022OutputDir.mkdirs()
+            iso20022Schemas.forEach { (schemaFile, packageName) ->
                 execOps.exec {
                     executable = "java"
                     args(
@@ -361,7 +369,24 @@ tasks {
                         configurations["xjc"].asPath,
                         "com.sun.tools.xjc.XJCFacade",
                         "-d",
-                        outputDir.absolutePath,
+                        iso20022OutputDir.absolutePath,
+                        "-p",
+                        packageName,
+                        schemaFile.absolutePath,
+                    )
+                }
+            }
+
+            ariregisterOutputDir.mkdirs()
+            ariregisterSchemas.forEach { (schemaFile, packageName) ->
+                execOps.exec {
+                    executable = "java"
+                    args(
+                        "-cp",
+                        configurations["xjc"].asPath,
+                        "com.sun.tools.xjc.XJCFacade",
+                        "-d",
+                        ariregisterOutputDir.absolutePath,
                         "-p",
                         packageName,
                         schemaFile.absolutePath,
@@ -385,6 +410,7 @@ sourceSets {
     main {
         java {
             srcDir("${layout.buildDirectory.get()}/generated-sources/iso20022")
+            srcDir("${layout.buildDirectory.get()}/generated-sources/ariregister")
         }
     }
 }

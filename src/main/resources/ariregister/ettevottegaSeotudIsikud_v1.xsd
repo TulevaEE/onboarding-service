@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<xsd:schema
+    targetNamespace="http://arireg.x-road.eu/producer/"
+    elementFormDefault="qualified"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:ar="http://arireg.x-road.eu/producer/">
+
+    <xsd:complexType name="ettevottega_seotud_isikud_paring">
+        <xsd:sequence>
+            <xsd:element name="ariregister_kasutajanimi" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="ariregister_parool" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="ariregistri_kood" type="xsd:integer" minOccurs="0"/>
+            <xsd:element name="keel" type="xsd:string" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="ettevottega_seotud_isikud_vastus">
+        <xsd:sequence>
+            <xsd:element minOccurs="0" maxOccurs="unbounded" name="seosed" type="ar:seos"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="seos">
+        <xsd:sequence>
+            <xsd:element name="isiku_tyyp" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="isiku_roll" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="isiku_roll_tekstina" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="eesnimi" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="nimi_arinimi" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="isikukood_registrikood" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="synniaeg" type="xsd:date" minOccurs="0"/>
+            <xsd:element name="algus_kpv" type="xsd:date" minOccurs="0"/>
+            <xsd:element name="lopp_kpv" type="xsd:date" minOccurs="0"/>
+            <xsd:element name="osaluse_protsent" type="xsd:decimal" minOccurs="0"/>
+            <xsd:element name="osaluse_suurus" type="xsd:decimal" minOccurs="0"/>
+            <xsd:element name="osaluse_valuuta" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="aadress_riik" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="aadress_riik_tekstina" type="xsd:string" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="ettevottegaSeotudIsikudV1">
+        <xsd:sequence>
+            <xsd:element name="keha" type="ar:ettevottega_seotud_isikud_paring"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="ettevottegaSeotudIsikudV1Response">
+        <xsd:sequence>
+            <xsd:element name="paring" type="ar:ettevottega_seotud_isikud_paring"/>
+            <xsd:element name="keha" type="ar:ettevottega_seotud_isikud_vastus"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:element name="ettevottegaSeotudIsikud_v1" type="ar:ettevottegaSeotudIsikudV1"/>
+    <xsd:element name="ettevottegaSeotudIsikud_v1Response" type="ar:ettevottegaSeotudIsikudV1Response"/>
+
+</xsd:schema>

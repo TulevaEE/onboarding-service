@@ -71,6 +71,11 @@ truststore:
   path: "test_keys/truststore.jks"
   password: changeit
 
+ariregister:
+  url: https://ariregxmlv6.rik.ee/ariregxml
+  username: ${ARIREGISTER_USERNAME:}
+  password: ${ARIREGISTER_PASSWORD:}
+
 seb-gateway:
   enabled: false
   keystore:

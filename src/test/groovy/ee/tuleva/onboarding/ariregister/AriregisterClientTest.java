@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.ws.test.client.RequestMatchers.xpath;
 import static org.springframework.ws.test.client.ResponseCreators.withPayload;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,33 +33,94 @@ class AriregisterClientTest {
   }
 
   @Test
-  void getCompanyPersons() throws Exception {
-    var responsePayload =
-        new ResourceSource(
-            new ClassPathResource("ariregister/ettevottegaSeotudIsikud_v1_response.xml"));
-
+  void getCompanyRelationships() throws Exception {
     mockServer
-        .expect(xpath("//ar:ariregistri_kood", NS).evaluatesTo("14118923"))
+        .expect(xpath("//ar:ariregistri_kood", NS).evaluatesTo("99000001"))
         .andExpect(xpath("//ar:ariregister_kasutajanimi", NS).evaluatesTo("testuser"))
         .andExpect(xpath("//ar:ariregister_parool", NS).evaluatesTo("testpass"))
         .andExpect(xpath("//ar:keel", NS).evaluatesTo("est"))
-        .andRespond(withPayload(responsePayload));
+        .andRespond(withPayload(responsePayload()));
 
-    var result = client.getCompanyPersons("14118923");
+    var result = client.getCompanyRelationships("99000001");
 
     assertThat(result)
         .containsExactly(
-            new CompanyPerson(
-                "Tõnu", "Pekk", "37201234567", "Juhatuse liige", LocalDate.of(2017, 4, 3), null),
-            new CompanyPerson(
-                "Mari",
-                "Maasikas",
-                "48901234567",
+            new CompanyRelationship(
+                "F",
+                "JUHL",
+                "Juhatuse liige",
+                "Jaan",
+                "Tamm",
+                "39901010000",
+                LocalDate.of(1999, 1, 1),
+                LocalDate.of(2017, 4, 3),
+                null,
+                new BigDecimal("50.00"),
+                "Osaluse kaudu",
+                "EST"),
+            new CompanyRelationship(
+                "F",
+                "N",
                 "Nõukogu liige",
+                "Kati",
+                "Kask",
+                "48501010000",
+                LocalDate.of(1985, 1, 1),
                 LocalDate.of(2020, 1, 15),
-                LocalDate.of(2025, 12, 31)));
+                LocalDate.of(2025, 12, 31),
+                null,
+                null,
+                "EST"),
+            new CompanyRelationship(
+                "J",
+                "S",
+                "Osanik",
+                null,
+                "Test Firma OÜ",
+                "99000002",
+                null,
+                LocalDate.of(2018, 6, 1),
+                null,
+                new BigDecimal("25.50"),
+                null,
+                "EST"));
 
     mockServer.verify();
+  }
+
+  @Test
+  void filtersOutExpiredRelationships() throws Exception {
+    mockServer
+        .expect(xpath("//ar:ariregistri_kood", NS).evaluatesTo("99000001"))
+        .andRespond(withPayload(responsePayload()));
+
+    var asOf = LocalDate.of(2026, 3, 1);
+    var result = client.getActiveCompanyRelationships("99000001", asOf);
+
+    assertThat(result)
+        .extracting(CompanyRelationship::lastName)
+        .containsExactly("Tamm", "Test Firma OÜ");
+
+    mockServer.verify();
+  }
+
+  @Test
+  void filtersOutFutureDatedRelationships() throws Exception {
+    mockServer
+        .expect(xpath("//ar:ariregistri_kood", NS).evaluatesTo("99000001"))
+        .andRespond(withPayload(responsePayload()));
+
+    var asOf = LocalDate.of(2017, 6, 1);
+    var result = client.getActiveCompanyRelationships("99000001", asOf);
+
+    assertThat(result).extracting(CompanyRelationship::lastName).containsExactly("Tamm");
+
+    mockServer.verify();
+  }
+
+  private static ResourceSource responsePayload() throws Exception {
+    return new ResourceSource(
+        new ClassPathResource("ariregister/ettevottegaSeotudIsikud_v1_response.xml"));
   }
 
   @org.springframework.context.annotation.Configuration

@@ -1,0 +1,76 @@
+package ee.tuleva.onboarding.ariregister;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import ee.tuleva.onboarding.ariregister.generated.Seos;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import javax.xml.datatype.DatatypeFactory;
+import org.junit.jupiter.api.Test;
+
+class CompanyRelationshipMapperTest {
+
+  @Test
+  void mapsPhysicalPersonWithAllFields() throws Exception {
+    var factory = DatatypeFactory.newInstance();
+    var seos = new Seos();
+    seos.setIsikuTyyp("F");
+    seos.setIsikuRoll("JUHL");
+    seos.setIsikuRollTekstina("Juhatuse liige");
+    seos.setEesnimi("Jaan");
+    seos.setNimiArinimi("Tamm");
+    seos.setIsikukoodRegistrikood("39901010000");
+    seos.setSynniaeg(factory.newXMLGregorianCalendar("1999-01-01"));
+    seos.setAlgusKpv(factory.newXMLGregorianCalendar("2017-04-03"));
+    seos.setLoppKpv(factory.newXMLGregorianCalendar("2025-12-31"));
+    seos.setOsaluseProtsent(new BigDecimal("50.00"));
+    seos.setKontrolliTeostamiseViisTekstina("Osaluse kaudu");
+    seos.setAadressRiik("EST");
+
+    var result = CompanyRelationshipMapper.fromSeos(seos);
+
+    assertThat(result)
+        .isEqualTo(
+            new CompanyRelationship(
+                "F",
+                "JUHL",
+                "Juhatuse liige",
+                "Jaan",
+                "Tamm",
+                "39901010000",
+                LocalDate.of(1999, 1, 1),
+                LocalDate.of(2017, 4, 3),
+                LocalDate.of(2025, 12, 31),
+                new BigDecimal("50.00"),
+                "Osaluse kaudu",
+                "EST"));
+  }
+
+  @Test
+  void mapsJuridicalEntityWithMinimalFields() {
+    var seos = new Seos();
+    seos.setIsikuTyyp("J");
+    seos.setIsikuRoll("S");
+    seos.setIsikuRollTekstina("Osanik");
+    seos.setNimiArinimi("Test Firma OÜ");
+    seos.setIsikukoodRegistrikood("99000002");
+
+    var result = CompanyRelationshipMapper.fromSeos(seos);
+
+    assertThat(result)
+        .isEqualTo(
+            new CompanyRelationship(
+                "J",
+                "S",
+                "Osanik",
+                null,
+                "Test Firma OÜ",
+                "99000002",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null));
+  }
+}

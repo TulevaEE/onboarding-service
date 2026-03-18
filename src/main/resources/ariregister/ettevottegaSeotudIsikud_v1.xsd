@@ -36,6 +36,10 @@
             <xsd:element name="osaluse_valuuta" type="xsd:string" minOccurs="0"/>
             <xsd:element name="aadress_riik" type="xsd:string" minOccurs="0"/>
             <xsd:element name="aadress_riik_tekstina" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="kontrolli_teostamise_viis" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="kontrolli_teostamise_viis_tekstina" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="staatus" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="staatus_tekstina" type="xsd:string" minOccurs="0"/>
         </xsd:sequence>
     </xsd:complexType>
 

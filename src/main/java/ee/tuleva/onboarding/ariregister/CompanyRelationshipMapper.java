@@ -4,16 +4,22 @@ import ee.tuleva.onboarding.ariregister.generated.Seos;
 import java.time.LocalDate;
 import javax.xml.datatype.XMLGregorianCalendar;
 
-class CompanyPersonMapper {
+class CompanyRelationshipMapper {
 
-  static CompanyPerson fromSeos(Seos seos) {
-    return new CompanyPerson(
+  static CompanyRelationship fromSeos(Seos seos) {
+    return new CompanyRelationship(
+        seos.getIsikuTyyp(),
+        seos.getIsikuRoll(),
+        seos.getIsikuRollTekstina(),
         seos.getEesnimi(),
         seos.getNimiArinimi(),
         seos.getIsikukoodRegistrikood(),
-        seos.getIsikuRollTekstina(),
+        toLocalDate(seos.getSynniaeg()),
         toLocalDate(seos.getAlgusKpv()),
-        toLocalDate(seos.getLoppKpv()));
+        toLocalDate(seos.getLoppKpv()),
+        seos.getOsaluseProtsent(),
+        seos.getKontrolliTeostamiseViisTekstina(),
+        seos.getAadressRiik());
   }
 
   private static LocalDate toLocalDate(XMLGregorianCalendar calendar) {

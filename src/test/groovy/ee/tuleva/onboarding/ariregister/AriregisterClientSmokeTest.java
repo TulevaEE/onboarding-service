@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.ariregister;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.LocalDate;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.oxm.jaxb.Jaxb2Marshaller;
@@ -11,7 +12,7 @@ import org.springframework.ws.client.core.WebServiceTemplate;
 class AriregisterClientSmokeTest {
 
   @Test
-  void fetchTulevaFondidBoardMembers() {
+  void fetchTulevaFondidRelationships() {
     var marshaller = new Jaxb2Marshaller();
     marshaller.setContextPath("ee.tuleva.onboarding.ariregister.generated");
 
@@ -25,17 +26,21 @@ class AriregisterClientSmokeTest {
             System.getenv("ARIREGISTER_PASSWORD"));
 
     var client = new AriregisterClient(template, properties);
-    var persons = client.getCompanyPersons("14118923");
+    var relationships = client.getActiveCompanyRelationships("14118923", LocalDate.now());
 
-    assertThat(persons).isNotEmpty();
-    persons.forEach(
-        person ->
+    assertThat(relationships).isNotEmpty();
+    relationships.forEach(
+        r ->
             System.out.printf(
-                "%s %s (%s) — %s, from %s%n",
-                person.firstName(),
-                person.lastName(),
-                person.personalCode(),
-                person.role(),
-                person.startDate()));
+                "[%s] %s %s (%s) — %s (%s), from %s, ownership=%s, country=%s%n",
+                r.personType(),
+                r.firstName(),
+                r.lastName(),
+                r.personalCode(),
+                r.role(),
+                r.roleCode(),
+                r.startDate(),
+                r.ownershipPercent(),
+                r.countryCode()));
   }
 }

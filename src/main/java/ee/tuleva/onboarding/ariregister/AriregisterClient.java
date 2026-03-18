@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.ariregister.generated.EttevottegaSeotudIsikudV1Respo
 import ee.tuleva.onboarding.ariregister.generated.ObjectFactory;
 import jakarta.xml.bind.JAXBElement;
 import java.math.BigInteger;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,8 +23,8 @@ public class AriregisterClient {
   private final WebServiceTemplate ariregisterWebServiceTemplate;
   private final AriregisterProperties properties;
 
-  public List<CompanyPerson> getCompanyPersons(String registryCode) {
-    log.info("Fetching persons: registryCode={}", registryCode);
+  public List<CompanyRelationship> getCompanyRelationships(String registryCode) {
+    log.info("Fetching company relationships: registryCode={}", registryCode);
 
     var paring = new EttevottegaSeotudIsikudParing();
     paring.setAriregisterKasutajanimi(properties.username());
@@ -45,6 +46,14 @@ public class AriregisterClient {
       return List.of();
     }
 
-    return vastus.getSeosed().stream().map(CompanyPersonMapper::fromSeos).toList();
+    return vastus.getSeosed().stream().map(CompanyRelationshipMapper::fromSeos).toList();
+  }
+
+  public List<CompanyRelationship> getActiveCompanyRelationships(
+      String registryCode, LocalDate asOf) {
+    return getCompanyRelationships(registryCode).stream()
+        .filter(r -> r.startDate() == null || !r.startDate().isAfter(asOf))
+        .filter(r -> r.endDate() == null || !r.endDate().isBefore(asOf))
+        .toList();
   }
 }

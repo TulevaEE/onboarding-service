@@ -12,6 +12,7 @@ Follow **Uncle Bob** (Clean Code, SOLID), **Kent Beck** (TDD, simple design), **
 - **KISS / YAGNI** — simplest solution that works. Don't build for hypothetical future requirements: "duplication is far cheaper than the wrong abstraction."
 - **Boy Scout Rule** — always leave code cleaner than you found it.
 - **DORA four key metrics** — optimize for deployment frequency, lead time for changes, change failure rate, and time to restore.
+- **Decision-first, not integration-first** — when adding external API integrations, start from "which business decision does this unblock?" not "which endpoints can we call?" Only add a new operation when a failing test proves the current data cannot answer a required decision.
 
 ## TDD-First Planning
 
@@ -26,6 +27,8 @@ Follow **Uncle Bob** (Clean Code, SOLID), **Kent Beck** (TDD, simple design), **
 ✅ "1. Failing integration test 2. Failing unit test for A → implement A → refactor 3. Integration test passes 4. Full suite green"
 
 **Bug fixes**: don't just reproduce the specific bug — ask what tests are missing that would catch this and similar bugs.
+
+**External integrations**: the failing integration test should assert a *business outcome* (e.g., "active board members for registry code X"), not infrastructure plumbing (e.g., "XSD generates classes"). Infrastructure setup is a prerequisite, not a test target.
 
 ## Commands
 
@@ -53,6 +56,10 @@ Follow **Uncle Bob** (Clean Code, SOLID), **Kent Beck** (TDD, simple design), **
 ## Architecture
 
 Spring Boot application following DDD and Spring Modulith best practices. Java 25 with preview features. Controllers are thin routing layers — extract complex logic into `@Component` classes (`*Verifier`, `*Mapper`, `*Validator`).
+
+**Spring Modulith** — each top-level package under `ee.tuleva.onboarding` is a module. Only types in the package root are public API; sub-packages are internal. Modules communicate via Spring application events, not direct cross-module injection. Use `@ApplicationModuleTest` to verify module boundaries.
+
+**Anti-corruption layer for external APIs** — external API response types (JAXB, JSON DTOs) must not leak outside their module. Map to domain records at the module boundary. Use stable identifiers (codes, enums) over localized text for domain rules. External API modules expose only domain types as their public API.
 
 ## Database
 

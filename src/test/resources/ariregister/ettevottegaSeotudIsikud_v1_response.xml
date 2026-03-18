@@ -1,26 +1,42 @@
 <ns1:ettevottegaSeotudIsikud_v1Response xmlns:ns1="http://arireg.x-road.eu/producer/">
   <ns1:paring>
-    <ns1:ariregistri_kood>14118923</ns1:ariregistri_kood>
+    <ns1:ariregistri_kood>99000001</ns1:ariregistri_kood>
   </ns1:paring>
   <ns1:keha>
     <ns1:seosed>
       <ns1:isiku_tyyp>F</ns1:isiku_tyyp>
-      <ns1:isiku_roll>J</ns1:isiku_roll>
+      <ns1:isiku_roll>JUHL</ns1:isiku_roll>
       <ns1:isiku_roll_tekstina>Juhatuse liige</ns1:isiku_roll_tekstina>
-      <ns1:eesnimi>Tõnu</ns1:eesnimi>
-      <ns1:nimi_arinimi>Pekk</ns1:nimi_arinimi>
-      <ns1:isikukood_registrikood>37201234567</ns1:isikukood_registrikood>
+      <ns1:eesnimi>Jaan</ns1:eesnimi>
+      <ns1:nimi_arinimi>Tamm</ns1:nimi_arinimi>
+      <ns1:isikukood_registrikood>39901010000</ns1:isikukood_registrikood>
+      <ns1:synniaeg>1999-01-01</ns1:synniaeg>
       <ns1:algus_kpv>2017-04-03</ns1:algus_kpv>
+      <ns1:osaluse_protsent>50.00</ns1:osaluse_protsent>
+      <ns1:aadress_riik>EST</ns1:aadress_riik>
+      <ns1:kontrolli_teostamise_viis_tekstina>Osaluse kaudu</ns1:kontrolli_teostamise_viis_tekstina>
     </ns1:seosed>
     <ns1:seosed>
       <ns1:isiku_tyyp>F</ns1:isiku_tyyp>
       <ns1:isiku_roll>N</ns1:isiku_roll>
       <ns1:isiku_roll_tekstina>Nõukogu liige</ns1:isiku_roll_tekstina>
-      <ns1:eesnimi>Mari</ns1:eesnimi>
-      <ns1:nimi_arinimi>Maasikas</ns1:nimi_arinimi>
-      <ns1:isikukood_registrikood>48901234567</ns1:isikukood_registrikood>
+      <ns1:eesnimi>Kati</ns1:eesnimi>
+      <ns1:nimi_arinimi>Kask</ns1:nimi_arinimi>
+      <ns1:isikukood_registrikood>48501010000</ns1:isikukood_registrikood>
+      <ns1:synniaeg>1985-01-01</ns1:synniaeg>
       <ns1:algus_kpv>2020-01-15</ns1:algus_kpv>
       <ns1:lopp_kpv>2025-12-31</ns1:lopp_kpv>
+      <ns1:aadress_riik>EST</ns1:aadress_riik>
+    </ns1:seosed>
+    <ns1:seosed>
+      <ns1:isiku_tyyp>J</ns1:isiku_tyyp>
+      <ns1:isiku_roll>S</ns1:isiku_roll>
+      <ns1:isiku_roll_tekstina>Osanik</ns1:isiku_roll_tekstina>
+      <ns1:nimi_arinimi>Test Firma OÜ</ns1:nimi_arinimi>
+      <ns1:isikukood_registrikood>99000002</ns1:isikukood_registrikood>
+      <ns1:algus_kpv>2018-06-01</ns1:algus_kpv>
+      <ns1:osaluse_protsent>25.50</ns1:osaluse_protsent>
+      <ns1:aadress_riik>EST</ns1:aadress_riik>
     </ns1:seosed>
   </ns1:keha>
 </ns1:ettevottegaSeotudIsikud_v1Response>

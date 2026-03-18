@@ -111,7 +111,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web-services")
     testImplementation("org.springframework.ws:spring-ws-test")
 
-    xjc("org.glassfish.jaxb:jaxb-xjc:4.0.5")
+    xjc("org.glassfish.jaxb:jaxb-xjc:4.0.7")
 
     implementation("ee.sk.smartid:smart-id-java-client:2.3.1") {
         exclude(group = "org.bouncycastle")

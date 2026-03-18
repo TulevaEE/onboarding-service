@@ -25,24 +25,16 @@ class GlobalStockIndexRetrieverSpec extends Specification {
     @Shared
     private FakeFtpServer fakeFtpServer
 
-    @Shared
     private GlobalStockIndexRetriever retriever
 
-    @Shared
-    private String ftpUsername = "someUsername"
-
-    @Shared
-    private String ftpPassword = "somePassword"
-
-    @Shared
-    private String ftpHost = "localhost"
-
-
+    private static final String FTP_USERNAME = "someUsername"
+    private static final String FTP_PASSWORD = "somePassword"
+    private static final String FTP_HOST = "localhost"
     private static final String PATH = "/Daily/DMRI/XI_MSTAR"
 
     void setupSpec() {
         fakeFtpServer = new FakeFtpServer()
-        fakeFtpServer.addUserAccount(new UserAccount(ftpUsername, ftpPassword, '/'))
+        fakeFtpServer.addUserAccount(new UserAccount(FTP_USERNAME, FTP_PASSWORD, '/'))
 
         FileSystem fileSystem = new UnixFakeFileSystem()
         fileSystem.add(new DirectoryEntry(PATH))
@@ -60,10 +52,11 @@ class GlobalStockIndexRetrieverSpec extends Specification {
         fakeFtpServer.setFileSystem(fileSystem)
         fakeFtpServer.setServerControlPort(0)
         fakeFtpServer.start()
+    }
 
-        FtpClient ftpClient = new FtpClient(new FTPClient(), ftpHost, ftpUsername, ftpPassword, fakeFtpServer
-            .getServerControlPort())
-
+    void setup() {
+        FtpClient ftpClient = new FtpClient(new FTPClient(), FTP_HOST, FTP_USERNAME, FTP_PASSWORD,
+            fakeFtpServer.getServerControlPort())
         retriever = new GlobalStockIndexRetriever(ftpClient)
     }
 

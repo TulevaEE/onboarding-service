@@ -19,16 +19,16 @@ buildscript {
 }
 
 val springCloudVersion = "2025.1.1"
-val springModulithVersion = "2.0.2"
+val springModulithVersion = "2.0.3"
 
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "4.0.2"
+    id("org.springframework.boot") version "4.0.3"
     id("io.spring.dependency-management") version "1.1.7"
-    id("com.gorylenko.gradle-git-properties") version "2.5.4"
-    id("com.diffplug.spotless") version "8.1.0"
-    id("io.freefair.lombok") version "9.1.0"
+    id("com.gorylenko.gradle-git-properties") version "2.5.7"
+    id("com.diffplug.spotless") version "8.3.0"
+    id("io.freefair.lombok") version "9.2.0"
     jacoco
 }
 
@@ -86,10 +86,10 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:10.6")
+    implementation("com.nimbusds:nimbus-jose-jwt:10.8")
 
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.1")
-    implementation("org.springdoc:springdoc-openapi-starter-common:3.0.1")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2")
+    implementation("org.springdoc:springdoc-openapi-starter-common:3.0.2")
     implementation("org.springframework.session:spring-session-jdbc")
 
     runtimeOnly("org.postgresql:postgresql")
@@ -126,8 +126,8 @@ dependencies {
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-4:8.29.0")
-    implementation("io.sentry:sentry-logback:8.29.0")
+    implementation("io.sentry:sentry-spring-boot-4:8.36.0")
+    implementation("io.sentry:sentry-logback:8.36.0")
 
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
@@ -137,13 +137,13 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("software.amazon.awssdk:s3:2.41.1")
+    implementation("software.amazon.awssdk:s3:2.42.15")
     implementation("commons-io:commons-io:2.21.0")
     implementation("org.apache.commons:commons-csv:1.14.1")
-    implementation("org.apache.poi:poi-ooxml:5.3.0")
+    implementation("org.apache.poi:poi-ooxml:5.5.1")
 
-    implementation("net.javacrumbs.shedlock:shedlock-spring:7.5.0")
-    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.5.0")
+    implementation("net.javacrumbs.shedlock:shedlock-spring:7.7.0")
+    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.7.0")
 
     implementation("org.springframework.modulith:spring-modulith-starter-core")
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
@@ -165,8 +165,8 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.4-groovy-5.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy:5.0.3")
-    testImplementation("org.apache.groovy:groovy-json:5.0.3")
+    testImplementation("org.apache.groovy:groovy:5.0.4")
+    testImplementation("org.apache.groovy:groovy-json:5.0.4")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:postgresql:1.21.4")
     testImplementation("org.testcontainers:jdbc:1.21.4")

@@ -43,14 +43,14 @@ flowchart TB
 
     Svc --> Integrations
 
-    Epis -- HTTPS / VPN --> PK["Pensionikeskus · EPIS"]
-    AWS -. errors .-> Sentry
-
-    S3Web ~~~ DevOps
     subgraph DevOps["🔧 Dev / Ops"]
         GitHub["GitHub"] -- push --> CircleCI
         CircleCI -- push --> ECR["Elastic Container Registry"] -- deploy --> Svc & Epis
     end
+
+    Epis -- HTTPS / VPN --> PK["Pensionikeskus · EPIS"]
+    AWS -. errors .-> Sentry
+    Sentry ~~~ DevOps
 
     classDef svc fill:#4a90d9,stroke:#2c5f8a,color:#fff
     classDef db fill:#2d8659,stroke:#1a5c3a,color:#fff

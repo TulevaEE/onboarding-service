@@ -28,7 +28,7 @@ class NavReportEmailSender {
     var csvBytes = navReportCsvGenerator.generate(rows);
 
     var fundCode = result.fund().getCode();
-    var navDate = result.positionReportDate();
+    var navDate = result.calculationDate();
 
     var message = new MandrillMessage();
     message.setFromEmail("funds@tuleva.ee");

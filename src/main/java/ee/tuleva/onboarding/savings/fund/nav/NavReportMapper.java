@@ -1,9 +1,8 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
+import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -57,11 +56,14 @@ class NavReportMapper {
             result.pendingSubscriptions()));
 
     if (!fund.isSavingsFund()) {
-      rows.add(receivablesRow(navDate, fundCode, accountId, "Other receivables", BigDecimal.ZERO));
+      rows.add(
+          receivablesRow(
+              navDate, fundCode, accountId, "Other receivables", new BigDecimal("0.00")));
     }
 
     if (fund == TUK00) {
-      rows.add(liabilityRow(navDate, fundCode, accountId, "Liabilities Other", BigDecimal.ZERO));
+      rows.add(
+          liabilityRow(navDate, fundCode, accountId, "Liabilities Other", new BigDecimal("0.00")));
     }
 
     rows.add(
@@ -75,10 +77,8 @@ class NavReportMapper {
         liabilityFeeRow(
             navDate, fundCode, accountId, "Management fee", result.managementFeeAccrual()));
 
-    if (fund == TKF100 || fund == TUV100) {
-      rows.add(
-          liabilityFeeRow(navDate, fundCode, accountId, "Custody fee", result.depotFeeAccrual()));
-    }
+    rows.add(
+        liabilityFeeRow(navDate, fundCode, accountId, "Custody fee", result.depotFeeAccrual()));
 
     rows.add(unitsRow(navDate, fundCode, result));
     rows.add(navRow(navDate, fundCode, result));
@@ -99,7 +99,7 @@ class NavReportMapper {
         .accountType("SECURITY")
         .accountName(displayName)
         .accountId(detail.isin())
-        .quantity(detail.units())
+        .quantity(detail.units().setScale(3, HALF_UP))
         .marketPrice(detail.price())
         .marketValue(detail.marketValue())
         .build();
@@ -167,7 +167,7 @@ class NavReportMapper {
         .fundCode(fundCode)
         .accountType("UNITS")
         .accountName("Total outstanding units:")
-        .quantity(result.unitsOutstanding())
+        .quantity(result.unitsOutstanding().setScale(3, HALF_UP))
         .marketPrice(result.navPerUnit())
         .marketValue(result.aum())
         .build();

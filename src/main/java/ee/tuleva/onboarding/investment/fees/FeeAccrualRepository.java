@@ -19,7 +19,7 @@ public class FeeAccrualRepository {
     return jdbcClient
         .sql(
             """
-            SELECT COALESCE(SUM(ROUND(daily_amount_net, 2)), 0)
+            SELECT COALESCE(ROUND(SUM(daily_amount_net), 2), 0)
             FROM investment_fee_accrual
             WHERE fund_code = :fundCode
               AND fee_type = :feeType
@@ -56,7 +56,7 @@ public class FeeAccrualRepository {
     return jdbcClient
         .sql(
             """
-            SELECT COALESCE(SUM(ROUND(daily_amount_net, 2)), 0)
+            SELECT COALESCE(ROUND(SUM(daily_amount_net), 2), 0)
             FROM investment_fee_accrual
             WHERE fund_code = :fundCode
               AND fee_type = :feeType

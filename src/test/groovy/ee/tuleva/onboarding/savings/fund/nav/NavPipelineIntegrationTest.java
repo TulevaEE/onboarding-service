@@ -199,14 +199,14 @@ class NavPipelineIntegrationTest {
         .isEqualByComparingTo(new BigDecimal("1191.78"));
     assertThat(mondayResult.depotFeeAccrual())
         .as("Monday: 3 days of depot fees (Feb 25-27)")
-        .isEqualByComparingTo(new BigDecimal("143.85"));
+        .isEqualByComparingTo(new BigDecimal("143.84"));
 
     assertThat(tuesdayResult.managementFeeAccrual())
         .as("Tuesday: 2 days of management fees (Mar 1-2), Feb settled")
         .isEqualByComparingTo(new BigDecimal("794.52"));
     assertThat(tuesdayResult.depotFeeAccrual())
         .as("Tuesday: 2 days of depot fees (Mar 1-2), Feb settled")
-        .isEqualByComparingTo(new BigDecimal("95.90"));
+        .isEqualByComparingTo(new BigDecimal("95.89"));
   }
 
   @Test

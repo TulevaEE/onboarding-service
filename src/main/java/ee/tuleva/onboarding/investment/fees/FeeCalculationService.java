@@ -113,13 +113,9 @@ public class FeeCalculationService {
     }
 
     BigDecimal mgmtFee =
-        navLedgerRepository
-            .getSystemAccountBalanceBefore(MANAGEMENT_FEE_ACCRUAL.getAccountName(fund), feeCutoff)
-            .negate();
+        feeAccrualRepository.getUnsettledAccrual(fund, FeeType.MANAGEMENT, positionReportDate);
     BigDecimal depotFee =
-        navLedgerRepository
-            .getSystemAccountBalanceBefore(DEPOT_FEE_ACCRUAL.getAccountName(fund), feeCutoff)
-            .negate();
+        feeAccrualRepository.getUnsettledAccrual(fund, FeeType.DEPOT, positionReportDate);
     return new FeeResult(mgmtFee, depotFee);
   }
 

@@ -220,6 +220,38 @@ class FeeRepositoriesIntegrationTest {
     }
 
     @Test
+    void getAccruedFeeAsOf_sumsThenRounds() {
+      insertAccrual(TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 13), new BigDecimal("5.891"));
+      insertAccrual(TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 14), new BigDecimal("5.892"));
+      insertAccrual(TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 15), new BigDecimal("5.893"));
+
+      BigDecimal result =
+          feeAccrualRepository.getAccruedFeeAsOf(
+              TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 15));
+
+      // ROUND(5.891 + 5.892 + 5.893, 2) = ROUND(17.676, 2) = 17.68
+      // NOT SUM(ROUND(each, 2)) = 5.89 + 5.89 + 5.89 = 17.67
+      assertThat(result).isEqualByComparingTo(new BigDecimal("17.68"));
+    }
+
+    @Test
+    void getUnsettledAccrual_sumsThenRounds() {
+      LocalDate feeMonth = LocalDate.of(2025, 1, 1);
+      insertAccrualWithFeeMonth(
+          TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 13), feeMonth, new BigDecimal("5.891"));
+      insertAccrualWithFeeMonth(
+          TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 14), feeMonth, new BigDecimal("5.892"));
+      insertAccrualWithFeeMonth(
+          TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 15), feeMonth, new BigDecimal("5.893"));
+
+      BigDecimal result =
+          feeAccrualRepository.getUnsettledAccrual(
+              TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 15));
+
+      assertThat(result).isEqualByComparingTo(new BigDecimal("17.68"));
+    }
+
+    @Test
     void save_updatesAccrualOnDuplicate() {
       LocalDate accrualDate = LocalDate.of(2025, 1, 15);
       LocalDate feeMonth = LocalDate.of(2025, 1, 1);
@@ -266,6 +298,38 @@ class FeeRepositoriesIntegrationTest {
               .single();
 
       assertThat(dailyAmountNet).isEqualByComparingTo(new BigDecimal("20"));
+    }
+
+    private void insertAccrual(
+        TulevaFund fund, FeeType feeType, LocalDate accrualDate, BigDecimal dailyAmountNet) {
+      insertAccrualWithFeeMonth(
+          fund, feeType, accrualDate, accrualDate.withDayOfMonth(1), dailyAmountNet);
+    }
+
+    private void insertAccrualWithFeeMonth(
+        TulevaFund fund,
+        FeeType feeType,
+        LocalDate accrualDate,
+        LocalDate feeMonth,
+        BigDecimal dailyAmountNet) {
+      jdbcClient
+          .sql(
+              """
+              INSERT INTO investment_fee_accrual (
+                  fund_code, fee_type, accrual_date, fee_month, base_value,
+                  annual_rate, daily_amount_net, daily_amount_gross, days_in_year
+              )
+              VALUES (
+                  :fundCode, :feeType, :accrualDate, :feeMonth, 1000000,
+                  0.00215, :dailyAmountNet, :dailyAmountNet, 365
+              )
+              """)
+          .param("fundCode", fund.name())
+          .param("feeType", feeType.name())
+          .param("accrualDate", accrualDate)
+          .param("feeMonth", feeMonth)
+          .param("dailyAmountNet", dailyAmountNet)
+          .update();
     }
   }
 }

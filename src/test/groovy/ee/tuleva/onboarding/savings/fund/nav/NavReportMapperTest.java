@@ -92,7 +92,7 @@ class NavReportMapperTest {
     assertThat(rows.get(0).getAccountName())
         .isEqualTo("Invesco MSCI Emerging Markets Universal Screened UCITS ETF Acc");
     assertThat(rows.get(0).getAccountId()).isEqualTo("IE00BMDBMY19");
-    assertThat(rows.get(0).getQuantity()).isEqualByComparingTo("15543.00");
+    assertThat(rows.get(0).getQuantity()).isEqualTo(new BigDecimal("15543.000"));
     assertThat(rows.get(0).getMarketPrice()).isEqualByComparingTo("41.8050");
     assertThat(rows.get(0).getMarketValue()).isEqualByComparingTo("649775.12");
 
@@ -136,7 +136,7 @@ class NavReportMapperTest {
     assertThat(rows.get(9).getAccountType()).isEqualTo("UNITS");
     assertThat(rows.get(9).getAccountName()).isEqualTo("Total outstanding units:");
     assertThat(rows.get(9).getAccountId()).isNull();
-    assertThat(rows.get(9).getQuantity()).isEqualByComparingTo("7050814.517");
+    assertThat(rows.get(9).getQuantity()).isEqualTo(new BigDecimal("7050814.517"));
     assertThat(rows.get(9).getMarketPrice()).isEqualByComparingTo("0.9792");
     assertThat(rows.get(9).getMarketValue()).isEqualByComparingTo("6903990.38");
 
@@ -198,7 +198,7 @@ class NavReportMapperTest {
 
     var rows = navReportMapper.map(result);
 
-    assertThat(rows).hasSize(10);
+    assertThat(rows).hasSize(11);
 
     assertThat(rows.get(0).getAccountType()).isEqualTo("SECURITY");
 
@@ -218,7 +218,7 @@ class NavReportMapperTest {
 
     assertThat(rows.get(5).getAccountType()).isEqualTo("RECEIVABLES");
     assertThat(rows.get(5).getAccountName()).isEqualTo("Other receivables");
-    assertThat(rows.get(5).getQuantity()).isEqualByComparingTo("0");
+    assertThat(rows.get(5).getQuantity()).isEqualTo(new BigDecimal("0.00"));
 
     assertThat(rows.get(6).getAccountType()).isEqualTo("LIABILITY");
     assertThat(rows.get(6).getAccountName()).isEqualTo("Payables of redeemed units");
@@ -227,8 +227,12 @@ class NavReportMapperTest {
     assertThat(rows.get(7).getAccountName()).isEqualTo("Management fee");
     assertThat(rows.get(7).getQuantity()).isEqualByComparingTo("-68851.69");
 
-    assertThat(rows.get(8).getAccountType()).isEqualTo("UNITS");
-    assertThat(rows.get(9).getAccountType()).isEqualTo("NAV");
-    assertThat(rows.get(9).getFundCode()).isEqualTo("TUK75");
+    assertThat(rows.get(8).getAccountType()).isEqualTo("LIABILITY_FEE");
+    assertThat(rows.get(8).getAccountName()).isEqualTo("Custody fee");
+    assertThat(rows.get(8).getQuantity()).isEqualByComparingTo("0");
+
+    assertThat(rows.get(9).getAccountType()).isEqualTo("UNITS");
+    assertThat(rows.get(10).getAccountType()).isEqualTo("NAV");
+    assertThat(rows.get(10).getFundCode()).isEqualTo("TUK75");
   }
 }

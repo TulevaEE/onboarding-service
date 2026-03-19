@@ -5,7 +5,65 @@
 [![codecov](https://codecov.io/gh/TulevaEE/onboarding-service/branch/master/graph/badge.svg)](https://codecov.io/gh/TulevaEE/onboarding-service)
 
 ## Architecture
-![Tuleva Architecture](./reference/tuleva_architecture.png)
+
+```mermaid
+flowchart TB
+    Browser["🌐 Customer Browser"] --> CF["CloudFlare · pension.tuleva.ee"]
+
+    CF -- "/api/*" --> ALB
+    CF -- "/*" --> S3Web[("S3 · React/Redux")]
+
+    subgraph AWS["☁️ AWS · eu-central-1"]
+        ALB["Application Load Balancer"] --> Svc["onboarding-service<br/><small>Elastic Container Service · Fargate</small>"]
+        Svc --> RDS[("PostgreSQL<br/><small>Relational Database Service</small>")]
+        Svc --> S3[("S3 · Analytics, Truststore")]
+        Svc --> Secrets["Secrets Manager"]
+        Svc --> Epis["epis-service<br/><small>Elastic Container Service · Fargate</small>"]
+        CW["CloudWatch Logs"]
+    end
+
+    subgraph Integrations["External Integrations"]
+        subgraph Auth["🔐 Authentication"]
+            SmartID["Smart-ID"] ~~~ MobileID["Mobile-ID"] ~~~ OCSP["OCSP · ID-card"]
+        end
+        subgraph Finance["💳 Financial"]
+            SEB["SEB Gateway"] ~~~ Montonio ~~~ PKStats["PK Statistics"]
+        end
+        subgraph Data["📊 Fund Data"]
+            Morningstar ~~~ EODHD ~~~ Yahoo["Yahoo Finance"]
+            Euronext ~~~ XETRA["Deutsche Börse"] ~~~ BlackRock
+        end
+        subgraph Comply["📋 Compliance"]
+            Ariregister["Äriregister"] ~~~ OpenSanctions
+        end
+        subgraph Notify["📨 Notifications & Storage"]
+            Mandrill["Mandrill / Mailchimp"] ~~~ Slack ~~~ GDrive["Google Drive"]
+        end
+    end
+
+    Svc --> Integrations
+
+    Epis -- HTTPS / VPN --> PK["Pensionikeskus · EPIS"]
+    AWS -. errors .-> Sentry
+
+    S3Web ~~~ DevOps
+    subgraph DevOps["🔧 Dev / Ops"]
+        GitHub["GitHub"] -- push --> CircleCI
+        CircleCI -- push --> ECR["Elastic Container Registry"] -- deploy --> Svc & Epis
+    end
+
+    classDef svc fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    classDef db fill:#2d8659,stroke:#1a5c3a,color:#fff
+    classDef ext fill:#e8a838,stroke:#b07d1e,color:#fff
+    classDef cdn fill:#9b59b6,stroke:#6c3483,color:#fff
+    classDef vpn fill:#e74c3c,stroke:#a93226,color:#fff
+
+    class Svc,Epis svc
+    class RDS,S3,S3Web,CW db
+    class SmartID,MobileID,OCSP,SEB,Montonio,PKStats,Morningstar,EODHD,Yahoo,Euronext,XETRA,BlackRock,Ariregister,OpenSanctions,Mandrill,Slack,GDrive ext
+    class CF,ALB cdn
+    class PK vpn
+```
 
 ## Prerequisites
 
@@ -66,9 +124,6 @@ Google Analytics / Mixpanel
 **Hosting**
 
 AWS ECS Fargate (production and staging)
-AWS Elastic Beanstalk: EC2 and ELB (legacy - being decommissioned)
-
-**Migration Status**: Production and staging migrated to ECS in November 2025. Beanstalk environments scaled to zero, pending final decommission.
 
 **Infrastructure as Code**
 
@@ -80,7 +135,7 @@ CircleCI
 
 **Production Logs**
 
-Papertrail
+CloudWatch (`/ecs/onboarding-service-production`, `/ecs/onboarding-service-staging`)
 
 ### API
 

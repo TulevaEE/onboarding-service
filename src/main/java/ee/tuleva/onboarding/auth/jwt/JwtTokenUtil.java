@@ -8,6 +8,7 @@ import static java.time.temporal.ChronoUnit.HOURS;
 import static java.time.temporal.ChronoUnit.MINUTES;
 
 import ee.tuleva.onboarding.auth.partner.CompositeJwtParser;
+import ee.tuleva.onboarding.auth.principal.ActingAs;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
@@ -27,9 +28,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.json.JsonMapper;
 
 @Component
 public class JwtTokenUtil {
+
+  private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
 
   private final Duration ACCESS_TOKEN_VALIDITY = Duration.of(30, MINUTES);
   private final Duration REFRESH_TOKEN_VALIDITY = Duration.of(4, HOURS);
@@ -92,18 +96,7 @@ public class JwtTokenUtil {
   public String generateAccessToken(
       AuthenticatedPerson person, Collection<? extends GrantedAuthority> authorities) {
     return Jwts.builder()
-        .claims(
-            Map.of(
-                TOKEN_TYPE.value,
-                ACCESS,
-                FIRST_NAME.value,
-                person.getFirstName(),
-                LAST_NAME.value,
-                person.getLastName(),
-                ATTRIBUTES.value,
-                person.getAttributes(),
-                AUTHORITIES.value,
-                authorities.stream().map(GrantedAuthority::getAuthority).toList()))
+        .claims(personClaims(person, authorities, ACCESS))
         .subject(person.getPersonalCode())
         .issuedAt(Date.from(clock.instant()))
         .expiration(Date.from(clock.instant().plus(ACCESS_TOKEN_VALIDITY)))
@@ -114,19 +107,25 @@ public class JwtTokenUtil {
   public String generateRefreshToken(
       AuthenticatedPerson person, Collection<? extends GrantedAuthority> authorities) {
     return Jwts.builder()
-        .claims(
-            Map.of(
-                TOKEN_TYPE.value, REFRESH,
-                FIRST_NAME.value, person.getFirstName(),
-                LAST_NAME.value, person.getLastName(),
-                ATTRIBUTES.value, person.getAttributes(),
-                AUTHORITIES.value,
-                    authorities.stream().map(GrantedAuthority::getAuthority).toList()))
+        .claims(personClaims(person, authorities, REFRESH))
         .subject(person.getPersonalCode())
         .issuedAt(Date.from(clock.instant()))
         .expiration(Date.from(clock.instant().plus(REFRESH_TOKEN_VALIDITY)))
         .signWith(signingKey)
         .compact();
+  }
+
+  private Map<String, Object> personClaims(
+      AuthenticatedPerson person,
+      Collection<? extends GrantedAuthority> authorities,
+      TokenType tokenType) {
+    return Map.of(
+        TOKEN_TYPE.value, tokenType,
+        FIRST_NAME.value, person.getFirstName(),
+        LAST_NAME.value, person.getLastName(),
+        ATTRIBUTES.value, person.getAttributes(),
+        AUTHORITIES.value, authorities.stream().map(GrantedAuthority::getAuthority).toList(),
+        ACTING_AS.value, JSON_MAPPER.convertValue(person.getActingAs(), Map.class));
   }
 
   public String generateServiceToken() {
@@ -138,6 +137,15 @@ public class JwtTokenUtil {
         .expiration(Date.from(clock.instant().plus(ACCESS_TOKEN_VALIDITY)))
         .signWith(signingKey)
         .compact();
+  }
+
+  public ActingAs getActingAsFromToken(String jwtToken) {
+    Claims claims = getAllClaimsFromToken(jwtToken);
+    Map<String, Object> actingAsMap = ACTING_AS.fromClaims(claims);
+    if (actingAsMap == null) {
+      return new ActingAs.Person(claims.getSubject());
+    }
+    return JSON_MAPPER.convertValue(actingAsMap, ActingAs.class);
   }
 
   public Map<String, String> getAttributesFromToken(String jwtToken) {

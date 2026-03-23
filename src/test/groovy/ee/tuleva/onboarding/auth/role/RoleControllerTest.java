@@ -1,0 +1,133 @@
+package ee.tuleva.onboarding.auth.role;
+
+import static ee.tuleva.onboarding.auth.authority.Authority.USER;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import ee.tuleva.onboarding.auth.AuthenticationTokens;
+import ee.tuleva.onboarding.auth.principal.ActingAs;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.auth.role.RoleController.Role;
+import ee.tuleva.onboarding.company.CompanyAccessDeniedException;
+import ee.tuleva.onboarding.company.CompanyNotFoundException;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+@WebMvcTest(RoleController.class)
+@AutoConfigureMockMvc
+class RoleControllerTest {
+
+  @Autowired private MockMvc mockMvc;
+  @MockitoBean private RoleSwitchService roleSwitchService;
+
+  private static UsernamePasswordAuthenticationToken userAuth() {
+    var person =
+        AuthenticatedPerson.builder()
+            .personalCode("38501010000")
+            .firstName("Jordan")
+            .lastName("Valdma")
+            .userId(1L)
+            .build();
+    return new UsernamePasswordAuthenticationToken(
+        person, null, List.of(new SimpleGrantedAuthority(USER)));
+  }
+
+  @Test
+  void switchRoleDelegatesToService() throws Exception {
+    when(roleSwitchService.switchRole(any(AuthenticatedPerson.class), any(ActingAs.class)))
+        .thenReturn(new AuthenticationTokens("access-token", "refresh-token"));
+
+    mockMvc
+        .perform(
+            post("/v1/me/role")
+                .with(authentication(userAuth()))
+                .with(csrf())
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"type":"COMPANY","code":"12345678"}"""))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.access_token").value("access-token"))
+        .andExpect(jsonPath("$.refresh_token").value("refresh-token"));
+  }
+
+  @Test
+  void switchRoleReturns404WhenCompanyNotFound() throws Exception {
+    when(roleSwitchService.switchRole(any(AuthenticatedPerson.class), any(ActingAs.class)))
+        .thenThrow(new CompanyNotFoundException("99999999"));
+
+    mockMvc
+        .perform(
+            post("/v1/me/role")
+                .with(authentication(userAuth()))
+                .with(csrf())
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"type":"COMPANY","code":"99999999"}"""))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void switchRoleReturns403WhenAccessDenied() throws Exception {
+    when(roleSwitchService.switchRole(any(AuthenticatedPerson.class), any(ActingAs.class)))
+        .thenThrow(new CompanyAccessDeniedException("38501010000", "12345678"));
+
+    mockMvc
+        .perform(
+            post("/v1/me/role")
+                .with(authentication(userAuth()))
+                .with(csrf())
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"type":"PERSON","code":"99999999999"}"""))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void getRolesDelegatesToService() throws Exception {
+    when(roleSwitchService.getRoles(any(AuthenticatedPerson.class)))
+        .thenReturn(
+            List.of(
+                new Role(new ActingAs.Person("38501010000"), "Jordan Valdma"),
+                new Role(new ActingAs.Company("12345678"), "Test OÜ")));
+
+    mockMvc
+        .perform(get("/v1/me/roles").with(authentication(userAuth())))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].actingAs.type").value("PERSON"))
+        .andExpect(jsonPath("$[0].actingAs.code").value("38501010000"))
+        .andExpect(jsonPath("$[0].name").value("Jordan Valdma"))
+        .andExpect(jsonPath("$[1].actingAs.type").value("COMPANY"))
+        .andExpect(jsonPath("$[1].actingAs.code").value("12345678"))
+        .andExpect(jsonPath("$[1].name").value("Test OÜ"));
+  }
+
+  @Test
+  void unauthenticatedRequestReturns401() throws Exception {
+    mockMvc
+        .perform(
+            post("/v1/me/role")
+                .with(csrf())
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"type":"COMPANY","code":"12345678"}"""))
+        .andExpect(status().isUnauthorized());
+  }
+}

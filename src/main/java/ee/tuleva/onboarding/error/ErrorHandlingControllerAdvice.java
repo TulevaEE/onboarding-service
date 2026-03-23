@@ -8,6 +8,8 @@ import ee.tuleva.onboarding.auth.idcard.exception.IdCardSessionNotFoundException
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import ee.tuleva.onboarding.auth.webeid.WebEidAuthException;
+import ee.tuleva.onboarding.company.CompanyAccessDeniedException;
+import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
@@ -96,6 +98,22 @@ public class ErrorHandlingControllerAdvice {
   public ResponseEntity<Object> handleErrors(MandateProcessingException exception) {
     log.debug("MandateProcessingException {}", exception.toString());
     return new ResponseEntity<>(exception.getErrorsResponse(), INTERNAL_SERVER_ERROR);
+  }
+
+  @ExceptionHandler(CompanyNotFoundException.class)
+  public ResponseEntity<Object> handleErrors(CompanyNotFoundException exception) {
+    log.info("CompanyNotFoundException: {}", exception.getMessage());
+    return new ResponseEntity<>(
+        Map.of("error", "COMPANY_NOT_FOUND", "error_description", exception.getMessage()),
+        NOT_FOUND);
+  }
+
+  @ExceptionHandler(CompanyAccessDeniedException.class)
+  public ResponseEntity<Object> handleErrors(CompanyAccessDeniedException exception) {
+    log.info("CompanyAccessDeniedException: {}", exception.getMessage());
+    return new ResponseEntity<>(
+        Map.of("error", "COMPANY_ACCESS_DENIED", "error_description", exception.getMessage()),
+        FORBIDDEN);
   }
 
   @ExceptionHandler(WebEidAuthException.class)

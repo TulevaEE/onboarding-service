@@ -47,7 +47,8 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
         AuthenticatedPerson principal =
             principalService.getFrom(
                 jwtTokenUtil.getPersonFromToken(accessToken),
-                jwtTokenUtil.getAttributesFromToken(accessToken));
+                jwtTokenUtil.getAttributesFromToken(accessToken),
+                jwtTokenUtil.getActingAsFromToken(accessToken));
 
         final var authorities =
             jwtTokenUtil.getAuthorities(accessToken).stream()

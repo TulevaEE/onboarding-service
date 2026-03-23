@@ -9,13 +9,12 @@ import ee.tuleva.onboarding.auth.principal.ActingAs;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.role.RoleController.Role;
-import ee.tuleva.onboarding.company.CompanyAccessDeniedException;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import ee.tuleva.onboarding.company.CompanyRepository;
+import ee.tuleva.onboarding.company.UserCompany;
 import ee.tuleva.onboarding.company.UserCompanyRepository;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,18 +39,24 @@ public class RoleSwitchService {
   public List<Role> getRoles(AuthenticatedPerson person) {
     var roles = new ArrayList<Role>();
     roles.add(new Role(new ActingAs.Person(person.getPersonalCode()), person.getFullName()));
-    userCompanyRepository.findByUserIdAndRelationshipType(person.getUserId(), BOARD_MEMBER).stream()
-        .map(userCompany -> companyRepository.findById(userCompany.getCompanyId()))
-        .flatMap(Optional::stream)
+
+    var companyIds =
+        userCompanyRepository
+            .findByUserIdAndRelationshipType(person.getUserId(), BOARD_MEMBER)
+            .stream()
+            .map(UserCompany::getCompanyId)
+            .toList();
+    companyRepository.findAllById(companyIds).stream()
         .map(
             company -> new Role(new ActingAs.Company(company.getRegistryCode()), company.getName()))
         .forEach(roles::add);
+
     return unmodifiableList(roles);
   }
 
   private AuthenticationTokens switchToSelf(AuthenticatedPerson person, ActingAs.Person target) {
     if (!target.code().equals(person.getPersonalCode())) {
-      throw new CompanyAccessDeniedException(person.getPersonalCode(), target.code());
+      throw new RoleSwitchAccessDeniedException(person.getPersonalCode(), target.code());
     }
     log.info("Role switch to self: personalCode={}", person.getPersonalCode());
     return generateTokens(person, target);
@@ -66,7 +71,7 @@ public class RoleSwitchService {
 
     if (!userCompanyRepository.existsByUserIdAndCompanyIdAndRelationshipType(
         person.getUserId(), company.getId(), BOARD_MEMBER)) {
-      throw new CompanyAccessDeniedException(person.getPersonalCode(), target.code());
+      throw new RoleSwitchAccessDeniedException(person.getPersonalCode(), target.code());
     }
 
     log.info(

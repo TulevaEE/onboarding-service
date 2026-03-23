@@ -60,9 +60,9 @@ public class AuthService {
               jwtTokenUtil.getAttributesFromToken(refreshToken),
               jwtTokenUtil.getActingAsFromToken(refreshToken));
 
-      final var tokens = tokenService.generateTokens(authenticatedPerson);
+      String newAccessToken = tokenService.generateAccessToken(authenticatedPerson);
 
-      return new AuthenticationTokens(tokens.accessToken(), refreshToken);
+      return new AuthenticationTokens(newAccessToken, refreshToken);
     } catch (ExpiredJwtException e) {
       throw new ExpiredRefreshJwtException();
     }

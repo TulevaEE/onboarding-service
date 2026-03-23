@@ -53,7 +53,7 @@ class AuthServiceSpec extends Specification {
         jwtTokenUtil.getAttributesFromToken(refreshToken) >> [:]
         jwtTokenUtil.getActingAsFromToken(refreshToken) >> null
         principalService.getFrom(authenticatedPerson, [:], null) >> authenticatedPerson
-        tokenService.generateTokens(authenticatedPerson) >> new AuthenticationTokens("newAccessToken", "newRefreshToken")
+        tokenService.generateAccessToken(authenticatedPerson) >> "newAccessToken"
 
     when:
         AuthenticationTokens tokens = authService.refreshToken(refreshToken)
@@ -75,7 +75,7 @@ class AuthServiceSpec extends Specification {
         jwtTokenUtil.getAttributesFromToken(refreshToken) >> [:]
         jwtTokenUtil.getActingAsFromToken(refreshToken) >> company
         principalService.getFrom(authenticatedPerson, [:], company) >> authenticatedPerson
-        tokenService.generateTokens(authenticatedPerson) >> new AuthenticationTokens("newAccessToken", "newRefreshToken")
+        tokenService.generateAccessToken(authenticatedPerson) >> "newAccessToken"
 
     when:
         AuthenticationTokens tokens = authService.refreshToken(refreshToken)

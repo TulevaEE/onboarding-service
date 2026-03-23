@@ -19,4 +19,8 @@ public class TokenService {
         jwtTokenUtil.generateAccessToken(person, authorities),
         jwtTokenUtil.generateRefreshToken(person, authorities));
   }
+
+  public String generateAccessToken(AuthenticatedPerson person) {
+    return jwtTokenUtil.generateAccessToken(person, grantedAuthorityFactory.from(person));
+  }
 }

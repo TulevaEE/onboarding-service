@@ -36,4 +36,16 @@ class TokenServiceTest {
     assertThat(tokens.accessToken()).isEqualTo("access");
     assertThat(tokens.refreshToken()).isEqualTo("refresh");
   }
+
+  @Test
+  void generatesOnlyAccessToken() {
+    var person = sampleAuthenticatedPersonAndMember().build();
+    var authorities = List.of(new SimpleGrantedAuthority("USER"));
+    doReturn(authorities).when(grantedAuthorityFactory).from(person);
+    when(jwtTokenUtil.generateAccessToken(eq(person), eq(authorities))).thenReturn("access-only");
+
+    String accessToken = tokenService.generateAccessToken(person);
+
+    assertThat(accessToken).isEqualTo("access-only");
+  }
 }

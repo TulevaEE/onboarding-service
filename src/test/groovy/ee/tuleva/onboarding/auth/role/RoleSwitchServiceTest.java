@@ -12,7 +12,11 @@ import ee.tuleva.onboarding.auth.TokenService;
 import ee.tuleva.onboarding.auth.principal.ActingAs;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
-import ee.tuleva.onboarding.company.*;
+import ee.tuleva.onboarding.company.Company;
+import ee.tuleva.onboarding.company.CompanyNotFoundException;
+import ee.tuleva.onboarding.company.CompanyRepository;
+import ee.tuleva.onboarding.company.UserCompany;
+import ee.tuleva.onboarding.company.UserCompanyRepository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -68,7 +72,7 @@ class RoleSwitchServiceTest {
   void switchRoleToSelfWithWrongCodeThrows() {
     assertThatThrownBy(
             () -> roleSwitchService.switchRole(person, new ActingAs.Person("99999999999")))
-        .isInstanceOf(CompanyAccessDeniedException.class);
+        .isInstanceOf(RoleSwitchAccessDeniedException.class);
   }
 
   @Test
@@ -89,7 +93,7 @@ class RoleSwitchServiceTest {
         .thenReturn(false);
 
     assertThatThrownBy(() -> roleSwitchService.switchRole(person, new ActingAs.Company("12345678")))
-        .isInstanceOf(CompanyAccessDeniedException.class);
+        .isInstanceOf(RoleSwitchAccessDeniedException.class);
   }
 
   @Test
@@ -104,7 +108,7 @@ class RoleSwitchServiceTest {
             .build();
     when(userCompanyRepository.findByUserIdAndRelationshipType(person.getUserId(), BOARD_MEMBER))
         .thenReturn(List.of(userCompany));
-    when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
+    when(companyRepository.findAllById(List.of(companyId))).thenReturn(List.of(company));
 
     List<RoleController.Role> result = roleSwitchService.getRoles(person);
 

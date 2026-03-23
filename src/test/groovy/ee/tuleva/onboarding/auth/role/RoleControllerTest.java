@@ -15,7 +15,6 @@ import ee.tuleva.onboarding.auth.AuthenticationTokens;
 import ee.tuleva.onboarding.auth.principal.ActingAs;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.role.RoleController.Role;
-import ee.tuleva.onboarding.company.CompanyAccessDeniedException;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -85,7 +84,7 @@ class RoleControllerTest {
   @Test
   void switchRoleReturns403WhenAccessDenied() throws Exception {
     when(roleSwitchService.switchRole(any(AuthenticatedPerson.class), any(ActingAs.class)))
-        .thenThrow(new CompanyAccessDeniedException("38501010000", "12345678"));
+        .thenThrow(new RoleSwitchAccessDeniedException("38501010000", "12345678"));
 
     mockMvc
         .perform(

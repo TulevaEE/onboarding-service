@@ -101,9 +101,7 @@ class JwtAuthorizationFilterSpec extends Specification {
         .claim("lastName", "Meeter")
         .claim("authorities", ["USER"])
         .claim("tokenType", "ACCESS")
-        .claim("actingAsType", "COMPANY")
-        .claim("actingAsId", "12345678")
-        .claim("actingAsName", "Test OÜ")
+        .claim("actingAs", [type: "COMPANY", code: "12345678"])
         .compact()
     def person = sampleAuthenticatedPersonAndMember()
         .firstName("Peeter")
@@ -115,10 +113,10 @@ class JwtAuthorizationFilterSpec extends Specification {
     request.addHeader("Authorization", "Bearer " + token)
     def response = new MockHttpServletResponse()
     def filterChain = Mock(FilterChain)
-    principalService.getFrom(_, _, _) >> person
     when:
     filter.doFilterInternal(request, response, filterChain)
     then:
+    1 * principalService.getFrom(_, _, { it instanceof ActingAs.Company && it.code() == "12345678" }) >> person
     with(SecurityContextHolder.context.authentication) { authentication ->
       authentication != null
       with(authentication.principal as AuthenticatedPerson) { principal ->

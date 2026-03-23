@@ -20,10 +20,32 @@
 - **Use my SQL knowledge as a bridge** — relate Java/Spring concepts to SQL/database thinking when possible
 - **No assumptions about Java/Spring knowledge** — explain framework concepts briefly when they come up
 
-## Current Goals
-- [ ] Set up and run the project locally
-- [ ] Make a first small contribution
-- [ ] Build confidence navigating the codebase
+## Task Writing
 
-## Session Log
-_To be filled after first working session._
+Always write your task into `temp/task.md` before starting a session with Claude. This is your single running task file — add each new task with an incrementing number so you can track how your task-writing improves over time.
+
+**Format:**
+```
+## Task 1 — [short title]
+[date]
+
+1. requirement
+2. requirement
+...
+
+## Task 2 — [short title]
+[date]
+...
+```
+
+**Tips for good task definitions:**
+- Reference the business documents that define the requirements
+- Be explicit about scope — what to build AND what NOT to build
+- Specify where results should be stored or how they connect to existing code
+- Include links to external APIs or docs when relevant
+
+## Current Goals
+- [x] Set up and run the project locally
+- [x] Make a first small contribution (KYB screening module)
+- [ ] Build confidence navigating the codebase
+- [ ] Improve task-writing skills (review progression in `temp/task.md`)

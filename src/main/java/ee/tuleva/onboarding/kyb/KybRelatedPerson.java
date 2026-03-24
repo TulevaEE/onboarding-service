@@ -7,4 +7,5 @@ public record KybRelatedPerson(
     boolean boardMember,
     boolean shareholder,
     boolean beneficialOwner,
-    BigDecimal ownershipPercent) {}
+    BigDecimal ownershipPercent,
+    KybKycStatus kycStatus) {}

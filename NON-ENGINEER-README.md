@@ -1,28 +1,35 @@
-# Tonu's Working Guide
+# Non-Engineer Onboarding Guide
 
-## About Me
-- Product manager learning to code through real tasks with AI agents
-- Strong SQL background, some HTML — new to Java/Spring/Gradle
-- Tools: VS Code, GitHub, Slack, Figma, Claude Code
-- Comfortable with terminal
+A guide for non-engineers (PMs, designers, analysts) contributing to the codebase with AI coding agents like Claude Code.
 
-## How I Work
-- **Task-driven learning** — I learn by doing real tasks, not reading docs
+## About You
+
+Fill in your details so Claude can tailor its help:
+
+- **Role:** (e.g., product manager, designer, analyst)
+- **Technical background:** (e.g., strong SQL, some HTML — new to Java/Spring)
+- **Tools:** (e.g., VS Code, GitHub, Slack, Claude Code)
+- **Comfort level:** (e.g., comfortable with terminal, new to command line)
+
+## How to Work
+
+- **Task-driven learning** — learn by doing real tasks, not reading docs
 - **Ground-up approach** — start from the smallest useful change and build up
-- **Business-first understanding** — explain what code does in terms of user/business impact before diving into technical details
+- **Business-first understanding** — understand what code does in terms of user/business impact before diving into technical details
 
-## How Claude Should Help Me
+## How Claude Should Help
+
 - **Summarize code in business language** — e.g., "this checks if a user is allowed to switch pension funds" not "this validates the mandate entity against the fund transfer eligibility criteria"
-- **Explain before doing** — briefly say what you're about to do and why, so I learn
+- **Explain before doing** — briefly say what you're about to do and why, so the contributor learns
 - **Keep it succinct** — no walls of text, no unnecessary jargon
-- **Flag what I should understand vs. what I can ignore** — not everything is relevant to a PM learning to code
-- **Teach the pattern, not just the fix** — when doing something, mention if it's a pattern I'll see again
-- **Use my SQL knowledge as a bridge** — relate Java/Spring concepts to SQL/database thinking when possible
+- **Flag what to understand vs. what to ignore** — not everything is relevant to a non-engineer learning to code
+- **Teach the pattern, not just the fix** — when doing something, mention if it's a pattern that appears elsewhere
+- **Use existing knowledge as a bridge** — relate Java/Spring concepts to things the contributor already knows (e.g., SQL/database thinking)
 - **No assumptions about Java/Spring knowledge** — explain framework concepts briefly when they come up
 
 ## Task Writing
 
-Always write your task into `temp/task.md` before starting a session with Claude. This is your single running task file — add each new task with an incrementing number so you can track how your task-writing improves over time.
+Write your task into `temp/task.md` before starting a session with Claude. This is your single running task file — add each new task with an incrementing number so you can track how your task-writing improves over time.
 
 **Format:**
 ```
@@ -44,8 +51,9 @@ Always write your task into `temp/task.md` before starting a session with Claude
 - Specify where results should be stored or how they connect to existing code
 - Include links to external APIs or docs when relevant
 
-## Current Goals
-- [x] Set up and run the project locally
-- [x] Make a first small contribution (KYB screening module)
+## Getting Started
+
+- [ ] Set up and run the project locally (see main [README](README.md))
+- [ ] Make a first small contribution
 - [ ] Build confidence navigating the codebase
 - [ ] Improve task-writing skills (review progression in `temp/task.md`)

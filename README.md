@@ -279,6 +279,8 @@ When adding a new migration for H2 <-> Postgres compatibility, the name must be 
 
 [Test Smart ID](https://github.com/SK-EID/smart-id-documentation/wiki/Smart-ID-demo)
 
+[Smart-ID and Mobile-ID test data](https://dokobit.support.signicat.com/hc/en-us/articles/20067528968476-Mobile-ID-and-Smart-ID-test-data)
+
 # Infrastructure Management
 
 ## ECS Infrastructure

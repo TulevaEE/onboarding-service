@@ -5,8 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.*;
 import java.math.BigInteger;
 import java.time.LocalDate;
-import javax.xml.datatype.DatatypeFactory;
-import javax.xml.datatype.XMLGregorianCalendar;
 import org.junit.jupiter.api.Test;
 
 class CompanyDetailMapperTest {
@@ -16,7 +14,9 @@ class CompanyDetailMapperTest {
     var ettevotja =
         ettevotjaWith(
             yldandmedWith(
-                address("Pärnu mnt 1"), date(2024, 9, 1), activity("Fondide valitsemine", true)));
+                address("Pärnu mnt 1"),
+                LocalDate.of(2024, 9, 1),
+                activity("Fondide valitsemine", true)));
 
     var result = CompanyDetailMapper.fromEttevotja(ettevotja);
 
@@ -49,12 +49,12 @@ class CompanyDetailMapperTest {
 
     var old = new DetailandmedV6Aadress();
     old.setAadressAdsAdsNormaliseeritudTaisaadress("Old address");
-    old.setAlgusKpv(date(2020, 1, 1));
-    old.setLoppKpv(date(2024, 8, 31));
+    old.setAlgusKpv(LocalDate.of(2020, 1, 1));
+    old.setLoppKpv(LocalDate.of(2024, 8, 31));
 
     var current = new DetailandmedV6Aadress();
     current.setAadressAdsAdsNormaliseeritudTaisaadress("Current address");
-    current.setAlgusKpv(date(2024, 9, 1));
+    current.setAlgusKpv(LocalDate.of(2024, 9, 1));
 
     aadressid.getItem().add(old);
     aadressid.getItem().add(current);
@@ -97,7 +97,7 @@ class CompanyDetailMapperTest {
 
   private static DetailandmedV6Yldandmed yldandmedWith(
       DetailandmedV6Aadressid aadressid,
-      XMLGregorianCalendar registrationDate,
+      LocalDate registrationDate,
       DetailandmedV6TeatatudTegevusalad tegevusalad) {
     var yldandmed = new DetailandmedV6Yldandmed();
     yldandmed.setStaatus("R");
@@ -122,15 +122,5 @@ class CompanyDetailMapperTest {
     tegevusala.setOnPohitegevusala(main);
     tegevusalad.getItem().add(tegevusala);
     return tegevusalad;
-  }
-
-  private static XMLGregorianCalendar date(int year, int month, int day) {
-    try {
-      return DatatypeFactory.newInstance()
-          .newXMLGregorianCalendarDate(
-              year, month, day, javax.xml.datatype.DatatypeConstants.FIELD_UNDEFINED);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
   }
 }

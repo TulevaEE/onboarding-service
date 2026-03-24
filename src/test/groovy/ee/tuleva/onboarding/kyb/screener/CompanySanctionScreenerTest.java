@@ -122,6 +122,50 @@ class CompanySanctionScreenerTest {
     return new MatchResponse(results, objectMapper.createObjectNode());
   }
 
+  @Test
+  void nonMatchingResultsAreIgnored() {
+    var results = objectMapper.createArrayNode();
+    var nonMatch = objectMapper.createObjectNode();
+    nonMatch.put("match", false);
+    nonMatch.put("id", "Q999");
+    var props = objectMapper.createObjectNode();
+    props.set("topics", objectMapper.createArrayNode().add("sanction"));
+    props.set("country", objectMapper.createArrayNode().add("ru"));
+    nonMatch.set("properties", props);
+    results.add(nonMatch);
+    when(sanctionCheckService.matchCompany(any()))
+        .thenReturn(new MatchResponse(results, objectMapper.createObjectNode()));
+    var data = companyData();
+
+    var checkResults = screener.screen(data);
+
+    assertThat(checkResults)
+        .filteredOn(c -> c.type() == COMPANY_SANCTION)
+        .allMatch(KybCheck::success);
+    assertThat(checkResults).filteredOn(c -> c.type() == COMPANY_PEP).allMatch(KybCheck::success);
+  }
+
+  @Test
+  void pepMatchWithNoCountryTreatedAsNonEu() {
+    var results = objectMapper.createArrayNode();
+    var node = objectMapper.createObjectNode();
+    node.put("match", true);
+    node.put("id", "Q123");
+    var props = objectMapper.createObjectNode();
+    props.set("topics", objectMapper.createArrayNode().add("role.pep"));
+    node.set("properties", props);
+    results.add(node);
+    when(sanctionCheckService.matchCompany(any()))
+        .thenReturn(new MatchResponse(results, objectMapper.createObjectNode()));
+    var data = companyData();
+
+    var checkResults = screener.screen(data);
+
+    var pepCheck = checkResults.stream().filter(c -> c.type() == COMPANY_PEP).findFirst();
+    assertThat(pepCheck).isPresent();
+    assertThat(pepCheck.get().success()).isFalse();
+  }
+
   private ObjectNode matchNode(String topic, String country) {
     var node = objectMapper.createObjectNode();
     node.put("match", true);

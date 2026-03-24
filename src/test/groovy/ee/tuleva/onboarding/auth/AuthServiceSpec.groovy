@@ -4,15 +4,16 @@ import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil
 import ee.tuleva.onboarding.auth.jwt.TokenType
-import ee.tuleva.onboarding.auth.principal.ActingAs
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.PrincipalService
+import ee.tuleva.onboarding.auth.role.Role
 import io.jsonwebtoken.ExpiredJwtException
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.GrantType.*
+import static ee.tuleva.onboarding.auth.role.RoleType.*
 
 class AuthServiceSpec extends Specification {
   private final AuthProvider authProvider = Mock()
@@ -51,7 +52,7 @@ class AuthServiceSpec extends Specification {
         jwtTokenUtil.getTypeFromToken(refreshToken) >> TokenType.REFRESH
         jwtTokenUtil.getPersonFromToken(refreshToken) >> authenticatedPerson
         jwtTokenUtil.getAttributesFromToken(refreshToken) >> [:]
-        jwtTokenUtil.getActingAsFromToken(refreshToken) >> null
+        jwtTokenUtil.getRoleFromToken(refreshToken) >> null
         principalService.getFrom(authenticatedPerson, [:], null) >> authenticatedPerson
         tokenService.generateAccessToken(authenticatedPerson) >> "newAccessToken"
 
@@ -63,17 +64,17 @@ class AuthServiceSpec extends Specification {
         tokens.refreshToken == refreshToken
   }
 
-  def "refresh token preserves actingAs company"() {
+  def "refresh token preserves role company"() {
     given:
         String refreshToken = "validRefreshToken"
-        def company = new ActingAs.Company("12345678")
+        def company = new Role(LEGAL_ENTITY, "12345678", "Test Company")
         AuthenticatedPerson authenticatedPerson = sampleAuthenticatedPersonAndMember()
-            .actingAs(company)
+            .role(company)
             .build()
         jwtTokenUtil.getTypeFromToken(refreshToken) >> TokenType.REFRESH
         jwtTokenUtil.getPersonFromToken(refreshToken) >> authenticatedPerson
         jwtTokenUtil.getAttributesFromToken(refreshToken) >> [:]
-        jwtTokenUtil.getActingAsFromToken(refreshToken) >> company
+        jwtTokenUtil.getRoleFromToken(refreshToken) >> company
         principalService.getFrom(authenticatedPerson, [:], company) >> authenticatedPerson
         tokenService.generateAccessToken(authenticatedPerson) >> "newAccessToken"
 

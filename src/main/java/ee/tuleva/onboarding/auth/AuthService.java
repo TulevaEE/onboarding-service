@@ -58,7 +58,7 @@ public class AuthService {
           principalService.getFrom(
               jwtTokenUtil.getPersonFromToken(refreshToken),
               jwtTokenUtil.getAttributesFromToken(refreshToken),
-              jwtTokenUtil.getActingAsFromToken(refreshToken));
+              jwtTokenUtil.getRoleFromToken(refreshToken));
 
       String newAccessToken = tokenService.generateAccessToken(authenticatedPerson);
 

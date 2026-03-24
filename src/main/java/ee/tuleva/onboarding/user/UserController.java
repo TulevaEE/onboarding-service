@@ -39,7 +39,10 @@ public class UserController {
     User user = userService.getById(userId).orElseThrow();
     ContactDetails contactDetails = episService.getContactDetails(authenticatedPerson);
     return UserResponse.from(
-        user, contactDetails, secondPillarPaymentRateService.getPaymentRates(authenticatedPerson));
+        user,
+        contactDetails,
+        secondPillarPaymentRateService.getPaymentRates(authenticatedPerson),
+        authenticatedPerson.getRole());
   }
 
   @GetMapping("/me/principal")

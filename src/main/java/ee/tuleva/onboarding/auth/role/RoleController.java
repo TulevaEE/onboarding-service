@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.auth.role;
 
 import ee.tuleva.onboarding.auth.AuthenticationTokens;
-import ee.tuleva.onboarding.auth.principal.ActingAs;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -22,9 +21,8 @@ public class RoleController {
 
   @PostMapping("/v1/me/role")
   public AuthenticationTokens switchRole(
-      @AuthenticationPrincipal AuthenticatedPerson person, @Valid @RequestBody ActingAs actingAs) {
-    return roleSwitchService.switchRole(person, actingAs);
+      @AuthenticationPrincipal AuthenticatedPerson person,
+      @Valid @RequestBody SwitchRoleCommand command) {
+    return roleSwitchService.switchRole(person, command);
   }
-
-  public record Role(ActingAs actingAs, String name) {}
 }

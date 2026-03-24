@@ -1,14 +1,14 @@
 package ee.tuleva.onboarding.auth.role;
 
+import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
+import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
 import static java.util.Collections.unmodifiableList;
 
 import ee.tuleva.onboarding.auth.AuthenticationTokens;
 import ee.tuleva.onboarding.auth.TokenService;
-import ee.tuleva.onboarding.auth.principal.ActingAs;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
-import ee.tuleva.onboarding.auth.role.RoleController.Role;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import ee.tuleva.onboarding.company.CompanyRepository;
 import ee.tuleva.onboarding.company.UserCompany;
@@ -29,16 +29,16 @@ public class RoleSwitchService {
   private final PrincipalService principalService;
   private final TokenService tokenService;
 
-  public AuthenticationTokens switchRole(AuthenticatedPerson person, ActingAs actingAs) {
-    return switch (actingAs) {
-      case ActingAs.Person p -> switchToSelf(person, p);
-      case ActingAs.Company c -> switchToCompany(person, c);
+  public AuthenticationTokens switchRole(AuthenticatedPerson person, SwitchRoleCommand command) {
+    return switch (command.type()) {
+      case PERSON -> switchToSelf(person, command);
+      case LEGAL_ENTITY -> switchToCompany(person, command);
     };
   }
 
   public List<Role> getRoles(AuthenticatedPerson person) {
     var roles = new ArrayList<Role>();
-    roles.add(new Role(new ActingAs.Person(person.getPersonalCode()), person.getFullName()));
+    roles.add(new Role(PERSON, person.getPersonalCode(), person.getFullName()));
 
     var companyIds =
         userCompanyRepository
@@ -47,42 +47,43 @@ public class RoleSwitchService {
             .map(UserCompany::getCompanyId)
             .toList();
     companyRepository.findAllById(companyIds).stream()
-        .map(
-            company -> new Role(new ActingAs.Company(company.getRegistryCode()), company.getName()))
+        .map(company -> new Role(LEGAL_ENTITY, company.getRegistryCode(), company.getName()))
         .forEach(roles::add);
 
     return unmodifiableList(roles);
   }
 
-  private AuthenticationTokens switchToSelf(AuthenticatedPerson person, ActingAs.Person target) {
-    if (!target.code().equals(person.getPersonalCode())) {
-      throw new RoleSwitchAccessDeniedException(person.getPersonalCode(), target.code());
+  private AuthenticationTokens switchToSelf(AuthenticatedPerson person, SwitchRoleCommand command) {
+    if (!command.code().equals(person.getPersonalCode())) {
+      throw new RoleSwitchAccessDeniedException(person.getPersonalCode(), command.code());
     }
     log.info("Role switch to self: personalCode={}", person.getPersonalCode());
-    return generateTokens(person, target);
+    var role = new Role(PERSON, command.code(), person.getFullName());
+    return generateTokens(person, role);
   }
 
   private AuthenticationTokens switchToCompany(
-      AuthenticatedPerson person, ActingAs.Company target) {
+      AuthenticatedPerson person, SwitchRoleCommand command) {
     var company =
         companyRepository
-            .findByRegistryCode(target.code())
-            .orElseThrow(() -> new CompanyNotFoundException(target.code()));
+            .findByRegistryCode(command.code())
+            .orElseThrow(() -> new CompanyNotFoundException(command.code()));
 
     if (!userCompanyRepository.existsByUserIdAndCompanyIdAndRelationshipType(
         person.getUserId(), company.getId(), BOARD_MEMBER)) {
-      throw new RoleSwitchAccessDeniedException(person.getPersonalCode(), target.code());
+      throw new RoleSwitchAccessDeniedException(person.getPersonalCode(), command.code());
     }
 
     log.info(
         "Role switch to company: personalCode={}, registryCode={}",
         person.getPersonalCode(),
-        target.code());
+        command.code());
 
-    return generateTokens(person, target);
+    var role = new Role(LEGAL_ENTITY, command.code(), company.getName());
+    return generateTokens(person, role);
   }
 
-  private AuthenticationTokens generateTokens(AuthenticatedPerson person, ActingAs actingAs) {
-    return tokenService.generateTokens(principalService.withActingAs(person, actingAs));
+  private AuthenticationTokens generateTokens(AuthenticatedPerson person, Role role) {
+    return tokenService.generateTokens(principalService.withRole(person, role));
   }
 }

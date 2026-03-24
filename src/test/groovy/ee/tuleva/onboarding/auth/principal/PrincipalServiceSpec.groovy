@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.auth.principal
 
+import ee.tuleva.onboarding.auth.role.Role
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.auth.role.RoleType.*
 
 class PrincipalServiceSpec extends Specification {
 
@@ -66,13 +68,13 @@ class PrincipalServiceSpec extends Specification {
 
   }
 
-  def "withActingAs returns person with new actingAs preserving all other fields"() {
+  def "withRole returns person with new role preserving all other fields"() {
     given:
     def original = sampleAuthenticatedPersonAndMember().build()
-    def company = new ActingAs.Company("12345678")
+    def company = new Role(LEGAL_ENTITY, "12345678", "Test Company")
 
     when:
-    def result = service.withActingAs(original, company)
+    def result = service.withRole(original, company)
 
     then:
     result.personalCode == original.personalCode
@@ -80,7 +82,7 @@ class PrincipalServiceSpec extends Specification {
     result.lastName == original.lastName
     result.userId == original.userId
     result.attributes == original.attributes
-    result.actingAs == company
+    result.role == company
   }
 
   def "getFromPerson: uses capitalized name from database not raw auth provider name"() {

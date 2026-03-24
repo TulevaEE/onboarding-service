@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.auth.principal;
 
+import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
 
+import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import jakarta.validation.Valid;
@@ -19,11 +21,12 @@ public class PrincipalService {
   private final UserService userService;
 
   public AuthenticatedPerson getFrom(@Valid Person person, Map<String, String> attributes) {
-    return getFrom(person, attributes, new ActingAs.Person(person.getPersonalCode()));
+    return getFrom(
+        person, attributes, new Role(PERSON, person.getPersonalCode(), person.getFullName()));
   }
 
   public AuthenticatedPerson getFrom(
-      @Valid Person person, Map<String, String> attributes, ActingAs actingAs) {
+      @Valid Person person, Map<String, String> attributes, Role role) {
 
     Optional<User> userOptional = userService.findByPersonalCode(person.getPersonalCode());
 
@@ -40,18 +43,18 @@ public class PrincipalService {
         .personalCode(person.getPersonalCode())
         .userId(user.getId())
         .attributes(attributes)
-        .actingAs(actingAs)
+        .role(role)
         .build();
   }
 
-  public AuthenticatedPerson withActingAs(AuthenticatedPerson person, ActingAs actingAs) {
+  public AuthenticatedPerson withRole(AuthenticatedPerson person, Role role) {
     return AuthenticatedPerson.builder()
         .personalCode(person.getPersonalCode())
         .firstName(person.getFirstName())
         .lastName(person.getLastName())
         .userId(person.getUserId())
         .attributes(person.getAttributes())
-        .actingAs(actingAs)
+        .role(role)
         .build();
   }
 

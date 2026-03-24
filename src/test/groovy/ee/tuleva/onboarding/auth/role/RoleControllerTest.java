@@ -13,9 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.auth.AuthenticationTokens;
-import ee.tuleva.onboarding.auth.principal.ActingAs;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.auth.role.RoleController.Role;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -48,7 +46,7 @@ class RoleControllerTest {
 
   @Test
   void switchRoleDelegatesToService() throws Exception {
-    when(roleSwitchService.switchRole(any(AuthenticatedPerson.class), any(ActingAs.class)))
+    when(roleSwitchService.switchRole(any(AuthenticatedPerson.class), any(SwitchRoleCommand.class)))
         .thenReturn(new AuthenticationTokens("access-token", "refresh-token"));
 
     mockMvc
@@ -59,7 +57,7 @@ class RoleControllerTest {
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
-                    {"type":"COMPANY","code":"%s"}"""
+                    {"type":"LEGAL_ENTITY","code":"%s"}"""
                         .formatted(SAMPLE_REGISTRY_CODE)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.access_token").value("access-token"))
@@ -68,7 +66,7 @@ class RoleControllerTest {
 
   @Test
   void switchRoleReturns404WhenCompanyNotFound() throws Exception {
-    when(roleSwitchService.switchRole(any(AuthenticatedPerson.class), any(ActingAs.class)))
+    when(roleSwitchService.switchRole(any(AuthenticatedPerson.class), any(SwitchRoleCommand.class)))
         .thenThrow(new CompanyNotFoundException("99999999"));
 
     mockMvc
@@ -79,13 +77,13 @@ class RoleControllerTest {
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
-                    {"type":"COMPANY","code":"99999999"}"""))
+                    {"type":"LEGAL_ENTITY","code":"99999999"}"""))
         .andExpect(status().isNotFound());
   }
 
   @Test
   void switchRoleReturns403WhenAccessDenied() throws Exception {
-    when(roleSwitchService.switchRole(any(AuthenticatedPerson.class), any(ActingAs.class)))
+    when(roleSwitchService.switchRole(any(AuthenticatedPerson.class), any(SwitchRoleCommand.class)))
         .thenThrow(new RoleSwitchAccessDeniedException("38501010000", "12345678"));
 
     mockMvc
@@ -105,17 +103,17 @@ class RoleControllerTest {
     when(roleSwitchService.getRoles(any(AuthenticatedPerson.class)))
         .thenReturn(
             List.of(
-                new Role(new ActingAs.Person("38501010000"), "Jordan Valdma"),
-                new Role(new ActingAs.Company(SAMPLE_REGISTRY_CODE), SAMPLE_COMPANY_NAME)));
+                new Role(RoleType.PERSON, "38501010000", "Jordan Valdma"),
+                new Role(RoleType.LEGAL_ENTITY, SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME)));
 
     mockMvc
         .perform(get("/v1/me/roles").with(authentication(userAuth())))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0].actingAs.type").value("PERSON"))
-        .andExpect(jsonPath("$[0].actingAs.code").value("38501010000"))
+        .andExpect(jsonPath("$[0].type").value("PERSON"))
+        .andExpect(jsonPath("$[0].code").value("38501010000"))
         .andExpect(jsonPath("$[0].name").value("Jordan Valdma"))
-        .andExpect(jsonPath("$[1].actingAs.type").value("COMPANY"))
-        .andExpect(jsonPath("$[1].actingAs.code").value(SAMPLE_REGISTRY_CODE))
+        .andExpect(jsonPath("$[1].type").value("LEGAL_ENTITY"))
+        .andExpect(jsonPath("$[1].code").value(SAMPLE_REGISTRY_CODE))
         .andExpect(jsonPath("$[1].name").value(SAMPLE_COMPANY_NAME));
   }
 
@@ -128,7 +126,7 @@ class RoleControllerTest {
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
-                    {"type":"COMPANY","code":"12345678"}"""))
+                    {"type":"LEGAL_ENTITY","code":"12345678"}"""))
         .andExpect(status().isUnauthorized());
   }
 }

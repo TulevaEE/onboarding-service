@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.auth.jwt
 
 import ee.tuleva.onboarding.auth.partner.PartnerPublicKeyConfiguration
-import ee.tuleva.onboarding.auth.principal.ActingAs
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.Person
+import ee.tuleva.onboarding.auth.role.Role
 import io.jsonwebtoken.ExpiredJwtException
 import org.springframework.core.io.ClassPathResource
 import org.springframework.security.core.GrantedAuthority
@@ -17,6 +17,7 @@ import java.time.ZoneId
 
 import static ee.tuleva.onboarding.auth.jwt.TokenType.ACCESS
 import static ee.tuleva.onboarding.auth.jwt.TokenType.REFRESH
+import static ee.tuleva.onboarding.auth.role.RoleType.*
 import static java.time.temporal.ChronoUnit.HOURS
 
 class JwtTokenUtilSpec extends Specification {
@@ -48,6 +49,7 @@ class JwtTokenUtilSpec extends Specification {
         .firstName("Peeter")
         .lastName("Meeter")
         .personalCode("38812121215")
+        .role(new Role(PERSON, "38812121215", "Peeter Meeter"))
         .build()
     List<GrantedAuthority> authorities = [new SimpleGrantedAuthority("USER")]
     when:
@@ -68,6 +70,7 @@ class JwtTokenUtilSpec extends Specification {
             .firstName("Peeter")
             .lastName("Meeter")
             .personalCode("38812121215")
+            .role(new Role(PERSON, "38812121215", "Peeter Meeter"))
             .build()
         List<GrantedAuthority> authorities = [new SimpleGrantedAuthority("USER")]
 
@@ -89,6 +92,7 @@ class JwtTokenUtilSpec extends Specification {
             .firstName("Peeter")
             .lastName("Meeter")
             .personalCode("38812121215")
+            .role(new Role(PERSON, "38812121215", "Peeter Meeter"))
             .attributes(Map.of("email", "peeter@meeter.com"))
             .build()
         List<GrantedAuthority> authorities = [new SimpleGrantedAuthority("USER")]
@@ -103,90 +107,61 @@ class JwtTokenUtilSpec extends Specification {
         extractedAuthorities == ["USER"]
   }
 
-  def "includes actingAs person as sub-object in access token"() {
+  def "includes role person as sub-object in access token"() {
     given:
         AuthenticatedPerson person = AuthenticatedPerson.builder()
             .firstName("Peeter")
             .lastName("Meeter")
             .personalCode("38812121215")
-            .actingAs(new ActingAs.Person("38812121215"))
+            .role(new Role(PERSON, "38812121215", "Peeter Meeter"))
             .build()
         List<GrantedAuthority> authorities = [new SimpleGrantedAuthority("USER")]
 
     when:
         String token = jwtTokenUtil.generateAccessToken(person, authorities)
-        ActingAs actingAs = jwtTokenUtil.getActingAsFromToken(token)
+        Role role = jwtTokenUtil.getRoleFromToken(token)
 
     then:
-        actingAs instanceof ActingAs.Person
-        actingAs.code() == "38812121215"
+        role.type == PERSON
+        role.code == "38812121215"
   }
 
-  def "includes actingAs company as sub-object in access token"() {
+  def "includes role company as sub-object in access token"() {
     given:
         AuthenticatedPerson person = AuthenticatedPerson.builder()
             .firstName("Peeter")
             .lastName("Meeter")
             .personalCode("38812121215")
-            .actingAs(new ActingAs.Company("12345678"))
+            .role(new Role(LEGAL_ENTITY, "12345678", "Test Company"))
             .build()
         List<GrantedAuthority> authorities = [new SimpleGrantedAuthority("USER")]
 
     when:
         String token = jwtTokenUtil.generateAccessToken(person, authorities)
-        ActingAs actingAs = jwtTokenUtil.getActingAsFromToken(token)
+        Role role = jwtTokenUtil.getRoleFromToken(token)
 
     then:
-        actingAs instanceof ActingAs.Company
-        actingAs.code() == "12345678"
+        role.type == LEGAL_ENTITY
+        role.code == "12345678"
   }
 
-  def "includes actingAs in refresh token"() {
+  def "includes role in refresh token"() {
     given:
         AuthenticatedPerson person = AuthenticatedPerson.builder()
             .firstName("Peeter")
             .lastName("Meeter")
             .personalCode("38812121215")
-            .actingAs(new ActingAs.Company("12345678"))
+            .role(new Role(LEGAL_ENTITY, "12345678", "Test Company"))
             .build()
         List<GrantedAuthority> authorities = [new SimpleGrantedAuthority("USER")]
 
     when:
         String token = jwtTokenUtil.generateRefreshToken(person, authorities)
-        ActingAs actingAs = jwtTokenUtil.getActingAsFromToken(token)
+        Role role = jwtTokenUtil.getRoleFromToken(token)
 
     then:
-        actingAs instanceof ActingAs.Company
-        actingAs.code() == "12345678"
-  }
-
-  def "defaults to person actingAs for tokens without actingAs claim"() {
-    given:
-        AuthenticatedPerson person = AuthenticatedPerson.builder()
-            .firstName("Peeter")
-            .lastName("Meeter")
-            .personalCode("38812121215")
-            .build()
-        List<GrantedAuthority> authorities = [new SimpleGrantedAuthority("USER")]
-        // Generate token using old format (no actingAs claim) by directly building JWT
-        String token = io.jsonwebtoken.Jwts.builder()
-            .subject("38812121215")
-            .claim("firstName", "Peeter")
-            .claim("lastName", "Meeter")
-            .claim("tokenType", "ACCESS")
-            .claim("authorities", ["USER"])
-            .claim("attributes", [:])
-            .signWith(jwtTokenUtil.@signingKey)
-            .issuedAt(Date.from(clock.instant()))
-            .expiration(Date.from(clock.instant().plus(1, HOURS)))
-            .compact()
-
-    when:
-        ActingAs actingAs = jwtTokenUtil.getActingAsFromToken(token)
-
-    then:
-        actingAs instanceof ActingAs.Person
-        actingAs.code() == "38812121215"
+        role.type == LEGAL_ENTITY
+        role.code == "12345678"
   }
 
   def "handles expired token"() {
@@ -195,6 +170,7 @@ class JwtTokenUtilSpec extends Specification {
             .firstName("Peeter")
             .lastName("Meeter")
             .personalCode("38812121215")
+            .role(new Role(PERSON, "38812121215", "Peeter Meeter"))
             .build()
         List<GrantedAuthority> authorities = [new SimpleGrantedAuthority("USER")]
         Clock pastClock = Clock.fixed(Instant.EPOCH.minus(2, HOURS), ZoneId.of("UTC"))

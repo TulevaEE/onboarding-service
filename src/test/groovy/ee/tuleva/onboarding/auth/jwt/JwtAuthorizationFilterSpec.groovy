@@ -2,9 +2,9 @@ package ee.tuleva.onboarding.auth.jwt
 
 import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.auth.authority.Authority
-import ee.tuleva.onboarding.auth.principal.ActingAs
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.PrincipalService
+import ee.tuleva.onboarding.auth.role.Role
 import io.jsonwebtoken.Jwts
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletResponse
@@ -22,6 +22,7 @@ import java.time.ZoneId
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.KeyStoreFixture.*
+import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY
 import static java.time.temporal.ChronoUnit.HOURS
 
 class JwtAuthorizationFilterSpec extends Specification {
@@ -91,7 +92,7 @@ class JwtAuthorizationFilterSpec extends Specification {
     1 * filterChain.doFilter(request, response)
   }
 
-  def "reconstructs actingAs company from JWT claims"() {
+  def "reconstructs role legal entity from JWT claims"() {
     given:
     def token = Jwts.builder()
         .subject("38510309519")
@@ -101,13 +102,13 @@ class JwtAuthorizationFilterSpec extends Specification {
         .claim("lastName", "Meeter")
         .claim("authorities", ["USER"])
         .claim("tokenType", "ACCESS")
-        .claim("actingAs", [type: "COMPANY", code: "12345678"])
+        .claim("role", [type: "LEGAL_ENTITY", code: "12345678", name: "Test Company"])
         .compact()
     def person = sampleAuthenticatedPersonAndMember()
         .firstName("Peeter")
         .lastName("Meeter")
         .personalCode("38510309519")
-        .actingAs(new ActingAs.Company("12345678"))
+        .role(new Role(LEGAL_ENTITY, "12345678", "Test Company"))
         .build()
     def request = new MockHttpServletRequest()
     request.addHeader("Authorization", "Bearer " + token)
@@ -116,13 +117,13 @@ class JwtAuthorizationFilterSpec extends Specification {
     when:
     filter.doFilterInternal(request, response, filterChain)
     then:
-    1 * principalService.getFrom(_, _, { it instanceof ActingAs.Company && it.code() == "12345678" }) >> person
+    1 * principalService.getFrom(_, _, { it.type == LEGAL_ENTITY && it.code == "12345678" }) >> person
     with(SecurityContextHolder.context.authentication) { authentication ->
       authentication != null
       with(authentication.principal as AuthenticatedPerson) { principal ->
         principal.personalCode == "38510309519"
-        principal.actingAs instanceof ActingAs.Company
-        principal.actingAs.code() == "12345678"
+        principal.role.type == LEGAL_ENTITY
+        principal.role.code == "12345678"
       }
     }
     1 * filterChain.doFilter(request, response)

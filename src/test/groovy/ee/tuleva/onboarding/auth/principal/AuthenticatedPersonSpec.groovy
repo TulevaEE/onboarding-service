@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.auth.principal
 
+import ee.tuleva.onboarding.auth.role.Role
 import spock.lang.Specification
+
+import static ee.tuleva.onboarding.auth.role.RoleType.*
 
 class AuthenticatedPersonSpec extends Specification {
 
@@ -12,30 +15,29 @@ class AuthenticatedPersonSpec extends Specification {
         authenticatedPerson.toString() == authenticatedPerson.personalCode
     }
 
-    def "getActingAs defaults to self when not set in builder"() {
+    def "role is null when not set in builder"() {
         when:
         def person = AuthenticatedPerson.builder()
             .personalCode("38501010000")
-            .firstName("Jordan")
-            .lastName("Valdma")
+            .firstName("John")
+            .lastName("Doe")
             .build()
         then:
-        person.actingAs instanceof ActingAs.Person
-        person.actingAs.code() == "38501010000"
+        person.role == null
     }
 
-    def "actingAs can be set to company"() {
+    def "role can be set to company"() {
         given:
-        def company = new ActingAs.Company("12345678")
+        def company = new Role(LEGAL_ENTITY, "12345678", "Test Company")
         when:
         def person = AuthenticatedPerson.builder()
             .personalCode("38501010000")
-            .firstName("Jordan")
-            .lastName("Valdma")
-            .actingAs(company)
+            .firstName("John")
+            .lastName("Doe")
+            .role(company)
             .build()
         then:
-        person.actingAs == company
-        person.actingAs.code() == "12345678"
+        person.role == company
+        person.role.code == "12345678"
     }
 }

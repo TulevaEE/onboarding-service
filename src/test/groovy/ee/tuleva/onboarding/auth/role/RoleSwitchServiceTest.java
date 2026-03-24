@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth.role;
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember;
+import static ee.tuleva.onboarding.auth.role.RoleType.*;
 import static ee.tuleva.onboarding.company.CompanyFixture.*;
 import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -10,7 +11,6 @@ import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.auth.AuthenticationTokens;
 import ee.tuleva.onboarding.auth.TokenService;
-import ee.tuleva.onboarding.auth.principal.ActingAs;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
@@ -44,24 +44,26 @@ class RoleSwitchServiceTest {
     when(userCompanyRepository.existsByUserIdAndCompanyIdAndRelationshipType(
             person.getUserId(), SAMPLE_COMPANY_ID, BOARD_MEMBER))
         .thenReturn(true);
-    when(principalService.withActingAs(any(), any())).thenReturn(person);
+    when(principalService.withRole(any(), any())).thenReturn(person);
     when(tokenService.generateTokens(any()))
         .thenReturn(new AuthenticationTokens("access", "refresh"));
 
     AuthenticationTokens tokens =
-        roleSwitchService.switchRole(person, new ActingAs.Company(SAMPLE_REGISTRY_CODE));
+        roleSwitchService.switchRole(
+            person, new SwitchRoleCommand(LEGAL_ENTITY, SAMPLE_REGISTRY_CODE));
 
     assertThat(tokens.accessToken()).isEqualTo("access");
   }
 
   @Test
   void switchRoleToSelf() {
-    when(principalService.withActingAs(any(), any())).thenReturn(person);
+    when(principalService.withRole(any(), any())).thenReturn(person);
     when(tokenService.generateTokens(any()))
         .thenReturn(new AuthenticationTokens("access", "refresh"));
 
     AuthenticationTokens tokens =
-        roleSwitchService.switchRole(person, new ActingAs.Person(person.getPersonalCode()));
+        roleSwitchService.switchRole(
+            person, new SwitchRoleCommand(PERSON, person.getPersonalCode()));
 
     assertThat(tokens.accessToken()).isEqualTo("access");
   }
@@ -69,7 +71,8 @@ class RoleSwitchServiceTest {
   @Test
   void switchRoleToSelfWithWrongCodeThrows() {
     assertThatThrownBy(
-            () -> roleSwitchService.switchRole(person, new ActingAs.Person("99999999999")))
+            () ->
+                roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, "99999999999")))
         .isInstanceOf(RoleSwitchAccessDeniedException.class);
   }
 
@@ -77,7 +80,10 @@ class RoleSwitchServiceTest {
   void switchToCompanyThrowsWhenCompanyNotFound() {
     when(companyRepository.findByRegistryCode("99999999")).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> roleSwitchService.switchRole(person, new ActingAs.Company("99999999")))
+    assertThatThrownBy(
+            () ->
+                roleSwitchService.switchRole(
+                    person, new SwitchRoleCommand(LEGAL_ENTITY, "99999999")))
         .isInstanceOf(CompanyNotFoundException.class);
   }
 
@@ -91,7 +97,9 @@ class RoleSwitchServiceTest {
         .thenReturn(false);
 
     assertThatThrownBy(
-            () -> roleSwitchService.switchRole(person, new ActingAs.Company(SAMPLE_REGISTRY_CODE)))
+            () ->
+                roleSwitchService.switchRole(
+                    person, new SwitchRoleCommand(LEGAL_ENTITY, SAMPLE_REGISTRY_CODE)))
         .isInstanceOf(RoleSwitchAccessDeniedException.class);
   }
 
@@ -105,7 +113,9 @@ class RoleSwitchServiceTest {
         .thenReturn(false);
 
     assertThatThrownBy(
-            () -> roleSwitchService.switchRole(person, new ActingAs.Company(SAMPLE_REGISTRY_CODE)))
+            () ->
+                roleSwitchService.switchRole(
+                    person, new SwitchRoleCommand(LEGAL_ENTITY, SAMPLE_REGISTRY_CODE)))
         .isInstanceOf(RoleSwitchAccessDeniedException.class);
   }
 
@@ -117,14 +127,14 @@ class RoleSwitchServiceTest {
         .thenReturn(List.of(membership));
     when(companyRepository.findAllById(List.of(SAMPLE_COMPANY_ID))).thenReturn(List.of(company));
 
-    List<RoleController.Role> result = roleSwitchService.getRoles(person);
+    List<Role> result = roleSwitchService.getRoles(person);
 
     assertThat(result).hasSize(2);
-    assertThat(result.getFirst().actingAs()).isInstanceOf(ActingAs.Person.class);
-    assertThat(result.getFirst().actingAs().code()).isEqualTo(person.getPersonalCode());
+    assertThat(result.getFirst().type()).isEqualTo(PERSON);
+    assertThat(result.getFirst().code()).isEqualTo(person.getPersonalCode());
     assertThat(result.getFirst().name()).isEqualTo(person.getFullName());
-    assertThat(result.getLast().actingAs()).isInstanceOf(ActingAs.Company.class);
-    assertThat(result.getLast().actingAs().code()).isEqualTo(SAMPLE_REGISTRY_CODE);
+    assertThat(result.getLast().type()).isEqualTo(LEGAL_ENTITY);
+    assertThat(result.getLast().code()).isEqualTo(SAMPLE_REGISTRY_CODE);
     assertThat(result.getLast().name()).isEqualTo(SAMPLE_COMPANY_NAME);
   }
 
@@ -136,11 +146,11 @@ class RoleSwitchServiceTest {
         .thenReturn(List.of(membership));
     when(companyRepository.findAllById(List.of(company.getId()))).thenReturn(List.of(company));
 
-    List<RoleController.Role> result = roleSwitchService.getRoles(person);
+    List<Role> result = roleSwitchService.getRoles(person);
 
     assertThat(result).hasSize(2);
-    assertThat(result.getFirst().actingAs()).isInstanceOf(ActingAs.Person.class);
-    assertThat(result.getLast().actingAs().code()).isEqualTo("11111111");
+    assertThat(result.getFirst().type()).isEqualTo(PERSON);
+    assertThat(result.getLast().code()).isEqualTo("11111111");
   }
 
   @Test
@@ -161,7 +171,8 @@ class RoleSwitchServiceTest {
 
     assertThatThrownBy(
             () ->
-                roleSwitchService.switchRole(otherUser, new ActingAs.Company(SAMPLE_REGISTRY_CODE)))
+                roleSwitchService.switchRole(
+                    otherUser, new SwitchRoleCommand(LEGAL_ENTITY, SAMPLE_REGISTRY_CODE)))
         .isInstanceOf(RoleSwitchAccessDeniedException.class);
   }
 }

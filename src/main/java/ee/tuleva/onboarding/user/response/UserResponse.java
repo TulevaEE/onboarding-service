@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.user.response;
 import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.notification.email.Emailable;
@@ -42,6 +43,7 @@ public class UserResponse implements Person, Emailable {
   private Instant secondPillarOpenDate;
   private Instant thirdPillarInitDate;
   @Nullable private Instant contactDetailsLastUpdateDate;
+  private Role role;
 
   public static UserResponse from(@NotNull User user) {
     return responseBuilder(user).build();
@@ -51,7 +53,16 @@ public class UserResponse implements Person, Emailable {
       @NotNull User user,
       @NotNull ContactDetails contactDetails,
       @NotNull PaymentRates paymentRates) {
+    return from(user, contactDetails, paymentRates, null);
+  }
+
+  public static UserResponse from(
+      @NotNull User user,
+      @NotNull ContactDetails contactDetails,
+      @NotNull PaymentRates paymentRates,
+      @Nullable Role role) {
     return responseBuilder(user)
+        .role(role)
         .pensionAccountNumber(contactDetails.getPensionAccountNumber())
         .address(Country.builder().countryCode(contactDetails.getCountry()).build())
         .secondPillarPikNumber(contactDetails.getActiveSecondPillarFundPik())

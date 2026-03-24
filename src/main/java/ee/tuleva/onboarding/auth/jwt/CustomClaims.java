@@ -15,7 +15,7 @@ public enum CustomClaims {
   AUTHORITIES("authorities", List.class),
   TOKEN_TYPE("tokenType", String.class),
   CLIENT_ID("cid", String.class),
-  ACTING_AS("actingAs", Map.class);
+  ROLE("role", Map.class);
 
   final String value;
   final Class<?> type;

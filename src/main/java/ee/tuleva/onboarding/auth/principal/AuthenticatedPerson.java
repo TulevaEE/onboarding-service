@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth.principal;
 
+import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -25,7 +26,7 @@ public class AuthenticatedPerson implements Person, Serializable {
 
   Long userId;
 
-  @NotNull ActingAs actingAs;
+  @NotNull Role role;
 
   @Override
   public String toString() {
@@ -47,7 +48,7 @@ public class AuthenticatedPerson implements Person, Serializable {
           lastName,
           attributes != null ? attributes : Map.of(),
           userId,
-          actingAs != null ? actingAs : new ActingAs.Person(personalCode));
+          role);
     }
   }
 }

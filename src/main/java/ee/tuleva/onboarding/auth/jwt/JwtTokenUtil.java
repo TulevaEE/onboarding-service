@@ -4,14 +4,15 @@ import static ee.tuleva.onboarding.auth.authority.Authority.PARTNER;
 import static ee.tuleva.onboarding.auth.authority.Authority.SERVICE;
 import static ee.tuleva.onboarding.auth.jwt.CustomClaims.*;
 import static ee.tuleva.onboarding.auth.jwt.TokenType.*;
+import static ee.tuleva.onboarding.auth.role.RoleType.*;
 import static java.time.temporal.ChronoUnit.HOURS;
 import static java.time.temporal.ChronoUnit.MINUTES;
 
 import ee.tuleva.onboarding.auth.partner.CompositeJwtParser;
-import ee.tuleva.onboarding.auth.principal.ActingAs;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
+import ee.tuleva.onboarding.auth.role.Role;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import java.security.Key;
@@ -125,7 +126,7 @@ public class JwtTokenUtil {
         LAST_NAME.value, person.getLastName(),
         ATTRIBUTES.value, person.getAttributes(),
         AUTHORITIES.value, authorities.stream().map(GrantedAuthority::getAuthority).toList(),
-        ACTING_AS.value, JSON_MAPPER.convertValue(person.getActingAs(), Map.class));
+        ROLE.value, JSON_MAPPER.convertValue(person.getRole(), Map.class));
   }
 
   public String generateServiceToken() {
@@ -139,13 +140,10 @@ public class JwtTokenUtil {
         .compact();
   }
 
-  public ActingAs getActingAsFromToken(String jwtToken) {
+  public Role getRoleFromToken(String jwtToken) {
     Claims claims = getAllClaimsFromToken(jwtToken);
-    Map<String, Object> actingAsMap = ACTING_AS.fromClaims(claims);
-    if (actingAsMap == null) {
-      return new ActingAs.Person(claims.getSubject());
-    }
-    return JSON_MAPPER.convertValue(actingAsMap, ActingAs.class);
+    Map<String, Object> roleMap = ROLE.fromClaims(claims);
+    return JSON_MAPPER.convertValue(roleMap, Role.class);
   }
 
   public Map<String, String> getAttributesFromToken(String jwtToken) {

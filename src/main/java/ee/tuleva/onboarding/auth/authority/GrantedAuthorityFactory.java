@@ -1,8 +1,7 @@
 package ee.tuleva.onboarding.auth.authority;
 
-import static ee.tuleva.onboarding.auth.authority.Authority.*;
+import static ee.tuleva.onboarding.auth.authority.Authority.MEMBER;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
-import static java.util.Arrays.asList;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.user.User;
@@ -27,7 +26,7 @@ public class GrantedAuthorityFactory {
 
     List<SimpleGrantedAuthority> grantedAuthorities =
         user.getMember()
-            .map(_ -> asList(new SimpleGrantedAuthority(USER), new SimpleGrantedAuthority(MEMBER)))
+            .map(_ -> List.of(new SimpleGrantedAuthority(USER), new SimpleGrantedAuthority(MEMBER)))
             .orElse(List.of(new SimpleGrantedAuthority(USER)));
 
     log.info("User #{} granted authorities: {}", userId, grantedAuthorities);

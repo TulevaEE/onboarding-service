@@ -13,6 +13,8 @@ class PrincipalServiceSpec extends Specification {
   PrincipalService service = new PrincipalService(userService)
 
   User sampleUser = User.builder()
+      .firstName("John")
+      .lastName("Doe")
       .active(true)
       .build()
 
@@ -27,18 +29,18 @@ class PrincipalServiceSpec extends Specification {
 
     then:
     authenticatedPerson.userId == sampleUser.id
-    authenticatedPerson.firstName == person.firstName
-    authenticatedPerson.lastName == person.lastName
+    authenticatedPerson.firstName == sampleUser.firstName
+    authenticatedPerson.lastName == sampleUser.lastName
     authenticatedPerson.personalCode == person.personalCode
   }
 
   def "getFromPerson: create a new user when one is not present"() {
     given:
     def person = samplePerson()
-    String firstNameUncapitalized = "JORDAN"
-    String firstNameCorrectlyCapitalized = "Jordan"
-    String lastNameUncapitalized = "VALDMA"
-    String lastNameCorrectlyCapitalized = "Valdma"
+    String firstNameUncapitalized = "JOHN"
+    String firstNameCorrectlyCapitalized = "John"
+    String lastNameUncapitalized = "DOE"
+    String lastNameCorrectlyCapitalized = "Doe"
     person = person.toBuilder()
         .firstName(firstNameUncapitalized)
         .lastName(lastNameUncapitalized)
@@ -79,6 +81,29 @@ class PrincipalServiceSpec extends Specification {
     result.userId == original.userId
     result.attributes == original.attributes
     result.actingAs == company
+  }
+
+  def "getFromPerson: uses capitalized name from database not raw auth provider name"() {
+    given:
+    def person = samplePerson().toBuilder()
+        .firstName("JOHN")
+        .lastName("DOE")
+        .build()
+    def user = User.builder()
+        .id(1L)
+        .firstName("John")
+        .lastName("Doe")
+        .active(true)
+        .build()
+    1 * userService.findByPersonalCode(person.personalCode) >> Optional.of(user)
+
+    when:
+    AuthenticatedPerson authenticatedPerson = service.getFrom(person, Map.of())
+
+    then:
+    authenticatedPerson.firstName == "John"
+    authenticatedPerson.lastName == "Doe"
+    authenticatedPerson.fullName == "John Doe"
   }
 
   def "getFromPerson: initialising non active user throws exception"() {

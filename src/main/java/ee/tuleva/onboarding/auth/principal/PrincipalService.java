@@ -35,8 +35,8 @@ public class PrincipalService {
     }
 
     return AuthenticatedPerson.builder()
-        .firstName(person.getFirstName())
-        .lastName(person.getLastName())
+        .firstName(user.getFirstName())
+        .lastName(user.getLastName())
         .personalCode(person.getPersonalCode())
         .userId(user.getId())
         .attributes(attributes)

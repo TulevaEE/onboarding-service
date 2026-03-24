@@ -113,6 +113,9 @@ dependencies {
 
     xjc("org.glassfish.jaxb:jaxb-xjc:4.0.5")
     xjc("org.glassfish.jaxb:jaxb-runtime:4.0.5")
+    xjc("io.github.threeten-jaxb:threeten-jaxb-core:2.2.0")
+
+    implementation("io.github.threeten-jaxb:threeten-jaxb-core:2.2.0")
 
     implementation("ee.sk.smartid:smart-id-java-client:2.3.1") {
         exclude(group = "org.bouncycastle")
@@ -364,6 +367,8 @@ tasks {
             )
 
         doLast {
+            val bindingsFile = file("$projectDir/src/main/resources/jaxb-bindings.xjb")
+
             iso20022OutputDir.mkdirs()
             iso20022Schemas.forEach { (schemaFile, packageName) ->
                 execOps.exec {
@@ -372,10 +377,13 @@ tasks {
                         "-cp",
                         configurations["xjc"].asPath,
                         "com.sun.tools.xjc.XJCFacade",
+                        "-extension",
                         "-d",
                         iso20022OutputDir.absolutePath,
                         "-p",
                         packageName,
+                        "-b",
+                        bindingsFile.absolutePath,
                         schemaFile.absolutePath,
                     )
                 }
@@ -391,10 +399,13 @@ tasks {
                         configurations["xjc"].asPath,
                         "com.sun.tools.xjc.XJCFacade",
                         "-nv",
+                        "-extension",
                         "-d",
                         ariregisterOutputDir.absolutePath,
                         "-p",
                         packageName,
+                        "-b",
+                        bindingsFile.absolutePath,
                         schemaFile.absolutePath,
                     )
                 }

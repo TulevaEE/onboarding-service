@@ -34,7 +34,6 @@ public class StatementRequestMessageGenerator {
   private static final String HISTORIC_MESSAGE_TYPE = "camt.053.001.02";
 
   private final Clock clock;
-  private final Converter<LocalDate, XMLGregorianCalendar> dateConverter;
   private final Converter<ZonedDateTime, XMLGregorianCalendar> timeConverter;
 
   public JAXBElement<Document> generateIntraDayReportRequest(
@@ -126,8 +125,8 @@ public class StatementRequestMessageGenerator {
 
   private DatePeriodDetails1 createDatePeriod(LocalDate fromDate, LocalDate toDate) {
     var datePeriod = new DatePeriodDetails1();
-    datePeriod.setFrDt(dateConverter.convert(fromDate));
-    datePeriod.setToDt(dateConverter.convert(toDate));
+    datePeriod.setFrDt(fromDate);
+    datePeriod.setToDt(toDate);
     return datePeriod;
   }
 

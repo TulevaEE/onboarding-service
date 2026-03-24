@@ -5,14 +5,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ee.tuleva.onboarding.ariregister.generated.Seos;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import javax.xml.datatype.DatatypeFactory;
 import org.junit.jupiter.api.Test;
 
 class CompanyRelationshipMapperTest {
 
   @Test
-  void mapsPhysicalPersonWithAllFields() throws Exception {
-    var factory = DatatypeFactory.newInstance();
+  void mapsPhysicalPersonWithAllFields() {
     var seos = new Seos();
     seos.setIsikuTyyp("F");
     seos.setIsikuRoll("JUHL");
@@ -20,9 +18,9 @@ class CompanyRelationshipMapperTest {
     seos.setEesnimi("Jaan");
     seos.setNimiArinimi("Tamm");
     seos.setIsikukoodRegistrikood("39901010000");
-    seos.setSynniaeg(factory.newXMLGregorianCalendar("1999-01-01"));
-    seos.setAlgusKpv(factory.newXMLGregorianCalendar("2017-04-03"));
-    seos.setLoppKpv(factory.newXMLGregorianCalendar("2025-12-31"));
+    seos.setSynniaeg(LocalDate.of(1999, 1, 1));
+    seos.setAlgusKpv(LocalDate.of(2017, 4, 3));
+    seos.setLoppKpv(LocalDate.of(2025, 12, 31));
     seos.setOsaluseProtsent(new BigDecimal("50.00"));
     seos.setKontrolliTeostamiseViisTekstina("Osaluse kaudu");
     seos.setAadressRiik("EST");

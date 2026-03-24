@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.Statem
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.OPEN;
 import static org.junit.jupiter.api.Assertions.*;
 
-import ee.tuleva.onboarding.banking.converter.LocalDateToXmlGregorianCalendarConverter;
 import ee.tuleva.onboarding.banking.converter.ZonedDateTimeToXmlGregorianCalendarConverter;
 import ee.tuleva.onboarding.banking.iso20022.camt053.Document;
 import ee.tuleva.onboarding.banking.iso20022.camt053.ObjectFactory;
@@ -32,9 +31,7 @@ public class Iso20022MarshallerTest {
     this.marshaller = new Iso20022Marshaller();
     this.statementRequestMessageGenerator =
         new StatementRequestMessageGenerator(
-            TestClockHolder.clock,
-            new LocalDateToXmlGregorianCalendarConverter(),
-            new ZonedDateTimeToXmlGregorianCalendarConverter());
+            TestClockHolder.clock, new ZonedDateTimeToXmlGregorianCalendarConverter());
   }
 
   @Test

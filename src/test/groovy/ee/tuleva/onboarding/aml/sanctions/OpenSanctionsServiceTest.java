@@ -7,6 +7,8 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.country.Country;
+import ee.tuleva.onboarding.kyb.CompanyDto;
+import ee.tuleva.onboarding.kyb.RegistryCode;
 import java.time.LocalDate;
 import java.util.List;
 import org.json.JSONException;
@@ -381,6 +383,89 @@ class OpenSanctionsServiceTest {
             buildJsonArrayStringFromList(countriesForQueryInResponse));
     JSONAssert.assertEquals(
         expectedQueryInResponseJson,
+        objectMapper.writeValueAsString(actualResponse.query()),
+        JSONCompareMode.STRICT);
+  }
+
+  @Test
+  @DisplayName("Should find a match for a company")
+  void canFindCompanyMatch() throws JacksonException, JSONException {
+    String registryCode = "12345678";
+    String companyName = "Test OÜ";
+    var company = new CompanyDto(new RegistryCode(registryCode), companyName, "62011");
+
+    String expectedResultsJson =
+        """
+        [
+          {
+            "id": "Q456",
+            "caption": "Test OÜ",
+            "schema": "Company",
+            "properties": {
+              "name": ["Test OÜ"],
+              "country": ["ee"],
+              "topics": ["sanction"]
+            }
+          }
+        ]""";
+
+    String expectedQueryJson =
+        """
+        {
+          "schema": "Company",
+          "properties": {
+            "name": ["Test OÜ"],
+            "registrationNumber": ["12345678"],
+            "country": ["ee"]
+          }
+        }""";
+
+    String mockApiResponseJson =
+        String.format(
+            """
+        {
+          "responses": {
+            "%s": {
+              "status": 200,
+              "results": %s,
+              "query": %s
+            }
+          }
+        }""",
+            registryCode, expectedResultsJson, expectedQueryJson);
+
+    String expectedRequestBodyJson =
+        String.format(
+            """
+        {
+            "queries": {
+              "%s": {
+                "schema": "Company",
+                "properties": {
+                  "name": ["%s"],
+                  "registrationNumber": ["%s"],
+                  "country": ["ee"]
+                }
+              }
+            }
+        }""",
+            registryCode, companyName, registryCode);
+
+    server
+        .expect(requestTo(baseUrlForMatching))
+        .andExpect(MockRestRequestMatchers.method(HttpMethod.POST))
+        .andExpect(MockRestRequestMatchers.content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(MockRestRequestMatchers.content().json(expectedRequestBodyJson, true))
+        .andRespond(withSuccess(mockApiResponseJson, MediaType.APPLICATION_JSON));
+
+    MatchResponse actualResponse = openSanctionsService.matchCompany(company);
+
+    JSONAssert.assertEquals(
+        expectedResultsJson,
+        objectMapper.writeValueAsString(actualResponse.results()),
+        JSONCompareMode.STRICT);
+    JSONAssert.assertEquals(
+        expectedQueryJson,
         objectMapper.writeValueAsString(actualResponse.query()),
         JSONCompareMode.STRICT);
   }

@@ -19,7 +19,11 @@ public class AmlKybCheckEventListener {
           KybCheckType.DUAL_MEMBER_OWNERSHIP, AmlCheckType.KYB_DUAL_MEMBER_OWNERSHIP,
           KybCheckType.SOLE_BOARD_MEMBER_IS_OWNER, AmlCheckType.KYB_SOLE_BOARD_MEMBER_IS_OWNER,
           KybCheckType.COMPANY_ACTIVE, AmlCheckType.KYB_COMPANY_ACTIVE,
-          KybCheckType.RELATED_PERSONS_KYC, AmlCheckType.KYB_RELATED_PERSONS_KYC);
+          KybCheckType.RELATED_PERSONS_KYC, AmlCheckType.KYB_RELATED_PERSONS_KYC,
+          KybCheckType.COMPANY_SANCTION, AmlCheckType.KYB_COMPANY_SANCTION,
+          KybCheckType.COMPANY_PEP, AmlCheckType.KYB_COMPANY_PEP,
+          KybCheckType.HIGH_RISK_NACE, AmlCheckType.KYB_HIGH_RISK_NACE,
+          KybCheckType.SELF_CERTIFICATION, AmlCheckType.KYB_SELF_CERTIFICATION);
 
   private final AmlService amlService;
 

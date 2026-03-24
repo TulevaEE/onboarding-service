@@ -8,18 +8,17 @@ import ee.tuleva.onboarding.kyb.KybCompanyData;
 import ee.tuleva.onboarding.kyb.KybRelatedPerson;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 @Component
 public class RelatedPersonsKycScreener implements KybScreener {
 
   @Override
-  public Optional<KybCheck> screen(KybCompanyData companyData) {
+  public List<KybCheck> screen(KybCompanyData companyData) {
     var incomplete =
         companyData.relatedPersons().stream().filter(p -> p.kycStatus() != COMPLETED).toList();
 
-    return Optional.of(
+    return List.of(
         new KybCheck(RELATED_PERSONS_KYC, incomplete.isEmpty(), buildMetadata(incomplete)));
   }
 

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.aml.sanctions;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.country.Country;
+import ee.tuleva.onboarding.kyb.CompanyDto;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.util.HashSet;
 import java.util.List;
@@ -46,21 +47,38 @@ public class OpenSanctionsService implements PepAndSanctionCheckService {
     var properties =
         new PersonProperties(List.of(fullName), List.of(birthDate), countries, List.of(gender));
     var personQuery = new PersonQuery(properties);
-    var matchRequest = new MatchRequest(Map.of(personalCode, personQuery));
+
+    return executeMatch(personalCode, personQuery);
+  }
+
+  @Override
+  @SneakyThrows
+  public MatchResponse matchCompany(CompanyDto company) {
+    var registryCode = company.registryCode().value();
+    var properties =
+        new CompanyProperties(List.of(company.name()), List.of(registryCode), Set.of("ee"));
+    var companyQuery = new CompanyQuery(properties);
+
+    return executeMatch(registryCode, companyQuery);
+  }
+
+  @SneakyThrows
+  private MatchResponse executeMatch(String queryKey, Object query) {
+    var matchRequest = Map.of("queries", Map.of(queryKey, query));
 
     String json =
         restTemplate.postForObject(
-            baseUrl
-                + "/match/default?algorithm=logic-v1&threshold=0.8&cutoff=0.7"
-                + "&topics=role.pep&topics=role.rca&topics=sanction"
-                + "&facets=countries&facets=topics&facets=datasets&facets=gender",
-            new HttpEntity<>(matchRequest, headers()),
-            String.class);
+            baseUrl + MATCH_URL, new HttpEntity<>(matchRequest, headers()), String.class);
 
     JsonNode rootNode = objectMapper.readTree(json);
-    JsonNode response = rootNode.path("responses").path(personalCode);
+    JsonNode response = rootNode.path("responses").path(queryKey);
     return new MatchResponse((ArrayNode) response.path("results"), response.path("query"));
   }
+
+  private static final String MATCH_URL =
+      "/match/default?algorithm=logic-v1&threshold=0.8&cutoff=0.7"
+          + "&topics=role.pep&topics=role.rca&topics=sanction"
+          + "&facets=countries&facets=topics&facets=datasets&facets=gender";
 
   private HashSet<String> getCountries(Country country) {
     var countries = new HashSet<String>();
@@ -81,7 +99,15 @@ public class OpenSanctionsService implements PepAndSanctionCheckService {
     }
   }
 
-  private record MatchRequest(Map<String, PersonQuery> queries) {}
+  private record CompanyProperties(
+      List<String> name, List<String> registrationNumber, Set<String> country) {}
+
+  private record CompanyQuery(String schema, CompanyProperties properties) {
+
+    public CompanyQuery(CompanyProperties properties) {
+      this("Company", properties);
+    }
+  }
 
   private HttpHeaders headers() {
     HttpHeaders headers = new HttpHeaders();

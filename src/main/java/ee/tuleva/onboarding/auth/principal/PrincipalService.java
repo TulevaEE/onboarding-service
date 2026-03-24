@@ -19,6 +19,11 @@ public class PrincipalService {
   private final UserService userService;
 
   public AuthenticatedPerson getFrom(@Valid Person person, Map<String, String> attributes) {
+    return getFrom(person, attributes, new ActingAs.Person(person.getPersonalCode()));
+  }
+
+  public AuthenticatedPerson getFrom(
+      @Valid Person person, Map<String, String> attributes, ActingAs actingAs) {
 
     Optional<User> userOptional = userService.findByPersonalCode(person.getPersonalCode());
 
@@ -35,6 +40,18 @@ public class PrincipalService {
         .personalCode(person.getPersonalCode())
         .userId(user.getId())
         .attributes(attributes)
+        .actingAs(actingAs)
+        .build();
+  }
+
+  public AuthenticatedPerson withActingAs(AuthenticatedPerson person, ActingAs actingAs) {
+    return AuthenticatedPerson.builder()
+        .personalCode(person.getPersonalCode())
+        .firstName(person.getFirstName())
+        .lastName(person.getLastName())
+        .userId(person.getUserId())
+        .attributes(person.getAttributes())
+        .actingAs(actingAs)
         .build();
   }
 

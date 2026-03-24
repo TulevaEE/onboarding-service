@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth.jwt
 
 import ee.tuleva.onboarding.auth.partner.PartnerPublicKeyConfiguration
+import ee.tuleva.onboarding.auth.principal.ActingAs
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.Person
 import io.jsonwebtoken.ExpiredJwtException
@@ -100,6 +101,92 @@ class JwtTokenUtilSpec extends Specification {
     then:
         attributes.get("email") == "peeter@meeter.com"
         extractedAuthorities == ["USER"]
+  }
+
+  def "includes actingAs person as sub-object in access token"() {
+    given:
+        AuthenticatedPerson person = AuthenticatedPerson.builder()
+            .firstName("Peeter")
+            .lastName("Meeter")
+            .personalCode("38812121215")
+            .actingAs(new ActingAs.Person("38812121215"))
+            .build()
+        List<GrantedAuthority> authorities = [new SimpleGrantedAuthority("USER")]
+
+    when:
+        String token = jwtTokenUtil.generateAccessToken(person, authorities)
+        ActingAs actingAs = jwtTokenUtil.getActingAsFromToken(token)
+
+    then:
+        actingAs instanceof ActingAs.Person
+        actingAs.code() == "38812121215"
+  }
+
+  def "includes actingAs company as sub-object in access token"() {
+    given:
+        AuthenticatedPerson person = AuthenticatedPerson.builder()
+            .firstName("Peeter")
+            .lastName("Meeter")
+            .personalCode("38812121215")
+            .actingAs(new ActingAs.Company("12345678"))
+            .build()
+        List<GrantedAuthority> authorities = [new SimpleGrantedAuthority("USER")]
+
+    when:
+        String token = jwtTokenUtil.generateAccessToken(person, authorities)
+        ActingAs actingAs = jwtTokenUtil.getActingAsFromToken(token)
+
+    then:
+        actingAs instanceof ActingAs.Company
+        actingAs.code() == "12345678"
+  }
+
+  def "includes actingAs in refresh token"() {
+    given:
+        AuthenticatedPerson person = AuthenticatedPerson.builder()
+            .firstName("Peeter")
+            .lastName("Meeter")
+            .personalCode("38812121215")
+            .actingAs(new ActingAs.Company("12345678"))
+            .build()
+        List<GrantedAuthority> authorities = [new SimpleGrantedAuthority("USER")]
+
+    when:
+        String token = jwtTokenUtil.generateRefreshToken(person, authorities)
+        ActingAs actingAs = jwtTokenUtil.getActingAsFromToken(token)
+
+    then:
+        actingAs instanceof ActingAs.Company
+        actingAs.code() == "12345678"
+  }
+
+  def "defaults to person actingAs for tokens without actingAs claim"() {
+    given:
+        AuthenticatedPerson person = AuthenticatedPerson.builder()
+            .firstName("Peeter")
+            .lastName("Meeter")
+            .personalCode("38812121215")
+            .build()
+        List<GrantedAuthority> authorities = [new SimpleGrantedAuthority("USER")]
+        // Generate token using old format (no actingAs claim) by directly building JWT
+        String token = io.jsonwebtoken.Jwts.builder()
+            .subject("38812121215")
+            .claim("firstName", "Peeter")
+            .claim("lastName", "Meeter")
+            .claim("tokenType", "ACCESS")
+            .claim("authorities", ["USER"])
+            .claim("attributes", [:])
+            .signWith(jwtTokenUtil.@signingKey)
+            .issuedAt(Date.from(clock.instant()))
+            .expiration(Date.from(clock.instant().plus(1, HOURS)))
+            .compact()
+
+    when:
+        ActingAs actingAs = jwtTokenUtil.getActingAsFromToken(token)
+
+    then:
+        actingAs instanceof ActingAs.Person
+        actingAs.code() == "38812121215"
   }
 
   def "handles expired token"() {

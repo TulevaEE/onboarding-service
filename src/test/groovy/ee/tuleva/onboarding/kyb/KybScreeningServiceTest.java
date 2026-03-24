@@ -72,7 +72,8 @@ class KybScreeningServiceTest {
 
     var types = results.stream().map(KybCheck::type).toList();
     assertThat(types)
-        .containsExactlyInAnyOrder(SOLE_BOARD_MEMBER_IS_OWNER, COMPANY_ACTIVE, RELATED_PERSONS_KYC);
+        .containsExactlyInAnyOrder(
+            SOLE_BOARD_MEMBER_IS_OWNER, COMPANY_ACTIVE, RELATED_PERSONS_KYC);
   }
 
   @Test

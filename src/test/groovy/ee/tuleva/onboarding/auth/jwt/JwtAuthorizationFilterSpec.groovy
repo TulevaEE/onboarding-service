@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth.jwt
 
 import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.auth.authority.Authority
+import ee.tuleva.onboarding.auth.principal.ActingAs
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.PrincipalService
 import io.jsonwebtoken.Jwts
@@ -71,7 +72,7 @@ class JwtAuthorizationFilterSpec extends Specification {
     request.addHeader("Authorization", "Bearer " + token)
     def response = new MockHttpServletResponse()
     def filterChain = Mock(FilterChain)
-    principalService.getFrom(_, _) >> person
+    principalService.getFrom(_, _, _) >> person
     when:
     filter.doFilterInternal(request, response, filterChain)
     then:
@@ -87,6 +88,43 @@ class JwtAuthorizationFilterSpec extends Specification {
       }
     }
 
+    1 * filterChain.doFilter(request, response)
+  }
+
+  def "reconstructs actingAs company from JWT claims"() {
+    given:
+    def token = Jwts.builder()
+        .subject("38510309519")
+        .signWith(keyPair.private)
+        .expiration(Date.from(clock.instant().plus(1, HOURS)))
+        .claim("firstName", "Peeter")
+        .claim("lastName", "Meeter")
+        .claim("authorities", ["USER"])
+        .claim("tokenType", "ACCESS")
+        .claim("actingAs", [type: "COMPANY", code: "12345678"])
+        .compact()
+    def person = sampleAuthenticatedPersonAndMember()
+        .firstName("Peeter")
+        .lastName("Meeter")
+        .personalCode("38510309519")
+        .actingAs(new ActingAs.Company("12345678"))
+        .build()
+    def request = new MockHttpServletRequest()
+    request.addHeader("Authorization", "Bearer " + token)
+    def response = new MockHttpServletResponse()
+    def filterChain = Mock(FilterChain)
+    when:
+    filter.doFilterInternal(request, response, filterChain)
+    then:
+    1 * principalService.getFrom(_, _, { it instanceof ActingAs.Company && it.code() == "12345678" }) >> person
+    with(SecurityContextHolder.context.authentication) { authentication ->
+      authentication != null
+      with(authentication.principal as AuthenticatedPerson) { principal ->
+        principal.personalCode == "38510309519"
+        principal.actingAs instanceof ActingAs.Company
+        principal.actingAs.code() == "12345678"
+      }
+    }
     1 * filterChain.doFilter(request, response)
   }
 
@@ -215,7 +253,7 @@ class JwtAuthorizationFilterSpec extends Specification {
     request.addHeader("Authorization", "Bearer " + token)
     def response = new MockHttpServletResponse()
     def filterChain = Mock(FilterChain)
-    principalService.getFrom(_, _) >> person
+    principalService.getFrom(_, _, _) >> person
 
     when:
     filter.doFilterInternal(request, response, filterChain)
@@ -258,7 +296,7 @@ class JwtAuthorizationFilterSpec extends Specification {
     request.addHeader("Authorization", "Bearer " + token)
     def response = new MockHttpServletResponse()
     def filterChain = Mock(FilterChain)
-    principalService.getFrom(_, _) >> person
+    principalService.getFrom(_, _, _) >> person
     when:
     filter.doFilterInternal(request, response, filterChain)
     then:

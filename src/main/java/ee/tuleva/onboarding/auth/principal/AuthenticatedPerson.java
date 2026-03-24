@@ -2,9 +2,9 @@ package ee.tuleva.onboarding.auth.principal;
 
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.io.Serial;
 import java.io.Serializable;
-import java.util.HashMap;
 import java.util.Map;
 import lombok.Builder;
 import lombok.Value;
@@ -21,9 +21,11 @@ public class AuthenticatedPerson implements Person, Serializable {
 
   @NotBlank String lastName;
 
-  @Builder.Default Map<String, String> attributes = new HashMap<>();
+  Map<String, String> attributes;
 
   Long userId;
+
+  @NotNull ActingAs actingAs;
 
   @Override
   public String toString() {
@@ -34,5 +36,18 @@ public class AuthenticatedPerson implements Person, Serializable {
   // inserted with
   public String getAttribute(String attribute) {
     return attributes.get(attribute);
+  }
+
+  public static class AuthenticatedPersonBuilder {
+
+    public AuthenticatedPerson build() {
+      return new AuthenticatedPerson(
+          personalCode,
+          firstName,
+          lastName,
+          attributes != null ? attributes : Map.of(),
+          userId,
+          actingAs != null ? actingAs : new ActingAs.Person(personalCode));
+    }
   }
 }

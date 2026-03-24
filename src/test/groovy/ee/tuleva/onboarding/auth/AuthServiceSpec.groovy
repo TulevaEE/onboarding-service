@@ -1,50 +1,45 @@
 package ee.tuleva.onboarding.auth
 
-import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil
 import ee.tuleva.onboarding.auth.jwt.TokenType
+import ee.tuleva.onboarding.auth.principal.ActingAs
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.PrincipalService
 import io.jsonwebtoken.ExpiredJwtException
 import org.springframework.context.ApplicationEventPublisher
-import org.springframework.security.core.GrantedAuthority
-import org.springframework.security.core.authority.SimpleGrantedAuthority
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
+import static ee.tuleva.onboarding.auth.GrantType.*
 
 class AuthServiceSpec extends Specification {
   private final AuthProvider authProvider = Mock()
   private final ApplicationEventPublisher eventPublisher = Mock()
   private final JwtTokenUtil jwtTokenUtil = Mock()
-  private final GrantedAuthorityFactory grantedAuthorityFactory = Mock()
+  private final TokenService tokenService = Mock()
   private final PrincipalService principalService = Mock()
   private final AuthService authService = new AuthService(
-      [authProvider], eventPublisher, jwtTokenUtil, grantedAuthorityFactory, principalService
+      [authProvider], eventPublisher, jwtTokenUtil, tokenService, principalService
   )
 
   def "successful authentication generates access and refresh tokens"() {
     given:
         AuthenticatedPerson authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
-        List<GrantedAuthority> grantedAuthorities = [new SimpleGrantedAuthority("USER")]
-        GrantType grantType = GrantType.SMART_ID
+        GrantType grantType = SMART_ID
         String authenticationHash = "dummy"
-        String jwtToken = "jwtToken"
-        String refreshToken = "refreshToken"
+        def tokens = new AuthenticationTokens("jwtToken", "refreshToken")
         authProvider.supports(grantType) >> true
         authProvider.authenticate(authenticationHash) >> authenticatedPerson
-        grantedAuthorityFactory.from(authenticatedPerson) >> grantedAuthorities
-        jwtTokenUtil.generateAccessToken(authenticatedPerson, grantedAuthorities) >> jwtToken
-        jwtTokenUtil.generateRefreshToken(authenticatedPerson, grantedAuthorities) >> refreshToken
+        tokenService.generateTokens(authenticatedPerson) >> tokens
 
     when:
-        AuthenticationTokens tokens = authService.authenticate(grantType, authenticationHash)
+        AuthenticationTokens result = authService.authenticate(grantType, authenticationHash)
 
     then:
-        tokens.accessToken == jwtToken
-        tokens.refreshToken == refreshToken
+        result.accessToken == "jwtToken"
+        result.refreshToken == "refreshToken"
         1 * eventPublisher.publishEvent(_ as BeforeTokenGrantedEvent)
         1 * eventPublisher.publishEvent(_ as AfterTokenGrantedEvent)
   }
@@ -53,29 +48,47 @@ class AuthServiceSpec extends Specification {
     given:
         String refreshToken = "validRefreshToken"
         AuthenticatedPerson authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
-        List<GrantedAuthority> grantedAuthorities = [new SimpleGrantedAuthority("USER")]
-        TokenType tokenType = TokenType.REFRESH
-        jwtTokenUtil.getTypeFromToken(refreshToken) >> tokenType
+        jwtTokenUtil.getTypeFromToken(refreshToken) >> TokenType.REFRESH
         jwtTokenUtil.getPersonFromToken(refreshToken) >> authenticatedPerson
         jwtTokenUtil.getAttributesFromToken(refreshToken) >> [:]
-        principalService.getFrom(authenticatedPerson, [:]) >> authenticatedPerson
-        grantedAuthorityFactory.from(authenticatedPerson) >> grantedAuthorities
-        String newAccessToken = "newAccessToken"
-        1 * jwtTokenUtil.generateAccessToken(authenticatedPerson, grantedAuthorities) >> newAccessToken
-        0 * jwtTokenUtil.generateRefreshToken(authenticatedPerson, grantedAuthorities)
+        jwtTokenUtil.getActingAsFromToken(refreshToken) >> null
+        principalService.getFrom(authenticatedPerson, [:], null) >> authenticatedPerson
+        tokenService.generateAccessToken(authenticatedPerson) >> "newAccessToken"
 
     when:
         AuthenticationTokens tokens = authService.refreshToken(refreshToken)
 
     then:
-        tokens.accessToken == newAccessToken
+        tokens.accessToken == "newAccessToken"
+        tokens.refreshToken == refreshToken
+  }
+
+  def "refresh token preserves actingAs company"() {
+    given:
+        String refreshToken = "validRefreshToken"
+        def company = new ActingAs.Company("12345678")
+        AuthenticatedPerson authenticatedPerson = sampleAuthenticatedPersonAndMember()
+            .actingAs(company)
+            .build()
+        jwtTokenUtil.getTypeFromToken(refreshToken) >> TokenType.REFRESH
+        jwtTokenUtil.getPersonFromToken(refreshToken) >> authenticatedPerson
+        jwtTokenUtil.getAttributesFromToken(refreshToken) >> [:]
+        jwtTokenUtil.getActingAsFromToken(refreshToken) >> company
+        principalService.getFrom(authenticatedPerson, [:], company) >> authenticatedPerson
+        tokenService.generateAccessToken(authenticatedPerson) >> "newAccessToken"
+
+    when:
+        AuthenticationTokens tokens = authService.refreshToken(refreshToken)
+
+    then:
+        tokens.accessToken == "newAccessToken"
         tokens.refreshToken == refreshToken
   }
 
 
   def "provider is not used when it does not support the grant type"() {
     given:
-    GrantType grantType = GrantType.SMART_ID
+    def grantType = SMART_ID
     String authenticationHash = "dummy"
     authProvider.supports(grantType) >> false
     when:
@@ -86,22 +99,19 @@ class AuthServiceSpec extends Specification {
 
   def "provider is used when it supports the grant type"() {
     given:
-    AuthenticatedPerson authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
-    List<GrantedAuthority> grantedAuthorities = [new SimpleGrantedAuthority("USER")]
-    GrantType grantType = GrantType.SMART_ID
+    def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
+    def grantType = SMART_ID
     String authenticationHash = "dummy"
     authProvider.supports(grantType) >> true
     when:
     authService.authenticate(grantType, authenticationHash)
     then:
     1 * authProvider.authenticate(authenticationHash) >> authenticatedPerson
-    1 * grantedAuthorityFactory.from(authenticatedPerson) >> grantedAuthorities
     1 * eventPublisher.publishEvent(_ as BeforeTokenGrantedEvent) >> { BeforeTokenGrantedEvent event ->
       assert event.grantType == grantType
       assert event.person == authenticatedPerson
     }
-    1 * jwtTokenUtil.generateAccessToken(authenticatedPerson, grantedAuthorities) >> "dummyToken"
-    1 * jwtTokenUtil.generateRefreshToken(authenticatedPerson, grantedAuthorities) >> "refreshToken"
+    1 * tokenService.generateTokens(authenticatedPerson) >> new AuthenticationTokens("dummyToken", "refreshToken")
     1 * eventPublisher.publishEvent(_ as AfterTokenGrantedEvent) >> { AfterTokenGrantedEvent event ->
       assert event.person == authenticatedPerson
       assert event.tokens.accessToken() == "dummyToken"
@@ -111,7 +121,7 @@ class AuthServiceSpec extends Specification {
 
   def "authenticate method handles null authentication hash gracefully"() {
     given:
-        GrantType grantType = GrantType.SMART_ID
+        def grantType = SMART_ID
         String authenticationHash = null
 
     when:
@@ -123,7 +133,7 @@ class AuthServiceSpec extends Specification {
 
   def "authenticate returns null when no providers support the grant type"() {
     given:
-        GrantType grantType = GrantType.SMART_ID
+        def grantType = SMART_ID
         String authenticationHash = "dummy"
         authProvider.supports(grantType) >> false
 

@@ -3,18 +3,20 @@ package ee.tuleva.onboarding.ariregister;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDate;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.oxm.jaxb.Jaxb2Marshaller;
 import org.springframework.ws.client.core.WebServiceTemplate;
 
-@Disabled("Manual smoke test — requires real credentials")
+@EnabledIfEnvironmentVariable(named = "ARIREGISTER_SMOKE_TESTS", matches = "true")
 class AriregisterClientSmokeTest {
 
   @Test
   void fetchTulevaFondidRelationships() {
     var marshaller = new Jaxb2Marshaller();
-    marshaller.setContextPath("ee.tuleva.onboarding.ariregister.generated");
+    marshaller.setContextPath(
+        "ee.tuleva.onboarding.ariregister.generated"
+            + ":ee.tuleva.onboarding.ariregister.generated.detailandmed");
 
     var template = new WebServiceTemplate(marshaller);
     template.setDefaultUri("https://ariregxmlv6.rik.ee/ariregxml");
@@ -42,5 +44,36 @@ class AriregisterClientSmokeTest {
                 r.startDate(),
                 r.ownershipPercent(),
                 r.countryCode()));
+  }
+
+  @Test
+  void fetchTulevaFondidDetails() {
+    var marshaller = new Jaxb2Marshaller();
+    marshaller.setContextPath(
+        "ee.tuleva.onboarding.ariregister.generated"
+            + ":ee.tuleva.onboarding.ariregister.generated.detailandmed");
+
+    var template = new WebServiceTemplate(marshaller);
+    template.setDefaultUri("https://ariregxmlv6.rik.ee/ariregxml");
+
+    var properties =
+        new AriregisterProperties(
+            "https://ariregxmlv6.rik.ee/ariregxml",
+            System.getenv("ARIREGISTER_USERNAME"),
+            System.getenv("ARIREGISTER_PASSWORD"));
+
+    var client = new AriregisterClient(template, properties);
+    var details = client.getCompanyDetails("14118923");
+
+    assertThat(details).isPresent();
+    var d = details.get();
+    System.out.printf(
+        "Name=%s, Code=%s, Status=%s, Founded=%s, Address=%s, Activity=%s%n",
+        d.getName(),
+        d.getRegistryCode(),
+        d.getStatus(),
+        d.getFoundingDate(),
+        d.getAddress(),
+        d.getMainActivity());
   }
 }

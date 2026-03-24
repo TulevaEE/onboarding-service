@@ -112,6 +112,7 @@ dependencies {
     testImplementation("org.springframework.ws:spring-ws-test")
 
     xjc("org.glassfish.jaxb:jaxb-xjc:4.0.5")
+    xjc("org.glassfish.jaxb:jaxb-runtime:4.0.5")
 
     implementation("ee.sk.smartid:smart-id-java-client:2.3.1") {
         exclude(group = "org.bouncycastle")
@@ -357,6 +358,9 @@ tasks {
         val ariregisterSchemas =
             listOf(
                 file("$ariregisterDir/ettevottegaSeotudIsikud_v1.xsd") to "ee.tuleva.onboarding.ariregister.generated",
+                file(
+                    "$ariregisterDir/detailandmed_v2.xsd",
+                ) to "ee.tuleva.onboarding.ariregister.generated.detailandmed",
             )
 
         doLast {
@@ -382,9 +386,11 @@ tasks {
                 execOps.exec {
                     executable = "java"
                     args(
+                        "-Xss4m",
                         "-cp",
                         configurations["xjc"].asPath,
                         "com.sun.tools.xjc.XJCFacade",
+                        "-nv",
                         "-d",
                         ariregisterOutputDir.absolutePath,
                         "-p",

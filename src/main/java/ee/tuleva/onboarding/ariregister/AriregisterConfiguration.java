@@ -17,7 +17,9 @@ class AriregisterConfiguration {
   @Bean
   Jaxb2Marshaller ariregisterMarshaller() {
     var marshaller = new Jaxb2Marshaller();
-    marshaller.setContextPath("ee.tuleva.onboarding.ariregister.generated");
+    marshaller.setContextPath(
+        "ee.tuleva.onboarding.ariregister.generated"
+            + ":ee.tuleva.onboarding.ariregister.generated.detailandmed");
     return marshaller;
   }
 

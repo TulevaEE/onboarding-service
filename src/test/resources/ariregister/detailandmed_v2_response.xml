@@ -1,0 +1,56 @@
+<ns1:detailandmed_v2Response xmlns:ns1="http://arireg.x-road.eu/producer/">
+  <ns1:paring>
+    <ns1:ariregistri_kood>99000001</ns1:ariregistri_kood>
+    <ns1:yandmed>true</ns1:yandmed>
+    <ns1:iandmed>false</ns1:iandmed>
+    <ns1:kandmed>false</ns1:kandmed>
+    <ns1:dandmed>false</ns1:dandmed>
+    <ns1:maarused>false</ns1:maarused>
+  </ns1:paring>
+  <ns1:keha>
+    <ns1:ettevotjad>
+      <ns1:item>
+        <ns1:ariregistri_kood>99000001</ns1:ariregistri_kood>
+        <ns1:nimi>Test Firma OÜ</ns1:nimi>
+        <ns1:yldandmed>
+          <ns1:staatus>R</ns1:staatus>
+          <ns1:aadressid>
+            <ns1:item>
+              <ns1:tanav_maja_korter>Pärnu mnt 123</ns1:tanav_maja_korter>
+              <ns1:ehak_nimetus>Tallinn</ns1:ehak_nimetus>
+              <ns1:postiindeks>11313</ns1:postiindeks>
+              <ns1:aadress_ads__ads_normaliseeritud_taisaadress>Pärnu mnt 123, 11313 Tallinn</ns1:aadress_ads__ads_normaliseeritud_taisaadress>
+              <ns1:algus_kpv>2024-09-01</ns1:algus_kpv>
+            </ns1:item>
+            <ns1:item>
+              <ns1:tanav_maja_korter>Vana tn 1</ns1:tanav_maja_korter>
+              <ns1:ehak_nimetus>Tartu</ns1:ehak_nimetus>
+              <ns1:postiindeks>50000</ns1:postiindeks>
+              <ns1:aadress_ads__ads_normaliseeritud_taisaadress>Vana tn 1, 50000 Tartu</ns1:aadress_ads__ads_normaliseeritud_taisaadress>
+              <ns1:algus_kpv>2020-01-01</ns1:algus_kpv>
+              <ns1:lopp_kpv>2024-08-31</ns1:lopp_kpv>
+            </ns1:item>
+          </ns1:aadressid>
+          <ns1:esmaregistreerimise_kpv>2024-09-01</ns1:esmaregistreerimise_kpv>
+          <ns1:teatatud_tegevusalad>
+            <ns1:item>
+              <ns1:emtak_kood>66301</ns1:emtak_kood>
+              <ns1:emtak_tekstina>Fondide valitsemine</ns1:emtak_tekstina>
+              <ns1:nace_kood>6630</ns1:nace_kood>
+              <ns1:on_pohitegevusala>true</ns1:on_pohitegevusala>
+              <ns1:algus_kpv>2024-09-01</ns1:algus_kpv>
+            </ns1:item>
+            <ns1:item>
+              <ns1:emtak_kood>64201</ns1:emtak_kood>
+              <ns1:emtak_tekstina>Valdusfirmade tegevus</ns1:emtak_tekstina>
+              <ns1:nace_kood>6420</ns1:nace_kood>
+              <ns1:on_pohitegevusala>false</ns1:on_pohitegevusala>
+              <ns1:algus_kpv>2024-09-01</ns1:algus_kpv>
+            </ns1:item>
+          </ns1:teatatud_tegevusalad>
+        </ns1:yldandmed>
+      </ns1:item>
+    </ns1:ettevotjad>
+    <ns1:leitud_ettevotjate_arv>1</ns1:leitud_ettevotjate_arv>
+  </ns1:keha>
+</ns1:detailandmed_v2Response>

@@ -10,6 +10,8 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.oxm.jaxb.Jaxb2Marshaller;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
@@ -118,34 +120,64 @@ class AriregisterClientTest {
     mockServer.verify();
   }
 
+  @Test
+  void getCompanyDetails() throws Exception {
+    mockServer
+        .expect(xpath("//ar:ariregistri_kood", NS).evaluatesTo("99000001"))
+        .andExpect(xpath("//ar:ariregister_kasutajanimi", NS).evaluatesTo("testuser"))
+        .andExpect(xpath("//ar:ariregister_parool", NS).evaluatesTo("testpass"))
+        .andExpect(xpath("//ar:yandmed", NS).evaluatesTo("true"))
+        .andExpect(xpath("//ar:iandmed", NS).evaluatesTo("false"))
+        .andRespond(withPayload(detailandmedResponsePayload()));
+
+    var result = client.getCompanyDetails("99000001");
+
+    assertThat(result).isPresent();
+    var detail = result.get();
+    assertThat(detail.getName()).isEqualTo("Test Firma OÜ");
+    assertThat(detail.getRegistryCode()).isEqualTo("99000001");
+    assertThat(detail.getStatus()).contains("R");
+    assertThat(detail.getFoundingDate()).contains(LocalDate.of(2024, 9, 1));
+    assertThat(detail.getAddress()).contains("Pärnu mnt 123, 11313 Tallinn");
+    assertThat(detail.getMainActivity()).contains("Fondide valitsemine");
+
+    mockServer.verify();
+  }
+
   private static ResourceSource responsePayload() throws Exception {
     return new ResourceSource(
         new ClassPathResource("ariregister/ettevottegaSeotudIsikud_v1_response.xml"));
   }
 
-  @org.springframework.context.annotation.Configuration
+  private static ResourceSource detailandmedResponsePayload() throws Exception {
+    return new ResourceSource(new ClassPathResource("ariregister/detailandmed_v2_response.xml"));
+  }
+
+  @Configuration
   static class TestConfig {
 
-    @org.springframework.context.annotation.Bean
+    @Bean
     Jaxb2Marshaller ariregisterMarshaller() {
       var marshaller = new Jaxb2Marshaller();
-      marshaller.setContextPath("ee.tuleva.onboarding.ariregister.generated");
+      marshaller.setContextPath(
+          "ee.tuleva.onboarding.ariregister.generated"
+              + ":ee.tuleva.onboarding.ariregister.generated.detailandmed");
       return marshaller;
     }
 
-    @org.springframework.context.annotation.Bean
+    @Bean
     WebServiceTemplate ariregisterWebServiceTemplate(Jaxb2Marshaller ariregisterMarshaller) {
       var template = new WebServiceTemplate(ariregisterMarshaller);
       template.setDefaultUri("http://localhost");
       return template;
     }
 
-    @org.springframework.context.annotation.Bean
+    @Bean
     AriregisterProperties ariregisterProperties() {
       return new AriregisterProperties("http://localhost", "testuser", "testpass");
     }
 
-    @org.springframework.context.annotation.Bean
+    @Bean
     AriregisterClient ariregisterClient(
         WebServiceTemplate ariregisterWebServiceTemplate,
         AriregisterProperties ariregisterProperties) {

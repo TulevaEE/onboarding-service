@@ -50,6 +50,17 @@ Write your task into `temp/task.md` before starting a session with Claude. This 
 - Be explicit about scope — what to build AND what NOT to build
 - Specify where results should be stored or how they connect to existing code
 - Include links to external APIs or docs when relevant
+- Write ALL requirements before starting — adding points mid-session costs rework
+- Use separate task files per session (`temp/task2.md`, `temp/task3.md`)
+
+## Working with Claude Code
+
+- **Use plan mode for anything non-trivial** — it catches design issues before code exists. Review the plan, add requirements, then approve.
+- **Write a proposal doc first for research tasks** — iterate on a markdown file before writing any code. Changes to docs are free.
+- **Be specific about PRs and comments** — say "PR #1511, JordanValdma's comment" not "the recent PR"
+- **Say "commit and PR" explicitly** — Claude won't push without you asking
+- **Batch related tasks** in one session when they touch the same module — avoids repeated context-building
+- **Provide business context** — "EU PEPs are not high risk" shapes design better than "implement check 43"
 
 ## Getting Started
 

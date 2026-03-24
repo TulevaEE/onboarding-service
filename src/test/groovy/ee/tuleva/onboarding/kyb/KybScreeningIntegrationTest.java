@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.kyb;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.kyb.CompanyStatus.R;
+import static ee.tuleva.onboarding.kyb.KybKycStatus.*;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -24,24 +25,28 @@ class KybScreeningIntegrationTest {
   @Autowired private AmlCheckRepository amlCheckRepository;
 
   @Test
-  void singlePersonCompanyWithValidOwnershipCreatesSuccessfulChecks() {
-    var person = new KybRelatedPerson(PERSONAL_CODE, true, true, true, BigDecimal.valueOf(100));
+  void singlePersonCompanyWithValidOwnershipAndCompletedKycCreatesSuccessfulChecks() {
+    var person =
+        new KybRelatedPerson(PERSONAL_CODE, true, true, true, BigDecimal.valueOf(100), COMPLETED);
     var data = new KybCompanyData("12345678", PERSONAL_CODE, R, List.of(person));
 
     var results = kybScreeningService.screen(data);
 
-    assertThat(results).hasSize(2).allMatch(KybCheck::success);
+    assertThat(results).hasSize(3).allMatch(KybCheck::success);
 
     var amlChecks =
         amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(PERSONAL_CODE, aYearAgo());
     var types = amlChecks.stream().map(AmlCheck::getType).toList();
-    assertThat(types).containsExactlyInAnyOrder(KYB_COMPANY_ACTIVE, KYB_SOLE_MEMBER_OWNERSHIP);
+    assertThat(types)
+        .containsExactlyInAnyOrder(
+            KYB_COMPANY_ACTIVE, KYB_SOLE_MEMBER_OWNERSHIP, KYB_RELATED_PERSONS_KYC);
     assertThat(amlChecks).allMatch(AmlCheck::isSuccess);
   }
 
   @Test
   void singlePersonCompanyWithInvalidOwnershipCreatesFailedCheck() {
-    var person = new KybRelatedPerson(PERSONAL_CODE, true, true, false, BigDecimal.valueOf(100));
+    var person =
+        new KybRelatedPerson(PERSONAL_CODE, true, true, false, BigDecimal.valueOf(100), COMPLETED);
     var data = new KybCompanyData("12345678", PERSONAL_CODE, R, List.of(person));
 
     var results = kybScreeningService.screen(data);
@@ -54,5 +59,26 @@ class KybScreeningIntegrationTest {
         amlChecks.stream().filter(c -> c.getType() == KYB_SOLE_MEMBER_OWNERSHIP).findFirst();
     assertThat(failedCheck).isPresent();
     assertThat(failedCheck.get().isSuccess()).isFalse();
+  }
+
+  @Test
+  void relatedPersonWithRejectedKycCreatesFailedKycCheck() {
+    var person =
+        new KybRelatedPerson(PERSONAL_CODE, true, true, true, BigDecimal.valueOf(100), REJECTED);
+    var data = new KybCompanyData("12345678", PERSONAL_CODE, R, List.of(person));
+
+    var results = kybScreeningService.screen(data);
+
+    var kycCheck =
+        results.stream().filter(c -> c.type() == KybCheckType.RELATED_PERSONS_KYC).findFirst();
+    assertThat(kycCheck).isPresent();
+    assertThat(kycCheck.get().success()).isFalse();
+
+    var amlChecks =
+        amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(PERSONAL_CODE, aYearAgo());
+    var kycAmlCheck =
+        amlChecks.stream().filter(c -> c.getType() == KYB_RELATED_PERSONS_KYC).findFirst();
+    assertThat(kycAmlCheck).isPresent();
+    assertThat(kycAmlCheck.get().isSuccess()).isFalse();
   }
 }

@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 
 class PrincipalServiceSpec extends Specification {
@@ -65,25 +66,18 @@ class PrincipalServiceSpec extends Specification {
 
   def "withActingAs returns person with new actingAs preserving all other fields"() {
     given:
-    def original = AuthenticatedPerson.builder()
-        .personalCode("38501010000")
-        .firstName("Jordan")
-        .lastName("Valdma")
-        .userId(1L)
-        .attributes(Map.of("key", "value"))
-        .actingAs(new ActingAs.Person("38501010000"))
-        .build()
+    def original = sampleAuthenticatedPersonAndMember().build()
     def company = new ActingAs.Company("12345678")
 
     when:
     def result = service.withActingAs(original, company)
 
     then:
-    result.personalCode == "38501010000"
-    result.firstName == "Jordan"
-    result.lastName == "Valdma"
-    result.userId == 1L
-    result.attributes == Map.of("key", "value")
+    result.personalCode == original.personalCode
+    result.firstName == original.firstName
+    result.lastName == original.lastName
+    result.userId == original.userId
+    result.attributes == original.attributes
     result.actingAs == company
   }
 

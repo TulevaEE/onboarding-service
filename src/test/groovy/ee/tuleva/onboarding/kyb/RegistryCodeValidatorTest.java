@@ -32,4 +32,9 @@ class RegistryCodeValidatorTest {
   void invalidRegistryCodes(String value) {
     assertThat(validator.isValid(value)).isFalse();
   }
+
+  @Test
+  void registryCodeToStringReturnsValue() {
+    assertThat(new RegistryCode("12345678").toString()).isEqualTo("12345678");
+  }
 }

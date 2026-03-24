@@ -25,19 +25,6 @@ class AuthenticatedPersonSpec extends Specification {
     }
 
     def "actingAs can be set to company"() {
-        when:
-        def person = AuthenticatedPerson.builder()
-            .personalCode("38501010000")
-            .firstName("Jordan")
-            .lastName("Valdma")
-            .actingAs(new ActingAs.Company("12345678"))
-            .build()
-        then:
-        person.actingAs instanceof ActingAs.Company
-        person.actingAs.code() == "12345678"
-    }
-
-    def "getActingAs returns explicitly set actingAs"() {
         given:
         def company = new ActingAs.Company("12345678")
         when:
@@ -49,5 +36,6 @@ class AuthenticatedPersonSpec extends Specification {
             .build()
         then:
         person.actingAs == company
+        person.actingAs.code() == "12345678"
     }
 }

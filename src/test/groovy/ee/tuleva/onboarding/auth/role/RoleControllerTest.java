@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth.role;
 
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
+import static ee.tuleva.onboarding.company.CompanyFixture.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -58,7 +59,8 @@ class RoleControllerTest {
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
-                    {"type":"COMPANY","code":"12345678"}"""))
+                    {"type":"COMPANY","code":"%s"}"""
+                        .formatted(SAMPLE_REGISTRY_CODE)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.access_token").value("access-token"))
         .andExpect(jsonPath("$.refresh_token").value("refresh-token"));
@@ -104,7 +106,7 @@ class RoleControllerTest {
         .thenReturn(
             List.of(
                 new Role(new ActingAs.Person("38501010000"), "Jordan Valdma"),
-                new Role(new ActingAs.Company("12345678"), "Test OÜ")));
+                new Role(new ActingAs.Company(SAMPLE_REGISTRY_CODE), SAMPLE_COMPANY_NAME)));
 
     mockMvc
         .perform(get("/v1/me/roles").with(authentication(userAuth())))
@@ -113,8 +115,8 @@ class RoleControllerTest {
         .andExpect(jsonPath("$[0].actingAs.code").value("38501010000"))
         .andExpect(jsonPath("$[0].name").value("Jordan Valdma"))
         .andExpect(jsonPath("$[1].actingAs.type").value("COMPANY"))
-        .andExpect(jsonPath("$[1].actingAs.code").value("12345678"))
-        .andExpect(jsonPath("$[1].name").value("Test OÜ"));
+        .andExpect(jsonPath("$[1].actingAs.code").value(SAMPLE_REGISTRY_CODE))
+        .andExpect(jsonPath("$[1].name").value(SAMPLE_COMPANY_NAME));
   }
 
   @Test

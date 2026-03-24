@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth.role;
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember;
+import static ee.tuleva.onboarding.company.CompanyFixture.*;
 import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -12,14 +13,11 @@ import ee.tuleva.onboarding.auth.TokenService;
 import ee.tuleva.onboarding.auth.principal.ActingAs;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
-import ee.tuleva.onboarding.company.Company;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import ee.tuleva.onboarding.company.CompanyRepository;
-import ee.tuleva.onboarding.company.UserCompany;
 import ee.tuleva.onboarding.company.UserCompanyRepository;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -39,25 +37,25 @@ class RoleSwitchServiceTest {
   private final AuthenticatedPerson person = sampleAuthenticatedPersonAndMember().build();
 
   @Test
-  void switchRoleToCompanyDelegatesToSwitchToCompany() {
-    var companyId = UUID.randomUUID();
-    var company = Company.builder().id(companyId).registryCode("12345678").name("Test OÜ").build();
-    when(companyRepository.findByRegistryCode("12345678")).thenReturn(Optional.of(company));
+  void switchRoleToCompany() {
+    var company = sampleCompany().build();
+    when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
+        .thenReturn(Optional.of(company));
     when(userCompanyRepository.existsByUserIdAndCompanyIdAndRelationshipType(
-            person.getUserId(), companyId, BOARD_MEMBER))
+            person.getUserId(), SAMPLE_COMPANY_ID, BOARD_MEMBER))
         .thenReturn(true);
     when(principalService.withActingAs(any(), any())).thenReturn(person);
     when(tokenService.generateTokens(any()))
         .thenReturn(new AuthenticationTokens("access", "refresh"));
 
     AuthenticationTokens tokens =
-        roleSwitchService.switchRole(person, new ActingAs.Company("12345678"));
+        roleSwitchService.switchRole(person, new ActingAs.Company(SAMPLE_REGISTRY_CODE));
 
     assertThat(tokens.accessToken()).isEqualTo("access");
   }
 
   @Test
-  void switchRoleToSelfDelegatesToSwitchToSelf() {
+  void switchRoleToSelf() {
     when(principalService.withActingAs(any(), any())).thenReturn(person);
     when(tokenService.generateTokens(any()))
         .thenReturn(new AuthenticationTokens("access", "refresh"));
@@ -85,30 +83,39 @@ class RoleSwitchServiceTest {
 
   @Test
   void switchToCompanyThrowsWhenNotBoardMember() {
-    var companyId = UUID.randomUUID();
-    var company = Company.builder().id(companyId).registryCode("12345678").name("Test OÜ").build();
-    when(companyRepository.findByRegistryCode("12345678")).thenReturn(Optional.of(company));
+    var company = sampleCompany().build();
+    when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
+        .thenReturn(Optional.of(company));
     when(userCompanyRepository.existsByUserIdAndCompanyIdAndRelationshipType(
-            person.getUserId(), companyId, BOARD_MEMBER))
+            person.getUserId(), SAMPLE_COMPANY_ID, BOARD_MEMBER))
         .thenReturn(false);
 
-    assertThatThrownBy(() -> roleSwitchService.switchRole(person, new ActingAs.Company("12345678")))
+    assertThatThrownBy(
+            () -> roleSwitchService.switchRole(person, new ActingAs.Company(SAMPLE_REGISTRY_CODE)))
+        .isInstanceOf(RoleSwitchAccessDeniedException.class);
+  }
+
+  @Test
+  void shareholderWithoutBoardMembershipCannotSwitchRole() {
+    var company = sampleCompany().build();
+    when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
+        .thenReturn(Optional.of(company));
+    when(userCompanyRepository.existsByUserIdAndCompanyIdAndRelationshipType(
+            person.getUserId(), SAMPLE_COMPANY_ID, BOARD_MEMBER))
+        .thenReturn(false);
+
+    assertThatThrownBy(
+            () -> roleSwitchService.switchRole(person, new ActingAs.Company(SAMPLE_REGISTRY_CODE)))
         .isInstanceOf(RoleSwitchAccessDeniedException.class);
   }
 
   @Test
   void getRolesReturnsSelfAndBoardMemberCompanies() {
-    var companyId = UUID.randomUUID();
-    var company = Company.builder().id(companyId).registryCode("12345678").name("Test OÜ").build();
-    var userCompany =
-        UserCompany.builder()
-            .userId(person.getUserId())
-            .companyId(companyId)
-            .relationshipType(BOARD_MEMBER)
-            .build();
+    var company = sampleCompany().build();
+    var membership = sampleBoardMembership(person.getUserId()).build();
     when(userCompanyRepository.findByUserIdAndRelationshipType(person.getUserId(), BOARD_MEMBER))
-        .thenReturn(List.of(userCompany));
-    when(companyRepository.findAllById(List.of(companyId))).thenReturn(List.of(company));
+        .thenReturn(List.of(membership));
+    when(companyRepository.findAllById(List.of(SAMPLE_COMPANY_ID))).thenReturn(List.of(company));
 
     List<RoleController.Role> result = roleSwitchService.getRoles(person);
 
@@ -117,7 +124,44 @@ class RoleSwitchServiceTest {
     assertThat(result.getFirst().actingAs().code()).isEqualTo(person.getPersonalCode());
     assertThat(result.getFirst().name()).isEqualTo(person.getFullName());
     assertThat(result.getLast().actingAs()).isInstanceOf(ActingAs.Company.class);
-    assertThat(result.getLast().actingAs().code()).isEqualTo("12345678");
-    assertThat(result.getLast().name()).isEqualTo("Test OÜ");
+    assertThat(result.getLast().actingAs().code()).isEqualTo(SAMPLE_REGISTRY_CODE);
+    assertThat(result.getLast().name()).isEqualTo(SAMPLE_COMPANY_NAME);
+  }
+
+  @Test
+  void getRolesExcludesCompaniesWhereUserIsOnlyShareholder() {
+    var company = sampleCompany().registryCode("11111111").build();
+    var membership = sampleBoardMembership(person.getUserId()).companyId(company.getId()).build();
+    when(userCompanyRepository.findByUserIdAndRelationshipType(person.getUserId(), BOARD_MEMBER))
+        .thenReturn(List.of(membership));
+    when(companyRepository.findAllById(List.of(company.getId()))).thenReturn(List.of(company));
+
+    List<RoleController.Role> result = roleSwitchService.getRoles(person);
+
+    assertThat(result).hasSize(2);
+    assertThat(result.getFirst().actingAs()).isInstanceOf(ActingAs.Person.class);
+    assertThat(result.getLast().actingAs().code()).isEqualTo("11111111");
+  }
+
+  @Test
+  void otherUserCannotSwitchToCompanyTheyAreNotLinkedTo() {
+    var company = sampleCompany().build();
+    var otherUser =
+        AuthenticatedPerson.builder()
+            .personalCode("39911223344")
+            .firstName("Other")
+            .lastName("User")
+            .userId(999L)
+            .build();
+    when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
+        .thenReturn(Optional.of(company));
+    when(userCompanyRepository.existsByUserIdAndCompanyIdAndRelationshipType(
+            999L, SAMPLE_COMPANY_ID, BOARD_MEMBER))
+        .thenReturn(false);
+
+    assertThatThrownBy(
+            () ->
+                roleSwitchService.switchRole(otherUser, new ActingAs.Company(SAMPLE_REGISTRY_CODE)))
+        .isInstanceOf(RoleSwitchAccessDeniedException.class);
   }
 }

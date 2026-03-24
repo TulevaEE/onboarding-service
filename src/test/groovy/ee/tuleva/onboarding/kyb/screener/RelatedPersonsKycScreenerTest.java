@@ -5,10 +5,13 @@ import static ee.tuleva.onboarding.kyb.KybCheckType.RELATED_PERSONS_KYC;
 import static ee.tuleva.onboarding.kyb.KybKycStatus.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.kyb.CompanyDto;
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCompanyData;
 import ee.tuleva.onboarding.kyb.KybKycStatus;
 import ee.tuleva.onboarding.kyb.KybRelatedPerson;
+import ee.tuleva.onboarding.kyb.RegistryCode;
+import ee.tuleva.onboarding.kyb.SelfCertification;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -32,13 +35,19 @@ class RelatedPersonsKycScreenerTest {
                     new KybRelatedPerson(
                         "38501010001", true, true, true, BigDecimal.valueOf(100), status))
             .toList();
-    var data = new KybCompanyData("12345678", "38501010001", R, persons);
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            "38501010001",
+            R,
+            persons,
+            new SelfCertification(true, true, true));
 
     var result = screener.screen(data);
 
-    assertThat(result).isPresent();
-    assertThat(result.get().type()).isEqualTo(RELATED_PERSONS_KYC);
-    assertThat(result.get().success()).isEqualTo(expectedSuccess);
+    assertThat(result).hasSize(1);
+    assertThat(result.getFirst().type()).isEqualTo(RELATED_PERSONS_KYC);
+    assertThat(result.getFirst().success()).isEqualTo(expectedSuccess);
   }
 
   static Stream<Arguments> kycStatusScenarios() {
@@ -58,15 +67,21 @@ class RelatedPersonsKycScreenerTest {
         new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(50), COMPLETED);
     var rejected =
         new KybRelatedPerson("38501010002", true, true, true, BigDecimal.valueOf(50), REJECTED);
-    var data = new KybCompanyData("12345678", "38501010001", R, List.of(completed, rejected));
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            "38501010001",
+            R,
+            List.of(completed, rejected),
+            new SelfCertification(true, true, true));
 
     var result = screener.screen(data);
 
-    assertThat(result).isPresent();
-    assertThat(result.get().success()).isFalse();
+    assertThat(result).hasSize(1);
+    assertThat(result.getFirst().success()).isFalse();
 
     var incompletePersons =
-        (List<Map<String, String>>) result.get().metadata().get("incompletePersons");
+        (List<Map<String, String>>) result.getFirst().metadata().get("incompletePersons");
     assertThat(incompletePersons)
         .containsExactly(Map.of("personalCode", "38501010002", "kycStatus", "REJECTED"));
   }
@@ -75,7 +90,13 @@ class RelatedPersonsKycScreenerTest {
   void successMetadataHasNoIncompletePersons() {
     var person =
         new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(100), COMPLETED);
-    var data = new KybCompanyData("12345678", "38501010001", R, List.of(person));
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            "38501010001",
+            R,
+            List.of(person),
+            new SelfCertification(true, true, true));
 
     var result = screener.screen(data);
 

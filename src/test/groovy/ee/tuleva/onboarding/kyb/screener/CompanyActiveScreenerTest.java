@@ -4,9 +4,7 @@ import static ee.tuleva.onboarding.kyb.CompanyStatus.*;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_ACTIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ee.tuleva.onboarding.kyb.CompanyStatus;
-import ee.tuleva.onboarding.kyb.KybCheck;
-import ee.tuleva.onboarding.kyb.KybCompanyData;
+import ee.tuleva.onboarding.kyb.*;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -40,6 +38,11 @@ class CompanyActiveScreenerTest {
   }
 
   private KybCompanyData companyWithStatus(CompanyStatus status) {
-    return new KybCompanyData("12345678", "38501010001", status, List.of());
+    return new KybCompanyData(
+        new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+        "38501010001",
+        status,
+        List.of(),
+        new SelfCertification(true, true, true));
   }
 }

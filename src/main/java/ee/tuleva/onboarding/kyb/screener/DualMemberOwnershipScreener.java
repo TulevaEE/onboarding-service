@@ -6,23 +6,23 @@ import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCompanyData;
 import ee.tuleva.onboarding.kyb.KybRelatedPerson;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 @Component
 public class DualMemberOwnershipScreener implements KybScreener {
 
   @Override
-  public Optional<KybCheck> screen(KybCompanyData companyData) {
+  public List<KybCheck> screen(KybCompanyData companyData) {
     var persons = companyData.relatedPersons();
     if (persons.size() != 2) {
-      return Optional.empty();
+      return List.of();
     }
 
     var boardMembers = persons.stream().filter(KybRelatedPerson::boardMember).toList();
     if (boardMembers.size() != 2) {
-      return Optional.empty();
+      return List.of();
     }
 
     boolean allShareholdersAndBeneficialOwners =
@@ -37,7 +37,7 @@ public class DualMemberOwnershipScreener implements KybScreener {
         allShareholdersAndBeneficialOwners
             && totalOwnership.compareTo(BigDecimal.valueOf(100)) == 0;
 
-    return Optional.of(
+    return List.of(
         new KybCheck(DUAL_MEMBER_OWNERSHIP, success, Map.of("totalOwnership", totalOwnership)));
   }
 }

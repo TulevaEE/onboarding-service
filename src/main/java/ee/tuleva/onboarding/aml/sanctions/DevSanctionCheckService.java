@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.aml.sanctions;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.country.Country;
+import ee.tuleva.onboarding.kyb.CompanyDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,11 @@ public class DevSanctionCheckService implements PepAndSanctionCheckService {
 
   @Override
   public MatchResponse match(Person person, Country country) {
+    return emptyResponse();
+  }
+
+  @Override
+  public MatchResponse matchCompany(CompanyDto company) {
     return emptyResponse();
   }
 

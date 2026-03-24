@@ -4,12 +4,19 @@ import static ee.tuleva.onboarding.kyb.CompanyStatus.R;
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
 import static ee.tuleva.onboarding.kyb.KybKycStatus.UNKNOWN;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
+import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.kyb.screener.CompanyActiveScreener;
+import ee.tuleva.onboarding.kyb.screener.CompanyNaceScreener;
+import ee.tuleva.onboarding.kyb.screener.CompanySanctionScreener;
 import ee.tuleva.onboarding.kyb.screener.DualMemberOwnershipScreener;
 import ee.tuleva.onboarding.kyb.screener.RelatedPersonsKycScreener;
+import ee.tuleva.onboarding.kyb.screener.SelfCertificationScreener;
 import ee.tuleva.onboarding.kyb.screener.SoleBoardMemberIsOwnerScreener;
 import ee.tuleva.onboarding.kyb.screener.SoleMemberOwnershipScreener;
 import java.math.BigDecimal;
@@ -17,10 +24,14 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
+import tools.jackson.databind.json.JsonMapper;
 
 class KybScreeningServiceTest {
 
   private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+  private final PepAndSanctionCheckService sanctionCheckService =
+      mock(PepAndSanctionCheckService.class);
+  private final JsonMapper objectMapper = JsonMapper.builder().build();
 
   private final KybScreeningService kybScreeningService =
       new KybScreeningService(
@@ -29,20 +40,42 @@ class KybScreeningServiceTest {
               new SoleMemberOwnershipScreener(),
               new DualMemberOwnershipScreener(),
               new SoleBoardMemberIsOwnerScreener(),
-              new RelatedPersonsKycScreener()),
+              new RelatedPersonsKycScreener(),
+              new CompanySanctionScreener(sanctionCheckService),
+              new CompanyNaceScreener(),
+              new SelfCertificationScreener()),
           eventPublisher);
+
+  {
+    when(sanctionCheckService.matchCompany(any()))
+        .thenReturn(
+            new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
+  }
 
   @Test
   void singlePersonCompanyRunsRules31And34() {
     var person =
         new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(100), UNKNOWN);
-    var data = new KybCompanyData("12345678", "38501010001", R, List.of(person));
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            "38501010001",
+            R,
+            List.of(person),
+            new SelfCertification(true, true, true));
 
     var results = kybScreeningService.screen(data);
 
     var types = results.stream().map(KybCheck::type).toList();
     assertThat(types)
-        .containsExactlyInAnyOrder(SOLE_MEMBER_OWNERSHIP, COMPANY_ACTIVE, RELATED_PERSONS_KYC);
+        .containsExactlyInAnyOrder(
+            SOLE_MEMBER_OWNERSHIP,
+            COMPANY_ACTIVE,
+            RELATED_PERSONS_KYC,
+            COMPANY_SANCTION,
+            COMPANY_PEP,
+            HIGH_RISK_NACE,
+            SELF_CERTIFICATION);
   }
 
   @Test
@@ -51,13 +84,26 @@ class KybScreeningServiceTest {
         new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(50), UNKNOWN);
     var person2 =
         new KybRelatedPerson("38501010002", true, true, true, BigDecimal.valueOf(50), UNKNOWN);
-    var data = new KybCompanyData("12345678", "38501010001", R, List.of(person1, person2));
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            "38501010001",
+            R,
+            List.of(person1, person2),
+            new SelfCertification(true, true, true));
 
     var results = kybScreeningService.screen(data);
 
     var types = results.stream().map(KybCheck::type).toList();
     assertThat(types)
-        .containsExactlyInAnyOrder(DUAL_MEMBER_OWNERSHIP, COMPANY_ACTIVE, RELATED_PERSONS_KYC);
+        .containsExactlyInAnyOrder(
+            DUAL_MEMBER_OWNERSHIP,
+            COMPANY_ACTIVE,
+            RELATED_PERSONS_KYC,
+            COMPANY_SANCTION,
+            COMPANY_PEP,
+            HIGH_RISK_NACE,
+            SELF_CERTIFICATION);
   }
 
   @Test
@@ -66,20 +112,39 @@ class KybScreeningServiceTest {
         new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(50), UNKNOWN);
     var person2 =
         new KybRelatedPerson("38501010002", false, true, true, BigDecimal.valueOf(50), UNKNOWN);
-    var data = new KybCompanyData("12345678", "38501010001", R, List.of(person1, person2));
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            "38501010001",
+            R,
+            List.of(person1, person2),
+            new SelfCertification(true, true, true));
 
     var results = kybScreeningService.screen(data);
 
     var types = results.stream().map(KybCheck::type).toList();
     assertThat(types)
-        .containsExactlyInAnyOrder(SOLE_BOARD_MEMBER_IS_OWNER, COMPANY_ACTIVE, RELATED_PERSONS_KYC);
+        .containsExactlyInAnyOrder(
+            SOLE_BOARD_MEMBER_IS_OWNER,
+            COMPANY_ACTIVE,
+            RELATED_PERSONS_KYC,
+            COMPANY_SANCTION,
+            COMPANY_PEP,
+            HIGH_RISK_NACE,
+            SELF_CERTIFICATION);
   }
 
   @Test
   void publishesKybCheckPerformedEvent() {
     var person =
         new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(100), UNKNOWN);
-    var data = new KybCompanyData("12345678", "38501010001", R, List.of(person));
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            "38501010001",
+            R,
+            List.of(person),
+            new SelfCertification(true, true, true));
 
     var results = kybScreeningService.screen(data);
 

@@ -5,8 +5,11 @@ import static ee.tuleva.onboarding.kyb.KybCheckType.SOLE_MEMBER_OWNERSHIP;
 import static ee.tuleva.onboarding.kyb.KybKycStatus.UNKNOWN;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.kyb.CompanyDto;
 import ee.tuleva.onboarding.kyb.KybCompanyData;
 import ee.tuleva.onboarding.kyb.KybRelatedPerson;
+import ee.tuleva.onboarding.kyb.RegistryCode;
+import ee.tuleva.onboarding.kyb.SelfCertification;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Stream;
@@ -24,13 +27,19 @@ class SoleMemberOwnershipScreenerTest {
   void singlePersonOwnership(
       boolean board, boolean share, boolean beneficial, BigDecimal ownership, boolean expected) {
     var person = new KybRelatedPerson("38501010001", board, share, beneficial, ownership, UNKNOWN);
-    var data = new KybCompanyData("12345678", "38501010001", R, List.of(person));
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            "38501010001",
+            R,
+            List.of(person),
+            new SelfCertification(true, true, true));
 
     var result = screener.screen(data);
 
-    assertThat(result).isPresent();
-    assertThat(result.get().type()).isEqualTo(SOLE_MEMBER_OWNERSHIP);
-    assertThat(result.get().success()).isEqualTo(expected);
+    assertThat(result).hasSize(1);
+    assertThat(result.getFirst().type()).isEqualTo(SOLE_MEMBER_OWNERSHIP);
+    assertThat(result.getFirst().success()).isEqualTo(expected);
   }
 
   static Stream<Arguments> singlePersonScenarios() {
@@ -48,7 +57,13 @@ class SoleMemberOwnershipScreenerTest {
         new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(50), UNKNOWN);
     var person2 =
         new KybRelatedPerson("38501010002", true, true, true, BigDecimal.valueOf(50), UNKNOWN);
-    var data = new KybCompanyData("12345678", "38501010001", R, List.of(person1, person2));
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            "38501010001",
+            R,
+            List.of(person1, person2),
+            new SelfCertification(true, true, true));
 
     var result = screener.screen(data);
 

@@ -5,8 +5,11 @@ import static ee.tuleva.onboarding.kyb.KybCheckType.DUAL_MEMBER_OWNERSHIP;
 import static ee.tuleva.onboarding.kyb.KybKycStatus.UNKNOWN;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.kyb.CompanyDto;
 import ee.tuleva.onboarding.kyb.KybCompanyData;
 import ee.tuleva.onboarding.kyb.KybRelatedPerson;
+import ee.tuleva.onboarding.kyb.RegistryCode;
+import ee.tuleva.onboarding.kyb.SelfCertification;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -21,13 +24,19 @@ class DualMemberOwnershipScreenerTest {
         new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(50), UNKNOWN);
     var person2 =
         new KybRelatedPerson("38501010002", true, true, true, BigDecimal.valueOf(50), UNKNOWN);
-    var data = new KybCompanyData("12345678", "38501010001", R, List.of(person1, person2));
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            "38501010001",
+            R,
+            List.of(person1, person2),
+            new SelfCertification(true, true, true));
 
     var result = screener.screen(data);
 
-    assertThat(result).isPresent();
-    assertThat(result.get().type()).isEqualTo(DUAL_MEMBER_OWNERSHIP);
-    assertThat(result.get().success()).isTrue();
+    assertThat(result).hasSize(1);
+    assertThat(result.getFirst().type()).isEqualTo(DUAL_MEMBER_OWNERSHIP);
+    assertThat(result.getFirst().success()).isTrue();
   }
 
   @Test
@@ -36,13 +45,19 @@ class DualMemberOwnershipScreenerTest {
         new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(30), UNKNOWN);
     var person2 =
         new KybRelatedPerson("38501010002", true, true, true, BigDecimal.valueOf(30), UNKNOWN);
-    var data = new KybCompanyData("12345678", "38501010001", R, List.of(person1, person2));
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            "38501010001",
+            R,
+            List.of(person1, person2),
+            new SelfCertification(true, true, true));
 
     var result = screener.screen(data);
 
-    assertThat(result).isPresent();
-    assertThat(result.get().type()).isEqualTo(DUAL_MEMBER_OWNERSHIP);
-    assertThat(result.get().success()).isFalse();
+    assertThat(result).hasSize(1);
+    assertThat(result.getFirst().type()).isEqualTo(DUAL_MEMBER_OWNERSHIP);
+    assertThat(result.getFirst().success()).isFalse();
   }
 
   @Test
@@ -50,13 +65,19 @@ class DualMemberOwnershipScreenerTest {
     var person1 =
         new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(100), UNKNOWN);
     var person2 = new KybRelatedPerson("38501010002", true, false, false, BigDecimal.ZERO, UNKNOWN);
-    var data = new KybCompanyData("12345678", "38501010001", R, List.of(person1, person2));
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            "38501010001",
+            R,
+            List.of(person1, person2),
+            new SelfCertification(true, true, true));
 
     var result = screener.screen(data);
 
-    assertThat(result).isPresent();
-    assertThat(result.get().type()).isEqualTo(DUAL_MEMBER_OWNERSHIP);
-    assertThat(result.get().success()).isFalse();
+    assertThat(result).hasSize(1);
+    assertThat(result.getFirst().type()).isEqualTo(DUAL_MEMBER_OWNERSHIP);
+    assertThat(result.getFirst().success()).isFalse();
   }
 
   @Test
@@ -65,7 +86,13 @@ class DualMemberOwnershipScreenerTest {
         new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(50), UNKNOWN);
     var person2 =
         new KybRelatedPerson("38501010002", false, true, true, BigDecimal.valueOf(50), UNKNOWN);
-    var data = new KybCompanyData("12345678", "38501010001", R, List.of(person1, person2));
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            "38501010001",
+            R,
+            List.of(person1, person2),
+            new SelfCertification(true, true, true));
 
     var result = screener.screen(data);
 
@@ -76,7 +103,13 @@ class DualMemberOwnershipScreenerTest {
   void doesNotApplyWhenOnlyOneRelatedPerson() {
     var person =
         new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(100), UNKNOWN);
-    var data = new KybCompanyData("12345678", "38501010001", R, List.of(person));
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            "38501010001",
+            R,
+            List.of(person),
+            new SelfCertification(true, true, true));
 
     var result = screener.screen(data);
 

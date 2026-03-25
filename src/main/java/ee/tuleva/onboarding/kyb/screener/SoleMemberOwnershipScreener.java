@@ -32,7 +32,7 @@ public class SoleMemberOwnershipScreener implements KybScreener {
             success,
             Map.of(
                 "personalCode",
-                person.personalCode(),
+                person.personalCode().toString(),
                 "ownershipPercent",
                 person.ownershipPercent())));
   }

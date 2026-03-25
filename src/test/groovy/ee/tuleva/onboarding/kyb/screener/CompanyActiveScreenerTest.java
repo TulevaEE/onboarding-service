@@ -40,7 +40,7 @@ class CompanyActiveScreenerTest {
   private KybCompanyData companyWithStatus(CompanyStatus status) {
     return new KybCompanyData(
         new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
-        "38501010001",
+        new PersonalCode("38501010001"),
         status,
         List.of(),
         new SelfCertification(true, true, true));

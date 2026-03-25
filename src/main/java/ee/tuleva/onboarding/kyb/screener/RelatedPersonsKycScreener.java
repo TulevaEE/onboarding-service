@@ -31,7 +31,7 @@ public class RelatedPersonsKycScreener implements KybScreener {
             .map(
                 p ->
                     Map.of(
-                        "personalCode", p.personalCode(),
+                        "personalCode", p.personalCode().toString(),
                         "kycStatus", p.kycStatus().name()))
             .toList();
     return Map.of("incompletePersons", incompletePersons);

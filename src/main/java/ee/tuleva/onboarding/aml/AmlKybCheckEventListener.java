@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.aml;
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCheckPerformedEvent;
 import ee.tuleva.onboarding.kyb.KybCheckType;
+import ee.tuleva.onboarding.kyb.PersonalCode;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
@@ -35,9 +36,9 @@ public class AmlKybCheckEventListener {
         .forEach(check -> amlService.addCheckIfMissing(toAmlCheck(event.getPersonalCode(), check)));
   }
 
-  private AmlCheck toAmlCheck(String personalCode, KybCheck kybCheck) {
+  private AmlCheck toAmlCheck(PersonalCode personalCode, KybCheck kybCheck) {
     return AmlCheck.builder()
-        .personalCode(personalCode)
+        .personalCode(personalCode.value())
         .type(TYPE_MAPPING.get(kybCheck.type()))
         .success(kybCheck.success())
         .metadata(kybCheck.metadata())

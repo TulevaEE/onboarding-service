@@ -31,10 +31,14 @@ public class RuntimeTypeJacksonJsonFormatMapper extends AbstractJsonFormatMapper
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   protected <T> T fromString(CharSequence charSequence, Type type) {
     try {
-      return (T) objectMapper.readValue(charSequence.toString(), objectMapper.constructType(type));
+      String json = charSequence.toString();
+      // H2 returns JSON columns double-wrapped: {"key":"val"} → "{\"key\":\"val\"}"
+      if (json.startsWith("\"")) {
+        json = objectMapper.readValue(json, String.class);
+      }
+      return objectMapper.readValue(json, objectMapper.constructType(type));
     } catch (JsonProcessingException e) {
       throw new IllegalArgumentException("Could not deserialize string to java type: " + type, e);
     }

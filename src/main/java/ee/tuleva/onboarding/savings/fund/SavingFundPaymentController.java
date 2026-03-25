@@ -27,6 +27,7 @@ public class SavingFundPaymentController {
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
+  private final LegalEntitySavingsFundOnboardingService legalEntitySavingsFundOnboardingService;
   private final LocaleService localeService;
   private final ApplicationEventPublisher eventPublisher;
 
@@ -43,13 +44,24 @@ public class SavingFundPaymentController {
     return ResponseEntity.noContent().build();
   }
 
-  @Operation(summary = "Get user savings fund onboarding status")
+  @Operation(summary = "Get savings fund onboarding status")
   @GetMapping("/onboarding/status")
   public Map<String, Optional<SavingsFundOnboardingStatus>> getSavingsFundOnboardingStatus(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     SavingsFundOnboardingStatus status =
         savingsFundOnboardingService.getOnboardingStatus(authenticatedPerson.getRoleCode());
     return Map.of("status", Optional.ofNullable(status));
+  }
+
+  @Operation(summary = "Get legal entity savings fund onboarding status by registry code")
+  @GetMapping("/onboarding/status/legal-entity")
+  public Map<String, Optional<SavingsFundOnboardingStatus>> getLegalEntityOnboardingStatus(
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+      @RequestParam String registryCode) {
+    Optional<SavingsFundOnboardingStatus> status =
+        legalEntitySavingsFundOnboardingService.getOnboardingStatus(
+            authenticatedPerson.getPersonalCode(), registryCode);
+    return Map.of("status", status);
   }
 
   @Operation(summary = "Get user bank accounts used for deposits")

@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +43,10 @@ class SavingFundPaymentControllerTest {
   @MockitoBean private SavingFundPaymentRepository savingFundPaymentRepository;
   @MockitoBean private SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
   @MockitoBean private SavingsFundOnboardingService savingsFundOnboardingService;
+
+  @MockitoBean
+  private LegalEntitySavingsFundOnboardingService legalEntitySavingsFundOnboardingService;
+
   @MockitoBean private LocaleService localeService;
   @MockitoBean private ApplicationEventPublisher applicationEventPublisher;
 
@@ -105,6 +110,44 @@ class SavingFundPaymentControllerTest {
     mvc.perform(get("/v1/savings/onboarding/status").with(authentication(auth)))
         .andExpect(status().isOk())
         .andExpect(content().json("{\"status\":\"COMPLETED\"}"));
+  }
+
+  @Test
+  void getLegalEntityOnboardingStatus_shouldReturnCompleted() throws Exception {
+    var person = sampleAuthenticatedPersonAndMember().build();
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
+
+    when(legalEntitySavingsFundOnboardingService.getOnboardingStatus(
+            person.getPersonalCode(), "12345678"))
+        .thenReturn(Optional.of(SavingsFundOnboardingStatus.COMPLETED));
+
+    mvc.perform(
+            get("/v1/savings/onboarding/status/legal-entity")
+                .param("registryCode", "12345678")
+                .with(authentication(auth)))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"status\":\"COMPLETED\"}"));
+  }
+
+  @Test
+  void getLegalEntityOnboardingStatus_shouldReturnNullStatus() throws Exception {
+    var person = sampleAuthenticatedPersonAndMember().build();
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
+
+    when(legalEntitySavingsFundOnboardingService.getOnboardingStatus(
+            person.getPersonalCode(), "12345678"))
+        .thenReturn(Optional.empty());
+
+    mvc.perform(
+            get("/v1/savings/onboarding/status/legal-entity")
+                .param("registryCode", "12345678")
+                .with(authentication(auth)))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"status\":null}"));
   }
 
   @Test

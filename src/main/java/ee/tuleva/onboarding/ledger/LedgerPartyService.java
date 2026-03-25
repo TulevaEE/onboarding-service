@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.USER;
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import java.util.Map;
@@ -17,7 +17,7 @@ class LedgerPartyService {
   LedgerParty createParty(Person person) {
     var ledgerParty =
         LedgerParty.builder()
-            .partyType(USER)
+            .partyType(PERSON)
             .ownerId(person.getPersonalCode())
             .details(Map.of())
             .build();

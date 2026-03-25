@@ -132,7 +132,7 @@ class TrusteeReportRepositoryTest {
         .sql(
             """
             INSERT INTO ledger.party (id, party_type, owner_id, details)
-            VALUES (:id, CAST('USER' AS ledger.party_type), :ownerId, '{}')
+            VALUES (:id, CAST('PERSON' AS ledger.party_type), :ownerId, '{}')
             """)
         .param("id", partyId)
         .param("ownerId", UUID.randomUUID().toString())

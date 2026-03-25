@@ -25,7 +25,7 @@ import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 public class LedgerParty {
 
   public enum PartyType {
-    USER,
+    PERSON,
     LEGAL_ENTITY
   }
 

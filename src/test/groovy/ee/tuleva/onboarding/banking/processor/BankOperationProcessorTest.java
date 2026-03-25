@@ -106,6 +106,23 @@ class BankOperationProcessorTest {
   }
 
   @Test
+  void processBankOperation_recordsBankAdjustmentForOtherCode() {
+    var amount = new BigDecimal("262.53");
+    var entry =
+        createBankOperationEntry(
+            "OTHR", amount, "Penalty CRED/VP68168/MGTCBEBEECL/2026-02/262.53 EUR");
+
+    processor.processBankOperation(entry, "EE123456789012345678", FUND_INVESTMENT_EUR);
+
+    verify(savingsFundLedger)
+        .recordBankAdjustment(
+            eq(amount),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)));
+  }
+
+  @Test
   void processBankOperation_recordsBankFeeForCommissionCode() {
     var amount = new BigDecimal("-0.48");
     var entry = createBankOperationEntry("COMM", amount);

@@ -26,6 +26,7 @@ public class BankOperationProcessor {
   private static final String COMM = "COMM";
   private static final String INTR = "INTR";
   private static final String ADJT = "ADJT";
+  private static final String OTHR = "OTHR";
   private static final String TRAD = "TRAD";
   private static final String SUBS = "SUBS";
 
@@ -95,7 +96,7 @@ public class BankOperationProcessor {
             entry.remittanceInformation());
         savingsFundLedger.recordBankFee(amount, externalReference, clearingAccount, bookingDate);
       }
-      case ADJT -> {
+      case ADJT, OTHR -> {
         log.info(
             "Bank adjustment: amount={}, externalRef={}, account={}, description={}",
             amount,
@@ -143,7 +144,7 @@ public class BankOperationProcessor {
     return switch (subFamilyCode) {
       case INTR -> INTEREST_RECEIVED;
       case FEES, COMM -> BANK_FEE;
-      case ADJT -> BANK_ADJUSTMENT;
+      case ADJT, OTHR -> BANK_ADJUSTMENT;
       case TRAD, SUBS -> TRADE_SETTLEMENT;
       default -> null;
     };

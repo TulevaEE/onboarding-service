@@ -44,7 +44,7 @@ class LedgerTransactionMetadataTest {
   @Test
   void metadata_serializesLocalDateAsIsoString() {
     var user = sampleUser().build();
-    var cashAccount = ledgerService.getUserAccount(user, CASH);
+    var cashAccount = ledgerService.getPartyAccount(user.getPersonalCode(), CASH);
     var systemAccount = ledgerService.getSystemAccount(INCOMING_PAYMENTS_CLEARING, TKF100);
 
     var metadata =

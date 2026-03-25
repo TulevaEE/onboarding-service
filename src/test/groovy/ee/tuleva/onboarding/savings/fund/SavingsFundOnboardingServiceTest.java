@@ -67,4 +67,20 @@ class SavingsFundOnboardingServiceTest {
 
     verify(eventPublisher, never()).publishEvent(any(SavingsFundOnboardingCompletedEvent.class));
   }
+
+  @Test
+  void isOnboardingCompleted_delegatesToRepository() {
+    when(savingsFundOnboardingRepository.isOnboardingCompleted("38501010001")).thenReturn(true);
+
+    assertThat(savingsFundOnboardingService.isOnboardingCompleted("38501010001")).isTrue();
+  }
+
+  @Test
+  void getOnboardingStatus_delegatesToRepository() {
+    when(savingsFundOnboardingRepository.findStatusByPersonalCode("38501010001"))
+        .thenReturn(Optional.of(COMPLETED));
+
+    assertThat(savingsFundOnboardingService.getOnboardingStatus("38501010001"))
+        .isEqualTo(COMPLETED);
+  }
 }

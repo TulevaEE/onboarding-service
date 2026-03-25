@@ -16,8 +16,6 @@ import ee.tuleva.onboarding.ledger.LedgerEntry;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.UserAccount;
-import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Stream;
@@ -29,23 +27,22 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SavingsFundTransactionService {
 
-  private final UserService userService;
   private final LedgerService ledgerService;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final SavingsFundConfiguration savingsFundConfiguration;
 
   @Transactional
   public List<Transaction> getTransactions(Person person) {
-    User user = userService.findByPersonalCode(person.getPersonalCode()).orElseThrow();
+    String ownerCode = person.getPersonalCode();
 
-    if (!savingsFundOnboardingService.isOnboardingCompleted(user)) {
+    if (!savingsFundOnboardingService.isOnboardingCompleted(ownerCode)) {
       return List.of();
     }
 
     String isin = savingsFundConfiguration.getIsin();
 
-    List<Transaction> subscriptions = mapEntries(user, SUBSCRIPTIONS, CONTRIBUTION_CASH, isin);
-    List<Transaction> redemptions = mapEntries(user, REDEMPTIONS, SUBTRACTION, isin);
+    List<Transaction> subscriptions = mapEntries(ownerCode, SUBSCRIPTIONS, CONTRIBUTION_CASH, isin);
+    List<Transaction> redemptions = mapEntries(ownerCode, REDEMPTIONS, SUBTRACTION, isin);
 
     return Stream.concat(subscriptions.stream(), redemptions.stream())
         .sorted(reverseOrder())
@@ -53,8 +50,8 @@ public class SavingsFundTransactionService {
   }
 
   private List<Transaction> mapEntries(
-      User user, UserAccount userAccount, CashFlow.Type type, String isin) {
-    return ledgerService.getUserAccount(user, userAccount).getEntries().stream()
+      String ownerCode, UserAccount userAccount, CashFlow.Type type, String isin) {
+    return ledgerService.getPartyAccount(ownerCode, userAccount).getEntries().stream()
         .map(entry -> toTransaction(entry, type, isin))
         .toList();
   }

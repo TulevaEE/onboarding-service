@@ -608,7 +608,8 @@ class NavPipelineIntegrationTest {
   private void issueFundUnits(BigDecimal unitsOutstanding, LocalDate navDate) {
     LedgerAccount fundUnitsOutstandingAccount =
         ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100);
-    LedgerAccount userFundUnitsAccount = ledgerService.getUserAccount(testUser, FUND_UNITS);
+    LedgerAccount userFundUnitsAccount =
+        ledgerService.getPartyAccount(testUser.getPersonalCode(), FUND_UNITS);
 
     BigDecimal units = unitsOutstanding.setScale(5, HALF_UP);
 

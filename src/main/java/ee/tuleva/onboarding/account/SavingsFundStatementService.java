@@ -12,8 +12,6 @@ import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
-import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,7 +20,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class SavingsFundStatementService {
 
-  private final UserService userService;
   private final LedgerService ledgerService;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final FundNavProvider navProvider;
@@ -30,17 +27,16 @@ public class SavingsFundStatementService {
   private final SavingsFundConfiguration savingsFundConfiguration;
 
   public FundBalance getAccountStatement(Person person) {
-    User user = userService.findByPersonalCode(person.getPersonalCode()).orElseThrow();
+    String ownerCode = person.getPersonalCode();
 
-    if (!savingsFundOnboardingService.isOnboardingCompleted(user)) {
-      throw new IllegalStateException(
-          "User is not onboarded: personalCode=" + user.getPersonalCode());
+    if (!savingsFundOnboardingService.isOnboardingCompleted(ownerCode)) {
+      throw new IllegalStateException("User is not onboarded: personalCode=" + ownerCode);
     }
 
-    BigDecimal units = getUnits(user);
+    BigDecimal units = getUnits(ownerCode);
     BigDecimal value = getNAV().multiply(units).setScale(2, HALF_UP);
 
-    BigDecimal reservedUnits = getReservedUnits(user);
+    BigDecimal reservedUnits = getReservedUnits(ownerCode);
     BigDecimal reservedValue = getNAV().multiply(reservedUnits).setScale(2, HALF_UP);
 
     return FundBalance.builder()
@@ -50,8 +46,8 @@ public class SavingsFundStatementService {
         .value(value)
         .unavailableUnits(reservedUnits)
         .unavailableValue(reservedValue)
-        .contributions(getSubscriptions(user))
-        .subtractions(getRedemptions(user))
+        .contributions(getSubscriptions(ownerCode))
+        .subtractions(getRedemptions(ownerCode))
         .build();
   }
 
@@ -64,20 +60,20 @@ public class SavingsFundStatementService {
     return fund;
   }
 
-  private BigDecimal getUnits(User user) {
-    return ledgerService.getUserAccount(user, FUND_UNITS).getBalance().negate();
+  private BigDecimal getUnits(String ownerCode) {
+    return ledgerService.getPartyAccount(ownerCode, FUND_UNITS).getBalance().negate();
   }
 
-  private BigDecimal getReservedUnits(User user) {
-    return ledgerService.getUserAccount(user, FUND_UNITS_RESERVED).getBalance().negate();
+  private BigDecimal getReservedUnits(String ownerCode) {
+    return ledgerService.getPartyAccount(ownerCode, FUND_UNITS_RESERVED).getBalance().negate();
   }
 
-  private BigDecimal getSubscriptions(User user) {
-    return ledgerService.getUserAccount(user, SUBSCRIPTIONS).getBalance().negate();
+  private BigDecimal getSubscriptions(String ownerCode) {
+    return ledgerService.getPartyAccount(ownerCode, SUBSCRIPTIONS).getBalance().negate();
   }
 
-  private BigDecimal getRedemptions(User user) {
-    return ledgerService.getUserAccount(user, REDEMPTIONS).getBalance().negate();
+  private BigDecimal getRedemptions(String ownerCode) {
+    return ledgerService.getPartyAccount(ownerCode, REDEMPTIONS).getBalance().negate();
   }
 
   private BigDecimal getNAV() {

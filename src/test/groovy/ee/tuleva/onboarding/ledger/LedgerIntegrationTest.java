@@ -85,10 +85,10 @@ class LedgerIntegrationTest {
     var user1 = sampleUser().personalCode("11111111111").build();
     var user2 = sampleUser().personalCode("22222222222").build();
 
-    var fundUnitsAccount1 = ledgerService.getUserAccount(user1, FUND_UNITS);
-    var fundUnitsAccount2 = ledgerService.getUserAccount(user2, FUND_UNITS);
-    var cashAccount1 = ledgerService.getUserAccount(user1, CASH);
-    var cashAccount2 = ledgerService.getUserAccount(user2, CASH);
+    var fundUnitsAccount1 = ledgerService.getPartyAccount(user1.getPersonalCode(), FUND_UNITS);
+    var fundUnitsAccount2 = ledgerService.getPartyAccount(user2.getPersonalCode(), FUND_UNITS);
+    var cashAccount1 = ledgerService.getPartyAccount(user1.getPersonalCode(), CASH);
+    var cashAccount2 = ledgerService.getPartyAccount(user2.getPersonalCode(), CASH);
 
     assertThat(fundUnitsAccount1.getId()).isNotEqualTo(fundUnitsAccount2.getId());
     assertThat(cashAccount1.getId()).isNotEqualTo(cashAccount2.getId());

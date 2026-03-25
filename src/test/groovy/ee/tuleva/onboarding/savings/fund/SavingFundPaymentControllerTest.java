@@ -68,13 +68,11 @@ class SavingFundPaymentControllerTest {
   void getSavingsFundOnboardingStatus_shouldReturnCompleted() throws Exception {
     var auth =
         new UsernamePasswordAuthenticationToken(
-            AuthenticatedPerson.builder().userId(1L).build(),
+            AuthenticatedPerson.builder().personalCode("38501010001").userId(1L).build(),
             null,
             List.of(new SimpleGrantedAuthority(USER)));
 
-    var user = Mockito.mock(User.class);
-    Mockito.when(userService.getByIdOrThrow(1L)).thenReturn(user);
-    Mockito.when(savingsFundOnboardingService.getOnboardingStatus(user))
+    Mockito.when(savingsFundOnboardingService.getOnboardingStatus("38501010001"))
         .thenReturn(SavingsFundOnboardingStatus.COMPLETED);
 
     mvc.perform(get("/v1/savings/onboarding/status").with(authentication(auth)))
@@ -86,13 +84,11 @@ class SavingFundPaymentControllerTest {
   void getSavingsFundOnboardingStatus_shouldReturnNull() throws Exception {
     var auth =
         new UsernamePasswordAuthenticationToken(
-            AuthenticatedPerson.builder().userId(1L).build(),
+            AuthenticatedPerson.builder().personalCode("38501010001").userId(1L).build(),
             null,
             List.of(new SimpleGrantedAuthority(USER)));
 
-    var user = Mockito.mock(User.class);
-    Mockito.when(userService.getByIdOrThrow(1L)).thenReturn(user);
-    Mockito.when(savingsFundOnboardingService.getOnboardingStatus(user)).thenReturn(null);
+    Mockito.when(savingsFundOnboardingService.getOnboardingStatus("38501010001")).thenReturn(null);
 
     mvc.perform(get("/v1/savings/onboarding/status").with(authentication(auth)))
         .andExpect(status().isOk())

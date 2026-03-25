@@ -43,7 +43,7 @@ public class LedgerTransactionIntegrationTest {
   }
 
   private LedgerAccount getCashAccount(User user) {
-    return ledgerService.getUserAccount(user, CASH);
+    return ledgerService.getPartyAccount(user.getPersonalCode(), CASH);
   }
 
   private LedgerAccount getSystemAccount() {

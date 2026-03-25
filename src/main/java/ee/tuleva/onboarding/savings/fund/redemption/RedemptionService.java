@@ -155,7 +155,7 @@ public class RedemptionService {
   }
 
   private void validateOnboarding(User user) {
-    if (!savingsFundOnboardingService.isOnboardingCompleted(user)) {
+    if (!savingsFundOnboardingService.isOnboardingCompleted(user.getPersonalCode())) {
       throw new IllegalStateException(
           "User savings fund onboarding not completed: userId=" + user.getId());
     }
@@ -173,7 +173,7 @@ public class RedemptionService {
   }
 
   private BigDecimal getEffectiveAvailableFundUnits(User user) {
-    return ledgerService.getUserAccount(user, FUND_UNITS).getBalance().negate();
+    return ledgerService.getPartyAccount(user.getPersonalCode(), FUND_UNITS).getBalance().negate();
   }
 
   private void validateIbanBelongsToUser(String iban, Long userId) {

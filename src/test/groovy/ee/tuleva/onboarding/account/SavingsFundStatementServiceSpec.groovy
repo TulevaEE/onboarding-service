@@ -5,7 +5,6 @@ import ee.tuleva.onboarding.ledger.LedgerService
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider
-import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
@@ -15,14 +14,13 @@ import static ee.tuleva.onboarding.ledger.UserAccount.*
 
 class SavingsFundStatementServiceSpec extends Specification {
 
-  UserService userService = Mock()
   LedgerService ledgerService = Mock()
   SavingsFundOnboardingService savingsFundOnboardingService = Mock()
   FundNavProvider navProvider = Mock()
   FundRepository fundRepository = Mock()
   SavingsFundConfiguration savingsFundConfiguration = Mock()
 
-  SavingsFundStatementService service = new SavingsFundStatementService(userService, ledgerService, savingsFundOnboardingService, navProvider, fundRepository, savingsFundConfiguration)
+  SavingsFundStatementService service = new SavingsFundStatementService(ledgerService, savingsFundOnboardingService, navProvider, fundRepository, savingsFundConfiguration)
 
   def "returns savings account statement"() {
     given:
@@ -34,13 +32,12 @@ class SavingsFundStatementServiceSpec extends Specification {
     def subscriptions = subscriptionsAccountWithBalance(3.0)
     def redemptions = redemptionsAccountWithBalance(1.0)
 
-    userService.findByPersonalCode(user.personalCode) >> Optional.of(user)
-    savingsFundOnboardingService.isOnboardingCompleted(user) >> true
+    savingsFundOnboardingService.isOnboardingCompleted(user.personalCode) >> true
     navProvider.getDisplayNav(_) >> new BigDecimal("1.12345")
-    ledgerService.getUserAccount(user, FUND_UNITS) >> fundUnits
-    ledgerService.getUserAccount(user, FUND_UNITS_RESERVED) >> fundUnitsReserved
-    ledgerService.getUserAccount(user, SUBSCRIPTIONS) >> subscriptions
-    ledgerService.getUserAccount(user, REDEMPTIONS) >> redemptions
+    ledgerService.getPartyAccount(user.personalCode, FUND_UNITS) >> fundUnits
+    ledgerService.getPartyAccount(user.personalCode, FUND_UNITS_RESERVED) >> fundUnitsReserved
+    ledgerService.getPartyAccount(user.personalCode, SUBSCRIPTIONS) >> subscriptions
+    ledgerService.getPartyAccount(user.personalCode, REDEMPTIONS) >> redemptions
     savingsFundConfiguration.getIsin() >> savingsFund.isin
     fundRepository.findByIsin(savingsFund.isin) >> savingsFund
 
@@ -61,8 +58,7 @@ class SavingsFundStatementServiceSpec extends Specification {
     given:
     def user = sampleUser().build()
 
-    userService.findByPersonalCode(user.personalCode) >> Optional.of(user)
-    savingsFundOnboardingService.isOnboardingCompleted(user) >> false
+    savingsFundOnboardingService.isOnboardingCompleted(user.personalCode) >> false
 
     when:
     service.getAccountStatement(user)

@@ -20,14 +20,12 @@ public class SavingsFundOnboardingService {
   private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   private final ApplicationEventPublisher eventPublisher;
 
-  public boolean isOnboardingCompleted(User user) {
-    return savingsFundOnboardingRepository.isOnboardingCompleted(user.getPersonalCode());
+  public boolean isOnboardingCompleted(String ownerCode) {
+    return savingsFundOnboardingRepository.isOnboardingCompleted(ownerCode);
   }
 
-  public SavingsFundOnboardingStatus getOnboardingStatus(User user) {
-    return savingsFundOnboardingRepository
-        .findStatusByPersonalCode(user.getPersonalCode())
-        .orElse(null);
+  public SavingsFundOnboardingStatus getOnboardingStatus(String ownerCode) {
+    return savingsFundOnboardingRepository.findStatusByPersonalCode(ownerCode).orElse(null);
   }
 
   public void updateOnboardingStatusIfNeeded(User user, KycCheck kycCheck) {

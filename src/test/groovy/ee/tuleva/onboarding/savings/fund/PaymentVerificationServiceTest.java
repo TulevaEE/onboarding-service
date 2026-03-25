@@ -104,7 +104,7 @@ class PaymentVerificationServiceTest {
     service.process(payment);
 
     verify(userRepository).findByPersonalCode("37508295796");
-    verify(savingsFundOnboardingService).isOnboardingCompleted(user);
+    verify(savingsFundOnboardingService).isOnboardingCompleted(user.getPersonalCode());
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "see isik ei ole täiendava kogumisfondiga liitunud");
@@ -150,7 +150,7 @@ class PaymentVerificationServiceTest {
     service.process(payment);
 
     verify(userRepository).findByPersonalCode("37508295796");
-    verify(savingsFundOnboardingService).isOnboardingCompleted(user);
+    verify(savingsFundOnboardingService).isOnboardingCompleted(user.getPersonalCode());
     verify(savingsFundLedger)
         .recordPaymentReceived(
             user, payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
@@ -170,7 +170,7 @@ class PaymentVerificationServiceTest {
     service.process(payment);
 
     verify(userRepository).findByPersonalCode("37508295796");
-    verify(savingsFundOnboardingService).isOnboardingCompleted(user);
+    verify(savingsFundOnboardingService).isOnboardingCompleted(user.getPersonalCode());
     verify(savingsFundLedger)
         .recordPaymentReceived(
             user, payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
@@ -189,7 +189,7 @@ class PaymentVerificationServiceTest {
     service.process(payment);
 
     verify(userRepository).findByPersonalCode("37508295796");
-    verify(savingsFundOnboardingService).isOnboardingCompleted(user);
+    verify(savingsFundOnboardingService).isOnboardingCompleted(user.getPersonalCode());
     verify(savingsFundLedger)
         .recordPaymentReceived(
             user, payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
@@ -208,7 +208,7 @@ class PaymentVerificationServiceTest {
     service.process(payment);
 
     verify(userRepository).findByPersonalCode("37508295796");
-    verify(savingsFundOnboardingService).isOnboardingCompleted(user);
+    verify(savingsFundOnboardingService).isOnboardingCompleted(user.getPersonalCode());
     verify(savingsFundLedger)
         .recordPaymentReceived(
             user, payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));

@@ -328,19 +328,19 @@ class SavingsFundPaymentIntegrationTest {
 
   // Ledger helper methods - following pattern from SavingsFundLedgerTest
   private LedgerAccount getUserCashAccount() {
-    return ledgerService.getUserAccount(testUser, CASH);
+    return ledgerService.getPartyAccount(testUser.getPersonalCode(), CASH);
   }
 
   private LedgerAccount getUserCashReservedAccount() {
-    return ledgerService.getUserAccount(testUser, CASH_RESERVED);
+    return ledgerService.getPartyAccount(testUser.getPersonalCode(), CASH_RESERVED);
   }
 
   private LedgerAccount getUserUnitsAccount() {
-    return ledgerService.getUserAccount(testUser, FUND_UNITS);
+    return ledgerService.getPartyAccount(testUser.getPersonalCode(), FUND_UNITS);
   }
 
   private LedgerAccount getUserSubscriptionsAccount() {
-    return ledgerService.getUserAccount(testUser, SUBSCRIPTIONS);
+    return ledgerService.getPartyAccount(testUser.getPersonalCode(), SUBSCRIPTIONS);
   }
 
   private LedgerAccount getIncomingPaymentsClearingAccount() {

@@ -60,7 +60,7 @@ public class PaymentVerificationService {
       identityCheckFailure(payment, "maksja nimi ei klapi Tuleva andmetega");
       return;
     }
-    if (!savingsFundOnboardingService.isOnboardingCompleted(user.get())) {
+    if (!savingsFundOnboardingService.isOnboardingCompleted(user.get().getPersonalCode())) {
       identityCheckFailure(payment, "see isik ei ole täiendava kogumisfondiga liitunud");
       return;
     }

@@ -329,19 +329,19 @@ class RedemptionIntegrationTest {
   }
 
   private LedgerAccount getUserFundUnitsAccount() {
-    return ledgerService.getUserAccount(testUser, FUND_UNITS);
+    return ledgerService.getPartyAccount(testUser.getPersonalCode(), FUND_UNITS);
   }
 
   private LedgerAccount getUserFundUnitsReservedAccount() {
-    return ledgerService.getUserAccount(testUser, FUND_UNITS_RESERVED);
+    return ledgerService.getPartyAccount(testUser.getPersonalCode(), FUND_UNITS_RESERVED);
   }
 
   private LedgerAccount getUserCashRedemptionAccount() {
-    return ledgerService.getUserAccount(testUser, CASH_REDEMPTION);
+    return ledgerService.getPartyAccount(testUser.getPersonalCode(), CASH_REDEMPTION);
   }
 
   private LedgerAccount getUserRedemptionsAccount() {
-    return ledgerService.getUserAccount(testUser, REDEMPTIONS);
+    return ledgerService.getPartyAccount(testUser.getPersonalCode(), REDEMPTIONS);
   }
 
   private LedgerAccount getFundUnitsOutstandingAccount() {

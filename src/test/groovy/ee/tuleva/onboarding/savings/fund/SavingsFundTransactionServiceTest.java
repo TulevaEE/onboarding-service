@@ -16,11 +16,9 @@ import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerAccountFixture.EntryFixture;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -30,7 +28,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class SavingsFundTransactionServiceTest {
 
-  @Mock private UserService userService;
   @Mock private LedgerService ledgerService;
   @Mock private SavingsFundOnboardingService savingsFundOnboardingService;
   @Mock private SavingsFundConfiguration savingsFundConfiguration;
@@ -42,8 +39,8 @@ class SavingsFundTransactionServiceTest {
     User user = sampleUser().build();
     String isin = "EE0000003283";
 
-    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
-    when(savingsFundOnboardingService.isOnboardingCompleted(user)).thenReturn(true);
+    when(savingsFundOnboardingService.isOnboardingCompleted(user.getPersonalCode()))
+        .thenReturn(true);
     when(savingsFundConfiguration.getIsin()).thenReturn(isin);
 
     Instant olderDate = Instant.parse("2025-01-15T10:00:00Z");
@@ -59,8 +56,10 @@ class SavingsFundTransactionServiceTest {
         redemptionsAccountWithEntries(
             List.of(new EntryFixture(new BigDecimal("25.00"), newerDate)));
 
-    when(ledgerService.getUserAccount(user, SUBSCRIPTIONS)).thenReturn(subscriptionsAccount);
-    when(ledgerService.getUserAccount(user, REDEMPTIONS)).thenReturn(redemptionsAccount);
+    when(ledgerService.getPartyAccount(user.getPersonalCode(), SUBSCRIPTIONS))
+        .thenReturn(subscriptionsAccount);
+    when(ledgerService.getPartyAccount(user.getPersonalCode(), REDEMPTIONS))
+        .thenReturn(redemptionsAccount);
 
     List<Transaction> transactions = service.getTransactions(user);
 
@@ -109,8 +108,8 @@ class SavingsFundTransactionServiceTest {
   void returnsEmptyListWhenNotOnboarded() {
     User user = sampleUser().build();
 
-    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
-    when(savingsFundOnboardingService.isOnboardingCompleted(user)).thenReturn(false);
+    when(savingsFundOnboardingService.isOnboardingCompleted(user.getPersonalCode()))
+        .thenReturn(false);
 
     List<Transaction> transactions = service.getTransactions(user);
 
@@ -121,15 +120,17 @@ class SavingsFundTransactionServiceTest {
   void returnsEmptyListWhenNoEntries() {
     User user = sampleUser().build();
 
-    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
-    when(savingsFundOnboardingService.isOnboardingCompleted(user)).thenReturn(true);
+    when(savingsFundOnboardingService.isOnboardingCompleted(user.getPersonalCode()))
+        .thenReturn(true);
     when(savingsFundConfiguration.getIsin()).thenReturn("EE0000003283");
 
     LedgerAccount emptySubscriptions = subscriptionsAccountWithBalance(BigDecimal.ZERO);
     LedgerAccount emptyRedemptions = redemptionsAccountWithBalance(BigDecimal.ZERO);
 
-    when(ledgerService.getUserAccount(user, SUBSCRIPTIONS)).thenReturn(emptySubscriptions);
-    when(ledgerService.getUserAccount(user, REDEMPTIONS)).thenReturn(emptyRedemptions);
+    when(ledgerService.getPartyAccount(user.getPersonalCode(), SUBSCRIPTIONS))
+        .thenReturn(emptySubscriptions);
+    when(ledgerService.getPartyAccount(user.getPersonalCode(), REDEMPTIONS))
+        .thenReturn(emptyRedemptions);
 
     List<Transaction> transactions = service.getTransactions(user);
 

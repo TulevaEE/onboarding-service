@@ -675,7 +675,10 @@ public class SavingsFundLedger {
   }
 
   private LedgerParty getUserParty(User user) {
-    return ledgerPartyService.getParty(user).orElseGet(() -> ledgerPartyService.createParty(user));
+    String ownerId = user.getPersonalCode();
+    return ledgerPartyService
+        .getParty(ownerId)
+        .orElseGet(() -> ledgerPartyService.createParty(ownerId));
   }
 
   private LedgerAccount getUserAccount(LedgerParty owner, UserAccount userAccount) {

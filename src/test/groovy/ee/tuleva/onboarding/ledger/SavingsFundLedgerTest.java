@@ -579,7 +579,7 @@ class SavingsFundLedgerTest {
   }
 
   private LedgerAccount getUserAccount(UserAccount userAccount) {
-    return ledgerService.getUserAccount(testUser, userAccount);
+    return ledgerService.getPartyAccount(testUser.getPersonalCode(), userAccount);
   }
 
   private LedgerAccount getSystemAccount(SystemAccount systemAccount) {

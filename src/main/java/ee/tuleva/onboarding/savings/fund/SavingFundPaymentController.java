@@ -48,8 +48,7 @@ public class SavingFundPaymentController {
   public Map<String, Optional<SavingsFundOnboardingStatus>> getSavingsFundOnboardingStatus(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     SavingsFundOnboardingStatus status =
-        savingsFundOnboardingService.getOnboardingStatus(
-            userService.getByIdOrThrow(authenticatedPerson.getUserId()));
+        savingsFundOnboardingService.getOnboardingStatus(authenticatedPerson.getPersonalCode());
     return Map.of("status", Optional.ofNullable(status));
   }
 

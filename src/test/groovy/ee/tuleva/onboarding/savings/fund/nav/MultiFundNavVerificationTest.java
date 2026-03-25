@@ -170,7 +170,8 @@ class MultiFundNavVerificationTest {
   private void setupUnitsOutstanding(FundNavCsvData data) {
     LedgerAccount fundUnitsAccount =
         ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, data.fund);
-    LedgerAccount userFundUnitsAccount = ledgerService.getUserAccount(testUser, FUND_UNITS);
+    LedgerAccount userFundUnitsAccount =
+        ledgerService.getPartyAccount(testUser.getPersonalCode(), FUND_UNITS);
 
     BigDecimal units = data.unitsOutstanding.setScale(5, HALF_UP);
     Instant transactionDate = data.navDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();

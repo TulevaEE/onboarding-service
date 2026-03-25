@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.ledger;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -14,8 +13,11 @@ public class LedgerService {
   private final LedgerAccountService ledgerAccountService;
 
   public void initializeUserAccounts(Person person) {
+    String ownerId = person.getPersonalCode();
     LedgerParty party =
-        ledgerPartyService.getParty(person).orElseGet(() -> ledgerPartyService.createParty(person));
+        ledgerPartyService
+            .getParty(ownerId)
+            .orElseGet(() -> ledgerPartyService.createParty(ownerId));
 
     for (var userAccount : UserAccount.values()) {
       if (ledgerAccountService.findUserAccount(party, userAccount).isEmpty()) {
@@ -24,12 +26,14 @@ public class LedgerService {
     }
   }
 
-  public LedgerAccount getUserAccount(User user, UserAccount userAccount) {
-    LedgerParty userParty =
-        ledgerPartyService.getParty(user).orElseGet(() -> ledgerPartyService.createParty(user));
+  public LedgerAccount getPartyAccount(String ownerId, UserAccount userAccount) {
+    LedgerParty party =
+        ledgerPartyService
+            .getParty(ownerId)
+            .orElseGet(() -> ledgerPartyService.createParty(ownerId));
     return ledgerAccountService
-        .findUserAccount(userParty, userAccount)
-        .orElseGet(() -> ledgerAccountService.createUserAccount(userParty, userAccount));
+        .findUserAccount(party, userAccount)
+        .orElseGet(() -> ledgerAccountService.createUserAccount(party, userAccount));
   }
 
   public int countAccountsWithPositiveBalance(UserAccount userAccount) {

@@ -143,7 +143,8 @@ class NavCalculationTransactionTest {
 
     LedgerAccount fundUnitsOutstanding =
         ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100);
-    LedgerAccount userFundUnits = ledgerService.getUserAccount(testUser, FUND_UNITS);
+    LedgerAccount userFundUnits =
+        ledgerService.getPartyAccount(testUser.getPersonalCode(), FUND_UNITS);
 
     BigDecimal units = new BigDecimal("500.00000");
 

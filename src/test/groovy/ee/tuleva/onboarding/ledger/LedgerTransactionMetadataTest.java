@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -24,6 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @Transactional
+// H2 JSON support does not work with Hibernate's RuntimeTypeJacksonJsonFormatMapper — runs on CI
+// (PostgreSQL)
+@EnabledIfEnvironmentVariable(named = "SPRING_PROFILES_ACTIVE", matches = ".*ci.*")
 class LedgerTransactionMetadataTest {
 
   @Autowired private LedgerService ledgerService;

@@ -29,7 +29,8 @@ public enum AmlCheckType {
   KYB_COMPANY_SANCTION,
   KYB_COMPANY_PEP,
   KYB_HIGH_RISK_NACE,
-  KYB_SELF_CERTIFICATION;
+  KYB_SELF_CERTIFICATION,
+  KYB_DATA_CHANGED;
 
   @Getter final boolean manual;
 

@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,7 +55,7 @@ class KybScreeningIntegrationTest {
 
     var results = kybScreeningService.screen(data);
 
-    assertThat(results).hasSize(7).allMatch(KybCheck::success);
+    assertThat(results).hasSize(8).allMatch(KybCheck::success);
 
     var amlChecks =
         amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
@@ -68,7 +69,8 @@ class KybScreeningIntegrationTest {
             KYB_COMPANY_SANCTION,
             KYB_COMPANY_PEP,
             KYB_HIGH_RISK_NACE,
-            KYB_SELF_CERTIFICATION);
+            KYB_SELF_CERTIFICATION,
+            KYB_DATA_CHANGED);
     assertThat(amlChecks).allMatch(AmlCheck::isSuccess);
   }
 
@@ -95,6 +97,41 @@ class KybScreeningIntegrationTest {
         amlChecks.stream().filter(c -> c.getType() == KYB_SOLE_MEMBER_OWNERSHIP).findFirst();
     assertThat(failedCheck).isPresent();
     assertThat(failedCheck.get().isSuccess()).isFalse();
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void dataChangedCheckDetectsChangesOnRerun() {
+    var person =
+        new KybRelatedPerson(PERSONAL_CODE, true, true, true, BigDecimal.valueOf(100), COMPLETED);
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            PERSONAL_CODE,
+            R,
+            List.of(person),
+            new SelfCertification(true, true, true));
+
+    kybScreeningService.screen(data);
+
+    var changedData =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            PERSONAL_CODE,
+            CompanyStatus.L,
+            List.of(person),
+            new SelfCertification(true, true, true));
+
+    var secondResults = kybScreeningService.screen(changedData);
+
+    var dataChangedCheck =
+        secondResults.stream().filter(c -> c.type() == KybCheckType.DATA_CHANGED).findFirst();
+    assertThat(dataChangedCheck).isPresent();
+    assertThat(dataChangedCheck.get().success()).isFalse();
+
+    var changes = (List<Map<String, Object>>) dataChangedCheck.get().metadata().get("changes");
+    assertThat(changes).isNotEmpty();
+    assertThat(changes).anyMatch(c -> "COMPANY_ACTIVE".equals(c.get("check")));
   }
 
   @Test

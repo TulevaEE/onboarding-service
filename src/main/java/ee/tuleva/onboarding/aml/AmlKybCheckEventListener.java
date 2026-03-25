@@ -24,7 +24,8 @@ public class AmlKybCheckEventListener {
           KybCheckType.COMPANY_SANCTION, AmlCheckType.KYB_COMPANY_SANCTION,
           KybCheckType.COMPANY_PEP, AmlCheckType.KYB_COMPANY_PEP,
           KybCheckType.HIGH_RISK_NACE, AmlCheckType.KYB_HIGH_RISK_NACE,
-          KybCheckType.SELF_CERTIFICATION, AmlCheckType.KYB_SELF_CERTIFICATION);
+          KybCheckType.SELF_CERTIFICATION, AmlCheckType.KYB_SELF_CERTIFICATION,
+          KybCheckType.DATA_CHANGED, AmlCheckType.KYB_DATA_CHANGED);
 
   private final AmlService amlService;
 
@@ -33,7 +34,7 @@ public class AmlKybCheckEventListener {
   public void onKybCheckPerformed(KybCheckPerformedEvent event) {
     event
         .getChecks()
-        .forEach(check -> amlService.addCheckIfMissing(toAmlCheck(event.getPersonalCode(), check)));
+        .forEach(check -> amlService.addCheck(toAmlCheck(event.getPersonalCode(), check)));
   }
 
   private AmlCheck toAmlCheck(PersonalCode personalCode, KybCheck kybCheck) {

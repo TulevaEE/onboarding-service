@@ -29,14 +29,14 @@ class AmlKybCheckEventListenerTest {
     listener.onKybCheckPerformed(event);
 
     verify(amlService)
-        .addCheckIfMissing(
+        .addCheck(
             argThat(
                 check ->
                     check.getType() == KYB_COMPANY_ACTIVE
                         && check.isSuccess()
                         && check.getPersonalCode().equals("38501010001")));
     verify(amlService)
-        .addCheckIfMissing(
+        .addCheck(
             argThat(
                 check ->
                     check.getType() == KYB_SOLE_MEMBER_OWNERSHIP

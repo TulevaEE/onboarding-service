@@ -31,6 +31,7 @@ class KybScreeningServiceTest {
   private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
   private final PepAndSanctionCheckService sanctionCheckService =
       mock(PepAndSanctionCheckService.class);
+  private final KybCheckHistory checkHistory = mock(KybCheckHistory.class);
   private final JsonMapper objectMapper = JsonMapper.builder().build();
 
   private final KybScreeningService kybScreeningService =
@@ -44,12 +45,14 @@ class KybScreeningServiceTest {
               new CompanySanctionScreener(sanctionCheckService),
               new CompanyNaceScreener(),
               new SelfCertificationScreener()),
+          new KybDataChangeDetector(checkHistory),
           eventPublisher);
 
   {
     when(sanctionCheckService.matchCompany(any()))
         .thenReturn(
             new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
+    when(checkHistory.getLatestChecks(any())).thenReturn(List.of());
   }
 
   @Test
@@ -76,7 +79,8 @@ class KybScreeningServiceTest {
             COMPANY_SANCTION,
             COMPANY_PEP,
             HIGH_RISK_NACE,
-            SELF_CERTIFICATION);
+            SELF_CERTIFICATION,
+            DATA_CHANGED);
   }
 
   @Test
@@ -106,7 +110,8 @@ class KybScreeningServiceTest {
             COMPANY_SANCTION,
             COMPANY_PEP,
             HIGH_RISK_NACE,
-            SELF_CERTIFICATION);
+            SELF_CERTIFICATION,
+            DATA_CHANGED);
   }
 
   @Test
@@ -136,7 +141,8 @@ class KybScreeningServiceTest {
             COMPANY_SANCTION,
             COMPANY_PEP,
             HIGH_RISK_NACE,
-            SELF_CERTIFICATION);
+            SELF_CERTIFICATION,
+            DATA_CHANGED);
   }
 
   @Test

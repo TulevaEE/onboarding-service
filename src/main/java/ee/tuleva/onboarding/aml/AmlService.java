@@ -241,7 +241,7 @@ public class AmlService {
     return Optional.of(check);
   }
 
-  private AmlCheck addCheck(AmlCheck amlCheck) {
+  public AmlCheck addCheck(AmlCheck amlCheck) {
     log.info(
         "Adding check {} to person {} with success {}",
         amlCheck.getType(),

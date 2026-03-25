@@ -11,13 +11,16 @@ class CompanyDetailMapper {
 
   static CompanyDetail fromEttevotja(DetailandmedV6Ettevotja ettevotja) {
     var yldandmed = Optional.ofNullable(ettevotja.getYldandmed());
+    var mainActivityRecord = yldandmed.flatMap(CompanyDetailMapper::extractMainActivityRecord);
     return new CompanyDetail(
         ettevotja.getNimi(),
         ettevotja.getAriregistriKood().toString(),
         yldandmed.map(DetailandmedV6Yldandmed::getStaatus).orElse(null),
+        yldandmed.map(DetailandmedV6Yldandmed::getOiguslikVorm).orElse(null),
         yldandmed.flatMap(CompanyDetailMapper::extractFoundingDate).orElse(null),
         yldandmed.flatMap(CompanyDetailMapper::extractCurrentAddress).orElse(null),
-        yldandmed.flatMap(CompanyDetailMapper::extractMainActivity).orElse(null));
+        mainActivityRecord.map(DetailandmedV6TeatatudTegevusala::getEmtakTekstina).orElse(null),
+        mainActivityRecord.map(DetailandmedV6TeatatudTegevusala::getNaceKood).orElse(null));
   }
 
   private static Optional<LocalDate> extractFoundingDate(DetailandmedV6Yldandmed yldandmed) {
@@ -32,13 +35,13 @@ class CompanyDetailMapper {
         .map(DetailandmedV6Aadress::getAadressAdsAdsNormaliseeritudTaisaadress);
   }
 
-  private static Optional<String> extractMainActivity(DetailandmedV6Yldandmed yldandmed) {
+  private static Optional<DetailandmedV6TeatatudTegevusala> extractMainActivityRecord(
+      DetailandmedV6Yldandmed yldandmed) {
     return Optional.ofNullable(yldandmed.getTeatatudTegevusalad())
         .flatMap(
             tegevusalad ->
                 tegevusalad.getItem().stream()
                     .filter(t -> Boolean.TRUE.equals(t.isOnPohitegevusala()))
-                    .findFirst())
-        .map(DetailandmedV6TeatatudTegevusala::getEmtakTekstina);
+                    .findFirst());
   }
 }

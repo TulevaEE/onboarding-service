@@ -23,9 +23,11 @@ class CompanyDetailMapperTest {
     assertThat(result.getName()).isEqualTo("Test OÜ");
     assertThat(result.getRegistryCode()).isEqualTo("12345678");
     assertThat(result.getStatus()).contains("R");
+    assertThat(result.getLegalForm()).contains("OÜ");
     assertThat(result.getFoundingDate()).contains(LocalDate.of(2024, 9, 1));
     assertThat(result.getAddress()).contains("Pärnu mnt 1");
     assertThat(result.getMainActivity()).contains("Fondide valitsemine");
+    assertThat(result.getNaceCode()).contains("6630");
   }
 
   @Test
@@ -37,9 +39,11 @@ class CompanyDetailMapperTest {
     assertThat(result.getName()).isEqualTo("Test OÜ");
     assertThat(result.getRegistryCode()).isEqualTo("12345678");
     assertThat(result.getStatus()).isEmpty();
+    assertThat(result.getLegalForm()).isEmpty();
     assertThat(result.getFoundingDate()).isEmpty();
     assertThat(result.getAddress()).isEmpty();
     assertThat(result.getMainActivity()).isEmpty();
+    assertThat(result.getNaceCode()).isEmpty();
   }
 
   @Test
@@ -101,6 +105,7 @@ class CompanyDetailMapperTest {
       DetailandmedV6TeatatudTegevusalad tegevusalad) {
     var yldandmed = new DetailandmedV6Yldandmed();
     yldandmed.setStaatus("R");
+    yldandmed.setOiguslikVorm("OÜ");
     yldandmed.setAadressid(aadressid);
     yldandmed.setEsmaregistreerimiseKpv(registrationDate);
     yldandmed.setTeatatudTegevusalad(tegevusalad);
@@ -119,6 +124,7 @@ class CompanyDetailMapperTest {
     var tegevusalad = new DetailandmedV6TeatatudTegevusalad();
     var tegevusala = new DetailandmedV6TeatatudTegevusala();
     tegevusala.setEmtakTekstina(name);
+    tegevusala.setNaceKood("6630");
     tegevusala.setOnPohitegevusala(main);
     tegevusalad.getItem().add(tegevusala);
     return tegevusalad;

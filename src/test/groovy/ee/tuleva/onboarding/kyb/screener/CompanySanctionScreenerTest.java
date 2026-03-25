@@ -107,9 +107,14 @@ class CompanySanctionScreenerTest {
 
   private KybCompanyData companyData() {
     var person =
-        new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(100), COMPLETED);
+        new KybRelatedPerson(
+            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(100), COMPLETED);
     return new KybCompanyData(
-        COMPANY, "38501010001", R, List.of(person), new SelfCertification(true, true, true));
+        COMPANY,
+        new PersonalCode("38501010001"),
+        R,
+        List.of(person),
+        new SelfCertification(true, true, true));
   }
 
   private MatchResponse emptyResponse() {

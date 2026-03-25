@@ -31,6 +31,6 @@ public class SoleBoardMemberIsOwnerScreener implements KybScreener {
         new KybCheck(
             SOLE_BOARD_MEMBER_IS_OWNER,
             success,
-            Map.of("boardMemberPersonalCode", boardMember.personalCode())));
+            Map.of("boardMemberPersonalCode", boardMember.personalCode().toString())));
   }
 }

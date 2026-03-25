@@ -62,8 +62,13 @@ class CompanyNaceScreenerTest {
   private KybCompanyData companyWithNace(String naceCode) {
     var company = new CompanyDto(new RegistryCode("12345678"), "Test OÜ", naceCode);
     var person =
-        new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(100), COMPLETED);
+        new KybRelatedPerson(
+            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(100), COMPLETED);
     return new KybCompanyData(
-        company, "38501010001", R, List.of(person), new SelfCertification(true, true, true));
+        company,
+        new PersonalCode("38501010001"),
+        R,
+        List.of(person),
+        new SelfCertification(true, true, true));
   }
 }

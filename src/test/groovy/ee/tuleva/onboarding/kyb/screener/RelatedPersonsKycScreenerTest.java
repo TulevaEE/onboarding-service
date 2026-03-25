@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCompanyData;
 import ee.tuleva.onboarding.kyb.KybKycStatus;
 import ee.tuleva.onboarding.kyb.KybRelatedPerson;
+import ee.tuleva.onboarding.kyb.PersonalCode;
 import ee.tuleva.onboarding.kyb.RegistryCode;
 import ee.tuleva.onboarding.kyb.SelfCertification;
 import java.math.BigDecimal;
@@ -33,12 +34,17 @@ class RelatedPersonsKycScreenerTest {
             .map(
                 status ->
                     new KybRelatedPerson(
-                        "38501010001", true, true, true, BigDecimal.valueOf(100), status))
+                        new PersonalCode("38501010001"),
+                        true,
+                        true,
+                        true,
+                        BigDecimal.valueOf(100),
+                        status))
             .toList();
     var data =
         new KybCompanyData(
             new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
-            "38501010001",
+            new PersonalCode("38501010001"),
             R,
             persons,
             new SelfCertification(true, true, true));
@@ -64,13 +70,15 @@ class RelatedPersonsKycScreenerTest {
   @SuppressWarnings("unchecked")
   void failureMetadataContainsIncompletePersons() {
     var completed =
-        new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(50), COMPLETED);
+        new KybRelatedPerson(
+            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(50), COMPLETED);
     var rejected =
-        new KybRelatedPerson("38501010002", true, true, true, BigDecimal.valueOf(50), REJECTED);
+        new KybRelatedPerson(
+            new PersonalCode("38501010002"), true, true, true, BigDecimal.valueOf(50), REJECTED);
     var data =
         new KybCompanyData(
             new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
-            "38501010001",
+            new PersonalCode("38501010001"),
             R,
             List.of(completed, rejected),
             new SelfCertification(true, true, true));
@@ -89,11 +97,12 @@ class RelatedPersonsKycScreenerTest {
   @Test
   void successMetadataHasNoIncompletePersons() {
     var person =
-        new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(100), COMPLETED);
+        new KybRelatedPerson(
+            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(100), COMPLETED);
     var data =
         new KybCompanyData(
             new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
-            "38501010001",
+            new PersonalCode("38501010001"),
             R,
             List.of(person),
             new SelfCertification(true, true, true));

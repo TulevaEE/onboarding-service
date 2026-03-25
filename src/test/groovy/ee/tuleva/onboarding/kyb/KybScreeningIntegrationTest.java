@@ -26,7 +26,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Transactional
 class KybScreeningIntegrationTest {
 
-  private static final String PERSONAL_CODE = "38501010002";
+  private static final PersonalCode PERSONAL_CODE = new PersonalCode("38501010002");
 
   @Autowired private KybScreeningService kybScreeningService;
   @Autowired private AmlCheckRepository amlCheckRepository;
@@ -57,7 +57,8 @@ class KybScreeningIntegrationTest {
     assertThat(results).hasSize(7).allMatch(KybCheck::success);
 
     var amlChecks =
-        amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(PERSONAL_CODE, aYearAgo());
+        amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
+            PERSONAL_CODE.value(), aYearAgo());
     var types = amlChecks.stream().map(AmlCheck::getType).toList();
     assertThat(types)
         .containsExactlyInAnyOrder(
@@ -88,7 +89,8 @@ class KybScreeningIntegrationTest {
     assertThat(results).filteredOn(c -> !c.success()).hasSize(1);
 
     var amlChecks =
-        amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(PERSONAL_CODE, aYearAgo());
+        amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
+            PERSONAL_CODE.value(), aYearAgo());
     var failedCheck =
         amlChecks.stream().filter(c -> c.getType() == KYB_SOLE_MEMBER_OWNERSHIP).findFirst();
     assertThat(failedCheck).isPresent();
@@ -115,7 +117,8 @@ class KybScreeningIntegrationTest {
     assertThat(kycCheck.get().success()).isFalse();
 
     var amlChecks =
-        amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(PERSONAL_CODE, aYearAgo());
+        amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
+            PERSONAL_CODE.value(), aYearAgo());
     var kycAmlCheck =
         amlChecks.stream().filter(c -> c.getType() == KYB_RELATED_PERSONS_KYC).findFirst();
     assertThat(kycAmlCheck).isPresent();

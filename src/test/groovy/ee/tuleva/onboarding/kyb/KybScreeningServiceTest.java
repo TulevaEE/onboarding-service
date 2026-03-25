@@ -55,11 +55,12 @@ class KybScreeningServiceTest {
   @Test
   void singlePersonCompanyRunsRules31And34() {
     var person =
-        new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(100), UNKNOWN);
+        new KybRelatedPerson(
+            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(100), UNKNOWN);
     var data =
         new KybCompanyData(
             new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
-            "38501010001",
+            new PersonalCode("38501010001"),
             R,
             List.of(person),
             new SelfCertification(true, true, true));
@@ -81,13 +82,15 @@ class KybScreeningServiceTest {
   @Test
   void twoPersonCompanyWithTwoBoardMembersRunsRules32And34() {
     var person1 =
-        new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(50), UNKNOWN);
+        new KybRelatedPerson(
+            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(50), UNKNOWN);
     var person2 =
-        new KybRelatedPerson("38501010002", true, true, true, BigDecimal.valueOf(50), UNKNOWN);
+        new KybRelatedPerson(
+            new PersonalCode("38501010002"), true, true, true, BigDecimal.valueOf(50), UNKNOWN);
     var data =
         new KybCompanyData(
             new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
-            "38501010001",
+            new PersonalCode("38501010001"),
             R,
             List.of(person1, person2),
             new SelfCertification(true, true, true));
@@ -109,13 +112,15 @@ class KybScreeningServiceTest {
   @Test
   void twoPersonCompanyWithOneBoardMemberRunsRules33And34() {
     var person1 =
-        new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(50), UNKNOWN);
+        new KybRelatedPerson(
+            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(50), UNKNOWN);
     var person2 =
-        new KybRelatedPerson("38501010002", false, true, true, BigDecimal.valueOf(50), UNKNOWN);
+        new KybRelatedPerson(
+            new PersonalCode("38501010002"), false, true, true, BigDecimal.valueOf(50), UNKNOWN);
     var data =
         new KybCompanyData(
             new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
-            "38501010001",
+            new PersonalCode("38501010001"),
             R,
             List.of(person1, person2),
             new SelfCertification(true, true, true));
@@ -137,11 +142,12 @@ class KybScreeningServiceTest {
   @Test
   void publishesKybCheckPerformedEvent() {
     var person =
-        new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(100), UNKNOWN);
+        new KybRelatedPerson(
+            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(100), UNKNOWN);
     var data =
         new KybCompanyData(
             new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
-            "38501010001",
+            new PersonalCode("38501010001"),
             R,
             List.of(person),
             new SelfCertification(true, true, true));
@@ -151,7 +157,7 @@ class KybScreeningServiceTest {
     var captor = ArgumentCaptor.forClass(KybCheckPerformedEvent.class);
     verify(eventPublisher).publishEvent(captor.capture());
     var event = captor.getValue();
-    assertThat(event.getPersonalCode()).isEqualTo("38501010001");
+    assertThat(event.getPersonalCode()).isEqualTo(new PersonalCode("38501010001"));
     assertThat(event.getChecks()).isEqualTo(results);
   }
 }

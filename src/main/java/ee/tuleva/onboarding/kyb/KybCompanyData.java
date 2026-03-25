@@ -4,7 +4,7 @@ import java.util.List;
 
 public record KybCompanyData(
     CompanyDto company,
-    String personalCode,
+    PersonalCode personalCode,
     CompanyStatus status,
     List<KybRelatedPerson> relatedPersons,
     SelfCertification selfCertification) {}

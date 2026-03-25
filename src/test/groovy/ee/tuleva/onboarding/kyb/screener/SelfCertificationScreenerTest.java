@@ -56,8 +56,10 @@ class SelfCertificationScreenerTest {
   void nullCertificationFails() {
     var company = new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011");
     var person =
-        new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(100), COMPLETED);
-    var data = new KybCompanyData(company, "38501010001", R, List.of(person), null);
+        new KybRelatedPerson(
+            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(100), COMPLETED);
+    var data =
+        new KybCompanyData(company, new PersonalCode("38501010001"), R, List.of(person), null);
 
     var results = screener.screen(data);
 
@@ -81,8 +83,9 @@ class SelfCertificationScreenerTest {
       boolean operatesInEstonia, boolean notSanctioned, boolean noHighRiskActivity) {
     var company = new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011");
     var person =
-        new KybRelatedPerson("38501010001", true, true, true, BigDecimal.valueOf(100), COMPLETED);
+        new KybRelatedPerson(
+            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(100), COMPLETED);
     var cert = new SelfCertification(operatesInEstonia, notSanctioned, noHighRiskActivity);
-    return new KybCompanyData(company, "38501010001", R, List.of(person), cert);
+    return new KybCompanyData(company, new PersonalCode("38501010001"), R, List.of(person), cert);
   }
 }

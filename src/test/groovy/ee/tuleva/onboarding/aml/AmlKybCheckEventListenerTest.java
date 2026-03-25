@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCheckPerformedEvent;
+import ee.tuleva.onboarding.kyb.PersonalCode;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,7 @@ class AmlKybCheckEventListenerTest {
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of("status", "R")),
             new KybCheck(SOLE_MEMBER_OWNERSHIP, false, Map.of("personalCode", "38501010001")));
-    var event = new KybCheckPerformedEvent(this, "38501010001", checks);
+    var event = new KybCheckPerformedEvent(this, new PersonalCode("38501010001"), checks);
 
     listener.onKybCheckPerformed(event);
 

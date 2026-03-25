@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.company;
 
+import static ee.tuleva.onboarding.company.PartyType.PERSON;
 import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
 
 import java.util.UUID;
@@ -18,9 +19,10 @@ public class CompanyFixture {
         .name(SAMPLE_COMPANY_NAME);
   }
 
-  public static UserCompany.UserCompanyBuilder sampleBoardMembership(Long userId) {
-    return UserCompany.builder()
-        .userId(userId)
+  public static CompanyParty.CompanyPartyBuilder sampleBoardMembership(String personalCode) {
+    return CompanyParty.builder()
+        .partyCode(personalCode)
+        .partyType(PERSON)
         .companyId(SAMPLE_COMPANY_ID)
         .relationshipType(BOARD_MEMBER);
   }

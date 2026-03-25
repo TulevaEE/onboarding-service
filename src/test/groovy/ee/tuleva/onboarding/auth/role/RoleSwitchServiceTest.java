@@ -14,8 +14,9 @@ import ee.tuleva.onboarding.auth.TokenService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
+import ee.tuleva.onboarding.company.CompanyPartyRepository;
 import ee.tuleva.onboarding.company.CompanyRepository;
-import ee.tuleva.onboarding.company.UserCompanyRepository;
+import ee.tuleva.onboarding.company.PartyType;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class RoleSwitchServiceTest {
 
   @Mock private CompanyRepository companyRepository;
-  @Mock private UserCompanyRepository userCompanyRepository;
+  @Mock private CompanyPartyRepository companyPartyRepository;
   @Mock private PrincipalService principalService;
   @Mock private TokenService tokenService;
 
@@ -41,8 +42,8 @@ class RoleSwitchServiceTest {
     var company = sampleCompany().build();
     when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
         .thenReturn(Optional.of(company));
-    when(userCompanyRepository.existsByUserIdAndCompanyIdAndRelationshipType(
-            person.getUserId(), SAMPLE_COMPANY_ID, BOARD_MEMBER))
+    when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
+            person.getPersonalCode(), PartyType.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
         .thenReturn(true);
     when(principalService.withRole(any(), any())).thenReturn(person);
     when(tokenService.generateTokens(any()))
@@ -92,8 +93,8 @@ class RoleSwitchServiceTest {
     var company = sampleCompany().build();
     when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
         .thenReturn(Optional.of(company));
-    when(userCompanyRepository.existsByUserIdAndCompanyIdAndRelationshipType(
-            person.getUserId(), SAMPLE_COMPANY_ID, BOARD_MEMBER))
+    when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
+            person.getPersonalCode(), PartyType.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
         .thenReturn(false);
 
     assertThatThrownBy(
@@ -108,8 +109,8 @@ class RoleSwitchServiceTest {
     var company = sampleCompany().build();
     when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
         .thenReturn(Optional.of(company));
-    when(userCompanyRepository.existsByUserIdAndCompanyIdAndRelationshipType(
-            person.getUserId(), SAMPLE_COMPANY_ID, BOARD_MEMBER))
+    when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
+            person.getPersonalCode(), PartyType.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
         .thenReturn(false);
 
     assertThatThrownBy(
@@ -122,8 +123,9 @@ class RoleSwitchServiceTest {
   @Test
   void getRolesReturnsSelfAndBoardMemberCompanies() {
     var company = sampleCompany().build();
-    var membership = sampleBoardMembership(person.getUserId()).build();
-    when(userCompanyRepository.findByUserIdAndRelationshipType(person.getUserId(), BOARD_MEMBER))
+    var membership = sampleBoardMembership(person.getPersonalCode()).build();
+    when(companyPartyRepository.findByPartyCodeAndPartyTypeAndRelationshipType(
+            person.getPersonalCode(), PartyType.PERSON, BOARD_MEMBER))
         .thenReturn(List.of(membership));
     when(companyRepository.findAllById(List.of(SAMPLE_COMPANY_ID))).thenReturn(List.of(company));
 
@@ -141,8 +143,10 @@ class RoleSwitchServiceTest {
   @Test
   void getRolesExcludesCompaniesWhereUserIsOnlyShareholder() {
     var company = sampleCompany().registryCode("11111111").build();
-    var membership = sampleBoardMembership(person.getUserId()).companyId(company.getId()).build();
-    when(userCompanyRepository.findByUserIdAndRelationshipType(person.getUserId(), BOARD_MEMBER))
+    var membership =
+        sampleBoardMembership(person.getPersonalCode()).companyId(company.getId()).build();
+    when(companyPartyRepository.findByPartyCodeAndPartyTypeAndRelationshipType(
+            person.getPersonalCode(), PartyType.PERSON, BOARD_MEMBER))
         .thenReturn(List.of(membership));
     when(companyRepository.findAllById(List.of(company.getId()))).thenReturn(List.of(company));
 
@@ -165,8 +169,8 @@ class RoleSwitchServiceTest {
             .build();
     when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
         .thenReturn(Optional.of(company));
-    when(userCompanyRepository.existsByUserIdAndCompanyIdAndRelationshipType(
-            999L, SAMPLE_COMPANY_ID, BOARD_MEMBER))
+    when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
+            "39911223344", PartyType.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
         .thenReturn(false);
 
     assertThatThrownBy(

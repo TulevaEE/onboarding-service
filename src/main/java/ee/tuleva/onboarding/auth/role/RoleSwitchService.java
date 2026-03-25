@@ -10,9 +10,10 @@ import ee.tuleva.onboarding.auth.TokenService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
+import ee.tuleva.onboarding.company.CompanyParty;
+import ee.tuleva.onboarding.company.CompanyPartyRepository;
 import ee.tuleva.onboarding.company.CompanyRepository;
-import ee.tuleva.onboarding.company.UserCompany;
-import ee.tuleva.onboarding.company.UserCompanyRepository;
+import ee.tuleva.onboarding.company.PartyType;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +26,7 @@ import org.springframework.stereotype.Service;
 public class RoleSwitchService {
 
   private final CompanyRepository companyRepository;
-  private final UserCompanyRepository userCompanyRepository;
+  private final CompanyPartyRepository companyPartyRepository;
   private final PrincipalService principalService;
   private final TokenService tokenService;
 
@@ -41,10 +42,11 @@ public class RoleSwitchService {
     roles.add(new Role(PERSON, person.getPersonalCode(), person.getFullName()));
 
     var companyIds =
-        userCompanyRepository
-            .findByUserIdAndRelationshipType(person.getUserId(), BOARD_MEMBER)
+        companyPartyRepository
+            .findByPartyCodeAndPartyTypeAndRelationshipType(
+                person.getPersonalCode(), PartyType.PERSON, BOARD_MEMBER)
             .stream()
-            .map(UserCompany::getCompanyId)
+            .map(CompanyParty::getCompanyId)
             .toList();
     companyRepository.findAllById(companyIds).stream()
         .map(company -> new Role(LEGAL_ENTITY, company.getRegistryCode(), company.getName()))
@@ -69,8 +71,8 @@ public class RoleSwitchService {
             .findByRegistryCode(command.code())
             .orElseThrow(() -> new CompanyNotFoundException(command.code()));
 
-    if (!userCompanyRepository.existsByUserIdAndCompanyIdAndRelationshipType(
-        person.getUserId(), company.getId(), BOARD_MEMBER)) {
+    if (!companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
+        person.getPersonalCode(), PartyType.PERSON, company.getId(), BOARD_MEMBER)) {
       throw new RoleSwitchAccessDeniedException(person.getPersonalCode(), command.code());
     }
 

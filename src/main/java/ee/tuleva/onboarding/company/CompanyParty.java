@@ -10,13 +10,13 @@ import java.util.UUID;
 import lombok.*;
 
 @Entity
-@Table(name = "user_company")
+@Table(name = "company_party")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @ToString
-public class UserCompany {
+public class CompanyParty {
 
   @Id
   @GeneratedValue(strategy = UUID)
@@ -24,7 +24,12 @@ public class UserCompany {
 
   @NotNull
   @Column(nullable = false)
-  private Long userId;
+  private String partyCode;
+
+  @NotNull
+  @Enumerated(STRING)
+  @Column(nullable = false)
+  private PartyType partyType;
 
   @NotNull
   @Column(nullable = false)

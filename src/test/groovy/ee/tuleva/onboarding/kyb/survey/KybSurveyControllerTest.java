@@ -8,8 +8,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import ee.tuleva.onboarding.ariregister.AddressDetails;
-import ee.tuleva.onboarding.ariregister.CompanyAddress;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.role.Role;
 import java.util.List;
@@ -44,7 +42,8 @@ class KybSurveyControllerTest {
             ValidatedField.valid("OÜ"),
             ValidatedField.valid(LegalEntityStatus.REGISTERED),
             ValidatedField.valid(
-                new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null))),
+                new LegalEntityAddress(
+                    "Pärnu mnt 123, 11313 Tallinn", "Pärnu mnt 123", "Tallinn", "11313", "EST")),
             ValidatedField.valid("Fondide valitsemine"),
             ValidatedField.valid("6630"),
             ValidatedField.valid(List.of()));
@@ -57,7 +56,13 @@ class KybSurveyControllerTest {
         .andExpect(status().isOk())
         .andExpect(content().json("{\"name\":{\"value\":\"Test OÜ\",\"errors\":[]}}"))
         .andExpect(content().json("{\"status\":{\"value\":\"REGISTERED\",\"errors\":[]}}"))
-        .andExpect(content().json("{\"naceCode\":{\"value\":\"6630\",\"errors\":[]}}"));
+        .andExpect(content().json("{\"naceCode\":{\"value\":\"6630\",\"errors\":[]}}"))
+        .andExpect(
+            content()
+                .json(
+                    "{\"address\":{\"value\":{\"fullAddress\":\"Pärnu mnt 123, 11313 Tallinn\","
+                        + "\"street\":\"Pärnu mnt 123\",\"city\":\"Tallinn\","
+                        + "\"postalCode\":\"11313\",\"countryCode\":\"EST\"},\"errors\":[]}}"));
   }
 
   @Test

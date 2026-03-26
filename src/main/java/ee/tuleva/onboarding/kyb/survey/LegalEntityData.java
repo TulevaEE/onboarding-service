@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.kyb.survey;
 
-import ee.tuleva.onboarding.ariregister.CompanyAddress;
 import java.util.List;
 
 record LegalEntityData(
@@ -8,7 +7,7 @@ record LegalEntityData(
     ValidatedField<String> registryCode,
     ValidatedField<String> legalForm,
     ValidatedField<LegalEntityStatus> status,
-    ValidatedField<CompanyAddress> address,
+    ValidatedField<LegalEntityAddress> address,
     ValidatedField<String> businessActivity,
     ValidatedField<String> naceCode,
     ValidatedField<List<RelatedPersonData>> relatedPersons) {}

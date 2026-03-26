@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.payment.savings
 import tools.jackson.databind.json.JsonMapper
 import com.nimbusds.jose.JWSObject
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser
+import ee.tuleva.onboarding.party.Party
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository
 import ee.tuleva.onboarding.user.User
@@ -48,7 +49,7 @@ class SavingsCallbackServiceSpec extends Specification {
     def returnedPayment = savingsCallbackService.processToken(serializedToken)
     then:
     1 * savingFundPaymentRepository.savePaymentData(_) >> UUID.randomUUID()
-    0 * savingFundPaymentRepository.attachUser(_, _) // No user to attach
+    0 * savingFundPaymentRepository.attachParty(_, _) // No user to attach
     def payment = returnedPayment.get()
     payment.amount == token.grandTotal
     payment.currency == token.currency
@@ -76,7 +77,7 @@ class SavingsCallbackServiceSpec extends Specification {
     def returnedPayment = savingsCallbackService.processToken(serializedToken)
     then:
     1 * savingFundPaymentRepository.savePaymentData(_) >> paymentId
-    1 * savingFundPaymentRepository.attachUser(paymentId, 123L) // User attached separately
+    1 * savingFundPaymentRepository.attachParty(paymentId, new Party(Party.Type.PERSON, anInternalReference.personalCode))
     1 * eventPublisher.publishEvent(_)
     def payment = returnedPayment.get()
     payment.amount == token.grandTotal

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.party.Party.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.CREATED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.PROCESSED;
@@ -12,9 +13,9 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 import static org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE;
-import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
 
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
+import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
@@ -218,18 +219,19 @@ class SavingFundPaymentRepositoryTest {
   @EnumSource(
       value = Status.class,
       names = {"CREATED", "RECEIVED"})
-  void attachUser(Status status) {
-    var userId = createUser();
+  void attachParty(Status status) {
+    var user = createUser();
+    var party = new Party(PERSON, user.getPersonalCode());
 
     var id = repository.savePaymentData(createPayment().build());
     updatePaymentStatus(id, status);
 
-    repository.attachUser(id, userId);
+    repository.attachParty(id, party);
 
     var payments = repository.findPaymentsWithStatus(status);
 
     assertThat(payments).hasSize(1);
-    assertThat(payments.getFirst().getUserId()).isEqualTo(userId);
+    assertThat(payments.getFirst().getParty()).isEqualTo(party);
   }
 
   @ParameterizedTest
@@ -237,37 +239,20 @@ class SavingFundPaymentRepositoryTest {
       value = Status.class,
       names = {"CREATED", "RECEIVED"},
       mode = EXCLUDE)
-  void attachUser_notAllowed(Status status) {
-    var userId = createUser();
+  void attachParty_notAllowed(Status status) {
+    var user = createUser();
+    var party = new Party(PERSON, user.getPersonalCode());
 
     var id = repository.savePaymentData(createPayment().build());
     updatePaymentStatus(id, status);
 
-    assertThatThrownBy(() -> repository.attachUser(id, userId))
+    assertThatThrownBy(() -> repository.attachParty(id, party))
         .isInstanceOf(RuntimeException.class);
 
     var payments = repository.findPaymentsWithStatus(status);
 
     assertThat(payments).hasSize(1);
-    assertThat(payments.getFirst().getUserId()).isNull();
-  }
-
-  @Test
-  @Transactional(propagation = NOT_SUPPORTED)
-  void attachUser_unknownUser() {
-    var id = repository.savePaymentData(createPayment().build());
-
-    try {
-      assertThatThrownBy(() -> repository.attachUser(id, 123L))
-          .isInstanceOf(RuntimeException.class);
-
-      var payments = repository.findPaymentsWithStatus(CREATED);
-
-      assertThat(payments).hasSize(1);
-      assertThat(payments.getFirst().getUserId()).isNull();
-    } finally {
-      jdbcTemplate.update("DELETE FROM saving_fund_payment WHERE id=:id", Map.of("id", id));
-    }
+    assertThat(payments.getFirst().getParty()).isNull();
   }
 
   @Test
@@ -280,18 +265,20 @@ class SavingFundPaymentRepositoryTest {
     var user1 = createUser("37706154772");
     var user2 = createUser("36407145233");
 
-    repository.attachUser(id1, user1);
-    repository.attachUser(id2, user1);
-    repository.attachUser(id3, user2);
+    repository.attachParty(id1, new Party(PERSON, user1.getPersonalCode()));
+    repository.attachParty(id2, new Party(PERSON, user1.getPersonalCode()));
+    repository.attachParty(id3, new Party(PERSON, user2.getPersonalCode()));
 
     repository.changeStatus(id1, RECEIVED);
 
-    assertThat(repository.findUserPayments(user1)).hasSize(2);
-    assertThat(repository.findUserPayments(user1))
+    assertThat(repository.findUserPayments(user1.getId())).hasSize(2);
+    assertThat(repository.findUserPayments(user1.getId()))
         .extracting("id")
         .containsExactlyInAnyOrder(id1, id2);
-    assertThat(repository.findUserPayments(user2)).hasSize(1);
-    assertThat(repository.findUserPayments(user2)).extracting("id").containsExactlyInAnyOrder(id3);
+    assertThat(repository.findUserPayments(user2.getId())).hasSize(1);
+    assertThat(repository.findUserPayments(user2.getId()))
+        .extracting("id")
+        .containsExactlyInAnyOrder(id3);
   }
 
   @Test
@@ -368,13 +355,15 @@ class SavingFundPaymentRepositoryTest {
                 .amount(new BigDecimal("-50.00"))
                 .build());
 
-    repository.attachUser(id1, user1);
-    repository.attachUser(id2, user1);
-    repository.attachUser(id3, user1);
-    repository.attachUser(id4, user1);
-    repository.attachUser(id5, user1);
-    repository.attachUser(id6, user2);
-    repository.attachUser(id7, user1);
+    var party1 = new Party(PERSON, user1.getPersonalCode());
+    var party2 = new Party(PERSON, user2.getPersonalCode());
+    repository.attachParty(id1, party1);
+    repository.attachParty(id2, party1);
+    repository.attachParty(id3, party1);
+    repository.attachParty(id4, party1);
+    repository.attachParty(id5, party1);
+    repository.attachParty(id6, party2);
+    repository.attachParty(id7, party1);
 
     updatePaymentStatus(id1, RESERVED);
     updatePaymentStatus(id2, ISSUED);
@@ -384,7 +373,7 @@ class SavingFundPaymentRepositoryTest {
     updatePaymentStatus(id6, RESERVED);
     updatePaymentStatus(id7, PROCESSED);
 
-    var result = repository.findUserDepositBankAccountIbans(user1);
+    var result = repository.findUserDepositBankAccountIbans(user1.getId());
 
     assertThat(result)
         .containsExactly("EE111111111111111111", "EE222222222222222222", "EE333333333333333333");
@@ -409,14 +398,13 @@ class SavingFundPaymentRepositoryTest {
         Map.of("status", initialStatus.name(), "id", paymentId));
   }
 
-  private Long createUser() {
+  private User createUser() {
     return createUser("48806046007");
   }
 
-  private Long createUser(String personalCode) {
-    return userRepository
-        .save(User.builder().firstName("John").lastName("Smith").personalCode(personalCode).build())
-        .getId();
+  private User createUser(String personalCode) {
+    return userRepository.save(
+        User.builder().firstName("John").lastName("Smith").personalCode(personalCode).build());
   }
 
   @Test

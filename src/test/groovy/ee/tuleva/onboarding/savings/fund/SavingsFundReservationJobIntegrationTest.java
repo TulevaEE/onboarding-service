@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.party.Party.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -12,6 +13,7 @@ import static org.mockito.Mockito.verify;
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
@@ -61,7 +63,7 @@ class SavingsFundReservationJobIntegrationTest {
 
     var paymentId =
         repository.savePaymentData(createPayment().receivedBefore(beforeCutoff).build());
-    repository.attachUser(paymentId, user.getId());
+    repository.attachParty(paymentId, new Party(PERSON, user.getPersonalCode()));
     repository.changeStatus(paymentId, RECEIVED);
     repository.changeStatus(paymentId, VERIFIED);
 
@@ -81,7 +83,7 @@ class SavingsFundReservationJobIntegrationTest {
     var afterCutoff = Instant.parse("2025-01-06T15:00:00Z"); // Monday 17:00 EET
 
     var paymentId = repository.savePaymentData(createPayment().receivedBefore(afterCutoff).build());
-    repository.attachUser(paymentId, user.getId());
+    repository.attachParty(paymentId, new Party(PERSON, user.getPersonalCode()));
     repository.changeStatus(paymentId, RECEIVED);
     repository.changeStatus(paymentId, VERIFIED);
 
@@ -109,14 +111,14 @@ class SavingsFundReservationJobIntegrationTest {
     var invalidPaymentId =
         repository.savePaymentData(
             createPayment().receivedBefore(beforeCutoff).amount(new BigDecimal("999.00")).build());
-    repository.attachUser(invalidPaymentId, user.getId());
+    repository.attachParty(invalidPaymentId, new Party(PERSON, user.getPersonalCode()));
     repository.changeStatus(invalidPaymentId, RECEIVED);
     repository.changeStatus(invalidPaymentId, VERIFIED);
 
     // Valid payment with existing user
     var validPaymentId =
         repository.savePaymentData(createPayment().receivedBefore(beforeCutoff).build());
-    repository.attachUser(validPaymentId, user.getId());
+    repository.attachParty(validPaymentId, new Party(PERSON, user.getPersonalCode()));
     repository.changeStatus(validPaymentId, RECEIVED);
     repository.changeStatus(validPaymentId, VERIFIED);
 

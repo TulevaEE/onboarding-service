@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import static java.time.temporal.ChronoUnit.DAYS;
 
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
@@ -229,6 +230,7 @@ public class SavingFundPaymentRepository {
     return SavingFundPayment.builder()
         .id(UUID.fromString(rs.getString("id")))
         .userId(getLong(rs, "user_id"))
+        .party(mapParty(rs))
         .externalId(rs.getString("external_id"))
         .endToEndId(rs.getString("end_to_end_id"))
         .amount(rs.getBigDecimal("amount"))
@@ -257,6 +259,12 @@ public class SavingFundPaymentRepository {
   private Long getLong(ResultSet rs, String column) throws SQLException {
     var value = rs.getString(column);
     return value != null ? Long.valueOf(value) : null;
+  }
+
+  private Party mapParty(ResultSet rs) throws SQLException {
+    var type = rs.getString("party_type");
+    var code = rs.getString("party_code");
+    return type != null && code != null ? new Party(Party.Type.valueOf(type), code) : null;
   }
 
   private MapSqlParameterSource createParameters(SavingFundPayment payment) {
@@ -301,14 +309,19 @@ public class SavingFundPaymentRepository {
         Map.of("id", paymentId, "status", newStatus.name()));
   }
 
-  public void attachUser(UUID paymentId, Long userId) {
+  public void attachParty(UUID paymentId, Party party) {
     var currentStatus = getAndLockCurrentStatus(paymentId);
     if (!Set.of(CREATED, RECEIVED).contains(currentStatus))
       throw new IllegalStateException(
-          "Attaching of user ID is not allowed when payment is " + currentStatus);
+          "Attaching party is not allowed when payment is " + currentStatus);
     jdbcTemplate.update(
-        "UPDATE saving_fund_payment SET user_id=:user_id WHERE id=:id",
-        Map.of("id", paymentId, "user_id", userId));
+        """
+        UPDATE saving_fund_payment
+        SET party_type=:party_type, party_code=:party_code,
+            user_id=(SELECT id FROM users WHERE personal_code=:party_code)
+        WHERE id=:id
+        """,
+        Map.of("id", paymentId, "party_type", party.type().name(), "party_code", party.code()));
   }
 
   public void addReturnReason(UUID paymentId, String reason) {
@@ -345,7 +358,7 @@ public class SavingFundPaymentRepository {
   }
 
   // todo
-  // Montonio should use findRecentPayments(), savePaymentData() and attachUser() —— DONE
+  // Montonio should use findRecentPayments(), savePaymentData() and attachParty() —— DONE
 
   // Swedbank should use findRecentPayments(), savePaymentData() OR updatePaymentData() and
   // changeStatus(RECEIVED)

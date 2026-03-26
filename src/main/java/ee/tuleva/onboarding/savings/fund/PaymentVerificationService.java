@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.party.Party.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.savings.fund.notification.UnattributedPaymentEvent;
 import ee.tuleva.onboarding.user.UserRepository;
@@ -65,11 +67,11 @@ public class PaymentVerificationService {
       return;
     }
 
-    var userId = user.get().getId();
-    savingFundPaymentRepository.attachUser(payment.getId(), userId);
+    var party = new Party(PERSON, user.get().getPersonalCode());
+    savingFundPaymentRepository.attachParty(payment.getId(), party);
 
     log.info(
-        "Verification completed for payment {}, attaching to user {}", payment.getId(), userId);
+        "Verification completed for payment {}, attaching to party {}", payment.getId(), party);
     savingFundPaymentRepository.changeStatus(payment.getId(), VERIFIED);
     savingsFundLedger.recordPaymentReceived(
         user.get(), payment.getAmount(), payment.getId(), bookingDate(payment));

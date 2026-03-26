@@ -6,14 +6,172 @@ import static ee.tuleva.onboarding.kyb.KybKycStatus.*;
 import static ee.tuleva.onboarding.kyb.LegalForm.AS;
 import static ee.tuleva.onboarding.kyb.LegalForm.OÜ;
 
+import ee.tuleva.onboarding.ariregister.CompanyDetail;
+import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 public final class KybTestFixtures {
 
+  // --- Personal codes (valid Estonian checksums) ---
+
   static final PersonalCode JAAN = new PersonalCode("38501010002");
   static final PersonalCode MARI = new PersonalCode("49001010001");
   static final PersonalCode PEETER = new PersonalCode("37801010009");
+
+  // --- Ariregister interface responses: CompanyDetail ---
+
+  static final CompanyDetail VALID_COMPANY_DETAIL =
+      new CompanyDetail(
+          "Test OÜ",
+          "12345678",
+          "R",
+          "OÜ",
+          LocalDate.of(2020, 1, 15),
+          null,
+          "Programmeerimine",
+          "62011");
+
+  static CompanyDetail companyDetailInLiquidation() {
+    return new CompanyDetail(
+        "Test OÜ",
+        "12345678",
+        "L",
+        "OÜ",
+        LocalDate.of(2020, 1, 15),
+        null,
+        "Programmeerimine",
+        "62011");
+  }
+
+  static CompanyDetail companyDetailHighRiskNace() {
+    return new CompanyDetail(
+        "Crypto OÜ",
+        "12345678",
+        "R",
+        "OÜ",
+        LocalDate.of(2020, 1, 15),
+        null,
+        "Krüptovarade teenused",
+        "64321");
+  }
+
+  static CompanyDetail companyDetailAS() {
+    return new CompanyDetail(
+        "Test AS",
+        "12345678",
+        "R",
+        "AS",
+        LocalDate.of(2020, 1, 15),
+        null,
+        "Programmeerimine",
+        "62011");
+  }
+
+  // --- Ariregister interface responses: CompanyRelationship ---
+
+  static CompanyRelationship boardMember(String personalCode, String firstName, String lastName) {
+    return new CompanyRelationship(
+        "F",
+        "JUHL",
+        "Juhatuse liige",
+        firstName,
+        lastName,
+        personalCode,
+        null,
+        LocalDate.of(2020, 6, 1),
+        null,
+        null,
+        null,
+        "EST");
+  }
+
+  static CompanyRelationship shareholder(
+      String personalCode, String firstName, String lastName, BigDecimal ownership) {
+    return new CompanyRelationship(
+        "F",
+        "S",
+        "Osanik",
+        firstName,
+        lastName,
+        personalCode,
+        null,
+        LocalDate.of(2020, 6, 1),
+        null,
+        ownership,
+        null,
+        "EST");
+  }
+
+  static CompanyRelationship beneficialOwner(
+      String personalCode, String firstName, String lastName, BigDecimal ownership) {
+    return new CompanyRelationship(
+        "F",
+        "S",
+        "Osanik",
+        firstName,
+        lastName,
+        personalCode,
+        null,
+        LocalDate.of(2020, 6, 1),
+        null,
+        ownership,
+        "Osaluse kaudu",
+        "EST");
+  }
+
+  static List<CompanyRelationship> rule31PassRelationships() {
+    return List.of(
+        boardMember(JAAN.value(), "Jaan", "Tamm"),
+        beneficialOwner(JAAN.value(), "Jaan", "Tamm", new BigDecimal("100.00")));
+  }
+
+  static List<CompanyRelationship> rule31FailRelationships_notBeneficialOwner() {
+    return List.of(
+        boardMember(JAAN.value(), "Jaan", "Tamm"),
+        shareholder(JAAN.value(), "Jaan", "Tamm", new BigDecimal("100.00")));
+  }
+
+  static List<CompanyRelationship> rule32PassRelationships() {
+    return List.of(
+        boardMember(JAAN.value(), "Jaan", "Tamm"),
+        beneficialOwner(JAAN.value(), "Jaan", "Tamm", new BigDecimal("50.00")),
+        boardMember(MARI.value(), "Mari", "Kask"),
+        beneficialOwner(MARI.value(), "Mari", "Kask", new BigDecimal("50.00")));
+  }
+
+  static List<CompanyRelationship> rule32FailRelationships_incompleteOwnership() {
+    return List.of(
+        boardMember(JAAN.value(), "Jaan", "Tamm"),
+        beneficialOwner(JAAN.value(), "Jaan", "Tamm", new BigDecimal("30.00")),
+        boardMember(MARI.value(), "Mari", "Kask"),
+        beneficialOwner(MARI.value(), "Mari", "Kask", new BigDecimal("30.00")));
+  }
+
+  static List<CompanyRelationship> rule33PassRelationships() {
+    return List.of(
+        boardMember(JAAN.value(), "Jaan", "Tamm"),
+        beneficialOwner(JAAN.value(), "Jaan", "Tamm", new BigDecimal("50.00")),
+        beneficialOwner(MARI.value(), "Mari", "Kask", new BigDecimal("50.00")));
+  }
+
+  static List<CompanyRelationship> rule33FailRelationships_boardMemberNotOwner() {
+    return List.of(
+        boardMember(JAAN.value(), "Jaan", "Tamm"),
+        beneficialOwner(MARI.value(), "Mari", "Kask", new BigDecimal("100.00")));
+  }
+
+  static List<CompanyRelationship> threeRelatedPersonsRelationships() {
+    return List.of(
+        boardMember(JAAN.value(), "Jaan", "Tamm"),
+        beneficialOwner(JAAN.value(), "Jaan", "Tamm", new BigDecimal("34.00")),
+        boardMember(MARI.value(), "Mari", "Kask"),
+        beneficialOwner(MARI.value(), "Mari", "Kask", new BigDecimal("33.00")),
+        beneficialOwner(PEETER.value(), "Peeter", "Mets", new BigDecimal("33.00")));
+  }
+
+  // --- Screening pipeline input: KybCompanyData ---
 
   static final CompanyDto VALID_COMPANY =
       new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", OÜ);

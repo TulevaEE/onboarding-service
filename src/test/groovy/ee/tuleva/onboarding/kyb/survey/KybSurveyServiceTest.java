@@ -1,12 +1,21 @@
 package ee.tuleva.onboarding.kyb.survey;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
+import static ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSource.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.ariregister.*;
+import ee.tuleva.onboarding.ariregister.AddressDetails;
+import ee.tuleva.onboarding.ariregister.AriregisterClient;
+import ee.tuleva.onboarding.ariregister.CompanyAddress;
+import ee.tuleva.onboarding.ariregister.CompanyDetail;
+import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.kyb.*;
+import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSourceItem;
+import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanySourceOfIncome;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -31,6 +40,8 @@ class KybSurveyServiceTest {
   @Mock private AriregisterClient ariregisterClient;
   @Mock private KybCompanyDataMapper kybCompanyDataMapper;
   @Mock private KybScreeningService kybScreeningService;
+  @Mock private KybSurveyResponseMapper kybSurveyResponseMapper;
+  @Mock private KybSurveyRepository kybSurveyRepository;
 
   @Spy private Clock clock = Clock.fixed(Instant.parse("2026-03-25T10:00:00Z"), ZoneId.of("UTC"));
 
@@ -188,6 +199,89 @@ class KybSurveyServiceTest {
 
     assertThatThrownBy(() -> service.initialValidation(REGISTRY_CODE, PERSONAL_CODE))
         .isInstanceOf(NotBoardMemberException.class);
+  }
+
+  @Test
+  void submit_runsScreeningWithSelfCertification() {
+    var selfCert = new SelfCertification(true, true, true);
+    var surveyResponse = sampleSurveyResponse();
+    when(kybSurveyResponseMapper.extractSelfCertification(surveyResponse)).thenReturn(selfCert);
+
+    var detail =
+        new CompanyDetail(
+            "Test OÜ",
+            REGISTRY_CODE,
+            "R",
+            "OÜ",
+            null,
+            new CompanyAddress("Tallinn", null),
+            "Fondide valitsemine",
+            "6630");
+    var relationships = sampleRelationships();
+    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
+    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
+        .thenReturn(relationships);
+    var companyData =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
+            new PersonalCode(PERSONAL_CODE),
+            CompanyStatus.R,
+            List.of(),
+            selfCert);
+    when(kybCompanyDataMapper.toKybCompanyData(
+            detail, new PersonalCode(PERSONAL_CODE), relationships, selfCert))
+        .thenReturn(companyData);
+    when(kybScreeningService.screen(companyData))
+        .thenReturn(
+            List.of(
+                new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+                new KybCheck(SELF_CERTIFICATION, true, Map.of()),
+                new KybCheck(SOLE_MEMBER_OWNERSHIP, true, Map.of())));
+    when(kybSurveyRepository.save(any(KybSurvey.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    var result = service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse);
+
+    assertThat(result.name().value()).isEqualTo("Test OÜ");
+    assertThat(result.status().errors()).isEmpty();
+    verify(kybSurveyRepository).save(any(KybSurvey.class));
+  }
+
+  @Test
+  void submit_throwsWhenPersonIsNotBoardMember() {
+    var surveyResponse = sampleSurveyResponse();
+
+    var relationships =
+        List.of(
+            new CompanyRelationship(
+                "F",
+                "JUHL",
+                "Juhatuse liige",
+                "Jaan",
+                "Tamm",
+                "39901010001",
+                null,
+                null,
+                null,
+                new BigDecimal("100.00"),
+                "Osaluse kaudu",
+                "EST"));
+    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
+        .thenReturn(relationships);
+
+    assertThatThrownBy(() -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse))
+        .isInstanceOf(NotBoardMemberException.class);
+  }
+
+  private KybSurveyResponse sampleSurveyResponse() {
+    return new KybSurveyResponse(
+        List.of(
+            new CompanySourceOfIncome(
+                List.of(
+                    new CompanyIncomeSourceItem.Option(ONLY_ACTIVE_IN_ESTONIA),
+                    new CompanyIncomeSourceItem.Option(
+                        NOT_SANCTIONED_NOT_PROFITING_FROM_SANCTIONED_COUNTRIES),
+                    new CompanyIncomeSourceItem.Option(NOT_IN_CRYPTO)))));
   }
 
   private List<CompanyRelationship> sampleRelationships() {

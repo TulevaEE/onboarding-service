@@ -166,7 +166,7 @@ class KybScreeningServiceTest {
             new PersonalCode("38501010003"), true, true, true, BigDecimal.valueOf(30), COMPLETED);
     var data =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
             new PersonalCode("38501010001"),
             R,
             List.of(person1, person2, person3),

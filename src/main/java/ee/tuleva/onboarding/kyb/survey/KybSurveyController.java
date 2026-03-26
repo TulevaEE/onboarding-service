@@ -4,6 +4,7 @@ import static org.springframework.http.HttpStatus.FORBIDDEN;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +24,16 @@ class KybSurveyController {
       @RequestParam(value = "registry-code") String registryCode,
       @AuthenticationPrincipal AuthenticatedPerson person) {
     return kybSurveyService.initialValidation(registryCode, person.getPersonalCode());
+  }
+
+  @Operation(summary = "Submit KYB survey")
+  @PostMapping
+  public LegalEntityData submit(
+      @RequestParam(value = "registry-code") String registryCode,
+      @AuthenticationPrincipal AuthenticatedPerson person,
+      @Valid @RequestBody KybSurveyResponse surveyResponse) {
+    return kybSurveyService.submit(
+        person.getUserId(), person.getPersonalCode(), registryCode, surveyResponse);
   }
 
   @ExceptionHandler(NotBoardMemberException.class)

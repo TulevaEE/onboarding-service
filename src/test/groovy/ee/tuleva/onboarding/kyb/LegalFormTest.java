@@ -22,4 +22,14 @@ class LegalFormTest {
   void otherFormsAreNotAccepted(LegalForm legalForm) {
     assertThat(legalForm.isAccepted()).isFalse();
   }
+
+  @Test
+  void fromStringParsesKnownValue() {
+    assertThat(LegalForm.fromString("TÜH")).isEqualTo(TÜH);
+  }
+
+  @Test
+  void fromStringReturnsOtherForUnknownValue() {
+    assertThat(LegalForm.fromString("XYZZY")).isEqualTo(OTHER);
+  }
 }

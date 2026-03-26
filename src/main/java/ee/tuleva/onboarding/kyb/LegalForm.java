@@ -7,9 +7,19 @@ public enum LegalForm {
   UÜ,
   MTÜ,
   SA,
-  FIE;
+  FIE,
+  TÜH,
+  OTHER;
 
   public boolean isAccepted() {
     return this == OÜ;
+  }
+
+  public static LegalForm fromString(String value) {
+    try {
+      return valueOf(value);
+    } catch (IllegalArgumentException e) {
+      return OTHER;
+    }
   }
 }

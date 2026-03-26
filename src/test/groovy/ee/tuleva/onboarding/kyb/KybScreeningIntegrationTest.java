@@ -55,7 +55,7 @@ class KybScreeningIntegrationTest {
 
     var results = kybScreeningService.screen(data);
 
-    assertThat(results).hasSize(9).allMatch(KybCheck::success);
+    assertThat(results).hasSize(10).allMatch(KybCheck::success);
 
     var amlChecks =
         amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
@@ -63,6 +63,7 @@ class KybScreeningIntegrationTest {
     var types = amlChecks.stream().map(AmlCheck::getType).toList();
     assertThat(types)
         .containsExactlyInAnyOrder(
+            KYB_COMPANY_STRUCTURE,
             KYB_COMPANY_ACTIVE,
             KYB_SOLE_MEMBER_OWNERSHIP,
             KYB_RELATED_PERSONS_KYC,

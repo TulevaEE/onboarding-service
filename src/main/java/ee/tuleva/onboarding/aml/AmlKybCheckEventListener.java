@@ -18,6 +18,7 @@ public class AmlKybCheckEventListener {
 
   private static final Map<KybCheckType, AmlCheckType> TYPE_MAPPING =
       Map.ofEntries(
+          entry(KybCheckType.COMPANY_STRUCTURE, AmlCheckType.KYB_COMPANY_STRUCTURE),
           entry(KybCheckType.SOLE_MEMBER_OWNERSHIP, AmlCheckType.KYB_SOLE_MEMBER_OWNERSHIP),
           entry(KybCheckType.DUAL_MEMBER_OWNERSHIP, AmlCheckType.KYB_DUAL_MEMBER_OWNERSHIP),
           entry(

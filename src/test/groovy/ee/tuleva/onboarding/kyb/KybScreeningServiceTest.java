@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.kyb.screener.CompanyActiveScreener;
 import ee.tuleva.onboarding.kyb.screener.CompanyLegalFormScreener;
 import ee.tuleva.onboarding.kyb.screener.CompanyNaceScreener;
 import ee.tuleva.onboarding.kyb.screener.CompanySanctionScreener;
+import ee.tuleva.onboarding.kyb.screener.CompanyStructureScreener;
 import ee.tuleva.onboarding.kyb.screener.DualMemberOwnershipScreener;
 import ee.tuleva.onboarding.kyb.screener.RelatedPersonsKycScreener;
 import ee.tuleva.onboarding.kyb.screener.SelfCertificationScreener;
@@ -23,7 +24,6 @@ import ee.tuleva.onboarding.kyb.screener.SoleBoardMemberIsOwnerScreener;
 import ee.tuleva.onboarding.kyb.screener.SoleMemberOwnershipScreener;
 import java.math.BigDecimal;
 import java.util.List;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -40,6 +40,7 @@ class KybScreeningServiceTest {
   private final KybScreeningService kybScreeningService =
       new KybScreeningService(
           List.of(
+              new CompanyStructureScreener(),
               new CompanyActiveScreener(),
               new SoleMemberOwnershipScreener(),
               new DualMemberOwnershipScreener(),
@@ -77,6 +78,7 @@ class KybScreeningServiceTest {
     var types = results.stream().map(KybCheck::type).toList();
     assertThat(types)
         .containsExactlyInAnyOrder(
+            COMPANY_STRUCTURE,
             SOLE_MEMBER_OWNERSHIP,
             COMPANY_ACTIVE,
             RELATED_PERSONS_KYC,
@@ -109,6 +111,7 @@ class KybScreeningServiceTest {
     var types = results.stream().map(KybCheck::type).toList();
     assertThat(types)
         .containsExactlyInAnyOrder(
+            COMPANY_STRUCTURE,
             DUAL_MEMBER_OWNERSHIP,
             COMPANY_ACTIVE,
             RELATED_PERSONS_KYC,
@@ -141,6 +144,7 @@ class KybScreeningServiceTest {
     var types = results.stream().map(KybCheck::type).toList();
     assertThat(types)
         .containsExactlyInAnyOrder(
+            COMPANY_STRUCTURE,
             SOLE_BOARD_MEMBER_IS_OWNER,
             COMPANY_ACTIVE,
             RELATED_PERSONS_KYC,
@@ -152,7 +156,6 @@ class KybScreeningServiceTest {
             DATA_CHANGED);
   }
 
-  @Disabled("Companies with more than 2 people should not be supported")
   @Test
   void threePersonCompanyHasAtLeastOneFailingCheck() {
     var person1 =

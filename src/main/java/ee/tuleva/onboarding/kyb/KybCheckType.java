@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.kyb;
 
 public enum KybCheckType {
+  COMPANY_STRUCTURE,
   SOLE_MEMBER_OWNERSHIP,
   DUAL_MEMBER_OWNERSHIP,
   SOLE_BOARD_MEMBER_IS_OWNER,

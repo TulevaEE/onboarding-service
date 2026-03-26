@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.role.Role;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,6 +46,7 @@ class KybSurveyControllerTest {
             ValidatedField.valid("Test OÜ"),
             ValidatedField.valid(REGISTRY_CODE),
             ValidatedField.valid("OÜ"),
+            ValidatedField.valid(LocalDate.of(2020, 1, 15)),
             ValidatedField.valid(LegalEntityStatus.REGISTERED),
             ValidatedField.valid(
                 new LegalEntityAddress(
@@ -90,6 +92,7 @@ class KybSurveyControllerTest {
             ValidatedField.valid("Test OÜ"),
             ValidatedField.valid(REGISTRY_CODE),
             ValidatedField.valid("OÜ"),
+            ValidatedField.valid(LocalDate.of(2020, 1, 15)),
             ValidatedField.valid(LegalEntityStatus.REGISTERED),
             ValidatedField.valid(new LegalEntityAddress("Tallinn", null, null, null, null)),
             ValidatedField.valid("Fondide valitsemine"),

@@ -153,7 +153,6 @@ class PaymentReservationFilterServiceTest {
   private SavingFundPayment.SavingFundPaymentBuilder createReservableSavingFundPayment() {
     return SavingFundPayment.builder()
         .id(UUID.randomUUID())
-        .userId(123L)
         .amount(new BigDecimal("500.00"))
         .currency(Currency.EUR)
         .description("Payment")

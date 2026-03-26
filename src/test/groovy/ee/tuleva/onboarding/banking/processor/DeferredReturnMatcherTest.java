@@ -92,7 +92,6 @@ class DeferredReturnMatcherTest {
     var originalPayment =
         aPayment()
             .id(originalPaymentId)
-            .userId(null)
             .amount(new BigDecimal("75.00"))
             .status(TO_BE_RETURNED)
             .build();
@@ -120,12 +119,8 @@ class DeferredReturnMatcherTest {
   void fallsBackToIbanAndAmountMatch() {
     var originalPaymentId = UUID.randomUUID();
     var originalPayment =
-        aPayment()
-            .id(originalPaymentId)
-            .userId(null)
-            .amount(new BigDecimal("75.00"))
-            .status(RECEIVED)
-            .build();
+        aPayment().id(originalPaymentId).amount(new BigDecimal("75.00")).status(RECEIVED).build();
+
     var returnPayment =
         aPayment()
             .amount(new BigDecimal("-75.00"))
@@ -210,7 +205,6 @@ class DeferredReturnMatcherTest {
     var originalPayment =
         aPayment()
             .id(originalPaymentId)
-            .userId(null)
             .amount(new BigDecimal("75.00"))
             .status(TO_BE_RETURNED)
             .build();
@@ -240,7 +234,6 @@ class DeferredReturnMatcherTest {
     var originalPayment =
         aPayment()
             .id(originalPaymentId)
-            .userId(null)
             .amount(new BigDecimal("18472.00"))
             .status(RECEIVED)
             .build();

@@ -58,7 +58,7 @@ class SavingsCallbackServiceSpec extends Specification {
     payment.remitterName == token.senderName
     payment.beneficiaryIban == null
     payment.beneficiaryName == null
-    payment.userId == null // userId not set during creation
+    payment.party == null // party not set during creation
   }
 
   def "if token is paid and user exists, create payment and attach user"() {
@@ -87,7 +87,7 @@ class SavingsCallbackServiceSpec extends Specification {
     payment.remitterName == token.senderName
     payment.beneficiaryIban == null
     payment.beneficiaryName == null
-    payment.userId == null // userId not set on the returned object, but attached via repository call
+    payment.party == null // party not set on the returned object, but attached via repository call
   }
 
   def "if payment already exists then no payment is saved"() {

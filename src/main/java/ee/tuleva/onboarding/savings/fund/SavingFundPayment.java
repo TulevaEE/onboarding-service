@@ -16,7 +16,6 @@ import lombok.Value;
 @Builder
 public class SavingFundPayment {
   UUID id;
-  Long userId;
   @Nullable Party party;
 
   BigDecimal amount;

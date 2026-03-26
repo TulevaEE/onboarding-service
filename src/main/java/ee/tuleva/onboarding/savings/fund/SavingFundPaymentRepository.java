@@ -239,7 +239,6 @@ public class SavingFundPaymentRepository {
   private SavingFundPayment rowMapper(ResultSet rs, int ignored) throws SQLException {
     return SavingFundPayment.builder()
         .id(UUID.fromString(rs.getString("id")))
-        .userId(getLong(rs, "user_id"))
         .party(mapParty(rs))
         .externalId(rs.getString("external_id"))
         .endToEndId(rs.getString("end_to_end_id"))
@@ -264,11 +263,6 @@ public class SavingFundPaymentRepository {
   private Instant instant(ResultSet rs, String column) throws SQLException {
     var timestamp = rs.getTimestamp(column);
     return timestamp != null ? timestamp.toInstant() : null;
-  }
-
-  private Long getLong(ResultSet rs, String column) throws SQLException {
-    var value = rs.getString(column);
-    return value != null ? Long.valueOf(value) : null;
   }
 
   private Party mapParty(ResultSet rs) throws SQLException {
@@ -325,12 +319,7 @@ public class SavingFundPaymentRepository {
       throw new IllegalStateException(
           "Attaching party is not allowed when payment is " + currentStatus);
     jdbcTemplate.update(
-        """
-        UPDATE saving_fund_payment
-        SET party_type=:party_type, party_code=:party_code,
-            user_id=(SELECT id FROM users WHERE personal_code=:party_code)
-        WHERE id=:id
-        """,
+        "UPDATE saving_fund_payment SET party_type=:party_type, party_code=:party_code WHERE id=:id",
         Map.of("id", paymentId, "party_type", party.type().name(), "party_code", party.code()));
   }
 

@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.user
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
+import ee.tuleva.onboarding.auth.role.Role
+import ee.tuleva.onboarding.auth.role.RoleType
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService
 import ee.tuleva.onboarding.paymentrate.PaymentRates
@@ -12,6 +14,7 @@ import org.springframework.http.MediaType
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
+import static ee.tuleva.onboarding.auth.role.RoleType.PERSON
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 import static org.hamcrest.Matchers.*
@@ -258,5 +261,6 @@ class UserControllerSpec extends BaseControllerSpec {
       .lastName("Risthein")
       .personalCode("38501010002")
       .userId(2L)
+      .role(new Role(PERSON, "38501010002", "Erko Risthein"))
       .build()
 }

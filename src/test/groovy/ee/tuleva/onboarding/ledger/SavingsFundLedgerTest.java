@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.ASSET;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
@@ -579,7 +580,7 @@ class SavingsFundLedgerTest {
   }
 
   private LedgerAccount getUserAccount(UserAccount userAccount) {
-    return ledgerService.getPartyAccount(testUser.getPersonalCode(), userAccount);
+    return ledgerService.getPartyAccount(testUser.getPersonalCode(), PERSON, userAccount);
   }
 
   private LedgerAccount getSystemAccount(SystemAccount systemAccount) {

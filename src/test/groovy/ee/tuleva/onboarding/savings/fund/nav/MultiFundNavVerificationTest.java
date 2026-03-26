@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund.nav;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJUSTMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
@@ -171,7 +172,7 @@ class MultiFundNavVerificationTest {
     LedgerAccount fundUnitsAccount =
         ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, data.fund);
     LedgerAccount userFundUnitsAccount =
-        ledgerService.getPartyAccount(testUser.getPersonalCode(), FUND_UNITS);
+        ledgerService.getPartyAccount(testUser.getPersonalCode(), PERSON, FUND_UNITS);
 
     BigDecimal units = data.unitsOutstanding.setScale(5, HALF_UP);
     Instant transactionDate = data.navDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();

@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.auth.principal;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.auth.role.Role;
+import ee.tuleva.onboarding.auth.role.RoleType;
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -30,11 +32,22 @@ public class AuthenticatedPerson implements Person, Serializable {
 
   @Override
   public String toString() {
+    if (role != null && !role.code().equals(personalCode)) {
+      return personalCode + " as " + role.code();
+    }
     return personalCode;
   }
 
-  // TODO: refactor this into specific methods e.g. getPhoneNumber() based on claim keys they were
-  // inserted with
+  @JsonIgnore
+  public RoleType getRoleType() {
+    return role.type();
+  }
+
+  @JsonIgnore
+  public String getRoleCode() {
+    return role.code();
+  }
+
   public String getAttribute(String attribute) {
     return attributes.get(attribute);
   }

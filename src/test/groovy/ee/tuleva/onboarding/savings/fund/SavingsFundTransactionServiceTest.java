@@ -1,10 +1,13 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember;
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.SUBTRACTION;
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.*;
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.LEGAL_ENTITY;
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.UserAccount.REDEMPTIONS;
 import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -12,10 +15,10 @@ import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerAccountFixture.EntryFixture;
 import ee.tuleva.onboarding.ledger.LedgerService;
-import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -34,13 +37,14 @@ class SavingsFundTransactionServiceTest {
 
   @InjectMocks private SavingsFundTransactionService service;
 
+  private final AuthenticatedPerson person = sampleAuthenticatedPersonAndMember().build();
+  private final String personalCode = person.getPersonalCode();
+
   @Test
   void returnsTransactionsFromLedger() {
-    User user = sampleUser().build();
     String isin = "EE0000003283";
 
-    when(savingsFundOnboardingService.isOnboardingCompleted(user.getPersonalCode()))
-        .thenReturn(true);
+    when(savingsFundOnboardingService.isOnboardingCompleted(personalCode)).thenReturn(true);
     when(savingsFundConfiguration.getIsin()).thenReturn(isin);
 
     Instant olderDate = Instant.parse("2025-01-15T10:00:00Z");
@@ -56,12 +60,12 @@ class SavingsFundTransactionServiceTest {
         redemptionsAccountWithEntries(
             List.of(new EntryFixture(new BigDecimal("25.00"), newerDate)));
 
-    when(ledgerService.getPartyAccount(user.getPersonalCode(), SUBSCRIPTIONS))
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
         .thenReturn(subscriptionsAccount);
-    when(ledgerService.getPartyAccount(user.getPersonalCode(), REDEMPTIONS))
+    when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
         .thenReturn(redemptionsAccount);
 
-    List<Transaction> transactions = service.getTransactions(user);
+    List<Transaction> transactions = service.getTransactions(person);
 
     assertThat(transactions).hasSize(3);
     assertThat(transactions).allSatisfy(transaction -> assertThat(transaction.id()).isNotNull());
@@ -106,34 +110,43 @@ class SavingsFundTransactionServiceTest {
 
   @Test
   void returnsEmptyListWhenNotOnboarded() {
-    User user = sampleUser().build();
+    when(savingsFundOnboardingService.isOnboardingCompleted(personalCode)).thenReturn(false);
 
-    when(savingsFundOnboardingService.isOnboardingCompleted(user.getPersonalCode()))
-        .thenReturn(false);
-
-    List<Transaction> transactions = service.getTransactions(user);
-
-    assertThat(transactions).isEmpty();
+    assertThat(service.getTransactions(person)).isEmpty();
   }
 
   @Test
   void returnsEmptyListWhenNoEntries() {
-    User user = sampleUser().build();
-
-    when(savingsFundOnboardingService.isOnboardingCompleted(user.getPersonalCode()))
-        .thenReturn(true);
+    when(savingsFundOnboardingService.isOnboardingCompleted(personalCode)).thenReturn(true);
     when(savingsFundConfiguration.getIsin()).thenReturn("EE0000003283");
 
-    LedgerAccount emptySubscriptions = subscriptionsAccountWithBalance(BigDecimal.ZERO);
-    LedgerAccount emptyRedemptions = redemptionsAccountWithBalance(BigDecimal.ZERO);
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(subscriptionsAccountWithBalance(BigDecimal.ZERO));
+    when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .thenReturn(redemptionsAccountWithBalance(BigDecimal.ZERO));
 
-    when(ledgerService.getPartyAccount(user.getPersonalCode(), SUBSCRIPTIONS))
-        .thenReturn(emptySubscriptions);
-    when(ledgerService.getPartyAccount(user.getPersonalCode(), REDEMPTIONS))
-        .thenReturn(emptyRedemptions);
+    assertThat(service.getTransactions(person)).isEmpty();
+  }
 
-    List<Transaction> transactions = service.getTransactions(user);
+  @Test
+  void returnsTransactionsForLegalEntity() {
+    var legalEntityPerson = sampleAuthenticatedPersonLegalEntity().build();
 
-    assertThat(transactions).isEmpty();
+    when(savingsFundOnboardingService.isOnboardingCompleted("12345678")).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn("EE0000003283");
+
+    when(ledgerService.getPartyAccount("12345678", LEGAL_ENTITY, SUBSCRIPTIONS))
+        .thenReturn(
+            subscriptionsAccountWithEntries(
+                List.of(
+                    new EntryFixture(
+                        new BigDecimal("100.00"), Instant.parse("2025-01-15T10:00:00Z")))));
+    when(ledgerService.getPartyAccount("12345678", LEGAL_ENTITY, REDEMPTIONS))
+        .thenReturn(redemptionsAccountWithBalance(BigDecimal.ZERO));
+
+    List<Transaction> transactions = service.getTransactions(legalEntityPerson);
+
+    assertThat(transactions).hasSize(1);
+    assertThat(transactions.get(0).amount()).isEqualTo(new BigDecimal("100.00"));
   }
 }

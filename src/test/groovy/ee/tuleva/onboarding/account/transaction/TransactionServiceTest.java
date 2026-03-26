@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.account.transaction;
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture;
@@ -7,7 +8,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.account.CashFlowService;
-import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.savings.fund.SavingsFundTransactionService;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -28,7 +28,7 @@ class TransactionServiceTest {
 
   @Test
   void filtersContributionsAndSubtractionsFromEpis() {
-    var person = AuthenticatedPerson.builder().personalCode("38812121215").build();
+    var person = sampleAuthenticatedPersonAndMember().build();
     var cashFlowStatement = cashFlowFixture();
 
     when(cashFlowService.getCashFlowStatement(person)).thenReturn(cashFlowStatement);
@@ -47,7 +47,7 @@ class TransactionServiceTest {
 
   @Test
   void mergesEpisAndSavingsFundTransactionsSortedByDateDescending() {
-    var person = AuthenticatedPerson.builder().personalCode("38812121215").build();
+    var person = sampleAuthenticatedPersonAndMember().build();
     var cashFlowStatement = cashFlowFixture();
 
     Instant newestDate = Instant.parse("2099-01-01T00:00:00Z");
@@ -74,7 +74,7 @@ class TransactionServiceTest {
 
   @Test
   void returnsEmptyListWhenNoTransactions() {
-    var person = AuthenticatedPerson.builder().personalCode("38812121215").build();
+    var person = sampleAuthenticatedPersonAndMember().build();
     var emptyStatement = ee.tuleva.onboarding.epis.cashflows.CashFlowStatement.builder().build();
 
     when(cashFlowService.getCashFlowStatement(person)).thenReturn(emptyStatement);

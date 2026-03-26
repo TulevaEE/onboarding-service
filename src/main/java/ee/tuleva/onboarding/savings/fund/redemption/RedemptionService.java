@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static java.math.BigDecimal.ZERO;
@@ -173,7 +174,10 @@ public class RedemptionService {
   }
 
   private BigDecimal getEffectiveAvailableFundUnits(User user) {
-    return ledgerService.getPartyAccount(user.getPersonalCode(), FUND_UNITS).getBalance().negate();
+    return ledgerService
+        .getPartyAccount(user.getPersonalCode(), PERSON, FUND_UNITS)
+        .getBalance()
+        .negate();
   }
 
   private void validateIbanBelongsToUser(String iban, Long userId) {

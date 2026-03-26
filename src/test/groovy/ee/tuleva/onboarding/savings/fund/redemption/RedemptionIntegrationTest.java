@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
@@ -329,19 +330,19 @@ class RedemptionIntegrationTest {
   }
 
   private LedgerAccount getUserFundUnitsAccount() {
-    return ledgerService.getPartyAccount(testUser.getPersonalCode(), FUND_UNITS);
+    return ledgerService.getPartyAccount(testUser.getPersonalCode(), PERSON, FUND_UNITS);
   }
 
   private LedgerAccount getUserFundUnitsReservedAccount() {
-    return ledgerService.getPartyAccount(testUser.getPersonalCode(), FUND_UNITS_RESERVED);
+    return ledgerService.getPartyAccount(testUser.getPersonalCode(), PERSON, FUND_UNITS_RESERVED);
   }
 
   private LedgerAccount getUserCashRedemptionAccount() {
-    return ledgerService.getPartyAccount(testUser.getPersonalCode(), CASH_REDEMPTION);
+    return ledgerService.getPartyAccount(testUser.getPersonalCode(), PERSON, CASH_REDEMPTION);
   }
 
   private LedgerAccount getUserRedemptionsAccount() {
-    return ledgerService.getPartyAccount(testUser.getPersonalCode(), REDEMPTIONS);
+    return ledgerService.getPartyAccount(testUser.getPersonalCode(), PERSON, REDEMPTIONS);
   }
 
   private LedgerAccount getFundUnitsOutstandingAccount() {
@@ -361,7 +362,7 @@ class RedemptionIntegrationTest {
             .description("Test deposit")
             .remitterIban(iban)
             .remitterIdCode(user.getPersonalCode())
-            .remitterName(user.getFirstName() + " " + user.getLastName())
+            .remitterName(user.getFullName())
             .beneficiaryIban("EE362200221234567897")
             .beneficiaryIdCode("12345678")
             .beneficiaryName("Tuleva")

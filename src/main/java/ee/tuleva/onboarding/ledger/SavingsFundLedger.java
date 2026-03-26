@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.*;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.OPERATION_TYPE;
@@ -678,7 +679,7 @@ public class SavingsFundLedger {
     String ownerId = user.getPersonalCode();
     return ledgerPartyService
         .getParty(ownerId)
-        .orElseGet(() -> ledgerPartyService.createParty(ownerId));
+        .orElseGet(() -> ledgerPartyService.createParty(ownerId, PERSON));
   }
 
   private LedgerAccount getUserAccount(LedgerParty owner, UserAccount userAccount) {

@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.UserAccount.CASH;
 import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
 import static java.math.BigDecimal.ZERO;
@@ -85,10 +86,12 @@ class LedgerIntegrationTest {
     var user1 = sampleUser().personalCode("11111111111").build();
     var user2 = sampleUser().personalCode("22222222222").build();
 
-    var fundUnitsAccount1 = ledgerService.getPartyAccount(user1.getPersonalCode(), FUND_UNITS);
-    var fundUnitsAccount2 = ledgerService.getPartyAccount(user2.getPersonalCode(), FUND_UNITS);
-    var cashAccount1 = ledgerService.getPartyAccount(user1.getPersonalCode(), CASH);
-    var cashAccount2 = ledgerService.getPartyAccount(user2.getPersonalCode(), CASH);
+    var fundUnitsAccount1 =
+        ledgerService.getPartyAccount(user1.getPersonalCode(), PERSON, FUND_UNITS);
+    var fundUnitsAccount2 =
+        ledgerService.getPartyAccount(user2.getPersonalCode(), PERSON, FUND_UNITS);
+    var cashAccount1 = ledgerService.getPartyAccount(user1.getPersonalCode(), PERSON, CASH);
+    var cashAccount2 = ledgerService.getPartyAccount(user2.getPersonalCode(), PERSON, CASH);
 
     assertThat(fundUnitsAccount1.getId()).isNotEqualTo(fundUnitsAccount2.getId());
     assertThat(cashAccount1.getId()).isNotEqualTo(cashAccount2.getId());

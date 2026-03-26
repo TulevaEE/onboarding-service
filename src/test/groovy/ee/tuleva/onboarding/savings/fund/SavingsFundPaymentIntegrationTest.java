@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
@@ -328,19 +329,19 @@ class SavingsFundPaymentIntegrationTest {
 
   // Ledger helper methods - following pattern from SavingsFundLedgerTest
   private LedgerAccount getUserCashAccount() {
-    return ledgerService.getPartyAccount(testUser.getPersonalCode(), CASH);
+    return ledgerService.getPartyAccount(testUser.getPersonalCode(), PERSON, CASH);
   }
 
   private LedgerAccount getUserCashReservedAccount() {
-    return ledgerService.getPartyAccount(testUser.getPersonalCode(), CASH_RESERVED);
+    return ledgerService.getPartyAccount(testUser.getPersonalCode(), PERSON, CASH_RESERVED);
   }
 
   private LedgerAccount getUserUnitsAccount() {
-    return ledgerService.getPartyAccount(testUser.getPersonalCode(), FUND_UNITS);
+    return ledgerService.getPartyAccount(testUser.getPersonalCode(), PERSON, FUND_UNITS);
   }
 
   private LedgerAccount getUserSubscriptionsAccount() {
-    return ledgerService.getPartyAccount(testUser.getPersonalCode(), SUBSCRIPTIONS);
+    return ledgerService.getPartyAccount(testUser.getPersonalCode(), PERSON, SUBSCRIPTIONS);
   }
 
   private LedgerAccount getIncomingPaymentsClearingAccount() {

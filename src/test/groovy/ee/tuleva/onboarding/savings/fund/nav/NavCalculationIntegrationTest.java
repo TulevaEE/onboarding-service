@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.position.AccountType.NAV;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJUSTMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
@@ -508,7 +509,7 @@ class NavCalculationIntegrationTest {
     LedgerAccount fundUnitsOutstandingAccount =
         ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, fund);
     LedgerAccount userFundUnitsAccount =
-        ledgerService.getPartyAccount(testUser.getPersonalCode(), FUND_UNITS);
+        ledgerService.getPartyAccount(testUser.getPersonalCode(), PERSON, FUND_UNITS);
 
     BigDecimal units = unitsOutstanding.setScale(5, HALF_UP);
 

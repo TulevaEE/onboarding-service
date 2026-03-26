@@ -113,7 +113,7 @@ class SebRedemptionIntegrationTest {
             .description("Test deposit")
             .remitterIban(iban)
             .remitterIdCode(testUser.getPersonalCode())
-            .remitterName(testUser.getFirstName() + " " + testUser.getLastName())
+            .remitterName(testUser.getFullName())
             .beneficiaryIban("EE362200221234567897")
             .beneficiaryIdCode("12345678")
             .beneficiaryName("Tuleva")

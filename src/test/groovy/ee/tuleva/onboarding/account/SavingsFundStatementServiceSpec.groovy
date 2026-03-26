@@ -7,9 +7,12 @@ import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity
 import static ee.tuleva.onboarding.fund.FundFixture.additionalSavingsFund
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.*
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.LEGAL_ENTITY
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON
 import static ee.tuleva.onboarding.ledger.UserAccount.*
 
 class SavingsFundStatementServiceSpec extends Specification {
@@ -24,25 +27,21 @@ class SavingsFundStatementServiceSpec extends Specification {
 
   def "returns savings account statement"() {
     given:
-    def user = sampleUser().build()
+    def person = sampleAuthenticatedPersonAndMember().build()
+    def personalCode = person.personalCode
     def savingsFund = additionalSavingsFund()
 
-    def fundUnits = fundUnitsAccountWithBalance(2.0)
-    def fundUnitsReserved = fundUnitsReservedAccountWithBalance(1.0)
-    def subscriptions = subscriptionsAccountWithBalance(3.0)
-    def redemptions = redemptionsAccountWithBalance(1.0)
-
-    savingsFundOnboardingService.isOnboardingCompleted(user.personalCode) >> true
+    savingsFundOnboardingService.isOnboardingCompleted(personalCode) >> true
     navProvider.getDisplayNav(_) >> new BigDecimal("1.12345")
-    ledgerService.getPartyAccount(user.personalCode, FUND_UNITS) >> fundUnits
-    ledgerService.getPartyAccount(user.personalCode, FUND_UNITS_RESERVED) >> fundUnitsReserved
-    ledgerService.getPartyAccount(user.personalCode, SUBSCRIPTIONS) >> subscriptions
-    ledgerService.getPartyAccount(user.personalCode, REDEMPTIONS) >> redemptions
+    ledgerService.getPartyAccount(personalCode, PERSON, FUND_UNITS) >> fundUnitsAccountWithBalance(2.0)
+    ledgerService.getPartyAccount(personalCode, PERSON, FUND_UNITS_RESERVED) >> fundUnitsReservedAccountWithBalance(1.0)
+    ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS) >> subscriptionsAccountWithBalance(3.0)
+    ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS) >> redemptionsAccountWithBalance(1.0)
     savingsFundConfiguration.getIsin() >> savingsFund.isin
     fundRepository.findByIsin(savingsFund.isin) >> savingsFund
 
     when:
-    FundBalance savingsAccountStatement = service.getAccountStatement(user)
+    FundBalance savingsAccountStatement = service.getAccountStatement(person)
 
     then:
     savingsAccountStatement.fund == savingsFund
@@ -54,14 +53,38 @@ class SavingsFundStatementServiceSpec extends Specification {
     savingsAccountStatement.subtractions == -1
   }
 
-  def "throws exception if user is not onboarded"() {
+  def "returns savings account statement for legal entity"() {
     given:
-    def user = sampleUser().build()
+    def person = sampleAuthenticatedPersonLegalEntity().build()
+    def registryCode = person.role.code()
+    def savingsFund = additionalSavingsFund()
 
-    savingsFundOnboardingService.isOnboardingCompleted(user.personalCode) >> false
+    savingsFundOnboardingService.isOnboardingCompleted(registryCode) >> true
+    navProvider.getDisplayNav(_) >> new BigDecimal("1.12345")
+    ledgerService.getPartyAccount(registryCode, LEGAL_ENTITY, FUND_UNITS) >> fundUnitsAccountWithBalance(2.0)
+    ledgerService.getPartyAccount(registryCode, LEGAL_ENTITY, FUND_UNITS_RESERVED) >> fundUnitsReservedAccountWithBalance(1.0)
+    ledgerService.getPartyAccount(registryCode, LEGAL_ENTITY, SUBSCRIPTIONS) >> subscriptionsAccountWithBalance(3.0)
+    ledgerService.getPartyAccount(registryCode, LEGAL_ENTITY, REDEMPTIONS) >> redemptionsAccountWithBalance(1.0)
+    savingsFundConfiguration.getIsin() >> savingsFund.isin
+    fundRepository.findByIsin(savingsFund.isin) >> savingsFund
 
     when:
-    service.getAccountStatement(user)
+    FundBalance savingsAccountStatement = service.getAccountStatement(person)
+
+    then:
+    savingsAccountStatement.fund == savingsFund
+    savingsAccountStatement.units == 2
+    savingsAccountStatement.value == 2.25
+  }
+
+  def "throws exception if user is not onboarded"() {
+    given:
+    def person = sampleAuthenticatedPersonAndMember().build()
+
+    savingsFundOnboardingService.isOnboardingCompleted(person.personalCode) >> false
+
+    when:
+    service.getAccountStatement(person)
 
     then:
     thrown(IllegalStateException)

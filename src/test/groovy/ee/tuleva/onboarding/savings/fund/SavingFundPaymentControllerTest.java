@@ -1,8 +1,11 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember;
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -18,7 +21,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -46,19 +48,16 @@ class SavingFundPaymentControllerTest {
   @Test
   void cancelSavingsFundPayment_shouldReturnNoContent() throws Exception {
     UUID paymentId = UUID.randomUUID();
+    var person = sampleAuthenticatedPersonAndMember().build();
 
     var auth =
         new UsernamePasswordAuthenticationToken(
-            AuthenticatedPerson.builder().userId(1L).build(),
-            null,
-            List.of(new SimpleGrantedAuthority(USER)));
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
 
-    var user = Mockito.mock(User.class);
-    Mockito.when(userService.getByIdOrThrow(1L)).thenReturn(user);
-    Mockito.when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
-    Mockito.doNothing()
-        .when(savingFundPaymentUpsertionService)
-        .cancelUserPayment(any(), eq(paymentId));
+    var user = mock(User.class);
+    when(userService.getByIdOrThrow(person.getUserId())).thenReturn(user);
+    when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
+    doNothing().when(savingFundPaymentUpsertionService).cancelUserPayment(any(), eq(paymentId));
 
     mvc.perform(delete("/v1/savings/payments/" + paymentId).with(csrf()).with(authentication(auth)))
         .andExpect(status().isNoContent());
@@ -66,13 +65,12 @@ class SavingFundPaymentControllerTest {
 
   @Test
   void getSavingsFundOnboardingStatus_shouldReturnCompleted() throws Exception {
+    var person = sampleAuthenticatedPersonAndMember().build();
     var auth =
         new UsernamePasswordAuthenticationToken(
-            AuthenticatedPerson.builder().personalCode("38501010001").userId(1L).build(),
-            null,
-            List.of(new SimpleGrantedAuthority(USER)));
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
 
-    Mockito.when(savingsFundOnboardingService.getOnboardingStatus("38501010001"))
+    when(savingsFundOnboardingService.getOnboardingStatus(person.getRoleCode()))
         .thenReturn(SavingsFundOnboardingStatus.COMPLETED);
 
     mvc.perform(get("/v1/savings/onboarding/status").with(authentication(auth)))
@@ -82,17 +80,31 @@ class SavingFundPaymentControllerTest {
 
   @Test
   void getSavingsFundOnboardingStatus_shouldReturnNull() throws Exception {
+    var person = sampleAuthenticatedPersonAndMember().build();
     var auth =
         new UsernamePasswordAuthenticationToken(
-            AuthenticatedPerson.builder().personalCode("38501010001").userId(1L).build(),
-            null,
-            List.of(new SimpleGrantedAuthority(USER)));
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
 
-    Mockito.when(savingsFundOnboardingService.getOnboardingStatus("38501010001")).thenReturn(null);
+    when(savingsFundOnboardingService.getOnboardingStatus(person.getRoleCode())).thenReturn(null);
 
     mvc.perform(get("/v1/savings/onboarding/status").with(authentication(auth)))
         .andExpect(status().isOk())
         .andExpect(content().json("{\"status\":null}"));
+  }
+
+  @Test
+  void getSavingsFundOnboardingStatus_shouldReturnCompletedForLegalEntity() throws Exception {
+    var person = sampleAuthenticatedPersonLegalEntity().build();
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
+
+    when(savingsFundOnboardingService.getOnboardingStatus(person.getRoleCode()))
+        .thenReturn(SavingsFundOnboardingStatus.COMPLETED);
+
+    mvc.perform(get("/v1/savings/onboarding/status").with(authentication(auth)))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"status\":\"COMPLETED\"}"));
   }
 
   @Test
@@ -103,10 +115,10 @@ class SavingFundPaymentControllerTest {
             null,
             List.of(new SimpleGrantedAuthority(USER)));
 
-    var user = Mockito.mock(User.class);
-    Mockito.when(user.getId()).thenReturn(1L);
-    Mockito.when(userService.getByIdOrThrow(1L)).thenReturn(user);
-    Mockito.when(savingFundPaymentRepository.findUserDepositBankAccountIbans(1L))
+    var user = mock(User.class);
+    when(user.getId()).thenReturn(1L);
+    when(userService.getByIdOrThrow(1L)).thenReturn(user);
+    when(savingFundPaymentRepository.findUserDepositBankAccountIbans(1L))
         .thenReturn(List.of("EE123456789012345678", "EE987654321098765432"));
 
     mvc.perform(get("/v1/savings/bank-accounts").with(authentication(auth)))

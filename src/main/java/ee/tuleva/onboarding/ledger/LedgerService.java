@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
+
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +20,7 @@ public class LedgerService {
     LedgerParty party =
         ledgerPartyService
             .getParty(ownerId)
-            .orElseGet(() -> ledgerPartyService.createParty(ownerId));
+            .orElseGet(() -> ledgerPartyService.createParty(ownerId, PERSON));
 
     for (var userAccount : UserAccount.values()) {
       if (ledgerAccountService.findUserAccount(party, userAccount).isEmpty()) {
@@ -26,11 +29,12 @@ public class LedgerService {
     }
   }
 
-  public LedgerAccount getPartyAccount(String ownerId, UserAccount userAccount) {
+  public LedgerAccount getPartyAccount(
+      String ownerId, PartyType partyType, UserAccount userAccount) {
     LedgerParty party =
         ledgerPartyService
             .getParty(ownerId)
-            .orElseGet(() -> ledgerPartyService.createParty(ownerId));
+            .orElseGet(() -> ledgerPartyService.createParty(ownerId, partyType));
     return ledgerAccountService
         .findUserAccount(party, userAccount)
         .orElseGet(() -> ledgerAccountService.createUserAccount(party, userAccount));

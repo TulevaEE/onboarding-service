@@ -35,7 +35,7 @@ class RoleControllerTest {
   private static UsernamePasswordAuthenticationToken userAuth() {
     var person =
         AuthenticatedPerson.builder()
-            .personalCode("38501010000")
+            .personalCode("38501010002")
             .firstName("Jordan")
             .lastName("Valdma")
             .userId(1L)
@@ -84,7 +84,7 @@ class RoleControllerTest {
   @Test
   void switchRoleReturns403WhenAccessDenied() throws Exception {
     when(roleSwitchService.switchRole(any(AuthenticatedPerson.class), any(SwitchRoleCommand.class)))
-        .thenThrow(new RoleSwitchAccessDeniedException("38501010000", "12345678"));
+        .thenThrow(new RoleSwitchAccessDeniedException("38501010002", "12345678"));
 
     mockMvc
         .perform(
@@ -103,14 +103,14 @@ class RoleControllerTest {
     when(roleSwitchService.getRoles(any(AuthenticatedPerson.class)))
         .thenReturn(
             List.of(
-                new Role(RoleType.PERSON, "38501010000", "Jordan Valdma"),
+                new Role(RoleType.PERSON, "38501010002", "Jordan Valdma"),
                 new Role(RoleType.LEGAL_ENTITY, SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME)));
 
     mockMvc
         .perform(get("/v1/me/roles").with(authentication(userAuth())))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].type").value("PERSON"))
-        .andExpect(jsonPath("$[0].code").value("38501010000"))
+        .andExpect(jsonPath("$[0].code").value("38501010002"))
         .andExpect(jsonPath("$[0].name").value("Jordan Valdma"))
         .andExpect(jsonPath("$[1].type").value("LEGAL_ENTITY"))
         .andExpect(jsonPath("$[1].code").value(SAMPLE_REGISTRY_CODE))

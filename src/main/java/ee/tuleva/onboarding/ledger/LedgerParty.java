@@ -5,6 +5,7 @@ import static jakarta.persistence.GenerationType.UUID;
 import static org.hibernate.generator.EventType.INSERT;
 import static org.hibernate.type.SqlTypes.JSON;
 
+import ee.tuleva.onboarding.auth.role.RoleType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -26,7 +27,11 @@ public class LedgerParty {
 
   public enum PartyType {
     PERSON,
-    LEGAL_ENTITY
+    LEGAL_ENTITY;
+
+    public static PartyType from(RoleType roleType) {
+      return valueOf(roleType.name());
+    }
   }
 
   @Id
@@ -39,9 +44,7 @@ public class LedgerParty {
   @NotNull
   private PartyType partyType;
 
-  @NotNull
-  // TODO currently personal ID, can add party representative logic later for children and companies
-  private String ownerId;
+  @NotNull private String ownerId;
 
   @JdbcTypeCode(JSON)
   @Column(nullable = false)

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJUSTMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static ee.tuleva.onboarding.ledger.UserAccount.CASH;
@@ -43,7 +44,7 @@ public class LedgerTransactionIntegrationTest {
   }
 
   private LedgerAccount getCashAccount(User user) {
-    return ledgerService.getPartyAccount(user.getPersonalCode(), CASH);
+    return ledgerService.getPartyAccount(user.getPersonalCode(), PERSON, CASH);
   }
 
   private LedgerAccount getSystemAccount() {

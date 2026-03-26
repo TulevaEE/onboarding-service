@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
-
+import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -13,9 +12,9 @@ class LedgerPartyService {
 
   private final LedgerPartyRepository ledgerPartyRepository;
 
-  LedgerParty createParty(String ownerId) {
+  LedgerParty createParty(String ownerId, PartyType partyType) {
     var ledgerParty =
-        LedgerParty.builder().partyType(PERSON).ownerId(ownerId).details(Map.of()).build();
+        LedgerParty.builder().partyType(partyType).ownerId(ownerId).details(Map.of()).build();
 
     return ledgerPartyRepository.save(ledgerParty);
   }

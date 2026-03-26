@@ -10,9 +10,10 @@ import static java.math.RoundingMode.UNNECESSARY;
 import static java.util.Comparator.reverseOrder;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
-import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.epis.cashflows.CashFlow;
 import ee.tuleva.onboarding.ledger.LedgerEntry;
+import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.UserAccount;
@@ -32,8 +33,9 @@ public class SavingsFundTransactionService {
   private final SavingsFundConfiguration savingsFundConfiguration;
 
   @Transactional
-  public List<Transaction> getTransactions(Person person) {
-    String ownerCode = person.getPersonalCode();
+  public List<Transaction> getTransactions(AuthenticatedPerson person) {
+    String ownerCode = person.getRoleCode();
+    PartyType partyType = PartyType.from(person.getRoleType());
 
     if (!savingsFundOnboardingService.isOnboardingCompleted(ownerCode)) {
       return List.of();
@@ -41,8 +43,10 @@ public class SavingsFundTransactionService {
 
     String isin = savingsFundConfiguration.getIsin();
 
-    List<Transaction> subscriptions = mapEntries(ownerCode, SUBSCRIPTIONS, CONTRIBUTION_CASH, isin);
-    List<Transaction> redemptions = mapEntries(ownerCode, REDEMPTIONS, SUBTRACTION, isin);
+    List<Transaction> subscriptions =
+        mapEntries(ownerCode, partyType, SUBSCRIPTIONS, CONTRIBUTION_CASH, isin);
+    List<Transaction> redemptions =
+        mapEntries(ownerCode, partyType, REDEMPTIONS, SUBTRACTION, isin);
 
     return Stream.concat(subscriptions.stream(), redemptions.stream())
         .sorted(reverseOrder())
@@ -50,8 +54,12 @@ public class SavingsFundTransactionService {
   }
 
   private List<Transaction> mapEntries(
-      String ownerCode, UserAccount userAccount, CashFlow.Type type, String isin) {
-    return ledgerService.getPartyAccount(ownerCode, userAccount).getEntries().stream()
+      String ownerCode,
+      PartyType partyType,
+      UserAccount userAccount,
+      CashFlow.Type type,
+      String isin) {
+    return ledgerService.getPartyAccount(ownerCode, partyType, userAccount).getEntries().stream()
         .map(entry -> toTransaction(entry, type, isin))
         .toList();
   }

@@ -2,7 +2,12 @@ package ee.tuleva.onboarding.kyb.survey;
 
 import static ee.tuleva.onboarding.kyb.CompanyStatus.R;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.aml.AmlCheckRepository;
+import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.kyb.*;
@@ -16,7 +21,8 @@ class KybCompanyDataMapperTest {
   private static final PersonalCode PERSONAL_CODE = new PersonalCode("38501010002");
   private static final SelfCertification SELF_CERT = new SelfCertification(true, true, true);
 
-  private final KybCompanyDataMapper mapper = new KybCompanyDataMapper();
+  private final AmlCheckRepository amlCheckRepository = mock(AmlCheckRepository.class);
+  private final KybCompanyDataMapper mapper = new KybCompanyDataMapper(amlCheckRepository);
 
   @Test
   void mapsPersonWithMultipleRolesToSingleRelatedPerson() {
@@ -235,5 +241,62 @@ class KybCompanyDataMapperTest {
         .first()
         .extracting(KybRelatedPerson::ownershipPercent)
         .isEqualTo(new BigDecimal("100.00"));
+  }
+
+  @Test
+  void resolvesCompletedKycStatusFromDatabase() {
+    when(amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
+            eq("38501010002"), eq(AmlCheckType.KYC_CHECK), eq(true), any()))
+        .thenReturn(true);
+
+    var relationship = boardMemberRelationship("38501010002");
+    var detail = new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null);
+
+    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(relationship), SELF_CERT);
+
+    assertThat(result.relatedPersons().getFirst().kycStatus()).isEqualTo(KybKycStatus.COMPLETED);
+  }
+
+  @Test
+  void resolvesRejectedKycStatusFromDatabase() {
+    when(amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
+            eq("38501010002"), eq(AmlCheckType.KYC_CHECK), eq(true), any()))
+        .thenReturn(false);
+    when(amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
+            eq("38501010002"), eq(AmlCheckType.KYC_CHECK), eq(false), any()))
+        .thenReturn(true);
+
+    var relationship = boardMemberRelationship("38501010002");
+    var detail = new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null);
+
+    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(relationship), SELF_CERT);
+
+    assertThat(result.relatedPersons().getFirst().kycStatus()).isEqualTo(KybKycStatus.REJECTED);
+  }
+
+  @Test
+  void resolvesUnknownKycStatusWhenNoCheckExists() {
+    var relationship = boardMemberRelationship("38501010002");
+    var detail = new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null);
+
+    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(relationship), SELF_CERT);
+
+    assertThat(result.relatedPersons().getFirst().kycStatus()).isEqualTo(KybKycStatus.UNKNOWN);
+  }
+
+  private CompanyRelationship boardMemberRelationship(String personalCode) {
+    return new CompanyRelationship(
+        "F",
+        "JUHL",
+        "Juhatuse liige",
+        "Jaan",
+        "Tamm",
+        personalCode,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "EST");
   }
 }

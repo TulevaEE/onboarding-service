@@ -25,7 +25,10 @@ class CompanyDetailMapperTest {
     assertThat(result.getStatus()).contains("R");
     assertThat(result.getLegalForm()).contains("OÜ");
     assertThat(result.getFoundingDate()).contains(LocalDate.of(2024, 9, 1));
-    assertThat(result.getAddress()).contains("Pärnu mnt 1");
+    assertThat(result.getAddress())
+        .contains(
+            new CompanyAddress(
+                "Pärnu mnt 1", new AddressDetails("Pärnu mnt 1", "Tallinn", "11313", "EST")));
     assertThat(result.getMainActivity()).contains("Fondide valitsemine");
     assertThat(result.getNaceCode()).contains("6630");
   }
@@ -66,7 +69,9 @@ class CompanyDetailMapperTest {
 
     var result = CompanyDetailMapper.fromEttevotja(ettevotjaWith(yldandmed));
 
-    assertThat(result.getAddress()).contains("Current address");
+    assertThat(result.getAddress())
+        .contains(
+            new CompanyAddress("Current address", new AddressDetails(null, null, null, null)));
   }
 
   @Test
@@ -116,6 +121,10 @@ class CompanyDetailMapperTest {
     var aadressid = new DetailandmedV6Aadressid();
     var aadress = new DetailandmedV6Aadress();
     aadress.setAadressAdsAdsNormaliseeritudTaisaadress(normalizedAddress);
+    aadress.setTanavMajaKorter("Pärnu mnt 1");
+    aadress.setEhakNimetus("Tallinn");
+    aadress.setPostiindeks("11313");
+    aadress.setRiik("EST");
     aadressid.getItem().add(aadress);
     return aadressid;
   }

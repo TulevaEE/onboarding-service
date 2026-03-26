@@ -16,6 +16,7 @@
           <ns1:staatus>R</ns1:staatus>
           <ns1:aadressid>
             <ns1:item>
+              <ns1:riik>EST</ns1:riik>
               <ns1:tanav_maja_korter>Pärnu mnt 123</ns1:tanav_maja_korter>
               <ns1:ehak_nimetus>Tallinn</ns1:ehak_nimetus>
               <ns1:postiindeks>11313</ns1:postiindeks>

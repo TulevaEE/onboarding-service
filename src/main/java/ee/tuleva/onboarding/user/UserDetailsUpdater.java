@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.user;
 
-import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
+import static ee.tuleva.onboarding.auth.principal.Person.capitalize;
 
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
@@ -35,8 +35,8 @@ public class UserDetailsUpdater {
         .findByPersonalCode(person.getPersonalCode())
         .ifPresent(
             user -> {
-              user.setFirstName(capitalizeFully(person.getFirstName(), ' ', '-'));
-              user.setLastName(capitalizeFully(person.getLastName(), ' ', '-'));
+              user.setFirstName(capitalize(person.getFirstName()));
+              user.setLastName(capitalize(person.getLastName()));
               userService.save(user);
             });
   }

@@ -108,6 +108,28 @@ class PrincipalServiceSpec extends Specification {
     authenticatedPerson.fullName == "John Doe"
   }
 
+  def "getFromPerson: role name is capitalized even when auth provider gives all caps"() {
+    given:
+    def person = samplePerson().toBuilder()
+        .firstName("JOHN")
+        .lastName("DOE")
+        .build()
+    def user = User.builder()
+        .id(1L)
+        .firstName("John")
+        .lastName("Doe")
+        .personalCode(person.personalCode)
+        .active(true)
+        .build()
+    1 * userService.findByPersonalCode(person.personalCode) >> Optional.of(user)
+
+    when:
+    AuthenticatedPerson authenticatedPerson = service.getFrom(person, Map.of())
+
+    then:
+    authenticatedPerson.role.name() == "John Doe"
+  }
+
   def "getFromPerson: initialising non active user throws exception"() {
     given:
     Person person = samplePerson()

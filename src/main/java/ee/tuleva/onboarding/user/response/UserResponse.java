@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.user.response;
 
-import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
+import static ee.tuleva.onboarding.auth.principal.Person.capitalize;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.role.Role;
@@ -91,10 +91,6 @@ public class UserResponse implements Person, Emailable {
         .email(user.getEmail())
         .phoneNumber(user.getPhoneNumber())
         .memberNumber(user.getMember().map(Member::getMemberNumber).orElse(null));
-  }
-
-  private static String capitalize(String string) {
-    return capitalizeFully(string, ' ', '-');
   }
 
   public int getAge() {

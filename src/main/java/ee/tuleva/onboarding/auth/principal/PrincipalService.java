@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.auth.principal;
 
+import static ee.tuleva.onboarding.auth.principal.Person.capitalize;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
-import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
 
 import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.user.User;
@@ -22,7 +22,9 @@ public class PrincipalService {
 
   public AuthenticatedPerson getFrom(@Valid Person person, Map<String, String> attributes) {
     return getFrom(
-        person, attributes, new Role(PERSON, person.getPersonalCode(), person.getFullName()));
+        person,
+        attributes,
+        new Role(PERSON, person.getPersonalCode(), capitalize(person.getFullName())));
   }
 
   public AuthenticatedPerson getFrom(
@@ -61,8 +63,8 @@ public class PrincipalService {
   private User createUser(Person person) {
     return userService.createNewUser(
         User.builder()
-            .firstName(capitalizeFully(person.getFirstName(), ' ', '-'))
-            .lastName(capitalizeFully(person.getLastName(), ' ', '-'))
+            .firstName(capitalize(person.getFirstName()))
+            .lastName(capitalize(person.getLastName()))
             .personalCode(person.getPersonalCode())
             .active(true)
             .build());

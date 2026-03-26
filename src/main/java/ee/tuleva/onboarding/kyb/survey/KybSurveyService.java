@@ -21,6 +21,8 @@ class KybSurveyService {
   private final AriregisterClient ariregisterClient;
   private final KybCompanyDataMapper kybCompanyDataMapper;
   private final KybScreeningService kybScreeningService;
+  private final KybSurveyResponseMapper kybSurveyResponseMapper;
+  private final KybSurveyRepository kybSurveyRepository;
   private final Clock clock;
 
   private static final Map<KybCheckType, String> FIELD_MAPPING =
@@ -59,6 +61,45 @@ class KybSurveyService {
         registryCode,
         personalCode);
 
+    var relationships = fetchRelationshipsAndVerifyBoardMember(registryCode, personalCode);
+    var detail = fetchCompanyDetail(registryCode);
+
+    var companyData =
+        kybCompanyDataMapper.toKybCompanyData(
+            detail, new PersonalCode(personalCode), relationships, null);
+
+    var checks = kybScreeningService.screen(companyData);
+
+    return buildLegalEntityData(detail, relationships, checks);
+  }
+
+  LegalEntityData submit(
+      Long userId, String personalCode, String registryCode, KybSurveyResponse surveyResponse) {
+    var selfCertification = kybSurveyResponseMapper.extractSelfCertification(surveyResponse);
+
+    log.info("Submitting KYB survey: registryCode={}, personalCode={}", registryCode, personalCode);
+
+    kybSurveyRepository.save(
+        KybSurvey.builder()
+            .userId(userId)
+            .registryCode(registryCode)
+            .survey(surveyResponse)
+            .build());
+
+    var relationships = fetchRelationshipsAndVerifyBoardMember(registryCode, personalCode);
+    var detail = fetchCompanyDetail(registryCode);
+
+    var companyData =
+        kybCompanyDataMapper.toKybCompanyData(
+            detail, new PersonalCode(personalCode), relationships, selfCertification);
+
+    var checks = kybScreeningService.screen(companyData);
+
+    return buildLegalEntityData(detail, relationships, checks);
+  }
+
+  private List<CompanyRelationship> fetchRelationshipsAndVerifyBoardMember(
+      String registryCode, String personalCode) {
     var relationships =
         ariregisterClient.getActiveCompanyRelationships(registryCode, LocalDate.now(clock));
 
@@ -72,21 +113,16 @@ class KybSurveyService {
       throw new NotBoardMemberException(registryCode, personalCode);
     }
 
-    var detail =
-        ariregisterClient
-            .getCompanyDetails(registryCode)
-            .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        "Company not found in Ariregister: registryCode=" + registryCode));
+    return relationships;
+  }
 
-    var companyData =
-        kybCompanyDataMapper.toKybCompanyData(
-            detail, new PersonalCode(personalCode), relationships, null);
-
-    var checks = kybScreeningService.screen(companyData);
-
-    return buildLegalEntityData(detail, relationships, checks);
+  private CompanyDetail fetchCompanyDetail(String registryCode) {
+    return ariregisterClient
+        .getCompanyDetails(registryCode)
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "Company not found in Ariregister: registryCode=" + registryCode));
   }
 
   private LegalEntityData buildLegalEntityData(

@@ -2,9 +2,13 @@ package ee.tuleva.onboarding.kyb.survey;
 
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -15,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -77,6 +82,59 @@ class KybSurveyControllerTest {
         .andExpect(status().isForbidden())
         .andExpect(content().json("{\"error\":\"NOT_BOARD_MEMBER\"}"));
   }
+
+  @Test
+  void submit_returnsLegalEntityData() throws Exception {
+    var data =
+        new LegalEntityData(
+            ValidatedField.valid("Test OÜ"),
+            ValidatedField.valid(REGISTRY_CODE),
+            ValidatedField.valid("OÜ"),
+            ValidatedField.valid(LegalEntityStatus.REGISTERED),
+            ValidatedField.valid(new LegalEntityAddress("Tallinn", null, null, null, null)),
+            ValidatedField.valid("Fondide valitsemine"),
+            ValidatedField.valid("6630"),
+            ValidatedField.valid(List.of()));
+    when(kybSurveyService.submit(
+            eq(1L), eq(PERSONAL_CODE), eq(REGISTRY_CODE), any(KybSurveyResponse.class)))
+        .thenReturn(data);
+
+    mvc.perform(
+            post("/v1/kyb/surveys")
+                .param("registry-code", REGISTRY_CODE)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(SURVEY_JSON)
+                .with(csrf())
+                .with(authentication(personAuth())))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"name\":{\"value\":\"Test OÜ\",\"errors\":[]}}"));
+  }
+
+  @Test
+  void submit_returns403WhenNotBoardMember() throws Exception {
+    when(kybSurveyService.submit(
+            eq(1L), eq(PERSONAL_CODE), eq(REGISTRY_CODE), any(KybSurveyResponse.class)))
+        .thenThrow(new NotBoardMemberException(REGISTRY_CODE, PERSONAL_CODE));
+
+    mvc.perform(
+            post("/v1/kyb/surveys")
+                .param("registry-code", REGISTRY_CODE)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(SURVEY_JSON)
+                .with(csrf())
+                .with(authentication(personAuth())))
+        .andExpect(status().isForbidden())
+        .andExpect(content().json("{\"error\":\"NOT_BOARD_MEMBER\"}"));
+  }
+
+  private static final String SURVEY_JSON =
+      """
+      {
+        "answers": [
+          { "type": "COMPANY_SOURCE_OF_INCOME", "value": [{ "type": "OPTION", "value": "ONLY_ACTIVE_IN_ESTONIA" }] }
+        ]
+      }
+      """;
 
   private UsernamePasswordAuthenticationToken personAuth() {
     return new UsernamePasswordAuthenticationToken(

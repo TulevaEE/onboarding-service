@@ -13,7 +13,7 @@ import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import ee.tuleva.onboarding.company.CompanyParty;
 import ee.tuleva.onboarding.company.CompanyPartyRepository;
 import ee.tuleva.onboarding.company.CompanyRepository;
-import ee.tuleva.onboarding.company.PartyType;
+import ee.tuleva.onboarding.party.Party;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -44,7 +44,7 @@ public class RoleSwitchService {
     var companyIds =
         companyPartyRepository
             .findByPartyCodeAndPartyTypeAndRelationshipType(
-                person.getPersonalCode(), PartyType.PERSON, BOARD_MEMBER)
+                person.getPersonalCode(), Party.Type.PERSON, BOARD_MEMBER)
             .stream()
             .map(CompanyParty::getCompanyId)
             .toList();
@@ -72,7 +72,7 @@ public class RoleSwitchService {
             .orElseThrow(() -> new CompanyNotFoundException(command.code()));
 
     if (!companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-        person.getPersonalCode(), PartyType.PERSON, company.getId(), BOARD_MEMBER)) {
+        person.getPersonalCode(), Party.Type.PERSON, company.getId(), BOARD_MEMBER)) {
       throw new RoleSwitchAccessDeniedException(person.getPersonalCode(), command.code());
     }
 

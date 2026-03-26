@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.kyb.screener.CompanyActiveScreener;
+import ee.tuleva.onboarding.kyb.screener.CompanyLegalFormScreener;
 import ee.tuleva.onboarding.kyb.screener.CompanyNaceScreener;
 import ee.tuleva.onboarding.kyb.screener.CompanySanctionScreener;
 import ee.tuleva.onboarding.kyb.screener.DualMemberOwnershipScreener;
@@ -46,6 +47,7 @@ class KybScreeningServiceTest {
               new RelatedPersonsKycScreener(),
               new CompanySanctionScreener(sanctionCheckService),
               new CompanyNaceScreener(),
+              new CompanyLegalFormScreener(),
               new SelfCertificationScreener()),
           new KybDataChangeDetector(checkHistory),
           eventPublisher);
@@ -64,7 +66,7 @@ class KybScreeningServiceTest {
             new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(100), UNKNOWN);
     var data =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
             new PersonalCode("38501010001"),
             R,
             List.of(person),
@@ -81,6 +83,7 @@ class KybScreeningServiceTest {
             COMPANY_SANCTION,
             COMPANY_PEP,
             HIGH_RISK_NACE,
+            COMPANY_LEGAL_FORM,
             SELF_CERTIFICATION,
             DATA_CHANGED);
   }
@@ -95,7 +98,7 @@ class KybScreeningServiceTest {
             new PersonalCode("38501010002"), true, true, true, BigDecimal.valueOf(50), UNKNOWN);
     var data =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
             new PersonalCode("38501010001"),
             R,
             List.of(person1, person2),
@@ -112,6 +115,7 @@ class KybScreeningServiceTest {
             COMPANY_SANCTION,
             COMPANY_PEP,
             HIGH_RISK_NACE,
+            COMPANY_LEGAL_FORM,
             SELF_CERTIFICATION,
             DATA_CHANGED);
   }
@@ -126,7 +130,7 @@ class KybScreeningServiceTest {
             new PersonalCode("38501010002"), false, true, true, BigDecimal.valueOf(50), UNKNOWN);
     var data =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
             new PersonalCode("38501010001"),
             R,
             List.of(person1, person2),
@@ -143,6 +147,7 @@ class KybScreeningServiceTest {
             COMPANY_SANCTION,
             COMPANY_PEP,
             HIGH_RISK_NACE,
+            COMPANY_LEGAL_FORM,
             SELF_CERTIFICATION,
             DATA_CHANGED);
   }
@@ -179,7 +184,7 @@ class KybScreeningServiceTest {
             new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(100), UNKNOWN);
     var data =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
             new PersonalCode("38501010001"),
             R,
             List.of(person),

@@ -54,7 +54,7 @@ class KybSurveyServiceTest {
         .thenReturn(relationships);
     var companyData =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630"),
+            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
             new PersonalCode(PERSONAL_CODE),
             CompanyStatus.R,
             List.of(),
@@ -106,7 +106,7 @@ class KybSurveyServiceTest {
         .thenReturn(relationships);
     var companyData =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630"),
+            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
             new PersonalCode(PERSONAL_CODE),
             CompanyStatus.R,
             List.of(),
@@ -144,7 +144,7 @@ class KybSurveyServiceTest {
         .thenReturn(relationships);
     var companyData =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630"),
+            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
             new PersonalCode(PERSONAL_CODE),
             CompanyStatus.R,
             List.of(),

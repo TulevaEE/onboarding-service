@@ -56,7 +56,7 @@ class KybCompanyDataMapperTest {
             detail, PERSONAL_CODE, List.of(boardMember, shareholder), SELF_CERT);
 
     assertThat(result.company())
-        .isEqualTo(new CompanyDto(new RegistryCode("12345678"), "Test OÜ", null));
+        .isEqualTo(new CompanyDto(new RegistryCode("12345678"), "Test OÜ", null, LegalForm.OÜ));
     assertThat(result.personalCode()).isEqualTo(PERSONAL_CODE);
     assertThat(result.status()).isEqualTo(R);
     assertThat(result.selfCertification()).isEqualTo(SELF_CERT);

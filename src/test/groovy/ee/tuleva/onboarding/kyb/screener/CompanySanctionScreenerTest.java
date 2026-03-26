@@ -27,7 +27,7 @@ class CompanySanctionScreenerTest {
       new CompanySanctionScreener(sanctionCheckService);
 
   private static final CompanyDto COMPANY =
-      new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011");
+      new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ);
 
   @Test
   void noMatchesBothChecksSucceed() {

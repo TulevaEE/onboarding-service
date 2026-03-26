@@ -114,6 +114,36 @@ class KybSurveyControllerTest {
   }
 
   @Test
+  void initialValidation_returns501OnUnexpectedError() throws Exception {
+    when(kybSurveyService.initialValidation(REGISTRY_CODE, PERSONAL_CODE))
+        .thenThrow(new RuntimeException("Ariregister timeout"));
+
+    mvc.perform(
+            get("/v1/kyb/surveys/initial-validation")
+                .param("registry-code", REGISTRY_CODE)
+                .with(authentication(personAuth())))
+        .andExpect(status().isNotImplemented())
+        .andExpect(content().json("{\"error\":\"UNEXPECTED_ERROR\"}"));
+  }
+
+  @Test
+  void submit_returns501OnUnexpectedError() throws Exception {
+    when(kybSurveyService.submit(
+            eq(1L), eq(PERSONAL_CODE), eq(REGISTRY_CODE), any(KybSurveyResponse.class)))
+        .thenThrow(new RuntimeException("Ariregister timeout"));
+
+    mvc.perform(
+            post("/v1/kyb/surveys")
+                .param("registry-code", REGISTRY_CODE)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(SURVEY_JSON)
+                .with(csrf())
+                .with(authentication(personAuth())))
+        .andExpect(status().isNotImplemented())
+        .andExpect(content().json("{\"error\":\"UNEXPECTED_ERROR\"}"));
+  }
+
+  @Test
   void submit_returns403WhenNotBoardMember() throws Exception {
     when(kybSurveyService.submit(
             eq(1L), eq(PERSONAL_CODE), eq(REGISTRY_CODE), any(KybSurveyResponse.class)))

@@ -1,14 +1,18 @@
 package ee.tuleva.onboarding.kyb.survey;
 
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toList;
+
 import ee.tuleva.onboarding.ariregister.AriregisterClient;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.kyb.*;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,35 +29,27 @@ class KybSurveyService {
   private final KybSurveyRepository kybSurveyRepository;
   private final Clock clock;
 
-  private static final Map<KybCheckType, String> FIELD_MAPPING =
-      Map.of(
-          KybCheckType.COMPANY_STRUCTURE, "relatedPersons",
-          KybCheckType.COMPANY_ACTIVE, "status",
-          KybCheckType.HIGH_RISK_NACE, "naceCode",
-          KybCheckType.COMPANY_SANCTION, "name",
-          KybCheckType.COMPANY_PEP, "name",
-          KybCheckType.RELATED_PERSONS_KYC, "relatedPersons");
+  private record FieldError(String field, String message) {}
 
-  private static final String UNSUPPORTED_OWNERSHIP_MESSAGE =
-      "Ettevõtte omandistruktuur ei ole toetatud";
-
-  // TODO: review error messages with product
-  // TODO: add legal form check — only OÜ is supported
-  private static final Map<KybCheckType, String> ERROR_MESSAGES =
-      Map.of(
-          KybCheckType.COMPANY_STRUCTURE, UNSUPPORTED_OWNERSHIP_MESSAGE,
-          KybCheckType.COMPANY_ACTIVE, "Ettevõte ei ole aktiivne",
-          KybCheckType.HIGH_RISK_NACE, "See tegevusala ei ole toetatud",
-          KybCheckType.COMPANY_SANCTION, "Ettevõtet ei ole võimalik teenindada",
-          KybCheckType.COMPANY_PEP, "Ettevõtet ei ole võimalik teenindada",
-          KybCheckType.RELATED_PERSONS_KYC,
-              "Seotud isikute isikusamasuse tuvastamine on lõpetamata");
-
-  private static final java.util.Set<KybCheckType> OWNERSHIP_CHECKS =
-      java.util.Set.of(
-          KybCheckType.SOLE_MEMBER_OWNERSHIP,
-          KybCheckType.DUAL_MEMBER_OWNERSHIP,
-          KybCheckType.SOLE_BOARD_MEMBER_IS_OWNER);
+  private static FieldError fieldErrorFor(KybCheckType type) {
+    return switch (type) {
+      case COMPANY_ACTIVE -> new FieldError("status", "Ettevõte ei ole aktiivne");
+      case HIGH_RISK_NACE -> new FieldError("naceCode", "See tegevusala ei ole toetatud");
+      case COMPANY_SANCTION -> new FieldError("name", "Ettevõtet ei ole võimalik teenindada");
+      case COMPANY_PEP -> new FieldError("name", "Ettevõtet ei ole võimalik teenindada");
+      case RELATED_PERSONS_KYC ->
+          new FieldError(
+              "relatedPersons", "Seotud isikute isikusamasuse tuvastamine on lõpetamata");
+      case COMPANY_LEGAL_FORM -> new FieldError("legalForm", "Ainult OÜ on toetatud");
+      case COMPANY_STRUCTURE,
+          SOLE_MEMBER_OWNERSHIP,
+          DUAL_MEMBER_OWNERSHIP,
+          SOLE_BOARD_MEMBER_IS_OWNER ->
+          new FieldError("relatedPersons", "Ettevõtte omandistruktuur ei ole toetatud");
+      case DATA_CHANGED -> new FieldError("name", "Ettevõtet ei ole võimalik teenindada");
+      case SELF_CERTIFICATION -> null;
+    };
+  }
 
   private static final String BOARD_MEMBER_ROLE = "JUHL";
 
@@ -148,7 +144,8 @@ class KybSurveyService {
     return new LegalEntityData(
         validatedField(detail.getName(), errorsByField.getOrDefault("name", List.of())),
         ValidatedField.valid(detail.getRegistryCode()),
-        ValidatedField.valid(detail.getLegalForm().orElse(null)),
+        validatedField(
+            detail.getLegalForm().orElse(null), errorsByField.getOrDefault("legalForm", List.of())),
         ValidatedField.valid(detail.getFoundingDate().orElse(null)),
         validatedField(status, errorsByField.getOrDefault("status", List.of())),
         ValidatedField.valid(
@@ -159,32 +156,12 @@ class KybSurveyService {
         validatedField(relatedPersons, errorsByField.getOrDefault("relatedPersons", List.of())));
   }
 
-  private Map<String, List<String>> collectErrorsByField(List<KybCheck> checks) {
-    var errorsByField = new java.util.HashMap<String, List<String>>();
-    checks.stream()
+  private static Map<String, List<String>> collectErrorsByField(List<KybCheck> checks) {
+    return checks.stream()
         .filter(check -> !check.success())
-        .filter(check -> !OWNERSHIP_CHECKS.contains(check.type()))
-        .forEach(
-            check -> {
-              var field = FIELD_MAPPING.get(check.type());
-              if (field != null) {
-                errorsByField
-                    .computeIfAbsent(field, k -> new ArrayList<>())
-                    .add(ERROR_MESSAGES.get(check.type()));
-              }
-            });
-
-    boolean anyOwnershipCheckPassed =
-        checks.stream()
-            .filter(check -> OWNERSHIP_CHECKS.contains(check.type()))
-            .anyMatch(KybCheck::success);
-    if (!anyOwnershipCheckPassed) {
-      errorsByField
-          .computeIfAbsent("relatedPersons", k -> new ArrayList<>())
-          .add(UNSUPPORTED_OWNERSHIP_MESSAGE);
-    }
-
-    return errorsByField;
+        .map(check -> fieldErrorFor(check.type()))
+        .filter(Objects::nonNull)
+        .collect(groupingBy(FieldError::field, mapping(FieldError::message, toList())));
   }
 
   private static <T> ValidatedField<T> validatedField(T value, List<String> errors) {

@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.mandate.application;
 
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING;
-import static ee.tuleva.onboarding.party.Party.Type.PERSON;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 
@@ -148,8 +147,7 @@ public class ApplicationService {
   private List<Application<? extends ApplicationDetails>> getSavingsFundApplications(
       AuthenticatedPerson person) {
     var payments =
-        savingFundPaymentUpsertionService.getPendingPayments(
-            new Party(PERSON, person.getPersonalCode()));
+        savingFundPaymentUpsertionService.getPendingPayments(Party.from(person.getRole()));
     var redemptionRequests =
         savingFundRedemptionService.getPendingRedemptionsForUser(person.getUserId());
     return Stream.concat(

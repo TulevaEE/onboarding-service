@@ -76,7 +76,7 @@ class ApplicationServiceSpec extends Specification {
 
     mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
     paymentApplicationService.getPaymentApplications(person) >> [paymentApplication().build()]
-    savingFundPaymentService.getPendingPayments(new Party(Party.Type.PERSON, person.getPersonalCode())) >> []
+    savingFundPaymentService.getPendingPayments(Party.from(person.getRole())) >> []
     savingFundRedemptionService.getPendingRedemptionsForUser(_) >> []
 
     when:
@@ -260,7 +260,7 @@ class ApplicationServiceSpec extends Specification {
 
     mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
     paymentApplicationService.getPaymentApplications(person) >> []
-    savingFundPaymentService.getPendingPayments(new Party(Party.Type.PERSON, person.getPersonalCode())) >> []
+    savingFundPaymentService.getPendingPayments(Party.from(person.getRole())) >> []
     savingFundRedemptionService.getPendingRedemptionsForUser(_) >> []
 
     when:
@@ -385,7 +385,7 @@ class ApplicationServiceSpec extends Specification {
     episService.getApplications(authenticatedPerson) >> []
     localeService.getCurrentLocale() >> Locale.ENGLISH
     paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
-    savingFundPaymentService.getPendingPayments(new Party(Party.Type.PERSON, authenticatedPerson.getPersonalCode())) >> [payment1, payment2]
+    savingFundPaymentService.getPendingPayments(Party.from(authenticatedPerson.getRole())) >> [payment1, payment2]
     savingFundRedemptionService.getPendingRedemptionsForUser(authenticatedPerson.getUserId()) >> []
 
     savingFundPaymentDeadlinesService.getCancellationDeadline(payment1) >> Instant.parse("2021-03-31T21:00:00.000000000Z")
@@ -456,7 +456,7 @@ class ApplicationServiceSpec extends Specification {
     episService.getApplications(authenticatedPerson) >> []
     localeService.getCurrentLocale() >> Locale.ENGLISH
     paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
-    savingFundPaymentService.getPendingPayments(new Party(Party.Type.PERSON, authenticatedPerson.getPersonalCode())) >> []
+    savingFundPaymentService.getPendingPayments(Party.from(authenticatedPerson.getRole())) >> []
     savingFundRedemptionService.getPendingRedemptionsForUser(authenticatedPerson.getUserId()) >> [redemption1, redemption2]
 
     savingFundPaymentDeadlinesService.getCancellationDeadline(_ as RedemptionRequest) >> Instant.parse("2021-03-31T21:00:00Z")

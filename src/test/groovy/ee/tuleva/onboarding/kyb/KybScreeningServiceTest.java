@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.kyb;
 
 import static ee.tuleva.onboarding.kyb.CompanyStatus.R;
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
+import static ee.tuleva.onboarding.kyb.KybKycStatus.COMPLETED;
 import static ee.tuleva.onboarding.kyb.KybKycStatus.UNKNOWN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -21,6 +22,7 @@ import ee.tuleva.onboarding.kyb.screener.SoleBoardMemberIsOwnerScreener;
 import ee.tuleva.onboarding.kyb.screener.SoleMemberOwnershipScreener;
 import java.math.BigDecimal;
 import java.util.List;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -143,6 +145,31 @@ class KybScreeningServiceTest {
             HIGH_RISK_NACE,
             SELF_CERTIFICATION,
             DATA_CHANGED);
+  }
+
+  @Disabled("Companies with more than 2 people should not be supported")
+  @Test
+  void threePersonCompanyHasAtLeastOneFailingCheck() {
+    var person1 =
+        new KybRelatedPerson(
+            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(40), COMPLETED);
+    var person2 =
+        new KybRelatedPerson(
+            new PersonalCode("38501010002"), true, true, true, BigDecimal.valueOf(30), COMPLETED);
+    var person3 =
+        new KybRelatedPerson(
+            new PersonalCode("38501010003"), true, true, true, BigDecimal.valueOf(30), COMPLETED);
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            new PersonalCode("38501010001"),
+            R,
+            List.of(person1, person2, person3),
+            new SelfCertification(true, true, true));
+
+    var results = kybScreeningService.screen(data);
+
+    assertThat(results).anyMatch(check -> !check.success());
   }
 
   @Test

@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.kyb.survey;
 
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
-import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -48,7 +47,10 @@ class KybSurveyControllerTest {
             ValidatedField.valid(List.of()));
     when(kybSurveyService.initialValidation(REGISTRY_CODE, PERSONAL_CODE)).thenReturn(data);
 
-    mvc.perform(get("/v1/kyb/surveys/initial-validation").with(authentication(legalEntityAuth())))
+    mvc.perform(
+            get("/v1/kyb/surveys/initial-validation")
+                .param("registry-code", REGISTRY_CODE)
+                .with(authentication(personAuth())))
         .andExpect(status().isOk())
         .andExpect(content().json("{\"name\":{\"value\":\"Test OÜ\",\"errors\":[]}}"))
         .andExpect(content().json("{\"status\":{\"value\":\"REGISTERED\",\"errors\":[]}}"))
@@ -56,22 +58,16 @@ class KybSurveyControllerTest {
   }
 
   @Test
-  void initialValidation_returns403WhenActingAsPerson() throws Exception {
-    mvc.perform(get("/v1/kyb/surveys/initial-validation").with(authentication(personAuth())))
-        .andExpect(status().isForbidden());
-  }
+  void initialValidation_returns403WhenNotBoardMember() throws Exception {
+    when(kybSurveyService.initialValidation(REGISTRY_CODE, PERSONAL_CODE))
+        .thenThrow(new NotBoardMemberException(REGISTRY_CODE, PERSONAL_CODE));
 
-  private UsernamePasswordAuthenticationToken legalEntityAuth() {
-    return new UsernamePasswordAuthenticationToken(
-        AuthenticatedPerson.builder()
-            .personalCode(PERSONAL_CODE)
-            .firstName("Jaan")
-            .lastName("Tamm")
-            .userId(1L)
-            .role(new Role(LEGAL_ENTITY, REGISTRY_CODE, "Test OÜ"))
-            .build(),
-        null,
-        List.of(new SimpleGrantedAuthority(USER)));
+    mvc.perform(
+            get("/v1/kyb/surveys/initial-validation")
+                .param("registry-code", REGISTRY_CODE)
+                .with(authentication(personAuth())))
+        .andExpect(status().isForbidden())
+        .andExpect(content().json("{\"error\":\"NOT_BOARD_MEMBER\"}"));
   }
 
   private UsernamePasswordAuthenticationToken personAuth() {

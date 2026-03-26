@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.kyb.survey;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.ariregister.AriregisterClient;
@@ -143,6 +144,30 @@ class KybSurveyServiceTest {
     assertThat(result.naceCode().errors()).isEmpty();
     assertThat(result.relatedPersons().errors()).isEmpty();
     assertThat(result.name().errors()).isEmpty();
+  }
+
+  @Test
+  void initialValidation_throwsWhenPersonIsNotBoardMember() {
+    var relationships =
+        List.of(
+            new CompanyRelationship(
+                "F",
+                "JUHL",
+                "Juhatuse liige",
+                "Jaan",
+                "Tamm",
+                "39901010001",
+                null,
+                null,
+                null,
+                new BigDecimal("100.00"),
+                "Osaluse kaudu",
+                "EST"));
+    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
+        .thenReturn(relationships);
+
+    assertThatThrownBy(() -> service.initialValidation(REGISTRY_CODE, PERSONAL_CODE))
+        .isInstanceOf(NotBoardMemberException.class);
   }
 
   private List<CompanyRelationship> sampleRelationships() {

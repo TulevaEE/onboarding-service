@@ -51,11 +51,26 @@ class KybSurveyService {
           KybCheckType.DUAL_MEMBER_OWNERSHIP,
           KybCheckType.SOLE_BOARD_MEMBER_IS_OWNER);
 
+  private static final String BOARD_MEMBER_ROLE = "JUHL";
+
   LegalEntityData initialValidation(String registryCode, String personalCode) {
     log.info(
         "Initial validation for legal entity: registryCode={}, personalCode={}",
         registryCode,
         personalCode);
+
+    var relationships =
+        ariregisterClient.getActiveCompanyRelationships(registryCode, LocalDate.now(clock));
+
+    boolean isBoardMember =
+        relationships.stream()
+            .anyMatch(
+                r ->
+                    BOARD_MEMBER_ROLE.equals(r.roleCode())
+                        && personalCode.equals(r.personalCode()));
+    if (!isBoardMember) {
+      throw new NotBoardMemberException(registryCode, personalCode);
+    }
 
     var detail =
         ariregisterClient
@@ -64,9 +79,6 @@ class KybSurveyService {
                 () ->
                     new IllegalStateException(
                         "Company not found in Ariregister: registryCode=" + registryCode));
-
-    var relationships =
-        ariregisterClient.getActiveCompanyRelationships(registryCode, LocalDate.now(clock));
 
     var companyData =
         kybCompanyDataMapper.toKybCompanyData(

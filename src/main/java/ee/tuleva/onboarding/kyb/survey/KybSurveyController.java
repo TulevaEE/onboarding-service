@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.kyb.survey;
 
-import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -20,23 +19,16 @@ class KybSurveyController {
 
   @Operation(summary = "Initial validation for legal entity KYB survey")
   @GetMapping("/initial-validation")
-  public LegalEntityData initialValidation(@AuthenticationPrincipal AuthenticatedPerson person) {
-    var registryCode = requireLegalEntityRole(person);
+  public LegalEntityData initialValidation(
+      @RequestParam(value = "registry-code") String registryCode,
+      @AuthenticationPrincipal AuthenticatedPerson person) {
     return kybSurveyService.initialValidation(registryCode, person.getPersonalCode());
   }
 
-  @ExceptionHandler(LegalEntityRoleRequiredException.class)
-  ResponseEntity<Map<String, String>> handleLegalEntityRoleRequired(
-      LegalEntityRoleRequiredException exception) {
+  @ExceptionHandler(NotBoardMemberException.class)
+  ResponseEntity<Map<String, String>> handleNotBoardMember(NotBoardMemberException exception) {
     return new ResponseEntity<>(
-        Map.of("error", "LEGAL_ENTITY_ROLE_REQUIRED", "error_description", exception.getMessage()),
+        Map.of("error", "NOT_BOARD_MEMBER", "error_description", exception.getMessage()),
         FORBIDDEN);
-  }
-
-  private String requireLegalEntityRole(AuthenticatedPerson person) {
-    if (person.getRole().type() == LEGAL_ENTITY) {
-      return person.getRole().code();
-    }
-    throw new LegalEntityRoleRequiredException(person.getPersonalCode());
   }
 }

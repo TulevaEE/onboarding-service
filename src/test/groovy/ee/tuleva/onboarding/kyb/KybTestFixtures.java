@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 public final class KybTestFixtures {
 
@@ -264,6 +265,76 @@ public final class KybTestFixtures {
     var person3 = person(PEETER, false, true, true, BigDecimal.valueOf(33), COMPLETED);
     return new KybCompanyData(
         VALID_COMPANY, JAAN, R, List.of(person1, person2, person3), VALID_CERT);
+  }
+
+  // --- Expected screening results (KybCheck output to caller) ---
+
+  static KybCheck check(KybCheckType type, boolean success) {
+    return new KybCheck(type, success, Map.of());
+  }
+
+  static List<KybCheck> rule31PassExpectedChecks() {
+    return List.of(
+        check(KybCheckType.SOLE_MEMBER_OWNERSHIP, true),
+        check(KybCheckType.COMPANY_ACTIVE, true),
+        check(KybCheckType.RELATED_PERSONS_KYC, true),
+        check(KybCheckType.COMPANY_SANCTION, true),
+        check(KybCheckType.COMPANY_PEP, true),
+        check(KybCheckType.HIGH_RISK_NACE, true),
+        check(KybCheckType.COMPANY_LEGAL_FORM, true),
+        check(KybCheckType.SELF_CERTIFICATION, true),
+        check(KybCheckType.DATA_CHANGED, true));
+  }
+
+  static List<KybCheck> rule31FailExpectedChecks() {
+    return List.of(
+        check(KybCheckType.SOLE_MEMBER_OWNERSHIP, false),
+        check(KybCheckType.COMPANY_ACTIVE, true),
+        check(KybCheckType.RELATED_PERSONS_KYC, true),
+        check(KybCheckType.COMPANY_SANCTION, true),
+        check(KybCheckType.COMPANY_PEP, true),
+        check(KybCheckType.HIGH_RISK_NACE, true),
+        check(KybCheckType.COMPANY_LEGAL_FORM, true),
+        check(KybCheckType.SELF_CERTIFICATION, true),
+        check(KybCheckType.DATA_CHANGED, true));
+  }
+
+  static List<KybCheck> rule32PassExpectedChecks() {
+    return List.of(
+        check(KybCheckType.DUAL_MEMBER_OWNERSHIP, true),
+        check(KybCheckType.COMPANY_ACTIVE, true),
+        check(KybCheckType.RELATED_PERSONS_KYC, true),
+        check(KybCheckType.COMPANY_SANCTION, true),
+        check(KybCheckType.COMPANY_PEP, true),
+        check(KybCheckType.HIGH_RISK_NACE, true),
+        check(KybCheckType.COMPANY_LEGAL_FORM, true),
+        check(KybCheckType.SELF_CERTIFICATION, true),
+        check(KybCheckType.DATA_CHANGED, true));
+  }
+
+  static List<KybCheck> rule33PassExpectedChecks() {
+    return List.of(
+        check(KybCheckType.SOLE_BOARD_MEMBER_IS_OWNER, true),
+        check(KybCheckType.COMPANY_ACTIVE, true),
+        check(KybCheckType.RELATED_PERSONS_KYC, true),
+        check(KybCheckType.COMPANY_SANCTION, true),
+        check(KybCheckType.COMPANY_PEP, true),
+        check(KybCheckType.HIGH_RISK_NACE, true),
+        check(KybCheckType.COMPANY_LEGAL_FORM, true),
+        check(KybCheckType.SELF_CERTIFICATION, true),
+        check(KybCheckType.DATA_CHANGED, true));
+  }
+
+  static List<KybCheck> threePersonsExpectedChecks() {
+    return List.of(
+        check(KybCheckType.COMPANY_ACTIVE, true),
+        check(KybCheckType.RELATED_PERSONS_KYC, true),
+        check(KybCheckType.COMPANY_SANCTION, true),
+        check(KybCheckType.COMPANY_PEP, true),
+        check(KybCheckType.HIGH_RISK_NACE, true),
+        check(KybCheckType.COMPANY_LEGAL_FORM, true),
+        check(KybCheckType.SELF_CERTIFICATION, true),
+        check(KybCheckType.DATA_CHANGED, true));
   }
 
   private KybTestFixtures() {}

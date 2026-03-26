@@ -270,11 +270,10 @@ class KybSurveyServiceTest {
     when(kybSurveyRepository.save(any(KybSurvey.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    var result = service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse);
+    service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse);
 
-    assertThat(result.name().value()).isEqualTo("Test OÜ");
-    assertThat(result.status().errors()).isEmpty();
     verify(kybSurveyRepository).save(any(KybSurvey.class));
+    verify(kybScreeningService).screen(companyData);
   }
 
   @Test

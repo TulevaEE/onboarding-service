@@ -138,7 +138,10 @@ class KybSurveyService {
     var relatedPersons =
         relationships.stream()
             .map(r -> new RelatedPersonData(r.personalCode(), formatName(r)))
-            .distinct()
+            .collect(groupingBy(RelatedPersonData::personalCode))
+            .values()
+            .stream()
+            .map(List::getFirst)
             .toList();
 
     return new LegalEntityData(

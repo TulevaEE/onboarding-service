@@ -45,7 +45,7 @@ class KybEndToEndTest {
   void rule31_soleOwnerBoardMemberBeneficialOwner_allChecksPass() {
     var results = kybScreeningService.screen(rule31Pass());
 
-    assertThat(results).hasSize(9).allMatch(KybCheck::success);
+    assertThat(results).hasSize(10).allMatch(KybCheck::success);
     assertCheckPersisted(JAAN, KYB_SOLE_MEMBER_OWNERSHIP, true);
   }
 
@@ -312,14 +312,14 @@ class KybEndToEndTest {
   // --- Special case: >2 related persons ---
 
   @Test
-  void threeRelatedPersons_noOwnershipCheckApplies() {
+  void threeRelatedPersons_companyStructureFails() {
     var results = kybScreeningService.screen(threeRelatedPersons());
 
+    assertCheckResult(results, COMPANY_STRUCTURE, false);
     var types = results.stream().map(KybCheck::type).toList();
     assertThat(types)
         .doesNotContain(SOLE_MEMBER_OWNERSHIP, DUAL_MEMBER_OWNERSHIP, SOLE_BOARD_MEMBER_IS_OWNER);
-    assertCheckResult(results, COMPANY_ACTIVE, true);
-    assertCheckResult(results, RELATED_PERSONS_KYC, true);
+    assertCheckPersisted(JAAN, KYB_COMPANY_STRUCTURE, false);
   }
 
   // --- Special case: all checks persisted ---
@@ -333,6 +333,7 @@ class KybEndToEndTest {
     assertThat(amlChecks)
         .extracting(AmlCheck::getType)
         .containsExactlyInAnyOrder(
+            KYB_COMPANY_STRUCTURE,
             KYB_SOLE_MEMBER_OWNERSHIP,
             KYB_COMPANY_ACTIVE,
             KYB_RELATED_PERSONS_KYC,

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
+import static java.util.Map.entry;
 
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCheckHistory;
@@ -17,16 +18,18 @@ import org.springframework.stereotype.Component;
 public class AmlKybCheckHistory implements KybCheckHistory {
 
   private static final Map<AmlCheckType, KybCheckType> REVERSE_TYPE_MAPPING =
-      Map.of(
-          AmlCheckType.KYB_SOLE_MEMBER_OWNERSHIP, KybCheckType.SOLE_MEMBER_OWNERSHIP,
-          AmlCheckType.KYB_DUAL_MEMBER_OWNERSHIP, KybCheckType.DUAL_MEMBER_OWNERSHIP,
-          AmlCheckType.KYB_SOLE_BOARD_MEMBER_IS_OWNER, KybCheckType.SOLE_BOARD_MEMBER_IS_OWNER,
-          AmlCheckType.KYB_COMPANY_ACTIVE, KybCheckType.COMPANY_ACTIVE,
-          AmlCheckType.KYB_RELATED_PERSONS_KYC, KybCheckType.RELATED_PERSONS_KYC,
-          AmlCheckType.KYB_COMPANY_SANCTION, KybCheckType.COMPANY_SANCTION,
-          AmlCheckType.KYB_COMPANY_PEP, KybCheckType.COMPANY_PEP,
-          AmlCheckType.KYB_HIGH_RISK_NACE, KybCheckType.HIGH_RISK_NACE,
-          AmlCheckType.KYB_SELF_CERTIFICATION, KybCheckType.SELF_CERTIFICATION);
+      Map.ofEntries(
+          entry(AmlCheckType.KYB_COMPANY_STRUCTURE, KybCheckType.COMPANY_STRUCTURE),
+          entry(AmlCheckType.KYB_SOLE_MEMBER_OWNERSHIP, KybCheckType.SOLE_MEMBER_OWNERSHIP),
+          entry(AmlCheckType.KYB_DUAL_MEMBER_OWNERSHIP, KybCheckType.DUAL_MEMBER_OWNERSHIP),
+          entry(
+              AmlCheckType.KYB_SOLE_BOARD_MEMBER_IS_OWNER, KybCheckType.SOLE_BOARD_MEMBER_IS_OWNER),
+          entry(AmlCheckType.KYB_COMPANY_ACTIVE, KybCheckType.COMPANY_ACTIVE),
+          entry(AmlCheckType.KYB_RELATED_PERSONS_KYC, KybCheckType.RELATED_PERSONS_KYC),
+          entry(AmlCheckType.KYB_COMPANY_SANCTION, KybCheckType.COMPANY_SANCTION),
+          entry(AmlCheckType.KYB_COMPANY_PEP, KybCheckType.COMPANY_PEP),
+          entry(AmlCheckType.KYB_HIGH_RISK_NACE, KybCheckType.HIGH_RISK_NACE),
+          entry(AmlCheckType.KYB_SELF_CERTIFICATION, KybCheckType.SELF_CERTIFICATION));
 
   private final AmlCheckRepository amlCheckRepository;
 

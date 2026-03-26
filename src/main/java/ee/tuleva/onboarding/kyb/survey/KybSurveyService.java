@@ -27,6 +27,7 @@ class KybSurveyService {
 
   private static final Map<KybCheckType, String> FIELD_MAPPING =
       Map.of(
+          KybCheckType.COMPANY_STRUCTURE, "relatedPersons",
           KybCheckType.COMPANY_ACTIVE, "status",
           KybCheckType.HIGH_RISK_NACE, "naceCode",
           KybCheckType.COMPANY_SANCTION, "name",
@@ -37,6 +38,7 @@ class KybSurveyService {
   // TODO: add legal form check — only OÜ is supported
   private static final Map<KybCheckType, String> ERROR_MESSAGES =
       Map.of(
+          KybCheckType.COMPANY_STRUCTURE, UNSUPPORTED_OWNERSHIP_MESSAGE,
           KybCheckType.COMPANY_ACTIVE, "Ettevõte ei ole aktiivne",
           KybCheckType.HIGH_RISK_NACE, "See tegevusala ei ole toetatud",
           KybCheckType.COMPANY_SANCTION, "Ettevõtet ei ole võimalik teenindada",

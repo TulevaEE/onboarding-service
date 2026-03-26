@@ -96,6 +96,14 @@ class KybEndToEndTest {
   // --- Rule 34: Company active ---
 
   @Test
+  void rule34_activeCompany_passes() {
+    var results = kybScreeningService.screen(rule34Pass());
+
+    assertCheckResult(results, COMPANY_ACTIVE, true);
+    assertCheckPersisted(JAAN, KYB_COMPANY_ACTIVE, true);
+  }
+
+  @Test
   void rule34_companyInLiquidation_fails() {
     var results = kybScreeningService.screen(rule34Fail_companyInLiquidation());
 
@@ -119,28 +127,50 @@ class KybEndToEndTest {
     assertThat(changes).anyMatch(c -> "COMPANY_ACTIVE".equals(c.get("check")));
   }
 
-  // --- Rules 36-40: Related persons KYC ---
+  // --- Rule 36: Related person not Estonian citizen or resident ---
 
   @Test
-  void rules36to40_allRelatedPersonsPassedKyc_passes() {
-    var results = kybScreeningService.screen(rule32Pass());
-
-    assertCheckResult(results, RELATED_PERSONS_KYC, true);
-  }
-
-  @Test
-  void rules36to40_oneRelatedPersonFailedKyc_fails() {
-    var results = kybScreeningService.screen(rules36to40Fail_kycNotCompleted());
+  void rule36_relatedPersonNotCitizen_kycRejected_fails() {
+    var results = kybScreeningService.screen(rule36Fail_relatedPersonNotCitizen());
 
     assertCheckResult(results, RELATED_PERSONS_KYC, false);
     assertCheckPersisted(JAAN, KYB_RELATED_PERSONS_KYC, false);
   }
 
+  // --- Rule 37: Related person from high-risk country ---
+
   @Test
-  void rules36to40_relatedPersonWithoutEstonianPersonalCode_kycUnknown_fails() {
-    var results = kybScreeningService.screen(rules36to40Fail_kycUnknown());
+  void rule37_relatedPersonHighRiskCountry_kycRejected_fails() {
+    var results = kybScreeningService.screen(rule37Fail_relatedPersonHighRiskCountry());
 
     assertCheckResult(results, RELATED_PERSONS_KYC, false);
+  }
+
+  // --- Rule 39: Related person sanctioned ---
+
+  @Test
+  void rule39_relatedPersonSanctioned_kycRejected_fails() {
+    var results = kybScreeningService.screen(rule39Fail_relatedPersonSanctioned());
+
+    assertCheckResult(results, RELATED_PERSONS_KYC, false);
+  }
+
+  // --- Rule 40: Related person not citizen but is resident ---
+
+  @Test
+  void rule40_relatedPersonNotCitizenButResident_kycUnknown_fails() {
+    var results = kybScreeningService.screen(rule40Fail_relatedPersonNotCitizenButResident());
+
+    assertCheckResult(results, RELATED_PERSONS_KYC, false);
+  }
+
+  // --- Rules 36-40: All related persons passed KYC ---
+
+  @Test
+  void rules36to40_allRelatedPersonsPassedKyc_passes() {
+    var results = kybScreeningService.screen(rules36to40Pass_allKycCompleted());
+
+    assertCheckResult(results, RELATED_PERSONS_KYC, true);
   }
 
   @Test
@@ -176,6 +206,13 @@ class KybEndToEndTest {
   // --- Rule 41: High-risk NACE code ---
 
   @Test
+  void rule41_safeNaceCode_passes() {
+    var results = kybScreeningService.screen(rule41Pass());
+
+    assertCheckResult(results, HIGH_RISK_NACE, true);
+  }
+
+  @Test
   void rule41_highRiskNaceCode_fails() {
     var results = kybScreeningService.screen(rule41Fail_highRiskNace());
 
@@ -183,21 +220,22 @@ class KybEndToEndTest {
     assertCheckPersisted(JAAN, KYB_HIGH_RISK_NACE, false);
   }
 
-  @Test
-  void rule41_safeNaceCode_passes() {
-    var results = kybScreeningService.screen(rule31Pass());
-
-    assertCheckResult(results, HIGH_RISK_NACE, true);
-  }
-
   // --- Rule 43: Company sanctions ---
+
+  @Test
+  void rule43_noSanctionsMatch_passes() {
+    var results = kybScreeningService.screen(rule43Pass());
+
+    assertCheckResult(results, COMPANY_SANCTION, true);
+    assertCheckPersisted(JAAN, KYB_COMPANY_SANCTION, true);
+  }
 
   @Test
   void rule43_companySanctioned_fails() {
     when(sanctionCheckService.matchCompany(any()))
         .thenReturn(matchResponseWithTopic("sanction", "ru"));
 
-    var results = kybScreeningService.screen(rule31Pass());
+    var results = kybScreeningService.screen(rule43Pass());
 
     assertCheckResult(results, COMPANY_SANCTION, false);
     assertCheckPersisted(JAAN, KYB_COMPANY_SANCTION, false);
@@ -210,7 +248,7 @@ class KybEndToEndTest {
     when(sanctionCheckService.matchCompany(any()))
         .thenReturn(matchResponseWithTopic("role.pep", "ee"));
 
-    var results = kybScreeningService.screen(rule31Pass());
+    var results = kybScreeningService.screen(rule44Pass());
 
     assertCheckResult(results, COMPANY_PEP, true);
   }
@@ -218,11 +256,19 @@ class KybEndToEndTest {
   // --- Rule 45: Non-EU PEP ---
 
   @Test
+  void rule45_noPepMatch_passes() {
+    var results = kybScreeningService.screen(rule45Pass());
+
+    assertCheckResult(results, COMPANY_PEP, true);
+    assertCheckPersisted(JAAN, KYB_COMPANY_PEP, true);
+  }
+
+  @Test
   void rule45_companyConnectedToNonEuPep_fails() {
     when(sanctionCheckService.matchCompany(any()))
         .thenReturn(matchResponseWithTopic("role.pep", "ru"));
 
-    var results = kybScreeningService.screen(rule31Pass());
+    var results = kybScreeningService.screen(rule45Pass());
 
     assertCheckResult(results, COMPANY_PEP, false);
     assertCheckPersisted(JAAN, KYB_COMPANY_PEP, false);
@@ -232,7 +278,7 @@ class KybEndToEndTest {
 
   @Test
   void rule50_legalFormIsOÜ_passes() {
-    var results = kybScreeningService.screen(rule31Pass());
+    var results = kybScreeningService.screen(rule50Pass());
 
     assertCheckResult(results, COMPANY_LEGAL_FORM, true);
   }
@@ -248,7 +294,15 @@ class KybEndToEndTest {
   // --- Self certification ---
 
   @Test
-  void selfCertificationNotConfirmed_fails() {
+  void selfCertification_allConfirmed_passes() {
+    var results = kybScreeningService.screen(selfCertificationPass());
+
+    assertCheckResult(results, SELF_CERTIFICATION, true);
+    assertCheckPersisted(JAAN, KYB_SELF_CERTIFICATION, true);
+  }
+
+  @Test
+  void selfCertification_notConfirmed_fails() {
     var results = kybScreeningService.screen(selfCertificationFail());
 
     assertCheckResult(results, SELF_CERTIFICATION, false);

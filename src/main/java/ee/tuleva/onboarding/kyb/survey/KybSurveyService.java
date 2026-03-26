@@ -34,6 +34,9 @@ class KybSurveyService {
           KybCheckType.COMPANY_PEP, "name",
           KybCheckType.RELATED_PERSONS_KYC, "relatedPersons");
 
+  private static final String UNSUPPORTED_OWNERSHIP_MESSAGE =
+      "Ettevõtte omandistruktuur ei ole toetatud";
+
   // TODO: review error messages with product
   // TODO: add legal form check — only OÜ is supported
   private static final Map<KybCheckType, String> ERROR_MESSAGES =
@@ -45,9 +48,6 @@ class KybSurveyService {
           KybCheckType.COMPANY_PEP, "Ettevõtet ei ole võimalik teenindada",
           KybCheckType.RELATED_PERSONS_KYC,
               "Seotud isikute isikusamasuse tuvastamine on lõpetamata");
-
-  private static final String UNSUPPORTED_OWNERSHIP_MESSAGE =
-      "Ettevõtte omandistruktuur ei ole toetatud";
 
   private static final java.util.Set<KybCheckType> OWNERSHIP_CHECKS =
       java.util.Set.of(

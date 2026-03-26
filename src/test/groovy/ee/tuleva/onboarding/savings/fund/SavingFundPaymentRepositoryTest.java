@@ -256,7 +256,7 @@ class SavingFundPaymentRepositoryTest {
   }
 
   @Test
-  void findUserPayments() {
+  void findPayments() {
     var id1 = repository.savePaymentData(createPayment().externalId("1").build());
     var id2 = repository.savePaymentData(createPayment().externalId("2").build());
     var id3 = repository.savePaymentData(createPayment().externalId("3").build());
@@ -265,20 +265,21 @@ class SavingFundPaymentRepositoryTest {
     var user1 = createUser("37706154772");
     var user2 = createUser("36407145233");
 
-    repository.attachParty(id1, new Party(PERSON, user1.getPersonalCode()));
-    repository.attachParty(id2, new Party(PERSON, user1.getPersonalCode()));
-    repository.attachParty(id3, new Party(PERSON, user2.getPersonalCode()));
+    var party1 = new Party(PERSON, user1.getPersonalCode());
+    var party2 = new Party(PERSON, user2.getPersonalCode());
+
+    repository.attachParty(id1, party1);
+    repository.attachParty(id2, party1);
+    repository.attachParty(id3, party2);
 
     repository.changeStatus(id1, RECEIVED);
 
-    assertThat(repository.findUserPayments(user1.getId())).hasSize(2);
-    assertThat(repository.findUserPayments(user1.getId()))
+    assertThat(repository.findPayments(party1)).hasSize(2);
+    assertThat(repository.findPayments(party1))
         .extracting("id")
         .containsExactlyInAnyOrder(id1, id2);
-    assertThat(repository.findUserPayments(user2.getId())).hasSize(1);
-    assertThat(repository.findUserPayments(user2.getId()))
-        .extracting("id")
-        .containsExactlyInAnyOrder(id3);
+    assertThat(repository.findPayments(party2)).hasSize(1);
+    assertThat(repository.findPayments(party2)).extracting("id").containsExactlyInAnyOrder(id3);
   }
 
   @Test
@@ -325,7 +326,7 @@ class SavingFundPaymentRepositoryTest {
   }
 
   @Test
-  void findUserDepositBankAccountIbans() {
+  void findDepositBankAccountIbans() {
     var user1 = createUser("37706154772");
     var user2 = createUser("36407145233");
 
@@ -373,7 +374,7 @@ class SavingFundPaymentRepositoryTest {
     updatePaymentStatus(id6, RESERVED);
     updatePaymentStatus(id7, PROCESSED);
 
-    var result = repository.findUserDepositBankAccountIbans(user1.getId());
+    var result = repository.findDepositBankAccountIbans(party1);
 
     assertThat(result)
         .containsExactly("EE111111111111111111", "EE222222222222222222", "EE333333333333333333");

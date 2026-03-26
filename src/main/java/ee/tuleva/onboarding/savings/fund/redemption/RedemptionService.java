@@ -11,6 +11,7 @@ import static java.math.RoundingMode.HALF_UP;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.savings.fund.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
@@ -60,7 +61,7 @@ public class RedemptionService {
 
     User user = userService.getByIdOrThrow(userId);
     validateOnboarding(user);
-    validateIbanBelongsToUser(customerIban, userId);
+    validateIbanBelongsToParty(customerIban, new Party(Party.Type.PERSON, user.getPersonalCode()));
 
     BigDecimal nav = navProvider.getDisplayNav(TKF100);
     BigDecimal availableUnits = getEffectiveAvailableFundUnits(user);
@@ -180,11 +181,11 @@ public class RedemptionService {
         .negate();
   }
 
-  private void validateIbanBelongsToUser(String iban, Long userId) {
-    List<String> userIbans = savingFundPaymentRepository.findUserDepositBankAccountIbans(userId);
-    if (!userIbans.contains(iban)) {
+  private void validateIbanBelongsToParty(String iban, Party party) {
+    List<String> ibans = savingFundPaymentRepository.findDepositBankAccountIbans(party);
+    if (!ibans.contains(iban)) {
       throw new IllegalArgumentException(
-          "IBAN does not belong to user: iban=" + iban + ", userId=" + userId);
+          "IBAN does not belong to user: iban=" + iban + ", party=" + party);
     }
   }
 

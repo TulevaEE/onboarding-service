@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.notification.RedemptionBatchCompletedEvent;
@@ -194,7 +195,9 @@ public class RedemptionBatchJob {
       }
 
       try {
-        String beneficiaryName = getBeneficiaryName(updated.getUserId(), updated.getCustomerIban());
+        var user = userService.getByIdOrThrow(updated.getUserId());
+        var party = new Party(Party.Type.PERSON, user.getPersonalCode());
+        String beneficiaryName = getBeneficiaryName(party, updated.getCustomerIban());
 
         PaymentRequest paymentRequest =
             PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(updated.getId()))
@@ -231,14 +234,14 @@ public class RedemptionBatchJob {
     redemptionRequestRepository.save(request);
   }
 
-  private String getBeneficiaryName(Long userId, String iban) {
+  private String getBeneficiaryName(Party party, String iban) {
     return savingFundPaymentRepository
-        .findRemitterNameByIban(userId, iban)
+        .findRemitterNameByIban(party, iban)
         .orElseThrow(
             () ->
                 new IllegalStateException(
-                    "IBAN not found in user's deposit accounts: userId="
-                        + userId
+                    "IBAN not found in user's deposit accounts: party="
+                        + party
                         + ", iban="
                         + iban));
   }

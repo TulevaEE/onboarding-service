@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 
+import ee.tuleva.onboarding.party.Party;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
@@ -69,17 +70,17 @@ public class SavingFundPaymentUpsertionService {
     }
   }
 
-  public List<SavingFundPayment> getPendingPaymentsForUser(Long userId) {
+  public List<SavingFundPayment> getPendingPayments(Party party) {
     return repository
-        .findUserPaymentsWithStatus(
-            userId, CREATED, RECEIVED, VERIFIED, RESERVED, FROZEN, TO_BE_RETURNED)
+        .findPaymentsWithStatus(
+            party, CREATED, RECEIVED, VERIFIED, RESERVED, FROZEN, TO_BE_RETURNED)
         .stream()
         .toList();
   }
 
-  public void cancelUserPayment(Long userId, UUID paymentId) {
+  public void cancelPayment(Party party, UUID paymentId) {
     var payment = repository.findById(paymentId).orElseThrow();
-    if (!userId.equals(payment.getUserId()) || payment.getCancelledAt() != null) {
+    if (!party.equals(payment.getParty()) || payment.getCancelledAt() != null) {
       throw new NoSuchElementException();
     }
     var deadline = savingFundDeadlinesService.getCancellationDeadline(payment);

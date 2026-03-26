@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
+import static ee.tuleva.onboarding.party.Party.Type.PERSON;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.party.Party;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -26,55 +28,62 @@ class SavingFundPaymentUpsertionServiceTest {
       new SavingFundPaymentUpsertionService(repository, deadlinesService, new NameMatcher());
 
   @Test
-  void cancelUserPayment_successful() {
+  void cancelPayment_successful() {
+    var party = new Party(PERSON, "38501010000");
     var paymentId = UUID.randomUUID();
     var payment =
-        SavingFundPayment.builder().id(paymentId).userId(1L).amount(BigDecimal.TEN).build();
+        SavingFundPayment.builder().id(paymentId).party(party).amount(BigDecimal.TEN).build();
 
     when(repository.findById(paymentId)).thenReturn(Optional.of(payment));
     when(deadlinesService.getCancellationDeadline(payment))
         .thenReturn(Instant.now().plusSeconds(3600));
 
-    service.cancelUserPayment(1L, paymentId);
+    service.cancelPayment(party, paymentId);
 
     verify(repository).cancel(paymentId);
   }
 
   @Test
-  void cancelUserPayment_wrongUser_throwsException() {
+  void cancelPayment_wrongUser_throwsException() {
     var paymentId = UUID.randomUUID();
     var payment =
-        SavingFundPayment.builder().id(paymentId).userId(2L).amount(BigDecimal.TEN).build();
+        SavingFundPayment.builder()
+            .id(paymentId)
+            .party(new Party(PERSON, "38501010000"))
+            .amount(BigDecimal.TEN)
+            .build();
 
     when(repository.findById(paymentId)).thenReturn(Optional.of(payment));
 
-    assertThrows(NoSuchElementException.class, () -> service.cancelUserPayment(1L, paymentId));
+    assertThrows(
+        NoSuchElementException.class,
+        () -> service.cancelPayment(new Party(PERSON, "49901010000"), paymentId));
     verify(repository, never()).cancel(any());
   }
 
   @Test
-  void cancelUserPayment_deadlinePassed_throwsException() {
+  void cancelPayment_deadlinePassed_throwsException() {
+    var party = new Party(PERSON, "38501010000");
     var paymentId = UUID.randomUUID();
     var payment =
-        SavingFundPayment.builder().id(paymentId).userId(1L).amount(BigDecimal.TEN).build();
+        SavingFundPayment.builder().id(paymentId).party(party).amount(BigDecimal.TEN).build();
 
     when(repository.findById(paymentId)).thenReturn(Optional.of(payment));
     when(deadlinesService.getCancellationDeadline(payment))
         .thenReturn(Instant.now().minusSeconds(3600));
 
-    assertThrows(IllegalStateException.class, () -> service.cancelUserPayment(1L, paymentId));
+    assertThrows(IllegalStateException.class, () -> service.cancelPayment(party, paymentId));
     verify(repository, never()).cancel(any());
   }
 
   @Test
-  void cancelUserPayment_paymentNotFound_throwsException() {
+  void cancelPayment_paymentNotFound_throwsException() {
+    var party = new Party(PERSON, "38501010000");
     var paymentId = UUID.randomUUID();
-    var payment =
-        SavingFundPayment.builder().id(paymentId).userId(1L).amount(BigDecimal.TEN).build();
 
     when(repository.findById(paymentId)).thenReturn(Optional.empty());
 
-    assertThrows(NoSuchElementException.class, () -> service.cancelUserPayment(1L, paymentId));
+    assertThrows(NoSuchElementException.class, () -> service.cancelPayment(party, paymentId));
     verify(repository, never()).cancel(any());
   }
 

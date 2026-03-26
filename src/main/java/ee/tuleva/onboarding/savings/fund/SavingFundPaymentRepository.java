@@ -76,50 +76,58 @@ public class SavingFundPaymentRepository {
         this::rowMapper);
   }
 
-  public List<SavingFundPayment> findUserPayments(Long userId) {
+  public List<SavingFundPayment> findPayments(Party party) {
     return jdbcTemplate.query(
         """
-        select * from saving_fund_payment where user_id=:user_id order by created_at desc
+        select * from saving_fund_payment where party_type=:party_type and party_code=:party_code order by created_at desc
         """,
-        Map.of("user_id", userId),
+        Map.of("party_type", party.type().name(), "party_code", party.code()),
         this::rowMapper);
   }
 
-  public List<SavingFundPayment> findUserPaymentsWithStatus(Long userId, Status... statuses) {
+  public List<SavingFundPayment> findPaymentsWithStatus(Party party, Status... statuses) {
     return jdbcTemplate.query(
         """
-        select * from saving_fund_payment where user_id=:user_id and status in (:statuses) order by created_at desc
+        select * from saving_fund_payment where party_type=:party_type and party_code=:party_code and status in (:statuses) order by created_at desc
         """,
-        Map.of("user_id", userId, "statuses", Arrays.stream(statuses).map(Enum::name).toList()),
+        Map.of(
+            "party_type",
+            party.type().name(),
+            "party_code",
+            party.code(),
+            "statuses",
+            Arrays.stream(statuses).map(Enum::name).toList()),
         this::rowMapper);
   }
 
-  public List<String> findUserDepositBankAccountIbans(Long userId) {
+  public List<String> findDepositBankAccountIbans(Party party) {
     return jdbcTemplate.query(
         """
             SELECT DISTINCT remitter_iban
             FROM saving_fund_payment
-            WHERE user_id = :user_id
+            WHERE party_type = :party_type AND party_code = :party_code
               AND status IN (:statuses)
               AND amount > 0
               AND remitter_iban IS NOT NULL
             ORDER BY remitter_iban
             """,
         Map.of(
-            "user_id",
-            userId,
+            "party_type",
+            party.type().name(),
+            "party_code",
+            party.code(),
             "statuses",
             List.of(RESERVED.name(), ISSUED.name(), PROCESSED.name())),
         (rs, _) -> rs.getString("remitter_iban"));
   }
 
-  public Optional<String> findRemitterNameByIban(Long userId, String iban) {
+  public Optional<String> findRemitterNameByIban(Party party, String iban) {
     var results =
         jdbcTemplate.query(
             """
             SELECT remitter_name
             FROM saving_fund_payment
-            WHERE user_id = :user_id
+            WHERE party_type = :party_type AND party_code = :party_code
               AND remitter_iban = :iban
               AND status IN (:statuses)
               AND amount > 0
@@ -127,8 +135,10 @@ public class SavingFundPaymentRepository {
             LIMIT 1
             """,
             Map.of(
-                "user_id",
-                userId,
+                "party_type",
+                party.type().name(),
+                "party_code",
+                party.code(),
                 "iban",
                 iban,
                 "statuses",
@@ -343,18 +353,6 @@ public class SavingFundPaymentRepository {
         "select status from saving_fund_payment where id=:id for update",
         Map.of("id", paymentId),
         Status.class);
-  }
-
-  public int TEST_backdateVerifiedPayments(Long userId) {
-    return jdbcTemplate.update(
-        """
-        UPDATE saving_fund_payment
-        SET received_before = received_before - INTERVAL '2 days'
-        WHERE status = 'VERIFIED'
-          AND received_before > NOW() - INTERVAL '2 days'
-          AND user_id = :userId
-        """,
-        Map.of("userId", userId));
   }
 
   // todo

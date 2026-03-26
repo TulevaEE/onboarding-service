@@ -30,7 +30,7 @@ class KybCompanyDataMapper {
       SelfCertification selfCertification) {
 
     var status = detail.getStatus().map(CompanyStatus::valueOf).orElse(null);
-    var legalForm = detail.getLegalForm().map(LegalForm::valueOf).orElse(null);
+    var legalForm = detail.getLegalForm().map(LegalForm::fromString).orElse(null);
 
     var companyDto =
         new CompanyDto(

@@ -203,6 +203,24 @@ class KybCompanyDataMapperTest {
   }
 
   @Test
+  void mapsKnownLegalFormTüh() {
+    var detail = new CompanyDetail("Test TÜH", "12345678", "R", "TÜH", null, null, null, null);
+
+    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), SELF_CERT);
+
+    assertThat(result.company().legalForm()).isEqualTo(LegalForm.TÜH);
+  }
+
+  @Test
+  void mapsUnknownLegalFormToOther() {
+    var detail = new CompanyDetail("Test XYZ", "12345678", "R", "XYZ", null, null, null, null);
+
+    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), SELF_CERT);
+
+    assertThat(result.company().legalForm()).isEqualTo(LegalForm.OTHER);
+  }
+
+  @Test
   void picksMaxOwnershipPercentWhenGroupingRoles() {
     var role1 =
         new CompanyRelationship(

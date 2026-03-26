@@ -21,12 +21,14 @@ class KybCompanyDataMapper {
       SelfCertification selfCertification) {
 
     var status = detail.getStatus().map(CompanyStatus::valueOf).orElse(null);
+    var legalForm = detail.getLegalForm().map(LegalForm::valueOf).orElse(null);
 
     var companyDto =
         new CompanyDto(
             new RegistryCode(detail.getRegistryCode()),
             detail.getName(),
-            detail.getMainActivity().orElse(null));
+            detail.getMainActivity().orElse(null),
+            legalForm);
 
     var relatedPersons =
         relationships.stream()

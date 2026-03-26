@@ -47,7 +47,7 @@ class KybScreeningIntegrationTest {
         new KybRelatedPerson(PERSONAL_CODE, true, true, true, BigDecimal.valueOf(100), COMPLETED);
     var data =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
             PERSONAL_CODE,
             R,
             List.of(person),
@@ -55,7 +55,7 @@ class KybScreeningIntegrationTest {
 
     var results = kybScreeningService.screen(data);
 
-    assertThat(results).hasSize(8).allMatch(KybCheck::success);
+    assertThat(results).hasSize(9).allMatch(KybCheck::success);
 
     var amlChecks =
         amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
@@ -69,6 +69,7 @@ class KybScreeningIntegrationTest {
             KYB_COMPANY_SANCTION,
             KYB_COMPANY_PEP,
             KYB_HIGH_RISK_NACE,
+            KYB_COMPANY_LEGAL_FORM,
             KYB_SELF_CERTIFICATION,
             KYB_DATA_CHANGED);
     assertThat(amlChecks).allMatch(AmlCheck::isSuccess);
@@ -80,7 +81,7 @@ class KybScreeningIntegrationTest {
         new KybRelatedPerson(PERSONAL_CODE, true, true, false, BigDecimal.valueOf(100), COMPLETED);
     var data =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
             PERSONAL_CODE,
             R,
             List.of(person),
@@ -106,7 +107,7 @@ class KybScreeningIntegrationTest {
         new KybRelatedPerson(PERSONAL_CODE, true, true, true, BigDecimal.valueOf(100), COMPLETED);
     var data =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
             PERSONAL_CODE,
             R,
             List.of(person),
@@ -116,7 +117,7 @@ class KybScreeningIntegrationTest {
 
     var changedData =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
             PERSONAL_CODE,
             CompanyStatus.L,
             List.of(person),
@@ -140,7 +141,7 @@ class KybScreeningIntegrationTest {
         new KybRelatedPerson(PERSONAL_CODE, true, true, true, BigDecimal.valueOf(100), REJECTED);
     var data =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011"),
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
             PERSONAL_CODE,
             R,
             List.of(person),

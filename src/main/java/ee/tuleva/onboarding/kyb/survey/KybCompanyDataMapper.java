@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.kyb.*;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -30,36 +31,35 @@ class KybCompanyDataMapper {
             detail.getMainActivity().orElse(null),
             legalForm);
 
-    var relatedPersons =
+    var grouped =
         relationships.stream()
+            .filter(r -> r.personalCode() != null)
             .collect(Collectors.groupingBy(CompanyRelationship::personalCode))
             .entrySet()
             .stream()
-            .map(
-                entry -> {
-                  var code = new PersonalCode(entry.getKey());
-                  var roles = entry.getValue();
-                  var boardMember =
-                      roles.stream().anyMatch(r -> BOARD_MEMBER_ROLE.equals(r.roleCode()));
-                  var shareholder =
-                      roles.stream().anyMatch(r -> SHAREHOLDER_ROLE.equals(r.roleCode()));
-                  var beneficialOwner = roles.stream().anyMatch(r -> r.controlMethod() != null);
-                  var ownershipPercent =
-                      roles.stream()
-                          .map(CompanyRelationship::ownershipPercent)
-                          .filter(p -> p != null)
-                          .max(BigDecimal::compareTo)
-                          .orElse(BigDecimal.ZERO);
-                  return new KybRelatedPerson(
-                      code,
-                      boardMember,
-                      shareholder,
-                      beneficialOwner,
-                      ownershipPercent,
-                      KybKycStatus.UNKNOWN); // TODO: look up actual KYC status from onboarding
-                })
-            .toList();
+            .map(entry -> toRelatedPerson(new PersonalCode(entry.getKey()), entry.getValue()));
+
+    var ungrouped =
+        relationships.stream()
+            .filter(r -> r.personalCode() == null)
+            .map(r -> toRelatedPerson(null, List.of(r)));
+
+    var relatedPersons = Stream.concat(grouped, ungrouped).toList();
 
     return new KybCompanyData(companyDto, personalCode, status, relatedPersons, selfCertification);
+  }
+
+  private KybRelatedPerson toRelatedPerson(PersonalCode code, List<CompanyRelationship> roles) {
+    var boardMember = roles.stream().anyMatch(r -> BOARD_MEMBER_ROLE.equals(r.roleCode()));
+    var shareholder = roles.stream().anyMatch(r -> SHAREHOLDER_ROLE.equals(r.roleCode()));
+    var beneficialOwner = roles.stream().anyMatch(r -> r.controlMethod() != null);
+    var ownershipPercent =
+        roles.stream()
+            .map(CompanyRelationship::ownershipPercent)
+            .filter(p -> p != null)
+            .max(BigDecimal::compareTo)
+            .orElse(BigDecimal.ZERO);
+    return new KybRelatedPerson(
+        code, boardMember, shareholder, beneficialOwner, ownershipPercent, KybKycStatus.UNKNOWN);
   }
 }

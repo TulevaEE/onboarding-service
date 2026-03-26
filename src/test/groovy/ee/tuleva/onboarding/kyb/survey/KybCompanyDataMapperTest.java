@@ -153,6 +153,50 @@ class KybCompanyDataMapperTest {
   }
 
   @Test
+  void handlesRelationshipsWithNullPersonalCode() {
+    var withCode =
+        new CompanyRelationship(
+            "F",
+            "JUHL",
+            "Juhatuse liige",
+            "Jaan",
+            "Tamm",
+            "38501010002",
+            null,
+            null,
+            null,
+            null,
+            null,
+            "EST");
+    var withoutCode =
+        new CompanyRelationship(
+            "J",
+            "ARP",
+            "Aktsiaraamatu pidaja",
+            null,
+            "Nasdaq CSD SE",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null);
+
+    var detail = new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null);
+
+    var result =
+        mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(withCode, withoutCode), SELF_CERT);
+
+    assertThat(result.relatedPersons()).hasSize(2);
+    assertThat(result.relatedPersons())
+        .containsExactlyInAnyOrder(
+            new KybRelatedPerson(
+                PERSONAL_CODE, true, false, false, BigDecimal.ZERO, KybKycStatus.UNKNOWN),
+            new KybRelatedPerson(null, false, false, false, BigDecimal.ZERO, KybKycStatus.UNKNOWN));
+  }
+
+  @Test
   void picksMaxOwnershipPercentWhenGroupingRoles() {
     var role1 =
         new CompanyRelationship(

@@ -78,7 +78,7 @@ class KybSurveyServiceTest {
     assertThat(result.status().value()).isEqualTo(LegalEntityStatus.REGISTERED);
     assertThat(result.status().errors()).isEmpty();
     assertThat(result.address().value())
-        .isEqualTo(new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)));
+        .isEqualTo(new LegalEntityAddress("Tallinn", null, null, null, null));
     assertThat(result.businessActivity().value()).isEqualTo("Fondide valitsemine");
     assertThat(result.naceCode().value()).isEqualTo("6630");
     assertThat(result.naceCode().errors()).containsExactly("See tegevusala ei ole toetatud");

@@ -120,7 +120,8 @@ class KybSurveyService {
         ValidatedField.valid(detail.getRegistryCode()),
         ValidatedField.valid(detail.getLegalForm().orElse(null)),
         validatedField(status, errorsByField.getOrDefault("status", List.of())),
-        ValidatedField.valid(detail.getAddress().orElse(null)),
+        ValidatedField.valid(
+            LegalEntityAddress.fromCompanyAddress(detail.getAddress().orElse(null))),
         ValidatedField.valid(detail.getMainActivity().orElse(null)),
         validatedField(
             detail.getNaceCode().orElse(null), errorsByField.getOrDefault("naceCode", List.of())),

@@ -88,8 +88,9 @@ public class PaymentVerificationService {
     applicationEventPublisher.publishEvent(
         new UnattributedPaymentEvent(payment.getId(), payment.getAmount(), reason));
 
-    Optional.ofNullable(payment.getUserId())
-        .flatMap(userRepository::findById)
+    Optional.ofNullable(payment.getParty())
+        .map(Party::code)
+        .flatMap(userRepository::findByPersonalCode)
         .ifPresent(
             user ->
                 applicationEventPublisher.publishEvent(

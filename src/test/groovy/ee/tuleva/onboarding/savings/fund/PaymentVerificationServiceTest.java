@@ -10,12 +10,14 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.Party;
+import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.savings.fund.notification.UnattributedPaymentEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Locale;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
@@ -272,6 +274,37 @@ class PaymentVerificationServiceTest {
         .contains("37508295796");
     assertThat(service.extractPersonalCode("some prefix+37508295796/some suffix,45009144745"))
         .contains("37508295796");
+  }
+
+  @Test
+  void identityCheckFailure_publishesSavingsPaymentFailedEvent_whenPaymentHasParty() {
+    var user =
+        User.builder()
+            .id(123L)
+            .personalCode("37508295796")
+            .firstName("PÄRT")
+            .lastName("ÕLEKÕRS")
+            .build();
+    var payment =
+        SavingFundPayment.builder()
+            .id(randomUUID())
+            .amount(new BigDecimal("100.00"))
+            .party(new Party(PERSON, user.getPersonalCode()))
+            .remitterName("PÄRT ÕLEKÕRS")
+            .remitterIban("EE123456789012345678")
+            .description("no personal code here")
+            .receivedBefore(Instant.parse("2025-10-01T20:59:59.999999Z"))
+            .build();
+
+    when(userRepository.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
+
+    service.process(payment);
+
+    verify(applicationEventPublisher)
+        .publishEvent(
+            argThat(
+                (SavingsPaymentFailedEvent e) ->
+                    e.getUser().equals(user) && e.getLocale().equals(Locale.of("et"))));
   }
 
   private SavingFundPayment createPayment(String remitterIdCode, String description) {

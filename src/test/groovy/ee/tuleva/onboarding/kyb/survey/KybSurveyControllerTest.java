@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -86,22 +87,7 @@ class KybSurveyControllerTest {
   }
 
   @Test
-  void submit_returnsLegalEntityData() throws Exception {
-    var data =
-        new LegalEntityData(
-            ValidatedField.valid("Test OÜ"),
-            ValidatedField.valid(REGISTRY_CODE),
-            ValidatedField.valid("OÜ"),
-            ValidatedField.valid(LocalDate.of(2020, 1, 15)),
-            ValidatedField.valid(LegalEntityStatus.REGISTERED),
-            ValidatedField.valid(new LegalEntityAddress("Tallinn", null, null, null, null)),
-            ValidatedField.valid("Fondide valitsemine"),
-            ValidatedField.valid("6630"),
-            ValidatedField.valid(List.of()));
-    when(kybSurveyService.submit(
-            eq(1L), eq(PERSONAL_CODE), eq(REGISTRY_CODE), any(KybSurveyResponse.class)))
-        .thenReturn(data);
-
+  void submit_returns200() throws Exception {
     mvc.perform(
             post("/v1/kyb/surveys")
                 .param("registry-code", REGISTRY_CODE)
@@ -109,8 +95,7 @@ class KybSurveyControllerTest {
                 .content(SURVEY_JSON)
                 .with(csrf())
                 .with(authentication(personAuth())))
-        .andExpect(status().isOk())
-        .andExpect(content().json("{\"name\":{\"value\":\"Test OÜ\",\"errors\":[]}}"));
+        .andExpect(status().isOk());
   }
 
   @Test
@@ -128,9 +113,9 @@ class KybSurveyControllerTest {
 
   @Test
   void submit_returns501OnUnexpectedError() throws Exception {
-    when(kybSurveyService.submit(
-            eq(1L), eq(PERSONAL_CODE), eq(REGISTRY_CODE), any(KybSurveyResponse.class)))
-        .thenThrow(new RuntimeException("Ariregister timeout"));
+    willThrow(new RuntimeException("Ariregister timeout"))
+        .given(kybSurveyService)
+        .submit(eq(1L), eq(PERSONAL_CODE), eq(REGISTRY_CODE), any(KybSurveyResponse.class));
 
     mvc.perform(
             post("/v1/kyb/surveys")
@@ -145,9 +130,9 @@ class KybSurveyControllerTest {
 
   @Test
   void submit_returns403WhenNotBoardMember() throws Exception {
-    when(kybSurveyService.submit(
-            eq(1L), eq(PERSONAL_CODE), eq(REGISTRY_CODE), any(KybSurveyResponse.class)))
-        .thenThrow(new NotBoardMemberException(REGISTRY_CODE, PERSONAL_CODE));
+    willThrow(new NotBoardMemberException(REGISTRY_CODE, PERSONAL_CODE))
+        .given(kybSurveyService)
+        .submit(eq(1L), eq(PERSONAL_CODE), eq(REGISTRY_CODE), any(KybSurveyResponse.class));
 
     mvc.perform(
             post("/v1/kyb/surveys")

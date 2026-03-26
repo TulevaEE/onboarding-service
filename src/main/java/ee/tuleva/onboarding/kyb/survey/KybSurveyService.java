@@ -71,7 +71,7 @@ class KybSurveyService {
     return buildLegalEntityData(detail, relationships, checks);
   }
 
-  LegalEntityData submit(
+  void submit(
       Long userId, String personalCode, String registryCode, KybSurveyResponse surveyResponse) {
     var selfCertification = kybSurveyResponseMapper.extractSelfCertification(surveyResponse);
 
@@ -91,9 +91,7 @@ class KybSurveyService {
         kybCompanyDataMapper.toKybCompanyData(
             detail, new PersonalCode(personalCode), relationships, selfCertification);
 
-    var checks = kybScreeningService.screen(companyData);
-
-    return buildLegalEntityData(detail, relationships, checks);
+    kybScreeningService.screen(companyData);
   }
 
   private List<CompanyRelationship> fetchRelationshipsAndVerifyBoardMember(

@@ -31,11 +31,11 @@ class KybSurveyController {
 
   @Operation(summary = "Submit KYB survey")
   @PostMapping
-  public LegalEntityData submit(
+  public void submit(
       @RequestParam(value = "registry-code") String registryCode,
       @AuthenticationPrincipal AuthenticatedPerson person,
       @Valid @RequestBody KybSurveyResponse surveyResponse) {
-    return kybSurveyService.submit(
+    kybSurveyService.submit(
         person.getUserId(), person.getPersonalCode(), registryCode, surveyResponse);
   }
 

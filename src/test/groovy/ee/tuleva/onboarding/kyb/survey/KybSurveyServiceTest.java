@@ -49,13 +49,14 @@ class KybSurveyServiceTest {
 
   @Test
   void initialValidation_returnsLegalEntityDataWithFieldErrors() {
+    var foundingDate = LocalDate.of(2020, 1, 15);
     var detail =
         new CompanyDetail(
             "Test OÜ",
             REGISTRY_CODE,
             "R",
             "OÜ",
-            null,
+            foundingDate,
             new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
             "Fondide valitsemine",
             "6630");
@@ -86,6 +87,7 @@ class KybSurveyServiceTest {
     assertThat(result.name().errors()).isEmpty();
     assertThat(result.registryCode().value()).isEqualTo(REGISTRY_CODE);
     assertThat(result.legalForm().value()).isEqualTo("OÜ");
+    assertThat(result.foundingDate().value()).isEqualTo(foundingDate);
     assertThat(result.status().value()).isEqualTo(LegalEntityStatus.REGISTERED);
     assertThat(result.status().errors()).isEmpty();
     assertThat(result.address().value())
@@ -199,6 +201,72 @@ class KybSurveyServiceTest {
 
     assertThatThrownBy(() -> service.initialValidation(REGISTRY_CODE, PERSONAL_CODE))
         .isInstanceOf(NotBoardMemberException.class);
+  }
+
+  @Test
+  void initialValidation_deduplicatesRelatedPersons() {
+    var detail =
+        new CompanyDetail(
+            "Test OÜ",
+            REGISTRY_CODE,
+            "R",
+            "OÜ",
+            null,
+            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
+            "Fondide valitsemine",
+            "6630");
+    var relationships =
+        List.of(
+            new CompanyRelationship(
+                "F",
+                "JUHL",
+                "Juhatuse liige",
+                "Jaan",
+                "Tamm",
+                PERSONAL_CODE,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "EST"),
+            new CompanyRelationship(
+                "F",
+                "S",
+                "Osanik",
+                "Jaan",
+                "Tamm",
+                PERSONAL_CODE,
+                null,
+                null,
+                null,
+                new BigDecimal("100.00"),
+                "Osaluse kaudu",
+                "EST"));
+    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
+    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
+        .thenReturn(relationships);
+    var companyData =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
+            new PersonalCode(PERSONAL_CODE),
+            CompanyStatus.R,
+            List.of(),
+            null);
+    when(kybCompanyDataMapper.toKybCompanyData(
+            detail, new PersonalCode(PERSONAL_CODE), relationships, null))
+        .thenReturn(companyData);
+    when(kybScreeningService.screen(companyData))
+        .thenReturn(
+            List.of(
+                new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+                new KybCheck(SOLE_MEMBER_OWNERSHIP, true, Map.of())));
+
+    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
+
+    assertThat(result.relatedPersons().value()).hasSize(1);
+    assertThat(result.relatedPersons().value().getFirst())
+        .isEqualTo(new RelatedPersonData(PERSONAL_CODE, "Jaan Tamm"));
   }
 
   @Test

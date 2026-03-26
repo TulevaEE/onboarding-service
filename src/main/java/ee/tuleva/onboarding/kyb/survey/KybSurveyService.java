@@ -139,22 +139,15 @@ class KybSurveyService {
 
     var relatedPersons =
         relationships.stream()
-            .map(
-                r ->
-                    new RelatedPersonData(
-                        r.personalCode(),
-                        formatName(r),
-                        "JUHL".equals(r.roleCode()),
-                        "S".equals(r.roleCode()),
-                        r.controlMethod() != null,
-                        r.ownershipPercent(),
-                        KybKycStatus.UNKNOWN))
+            .map(r -> new RelatedPersonData(r.personalCode(), formatName(r)))
+            .distinct()
             .toList();
 
     return new LegalEntityData(
         validatedField(detail.getName(), errorsByField.getOrDefault("name", List.of())),
         ValidatedField.valid(detail.getRegistryCode()),
         ValidatedField.valid(detail.getLegalForm().orElse(null)),
+        ValidatedField.valid(detail.getFoundingDate().orElse(null)),
         validatedField(status, errorsByField.getOrDefault("status", List.of())),
         ValidatedField.valid(
             LegalEntityAddress.fromCompanyAddress(detail.getAddress().orElse(null))),

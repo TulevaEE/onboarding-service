@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ee.tuleva.onboarding.ariregister.AddressDetails;
+import ee.tuleva.onboarding.ariregister.CompanyAddress;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.role.Role;
 import java.util.List;
@@ -41,7 +43,8 @@ class KybSurveyControllerTest {
             ValidatedField.valid(REGISTRY_CODE),
             ValidatedField.valid("OÜ"),
             ValidatedField.valid(LegalEntityStatus.REGISTERED),
-            ValidatedField.valid("Tallinn"),
+            ValidatedField.valid(
+                new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null))),
             ValidatedField.valid("Fondide valitsemine"),
             ValidatedField.valid("6630"),
             ValidatedField.valid(List.of()));

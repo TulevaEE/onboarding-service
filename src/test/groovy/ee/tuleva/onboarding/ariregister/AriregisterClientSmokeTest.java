@@ -68,12 +68,13 @@ class AriregisterClientSmokeTest {
     assertThat(details).isPresent();
     var d = details.get();
     System.out.printf(
-        "Name=%s, Code=%s, Status=%s, Founded=%s, Address=%s, Activity=%s%n",
+        "Name=%s, Code=%s, Status=%s, Founded=%s, Address=%s, Activity=%s, NaceCode=%s%n",
         d.getName(),
         d.getRegistryCode(),
         d.getStatus(),
         d.getFoundingDate(),
-        d.getAddress(),
-        d.getMainActivity());
+        d.getAddress().map(CompanyAddress::toString).orElse("N/A"),
+        d.getMainActivity(),
+        d.getNaceCode());
   }
 }

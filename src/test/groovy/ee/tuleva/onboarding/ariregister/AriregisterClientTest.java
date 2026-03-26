@@ -138,7 +138,11 @@ class AriregisterClientTest {
     assertThat(detail.getRegistryCode()).isEqualTo("99000001");
     assertThat(detail.getStatus()).contains("R");
     assertThat(detail.getFoundingDate()).contains(LocalDate.of(2024, 9, 1));
-    assertThat(detail.getAddress()).contains("Pärnu mnt 123, 11313 Tallinn");
+    assertThat(detail.getAddress())
+        .contains(
+            new CompanyAddress(
+                "Pärnu mnt 123, 11313 Tallinn",
+                new AddressDetails("Pärnu mnt 123", "Tallinn", "11313", "EST")));
     assertThat(detail.getMainActivity()).contains("Fondide valitsemine");
 
     mockServer.verify();

@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.ariregister;
 
-import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6Aadress;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6Ettevotja;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6TeatatudTegevusala;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6Yldandmed;
@@ -27,12 +26,20 @@ class CompanyDetailMapper {
     return Optional.ofNullable(yldandmed.getEsmaregistreerimiseKpv());
   }
 
-  private static Optional<String> extractCurrentAddress(DetailandmedV6Yldandmed yldandmed) {
+  private static Optional<CompanyAddress> extractCurrentAddress(DetailandmedV6Yldandmed yldandmed) {
     return Optional.ofNullable(yldandmed.getAadressid())
         .flatMap(
             aadressid ->
                 aadressid.getItem().stream().filter(a -> a.getLoppKpv() == null).findFirst())
-        .map(DetailandmedV6Aadress::getAadressAdsAdsNormaliseeritudTaisaadress);
+        .map(
+            a ->
+                new CompanyAddress(
+                    a.getAadressAdsAdsNormaliseeritudTaisaadress(),
+                    new AddressDetails(
+                        a.getTanavMajaKorter(),
+                        a.getEhakNimetus(),
+                        a.getPostiindeks(),
+                        a.getRiik())));
   }
 
   private static Optional<DetailandmedV6TeatatudTegevusala> extractMainActivityRecord(

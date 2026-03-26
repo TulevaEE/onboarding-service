@@ -5,9 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.ariregister.AriregisterClient;
-import ee.tuleva.onboarding.ariregister.CompanyDetail;
-import ee.tuleva.onboarding.ariregister.CompanyRelationship;
+import ee.tuleva.onboarding.ariregister.*;
 import ee.tuleva.onboarding.kyb.*;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -42,7 +40,14 @@ class KybSurveyServiceTest {
   void initialValidation_returnsLegalEntityDataWithFieldErrors() {
     var detail =
         new CompanyDetail(
-            "Test OÜ", REGISTRY_CODE, "R", "OÜ", null, "Tallinn", "Fondide valitsemine", "6630");
+            "Test OÜ",
+            REGISTRY_CODE,
+            "R",
+            "OÜ",
+            null,
+            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
+            "Fondide valitsemine",
+            "6630");
     var relationships = sampleRelationships();
     when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
     when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
@@ -72,7 +77,8 @@ class KybSurveyServiceTest {
     assertThat(result.legalForm().value()).isEqualTo("OÜ");
     assertThat(result.status().value()).isEqualTo(LegalEntityStatus.REGISTERED);
     assertThat(result.status().errors()).isEmpty();
-    assertThat(result.address().value()).isEqualTo("Tallinn");
+    assertThat(result.address().value())
+        .isEqualTo(new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)));
     assertThat(result.businessActivity().value()).isEqualTo("Fondide valitsemine");
     assertThat(result.naceCode().value()).isEqualTo("6630");
     assertThat(result.naceCode().errors()).containsExactly("See tegevusala ei ole toetatud");
@@ -86,7 +92,14 @@ class KybSurveyServiceTest {
   void initialValidation_noOwnershipErrorWhenAtLeastOneOwnershipCheckPasses() {
     var detail =
         new CompanyDetail(
-            "Test OÜ", REGISTRY_CODE, "R", "OÜ", null, "Tallinn", "Fondide valitsemine", "6630");
+            "Test OÜ",
+            REGISTRY_CODE,
+            "R",
+            "OÜ",
+            null,
+            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
+            "Fondide valitsemine",
+            "6630");
     var relationships = sampleRelationships();
     when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
     when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
@@ -117,7 +130,14 @@ class KybSurveyServiceTest {
   void initialValidation_returnsNoErrorsWhenAllChecksPassed() {
     var detail =
         new CompanyDetail(
-            "Test OÜ", REGISTRY_CODE, "R", "OÜ", null, "Tallinn", "Fondide valitsemine", "6630");
+            "Test OÜ",
+            REGISTRY_CODE,
+            "R",
+            "OÜ",
+            null,
+            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
+            "Fondide valitsemine",
+            "6630");
     var relationships = sampleRelationships();
     when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
     when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))

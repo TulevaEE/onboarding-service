@@ -13,7 +13,7 @@ public class CompanyDetail {
   @Nullable String status;
   @Nullable String legalForm;
   @Nullable LocalDate foundingDate;
-  @Nullable String address;
+  @Nullable CompanyAddress address;
   @Nullable String mainActivity;
   @Nullable String naceCode;
 
@@ -29,7 +29,7 @@ public class CompanyDetail {
     return Optional.ofNullable(foundingDate);
   }
 
-  public Optional<String> getAddress() {
+  public Optional<CompanyAddress> getAddress() {
     return Optional.ofNullable(address);
   }
 

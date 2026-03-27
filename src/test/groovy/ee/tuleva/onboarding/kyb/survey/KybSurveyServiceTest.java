@@ -308,6 +308,43 @@ class KybSurveyServiceTest {
   }
 
   @Test
+  void initialValidation_toleratesDataChangedCheck() {
+    var detail =
+        new CompanyDetail(
+            "Test OÜ",
+            REGISTRY_CODE,
+            "R",
+            "OÜ",
+            null,
+            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
+            "Fondide valitsemine",
+            "6630");
+    var relationships = sampleRelationships();
+    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
+    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
+        .thenReturn(relationships);
+    var companyData =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
+            new PersonalCode(PERSONAL_CODE),
+            CompanyStatus.R,
+            List.of(),
+            null);
+    when(kybCompanyDataMapper.toKybCompanyData(
+            detail, new PersonalCode(PERSONAL_CODE), relationships, null))
+        .thenReturn(companyData);
+    when(kybScreeningService.screen(companyData))
+        .thenReturn(
+            List.of(
+                new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+                new KybCheck(DATA_CHANGED, false, Map.of("changes", List.of("status changed")))));
+
+    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
+
+    assertThat(result.name().errors()).isEmpty();
+  }
+
+  @Test
   void initialValidation_returnsNameErrorWhenAlreadyOnboarded() {
     var detail =
         new CompanyDetail(

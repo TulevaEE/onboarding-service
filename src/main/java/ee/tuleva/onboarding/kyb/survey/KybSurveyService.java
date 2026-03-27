@@ -54,8 +54,7 @@ class KybSurveyService {
           DUAL_MEMBER_OWNERSHIP,
           SOLE_BOARD_MEMBER_IS_OWNER ->
           new FieldError("relatedPersons", "Ettevõtte omandistruktuur ei ole toetatud");
-      case DATA_CHANGED -> new FieldError("name", "Ettevõtet ei ole võimalik teenindada");
-      case SELF_CERTIFICATION -> null;
+      case DATA_CHANGED, SELF_CERTIFICATION -> null;
     };
   }
 

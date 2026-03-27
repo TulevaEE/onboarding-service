@@ -77,8 +77,7 @@ public class PaymentVerificationService {
     var messages = VerificationMessages.forType(partyId.type());
 
     var remitterPartyId = extractPartyId(payment.getRemitterIdCode());
-    var remitterCodeProvided = remitterPartyId.filter(p -> p.type() == partyId.type()).isPresent();
-    if (remitterCodeProvided && !partyId.code().equals(remitterPartyId.get().code())) {
+    if (remitterPartyId.isPresent() && !remitterPartyId.get().equals(partyId)) {
       identityCheckFailure(payment, messages.codeMismatch());
       return;
     }
@@ -89,7 +88,7 @@ public class PaymentVerificationService {
       return;
     }
 
-    if (!remitterCodeProvided
+    if (remitterPartyId.isEmpty()
         && !nameMatcher.isSameName(party.get().name(), payment.getRemitterName())) {
       identityCheckFailure(payment, messages.nameMismatch());
       return;

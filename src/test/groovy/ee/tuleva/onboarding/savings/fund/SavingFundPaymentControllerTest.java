@@ -126,7 +126,7 @@ class SavingFundPaymentControllerTest {
 
     mvc.perform(
             get("/v1/savings/onboarding/status/legal-entity")
-                .param("registryCode", "12345678")
+                .param("registry-code", "12345678")
                 .with(authentication(auth)))
         .andExpect(status().isOk())
         .andExpect(content().json("{\"status\":\"COMPLETED\"}"));
@@ -145,7 +145,7 @@ class SavingFundPaymentControllerTest {
 
     mvc.perform(
             get("/v1/savings/onboarding/status/legal-entity")
-                .param("registryCode", "12345678")
+                .param("registry-code", "12345678")
                 .with(authentication(auth)))
         .andExpect(status().isOk())
         .andExpect(content().json("{\"status\":null}"));

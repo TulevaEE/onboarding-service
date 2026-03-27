@@ -38,9 +38,10 @@ class SavingsCallbackServiceSpec extends Specification {
     )
   }
 
-  def "if token is paid and no other payment exists in the database, create one"() {
+  def "if token is paid and no other payment exists in the database, create one and attach recipient party"() {
     given:
     def serializedToken = aSerializedSavingsPaymentToken
+    def paymentId = UUID.randomUUID()
     1 * savingFundPaymentRepository.findRecentPayments(
         anInternalReference.description
     ) >> []
@@ -49,20 +50,18 @@ class SavingsCallbackServiceSpec extends Specification {
     when:
     def returnedPayment = savingsCallbackService.processToken(serializedToken)
     then:
-    1 * savingFundPaymentRepository.savePaymentData(_) >> UUID.randomUUID()
-    0 * savingFundPaymentRepository.attachParty(_, _) // No user to attach
+    1 * savingFundPaymentRepository.savePaymentData(_) >> paymentId
+    1 * savingFundPaymentRepository.attachParty(paymentId, new PartyId(PartyId.Type.PERSON, anInternalReference.recipientPersonalCode))
+    0 * eventPublisher.publishEvent(_)
     def payment = returnedPayment.get()
     payment.amount == token.grandTotal
     payment.currency == token.currency
     payment.description == token.merchantReference.description
     payment.remitterIban == token.senderIban
     payment.remitterName == token.senderName
-    payment.beneficiaryIban == null
-    payment.beneficiaryName == null
-    payment.partyId == null // party not set during creation
   }
 
-  def "if token is paid and user exists, create payment and attach user"() {
+  def "if token is paid and user exists, create payment, attach recipient party, and send email"() {
     given:
     def serializedToken = aSerializedSavingsPaymentToken
     def mockUser = sampleUser().personalCode("38812121215").build()
@@ -76,7 +75,7 @@ class SavingsCallbackServiceSpec extends Specification {
     def returnedPayment = savingsCallbackService.processToken(serializedToken)
     then:
     1 * savingFundPaymentRepository.savePaymentData(_) >> paymentId
-    1 * savingFundPaymentRepository.attachParty(paymentId, new PartyId(PartyId.Type.PERSON, anInternalReference.personalCode))
+    1 * savingFundPaymentRepository.attachParty(paymentId, new PartyId(PartyId.Type.PERSON, anInternalReference.recipientPersonalCode))
     1 * eventPublisher.publishEvent(_)
     def payment = returnedPayment.get()
     payment.amount == token.grandTotal
@@ -84,9 +83,24 @@ class SavingsCallbackServiceSpec extends Specification {
     payment.description == token.merchantReference.description
     payment.remitterIban == token.senderIban
     payment.remitterName == token.senderName
-    payment.beneficiaryIban == null
-    payment.beneficiaryName == null
-    payment.partyId == null // party not set on the returned object, but attached via repository call
+  }
+
+  def "company payment attaches LEGAL_ENTITY party and sends email to payer"() {
+    given:
+    def serializedToken = aSerializedCompanySavingsPaymentToken
+    def mockUser = sampleUser().personalCode("38812121215").build()
+    def paymentId = UUID.randomUUID()
+    1 * savingFundPaymentRepository.findRecentPayments(
+        aCompanySavingsInternalReference.description
+    ) >> []
+    1 * userService.findByPersonalCode(aCompanySavingsInternalReference.personalCode) >> Optional.of(mockUser)
+    when:
+    def returnedPayment = savingsCallbackService.processToken(serializedToken)
+    then:
+    1 * savingFundPaymentRepository.savePaymentData(_) >> paymentId
+    1 * savingFundPaymentRepository.attachParty(paymentId, new PartyId(PartyId.Type.LEGAL_ENTITY, "12345678"))
+    1 * eventPublisher.publishEvent(_)
+    returnedPayment.isPresent()
   }
 
   def "if payment already exists then no payment is saved"() {

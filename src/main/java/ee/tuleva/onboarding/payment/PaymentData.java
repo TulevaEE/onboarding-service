@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.payment;
 
 import ee.tuleva.onboarding.currency.Currency;
-import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
+import ee.tuleva.onboarding.party.ValidPartyCode;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import lombok.Builder;
@@ -11,7 +11,8 @@ import lombok.Data;
 @Builder
 public class PaymentData {
 
-  @ValidPersonalCode @NotNull private String recipientPersonalCode;
+  // TODO: rename to recipientCode
+  @ValidPartyCode @NotNull private String recipientPersonalCode;
   // TODO: add validation and make it work with MEMBER_FEE type
   // @NotNull @DecimalMin("0.01")
   private BigDecimal amount;

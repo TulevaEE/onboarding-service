@@ -54,6 +54,30 @@ class PaymentControllerSpec extends BaseControllerSpec {
         .andExpect(status().isBadRequest())
   }
 
+  def "GET /payments/link accepts registry code for SAVINGS type"() {
+    given:
+    def person = sampleAuthenticatedPerson
+    def mvc = mockMvcWithAuthenticationPrincipal(person, paymentController)
+
+    PaymentLink paymentLink = new PaymentLink("https://some.url?payment_token=23948h3t9gfd")
+
+    PaymentData paymentData = PaymentData.builder()
+        .amount(100.00)
+        .currency(EUR)
+        .type(SAVINGS)
+        .paymentChannel(LHV)
+        .recipientPersonalCode("12345678")
+        .build()
+
+    1 * paymentService.getLink(paymentData, person) >> paymentLink
+
+    expect:
+    mvc.perform(get("/v1/payments/link?amount=100.00&currency=EUR&type=SAVINGS&paymentChannel=LHV&recipientPersonalCode=12345678"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.url', is(paymentLink.url())))
+  }
+
   def "GET /payments/link"() {
     given:
     def person = sampleAuthenticatedPerson

@@ -6,12 +6,14 @@ import com.nimbusds.jose.JWSObject;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent;
+import ee.tuleva.onboarding.payment.provider.PaymentReference;
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioOrderToken;
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -62,18 +64,23 @@ public class SavingsCallbackService {
             .build();
 
     var paymentId = savingFundPaymentRepository.savePaymentData(payment);
+    var ref = token.getMerchantReference();
+
+    attachRecipientParty(paymentId, ref);
 
     userService
-        .findByPersonalCode(token.getMerchantReference().getPersonalCode())
+        .findByPersonalCode(ref.getPersonalCode())
         .ifPresent(
-            user -> {
-              savingFundPaymentRepository.attachParty(
-                  paymentId, new PartyId(PERSON, user.getPersonalCode()));
-              eventPublisher.publishEvent(
-                  new SavingsPaymentCreatedEvent(
-                      this, user, token.getMerchantReference().getLocale()));
-            });
+            user ->
+                eventPublisher.publishEvent(
+                    new SavingsPaymentCreatedEvent(this, user, ref.getLocale())));
 
     return Optional.of(payment);
+  }
+
+  private void attachRecipientParty(UUID paymentId, PaymentReference ref) {
+    var partyType = Optional.ofNullable(ref.getRecipientPartyType()).orElse(PERSON);
+    var partyId = new PartyId(partyType, ref.getRecipientPersonalCode());
+    savingFundPaymentRepository.attachParty(paymentId, partyId);
   }
 }

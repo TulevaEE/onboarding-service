@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.payment.provider;
 
 import static ee.tuleva.onboarding.payment.PaymentData.*;
 
+import ee.tuleva.onboarding.party.PartyId;
 import java.util.Locale;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
@@ -24,4 +25,6 @@ public class PaymentReference {
   private Locale locale;
 
   private String description;
+
+  private PartyId.Type recipientPartyType;
 }

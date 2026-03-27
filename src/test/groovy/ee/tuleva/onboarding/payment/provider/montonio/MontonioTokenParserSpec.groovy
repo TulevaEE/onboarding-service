@@ -48,7 +48,7 @@ class MontonioTokenParserSpec extends Specification {
     def parsed = montonioTokenParser.parse(JWSObject.parse(token))
     then:
     parsed.uuid == "3ab94f11-fb71-4401-8043-5e911227037e"
-    parsed.merchantReference == new PaymentReference("38812121215", "38812121215", UUID.fromString("3ab94f11-fb71-4401-8043-5e911227037e"), PaymentData.PaymentType.SAVINGS, Locale.ENGLISH, "description")
+    parsed.merchantReference == new PaymentReference("38812121215", "38812121215", UUID.fromString("3ab94f11-fb71-4401-8043-5e911227037e"), PaymentData.PaymentType.SAVINGS, Locale.ENGLISH, "description", null)
     parsed.grandTotal == new BigDecimal("10.00")
     parsed.paymentStatus == MontonioOrderToken.MontonioOrderStatus.PAID
   }

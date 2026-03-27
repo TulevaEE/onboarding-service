@@ -2,13 +2,13 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
@@ -17,8 +17,6 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.notification.RedemptionRequestedEvent;
-import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -42,7 +40,6 @@ public class RedemptionService {
   private final RedemptionStatusService redemptionStatusService;
   private final LedgerService ledgerService;
   private final SavingsFundLedger savingsFundLedger;
-  private final UserService userService;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final FundNavProvider navProvider;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
@@ -52,29 +49,25 @@ public class RedemptionService {
 
   @Transactional
   public RedemptionRequest createRedemptionRequest(
-      Long userId, BigDecimal amount, Currency currency, String customerIban) {
+      PartyId partyId, BigDecimal amount, Currency currency, String customerIban) {
     if (currency != EUR) {
       throw new IllegalArgumentException("Only EUR currency is supported: currency=" + currency);
     }
 
     validateAmountPrecision(amount);
-
-    User user = userService.getByIdOrThrow(userId);
-    validateOnboarding(user);
-    var party = new PartyId(PartyId.Type.PERSON, user.getPersonalCode());
-    validateIbanBelongsToParty(customerIban, party);
+    validateOnboarding(partyId);
+    validateIbanBelongsToParty(customerIban, partyId);
 
     BigDecimal nav = navProvider.getDisplayNav(TKF100);
-    BigDecimal availableUnits = getEffectiveAvailableFundUnits(user);
+    BigDecimal availableUnits = getEffectiveAvailableFundUnits(partyId);
     BigDecimal fundUnits = convertAmountToFundUnits(amount, nav, availableUnits);
 
     validateFundUnits(fundUnits, availableUnits);
 
     RedemptionRequest request =
         RedemptionRequest.builder()
-            .userId(userId)
-            .partyType(party.type())
-            .partyCode(party.code())
+            .partyType(partyId.type())
+            .partyCode(partyId.code())
             .fundUnits(fundUnits)
             .requestedAmount(amount)
             .customerIban(customerIban)
@@ -83,18 +76,18 @@ public class RedemptionService {
 
     RedemptionRequest saved = redemptionRequestRepository.save(request);
 
-    savingsFundLedger.reserveFundUnitsForRedemption(party, fundUnits, saved.getId());
+    savingsFundLedger.reserveFundUnitsForRedemption(partyId, fundUnits, saved.getId());
     log.info(
-        "Created redemption request: id={}, userId={}, requestedAmount={}, fundUnits={}, nav={}, customerIban={}",
+        "Created redemption request: id={}, party={}, requestedAmount={}, fundUnits={}, nav={}, customerIban={}",
         saved.getId(),
-        userId,
+        partyId,
         amount,
         fundUnits,
         nav,
         customerIban);
 
     applicationEventPublisher.publishEvent(
-        new RedemptionRequestedEvent(saved.getId(), userId, amount, fundUnits));
+        new RedemptionRequestedEvent(saved.getId(), partyId, amount, fundUnits));
 
     return saved;
   }
@@ -117,9 +110,9 @@ public class RedemptionService {
     return fundUnits;
   }
 
-  public List<RedemptionRequest> getPendingRedemptionsForUser(Long userId) {
-    return redemptionRequestRepository.findByUserIdAndStatusIn(
-        userId, List.of(RESERVED, IN_REVIEW, VERIFIED));
+  public List<RedemptionRequest> getPendingRedemptions(PartyId partyId) {
+    return redemptionRequestRepository.findByPartyTypeAndPartyCodeAndStatusIn(
+        partyId.type(), partyId.code(), List.of(RESERVED, IN_REVIEW, VERIFIED));
   }
 
   public RedemptionRequest getRedemption(UUID id) {
@@ -129,20 +122,18 @@ public class RedemptionService {
   }
 
   @Transactional
-  public void cancelRedemption(UUID id, Long userId) {
+  public void cancelRedemption(UUID id, PartyId partyId) {
     RedemptionRequest request = getRedemption(id);
 
-    if (!request.getUserId().equals(userId)) {
-      throw new IllegalArgumentException("Redemption does not belong to user: id=" + id);
+    if (!partyId.equals(request.getPartyId())) {
+      throw new IllegalArgumentException("Redemption does not belong to party: id=" + id);
     }
 
     validateCancellationDeadline(request);
 
-    User user = userService.getByIdOrThrow(userId);
-    var party = new PartyId(PartyId.Type.PERSON, user.getPersonalCode());
-    savingsFundLedger.cancelRedemptionReservation(party, request.getFundUnits(), request.getId());
+    savingsFundLedger.cancelRedemptionReservation(partyId, request.getFundUnits(), request.getId());
     redemptionStatusService.changeStatus(id, CANCELLED);
-    log.info("Cancelled redemption request: id={}, userId={}", id, userId);
+    log.info("Cancelled redemption request: id={}, party={}", id, partyId);
   }
 
   private void validateCancellationDeadline(RedemptionRequest request) {
@@ -160,10 +151,9 @@ public class RedemptionService {
     }
   }
 
-  private void validateOnboarding(User user) {
-    if (!savingsFundOnboardingService.isOnboardingCompleted(user.getPersonalCode())) {
-      throw new IllegalStateException(
-          "User savings fund onboarding not completed: userId=" + user.getId());
+  private void validateOnboarding(PartyId partyId) {
+    if (!savingsFundOnboardingService.isOnboardingCompleted(partyId.code())) {
+      throw new IllegalStateException("Savings fund onboarding not completed: party=" + partyId);
     }
   }
 
@@ -178,9 +168,9 @@ public class RedemptionService {
     }
   }
 
-  private BigDecimal getEffectiveAvailableFundUnits(User user) {
+  private BigDecimal getEffectiveAvailableFundUnits(PartyId partyId) {
     return ledgerService
-        .getPartyAccount(user.getPersonalCode(), PERSON, FUND_UNITS)
+        .getPartyAccount(partyId.code(), PartyType.valueOf(partyId.type().name()), FUND_UNITS)
         .getBalance()
         .negate();
   }
@@ -189,7 +179,7 @@ public class RedemptionService {
     List<String> ibans = savingFundPaymentRepository.findDepositBankAccountIbans(partyId);
     if (!ibans.contains(iban)) {
       throw new IllegalArgumentException(
-          "IBAN does not belong to user: iban=" + iban + ", party=" + partyId);
+          "IBAN does not belong to party: iban=" + iban + ", party=" + partyId);
     }
   }
 

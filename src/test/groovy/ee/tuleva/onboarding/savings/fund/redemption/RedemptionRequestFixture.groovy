@@ -9,7 +9,6 @@ class RedemptionRequestFixture {
 
   static RedemptionRequestBuilder redemptionRequestFixture() {
     return RedemptionRequest.builder()
-        .userId(1L)
         .partyType(PERSON)
         .partyCode("38501010000")
         .fundUnits(new BigDecimal("10.00000"))

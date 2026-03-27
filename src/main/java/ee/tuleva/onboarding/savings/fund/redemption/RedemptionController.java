@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.capital.transfer.iban.ValidIban;
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.party.PartyId;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -29,15 +30,16 @@ public class RedemptionController {
   public RedemptionRequest createRedemption(
       @Valid @RequestBody RedemptionRequestDto request,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    var partyId = PartyId.from(authenticatedPerson.getRole());
     log.info(
-        "Creating redemption request: userId={}, amount={}, currency={}, iban={}",
-        authenticatedPerson.getUserId(),
+        "Creating redemption request: party={}, amount={}, currency={}, iban={}",
+        partyId,
         request.amount(),
         request.currency(),
         request.iban());
 
     return redemptionService.createRedemptionRequest(
-        authenticatedPerson.getUserId(), request.amount(), request.currency(), request.iban());
+        partyId, request.amount(), request.currency(), request.iban());
   }
 
   @Operation(summary = "Cancel redemption request")
@@ -45,9 +47,9 @@ public class RedemptionController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void cancelRedemption(
       @PathVariable UUID id, @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    log.info(
-        "Cancelling redemption request: id={}, userId={}", id, authenticatedPerson.getUserId());
-    redemptionService.cancelRedemption(id, authenticatedPerson.getUserId());
+    var partyId = PartyId.from(authenticatedPerson.getRole());
+    log.info("Cancelling redemption request: id={}, party={}", id, partyId);
+    redemptionService.cancelRedemption(id, partyId);
   }
 
   public record RedemptionRequestDto(

@@ -96,14 +96,13 @@ class RedemptionIntegrationTest {
   void createRedemptionRequest_createsRequestInReservedStatus() {
     var amount = new BigDecimal("10.00");
 
-    var request =
-        redemptionService.createRedemptionRequest(testUser.getId(), amount, EUR, VALID_IBAN);
+    var request = redemptionService.createRedemptionRequest(testParty, amount, EUR, VALID_IBAN);
 
     assertThat(request.getStatus()).isEqualTo(RESERVED);
     assertThat(request.getFundUnits()).isEqualByComparingTo(new BigDecimal("10.00000"));
     assertThat(request.getRequestedAmount()).isEqualByComparingTo(new BigDecimal("10.00"));
     assertThat(request.getCustomerIban()).isEqualTo(VALID_IBAN);
-    assertThat(request.getUserId()).isEqualTo(testUser.getId());
+    assertThat(request.getPartyId()).isEqualTo(testParty);
     assertThat(request.getRequestedAt()).isNotNull();
   }
 
@@ -113,9 +112,7 @@ class RedemptionIntegrationTest {
     var amount = new BigDecimal("200.00");
 
     assertThatThrownBy(
-            () ->
-                redemptionService.createRedemptionRequest(
-                    testUser.getId(), amount, EUR, VALID_IBAN))
+            () -> redemptionService.createRedemptionRequest(testParty, amount, EUR, VALID_IBAN))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -124,8 +121,7 @@ class RedemptionIntegrationTest {
   void createRedemptionRequest_maxWithdrawalRoundsToExactBalance() {
     var maxAmount = new BigDecimal("100.00");
 
-    var request =
-        redemptionService.createRedemptionRequest(testUser.getId(), maxAmount, EUR, VALID_IBAN);
+    var request = redemptionService.createRedemptionRequest(testParty, maxAmount, EUR, VALID_IBAN);
 
     assertThat(request.getFundUnits()).isEqualByComparingTo(new BigDecimal("100.00000"));
   }
@@ -136,9 +132,7 @@ class RedemptionIntegrationTest {
     var amount = new BigDecimal("10.123");
 
     assertThatThrownBy(
-            () ->
-                redemptionService.createRedemptionRequest(
-                    testUser.getId(), amount, EUR, VALID_IBAN))
+            () -> redemptionService.createRedemptionRequest(testParty, amount, EUR, VALID_IBAN))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -146,10 +140,9 @@ class RedemptionIntegrationTest {
   @DisplayName("Cancel redemption before cutoff")
   void cancelRedemption_cancelsRequestBeforeCutoff() {
     var amount = new BigDecimal("10.00");
-    var request =
-        redemptionService.createRedemptionRequest(testUser.getId(), amount, EUR, VALID_IBAN);
+    var request = redemptionService.createRedemptionRequest(testParty, amount, EUR, VALID_IBAN);
 
-    redemptionService.cancelRedemption(request.getId(), testUser.getId());
+    redemptionService.cancelRedemption(request.getId(), testParty);
 
     var cancelled = redemptionRequestRepository.findById(request.getId()).orElseThrow();
     assertThat(cancelled.getStatus()).isEqualTo(CANCELLED);
@@ -166,12 +159,12 @@ class RedemptionIntegrationTest {
 
     var request =
         redemptionService.createRedemptionRequest(
-            testUser.getId(), new BigDecimal("10.00"), EUR, VALID_IBAN);
+            testParty, new BigDecimal("10.00"), EUR, VALID_IBAN);
 
     var tuesdayAfterDeadline = Instant.parse("2025-09-30T14:01:00Z");
     ClockHolder.setClock(Clock.fixed(tuesdayAfterDeadline, ZoneId.of("Europe/Tallinn")));
 
-    assertThatThrownBy(() -> redemptionService.cancelRedemption(request.getId(), testUser.getId()))
+    assertThatThrownBy(() -> redemptionService.cancelRedemption(request.getId(), testParty))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("Cancellation deadline has passed");
   }
@@ -179,12 +172,10 @@ class RedemptionIntegrationTest {
   @Test
   @DisplayName("Get user redemptions returns user's redemptions")
   void getUserRedemptions_returnsUserRedemptions() {
-    redemptionService.createRedemptionRequest(
-        testUser.getId(), new BigDecimal("5.00"), EUR, VALID_IBAN);
-    redemptionService.createRedemptionRequest(
-        testUser.getId(), new BigDecimal("3.00"), EUR, VALID_IBAN);
+    redemptionService.createRedemptionRequest(testParty, new BigDecimal("5.00"), EUR, VALID_IBAN);
+    redemptionService.createRedemptionRequest(testParty, new BigDecimal("3.00"), EUR, VALID_IBAN);
 
-    var redemptions = redemptionService.getPendingRedemptionsForUser(testUser.getId());
+    var redemptions = redemptionService.getPendingRedemptions(testParty);
 
     assertThat(redemptions).hasSize(2);
   }
@@ -194,8 +185,7 @@ class RedemptionIntegrationTest {
   void createRedemptionRequest_locksUnitsInLedger() {
     var amount = new BigDecimal("10.00");
 
-    var request =
-        redemptionService.createRedemptionRequest(testUser.getId(), amount, EUR, VALID_IBAN);
+    var request = redemptionService.createRedemptionRequest(testParty, amount, EUR, VALID_IBAN);
 
     assertThat(request.getStatus()).isEqualTo(RESERVED);
 
@@ -247,8 +237,7 @@ class RedemptionIntegrationTest {
     // Step 1: Create redemption request on Friday (after cutoff) - immediately RESERVED
     ClockHolder.setClock(Clock.fixed(friday, ZoneId.of("UTC")));
     var request =
-        redemptionService.createRedemptionRequest(
-            testUser.getId(), redemptionAmount, EUR, VALID_IBAN);
+        redemptionService.createRedemptionRequest(testParty, redemptionAmount, EUR, VALID_IBAN);
     var requestId = request.getId();
 
     assertThat(request.getStatus()).isEqualTo(RESERVED);
@@ -298,8 +287,7 @@ class RedemptionIntegrationTest {
     // Create redemption on Friday - immediately RESERVED
     ClockHolder.setClock(Clock.fixed(friday, ZoneId.of("UTC")));
     var request =
-        redemptionService.createRedemptionRequest(
-            testUser.getId(), redemptionAmount, EUR, VALID_IBAN);
+        redemptionService.createRedemptionRequest(testParty, redemptionAmount, EUR, VALID_IBAN);
     var requestId = request.getId();
 
     assertThat(request.getStatus()).isEqualTo(RESERVED);
@@ -307,7 +295,7 @@ class RedemptionIntegrationTest {
         .isEqualByComparingTo(reservedFundUnits.negate());
 
     // Cancel before batch job runs - should release reserved units
-    redemptionService.cancelRedemption(requestId, testUser.getId());
+    redemptionService.cancelRedemption(requestId, testParty);
 
     // Run batch job on Monday
     ClockHolder.setClock(Clock.fixed(monday, ZoneId.of("UTC")));
@@ -390,11 +378,9 @@ class RedemptionIntegrationTest {
     var invalidIban = "EE382200221020145685";
 
     assertThatThrownBy(
-            () ->
-                redemptionService.createRedemptionRequest(
-                    testUser.getId(), amount, EUR, invalidIban))
+            () -> redemptionService.createRedemptionRequest(testParty, amount, EUR, invalidIban))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("IBAN does not belong to user");
+        .hasMessageContaining("IBAN does not belong to party");
   }
 
   @Test
@@ -407,8 +393,7 @@ class RedemptionIntegrationTest {
     when(navProvider.getDisplayNav(any())).thenReturn(preciseNav);
 
     var request =
-        redemptionService.createRedemptionRequest(
-            testUser.getId(), maxWithdrawalValue, EUR, VALID_IBAN);
+        redemptionService.createRedemptionRequest(testParty, maxWithdrawalValue, EUR, VALID_IBAN);
 
     assertThat(request.getFundUnits()).isEqualByComparingTo(availableFundUnits);
     assertThat(request.getRequestedAmount()).isEqualByComparingTo(maxWithdrawalValue);
@@ -424,8 +409,7 @@ class RedemptionIntegrationTest {
 
     ClockHolder.setClock(Clock.fixed(friday, ZoneId.of("UTC")));
     var request =
-        redemptionService.createRedemptionRequest(
-            testUser.getId(), redemptionAmount, EUR, VALID_IBAN);
+        redemptionService.createRedemptionRequest(testParty, redemptionAmount, EUR, VALID_IBAN);
     var requestId = request.getId();
 
     redemptionStatusService.changeStatus(requestId, VERIFIED);

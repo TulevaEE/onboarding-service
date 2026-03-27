@@ -86,7 +86,7 @@ class SebRedemptionIntegrationTest {
     ClockHolder.setClock(Clock.fixed(FRIDAY, ZoneId.of("UTC")));
     var request =
         redemptionService.createRedemptionRequest(
-            testUser.getId(), redemptionAmount, EUR, SEB_DEPOSIT_IBAN);
+            testParty, redemptionAmount, EUR, SEB_DEPOSIT_IBAN);
 
     assertThat(request.getStatus()).isEqualTo(RESERVED);
 

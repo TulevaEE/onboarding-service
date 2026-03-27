@@ -149,7 +149,7 @@ public class ApplicationService {
     var payments =
         savingFundPaymentUpsertionService.getPendingPayments(PartyId.from(person.getRole()));
     var redemptionRequests =
-        savingFundRedemptionService.getPendingRedemptionsForUser(person.getUserId());
+        savingFundRedemptionService.getPendingRedemptions(PartyId.from(person.getRole()));
     return Stream.concat(
             payments.stream().map(this::convertSavingFundPayment),
             redemptionRequests.stream().map(this::convertSavingFundRedemptionRequest))

@@ -17,7 +17,6 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.notification.RedemptionBatchCompletedEvent;
-import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -50,7 +49,6 @@ public class RedemptionBatchJob {
   private final RedemptionRequestRepository redemptionRequestRepository;
   private final RedemptionStatusService redemptionStatusService;
   private final SavingsFundLedger savingsFundLedger;
-  private final UserService userService;
   private final ApplicationEventPublisher eventPublisher;
   private final BankAccountConfiguration bankAccountConfiguration;
   private final TransactionTemplate transactionTemplate;
@@ -134,8 +132,7 @@ public class RedemptionBatchJob {
                     return ZERO;
                   }
 
-                  var user = userService.getByIdOrThrow(request.getUserId());
-                  var party = new PartyId(PartyId.Type.PERSON, user.getPersonalCode());
+                  var party = request.getPartyId();
                   BigDecimal amount = request.getFundUnits().multiply(nav).setScale(2, HALF_UP);
 
                   toUpdate.setCashAmount(amount);
@@ -195,8 +192,7 @@ public class RedemptionBatchJob {
       }
 
       try {
-        var user = userService.getByIdOrThrow(updated.getUserId());
-        var party = new PartyId(PartyId.Type.PERSON, user.getPersonalCode());
+        var party = updated.getPartyId();
         String beneficiaryName = getBeneficiaryName(party, updated.getCustomerIban());
 
         PaymentRequest paymentRequest =

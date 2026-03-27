@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.party.PartyId;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -38,6 +39,7 @@ class RedemptionControllerTest {
   @MockitoBean private RedemptionService redemptionService;
 
   private final AuthenticatedPerson authPerson = sampleAuthenticatedPersonNonMember().build();
+  private final PartyId partyId = PartyId.from(authPerson.getRole());
   private final Authentication authentication =
       new UsernamePasswordAuthenticationToken(
           authPerson, null, List.of(new SimpleGrantedAuthority(USER)));
@@ -46,18 +48,10 @@ class RedemptionControllerTest {
   @DisplayName("POST /v1/savings/redemptions creates redemption and returns 201")
   void createRedemption_createsAndReturnsCreated() throws Exception {
     var requestId = UUID.randomUUID();
-    var redemptionRequest =
-        redemptionRequestFixture()
-            .id(requestId)
-            .userId(authPerson.getUserId())
-            .customerIban("EE471000001020145685")
-            .build();
+    var redemptionRequest = redemptionRequestFixture().id(requestId).build();
 
     when(redemptionService.createRedemptionRequest(
-            eq(authPerson.getUserId()),
-            eq(new BigDecimal("10.00")),
-            eq(EUR),
-            eq("EE471000001020145685")))
+            eq(partyId), eq(new BigDecimal("10.00")), eq(EUR), eq("EE471000001020145685")))
         .thenReturn(redemptionRequest);
 
     String requestBody =
@@ -81,10 +75,7 @@ class RedemptionControllerTest {
 
     verify(redemptionService)
         .createRedemptionRequest(
-            eq(authPerson.getUserId()),
-            eq(new BigDecimal("10.00")),
-            eq(EUR),
-            eq("EE471000001020145685"));
+            eq(partyId), eq(new BigDecimal("10.00")), eq(EUR), eq("EE471000001020145685"));
   }
 
   @Test
@@ -159,6 +150,6 @@ class RedemptionControllerTest {
                 .with(authentication(authentication)))
         .andExpect(status().isNoContent());
 
-    verify(redemptionService).cancelRedemption(requestId, authPerson.getUserId());
+    verify(redemptionService).cancelRedemption(requestId, partyId);
   }
 }

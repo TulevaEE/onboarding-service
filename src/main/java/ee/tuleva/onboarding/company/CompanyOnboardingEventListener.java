@@ -25,16 +25,12 @@ public class CompanyOnboardingEventListener {
   @EventListener
   @Transactional
   public void onKybCheckPerformed(KybCheckPerformedEvent event) {
-    if (allChecksPassed(event)) {
+    if (noNonDataChangedCheckFailed(event)) {
       var company =
           companyRepository
               .findByRegistryCode(event.getCompany().registryCode().value())
               .orElseGet(() -> createCompany(event));
       replaceParties(company, event);
-    } else if (dataChangedCheckFailed(event)) {
-      companyRepository
-          .findByRegistryCode(event.getCompany().registryCode().value())
-          .ifPresent(company -> replaceParties(company, event));
     }
   }
 
@@ -69,13 +65,10 @@ public class CompanyOnboardingEventListener {
         .build();
   }
 
-  private boolean allChecksPassed(KybCheckPerformedEvent event) {
-    return event.getChecks().stream().allMatch(KybCheck::success);
-  }
-
-  private boolean dataChangedCheckFailed(KybCheckPerformedEvent event) {
+  private boolean noNonDataChangedCheckFailed(KybCheckPerformedEvent event) {
     return event.getChecks().stream()
-        .anyMatch(check -> check.type() == DATA_CHANGED && !check.success());
+        .filter(check -> check.type() != DATA_CHANGED)
+        .allMatch(KybCheck::success);
   }
 
   private Company createCompany(KybCheckPerformedEvent event) {

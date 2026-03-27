@@ -199,7 +199,7 @@ class KybSurveyServiceTest {
                 "EST"),
             new CompanyRelationship(
                 "F",
-                "S",
+                "OSAN",
                 "Osanik",
                 "JAAN",
                 "TAMM",

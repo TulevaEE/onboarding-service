@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 class KybCompanyDataMapper {
 
   private static final String BOARD_MEMBER_ROLE = "JUHL";
-  private static final String SHAREHOLDER_ROLE = "S";
+  private static final String SHAREHOLDER_ROLE = "OSAN";
 
   private final AmlCheckRepository amlCheckRepository;
 

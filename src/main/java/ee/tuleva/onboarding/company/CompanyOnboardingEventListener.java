@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.company;
 
-import static ee.tuleva.onboarding.company.PartyType.PERSON;
 import static ee.tuleva.onboarding.company.RelationshipType.*;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCheckPerformedEvent;

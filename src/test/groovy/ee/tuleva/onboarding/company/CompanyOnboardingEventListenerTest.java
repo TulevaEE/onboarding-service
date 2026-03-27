@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.company;
 
-import static ee.tuleva.onboarding.company.PartyType.PERSON;
 import static ee.tuleva.onboarding.company.RelationshipType.*;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_ACTIVE;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_STRUCTURE;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;

@@ -79,7 +79,7 @@ class KybSurveyServiceTest {
     when(kybCompanyDataMapper.toKybCompanyData(
             detail, new PersonalCode(PERSONAL_CODE), relationships, null))
         .thenReturn(companyData);
-    when(kybScreeningService.screen(companyData))
+    when(kybScreeningService.validate(companyData))
         .thenReturn(
             List.of(
                 new KybCheck(COMPANY_ACTIVE, true, Map.of()),
@@ -132,7 +132,7 @@ class KybSurveyServiceTest {
     when(kybCompanyDataMapper.toKybCompanyData(
             detail, new PersonalCode(PERSONAL_CODE), relationships, null))
         .thenReturn(companyData);
-    when(kybScreeningService.screen(companyData))
+    when(kybScreeningService.validate(companyData))
         .thenReturn(
             List.of(
                 new KybCheck(COMPANY_ACTIVE, true, Map.of()),
@@ -223,7 +223,7 @@ class KybSurveyServiceTest {
     when(kybCompanyDataMapper.toKybCompanyData(
             detail, new PersonalCode(PERSONAL_CODE), relationships, null))
         .thenReturn(companyData);
-    when(kybScreeningService.screen(companyData))
+    when(kybScreeningService.validate(companyData))
         .thenReturn(
             List.of(
                 new KybCheck(COMPANY_ACTIVE, true, Map.of()),
@@ -333,7 +333,7 @@ class KybSurveyServiceTest {
     when(kybCompanyDataMapper.toKybCompanyData(
             detail, new PersonalCode(PERSONAL_CODE), relationships, null))
         .thenReturn(companyData);
-    when(kybScreeningService.screen(companyData))
+    when(kybScreeningService.validate(companyData))
         .thenReturn(
             List.of(
                 new KybCheck(COMPANY_ACTIVE, true, Map.of()),
@@ -370,7 +370,7 @@ class KybSurveyServiceTest {
     when(kybCompanyDataMapper.toKybCompanyData(
             detail, new PersonalCode(PERSONAL_CODE), relationships, null))
         .thenReturn(companyData);
-    when(kybScreeningService.screen(companyData))
+    when(kybScreeningService.validate(companyData))
         .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
     when(savingsFundOnboardingRepository.findStatusByPersonalCode(REGISTRY_CODE))
         .thenReturn(Optional.of(SavingsFundOnboardingStatus.REJECTED));
@@ -406,7 +406,7 @@ class KybSurveyServiceTest {
     when(kybCompanyDataMapper.toKybCompanyData(
             detail, new PersonalCode(PERSONAL_CODE), relationships, null))
         .thenReturn(companyData);
-    when(kybScreeningService.screen(companyData))
+    when(kybScreeningService.validate(companyData))
         .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
     when(savingsFundOnboardingRepository.findStatusByPersonalCode(REGISTRY_CODE))
         .thenReturn(Optional.of(SavingsFundOnboardingStatus.COMPLETED));
@@ -443,7 +443,7 @@ class KybSurveyServiceTest {
     when(kybCompanyDataMapper.toKybCompanyData(
             detail, new PersonalCode(PERSONAL_CODE), relationships, null))
         .thenReturn(companyData);
-    when(kybScreeningService.screen(companyData))
+    when(kybScreeningService.validate(companyData))
         .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
     when(savingsFundOnboardingRepository.findStatusByPersonalCode(REGISTRY_CODE))
         .thenReturn(Optional.empty());
@@ -480,7 +480,7 @@ class KybSurveyServiceTest {
     when(kybCompanyDataMapper.toKybCompanyData(
             detail, new PersonalCode(PERSONAL_CODE), relationships, null))
         .thenReturn(companyData);
-    when(kybScreeningService.screen(companyData))
+    when(kybScreeningService.validate(companyData))
         .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
     when(savingsFundOnboardingRepository.findStatusByPersonalCode(REGISTRY_CODE))
         .thenReturn(Optional.of(WHITELISTED));

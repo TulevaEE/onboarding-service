@@ -74,7 +74,7 @@ class KybSurveyService {
         kybCompanyDataMapper.toKybCompanyData(
             detail, new PersonalCode(personalCode), relationships, null);
 
-    var checks = kybScreeningService.screen(companyData);
+    var checks = kybScreeningService.validate(companyData);
 
     return buildLegalEntityData(detail, relationships, checks, getOnboardingError(registryCode));
   }

@@ -16,9 +16,12 @@ public class KybScreeningService {
   private final KybDataChangeDetector dataChangeDetector;
   private final ApplicationEventPublisher eventPublisher;
 
+  public List<KybCheck> validate(KybCompanyData companyData) {
+    return screeners.stream().map(s -> s.screen(companyData)).flatMap(Collection::stream).toList();
+  }
+
   public List<KybCheck> screen(KybCompanyData companyData) {
-    var screenerResults =
-        screeners.stream().map(s -> s.screen(companyData)).flatMap(Collection::stream).toList();
+    var screenerResults = validate(companyData);
 
     var dataChangedCheck = dataChangeDetector.detect(companyData.personalCode(), screenerResults);
 

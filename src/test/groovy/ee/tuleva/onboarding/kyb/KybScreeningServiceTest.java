@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
@@ -202,5 +203,36 @@ class KybScreeningServiceTest {
     assertThat(event.getPersonalCode()).isEqualTo(new PersonalCode("38501010001"));
     assertThat(event.getRelatedPersons()).isEqualTo(data.relatedPersons());
     assertThat(event.getChecks()).isEqualTo(results);
+  }
+
+  @Test
+  void validateReturnsScreenerResultsWithoutPublishingEvent() {
+    var person =
+        new KybRelatedPerson(
+            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(100), UNKNOWN);
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
+            new PersonalCode("38501010001"),
+            R,
+            List.of(person),
+            new SelfCertification(true, true, true));
+
+    var results = kybScreeningService.validate(data);
+
+    var types = results.stream().map(KybCheck::type).toList();
+    assertThat(types)
+        .containsExactlyInAnyOrder(
+            COMPANY_STRUCTURE,
+            SOLE_MEMBER_OWNERSHIP,
+            COMPANY_ACTIVE,
+            RELATED_PERSONS_KYC,
+            COMPANY_SANCTION,
+            COMPANY_PEP,
+            HIGH_RISK_NACE,
+            COMPANY_LEGAL_FORM,
+            SELF_CERTIFICATION);
+    assertThat(types).doesNotContain(DATA_CHANGED);
+    verifyNoInteractions(eventPublisher);
   }
 }

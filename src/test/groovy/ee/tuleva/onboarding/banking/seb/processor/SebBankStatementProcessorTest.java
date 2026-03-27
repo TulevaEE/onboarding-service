@@ -163,6 +163,8 @@ class SebBankStatementProcessorTest {
         RedemptionRequest.builder()
             .id(redemptionRequestId)
             .userId(user.getId())
+            .partyType(PartyId.Type.PERSON)
+            .partyCode(user.getPersonalCode())
             .customerIban(customerIban)
             .status(REDEEMED)
             .build();
@@ -203,6 +205,8 @@ class SebBankStatementProcessorTest {
         RedemptionRequest.builder()
             .id(redemptionRequestId)
             .userId(user.getId())
+            .partyType(PartyId.Type.PERSON)
+            .partyCode(user.getPersonalCode())
             .customerIban(EXTERNAL_ACCOUNT_IBAN)
             .status(REDEEMED)
             .build();
@@ -234,6 +238,8 @@ class SebBankStatementProcessorTest {
         RedemptionRequest.builder()
             .id(redemptionRequestId)
             .userId(missingUserId)
+            .partyType(PartyId.Type.PERSON)
+            .partyCode("00000000000")
             .customerIban(EXTERNAL_ACCOUNT_IBAN)
             .status(REDEEMED)
             .build();

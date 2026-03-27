@@ -61,8 +61,8 @@ public class RedemptionService {
 
     User user = userService.getByIdOrThrow(userId);
     validateOnboarding(user);
-    validateIbanBelongsToParty(
-        customerIban, new PartyId(PartyId.Type.PERSON, user.getPersonalCode()));
+    var party = new PartyId(PartyId.Type.PERSON, user.getPersonalCode());
+    validateIbanBelongsToParty(customerIban, party);
 
     BigDecimal nav = navProvider.getDisplayNav(TKF100);
     BigDecimal availableUnits = getEffectiveAvailableFundUnits(user);
@@ -73,6 +73,8 @@ public class RedemptionService {
     RedemptionRequest request =
         RedemptionRequest.builder()
             .userId(userId)
+            .partyType(party.type())
+            .partyCode(party.code())
             .fundUnits(fundUnits)
             .requestedAmount(amount)
             .customerIban(customerIban)
@@ -81,7 +83,6 @@ public class RedemptionService {
 
     RedemptionRequest saved = redemptionRequestRepository.save(request);
 
-    var party = new PartyId(PartyId.Type.PERSON, user.getPersonalCode());
     savingsFundLedger.reserveFundUnitsForRedemption(party, fundUnits, saved.getId());
     log.info(
         "Created redemption request: id={}, userId={}, requestedAmount={}, fundUnits={}, nav={}, customerIban={}",

@@ -42,10 +42,7 @@ public class LegalEntitySavingsFundOnboardingService {
         .map(
             company ->
                 companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-                    personalCode,
-                    PERSON,
-                    company.getId(),
-                    BOARD_MEMBER))
+                    personalCode, PERSON, company.getId(), BOARD_MEMBER))
         .orElse(false);
   }
 }

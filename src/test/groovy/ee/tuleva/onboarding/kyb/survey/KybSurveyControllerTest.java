@@ -129,6 +129,23 @@ class KybSurveyControllerTest {
   }
 
   @Test
+  void submit_returns403WhenNotWhitelisted() throws Exception {
+    willThrow(new NotWhitelistedException(REGISTRY_CODE))
+        .given(kybSurveyService)
+        .submit(eq(1L), eq(PERSONAL_CODE), eq(REGISTRY_CODE), any(KybSurveyResponse.class));
+
+    mvc.perform(
+            post("/v1/kyb/surveys")
+                .param("registry-code", REGISTRY_CODE)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(SURVEY_JSON)
+                .with(csrf())
+                .with(authentication(personAuth())))
+        .andExpect(status().isForbidden())
+        .andExpect(content().json("{\"error\":\"NOT_WHITELISTED\"}"));
+  }
+
+  @Test
   void submit_returns403WhenNotBoardMember() throws Exception {
     willThrow(new NotBoardMemberException(REGISTRY_CODE, PERSONAL_CODE))
         .given(kybSurveyService)

@@ -46,6 +46,12 @@ class KybSurveyController {
         FORBIDDEN);
   }
 
+  @ExceptionHandler(NotWhitelistedException.class)
+  ResponseEntity<Map<String, String>> handleNotWhitelisted(NotWhitelistedException exception) {
+    return new ResponseEntity<>(
+        Map.of("error", "NOT_WHITELISTED", "error_description", exception.getMessage()), FORBIDDEN);
+  }
+
   @ExceptionHandler(Exception.class)
   ResponseEntity<Map<String, String>> handleUnexpectedError(Exception exception) {
     log.error("Unexpected error in KYB survey: message={}", exception.getMessage(), exception);

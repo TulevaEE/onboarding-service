@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.kyb.survey;
 
+import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.WHITELISTED;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
@@ -8,8 +9,11 @@ import ee.tuleva.onboarding.ariregister.AriregisterClient;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.kyb.*;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -22,11 +26,14 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 class KybSurveyService {
 
+  private static final Instant WHITELIST_CUTOFF = Instant.parse("2026-03-27T15:00:00Z");
+
   private final AriregisterClient ariregisterClient;
   private final KybCompanyDataMapper kybCompanyDataMapper;
   private final KybScreeningService kybScreeningService;
   private final KybSurveyResponseMapper kybSurveyResponseMapper;
   private final KybSurveyRepository kybSurveyRepository;
+  private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   private final Clock clock;
 
   private record FieldError(String field, String message) {}
@@ -68,11 +75,12 @@ class KybSurveyService {
 
     var checks = kybScreeningService.screen(companyData);
 
-    return buildLegalEntityData(detail, relationships, checks);
+    return buildLegalEntityData(detail, relationships, checks, isWhitelisted(registryCode));
   }
 
   void submit(
       Long userId, String personalCode, String registryCode, KybSurveyResponse surveyResponse) {
+    verifyWhitelisted(registryCode);
     var selfCertification = kybSurveyResponseMapper.extractSelfCertification(surveyResponse);
 
     log.info("Submitting KYB survey: registryCode={}, personalCode={}", registryCode, personalCode);
@@ -121,10 +129,34 @@ class KybSurveyService {
                     "Company not found in Ariregister: registryCode=" + registryCode));
   }
 
+  private boolean isWhitelisted(String registryCode) {
+    if (Instant.now(clock).isBefore(WHITELIST_CUTOFF)) {
+      return true;
+    }
+    return savingsFundOnboardingRepository
+        .findStatusByPersonalCode(registryCode)
+        .filter(status -> status == WHITELISTED)
+        .isPresent();
+  }
+
+  private void verifyWhitelisted(String registryCode) {
+    if (!isWhitelisted(registryCode)) {
+      throw new NotWhitelistedException(registryCode);
+    }
+  }
+
   private LegalEntityData buildLegalEntityData(
-      CompanyDetail detail, List<CompanyRelationship> relationships, List<KybCheck> checks) {
+      CompanyDetail detail,
+      List<CompanyRelationship> relationships,
+      List<KybCheck> checks,
+      boolean whitelisted) {
 
     var errorsByField = collectErrorsByField(checks);
+
+    var nameErrors = new ArrayList<>(errorsByField.getOrDefault("name", List.of()));
+    if (!whitelisted) {
+      nameErrors.add("Ettevõttel ei ole eelheakskiitu");
+    }
 
     var status =
         detail
@@ -143,7 +175,7 @@ class KybSurveyService {
             .toList();
 
     return new LegalEntityData(
-        validatedField(detail.getName(), errorsByField.getOrDefault("name", List.of())),
+        validatedField(detail.getName(), nameErrors),
         ValidatedField.valid(detail.getRegistryCode()),
         validatedField(
             detail.getLegalForm().orElse(null), errorsByField.getOrDefault("legalForm", List.of())),

@@ -2,9 +2,11 @@ package ee.tuleva.onboarding.kyb.survey;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
 import static ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSource.*;
+import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.WHITELISTED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -16,6 +18,7 @@ import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.kyb.*;
 import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSourceItem;
 import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanySourceOfIncome;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -42,6 +45,7 @@ class KybSurveyServiceTest {
   @Mock private KybScreeningService kybScreeningService;
   @Mock private KybSurveyResponseMapper kybSurveyResponseMapper;
   @Mock private KybSurveyRepository kybSurveyRepository;
+  @Mock private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
 
   @Spy private Clock clock = Clock.fixed(Instant.parse("2026-03-25T10:00:00Z"), ZoneId.of("UTC"));
 
@@ -300,6 +304,91 @@ class KybSurveyServiceTest {
 
     assertThatThrownBy(() -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse))
         .isInstanceOf(NotBoardMemberException.class);
+  }
+
+  @Test
+  void initialValidation_returnsNameErrorWhenNotWhitelistedAfterCutoff() {
+    doReturn(Instant.parse("2026-03-28T10:00:00Z")).when(clock).instant();
+    var detail =
+        new CompanyDetail(
+            "Test OÜ",
+            REGISTRY_CODE,
+            "R",
+            "OÜ",
+            null,
+            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
+            "Fondide valitsemine",
+            "6630");
+    var relationships = sampleRelationships();
+    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
+    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.of(2026, 3, 28)))
+        .thenReturn(relationships);
+    var companyData =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
+            new PersonalCode(PERSONAL_CODE),
+            CompanyStatus.R,
+            List.of(),
+            null);
+    when(kybCompanyDataMapper.toKybCompanyData(
+            detail, new PersonalCode(PERSONAL_CODE), relationships, null))
+        .thenReturn(companyData);
+    when(kybScreeningService.screen(companyData))
+        .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
+    when(savingsFundOnboardingRepository.findStatusByPersonalCode(REGISTRY_CODE))
+        .thenReturn(Optional.empty());
+
+    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
+
+    assertThat(result.name().errors()).containsExactly("Ettevõttel ei ole eelheakskiitu");
+  }
+
+  @Test
+  void initialValidation_returnsNoWhitelistErrorWhenWhitelisted() {
+    doReturn(Instant.parse("2026-03-28T10:00:00Z")).when(clock).instant();
+    var detail =
+        new CompanyDetail(
+            "Test OÜ",
+            REGISTRY_CODE,
+            "R",
+            "OÜ",
+            null,
+            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
+            "Fondide valitsemine",
+            "6630");
+    var relationships = sampleRelationships();
+    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
+    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.of(2026, 3, 28)))
+        .thenReturn(relationships);
+    var companyData =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
+            new PersonalCode(PERSONAL_CODE),
+            CompanyStatus.R,
+            List.of(),
+            null);
+    when(kybCompanyDataMapper.toKybCompanyData(
+            detail, new PersonalCode(PERSONAL_CODE), relationships, null))
+        .thenReturn(companyData);
+    when(kybScreeningService.screen(companyData))
+        .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
+    when(savingsFundOnboardingRepository.findStatusByPersonalCode(REGISTRY_CODE))
+        .thenReturn(Optional.of(WHITELISTED));
+
+    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
+
+    assertThat(result.name().errors()).doesNotContain("Ettevõttel ei ole eelheakskiitu");
+  }
+
+  @Test
+  void submit_throwsWhenNotWhitelistedAfterCutoff() {
+    doReturn(Instant.parse("2026-03-28T10:00:00Z")).when(clock).instant();
+    when(savingsFundOnboardingRepository.findStatusByPersonalCode(REGISTRY_CODE))
+        .thenReturn(Optional.empty());
+
+    assertThatThrownBy(
+            () -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, sampleSurveyResponse()))
+        .isInstanceOf(NotWhitelistedException.class);
   }
 
   private KybSurveyResponse sampleSurveyResponse() {

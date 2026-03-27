@@ -530,6 +530,84 @@ class KybSurveyServiceTest {
                     new CompanyIncomeSourceItem.Option(NOT_IN_CRYPTO)))));
   }
 
+  @Test
+  void initialValidation_excludesFounderOnlyPersonsFromRelatedPersons() {
+    var detail =
+        new CompanyDetail(
+            "Test OÜ",
+            REGISTRY_CODE,
+            "R",
+            "OÜ",
+            null,
+            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
+            "Fondide valitsemine",
+            "6630");
+    var jaanBoardMember =
+        new CompanyRelationship(
+            "F",
+            "JUHL",
+            "Juhatuse liige",
+            "Jaan",
+            "Tamm",
+            PERSONAL_CODE,
+            null,
+            null,
+            null,
+            new BigDecimal("100.00"),
+            "Osaluse kaudu",
+            "EST");
+    var jaanFounder =
+        new CompanyRelationship(
+            "F",
+            "A",
+            "Asutaja",
+            "Jaan",
+            "Tamm",
+            PERSONAL_CODE,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "EST");
+    var mariFounder =
+        new CompanyRelationship(
+            "F",
+            "A",
+            "Asutaja",
+            "Mari",
+            "Mets",
+            "49901010003",
+            null,
+            null,
+            null,
+            null,
+            null,
+            "EST");
+    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
+    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
+        .thenReturn(List.of(jaanBoardMember, jaanFounder, mariFounder));
+    var filteredRelationships = List.of(jaanBoardMember);
+    var companyData =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
+            new PersonalCode(PERSONAL_CODE),
+            CompanyStatus.R,
+            List.of(),
+            null);
+    when(kybCompanyDataMapper.toKybCompanyData(
+            detail, new PersonalCode(PERSONAL_CODE), filteredRelationships, null))
+        .thenReturn(companyData);
+    when(kybScreeningService.screen(companyData))
+        .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
+
+    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
+
+    assertThat(result.relatedPersons().value()).hasSize(1);
+    assertThat(result.relatedPersons().value().getFirst())
+        .isEqualTo(new RelatedPersonData(PERSONAL_CODE, "Jaan Tamm"));
+  }
+
   private List<CompanyRelationship> sampleRelationships() {
     return List.of(
         new CompanyRelationship(

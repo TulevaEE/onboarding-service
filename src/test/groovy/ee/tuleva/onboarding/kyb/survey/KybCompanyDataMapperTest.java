@@ -150,64 +150,6 @@ class KybCompanyDataMapperTest {
   }
 
   @Test
-  void excludesFounderOnlyPersons() {
-    // Jaan is both board member and founder — should appear
-    var jaanBoardMember =
-        new CompanyRelationship(
-            "F",
-            "JUHL",
-            "Juhatuse liige",
-            "Jaan",
-            "Tamm",
-            "38501010002",
-            null,
-            null,
-            null,
-            null,
-            null,
-            "EST");
-    var jaanFounder =
-        new CompanyRelationship(
-            "F",
-            "A",
-            "Asutaja",
-            "Jaan",
-            "Tamm",
-            "38501010002",
-            null,
-            null,
-            null,
-            null,
-            null,
-            "EST");
-    // Mari is founder only — should be excluded
-    var mariFounder =
-        new CompanyRelationship(
-            "F",
-            "A",
-            "Asutaja",
-            "Mari",
-            "Kask",
-            "49901010003",
-            null,
-            null,
-            null,
-            null,
-            null,
-            "EST");
-
-    var detail = new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null);
-
-    var result =
-        mapper.toKybCompanyData(
-            detail, PERSONAL_CODE, List.of(jaanBoardMember, jaanFounder, mariFounder), SELF_CERT);
-
-    assertThat(result.relatedPersons()).hasSize(1);
-    assertThat(result.relatedPersons().getFirst().personalCode()).isEqualTo(PERSONAL_CODE);
-    assertThat(result.relatedPersons().getFirst().boardMember()).isTrue();
-  }
-
-  @Test
   void mapsCompanyStatus() {
     var detail = new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null);
 

@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_ACTIVE;
-import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_STRUCTURE;
+import static ee.tuleva.onboarding.kyb.KybCheckType.*;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
 import static org.mockito.Mockito.*;
@@ -75,5 +74,21 @@ class LegalEntityOnboardingEventListenerTest {
     listener.onKybCheckPerformed(event);
 
     verify(repository).saveOnboardingStatus("12345678", REJECTED);
+  }
+
+  @Test
+  void setsStatusCompletedWhenOnlyDataChangedCheckFails() {
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(COMPANY_STRUCTURE, true, Map.of()),
+            new KybCheck(DATA_CHANGED, false, Map.of()));
+    var event =
+        new KybCheckPerformedEvent(
+            this, company, new PersonalCode("38501010001"), relatedPersons, checks);
+
+    listener.onKybCheckPerformed(event);
+
+    verify(repository).saveOnboardingStatus("12345678", COMPLETED);
   }
 }

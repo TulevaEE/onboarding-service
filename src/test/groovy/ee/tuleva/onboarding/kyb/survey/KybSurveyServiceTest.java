@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.kyb.*;
 import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSourceItem;
 import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanySourceOfIncome;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -307,6 +308,42 @@ class KybSurveyServiceTest {
   }
 
   @Test
+  void initialValidation_returnsNameErrorWhenAlreadyOnboarded() {
+    var detail =
+        new CompanyDetail(
+            "Test OÜ",
+            REGISTRY_CODE,
+            "R",
+            "OÜ",
+            null,
+            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
+            "Fondide valitsemine",
+            "6630");
+    var relationships = sampleRelationships();
+    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
+    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
+        .thenReturn(relationships);
+    var companyData =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
+            new PersonalCode(PERSONAL_CODE),
+            CompanyStatus.R,
+            List.of(),
+            null);
+    when(kybCompanyDataMapper.toKybCompanyData(
+            detail, new PersonalCode(PERSONAL_CODE), relationships, null))
+        .thenReturn(companyData);
+    when(kybScreeningService.screen(companyData))
+        .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
+    when(savingsFundOnboardingRepository.findStatusByPersonalCode(REGISTRY_CODE))
+        .thenReturn(Optional.of(SavingsFundOnboardingStatus.COMPLETED));
+
+    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
+
+    assertThat(result.name().errors()).containsExactly("Ettevõte on juba liitunud");
+  }
+
+  @Test
   void initialValidation_returnsNameErrorWhenNotWhitelistedAfterCutoff() {
     doReturn(Instant.parse("2026-03-28T10:00:00Z")).when(clock).instant();
     var detail =
@@ -383,12 +420,30 @@ class KybSurveyServiceTest {
   @Test
   void submit_throwsWhenNotWhitelistedAfterCutoff() {
     doReturn(Instant.parse("2026-03-28T10:00:00Z")).when(clock).instant();
+    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.of(2026, 3, 28)))
+        .thenReturn(sampleRelationships());
+    when(kybSurveyRepository.save(any(KybSurvey.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
     when(savingsFundOnboardingRepository.findStatusByPersonalCode(REGISTRY_CODE))
         .thenReturn(Optional.empty());
 
     assertThatThrownBy(
             () -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, sampleSurveyResponse()))
-        .isInstanceOf(NotWhitelistedException.class);
+        .isInstanceOf(OnboardingNotAllowedException.class);
+  }
+
+  @Test
+  void submit_throwsWhenAlreadyOnboarded() {
+    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
+        .thenReturn(sampleRelationships());
+    when(kybSurveyRepository.save(any(KybSurvey.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(savingsFundOnboardingRepository.findStatusByPersonalCode(REGISTRY_CODE))
+        .thenReturn(Optional.of(SavingsFundOnboardingStatus.COMPLETED));
+
+    assertThatThrownBy(
+            () -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, sampleSurveyResponse()))
+        .isInstanceOf(OnboardingNotAllowedException.class);
   }
 
   private KybSurveyResponse sampleSurveyResponse() {

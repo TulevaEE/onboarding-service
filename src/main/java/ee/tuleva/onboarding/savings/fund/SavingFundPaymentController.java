@@ -37,11 +37,15 @@ public class SavingFundPaymentController {
       @PathVariable("id") UUID paymentId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     log.info("Cancelling savings fund payment {}", paymentId);
-    var party = PartyId.from(authenticatedPerson.getRole());
-    savingFundPaymentUpsertionService.cancelPayment(party, paymentId);
-    var user = userService.findByPersonalCode(authenticatedPerson.getRoleCode()).orElseThrow();
-    eventPublisher.publishEvent(
-        new SavingsPaymentCancelledEvent(this, user, localeService.getCurrentLocale()));
+    var partyId = PartyId.from(authenticatedPerson.getRole());
+    savingFundPaymentUpsertionService.cancelPayment(partyId, paymentId);
+    userService
+        .findByPersonalCode(authenticatedPerson.getPersonalCode())
+        .ifPresent(
+            user ->
+                eventPublisher.publishEvent(
+                    new SavingsPaymentCancelledEvent(
+                        this, user, localeService.getCurrentLocale())));
     return ResponseEntity.noContent().build();
   }
 

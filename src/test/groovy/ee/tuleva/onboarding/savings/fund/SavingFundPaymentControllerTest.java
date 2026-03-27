@@ -50,6 +50,26 @@ class SavingFundPaymentControllerTest {
   @MockitoBean private ApplicationEventPublisher applicationEventPublisher;
 
   @Test
+  void cancelSavingsFundPayment_whenActingAsLegalEntity_shouldReturnNoContent() throws Exception {
+    UUID paymentId = UUID.randomUUID();
+    var person = sampleAuthenticatedPersonLegalEntity().build();
+
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
+
+    var user = mock(User.class);
+    when(userService.findByPersonalCode(person.getPersonalCode())).thenReturn(Optional.of(user));
+    when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
+    doNothing()
+        .when(savingFundPaymentUpsertionService)
+        .cancelPayment(eq(PartyId.from(person.getRole())), eq(paymentId));
+
+    mvc.perform(delete("/v1/savings/payments/" + paymentId).with(csrf()).with(authentication(auth)))
+        .andExpect(status().isNoContent());
+  }
+
+  @Test
   void cancelSavingsFundPayment_shouldReturnNoContent() throws Exception {
     UUID paymentId = UUID.randomUUID();
     var person = sampleAuthenticatedPersonAndMember().build();
@@ -59,7 +79,7 @@ class SavingFundPaymentControllerTest {
             person, null, List.of(new SimpleGrantedAuthority(USER)));
 
     var user = mock(User.class);
-    when(userService.findByPersonalCode(person.getRoleCode())).thenReturn(Optional.of(user));
+    when(userService.findByPersonalCode(person.getPersonalCode())).thenReturn(Optional.of(user));
     when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
     doNothing()
         .when(savingFundPaymentUpsertionService)

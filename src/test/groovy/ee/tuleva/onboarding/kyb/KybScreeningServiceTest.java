@@ -198,7 +198,9 @@ class KybScreeningServiceTest {
     var captor = ArgumentCaptor.forClass(KybCheckPerformedEvent.class);
     verify(eventPublisher).publishEvent(captor.capture());
     var event = captor.getValue();
+    assertThat(event.getCompany()).isEqualTo(data.company());
     assertThat(event.getPersonalCode()).isEqualTo(new PersonalCode("38501010001"));
+    assertThat(event.getRelatedPersons()).isEqualTo(data.relatedPersons());
     assertThat(event.getChecks()).isEqualTo(results);
   }
 }

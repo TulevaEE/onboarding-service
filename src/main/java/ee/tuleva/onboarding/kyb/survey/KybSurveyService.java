@@ -60,6 +60,8 @@ class KybSurveyService {
   }
 
   private static final String BOARD_MEMBER_ROLE = "JUHL";
+  // Founders (role "A") are historical — they don't imply any current relationship with the company
+  private static final String FOUNDER_ROLE = "A";
 
   LegalEntityData initialValidation(String registryCode, String personalCode) {
     log.info(
@@ -106,7 +108,9 @@ class KybSurveyService {
   private List<CompanyRelationship> fetchRelationshipsAndVerifyBoardMember(
       String registryCode, String personalCode) {
     var relationships =
-        ariregisterClient.getActiveCompanyRelationships(registryCode, LocalDate.now(clock));
+        ariregisterClient.getActiveCompanyRelationships(registryCode, LocalDate.now(clock)).stream()
+            .filter(r -> !FOUNDER_ROLE.equals(r.roleCode()))
+            .toList();
 
     boolean isBoardMember =
         relationships.stream()

@@ -16,14 +16,14 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-class KybCompanyDataMapper {
+public class KybCompanyDataMapper {
 
   private static final String BOARD_MEMBER_ROLE = "JUHL";
   private static final String SHAREHOLDER_ROLE = "S";
 
   private final AmlCheckRepository amlCheckRepository;
 
-  KybCompanyData toKybCompanyData(
+  public KybCompanyData toKybCompanyData(
       CompanyDetail detail,
       PersonalCode personalCode,
       List<CompanyRelationship> relationships,

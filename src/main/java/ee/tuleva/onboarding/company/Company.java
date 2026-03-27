@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.company;
 
 import static jakarta.persistence.GenerationType.UUID;
 
+import ee.tuleva.onboarding.party.Party;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
@@ -15,7 +16,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 @ToString
-public class Company {
+public class Company implements Party {
 
   @Id
   @GeneratedValue(strategy = UUID)
@@ -37,5 +38,15 @@ public class Company {
     if (createdDate == null) {
       createdDate = Instant.now();
     }
+  }
+
+  @Override
+  public String code() {
+    return getRegistryCode();
+  }
+
+  @Override
+  public String name() {
+    return getName();
   }
 }

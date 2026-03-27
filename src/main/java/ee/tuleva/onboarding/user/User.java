@@ -6,6 +6,7 @@ import static jakarta.persistence.GenerationType.*;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.notification.email.Emailable;
+import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.user.exception.NotAMemberException;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
@@ -28,7 +29,7 @@ import lombok.*;
 @NoArgsConstructor
 @EqualsAndHashCode(exclude = {"member"})
 @ToString(exclude = {"member"})
-public class User implements Person, Emailable, Serializable {
+public class User implements Person, Emailable, Serializable, Party {
 
   @Id
   @GeneratedValue(strategy = IDENTITY)
@@ -91,5 +92,15 @@ public class User implements Person, Emailable, Serializable {
 
   public Long getMemberId() {
     return getMemberOrThrow().getId();
+  }
+
+  @Override
+  public String code() {
+    return getPersonalCode();
+  }
+
+  @Override
+  public String name() {
+    return getFullName();
   }
 }

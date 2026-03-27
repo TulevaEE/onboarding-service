@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
+import static ee.tuleva.onboarding.party.Party.Type.PERSON;
 
 import ee.tuleva.onboarding.company.CompanyPartyRepository;
 import ee.tuleva.onboarding.company.CompanyRepository;
@@ -42,7 +43,7 @@ public class LegalEntitySavingsFundOnboardingService {
             company ->
                 companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
                     personalCode,
-                    ee.tuleva.onboarding.company.PartyType.PERSON,
+                    PERSON,
                     company.getId(),
                     BOARD_MEMBER))
         .orElse(false);

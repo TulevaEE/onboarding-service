@@ -2,13 +2,13 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.company.CompanyFixture.*;
 import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
+import static ee.tuleva.onboarding.party.Party.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.company.CompanyPartyRepository;
 import ee.tuleva.onboarding.company.CompanyRepository;
-import ee.tuleva.onboarding.company.PartyType;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,7 +32,7 @@ class LegalEntitySavingsFundOnboardingServiceTest {
     when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
         .thenReturn(Optional.of(company));
     when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-            PERSONAL_CODE, PartyType.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
+            PERSONAL_CODE, PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
         .thenReturn(true);
     when(savingsFundOnboardingRepository.findStatusByPersonalCode(SAMPLE_REGISTRY_CODE))
         .thenReturn(Optional.of(COMPLETED));
@@ -47,7 +47,7 @@ class LegalEntitySavingsFundOnboardingServiceTest {
     when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
         .thenReturn(Optional.of(company));
     when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-            PERSONAL_CODE, PartyType.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
+            PERSONAL_CODE, PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
         .thenReturn(true);
     when(savingsFundOnboardingRepository.findStatusByPersonalCode(SAMPLE_REGISTRY_CODE))
         .thenReturn(Optional.empty());
@@ -61,7 +61,7 @@ class LegalEntitySavingsFundOnboardingServiceTest {
     when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
         .thenReturn(Optional.of(company));
     when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-            PERSONAL_CODE, PartyType.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
+            PERSONAL_CODE, PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
         .thenReturn(false);
 
     assertThat(service.getOnboardingStatus(PERSONAL_CODE, SAMPLE_REGISTRY_CODE)).isEmpty();
@@ -80,7 +80,7 @@ class LegalEntitySavingsFundOnboardingServiceTest {
     when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
         .thenReturn(Optional.of(company));
     when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-            PERSONAL_CODE, PartyType.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
+            PERSONAL_CODE, PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
         .thenReturn(true);
     when(savingsFundOnboardingRepository.isOnboardingCompleted(SAMPLE_REGISTRY_CODE))
         .thenReturn(true);

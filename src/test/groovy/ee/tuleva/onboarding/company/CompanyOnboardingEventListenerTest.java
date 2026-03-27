@@ -151,7 +151,6 @@ class CompanyOnboardingEventListenerTest {
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
-            new KybCheck(COMPANY_STRUCTURE, false, Map.of()),
             new KybCheck(DATA_CHANGED, false, Map.of()));
     var event =
         new KybCheckPerformedEvent(
@@ -166,19 +165,38 @@ class CompanyOnboardingEventListenerTest {
   }
 
   @Test
-  void doesNothingWhenDataChangedFailsButCompanyDoesNotExist() {
+  void createsCompanyWhenDataChangedFailsAndCompanyDoesNotExist() {
     var checks =
         List.of(
-            new KybCheck(COMPANY_STRUCTURE, false, Map.of()),
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(DATA_CHANGED, false, Map.of()));
     var event =
         new KybCheckPerformedEvent(
             this, company, new PersonalCode("38501010001"), List.of(person1), checks);
     given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.empty());
+    given(companyRepository.save(any(Company.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
 
     listener.onKybCheckPerformed(event);
 
-    verify(companyRepository, never()).save(any());
+    verify(companyRepository).save(any(Company.class));
+    verify(companyPartyRepository, times(3)).save(any(CompanyParty.class));
+  }
+
+  @Test
+  void doesNothingWhenNonDataChangedCheckFails() {
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(COMPANY_STRUCTURE, false, Map.of()),
+            new KybCheck(DATA_CHANGED, false, Map.of()));
+    var event =
+        new KybCheckPerformedEvent(
+            this, company, new PersonalCode("38501010001"), List.of(person1), checks);
+
+    listener.onKybCheckPerformed(event);
+
+    verifyNoInteractions(companyRepository);
     verifyNoInteractions(companyPartyRepository);
   }
 

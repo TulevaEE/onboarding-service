@@ -1,13 +1,12 @@
 package ee.tuleva.onboarding.payment.savings
 
-import ee.tuleva.onboarding.auth.UserFixture
+
 import tools.jackson.databind.json.JsonMapper
 import com.nimbusds.jose.JWSObject
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser
-import ee.tuleva.onboarding.party.Party
+import ee.tuleva.onboarding.party.PartyId
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository
-import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
@@ -60,7 +59,7 @@ class SavingsCallbackServiceSpec extends Specification {
     payment.remitterName == token.senderName
     payment.beneficiaryIban == null
     payment.beneficiaryName == null
-    payment.party == null // party not set during creation
+    payment.partyId == null // party not set during creation
   }
 
   def "if token is paid and user exists, create payment and attach user"() {
@@ -77,7 +76,7 @@ class SavingsCallbackServiceSpec extends Specification {
     def returnedPayment = savingsCallbackService.processToken(serializedToken)
     then:
     1 * savingFundPaymentRepository.savePaymentData(_) >> paymentId
-    1 * savingFundPaymentRepository.attachParty(paymentId, new Party(Party.Type.PERSON, anInternalReference.personalCode))
+    1 * savingFundPaymentRepository.attachParty(paymentId, new PartyId(PartyId.Type.PERSON, anInternalReference.personalCode))
     1 * eventPublisher.publishEvent(_)
     def payment = returnedPayment.get()
     payment.amount == token.grandTotal
@@ -87,7 +86,7 @@ class SavingsCallbackServiceSpec extends Specification {
     payment.remitterName == token.senderName
     payment.beneficiaryIban == null
     payment.beneficiaryName == null
-    payment.party == null // party not set on the returned object, but attached via repository call
+    payment.partyId == null // party not set on the returned object, but attached via repository call
   }
 
   def "if payment already exists then no payment is saved"() {

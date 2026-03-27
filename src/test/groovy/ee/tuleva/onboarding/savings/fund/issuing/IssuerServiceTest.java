@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.issuing;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
-import static ee.tuleva.onboarding.party.Party.Type.PERSON;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentFixture.aPayment;
@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
-import ee.tuleva.onboarding.party.Party;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
@@ -45,7 +45,7 @@ class IssuerServiceTest {
     var payment =
         aPayment()
             .amount(TEN)
-            .party(new Party(PERSON, user.getPersonalCode()))
+            .partyId(new PartyId(PERSON, user.getPersonalCode()))
             .status(RESERVED)
             .build();
 
@@ -67,7 +67,7 @@ class IssuerServiceTest {
     var payment =
         aPayment()
             .amount(paymentAmount)
-            .party(new Party(PERSON, user.getPersonalCode()))
+            .partyId(new PartyId(PERSON, user.getPersonalCode()))
             .status(RESERVED)
             .build();
 

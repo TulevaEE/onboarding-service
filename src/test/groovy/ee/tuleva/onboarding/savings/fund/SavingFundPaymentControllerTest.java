@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.locale.LocaleService;
-import ee.tuleva.onboarding.party.Party;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
@@ -63,7 +63,7 @@ class SavingFundPaymentControllerTest {
     when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
     doNothing()
         .when(savingFundPaymentUpsertionService)
-        .cancelPayment(eq(Party.from(person.getRole())), eq(paymentId));
+        .cancelPayment(eq(PartyId.from(person.getRole())), eq(paymentId));
 
     mvc.perform(delete("/v1/savings/payments/" + paymentId).with(csrf()).with(authentication(auth)))
         .andExpect(status().isNoContent());
@@ -158,7 +158,7 @@ class SavingFundPaymentControllerTest {
         new UsernamePasswordAuthenticationToken(
             person, null, List.of(new SimpleGrantedAuthority(USER)));
 
-    when(savingFundPaymentRepository.findDepositBankAccountIbans(Party.from(person.getRole())))
+    when(savingFundPaymentRepository.findDepositBankAccountIbans(PartyId.from(person.getRole())))
         .thenReturn(List.of("EE123456789012345678", "EE987654321098765432"));
 
     mvc.perform(get("/v1/savings/bank-accounts").with(authentication(auth)))

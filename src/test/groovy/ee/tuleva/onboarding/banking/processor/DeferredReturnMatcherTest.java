@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
-import static ee.tuleva.onboarding.party.Party.Type.PERSON;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentFixture.aPayment;
 import static org.mockito.ArgumentMatchers.any;
@@ -13,7 +13,7 @@ import ee.tuleva.onboarding.banking.BankAccountConfiguration;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
-import ee.tuleva.onboarding.party.Party;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.notification.DeferredReturnMatchingCompletedEvent;
 import ee.tuleva.onboarding.user.User;
@@ -58,7 +58,7 @@ class DeferredReturnMatcherTest {
     var originalPayment =
         aPayment()
             .id(originalPaymentId)
-            .party(new Party(PERSON, user.getPersonalCode()))
+            .partyId(new PartyId(PERSON, user.getPersonalCode()))
             .amount(new BigDecimal("50.00"))
             .status(RETURNED)
             .build();
@@ -152,7 +152,7 @@ class DeferredReturnMatcherTest {
     var originalPayment =
         aPayment()
             .id(originalPaymentId)
-            .party(new Party(PERSON, user.getPersonalCode()))
+            .partyId(new PartyId(PERSON, user.getPersonalCode()))
             .amount(new BigDecimal("50.00"))
             .build();
     var returnPayment = aPayment().amount(new BigDecimal("-50.00")).endToEndId(endToEndId).build();
@@ -266,7 +266,7 @@ class DeferredReturnMatcherTest {
     var originalPayment =
         aPayment()
             .id(originalPaymentId)
-            .party(new Party(PERSON, user.getPersonalCode()))
+            .partyId(new PartyId(PERSON, user.getPersonalCode()))
             .amount(new BigDecimal("50.00"))
             .status(VERIFIED)
             .build();
@@ -300,7 +300,7 @@ class DeferredReturnMatcherTest {
     var originalPayment =
         aPayment()
             .id(originalPaymentId)
-            .party(new Party(PERSON, user.getPersonalCode()))
+            .partyId(new PartyId(PERSON, user.getPersonalCode()))
             .amount(new BigDecimal("50.00"))
             .status(RETURNED)
             .build();
@@ -332,7 +332,7 @@ class DeferredReturnMatcherTest {
     var originalPayment =
         aPayment()
             .id(originalPaymentId)
-            .party(new Party(PERSON, user.getPersonalCode()))
+            .partyId(new PartyId(PERSON, user.getPersonalCode()))
             .amount(new BigDecimal("50.00"))
             .status(VERIFIED)
             .returnReason(null)
@@ -387,7 +387,7 @@ class DeferredReturnMatcherTest {
     var originalPayment =
         aPayment()
             .id(originalPaymentId)
-            .party(new Party(PERSON, user.getPersonalCode()))
+            .partyId(new PartyId(PERSON, user.getPersonalCode()))
             .amount(new BigDecimal("100.00"))
             .status(RETURNED)
             .build();

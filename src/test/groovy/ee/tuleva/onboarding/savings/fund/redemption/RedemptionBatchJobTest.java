@@ -17,7 +17,7 @@ import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
-import ee.tuleva.onboarding.party.Party;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.notification.RedemptionBatchCompletedEvent;
@@ -115,7 +115,7 @@ class RedemptionBatchJobTest {
     when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
         .thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(
-            eq(new Party(Party.Type.PERSON, user.getPersonalCode())), eq(customerIban)))
+            eq(new PartyId(PartyId.Type.PERSON, user.getPersonalCode())), eq(customerIban)))
         .thenReturn(Optional.of(beneficiaryName));
 
     doAnswer(
@@ -260,7 +260,7 @@ class RedemptionBatchJobTest {
     when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
         .thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(
-            eq(new Party(Party.Type.PERSON, user.getPersonalCode())), eq(customerIban)))
+            eq(new PartyId(PartyId.Type.PERSON, user.getPersonalCode())), eq(customerIban)))
         .thenReturn(Optional.of("John Smith"));
 
     doAnswer(
@@ -335,7 +335,7 @@ class RedemptionBatchJobTest {
     when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
         .thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(
-            eq(new Party(Party.Type.PERSON, user.getPersonalCode())), eq(customerIban)))
+            eq(new PartyId(PartyId.Type.PERSON, user.getPersonalCode())), eq(customerIban)))
         .thenReturn(Optional.of("John Smith"));
 
     doAnswer(
@@ -378,7 +378,7 @@ class RedemptionBatchJobTest {
     when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
         .thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(
-            eq(new Party(Party.Type.PERSON, user.getPersonalCode())), eq(customerIban)))
+            eq(new PartyId(PartyId.Type.PERSON, user.getPersonalCode())), eq(customerIban)))
         .thenReturn(Optional.of("John Smith"));
 
     doAnswer(
@@ -426,7 +426,7 @@ class RedemptionBatchJobTest {
     when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
         .thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(
-            eq(new Party(Party.Type.PERSON, user.getPersonalCode())), eq(customerIban)))
+            eq(new PartyId(PartyId.Type.PERSON, user.getPersonalCode())), eq(customerIban)))
         .thenReturn(Optional.of("John Smith"));
 
     doAnswer(
@@ -507,7 +507,7 @@ class RedemptionBatchJobTest {
     when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
         .thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(
-            eq(new Party(Party.Type.PERSON, user.getPersonalCode())), eq(customerIban)))
+            eq(new PartyId(PartyId.Type.PERSON, user.getPersonalCode())), eq(customerIban)))
         .thenReturn(Optional.of("John Smith"));
 
     doAnswer(

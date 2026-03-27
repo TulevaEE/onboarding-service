@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
-import static ee.tuleva.onboarding.party.Party.Type.PERSON;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RETURNED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -13,7 +13,7 @@ import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
-import ee.tuleva.onboarding.party.Party;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
@@ -90,7 +90,7 @@ class PaymentReturningServiceTest {
     var payment =
         SavingFundPayment.builder()
             .id(paymentId)
-            .party(new Party(PERSON, user.getPersonalCode()))
+            .partyId(new PartyId(PERSON, user.getPersonalCode()))
             .amount(amount)
             .remitterName("John Doe")
             .remitterIban("EE111111111111111111")

@@ -22,7 +22,7 @@ public class PaymentReservationService {
   public void process(SavingFundPayment payment) {
     log.info("Processing reservation for payment {}", payment.getId());
 
-    var user = userService.findByPersonalCode(payment.getParty().code()).orElseThrow();
+    var user = userService.findByPersonalCode(payment.getPartyId().code()).orElseThrow();
     savingsFundLedger.reservePaymentForSubscription(user, payment.getAmount(), payment.getId());
 
     log.info("Reservation completed for payment {}", payment.getId());

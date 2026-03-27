@@ -2,9 +2,9 @@ package ee.tuleva.onboarding.mandate.application
 
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService
 import ee.tuleva.onboarding.epis.EpisService
-import ee.tuleva.onboarding.party.Party
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.locale.LocaleService
+import ee.tuleva.onboarding.party.PartyId
 import ee.tuleva.onboarding.payment.application.PaymentApplicationDetails
 import ee.tuleva.onboarding.payment.application.PaymentLinkingService
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment
@@ -35,7 +35,6 @@ import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED
-import static java.math.BigDecimal.TEN
 import static java.math.BigDecimal.valueOf
 
 class ApplicationServiceSpec extends Specification {
@@ -76,7 +75,7 @@ class ApplicationServiceSpec extends Specification {
 
     mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
     paymentApplicationService.getPaymentApplications(person) >> [paymentApplication().build()]
-    savingFundPaymentService.getPendingPayments(Party.from(person.getRole())) >> []
+    savingFundPaymentService.getPendingPayments(PartyId.from(person.getRole())) >> []
     savingFundRedemptionService.getPendingRedemptionsForUser(_) >> []
 
     when:
@@ -260,7 +259,7 @@ class ApplicationServiceSpec extends Specification {
 
     mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
     paymentApplicationService.getPaymentApplications(person) >> []
-    savingFundPaymentService.getPendingPayments(Party.from(person.getRole())) >> []
+    savingFundPaymentService.getPendingPayments(PartyId.from(person.getRole())) >> []
     savingFundRedemptionService.getPendingRedemptionsForUser(_) >> []
 
     when:
@@ -385,7 +384,7 @@ class ApplicationServiceSpec extends Specification {
     episService.getApplications(authenticatedPerson) >> []
     localeService.getCurrentLocale() >> Locale.ENGLISH
     paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
-    savingFundPaymentService.getPendingPayments(Party.from(authenticatedPerson.getRole())) >> [payment1, payment2]
+    savingFundPaymentService.getPendingPayments(PartyId.from(authenticatedPerson.getRole())) >> [payment1, payment2]
     savingFundRedemptionService.getPendingRedemptionsForUser(authenticatedPerson.getUserId()) >> []
 
     savingFundPaymentDeadlinesService.getCancellationDeadline(payment1) >> Instant.parse("2021-03-31T21:00:00.000000000Z")
@@ -456,7 +455,7 @@ class ApplicationServiceSpec extends Specification {
     episService.getApplications(authenticatedPerson) >> []
     localeService.getCurrentLocale() >> Locale.ENGLISH
     paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
-    savingFundPaymentService.getPendingPayments(Party.from(authenticatedPerson.getRole())) >> []
+    savingFundPaymentService.getPendingPayments(PartyId.from(authenticatedPerson.getRole())) >> []
     savingFundRedemptionService.getPendingRedemptionsForUser(authenticatedPerson.getUserId()) >> [redemption1, redemption2]
 
     savingFundPaymentDeadlinesService.getCancellationDeadline(_ as RedemptionRequest) >> Instant.parse("2021-03-31T21:00:00Z")

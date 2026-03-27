@@ -48,12 +48,12 @@ public class PaymentReturningService {
   }
 
   private boolean isUserCancelledPayment(SavingFundPayment payment) {
-    return payment.getParty() != null;
+    return payment.getPartyId() != null;
   }
 
   private void reserveUserBalanceForReturn(SavingFundPayment payment) {
     userRepository
-        .findByPersonalCode(payment.getParty().code())
+        .findByPersonalCode(payment.getPartyId().code())
         .ifPresent(
             user ->
                 savingsFundLedger.reservePaymentForCancellation(

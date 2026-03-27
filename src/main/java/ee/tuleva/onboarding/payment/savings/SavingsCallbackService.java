@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.payment.savings;
 
-import static ee.tuleva.onboarding.party.Party.Type.PERSON;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 
 import com.nimbusds.jose.JWSObject;
-import ee.tuleva.onboarding.party.Party;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent;
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioOrderToken;
@@ -68,7 +68,7 @@ public class SavingsCallbackService {
         .ifPresent(
             user -> {
               savingFundPaymentRepository.attachParty(
-                  paymentId, new Party(PERSON, user.getPersonalCode()));
+                  paymentId, new PartyId(PERSON, user.getPersonalCode()));
               eventPublisher.publishEvent(
                   new SavingsPaymentCreatedEvent(
                       this, user, token.getMerchantReference().getLocale()));

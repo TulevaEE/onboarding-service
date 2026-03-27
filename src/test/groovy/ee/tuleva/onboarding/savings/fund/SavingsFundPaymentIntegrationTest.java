@@ -22,7 +22,7 @@ import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerService;
-import ee.tuleva.onboarding.party.Party;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.issuing.FundAccountPaymentJob;
 import ee.tuleva.onboarding.savings.fund.issuing.IssuingJob;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -150,7 +150,7 @@ class SavingsFundPaymentIntegrationTest {
         .containsExactly(expectedPayment);
 
     var payment = payments.getFirst();
-    assertThat(payment.getParty()).as("Payment should not be attached to any party yet").isNull();
+    assertThat(payment.getPartyId()).as("Payment should not be attached to any party yet").isNull();
     var paymentId = payment.getId();
 
     // Step 2: Run verification job → Payment should be VERIFIED and attached to user
@@ -158,8 +158,8 @@ class SavingsFundPaymentIntegrationTest {
 
     payment = paymentRepository.findById(paymentId).orElseThrow();
     assertThat(payment.getStatus()).isEqualTo(VERIFIED);
-    assertThat(payment.getParty())
-        .isEqualTo(new Party(Party.Type.PERSON, testUser.getPersonalCode()));
+    assertThat(payment.getPartyId())
+        .isEqualTo(new PartyId(PartyId.Type.PERSON, testUser.getPersonalCode()));
 
     // Assert ledger: user cash liability increased, incoming payments clearing increased
     var paymentAmount = new BigDecimal("100.50");
@@ -472,7 +472,7 @@ class SavingsFundPaymentIntegrationTest {
 
     payment = paymentRepository.findById(paymentId).orElseThrow();
     assertThat(payment.getStatus()).isEqualTo(TO_BE_RETURNED);
-    assertThat(payment.getParty()).isNull(); // Not attached to any party
+    assertThat(payment.getPartyId()).isNull(); // Not attached to any party
     assertThat(payment.getReturnReason())
         .isEqualTo("selgituses olev isikukood ei klapi maksja isikukoodiga");
 

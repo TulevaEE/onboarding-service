@@ -4,19 +4,19 @@ import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.auth.role.Role;
 
-public record Party(Type type, String code) {
+public record PartyId(Type type, String code) {
 
   public enum Type {
     PERSON,
     LEGAL_ENTITY
   }
 
-  public Party {
+  public PartyId {
     requireNonNull(type);
     requireNonNull(code);
   }
 
-  public static Party from(Role role) {
-    return new Party(Type.valueOf(role.type().name()), role.code());
+  public static PartyId from(Role role) {
+    return new PartyId(Type.valueOf(role.type().name()), role.code());
   }
 }

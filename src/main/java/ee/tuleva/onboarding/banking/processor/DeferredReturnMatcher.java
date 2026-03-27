@@ -115,8 +115,8 @@ public class DeferredReturnMatcher {
       return;
     }
 
-    if (originalPayment.getParty() != null) {
-      var user = userService.findByPersonalCode(originalPayment.getParty().code()).orElseThrow();
+    if (originalPayment.getPartyId() != null) {
+      var user = userService.findByPersonalCode(originalPayment.getPartyId().code()).orElseThrow();
       log.info(
           "Deferred return matching: creating ledger entry for user-cancelled payment: paymentId={}, amount={}",
           originalPaymentId,

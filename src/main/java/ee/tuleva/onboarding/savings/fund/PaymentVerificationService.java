@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.party.Party.Type.PERSON;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
-import ee.tuleva.onboarding.party.Party;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.savings.fund.notification.UnattributedPaymentEvent;
 import ee.tuleva.onboarding.user.UserRepository;
@@ -67,7 +67,7 @@ public class PaymentVerificationService {
       return;
     }
 
-    var party = new Party(PERSON, user.get().getPersonalCode());
+    var party = new PartyId(PERSON, user.get().getPersonalCode());
     savingFundPaymentRepository.attachParty(payment.getId(), party);
 
     log.info(
@@ -88,8 +88,8 @@ public class PaymentVerificationService {
     applicationEventPublisher.publishEvent(
         new UnattributedPaymentEvent(payment.getId(), payment.getAmount(), reason));
 
-    Optional.ofNullable(payment.getParty())
-        .map(Party::code)
+    Optional.ofNullable(payment.getPartyId())
+        .map(PartyId::code)
         .flatMap(userRepository::findByPersonalCode)
         .ifPresent(
             user ->

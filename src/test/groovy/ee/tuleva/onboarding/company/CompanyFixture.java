@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.company;
 
 import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
-import static ee.tuleva.onboarding.party.Party.Type.PERSON;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 
 import java.util.UUID;
 

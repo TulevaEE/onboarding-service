@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.party.Party.Type.PERSON;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.CREATED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.PROCESSED;
@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.within;
 import static org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE;
 
 import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
-import ee.tuleva.onboarding.party.Party;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
@@ -221,7 +221,7 @@ class SavingFundPaymentRepositoryTest {
       names = {"CREATED", "RECEIVED"})
   void attachParty(Status status) {
     var user = createUser();
-    var party = new Party(PERSON, user.getPersonalCode());
+    var party = new PartyId(PERSON, user.getPersonalCode());
 
     var id = repository.savePaymentData(createPayment().build());
     updatePaymentStatus(id, status);
@@ -231,7 +231,7 @@ class SavingFundPaymentRepositoryTest {
     var payments = repository.findPaymentsWithStatus(status);
 
     assertThat(payments).hasSize(1);
-    assertThat(payments.getFirst().getParty()).isEqualTo(party);
+    assertThat(payments.getFirst().getPartyId()).isEqualTo(party);
   }
 
   @ParameterizedTest
@@ -241,7 +241,7 @@ class SavingFundPaymentRepositoryTest {
       mode = EXCLUDE)
   void attachParty_notAllowed(Status status) {
     var user = createUser();
-    var party = new Party(PERSON, user.getPersonalCode());
+    var party = new PartyId(PERSON, user.getPersonalCode());
 
     var id = repository.savePaymentData(createPayment().build());
     updatePaymentStatus(id, status);
@@ -252,7 +252,7 @@ class SavingFundPaymentRepositoryTest {
     var payments = repository.findPaymentsWithStatus(status);
 
     assertThat(payments).hasSize(1);
-    assertThat(payments.getFirst().getParty()).isNull();
+    assertThat(payments.getFirst().getPartyId()).isNull();
   }
 
   @Test
@@ -265,8 +265,8 @@ class SavingFundPaymentRepositoryTest {
     var user1 = createUser("37706154772");
     var user2 = createUser("36407145233");
 
-    var party1 = new Party(PERSON, user1.getPersonalCode());
-    var party2 = new Party(PERSON, user2.getPersonalCode());
+    var party1 = new PartyId(PERSON, user1.getPersonalCode());
+    var party2 = new PartyId(PERSON, user2.getPersonalCode());
 
     repository.attachParty(id1, party1);
     repository.attachParty(id2, party1);
@@ -356,8 +356,8 @@ class SavingFundPaymentRepositoryTest {
                 .amount(new BigDecimal("-50.00"))
                 .build());
 
-    var party1 = new Party(PERSON, user1.getPersonalCode());
-    var party2 = new Party(PERSON, user2.getPersonalCode());
+    var party1 = new PartyId(PERSON, user1.getPersonalCode());
+    var party2 = new PartyId(PERSON, user2.getPersonalCode());
     repository.attachParty(id1, party1);
     repository.attachParty(id2, party1);
     repository.attachParty(id3, party1);

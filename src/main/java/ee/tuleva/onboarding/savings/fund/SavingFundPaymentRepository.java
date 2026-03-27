@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import static java.time.temporal.ChronoUnit.DAYS;
 
 import ee.tuleva.onboarding.currency.Currency;
-import ee.tuleva.onboarding.party.Party;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
@@ -76,31 +76,31 @@ public class SavingFundPaymentRepository {
         this::rowMapper);
   }
 
-  public List<SavingFundPayment> findPayments(Party party) {
+  public List<SavingFundPayment> findPayments(PartyId partyId) {
     return jdbcTemplate.query(
         """
         select * from saving_fund_payment where party_type=:party_type and party_code=:party_code order by created_at desc
         """,
-        Map.of("party_type", party.type().name(), "party_code", party.code()),
+        Map.of("party_type", partyId.type().name(), "party_code", partyId.code()),
         this::rowMapper);
   }
 
-  public List<SavingFundPayment> findPaymentsWithStatus(Party party, Status... statuses) {
+  public List<SavingFundPayment> findPaymentsWithStatus(PartyId partyId, Status... statuses) {
     return jdbcTemplate.query(
         """
         select * from saving_fund_payment where party_type=:party_type and party_code=:party_code and status in (:statuses) order by created_at desc
         """,
         Map.of(
             "party_type",
-            party.type().name(),
+            partyId.type().name(),
             "party_code",
-            party.code(),
+            partyId.code(),
             "statuses",
             Arrays.stream(statuses).map(Enum::name).toList()),
         this::rowMapper);
   }
 
-  public List<String> findDepositBankAccountIbans(Party party) {
+  public List<String> findDepositBankAccountIbans(PartyId partyId) {
     return jdbcTemplate.query(
         """
             SELECT DISTINCT remitter_iban
@@ -113,15 +113,15 @@ public class SavingFundPaymentRepository {
             """,
         Map.of(
             "party_type",
-            party.type().name(),
+            partyId.type().name(),
             "party_code",
-            party.code(),
+            partyId.code(),
             "statuses",
             List.of(RESERVED.name(), ISSUED.name(), PROCESSED.name())),
         (rs, _) -> rs.getString("remitter_iban"));
   }
 
-  public Optional<String> findRemitterNameByIban(Party party, String iban) {
+  public Optional<String> findRemitterNameByIban(PartyId partyId, String iban) {
     var results =
         jdbcTemplate.query(
             """
@@ -136,9 +136,9 @@ public class SavingFundPaymentRepository {
             """,
             Map.of(
                 "party_type",
-                party.type().name(),
+                partyId.type().name(),
                 "party_code",
-                party.code(),
+                partyId.code(),
                 "iban",
                 iban,
                 "statuses",
@@ -239,7 +239,7 @@ public class SavingFundPaymentRepository {
   private SavingFundPayment rowMapper(ResultSet rs, int ignored) throws SQLException {
     return SavingFundPayment.builder()
         .id(UUID.fromString(rs.getString("id")))
-        .party(mapParty(rs))
+        .partyId(mapParty(rs))
         .externalId(rs.getString("external_id"))
         .endToEndId(rs.getString("end_to_end_id"))
         .amount(rs.getBigDecimal("amount"))
@@ -265,10 +265,10 @@ public class SavingFundPaymentRepository {
     return timestamp != null ? timestamp.toInstant() : null;
   }
 
-  private Party mapParty(ResultSet rs) throws SQLException {
+  private PartyId mapParty(ResultSet rs) throws SQLException {
     var type = rs.getString("party_type");
     var code = rs.getString("party_code");
-    return type != null && code != null ? new Party(Party.Type.valueOf(type), code) : null;
+    return type != null && code != null ? new PartyId(PartyId.Type.valueOf(type), code) : null;
   }
 
   private MapSqlParameterSource createParameters(SavingFundPayment payment) {
@@ -313,14 +313,14 @@ public class SavingFundPaymentRepository {
         Map.of("id", paymentId, "status", newStatus.name()));
   }
 
-  public void attachParty(UUID paymentId, Party party) {
+  public void attachParty(UUID paymentId, PartyId partyId) {
     var currentStatus = getAndLockCurrentStatus(paymentId);
     if (!Set.of(CREATED, RECEIVED).contains(currentStatus))
       throw new IllegalStateException(
           "Attaching party is not allowed when payment is " + currentStatus);
     jdbcTemplate.update(
         "UPDATE saving_fund_payment SET party_type=:party_type, party_code=:party_code WHERE id=:id",
-        Map.of("id", paymentId, "party_type", party.type().name(), "party_code", party.code()));
+        Map.of("id", paymentId, "party_type", partyId.type().name(), "party_code", partyId.code()));
   }
 
   public void addReturnReason(UUID paymentId, String reason) {

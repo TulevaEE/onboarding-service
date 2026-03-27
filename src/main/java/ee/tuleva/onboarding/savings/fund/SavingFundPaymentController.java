@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.savings.fund;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.locale.LocaleService;
-import ee.tuleva.onboarding.party.Party;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCancelledEvent;
 import ee.tuleva.onboarding.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,7 +37,7 @@ public class SavingFundPaymentController {
       @PathVariable("id") UUID paymentId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     log.info("Cancelling savings fund payment {}", paymentId);
-    var party = Party.from(authenticatedPerson.getRole());
+    var party = PartyId.from(authenticatedPerson.getRole());
     savingFundPaymentUpsertionService.cancelPayment(party, paymentId);
     var user = userService.findByPersonalCode(authenticatedPerson.getRoleCode()).orElseThrow();
     eventPublisher.publishEvent(
@@ -70,6 +70,6 @@ public class SavingFundPaymentController {
   public List<String> getBankAccounts(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     return savingFundPaymentRepository.findDepositBankAccountIbans(
-        Party.from(authenticatedPerson.getRole()));
+        PartyId.from(authenticatedPerson.getRole()));
   }
 }

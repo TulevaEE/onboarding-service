@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.party.Party.Type.PERSON;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
 import static java.util.UUID.randomUUID;
@@ -9,7 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
-import ee.tuleva.onboarding.party.Party;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.savings.fund.notification.UnattributedPaymentEvent;
 import ee.tuleva.onboarding.user.User;
@@ -167,7 +167,7 @@ class PaymentVerificationServiceTest {
     var inOrder = inOrder(savingFundPaymentRepository);
     inOrder
         .verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new Party(PERSON, "37508295796"));
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
     inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
@@ -194,7 +194,7 @@ class PaymentVerificationServiceTest {
             user, payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new Party(PERSON, "37508295796"));
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -220,7 +220,7 @@ class PaymentVerificationServiceTest {
             user, payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new Party(PERSON, "37508295796"));
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -246,7 +246,7 @@ class PaymentVerificationServiceTest {
             user, payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new Party(PERSON, "37508295796"));
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -289,7 +289,7 @@ class PaymentVerificationServiceTest {
         SavingFundPayment.builder()
             .id(randomUUID())
             .amount(new BigDecimal("100.00"))
-            .party(new Party(PERSON, user.getPersonalCode()))
+            .partyId(new PartyId(PERSON, user.getPersonalCode()))
             .remitterName("PÄRT ÕLEKÕRS")
             .remitterIban("EE123456789012345678")
             .description("no personal code here")

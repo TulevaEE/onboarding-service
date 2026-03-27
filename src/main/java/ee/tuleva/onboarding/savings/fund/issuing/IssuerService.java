@@ -27,7 +27,7 @@ class IssuerService {
     var unitsAmount = payment.getAmount().divide(nav, 5, HALF_DOWN); // TODO rounding mode, scale?
     var cashAmount = payment.getAmount();
 
-    var user = userService.findByPersonalCode(payment.getParty().code()).orElseThrow();
+    var user = userService.findByPersonalCode(payment.getPartyId().code()).orElseThrow();
     savingsFundLedger.issueFundUnitsFromReserved(
         user, cashAmount, unitsAmount, nav, payment.getId());
 

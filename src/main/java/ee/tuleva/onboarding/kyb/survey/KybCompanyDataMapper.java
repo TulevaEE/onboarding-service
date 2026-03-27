@@ -20,6 +20,7 @@ class KybCompanyDataMapper {
 
   private static final String BOARD_MEMBER_ROLE = "JUHL";
   private static final String SHAREHOLDER_ROLE = "OSAN";
+  private static final String FOUNDER_ROLE = "A";
 
   private final AmlCheckRepository amlCheckRepository;
 
@@ -39,8 +40,10 @@ class KybCompanyDataMapper {
             detail.getMainActivity().orElse(null),
             legalForm);
 
+    var relevant = relationships.stream().filter(r -> !FOUNDER_ROLE.equals(r.roleCode())).toList();
+
     var grouped =
-        relationships.stream()
+        relevant.stream()
             .filter(r -> r.personalCode() != null)
             .collect(Collectors.groupingBy(CompanyRelationship::personalCode))
             .entrySet()
@@ -48,7 +51,7 @@ class KybCompanyDataMapper {
             .map(entry -> toRelatedPerson(new PersonalCode(entry.getKey()), entry.getValue()));
 
     var ungrouped =
-        relationships.stream()
+        relevant.stream()
             .filter(r -> r.personalCode() == null)
             .map(r -> toRelatedPerson(null, List.of(r)));
 

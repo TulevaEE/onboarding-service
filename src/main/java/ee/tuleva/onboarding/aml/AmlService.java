@@ -212,7 +212,7 @@ public class AmlService {
     return addCheckIfMissing(pensionRegistryNameCheck);
   }
 
-  public Optional<AmlCheck> addKycCheck(String personalCode, KycCheck kycCheck) {
+  public AmlCheck addKycCheck(String personalCode, KycCheck kycCheck) {
     AmlCheck check =
         AmlCheck.builder()
             .personalCode(personalCode)
@@ -220,7 +220,7 @@ public class AmlService {
             .success(kycCheck.riskLevel() == LOW || kycCheck.riskLevel() == NONE)
             .metadata(kycCheck.metadata())
             .build();
-    return addCheckIfMissing(check);
+    return addCheck(check);
   }
 
   private boolean personDataMatches(Person person1, Person person2) {

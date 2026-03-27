@@ -24,6 +24,7 @@ import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
+import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
@@ -709,5 +710,20 @@ class AmlServiceTest {
     return stream(checkTypes)
         .map(type -> AmlCheck.builder().type(type).success(false).build())
         .toList();
+  }
+
+  @Test
+  void addKycCheckAlwaysSavesEvenWhenPreviousCheckExists() {
+    when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+            "39107050268", KYC_CHECK, aYearAgoFromTestClock))
+        .thenReturn(true);
+
+    var kycCheck = new KycCheck(KycCheck.RiskLevel.LOW, Map.of());
+
+    amlService.addKycCheck("39107050268", kycCheck);
+
+    verify(amlCheckRepository).save(amlCheckCaptor.capture());
+    assertThat(amlCheckCaptor.getValue().getType()).isEqualTo(KYC_CHECK);
+    assertThat(amlCheckCaptor.getValue().isSuccess()).isTrue();
   }
 }

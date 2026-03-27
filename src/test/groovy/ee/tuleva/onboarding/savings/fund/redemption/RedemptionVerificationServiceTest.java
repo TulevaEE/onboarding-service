@@ -36,9 +36,9 @@ class RedemptionVerificationServiceTest {
   @DisplayName("process transitions to VERIFIED when all AML checks pass")
   void process_allChecksPassed_transitionsToVerified() {
     var requestId = UUID.randomUUID();
-    var userId = 1L;
-    var request = redemptionRequestFixture().id(requestId).userId(userId).build();
-    var user = sampleUser().id(userId).build();
+    var user = sampleUser().build();
+    var request =
+        redemptionRequestFixture().id(requestId).partyCode(user.getPersonalCode()).build();
     var country = new Country("EE");
     var passingCheck =
         AmlCheck.builder()
@@ -47,8 +47,8 @@ class RedemptionVerificationServiceTest {
             .success(true)
             .build();
 
-    when(userService.getByIdOrThrow(userId)).thenReturn(user);
-    when(kycSurveyService.getCountry(userId)).thenReturn(Optional.of(country));
+    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
+    when(kycSurveyService.getCountry(user.getId())).thenReturn(Optional.of(country));
     when(amlService.addSanctionAndPepCheckIfMissing(user, country))
         .thenReturn(List.of(passingCheck));
 
@@ -62,9 +62,9 @@ class RedemptionVerificationServiceTest {
   @DisplayName("process transitions to IN_REVIEW when AML check fails")
   void process_checkFails_transitionsToInReview() {
     var requestId = UUID.randomUUID();
-    var userId = 1L;
-    var request = redemptionRequestFixture().id(requestId).userId(userId).build();
-    var user = sampleUser().id(userId).build();
+    var user = sampleUser().build();
+    var request =
+        redemptionRequestFixture().id(requestId).partyCode(user.getPersonalCode()).build();
     var country = new Country("EE");
     var failingCheck =
         AmlCheck.builder()
@@ -73,8 +73,8 @@ class RedemptionVerificationServiceTest {
             .success(false)
             .build();
 
-    when(userService.getByIdOrThrow(userId)).thenReturn(user);
-    when(kycSurveyService.getCountry(userId)).thenReturn(Optional.of(country));
+    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
+    when(kycSurveyService.getCountry(user.getId())).thenReturn(Optional.of(country));
     when(amlService.addSanctionAndPepCheckIfMissing(user, country))
         .thenReturn(List.of(failingCheck));
 
@@ -88,13 +88,13 @@ class RedemptionVerificationServiceTest {
   @DisplayName("process transitions to VERIFIED when no new checks needed")
   void process_noNewChecksNeeded_transitionsToVerified() {
     var requestId = UUID.randomUUID();
-    var userId = 1L;
-    var request = redemptionRequestFixture().id(requestId).userId(userId).build();
-    var user = sampleUser().id(userId).build();
+    var user = sampleUser().build();
+    var request =
+        redemptionRequestFixture().id(requestId).partyCode(user.getPersonalCode()).build();
     var country = new Country("EE");
 
-    when(userService.getByIdOrThrow(userId)).thenReturn(user);
-    when(kycSurveyService.getCountry(userId)).thenReturn(Optional.of(country));
+    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
+    when(kycSurveyService.getCountry(user.getId())).thenReturn(Optional.of(country));
     when(amlService.addSanctionAndPepCheckIfMissing(user, country)).thenReturn(List.of());
 
     redemptionVerificationService.process(request);
@@ -106,12 +106,12 @@ class RedemptionVerificationServiceTest {
   @DisplayName("process throws when KYC survey country not found")
   void process_noKycCountry_throws() {
     var requestId = UUID.randomUUID();
-    var userId = 1L;
-    var request = redemptionRequestFixture().id(requestId).userId(userId).build();
-    var user = sampleUser().id(userId).build();
+    var user = sampleUser().build();
+    var request =
+        redemptionRequestFixture().id(requestId).partyCode(user.getPersonalCode()).build();
 
-    when(userService.getByIdOrThrow(userId)).thenReturn(user);
-    when(kycSurveyService.getCountry(userId)).thenReturn(Optional.empty());
+    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
+    when(kycSurveyService.getCountry(user.getId())).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> redemptionVerificationService.process(request))
         .isInstanceOf(IllegalStateException.class)

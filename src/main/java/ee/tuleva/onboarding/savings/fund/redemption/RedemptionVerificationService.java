@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyService;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
@@ -29,7 +30,12 @@ public class RedemptionVerificationService {
   public void process(RedemptionRequest request) {
     log.info("Processing verification for redemption request: id={}", request.getId());
 
-    User user = userService.getByIdOrThrow(request.getUserId());
+    PartyId partyId = request.getPartyId();
+    User user =
+        userService
+            .findByPersonalCode(partyId.code())
+            .orElseThrow(
+                () -> new IllegalStateException("User not found for party: party=" + partyId));
     Country country =
         kycSurveyService
             .getCountry(user.getId())
@@ -43,10 +49,10 @@ public class RedemptionVerificationService {
     boolean allChecksPassed = checks.isEmpty() || checks.stream().allMatch(AmlCheck::isSuccess);
 
     if (!allChecksPassed) {
-      log.info("Redemption requires review: id={}, userId={}", request.getId(), user.getId());
+      log.info("Redemption requires review: id={}, party={}", request.getId(), partyId);
       redemptionStatusService.changeStatus(request.getId(), IN_REVIEW);
     } else {
-      log.info("Redemption verification passed: id={}, userId={}", request.getId(), user.getId());
+      log.info("Redemption verification passed: id={}, party={}", request.getId(), partyId);
       redemptionStatusService.changeStatus(request.getId(), VERIFIED);
     }
   }

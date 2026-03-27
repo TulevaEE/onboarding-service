@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.banking.BankAccountType.*;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentFixture.aPayment;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.REDEEMED;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -30,7 +29,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
@@ -162,7 +160,6 @@ class SebBankStatementProcessorTest {
     var redemptionRequest =
         RedemptionRequest.builder()
             .id(redemptionRequestId)
-            .userId(user.getId())
             .partyType(PartyId.Type.PERSON)
             .partyCode(user.getPersonalCode())
             .customerIban(customerIban)
@@ -204,7 +201,6 @@ class SebBankStatementProcessorTest {
     var redemptionRequest =
         RedemptionRequest.builder()
             .id(redemptionRequestId)
-            .userId(user.getId())
             .partyType(PartyId.Type.PERSON)
             .partyCode(user.getPersonalCode())
             .customerIban(EXTERNAL_ACCOUNT_IBAN)
@@ -227,36 +223,6 @@ class SebBankStatementProcessorTest {
     verify(savingsFundLedger, never()).recordRedemptionPayout(any(), any(), any(), any());
     verify(redemptionStatusService)
         .changeStatus(redemptionRequestId, RedemptionRequest.Status.PROCESSED);
-  }
-
-  @Test
-  void withdrawalOutgoing_throwsWhenUserNotFound() {
-    Long missingUserId = 99999L;
-    var redemptionRequestId = UUID.randomUUID();
-    var endToEndId = endToEndIdConverter.toEndToEndId(redemptionRequestId);
-    var redemptionRequest =
-        RedemptionRequest.builder()
-            .id(redemptionRequestId)
-            .userId(missingUserId)
-            .partyType(PartyId.Type.PERSON)
-            .partyCode("00000000000")
-            .customerIban(EXTERNAL_ACCOUNT_IBAN)
-            .status(REDEEMED)
-            .build();
-    var outgoingPayment =
-        aPayment()
-            .amount(new BigDecimal("-500.00"))
-            .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
-            .endToEndId(endToEndId)
-            .build();
-    var bankStatement =
-        setupMocksForPaymentWithAccount(outgoingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
-    when(redemptionRequestRepository.findByIdAndStatus(redemptionRequestId, REDEEMED))
-        .thenReturn(Optional.of(redemptionRequest));
-    when(savingsFundLedger.hasPayoutEntry(redemptionRequestId)).thenReturn(false);
-    when(userService.getByIdOrThrow(missingUserId)).thenThrow(new NoSuchElementException());
-
-    assertThrows(NoSuchElementException.class, () -> processor.processStatement(bankStatement));
   }
 
   @Test

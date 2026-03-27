@@ -24,8 +24,9 @@ class RedemptionVerificationJobTest {
   @Test
   @DisplayName("runJob processes all reserved redemption requests")
   void runJob_processesAllReservedRequests() {
-    var request1 = redemptionRequestFixture().id(UUID.randomUUID()).userId(1L).build();
-    var request2 = redemptionRequestFixture().id(UUID.randomUUID()).userId(2L).build();
+    var request1 = redemptionRequestFixture().id(UUID.randomUUID()).build();
+    var request2 =
+        redemptionRequestFixture().id(UUID.randomUUID()).partyCode("39901019993").build();
 
     when(redemptionRequestRepository.findByStatus(RESERVED))
         .thenReturn(List.of(request1, request2));
@@ -39,8 +40,9 @@ class RedemptionVerificationJobTest {
   @Test
   @DisplayName("runJob continues processing when one request fails")
   void runJob_continuesProcessingWhenOneFails() {
-    var request1 = redemptionRequestFixture().id(UUID.randomUUID()).userId(1L).build();
-    var request2 = redemptionRequestFixture().id(UUID.randomUUID()).userId(2L).build();
+    var request1 = redemptionRequestFixture().id(UUID.randomUUID()).build();
+    var request2 =
+        redemptionRequestFixture().id(UUID.randomUUID()).partyCode("39901019993").build();
 
     when(redemptionRequestRepository.findByStatus(RESERVED))
         .thenReturn(List.of(request1, request2));

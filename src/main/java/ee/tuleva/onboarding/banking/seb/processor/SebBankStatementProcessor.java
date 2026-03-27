@@ -10,7 +10,6 @@ import ee.tuleva.onboarding.banking.processor.BankOperationProcessor;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
-import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentExtractor;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService;
@@ -174,8 +173,7 @@ public class SebBankStatementProcessor {
       log.error(
           "Ledger payout entry already exists but status is REDEEMED: id={}", request.getId());
     } else {
-      var user = userService.getByIdOrThrow(request.getUserId());
-      var party = new PartyId(PartyId.Type.PERSON, user.getPersonalCode());
+      var party = request.getPartyId();
       var amount = payment.getAmount().negate();
       log.info(
           "Creating ledger entry for redemption payout: redemptionId={}, amount={}",

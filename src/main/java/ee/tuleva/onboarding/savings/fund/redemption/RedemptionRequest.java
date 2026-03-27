@@ -27,10 +27,6 @@ public class RedemptionRequest {
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
 
-  @Nullable
-  @Column(name = "user_id")
-  private Long userId;
-
   @Enumerated(STRING)
   @Column(name = "party_type", nullable = false)
   private PartyId.Type partyType;

@@ -598,7 +598,7 @@ class KybSurveyServiceTest {
     when(kybCompanyDataMapper.toKybCompanyData(
             detail, new PersonalCode(PERSONAL_CODE), filteredRelationships, null))
         .thenReturn(companyData);
-    when(kybScreeningService.screen(companyData))
+    when(kybScreeningService.validate(companyData))
         .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
 
     var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);

@@ -68,7 +68,7 @@ public class SavingsCallbackService {
         .ifPresent(
             user -> {
               savingFundPaymentRepository.attachParty(
-                  paymentId, new Party(PERSON, token.getMerchantReference().getPersonalCode()));
+                  paymentId, new Party(PERSON, user.getPersonalCode()));
               eventPublisher.publishEvent(
                   new SavingsPaymentCreatedEvent(
                       this, user, token.getMerchantReference().getLocale()));

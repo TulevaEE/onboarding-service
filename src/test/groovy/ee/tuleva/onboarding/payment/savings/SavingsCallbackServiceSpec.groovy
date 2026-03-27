@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.payment.savings
 
+import ee.tuleva.onboarding.auth.UserFixture
 import tools.jackson.databind.json.JsonMapper
 import com.nimbusds.jose.JWSObject
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser
@@ -11,6 +12,7 @@ import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.auth.UserFixture.*
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
 
 class SavingsCallbackServiceSpec extends Specification {
@@ -64,9 +66,7 @@ class SavingsCallbackServiceSpec extends Specification {
   def "if token is paid and user exists, create payment and attach user"() {
     given:
     def serializedToken = aSerializedSavingsPaymentToken
-    def mockUser = Mock(User) {
-      getId() >> 123L
-    }
+    def mockUser = sampleUser().personalCode("38812121215").build()
     def paymentId = UUID.randomUUID()
     1 * savingFundPaymentRepository.findRecentPayments(
         anInternalReference.description

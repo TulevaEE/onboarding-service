@@ -343,16 +343,4 @@ public class SavingFundPaymentRepository {
         Map.of("id", paymentId),
         Status.class);
   }
-
-  // todo
-  // Montonio should use findRecentPayments(), savePaymentData() and attachParty() —— DONE
-
-  // Swedbank should use findRecentPayments(), savePaymentData() OR updatePaymentData() and
-  // changeStatus(RECEIVED)
-
-  // sanctions check & identity check should be in a single job which always ends with
-  // changeStatus(...)
-
-  // reservation job should check the cancelledAt timestamp and if set must call
-  // changeStatus(TO_BE_RETURNED)
 }

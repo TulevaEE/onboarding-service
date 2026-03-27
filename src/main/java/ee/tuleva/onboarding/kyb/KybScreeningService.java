@@ -25,7 +25,12 @@ public class KybScreeningService {
     var results = Stream.concat(screenerResults.stream(), Stream.of(dataChangedCheck)).toList();
 
     eventPublisher.publishEvent(
-        new KybCheckPerformedEvent(this, companyData.personalCode(), results));
+        new KybCheckPerformedEvent(
+            this,
+            companyData.company(),
+            companyData.personalCode(),
+            companyData.relatedPersons(),
+            results));
 
     return results;
   }

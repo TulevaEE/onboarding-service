@@ -1,6 +1,10 @@
 package ee.tuleva.onboarding.kyb.survey;
 
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-interface KybSurveyRepository extends JpaRepository<KybSurvey, UUID> {}
+interface KybSurveyRepository extends JpaRepository<KybSurvey, UUID> {
+
+  Optional<KybSurvey> findTopByRegistryCodeOrderByCreatedTimeDesc(String registryCode);
+}

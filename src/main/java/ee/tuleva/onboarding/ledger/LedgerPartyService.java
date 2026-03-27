@@ -19,7 +19,7 @@ class LedgerPartyService {
     return ledgerPartyRepository.save(ledgerParty);
   }
 
-  public Optional<LedgerParty> getParty(String ownerId) {
-    return Optional.ofNullable(ledgerPartyRepository.findByOwnerId(ownerId));
+  public Optional<LedgerParty> getParty(String ownerId, PartyType partyType) {
+    return Optional.ofNullable(ledgerPartyRepository.findByOwnerIdAndPartyType(ownerId, partyType));
   }
 }

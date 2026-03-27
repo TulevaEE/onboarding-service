@@ -17,7 +17,6 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.notification.RedemptionBatchCompletedEvent;
-import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -135,7 +134,8 @@ public class RedemptionBatchJob {
                     return ZERO;
                   }
 
-                  User user = userService.getByIdOrThrow(request.getUserId());
+                  var user = userService.getByIdOrThrow(request.getUserId());
+                  var party = new PartyId(PartyId.Type.PERSON, user.getPersonalCode());
                   BigDecimal amount = request.getFundUnits().multiply(nav).setScale(2, HALF_UP);
 
                   toUpdate.setCashAmount(amount);
@@ -143,7 +143,7 @@ public class RedemptionBatchJob {
                   redemptionRequestRepository.save(toUpdate);
 
                   savingsFundLedger.redeemFundUnitsFromReserved(
-                      user, request.getFundUnits(), amount, nav, request.getId());
+                      party, request.getFundUnits(), amount, nav, request.getId());
 
                   log.info(
                       "Priced redemption request: id={}, fundUnits={}, cashAmount={}, nav={}",

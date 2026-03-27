@@ -130,7 +130,7 @@ class RedemptionBatchJobTest {
 
     verify(savingsFundLedger)
         .redeemFundUnitsFromReserved(
-            eq(user),
+            eq(new PartyId(PartyId.Type.PERSON, user.getPersonalCode())),
             eq(new BigDecimal("10.00000")),
             any(BigDecimal.class),
             eq(BigDecimal.ONE),

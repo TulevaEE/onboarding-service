@@ -1,10 +1,8 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
-
-import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
+import ee.tuleva.onboarding.party.PartyId;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -15,16 +13,16 @@ public class LedgerService {
   private final LedgerPartyService ledgerPartyService;
   private final LedgerAccountService ledgerAccountService;
 
-  public void initializeUserAccounts(Person person) {
-    String ownerId = person.getPersonalCode();
-    LedgerParty party =
+  public void initializeAccounts(PartyId party) {
+    var partyType = PartyType.valueOf(party.type().name());
+    LedgerParty ledgerParty =
         ledgerPartyService
-            .getParty(ownerId)
-            .orElseGet(() -> ledgerPartyService.createParty(ownerId, PERSON));
+            .getParty(party.code(), partyType)
+            .orElseGet(() -> ledgerPartyService.createParty(party.code(), partyType));
 
     for (var userAccount : UserAccount.values()) {
-      if (ledgerAccountService.findUserAccount(party, userAccount).isEmpty()) {
-        ledgerAccountService.createUserAccount(party, userAccount);
+      if (ledgerAccountService.findUserAccount(ledgerParty, userAccount).isEmpty()) {
+        ledgerAccountService.createUserAccount(ledgerParty, userAccount);
       }
     }
   }
@@ -33,7 +31,7 @@ public class LedgerService {
       String ownerId, PartyType partyType, UserAccount userAccount) {
     LedgerParty party =
         ledgerPartyService
-            .getParty(ownerId)
+            .getParty(ownerId, partyType)
             .orElseGet(() -> ledgerPartyService.createParty(ownerId, partyType));
     return ledgerAccountService
         .findUserAccount(party, userAccount)

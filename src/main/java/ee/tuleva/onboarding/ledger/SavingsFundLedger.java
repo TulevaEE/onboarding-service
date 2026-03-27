@@ -1,26 +1,19 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.*;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.OPERATION_TYPE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
-import static ee.tuleva.onboarding.ledger.UserAccount.REDEMPTIONS;
-import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
 import static java.time.temporal.ChronoUnit.MICROS;
 
+import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
-import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.party.PartyId;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.ZoneId;
+import java.time.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -89,8 +82,8 @@ public class SavingsFundLedger {
   @AllArgsConstructor
   public enum MetadataKey {
     OPERATION_TYPE("operationType"),
-    USER_ID("userId"),
-    PERSONAL_CODE("personalCode"),
+    PARTY_CODE("partyCode"),
+    PARTY_TYPE("partyType"),
     EXTERNAL_REFERENCE("externalReference"),
     PAYER_IBAN("payerIban"),
     CUSTOMER_IBAN("customerIban"),
@@ -106,22 +99,18 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction recordPaymentReceived(
-      User user, BigDecimal amount, UUID externalReference) {
-    return recordPaymentReceived(user, amount, externalReference, LocalDate.now(clock));
+      PartyId party, BigDecimal amount, UUID externalReference) {
+    return recordPaymentReceived(party, amount, externalReference, LocalDate.now(clock));
   }
 
   @Transactional
   public LedgerTransaction recordPaymentReceived(
-      User user, BigDecimal amount, UUID externalReference, LocalDate bookingDate) {
-    LedgerParty userParty = getUserParty(user);
-    LedgerAccount userCashAccount = getUserCashAccount(userParty);
+      PartyId party, BigDecimal amount, UUID externalReference, LocalDate bookingDate) {
+    LedgerParty ledgerParty = getParty(party);
+    LedgerAccount userCashAccount = getUserCashAccount(ledgerParty);
     LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
 
-    Map<String, Object> metadata =
-        Map.of(
-            OPERATION_TYPE.key, PAYMENT_RECEIVED.name(),
-            USER_ID.key, user.getId(),
-            PERSONAL_CODE.key, user.getPersonalCode());
+    Map<String, Object> metadata = partyMetadata(party, PAYMENT_RECEIVED);
 
     return ledgerTransactionService.createTransaction(
         PAYMENT_RECEIVED,
@@ -134,16 +123,12 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction reservePaymentForCancellation(
-      User user, BigDecimal amount, UUID externalReference) {
-    LedgerParty userParty = getUserParty(user);
-    LedgerAccount userCashAccount = getUserCashAccount(userParty);
-    LedgerAccount userCashReservedAccount = getUserCashReservedAccount(userParty);
+      PartyId party, BigDecimal amount, UUID externalReference) {
+    LedgerParty ledgerParty = getParty(party);
+    LedgerAccount userCashAccount = getUserCashAccount(ledgerParty);
+    LedgerAccount userCashReservedAccount = getUserCashReservedAccount(ledgerParty);
 
-    Map<String, Object> metadata =
-        Map.of(
-            OPERATION_TYPE.key, PAYMENT_CANCEL_REQUESTED.name(),
-            USER_ID.key, user.getId(),
-            PERSONAL_CODE.key, user.getPersonalCode());
+    Map<String, Object> metadata = partyMetadata(party, PAYMENT_CANCEL_REQUESTED);
 
     return ledgerTransactionService.createTransaction(
         PAYMENT_CANCEL_REQUESTED,
@@ -156,7 +141,7 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction recordPaymentCancelled(
-      User user, BigDecimal amount, UUID externalReference) {
+      PartyId party, BigDecimal amount, UUID externalReference) {
     boolean unattributedPaymentExists =
         ledgerTransactionService.existsByExternalReferenceAndTransactionType(
             externalReference, UNATTRIBUTED_PAYMENT);
@@ -176,18 +161,14 @@ public class SavingsFundLedger {
       return existing.get();
     }
 
-    ensurePaymentReceivedExists(user, amount, externalReference);
-    ensureReservationExists(user, amount, externalReference);
+    ensurePaymentReceivedExists(party, amount, externalReference);
+    ensureReservationExists(party, amount, externalReference);
 
-    LedgerParty userParty = getUserParty(user);
-    LedgerAccount userCashReservedAccount = getUserCashReservedAccount(userParty);
+    LedgerParty ledgerParty = getParty(party);
+    LedgerAccount userCashReservedAccount = getUserCashReservedAccount(ledgerParty);
     LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
 
-    Map<String, Object> metadata =
-        Map.of(
-            OPERATION_TYPE.key, PAYMENT_CANCELLED.name(),
-            USER_ID.key, user.getId(),
-            PERSONAL_CODE.key, user.getPersonalCode());
+    Map<String, Object> metadata = partyMetadata(party, PAYMENT_CANCELLED);
 
     return ledgerTransactionService.createTransaction(
         PAYMENT_CANCELLED,
@@ -198,21 +179,22 @@ public class SavingsFundLedger {
         entry(incomingPaymentsAccount, amount.negate()));
   }
 
-  private void ensurePaymentReceivedExists(User user, BigDecimal amount, UUID externalReference) {
+  private void ensurePaymentReceivedExists(
+      PartyId party, BigDecimal amount, UUID externalReference) {
     boolean alreadyRecorded =
         ledgerTransactionService.existsByExternalReferenceAndTransactionType(
             externalReference, PAYMENT_RECEIVED);
     if (!alreadyRecorded) {
-      recordPaymentReceived(user, amount, externalReference);
+      recordPaymentReceived(party, amount, externalReference);
     }
   }
 
-  private void ensureReservationExists(User user, BigDecimal amount, UUID externalReference) {
+  private void ensureReservationExists(PartyId party, BigDecimal amount, UUID externalReference) {
     boolean reservationAlreadyExists =
         ledgerTransactionService.existsByExternalReferenceAndTransactionType(
             externalReference, PAYMENT_CANCEL_REQUESTED);
     if (!reservationAlreadyExists) {
-      reservePaymentForCancellation(user, amount, externalReference);
+      reservePaymentForCancellation(party, amount, externalReference);
     }
   }
 
@@ -240,16 +222,12 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction reservePaymentForSubscription(
-      User user, BigDecimal amount, UUID externalReference) {
-    LedgerParty userParty = getUserParty(user);
-    LedgerAccount userCashAccount = getUserCashAccount(userParty);
-    LedgerAccount userCashReservedAccount = getUserCashReservedAccount(userParty);
+      PartyId party, BigDecimal amount, UUID externalReference) {
+    LedgerParty ledgerParty = getParty(party);
+    LedgerAccount userCashAccount = getUserCashAccount(ledgerParty);
+    LedgerAccount userCashReservedAccount = getUserCashReservedAccount(ledgerParty);
 
-    Map<String, Object> metadata =
-        Map.of(
-            OPERATION_TYPE.key, PAYMENT_RESERVED.name(),
-            USER_ID.key, user.getId(),
-            PERSONAL_CODE.key, user.getPersonalCode());
+    Map<String, Object> metadata = partyMetadata(party, PAYMENT_RESERVED);
 
     return ledgerTransactionService.createTransaction(
         PAYMENT_RESERVED,
@@ -262,23 +240,19 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction issueFundUnitsFromReserved(
-      User user,
+      PartyId party,
       BigDecimal cashAmount,
       BigDecimal fundUnits,
       BigDecimal navPerUnit,
       UUID externalReference) {
-    LedgerParty userParty = getUserParty(user);
-    LedgerAccount userCashReservedAccount = getUserCashReservedAccount(userParty);
-    LedgerAccount userUnitsAccount = getUserUnitsAccount(userParty);
-    LedgerAccount userSubscriptionsAccount = getUserSubscriptionsAccount(userParty);
+    LedgerParty ledgerParty = getParty(party);
+    LedgerAccount userCashReservedAccount = getUserCashReservedAccount(ledgerParty);
+    LedgerAccount userUnitsAccount = getUserUnitsAccount(ledgerParty);
+    LedgerAccount userSubscriptionsAccount = getUserSubscriptionsAccount(ledgerParty);
     LedgerAccount unitsOutstandingAccount = getFundUnitsOutstandingAccount();
 
-    Map<String, Object> metadata =
-        Map.of(
-            OPERATION_TYPE.key, FUND_SUBSCRIPTION.name(),
-            USER_ID.key, user.getId(),
-            PERSONAL_CODE.key, user.getPersonalCode(),
-            NAV_PER_UNIT.key, navPerUnit);
+    var metadata = new HashMap<>(partyMetadata(party, FUND_SUBSCRIPTION));
+    metadata.put(NAV_PER_UNIT.key, navPerUnit);
 
     return ledgerTransactionService.createTransaction(
         FUND_SUBSCRIPTION,
@@ -354,16 +328,12 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction reserveFundUnitsForRedemption(
-      User user, BigDecimal fundUnits, UUID externalReference) {
-    LedgerParty userParty = getUserParty(user);
-    LedgerAccount userUnitsAccount = getUserUnitsAccount(userParty);
-    LedgerAccount userUnitsReservedAccount = getUserUnitsReservedAccount(userParty);
+      PartyId party, BigDecimal fundUnits, UUID externalReference) {
+    LedgerParty ledgerParty = getParty(party);
+    LedgerAccount userUnitsAccount = getUserUnitsAccount(ledgerParty);
+    LedgerAccount userUnitsReservedAccount = getUserUnitsReservedAccount(ledgerParty);
 
-    Map<String, Object> metadata =
-        Map.of(
-            OPERATION_TYPE.key, REDEMPTION_RESERVED.name(),
-            USER_ID.key, user.getId(),
-            PERSONAL_CODE.key, user.getPersonalCode());
+    Map<String, Object> metadata = partyMetadata(party, REDEMPTION_RESERVED);
 
     return ledgerTransactionService.createTransaction(
         REDEMPTION_RESERVED,
@@ -376,16 +346,12 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction cancelRedemptionReservation(
-      User user, BigDecimal fundUnits, UUID externalReference) {
-    LedgerParty userParty = getUserParty(user);
-    LedgerAccount userUnitsAccount = getUserUnitsAccount(userParty);
-    LedgerAccount userUnitsReservedAccount = getUserUnitsReservedAccount(userParty);
+      PartyId party, BigDecimal fundUnits, UUID externalReference) {
+    LedgerParty ledgerParty = getParty(party);
+    LedgerAccount userUnitsAccount = getUserUnitsAccount(ledgerParty);
+    LedgerAccount userUnitsReservedAccount = getUserUnitsReservedAccount(ledgerParty);
 
-    Map<String, Object> metadata =
-        Map.of(
-            OPERATION_TYPE.key, REDEMPTION_CANCELLED.name(),
-            USER_ID.key, user.getId(),
-            PERSONAL_CODE.key, user.getPersonalCode());
+    Map<String, Object> metadata = partyMetadata(party, REDEMPTION_CANCELLED);
 
     return ledgerTransactionService.createTransaction(
         REDEMPTION_CANCELLED,
@@ -398,21 +364,18 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction redeemFundUnitsFromReserved(
-      User user,
+      PartyId party,
       BigDecimal fundUnits,
       BigDecimal cashAmount,
       BigDecimal navPerUnit,
       UUID redemptionRequestId) {
-    LedgerParty userParty = getUserParty(user);
-    LedgerAccount userUnitsReservedAccount = getUserUnitsReservedAccount(userParty);
-    LedgerAccount userCashRedemptionAccount = getUserCashRedemptionAccount(userParty);
+    LedgerParty ledgerParty = getParty(party);
+    LedgerAccount userUnitsReservedAccount = getUserUnitsReservedAccount(ledgerParty);
+    LedgerAccount userCashRedemptionAccount = getUserCashRedemptionAccount(ledgerParty);
     LedgerAccount unitsOutstandingAccount = getFundUnitsOutstandingAccount();
-    LedgerAccount userRedemptionsAccount = getUserRedemptionsAccount(userParty);
+    LedgerAccount userRedemptionsAccount = getUserRedemptionsAccount(ledgerParty);
 
-    var metadataBuilder = new HashMap<String, Object>();
-    metadataBuilder.put(OPERATION_TYPE.key, REDEMPTION_REQUEST.name());
-    metadataBuilder.put(USER_ID.key, user.getId());
-    metadataBuilder.put(PERSONAL_CODE.key, user.getPersonalCode());
+    var metadataBuilder = new HashMap<>(partyMetadata(party, REDEMPTION_REQUEST));
     metadataBuilder.put(NAV_PER_UNIT.key, navPerUnit);
     if (redemptionRequestId != null) {
       metadataBuilder.put(REDEMPTION_REQUEST_ID.key, redemptionRequestId);
@@ -453,26 +416,23 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction recordRedemptionPayout(
-      User user, BigDecimal amount, String customerIban, UUID redemptionRequestId) {
+      PartyId party, BigDecimal amount, String customerIban, UUID redemptionRequestId) {
     return recordRedemptionPayout(
-        user, amount, customerIban, redemptionRequestId, LocalDate.now(clock));
+        party, amount, customerIban, redemptionRequestId, LocalDate.now(clock));
   }
 
   @Transactional
   public LedgerTransaction recordRedemptionPayout(
-      User user,
+      PartyId party,
       BigDecimal amount,
       String customerIban,
       UUID redemptionRequestId,
       LocalDate bookingDate) {
-    LedgerParty userParty = getUserParty(user);
-    LedgerAccount userCashRedemptionAccount = getUserCashRedemptionAccount(userParty);
+    LedgerParty ledgerParty = getParty(party);
+    LedgerAccount userCashRedemptionAccount = getUserCashRedemptionAccount(ledgerParty);
     LedgerAccount payoutsCashAccount = getPayoutsCashClearingAccount();
 
-    var metadataBuilder = new HashMap<String, Object>();
-    metadataBuilder.put(OPERATION_TYPE.key, REDEMPTION_PAYOUT.name());
-    metadataBuilder.put(USER_ID.key, user.getId());
-    metadataBuilder.put(PERSONAL_CODE.key, user.getPersonalCode());
+    var metadataBuilder = new HashMap<>(partyMetadata(party, REDEMPTION_PAYOUT));
     metadataBuilder.put(CUSTOMER_IBAN.key, customerIban);
     if (redemptionRequestId != null) {
       metadataBuilder.put(REDEMPTION_REQUEST_ID.key, redemptionRequestId);
@@ -490,28 +450,28 @@ public class SavingsFundLedger {
   @Transactional
   public LedgerTransaction recordAdjustment(
       String debitAccountName,
-      String debitPersonalCode,
+      PartyId debitParty,
       String creditAccountName,
-      String creditPersonalCode,
+      PartyId creditParty,
       BigDecimal amount,
       UUID externalReference,
       String description) {
-    boolean debitIsUser = debitPersonalCode != null;
-    boolean creditIsUser = creditPersonalCode != null;
+    boolean debitIsParty = debitParty != null;
+    boolean creditIsParty = creditParty != null;
 
-    if (debitIsUser && creditIsUser && !debitPersonalCode.equals(creditPersonalCode)) {
+    if (debitIsParty && creditIsParty && !debitParty.equals(creditParty)) {
       throw new IllegalArgumentException(
-          "Both accounts must belong to the same user or at least one must be a system account");
+          "Both accounts must belong to the same party or at least one must be a system account");
     }
 
     LedgerAccount debitAccount =
-        debitIsUser
-            ? resolveUserAccount(debitPersonalCode, UserAccount.valueOf(debitAccountName))
+        debitIsParty
+            ? resolvePartyAccount(debitParty, UserAccount.valueOf(debitAccountName))
             : resolveSystemAccount(debitAccountName);
 
     LedgerAccount creditAccount =
-        creditIsUser
-            ? resolveUserAccount(creditPersonalCode, UserAccount.valueOf(creditAccountName))
+        creditIsParty
+            ? resolvePartyAccount(creditParty, UserAccount.valueOf(creditAccountName))
             : resolveSystemAccount(creditAccountName);
 
     var metadataBuilder = new HashMap<String, Object>();
@@ -549,15 +509,16 @@ public class SavingsFundLedger {
                     accountName, systemAccount.getAccountType(), systemAccount.getAssetType()));
   }
 
-  private LedgerAccount resolveUserAccount(String personalCode, UserAccount userAccount) {
-    LedgerParty party =
+  private LedgerAccount resolvePartyAccount(PartyId party, UserAccount userAccount) {
+    var partyType = PartyType.valueOf(party.type().name());
+    LedgerParty ledgerParty =
         ledgerPartyService
-            .getParty(personalCode)
+            .getParty(party.code(), partyType)
             .orElseThrow(
                 () ->
                     new IllegalArgumentException(
-                        "Ledger party not found: personalCode=" + personalCode));
-    return getUserAccount(party, userAccount);
+                        "Ledger party not found: partyCode=" + party.code()));
+    return getUserAccount(ledgerParty, userAccount);
   }
 
   @Transactional
@@ -675,11 +636,18 @@ public class SavingsFundLedger {
     return new LedgerEntryDto(account, amount);
   }
 
-  private LedgerParty getUserParty(User user) {
-    String ownerId = user.getPersonalCode();
+  private Map<String, Object> partyMetadata(PartyId party, TransactionType transactionType) {
+    return Map.of(
+        OPERATION_TYPE.key, transactionType.name(),
+        PARTY_CODE.key, party.code(),
+        PARTY_TYPE.key, party.type().name());
+  }
+
+  private LedgerParty getParty(PartyId party) {
+    var partyType = PartyType.valueOf(party.type().name());
     return ledgerPartyService
-        .getParty(ownerId)
-        .orElseGet(() -> ledgerPartyService.createParty(ownerId, PERSON));
+        .getParty(party.code(), partyType)
+        .orElseGet(() -> ledgerPartyService.createParty(party.code(), partyType));
   }
 
   private LedgerAccount getUserAccount(LedgerParty owner, UserAccount userAccount) {

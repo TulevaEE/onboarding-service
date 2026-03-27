@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.ASSET;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
@@ -16,8 +15,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.time.ClockHolder;
-import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -39,7 +38,7 @@ class SavingsFundLedgerTest {
   @Autowired LedgerAccountService ledgerAccountService;
   @Autowired SavingsFundLedger savingsFundLedger;
 
-  User testUser = sampleUser().personalCode("38001010001").build();
+  PartyId testParty = new PartyId(PartyId.Type.PERSON, "38001010001");
 
   @AfterEach
   void tearDown() {
@@ -48,7 +47,7 @@ class SavingsFundLedgerTest {
 
   @Test
   void systemAccounts_areFundQualified() {
-    savingsFundLedger.recordPaymentReceived(testUser, new BigDecimal("100.00"), randomUUID());
+    savingsFundLedger.recordPaymentReceived(testParty, new BigDecimal("100.00"), randomUUID());
 
     assertThat(getIncomingPaymentsClearingAccount().getName())
         .isEqualTo("INCOMING_PAYMENTS_CLEARING:TKF100");
@@ -61,12 +60,12 @@ class SavingsFundLedgerTest {
     var amount = new BigDecimal("1000.00");
     var externalReference = randomUUID();
 
-    var transaction = savingsFundLedger.recordPaymentReceived(testUser, amount, externalReference);
+    var transaction = savingsFundLedger.recordPaymentReceived(testParty, amount, externalReference);
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_RECEIVED");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
-    assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
-    assertThat(transaction.getMetadata().get("personalCode")).isEqualTo(testUser.getPersonalCode());
+    assertThat(transaction.getMetadata().get("partyCode")).isEqualTo(testParty.code());
+    assertThat(transaction.getMetadata().get("partyType")).isEqualTo("PERSON");
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(amount.negate());
     assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
     verifyDoubleEntry(transaction);
@@ -118,16 +117,16 @@ class SavingsFundLedgerTest {
   void reservePaymentForCancellation_movesCashToReserved() {
     var amount = new BigDecimal("500.00");
     var externalReference = randomUUID();
-    savingsFundLedger.recordPaymentReceived(testUser, amount, externalReference);
+    savingsFundLedger.recordPaymentReceived(testParty, amount, externalReference);
 
     var transaction =
-        savingsFundLedger.reservePaymentForCancellation(testUser, amount, externalReference);
+        savingsFundLedger.reservePaymentForCancellation(testParty, amount, externalReference);
 
     assertThat(transaction.getMetadata().get("operationType"))
         .isEqualTo("PAYMENT_CANCEL_REQUESTED");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
-    assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
-    assertThat(transaction.getMetadata().get("personalCode")).isEqualTo(testUser.getPersonalCode());
+    assertThat(transaction.getMetadata().get("partyCode")).isEqualTo(testParty.code());
+    assertThat(transaction.getMetadata().get("partyType")).isEqualTo("PERSON");
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(amount.negate());
     assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
@@ -138,15 +137,16 @@ class SavingsFundLedgerTest {
   void recordPaymentCancelled_clearsReservedAndBankAsset() {
     var amount = new BigDecimal("500.00");
     var externalReference = randomUUID();
-    savingsFundLedger.recordPaymentReceived(testUser, amount, externalReference);
-    savingsFundLedger.reservePaymentForCancellation(testUser, amount, externalReference);
+    savingsFundLedger.recordPaymentReceived(testParty, amount, externalReference);
+    savingsFundLedger.reservePaymentForCancellation(testParty, amount, externalReference);
 
-    var transaction = savingsFundLedger.recordPaymentCancelled(testUser, amount, externalReference);
+    var transaction =
+        savingsFundLedger.recordPaymentCancelled(testParty, amount, externalReference);
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_CANCELLED");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
-    assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
-    assertThat(transaction.getMetadata().get("personalCode")).isEqualTo(testUser.getPersonalCode());
+    assertThat(transaction.getMetadata().get("partyCode")).isEqualTo(testParty.code());
+    assertThat(transaction.getMetadata().get("partyType")).isEqualTo("PERSON");
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
@@ -157,10 +157,10 @@ class SavingsFundLedgerTest {
   void recordPaymentCancelled_createsReservationWhenMissing() {
     var amount = new BigDecimal("500.00");
     var externalReference = randomUUID();
-    savingsFundLedger.recordPaymentReceived(testUser, amount, externalReference);
+    savingsFundLedger.recordPaymentReceived(testParty, amount, externalReference);
     // No reservePaymentForCancellation call — simulates manual return
 
-    savingsFundLedger.recordPaymentCancelled(testUser, amount, externalReference);
+    savingsFundLedger.recordPaymentCancelled(testParty, amount, externalReference);
 
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
@@ -173,7 +173,7 @@ class SavingsFundLedgerTest {
     var externalReference = randomUUID();
 
     savingsFundLedger.recordUnattributedPayment(amount, externalReference);
-    savingsFundLedger.recordPaymentCancelled(testUser, amount, externalReference);
+    savingsFundLedger.recordPaymentCancelled(testParty, amount, externalReference);
 
     assertThat(savingsFundLedger.hasLedgerEntry(externalReference, PAYMENT_RECEIVED)).isFalse();
     assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
@@ -188,7 +188,7 @@ class SavingsFundLedgerTest {
     var externalReference = randomUUID();
     // No recordPaymentReceived call — simulates cancellation without prior PAYMENT_RECEIVED
 
-    savingsFundLedger.recordPaymentCancelled(testUser, amount, externalReference);
+    savingsFundLedger.recordPaymentCancelled(testParty, amount, externalReference);
 
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
@@ -202,12 +202,12 @@ class SavingsFundLedgerTest {
     var navPerUnit = new BigDecimal("100.00");
     var paymentId = randomUUID();
 
-    var paymentTx = savingsFundLedger.recordPaymentReceived(testUser, cashAmount, paymentId);
+    var paymentTx = savingsFundLedger.recordPaymentReceived(testParty, cashAmount, paymentId);
     var reserveTx =
-        savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount, paymentId);
+        savingsFundLedger.reservePaymentForSubscription(testParty, cashAmount, paymentId);
     var subscriptionTx =
         savingsFundLedger.issueFundUnitsFromReserved(
-            testUser, cashAmount, fundUnits, navPerUnit, paymentId);
+            testParty, cashAmount, fundUnits, navPerUnit, paymentId);
     var transferTx = savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
 
     verifyDoubleEntry(paymentTx);
@@ -239,15 +239,16 @@ class SavingsFundLedgerTest {
 
     var redemptionRequestId = randomUUID();
     var reserveTx =
-        savingsFundLedger.reserveFundUnitsForRedemption(testUser, redeemUnits, redemptionRequestId);
+        savingsFundLedger.reserveFundUnitsForRedemption(
+            testParty, redeemUnits, redemptionRequestId);
     var redemptionTx =
         savingsFundLedger.redeemFundUnitsFromReserved(
-            testUser, redeemUnits, redeemAmount, navPerUnit, redemptionRequestId);
+            testParty, redeemUnits, redeemAmount, navPerUnit, redemptionRequestId);
     var cashTransferTx =
         savingsFundLedger.transferFromFundAccount(redeemAmount, redemptionRequestId);
     var payoutTx =
         savingsFundLedger.recordRedemptionPayout(
-            testUser, redeemAmount, customerIban, redemptionRequestId);
+            testParty, redeemAmount, customerIban, redemptionRequestId);
 
     verifyDoubleEntry(reserveTx);
     verifyDoubleEntry(redemptionTx);
@@ -263,14 +264,15 @@ class SavingsFundLedgerTest {
 
   @Test
   void recordPaymentReceived_autoCreatesPartyAndAccountsForNewUser() {
-    var newUser = sampleUser().personalCode("99999999999").build();
+    var newParty = new PartyId(PartyId.Type.PERSON, "99999999999");
     var amount = new BigDecimal("100.00");
     var externalReference = randomUUID();
 
-    var transaction = savingsFundLedger.recordPaymentReceived(newUser, amount, externalReference);
+    var transaction = savingsFundLedger.recordPaymentReceived(newParty, amount, externalReference);
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_RECEIVED");
-    assertThat(transaction.getMetadata().get("userId")).isEqualTo(newUser.getId());
+    assertThat(transaction.getMetadata().get("partyCode")).isEqualTo("99999999999");
+    assertThat(transaction.getMetadata().get("partyType")).isEqualTo("PERSON");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
     verifyDoubleEntry(transaction);
   }
@@ -283,10 +285,10 @@ class SavingsFundLedgerTest {
     var customerIban = "EE123456789012345678";
 
     var paymentId = randomUUID();
-    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, paymentId);
-    savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount, paymentId);
+    savingsFundLedger.recordPaymentReceived(testParty, cashAmount, paymentId);
+    savingsFundLedger.reservePaymentForSubscription(testParty, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        testUser, cashAmount, fundUnits, navPerUnit, paymentId);
+        testParty, cashAmount, fundUnits, navPerUnit, paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
 
     assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(fundUnits.negate());
@@ -295,12 +297,12 @@ class SavingsFundLedgerTest {
         .isEqualByComparingTo(cashAmount.negate());
 
     var redemptionRequestId = randomUUID();
-    savingsFundLedger.reserveFundUnitsForRedemption(testUser, fundUnits, redemptionRequestId);
+    savingsFundLedger.reserveFundUnitsForRedemption(testParty, fundUnits, redemptionRequestId);
     savingsFundLedger.redeemFundUnitsFromReserved(
-        testUser, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
+        testParty, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
     savingsFundLedger.transferFromFundAccount(cashAmount, redemptionRequestId);
     savingsFundLedger.recordRedemptionPayout(
-        testUser, cashAmount, customerIban, redemptionRequestId);
+        testParty, cashAmount, customerIban, redemptionRequestId);
 
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
@@ -374,9 +376,9 @@ class SavingsFundLedgerTest {
     var transaction =
         savingsFundLedger.recordAdjustment(
             "INCOMING_PAYMENTS_CLEARING",
-            null,
+            (PartyId) null,
             "BANK_ADJUSTMENT",
-            null,
+            (PartyId) null,
             amount,
             null,
             "Test adjustment");
@@ -393,12 +395,12 @@ class SavingsFundLedgerTest {
   void recordAdjustment_userToSystem_createsCorrectLedgerEntries() {
     var amount = new BigDecimal("25.00");
     var paymentId = randomUUID();
-    savingsFundLedger.recordPaymentReceived(testUser, amount, paymentId);
+    savingsFundLedger.recordPaymentReceived(testParty, amount, paymentId);
 
     var transaction =
         savingsFundLedger.recordAdjustment(
             "CASH",
-            testUser.getPersonalCode(),
+            testParty,
             "INCOMING_PAYMENTS_CLEARING",
             null,
             amount,
@@ -410,35 +412,36 @@ class SavingsFundLedgerTest {
   }
 
   @Test
-  void recordAdjustment_differentUsersToUser_throwsException() {
+  void recordAdjustment_differentParties_throwsException() {
     var paymentId = randomUUID();
-    savingsFundLedger.recordPaymentReceived(testUser, new BigDecimal("100.00"), paymentId);
+    savingsFundLedger.recordPaymentReceived(testParty, new BigDecimal("100.00"), paymentId);
 
+    var otherParty = new PartyId(PartyId.Type.PERSON, "38001010002");
     assertThrows(
         IllegalArgumentException.class,
         () ->
             savingsFundLedger.recordAdjustment(
                 "CASH",
-                "38001010001",
+                testParty,
                 "CASH",
-                "38001010002",
+                otherParty,
                 new BigDecimal("10.00"),
                 null,
-                "Invalid cross-user"));
+                "Invalid cross-party"));
   }
 
   @Test
-  void recordAdjustment_sameUserDifferentAccounts_succeeds() {
+  void recordAdjustment_samePartyDifferentAccounts_succeeds() {
     var paymentId = randomUUID();
-    savingsFundLedger.recordPaymentReceived(testUser, new BigDecimal("100.00"), paymentId);
-    savingsFundLedger.reservePaymentForSubscription(testUser, new BigDecimal("100.00"), paymentId);
+    savingsFundLedger.recordPaymentReceived(testParty, new BigDecimal("100.00"), paymentId);
+    savingsFundLedger.reservePaymentForSubscription(testParty, new BigDecimal("100.00"), paymentId);
 
     var transaction =
         savingsFundLedger.recordAdjustment(
             "CASH_RESERVED",
-            "38001010001",
+            testParty,
             "CASH",
-            "38001010001",
+            testParty,
             new BigDecimal("10.00"),
             null,
             "Reverse duplicate reservation");
@@ -530,9 +533,9 @@ class SavingsFundLedgerTest {
     var transaction =
         savingsFundLedger.recordAdjustment(
             "TRADE_UNIT_SETTLEMENT:TKF100:LU1291102447",
-            null,
+            (PartyId) null,
             "SECURITIES_CUSTODY:TKF100:LU1291102447",
-            null,
+            (PartyId) null,
             units,
             null,
             "Trade unit backfill");
@@ -572,15 +575,15 @@ class SavingsFundLedgerTest {
 
   private void setupUserWithFundUnits(
       BigDecimal cashAmount, BigDecimal fundUnits, BigDecimal navPerUnit, UUID paymentId) {
-    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, paymentId);
-    savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount, paymentId);
+    savingsFundLedger.recordPaymentReceived(testParty, cashAmount, paymentId);
+    savingsFundLedger.reservePaymentForSubscription(testParty, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        testUser, cashAmount, fundUnits, navPerUnit, paymentId);
+        testParty, cashAmount, fundUnits, navPerUnit, paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
   }
 
   private LedgerAccount getUserAccount(UserAccount userAccount) {
-    return ledgerService.getPartyAccount(testUser.getPersonalCode(), PERSON, userAccount);
+    return ledgerService.getPartyAccount(testParty.code(), PERSON, userAccount);
   }
 
   private LedgerAccount getSystemAccount(SystemAccount systemAccount) {
@@ -671,11 +674,11 @@ class SavingsFundLedgerTest {
   void recordPaymentCancelled_isIdempotent() {
     var amount = new BigDecimal("500.00");
     var externalReference = randomUUID();
-    savingsFundLedger.recordPaymentReceived(testUser, amount, externalReference);
-    savingsFundLedger.reservePaymentForCancellation(testUser, amount, externalReference);
+    savingsFundLedger.recordPaymentReceived(testParty, amount, externalReference);
+    savingsFundLedger.reservePaymentForCancellation(testParty, amount, externalReference);
 
-    var first = savingsFundLedger.recordPaymentCancelled(testUser, amount, externalReference);
-    var second = savingsFundLedger.recordPaymentCancelled(testUser, amount, externalReference);
+    var first = savingsFundLedger.recordPaymentCancelled(testParty, amount, externalReference);
+    var second = savingsFundLedger.recordPaymentCancelled(testParty, amount, externalReference);
 
     assertThat(second).isEqualTo(first);
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);

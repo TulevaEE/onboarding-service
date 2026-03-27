@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentExtractor;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService;
@@ -181,9 +182,10 @@ class SebBankStatementProcessorTest {
 
     processor.processStatement(bankStatement);
 
+    var expectedParty = new PartyId(PartyId.Type.PERSON, user.getPersonalCode());
     verify(savingsFundLedger)
         .recordRedemptionPayout(
-            user,
+            expectedParty,
             new BigDecimal("500.00"),
             customerIban,
             redemptionRequestId,

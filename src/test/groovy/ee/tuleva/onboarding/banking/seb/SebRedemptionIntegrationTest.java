@@ -57,6 +57,7 @@ class SebRedemptionIntegrationTest {
   @MockitoBean FundNavProvider navProvider;
 
   User testUser;
+  PartyId testParty;
 
   @BeforeEach
   void setUp() {
@@ -66,6 +67,7 @@ class SebRedemptionIntegrationTest {
 
     testUser =
         userRepository.save(sampleUser().id(null).member(null).personalCode("39901019992").build());
+    testParty = new PartyId(PERSON, testUser.getPersonalCode());
     savingsFundOnboardingRepository.saveOnboardingStatus(
         testUser.getPersonalCode(), SavingsFundOnboardingStatus.COMPLETED);
     setupUserWithFundUnits(new BigDecimal("1000.00"), new BigDecimal("100.00000"));
@@ -99,10 +101,10 @@ class SebRedemptionIntegrationTest {
   private void setupUserWithFundUnits(BigDecimal cashAmount, BigDecimal fundUnits) {
     var navPerUnit = cashAmount.divide(fundUnits, 5, HALF_UP);
     var paymentId = UUID.randomUUID();
-    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, paymentId);
-    savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount, paymentId);
+    savingsFundLedger.recordPaymentReceived(testParty, cashAmount, paymentId);
+    savingsFundLedger.reservePaymentForSubscription(testParty, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        testUser, cashAmount, fundUnits, navPerUnit, paymentId);
+        testParty, cashAmount, fundUnits, navPerUnit, paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
   }
 

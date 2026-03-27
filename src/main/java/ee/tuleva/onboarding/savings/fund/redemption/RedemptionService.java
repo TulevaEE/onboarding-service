@@ -81,7 +81,8 @@ public class RedemptionService {
 
     RedemptionRequest saved = redemptionRequestRepository.save(request);
 
-    savingsFundLedger.reserveFundUnitsForRedemption(user, fundUnits, saved.getId());
+    var party = new PartyId(PartyId.Type.PERSON, user.getPersonalCode());
+    savingsFundLedger.reserveFundUnitsForRedemption(party, fundUnits, saved.getId());
     log.info(
         "Created redemption request: id={}, userId={}, requestedAmount={}, fundUnits={}, nav={}, customerIban={}",
         saved.getId(),
@@ -137,7 +138,8 @@ public class RedemptionService {
     validateCancellationDeadline(request);
 
     User user = userService.getByIdOrThrow(userId);
-    savingsFundLedger.cancelRedemptionReservation(user, request.getFundUnits(), request.getId());
+    var party = new PartyId(PartyId.Type.PERSON, user.getPersonalCode());
+    savingsFundLedger.cancelRedemptionReservation(party, request.getFundUnits(), request.getId());
     redemptionStatusService.changeStatus(id, CANCELLED);
     log.info("Cancelled redemption request: id={}, userId={}", id, userId);
   }

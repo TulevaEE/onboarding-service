@@ -74,7 +74,7 @@ public class PaymentVerificationService {
         "Verification completed for payment {}, attaching to party {}", payment.getId(), party);
     savingFundPaymentRepository.changeStatus(payment.getId(), VERIFIED);
     savingsFundLedger.recordPaymentReceived(
-        user.get(), payment.getAmount(), payment.getId(), bookingDate(payment));
+        party, payment.getAmount(), payment.getId(), bookingDate(payment));
   }
 
   private void identityCheckFailure(SavingFundPayment payment, String reason) {

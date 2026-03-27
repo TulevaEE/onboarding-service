@@ -88,9 +88,9 @@ public class AdminController {
                   var transaction =
                       savingsFundLedger.recordAdjustment(
                           request.debitAccount(),
-                          request.debitPersonalCode(),
+                          request.debitParty(),
                           request.creditAccount(),
-                          request.creditPersonalCode(),
+                          request.creditParty(),
                           request.amount(),
                           request.externalReference(),
                           request.description());

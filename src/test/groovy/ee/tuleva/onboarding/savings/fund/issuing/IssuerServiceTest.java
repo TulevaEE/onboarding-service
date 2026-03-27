@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.savings.fund.issuing;
 
-import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
@@ -14,9 +13,7 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
-import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,53 +22,38 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class IssuerServiceTest {
 
-  private UserService userService;
   private SavingsFundLedger savingsFundLedger;
   private SavingFundPaymentRepository savingFundPaymentRepository;
   private IssuerService issuerService;
 
   @BeforeEach
   void setUp() {
-    userService = mock(UserService.class);
     savingFundPaymentRepository = mock(SavingFundPaymentRepository.class);
     savingsFundLedger = mock(SavingsFundLedger.class);
 
-    issuerService = new IssuerService(userService, savingsFundLedger, savingFundPaymentRepository);
+    issuerService = new IssuerService(savingsFundLedger, savingFundPaymentRepository);
   }
 
   @Test
   void processPayment_issuesFundUnitsAndChangesStatus() {
-    var user = sampleUser().build();
-    var payment =
-        aPayment()
-            .amount(TEN)
-            .partyId(new PartyId(PERSON, user.getPersonalCode()))
-            .status(RESERVED)
-            .build();
+    var party = new PartyId(PERSON, "38812121215");
+    var payment = aPayment().amount(TEN).partyId(party).status(RESERVED).build();
 
-    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
     issuerService.processPayment(payment, ONE);
 
     var issuedUnits = TEN.divide(ONE, 5, HALF_DOWN);
     verify(savingsFundLedger)
-        .issueFundUnitsFromReserved(user, TEN, issuedUnits, ONE, payment.getId());
+        .issueFundUnitsFromReserved(party, TEN, issuedUnits, ONE, payment.getId());
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), ISSUED);
   }
 
   @Test
   void processPayment_returnsIssuingResult() {
-    var user = sampleUser().build();
+    var party = new PartyId(PERSON, "38812121215");
     var nav = new BigDecimal("9.9918");
     var paymentAmount = new BigDecimal("500.00");
 
-    var payment =
-        aPayment()
-            .amount(paymentAmount)
-            .partyId(new PartyId(PERSON, user.getPersonalCode()))
-            .status(RESERVED)
-            .build();
-
-    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
+    var payment = aPayment().amount(paymentAmount).partyId(party).status(RESERVED).build();
 
     var result = issuerService.processPayment(payment, nav);
 

@@ -1,24 +1,20 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RETURNED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
-import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
-import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -31,21 +27,16 @@ class PaymentReturningServiceTest {
 
   @Mock ApplicationEventPublisher eventPublisher;
   @Mock SavingFundPaymentRepository savingFundPaymentRepository;
-  @Mock UserRepository userRepository;
   @Mock SavingsFundLedger savingsFundLedger;
   EndToEndIdConverter endToEndIdConverter = new EndToEndIdConverter();
 
   PaymentReturningService service;
 
-  @org.junit.jupiter.api.BeforeEach
+  @BeforeEach
   void setUp() {
     service =
         new PaymentReturningService(
-            eventPublisher,
-            savingFundPaymentRepository,
-            userRepository,
-            savingsFundLedger,
-            endToEndIdConverter);
+            eventPublisher, savingFundPaymentRepository, savingsFundLedger, endToEndIdConverter);
   }
 
   @Test
@@ -83,14 +74,14 @@ class PaymentReturningServiceTest {
   }
 
   @Test
-  void createReturn_withUserId_reservesPaymentForCancellation() {
-    User user = sampleUser().build();
+  void createReturn_withParty_reservesPaymentForCancellation() {
+    var party = new PartyId(PERSON, "38812121215");
     var paymentId = UUID.randomUUID();
     var amount = new BigDecimal("100.00");
     var payment =
         SavingFundPayment.builder()
             .id(paymentId)
-            .partyId(new PartyId(PERSON, user.getPersonalCode()))
+            .partyId(party)
             .amount(amount)
             .remitterName("John Doe")
             .remitterIban("EE111111111111111111")
@@ -99,15 +90,13 @@ class PaymentReturningServiceTest {
             .returnReason("Kasutaja soovil")
             .build();
 
-    when(userRepository.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
-
     service.createReturn(payment);
 
-    verify(savingsFundLedger).reservePaymentForCancellation(user, amount, paymentId);
+    verify(savingsFundLedger).reservePaymentForCancellation(party, amount, paymentId);
   }
 
   @Test
-  void createReturn_withoutUserId_doesNotReservePaymentForCancellation() {
+  void createReturn_withoutParty_doesNotReservePaymentForCancellation() {
     var payment =
         SavingFundPayment.builder()
             .id(UUID.randomUUID())
@@ -121,6 +110,7 @@ class PaymentReturningServiceTest {
 
     service.createReturn(payment);
 
-    verify(savingsFundLedger, never()).reservePaymentForCancellation(any(User.class), any(), any());
+    verify(savingsFundLedger, never())
+        .reservePaymentForCancellation(any(PartyId.class), any(), any());
   }
 }

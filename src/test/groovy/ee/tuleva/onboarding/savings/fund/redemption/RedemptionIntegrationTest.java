@@ -67,6 +67,7 @@ class RedemptionIntegrationTest {
   @MockitoBean FundNavProvider navProvider;
 
   User testUser;
+  PartyId testParty;
 
   @BeforeEach
   void setUp() {
@@ -79,6 +80,7 @@ class RedemptionIntegrationTest {
 
     testUser =
         userRepository.save(sampleUser().id(null).member(null).personalCode("39901019992").build());
+    testParty = new PartyId(PartyId.Type.PERSON, testUser.getPersonalCode());
     savingsFundOnboardingRepository.saveOnboardingStatus(testUser.getPersonalCode(), COMPLETED);
     setupUserWithFundUnits(new BigDecimal("1000.00"), new BigDecimal("100.00000"));
     setupUserDepositIban(VALID_IBAN);
@@ -210,15 +212,16 @@ class RedemptionIntegrationTest {
 
     // Step 1: Reserve units (happens when redemption request created)
     var redemptionRequestId = UUID.randomUUID();
-    savingsFundLedger.reserveFundUnitsForRedemption(testUser, fundUnits, redemptionRequestId);
+    savingsFundLedger.reserveFundUnitsForRedemption(testParty, fundUnits, redemptionRequestId);
 
     // Step 2: Price and redeem (happens in batch job at T+2)
     savingsFundLedger.redeemFundUnitsFromReserved(
-        testUser, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
+        testParty, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
 
     // Steps 3 & 4: Transfer and payout (happens during bank statement reconciliation)
     savingsFundLedger.transferFromFundAccount(cashAmount, redemptionRequestId);
-    savingsFundLedger.recordRedemptionPayout(testUser, cashAmount, VALID_IBAN, redemptionRequestId);
+    savingsFundLedger.recordRedemptionPayout(
+        testParty, cashAmount, VALID_IBAN, redemptionRequestId);
 
     var fundsUnitsBalance = getUserFundUnitsAccount().getBalance();
     var reservedUnitsBalance = getUserFundUnitsReservedAccount().getBalance();
@@ -323,10 +326,10 @@ class RedemptionIntegrationTest {
   private void setupUserWithFundUnits(BigDecimal cashAmount, BigDecimal fundUnits) {
     var navPerUnit = cashAmount.divide(fundUnits, 5, HALF_UP);
     var paymentId = UUID.randomUUID();
-    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, paymentId);
-    savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount, paymentId);
+    savingsFundLedger.recordPaymentReceived(testParty, cashAmount, paymentId);
+    savingsFundLedger.reservePaymentForSubscription(testParty, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        testUser, cashAmount, fundUnits, navPerUnit, paymentId);
+        testParty, cashAmount, fundUnits, navPerUnit, paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
   }
 

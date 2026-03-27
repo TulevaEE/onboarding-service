@@ -12,7 +12,6 @@ import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.notification.DeferredReturnMatchingCompletedEvent;
-import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +28,6 @@ public class DeferredReturnMatcher {
 
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final SavingsFundLedger savingsFundLedger;
-  private final UserService userService;
   private final ApplicationEventPublisher eventPublisher;
   private final BankAccountConfiguration bankAccountConfiguration;
 
@@ -116,13 +114,12 @@ public class DeferredReturnMatcher {
     }
 
     if (originalPayment.getPartyId() != null) {
-      var user = userService.findByPersonalCode(originalPayment.getPartyId().code()).orElseThrow();
       log.info(
           "Deferred return matching: creating ledger entry for user-cancelled payment: paymentId={}, amount={}",
           originalPaymentId,
           originalPayment.getAmount());
       savingsFundLedger.recordPaymentCancelled(
-          user, originalPayment.getAmount(), originalPaymentId);
+          originalPayment.getPartyId(), originalPayment.getAmount(), originalPaymentId);
     } else {
       log.info(
           "Deferred return matching: creating ledger entry for unattributed payment bounce back: paymentId={}, amount={}",

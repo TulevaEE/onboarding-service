@@ -43,11 +43,13 @@ class SavingsFundReservationJobIntegrationTest {
   // Monday 6th January 2025, 18:00 EET (16:00 UTC) - after 16:00
   private static final Instant NOW = Instant.parse("2025-01-06T16:00:00Z");
   private User user;
+  private PartyId party;
 
   @BeforeEach
   void setUp() {
     ClockHolder.setClock(Clock.fixed(NOW, ZoneId.of("UTC")));
     user = userService.createNewUser(createSampleUser());
+    party = new PartyId(PERSON, user.getPersonalCode());
   }
 
   @AfterEach
@@ -74,7 +76,7 @@ class SavingsFundReservationJobIntegrationTest {
     var payment = payments.getFirst();
     assertThat(payment.getStatus()).isEqualTo(RESERVED);
     verify(ledger)
-        .reservePaymentForSubscription(eq(user), eq(payment.getAmount()), eq(payment.getId()));
+        .reservePaymentForSubscription(eq(party), eq(payment.getAmount()), eq(payment.getId()));
   }
 
   @Test
@@ -141,10 +143,10 @@ class SavingsFundReservationJobIntegrationTest {
     // Ledger should be called for both payments, but only valid one succeeds
     verify(ledger)
         .reservePaymentForSubscription(
-            eq(user), eq(invalidPayment.getAmount()), eq(invalidPayment.getId()));
+            eq(party), eq(invalidPayment.getAmount()), eq(invalidPayment.getId()));
     verify(ledger)
         .reservePaymentForSubscription(
-            eq(user), eq(validPayment.getAmount()), eq(validPayment.getId()));
+            eq(party), eq(validPayment.getAmount()), eq(validPayment.getId()));
   }
 
   private SavingFundPayment.SavingFundPaymentBuilder createPayment() {

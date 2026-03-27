@@ -127,17 +127,21 @@ class AdminControllerTest {
                     [
                       {
                         "debitAccount": "CASH_RESERVED",
-                        "debitPersonalCode": "39107050268",
+                        "debitPartyCode": "39107050268",
+                        "debitPartyType": "PERSON",
                         "creditAccount": "CASH",
-                        "creditPersonalCode": "39107050268",
+                        "creditPartyCode": "39107050268",
+                        "creditPartyType": "PERSON",
                         "amount": 1.01,
                         "description": "Reverse duplicate"
                       },
                       {
                         "debitAccount": "CASH_RESERVED",
-                        "debitPersonalCode": "48709090311",
+                        "debitPartyCode": "48709090311",
+                        "debitPartyType": "PERSON",
                         "creditAccount": "CASH",
-                        "creditPersonalCode": "48709090311",
+                        "creditPartyCode": "48709090311",
+                        "creditPartyType": "PERSON",
                         "amount": 500.00,
                         "description": "Reverse duplicate"
                       }

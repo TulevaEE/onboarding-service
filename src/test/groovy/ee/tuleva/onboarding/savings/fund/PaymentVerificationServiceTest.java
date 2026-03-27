@@ -163,7 +163,10 @@ class PaymentVerificationServiceTest {
     verify(savingsFundOnboardingService).isOnboardingCompleted(user.getPersonalCode());
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            user, payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
+            new PartyId(PERSON, user.getPersonalCode()),
+            payment.getAmount(),
+            payment.getId(),
+            LocalDate.of(2025, 10, 1));
     var inOrder = inOrder(savingFundPaymentRepository);
     inOrder
         .verify(savingFundPaymentRepository)
@@ -191,7 +194,10 @@ class PaymentVerificationServiceTest {
     verify(savingsFundOnboardingService).isOnboardingCompleted(user.getPersonalCode());
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            user, payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
+            new PartyId(PERSON, user.getPersonalCode()),
+            payment.getAmount(),
+            payment.getId(),
+            LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository)
         .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
@@ -217,7 +223,10 @@ class PaymentVerificationServiceTest {
     verify(savingsFundOnboardingService).isOnboardingCompleted(user.getPersonalCode());
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            user, payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
+            new PartyId(PERSON, user.getPersonalCode()),
+            payment.getAmount(),
+            payment.getId(),
+            LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository)
         .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
@@ -243,7 +252,10 @@ class PaymentVerificationServiceTest {
     verify(savingsFundOnboardingService).isOnboardingCompleted(user.getPersonalCode());
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            user, payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
+            new PartyId(PERSON, user.getPersonalCode()),
+            payment.getAmount(),
+            payment.getId(),
+            LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository)
         .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));

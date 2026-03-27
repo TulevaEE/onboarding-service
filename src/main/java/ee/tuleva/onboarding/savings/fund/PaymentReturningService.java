@@ -6,7 +6,6 @@ import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
-import ee.tuleva.onboarding.user.UserRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -19,7 +18,6 @@ public class PaymentReturningService {
 
   private final ApplicationEventPublisher eventPublisher;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
-  private final UserRepository userRepository;
   private final SavingsFundLedger savingsFundLedger;
   private final EndToEndIdConverter endToEndIdConverter;
 
@@ -52,11 +50,7 @@ public class PaymentReturningService {
   }
 
   private void reserveUserBalanceForReturn(SavingFundPayment payment) {
-    userRepository
-        .findByPersonalCode(payment.getPartyId().code())
-        .ifPresent(
-            user ->
-                savingsFundLedger.reservePaymentForCancellation(
-                    user, payment.getAmount(), payment.getId()));
+    savingsFundLedger.reservePaymentForCancellation(
+        payment.getPartyId(), payment.getAmount(), payment.getId());
   }
 }

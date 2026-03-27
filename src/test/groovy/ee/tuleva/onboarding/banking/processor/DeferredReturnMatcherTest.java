@@ -17,7 +17,6 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.notification.DeferredReturnMatchingCompletedEvent;
 import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -37,7 +36,6 @@ class DeferredReturnMatcherTest {
 
   @Mock SavingFundPaymentRepository savingFundPaymentRepository;
   @Mock SavingsFundLedger savingsFundLedger;
-  @Mock UserService userService;
   @Mock ApplicationEventPublisher eventPublisher;
   @Mock BankAccountConfiguration bankAccountConfiguration;
 
@@ -75,12 +73,12 @@ class DeferredReturnMatcherTest {
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
-    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
 
+    var expectedParty = new PartyId(PERSON, user.getPersonalCode());
     verify(savingsFundLedger)
-        .recordPaymentCancelled(user, new BigDecimal("50.00"), originalPaymentId);
+        .recordPaymentCancelled(expectedParty, new BigDecimal("50.00"), originalPaymentId);
     verify(eventPublisher)
         .publishEvent(new DeferredReturnMatchingCompletedEvent(1, 0, new BigDecimal("50.00")));
   }
@@ -283,7 +281,6 @@ class DeferredReturnMatcherTest {
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
-    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
 
@@ -317,7 +314,6 @@ class DeferredReturnMatcherTest {
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
-    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
 
@@ -350,7 +346,6 @@ class DeferredReturnMatcherTest {
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
-    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
 
@@ -399,12 +394,14 @@ class DeferredReturnMatcherTest {
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
-    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
 
     verify(savingsFundLedger)
-        .recordPaymentCancelled(user, new BigDecimal("100.00"), originalPaymentId);
+        .recordPaymentCancelled(
+            new PartyId(PERSON, user.getPersonalCode()),
+            new BigDecimal("100.00"),
+            originalPaymentId);
   }
 
   @Test

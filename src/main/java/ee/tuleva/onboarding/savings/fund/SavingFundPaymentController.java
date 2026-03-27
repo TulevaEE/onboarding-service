@@ -57,7 +57,7 @@ public class SavingFundPaymentController {
   @GetMapping("/onboarding/status/legal-entity")
   public Map<String, Optional<SavingsFundOnboardingStatus>> getLegalEntityOnboardingStatus(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-      @RequestParam String registryCode) {
+      @RequestParam(value = "registry-code") String registryCode) {
     Optional<SavingsFundOnboardingStatus> status =
         legalEntitySavingsFundOnboardingService.getOnboardingStatus(
             authenticatedPerson.getPersonalCode(), registryCode);

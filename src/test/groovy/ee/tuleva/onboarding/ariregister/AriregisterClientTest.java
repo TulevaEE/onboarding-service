@@ -75,7 +75,7 @@ class AriregisterClientTest {
                 "EST"),
             new CompanyRelationship(
                 "J",
-                "S",
+                "OSAN",
                 "Osanik",
                 null,
                 "Test Firma OÜ",

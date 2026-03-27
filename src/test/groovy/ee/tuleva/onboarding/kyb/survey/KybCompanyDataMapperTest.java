@@ -43,7 +43,7 @@ class KybCompanyDataMapperTest {
     var shareholder =
         new CompanyRelationship(
             "F",
-            "S",
+            "OSAN",
             "Osanik",
             "Jaan",
             "Tamm",
@@ -91,7 +91,7 @@ class KybCompanyDataMapperTest {
     var person2 =
         new CompanyRelationship(
             "F",
-            "S",
+            "OSAN",
             "Osanik",
             "Mari",
             "Kask",
@@ -127,7 +127,7 @@ class KybCompanyDataMapperTest {
     var relationship =
         new CompanyRelationship(
             "F",
-            "S",
+            "OSAN",
             "Osanik",
             "Jaan",
             "Tamm",
@@ -239,7 +239,7 @@ class KybCompanyDataMapperTest {
     var role2 =
         new CompanyRelationship(
             "F",
-            "S",
+            "OSAN",
             "Osanik",
             "Jaan",
             "Tamm",

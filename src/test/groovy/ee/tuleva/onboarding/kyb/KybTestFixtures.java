@@ -60,7 +60,7 @@ public final class KybTestFixtures {
       String personalCode, String firstName, String lastName, BigDecimal ownership) {
     return new CompanyRelationship(
         "F",
-        "S",
+        "OSAN",
         "Osanik",
         firstName,
         lastName,
@@ -77,7 +77,7 @@ public final class KybTestFixtures {
       String personalCode, String firstName, String lastName, BigDecimal ownership) {
     return new CompanyRelationship(
         "F",
-        "S",
+        "OSAN",
         "Osanik",
         firstName,
         lastName,

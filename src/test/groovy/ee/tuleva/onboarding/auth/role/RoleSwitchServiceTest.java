@@ -16,7 +16,7 @@ import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import ee.tuleva.onboarding.company.CompanyPartyRepository;
 import ee.tuleva.onboarding.company.CompanyRepository;
-import ee.tuleva.onboarding.company.PartyType;
+import ee.tuleva.onboarding.party.Party;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -43,7 +43,7 @@ class RoleSwitchServiceTest {
     when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
         .thenReturn(Optional.of(company));
     when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-            person.getPersonalCode(), PartyType.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
+            person.getPersonalCode(), Party.Type.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
         .thenReturn(true);
     when(principalService.withRole(any(), any())).thenReturn(person);
     when(tokenService.generateTokens(any()))
@@ -94,7 +94,7 @@ class RoleSwitchServiceTest {
     when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
         .thenReturn(Optional.of(company));
     when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-            person.getPersonalCode(), PartyType.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
+            person.getPersonalCode(), Party.Type.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
         .thenReturn(false);
 
     assertThatThrownBy(
@@ -110,7 +110,7 @@ class RoleSwitchServiceTest {
     when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
         .thenReturn(Optional.of(company));
     when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-            person.getPersonalCode(), PartyType.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
+            person.getPersonalCode(), Party.Type.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
         .thenReturn(false);
 
     assertThatThrownBy(
@@ -125,7 +125,7 @@ class RoleSwitchServiceTest {
     var company = sampleCompany().build();
     var membership = sampleBoardMembership(person.getPersonalCode()).build();
     when(companyPartyRepository.findByPartyCodeAndPartyTypeAndRelationshipType(
-            person.getPersonalCode(), PartyType.PERSON, BOARD_MEMBER))
+            person.getPersonalCode(), Party.Type.PERSON, BOARD_MEMBER))
         .thenReturn(List.of(membership));
     when(companyRepository.findAllById(List.of(SAMPLE_COMPANY_ID))).thenReturn(List.of(company));
 
@@ -146,7 +146,7 @@ class RoleSwitchServiceTest {
     var membership =
         sampleBoardMembership(person.getPersonalCode()).companyId(company.getId()).build();
     when(companyPartyRepository.findByPartyCodeAndPartyTypeAndRelationshipType(
-            person.getPersonalCode(), PartyType.PERSON, BOARD_MEMBER))
+            person.getPersonalCode(), Party.Type.PERSON, BOARD_MEMBER))
         .thenReturn(List.of(membership));
     when(companyRepository.findAllById(List.of(company.getId()))).thenReturn(List.of(company));
 
@@ -170,7 +170,7 @@ class RoleSwitchServiceTest {
     when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
         .thenReturn(Optional.of(company));
     when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-            "39911223344", PartyType.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
+            "39911223344", Party.Type.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
         .thenReturn(false);
 
     assertThatThrownBy(

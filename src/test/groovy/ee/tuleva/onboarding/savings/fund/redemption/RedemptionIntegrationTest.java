@@ -20,6 +20,7 @@ import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
@@ -370,7 +371,8 @@ class RedemptionIntegrationTest {
             .build();
 
     var paymentId = savingFundPaymentRepository.savePaymentData(payment);
-    savingFundPaymentRepository.attachUser(paymentId, user.getId());
+    savingFundPaymentRepository.attachParty(
+        paymentId, new Party(Party.Type.PERSON, user.getPersonalCode()));
     savingFundPaymentRepository.changeStatus(paymentId, Status.RECEIVED);
     savingFundPaymentRepository.changeStatus(paymentId, Status.VERIFIED);
     savingFundPaymentRepository.changeStatus(paymentId, Status.RESERVED);

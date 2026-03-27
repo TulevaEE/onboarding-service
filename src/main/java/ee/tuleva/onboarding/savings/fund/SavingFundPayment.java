@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.party.Party;
 import jakarta.annotation.Nullable;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -15,7 +16,7 @@ import lombok.Value;
 @Builder
 public class SavingFundPayment {
   UUID id;
-  Long userId;
+  @Nullable Party party;
 
   BigDecimal amount;
   @Builder.Default Currency currency = EUR;

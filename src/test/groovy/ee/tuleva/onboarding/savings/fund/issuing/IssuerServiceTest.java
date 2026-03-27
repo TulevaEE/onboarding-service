@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.issuing;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.party.Party.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentFixture.aPayment;
@@ -11,9 +12,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,9 +42,14 @@ class IssuerServiceTest {
   @Test
   void processPayment_issuesFundUnitsAndChangesStatus() {
     var user = sampleUser().build();
-    var payment = aPayment().amount(TEN).userId(user.getId()).status(RESERVED).build();
+    var payment =
+        aPayment()
+            .amount(TEN)
+            .party(new Party(PERSON, user.getPersonalCode()))
+            .status(RESERVED)
+            .build();
 
-    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
     issuerService.processPayment(payment, ONE);
 
     var issuedUnits = TEN.divide(ONE, 5, HALF_DOWN);
@@ -56,9 +64,14 @@ class IssuerServiceTest {
     var nav = new BigDecimal("9.9918");
     var paymentAmount = new BigDecimal("500.00");
 
-    var payment = aPayment().amount(paymentAmount).userId(user.getId()).status(RESERVED).build();
+    var payment =
+        aPayment()
+            .amount(paymentAmount)
+            .party(new Party(PERSON, user.getPersonalCode()))
+            .status(RESERVED)
+            .build();
 
-    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
 
     var result = issuerService.processPayment(payment, nav);
 

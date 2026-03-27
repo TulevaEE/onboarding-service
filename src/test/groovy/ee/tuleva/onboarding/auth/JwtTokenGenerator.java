@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.auth.jwt.CustomClaims.*;
 import static ee.tuleva.onboarding.auth.jwt.TokenType.ACCESS;
 import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER;
+import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import ee.tuleva.onboarding.auth.jwt.TokenType;
@@ -88,6 +89,15 @@ public class JwtTokenGenerator {
           .claim(LAST_NAME.getValue(), person.getLastName())
           .claim(ATTRIBUTES.getValue(), Map.of(PHONE_NUMBER, "+372 555 5555"))
           .claim(AUTHORITIES.getValue(), authorities)
+          .claim(
+              ROLE.getValue(),
+              Map.of(
+                  "type",
+                  PERSON.name(),
+                  "code",
+                  person.getPersonalCode(),
+                  "name",
+                  person.getFullName()))
           .issuedAt(new Date())
           .expiration(new Date(System.currentTimeMillis() + 3600000)) // 1 hour expiration
           .signWith(privateKey, Jwts.SIG.RS256)

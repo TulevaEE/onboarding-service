@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.banking.seb;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
+import static ee.tuleva.onboarding.party.Party.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static java.math.RoundingMode.HALF_UP;
@@ -13,6 +14,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
@@ -121,7 +123,8 @@ class SebRedemptionIntegrationTest {
             .build();
 
     var paymentId = savingFundPaymentRepository.savePaymentData(payment);
-    savingFundPaymentRepository.attachUser(paymentId, testUser.getId());
+    savingFundPaymentRepository.attachParty(
+        paymentId, new Party(PERSON, testUser.getPersonalCode()));
     savingFundPaymentRepository.changeStatus(paymentId, Status.RECEIVED);
     savingFundPaymentRepository.changeStatus(paymentId, Status.VERIFIED);
     savingFundPaymentRepository.changeStatus(paymentId, Status.RESERVED);

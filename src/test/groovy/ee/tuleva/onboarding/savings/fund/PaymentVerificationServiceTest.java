@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.party.Party.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
 import static java.util.UUID.randomUUID;
@@ -8,12 +9,15 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.Party;
+import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.savings.fund.notification.UnattributedPaymentEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Locale;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
@@ -143,7 +147,13 @@ class PaymentVerificationServiceTest {
   @Test
   void process_success() {
     var payment = createPayment("37508295796", "to user 37508295796");
-    var user = User.builder().id(123L).firstName("PÄRT").lastName("ÕLEKÕRS").build();
+    var user =
+        User.builder()
+            .id(123L)
+            .personalCode("37508295796")
+            .firstName("PÄRT")
+            .lastName("ÕLEKÕRS")
+            .build();
     when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(user));
     when(savingsFundOnboardingService.isOnboardingCompleted(any())).thenReturn(true);
 
@@ -155,7 +165,9 @@ class PaymentVerificationServiceTest {
         .recordPaymentReceived(
             user, payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     var inOrder = inOrder(savingFundPaymentRepository);
-    inOrder.verify(savingFundPaymentRepository).attachUser(payment.getId(), 123L);
+    inOrder
+        .verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new Party(PERSON, "37508295796"));
     inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
@@ -163,7 +175,13 @@ class PaymentVerificationServiceTest {
   @Test
   void process_success_noRemitterIdCode() {
     var payment = createPayment(null, "to user 37508295796");
-    var user = User.builder().id(444L).firstName("PÄRT").lastName("ÕLEKÕRS").build();
+    var user =
+        User.builder()
+            .id(444L)
+            .personalCode("37508295796")
+            .firstName("PÄRT")
+            .lastName("ÕLEKÕRS")
+            .build();
     when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(user));
     when(savingsFundOnboardingService.isOnboardingCompleted(any())).thenReturn(true);
 
@@ -175,14 +193,21 @@ class PaymentVerificationServiceTest {
         .recordPaymentReceived(
             user, payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
-    verify(savingFundPaymentRepository).attachUser(payment.getId(), 444L);
+    verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new Party(PERSON, "37508295796"));
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
   @Test
   void process_success_ignoreOtherValueInRemitterIdCode() {
     var payment = createPayment("P1234", "to user 37508295796");
-    var user = User.builder().id(444L).firstName("PÄRT").lastName("ÕLEKÕRS").build();
+    var user =
+        User.builder()
+            .id(444L)
+            .personalCode("37508295796")
+            .firstName("PÄRT")
+            .lastName("ÕLEKÕRS")
+            .build();
     when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(user));
     when(savingsFundOnboardingService.isOnboardingCompleted(any())).thenReturn(true);
 
@@ -194,14 +219,21 @@ class PaymentVerificationServiceTest {
         .recordPaymentReceived(
             user, payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
-    verify(savingFundPaymentRepository).attachUser(payment.getId(), 444L);
+    verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new Party(PERSON, "37508295796"));
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
   @Test
   void process_success_allowNameMismatchIfRemitterIdCodeMatches() {
     var payment = createPayment("37508295796", "to user 37508295796");
-    var user = User.builder().id(123L).firstName("KEEGI").lastName("TEINE").build();
+    var user =
+        User.builder()
+            .id(123L)
+            .personalCode("37508295796")
+            .firstName("KEEGI")
+            .lastName("TEINE")
+            .build();
     when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(user));
     when(savingsFundOnboardingService.isOnboardingCompleted(any())).thenReturn(true);
 
@@ -213,7 +245,8 @@ class PaymentVerificationServiceTest {
         .recordPaymentReceived(
             user, payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
-    verify(savingFundPaymentRepository).attachUser(payment.getId(), 123L);
+    verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new Party(PERSON, "37508295796"));
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -241,6 +274,37 @@ class PaymentVerificationServiceTest {
         .contains("37508295796");
     assertThat(service.extractPersonalCode("some prefix+37508295796/some suffix,45009144745"))
         .contains("37508295796");
+  }
+
+  @Test
+  void identityCheckFailure_publishesSavingsPaymentFailedEvent_whenPaymentHasParty() {
+    var user =
+        User.builder()
+            .id(123L)
+            .personalCode("37508295796")
+            .firstName("PÄRT")
+            .lastName("ÕLEKÕRS")
+            .build();
+    var payment =
+        SavingFundPayment.builder()
+            .id(randomUUID())
+            .amount(new BigDecimal("100.00"))
+            .party(new Party(PERSON, user.getPersonalCode()))
+            .remitterName("PÄRT ÕLEKÕRS")
+            .remitterIban("EE123456789012345678")
+            .description("no personal code here")
+            .receivedBefore(Instant.parse("2025-10-01T20:59:59.999999Z"))
+            .build();
+
+    when(userRepository.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
+
+    service.process(payment);
+
+    verify(applicationEventPublisher)
+        .publishEvent(
+            argThat(
+                (SavingsPaymentFailedEvent e) ->
+                    e.getUser().equals(user) && e.getLocale().equals(Locale.of("et"))));
   }
 
   private SavingFundPayment createPayment(String remitterIdCode, String description) {

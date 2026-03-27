@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -13,8 +12,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.locale.LocaleService;
+import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
@@ -60,9 +59,11 @@ class SavingFundPaymentControllerTest {
             person, null, List.of(new SimpleGrantedAuthority(USER)));
 
     var user = mock(User.class);
-    when(userService.getByIdOrThrow(person.getUserId())).thenReturn(user);
+    when(userService.findByPersonalCode(person.getRoleCode())).thenReturn(Optional.of(user));
     when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
-    doNothing().when(savingFundPaymentUpsertionService).cancelUserPayment(any(), eq(paymentId));
+    doNothing()
+        .when(savingFundPaymentUpsertionService)
+        .cancelPayment(eq(Party.from(person.getRole())), eq(paymentId));
 
     mvc.perform(delete("/v1/savings/payments/" + paymentId).with(csrf()).with(authentication(auth)))
         .andExpect(status().isNoContent());
@@ -152,16 +153,12 @@ class SavingFundPaymentControllerTest {
 
   @Test
   void getBankAccounts_shouldReturnListOfIbans() throws Exception {
+    var person = sampleAuthenticatedPersonAndMember().build();
     var auth =
         new UsernamePasswordAuthenticationToken(
-            AuthenticatedPerson.builder().userId(1L).build(),
-            null,
-            List.of(new SimpleGrantedAuthority(USER)));
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
 
-    var user = mock(User.class);
-    when(user.getId()).thenReturn(1L);
-    when(userService.getByIdOrThrow(1L)).thenReturn(user);
-    when(savingFundPaymentRepository.findUserDepositBankAccountIbans(1L))
+    when(savingFundPaymentRepository.findDepositBankAccountIbans(Party.from(person.getRole())))
         .thenReturn(List.of("EE123456789012345678", "EE987654321098765432"));
 
     mvc.perform(get("/v1/savings/bank-accounts").with(authentication(auth)))

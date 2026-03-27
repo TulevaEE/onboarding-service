@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.mandate.exception.NotFoundException;
+import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.payment.application.PaymentLinkingService;
 import ee.tuleva.onboarding.pillar.Pillar;
 import ee.tuleva.onboarding.savings.fund.SavingFundDeadlinesService;
@@ -145,7 +146,8 @@ public class ApplicationService {
 
   private List<Application<? extends ApplicationDetails>> getSavingsFundApplications(
       AuthenticatedPerson person) {
-    var payments = savingFundPaymentUpsertionService.getPendingPaymentsForUser(person.getUserId());
+    var payments =
+        savingFundPaymentUpsertionService.getPendingPayments(Party.from(person.getRole()));
     var redemptionRequests =
         savingFundRedemptionService.getPendingRedemptionsForUser(person.getUserId());
     return Stream.concat(

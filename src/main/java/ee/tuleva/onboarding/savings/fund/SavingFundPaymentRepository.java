@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import static java.time.temporal.ChronoUnit.DAYS;
 
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
@@ -75,50 +76,58 @@ public class SavingFundPaymentRepository {
         this::rowMapper);
   }
 
-  public List<SavingFundPayment> findUserPayments(Long userId) {
+  public List<SavingFundPayment> findPayments(Party party) {
     return jdbcTemplate.query(
         """
-        select * from saving_fund_payment where user_id=:user_id order by created_at desc
+        select * from saving_fund_payment where party_type=:party_type and party_code=:party_code order by created_at desc
         """,
-        Map.of("user_id", userId),
+        Map.of("party_type", party.type().name(), "party_code", party.code()),
         this::rowMapper);
   }
 
-  public List<SavingFundPayment> findUserPaymentsWithStatus(Long userId, Status... statuses) {
+  public List<SavingFundPayment> findPaymentsWithStatus(Party party, Status... statuses) {
     return jdbcTemplate.query(
         """
-        select * from saving_fund_payment where user_id=:user_id and status in (:statuses) order by created_at desc
+        select * from saving_fund_payment where party_type=:party_type and party_code=:party_code and status in (:statuses) order by created_at desc
         """,
-        Map.of("user_id", userId, "statuses", Arrays.stream(statuses).map(Enum::name).toList()),
+        Map.of(
+            "party_type",
+            party.type().name(),
+            "party_code",
+            party.code(),
+            "statuses",
+            Arrays.stream(statuses).map(Enum::name).toList()),
         this::rowMapper);
   }
 
-  public List<String> findUserDepositBankAccountIbans(Long userId) {
+  public List<String> findDepositBankAccountIbans(Party party) {
     return jdbcTemplate.query(
         """
             SELECT DISTINCT remitter_iban
             FROM saving_fund_payment
-            WHERE user_id = :user_id
+            WHERE party_type = :party_type AND party_code = :party_code
               AND status IN (:statuses)
               AND amount > 0
               AND remitter_iban IS NOT NULL
             ORDER BY remitter_iban
             """,
         Map.of(
-            "user_id",
-            userId,
+            "party_type",
+            party.type().name(),
+            "party_code",
+            party.code(),
             "statuses",
             List.of(RESERVED.name(), ISSUED.name(), PROCESSED.name())),
         (rs, _) -> rs.getString("remitter_iban"));
   }
 
-  public Optional<String> findRemitterNameByIban(Long userId, String iban) {
+  public Optional<String> findRemitterNameByIban(Party party, String iban) {
     var results =
         jdbcTemplate.query(
             """
             SELECT remitter_name
             FROM saving_fund_payment
-            WHERE user_id = :user_id
+            WHERE party_type = :party_type AND party_code = :party_code
               AND remitter_iban = :iban
               AND status IN (:statuses)
               AND amount > 0
@@ -126,8 +135,10 @@ public class SavingFundPaymentRepository {
             LIMIT 1
             """,
             Map.of(
-                "user_id",
-                userId,
+                "party_type",
+                party.type().name(),
+                "party_code",
+                party.code(),
                 "iban",
                 iban,
                 "statuses",
@@ -228,7 +239,7 @@ public class SavingFundPaymentRepository {
   private SavingFundPayment rowMapper(ResultSet rs, int ignored) throws SQLException {
     return SavingFundPayment.builder()
         .id(UUID.fromString(rs.getString("id")))
-        .userId(getLong(rs, "user_id"))
+        .party(mapParty(rs))
         .externalId(rs.getString("external_id"))
         .endToEndId(rs.getString("end_to_end_id"))
         .amount(rs.getBigDecimal("amount"))
@@ -254,9 +265,10 @@ public class SavingFundPaymentRepository {
     return timestamp != null ? timestamp.toInstant() : null;
   }
 
-  private Long getLong(ResultSet rs, String column) throws SQLException {
-    var value = rs.getString(column);
-    return value != null ? Long.valueOf(value) : null;
+  private Party mapParty(ResultSet rs) throws SQLException {
+    var type = rs.getString("party_type");
+    var code = rs.getString("party_code");
+    return type != null && code != null ? new Party(Party.Type.valueOf(type), code) : null;
   }
 
   private MapSqlParameterSource createParameters(SavingFundPayment payment) {
@@ -301,14 +313,14 @@ public class SavingFundPaymentRepository {
         Map.of("id", paymentId, "status", newStatus.name()));
   }
 
-  public void attachUser(UUID paymentId, Long userId) {
+  public void attachParty(UUID paymentId, Party party) {
     var currentStatus = getAndLockCurrentStatus(paymentId);
     if (!Set.of(CREATED, RECEIVED).contains(currentStatus))
       throw new IllegalStateException(
-          "Attaching of user ID is not allowed when payment is " + currentStatus);
+          "Attaching party is not allowed when payment is " + currentStatus);
     jdbcTemplate.update(
-        "UPDATE saving_fund_payment SET user_id=:user_id WHERE id=:id",
-        Map.of("id", paymentId, "user_id", userId));
+        "UPDATE saving_fund_payment SET party_type=:party_type, party_code=:party_code WHERE id=:id",
+        Map.of("id", paymentId, "party_type", party.type().name(), "party_code", party.code()));
   }
 
   public void addReturnReason(UUID paymentId, String reason) {
@@ -331,28 +343,4 @@ public class SavingFundPaymentRepository {
         Map.of("id", paymentId),
         Status.class);
   }
-
-  public int TEST_backdateVerifiedPayments(Long userId) {
-    return jdbcTemplate.update(
-        """
-        UPDATE saving_fund_payment
-        SET received_before = received_before - INTERVAL '2 days'
-        WHERE status = 'VERIFIED'
-          AND received_before > NOW() - INTERVAL '2 days'
-          AND user_id = :userId
-        """,
-        Map.of("userId", userId));
-  }
-
-  // todo
-  // Montonio should use findRecentPayments(), savePaymentData() and attachUser() —— DONE
-
-  // Swedbank should use findRecentPayments(), savePaymentData() OR updatePaymentData() and
-  // changeStatus(RECEIVED)
-
-  // sanctions check & identity check should be in a single job which always ends with
-  // changeStatus(...)
-
-  // reservation job should check the cancelledAt timestamp and if set must call
-  // changeStatus(TO_BE_RETURNED)
 }

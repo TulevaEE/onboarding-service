@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
+import static ee.tuleva.onboarding.party.Party.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentFixture.aPayment;
 import static org.mockito.ArgumentMatchers.any;
@@ -12,6 +13,7 @@ import ee.tuleva.onboarding.banking.BankAccountConfiguration;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.notification.DeferredReturnMatchingCompletedEvent;
 import ee.tuleva.onboarding.user.User;
@@ -56,7 +58,7 @@ class DeferredReturnMatcherTest {
     var originalPayment =
         aPayment()
             .id(originalPaymentId)
-            .userId(user.getId())
+            .party(new Party(PERSON, user.getPersonalCode()))
             .amount(new BigDecimal("50.00"))
             .status(RETURNED)
             .build();
@@ -73,7 +75,7 @@ class DeferredReturnMatcherTest {
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
-    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
 
@@ -90,7 +92,6 @@ class DeferredReturnMatcherTest {
     var originalPayment =
         aPayment()
             .id(originalPaymentId)
-            .userId(null)
             .amount(new BigDecimal("75.00"))
             .status(TO_BE_RETURNED)
             .build();
@@ -118,12 +119,8 @@ class DeferredReturnMatcherTest {
   void fallsBackToIbanAndAmountMatch() {
     var originalPaymentId = UUID.randomUUID();
     var originalPayment =
-        aPayment()
-            .id(originalPaymentId)
-            .userId(null)
-            .amount(new BigDecimal("75.00"))
-            .status(RECEIVED)
-            .build();
+        aPayment().id(originalPaymentId).amount(new BigDecimal("75.00")).status(RECEIVED).build();
+
     var returnPayment =
         aPayment()
             .amount(new BigDecimal("-75.00"))
@@ -155,7 +152,7 @@ class DeferredReturnMatcherTest {
     var originalPayment =
         aPayment()
             .id(originalPaymentId)
-            .userId(user.getId())
+            .party(new Party(PERSON, user.getPersonalCode()))
             .amount(new BigDecimal("50.00"))
             .build();
     var returnPayment = aPayment().amount(new BigDecimal("-50.00")).endToEndId(endToEndId).build();
@@ -176,8 +173,7 @@ class DeferredReturnMatcherTest {
   void skipsWhenReturnLedgerEntryAlreadyExists_bounceBack() {
     var originalPaymentId = UUID.randomUUID();
     var endToEndId = originalPaymentId.toString().replace("-", "");
-    var originalPayment =
-        aPayment().id(originalPaymentId).userId(null).amount(new BigDecimal("50.00")).build();
+    var originalPayment = aPayment().id(originalPaymentId).amount(new BigDecimal("50.00")).build();
     var returnPayment = aPayment().amount(new BigDecimal("-50.00")).endToEndId(endToEndId).build();
     when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
         .thenReturn(List.of(returnPayment));
@@ -209,7 +205,6 @@ class DeferredReturnMatcherTest {
     var originalPayment =
         aPayment()
             .id(originalPaymentId)
-            .userId(null)
             .amount(new BigDecimal("75.00"))
             .status(TO_BE_RETURNED)
             .build();
@@ -239,7 +234,6 @@ class DeferredReturnMatcherTest {
     var originalPayment =
         aPayment()
             .id(originalPaymentId)
-            .userId(null)
             .amount(new BigDecimal("18472.00"))
             .status(RECEIVED)
             .build();
@@ -272,7 +266,7 @@ class DeferredReturnMatcherTest {
     var originalPayment =
         aPayment()
             .id(originalPaymentId)
-            .userId(user.getId())
+            .party(new Party(PERSON, user.getPersonalCode()))
             .amount(new BigDecimal("50.00"))
             .status(VERIFIED)
             .build();
@@ -289,7 +283,7 @@ class DeferredReturnMatcherTest {
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
-    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
 
@@ -306,7 +300,7 @@ class DeferredReturnMatcherTest {
     var originalPayment =
         aPayment()
             .id(originalPaymentId)
-            .userId(user.getId())
+            .party(new Party(PERSON, user.getPersonalCode()))
             .amount(new BigDecimal("50.00"))
             .status(RETURNED)
             .build();
@@ -323,7 +317,7 @@ class DeferredReturnMatcherTest {
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
-    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
 
@@ -338,7 +332,7 @@ class DeferredReturnMatcherTest {
     var originalPayment =
         aPayment()
             .id(originalPaymentId)
-            .userId(user.getId())
+            .party(new Party(PERSON, user.getPersonalCode()))
             .amount(new BigDecimal("50.00"))
             .status(VERIFIED)
             .returnReason(null)
@@ -356,7 +350,7 @@ class DeferredReturnMatcherTest {
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
-    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
 
@@ -393,7 +387,7 @@ class DeferredReturnMatcherTest {
     var originalPayment =
         aPayment()
             .id(originalPaymentId)
-            .userId(user.getId())
+            .party(new Party(PERSON, user.getPersonalCode()))
             .amount(new BigDecimal("100.00"))
             .status(RETURNED)
             .build();
@@ -405,7 +399,7 @@ class DeferredReturnMatcherTest {
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
-    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    when(userService.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
 

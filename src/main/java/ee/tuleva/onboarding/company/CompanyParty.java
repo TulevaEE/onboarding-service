@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.company;
 import static jakarta.persistence.EnumType.STRING;
 import static jakarta.persistence.GenerationType.UUID;
 
+import ee.tuleva.onboarding.party.Party;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -29,7 +30,7 @@ public class CompanyParty {
   @NotNull
   @Enumerated(STRING)
   @Column(nullable = false)
-  private PartyType partyType;
+  private Party.Type partyType;
 
   @NotNull
   @Column(nullable = false)

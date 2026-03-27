@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.party.Party.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RETURNED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -12,6 +13,7 @@ import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
@@ -88,7 +90,7 @@ class PaymentReturningServiceTest {
     var payment =
         SavingFundPayment.builder()
             .id(paymentId)
-            .userId(user.getId())
+            .party(new Party(PERSON, user.getPersonalCode()))
             .amount(amount)
             .remitterName("John Doe")
             .remitterIban("EE111111111111111111")
@@ -97,7 +99,7 @@ class PaymentReturningServiceTest {
             .returnReason("Kasutaja soovil")
             .build();
 
-    when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+    when(userRepository.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
 
     service.createReturn(payment);
 
@@ -109,7 +111,6 @@ class PaymentReturningServiceTest {
     var payment =
         SavingFundPayment.builder()
             .id(UUID.randomUUID())
-            .userId(null)
             .amount(new BigDecimal("50.00"))
             .remitterName("Unknown Person")
             .remitterIban("EE333333333333333333")

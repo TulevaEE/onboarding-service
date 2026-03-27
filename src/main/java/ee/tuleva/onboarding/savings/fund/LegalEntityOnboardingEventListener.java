@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.kyb.KybCheckType.DATA_CHANGED;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
 
@@ -25,6 +26,8 @@ class LegalEntityOnboardingEventListener {
   }
 
   private boolean allChecksPassed(KybCheckPerformedEvent event) {
-    return event.getChecks().stream().allMatch(KybCheck::success);
+    return event.getChecks().stream()
+        .filter(check -> check.type() != DATA_CHANGED)
+        .allMatch(KybCheck::success);
   }
 }

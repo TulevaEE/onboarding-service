@@ -12,4 +12,6 @@ public interface CompanyPartyRepository extends JpaRepository<CompanyParty, UUID
 
   boolean existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
       String partyCode, PartyId.Type partyType, UUID companyId, RelationshipType relationshipType);
+
+  void deleteByCompanyId(UUID companyId);
 }

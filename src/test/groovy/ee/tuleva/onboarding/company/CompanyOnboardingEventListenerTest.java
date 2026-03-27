@@ -1,8 +1,7 @@
 package ee.tuleva.onboarding.company;
 
 import static ee.tuleva.onboarding.company.RelationshipType.*;
-import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_ACTIVE;
-import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_STRUCTURE;
+import static ee.tuleva.onboarding.kyb.KybCheckType.*;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -117,7 +116,74 @@ class CompanyOnboardingEventListenerTest {
   }
 
   @Test
-  void doesNothingWhenAnyCheckFails() {
+  void replacesPartiesOnReScreeningWhenAllChecksPass() {
+    var existing =
+        Company.builder()
+            .id(java.util.UUID.randomUUID())
+            .registryCode("12345678")
+            .name("Test OÜ")
+            .build();
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(DATA_CHANGED, true, Map.of()));
+    var event =
+        new KybCheckPerformedEvent(
+            this, company, new PersonalCode("38501010001"), List.of(person2), checks);
+    given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.of(existing));
+
+    listener.onKybCheckPerformed(event);
+
+    verify(companyRepository, never()).save(any());
+    var inOrder = inOrder(companyPartyRepository);
+    inOrder.verify(companyPartyRepository).deleteByCompanyId(existing.getId());
+    inOrder.verify(companyPartyRepository).save(any(CompanyParty.class));
+  }
+
+  @Test
+  void replacesPartiesForExistingCompanyWhenDataChangedCheckFails() {
+    var existing =
+        Company.builder()
+            .id(java.util.UUID.randomUUID())
+            .registryCode("12345678")
+            .name("Test OÜ")
+            .build();
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(COMPANY_STRUCTURE, false, Map.of()),
+            new KybCheck(DATA_CHANGED, false, Map.of()));
+    var event =
+        new KybCheckPerformedEvent(
+            this, company, new PersonalCode("38501010001"), List.of(person1), checks);
+    given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.of(existing));
+
+    listener.onKybCheckPerformed(event);
+
+    verify(companyRepository, never()).save(any());
+    verify(companyPartyRepository).deleteByCompanyId(existing.getId());
+    verify(companyPartyRepository, times(3)).save(any(CompanyParty.class));
+  }
+
+  @Test
+  void doesNothingWhenDataChangedFailsButCompanyDoesNotExist() {
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_STRUCTURE, false, Map.of()),
+            new KybCheck(DATA_CHANGED, false, Map.of()));
+    var event =
+        new KybCheckPerformedEvent(
+            this, company, new PersonalCode("38501010001"), List.of(person1), checks);
+    given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.empty());
+
+    listener.onKybCheckPerformed(event);
+
+    verify(companyRepository, never()).save(any());
+    verifyNoInteractions(companyPartyRepository);
+  }
+
+  @Test
+  void doesNothingWhenNonDataChangedCheckFailsAndDataUnchanged() {
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),

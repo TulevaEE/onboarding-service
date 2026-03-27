@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.company;
 
 import static ee.tuleva.onboarding.company.RelationshipType.*;
+import static ee.tuleva.onboarding.kyb.KybCheckType.DATA_CHANGED;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 
 import ee.tuleva.onboarding.kyb.KybCheck;
@@ -24,16 +25,21 @@ public class CompanyOnboardingEventListener {
   @EventListener
   @Transactional
   public void onKybCheckPerformed(KybCheckPerformedEvent event) {
-    if (!allChecksPassed(event)) {
-      return;
+    if (allChecksPassed(event)) {
+      var company =
+          companyRepository
+              .findByRegistryCode(event.getCompany().registryCode().value())
+              .orElseGet(() -> createCompany(event));
+      replaceParties(company, event);
+    } else if (dataChangedCheckFailed(event)) {
+      companyRepository
+          .findByRegistryCode(event.getCompany().registryCode().value())
+          .ifPresent(company -> replaceParties(company, event));
     }
+  }
 
-    var company =
-        companyRepository
-            .findByRegistryCode(event.getCompany().registryCode().value())
-            .orElseGet(() -> createCompany(event));
-
-    // TODO: update existing party records when board members change on re-screening
+  private void replaceParties(Company company, KybCheckPerformedEvent event) {
+    companyPartyRepository.deleteByCompanyId(company.getId());
     event.getRelatedPersons().stream()
         .flatMap(person -> toCompanyParties(person, company.getId()).stream())
         .forEach(companyPartyRepository::save);
@@ -65,6 +71,11 @@ public class CompanyOnboardingEventListener {
 
   private boolean allChecksPassed(KybCheckPerformedEvent event) {
     return event.getChecks().stream().allMatch(KybCheck::success);
+  }
+
+  private boolean dataChangedCheckFailed(KybCheckPerformedEvent event) {
+    return event.getChecks().stream()
+        .anyMatch(check -> check.type() == DATA_CHANGED && !check.success());
   }
 
   private Company createCompany(KybCheckPerformedEvent event) {

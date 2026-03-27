@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -75,12 +76,11 @@ class KybSurveyService {
 
     var checks = kybScreeningService.screen(companyData);
 
-    return buildLegalEntityData(detail, relationships, checks, isWhitelisted(registryCode));
+    return buildLegalEntityData(detail, relationships, checks, getOnboardingError(registryCode));
   }
 
   void submit(
       Long userId, String personalCode, String registryCode, KybSurveyResponse surveyResponse) {
-    verifyWhitelisted(registryCode);
     var selfCertification = kybSurveyResponseMapper.extractSelfCertification(surveyResponse);
 
     log.info("Submitting KYB survey: registryCode={}, personalCode={}", registryCode, personalCode);
@@ -93,6 +93,7 @@ class KybSurveyService {
             .build());
 
     var relationships = fetchRelationshipsAndVerifyBoardMember(registryCode, personalCode);
+    verifyOnboardingAllowed(registryCode);
     var detail = fetchCompanyDetail(registryCode);
 
     var companyData =
@@ -129,34 +130,36 @@ class KybSurveyService {
                     "Company not found in Ariregister: registryCode=" + registryCode));
   }
 
-  private boolean isWhitelisted(String registryCode) {
-    if (Instant.now(clock).isBefore(WHITELIST_CUTOFF)) {
-      return true;
+  private Optional<String> getOnboardingError(String registryCode) {
+    var status = savingsFundOnboardingRepository.findStatusByPersonalCode(registryCode);
+    if (status.filter(s -> s != WHITELISTED).isPresent()) {
+      return Optional.of("Ettevõte on juba liitunud");
     }
-    return savingsFundOnboardingRepository
-        .findStatusByPersonalCode(registryCode)
-        .filter(status -> status == WHITELISTED)
-        .isPresent();
+    if (!Instant.now(clock).isBefore(WHITELIST_CUTOFF)
+        && status.filter(s -> s == WHITELISTED).isEmpty()) {
+      return Optional.of("Ettevõttel ei ole eelheakskiitu");
+    }
+    return Optional.empty();
   }
 
-  private void verifyWhitelisted(String registryCode) {
-    if (!isWhitelisted(registryCode)) {
-      throw new NotWhitelistedException(registryCode);
-    }
+  private void verifyOnboardingAllowed(String registryCode) {
+    getOnboardingError(registryCode)
+        .ifPresent(
+            error -> {
+              throw new OnboardingNotAllowedException(registryCode);
+            });
   }
 
   private LegalEntityData buildLegalEntityData(
       CompanyDetail detail,
       List<CompanyRelationship> relationships,
       List<KybCheck> checks,
-      boolean whitelisted) {
+      Optional<String> onboardingError) {
 
     var errorsByField = collectErrorsByField(checks);
 
     var nameErrors = new ArrayList<>(errorsByField.getOrDefault("name", List.of()));
-    if (!whitelisted) {
-      nameErrors.add("Ettevõttel ei ole eelheakskiitu");
-    }
+    onboardingError.ifPresent(nameErrors::add);
 
     var status =
         detail

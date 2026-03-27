@@ -46,10 +46,12 @@ class KybSurveyController {
         FORBIDDEN);
   }
 
-  @ExceptionHandler(NotWhitelistedException.class)
-  ResponseEntity<Map<String, String>> handleNotWhitelisted(NotWhitelistedException exception) {
+  @ExceptionHandler(OnboardingNotAllowedException.class)
+  ResponseEntity<Map<String, String>> handleOnboardingNotAllowed(
+      OnboardingNotAllowedException exception) {
     return new ResponseEntity<>(
-        Map.of("error", "NOT_WHITELISTED", "error_description", exception.getMessage()), FORBIDDEN);
+        Map.of("error", "ONBOARDING_NOT_ALLOWED", "error_description", exception.getMessage()),
+        FORBIDDEN);
   }
 
   @ExceptionHandler(Exception.class)

@@ -129,8 +129,8 @@ class KybSurveyControllerTest {
   }
 
   @Test
-  void submit_returns403WhenNotWhitelisted() throws Exception {
-    willThrow(new NotWhitelistedException(REGISTRY_CODE))
+  void submit_returns403WhenOnboardingNotAllowed() throws Exception {
+    willThrow(new OnboardingNotAllowedException(REGISTRY_CODE))
         .given(kybSurveyService)
         .submit(eq(1L), eq(PERSONAL_CODE), eq(REGISTRY_CODE), any(KybSurveyResponse.class));
 
@@ -142,7 +142,7 @@ class KybSurveyControllerTest {
                 .with(csrf())
                 .with(authentication(personAuth())))
         .andExpect(status().isForbidden())
-        .andExpect(content().json("{\"error\":\"NOT_WHITELISTED\"}"));
+        .andExpect(content().json("{\"error\":\"ONBOARDING_NOT_ALLOWED\"}"));
   }
 
   @Test

@@ -25,7 +25,19 @@ public class ScheduledAmlHealthCheckJob {
           AmlCheckType.RISK_LEVEL_OVERRIDE,
           AmlCheckType.RISK_LEVEL_OVERRIDE_CONFIRMATION,
           AmlCheckType.SANCTION_OVERRIDE,
-          AmlCheckType.INTERNAL_ESCALATION);
+          AmlCheckType.INTERNAL_ESCALATION,
+          AmlCheckType.KYB_COMPANY_STRUCTURE,
+          AmlCheckType.KYB_SOLE_MEMBER_OWNERSHIP,
+          AmlCheckType.KYB_DUAL_MEMBER_OWNERSHIP,
+          AmlCheckType.KYB_SOLE_BOARD_MEMBER_IS_OWNER,
+          AmlCheckType.KYB_COMPANY_ACTIVE,
+          AmlCheckType.KYB_RELATED_PERSONS_KYC,
+          AmlCheckType.KYB_COMPANY_SANCTION,
+          AmlCheckType.KYB_COMPANY_PEP,
+          AmlCheckType.KYB_HIGH_RISK_NACE,
+          AmlCheckType.KYB_COMPANY_LEGAL_FORM,
+          AmlCheckType.KYB_SELF_CERTIFICATION,
+          AmlCheckType.KYB_DATA_CHANGED);
 
   @Scheduled(cron = "0 0 * * * ?", zone = "Europe/Tallinn")
   @SchedulerLock(

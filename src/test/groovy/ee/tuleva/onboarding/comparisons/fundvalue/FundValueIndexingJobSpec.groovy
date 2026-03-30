@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepositor
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundNavRetrieverFactory
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
+import ee.tuleva.onboarding.deadline.PublicHolidays
 import org.springframework.core.env.Environment
 import spock.lang.Specification
 
@@ -22,13 +23,15 @@ class FundValueIndexingJobSpec extends Specification {
     FundValueRepository fundValueRepository = Mock(FundValueRepository)
     ComparisonIndexRetriever fundValueRetriever = Mock(ComparisonIndexRetriever)
     FundNavRetrieverFactory fundNavRetrieverFactory = Mock(FundNavRetrieverFactory)
+    PublicHolidays publicHolidays = new PublicHolidays()
 
     FundValueIndexingJob fundValueIndexingJob = new FundValueIndexingJob(
         fundValueRepository,
         singletonList(fundValueRetriever),
         Mock(Environment),
         fundNavRetrieverFactory,
-        CLOCK)
+        CLOCK,
+        publicHolidays)
 
     def "if no saved fund values found, downloads and saves from defined start time"() {
         given:
@@ -96,7 +99,8 @@ class FundValueIndexingJobSpec extends Specification {
             [retriever1, retriever2],
             Mock(Environment),
             fundNavRetrieverFactory,
-            CLOCK)
+            CLOCK,
+            publicHolidays)
 
         when:
         job.refreshAll()
@@ -119,7 +123,8 @@ class FundValueIndexingJobSpec extends Specification {
             [failingRetriever, successRetriever],
             Mock(Environment),
             fundNavRetrieverFactory,
-            CLOCK)
+            CLOCK,
+            publicHolidays)
 
         when:
         job.refreshAll()
@@ -145,6 +150,36 @@ class FundValueIndexingJobSpec extends Specification {
         then:
         1 * fundValueRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
         1 * dynamicRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
+    }
+
+    def "skips retrievers that require working day on weekends"() {
+        given:
+        def saturday = LocalDate.parse("2026-03-28") // Saturday
+        def saturdayClock = Clock.fixed(saturday.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant(), ZoneId.of("Europe/Tallinn"))
+
+        def workingDayRetriever = Mock(ComparisonIndexRetriever)
+        workingDayRetriever.getKey() >> "EXCHANGE_FUND"
+        workingDayRetriever.requiresWorkingDay() >> true
+
+        def anyDayRetriever = Mock(ComparisonIndexRetriever)
+        anyDayRetriever.getKey() >> "CPI_INDEX"
+        anyDayRetriever.requiresWorkingDay() >> false
+        fundValueRepository.findLastValueForFund("CPI_INDEX") >> Optional.empty()
+
+        def job = new FundValueIndexingJob(
+            fundValueRepository,
+            [workingDayRetriever, anyDayRetriever],
+            Mock(Environment),
+            fundNavRetrieverFactory,
+            saturdayClock,
+            publicHolidays)
+
+        when:
+        job.refreshAll()
+
+        then:
+        0 * workingDayRetriever.retrieveValuesForRange(_, _)
+        1 * anyDayRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, saturday) >> []
     }
 
     private static List<FundValue> fakeFundValues() {

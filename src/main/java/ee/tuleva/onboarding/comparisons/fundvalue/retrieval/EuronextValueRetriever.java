@@ -49,6 +49,11 @@ public class EuronextValueRetriever implements ComparisonIndexRetriever {
   }
 
   @Override
+  public boolean requiresWorkingDay() {
+    return true;
+  }
+
+  @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
     return FundTicker.getEuronextParisIsins().stream()
         .flatMap(isin -> retrieveValuesForIsin(isin, startDate, endDate).stream())

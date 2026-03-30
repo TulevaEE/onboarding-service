@@ -48,6 +48,11 @@ public class BlackRockFundValueRetriever implements ComparisonIndexRetriever {
   }
 
   @Override
+  public boolean requiresWorkingDay() {
+    return true;
+  }
+
+  @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
     return FundTicker.getBlackrockFunds().stream()
         .flatMap(fund -> retrieveValuesForFund(fund, startDate, endDate).stream())

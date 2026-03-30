@@ -44,6 +44,11 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
   }
 
   @Override
+  public boolean requiresWorkingDay() {
+    return true;
+  }
+
+  @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
     return FundTicker.getXetraIsins().stream()
         .flatMap(isin -> retrieveValuesForIsin(isin, startDate, endDate).stream())
@@ -73,7 +78,7 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
     }
 
     var storageKey = isin + "." + XETRA_MARKET_IDENTIFIER_CODE;
-    var now = Instant.now();
+    var now = Instant.now(clock);
     List<FundValue> allValues =
         response.data().stream()
             .map(

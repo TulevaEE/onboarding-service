@@ -40,6 +40,11 @@ public class MorningstarNavRetriever implements ComparisonIndexRetriever {
   }
 
   @Override
+  public boolean requiresWorkingDay() {
+    return true;
+  }
+
+  @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
     var now = Instant.now();
     List<FundValue> results = new ArrayList<>();

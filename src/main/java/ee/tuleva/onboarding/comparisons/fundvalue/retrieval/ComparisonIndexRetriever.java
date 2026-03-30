@@ -8,4 +8,8 @@ public interface ComparisonIndexRetriever {
   String getKey();
 
   List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate);
+
+  default boolean requiresWorkingDay() {
+    return false;
+  }
 }

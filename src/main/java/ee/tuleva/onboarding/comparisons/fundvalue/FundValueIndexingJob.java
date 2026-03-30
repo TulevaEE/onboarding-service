@@ -5,6 +5,7 @@ import static java.util.Collections.emptyList;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundNavRetrieverFactory;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -32,6 +33,7 @@ public class FundValueIndexingJob {
   private final Environment environment;
   private final FundNavRetrieverFactory fundNavRetrieverFactory;
   private final Clock clock;
+  private final PublicHolidays publicHolidays;
   private List<ComparisonIndexRetriever> dynamicRetrievers = emptyList();
 
   static final LocalDate EARLIEST_DATE = LocalDate.parse("2003-01-07");
@@ -56,6 +58,10 @@ public class FundValueIndexingJob {
 
   private void refreshRetriever(ComparisonIndexRetriever retriever) {
     String fund = retriever.getKey();
+    if (retriever.requiresWorkingDay() && !publicHolidays.isWorkingDay(LocalDate.now(clock))) {
+      log.info("Skipping {} on non-working day", fund);
+      return;
+    }
     log.info("Starting to update values for {}", fund);
     try {
       Optional<LocalDate> startDate = getStartDate(fund);

@@ -51,6 +51,11 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
   }
 
   @Override
+  public boolean requiresWorkingDay() {
+    return true;
+  }
+
+  @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
     return FundTicker.getEodhdTickers().stream()
         .flatMap(ticker -> retrieveValuesForTicker(ticker, startDate, endDate).stream())

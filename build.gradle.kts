@@ -106,7 +106,7 @@ dependencies {
     implementation("commons-net:commons-net:3.12.0")
     implementation("org.apache.commons:commons-lang3")
     implementation("org.decampo:xirr:1.2")
-    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.9")
+    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:5.0.0")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.4")
     implementation("org.springframework.boot:spring-boot-starter-web-services")
     testImplementation("org.springframework.ws:spring-ws-test")

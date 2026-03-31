@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
+import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.aml.risklevel.AmlRiskTestDataFixtures.*;
 import static java.time.ZoneOffset.UTC;
-import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -433,9 +433,7 @@ class RiskLevelServiceIntegrationTest {
 
     // then
     List<AmlCheck> tkfChecks =
-        amlCheckRepository.findAll().stream()
-            .filter(c -> c.getType() == TKF_RISK_LEVEL)
-            .toList();
+        amlCheckRepository.findAll().stream().filter(c -> c.getType() == TKF_RISK_LEVEL).toList();
 
     assertThat(tkfChecks).hasSize(1);
     assertThat(tkfChecks.getFirst().getPersonalCode()).isEqualTo("38501010001");
@@ -473,9 +471,7 @@ class RiskLevelServiceIntegrationTest {
 
     // then - no new TKF check created (deduplicated)
     List<AmlCheck> tkfChecks =
-        amlCheckRepository.findAll().stream()
-            .filter(c -> c.getType() == TKF_RISK_LEVEL)
-            .toList();
+        amlCheckRepository.findAll().stream().filter(c -> c.getType() == TKF_RISK_LEVEL).toList();
 
     assertThat(tkfChecks).hasSize(1);
   }

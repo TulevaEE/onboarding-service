@@ -54,8 +54,7 @@ public class RiskLevelService {
             .filter(row -> StringUtils.hasText(row.getPersonalId()))
             .map(row -> buildAmlCheck(row, 2));
 
-    List<AmlCheck> allChecks =
-        Stream.concat(highRiskChecks, mediumRiskChecks).collect(toList());
+    List<AmlCheck> allChecks = Stream.concat(highRiskChecks, mediumRiskChecks).collect(toList());
 
     int highRiskCount = highRiskRows.size();
     int mediumRiskCount = mediumRiskSamples.size();
@@ -128,8 +127,7 @@ public class RiskLevelService {
             .filter(row -> StringUtils.hasText(row.getPersonalId()))
             .map(this::buildTkfAmlCheck);
 
-    List<AmlCheck> allTkfChecks =
-        Stream.concat(highRiskChecks, mediumRiskChecks).collect(toList());
+    List<AmlCheck> allTkfChecks = Stream.concat(highRiskChecks, mediumRiskChecks).collect(toList());
 
     int createdCount = (int) allTkfChecks.stream().filter(this::addTkfCheckIfMissing).count();
 

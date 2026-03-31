@@ -40,6 +40,7 @@ public class ContactDetails implements Person, Emailable {
   private boolean isThirdPillarActive;
   private Instant secondPillarOpenDate;
   private Instant thirdPillarInitDate;
+  @Nullable private PaymentRates secondPillarPaymentRates;
 
   public Country getAddress() {
     return Country.builder().countryCode(country).build();
@@ -54,6 +55,14 @@ public class ContactDetails implements Person, Emailable {
     EST,
     RUS,
     ENG
+  }
+
+  @Data
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class PaymentRates {
+    @Nullable private Integer current;
+    @Nullable private Integer pending;
   }
 
   @Data

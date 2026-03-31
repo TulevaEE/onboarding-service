@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import org.junit.jupiter.api.Test;
@@ -12,13 +11,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ScheduledAmlRiskMetadataRefreshJobTest {
 
-  @Mock private AmlRiskRepositoryService amlRiskRepositoryService;
+  @Mock private AmlRiskReader amlRiskReader;
 
   @InjectMocks private ScheduledAmlRiskMetadataRefreshJob scheduledAmlRiskMetadataRefreshJob;
 
   @Test
-  void refreshAmlRiskMetadataShouldInvokeRepositoryService() {
+  void refreshAmlRiskMetadataShouldInvokeReader() {
     scheduledAmlRiskMetadataRefreshJob.refreshAmlRiskMetadata();
-    verify(amlRiskRepositoryService, times(1)).refreshAmlRiskMetadataView();
+    verify(amlRiskReader).refreshAmlRiskMetadataView();
   }
 }

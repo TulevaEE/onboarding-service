@@ -19,7 +19,12 @@ public class AmlCheckNotifier {
 
   @EventListener
   public void onAmlCheckCreated(AmlCheckCreatedEvent event) {
-    if (List.of(POLITICALLY_EXPOSED_PERSON, POLITICALLY_EXPOSED_PERSON_AUTO, SANCTION, RISK_LEVEL)
+    if (List.of(
+                POLITICALLY_EXPOSED_PERSON,
+                POLITICALLY_EXPOSED_PERSON_AUTO,
+                SANCTION,
+                RISK_LEVEL,
+                TKF_RISK_LEVEL)
             .contains(event.getAmlCheckType())
         && event.isFailed()) {
       notificationService.sendMessage(
@@ -38,8 +43,9 @@ public class AmlCheckNotifier {
   @EventListener
   public void onAmlRiskLevelJobRun(AmlRiskLevelJobRunEvent event) {
     notificationService.sendMessage(
-        "Ran AML Risk Level job: highRiskRecordCount=%d, amlChecksCreatedCount=%d"
-            .formatted(event.getHighRiskRowCount(), event.getAmlChecksCreatedCount()),
+        "Ran %s risk level job: highRiskRecordCount=%d, amlChecksCreatedCount=%d"
+            .formatted(
+                event.getLabel(), event.getHighRiskRowCount(), event.getAmlChecksCreatedCount()),
         AML);
   }
 }

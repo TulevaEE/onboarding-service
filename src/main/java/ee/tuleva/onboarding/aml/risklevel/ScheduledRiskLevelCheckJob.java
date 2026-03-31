@@ -29,7 +29,16 @@ public class ScheduledRiskLevelCheckJob {
     log.info(
         "Starting AML risk level check job with medium risk sampling probability: {}",
         String.format("%.8f", MEDIUM_SAMPLE_PROBABILITY_FOR_DAILY_RUN));
-    riskLevelService.runRiskLevelCheck(MEDIUM_SAMPLE_PROBABILITY_FOR_DAILY_RUN);
+    try {
+      riskLevelService.runRiskLevelCheck(MEDIUM_SAMPLE_PROBABILITY_FOR_DAILY_RUN);
+    } catch (Exception e) {
+      log.error("III pillar risk level check failed", e);
+    }
+    try {
+      riskLevelService.runTkfRiskLevelCheck(MEDIUM_SAMPLE_PROBABILITY_FOR_DAILY_RUN);
+    } catch (Exception e) {
+      log.error("TKF risk level check failed", e);
+    }
     log.info("Finished AML risk level check job");
   }
 }

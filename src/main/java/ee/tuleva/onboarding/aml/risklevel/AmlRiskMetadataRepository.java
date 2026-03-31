@@ -6,6 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface AmlRiskMetadataRepository extends JpaRepository<AmlRiskMetadata, String> {
-
   List<AmlRiskMetadata> findAllByRiskLevel(Integer riskLevel);
 }

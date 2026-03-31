@@ -106,6 +106,7 @@ class AmlCheckNotifierTest {
   @DisplayName("Should always send Slack message with row counts after an AML risk level job run")
   void onAmlRiskLevelJobRun_sendsSlackMessage() {
     AmlRiskLevelJobRunEvent event = mock(AmlRiskLevelJobRunEvent.class);
+    when(event.getLabel()).thenReturn("III pillar");
     when(event.getHighRiskRowCount()).thenReturn(3);
     when(event.getAmlChecksCreatedCount()).thenReturn(2);
 
@@ -114,7 +115,7 @@ class AmlCheckNotifierTest {
     ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
     verify(notificationService).sendMessage(captor.capture(), eq(AML));
     org.junit.jupiter.api.Assertions.assertEquals(
-        "Ran AML Risk Level job: highRiskRecordCount=3, amlChecksCreatedCount=2",
+        "Ran III pillar risk level job: highRiskRecordCount=3, amlChecksCreatedCount=2",
         captor.getValue());
   }
 }

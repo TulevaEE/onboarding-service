@@ -17,7 +17,9 @@ public final class TkfRiskTestDataFixtures {
 
   public static final String INSERT_TKF_HIGH_RISK =
       "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) VALUES ("
-          + "'" + TKF_PERSON_HIGH_RISK + "', 1, "
+          + "'"
+          + TKF_PERSON_HIGH_RISK
+          + "', 1, "
           + "'{\"version\": \"1.2\", \"level\": 1, \"total_points\": 105, "
           + "\"rule_1_non_citizen_non_resident\": 100, \"rule_2_high_risk_citizen\": 0, "
           + "\"rule_3_citizen_in_high_risk\": 0, \"rule_4_sanctioned\": 0, "
@@ -31,7 +33,9 @@ public final class TkfRiskTestDataFixtures {
 
   public static final String INSERT_TKF_MEDIUM_RISK =
       "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) VALUES ("
-          + "'" + TKF_PERSON_MEDIUM_RISK + "', 2, "
+          + "'"
+          + TKF_PERSON_MEDIUM_RISK
+          + "', 2, "
           + "'{\"version\": \"1.2\", \"level\": 2, \"total_points\": 20, "
           + "\"rule_1_non_citizen_non_resident\": 0, \"rule_2_high_risk_citizen\": 0, "
           + "\"rule_3_citizen_in_high_risk\": 0, \"rule_4_sanctioned\": 0, "
@@ -45,7 +49,9 @@ public final class TkfRiskTestDataFixtures {
 
   public static final String INSERT_TKF_LOW_RISK =
       "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) VALUES ("
-          + "'" + TKF_PERSON_LOW_RISK + "', 3, "
+          + "'"
+          + TKF_PERSON_LOW_RISK
+          + "', 3, "
           + "'{\"version\": \"1.2\", \"level\": 3, \"total_points\": 5, "
           + "\"rule_1_non_citizen_non_resident\": 0, \"rule_2_high_risk_citizen\": 0, "
           + "\"rule_3_citizen_in_high_risk\": 0, \"rule_4_sanctioned\": 0, "

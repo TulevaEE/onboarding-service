@@ -1,12 +1,16 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
+import static ee.tuleva.onboarding.aml.AmlCheckType.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -30,8 +34,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import static org.mockito.Mockito.mock;
+
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
 import org.springframework.context.ApplicationEventPublisher;
 
 class RiskLevelServiceTest {
@@ -46,10 +51,10 @@ class RiskLevelServiceTest {
 
   @BeforeEach
   void setUp() {
-    amlRiskRepositoryService = Mockito.mock(AmlRiskRepositoryService.class);
-    tkfRiskRepositoryService = Mockito.mock(TkfRiskRepositoryService.class);
-    amlCheckRepository = Mockito.mock(AmlCheckRepository.class);
-    eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
+    amlRiskRepositoryService = mock(AmlRiskRepositoryService.class);
+    tkfRiskRepositoryService = mock(TkfRiskRepositoryService.class);
+    amlCheckRepository = mock(AmlCheckRepository.class);
+    eventPublisher = mock(ApplicationEventPublisher.class);
     ClockHolder.setClock(TestClockHolder.clock);
     riskLevelService =
         new RiskLevelService(
@@ -94,7 +99,7 @@ class RiskLevelServiceTest {
     assertFalse(createdCheck.isSuccess());
     assertEquals(999, createdCheck.getMetadata().get("some_key"));
 
-    verify(eventPublisher).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
+    verify(eventPublisher).publishEvent(isA(AmlCheckCreatedEvent.class));
 
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
@@ -132,7 +137,7 @@ class RiskLevelServiceTest {
     assertFalse(createdCheck.isSuccess());
     assertEquals(777, createdCheck.getMetadata().get("medium_key"));
 
-    verify(eventPublisher).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
+    verify(eventPublisher).publishEvent(isA(AmlCheckCreatedEvent.class));
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher).publishEvent(jobEventCaptor.capture());
@@ -178,7 +183,7 @@ class RiskLevelServiceTest {
             .findFirst()
             .get();
 
-    verify(eventPublisher, times(2)).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
+    verify(eventPublisher, times(2)).publishEvent(isA(AmlCheckCreatedEvent.class));
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher).publishEvent(jobEventCaptor.capture());
@@ -201,7 +206,7 @@ class RiskLevelServiceTest {
 
     // then
     verify(amlCheckRepository, never()).save(any());
-    verify(eventPublisher, never()).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
+    verify(eventPublisher, never()).publishEvent(isA(AmlCheckCreatedEvent.class));
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher).publishEvent(jobEventCaptor.capture());
@@ -236,7 +241,7 @@ class RiskLevelServiceTest {
 
     // then
     verify(amlCheckRepository, never()).save(any());
-    verify(eventPublisher, never()).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
+    verify(eventPublisher, never()).publishEvent(isA(AmlCheckCreatedEvent.class));
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher).publishEvent(jobEventCaptor.capture());
@@ -263,7 +268,7 @@ class RiskLevelServiceTest {
 
     // then
     verify(amlCheckRepository, times(1)).save(any(AmlCheck.class));
-    verify(eventPublisher, times(1)).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
+    verify(eventPublisher, times(1)).publishEvent(isA(AmlCheckCreatedEvent.class));
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher).publishEvent(jobEventCaptor.capture());
@@ -298,7 +303,7 @@ class RiskLevelServiceTest {
 
     // then
     verify(amlCheckRepository, times(1)).save(any(AmlCheck.class));
-    verify(eventPublisher, times(1)).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
+    verify(eventPublisher, times(1)).publishEvent(isA(AmlCheckCreatedEvent.class));
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher).publishEvent(jobEventCaptor.capture());
@@ -322,7 +327,7 @@ class RiskLevelServiceTest {
 
     // then
     verify(amlCheckRepository, never()).save(any());
-    verify(eventPublisher, never()).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
+    verify(eventPublisher, never()).publishEvent(isA(AmlCheckCreatedEvent.class));
 
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
@@ -451,7 +456,7 @@ class RiskLevelServiceTest {
 
     // then
     verify(amlCheckRepository, never()).save(any());
-    verify(eventPublisher, never()).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
+    verify(eventPublisher, never()).publishEvent(isA(AmlCheckCreatedEvent.class));
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher).publishEvent(jobEventCaptor.capture());
@@ -487,7 +492,7 @@ class RiskLevelServiceTest {
 
     // then
     verify(amlCheckRepository, times(1)).save(any(AmlCheck.class));
-    verify(eventPublisher, times(1)).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
+    verify(eventPublisher, times(1)).publishEvent(isA(AmlCheckCreatedEvent.class));
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher).publishEvent(jobEventCaptor.capture());
@@ -496,5 +501,123 @@ class RiskLevelServiceTest {
     assertEquals(0, jobRunEvent.getMediumRiskRowCount());
     assertEquals(1, jobRunEvent.getTotalRowsProcessed());
     assertEquals(1, jobRunEvent.getAmlChecksCreatedCount());
+  }
+
+  // --- TKF risk level check tests ---
+
+  @Test
+  void tkfRiskLevelCheck_createsCheckForHighRiskRow() {
+    RiskLevelResult tkfHighRisk =
+        new RiskLevelResult("38501010001", 1, Map.of("level", 1, "total_points", 105));
+    when(tkfRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(tkfHighRisk));
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
+            eq("38501010001"), eq(TKF_RISK_LEVEL), any(Instant.class)))
+        .thenReturn(List.of());
+
+    riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
+
+    verify(tkfRiskRepositoryService).refreshMaterializedView();
+    ArgumentCaptor<AmlCheck> captor = ArgumentCaptor.forClass(AmlCheck.class);
+    verify(amlCheckRepository, atLeastOnce()).save(captor.capture());
+
+    AmlCheck tkfCheck =
+        captor.getAllValues().stream()
+            .filter(c -> c.getType() == TKF_RISK_LEVEL)
+            .findFirst()
+            .orElseThrow();
+    assertThat(tkfCheck.getPersonalCode()).isEqualTo("38501010001");
+    assertThat(tkfCheck.isSuccess()).isFalse();
+    assertThat(tkfCheck.getMetadata()).containsEntry("level", 1);
+    assertThat(tkfCheck.getMetadata()).containsEntry("total_points", 105);
+  }
+
+  @Test
+  void tkfRiskLevelCheck_skipsBlankPersonalId() {
+    RiskLevelResult tkfBlank = new RiskLevelResult("   ", 1, Map.of("level", 1));
+    when(tkfRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(tkfBlank));
+
+    riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
+
+    verify(amlCheckRepository, never())
+        .findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
+            eq("   "), eq(TKF_RISK_LEVEL), any());
+  }
+
+  @Test
+  void tkfRiskLevelCheck_skipsDuplicateWithinSixMonths() {
+    RiskLevelResult tkfRow =
+        new RiskLevelResult("38501010001", 1, Map.of("level", 1, "total_points", 105));
+    when(tkfRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(tkfRow));
+
+    AmlCheck existing =
+        AmlCheck.builder()
+            .personalCode("38501010001")
+            .type(TKF_RISK_LEVEL)
+            .success(false)
+            .metadata(Map.of("level", 1, "total_points", 105))
+            .createdTime(TestClockHolder.now.minus(90, ChronoUnit.DAYS))
+            .build();
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
+            eq("38501010001"), eq(TKF_RISK_LEVEL), any(Instant.class)))
+        .thenReturn(List.of(existing));
+
+    riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
+
+    // Only III pillar event should be saved, not TKF (deduplicated)
+    verify(amlCheckRepository, never())
+        .save(
+            argThat(
+                check -> check != null && check.getType() == TKF_RISK_LEVEL));
+  }
+
+  @Test
+  void tkfRiskLevelCheck_createsCheckWhenMetadataChanged() {
+    RiskLevelResult tkfRow =
+        new RiskLevelResult("38501010001", 1, Map.of("level", 1, "total_points", 110));
+    when(tkfRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(tkfRow));
+
+    AmlCheck existing =
+        AmlCheck.builder()
+            .personalCode("38501010001")
+            .type(TKF_RISK_LEVEL)
+            .success(false)
+            .metadata(Map.of("level", 1, "total_points", 105))
+            .createdTime(TestClockHolder.now.minus(90, ChronoUnit.DAYS))
+            .build();
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
+            eq("38501010001"), eq(TKF_RISK_LEVEL), any(Instant.class)))
+        .thenReturn(List.of(existing));
+    when(amlCheckRepository.save(any(AmlCheck.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
+
+    ArgumentCaptor<AmlCheck> captor = ArgumentCaptor.forClass(AmlCheck.class);
+    verify(amlCheckRepository, atLeastOnce()).save(captor.capture());
+    assertThat(captor.getAllValues())
+        .anyMatch(c -> c.getType() == TKF_RISK_LEVEL && (int) c.getMetadata().get("total_points") == 110);
+  }
+
+  @Test
+  void tkfRiskLevelCheck_processesMediumRiskSamples() {
+    RiskLevelResult tkfMedium =
+        new RiskLevelResult("39001010002", 2, Map.of("level", 2, "total_points", 20));
+    when(tkfRiskRepositoryService.getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY)))
+        .thenReturn(List.of(tkfMedium));
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
+            eq("39001010002"), eq(TKF_RISK_LEVEL), any(Instant.class)))
+        .thenReturn(List.of());
+    when(amlCheckRepository.save(any(AmlCheck.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
+
+    ArgumentCaptor<AmlCheck> captor = ArgumentCaptor.forClass(AmlCheck.class);
+    verify(amlCheckRepository, atLeastOnce()).save(captor.capture());
+    assertThat(captor.getAllValues())
+        .anyMatch(
+            c ->
+                c.getType() == TKF_RISK_LEVEL
+                    && c.getPersonalCode().equals("39001010002"));
   }
 }

@@ -1,8 +1,9 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
 import static ee.tuleva.onboarding.aml.risklevel.AmlRiskTestDataFixtures.*;
-import static ee.tuleva.onboarding.aml.risklevel.TkfRiskTestDataFixtures.*;
 import static java.time.ZoneOffset.UTC;
+import static ee.tuleva.onboarding.aml.AmlCheckType.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doNothing;
@@ -54,7 +55,6 @@ class RiskLevelServiceIntegrationTest {
       stmt.execute(CREATE_AML_RISK_SHCEMA);
       stmt.execute(CREATE_AML_RISK_VIEW);
       stmt.execute(CREATE_AML_RISK_METADATA_VIEW);
-      stmt.execute(CREATE_TKF_RISK_TABLE);
     }
   }
 
@@ -70,7 +70,7 @@ class RiskLevelServiceIntegrationTest {
     try (Connection conn = dataSource.getConnection();
         Statement stmt = conn.createStatement()) {
       stmt.execute(TRUNCATE_AML_RISK);
-      stmt.execute(TRUNCATE_TKF_RISK);
+      stmt.execute("DELETE FROM analytics.v_tkf_risk_metadata");
     }
     amlCheckRepository.deleteAll();
     ClockHolder.setDefaultClock();
@@ -411,5 +411,72 @@ class RiskLevelServiceIntegrationTest {
     List<AmlCheck> checksAfter = amlCheckRepository.findAll();
     assertEquals(
         2, checksAfter.size(), "Should have old + new check for older-than-six-months scenario");
+  }
+
+  @Test
+  void tkfRiskLevelCheck_createsCheckForHighRiskTkfRow() throws Exception {
+    // given
+    try (Connection conn = dataSource.getConnection();
+        Statement stmt = conn.createStatement()) {
+      stmt.execute(
+          "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) "
+              + "VALUES ('38501010001', 1, "
+              + "'{\"version\": \"1.2\", \"level\": 1, \"total_points\": 105}')");
+    }
+
+    doReturn(Collections.emptyList())
+        .when(tkfRiskRepositoryService)
+        .getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
+
+    // when
+    riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
+
+    // then
+    List<AmlCheck> tkfChecks =
+        amlCheckRepository.findAll().stream()
+            .filter(c -> c.getType() == TKF_RISK_LEVEL)
+            .toList();
+
+    assertThat(tkfChecks).hasSize(1);
+    assertThat(tkfChecks.getFirst().getPersonalCode()).isEqualTo("38501010001");
+    assertThat(tkfChecks.getFirst().isSuccess()).isFalse();
+    assertThat(tkfChecks.getFirst().getMetadata()).containsEntry("level", 1);
+  }
+
+  @Test
+  void tkfRiskLevelCheck_deduplicatesIdenticalScore() throws Exception {
+    // given - existing TKF check with same metadata
+    try (Connection conn = dataSource.getConnection();
+        Statement stmt = conn.createStatement()) {
+      stmt.execute(
+          "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) "
+              + "VALUES ('38501010001', 1, "
+              + "'{\"version\": \"1.2\", \"level\": 1, \"total_points\": 105}')");
+    }
+
+    AmlCheck existingTkfCheck =
+        AmlCheck.builder()
+            .personalCode("38501010001")
+            .type(TKF_RISK_LEVEL)
+            .success(false)
+            .metadata(Map.of("version", "1.2", "level", 1, "total_points", 105))
+            .createdTime(TestClockHolder.now.minus(30, ChronoUnit.DAYS))
+            .build();
+    amlCheckRepository.save(existingTkfCheck);
+
+    doReturn(Collections.emptyList())
+        .when(tkfRiskRepositoryService)
+        .getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
+
+    // when
+    riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
+
+    // then - no new TKF check created (deduplicated)
+    List<AmlCheck> tkfChecks =
+        amlCheckRepository.findAll().stream()
+            .filter(c -> c.getType() == TKF_RISK_LEVEL)
+            .toList();
+
+    assertThat(tkfChecks).hasSize(1);
   }
 }

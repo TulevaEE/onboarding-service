@@ -1,11 +1,10 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -17,7 +16,7 @@ public class TkfRiskRepositoryService {
   private static final int MEDIUM_RISK_LEVEL = 2;
 
   private final TkfRiskMetadataRepository tkfRiskMetadataRepository;
-  private final NamedParameterJdbcTemplate jdbcTemplate;
+  private final JdbcClient jdbcClient;
 
   private RiskLevelResult convertToRiskLevelResult(TkfRiskMetadata tkfRisk) {
     Map<String, Object> metadata = tkfRisk.getMetadata() == null ? Map.of() : tkfRisk.getMetadata();
@@ -35,7 +34,7 @@ public class TkfRiskRepositoryService {
         tkfRiskMetadataRepository.findAllByRiskLevel(MEDIUM_RISK_LEVEL);
 
     if (mediumRiskList.isEmpty() || individualSelectionProbability <= 0) {
-      return Collections.emptyList();
+      return List.of();
     }
 
     if (individualSelectionProbability >= 1.0) {
@@ -50,8 +49,7 @@ public class TkfRiskRepositoryService {
 
   public void refreshMaterializedView() {
     log.info("Start materialized view refresh: analytics.v_tkf_risk_metadata");
-    String refreshTkfView = "REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.v_tkf_risk_metadata;";
-    jdbcTemplate.getJdbcOperations().execute(refreshTkfView);
+    jdbcClient.sql("REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.v_tkf_risk_metadata").update();
     log.info("Materialized view refreshed: analytics.v_tkf_risk_metadata");
   }
 }

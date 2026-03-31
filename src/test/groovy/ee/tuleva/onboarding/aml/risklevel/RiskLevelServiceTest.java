@@ -564,9 +564,7 @@ class RiskLevelServiceTest {
 
     // Only III pillar event should be saved, not TKF (deduplicated)
     verify(amlCheckRepository, never())
-        .save(
-            argThat(
-                check -> check != null && check.getType() == TKF_RISK_LEVEL));
+        .save(argThat(check -> check != null && check.getType() == TKF_RISK_LEVEL));
   }
 
   @Test
@@ -594,7 +592,8 @@ class RiskLevelServiceTest {
     ArgumentCaptor<AmlCheck> captor = ArgumentCaptor.forClass(AmlCheck.class);
     verify(amlCheckRepository, atLeastOnce()).save(captor.capture());
     assertThat(captor.getAllValues())
-        .anyMatch(c -> c.getType() == TKF_RISK_LEVEL && (int) c.getMetadata().get("total_points") == 110);
+        .anyMatch(
+            c -> c.getType() == TKF_RISK_LEVEL && (int) c.getMetadata().get("total_points") == 110);
   }
 
   @Test
@@ -614,9 +613,6 @@ class RiskLevelServiceTest {
     ArgumentCaptor<AmlCheck> captor = ArgumentCaptor.forClass(AmlCheck.class);
     verify(amlCheckRepository, atLeastOnce()).save(captor.capture());
     assertThat(captor.getAllValues())
-        .anyMatch(
-            c ->
-                c.getType() == TKF_RISK_LEVEL
-                    && c.getPersonalCode().equals("39001010002"));
+        .anyMatch(c -> c.getType() == TKF_RISK_LEVEL && c.getPersonalCode().equals("39001010002"));
   }
 }

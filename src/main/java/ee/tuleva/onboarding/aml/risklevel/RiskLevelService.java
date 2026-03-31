@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
+import static ee.tuleva.onboarding.aml.AmlCheckType.*;
+import static java.util.stream.Collectors.toList;
+
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
-import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import ee.tuleva.onboarding.aml.notification.AmlRiskLevelJobRunEvent;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -10,7 +12,6 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,7 +55,7 @@ public class RiskLevelService {
             .map(row -> buildAmlCheck(row, 2));
 
     List<AmlCheck> allChecks =
-        Stream.concat(highRiskChecks, mediumRiskChecks).collect(Collectors.toList());
+        Stream.concat(highRiskChecks, mediumRiskChecks).collect(toList());
 
     int highRiskCount = highRiskRows.size();
     int mediumRiskCount = mediumRiskSamples.size();
@@ -65,6 +66,8 @@ public class RiskLevelService {
 
     int createdCount = (int) allChecks.stream().filter(this::addCheckIfMissing).count();
 
+    runTkfRiskLevelCheck(mediumRiskIndividualSelectionProbability);
+
     log.info(
         "Ran risk-level check. Total rows processed: {}, New AML checks created: {}",
         totalRowsForProcessing,
@@ -72,8 +75,6 @@ public class RiskLevelService {
 
     eventPublisher.publishEvent(
         new AmlRiskLevelJobRunEvent(this, highRiskCount, mediumRiskCount, createdCount));
-
-    runTkfRiskLevelCheck(mediumRiskIndividualSelectionProbability);
   }
 
   private AmlCheck buildAmlCheck(RiskLevelResult row, Integer level) {
@@ -81,7 +82,7 @@ public class RiskLevelService {
     metadata.put("level", level);
     return AmlCheck.builder()
         .personalCode(row.getPersonalId())
-        .type(AmlCheckType.RISK_LEVEL)
+        .type(RISK_LEVEL)
         .success(false)
         .metadata(metadata)
         .build();
@@ -91,7 +92,7 @@ public class RiskLevelService {
     Instant cutoff = ClockHolder.sixMonthsAgo();
     var existing =
         amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
-            amlCheck.getPersonalCode(), AmlCheckType.RISK_LEVEL, cutoff);
+            amlCheck.getPersonalCode(), RISK_LEVEL, cutoff);
 
     for (AmlCheck e : existing) {
       if (metadataEqualsIgnoringVersion(e.getMetadata(), amlCheck.getMetadata())) {
@@ -103,7 +104,7 @@ public class RiskLevelService {
     return true;
   }
 
-  public void runTkfRiskLevelCheck(double mediumRiskIndividualSelectionProbability) {
+  private void runTkfRiskLevelCheck(double mediumRiskIndividualSelectionProbability) {
     log.info("Refreshing TKF risk views");
     tkfRiskRepositoryService.refreshMaterializedView();
     log.info("Running TKF risk level checks");
@@ -128,7 +129,7 @@ public class RiskLevelService {
             .map(this::buildTkfAmlCheck);
 
     List<AmlCheck> allTkfChecks =
-        Stream.concat(highRiskChecks, mediumRiskChecks).collect(Collectors.toList());
+        Stream.concat(highRiskChecks, mediumRiskChecks).collect(toList());
 
     int createdCount = (int) allTkfChecks.stream().filter(this::addTkfCheckIfMissing).count();
 
@@ -139,17 +140,17 @@ public class RiskLevelService {
     Map<String, Object> metadata = new HashMap<>(row.getMetadata());
     return AmlCheck.builder()
         .personalCode(row.getPersonalId())
-        .type(AmlCheckType.TKF_RISK_LEVEL)
+        .type(TKF_RISK_LEVEL)
         .success(false)
         .metadata(metadata)
         .build();
   }
 
-  public boolean addTkfCheckIfMissing(AmlCheck amlCheck) {
+  private boolean addTkfCheckIfMissing(AmlCheck amlCheck) {
     Instant cutoff = ClockHolder.sixMonthsAgo();
     var existing =
         amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
-            amlCheck.getPersonalCode(), AmlCheckType.TKF_RISK_LEVEL, cutoff);
+            amlCheck.getPersonalCode(), TKF_RISK_LEVEL, cutoff);
 
     for (AmlCheck e : existing) {
       if (metadataEqualsIgnoringVersion(e.getMetadata(), amlCheck.getMetadata())) {

@@ -50,8 +50,7 @@ public class TkfRiskRepositoryService {
 
   public void refreshMaterializedView() {
     log.info("Start materialized view refresh: analytics.v_tkf_risk_metadata");
-    String refreshTkfView =
-        "REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.v_tkf_risk_metadata;";
+    String refreshTkfView = "REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.v_tkf_risk_metadata;";
     jdbcTemplate.getJdbcOperations().execute(refreshTkfView);
     log.info("Materialized view refreshed: analytics.v_tkf_risk_metadata");
   }

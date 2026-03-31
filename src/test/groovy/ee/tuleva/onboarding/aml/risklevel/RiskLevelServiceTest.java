@@ -52,7 +52,8 @@ class RiskLevelServiceTest {
     eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
     ClockHolder.setClock(TestClockHolder.clock);
     riskLevelService =
-        new RiskLevelService(amlRiskRepositoryService, tkfRiskRepositoryService, amlCheckRepository, eventPublisher);
+        new RiskLevelService(
+            amlRiskRepositoryService, tkfRiskRepositoryService, amlCheckRepository, eventPublisher);
 
     when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(Collections.emptyList());
     when(amlRiskRepositoryService.getMediumRiskRowsSample(anyDouble()))

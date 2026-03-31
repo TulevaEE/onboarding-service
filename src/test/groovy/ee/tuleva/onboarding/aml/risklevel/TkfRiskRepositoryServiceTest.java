@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.aml.risklevel;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Collections;
@@ -41,9 +40,16 @@ class TkfRiskRepositoryServiceTest {
   @Test
   @DisplayName("Should correctly map TKF metadata for high-risk rows")
   void getHighRiskRows_withMetadata() {
-    Map<String, Object> testMetadata = Map.of(
-        "level", 1, "total_points", 105,
-        "rule_1_non_citizen_non_resident", 100, "rule_6_pep_eea", 5);
+    Map<String, Object> testMetadata =
+        Map.of(
+            "level",
+            1,
+            "total_points",
+            105,
+            "rule_1_non_citizen_non_resident",
+            100,
+            "rule_6_pep_eea",
+            5);
     TkfRiskMetadata row = new TkfRiskMetadata("38501010001", HIGH_RISK_LEVEL, testMetadata);
 
     when(repository.findAllByRiskLevel(HIGH_RISK_LEVEL)).thenReturn(List.of(row));

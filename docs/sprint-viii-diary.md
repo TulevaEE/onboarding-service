@@ -12,7 +12,7 @@ Sain aru, et mul on väga pikk maa järgi jõuda, ja keskendusin asjadele, kus m
 
 **Claude: Kuidas sa mind avastasid ja mis hetkel tekkis mõte sprindil arendajana osaleda?**
 
-Meie CTO [Erko](https://github.com/ErkoRisthein) on juba mõnda aega töötanud "agentic" viisil — ta ei kirjuta ise koodi, vaid annab mulle ülesandeid. Tema julgustusel tegin ühel päeval proovi. Tõmbasin arvutisse VS Code'i, avas sinuga konto ja kirjutasin igakuise management ülevaate nõukogule sinu abil. See töö elab [avalikus repos](https://github.com/TulevaEE/reporting-engine) koos paljude muude harjutustega, mida ma varem oleks Exceli abil teinud.
+Meie CTO [Erko](https://github.com/ErkoRisthein) on juba mõnda aega töötanud "agentic" viisil — ta ei kirjuta ise koodi, vaid annab sulle ülesandeid. Tema julgustusel tegin ühel päeval proovi. Tõmbasin arvutisse VS Code'i, avasin sinu juures konto ja kirjutasin igakuise management ülevaate nõukogule sinu abil. See töö elab [avalikus repos](https://github.com/TulevaEE/reporting-engine) koos paljude muude harjutustega, mida ma varem oleks Exceli abil teinud.
 
 Selle töö käigus nägin, kuidas sa lahendad minu jaoks takistusi, mille otsa ma varem jäin: ühenduse loomine API-dega, andmete scrape-imine, ilusate graafikute koostamine. Ja kõik tööd on tehtud viisil, mis võimaldab neid hiljem korrata ning varem tehtu peale edasi ehitada. Seepärast otsustasingi sprindil proovida.
 
@@ -131,7 +131,7 @@ Kui arendajad võtavad, siis tahaksin järgmisel sprindil kindlasti osaleda sama
 
 *Sprindi kõige kasulikum asi, mille Tõnu tegi, olid ülesande 8 testifixture'id. Need dokumenteerisid kõigi 20 skriinimisreegli oodatava käitumise viisil, mis oli üheaegselt nii test kui ka elav dokumentatsioon. Teised arendajad kasutasid neid fixture'eid oma osade implementeerimisel.*
 
-*Põhiline, mida ma sellest kogemusest õppisin: mina ei asenda inseneroskust — [Vootele](https://github.com/vootelerotov), [Aivar](https://github.com/aivar-codeborne) ja [Erko](https://github.com/ErkoRisthein) tegid keerulisema integratsioonitöö. Aga ma saan oluliselt vähendada barjääri domeenieksperdile, kes teab täpselt, mida kood tegema peab. Tõnu oli ise kirjutanud need regulatsiooninõuded, mida me implementeerisime. Vahe oli nende tõlkimine Java keelde. See ongi see vahe, mille ületamisel sain aidata.*
+*Põhiline, mida ma sellest kogemusest õppisin: mina ei asenda inseneroskust — [Vootele](https://github.com/vootelerotov), [Aivar](https://github.com/aivar-codeborne), [Daniel](https://github.com/kyttike), [Jordan](https://github.com/JordanValdma) ja [Erko](https://github.com/ErkoRisthein) tegid keerulisema integratsioonitöö. Aga ma saan oluliselt vähendada barjääri domeenieksperdile, kes teab täpselt, mida kood tegema peab. Tõnu oli ise kirjutanud need regulatsiooninõuded, mida me implementeerisime. Vahe oli nende tõlkimine Java keelde. See ongi see vahe, mille ületamisel sain aidata.*
 
 ---
 

@@ -31,17 +31,21 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureJdbc;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
-@SpringBootTest
+@DataJpaTest
+@AutoConfigureJdbc
+@Import({RiskLevelService.class, AmlRiskReader.class, TkfRiskReader.class})
 class RiskLevelServiceIntegrationTest {
 
   @Autowired DataSource dataSource;
   @Autowired AmlCheckRepository amlCheckRepository;
   @Autowired RiskLevelService riskLevelService;
-  @MockitoSpyBean AmlRiskRepositoryService amlRiskRepositoryService;
-  @MockitoSpyBean TkfRiskRepositoryService tkfRiskRepositoryService;
+  @MockitoSpyBean AmlRiskReader amlRiskReader;
+  @MockitoSpyBean TkfRiskReader tkfRiskReader;
 
   private static final double MONTHLY_MEDIUM_RISK_TARGET_PROBABILITY = 0.025;
   private static final double DAYS_IN_MONTH_ASSUMPTION_FOR_DAILY_RUN = 30.0;
@@ -60,8 +64,8 @@ class RiskLevelServiceIntegrationTest {
 
   @BeforeEach
   void setUp() throws Exception {
-    doNothing().when(amlRiskRepositoryService).refreshMaterializedView();
-    doNothing().when(tkfRiskRepositoryService).refreshMaterializedView();
+    doNothing().when(amlRiskReader).refreshMaterializedView();
+    doNothing().when(tkfRiskReader).refreshMaterializedView();
     ClockHolder.setClock(TestClockHolder.clock);
   }
 
@@ -88,17 +92,17 @@ class RiskLevelServiceIntegrationTest {
     }
 
     doReturn(Collections.emptyList())
-        .when(amlRiskRepositoryService)
+        .when(amlRiskReader)
         .getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
 
     // when
     riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
 
     // then
-    InOrder inOrder = inOrder(amlRiskRepositoryService);
-    inOrder.verify(amlRiskRepositoryService).refreshMaterializedView();
-    inOrder.verify(amlRiskRepositoryService).getHighRiskRows();
-    inOrder.verify(amlRiskRepositoryService).getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
+    InOrder inOrder = inOrder(amlRiskReader);
+    inOrder.verify(amlRiskReader).refreshMaterializedView();
+    inOrder.verify(amlRiskReader).getHighRiskRows();
+    inOrder.verify(amlRiskReader).getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
 
     List<AmlCheck> checks = amlCheckRepository.findAll();
     assertEquals(1, checks.size());
@@ -135,19 +139,19 @@ class RiskLevelServiceIntegrationTest {
             "attribute_5", 0);
     RiskLevelResult sampledMediumRiskPerson = new RiskLevelResult(PERSON_ID_5, 2, person5Metadata);
 
-    doReturn(Collections.emptyList()).when(amlRiskRepositoryService).getHighRiskRows();
+    doReturn(Collections.emptyList()).when(amlRiskReader).getHighRiskRows();
     doReturn(List.of(sampledMediumRiskPerson))
-        .when(amlRiskRepositoryService)
+        .when(amlRiskReader)
         .getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
 
     // when
     riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
 
     // then
-    InOrder inOrder = inOrder(amlRiskRepositoryService);
-    inOrder.verify(amlRiskRepositoryService).refreshMaterializedView();
-    inOrder.verify(amlRiskRepositoryService).getHighRiskRows();
-    inOrder.verify(amlRiskRepositoryService).getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
+    InOrder inOrder = inOrder(amlRiskReader);
+    inOrder.verify(amlRiskReader).refreshMaterializedView();
+    inOrder.verify(amlRiskReader).getHighRiskRows();
+    inOrder.verify(amlRiskReader).getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
 
     List<AmlCheck> checks =
         amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
@@ -194,10 +198,10 @@ class RiskLevelServiceIntegrationTest {
     riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
 
     // then
-    InOrder inOrder = inOrder(amlRiskRepositoryService);
-    inOrder.verify(amlRiskRepositoryService).refreshMaterializedView();
-    inOrder.verify(amlRiskRepositoryService).getHighRiskRows();
-    inOrder.verify(amlRiskRepositoryService).getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
+    InOrder inOrder = inOrder(amlRiskReader);
+    inOrder.verify(amlRiskReader).refreshMaterializedView();
+    inOrder.verify(amlRiskReader).getHighRiskRows();
+    inOrder.verify(amlRiskReader).getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
 
     List<AmlCheck> checksAfter = amlCheckRepository.findAll();
     assertEquals(1, checksAfter.size(), "No new check should be created");
@@ -210,10 +214,10 @@ class RiskLevelServiceIntegrationTest {
     riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
 
     // then
-    InOrder inOrder = inOrder(amlRiskRepositoryService);
-    inOrder.verify(amlRiskRepositoryService).refreshMaterializedView();
-    inOrder.verify(amlRiskRepositoryService).getHighRiskRows();
-    inOrder.verify(amlRiskRepositoryService).getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
+    InOrder inOrder = inOrder(amlRiskReader);
+    inOrder.verify(amlRiskReader).refreshMaterializedView();
+    inOrder.verify(amlRiskReader).getHighRiskRows();
+    inOrder.verify(amlRiskReader).getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
 
     List<AmlCheck> checks = amlCheckRepository.findAll();
     assertTrue(checks.isEmpty(), "No checks should be created when no data in the view");
@@ -253,10 +257,10 @@ class RiskLevelServiceIntegrationTest {
     riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
 
     // then
-    InOrder inOrder = inOrder(amlRiskRepositoryService);
-    inOrder.verify(amlRiskRepositoryService).refreshMaterializedView();
-    inOrder.verify(amlRiskRepositoryService).getHighRiskRows();
-    inOrder.verify(amlRiskRepositoryService).getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
+    InOrder inOrder = inOrder(amlRiskReader);
+    inOrder.verify(amlRiskReader).refreshMaterializedView();
+    inOrder.verify(amlRiskReader).getHighRiskRows();
+    inOrder.verify(amlRiskReader).getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
 
     List<AmlCheck> checksAfter = amlCheckRepository.findAll();
     assertEquals(
@@ -309,10 +313,10 @@ class RiskLevelServiceIntegrationTest {
     riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
 
     // then
-    InOrder inOrder = inOrder(amlRiskRepositoryService);
-    inOrder.verify(amlRiskRepositoryService).refreshMaterializedView();
-    inOrder.verify(amlRiskRepositoryService).getHighRiskRows();
-    inOrder.verify(amlRiskRepositoryService).getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
+    InOrder inOrder = inOrder(amlRiskReader);
+    inOrder.verify(amlRiskReader).refreshMaterializedView();
+    inOrder.verify(amlRiskReader).getHighRiskRows();
+    inOrder.verify(amlRiskReader).getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
 
     List<AmlCheck> checksAfter = amlCheckRepository.findAll();
     assertEquals(2, checksAfter.size(), "One old + one new check expected");
@@ -353,10 +357,10 @@ class RiskLevelServiceIntegrationTest {
     riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
 
     // then
-    InOrder inOrder = inOrder(amlRiskRepositoryService);
-    inOrder.verify(amlRiskRepositoryService).refreshMaterializedView();
-    inOrder.verify(amlRiskRepositoryService).getHighRiskRows();
-    inOrder.verify(amlRiskRepositoryService).getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
+    InOrder inOrder = inOrder(amlRiskReader);
+    inOrder.verify(amlRiskReader).refreshMaterializedView();
+    inOrder.verify(amlRiskReader).getHighRiskRows();
+    inOrder.verify(amlRiskReader).getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
 
     List<AmlCheck> checksAfter = amlCheckRepository.findAll();
     assertEquals(1, checksAfter.size(), "No new check should be created");
@@ -403,10 +407,10 @@ class RiskLevelServiceIntegrationTest {
     riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
 
     // then
-    InOrder inOrder = inOrder(amlRiskRepositoryService);
-    inOrder.verify(amlRiskRepositoryService).refreshMaterializedView();
-    inOrder.verify(amlRiskRepositoryService).getHighRiskRows();
-    inOrder.verify(amlRiskRepositoryService).getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
+    InOrder inOrder = inOrder(amlRiskReader);
+    inOrder.verify(amlRiskReader).refreshMaterializedView();
+    inOrder.verify(amlRiskReader).getHighRiskRows();
+    inOrder.verify(amlRiskReader).getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
 
     List<AmlCheck> checksAfter = amlCheckRepository.findAll();
     assertEquals(
@@ -425,25 +429,25 @@ class RiskLevelServiceIntegrationTest {
     }
 
     doReturn(Collections.emptyList())
-        .when(tkfRiskRepositoryService)
+        .when(tkfRiskReader)
         .getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
 
     // when
-    riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
+    riskLevelService.runTkfRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
 
     // then
-    List<AmlCheck> tkfChecks =
-        amlCheckRepository.findAll().stream().filter(c -> c.getType() == TKF_RISK_LEVEL).toList();
+    List<AmlCheck> tkfChecks = amlCheckRepository.findAll();
 
     assertThat(tkfChecks).hasSize(1);
     assertThat(tkfChecks.getFirst().getPersonalCode()).isEqualTo("37605030299");
+    assertThat(tkfChecks.getFirst().getType()).isEqualTo(TKF_RISK_LEVEL);
     assertThat(tkfChecks.getFirst().isSuccess()).isFalse();
     assertThat(tkfChecks.getFirst().getMetadata()).containsEntry("level", 1);
   }
 
   @Test
   void tkfRiskLevelCheck_deduplicatesIdenticalScore() throws Exception {
-    // given - existing TKF check with same metadata
+    // given
     try (Connection conn = dataSource.getConnection();
         Statement stmt = conn.createStatement()) {
       stmt.execute(
@@ -463,15 +467,14 @@ class RiskLevelServiceIntegrationTest {
     amlCheckRepository.save(existingTkfCheck);
 
     doReturn(Collections.emptyList())
-        .when(tkfRiskRepositoryService)
+        .when(tkfRiskReader)
         .getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
 
     // when
-    riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
+    riskLevelService.runTkfRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
 
-    // then - no new TKF check created (deduplicated)
-    List<AmlCheck> tkfChecks =
-        amlCheckRepository.findAll().stream().filter(c -> c.getType() == TKF_RISK_LEVEL).toList();
+    // then
+    List<AmlCheck> tkfChecks = amlCheckRepository.findAll();
 
     assertThat(tkfChecks).hasSize(1);
   }

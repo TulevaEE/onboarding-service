@@ -5,6 +5,7 @@ import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
+import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import ee.tuleva.onboarding.aml.notification.AmlRiskLevelJobRunEvent;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -24,131 +25,64 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class RiskLevelService {
 
-  private final AmlRiskRepositoryService amlRiskRepositoryService;
-  private final TkfRiskRepositoryService tkfRiskRepositoryService;
+  private final AmlRiskReader amlRiskReader;
+  private final TkfRiskReader tkfRiskReader;
   private final AmlCheckRepository amlCheckRepository;
   private final ApplicationEventPublisher eventPublisher;
 
   public void runRiskLevelCheck(double mediumRiskIndividualSelectionProbability) {
-    log.info("Refreshing AML risk views");
-    amlRiskRepositoryService.refreshMaterializedView();
-    log.info("Running AML risk level checks");
-
-    List<RiskLevelResult> highRiskRows = amlRiskRepositoryService.getHighRiskRows();
-    List<RiskLevelResult> mediumRiskSamples =
-        amlRiskRepositoryService.getMediumRiskRowsSample(mediumRiskIndividualSelectionProbability);
-
-    log.info(
-        "Identified {} high-risk rows and {} medium-risk samples (using probability {}) for AML check.",
-        highRiskRows.size(),
-        mediumRiskSamples.size(),
-        String.format("%.8f", mediumRiskIndividualSelectionProbability));
-
-    Stream<AmlCheck> highRiskChecks =
-        highRiskRows.stream()
-            .filter(row -> StringUtils.hasText(row.getPersonalId()))
-            .map(row -> buildAmlCheck(row, 1));
-
-    Stream<AmlCheck> mediumRiskChecks =
-        mediumRiskSamples.stream()
-            .filter(row -> StringUtils.hasText(row.getPersonalId()))
-            .map(row -> buildAmlCheck(row, 2));
-
-    List<AmlCheck> allChecks = Stream.concat(highRiskChecks, mediumRiskChecks).collect(toList());
-
-    int highRiskCount = highRiskRows.size();
-    int mediumRiskCount = mediumRiskSamples.size();
-    int totalRowsForProcessing = highRiskCount + mediumRiskCount;
-    log.info(
-        "Running AML risk level checks, identified {} total rows for processing",
-        totalRowsForProcessing);
-
-    int createdCount = (int) allChecks.stream().filter(this::addCheckIfMissing).count();
-
-    runTkfRiskLevelCheck(mediumRiskIndividualSelectionProbability);
-
-    log.info(
-        "Ran risk-level check. Total rows processed: {}, New AML checks created: {}",
-        totalRowsForProcessing,
-        createdCount);
-
-    eventPublisher.publishEvent(
-        new AmlRiskLevelJobRunEvent(this, highRiskCount, mediumRiskCount, createdCount));
+    scorePillar("III pillar", amlRiskReader, RISK_LEVEL, mediumRiskIndividualSelectionProbability);
   }
 
-  private AmlCheck buildAmlCheck(RiskLevelResult row, Integer level) {
-    Map<String, Object> metadata = new HashMap<>(row.getMetadata());
-    metadata.put("level", level);
-    return AmlCheck.builder()
-        .personalCode(row.getPersonalId())
-        .type(RISK_LEVEL)
-        .success(false)
-        .metadata(metadata)
-        .build();
+  public void runTkfRiskLevelCheck(double mediumRiskIndividualSelectionProbability) {
+    scorePillar("TKF", tkfRiskReader, TKF_RISK_LEVEL, mediumRiskIndividualSelectionProbability);
   }
 
-  public boolean addCheckIfMissing(AmlCheck amlCheck) {
-    Instant cutoff = ClockHolder.sixMonthsAgo();
-    var existing =
-        amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
-            amlCheck.getPersonalCode(), RISK_LEVEL, cutoff);
+  private void scorePillar(
+      String label, RiskReader reader, AmlCheckType checkType, double selectionProbability) {
+    log.info("Refreshing {} risk views", label);
+    reader.refreshMaterializedView();
 
-    for (AmlCheck e : existing) {
-      if (metadataEqualsIgnoringVersion(e.getMetadata(), amlCheck.getMetadata())) {
-        return false;
-      }
-    }
-    AmlCheck saved = amlCheckRepository.save(amlCheck);
-    eventPublisher.publishEvent(new AmlCheckCreatedEvent(this, saved));
-    return true;
-  }
-
-  private void runTkfRiskLevelCheck(double mediumRiskIndividualSelectionProbability) {
-    log.info("Refreshing TKF risk views");
-    tkfRiskRepositoryService.refreshMaterializedView();
-    log.info("Running TKF risk level checks");
-
-    List<RiskLevelResult> highRiskRows = tkfRiskRepositoryService.getHighRiskRows();
-    List<RiskLevelResult> mediumRiskSamples =
-        tkfRiskRepositoryService.getMediumRiskRowsSample(mediumRiskIndividualSelectionProbability);
+    List<RiskLevelResult> highRiskRows = reader.getHighRiskRows();
+    List<RiskLevelResult> mediumRiskSamples = reader.getMediumRiskRowsSample(selectionProbability);
 
     log.info(
-        "TKF: Identified {} high-risk rows and {} medium-risk samples",
+        "{}: Identified {} high-risk rows and {} medium-risk samples",
+        label,
         highRiskRows.size(),
         mediumRiskSamples.size());
 
-    Stream<AmlCheck> highRiskChecks =
-        highRiskRows.stream()
+    List<AmlCheck> allChecks =
+        Stream.concat(highRiskRows.stream(), mediumRiskSamples.stream())
             .filter(row -> StringUtils.hasText(row.getPersonalId()))
-            .map(this::buildTkfAmlCheck);
+            .map(row -> buildAmlCheck(row, checkType))
+            .collect(toList());
 
-    Stream<AmlCheck> mediumRiskChecks =
-        mediumRiskSamples.stream()
-            .filter(row -> StringUtils.hasText(row.getPersonalId()))
-            .map(this::buildTkfAmlCheck);
+    int createdCount = (int) allChecks.stream().filter(this::addCheckIfMissing).count();
 
-    List<AmlCheck> allTkfChecks = Stream.concat(highRiskChecks, mediumRiskChecks).collect(toList());
+    log.info("{} risk-level check done. New AML checks created: {}", label, createdCount);
 
-    int createdCount = (int) allTkfChecks.stream().filter(this::addTkfCheckIfMissing).count();
-
-    log.info("TKF risk-level check done. New AML checks created: {}", createdCount);
+    eventPublisher.publishEvent(
+        new AmlRiskLevelJobRunEvent(
+            this, label, highRiskRows.size(), mediumRiskSamples.size(), createdCount));
   }
 
-  private AmlCheck buildTkfAmlCheck(RiskLevelResult row) {
+  private AmlCheck buildAmlCheck(RiskLevelResult row, AmlCheckType checkType) {
     Map<String, Object> metadata = new HashMap<>(row.getMetadata());
+    metadata.put("level", row.getRiskLevel());
     return AmlCheck.builder()
         .personalCode(row.getPersonalId())
-        .type(TKF_RISK_LEVEL)
+        .type(checkType)
         .success(false)
         .metadata(metadata)
         .build();
   }
 
-  private boolean addTkfCheckIfMissing(AmlCheck amlCheck) {
+  boolean addCheckIfMissing(AmlCheck amlCheck) {
     Instant cutoff = ClockHolder.sixMonthsAgo();
     var existing =
         amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
-            amlCheck.getPersonalCode(), TKF_RISK_LEVEL, cutoff);
+            amlCheck.getPersonalCode(), amlCheck.getType(), cutoff);
 
     for (AmlCheck e : existing) {
       if (metadataEqualsIgnoringVersion(e.getMetadata(), amlCheck.getMetadata())) {

@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 @Profile("!dev")
 public class ScheduledAmlRiskMetadataRefreshJob {
 
-  private final AmlRiskRepositoryService amlRiskRepositoryService;
+  private final AmlRiskReader amlRiskReader;
 
   @Scheduled(cron = "0 0 9,13,16 * * ?", zone = "Europe/Tallinn")
   @SchedulerLock(
@@ -22,7 +22,7 @@ public class ScheduledAmlRiskMetadataRefreshJob {
       lockAtLeastFor = "30m")
   public void refreshAmlRiskMetadata() {
     log.info("Starting scheduled AML risk metadata view refresh");
-    amlRiskRepositoryService.refreshAmlRiskMetadataView();
+    amlRiskReader.refreshAmlRiskMetadataView();
     log.info("Finished scheduled AML risk metadata view refresh");
   }
 }

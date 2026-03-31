@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.atLeastOnce;
@@ -40,8 +39,8 @@ import org.springframework.context.ApplicationEventPublisher;
 
 class RiskLevelServiceTest {
 
-  private AmlRiskRepositoryService amlRiskRepositoryService;
-  private TkfRiskRepositoryService tkfRiskRepositoryService;
+  private AmlRiskReader amlRiskReader;
+  private TkfRiskReader tkfRiskReader;
   private AmlCheckRepository amlCheckRepository;
   private ApplicationEventPublisher eventPublisher;
   private RiskLevelService riskLevelService;
@@ -50,21 +49,18 @@ class RiskLevelServiceTest {
 
   @BeforeEach
   void setUp() {
-    amlRiskRepositoryService = mock(AmlRiskRepositoryService.class);
-    tkfRiskRepositoryService = mock(TkfRiskRepositoryService.class);
+    amlRiskReader = mock(AmlRiskReader.class);
+    tkfRiskReader = mock(TkfRiskReader.class);
     amlCheckRepository = mock(AmlCheckRepository.class);
     eventPublisher = mock(ApplicationEventPublisher.class);
     ClockHolder.setClock(TestClockHolder.clock);
     riskLevelService =
-        new RiskLevelService(
-            amlRiskRepositoryService, tkfRiskRepositoryService, amlCheckRepository, eventPublisher);
+        new RiskLevelService(amlRiskReader, tkfRiskReader, amlCheckRepository, eventPublisher);
 
-    when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(Collections.emptyList());
-    when(amlRiskRepositoryService.getMediumRiskRowsSample(anyDouble()))
-        .thenReturn(Collections.emptyList());
-    when(tkfRiskRepositoryService.getHighRiskRows()).thenReturn(Collections.emptyList());
-    when(tkfRiskRepositoryService.getMediumRiskRowsSample(anyDouble()))
-        .thenReturn(Collections.emptyList());
+    when(amlRiskReader.getHighRiskRows()).thenReturn(Collections.emptyList());
+    when(amlRiskReader.getMediumRiskRowsSample(anyDouble())).thenReturn(Collections.emptyList());
+    when(tkfRiskReader.getHighRiskRows()).thenReturn(Collections.emptyList());
+    when(tkfRiskReader.getMediumRiskRowsSample(anyDouble())).thenReturn(Collections.emptyList());
   }
 
   @AfterEach
@@ -77,7 +73,7 @@ class RiskLevelServiceTest {
   void testRunRiskLevelCheck_createsAmlCheck_forValidNewHighRiskRow() {
     // given
     RiskLevelResult highRiskRow = new RiskLevelResult("38888888880", 1, Map.of("some_key", 999));
-    when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(highRiskRow));
+    when(amlRiskReader.getHighRiskRows()).thenReturn(List.of(highRiskRow));
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
             anyString(), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
         .thenReturn(Collections.emptyList());
@@ -86,9 +82,9 @@ class RiskLevelServiceTest {
     riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
 
     // then
-    verify(amlRiskRepositoryService).refreshMaterializedView();
-    verify(amlRiskRepositoryService).getHighRiskRows();
-    verify(amlRiskRepositoryService).getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY));
+    verify(amlRiskReader).refreshMaterializedView();
+    verify(amlRiskReader).getHighRiskRows();
+    verify(amlRiskReader).getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY));
 
     ArgumentCaptor<AmlCheck> checkCaptor = ArgumentCaptor.forClass(AmlCheck.class);
     verify(amlCheckRepository).save(checkCaptor.capture());
@@ -116,7 +112,7 @@ class RiskLevelServiceTest {
     // given
     RiskLevelResult mediumRiskSample =
         new RiskLevelResult("49999999990", 2, Map.of("medium_key", 777));
-    when(amlRiskRepositoryService.getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY)))
+    when(amlRiskReader.getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY)))
         .thenReturn(List.of(mediumRiskSample));
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
             anyString(), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
@@ -126,7 +122,7 @@ class RiskLevelServiceTest {
     riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
 
     // then
-    verify(amlRiskRepositoryService).getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY));
+    verify(amlRiskReader).getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY));
 
     ArgumentCaptor<AmlCheck> checkCaptor = ArgumentCaptor.forClass(AmlCheck.class);
     verify(amlCheckRepository).save(checkCaptor.capture());
@@ -155,8 +151,8 @@ class RiskLevelServiceTest {
     RiskLevelResult mediumRiskSample =
         new RiskLevelResult("49999999990", 2, Map.of("medium_key", 777));
 
-    when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(highRiskRow));
-    when(amlRiskRepositoryService.getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY)))
+    when(amlRiskReader.getHighRiskRows()).thenReturn(List.of(highRiskRow));
+    when(amlRiskReader.getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY)))
         .thenReturn(List.of(mediumRiskSample));
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
             anyString(), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
@@ -198,7 +194,7 @@ class RiskLevelServiceTest {
   void testRunRiskLevelCheck_skipsEmptyPersonalId() {
     // given
     RiskLevelResult row = new RiskLevelResult("   ", 1, Map.of());
-    when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(row));
+    when(amlRiskReader.getHighRiskRows()).thenReturn(List.of(row));
 
     // when
     riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
@@ -221,7 +217,7 @@ class RiskLevelServiceTest {
   void testRunRiskLevelCheck_skipsDuplicateWithinSixMonths() {
     // given
     RiskLevelResult row = new RiskLevelResult("38888888888", 1, Map.of("abc", "123"));
-    when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(row));
+    when(amlRiskReader.getHighRiskRows()).thenReturn(List.of(row));
 
     AmlCheck existingCheck =
         AmlCheck.builder()
@@ -257,7 +253,7 @@ class RiskLevelServiceTest {
   void testRunRiskLevelCheck_createsNewIfExistingIsOlderThanSixMonths() {
     // given
     RiskLevelResult row = new RiskLevelResult("38888888888", 1, Map.of("abc", "123"));
-    when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(row));
+    when(amlRiskReader.getHighRiskRows()).thenReturn(List.of(row));
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
             eq("38888888888"), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
         .thenReturn(Collections.emptyList());
@@ -283,7 +279,7 @@ class RiskLevelServiceTest {
   void testRunRiskLevelCheck_createsNewIfExistingIsDifferentMetadata() {
     // given
     RiskLevelResult row = new RiskLevelResult("38888888888", 1, Map.of("abc", "123"));
-    when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(row));
+    when(amlRiskReader.getHighRiskRows()).thenReturn(List.of(row));
 
     AmlCheck existingCheck =
         AmlCheck.builder()
@@ -317,8 +313,8 @@ class RiskLevelServiceTest {
   @DisplayName("Should not create AML checks when no risk rows are returned")
   void testRunRiskLevelCheck_noRows_noAction() {
     // given
-    when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(Collections.emptyList());
-    when(amlRiskRepositoryService.getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY)))
+    when(amlRiskReader.getHighRiskRows()).thenReturn(Collections.emptyList());
+    when(amlRiskReader.getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY)))
         .thenReturn(Collections.emptyList());
 
     // when
@@ -436,7 +432,7 @@ class RiskLevelServiceTest {
     // given
     RiskLevelResult row =
         new RiskLevelResult("38888888888", 1, Map.of("abc", "123", "version", "2.0"));
-    when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(row));
+    when(amlRiskReader.getHighRiskRows()).thenReturn(List.of(row));
 
     AmlCheck existingCheck =
         AmlCheck.builder()
@@ -472,7 +468,7 @@ class RiskLevelServiceTest {
     // given
     RiskLevelResult row =
         new RiskLevelResult("38888888888", 1, Map.of("abc", "456", "version", "2.0"));
-    when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(row));
+    when(amlRiskReader.getHighRiskRows()).thenReturn(List.of(row));
 
     AmlCheck existingCheck =
         AmlCheck.builder()
@@ -508,23 +504,20 @@ class RiskLevelServiceTest {
   void tkfRiskLevelCheck_createsCheckForHighRiskRow() {
     RiskLevelResult tkfHighRisk =
         new RiskLevelResult("38501010001", 1, Map.of("level", 1, "total_points", 105));
-    when(tkfRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(tkfHighRisk));
+    when(tkfRiskReader.getHighRiskRows()).thenReturn(List.of(tkfHighRisk));
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
             eq("38501010001"), eq(TKF_RISK_LEVEL), any(Instant.class)))
         .thenReturn(List.of());
 
-    riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
+    riskLevelService.runTkfRiskLevelCheck(SOME_TEST_PROBABILITY);
 
-    verify(tkfRiskRepositoryService).refreshMaterializedView();
+    verify(tkfRiskReader).refreshMaterializedView();
     ArgumentCaptor<AmlCheck> captor = ArgumentCaptor.forClass(AmlCheck.class);
-    verify(amlCheckRepository, atLeastOnce()).save(captor.capture());
+    verify(amlCheckRepository).save(captor.capture());
 
-    AmlCheck tkfCheck =
-        captor.getAllValues().stream()
-            .filter(c -> c.getType() == TKF_RISK_LEVEL)
-            .findFirst()
-            .orElseThrow();
+    AmlCheck tkfCheck = captor.getValue();
     assertThat(tkfCheck.getPersonalCode()).isEqualTo("38501010001");
+    assertThat(tkfCheck.getType()).isEqualTo(TKF_RISK_LEVEL);
     assertThat(tkfCheck.isSuccess()).isFalse();
     assertThat(tkfCheck.getMetadata()).containsEntry("level", 1);
     assertThat(tkfCheck.getMetadata()).containsEntry("total_points", 105);
@@ -533,20 +526,18 @@ class RiskLevelServiceTest {
   @Test
   void tkfRiskLevelCheck_skipsBlankPersonalId() {
     RiskLevelResult tkfBlank = new RiskLevelResult("   ", 1, Map.of("level", 1));
-    when(tkfRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(tkfBlank));
+    when(tkfRiskReader.getHighRiskRows()).thenReturn(List.of(tkfBlank));
 
-    riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
+    riskLevelService.runTkfRiskLevelCheck(SOME_TEST_PROBABILITY);
 
-    verify(amlCheckRepository, never())
-        .findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
-            eq("   "), eq(TKF_RISK_LEVEL), any());
+    verify(amlCheckRepository, never()).save(any());
   }
 
   @Test
   void tkfRiskLevelCheck_skipsDuplicateWithinSixMonths() {
     RiskLevelResult tkfRow =
         new RiskLevelResult("38501010001", 1, Map.of("level", 1, "total_points", 105));
-    when(tkfRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(tkfRow));
+    when(tkfRiskReader.getHighRiskRows()).thenReturn(List.of(tkfRow));
 
     AmlCheck existing =
         AmlCheck.builder()
@@ -560,18 +551,16 @@ class RiskLevelServiceTest {
             eq("38501010001"), eq(TKF_RISK_LEVEL), any(Instant.class)))
         .thenReturn(List.of(existing));
 
-    riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
+    riskLevelService.runTkfRiskLevelCheck(SOME_TEST_PROBABILITY);
 
-    // Only III pillar event should be saved, not TKF (deduplicated)
-    verify(amlCheckRepository, never())
-        .save(argThat(check -> check != null && check.getType() == TKF_RISK_LEVEL));
+    verify(amlCheckRepository, never()).save(any());
   }
 
   @Test
   void tkfRiskLevelCheck_createsCheckWhenMetadataChanged() {
     RiskLevelResult tkfRow =
         new RiskLevelResult("38501010001", 1, Map.of("level", 1, "total_points", 110));
-    when(tkfRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(tkfRow));
+    when(tkfRiskReader.getHighRiskRows()).thenReturn(List.of(tkfRow));
 
     AmlCheck existing =
         AmlCheck.builder()
@@ -587,20 +576,18 @@ class RiskLevelServiceTest {
     when(amlCheckRepository.save(any(AmlCheck.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
+    riskLevelService.runTkfRiskLevelCheck(SOME_TEST_PROBABILITY);
 
     ArgumentCaptor<AmlCheck> captor = ArgumentCaptor.forClass(AmlCheck.class);
-    verify(amlCheckRepository, atLeastOnce()).save(captor.capture());
-    assertThat(captor.getAllValues())
-        .anyMatch(
-            c -> c.getType() == TKF_RISK_LEVEL && (int) c.getMetadata().get("total_points") == 110);
+    verify(amlCheckRepository).save(captor.capture());
+    assertThat(captor.getValue().getMetadata()).containsEntry("total_points", 110);
   }
 
   @Test
   void tkfRiskLevelCheck_processesMediumRiskSamples() {
     RiskLevelResult tkfMedium =
         new RiskLevelResult("39001010002", 2, Map.of("level", 2, "total_points", 20));
-    when(tkfRiskRepositoryService.getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY)))
+    when(tkfRiskReader.getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY)))
         .thenReturn(List.of(tkfMedium));
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
             eq("39001010002"), eq(TKF_RISK_LEVEL), any(Instant.class)))
@@ -608,11 +595,24 @@ class RiskLevelServiceTest {
     when(amlCheckRepository.save(any(AmlCheck.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
+    riskLevelService.runTkfRiskLevelCheck(SOME_TEST_PROBABILITY);
 
     ArgumentCaptor<AmlCheck> captor = ArgumentCaptor.forClass(AmlCheck.class);
-    verify(amlCheckRepository, atLeastOnce()).save(captor.capture());
-    assertThat(captor.getAllValues())
-        .anyMatch(c -> c.getType() == TKF_RISK_LEVEL && c.getPersonalCode().equals("39001010002"));
+    verify(amlCheckRepository).save(captor.capture());
+    assertThat(captor.getValue().getType()).isEqualTo(TKF_RISK_LEVEL);
+    assertThat(captor.getValue().getPersonalCode()).isEqualTo("39001010002");
+  }
+
+  @Test
+  void tkfRiskLevelCheck_publishesEvent() {
+    when(tkfRiskReader.getHighRiskRows()).thenReturn(List.of());
+    when(tkfRiskReader.getMediumRiskRowsSample(anyDouble())).thenReturn(List.of());
+
+    riskLevelService.runTkfRiskLevelCheck(SOME_TEST_PROBABILITY);
+
+    ArgumentCaptor<AmlRiskLevelJobRunEvent> captor =
+        ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
+    verify(eventPublisher).publishEvent(captor.capture());
+    assertThat(captor.getValue().getLabel()).isEqualTo("TKF");
   }
 }

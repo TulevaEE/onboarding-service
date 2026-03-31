@@ -37,6 +37,7 @@ import org.springframework.context.ApplicationEventPublisher;
 class RiskLevelServiceTest {
 
   private AmlRiskRepositoryService amlRiskRepositoryService;
+  private TkfRiskRepositoryService tkfRiskRepositoryService;
   private AmlCheckRepository amlCheckRepository;
   private ApplicationEventPublisher eventPublisher;
   private RiskLevelService riskLevelService;
@@ -46,14 +47,18 @@ class RiskLevelServiceTest {
   @BeforeEach
   void setUp() {
     amlRiskRepositoryService = Mockito.mock(AmlRiskRepositoryService.class);
+    tkfRiskRepositoryService = Mockito.mock(TkfRiskRepositoryService.class);
     amlCheckRepository = Mockito.mock(AmlCheckRepository.class);
     eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
     ClockHolder.setClock(TestClockHolder.clock);
     riskLevelService =
-        new RiskLevelService(amlRiskRepositoryService, amlCheckRepository, eventPublisher);
+        new RiskLevelService(amlRiskRepositoryService, tkfRiskRepositoryService, amlCheckRepository, eventPublisher);
 
     when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(Collections.emptyList());
     when(amlRiskRepositoryService.getMediumRiskRowsSample(anyDouble()))
+        .thenReturn(Collections.emptyList());
+    when(tkfRiskRepositoryService.getHighRiskRows()).thenReturn(Collections.emptyList());
+    when(tkfRiskRepositoryService.getMediumRiskRowsSample(anyDouble()))
         .thenReturn(Collections.emptyList());
   }
 

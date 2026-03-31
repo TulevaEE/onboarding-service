@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
 import static ee.tuleva.onboarding.aml.risklevel.AmlRiskTestDataFixtures.*;
+import static ee.tuleva.onboarding.aml.risklevel.TkfRiskTestDataFixtures.*;
 import static java.time.ZoneOffset.UTC;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -39,6 +40,7 @@ class RiskLevelServiceIntegrationTest {
   @Autowired AmlCheckRepository amlCheckRepository;
   @Autowired RiskLevelService riskLevelService;
   @MockitoSpyBean AmlRiskRepositoryService amlRiskRepositoryService;
+  @MockitoSpyBean TkfRiskRepositoryService tkfRiskRepositoryService;
 
   private static final double MONTHLY_MEDIUM_RISK_TARGET_PROBABILITY = 0.025;
   private static final double DAYS_IN_MONTH_ASSUMPTION_FOR_DAILY_RUN = 30.0;
@@ -52,12 +54,14 @@ class RiskLevelServiceIntegrationTest {
       stmt.execute(CREATE_AML_RISK_SHCEMA);
       stmt.execute(CREATE_AML_RISK_VIEW);
       stmt.execute(CREATE_AML_RISK_METADATA_VIEW);
+      stmt.execute(CREATE_TKF_RISK_TABLE);
     }
   }
 
   @BeforeEach
   void setUp() throws Exception {
     doNothing().when(amlRiskRepositoryService).refreshMaterializedView();
+    doNothing().when(tkfRiskRepositoryService).refreshMaterializedView();
     ClockHolder.setClock(TestClockHolder.clock);
   }
 
@@ -66,6 +70,7 @@ class RiskLevelServiceIntegrationTest {
     try (Connection conn = dataSource.getConnection();
         Statement stmt = conn.createStatement()) {
       stmt.execute(TRUNCATE_AML_RISK);
+      stmt.execute(TRUNCATE_TKF_RISK);
     }
     amlCheckRepository.deleteAll();
     ClockHolder.setDefaultClock();

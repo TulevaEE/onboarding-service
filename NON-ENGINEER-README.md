@@ -51,6 +51,12 @@ Write your task into `temp/task.md` before starting a session with Claude. This 
 - Specify where results should be stored or how they connect to existing code
 - Include links to external APIs or docs when relevant
 
+## Inspiration
+
+During Tuleva VIII sprint (March 2026), Tõnu Pekk — Tuleva's CEO with no engineering background — contributed 16 commits and ~4300 lines of Java code using Claude Code as his AI pair-programming partner. Read the full story: **[Sprint VIII diary](docs/sprint-viii-diary.md)** — an interview between Tõnu and Claude about the experience.
+
+If he can do it, so can you. Hakka peale!
+
 ## Getting Started
 
 - [ ] Set up and run the project locally (see main [README](README.md))

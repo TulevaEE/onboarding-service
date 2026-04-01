@@ -16,16 +16,12 @@ import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.time.TestClockHolder;
-import java.sql.Connection;
-import java.sql.Statement;
 import java.time.Clock;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,16 +30,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureJdbc;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.transaction.annotation.Transactional;
 
 @DataJpaTest
 @AutoConfigureJdbc
+@Transactional
 @Import({RiskLevelService.class, AmlRiskReader.class, TkfRiskReader.class})
 class RiskLevelServiceIntegrationTest {
 
-  @Autowired DataSource dataSource;
   @Autowired AmlCheckRepository amlCheckRepository;
   @Autowired RiskLevelService riskLevelService;
+  @Autowired JdbcClient jdbcClient;
   @MockitoSpyBean AmlRiskReader amlRiskReader;
   @MockitoSpyBean TkfRiskReader tkfRiskReader;
 
@@ -52,44 +51,25 @@ class RiskLevelServiceIntegrationTest {
   private static final double PROBABILITY_FOR_DAILY_RUN =
       MONTHLY_MEDIUM_RISK_TARGET_PROBABILITY / DAYS_IN_MONTH_ASSUMPTION_FOR_DAILY_RUN;
 
-  @BeforeAll
-  static void setupH2Schema(@Autowired DataSource dataSource) throws Exception {
-    try (Connection conn = dataSource.getConnection();
-        Statement stmt = conn.createStatement()) {
-      stmt.execute(CREATE_AML_RISK_SHCEMA);
-      stmt.execute(CREATE_AML_RISK_VIEW);
-      stmt.execute(CREATE_AML_RISK_METADATA_VIEW);
-    }
-  }
-
   @BeforeEach
-  void setUp() throws Exception {
+  void setUp() {
     doNothing().when(amlRiskReader).refreshMaterializedView();
     doNothing().when(tkfRiskReader).refreshMaterializedView();
     ClockHolder.setClock(TestClockHolder.clock);
   }
 
   @AfterEach
-  void cleanUp() throws Exception {
-    try (Connection conn = dataSource.getConnection();
-        Statement stmt = conn.createStatement()) {
-      stmt.execute(TRUNCATE_AML_RISK);
-      stmt.execute("DELETE FROM analytics.v_tkf_risk_metadata");
-    }
-    amlCheckRepository.deleteAll();
+  void tearDown() {
     ClockHolder.setDefaultClock();
   }
 
   @Test
   @DisplayName("Should create a new AML check for high-risk rows")
-  void testRiskLevelCheck_withHighRiskRows() throws Exception {
+  void testRiskLevelCheck_withHighRiskRows() {
     // given
-    try (Connection conn = dataSource.getConnection();
-        Statement stmt = conn.createStatement()) {
-      stmt.execute(INSERT_PERSON_4_2_RISK_LEVEL_1);
-      stmt.execute(INSERT_PERSON_BLANK_RISK_LEVEL_1);
-      stmt.execute(INSERT_PERSON_5_RISK_LEVEL_2);
-    }
+    jdbcClient.sql(INSERT_PERSON_4_2_RISK_LEVEL_1).update();
+    jdbcClient.sql(INSERT_PERSON_BLANK_RISK_LEVEL_1).update();
+    jdbcClient.sql(INSERT_PERSON_5_RISK_LEVEL_2).update();
 
     doReturn(Collections.emptyList())
         .when(amlRiskReader)
@@ -121,12 +101,9 @@ class RiskLevelServiceIntegrationTest {
 
   @Test
   @DisplayName("Should create an AML check if a medium-risk row is sampled")
-  void testRiskLevelCheck_withMediumRiskRowSampled() throws Exception {
+  void testRiskLevelCheck_withMediumRiskRowSampled() {
     // given
-    try (Connection conn = dataSource.getConnection();
-        Statement stmt = conn.createStatement()) {
-      stmt.execute(INSERT_PERSON_5_RISK_LEVEL_2);
-    }
+    jdbcClient.sql(INSERT_PERSON_5_RISK_LEVEL_2).update();
 
     Map<String, Object> person5Metadata =
         Map.of(
@@ -166,12 +143,9 @@ class RiskLevelServiceIntegrationTest {
 
   @Test
   @DisplayName("Should not create a new check when existing check has the same metadata")
-  void testRiskLevelCheck_existingCheckWithSameMetadata_noNewCheckCreated() throws Exception {
+  void testRiskLevelCheck_existingCheckWithSameMetadata_noNewCheckCreated() {
     // given
-    try (Connection conn = dataSource.getConnection();
-        Statement stmt = conn.createStatement()) {
-      stmt.execute(INSERT_PERSON_4_RISK_LEVEL_1);
-    }
+    jdbcClient.sql(INSERT_PERSON_4_RISK_LEVEL_1).update();
 
     Map<String, Object> existingMetadata =
         Map.of(
@@ -225,12 +199,9 @@ class RiskLevelServiceIntegrationTest {
 
   @Test
   @DisplayName("Should create a new AML check even if an existing check is success=true")
-  void testRiskLevelCheck_existingCheckButSuccessTrue_newCheckCreated() throws Exception {
+  void testRiskLevelCheck_existingCheckButSuccessTrue_newCheckCreated() {
     // given
-    try (Connection conn = dataSource.getConnection();
-        Statement stmt = conn.createStatement()) {
-      stmt.execute(INSERT_PERSON_6_RISK_LEVEL_1);
-    }
+    jdbcClient.sql(INSERT_PERSON_6_RISK_LEVEL_1).update();
 
     Map<String, Object> existingCheckMetadata =
         Map.of(
@@ -289,12 +260,9 @@ class RiskLevelServiceIntegrationTest {
 
   @Test
   @DisplayName("Should create a new AML check if the existing one is older than six months")
-  void testRiskLevelCheck_existingCheckIsTooOld_newCheckCreated() throws Exception {
+  void testRiskLevelCheck_existingCheckIsTooOld_newCheckCreated() {
     // given
-    try (Connection conn = dataSource.getConnection();
-        Statement stmt = conn.createStatement()) {
-      stmt.execute(INSERT_PERSON_4_RISK_LEVEL_1);
-    }
+    jdbcClient.sql(INSERT_PERSON_4_RISK_LEVEL_1).update();
 
     Map<String, Object> existingMetadata = Map.of("attribute_1", 1, "attribute_2", 1, "level", 1);
 
@@ -324,13 +292,9 @@ class RiskLevelServiceIntegrationTest {
 
   @Test
   @DisplayName("Should skip check if existing check with same metadata is within six months")
-  void testRiskLevelCheck_existingCheckSameMetadataWithinSixMonths_noNewCheckCreated()
-      throws Exception {
+  void testRiskLevelCheck_existingCheckSameMetadataWithinSixMonths_noNewCheckCreated() {
     // given
-    try (Connection conn = dataSource.getConnection();
-        Statement stmt = conn.createStatement()) {
-      stmt.execute(INSERT_PERSON_4_RISK_LEVEL_1);
-    }
+    jdbcClient.sql(INSERT_PERSON_4_RISK_LEVEL_1).update();
 
     Map<String, Object> existingMetadata =
         Map.of(
@@ -368,13 +332,9 @@ class RiskLevelServiceIntegrationTest {
 
   @Test
   @DisplayName("Should create check if existing check with same metadata is older than six months")
-  void testRiskLevelCheck_existingCheckSameMetadataOlderThanSixMonths_newCheckCreated()
-      throws Exception {
+  void testRiskLevelCheck_existingCheckSameMetadataOlderThanSixMonths_newCheckCreated() {
     // given
-    try (Connection conn = dataSource.getConnection();
-        Statement stmt = conn.createStatement()) {
-      stmt.execute(INSERT_PERSON_4_RISK_LEVEL_1);
-    }
+    jdbcClient.sql(INSERT_PERSON_4_RISK_LEVEL_1).update();
 
     Map<String, Object> existingMetadata =
         Map.of(
@@ -418,15 +378,14 @@ class RiskLevelServiceIntegrationTest {
   }
 
   @Test
-  void tkfRiskLevelCheck_createsCheckForHighRiskTkfRow() throws Exception {
+  void tkfRiskLevelCheck_createsCheckForHighRiskTkfRow() {
     // given
-    try (Connection conn = dataSource.getConnection();
-        Statement stmt = conn.createStatement()) {
-      stmt.execute(
-          "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) "
-              + "VALUES ('37605030299', 1, "
-              + "'{\"version\": \"1.2\", \"level\": 1, \"total_points\": 105}')");
-    }
+    jdbcClient
+        .sql(
+            "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) "
+                + "VALUES ('37605030299', 1, "
+                + "'{\"version\": \"1.2\", \"level\": 1, \"total_points\": 105}')")
+        .update();
 
     doReturn(Collections.emptyList())
         .when(tkfRiskReader)
@@ -446,15 +405,14 @@ class RiskLevelServiceIntegrationTest {
   }
 
   @Test
-  void tkfRiskLevelCheck_deduplicatesIdenticalScore() throws Exception {
+  void tkfRiskLevelCheck_deduplicatesIdenticalScore() {
     // given
-    try (Connection conn = dataSource.getConnection();
-        Statement stmt = conn.createStatement()) {
-      stmt.execute(
-          "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) "
-              + "VALUES ('37605030299', 1, "
-              + "'{\"version\": \"1.2\", \"level\": 1, \"total_points\": 105}')");
-    }
+    jdbcClient
+        .sql(
+            "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) "
+                + "VALUES ('37605030299', 1, "
+                + "'{\"version\": \"1.2\", \"level\": 1, \"total_points\": 105}')")
+        .update();
 
     AmlCheck existingTkfCheck =
         AmlCheck.builder()

@@ -31,7 +31,7 @@ jobs:
             - v2-gradle-{{ arch }}-
       - run:
           name: Build
-          command: ./gradlew build --no-daemon --stacktrace --build-cache
+          command: ./gradlew build --stacktrace --build-cache
 
       - run:
           name: Copy heap dump if it exists
@@ -68,10 +68,14 @@ jobs:
             - ~/.gradle/wrapper
             - .gradle
 
-      - persist_to_workspace:
-          root: .
-          paths:
-            - build
+      - when:
+          condition:
+            equal: [master, << pipeline.git.branch >>]
+          steps:
+            - persist_to_workspace:
+                root: .
+                paths:
+                  - build
 
   flag-for-additional-review:
     docker:

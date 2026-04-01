@@ -384,7 +384,7 @@ class RiskLevelServiceIntegrationTest {
         .sql(
             "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) "
                 + "VALUES ('37605030299', 1, "
-                + "'{\"version\": \"1.2\", \"level\": 1, \"total_points\": 105}')")
+                + "'{\"version\": \"1.3\", \"level\": 1, \"total_points\": 105}')")
         .update();
 
     doReturn(Collections.emptyList())
@@ -411,7 +411,7 @@ class RiskLevelServiceIntegrationTest {
         .sql(
             "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) "
                 + "VALUES ('37605030299', 1, "
-                + "'{\"version\": \"1.2\", \"level\": 1, \"total_points\": 105}')")
+                + "'{\"version\": \"1.3\", \"level\": 1, \"total_points\": 105}')")
         .update();
 
     AmlCheck existingTkfCheck =
@@ -419,7 +419,7 @@ class RiskLevelServiceIntegrationTest {
             .personalCode("37605030299")
             .type(TKF_RISK_LEVEL)
             .success(false)
-            .metadata(Map.of("version", "1.2", "level", 1, "total_points", 105))
+            .metadata(Map.of("version", "1.3", "level", 1, "total_points", 105))
             .createdTime(TestClockHolder.now.minus(30, ChronoUnit.DAYS))
             .build();
     amlCheckRepository.save(existingTkfCheck);

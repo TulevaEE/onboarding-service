@@ -21,11 +21,19 @@ import org.testcontainers.utility.DockerImageName;
 @Profile("ci")
 public class TestcontainersConfiguration {
 
+  @SuppressWarnings("resource")
+  static final PostgreSQLContainer<?> POSTGRES =
+      new PostgreSQLContainer<>(DockerImageName.parse("postgres:17-alpine"))
+          .withCommand(
+              "postgres", "-c", "timezone=UTC", "-c", "fsync=off", "-c", "max_connections=300");
+
+  static {
+    POSTGRES.start();
+  }
+
   @Bean
   @ServiceConnection
-  @SuppressWarnings("resource")
   PostgreSQLContainer<?> postgresContainer() {
-    return new PostgreSQLContainer<>(DockerImageName.parse("postgres:17-alpine"))
-        .withCommand("postgres", "-c", "timezone=UTC", "-c", "fsync=off");
+    return POSTGRES;
   }
 }

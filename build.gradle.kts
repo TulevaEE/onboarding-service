@@ -468,12 +468,12 @@ tasks.withType<Test> {
         "-XX:+HeapDumpOnOutOfMemoryError",
         "-XX:HeapDumpPath=/tmp/heapdump.hprof",
     )
-    // CircleCI ARM Large: 16GB RAM, 3-4 forks × 3GB = 9-12GB, leaves 4-7GB for OS/Gradle/PostgreSQL
-    // Local dev: Assume 16GB+ RAM (most devs have 16-32GB)
+    // CircleCI Large (Docker): 8GB RAM, 2 forks × 3GB = 6GB, leaves 2GB for OS/Gradle/PostgreSQL
+    // Local dev: 18GB RAM, 5 forks × 2GB = 10GB, leaves 8GB for OS/IDE
     maxHeapSize =
         if (System.getenv("CI") == "true") {
-            "3g" // CircleCI ARM Large has 16GB RAM
+            "3g"
         } else {
-            "2g" // Local dev (16GB+ RAM)
+            "2g"
         }
 }

@@ -474,6 +474,6 @@ tasks.withType<Test> {
         if (System.getenv("CI") == "true") {
             "3g" // CircleCI ARM Large has 16GB RAM
         } else {
-            "3g" // Local dev (16GB+ RAM)
+            "2g" // Local dev (16GB+ RAM)
         }
 }

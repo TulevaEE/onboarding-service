@@ -35,7 +35,7 @@ jobs:
             - v2-gradle-{{ arch }}-
       - run:
           name: Build
-          command: ./gradlew build --stacktrace --build-cache -DmaxParallelForks=1
+          command: ./gradlew build --stacktrace --build-cache -DmaxParallelForks=2
 
       - run:
           name: Copy heap dump if it exists

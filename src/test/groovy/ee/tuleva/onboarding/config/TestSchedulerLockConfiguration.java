@@ -4,8 +4,8 @@ import java.util.Optional;
 import net.javacrumbs.shedlock.core.LockProvider;
 import net.javacrumbs.shedlock.core.SimpleLock;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
 /**
@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Primary;
  * scheduled methods with @SchedulerLock annotations to be called directly in tests without
  * requiring actual database locking.
  */
-@TestConfiguration
+@Configuration
 public class TestSchedulerLockConfiguration {
 
   @Bean

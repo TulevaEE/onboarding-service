@@ -218,11 +218,12 @@ tasks {
         // Enable parallel test execution for faster builds
         // CircleCI Large has 4 vCPUs, so use all 4 cores
         maxParallelForks =
-            if (System.getenv("CI") == "true") {
-                4 // CircleCI Large: 4 vCPUs
-            } else {
-                (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1) // Use half of available cores locally
-            }
+            (System.getProperty("maxParallelForks")?.toIntOrNull())
+                ?: if (System.getenv("CI") == "true") {
+                    4 // CircleCI Large: 4 vCPUs
+                } else {
+                    (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
+                }
     }
 
     bootRun {

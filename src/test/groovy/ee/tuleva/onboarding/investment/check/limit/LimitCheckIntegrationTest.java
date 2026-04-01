@@ -218,7 +218,7 @@ class LimitCheckIntegrationTest {
   // -- TUK75 test data: mimics CSV row for TUK75 on 2026-03-02 --
   // Total NAV = 10_000_000 (securities 9_978_000 + cash 25_000 + liabilities -3_000)
   private void insertTuk75Data() {
-    // Securities (FundPosition + InvestmentPositionCalculation)
+    // Securities
     record Security(String isin, String label, long marketValue, double soft, double hard) {}
 
     var securities =
@@ -233,7 +233,6 @@ class LimitCheckIntegrationTest {
 
     for (var s : securities) {
       insertFundPosition("TUK75", NAV_DATE, "SECURITY", s.isin, s.marketValue);
-      insertPositionCalculation("TUK75", NAV_DATE, s.isin, s.marketValue);
       insertPositionLimit("TUK75", s.isin, s.label, null, s.soft, s.hard);
     }
 
@@ -290,7 +289,6 @@ class LimitCheckIntegrationTest {
 
     for (var s : securities) {
       insertFundPosition("TUK00", NAV_DATE, "SECURITY", s.isin, s.marketValue);
-      insertPositionCalculation("TUK00", NAV_DATE, s.isin, s.marketValue);
       insertPositionLimit("TUK00", s.isin, s.label, s.indexGroup, s.soft, s.hard);
     }
 
@@ -325,22 +323,6 @@ class LimitCheckIntegrationTest {
         .param("fund", fund)
         .param("accountType", accountType)
         .param("accountId", accountId)
-        .param("marketValue", BigDecimal.valueOf(marketValue))
-        .update();
-  }
-
-  private void insertPositionCalculation(
-      String fund, LocalDate date, String isin, long marketValue) {
-    jdbcClient
-        .sql(
-            """
-            INSERT INTO investment_position_calculation
-            (fund_code, date, isin, quantity, calculated_market_value, validation_status)
-            VALUES (:fund, :date, :isin, 1, :marketValue, 'OK')
-            """)
-        .param("fund", fund)
-        .param("date", date)
-        .param("isin", isin)
         .param("marketValue", BigDecimal.valueOf(marketValue))
         .update();
   }

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
+import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -12,8 +13,6 @@ import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
-import ee.tuleva.onboarding.investment.calculation.InvestmentPositionCalculation;
-import ee.tuleva.onboarding.investment.calculation.PositionCalculationRepository;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.*;
@@ -36,7 +35,6 @@ class TransactionInputServiceTest {
 
   private static final LocalDate AS_OF_DATE = LocalDate.of(2026, 1, 15);
 
-  @Mock private PositionCalculationRepository positionCalculationRepository;
   @Mock private FundPositionRepository fundPositionRepository;
   @Mock private FeeAccrualRepository feeAccrualRepository;
   @Mock private ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
@@ -51,17 +49,17 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_assemblesAllInputs() {
     var positionDate = AS_OF_DATE;
-    when(positionCalculationRepository.getLatestDateUpTo(TUV100, AS_OF_DATE))
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
         .thenReturn(Optional.of(positionDate));
 
     var position =
-        InvestmentPositionCalculation.builder()
-            .isin("IE00A")
+        FundPosition.builder()
+            .accountId("IE00A")
             .fund(TUV100)
-            .date(positionDate)
-            .calculatedMarketValue(new BigDecimal("500000"))
+            .navDate(positionDate)
+            .marketValue(new BigDecimal("500000"))
             .build();
-    when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
         .thenReturn(List.of(position));
 
     var cashPosition =
@@ -120,7 +118,7 @@ class TransactionInputServiceTest {
 
   @Test
   void gatherInput_withNoPositionDate_throwsException() {
-    when(positionCalculationRepository.getLatestDateUpTo(TUV100, AS_OF_DATE))
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
         .thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.gatherInput(TUV100, AS_OF_DATE, Map.of()))
@@ -130,9 +128,9 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_withNoCash_usesZero() {
     var positionDate = AS_OF_DATE;
-    when(positionCalculationRepository.getLatestDateUpTo(TUV100, AS_OF_DATE))
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
         .thenReturn(Optional.of(positionDate));
-    when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
@@ -152,9 +150,9 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_withFastSellAllocations_returnsFastSellIsins() {
     var positionDate = AS_OF_DATE;
-    when(positionCalculationRepository.getLatestDateUpTo(TUV100, AS_OF_DATE))
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
         .thenReturn(Optional.of(positionDate));
-    when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
@@ -190,9 +188,9 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_withInstrumentTypeAndVenue_populatesModelWeights() {
     var positionDate = AS_OF_DATE;
-    when(positionCalculationRepository.getLatestDateUpTo(TUV100, AS_OF_DATE))
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
         .thenReturn(Optional.of(positionDate));
-    when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
@@ -234,17 +232,17 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_forTKF100_includesLedgerBalancesInLiabilities() {
     var positionDate = AS_OF_DATE;
-    when(positionCalculationRepository.getLatestDateUpTo(TKF100, AS_OF_DATE))
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, AS_OF_DATE))
         .thenReturn(Optional.of(positionDate));
 
     var position =
-        InvestmentPositionCalculation.builder()
-            .isin("IE00A")
+        FundPosition.builder()
+            .accountId("IE00A")
             .fund(TKF100)
-            .date(positionDate)
-            .calculatedMarketValue(new BigDecimal("500000"))
+            .navDate(positionDate)
+            .marketValue(new BigDecimal("500000"))
             .build();
-    when(positionCalculationRepository.findByFundAndDate(TKF100, positionDate))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TKF100, SECURITY))
         .thenReturn(List.of(position));
 
     var cashPosition =
@@ -284,9 +282,9 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_forNonTKF100_doesNotQueryLedger() {
     var positionDate = AS_OF_DATE;
-    when(positionCalculationRepository.getLatestDateUpTo(TUV100, AS_OF_DATE))
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
         .thenReturn(Optional.of(positionDate));
-    when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
@@ -307,9 +305,9 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_withManualAdjustments_overridesValues() {
     var positionDate = AS_OF_DATE;
-    when(positionCalculationRepository.getLatestDateUpTo(TUV100, AS_OF_DATE))
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
         .thenReturn(Optional.of(positionDate));
-    when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
@@ -335,9 +333,9 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_withNullReserveSoft_usesDefaultCashBuffer() {
     var positionDate = AS_OF_DATE;
-    when(positionCalculationRepository.getLatestDateUpTo(TUV100, AS_OF_DATE))
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
         .thenReturn(Optional.of(positionDate));
-    when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
@@ -359,24 +357,24 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_withNullMarketValues_filtersOutPositions() {
     var positionDate = AS_OF_DATE;
-    when(positionCalculationRepository.getLatestDateUpTo(TUV100, AS_OF_DATE))
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
         .thenReturn(Optional.of(positionDate));
 
     var positionWithValue =
-        InvestmentPositionCalculation.builder()
-            .isin("IE00A")
+        FundPosition.builder()
+            .accountId("IE00A")
             .fund(TUV100)
-            .date(positionDate)
-            .calculatedMarketValue(new BigDecimal("300000"))
+            .navDate(positionDate)
+            .marketValue(new BigDecimal("300000"))
             .build();
     var positionWithoutValue =
-        InvestmentPositionCalculation.builder()
-            .isin("IE00B")
+        FundPosition.builder()
+            .accountId("IE00B")
             .fund(TUV100)
-            .date(positionDate)
-            .calculatedMarketValue(null)
+            .navDate(positionDate)
+            .marketValue(null)
             .build();
-    when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
         .thenReturn(List.of(positionWithValue, positionWithoutValue));
 
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
@@ -398,9 +396,9 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_withInvalidManualAdjustment_throwsIllegalArgumentException() {
     var positionDate = AS_OF_DATE;
-    when(positionCalculationRepository.getLatestDateUpTo(TUV100, AS_OF_DATE))
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
         .thenReturn(Optional.of(positionDate));
-    when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
@@ -420,9 +418,9 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_withNullIsinAllocations_filtersThemOut() {
     var positionDate = AS_OF_DATE;
-    when(positionCalculationRepository.getLatestDateUpTo(TUV100, AS_OF_DATE))
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
         .thenReturn(Optional.of(positionDate));
-    when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
@@ -457,9 +455,9 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_withUnsettledOrders_subtractsPendingCashFromFreeCash() {
     var positionDate = AS_OF_DATE;
-    when(positionCalculationRepository.getLatestDateUpTo(TUV100, AS_OF_DATE))
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
         .thenReturn(Optional.of(positionDate));
-    when(positionCalculationRepository.findByFundAndDate(TUV100, positionDate))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(

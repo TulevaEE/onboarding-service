@@ -2,12 +2,12 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
+import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.calculation.PositionCalculationRepository;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.FundLimit;
@@ -39,7 +39,6 @@ public class TransactionInputService {
   private static final BigDecimal DEFAULT_MIN_TRANSACTION = new BigDecimal("50000");
   private static final BigDecimal DEFAULT_CASH_BUFFER = ZERO;
 
-  private final PositionCalculationRepository positionCalculationRepository;
   private final FundPositionRepository fundPositionRepository;
   private final FeeAccrualRepository feeAccrualRepository;
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
@@ -52,8 +51,8 @@ public class TransactionInputService {
   public FundTransactionInput gatherInput(
       TulevaFund fund, LocalDate asOfDate, Map<String, Object> manualAdjustments) {
     LocalDate positionDate =
-        positionCalculationRepository
-            .getLatestDateUpTo(fund, asOfDate)
+        fundPositionRepository
+            .findLatestNavDateByFundAndAsOfDate(fund, asOfDate)
             .orElseThrow(
                 () ->
                     new IllegalStateException(
@@ -120,11 +119,9 @@ public class TransactionInputService {
   }
 
   private List<PositionSnapshot> getPositions(TulevaFund fund, LocalDate date) {
-    return positionCalculationRepository.findByFundAndDate(fund, date).stream()
-        .filter(position -> position.getCalculatedMarketValue() != null)
-        .map(
-            position ->
-                new PositionSnapshot(position.getIsin(), position.getCalculatedMarketValue()))
+    return fundPositionRepository.findByNavDateAndFundAndAccountType(date, fund, SECURITY).stream()
+        .filter(position -> position.getMarketValue() != null)
+        .map(position -> new PositionSnapshot(position.getAccountId(), position.getMarketValue()))
         .toList();
   }
 

@@ -404,8 +404,8 @@ class NavPipelineIntegrationTest {
     BigDecimal tkf100Aum = new BigDecimal("50000000");
     BigDecimal tuk75Aum = new BigDecimal("1000000000");
 
-    insertPositionCalculation(TKF100, LocalDate.of(2025, 2, 28), new BigDecimal("48000000"));
-    insertPositionCalculation(TUK75, LocalDate.of(2025, 2, 28), new BigDecimal("980000000"));
+    insertSecurityPosition(TKF100, LocalDate.of(2025, 2, 28), new BigDecimal("48000000"));
+    insertSecurityPosition(TUK75, LocalDate.of(2025, 2, 28), new BigDecimal("980000000"));
 
     insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0025"));
     insertFeeRate(TUK75, "MANAGEMENT", new BigDecimal("0.0025"));
@@ -450,17 +450,17 @@ class NavPipelineIntegrationTest {
     assertThat(tkf100MgmtBalance).isNotEqualByComparingTo(tuk75MgmtBalance);
   }
 
-  private void insertPositionCalculation(TulevaFund fund, LocalDate date, BigDecimal marketValue) {
+  private void insertSecurityPosition(TulevaFund fund, LocalDate date, BigDecimal marketValue) {
     jdbcClient
         .sql(
             """
-            INSERT INTO investment_position_calculation
-            (isin, fund_code, date, quantity, calculated_market_value, validation_status, created_at)
-            VALUES (:isin, :fundCode, :date, 1, :marketValue, 'OK', now())
+            INSERT INTO investment_fund_position
+            (nav_date, fund_code, account_type, account_name, account_id, market_value)
+            VALUES (:navDate, :fundCode, 'SECURITY', :accountId, :accountId, :marketValue)
             """)
-        .param("isin", "TEST_ISIN_" + fund.name())
+        .param("navDate", date)
         .param("fundCode", fund.name())
-        .param("date", date)
+        .param("accountId", "TEST_ISIN_" + fund.name())
         .param("marketValue", marketValue)
         .update();
   }

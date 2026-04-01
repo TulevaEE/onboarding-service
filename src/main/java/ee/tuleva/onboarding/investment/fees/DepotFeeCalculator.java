@@ -7,7 +7,7 @@ import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.calculation.PositionCalculationRepository;
+import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ public class DepotFeeCalculator implements FeeCalculator {
   private static final BigDecimal MIN_ANNUAL_RATE = new BigDecimal("0.00020");
 
   private final DepotFeeTierRepository tierRepository;
-  private final PositionCalculationRepository positionCalculationRepository;
+  private final FundPositionRepository fundPositionRepository;
   private final FeeMonthResolver feeMonthResolver;
   private final VatRateProvider vatRateProvider;
   private final FeeRateRepository feeRateRepository;
@@ -73,10 +73,11 @@ public class DepotFeeCalculator implements FeeCalculator {
   }
 
   private BigDecimal getHistoricalMaxTotalValue(LocalDate upToDate) {
-    LocalDate latestDate = positionCalculationRepository.getLatestDateUpTo(upToDate).orElse(null);
+    LocalDate latestDate =
+        fundPositionRepository.findLatestSecurityNavDateUpTo(upToDate).orElse(null);
     if (latestDate == null) {
       return ZERO;
     }
-    return positionCalculationRepository.getTotalMarketValueAllFunds(latestDate).orElse(ZERO);
+    return fundPositionRepository.sumSecurityMarketValueAllFunds(latestDate);
   }
 }

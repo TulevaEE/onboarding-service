@@ -5,8 +5,8 @@ import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.calculation.PositionCalculationRepository;
 import ee.tuleva.onboarding.investment.portfolio.*;
+import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import java.math.BigDecimal;
@@ -27,7 +27,6 @@ import org.springframework.stereotype.Component;
 class LimitCheckService {
 
   private final Clock clock;
-  private final PositionCalculationRepository positionCalculationRepository;
   private final FundPositionRepository fundPositionRepository;
   private final PositionLimitRepository positionLimitRepository;
   private final ProviderLimitRepository providerLimitRepository;
@@ -47,7 +46,7 @@ class LimitCheckService {
     var results = new ArrayList<LimitCheckResult>();
 
     for (var fund : TulevaFund.values()) {
-      var latestDate = positionCalculationRepository.getLatestDateUpTo(fund, asOfDate);
+      var latestDate = fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, asOfDate);
       if (latestDate.isEmpty()) {
         log.warn("No position data for fund: fund={}, asOfDate={}", fund, asOfDate);
         continue;
@@ -75,12 +74,15 @@ class LimitCheckService {
   }
 
   private LimitCheckResult checkFund(TulevaFund fund, LocalDate checkDate) {
-    var positions = positionCalculationRepository.findByFundAndDate(fund, checkDate);
+    var positions =
+        fundPositionRepository.findByNavDateAndFundAndAccountType(
+            checkDate, fund, AccountType.SECURITY);
     var nonSecurityNav =
         fundPositionRepository.sumMarketValueByFundAndAccountTypes(
             fund, checkDate, List.of(CASH, RECEIVABLES, LIABILITY));
     var securitiesNav =
-        positionCalculationRepository.getTotalMarketValue(fund, checkDate).orElse(BigDecimal.ZERO);
+        fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+            fund, checkDate, List.of(AccountType.SECURITY));
     var totalNav = nonSecurityNav.add(securitiesNav);
 
     var cashTotal =

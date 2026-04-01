@@ -3,10 +3,15 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED
 import org.gradle.api.tasks.testing.logging.TestLogEvent.SKIPPED
 import org.gradle.api.tasks.testing.logging.TestLogEvent.STANDARD_ERROR
 import org.gradle.api.tasks.testing.logging.TestLogEvent.STANDARD_OUT
-import org.gradle.internal.extensions.core.serviceOf
 import org.gradle.process.ExecOperations
+import javax.inject.Inject
 
-val execOps = project.serviceOf<ExecOperations>()
+abstract class ExecTask
+    @Inject
+    constructor(
+        @Internal val execOps: ExecOperations,
+    ) : DefaultTask()
+
 val xjc by configurations.creating
 
 buildscript {
@@ -318,7 +323,7 @@ tasks {
         }
     }
 
-    register("setupGitHooks") {
+    register<ExecTask>("setupGitHooks") {
         group = "git hooks"
         description = "Configures git hooks for the project"
 
@@ -339,9 +344,11 @@ tasks {
         }
     }
 
-    register("generateXSDClasses") {
+    register<ExecTask>("generateXSDClasses") {
         group = "code generation"
         description = "Generates Java classes from XSD files"
+
+        val xjcClasspath = configurations["xjc"].asPath
 
         val iso20022Dir = file("$projectDir/src/main/resources/banking/iso20022")
         val iso20022OutputDir = file("${layout.buildDirectory.get()}/generated-sources/iso20022")
@@ -362,16 +369,22 @@ tasks {
                 ) to "ee.tuleva.onboarding.ariregister.generated.detailandmed",
             )
 
-        doLast {
-            val bindingsFile = file("$projectDir/src/main/resources/jaxb-bindings.xjb")
+        val bindingsFile = file("$projectDir/src/main/resources/jaxb-bindings.xjb")
 
+        inputs.dir(iso20022Dir)
+        inputs.dir(ariregisterDir)
+        inputs.file(bindingsFile)
+        outputs.dir(iso20022OutputDir)
+        outputs.dir(ariregisterOutputDir)
+
+        doLast {
             iso20022OutputDir.mkdirs()
             iso20022Schemas.forEach { (schemaFile, packageName) ->
                 execOps.exec {
                     executable = "java"
                     args(
                         "-cp",
-                        configurations["xjc"].asPath,
+                        xjcClasspath,
                         "com.sun.tools.xjc.XJCFacade",
                         "-extension",
                         "-d",
@@ -392,7 +405,7 @@ tasks {
                     args(
                         "-Xss4m",
                         "-cp",
-                        configurations["xjc"].asPath,
+                        xjcClasspath,
                         "com.sun.tools.xjc.XJCFacade",
                         "-nv",
                         "-extension",

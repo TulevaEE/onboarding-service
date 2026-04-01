@@ -12,11 +12,9 @@ import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 
-@SpringBootTest
-@Transactional
+@DataJpaTest
 class InvestmentReportRepositoryTest {
 
   @Autowired private InvestmentReportRepository repository;

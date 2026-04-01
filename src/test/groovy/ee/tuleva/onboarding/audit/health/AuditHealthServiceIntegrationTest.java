@@ -14,11 +14,12 @@ import java.time.ZoneId;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
+@DataJpaTest
+@Import({AuditHealthService.class, AuditHealthRepository.class})
 class AuditHealthServiceIntegrationTest {
 
   @Autowired private AuditHealthService auditHealthService;
@@ -101,7 +102,6 @@ class AuditHealthServiceIntegrationTest {
 
   @Test
   @DisplayName("Integration: initializeOrRefreshThreshold sets positive threshold from DB data")
-  @Transactional
   void integration_initialize_positiveThreshold() throws Exception {
     // given
     Instant baseTime = TEST_NOW.minus(Duration.ofDays(5));
@@ -123,7 +123,6 @@ class AuditHealthServiceIntegrationTest {
   @Test
   @DisplayName(
       "Integration: initializeOrRefreshThreshold sets ZERO for no positive intervals in DB")
-  @Transactional
   void integration_initialize_zeroIntervalFromDB() throws Exception {
     // given
     Instant baseTime = TEST_NOW.minus(Duration.ofDays(3));
@@ -145,7 +144,6 @@ class AuditHealthServiceIntegrationTest {
 
   @Test
   @DisplayName("Integration: initializeOrRefreshThreshold sets ZERO when DB is empty")
-  @Transactional
   void integration_initialize_emptyDB() throws Exception {
     // when
     auditHealthService.initializeOrRefreshThreshold();
@@ -155,7 +153,6 @@ class AuditHealthServiceIntegrationTest {
 
   @Test
   @DisplayName("Integration: isAuditLogDelayed works correctly after DB-driven positive threshold")
-  @Transactional
   void integration_isDelayed_with_DB_PositiveThreshold() throws Exception {
     // given
     Instant baseTime = TEST_NOW.minus(Duration.ofDays(1));
@@ -185,7 +182,6 @@ class AuditHealthServiceIntegrationTest {
 
   @Test
   @DisplayName("Integration: isAuditLogDelayed works correctly after DB-driven ZERO threshold")
-  @Transactional
   void integration_isDelayed_with_DB_ZeroThreshold() throws Exception {
     // given
     Instant lastEventTime = TEST_NOW.minus(Duration.ofDays(1));

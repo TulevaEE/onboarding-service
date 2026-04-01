@@ -216,11 +216,11 @@ tasks {
         shouldRunAfter(spotlessCheck)
 
         // Enable parallel test execution for faster builds
-        // CircleCI Large has 4 vCPUs, so use all 4 cores
+        // CI fork count is set via -DmaxParallelForks in .circleci/config.yml
         maxParallelForks =
             (System.getProperty("maxParallelForks")?.toIntOrNull())
                 ?: if (System.getenv("CI") == "true") {
-                    4 // CircleCI Large: 4 vCPUs
+                    4 // default, overridden by -DmaxParallelForks in CI
                 } else {
                     (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
                 }
@@ -468,12 +468,12 @@ tasks.withType<Test> {
         "-XX:+HeapDumpOnOutOfMemoryError",
         "-XX:HeapDumpPath=/tmp/heapdump.hprof",
     )
-    // CircleCI Large: 15GB RAM, 4 parallel forks = 3GB per fork (12GB for tests, 3GB for OS/container/Gradle)
+    // CircleCI ARM Large: 16GB RAM, 3-4 forks × 3GB = 9-12GB, leaves 4-7GB for OS/Gradle/PostgreSQL
     // Local dev: Assume 16GB+ RAM (most devs have 16-32GB)
     maxHeapSize =
         if (System.getenv("CI") == "true") {
-            "3g" // CircleCI Large has 15GB RAM
+            "3g" // CircleCI ARM Large has 16GB RAM
         } else {
-            "4g" // Generous for local dev (16GB+ RAM)
+            "3g" // Local dev (16GB+ RAM)
         }
 }

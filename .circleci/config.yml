@@ -25,7 +25,7 @@ jobs:
           POSTGRES_DB: testdb
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
-    resource_class: large
+    resource_class: arm.large
     steps:
       - checkout
       - restore_cache:

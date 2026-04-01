@@ -33,7 +33,7 @@ spring:
 spring:
   config:
     activate:
-      on-profile: "!ci"
+      on-profile: "!ci & !pg"
   datasource:
     username: sa
     password:
@@ -47,7 +47,20 @@ spring:
 spring:
   config:
     activate:
+      on-profile: "pg"
+  flyway:
+    locations: classpath:/db/migration, classpath:/db/dev
+
+---
+
+spring:
+  config:
+    activate:
       on-profile: "ci"
+  datasource:
+    url: jdbc:postgresql://localhost:5432/testdb
+    username: test
+    password: test
   flyway:
     locations: classpath:/db/migration, classpath:/db/dev
 

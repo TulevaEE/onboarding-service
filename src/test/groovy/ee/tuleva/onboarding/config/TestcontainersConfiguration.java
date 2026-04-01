@@ -8,17 +8,17 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * Testcontainers configuration for PostgreSQL tests running in CI mode.
+ * Testcontainers configuration for local PostgreSQL tests.
  *
- * <p>Activated by the "ci" profile (SPRING_PROFILES_ACTIVE=ci,test).
+ * <p>Activated by the "pg" profile (SPRING_PROFILES_ACTIVE=pg,test).
  *
- * <p>Container reuse is enabled for better performance - the same container is reused across test
- * runs via Testcontainers' built-in mechanism. Spring manages transactions for test isolation.
+ * <p>A static singleton container is shared across all Spring contexts within a JVM fork, so Flyway
+ * runs once per fork. Spring manages transactions for test isolation.
  *
- * <p>Local development uses H2 by default (without ci profile).
+ * <p>In CI, PostgreSQL is provided as a CircleCI service container instead.
  */
 @TestConfiguration(proxyBeanMethods = false)
-@Profile("ci")
+@Profile("pg")
 public class TestcontainersConfiguration {
 
   @SuppressWarnings("resource")

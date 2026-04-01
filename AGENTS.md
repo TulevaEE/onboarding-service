@@ -40,7 +40,7 @@ Follow **Uncle Bob** (Clean Code, SOLID), **Kent Beck** (TDD, simple design), **
 - Spring profile `dev` for local development; do NOT use `--no-daemon`
 
 ### Testing
-- `./gradlew test` (H2) | `SPRING_PROFILES_ACTIVE=ci,test ./gradlew test` (Testcontainers PostgreSQL, requires Docker)
+- `./gradlew test` (H2) | `SPRING_PROFILES_ACTIVE=pg,test ./gradlew test` (Testcontainers PostgreSQL, requires Docker)
 - `./gradlew test --tests MyTest` | `./gradlew integrationTest`
 - `./gradlew jacocoTestReport`
 - Some tests require PostgreSQL and are skipped on H2

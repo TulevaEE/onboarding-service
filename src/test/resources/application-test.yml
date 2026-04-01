@@ -9,6 +9,9 @@ spring:
     banner-mode: off
   cache:
     type: NONE
+  datasource:
+    hikari:
+      maximum-pool-size: 2
   jpa:
     hibernate:
       ddl-auto: none

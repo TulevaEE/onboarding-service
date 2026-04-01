@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.analytics.secondpillar
 
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.data.jdbc.test.autoconfigure.DataJdbcTest
+import org.springframework.boot.jdbc.test.autoconfigure.JdbcTest
 import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.simple.JdbcClient
 import spock.lang.Requires
@@ -14,7 +14,7 @@ import java.time.LocalDate
 import static ee.tuleva.onboarding.analytics.secondpillar.SecondPillarAbandonmentFixture.*
 
 @Requires({ System.getenv('SPRING_PROFILES_ACTIVE')?.contains('pg') || System.getenv('SPRING_PROFILES_ACTIVE')?.contains('ci') })
-@DataJdbcTest
+@JdbcTest
 @Import(SecondPillarAbandonmentRepository)
 class SecondPillarAbandonmentRepositorySpec extends Specification {
 

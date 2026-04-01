@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.analytics.earlywithdrawals
 
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.data.jdbc.test.autoconfigure.DataJdbcTest
+import org.springframework.boot.jdbc.test.autoconfigure.JdbcTest
 import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.simple.JdbcClient
 import spock.lang.Specification
@@ -11,7 +11,7 @@ import java.time.LocalDate
 import static ee.tuleva.onboarding.analytics.earlywithdrawals.AnalyticsEarlyWithdrawalFixture.anEarlyWithdrawal
 import static ee.tuleva.onboarding.analytics.earlywithdrawals.AnalyticsEarlyWithdrawalFixture.anEarlyWithdrawalWithMissingEmail
 
-@DataJdbcTest
+@JdbcTest
 @Import(AnalyticsEarlyWithdrawalsRepository)
 class AnalyticsEarlyWithdrawalsRepositorySpec extends Specification {
 

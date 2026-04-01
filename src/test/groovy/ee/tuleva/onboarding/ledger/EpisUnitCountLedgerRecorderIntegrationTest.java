@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.ledger;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
@@ -14,7 +13,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest(webEnvironment = RANDOM_PORT)
+@SpringBootTest
 @Transactional
 class EpisUnitCountLedgerRecorderIntegrationTest {
 

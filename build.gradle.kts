@@ -220,9 +220,9 @@ tasks {
         maxParallelForks =
             (System.getProperty("maxParallelForks")?.toIntOrNull())
                 ?: if (System.getenv("CI") == "true") {
-                    4 // default, overridden by -DmaxParallelForks in CI
+                    2 // default, overridden by -DmaxParallelForks in CI
                 } else {
-                    (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
+                    3 // fewer forks = better Spring context cache reuse
                 }
     }
 
@@ -469,7 +469,7 @@ tasks.withType<Test> {
         "-XX:HeapDumpPath=/tmp/heapdump.hprof",
     )
     // CircleCI Large (Docker): 8GB RAM, 2 forks × 3GB = 6GB, leaves 2GB for OS/Gradle/PostgreSQL
-    // Local dev: 18GB RAM, 5 forks × 2GB = 10GB, leaves 8GB for OS/IDE
+    // Local dev: 16GB RAM, 3 forks × 2GB = 6GB, leaves 10GB for OS/IDE
     maxHeapSize =
         if (System.getenv("CI") == "true") {
             "3g"

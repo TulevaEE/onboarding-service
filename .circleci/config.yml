@@ -20,10 +20,14 @@ jobs:
       GRADLE_OPTS: -Dorg.gradle.parallel=true -Dorg.gradle.workers.max=4
     docker:
       - image: cimg/openjdk:25.0
+      - image: postgres:17-alpine
+        environment:
+          POSTGRES_DB: testdb
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
     resource_class: large
     steps:
       - checkout
-      - setup_remote_docker
       - restore_cache:
           keys:
             - v2-gradle-{{ arch }}-{{ checksum "build.gradle.kts" }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}

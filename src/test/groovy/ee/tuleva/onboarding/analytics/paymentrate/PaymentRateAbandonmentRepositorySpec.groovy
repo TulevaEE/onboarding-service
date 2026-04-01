@@ -15,7 +15,7 @@ import static ee.tuleva.onboarding.analytics.paymentrate.PaymentRateAbandonmentF
 import static ee.tuleva.onboarding.analytics.paymentrate.PaymentRateAbandonmentFixture.uniqueEmail
 import static ee.tuleva.onboarding.analytics.paymentrate.PaymentRateAbandonmentFixture.uniquePersonalCode
 
-@Requires({ System.getenv('SPRING_PROFILES_ACTIVE')?.contains('ci') })
+@Requires({ System.getenv('SPRING_PROFILES_ACTIVE')?.contains('pg') || System.getenv('SPRING_PROFILES_ACTIVE')?.contains('ci') })
 @DataJdbcTest
 @Import(PaymentRateAbandonmentRepository)
 class PaymentRateAbandonmentRepositorySpec extends Specification {

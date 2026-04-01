@@ -13,7 +13,7 @@ import java.time.LocalDate
 
 import static ee.tuleva.onboarding.analytics.secondpillar.SecondPillarAbandonmentFixture.*
 
-@Requires({ System.getenv('SPRING_PROFILES_ACTIVE')?.contains('ci') })
+@Requires({ System.getenv('SPRING_PROFILES_ACTIVE')?.contains('pg') || System.getenv('SPRING_PROFILES_ACTIVE')?.contains('ci') })
 @DataJdbcTest
 @Import(SecondPillarAbandonmentRepository)
 class SecondPillarAbandonmentRepositorySpec extends Specification {

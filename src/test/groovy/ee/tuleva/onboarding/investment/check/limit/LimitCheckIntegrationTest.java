@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -33,7 +32,6 @@ import org.springframework.transaction.annotation.Transactional;
  * </ul>
  */
 @SpringBootTest
-@ActiveProfiles("test")
 @Transactional
 @Disabled
 class LimitCheckIntegrationTest {

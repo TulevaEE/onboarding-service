@@ -18,7 +18,6 @@ import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
-import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerService;
@@ -41,12 +40,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
-@Import(TestSchedulerLockConfiguration.class)
 @Transactional
 class SavingsFundPaymentIntegrationTest {
 

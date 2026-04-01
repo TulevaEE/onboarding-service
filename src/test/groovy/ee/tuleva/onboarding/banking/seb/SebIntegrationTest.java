@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.banking.seb;
 
-import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -25,6 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
       "seb-gateway.accounts.WITHDRAWAL_EUR=EE001234567890123457",
       "seb-gateway.accounts.FUND_INVESTMENT_EUR=EE001234567890123458"
     })
-@Import({TestSchedulerLockConfiguration.class, TestSebSchedulerConfiguration.class})
+@Import(TestSebSchedulerConfiguration.class)
 @Transactional
 public @interface SebIntegrationTest {}

@@ -11,12 +11,11 @@ import org.springframework.test.context.ContextCustomizerFactory;
 import org.springframework.test.context.MergedContextConfiguration;
 
 /**
- * Registers Testcontainers configuration when the "pg" profile is active
+ * Registers {@link TestcontainersConfiguration} when the "pg" profile is active
  * (SPRING_PROFILES_ACTIVE=pg,test).
  *
- * <p>Only registers when "pg" profile is active to avoid loading {@link
- * TestcontainersConfiguration} in environments without Docker (e.g., CI with a service container,
- * or local H2).
+ * <p>Only registers when "pg" profile is active to avoid loading the class in environments without
+ * Docker (e.g., CI with a service container, or local H2).
  */
 public class CiProfileActivatorFactory implements ContextCustomizerFactory {
 

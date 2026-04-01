@@ -23,8 +23,7 @@ jobs:
     resource_class: large
     steps:
       - checkout
-      - setup_remote_docker:
-          docker_layer_caching: true
+      - setup_remote_docker
       - restore_cache:
           keys:
             - v2-gradle-{{ arch }}-{{ checksum "build.gradle.kts" }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}

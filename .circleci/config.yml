@@ -25,7 +25,7 @@ jobs:
           POSTGRES_DB: testdb
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
-    resource_class: arm.large
+    resource_class: xlarge
     steps:
       - checkout
       - restore_cache:
@@ -35,7 +35,7 @@ jobs:
             - v2-gradle-{{ arch }}-
       - run:
           name: Build
-          command: ./gradlew build --stacktrace --build-cache -DmaxParallelForks=4
+          command: ./gradlew build --stacktrace --build-cache -DmaxParallelForks=2
 
       - run:
           name: Copy heap dump if it exists

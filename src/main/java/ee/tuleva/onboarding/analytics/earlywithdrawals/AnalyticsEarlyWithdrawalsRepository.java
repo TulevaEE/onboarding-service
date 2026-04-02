@@ -2,10 +2,13 @@ package ee.tuleva.onboarding.analytics.earlywithdrawals;
 
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_EARLY_WITHDRAWAL;
 
+import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.notification.email.auto.AutoEmailRepository;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -15,7 +18,10 @@ import org.springframework.stereotype.Repository;
 public class AnalyticsEarlyWithdrawalsRepository
     implements AutoEmailRepository<AnalyticsEarlyWithdrawal> {
 
+  private static final DateTimeFormatter ESTONIAN_DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+
   private final JdbcClient jdbcClient;
+  private final MandateDeadlinesService mandateDeadlinesService;
 
   @Override
   public List<AnalyticsEarlyWithdrawal> fetch(LocalDate startDate, LocalDate endDate) {
@@ -64,5 +70,14 @@ public class AnalyticsEarlyWithdrawalsRepository
   @Override
   public EmailType getEmailType() {
     return SECOND_PILLAR_EARLY_WITHDRAWAL;
+  }
+
+  @Override
+  public Map<String, String> getEmailProperties(AnalyticsEarlyWithdrawal person) {
+    if (person.earlyWithdrawalDate() == null) return Map.of();
+    var deadline =
+        mandateDeadlinesService.getEarlyWithdrawalCancellationDeadline(
+            person.earlyWithdrawalDate());
+    return Map.of("cancellation_deadline", deadline.format(ESTONIAN_DATE));
   }
 }

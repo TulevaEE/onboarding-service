@@ -25,6 +25,13 @@ public class MandateDeadlinesService {
     return getDeadlines().getCurrentPeriodStartDate();
   }
 
+  public LocalDate getEarlyWithdrawalCancellationDeadline(LocalDate applicationDate) {
+    return getDeadlines(applicationDate.atStartOfDay(estonianClock.getZone()).toInstant())
+        .getEarlyWithdrawalCancellationDeadline()
+        .atZone(estonianClock.getZone())
+        .toLocalDate();
+  }
+
   public LocalDate getPeriodStartDate(LocalDate date) {
     return getDeadlines(date.atStartOfDay(estonianClock.getZone()).toInstant())
         .getCurrentPeriodStartDate();

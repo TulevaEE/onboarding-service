@@ -17,6 +17,7 @@ import io.github.erkoristhein.mailchimp.model.PostMessagesSendRequestMessageToIn
 import io.github.erkoristhein.mailchimp.model.PostMessagesSendTemplateRequest;
 import io.github.erkoristhein.mailchimp.model.PostMessagesSendTemplateRequestMessage;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,7 +38,11 @@ public class MailchimpService {
   private String mailchimpListId;
 
   public void sendEvent(String email, EmailEvent emailEvent) {
-    Events event = new Events().name(emailEvent.name().toLowerCase());
+    sendEvent(email, emailEvent, Map.of());
+  }
+
+  public void sendEvent(String email, EmailEvent emailEvent, Map<String, String> properties) {
+    Events event = new Events().name(emailEvent.name().toLowerCase()).properties(properties);
     mailchimpMarketingListsApi.postListMemberEvents(mailchimpListId, email, event);
   }
 

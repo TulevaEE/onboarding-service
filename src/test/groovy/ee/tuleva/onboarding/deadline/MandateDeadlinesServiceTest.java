@@ -79,6 +79,22 @@ public class MandateDeadlinesServiceTest {
   }
 
   @Test
+  void canGetEarlyWithdrawalCancellationDeadline() {
+    assertEquals(
+        LocalDate.parse("2021-07-31"),
+        service.getEarlyWithdrawalCancellationDeadline(LocalDate.parse("2021-03-06")));
+    assertEquals(
+        LocalDate.parse("2021-07-31"),
+        service.getEarlyWithdrawalCancellationDeadline(LocalDate.parse("2021-03-31")));
+    assertEquals(
+        LocalDate.parse("2021-11-30"),
+        service.getEarlyWithdrawalCancellationDeadline(LocalDate.parse("2021-04-01")));
+    assertEquals(
+        LocalDate.parse("2022-03-31"),
+        service.getEarlyWithdrawalCancellationDeadline(LocalDate.parse("2021-08-15")));
+  }
+
+  @Test
   void canGetPeriodStartDateForSpecificDate() {
     LocalDate dateInMidPeriod = LocalDate.parse("2021-05-15");
     LocalDate expectedPeriodStart = LocalDate.parse("2021-04-01");

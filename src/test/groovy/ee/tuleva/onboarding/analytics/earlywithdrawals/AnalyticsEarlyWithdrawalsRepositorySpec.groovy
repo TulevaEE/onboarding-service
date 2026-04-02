@@ -1,9 +1,12 @@
 package ee.tuleva.onboarding.analytics.earlywithdrawals
 
+import ee.tuleva.onboarding.deadline.MandateDeadlinesService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.jdbc.test.autoconfigure.JdbcTest
 import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.simple.JdbcClient
+import org.springframework.test.context.bean.override.mockito.MockitoBean
+import org.mockito.Mockito
 import spock.lang.Specification
 
 import java.time.LocalDate
@@ -17,6 +20,9 @@ class AnalyticsEarlyWithdrawalsRepositorySpec extends Specification {
 
   @Autowired
   JdbcClient jdbcClient
+
+  @MockitoBean
+  MandateDeadlinesService mandateDeadlinesService
 
   @Autowired
   AnalyticsEarlyWithdrawalsRepository repository
@@ -115,6 +121,24 @@ class AnalyticsEarlyWithdrawalsRepositorySpec extends Specification {
 
     then:
     result == []
+  }
+
+  def "getEmailProperties returns cancellation deadline"() {
+    given:
+    def withdrawal = anEarlyWithdrawal()
+    Mockito.when(mandateDeadlinesService.getEarlyWithdrawalCancellationDeadline(LocalDate.parse("2023-01-15")))
+        .thenReturn(LocalDate.parse("2023-07-31"))
+
+    expect:
+    repository.getEmailProperties(withdrawal) == [cancellation_deadline: "31.07.2023"]
+  }
+
+  def "getEmailProperties returns empty map when date is null"() {
+    given:
+    def withdrawal = new AnalyticsEarlyWithdrawal("38510309510", "John", "Doe", "john@example.com", "ENG", null, "A", null)
+
+    expect:
+    repository.getEmailProperties(withdrawal) == [:]
   }
 
   private long insertUnitOwner(long ownerId,

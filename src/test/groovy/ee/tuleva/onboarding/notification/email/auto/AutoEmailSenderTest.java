@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -91,7 +92,7 @@ class AutoEmailSenderTest {
     autoEmailSender.sendAutoEmails();
 
     // Then
-    verify(mailchimpService, times(1)).sendEvent(leaver.email(), NEW_LEAVER);
+    verify(mailchimpService, times(1)).sendEvent(leaver.email(), NEW_LEAVER, Map.of());
     verify(emailPersistenceService, times(1)).save(leaver, SECOND_PILLAR_LEAVERS, SCHEDULED);
   }
 
@@ -117,7 +118,7 @@ class AutoEmailSenderTest {
     autoEmailSender.sendAutoEmails();
 
     // Then - should not send any emails for SECOND_PILLAR_LEAVERS due to threshold
-    verify(mailchimpService, never()).sendEvent(anyString(), eq(NEW_LEAVER));
+    verify(mailchimpService, never()).sendEvent(anyString(), eq(NEW_LEAVER), any());
     verify(emailPersistenceService, never()).save(any(), eq(SECOND_PILLAR_LEAVERS), any());
   }
 
@@ -153,7 +154,7 @@ class AutoEmailSenderTest {
 
     autoEmailSender.sendAutoEmails();
 
-    verify(mailchimpService, times(10)).sendEvent(anyString(), eq(NEW_LEAVER));
+    verify(mailchimpService, times(10)).sendEvent(anyString(), eq(NEW_LEAVER), any());
     verify(emailPersistenceService, times(10))
         .save(any(ExchangeTransactionLeaver.class), eq(SECOND_PILLAR_LEAVERS), eq(SCHEDULED));
   }
@@ -212,20 +213,22 @@ class AutoEmailSenderTest {
     autoEmailSender.sendAutoEmails();
 
     // Then
-    verify(mailchimpService, times(1)).sendEvent(leaver.email(), NEW_LEAVER);
+    verify(mailchimpService, times(1)).sendEvent(leaver.email(), NEW_LEAVER, Map.of());
     verify(emailPersistenceService, times(1)).save(leaver, SECOND_PILLAR_LEAVERS, SCHEDULED);
   }
 
   @Test
-  @DisplayName("Sends withdrawal emails")
+  @DisplayName("Sends withdrawal emails with cancellation deadline properties")
   void sendsWithdrawalEmails() {
     // Given
     var earlyWithdrawal = anEarlyWithdrawal();
+    var emailProperties = Map.of("cancellation_deadline", "31.07.2023");
     LocalDate expectedStartDate = LocalDate.of(2019, 12, 1);
     LocalDate expectedEndDate = LocalDate.of(2020, 1, 2);
 
     when(withdrawalsRepository.fetch(eq(expectedStartDate), eq(expectedEndDate)))
         .thenReturn(List.of(earlyWithdrawal));
+    when(withdrawalsRepository.getEmailProperties(earlyWithdrawal)).thenReturn(emailProperties);
     when(leaversRepository.fetch(eq(expectedStartDate), eq(expectedEndDate))).thenReturn(List.of());
     when(emailPersistenceService.getLastEmailSendDate(
             eq(earlyWithdrawal), eq(SECOND_PILLAR_EARLY_WITHDRAWAL)))
@@ -239,7 +242,8 @@ class AutoEmailSenderTest {
     autoEmailSender.sendAutoEmails();
 
     // Then
-    verify(mailchimpService, times(1)).sendEvent(earlyWithdrawal.email(), NEW_EARLY_WITHDRAWAL);
+    verify(mailchimpService, times(1))
+        .sendEvent(earlyWithdrawal.email(), NEW_EARLY_WITHDRAWAL, emailProperties);
     verify(emailPersistenceService, times(1))
         .save(earlyWithdrawal, SECOND_PILLAR_EARLY_WITHDRAWAL, SCHEDULED);
   }
@@ -265,13 +269,13 @@ class AutoEmailSenderTest {
 
     doThrow(HttpClientErrorException.NotFound.class)
         .when(mailchimpService)
-        .sendEvent(leaver.email(), NEW_LEAVER);
+        .sendEvent(eq(leaver.email()), eq(NEW_LEAVER), any());
 
     // When
     autoEmailSender.sendAutoEmails();
 
     // Then
-    verify(mailchimpService, times(1)).sendEvent(leaver.email(), NEW_LEAVER);
+    verify(mailchimpService, times(1)).sendEvent(eq(leaver.email()), eq(NEW_LEAVER), any());
     verify(emailPersistenceService, never()).save(leaver, SECOND_PILLAR_LEAVERS, SCHEDULED);
   }
 
@@ -303,8 +307,9 @@ class AutoEmailSenderTest {
     autoEmailSender.sendAutoEmails();
 
     // Then
-    verify(mailchimpService, times(1)).sendEvent(leaver.email(), NEW_LEAVER);
-    verify(mailchimpService, times(1)).sendEvent(earlyWithdrawal.email(), NEW_EARLY_WITHDRAWAL);
+    verify(mailchimpService, times(1)).sendEvent(leaver.email(), NEW_LEAVER, Map.of());
+    verify(mailchimpService, times(1))
+        .sendEvent(eq(earlyWithdrawal.email()), eq(NEW_EARLY_WITHDRAWAL), any());
     verify(emailPersistenceService, times(1)).save(leaver, SECOND_PILLAR_LEAVERS, SCHEDULED);
     verify(emailPersistenceService, times(1))
         .save(earlyWithdrawal, SECOND_PILLAR_EARLY_WITHDRAWAL, SCHEDULED);
@@ -336,7 +341,7 @@ class AutoEmailSenderTest {
     autoEmailSender.sendAutoEmails();
 
     // Then
-    verify(mailchimpService, times(2)).sendEvent(anyString(), eq(NEW_LEAVER));
+    verify(mailchimpService, times(2)).sendEvent(anyString(), eq(NEW_LEAVER), any());
     verify(emailPersistenceService, times(2))
         .save(any(ExchangeTransactionLeaver.class), eq(SECOND_PILLAR_LEAVERS), eq(SCHEDULED));
   }
@@ -364,7 +369,7 @@ class AutoEmailSenderTest {
     autoEmailSender.sendAutoEmails();
 
     // Then - should send all 600 emails
-    verify(mailchimpService, times(600)).sendEvent(anyString(), eq(NEW_LEAVER));
+    verify(mailchimpService, times(600)).sendEvent(anyString(), eq(NEW_LEAVER), any());
     verify(emailPersistenceService, times(600))
         .save(any(ExchangeTransactionLeaver.class), eq(SECOND_PILLAR_LEAVERS), eq(SCHEDULED));
   }
@@ -390,7 +395,7 @@ class AutoEmailSenderTest {
     autoEmailSender.sendAutoEmails();
 
     // Then - should not send any emails (over 1000 limit)
-    verify(mailchimpService, never()).sendEvent(anyString(), eq(NEW_LEAVER));
+    verify(mailchimpService, never()).sendEvent(anyString(), eq(NEW_LEAVER), any());
     verify(emailPersistenceService, never())
         .save(any(ExchangeTransactionLeaver.class), eq(SECOND_PILLAR_LEAVERS), any());
   }
@@ -433,7 +438,7 @@ class AutoEmailSenderTest {
 
     autoEmailSender.sendAutoEmails();
 
-    verify(mailchimpService, times(1)).sendEvent(any(), any());
+    verify(mailchimpService, times(1)).sendEvent(any(), any(), any());
 
     ArgumentCaptor<LocalDate> endDateCaptor = ArgumentCaptor.forClass(LocalDate.class);
     verify(leaversRepository).fetch(any(), endDateCaptor.capture());

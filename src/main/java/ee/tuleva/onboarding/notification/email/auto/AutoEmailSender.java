@@ -38,35 +38,40 @@ public class AutoEmailSender {
       lockAtLeastFor = "30m")
   public void sendAutoEmails() {
     for (final var autoEmailRepository : autoEmailRepositories) {
-      EmailType emailType = autoEmailRepository.getEmailType();
-      LocalDate startDate = LocalDate.now(clock).minusMonths(1).withDayOfMonth(1);
-      LocalDate endDate = LocalDate.now(clock).plusDays(1);
-      log.info(
-          "Checking auto emails for: emailType={}, startDate={}, endDate={}",
-          emailType,
-          startDate,
-          endDate);
-      final var emailablePeople = autoEmailRepository.fetch(startDate, endDate);
-
-      int estimatedSendCount = getEstimatedEmailCount(emailablePeople, emailType);
-
-      boolean isFirstTimeEmail = !emailPersistenceService.hasEmailTypeBeenSentBefore(emailType);
-      int maxRecipients = isFirstTimeEmail ? 1000 : 200;
-
-      if (estimatedSendCount > maxRecipients) {
-        log.error(
-            "Too many people for auto emails, skipping: emailType={}, estimatedSendCount={}, maxRecipients={}, isFirstTimeEmail={}",
-            emailType,
-            estimatedSendCount,
-            maxRecipients,
-            isFirstTimeEmail);
-        continue;
-      }
-
-      log.info("Sending auto emails: emailType={}, to={}", emailType, emailablePeople.size());
-      int emailsSent = sendEmails(emailablePeople, emailType);
-      log.info("Successfully sent auto emails: emailType={}, emailsSent={}", emailType, emailsSent);
+      processRepository(autoEmailRepository);
     }
+  }
+
+  private <T extends Emailable & Person> void processRepository(
+      AutoEmailRepository<T> autoEmailRepository) {
+    EmailType emailType = autoEmailRepository.getEmailType();
+    LocalDate startDate = LocalDate.now(clock).minusMonths(1).withDayOfMonth(1);
+    LocalDate endDate = LocalDate.now(clock).plusDays(1);
+    log.info(
+        "Checking auto emails for: emailType={}, startDate={}, endDate={}",
+        emailType,
+        startDate,
+        endDate);
+    List<T> emailablePeople = autoEmailRepository.fetch(startDate, endDate);
+
+    int estimatedSendCount = getEstimatedEmailCount(emailablePeople, emailType);
+
+    boolean isFirstTimeEmail = !emailPersistenceService.hasEmailTypeBeenSentBefore(emailType);
+    int maxRecipients = isFirstTimeEmail ? 1000 : 200;
+
+    if (estimatedSendCount > maxRecipients) {
+      log.error(
+          "Too many people for auto emails, skipping: emailType={}, estimatedSendCount={}, maxRecipients={}, isFirstTimeEmail={}",
+          emailType,
+          estimatedSendCount,
+          maxRecipients,
+          isFirstTimeEmail);
+      return;
+    }
+
+    log.info("Sending auto emails: emailType={}, to={}", emailType, emailablePeople.size());
+    int emailsSent = sendEmails(emailablePeople, emailType, autoEmailRepository);
+    log.info("Successfully sent auto emails: emailType={}, emailsSent={}", emailType, emailsSent);
   }
 
   private <EmailablePerson extends Emailable & Person> int getEstimatedEmailCount(
@@ -78,7 +83,9 @@ public class AutoEmailSender {
   }
 
   private <EmailablePerson extends Emailable & Person> int sendEmails(
-      List<EmailablePerson> emailablePeople, EmailType emailType) {
+      List<EmailablePerson> emailablePeople,
+      EmailType emailType,
+      AutoEmailRepository<EmailablePerson> autoEmailRepository) {
     int emailsSent = 0;
     for (EmailablePerson emailablePerson : emailablePeople) {
       String personalCode = emailablePerson.getPersonalCode();
@@ -94,7 +101,9 @@ public class AutoEmailSender {
 
       try {
         mailchimpService.sendEvent(
-            emailablePerson.getEmail(), EmailEvent.getByEmailType(emailType));
+            emailablePerson.getEmail(),
+            EmailEvent.getByEmailType(emailType),
+            autoEmailRepository.getEmailProperties(emailablePerson));
         emailsSent++;
       } catch (HttpClientErrorException.NotFound e) {
         log.info(

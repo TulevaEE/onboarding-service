@@ -130,7 +130,7 @@ Modify each component to read from ledger instead of external sources:
 
 | Component | Current Source | New Source |
 |-----------|---------------|------------|
-| SecuritiesValueComponent | PositionCalculationService | SECURITIES_VALUE balance |
+| SecuritiesValueComponent | PositionPriceResolver | SECURITIES_VALUE balance |
 | CashPositionComponent | FundPositionRepository | CASH_POSITION balance |
 | ReceivablesComponent | FundPositionRepository | TRADE_RECEIVABLES balance |
 | PayablesComponent | FundPositionRepository | TRADE_PAYABLES balance |

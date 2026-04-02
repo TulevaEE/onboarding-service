@@ -14,12 +14,12 @@ class EpiFundValueRetrieverConfiguration {
   private final PensionikeskusDataDownloader downloader;
 
   @Bean
-  ComparisonIndexRetriever secondPillarEpiFundValueRetriever() {
+  EpiFundValueRetriever secondPillarEpiFundValueRetriever() {
     return new EpiFundValueRetriever(downloader, EPI);
   }
 
   @Bean
-  ComparisonIndexRetriever thirdPillarEpiFundValueRetriever() {
+  EpiFundValueRetriever thirdPillarEpiFundValueRetriever() {
     return new EpiFundValueRetriever(downloader, EPI_3);
   }
 }

@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.analytics.leavers
 
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.data.jdbc.test.autoconfigure.DataJdbcTest
+import org.springframework.boot.jdbc.test.autoconfigure.JdbcTest
 import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.simple.JdbcClient
 import spock.lang.Specification
@@ -13,7 +13,7 @@ import static ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaverFi
 import static ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaverFixture.thirdLeaverWith
 
 
-@DataJdbcTest
+@JdbcTest
 @Import(ExchangeTransactionLeaversRepository)
 class ExchangeTransactionLeaversRepositorySpec extends Specification {
 

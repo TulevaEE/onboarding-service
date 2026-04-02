@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.investment.check.limit;
 import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.*;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.calculation.InvestmentPositionCalculation;
 import ee.tuleva.onboarding.investment.portfolio.PositionLimit;
+import ee.tuleva.onboarding.investment.position.FundPosition;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -20,7 +20,7 @@ class PositionLimitChecker {
 
   List<PositionBreach> check(
       TulevaFund fund,
-      List<InvestmentPositionCalculation> positions,
+      List<FundPosition> positions,
       BigDecimal totalNav,
       List<PositionLimit> limits) {
 
@@ -35,7 +35,7 @@ class PositionLimitChecker {
 
   private List<PositionBreach> checkIndividualLimits(
       TulevaFund fund,
-      List<InvestmentPositionCalculation> positions,
+      List<FundPosition> positions,
       BigDecimal totalNav,
       List<PositionLimit> limits) {
 
@@ -45,15 +45,15 @@ class PositionLimitChecker {
             .collect(Collectors.toMap(PositionLimit::getIsin, Function.identity()));
 
     return positions.stream()
-        .filter(p -> limitsByIsin.containsKey(p.getIsin()))
+        .filter(p -> limitsByIsin.containsKey(p.getAccountId()))
         .map(
             p -> {
-              var limit = limitsByIsin.get(p.getIsin());
-              var actualPercent = percentOf(p.getCalculatedMarketValue(), totalNav);
+              var limit = limitsByIsin.get(p.getAccountId());
+              var actualPercent = percentOf(p.getMarketValue(), totalNav);
               var severity = determineSeverity(actualPercent, limit);
               return new PositionBreach(
                   fund,
-                  p.getIsin(),
+                  p.getAccountId(),
                   limit.getLabel(),
                   actualPercent,
                   limit.getSoftLimitPercent(),
@@ -65,7 +65,7 @@ class PositionLimitChecker {
 
   private List<PositionBreach> checkIndexGroupLimits(
       TulevaFund fund,
-      List<InvestmentPositionCalculation> positions,
+      List<FundPosition> positions,
       BigDecimal totalNav,
       List<PositionLimit> limits) {
 
@@ -88,9 +88,7 @@ class PositionLimitChecker {
         positions.stream()
             .collect(
                 Collectors.toMap(
-                    InvestmentPositionCalculation::getIsin,
-                    InvestmentPositionCalculation::getCalculatedMarketValue,
-                    BigDecimal::add));
+                    FundPosition::getAccountId, FundPosition::getMarketValue, BigDecimal::add));
 
     return indexLimits.stream()
         .map(

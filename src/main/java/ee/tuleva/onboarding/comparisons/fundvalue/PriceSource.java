@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.investment.calculation;
+package ee.tuleva.onboarding.comparisons.fundvalue;
 
 public enum PriceSource {
   BLACKROCK,
@@ -6,7 +6,7 @@ public enum PriceSource {
   EODHD,
   YAHOO;
 
-  static PriceSource fromProviderName(String providerName) {
+  public static PriceSource fromProviderName(String providerName) {
     return switch (providerName) {
       case "BLACKROCK" -> BLACKROCK;
       case "MORNINGSTAR" -> MORNINGSTAR;

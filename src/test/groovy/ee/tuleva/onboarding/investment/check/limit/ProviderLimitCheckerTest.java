@@ -5,9 +5,9 @@ import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.*;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ee.tuleva.onboarding.investment.calculation.InvestmentPositionCalculation;
 import ee.tuleva.onboarding.investment.portfolio.Provider;
 import ee.tuleva.onboarding.investment.portfolio.ProviderLimit;
+import ee.tuleva.onboarding.investment.position.FundPosition;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -91,12 +91,8 @@ class ProviderLimitCheckerTest {
     assertThat(breaches).isEmpty();
   }
 
-  private InvestmentPositionCalculation position(String isin, BigDecimal marketValue) {
-    return InvestmentPositionCalculation.builder()
-        .isin(isin)
-        .fund(TUK75)
-        .calculatedMarketValue(marketValue)
-        .build();
+  private FundPosition position(String isin, BigDecimal marketValue) {
+    return FundPosition.builder().accountId(isin).fund(TUK75).marketValue(marketValue).build();
   }
 
   private ProviderLimit providerLimit(Provider provider, double softPercent, double hardPercent) {

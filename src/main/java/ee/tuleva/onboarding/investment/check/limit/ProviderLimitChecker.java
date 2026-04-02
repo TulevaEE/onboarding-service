@@ -3,9 +3,9 @@ package ee.tuleva.onboarding.investment.check.limit;
 import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.*;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.calculation.InvestmentPositionCalculation;
 import ee.tuleva.onboarding.investment.portfolio.Provider;
 import ee.tuleva.onboarding.investment.portfolio.ProviderLimit;
+import ee.tuleva.onboarding.investment.position.FundPosition;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
@@ -19,7 +19,7 @@ class ProviderLimitChecker {
 
   List<ProviderBreach> check(
       TulevaFund fund,
-      List<InvestmentPositionCalculation> positions,
+      List<FundPosition> positions,
       BigDecimal totalNav,
       Map<String, Provider> isinToProvider,
       List<ProviderLimit> limits) {
@@ -30,14 +30,12 @@ class ProviderLimitChecker {
 
     Map<Provider, BigDecimal> providerWeights =
         positions.stream()
-            .filter(p -> isinToProvider.containsKey(p.getIsin()))
+            .filter(p -> isinToProvider.containsKey(p.getAccountId()))
             .collect(
                 Collectors.groupingBy(
-                    p -> isinToProvider.get(p.getIsin()),
+                    p -> isinToProvider.get(p.getAccountId()),
                     Collectors.reducing(
-                        BigDecimal.ZERO,
-                        InvestmentPositionCalculation::getCalculatedMarketValue,
-                        BigDecimal::add)));
+                        BigDecimal.ZERO, FundPosition::getMarketValue, BigDecimal::add)));
 
     Map<Provider, ProviderLimit> limitsByProvider =
         limits.stream().collect(Collectors.toMap(ProviderLimit::getProvider, Function.identity()));

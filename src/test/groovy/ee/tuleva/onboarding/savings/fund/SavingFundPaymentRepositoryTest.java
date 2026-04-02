@@ -14,7 +14,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 import static org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE;
 
-import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
 import ee.tuleva.onboarding.user.User;
@@ -30,14 +29,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
-@Import(TestSchedulerLockConfiguration.class)
-@Transactional
+@DataJpaTest
+@Import(SavingFundPaymentRepository.class)
 class SavingFundPaymentRepositoryTest {
 
   @Autowired SavingFundPaymentRepository repository;

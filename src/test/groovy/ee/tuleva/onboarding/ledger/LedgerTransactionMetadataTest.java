@@ -7,7 +7,6 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJU
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static ee.tuleva.onboarding.ledger.UserAccount.CASH;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import java.math.BigDecimal;
@@ -23,7 +22,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest(webEnvironment = RANDOM_PORT)
+@SpringBootTest
 @Transactional
 class LedgerTransactionMetadataTest {
 

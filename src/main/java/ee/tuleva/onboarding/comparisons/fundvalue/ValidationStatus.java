@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.investment.calculation;
+package ee.tuleva.onboarding.comparisons.fundvalue;
 
 public enum ValidationStatus {
   OK,

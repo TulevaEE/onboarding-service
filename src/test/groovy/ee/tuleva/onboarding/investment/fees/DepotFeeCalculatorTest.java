@@ -7,7 +7,7 @@ import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.investment.calculation.PositionCalculationRepository;
+import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -22,7 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class DepotFeeCalculatorTest {
 
   @Mock private DepotFeeTierRepository tierRepository;
-  @Mock private PositionCalculationRepository positionCalculationRepository;
+  @Mock private FundPositionRepository fundPositionRepository;
   @Mock private FeeMonthResolver feeMonthResolver;
   @Mock private VatRateProvider vatRateProvider;
   @Mock private FeeRateRepository feeRateRepository;
@@ -116,10 +116,10 @@ class DepotFeeCalculatorTest {
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
     when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, feeMonth))
         .thenReturn(Optional.empty());
-    when(positionCalculationRepository.getLatestDateUpTo(LocalDate.of(2025, 6, 30)))
+    when(fundPositionRepository.findLatestSecurityNavDateUpTo(LocalDate.of(2025, 6, 30)))
         .thenReturn(Optional.of(previousMonthEnd));
-    when(positionCalculationRepository.getTotalMarketValueAllFunds(previousMonthEnd))
-        .thenReturn(Optional.of(totalAum));
+    when(fundPositionRepository.sumSecurityMarketValueAllFunds(previousMonthEnd))
+        .thenReturn(totalAum);
     when(tierRepository.findRateForAum(totalAum, feeMonth)).thenReturn(tierRate);
     when(vatRateProvider.getVatRate(feeMonth)).thenReturn(vatRate);
 

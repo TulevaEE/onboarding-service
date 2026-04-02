@@ -1,13 +1,11 @@
-package ee.tuleva.onboarding.investment.calculation;
+package ee.tuleva.onboarding.comparisons.fundvalue;
 
-import static ee.tuleva.onboarding.investment.calculation.PriceSource.EODHD;
-import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.NO_PRICE_DATA;
-import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.OK;
+import static ee.tuleva.onboarding.comparisons.fundvalue.PriceSource.EODHD;
+import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.NO_PRICE_DATA;
+import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.OK;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;

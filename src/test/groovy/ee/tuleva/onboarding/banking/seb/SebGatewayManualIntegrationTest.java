@@ -14,7 +14,6 @@ import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebEodTransacti
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
-import ee.tuleva.onboarding.config.TestSchedulerLockConfiguration;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -70,11 +69,7 @@ import org.springframework.transaction.annotation.Transactional;
       "seb-gateway.accounts.WITHDRAWAL_EUR=EE381010220306717223",
       "seb-gateway.accounts.FUND_INVESTMENT_EUR=EE381010220306717224" // Not provisioned
     })
-@Import({
-  TestSchedulerLockConfiguration.class,
-  TestSebSchedulerConfiguration.class,
-  LocalProxySebTlsStrategyFactory.class
-})
+@Import({TestSebSchedulerConfiguration.class, LocalProxySebTlsStrategyFactory.class})
 @RecordApplicationEvents
 @Transactional
 @Disabled("Run manually - requires AWS SSM proxy to SEB test gateway")

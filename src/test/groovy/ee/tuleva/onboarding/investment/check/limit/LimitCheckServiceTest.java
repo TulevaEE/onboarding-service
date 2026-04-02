@@ -10,8 +10,6 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.calculation.InvestmentPositionCalculation;
-import ee.tuleva.onboarding.investment.calculation.PositionCalculationRepository;
 import ee.tuleva.onboarding.investment.portfolio.*;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
@@ -31,7 +29,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class LimitCheckServiceTest {
 
-  @Mock PositionCalculationRepository positionCalculationRepository;
   @Mock FundPositionRepository fundPositionRepository;
   @Mock PositionLimitRepository positionLimitRepository;
   @Mock ProviderLimitRepository providerLimitRepository;
@@ -53,24 +50,24 @@ class LimitCheckServiceTest {
     var today = LocalDate.of(2026, 3, 4);
     var fund = TUK75;
     var position =
-        InvestmentPositionCalculation.builder()
-            .isin("IE001")
+        FundPosition.builder()
+            .accountId("IE001")
             .fund(fund)
-            .calculatedMarketValue(new BigDecimal("100000"))
+            .marketValue(new BigDecimal("100000"))
             .build();
     var nonSecurityNav = new BigDecimal("100000");
     var securitiesNav = new BigDecimal("900000");
     var totalNav = new BigDecimal("1000000");
 
-    when(positionCalculationRepository.getLatestDateUpTo(fund, today))
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, today))
         .thenReturn(Optional.of(today));
-    when(positionCalculationRepository.findByFundAndDate(fund, today))
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, SECURITY))
         .thenReturn(List.of(position));
     when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(
             fund, today, List.of(CASH, RECEIVABLES, LIABILITY)))
         .thenReturn(nonSecurityNav);
-    when(positionCalculationRepository.getTotalMarketValue(fund, today))
-        .thenReturn(Optional.of(securitiesNav));
+    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(fund, today, List.of(SECURITY)))
+        .thenReturn(securitiesNav);
 
     var cashPosition =
         FundPosition.builder().marketValue(new BigDecimal("80000")).fund(fund).build();
@@ -158,7 +155,7 @@ class LimitCheckServiceTest {
     var today = LocalDate.of(2026, 3, 4);
 
     for (var fund : TulevaFund.values()) {
-      when(positionCalculationRepository.getLatestDateUpTo(fund, today))
+      when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, today))
           .thenReturn(Optional.empty());
     }
 
@@ -174,14 +171,15 @@ class LimitCheckServiceTest {
     var today = LocalDate.of(2026, 3, 4);
     var fund = TUK75;
 
-    when(positionCalculationRepository.getLatestDateUpTo(fund, today))
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, today))
         .thenReturn(Optional.of(today));
-    when(positionCalculationRepository.findByFundAndDate(fund, today)).thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, SECURITY))
+        .thenReturn(List.of());
     when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(
             fund, today, List.of(CASH, RECEIVABLES, LIABILITY)))
         .thenReturn(BigDecimal.ZERO);
-    when(positionCalculationRepository.getTotalMarketValue(fund, today))
-        .thenReturn(Optional.empty());
+    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(fund, today, List.of(SECURITY)))
+        .thenReturn(BigDecimal.ZERO);
 
     var cash1 = FundPosition.builder().marketValue(new BigDecimal("50000")).fund(fund).build();
     var cash2 = FundPosition.builder().marketValue(new BigDecimal("30000")).fund(fund).build();
@@ -223,7 +221,7 @@ class LimitCheckServiceTest {
     var asOfDate = LocalDate.of(2026, 3, 2);
 
     for (var fund : TulevaFund.values()) {
-      when(positionCalculationRepository.getLatestDateUpTo(fund, asOfDate))
+      when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, asOfDate))
           .thenReturn(Optional.empty());
     }
 
@@ -231,7 +229,7 @@ class LimitCheckServiceTest {
 
     assertThat(results).isEmpty();
     for (var fund : TulevaFund.values()) {
-      verify(positionCalculationRepository).getLatestDateUpTo(fund, asOfDate);
+      verify(fundPositionRepository).findLatestNavDateByFundAndAsOfDate(fund, asOfDate);
     }
   }
 
@@ -240,7 +238,8 @@ class LimitCheckServiceTest {
     service = createService();
 
     for (var fund : TulevaFund.values()) {
-      when(positionCalculationRepository.getLatestDateUpTo(eq(fund), any(LocalDate.class)))
+      when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(
+              eq(fund), any(LocalDate.class)))
           .thenReturn(Optional.empty());
     }
 
@@ -248,13 +247,13 @@ class LimitCheckServiceTest {
 
     assertThat(results).isEmpty();
     var fundCount = TulevaFund.values().length;
-    verify(positionCalculationRepository, times(3 * fundCount)).getLatestDateUpTo(any(), any());
+    verify(fundPositionRepository, times(3 * fundCount))
+        .findLatestNavDateByFundAndAsOfDate(any(), any());
   }
 
   private LimitCheckService createService() {
     return new LimitCheckService(
         clock,
-        positionCalculationRepository,
         fundPositionRepository,
         positionLimitRepository,
         providerLimitRepository,

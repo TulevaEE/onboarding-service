@@ -10,7 +10,6 @@ import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
 import static java.math.BigDecimal.ZERO;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -20,7 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest(webEnvironment = RANDOM_PORT)
+@SpringBootTest
 @Transactional
 class LedgerIntegrationTest {
 

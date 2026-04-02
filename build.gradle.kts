@@ -1,14 +1,17 @@
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
 import org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED
-import org.gradle.api.tasks.testing.logging.TestLogEvent.PASSED
 import org.gradle.api.tasks.testing.logging.TestLogEvent.SKIPPED
 import org.gradle.api.tasks.testing.logging.TestLogEvent.STANDARD_ERROR
 import org.gradle.api.tasks.testing.logging.TestLogEvent.STANDARD_OUT
-import org.gradle.api.tasks.testing.logging.TestLogEvent.STARTED
-import org.gradle.internal.extensions.core.serviceOf
 import org.gradle.process.ExecOperations
+import javax.inject.Inject
 
-val execOps = project.serviceOf<ExecOperations>()
+abstract class ExecTask
+    @Inject
+    constructor(
+        @Internal val execOps: ExecOperations,
+    ) : DefaultTask()
+
 val xjc by configurations.creating
 
 buildscript {
@@ -199,8 +202,6 @@ tasks {
         testLogging {
             events =
                 setOf(
-                    STARTED,
-                    PASSED,
                     FAILED,
                     SKIPPED,
                     STANDARD_OUT,
@@ -215,13 +216,14 @@ tasks {
         shouldRunAfter(spotlessCheck)
 
         // Enable parallel test execution for faster builds
-        // CircleCI Large has 4 vCPUs, so use all 4 cores
+        // CI fork count is set via -DmaxParallelForks in .circleci/config.yml
         maxParallelForks =
-            if (System.getenv("CI") == "true") {
-                4 // CircleCI Large: 4 vCPUs
-            } else {
-                (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1) // Use half of available cores locally
-            }
+            (System.getProperty("maxParallelForks")?.toIntOrNull())
+                ?: if (System.getenv("CI") == "true") {
+                    2 // default, overridden by -DmaxParallelForks in CI
+                } else {
+                    3 // fewer forks = better Spring context cache reuse
+                }
     }
 
     bootRun {
@@ -322,7 +324,7 @@ tasks {
         }
     }
 
-    register("setupGitHooks") {
+    register<ExecTask>("setupGitHooks") {
         group = "git hooks"
         description = "Configures git hooks for the project"
 
@@ -343,9 +345,11 @@ tasks {
         }
     }
 
-    register("generateXSDClasses") {
+    register<ExecTask>("generateXSDClasses") {
         group = "code generation"
         description = "Generates Java classes from XSD files"
+
+        val xjcClasspath = configurations["xjc"].asPath
 
         val iso20022Dir = file("$projectDir/src/main/resources/banking/iso20022")
         val iso20022OutputDir = file("${layout.buildDirectory.get()}/generated-sources/iso20022")
@@ -366,16 +370,22 @@ tasks {
                 ) to "ee.tuleva.onboarding.ariregister.generated.detailandmed",
             )
 
-        doLast {
-            val bindingsFile = file("$projectDir/src/main/resources/jaxb-bindings.xjb")
+        val bindingsFile = file("$projectDir/src/main/resources/jaxb-bindings.xjb")
 
+        inputs.dir(iso20022Dir)
+        inputs.dir(ariregisterDir)
+        inputs.file(bindingsFile)
+        outputs.dir(iso20022OutputDir)
+        outputs.dir(ariregisterOutputDir)
+
+        doLast {
             iso20022OutputDir.mkdirs()
             iso20022Schemas.forEach { (schemaFile, packageName) ->
                 execOps.exec {
                     executable = "java"
                     args(
                         "-cp",
-                        configurations["xjc"].asPath,
+                        xjcClasspath,
                         "com.sun.tools.xjc.XJCFacade",
                         "-extension",
                         "-d",
@@ -396,7 +406,7 @@ tasks {
                     args(
                         "-Xss4m",
                         "-cp",
-                        configurations["xjc"].asPath,
+                        xjcClasspath,
                         "com.sun.tools.xjc.XJCFacade",
                         "-nv",
                         "-extension",
@@ -455,15 +465,11 @@ tasks.withType<JavaExec> {
 tasks.withType<Test> {
     jvmArgs(
         "--enable-preview",
+        "-XX:+UseParallelGC",
         "-XX:+HeapDumpOnOutOfMemoryError",
         "-XX:HeapDumpPath=/tmp/heapdump.hprof",
     )
-    // CircleCI Large: 15GB RAM, 4 parallel forks = 3GB per fork (12GB for tests, 3GB for OS/container/Gradle)
-    // Local dev: Assume 16GB+ RAM (most devs have 16-32GB)
-    maxHeapSize =
-        if (System.getenv("CI") == "true") {
-            "3g" // CircleCI Large has 15GB RAM
-        } else {
-            "4g" // Generous for local dev (16GB+ RAM)
-        }
+    // CircleCI Large (Docker): 8GB RAM, 2 forks × 2GB = 4GB, leaves 4GB for OS/Gradle/PostgreSQL
+    // Local dev: 16GB RAM, 3 forks × 2GB = 6GB, leaves 10GB for OS/IDE
+    maxHeapSize = "2g"
 }

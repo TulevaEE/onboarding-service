@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.analytics.paymentrate
 
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.data.jdbc.test.autoconfigure.DataJdbcTest
+import org.springframework.boot.jdbc.test.autoconfigure.JdbcTest
 import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.simple.JdbcClient
 import spock.lang.Requires
@@ -15,8 +15,8 @@ import static ee.tuleva.onboarding.analytics.paymentrate.PaymentRateAbandonmentF
 import static ee.tuleva.onboarding.analytics.paymentrate.PaymentRateAbandonmentFixture.uniqueEmail
 import static ee.tuleva.onboarding.analytics.paymentrate.PaymentRateAbandonmentFixture.uniquePersonalCode
 
-@Requires({ System.getenv('SPRING_PROFILES_ACTIVE')?.contains('ci') })
-@DataJdbcTest
+@Requires({ System.getenv('SPRING_PROFILES_ACTIVE')?.contains('pg') || System.getenv('SPRING_PROFILES_ACTIVE')?.contains('ci') })
+@JdbcTest
 @Import(PaymentRateAbandonmentRepository)
 class PaymentRateAbandonmentRepositorySpec extends Specification {
 

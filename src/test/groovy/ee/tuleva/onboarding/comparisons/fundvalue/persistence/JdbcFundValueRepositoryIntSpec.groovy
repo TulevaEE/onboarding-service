@@ -6,8 +6,8 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetri
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.WorldIndexValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.GlobalStockIndexRetriever
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.transaction.annotation.Transactional
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
+import org.springframework.context.annotation.Import
 import spock.lang.Specification
 
 import java.time.Instant
@@ -16,8 +16,8 @@ import java.time.LocalDate
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
 import static java.time.LocalDate.parse
 
-@SpringBootTest
-@Transactional
+@DataJpaTest
+@Import(JdbcFundValueRepository)
 class JdbcFundValueRepositoryIntSpec extends Specification {
 
     @Autowired

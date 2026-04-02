@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.OK;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.calculation.ValidationStatus.OK;
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.fundUnitsOutstandingAccount;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 import static java.math.BigDecimal.ZERO;
@@ -12,9 +12,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
+import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.investment.calculation.PositionPriceResolver;
-import ee.tuleva.onboarding.investment.calculation.ResolvedPrice;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
 import ee.tuleva.onboarding.investment.fees.FeeResult;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;

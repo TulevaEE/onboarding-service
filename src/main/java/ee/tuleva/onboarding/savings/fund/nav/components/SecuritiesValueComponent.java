@@ -4,8 +4,8 @@ import static ee.tuleva.onboarding.savings.fund.nav.components.NavComponent.NavC
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
-import ee.tuleva.onboarding.investment.calculation.PositionPriceResolver;
-import ee.tuleva.onboarding.investment.calculation.ResolvedPrice;
+import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
+import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavComponentContext;
 import java.math.BigDecimal;

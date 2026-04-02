@@ -8,7 +8,6 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJUSTMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
@@ -21,7 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest(webEnvironment = RANDOM_PORT)
+@SpringBootTest
 @Transactional
 class NavLedgerRepositoryTest {
 

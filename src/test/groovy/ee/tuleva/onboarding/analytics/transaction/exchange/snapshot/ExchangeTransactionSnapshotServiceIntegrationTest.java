@@ -14,11 +14,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
-@SpringBootTest
-@Transactional
+@DataJpaTest
+@Import(ExchangeTransactionSnapshotService.class)
 class ExchangeTransactionSnapshotServiceIntegrationTest {
 
   @Autowired private ExchangeTransactionSnapshotService snapshotService;

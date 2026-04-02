@@ -1,0 +1,37 @@
+name: "Osalen sprindil / Sprint signup"
+description: "Registreeru järgmisele Tuleva arendussprindile"
+title: "Sprint signup: "
+labels: ["sprint-signup"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Tere! Tore, et tahad Tuleva sprindil osaleda. Täida palun paar välja ja me võtame sinuga ühendust.
+  - type: input
+    id: name
+    attributes:
+      label: Nimi
+      placeholder: Ees- ja perekonnanimi
+    validations:
+      required: true
+  - type: input
+    id: github
+    attributes:
+      label: GitHub kasutajanimi
+      placeholder: "@kasutajanimi"
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Miks ma tahan osaleda?
+      placeholder: Kirjelda lühidalt, mis sind sprindile toob
+    validations:
+      required: true
+  - type: textarea
+    id: tuleva
+    attributes:
+      label: Mida Tuleva sulle tähendab?
+      placeholder: Paar lauset
+    validations:
+      required: true

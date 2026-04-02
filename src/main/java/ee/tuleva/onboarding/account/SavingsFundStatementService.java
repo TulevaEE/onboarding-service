@@ -31,7 +31,7 @@ public class SavingsFundStatementService {
     String ownerCode = person.getRoleCode();
     PartyType partyType = PartyType.from(person.getRoleType());
 
-    if (!savingsFundOnboardingService.isOnboardingCompleted(ownerCode)) {
+    if (!savingsFundOnboardingService.isOnboardingCompleted(person.toPartyId())) {
       throw new IllegalStateException("Not onboarded: code=" + ownerCode);
     }
 

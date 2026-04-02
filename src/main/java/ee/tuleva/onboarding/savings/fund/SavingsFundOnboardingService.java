@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.*;
 
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.kyc.KycCheck.RiskLevel;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.user.User;
 import java.util.HashMap;
 import java.util.Map;
@@ -20,19 +22,21 @@ public class SavingsFundOnboardingService {
   private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   private final ApplicationEventPublisher eventPublisher;
 
-  public boolean isOnboardingCompleted(String ownerCode) {
-    return savingsFundOnboardingRepository.isOnboardingCompleted(ownerCode);
+  public boolean isOnboardingCompleted(PartyId partyId) {
+    return isOnboardingCompleted(partyId.code(), partyId.type());
   }
 
-  public SavingsFundOnboardingStatus getOnboardingStatus(String ownerCode) {
-    return savingsFundOnboardingRepository.findStatusByPersonalCode(ownerCode).orElse(null);
+  public boolean isOnboardingCompleted(String code, PartyId.Type type) {
+    return savingsFundOnboardingRepository.isOnboardingCompleted(code, type);
+  }
+
+  public SavingsFundOnboardingStatus getOnboardingStatus(PartyId partyId) {
+    return savingsFundOnboardingRepository.findStatus(partyId.code(), partyId.type()).orElse(null);
   }
 
   public void updateOnboardingStatusIfNeeded(User user, KycCheck kycCheck) {
     SavingsFundOnboardingStatus oldStatus =
-        savingsFundOnboardingRepository
-            .findStatusByPersonalCode(user.getPersonalCode())
-            .orElse(null);
+        savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON).orElse(null);
     if (oldStatus == COMPLETED) {
       return;
     }
@@ -40,7 +44,7 @@ public class SavingsFundOnboardingService {
     if (newStatus == oldStatus) {
       return;
     }
-    savingsFundOnboardingRepository.saveOnboardingStatus(user.getPersonalCode(), newStatus);
+    savingsFundOnboardingRepository.saveOnboardingStatus(user.getPersonalCode(), PERSON, newStatus);
     if (newStatus == COMPLETED) {
       eventPublisher.publishEvent(new SavingsFundOnboardingCompletedEvent(user));
     }

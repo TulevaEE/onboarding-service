@@ -20,7 +20,7 @@ class LedgerPartyServiceTest {
   @Mock private LedgerPartyRepository ledgerPartyRepository;
   @Mock private JdbcClient jdbcClient;
   @Mock private JdbcClient.StatementSpec statementSpec;
-  @Mock private JdbcClient.MappedQuerySpec<Long> mappedQuerySpec;
+  @Mock private JdbcClient.MappedQuerySpec<Object> mappedQuerySpec;
   @InjectMocks private LedgerPartyService ledgerPartyService;
 
   final String ownerId = "38812121215";
@@ -64,7 +64,8 @@ class LedgerPartyServiceTest {
   private void stubAdvisoryLock() {
     given(jdbcClient.sql(contains("pg_advisory_xact_lock"))).willReturn(statementSpec);
     given(statementSpec.param(eq("key"), anyLong())).willReturn(statementSpec);
-    given(statementSpec.query(Long.class)).willReturn(mappedQuerySpec);
+    given(statementSpec.query(any(org.springframework.jdbc.core.RowMapper.class)))
+        .willReturn(mappedQuerySpec);
     given(mappedQuerySpec.optional()).willReturn(Optional.empty());
   }
 }

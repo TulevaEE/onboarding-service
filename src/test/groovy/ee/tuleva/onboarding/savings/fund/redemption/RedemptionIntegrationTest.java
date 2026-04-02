@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMP
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -68,7 +69,7 @@ class RedemptionIntegrationTest {
 
   @BeforeEach
   void setUp() {
-    ClockHolder.setClock(Clock.fixed(NOW, ZoneId.of("UTC")));
+    ClockHolder.setClock(Clock.fixed(NOW, UTC));
     doReturn("").when(sebGatewayClient).submitPaymentFile(any(), any());
     lenient().when(navProvider.getDisplayNav(any())).thenReturn(BigDecimal.ONE);
     lenient()
@@ -78,7 +79,8 @@ class RedemptionIntegrationTest {
     testUser =
         userRepository.save(sampleUser().id(null).member(null).personalCode("39901019992").build());
     testParty = new PartyId(PartyId.Type.PERSON, testUser.getPersonalCode());
-    savingsFundOnboardingRepository.saveOnboardingStatus(testUser.getPersonalCode(), COMPLETED);
+    savingsFundOnboardingRepository.saveOnboardingStatus(
+        testUser.getPersonalCode(), PartyId.Type.PERSON, COMPLETED);
     setupUserWithFundUnits(new BigDecimal("1000.00"), new BigDecimal("100.00000"));
     setupUserDepositIban(VALID_IBAN);
   }
@@ -242,7 +244,7 @@ class RedemptionIntegrationTest {
     var tuesday = Instant.parse("2025-09-30T15:00:00Z");
 
     // Step 1: Create redemption request on Friday (after cutoff) - immediately RESERVED
-    ClockHolder.setClock(Clock.fixed(friday, ZoneId.of("UTC")));
+    ClockHolder.setClock(Clock.fixed(friday, UTC));
     var request =
         redemptionService.createRedemptionRequest(
             testUser.getId(), redemptionAmount, EUR, VALID_IBAN);
@@ -262,7 +264,7 @@ class RedemptionIntegrationTest {
 
     // Step 3: Run batch job on Tuesday - prices units and sends payments to bank
     // Note: Ledger entries for transfer (step 3) and payout (step 4) happen during reconciliation
-    ClockHolder.setClock(Clock.fixed(tuesday, ZoneId.of("UTC")));
+    ClockHolder.setClock(Clock.fixed(tuesday, UTC));
     redemptionBatchJob.runJob();
 
     var afterBatchJob = redemptionRequestRepository.findById(requestId).orElseThrow();
@@ -293,7 +295,7 @@ class RedemptionIntegrationTest {
     var monday = Instant.parse("2025-09-29T15:00:00Z");
 
     // Create redemption on Friday - immediately RESERVED
-    ClockHolder.setClock(Clock.fixed(friday, ZoneId.of("UTC")));
+    ClockHolder.setClock(Clock.fixed(friday, UTC));
     var request =
         redemptionService.createRedemptionRequest(
             testUser.getId(), redemptionAmount, EUR, VALID_IBAN);
@@ -307,7 +309,7 @@ class RedemptionIntegrationTest {
     redemptionService.cancelRedemption(requestId, testUser.getId());
 
     // Run batch job on Monday
-    ClockHolder.setClock(Clock.fixed(monday, ZoneId.of("UTC")));
+    ClockHolder.setClock(Clock.fixed(monday, UTC));
     redemptionBatchJob.runJob();
 
     // Should remain cancelled
@@ -419,7 +421,7 @@ class RedemptionIntegrationTest {
     var friday = Instant.parse("2025-09-26T14:00:00Z");
     var tuesday = Instant.parse("2025-09-30T15:00:00Z");
 
-    ClockHolder.setClock(Clock.fixed(friday, ZoneId.of("UTC")));
+    ClockHolder.setClock(Clock.fixed(friday, UTC));
     var request =
         redemptionService.createRedemptionRequest(
             testUser.getId(), redemptionAmount, EUR, VALID_IBAN);
@@ -427,7 +429,7 @@ class RedemptionIntegrationTest {
 
     redemptionStatusService.changeStatus(requestId, VERIFIED);
 
-    ClockHolder.setClock(Clock.fixed(tuesday, ZoneId.of("UTC")));
+    ClockHolder.setClock(Clock.fixed(tuesday, UTC));
 
     redemptionBatchJob.runJob();
     var afterFirstRun = redemptionRequestRepository.findById(requestId).orElseThrow();

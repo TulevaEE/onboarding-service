@@ -3,9 +3,10 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.*;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static java.math.BigDecimal.ZERO;
@@ -20,6 +21,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
+import ee.tuleva.onboarding.ledger.LedgerParty;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.issuing.FundAccountPaymentJob;
@@ -83,7 +85,8 @@ class SavingsFundPaymentIntegrationTest {
                 .build());
 
     // Mark user as onboarded to savings fund
-    savingsFundOnboardingRepository.saveOnboardingStatus(testUser.getPersonalCode(), COMPLETED);
+    savingsFundOnboardingRepository.saveOnboardingStatus(
+        testUser.getPersonalCode(), PERSON, COMPLETED);
 
     // Delete any existing NAV values for savings fund to ensure test isolation
     jdbcClient
@@ -155,8 +158,7 @@ class SavingsFundPaymentIntegrationTest {
 
     payment = paymentRepository.findById(paymentId).orElseThrow();
     assertThat(payment.getStatus()).isEqualTo(VERIFIED);
-    assertThat(payment.getPartyId())
-        .isEqualTo(new PartyId(PartyId.Type.PERSON, testUser.getPersonalCode()));
+    assertThat(payment.getPartyId()).isEqualTo(new PartyId(PERSON, testUser.getPersonalCode()));
 
     // Assert ledger: user cash liability increased, incoming payments clearing increased
     var paymentAmount = new BigDecimal("100.50");
@@ -328,19 +330,23 @@ class SavingsFundPaymentIntegrationTest {
 
   // Ledger helper methods - following pattern from SavingsFundLedgerTest
   private LedgerAccount getUserCashAccount() {
-    return ledgerService.getPartyAccount(testUser.getPersonalCode(), PERSON, CASH);
+    return ledgerService.getPartyAccount(
+        testUser.getPersonalCode(), LedgerParty.PartyType.PERSON, CASH);
   }
 
   private LedgerAccount getUserCashReservedAccount() {
-    return ledgerService.getPartyAccount(testUser.getPersonalCode(), PERSON, CASH_RESERVED);
+    return ledgerService.getPartyAccount(
+        testUser.getPersonalCode(), LedgerParty.PartyType.PERSON, CASH_RESERVED);
   }
 
   private LedgerAccount getUserUnitsAccount() {
-    return ledgerService.getPartyAccount(testUser.getPersonalCode(), PERSON, FUND_UNITS);
+    return ledgerService.getPartyAccount(
+        testUser.getPersonalCode(), LedgerParty.PartyType.PERSON, FUND_UNITS);
   }
 
   private LedgerAccount getUserSubscriptionsAccount() {
-    return ledgerService.getPartyAccount(testUser.getPersonalCode(), PERSON, SUBSCRIPTIONS);
+    return ledgerService.getPartyAccount(
+        testUser.getPersonalCode(), LedgerParty.PartyType.PERSON, SUBSCRIPTIONS);
   }
 
   private LedgerAccount getIncomingPaymentsClearingAccount() {
@@ -372,7 +378,7 @@ class SavingsFundPaymentIntegrationTest {
                 .build());
 
     savingsFundOnboardingRepository.saveOnboardingStatus(
-        differentUser.getPersonalCode(), COMPLETED);
+        differentUser.getPersonalCode(), PERSON, COMPLETED);
 
     // Step 1: Process incoming payment with mismatched personal code
     var xml = createUnverifiablePaymentXml();
@@ -422,7 +428,7 @@ class SavingsFundPaymentIntegrationTest {
 
     // Mark this user as onboarded to savings fund
     savingsFundOnboardingRepository.saveOnboardingStatus(
-        differentUser.getPersonalCode(), COMPLETED);
+        differentUser.getPersonalCode(), PERSON, COMPLETED);
 
     // Given - XML message with payment that cannot be verified (wrong personal code)
     var xml = createUnverifiablePaymentXml();

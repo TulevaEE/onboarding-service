@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.account
 
 import ee.tuleva.onboarding.fund.FundRepository
+import ee.tuleva.onboarding.fund.TulevaFund
 import ee.tuleva.onboarding.ledger.LedgerService
+import ee.tuleva.onboarding.party.PartyId
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider
@@ -31,8 +33,8 @@ class SavingsFundStatementServiceSpec extends Specification {
     def personalCode = person.personalCode
     def savingsFund = additionalSavingsFund()
 
-    savingsFundOnboardingService.isOnboardingCompleted(personalCode) >> true
-    navProvider.getDisplayNav(_) >> new BigDecimal("1.12345")
+    savingsFundOnboardingService.isOnboardingCompleted(_ as PartyId) >> true
+    navProvider.getDisplayNav(_ as TulevaFund) >> new BigDecimal("1.12345")
     ledgerService.getPartyAccount(personalCode, PERSON, FUND_UNITS) >> fundUnitsAccountWithBalance(2.0)
     ledgerService.getPartyAccount(personalCode, PERSON, FUND_UNITS_RESERVED) >> fundUnitsReservedAccountWithBalance(1.0)
     ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS) >> subscriptionsAccountWithBalance(3.0)
@@ -59,8 +61,8 @@ class SavingsFundStatementServiceSpec extends Specification {
     def registryCode = person.role.code()
     def savingsFund = additionalSavingsFund()
 
-    savingsFundOnboardingService.isOnboardingCompleted(registryCode) >> true
-    navProvider.getDisplayNav(_) >> new BigDecimal("1.12345")
+    savingsFundOnboardingService.isOnboardingCompleted(_ as PartyId) >> true
+    navProvider.getDisplayNav(_ as TulevaFund) >> new BigDecimal("1.12345")
     ledgerService.getPartyAccount(registryCode, LEGAL_ENTITY, FUND_UNITS) >> fundUnitsAccountWithBalance(2.0)
     ledgerService.getPartyAccount(registryCode, LEGAL_ENTITY, FUND_UNITS_RESERVED) >> fundUnitsReservedAccountWithBalance(1.0)
     ledgerService.getPartyAccount(registryCode, LEGAL_ENTITY, SUBSCRIPTIONS) >> subscriptionsAccountWithBalance(3.0)
@@ -81,7 +83,7 @@ class SavingsFundStatementServiceSpec extends Specification {
     given:
     def person = sampleAuthenticatedPersonAndMember().build()
 
-    savingsFundOnboardingService.isOnboardingCompleted(person.personalCode) >> false
+    savingsFundOnboardingService.isOnboardingCompleted(_ as PartyId) >> false
 
     when:
     service.getAccountStatement(person)

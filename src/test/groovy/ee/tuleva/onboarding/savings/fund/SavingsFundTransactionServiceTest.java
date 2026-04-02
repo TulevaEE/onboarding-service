@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.ledger.UserAccount.REDEMPTIONS;
 import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
@@ -19,6 +20,7 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerAccountFixture.EntryFixture;
 import ee.tuleva.onboarding.ledger.LedgerService;
+import ee.tuleva.onboarding.party.PartyId;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -44,7 +46,7 @@ class SavingsFundTransactionServiceTest {
   void returnsTransactionsFromLedger() {
     String isin = "EE0000003283";
 
-    when(savingsFundOnboardingService.isOnboardingCompleted(personalCode)).thenReturn(true);
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
     when(savingsFundConfiguration.getIsin()).thenReturn(isin);
 
     Instant olderDate = Instant.parse("2025-01-15T10:00:00Z");
@@ -110,14 +112,14 @@ class SavingsFundTransactionServiceTest {
 
   @Test
   void returnsEmptyListWhenNotOnboarded() {
-    when(savingsFundOnboardingService.isOnboardingCompleted(personalCode)).thenReturn(false);
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(false);
 
     assertThat(service.getTransactions(person)).isEmpty();
   }
 
   @Test
   void returnsEmptyListWhenNoEntries() {
-    when(savingsFundOnboardingService.isOnboardingCompleted(personalCode)).thenReturn(true);
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
     when(savingsFundConfiguration.getIsin()).thenReturn("EE0000003283");
 
     when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
@@ -132,7 +134,7 @@ class SavingsFundTransactionServiceTest {
   void returnsTransactionsForLegalEntity() {
     var legalEntityPerson = sampleAuthenticatedPersonLegalEntity().build();
 
-    when(savingsFundOnboardingService.isOnboardingCompleted("12345678")).thenReturn(true);
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
     when(savingsFundConfiguration.getIsin()).thenReturn("EE0000003283");
 
     when(ledgerService.getPartyAccount("12345678", LEGAL_ENTITY, SUBSCRIPTIONS))

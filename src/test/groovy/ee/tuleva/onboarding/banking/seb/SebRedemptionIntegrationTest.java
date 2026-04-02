@@ -3,9 +3,12 @@ package ee.tuleva.onboarding.banking.seb;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
+import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
+import static java.math.BigDecimal.ONE;
 import static java.math.RoundingMode.HALF_UP;
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -19,7 +22,6 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
-import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionBatchJob;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionService;
@@ -61,15 +63,15 @@ class SebRedemptionIntegrationTest {
 
   @BeforeEach
   void setUp() {
-    ClockHolder.setClock(Clock.fixed(FRIDAY, ZoneId.of("UTC")));
-    when(navProvider.getDisplayNav(any())).thenReturn(BigDecimal.ONE);
-    when(navProvider.getVerifiedNavForIssuingAndRedeeming(any())).thenReturn(BigDecimal.ONE);
+    ClockHolder.setClock(Clock.fixed(FRIDAY, UTC));
+    when(navProvider.getDisplayNav(any())).thenReturn(ONE);
+    when(navProvider.getVerifiedNavForIssuingAndRedeeming(any())).thenReturn(ONE);
 
     testUser =
         userRepository.save(sampleUser().id(null).member(null).personalCode("39901019992").build());
     testParty = new PartyId(PERSON, testUser.getPersonalCode());
     savingsFundOnboardingRepository.saveOnboardingStatus(
-        testUser.getPersonalCode(), SavingsFundOnboardingStatus.COMPLETED);
+        testUser.getPersonalCode(), PERSON, COMPLETED);
     setupUserWithFundUnits(new BigDecimal("1000.00"), new BigDecimal("100.00000"));
     setupUserDepositIban(SEB_DEPOSIT_IBAN);
   }
@@ -83,7 +85,7 @@ class SebRedemptionIntegrationTest {
   void redemptionBatchJob_withSebIban_callsSebGatewayClient() {
     var redemptionAmount = new BigDecimal("25.00");
 
-    ClockHolder.setClock(Clock.fixed(FRIDAY, ZoneId.of("UTC")));
+    ClockHolder.setClock(Clock.fixed(FRIDAY, UTC));
     var request =
         redemptionService.createRedemptionRequest(
             testUser.getId(), redemptionAmount, EUR, SEB_DEPOSIT_IBAN);

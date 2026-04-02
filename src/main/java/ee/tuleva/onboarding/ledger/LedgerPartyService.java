@@ -38,7 +38,7 @@ class LedgerPartyService {
     jdbcClient
         .sql("SELECT pg_advisory_xact_lock(:key)")
         .param("key", (long) (partyType.name() + ":" + ownerId).hashCode())
-        .query(Long.class)
+        .query((rs, rowNum) -> 0)
         .optional();
   }
 }

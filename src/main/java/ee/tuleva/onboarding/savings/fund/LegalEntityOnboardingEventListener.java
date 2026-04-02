@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.DATA_CHANGED;
+import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
 
@@ -22,7 +23,7 @@ class LegalEntityOnboardingEventListener {
   public void onKybCheckPerformed(KybCheckPerformedEvent event) {
     var registryCode = event.getCompany().registryCode().value();
     var status = allChecksPassed(event) ? COMPLETED : REJECTED;
-    savingsFundOnboardingRepository.saveOnboardingStatus(registryCode, status);
+    savingsFundOnboardingRepository.saveOnboardingStatus(registryCode, LEGAL_ENTITY, status);
   }
 
   private boolean allChecksPassed(KybCheckPerformedEvent event) {

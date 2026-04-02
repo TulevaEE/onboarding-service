@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.auth.principal;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.auth.role.RoleType;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -46,6 +47,11 @@ public class AuthenticatedPerson implements Person, Serializable {
   @JsonIgnore
   public String getRoleCode() {
     return role.code();
+  }
+
+  @JsonIgnore
+  public PartyId toPartyId() {
+    return PartyId.from(role);
   }
 
   public String getAttribute(String attribute) {

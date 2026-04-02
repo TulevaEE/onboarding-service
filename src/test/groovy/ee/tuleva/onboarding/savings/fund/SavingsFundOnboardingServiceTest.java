@@ -2,12 +2,14 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.*;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.kyc.KycCheck;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.user.User;
 import java.util.Map;
 import java.util.Optional;
@@ -33,7 +35,7 @@ class SavingsFundOnboardingServiceTest {
 
   @Test
   void updateOnboardingStatusIfNeeded_publishesCompletedEventWhenStatusBecomesCompleted() {
-    when(savingsFundOnboardingRepository.findStatusByPersonalCode(user.getPersonalCode()))
+    when(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
         .thenReturn(Optional.of(PENDING));
     var kycCheck = new KycCheck(LOW, Map.of());
 
@@ -48,7 +50,7 @@ class SavingsFundOnboardingServiceTest {
 
   @Test
   void updateOnboardingStatusIfNeeded_doesNotPublishCompletedEventForNonCompletedStatus() {
-    when(savingsFundOnboardingRepository.findStatusByPersonalCode(user.getPersonalCode()))
+    when(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
         .thenReturn(Optional.empty());
     var kycCheck = new KycCheck(MEDIUM, Map.of());
 
@@ -59,7 +61,7 @@ class SavingsFundOnboardingServiceTest {
 
   @Test
   void updateOnboardingStatusIfNeeded_doesNotPublishWhenAlreadyCompleted() {
-    when(savingsFundOnboardingRepository.findStatusByPersonalCode(user.getPersonalCode()))
+    when(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
         .thenReturn(Optional.of(COMPLETED));
     var kycCheck = new KycCheck(LOW, Map.of());
 
@@ -70,17 +72,18 @@ class SavingsFundOnboardingServiceTest {
 
   @Test
   void isOnboardingCompleted_delegatesToRepository() {
-    when(savingsFundOnboardingRepository.isOnboardingCompleted("38501010001")).thenReturn(true);
+    when(savingsFundOnboardingRepository.isOnboardingCompleted("38501010001", PERSON))
+        .thenReturn(true);
 
-    assertThat(savingsFundOnboardingService.isOnboardingCompleted("38501010001")).isTrue();
+    assertThat(savingsFundOnboardingService.isOnboardingCompleted("38501010001", PERSON)).isTrue();
   }
 
   @Test
   void getOnboardingStatus_delegatesToRepository() {
-    when(savingsFundOnboardingRepository.findStatusByPersonalCode("38501010001"))
+    when(savingsFundOnboardingRepository.findStatus("38501010001", PERSON))
         .thenReturn(Optional.of(COMPLETED));
 
-    assertThat(savingsFundOnboardingService.getOnboardingStatus("38501010001"))
+    assertThat(savingsFundOnboardingService.getOnboardingStatus(new PartyId(PERSON, "38501010001")))
         .isEqualTo(COMPLETED);
   }
 }

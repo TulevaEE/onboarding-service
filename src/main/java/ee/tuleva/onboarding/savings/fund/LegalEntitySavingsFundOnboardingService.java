@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
+import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 
 import ee.tuleva.onboarding.company.CompanyPartyRepository;
@@ -15,21 +16,21 @@ public class LegalEntitySavingsFundOnboardingService {
 
   private final CompanyRepository companyRepository;
   private final CompanyPartyRepository companyPartyRepository;
-  private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
+  private final SavingsFundOnboardingRepository onboardingRepository;
 
   public Optional<SavingsFundOnboardingStatus> getOnboardingStatus(
       String personalCode, String registryCode) {
     if (!isBoardMember(personalCode, registryCode)) {
       return Optional.empty();
     }
-    return savingsFundOnboardingRepository.findStatusByPersonalCode(registryCode);
+    return onboardingRepository.findStatus(registryCode, LEGAL_ENTITY);
   }
 
   public boolean isOnboardingCompleted(String personalCode, String registryCode) {
     if (!isBoardMember(personalCode, registryCode)) {
       return false;
     }
-    return savingsFundOnboardingRepository.isOnboardingCompleted(registryCode);
+    return onboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY);
   }
 
   // Returns false rather than throwing when the user is not a board member,

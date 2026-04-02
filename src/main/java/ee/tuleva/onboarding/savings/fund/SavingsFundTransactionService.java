@@ -37,7 +37,7 @@ public class SavingsFundTransactionService {
     String ownerCode = person.getRoleCode();
     PartyType partyType = PartyType.from(person.getRoleType());
 
-    if (!savingsFundOnboardingService.isOnboardingCompleted(ownerCode)) {
+    if (!savingsFundOnboardingService.isOnboardingCompleted(person.toPartyId())) {
       return List.of();
     }
 

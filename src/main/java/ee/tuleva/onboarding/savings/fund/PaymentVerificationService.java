@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIE
 
 import ee.tuleva.onboarding.kyb.RegistryCodeValidator;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.party.PartyResolver;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
@@ -82,7 +83,7 @@ public class PaymentVerificationService {
       return;
     }
 
-    var party = partyResolver.resolve(partyId);
+    Optional<Party> party = partyResolver.resolve(partyId);
     if (party.isEmpty()) {
       identityCheckFailure(payment, messages.notClient());
       return;
@@ -94,7 +95,7 @@ public class PaymentVerificationService {
       return;
     }
 
-    if (!savingsFundOnboardingService.isOnboardingCompleted(party.get().code())) {
+    if (!savingsFundOnboardingService.isOnboardingCompleted(partyId)) {
       identityCheckFailure(payment, messages.notOnboarded());
       return;
     }

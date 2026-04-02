@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.kyb.survey;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
 import static ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSource.*;
+import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.WHITELISTED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -372,7 +373,7 @@ class KybSurveyServiceTest {
         .thenReturn(companyData);
     when(kybScreeningService.validate(companyData))
         .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
-    when(savingsFundOnboardingRepository.findStatusByPersonalCode(REGISTRY_CODE))
+    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
         .thenReturn(Optional.of(SavingsFundOnboardingStatus.REJECTED));
 
     var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
@@ -408,7 +409,7 @@ class KybSurveyServiceTest {
         .thenReturn(companyData);
     when(kybScreeningService.validate(companyData))
         .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
-    when(savingsFundOnboardingRepository.findStatusByPersonalCode(REGISTRY_CODE))
+    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
         .thenReturn(Optional.of(SavingsFundOnboardingStatus.COMPLETED));
 
     var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
@@ -445,7 +446,7 @@ class KybSurveyServiceTest {
         .thenReturn(companyData);
     when(kybScreeningService.validate(companyData))
         .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
-    when(savingsFundOnboardingRepository.findStatusByPersonalCode(REGISTRY_CODE))
+    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
         .thenReturn(Optional.empty());
 
     var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
@@ -482,7 +483,7 @@ class KybSurveyServiceTest {
         .thenReturn(companyData);
     when(kybScreeningService.validate(companyData))
         .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
-    when(savingsFundOnboardingRepository.findStatusByPersonalCode(REGISTRY_CODE))
+    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
         .thenReturn(Optional.of(WHITELISTED));
 
     var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
@@ -497,7 +498,7 @@ class KybSurveyServiceTest {
         .thenReturn(sampleRelationships());
     when(kybSurveyRepository.save(any(KybSurvey.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
-    when(savingsFundOnboardingRepository.findStatusByPersonalCode(REGISTRY_CODE))
+    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
         .thenReturn(Optional.empty());
 
     assertThatThrownBy(
@@ -511,7 +512,7 @@ class KybSurveyServiceTest {
         .thenReturn(sampleRelationships());
     when(kybSurveyRepository.save(any(KybSurvey.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
-    when(savingsFundOnboardingRepository.findStatusByPersonalCode(REGISTRY_CODE))
+    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
         .thenReturn(Optional.of(SavingsFundOnboardingStatus.COMPLETED));
 
     assertThatThrownBy(

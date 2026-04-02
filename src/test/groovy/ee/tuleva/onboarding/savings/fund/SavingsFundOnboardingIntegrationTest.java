@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
 import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.*;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -46,7 +47,7 @@ class SavingsFundOnboardingIntegrationTest {
 
     eventPublisher.publishEvent(event);
 
-    assertThat(repository.findStatusByPersonalCode(user.getPersonalCode())).contains(COMPLETED);
+    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).contains(COMPLETED);
   }
 
   @Test
@@ -56,7 +57,7 @@ class SavingsFundOnboardingIntegrationTest {
 
     eventPublisher.publishEvent(event);
 
-    assertThat(repository.findStatusByPersonalCode(user.getPersonalCode())).contains(COMPLETED);
+    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).contains(COMPLETED);
   }
 
   @Test
@@ -66,7 +67,7 @@ class SavingsFundOnboardingIntegrationTest {
 
     eventPublisher.publishEvent(event);
 
-    assertThat(repository.findStatusByPersonalCode(user.getPersonalCode())).contains(PENDING);
+    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).contains(PENDING);
   }
 
   @Test
@@ -76,31 +77,30 @@ class SavingsFundOnboardingIntegrationTest {
 
     eventPublisher.publishEvent(event);
 
-    assertThat(repository.findStatusByPersonalCode(user.getPersonalCode())).contains(REJECTED);
+    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).contains(REJECTED);
   }
 
   @Test
   void onKycCheckPerformed_doesNotUpdateIfAlreadyCompleted() {
-    repository.saveOnboardingStatus(user.getPersonalCode(), COMPLETED);
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, COMPLETED);
     var event =
         new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(HIGH, Map.of()));
 
     eventPublisher.publishEvent(event);
 
-    assertThat(repository.findStatusByPersonalCode(user.getPersonalCode())).contains(COMPLETED);
+    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).contains(COMPLETED);
   }
 
   @Test
   void onKycCheckPerformed_createsRecordWhenNoneExists() {
-    assertThat(repository.findStatusByPersonalCode(user.getPersonalCode()))
-        .isEqualTo(Optional.empty());
+    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).isEqualTo(Optional.empty());
 
     var event =
         new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(LOW, Map.of()));
 
     eventPublisher.publishEvent(event);
 
-    assertThat(repository.findStatusByPersonalCode(user.getPersonalCode())).contains(COMPLETED);
+    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).contains(COMPLETED);
   }
 
   @Test

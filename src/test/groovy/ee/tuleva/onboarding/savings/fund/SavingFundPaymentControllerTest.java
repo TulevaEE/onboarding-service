@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
+import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -96,8 +97,8 @@ class SavingFundPaymentControllerTest {
         new UsernamePasswordAuthenticationToken(
             person, null, List.of(new SimpleGrantedAuthority(USER)));
 
-    when(savingsFundOnboardingService.getOnboardingStatus(person.getRoleCode()))
-        .thenReturn(SavingsFundOnboardingStatus.COMPLETED);
+    when(savingsFundOnboardingService.getOnboardingStatus(person.toPartyId()))
+        .thenReturn(COMPLETED);
 
     mvc.perform(get("/v1/savings/onboarding/status").with(authentication(auth)))
         .andExpect(status().isOk())
@@ -111,7 +112,7 @@ class SavingFundPaymentControllerTest {
         new UsernamePasswordAuthenticationToken(
             person, null, List.of(new SimpleGrantedAuthority(USER)));
 
-    when(savingsFundOnboardingService.getOnboardingStatus(person.getRoleCode())).thenReturn(null);
+    when(savingsFundOnboardingService.getOnboardingStatus(person.toPartyId())).thenReturn(null);
 
     mvc.perform(get("/v1/savings/onboarding/status").with(authentication(auth)))
         .andExpect(status().isOk())
@@ -125,8 +126,8 @@ class SavingFundPaymentControllerTest {
         new UsernamePasswordAuthenticationToken(
             person, null, List.of(new SimpleGrantedAuthority(USER)));
 
-    when(savingsFundOnboardingService.getOnboardingStatus(person.getRoleCode()))
-        .thenReturn(SavingsFundOnboardingStatus.COMPLETED);
+    when(savingsFundOnboardingService.getOnboardingStatus(person.toPartyId()))
+        .thenReturn(COMPLETED);
 
     mvc.perform(get("/v1/savings/onboarding/status").with(authentication(auth)))
         .andExpect(status().isOk())
@@ -142,7 +143,7 @@ class SavingFundPaymentControllerTest {
 
     when(legalEntitySavingsFundOnboardingService.getOnboardingStatus(
             person.getPersonalCode(), "12345678"))
-        .thenReturn(Optional.of(SavingsFundOnboardingStatus.COMPLETED));
+        .thenReturn(Optional.of(COMPLETED));
 
     mvc.perform(
             get("/v1/savings/onboarding/status/legal-entity")

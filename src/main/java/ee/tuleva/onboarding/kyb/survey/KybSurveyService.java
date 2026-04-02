@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.kyb.survey;
 
+import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.WHITELISTED;
 import static java.util.stream.Collectors.groupingBy;
@@ -135,7 +136,7 @@ class KybSurveyService {
   }
 
   private Optional<String> getOnboardingError(String registryCode) {
-    var status = savingsFundOnboardingRepository.findStatusByPersonalCode(registryCode);
+    var status = savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY);
     if (status.filter(s -> s != WHITELISTED && s != REJECTED).isPresent()) {
       return Optional.of("Ettevõte on juba liitunud");
     }

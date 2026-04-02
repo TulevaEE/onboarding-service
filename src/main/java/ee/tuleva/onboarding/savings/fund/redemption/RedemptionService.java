@@ -160,7 +160,8 @@ public class RedemptionService {
   }
 
   private void validateOnboarding(User user) {
-    if (!savingsFundOnboardingService.isOnboardingCompleted(user.getPersonalCode())) {
+    if (!savingsFundOnboardingService.isOnboardingCompleted(
+        user.getPersonalCode(), PartyId.Type.PERSON)) {
       throw new IllegalStateException(
           "User savings fund onboarding not completed: userId=" + user.getId());
     }

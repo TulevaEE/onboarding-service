@@ -111,12 +111,12 @@ class PaymentVerificationServiceTest {
     var user =
         User.builder().personalCode("37508295796").firstName("PÄRT").lastName("ÕLEKÕRS").build();
     when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(user));
-    when(savingsFundOnboardingService.isOnboardingCompleted(any())).thenReturn(false);
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(false);
 
     service.process(payment);
 
     verify(userRepository).findByPersonalCode("37508295796");
-    verify(savingsFundOnboardingService).isOnboardingCompleted("37508295796");
+    verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "see isik ei ole täiendava kogumisfondiga liitunud");
@@ -163,12 +163,12 @@ class PaymentVerificationServiceTest {
             .lastName("ÕLEKÕRS")
             .build();
     when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(user));
-    when(savingsFundOnboardingService.isOnboardingCompleted(any())).thenReturn(true);
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
 
     service.process(payment);
 
     verify(userRepository).findByPersonalCode("37508295796");
-    verify(savingsFundOnboardingService).isOnboardingCompleted("37508295796");
+    verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
             new PartyId(PERSON, user.getPersonalCode()),
@@ -194,12 +194,12 @@ class PaymentVerificationServiceTest {
             .lastName("ÕLEKÕRS")
             .build();
     when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(user));
-    when(savingsFundOnboardingService.isOnboardingCompleted(any())).thenReturn(true);
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
 
     service.process(payment);
 
     verify(userRepository).findByPersonalCode("37508295796");
-    verify(savingsFundOnboardingService).isOnboardingCompleted("37508295796");
+    verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
             new PartyId(PERSON, user.getPersonalCode()),
@@ -223,12 +223,12 @@ class PaymentVerificationServiceTest {
             .lastName("ÕLEKÕRS")
             .build();
     when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(user));
-    when(savingsFundOnboardingService.isOnboardingCompleted(any())).thenReturn(true);
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
 
     service.process(payment);
 
     verify(userRepository).findByPersonalCode("37508295796");
-    verify(savingsFundOnboardingService).isOnboardingCompleted("37508295796");
+    verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
             new PartyId(PERSON, user.getPersonalCode()),
@@ -252,12 +252,12 @@ class PaymentVerificationServiceTest {
             .lastName("TEINE")
             .build();
     when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(user));
-    when(savingsFundOnboardingService.isOnboardingCompleted(any())).thenReturn(true);
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
 
     service.process(payment);
 
     verify(userRepository).findByPersonalCode("37508295796");
-    verify(savingsFundOnboardingService).isOnboardingCompleted("37508295796");
+    verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
             new PartyId(PERSON, user.getPersonalCode()),
@@ -311,12 +311,14 @@ class PaymentVerificationServiceTest {
     var payment = createPayment("12345678", "company 12345678");
     var company = Company.builder().registryCode("12345678").name("Tuleva AS").build();
     when(companyRepository.findByRegistryCode("12345678")).thenReturn(Optional.of(company));
-    when(savingsFundOnboardingService.isOnboardingCompleted("12345678")).thenReturn(true);
+    when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "12345678")))
+        .thenReturn(true);
 
     service.process(payment);
 
     verify(companyRepository).findByRegistryCode("12345678");
-    verify(savingsFundOnboardingService).isOnboardingCompleted("12345678");
+    verify(savingsFundOnboardingService)
+        .isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "12345678"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
             new PartyId(LEGAL_ENTITY, "12345678"),
@@ -348,7 +350,8 @@ class PaymentVerificationServiceTest {
     var payment = createPayment("12345678", "company 12345678");
     var company = Company.builder().registryCode("12345678").name("Tuleva AS").build();
     when(companyRepository.findByRegistryCode("12345678")).thenReturn(Optional.of(company));
-    when(savingsFundOnboardingService.isOnboardingCompleted("12345678")).thenReturn(false);
+    when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "12345678")))
+        .thenReturn(false);
 
     service.process(payment);
 
@@ -387,7 +390,8 @@ class PaymentVerificationServiceTest {
     var payment = createPayment("12345678", "company 12345678");
     var company = Company.builder().registryCode("12345678").name("Tuleva AS").build();
     when(companyRepository.findByRegistryCode("12345678")).thenReturn(Optional.of(company));
-    when(savingsFundOnboardingService.isOnboardingCompleted("12345678")).thenReturn(true);
+    when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "12345678")))
+        .thenReturn(true);
 
     service.process(payment);
 

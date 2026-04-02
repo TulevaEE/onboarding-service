@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
+import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
 import static org.mockito.Mockito.*;
@@ -43,7 +44,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(event);
 
-    verify(repository).saveOnboardingStatus("12345678", COMPLETED);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED);
   }
 
   @Test
@@ -58,7 +59,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(event);
 
-    verify(repository).saveOnboardingStatus("12345678", REJECTED);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
   }
 
   @Test
@@ -73,7 +74,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(event);
 
-    verify(repository).saveOnboardingStatus("12345678", REJECTED);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
   }
 
   @Test
@@ -89,6 +90,6 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(event);
 
-    verify(repository).saveOnboardingStatus("12345678", COMPLETED);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED);
   }
 }

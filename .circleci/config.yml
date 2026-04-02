@@ -25,7 +25,6 @@ jobs:
           POSTGRES_DB: testdb
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
-          PGDATA: /dev/shm/pgdata
     resource_class: large
     steps:
       - checkout

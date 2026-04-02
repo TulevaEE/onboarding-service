@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -43,8 +44,17 @@ class NavCalculationTransactionTest {
   static final Instant TRANSACTION_DATE =
       NAV_DATE.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
 
+  @BeforeEach
+  void setUp() {
+    cleanupDatabase();
+  }
+
   @AfterEach
-  void cleanup() {
+  void tearDown() {
+    cleanupDatabase();
+  }
+
+  private void cleanupDatabase() {
     transactionTemplate.executeWithoutResult(
         status -> {
           entityManager.createNativeQuery("DELETE FROM ledger.entry").executeUpdate();

@@ -16,8 +16,13 @@ class EventLogRepositorySpec extends Specification {
   @Autowired
   private EventLogRepository repository
 
+  def setup() {
+    repository.deleteAll()
+  }
+
   def "persisting and finding events works"() {
     given:
+    repository.deleteAll()
     def event = EventLog.builder()
         .type("LOGIN")
         .principal("38501010002")

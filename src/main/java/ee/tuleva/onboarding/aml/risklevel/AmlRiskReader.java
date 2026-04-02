@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -16,7 +16,7 @@ class AmlRiskReader implements RiskReader {
   private static final int MEDIUM_RISK_LEVEL = 2;
 
   private final AmlRiskMetadataRepository amlRiskMetadataRepository;
-  private final NamedParameterJdbcTemplate jdbcTemplate;
+  private final JdbcClient jdbcClient;
 
   public List<RiskLevelResult> getHighRiskRows() {
     return amlRiskMetadataRepository.findAllByRiskLevel(HIGH_RISK_LEVEL).stream()
@@ -43,18 +43,15 @@ class AmlRiskReader implements RiskReader {
 
   void refreshAmlRiskMetadataView() {
     log.info("Start materialized view refresh: analytics.v_aml_risk_metadata");
-    jdbcTemplate
-        .getJdbcOperations()
-        .execute("REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.v_aml_risk_metadata;");
+    jdbcClient.sql("REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.v_aml_risk_metadata").update();
     log.info("Materialized view refreshed: analytics.v_aml_risk_metadata");
   }
 
   public void refreshMaterializedView() {
     log.info("Start materialized view refresh: analytics.mv_third_pillar_latest_residency");
-    jdbcTemplate
-        .getJdbcOperations()
-        .execute(
-            "REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.mv_third_pillar_latest_residency;");
+    jdbcClient
+        .sql("REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.mv_third_pillar_latest_residency")
+        .update();
     log.info("Materialized view refreshed: analytics.mv_third_pillar_latest_residency");
 
     refreshAmlRiskMetadataView();

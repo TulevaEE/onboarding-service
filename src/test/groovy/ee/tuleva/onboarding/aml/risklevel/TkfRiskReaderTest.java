@@ -2,16 +2,13 @@ package ee.tuleva.onboarding.aml.risklevel;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.sql.Connection;
-import java.sql.Statement;
 import java.util.List;
-import javax.sql.DataSource;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureJdbc;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 @DataJpaTest
 @AutoConfigureJdbc
@@ -20,15 +17,7 @@ class TkfRiskReaderTest {
 
   @Autowired TkfRiskReader service;
 
-  @Autowired DataSource dataSource;
-
-  @AfterEach
-  void cleanUp() throws Exception {
-    try (Connection conn = dataSource.getConnection();
-        Statement stmt = conn.createStatement()) {
-      stmt.execute("DELETE FROM analytics.v_tkf_risk_metadata");
-    }
-  }
+  @Autowired JdbcClient jdbcClient;
 
   @Test
   void returnsEmptyWhenNoHighRiskRows() {
@@ -37,7 +26,7 @@ class TkfRiskReaderTest {
   }
 
   @Test
-  void returnsHighRiskRowsWithMetadata() throws Exception {
+  void returnsHighRiskRowsWithMetadata() {
     insertRow("38501010001", 1, "{\"level\": 1, \"total_points\": 105}");
 
     List<RiskLevelResult> results = service.getHighRiskRows();
@@ -49,7 +38,7 @@ class TkfRiskReaderTest {
   }
 
   @Test
-  void doesNotReturnMediumRiskRowsAsHighRisk() throws Exception {
+  void doesNotReturnMediumRiskRowsAsHighRisk() {
     insertRow("39001010002", 2, "{\"level\": 2, \"total_points\": 20}");
 
     List<RiskLevelResult> results = service.getHighRiskRows();
@@ -58,7 +47,7 @@ class TkfRiskReaderTest {
   }
 
   @Test
-  void returnsMediumRiskSampleWithFullProbability() throws Exception {
+  void returnsMediumRiskSampleWithFullProbability() {
     insertRow("39001010002", 2, "{\"level\": 2, \"total_points\": 20}");
 
     List<RiskLevelResult> results = service.getMediumRiskRowsSample(1.0);
@@ -68,7 +57,7 @@ class TkfRiskReaderTest {
   }
 
   @Test
-  void returnsEmptyMediumRiskSampleWithZeroProbability() throws Exception {
+  void returnsEmptyMediumRiskSampleWithZeroProbability() {
     insertRow("39001010002", 2, "{\"level\": 2, \"total_points\": 20}");
 
     List<RiskLevelResult> results = service.getMediumRiskRowsSample(0.0);
@@ -76,17 +65,38 @@ class TkfRiskReaderTest {
     assertThat(results).isEmpty();
   }
 
-  private void insertRow(String personalId, int riskLevel, String metadataJson) throws Exception {
-    try (Connection conn = dataSource.getConnection();
-        Statement stmt = conn.createStatement()) {
-      stmt.execute(
-          "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) VALUES ('"
-              + personalId
-              + "', "
-              + riskLevel
-              + ", '"
-              + metadataJson
-              + "')");
-    }
+  @Test
+  void handlesNullMetadata() {
+    jdbcClient
+        .sql(
+            "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) VALUES (?, ?, NULL)")
+        .param("38501010001")
+        .param(1)
+        .update();
+
+    List<RiskLevelResult> results = service.getHighRiskRows();
+
+    assertThat(results).hasSize(1);
+    assertThat(results.getFirst().getMetadata()).isEmpty();
+  }
+
+  @Test
+  void returnsMediumRiskSampleWithProbabilityAboveOne() {
+    insertRow("39001010002", 2, "{\"level\": 2, \"total_points\": 20}");
+    insertRow("39001010003", 2, "{\"level\": 2, \"total_points\": 30}");
+
+    List<RiskLevelResult> results = service.getMediumRiskRowsSample(1.5);
+
+    assertThat(results).hasSize(2);
+  }
+
+  private void insertRow(String personalId, int riskLevel, String metadataJson) {
+    jdbcClient
+        .sql(
+            "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) VALUES (?, ?, ?)")
+        .param(personalId)
+        .param(riskLevel)
+        .param(metadataJson)
+        .update();
   }
 }

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -10,13 +11,13 @@ import java.util.Map;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.jdbc.core.JdbcOperations;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 class AmlRiskReaderTest {
 
   private AmlRiskMetadataRepository repository;
-  private NamedParameterJdbcTemplate jdbcTemplate;
+  private JdbcClient jdbcClient;
+  private JdbcClient.StatementSpec statementSpec;
   private AmlRiskReader reader;
 
   private static final int HIGH_RISK_LEVEL = 1;
@@ -25,8 +26,11 @@ class AmlRiskReaderTest {
   @BeforeEach
   void setUp() {
     repository = mock(AmlRiskMetadataRepository.class);
-    jdbcTemplate = mock(NamedParameterJdbcTemplate.class);
-    reader = new AmlRiskReader(repository, jdbcTemplate);
+    jdbcClient = mock(JdbcClient.class);
+    statementSpec = mock(JdbcClient.StatementSpec.class);
+    when(jdbcClient.sql(anyString())).thenReturn(statementSpec);
+    when(statementSpec.update()).thenReturn(0);
+    reader = new AmlRiskReader(repository, jdbcClient);
   }
 
   @Test
@@ -113,15 +117,10 @@ class AmlRiskReaderTest {
 
   @Test
   void refreshMaterializedView_refreshesBothViews() {
-    var jdbcOperations = mock(JdbcOperations.class);
-    when(jdbcTemplate.getJdbcOperations()).thenReturn(jdbcOperations);
-
     reader.refreshMaterializedView();
 
-    verify(jdbcOperations)
-        .execute(
-            "REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.mv_third_pillar_latest_residency;");
-    verify(jdbcOperations)
-        .execute("REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.v_aml_risk_metadata;");
+    verify(jdbcClient)
+        .sql("REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.mv_third_pillar_latest_residency");
+    verify(jdbcClient).sql("REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.v_aml_risk_metadata");
   }
 }

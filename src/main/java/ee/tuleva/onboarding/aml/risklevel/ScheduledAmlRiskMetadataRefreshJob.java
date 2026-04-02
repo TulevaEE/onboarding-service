@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 public class ScheduledAmlRiskMetadataRefreshJob {
 
   private final AmlRiskReader amlRiskReader;
+  private final TkfRiskReader tkfRiskReader;
 
   @Scheduled(cron = "0 0 9,13,16 * * ?", zone = "Europe/Tallinn")
   @SchedulerLock(
@@ -21,8 +22,17 @@ public class ScheduledAmlRiskMetadataRefreshJob {
       lockAtMostFor = "23h",
       lockAtLeastFor = "30m")
   public void refreshAmlRiskMetadata() {
-    log.info("Starting scheduled AML risk metadata view refresh");
-    amlRiskReader.refreshAmlRiskMetadataView();
-    log.info("Finished scheduled AML risk metadata view refresh");
+    log.info("Starting scheduled risk metadata view refresh");
+    try {
+      amlRiskReader.refreshAmlRiskMetadataView();
+    } catch (Exception e) {
+      log.error("AML risk metadata view refresh failed", e);
+    }
+    try {
+      tkfRiskReader.refreshMaterializedView();
+    } catch (Exception e) {
+      log.error("TKF risk metadata view refresh failed", e);
+    }
+    log.info("Finished scheduled risk metadata view refresh");
   }
 }

@@ -93,7 +93,7 @@ class TkfRiskReaderTest {
   private void insertRow(String personalId, int riskLevel, String metadataJson) {
     jdbcClient
         .sql(
-            "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) VALUES (?, ?, ?)")
+            "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) VALUES (?, ?, CAST(? AS json))")
         .param(personalId)
         .param(riskLevel)
         .param(metadataJson)

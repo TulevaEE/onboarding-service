@@ -16,6 +16,7 @@ import org.mockserver.springtest.MockServerTest
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.security.authentication.TestingAuthenticationToken
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextHolder
@@ -37,6 +38,7 @@ import static org.mockserver.model.MediaType.APPLICATION_JSON
 
 @SpringBootTest
 @MockServerTest(["epis.service.url=http://localhost:\${mockServerPort}", "payment-provider.url=http://localhost:\${mockServerPort}/api"])
+@Transactional
 class PaymentIntegrationSpec extends Specification {
 
   @Autowired
@@ -104,9 +106,6 @@ class PaymentIntegrationSpec extends Specification {
 
   def cleanup() {
     SecurityContextHolder.clearContext()
-    paymentRepository.deleteAll()
-    eventLogRepository.deleteAll()
-    userRepository.delete(aUser)
   }
 
   def "Payment happy flow"() {

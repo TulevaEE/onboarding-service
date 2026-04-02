@@ -57,6 +57,11 @@ class NavCalculationIntegrationTest {
 
   @BeforeEach
   void setUp() {
+    entityManager.createNativeQuery("DELETE FROM ledger.entry").executeUpdate();
+    entityManager.createNativeQuery("DELETE FROM ledger.transaction").executeUpdate();
+    entityManager.createNativeQuery("DELETE FROM ledger.account").executeUpdate();
+    entityManager.createNativeQuery("DELETE FROM ledger.party").executeUpdate();
+
     insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"));
     insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.00035"));
     insertFeeRate(TUK75, "MANAGEMENT", new BigDecimal("0.0029"));

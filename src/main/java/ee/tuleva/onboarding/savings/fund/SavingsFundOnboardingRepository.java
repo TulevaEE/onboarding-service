@@ -27,6 +27,12 @@ public class SavingsFundOnboardingRepository {
   }
 
   public void saveOnboardingStatus(String personalCode, SavingsFundOnboardingStatus status) {
+    jdbcClient
+        .sql("SELECT pg_advisory_xact_lock(:key)")
+        .param("key", (long) ("onboarding:" + personalCode).hashCode())
+        .query(Long.class)
+        .optional();
+
     int updated =
         jdbcClient
             .sql(

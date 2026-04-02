@@ -645,9 +645,7 @@ public class SavingsFundLedger {
 
   private LedgerParty getParty(PartyId party) {
     var partyType = PartyType.valueOf(party.type().name());
-    return ledgerPartyService
-        .getParty(party.code(), partyType)
-        .orElseGet(() -> ledgerPartyService.createParty(party.code(), partyType));
+    return ledgerPartyService.getOrCreate(party.code(), partyType);
   }
 
   private LedgerAccount getUserAccount(LedgerParty owner, UserAccount userAccount) {

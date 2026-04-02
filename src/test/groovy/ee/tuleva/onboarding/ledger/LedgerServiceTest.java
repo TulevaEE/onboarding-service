@@ -30,8 +30,7 @@ class LedgerServiceTest {
 
   @Test
   void initializeAccounts_createsPartyAndAllAccounts() {
-    when(ledgerPartyService.getParty(testParty.code(), PERSON)).thenReturn(Optional.empty());
-    when(ledgerPartyService.createParty(testParty.code(), PERSON)).thenReturn(ledgerParty);
+    when(ledgerPartyService.getOrCreate(testParty.code(), PERSON)).thenReturn(ledgerParty);
 
     for (var userAccount : UserAccount.values()) {
       when(ledgerAccountService.findUserAccount(ledgerParty, userAccount))
@@ -40,16 +39,15 @@ class LedgerServiceTest {
 
     ledgerService.initializeAccounts(testParty);
 
-    verify(ledgerPartyService).createParty(testParty.code(), PERSON);
+    verify(ledgerPartyService).getOrCreate(testParty.code(), PERSON);
     for (var userAccount : UserAccount.values()) {
       verify(ledgerAccountService).createUserAccount(eq(ledgerParty), eq(userAccount));
     }
   }
 
   @Test
-  void initializeAccounts_skipsIfPartyAlreadyExists() {
-    when(ledgerPartyService.getParty(testParty.code(), PERSON))
-        .thenReturn(Optional.of(ledgerParty));
+  void initializeAccounts_skipsExistingAccounts() {
+    when(ledgerPartyService.getOrCreate(testParty.code(), PERSON)).thenReturn(ledgerParty);
 
     for (var userAccount : UserAccount.values()) {
       when(ledgerAccountService.findUserAccount(ledgerParty, userAccount))
@@ -58,16 +56,14 @@ class LedgerServiceTest {
 
     ledgerService.initializeAccounts(testParty);
 
-    verify(ledgerPartyService, never()).createParty(testParty.code(), PERSON);
     for (var userAccount : UserAccount.values()) {
       verify(ledgerAccountService, never()).createUserAccount(eq(ledgerParty), eq(userAccount));
     }
   }
 
   @Test
-  void getPartyAccount_createsPartyAndAccountWhenNotFound() {
-    when(ledgerPartyService.getParty(testParty.code(), PERSON)).thenReturn(Optional.empty());
-    when(ledgerPartyService.createParty(testParty.code(), PERSON)).thenReturn(ledgerParty);
+  void getPartyAccount_createsAccountWhenNotFound() {
+    when(ledgerPartyService.getOrCreate(testParty.code(), PERSON)).thenReturn(ledgerParty);
     when(ledgerAccountService.findUserAccount(ledgerParty, SUBSCRIPTIONS))
         .thenReturn(Optional.empty());
     when(ledgerAccountService.createUserAccount(ledgerParty, SUBSCRIPTIONS)).thenReturn(account);
@@ -77,9 +73,8 @@ class LedgerServiceTest {
   }
 
   @Test
-  void getPartyAccount_returnsExistingPartyAndAccount() {
-    when(ledgerPartyService.getParty(testParty.code(), PERSON))
-        .thenReturn(Optional.of(ledgerParty));
+  void getPartyAccount_returnsExistingAccount() {
+    when(ledgerPartyService.getOrCreate(testParty.code(), PERSON)).thenReturn(ledgerParty);
     when(ledgerAccountService.findUserAccount(ledgerParty, SUBSCRIPTIONS))
         .thenReturn(Optional.of(account));
 

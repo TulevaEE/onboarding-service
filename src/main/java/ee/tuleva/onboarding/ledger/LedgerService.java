@@ -15,10 +15,7 @@ public class LedgerService {
 
   public void initializeAccounts(PartyId party) {
     var partyType = PartyType.valueOf(party.type().name());
-    LedgerParty ledgerParty =
-        ledgerPartyService
-            .getParty(party.code(), partyType)
-            .orElseGet(() -> ledgerPartyService.createParty(party.code(), partyType));
+    LedgerParty ledgerParty = ledgerPartyService.getOrCreate(party.code(), partyType);
 
     for (var userAccount : UserAccount.values()) {
       if (ledgerAccountService.findUserAccount(ledgerParty, userAccount).isEmpty()) {
@@ -29,10 +26,7 @@ public class LedgerService {
 
   public LedgerAccount getPartyAccount(
       String ownerId, PartyType partyType, UserAccount userAccount) {
-    LedgerParty party =
-        ledgerPartyService
-            .getParty(ownerId, partyType)
-            .orElseGet(() -> ledgerPartyService.createParty(ownerId, partyType));
+    LedgerParty party = ledgerPartyService.getOrCreate(ownerId, partyType);
     return ledgerAccountService
         .findUserAccount(party, userAccount)
         .orElseGet(() -> ledgerAccountService.createUserAccount(party, userAccount));

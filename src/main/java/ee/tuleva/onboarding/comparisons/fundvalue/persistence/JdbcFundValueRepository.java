@@ -176,10 +176,11 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
         fundValue.value().subtract(previous).abs().divide(previous, 4, RoundingMode.HALF_UP);
     if (deviation.compareTo(MAX_DEVIATION) > 0) {
       log.error(
-          "Anomalous fund value rejected: key={}, date={}, value={}, previousValue={}, previousDate={}, deviation={}%",
+          "Anomalous fund value rejected: key={}, date={}, value={}, provider={}, previousValue={}, previousDate={}, deviation={}%",
           fundValue.key(),
           fundValue.date(),
           fundValue.value(),
+          fundValue.provider(),
           previous,
           previousValue.get().date(),
           deviation.multiply(new BigDecimal("100")));

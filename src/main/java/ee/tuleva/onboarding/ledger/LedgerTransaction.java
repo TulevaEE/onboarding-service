@@ -38,7 +38,7 @@ import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 public class LedgerTransaction {
 
   public enum TransactionType {
-    @Deprecated // Use more specific types instead
+    @Deprecated // Use more specific types instead of TRANSFER
     TRANSFER,
     PAYMENT_RECEIVED,
     PAYMENT_CANCEL_REQUESTED,

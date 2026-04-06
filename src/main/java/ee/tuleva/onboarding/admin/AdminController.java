@@ -13,11 +13,14 @@ import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.report.ReportImportJob;
 import ee.tuleva.onboarding.investment.report.ReportProvider;
+import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
+import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
 import jakarta.transaction.Transactional;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -39,6 +42,7 @@ public class AdminController {
 
   private final ApplicationEventPublisher eventPublisher;
   private final SavingsFundLedger savingsFundLedger;
+  private final NavFeeAccrualLedger navFeeAccrualLedger;
   private final NavCalculationService navCalculationService;
   private final NavPublisher navPublisher;
   private final FundBalanceSynchronizer fundBalanceSynchronizer;
@@ -50,6 +54,9 @@ public class AdminController {
 
   @Value("${admin.api-token:}")
   private String adminApiToken;
+
+  @Value("${admin.ops-token:}")
+  private String opsToken;
 
   @PostMapping("/fetch-seb-history")
   public String fetchSebHistory(
@@ -223,6 +230,33 @@ public class AdminController {
     }
 
     return "Backfilled positions for " + fundCode + " across " + dates.size() + " dates";
+  }
+
+  @PostMapping("/blackrock-adjustment")
+  public BlackrockAdjustmentResult recordBlackrockAdjustment(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam String fundCode,
+      @RequestParam BigDecimal amount,
+      @RequestParam @DateTimeFormat(iso = DATE) LocalDate date) {
+
+    validateTokenWithOpsAccess(token);
+
+    TulevaFund fund = TulevaFund.fromCode(fundCode);
+    log.info(
+        "Admin triggered BlackRock adjustment: fund={}, date={}, targetBalance={}",
+        fund,
+        date,
+        amount);
+
+    return navFeeAccrualLedger.recordBlackrockAdjustment(fund, date, amount);
+  }
+
+  private void validateTokenWithOpsAccess(String token) {
+    boolean matchesAdmin = !adminApiToken.isBlank() && adminApiToken.equals(token);
+    boolean matchesOps = !opsToken.isBlank() && opsToken.equals(token);
+    if (!matchesAdmin && !matchesOps) {
+      throw new ResponseStatusException(UNAUTHORIZED, "Invalid admin token");
+    }
   }
 
   private void validateToken(String token) {

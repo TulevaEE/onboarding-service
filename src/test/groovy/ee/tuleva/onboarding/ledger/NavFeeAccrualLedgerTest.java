@@ -1,15 +1,16 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_ACCRUAL;
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_SETTLEMENT;
-import static ee.tuleva.onboarding.ledger.SystemAccount.DEPOT_FEE_ACCRUAL;
-import static ee.tuleva.onboarding.ledger.SystemAccount.MANAGEMENT_FEE_ACCRUAL;
-import static ee.tuleva.onboarding.ledger.SystemAccount.NAV_EQUITY;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
+import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
@@ -44,6 +45,7 @@ class NavFeeAccrualLedgerTest {
   @Mock private LedgerAccount managementFeeAccount;
   @Mock private LedgerAccount depotFeeAccount;
   @Mock private LedgerAccount navEquityAccount;
+  @Mock private LedgerAccount blackrockAdjustmentAccount;
   @Mock private LedgerTransaction transaction;
 
   @Captor private ArgumentCaptor<LedgerEntryDto[]> entriesCaptor;
@@ -268,6 +270,96 @@ class NavFeeAccrualLedgerTest {
             eq(expectedRef),
             any(),
             any(LedgerEntryDto[].class));
+  }
+
+  @Test
+  void recordBlackrockAdjustment_recordsAdjustmentWhenDeltaIsNonZero() {
+    LocalDate date = LocalDate.of(2026, 4, 2);
+    given(ledgerAccountService.findSystemAccount(BLACKROCK_ADJUSTMENT, TUK75))
+        .willReturn(Optional.of(blackrockAdjustmentAccount));
+    given(ledgerAccountService.findSystemAccount(NAV_EQUITY, TUK75))
+        .willReturn(Optional.of(navEquityAccount));
+    given(blackrockAdjustmentAccount.getBalanceAt(any())).willReturn(ZERO);
+    given(
+            ledgerTransactionService.createTransaction(
+                any(LedgerTransaction.TransactionType.class),
+                any(Instant.class),
+                any(UUID.class),
+                any(),
+                any(LedgerEntryDto[].class)))
+        .willReturn(transaction);
+
+    var result =
+        navFeeAccrualLedger.recordBlackrockAdjustment(TUK75, date, new BigDecimal("38531.70"));
+
+    assertThat(result.previousBalance()).isEqualByComparingTo(ZERO);
+    assertThat(result.targetBalance()).isEqualByComparingTo("38531.70");
+    assertThat(result.delta()).isEqualByComparingTo("38531.70");
+    assertThat(result.transactionCreated()).isTrue();
+  }
+
+  @Test
+  void recordBlackrockAdjustment_skipsWhenDeltaIsZero() {
+    LocalDate date = LocalDate.of(2026, 4, 2);
+    given(ledgerAccountService.findSystemAccount(BLACKROCK_ADJUSTMENT, TUK75))
+        .willReturn(Optional.of(blackrockAdjustmentAccount));
+    given(blackrockAdjustmentAccount.getBalanceAt(any())).willReturn(new BigDecimal("38531.70"));
+
+    var result =
+        navFeeAccrualLedger.recordBlackrockAdjustment(TUK75, date, new BigDecimal("38531.70"));
+
+    assertThat(result.delta()).isEqualByComparingTo(ZERO);
+    assertThat(result.transactionCreated()).isFalse();
+    then(ledgerTransactionService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void recordBlackrockAdjustment_computesDeltaFromExistingBalance() {
+    LocalDate date = LocalDate.of(2026, 4, 2);
+    given(ledgerAccountService.findSystemAccount(BLACKROCK_ADJUSTMENT, TUK75))
+        .willReturn(Optional.of(blackrockAdjustmentAccount));
+    given(ledgerAccountService.findSystemAccount(NAV_EQUITY, TUK75))
+        .willReturn(Optional.of(navEquityAccount));
+    given(blackrockAdjustmentAccount.getBalanceAt(any())).willReturn(new BigDecimal("30000.00"));
+    given(
+            ledgerTransactionService.createTransaction(
+                any(LedgerTransaction.TransactionType.class),
+                any(Instant.class),
+                any(UUID.class),
+                any(),
+                any(LedgerEntryDto[].class)))
+        .willReturn(transaction);
+
+    var result =
+        navFeeAccrualLedger.recordBlackrockAdjustment(TUK75, date, new BigDecimal("38531.70"));
+
+    assertThat(result.previousBalance()).isEqualByComparingTo("30000.00");
+    assertThat(result.delta()).isEqualByComparingTo("8531.70");
+    assertThat(result.transactionCreated()).isTrue();
+  }
+
+  @Test
+  void recordBlackrockAdjustment_handlesNegativeTargetForFees() {
+    LocalDate date = LocalDate.of(2026, 4, 2);
+    given(ledgerAccountService.findSystemAccount(BLACKROCK_ADJUSTMENT, TUK00))
+        .willReturn(Optional.of(blackrockAdjustmentAccount));
+    given(ledgerAccountService.findSystemAccount(NAV_EQUITY, TUK00))
+        .willReturn(Optional.of(navEquityAccount));
+    given(blackrockAdjustmentAccount.getBalanceAt(any())).willReturn(ZERO);
+    given(
+            ledgerTransactionService.createTransaction(
+                any(LedgerTransaction.TransactionType.class),
+                any(Instant.class),
+                any(UUID.class),
+                any(),
+                any(LedgerEntryDto[].class)))
+        .willReturn(transaction);
+
+    var result =
+        navFeeAccrualLedger.recordBlackrockAdjustment(TUK00, date, new BigDecimal("-2295.25"));
+
+    assertThat(result.delta()).isEqualByComparingTo("-2295.25");
+    assertThat(result.transactionCreated()).isTrue();
   }
 
   @Test

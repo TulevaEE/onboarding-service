@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_ACCRUAL;
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_SETTLEMENT;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -115,6 +114,51 @@ public class NavFeeAccrualLedger {
         metadata,
         entry(getSystemAccount(feeAccount, fund), amount),
         entry(getSystemAccount(NAV_EQUITY, fund), amount.negate()));
+  }
+
+  @Transactional
+  public BlackrockAdjustmentResult recordBlackrockAdjustment(
+      TulevaFund fund, LocalDate date, BigDecimal targetBalance) {
+    Instant cutoff = date.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
+    LedgerAccount adjustmentAccount = getSystemAccount(BLACKROCK_ADJUSTMENT, fund);
+    BigDecimal currentBalance = adjustmentAccount.getBalanceAt(cutoff);
+    BigDecimal delta = targetBalance.subtract(currentBalance);
+
+    if (delta.signum() == 0) {
+      log.info(
+          "BlackRock adjustment already at target: fund={}, date={}, target={}",
+          fund,
+          date,
+          targetBalance);
+      return new BlackrockAdjustmentResult(fund, date, currentBalance, targetBalance, delta, false);
+    }
+
+    Instant transactionDate = date.atTime(8, 0).atZone(ESTONIAN_ZONE).toInstant();
+
+    Map<String, Object> metadata =
+        Map.of(
+            "operationType", "BLACKROCK_ADJUSTMENT",
+            "fund", fund.name(),
+            "date", date.toString(),
+            "targetBalance", targetBalance.toPlainString());
+
+    ledgerTransactionService.createTransaction(
+        ADJUSTMENT,
+        transactionDate,
+        UUID.randomUUID(),
+        metadata,
+        entry(adjustmentAccount, delta),
+        entry(getSystemAccount(NAV_EQUITY, fund), delta.negate()));
+
+    log.info(
+        "Recorded BlackRock adjustment: fund={}, date={}, previous={}, target={}, delta={}",
+        fund,
+        date,
+        currentBalance,
+        targetBalance,
+        delta);
+
+    return new BlackrockAdjustmentResult(fund, date, currentBalance, targetBalance, delta, true);
   }
 
   @Transactional

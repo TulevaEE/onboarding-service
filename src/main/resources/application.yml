@@ -59,6 +59,7 @@ eodhd:
 
 admin:
   api-token: ${ADMIN_API_TOKEN:}
+  ops-token: ${ADMIN_OPS_TOKEN:}
 
 mobile-id:
   # use "https://mid.sk.ee/mid-api" for testing signing

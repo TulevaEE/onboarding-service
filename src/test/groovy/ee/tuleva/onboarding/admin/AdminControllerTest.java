@@ -4,6 +4,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -18,7 +19,9 @@ import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
 import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.report.ReportImportJob;
+import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
+import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
@@ -39,7 +42,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(AdminController.class)
-@TestPropertySource(properties = "admin.api-token=valid-token")
+@TestPropertySource(properties = {"admin.api-token=valid-token", "admin.ops-token=ops-token"})
 @WithMockUser
 class AdminControllerTest {
 
@@ -47,6 +50,7 @@ class AdminControllerTest {
 
   @MockitoBean private ApplicationEventPublisher eventPublisher;
   @MockitoBean private SavingsFundLedger savingsFundLedger;
+  @MockitoBean private NavFeeAccrualLedger navFeeAccrualLedger;
   @MockitoBean private NavCalculationService navCalculationService;
   @MockitoBean private NavPublisher navPublisher;
   @MockitoBean private FundBalanceSynchronizer fundBalanceSynchronizer;
@@ -394,6 +398,85 @@ class AdminControllerTest {
                 .with(csrf())
                 .header("X-Admin-Token", "wrong-token")
                 .param("fundCode", "TKF100"))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void recordBlackrockAdjustment_withOpsToken_returnsOk() throws Exception {
+    var result =
+        new BlackrockAdjustmentResult(
+            TulevaFund.TUK75,
+            LocalDate.of(2026, 4, 2),
+            BigDecimal.ZERO,
+            new BigDecimal("38531.70"),
+            new BigDecimal("38531.70"),
+            true);
+    given(
+            navFeeAccrualLedger.recordBlackrockAdjustment(
+                TulevaFund.TUK75, LocalDate.of(2026, 4, 2), new BigDecimal("38531.70")))
+        .willReturn(result);
+
+    mockMvc
+        .perform(
+            post("/admin/blackrock-adjustment")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("fundCode", "TUK75")
+                .param("amount", "38531.70")
+                .param("date", "2026-04-02"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.fund").value("TUK75"))
+        .andExpect(jsonPath("$.delta").value(38531.70))
+        .andExpect(jsonPath("$.transactionCreated").value(true));
+  }
+
+  @Test
+  void recordBlackrockAdjustment_withAdminToken_returnsOk() throws Exception {
+    var result =
+        new BlackrockAdjustmentResult(
+            TulevaFund.TUK75,
+            LocalDate.of(2026, 4, 2),
+            BigDecimal.ZERO,
+            new BigDecimal("38531.70"),
+            new BigDecimal("38531.70"),
+            true);
+    given(
+            navFeeAccrualLedger.recordBlackrockAdjustment(
+                TulevaFund.TUK75, LocalDate.of(2026, 4, 2), new BigDecimal("38531.70")))
+        .willReturn(result);
+
+    mockMvc
+        .perform(
+            post("/admin/blackrock-adjustment")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK75")
+                .param("amount", "38531.70")
+                .param("date", "2026-04-02"))
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  void recordBlackrockAdjustment_withInvalidToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/blackrock-adjustment")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .param("fundCode", "TUK75")
+                .param("amount", "38531.70")
+                .param("date", "2026-04-02"))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void calculateNav_withOpsToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/calculate-nav")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("date", "2026-02-17"))
         .andExpect(status().isUnauthorized());
   }
 

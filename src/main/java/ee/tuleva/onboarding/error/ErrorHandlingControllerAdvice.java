@@ -45,7 +45,7 @@ public class ErrorHandlingControllerAdvice {
 
   @ExceptionHandler(IdSessionException.class)
   public ResponseEntity<ErrorsResponse> handleErrors(IdSessionException exception) {
-    log.info("IdSessionException {}", exception.toString());
+    log.warn("IdSessionException {}", exception.toString());
     return new ResponseEntity<>(exception.getErrorsResponse(), UNAUTHORIZED);
   }
 

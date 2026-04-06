@@ -89,7 +89,7 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:10.8")
+    implementation("com.nimbusds:nimbus-jose-jwt:10.9")
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2")
     implementation("org.springdoc:springdoc-openapi-starter-common:3.0.2")

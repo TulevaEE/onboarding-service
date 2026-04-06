@@ -24,4 +24,6 @@ public final class JobRunSchedule {
   public static final String TRANSACTION_COMMAND = "0 * * * * *";
 
   public static final String LIMIT_CHECK = "0 0 16 * * *";
+
+  public static final String TRACKING_DIFFERENCE_CHECK = "0 15 16 * * *";
 }

@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EpiIndex
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.Transaction
+import ee.tuleva.onboarding.deadline.PublicHolidays
 import spock.lang.Specification
 
 import java.time.Instant
@@ -21,7 +22,7 @@ class ReturnCalculatorSpec extends Specification {
 
   void setup() {
     fundValueProvider = Mock(FundValueProvider)
-    returnCalculator = new ReturnCalculator(fundValueProvider)
+    returnCalculator = new ReturnCalculator(fundValueProvider, new PublicHolidays())
   }
 
   def "it successfully calculates a return of 0%"() {
@@ -230,6 +231,111 @@ class ReturnCalculatorSpec extends Specification {
   private void fakeNoReturnFundValues() {
     fundValueProvider.getLatestValue(_, _) >>
         Optional.of(aFundValue(UnionStockIndexRetriever.KEY, LocalDate.parse("2018-06-17"), 1.0))
+  }
+
+  def "weekend start aligns beginning balance index lookup with fund NAV timing"() {
+    given: "a Sunday start during a market crash where the index dropped 5% on Friday"
+    Instant startTime = parseInstant("2025-04-06") // Sunday
+    Instant endTime = parseInstant("2026-04-06")
+    def beginningBalance = 10000.0
+    def overview = new AccountOverview([], beginningBalance, 12000.0, startTime, endTime, 2)
+
+    and: "index prices that reflect a crash: Thu=400, Fri=380 (5% drop), end=480"
+    def indexKey = UnionStockIndexRetriever.KEY
+    fundValueProvider.getLatestValue(indexKey, _ as LocalDate) >> { String fund, LocalDate date ->
+      def values = [
+          "2025-04-03": 400.0,  // Thursday (pre-Friday crash)
+          "2025-04-04": 380.0,  // Friday (post-crash US close)
+          "2025-04-05": 380.0,  // Saturday (carry-forward)
+          "2026-04-06": 480.0,  // End date
+      ]
+      def value = values[date.toString()]
+      value != null ? Optional.of(aFundValue(fund, date, value)) : Optional.empty()
+    }
+
+    when:
+    def simulatedReturn = returnCalculator.getSimulatedReturn(overview, indexKey)
+
+    then: "uses Thursday price (400) not Friday (380), so ending = 10000/400 * 480 = 12000"
+    simulatedReturn.amount() == 2000.00 // 12000 - 10000
+  }
+
+  def "weekday start uses standard index lookup date"() {
+    given: "a Wednesday start"
+    Instant startTime = parseInstant("2025-04-09") // Wednesday
+    Instant endTime = parseInstant("2026-04-09")
+    def beginningBalance = 10000.0
+    def overview = new AccountOverview([], beginningBalance, 12000.0, startTime, endTime, 2)
+
+    and: "index prices where Tuesday and Monday differ"
+    def indexKey = UnionStockIndexRetriever.KEY
+    fundValueProvider.getLatestValue(indexKey, _ as LocalDate) >> { String fund, LocalDate date ->
+      def values = [
+          "2025-04-07": 370.0,  // Monday (would be wrong if fix over-applied)
+          "2025-04-08": 390.0,  // Tuesday (synthetic date = Wed - 1 day)
+          "2026-04-09": 480.0,  // End date
+      ]
+      def value = values[date.toString()]
+      value != null ? Optional.of(aFundValue(fund, date, value)) : Optional.empty()
+    }
+
+    when:
+    def simulatedReturn = returnCalculator.getSimulatedReturn(overview, indexKey)
+
+    then: "uses Tuesday price (390), so ending = 10000/390 * 480 = 12307.69"
+    simulatedReturn.amount() == 2307.69 // 12307.69 - 10000
+  }
+
+  def "weekend start does not adjust index lookup for non-UNION_STOCK_INDEX comparisons"() {
+    given: "a Sunday start with a beginning balance, comparing against EPI (European-close pricing)"
+    Instant startTime = parseInstant("2025-04-06") // Sunday
+    Instant endTime = parseInstant("2026-04-06")
+    def overview = new AccountOverview([], 10000.0, 12000.0, startTime, endTime, 2)
+
+    and: "EPI prices where Friday (standard lookup) differs from Thursday (shifted lookup)"
+    def epiKey = EpiIndex.EPI.key
+    fundValueProvider.getLatestValue(epiKey, _ as LocalDate) >> { String fund, LocalDate date ->
+      def values = [
+          "2025-04-03": 999.0,  // Thursday — would be used if fix incorrectly applied
+          "2025-04-04": 400.0,  // Friday — should be used (standard lookup via Sat carry-back)
+          "2025-04-05": 400.0,  // Saturday (synthetic date)
+          "2026-04-06": 480.0,  // End date
+      ]
+      def value = values[date.toString()]
+      value != null ? Optional.of(aFundValue(fund, date, value)) : Optional.empty()
+    }
+
+    when:
+    def simulatedReturn = returnCalculator.getSimulatedReturn(overview, epiKey)
+
+    then: "uses Friday price (400) not Thursday (999), so ending = 10000/400 * 480 = 12000"
+    simulatedReturn.amount() == 2000.00
+  }
+
+  def "weekend start with zero beginning balance does not adjust index lookup"() {
+    given: "a Sunday start with no beginning balance"
+    Instant startTime = parseInstant("2025-04-06") // Sunday
+    Instant endTime = parseInstant("2026-04-06")
+    def overview = new AccountOverview(
+        [new Transaction(1000.0, parseInstant("2025-05-01"))],
+        0.0, 1200.0, startTime, endTime, 2)
+
+    and: "index prices for the contribution and end date"
+    def indexKey = UnionStockIndexRetriever.KEY
+    fundValueProvider.getLatestValue(indexKey, _ as LocalDate) >> { String fund, LocalDate date ->
+      def values = [
+          "2025-05-01": 400.0,  // Contribution date
+          "2026-04-06": 480.0,  // End date
+      ]
+      def value = values[date.toString()]
+      value != null ? Optional.of(aFundValue(fund, date, value)) : Optional.empty()
+    }
+
+    when:
+    def simulatedReturn = returnCalculator.getSimulatedReturn(overview, indexKey)
+
+    then: "contribution uses standard lookup: 1000/400 * 480 = 1200"
+    simulatedReturn.amount() == 200.00 // 1200 - 1000
   }
 
   List<Transaction> exampleTransactions = [

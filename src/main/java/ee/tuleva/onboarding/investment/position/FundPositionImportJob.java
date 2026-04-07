@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.investment.position;
 
+import static ee.tuleva.onboarding.investment.event.PipelineStep.POSITION_IMPORT;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.event.FundPositionsImported;
+import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.investment.event.RunFundPositionImportRequested;
 import ee.tuleva.onboarding.investment.position.FundPositionImportService.ImportResult;
@@ -40,6 +42,7 @@ public class FundPositionImportJob {
   private final FundPositionLedgerService fundPositionLedgerService;
   private final Clock clock;
   private final ApplicationEventPublisher eventPublisher;
+  private final PipelineTracker pipelineTracker;
 
   public FundPositionImportJob(
       SwedbankFundPositionParser swedbankParser,
@@ -48,24 +51,30 @@ public class FundPositionImportJob {
       InvestmentReportService reportService,
       FundPositionLedgerService fundPositionLedgerService,
       Clock clock,
-      ApplicationEventPublisher eventPublisher) {
+      ApplicationEventPublisher eventPublisher,
+      PipelineTracker pipelineTracker) {
     this.parsers = Map.of(SWEDBANK, swedbankParser, SEB, sebParser);
     this.importService = importService;
     this.reportService = reportService;
     this.fundPositionLedgerService = fundPositionLedgerService;
     this.clock = clock;
     this.eventPublisher = eventPublisher;
+    this.pipelineTracker = pipelineTracker;
   }
 
   @EventListener
   public void onReportImportCompleted(ReportImportCompleted event) {
+    pipelineTracker.stepStarted(POSITION_IMPORT);
     runImport();
+    pipelineTracker.stepCompleted(POSITION_IMPORT);
     eventPublisher.publishEvent(new FundPositionsImported());
   }
 
   @EventListener
   public void onFundPositionImportRequested(RunFundPositionImportRequested event) {
+    pipelineTracker.stepStarted(POSITION_IMPORT);
     runImport();
+    pipelineTracker.stepCompleted(POSITION_IMPORT);
     eventPublisher.publishEvent(new FundPositionsImported());
   }
 

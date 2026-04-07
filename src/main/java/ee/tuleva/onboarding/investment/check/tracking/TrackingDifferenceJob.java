@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.event.PipelineStep.TRACKING_DIFFERENCE;
+
 import ee.tuleva.onboarding.investment.event.FeeAccrualPositionsSynced;
+import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +19,7 @@ public class TrackingDifferenceJob {
 
   private final TrackingDifferenceService trackingDifferenceService;
   private final TrackingDifferenceNotifier trackingDifferenceNotifier;
+  private final PipelineTracker pipelineTracker;
 
   @EventListener
   void onFeeAccrualPositionsSynced(FeeAccrualPositionsSynced event) {
@@ -28,14 +32,17 @@ public class TrackingDifferenceJob {
   }
 
   private void runTrackingDifferenceChecks() {
+    pipelineTracker.stepStarted(TRACKING_DIFFERENCE);
     log.info("Starting tracking difference check");
 
     try {
       var results = trackingDifferenceService.runChecks();
       trackingDifferenceNotifier.notify(results);
+      pipelineTracker.stepCompleted(TRACKING_DIFFERENCE);
 
       log.info("Tracking difference check completed: resultCount={}", results.size());
     } catch (Exception e) {
+      pipelineTracker.stepFailed(TRACKING_DIFFERENCE, e.getMessage());
       log.error("Tracking difference check failed", e);
     }
   }

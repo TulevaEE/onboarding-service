@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.investment.event.PipelineNotifier;
+import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -28,6 +30,8 @@ class ReportImportJobTest {
   @Mock private ReportSource source;
   @Mock private InvestmentReportRepository reportRepository;
   @Mock private ApplicationEventPublisher eventPublisher;
+  @Mock private PipelineTracker pipelineTracker;
+  @Mock private PipelineNotifier pipelineNotifier;
 
   private InvestmentReportService reportService;
   private ReportImportJob job;
@@ -37,7 +41,14 @@ class ReportImportJobTest {
   @BeforeEach
   void setUp() {
     reportService = new InvestmentReportService(reportRepository, new CsvToJsonConverter());
-    job = new ReportImportJob(List.of(source), reportService, Clock.systemUTC(), eventPublisher);
+    job =
+        new ReportImportJob(
+            List.of(source),
+            reportService,
+            Clock.systemUTC(),
+            eventPublisher,
+            pipelineTracker,
+            pipelineNotifier);
   }
 
   private void setupReportRepositoryMocks() {

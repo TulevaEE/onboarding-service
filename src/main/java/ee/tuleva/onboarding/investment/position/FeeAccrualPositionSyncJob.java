@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.position;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.FEE_ACCRUAL_POSITION_BACKFILL;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
+import static ee.tuleva.onboarding.investment.event.PipelineStep.FEE_ACCRUAL_SYNC;
 import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
 import static ee.tuleva.onboarding.investment.position.AccountType.FEE;
@@ -9,6 +10,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.FEE;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.event.FeeAccrualPositionsSynced;
 import ee.tuleva.onboarding.investment.event.FundPositionsImported;
+import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunFeeAccrualPositionSyncRequested;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import java.math.BigDecimal;
@@ -35,20 +37,25 @@ public class FeeAccrualPositionSyncJob {
   private final FundPositionRepository fundPositionRepository;
   private final Clock clock;
   private final ApplicationEventPublisher eventPublisher;
+  private final PipelineTracker pipelineTracker;
 
   @EventListener
   void onFundPositionsImported(FundPositionsImported event) {
+    pipelineTracker.stepStarted(FEE_ACCRUAL_SYNC);
     log.info("Starting fee accrual position sync (chain)");
     int count = sync(7);
     log.info("Fee accrual position sync completed: positionsWritten={}", count);
+    pipelineTracker.stepCompleted(FEE_ACCRUAL_SYNC);
     eventPublisher.publishEvent(new FeeAccrualPositionsSynced());
   }
 
   @EventListener
   void onFeeAccrualPositionSyncRequested(RunFeeAccrualPositionSyncRequested event) {
+    pipelineTracker.stepStarted(FEE_ACCRUAL_SYNC);
     log.info("Starting fee accrual position sync (ad-hoc)");
     int count = sync(7);
     log.info("Fee accrual position sync completed: positionsWritten={}", count);
+    pipelineTracker.stepCompleted(FEE_ACCRUAL_SYNC);
   }
 
   @Scheduled(cron = FEE_ACCRUAL_POSITION_BACKFILL, zone = TIMEZONE)

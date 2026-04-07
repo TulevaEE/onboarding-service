@@ -12,6 +12,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
@@ -36,6 +37,7 @@ class FundPositionImportJobTest {
   @Mock private InvestmentReportService reportService;
   @Mock private FundPositionLedgerService fundPositionLedgerService;
   @Mock private ApplicationEventPublisher eventPublisher;
+  @Mock private PipelineTracker pipelineTracker;
 
   private SwedbankFundPositionParser swedbankParser;
   private SebFundPositionParser sebParser;
@@ -55,7 +57,8 @@ class FundPositionImportJobTest {
             reportService,
             fundPositionLedgerService,
             Clock.systemUTC(),
-            eventPublisher);
+            eventPublisher,
+            pipelineTracker);
   }
 
   private static final List<Map<String, Object>> SAMPLE_RAW_DATA =

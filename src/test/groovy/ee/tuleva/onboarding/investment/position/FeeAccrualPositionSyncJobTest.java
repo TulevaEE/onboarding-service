@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -35,6 +36,7 @@ class FeeAccrualPositionSyncJobTest {
   @Mock private FundPositionRepository fundPositionRepository;
   @Mock private Clock clock;
   @Mock private ApplicationEventPublisher eventPublisher;
+  @Mock private PipelineTracker pipelineTracker;
 
   @InjectMocks private FeeAccrualPositionSyncJob syncJob;
 

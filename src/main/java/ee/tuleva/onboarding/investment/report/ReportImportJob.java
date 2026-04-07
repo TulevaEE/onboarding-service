@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.investment.report;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.*;
+import static ee.tuleva.onboarding.investment.event.PipelineStep.REPORT_IMPORT;
 
+import ee.tuleva.onboarding.investment.event.PipelineNotifier;
+import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.investment.event.RunReportImportRequested;
 import java.io.ByteArrayInputStream;
@@ -10,6 +13,8 @@ import java.io.InputStream;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,11 +35,14 @@ import org.springframework.stereotype.Component;
 public class ReportImportJob {
 
   private static final int LOOKBACK_DAYS = 7;
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final List<ReportSource> sources;
   private final InvestmentReportService reportService;
   private final Clock clock;
   private final ApplicationEventPublisher eventPublisher;
+  private final PipelineTracker pipelineTracker;
+  private final PipelineNotifier pipelineNotifier;
 
   @Schedules({
     @Scheduled(cron = IMPORT_MORNING, zone = TIMEZONE),
@@ -42,12 +50,22 @@ public class ReportImportJob {
   })
   @SchedulerLock(name = "ReportImportJob", lockAtMostFor = "55m", lockAtLeastFor = "4m")
   public void schedule() {
-    eventPublisher.publishEvent(new RunReportImportRequested());
+    var trigger = "cron:" + LocalTime.now(clock.withZone(ESTONIAN_ZONE));
+    var pipeline = pipelineTracker.start(trigger);
+    pipelineNotifier.sendStarted(pipeline);
+    try {
+      eventPublisher.publishEvent(new RunReportImportRequested());
+    } finally {
+      pipelineNotifier.sendCompleted(pipelineTracker.current());
+      pipelineTracker.clear();
+    }
   }
 
   @EventListener
   public void onReportImportRequested(RunReportImportRequested event) {
+    pipelineTracker.stepStarted(REPORT_IMPORT);
     runImport();
+    pipelineTracker.stepCompleted(REPORT_IMPORT);
     eventPublisher.publishEvent(new ReportImportCompleted());
   }
 

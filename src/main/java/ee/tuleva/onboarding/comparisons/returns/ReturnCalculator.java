@@ -2,12 +2,15 @@ package ee.tuleva.onboarding.comparisons.returns;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static java.math.BigDecimal.ZERO;
+import static java.time.ZoneOffset.UTC;
 import static java.time.temporal.ChronoUnit.DAYS;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.Transaction;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
@@ -31,6 +34,7 @@ public class ReturnCalculator {
   private static final int CASH_DECIMAL_PLACES = 2;
 
   private final FundValueProvider fundValueProvider;
+  private final PublicHolidays publicHolidays;
 
   public ReturnDto getReturn(AccountOverview accountOverview) {
     BigDecimal rateOfReturn = getPersonalRateOfReturn(accountOverview);
@@ -75,10 +79,17 @@ public class ReturnCalculator {
       String comparisonFund,
       List<Transaction> purchaseTransactions) {
     BigDecimal virtualFundUnitsBought = ZERO;
-    for (Transaction transaction : purchaseTransactions) {
+    LocalDate beginningBalanceLookupDate =
+        beginningBalanceIndexDate(accountOverview, comparisonFund);
+    for (int i = 0; i < purchaseTransactions.size(); i++) {
+      Transaction transaction = purchaseTransactions.get(i);
+      LocalDate lookupDate = transaction.date();
+      if (i == 0 && beginningBalanceLookupDate != null) {
+        lookupDate = beginningBalanceLookupDate;
+      }
       // TODO: O(n) database queries here, can be optimized to O(1)
       Optional<FundValue> fundValueAtTime =
-          fundValueProvider.getLatestValue(comparisonFund, transaction.date());
+          fundValueProvider.getLatestValue(comparisonFund, lookupDate);
       if (fundValueAtTime.isEmpty()) {
         return Optional.empty();
       }
@@ -95,6 +106,50 @@ public class ReturnCalculator {
     BigDecimal finalVirtualFundPrice = finalVirtualFundValue.get().value();
     BigDecimal sellAmount = finalVirtualFundPrice.multiply(virtualFundUnitsBought);
     return Optional.of(sellAmount);
+  }
+
+  /**
+   * When the comparison period starts on a weekend/holiday, aligns the index lookup date with the
+   * fund's NAV timing to prevent inflated simulated returns.
+   *
+   * <p>Fund NAVs (from EPIS/Pensionikeskus) are priced at European market close (~17:00 CET), while
+   * the comparison index (UNION_STOCK_INDEX, sourced from Morningstar) is priced at US market close
+   * (~22:00 CET). On normal days the 5-hour gap is negligible, but during crashes it can cause a
+   * significant bias:
+   *
+   * <p>Example: "Last year" starting Sunday Apr 6, 2025 (during the tariff crash):
+   *
+   * <ul>
+   *   <li>EPIS beginning balance uses TUK75 Friday NAV (European close, ~17:00)
+   *   <li>Index lookup returns Friday US close (~22:00), which is 4% lower due to continued selling
+   *       in the US afternoon session
+   *   <li>The higher beginning balance divided by the lower index price creates ~4% excess virtual
+   *       units, inflating the simulated XIRR by ~5pp
+   * </ul>
+   *
+   * <p>Fix: look up the index at the previous working day before the fund's NAV date. Thursday US
+   * close (~22:00) aligns better with Friday European close (~17:00), since Thursday's US close is
+   * the last full global market close BEFORE the fund's NAV calculation.
+   *
+   * <p>Only applies to UNION_STOCK_INDEX (sourced from Morningstar, US close). Other comparison
+   * targets (EPI, CPI, individual fund ISINs) use European-close pricing and don't need adjustment.
+   *
+   * @return adjusted lookup date, or null to use the default (transaction date)
+   */
+  private LocalDate beginningBalanceIndexDate(
+      AccountOverview accountOverview, String comparisonFund) {
+    if (!UnionStockIndexRetriever.KEY.equals(comparisonFund)) {
+      return null;
+    }
+    if (accountOverview.getBeginningBalance().compareTo(ZERO) == 0) {
+      return null;
+    }
+    LocalDate startDate = accountOverview.getStartTime().atOffset(UTC).toLocalDate();
+    if (publicHolidays.isWorkingDay(startDate)) {
+      return null;
+    }
+    LocalDate fundNavDate = publicHolidays.previousWorkingDay(startDate);
+    return publicHolidays.previousWorkingDay(fundNavDate);
   }
 
   private record CashReturn(BigDecimal paymentsSum, BigDecimal value) {

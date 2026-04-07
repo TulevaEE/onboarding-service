@@ -72,8 +72,14 @@ public class MandateController {
   @PutMapping("/{id}/signature/mobileId")
   public MobileSignatureResponse startMobileIdSignature(
       @PathVariable("id") Long mandateId,
-      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+      HttpServletRequest request) {
 
+    log.info(
+        "Mobile-ID signing started: mandateId={}, userId={}, sessionId={}",
+        mandateId,
+        authenticatedPerson.getUserId(),
+        request.getSession(false) != null ? request.getSession(false).getId() : "none");
     MobileIdSignatureSession signatureSession =
         mandateService.mobileIdSign(
             mandateId,
@@ -93,6 +99,12 @@ public class MandateController {
 
     Optional<MobileIdSignatureSession> signatureSession =
         sessionStore.get(MobileIdSignatureSession.class);
+    log.info(
+        "Mobile-ID signing status check: mandateId={}, userId={}, sessionId={}, sessionExists={}",
+        mandateId,
+        authenticatedPerson.getUserId(),
+        request.getSession(false) != null ? request.getSession(false).getId() : "none",
+        signatureSession.isPresent());
     MobileIdSignatureSession session =
         signatureSession.orElseThrow(IdSessionException::mobileSignatureSessionNotFound);
 
@@ -109,10 +121,21 @@ public class MandateController {
   @PutMapping("/{id}/signature/smartId")
   public MobileSignatureResponse startSmartIdSignature(
       @PathVariable("id") Long mandateId,
-      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+      HttpServletRequest request) {
+    log.info(
+        "Smart-ID signing started: mandateId={}, userId={}, sessionId={}",
+        mandateId,
+        authenticatedPerson.getUserId(),
+        request.getSession(false) != null ? request.getSession(false).getId() : "none");
     SmartIdSignatureSession signatureSession =
         mandateService.smartIdSign(mandateId, authenticatedPerson.getUserId());
     sessionStore.save(signatureSession);
+    log.info(
+        "Smart-ID signing session saved: mandateId={}, userId={}, sessionId={}",
+        mandateId,
+        authenticatedPerson.getUserId(),
+        request.getSession(false) != null ? request.getSession(false).getId() : "none");
 
     return new MobileSignatureResponse(null); // verificationCode is null in this instance
   }
@@ -126,6 +149,12 @@ public class MandateController {
 
     Optional<SmartIdSignatureSession> signatureSession =
         sessionStore.get(SmartIdSignatureSession.class);
+    log.info(
+        "Smart-ID signing status check: mandateId={}, userId={}, sessionId={}, sessionExists={}",
+        mandateId,
+        authenticatedPerson.getUserId(),
+        request.getSession(false) != null ? request.getSession(false).getId() : "none",
+        signatureSession.isPresent());
     SmartIdSignatureSession session =
         signatureSession.orElseThrow(IdSessionException::smartIdSignatureSessionNotFound);
 
@@ -143,13 +172,24 @@ public class MandateController {
   public IdCardSignatureResponse startIdCardSign(
       @PathVariable("id") Long mandateId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-      @Valid @RequestBody StartIdCardSignCommand signCommand) {
+      @Valid @RequestBody StartIdCardSignCommand signCommand,
+      HttpServletRequest request) {
 
+    log.info(
+        "ID card signing started: mandateId={}, userId={}, sessionId={}",
+        mandateId,
+        authenticatedPerson.getUserId(),
+        request.getSession(false) != null ? request.getSession(false).getId() : "none");
     IdCardSignatureSession signatureSession =
         mandateService.idCardSign(
             mandateId, authenticatedPerson.getUserId(), signCommand.getClientCertificate());
 
     sessionStore.save(signatureSession);
+    log.info(
+        "ID card signing session saved: mandateId={}, userId={}, sessionId={}",
+        mandateId,
+        authenticatedPerson.getUserId(),
+        request.getSession(false) != null ? request.getSession(false).getId() : "none");
 
     return new IdCardSignatureResponse(signatureSession.getHashToSignInHex());
   }
@@ -167,6 +207,12 @@ public class MandateController {
 
     Optional<IdCardSignatureSession> signatureSession =
         sessionStore.get(IdCardSignatureSession.class);
+    log.info(
+        "ID card signing status check: mandateId={}, userId={}, sessionId={}, sessionExists={}",
+        mandateId,
+        authenticatedPerson.getUserId(),
+        request.getSession(false) != null ? request.getSession(false).getId() : "none",
+        signatureSession.isPresent());
     IdCardSignatureSession session =
         signatureSession.orElseThrow(IdSessionException::cardSignatureSessionNotFound);
 

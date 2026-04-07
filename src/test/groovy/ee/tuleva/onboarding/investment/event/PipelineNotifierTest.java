@@ -21,7 +21,7 @@ class PipelineNotifierTest {
 
   @Test
   void sendStartedShowsAllStepsPending() {
-    var pipeline = new PipelineRun("cron:15:00");
+    var pipeline = new PipelineRun(PipelineRun.PipelineType.IMPORT, "cron:15:00");
 
     notifier.sendStarted(pipeline);
 
@@ -32,7 +32,7 @@ class PipelineNotifierTest {
 
   @Test
   void sendCompletedShowsAllStepsWithTiming() {
-    var pipeline = new PipelineRun("cron:15:00");
+    var pipeline = new PipelineRun(PipelineRun.PipelineType.IMPORT, "cron:15:00");
     pipeline.stepStarted("Report Import");
     pipeline.stepCompleted("Report Import");
     pipeline.stepStarted("Position Import");
@@ -45,7 +45,7 @@ class PipelineNotifierTest {
 
   @Test
   void sendCompletedShowsFailureWithRetriggerHint() {
-    var pipeline = new PipelineRun("cron:15:00");
+    var pipeline = new PipelineRun(PipelineRun.PipelineType.IMPORT, "cron:15:00");
     pipeline.stepStarted("Report Import");
     pipeline.stepCompleted("Report Import");
     pipeline.stepStarted("Position Import");

@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.JobRunSchedule.*;
 import static ee.tuleva.onboarding.investment.event.PipelineStep.REPORT_IMPORT;
 
 import ee.tuleva.onboarding.investment.event.PipelineNotifier;
+import ee.tuleva.onboarding.investment.event.PipelineRun;
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.investment.event.RunReportImportRequested;
@@ -51,7 +52,7 @@ public class ReportImportJob {
   @SchedulerLock(name = "ReportImportJob", lockAtMostFor = "55m", lockAtLeastFor = "4m")
   public void schedule() {
     var trigger = "cron:" + LocalTime.now(clock.withZone(ESTONIAN_ZONE));
-    var pipeline = pipelineTracker.start(trigger);
+    var pipeline = pipelineTracker.start(PipelineRun.PipelineType.IMPORT, trigger);
     pipelineNotifier.sendStarted(pipeline);
     try {
       eventPublisher.publishEvent(new RunReportImportRequested());

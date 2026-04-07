@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.check.limit;
 
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunLimitCheckRequested;
 import ee.tuleva.onboarding.investment.position.FeeAccrualPositionSyncJob;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationCompleted;
@@ -18,6 +19,7 @@ class LimitCheckJobTest {
   @Mock LimitCheckService limitCheckService;
   @Mock LimitCheckNotifier limitCheckNotifier;
   @Mock FeeAccrualPositionSyncJob feeAccrualPositionSyncJob;
+  @Mock PipelineTracker pipelineTracker;
   @InjectMocks LimitCheckJob job;
 
   @Test

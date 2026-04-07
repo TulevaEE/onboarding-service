@@ -12,13 +12,20 @@ import lombok.Getter;
 @Getter
 public class PipelineRun {
 
+  private final PipelineType type;
   private final String trigger;
   private final Instant startedAt;
   private final List<StepResult> steps = new ArrayList<>();
 
-  public PipelineRun(String trigger) {
+  public PipelineRun(PipelineType type, String trigger) {
+    this.type = type;
     this.trigger = trigger;
     this.startedAt = clock().instant();
+  }
+
+  public enum PipelineType {
+    IMPORT,
+    NAV
   }
 
   public void stepStarted(String name) {

@@ -16,7 +16,7 @@ class PipelineTrackerTest {
 
   @Test
   void startCreatesPipelineRun() {
-    var run = tracker.start("cron:15:00");
+    var run = tracker.start(PipelineRun.PipelineType.IMPORT, "cron:15:00");
 
     assertThat(run).isNotNull();
     assertThat(run.getTrigger()).isEqualTo("cron:15:00");
@@ -25,7 +25,7 @@ class PipelineTrackerTest {
 
   @Test
   void tracksStepLifecycle() {
-    tracker.start("test");
+    tracker.start(PipelineRun.PipelineType.IMPORT, "test");
 
     tracker.stepStarted("Step A");
     tracker.stepCompleted("Step A");
@@ -38,7 +38,7 @@ class PipelineTrackerTest {
 
   @Test
   void tracksStepFailure() {
-    tracker.start("test");
+    tracker.start(PipelineRun.PipelineType.IMPORT, "test");
 
     tracker.stepStarted("Step A");
     tracker.stepFailed("Step A", "something broke");
@@ -51,7 +51,7 @@ class PipelineTrackerTest {
 
   @Test
   void clearRemovesThreadLocal() {
-    tracker.start("test");
+    tracker.start(PipelineRun.PipelineType.IMPORT, "test");
     tracker.clear();
 
     assertThat(tracker.current()).isNull();

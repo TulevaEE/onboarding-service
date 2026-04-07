@@ -4,6 +4,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doThrow;
 
+import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationCompleted;
 import java.util.List;
@@ -18,6 +19,7 @@ class TrackingDifferenceJobTest {
 
   @Mock TrackingDifferenceService service;
   @Mock TrackingDifferenceNotifier notifier;
+  @Mock PipelineTracker pipelineTracker;
 
   @InjectMocks TrackingDifferenceJob job;
 

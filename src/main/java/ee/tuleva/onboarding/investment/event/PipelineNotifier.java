@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.Duration;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -20,11 +21,12 @@ public class PipelineNotifier {
 
   public void sendStarted(PipelineRun pipeline) {
     try {
+      var steps = resolveSteps(pipeline);
       var message = new StringBuilder();
       message.append("INVESTMENT PIPELINE [%s]\n".formatted(pipeline.getTrigger()));
 
-      var firstStep = PipelineStep.ALL.getFirst();
-      for (var stepName : PipelineStep.ALL) {
+      var firstStep = steps.getFirst();
+      for (var stepName : steps) {
         if (stepName.equals(firstStep)) {
           message.append("\n\uD83D\uDD04 %s...".formatted(stepName));
         } else {
@@ -40,6 +42,7 @@ public class PipelineNotifier {
 
   public void sendCompleted(PipelineRun pipeline) {
     try {
+      var steps = resolveSteps(pipeline);
       var message = new StringBuilder();
       message.append("INVESTMENT PIPELINE [%s]\n".formatted(pipeline.getTrigger()));
 
@@ -52,7 +55,7 @@ public class PipelineNotifier {
         message.append("\n").append(formatStep(step));
       }
 
-      for (var stepName : PipelineStep.ALL) {
+      for (var stepName : steps) {
         if (!completedStepNames.contains(stepName)) {
           if (pipeline.hasFailure()) {
             message.append("\n⏭\uFE0F %s (skipped)".formatted(stepName));
@@ -73,6 +76,13 @@ public class PipelineNotifier {
     } catch (Exception e) {
       log.error("Failed to send pipeline completion notification", e);
     }
+  }
+
+  private List<String> resolveSteps(PipelineRun pipeline) {
+    return switch (pipeline.getType()) {
+      case NAV -> PipelineStep.NAV_PIPELINE;
+      case IMPORT -> PipelineStep.IMPORT_PIPELINE;
+    };
   }
 
   private String formatStep(PipelineRun.StepResult step) {
@@ -100,6 +110,9 @@ public class PipelineNotifier {
       case PipelineStep.REPORT_IMPORT -> "ReportImportJob";
       case PipelineStep.POSITION_IMPORT -> "FundPositionImportJob";
       case PipelineStep.FEE_ACCRUAL_SYNC -> "FeeAccrualPositionSyncJob";
+      case PipelineStep.NAV_CALCULATION -> "NavCalculationJob";
+      case PipelineStep.LIMIT_CHECK -> "LimitCheckJob";
+      case PipelineStep.TRACKING_DIFFERENCE -> "TrackingDifferenceJob";
       default -> stepName;
     };
   }

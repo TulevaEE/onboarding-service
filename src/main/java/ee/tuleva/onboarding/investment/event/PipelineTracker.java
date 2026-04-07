@@ -8,8 +8,8 @@ public class PipelineTracker {
 
   private static final ThreadLocal<PipelineRun> CURRENT = new ThreadLocal<>();
 
-  public PipelineRun start(String trigger) {
-    var run = new PipelineRun(trigger);
+  public PipelineRun start(PipelineRun.PipelineType type, String trigger) {
+    var run = new PipelineRun(type, trigger);
     CURRENT.set(run);
     return run;
   }

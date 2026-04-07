@@ -27,7 +27,7 @@ class PipelineNotifierTest {
 
     then(notificationService).should().sendMessage(contains("INVESTMENT PIPELINE"), eq(INVESTMENT));
     then(notificationService).should().sendMessage(contains("Report Import"), eq(INVESTMENT));
-    then(notificationService).should().sendMessage(contains("Tracking Difference"), eq(INVESTMENT));
+    then(notificationService).should().sendMessage(contains("Fee Accrual Sync"), eq(INVESTMENT));
   }
 
   @Test

@@ -11,6 +11,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -26,6 +27,7 @@ public class NavCalculationJob {
   private final PublicHolidays publicHolidays;
   private final FundValueIndexingJob fundValueIndexingJob;
   private final Clock clock;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Scheduled(
       cron = "#{T(ee.tuleva.onboarding.fund.TulevaFund).TKF100.navCronExpression()}",
@@ -79,6 +81,8 @@ public class NavCalculationJob {
                     e);
               }
             });
+
+    eventPublisher.publishEvent(new NavCalculationCompleted());
   }
 
   private void calculateAndPublish(TulevaFund fund, LocalDate today) {

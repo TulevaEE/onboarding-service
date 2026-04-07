@@ -17,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class NavCalculationJobTest {
@@ -27,6 +28,7 @@ class NavCalculationJobTest {
   @Mock private NavPublisher navPublisher;
   @Mock private PublicHolidays publicHolidays;
   @Mock private FundValueIndexingJob fundValueIndexingJob;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   @Test
   void calculateDailyNav_refreshesPricesBeforeCalculating() {
@@ -174,7 +176,12 @@ class NavCalculationJobTest {
   private NavCalculationJob jobOn(String instant) {
     Clock clock = Clock.fixed(Instant.parse(instant), TALLINN);
     return new NavCalculationJob(
-        navCalculationService, navPublisher, publicHolidays, fundValueIndexingJob, clock);
+        navCalculationService,
+        navPublisher,
+        publicHolidays,
+        fundValueIndexingJob,
+        clock,
+        eventPublisher);
   }
 
   private NavCalculationResult buildTestResult(LocalDate date) {

@@ -2,10 +2,9 @@ package ee.tuleva.onboarding.investment.check.limit;
 
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.investment.event.FeeAccrualPositionsSynced;
-import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunLimitCheckRequested;
 import ee.tuleva.onboarding.investment.position.FeeAccrualPositionSyncJob;
+import ee.tuleva.onboarding.savings.fund.nav.NavCalculationCompleted;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,15 +18,14 @@ class LimitCheckJobTest {
   @Mock LimitCheckService limitCheckService;
   @Mock LimitCheckNotifier limitCheckNotifier;
   @Mock FeeAccrualPositionSyncJob feeAccrualPositionSyncJob;
-  @Mock PipelineTracker pipelineTracker;
   @InjectMocks LimitCheckJob job;
 
   @Test
-  void chainEventDelegatesToServiceAndNotifier() {
+  void navCompletedDelegatesToServiceAndNotifier() {
     var results = List.of(mock(LimitCheckResult.class));
     when(limitCheckService.runChecks()).thenReturn(results);
 
-    job.onFeeAccrualPositionsSynced(new FeeAccrualPositionsSynced());
+    job.onNavCalculationCompleted(new NavCalculationCompleted());
 
     verify(limitCheckService).runChecks();
     verify(limitCheckNotifier).notify(results);
@@ -45,10 +43,10 @@ class LimitCheckJobTest {
   }
 
   @Test
-  void chainEventSwallowsExceptions() {
+  void swallowsExceptions() {
     when(limitCheckService.runChecks()).thenThrow(new RuntimeException("DB down"));
 
-    job.onFeeAccrualPositionsSynced(new FeeAccrualPositionsSynced());
+    job.onNavCalculationCompleted(new NavCalculationCompleted());
 
     verify(limitCheckNotifier, never()).notify(any());
   }

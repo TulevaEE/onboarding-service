@@ -100,8 +100,6 @@ public class PipelineNotifier {
       case PipelineStep.REPORT_IMPORT -> "ReportImportJob";
       case PipelineStep.POSITION_IMPORT -> "FundPositionImportJob";
       case PipelineStep.FEE_ACCRUAL_SYNC -> "FeeAccrualPositionSyncJob";
-      case PipelineStep.LIMIT_CHECK -> "LimitCheckJob";
-      case PipelineStep.TRACKING_DIFFERENCE -> "TrackingDifferenceJob";
       default -> stepName;
     };
   }

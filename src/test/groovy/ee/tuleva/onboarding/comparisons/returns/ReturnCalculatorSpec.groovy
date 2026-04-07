@@ -233,12 +233,11 @@ class ReturnCalculatorSpec extends Specification {
         Optional.of(aFundValue(UnionStockIndexRetriever.KEY, LocalDate.parse("2018-06-17"), 1.0))
   }
 
-  def "weekend start aligns beginning balance index lookup with fund NAV timing"() {
-    given: "a Sunday start during a market crash where the index dropped 5% on Friday"
-    Instant startTime = parseInstant("2025-04-06") // Sunday
-    Instant endTime = parseInstant("2026-04-06")
-    def beginningBalance = 10000.0
-    def overview = new AccountOverview([], beginningBalance, 12000.0, startTime, endTime, 2)
+  def "aligns beginning balance index lookup when synthetic date crosses weekend"() {
+    given: "start dates where the synthetic transaction (startTime - 1 day) lands on a weekend"
+    Instant startTime = parseInstant(startDate)
+    Instant endTime = parseInstant(endDate)
+    def overview = new AccountOverview([], 10000.0, 12000.0, startTime, endTime, 2)
 
     and: "index prices that reflect a crash: Thu=400, Fri=380 (5% drop), end=480"
     def indexKey = UnionStockIndexRetriever.KEY
@@ -247,7 +246,9 @@ class ReturnCalculatorSpec extends Specification {
           "2025-04-03": 400.0,  // Thursday (pre-Friday crash)
           "2025-04-04": 380.0,  // Friday (post-crash US close)
           "2025-04-05": 380.0,  // Saturday (carry-forward)
-          "2026-04-06": 480.0,  // End date
+          "2025-04-06": 380.0,  // Sunday (carry-forward)
+          "2026-04-06": 480.0,
+          "2026-04-07": 480.0,
       ]
       def value = values[date.toString()]
       value != null ? Optional.of(aFundValue(fund, date, value)) : Optional.empty()
@@ -257,15 +258,19 @@ class ReturnCalculatorSpec extends Specification {
     def simulatedReturn = returnCalculator.getSimulatedReturn(overview, indexKey)
 
     then: "uses Thursday price (400) not Friday (380), so ending = 10000/400 * 480 = 12000"
-    simulatedReturn.amount() == 2000.00 // 12000 - 10000
+    simulatedReturn.amount() == 2000.00
+
+    where: "both Sunday and Monday starts have synthetic dates on weekend"
+    startDate       | endDate
+    "2025-04-06"    | "2026-04-06"   // Sunday start → synthetic Sat
+    "2025-04-07"    | "2026-04-07"   // Monday start → synthetic Sun
   }
 
-  def "weekday start uses standard index lookup date"() {
-    given: "a Wednesday start"
+  def "weekday start with weekday synthetic date uses standard index lookup"() {
+    given: "a Wednesday start where synthetic date (Tuesday) is a working day"
     Instant startTime = parseInstant("2025-04-09") // Wednesday
     Instant endTime = parseInstant("2026-04-09")
-    def beginningBalance = 10000.0
-    def overview = new AccountOverview([], beginningBalance, 12000.0, startTime, endTime, 2)
+    def overview = new AccountOverview([], 10000.0, 12000.0, startTime, endTime, 2)
 
     and: "index prices where Tuesday and Monday differ"
     def indexKey = UnionStockIndexRetriever.KEY
@@ -283,7 +288,7 @@ class ReturnCalculatorSpec extends Specification {
     def simulatedReturn = returnCalculator.getSimulatedReturn(overview, indexKey)
 
     then: "uses Tuesday price (390), so ending = 10000/390 * 480 = 12307.69"
-    simulatedReturn.amount() == 2307.69 // 12307.69 - 10000
+    simulatedReturn.amount() == 2307.69
   }
 
   def "weekend start does not adjust index lookup for non-UNION_STOCK_INDEX comparisons"() {
@@ -336,6 +341,67 @@ class ReturnCalculatorSpec extends Specification {
 
     then: "contribution uses standard lookup: 1000/400 * 480 = 1200"
     simulatedReturn.amount() == 200.00 // 1200 - 1000
+  }
+
+  def "real data: Monday start during April 2025 crash reduces index gap from 5pp to 1pp"() {
+    given: "real 2nd pillar cash flows for a Monday start during the tariff crash"
+    Instant startTime = parseInstant("2025-04-07") // Monday — synthetic date is Sunday
+    Instant endTime = parseInstant("2026-04-07")
+    def beginningBalance = 30809.92
+    def endingBalance = 45244.78
+
+    def transactions = [
+        new Transaction(706.66, parseInstant("2025-04-15")),
+        new Transaction(706.66, parseInstant("2025-05-15")),
+        new Transaction(706.66, parseInstant("2025-06-13")),
+        new Transaction(706.66, parseInstant("2025-07-15")),
+        new Transaction(706.66, parseInstant("2025-08-14")),
+        new Transaction(706.66, parseInstant("2025-09-15")),
+        new Transaction(706.66, parseInstant("2025-10-14")),
+        new Transaction(706.66, parseInstant("2025-12-15")),
+        new Transaction(706.66, parseInstant("2026-01-15")),
+        new Transaction(707.01, parseInstant("2026-02-13")),
+        new Transaction(707.01, parseInstant("2026-03-13")),
+    ]
+    def overview = new AccountOverview(
+        transactions, beginningBalance, endingBalance, startTime, endTime, 2)
+
+    and: "real UNION_STOCK_INDEX values from prod DB"
+    def indexKey = UnionStockIndexRetriever.KEY
+    fundValueProvider.getLatestValue(indexKey, _ as LocalDate) >> { String fund, LocalDate date ->
+      def values = [
+          "2025-04-03": 402.09336,  // Thursday (fix uses this for beginning balance)
+          "2025-04-04": 385.62221,  // Friday US close
+          "2025-04-05": 385.62221,  // Saturday (carry-forward)
+          "2025-04-06": 385.62221,  // Sunday (carry-forward, synthetic date lands here)
+          "2025-04-15": 392.58059,
+          "2025-05-15": 434.49828,
+          "2025-06-13": 428.33231,
+          "2025-07-15": 440.81159,
+          "2025-08-14": 454.53635,
+          "2025-09-15": 463.28622,
+          "2025-10-14": 470.54212,
+          "2025-12-15": 478.99370,
+          "2026-01-15": 501.72402,
+          "2026-02-13": 494.78222,
+          "2026-03-13": 490.46782,
+          "2026-04-06": 486.55963,
+          "2026-04-07": 486.55963,  // end date (same as Apr 6, latest available)
+      ]
+      def value = values[date.toString()]
+      value != null ? Optional.of(aFundValue(fund, date, value)) : Optional.empty()
+    }
+
+    when:
+    def personalReturn = returnCalculator.getReturn(overview)
+    def simulatedReturn = returnCalculator.getSimulatedReturn(overview, indexKey)
+
+    then: "personal return matches the real API value"
+    personalReturn.rate() == 0.1907
+
+    and: "index return is close to personal (within ~1pp tracking difference), not 5pp inflated"
+    simulatedReturn.rate() == 0.1998
+    (simulatedReturn.rate() - personalReturn.rate()) < 0.02 // less than 2pp gap
   }
 
   List<Transaction> exampleTransactions = [

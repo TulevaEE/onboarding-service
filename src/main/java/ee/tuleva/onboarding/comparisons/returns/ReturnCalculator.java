@@ -117,19 +117,22 @@ public class ReturnCalculator {
    * (~22:00 CET). On normal days the 5-hour gap is negligible, but during crashes it can cause a
    * significant bias:
    *
-   * <p>Example: "Last year" starting Sunday Apr 6, 2025 (during the tariff crash):
+   * <p>Example: "Last year" starting Monday Apr 7, 2025 (during the tariff crash):
    *
    * <ul>
-   *   <li>EPIS beginning balance uses TUK75 Friday NAV (European close, ~17:00)
-   *   <li>Index lookup returns Friday US close (~22:00), which is 4% lower due to continued selling
-   *       in the US afternoon session
-   *   <li>The higher beginning balance divided by the lower index price creates ~4% excess virtual
-   *       units, inflating the simulated XIRR by ~5pp
+   *   <li>Synthetic beginning balance transaction lands on Sunday Apr 6
+   *   <li>Index lookup falls back to Friday Apr 4 US close (385.62), because of weekend
+   *       carry-forward
+   *   <li>EPIS beginning balance uses TUK75 Friday NAV (European close, 17:00, value 1.13907)
+   *   <li>The 5-hour gap (European close → US close) saw a ~4% further decline on the crash day
+   *   <li>Higher beginning balance / lower index price = ~4% excess virtual units → ~5pp inflated
+   *       XIRR
    * </ul>
    *
-   * <p>Fix: look up the index at the previous working day before the fund's NAV date. Thursday US
-   * close (~22:00) aligns better with Friday European close (~17:00), since Thursday's US close is
-   * the last full global market close BEFORE the fund's NAV calculation.
+   * <p>Fix: when the synthetic transaction date (startTime - 1 day) falls on a non-working day, the
+   * index lookup crosses a weekend/holiday boundary to an earlier business day. We shift one more
+   * business day back to align: Thursday US close (~22:00) is the last full global market close
+   * BEFORE Friday's European close (~17:00), where the fund NAV is set.
    *
    * <p>Only applies to UNION_STOCK_INDEX (sourced from Morningstar, US close). Other comparison
    * targets (EPI, CPI, individual fund ISINs) use European-close pricing and don't need adjustment.
@@ -144,12 +147,13 @@ public class ReturnCalculator {
     if (accountOverview.getBeginningBalance().compareTo(ZERO) == 0) {
       return null;
     }
-    LocalDate startDate = accountOverview.getStartTime().atOffset(UTC).toLocalDate();
-    if (publicHolidays.isWorkingDay(startDate)) {
+    LocalDate syntheticDate =
+        accountOverview.getStartTime().minus(1, DAYS).atOffset(UTC).toLocalDate();
+    if (publicHolidays.isWorkingDay(syntheticDate)) {
       return null;
     }
-    LocalDate fundNavDate = publicHolidays.previousWorkingDay(startDate);
-    return publicHolidays.previousWorkingDay(fundNavDate);
+    LocalDate effectiveDate = publicHolidays.previousWorkingDay(syntheticDate);
+    return publicHolidays.previousWorkingDay(effectiveDate);
   }
 
   private record CashReturn(BigDecimal paymentsSum, BigDecimal value) {

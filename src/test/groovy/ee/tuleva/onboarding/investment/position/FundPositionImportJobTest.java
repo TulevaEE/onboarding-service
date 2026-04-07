@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class FundPositionImportJobTest {
@@ -34,6 +35,7 @@ class FundPositionImportJobTest {
   @Mock private FundPositionRepository repository;
   @Mock private InvestmentReportService reportService;
   @Mock private FundPositionLedgerService fundPositionLedgerService;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   private SwedbankFundPositionParser swedbankParser;
   private SebFundPositionParser sebParser;
@@ -52,7 +54,8 @@ class FundPositionImportJobTest {
             importService,
             reportService,
             fundPositionLedgerService,
-            Clock.systemUTC());
+            Clock.systemUTC(),
+            eventPublisher);
   }
 
   private static final List<Map<String, Object>> SAMPLE_RAW_DATA =

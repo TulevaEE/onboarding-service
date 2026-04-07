@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.investment.position;
 
-import static ee.tuleva.onboarding.investment.JobRunSchedule.*;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.event.FundPositionsImported;
+import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
+import ee.tuleva.onboarding.investment.event.RunFundPositionImportRequested;
 import ee.tuleva.onboarding.investment.position.FundPositionImportService.ImportResult;
 import ee.tuleva.onboarding.investment.position.parser.FundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
@@ -21,9 +23,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
-import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.scheduling.annotation.Schedules;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -38,6 +39,7 @@ public class FundPositionImportJob {
   private final InvestmentReportService reportService;
   private final FundPositionLedgerService fundPositionLedgerService;
   private final Clock clock;
+  private final ApplicationEventPublisher eventPublisher;
 
   public FundPositionImportJob(
       SwedbankFundPositionParser swedbankParser,
@@ -45,19 +47,28 @@ public class FundPositionImportJob {
       FundPositionImportService importService,
       InvestmentReportService reportService,
       FundPositionLedgerService fundPositionLedgerService,
-      Clock clock) {
+      Clock clock,
+      ApplicationEventPublisher eventPublisher) {
     this.parsers = Map.of(SWEDBANK, swedbankParser, SEB, sebParser);
     this.importService = importService;
     this.reportService = reportService;
     this.fundPositionLedgerService = fundPositionLedgerService;
     this.clock = clock;
+    this.eventPublisher = eventPublisher;
   }
 
-  @Schedules({
-    @Scheduled(cron = PARSE_MORNING, zone = TIMEZONE),
-    @Scheduled(cron = PARSE_AFTERNOON, zone = TIMEZONE)
-  })
-  @SchedulerLock(name = "FundPositionImportJob", lockAtMostFor = "55m", lockAtLeastFor = "4m")
+  @EventListener
+  public void onReportImportCompleted(ReportImportCompleted event) {
+    runImport();
+    eventPublisher.publishEvent(new FundPositionsImported());
+  }
+
+  @EventListener
+  public void onFundPositionImportRequested(RunFundPositionImportRequested event) {
+    runImport();
+    eventPublisher.publishEvent(new FundPositionsImported());
+  }
+
   public void runImport() {
     LocalDate today = LocalDate.now(clock);
     IntStream.iterate(LOOKBACK_DAYS, i -> i >= 1, i -> i - 1)

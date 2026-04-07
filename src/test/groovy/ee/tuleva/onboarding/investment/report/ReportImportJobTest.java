@@ -20,12 +20,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class ReportImportJobTest {
 
   @Mock private ReportSource source;
   @Mock private InvestmentReportRepository reportRepository;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   private InvestmentReportService reportService;
   private ReportImportJob job;
@@ -35,7 +37,7 @@ class ReportImportJobTest {
   @BeforeEach
   void setUp() {
     reportService = new InvestmentReportService(reportRepository, new CsvToJsonConverter());
-    job = new ReportImportJob(List.of(source), reportService, Clock.systemUTC());
+    job = new ReportImportJob(List.of(source), reportService, Clock.systemUTC(), eventPublisher);
   }
 
   private void setupReportRepositoryMocks() {

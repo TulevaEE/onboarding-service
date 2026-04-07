@@ -16,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class TransactionCommandJobTest {
@@ -23,6 +24,7 @@ class TransactionCommandJobTest {
   @Mock private TransactionCommandRepository commandRepository;
   @Mock private TransactionBatchRepository batchRepository;
   @Mock private TransactionPreparationService preparationService;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   @InjectMocks private TransactionCommandJob job;
 
@@ -108,11 +110,12 @@ class TransactionCommandJobTest {
   }
 
   @Test
-  void run_processesCommandsAndFinalizesBatches() {
+  void eventListenerProcessesCommandsAndFinalizesBatches() {
     when(commandRepository.findByStatus(PENDING)).thenReturn(List.of());
     when(batchRepository.findByStatus(CONFIRMED)).thenReturn(List.of());
 
-    job.run();
+    job.onTransactionCommandRequested(
+        new ee.tuleva.onboarding.investment.event.RunTransactionCommandRequested());
 
     verify(commandRepository).findByStatus(PENDING);
     verify(batchRepository).findByStatus(CONFIRMED);

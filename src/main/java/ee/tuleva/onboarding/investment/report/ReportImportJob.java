@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.investment.report;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.*;
 
+import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
+import ee.tuleva.onboarding.investment.event.RunReportImportRequested;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,6 +18,8 @@ import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.annotation.Schedules;
 import org.springframework.stereotype.Component;
@@ -30,12 +34,23 @@ public class ReportImportJob {
   private final List<ReportSource> sources;
   private final InvestmentReportService reportService;
   private final Clock clock;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Schedules({
     @Scheduled(cron = IMPORT_MORNING, zone = TIMEZONE),
     @Scheduled(cron = IMPORT_AFTERNOON, zone = TIMEZONE)
   })
   @SchedulerLock(name = "ReportImportJob", lockAtMostFor = "55m", lockAtLeastFor = "4m")
+  public void schedule() {
+    eventPublisher.publishEvent(new RunReportImportRequested());
+  }
+
+  @EventListener
+  public void onReportImportRequested(RunReportImportRequested event) {
+    runImport();
+    eventPublisher.publishEvent(new ReportImportCompleted());
+  }
+
   public void runImport() {
     LocalDate today = LocalDate.now(clock);
     IntStream.rangeClosed(1, LOOKBACK_DAYS)

@@ -2,10 +2,13 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.*;
 
+import ee.tuleva.onboarding.investment.event.RunTransactionCommandRequested;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -18,10 +21,16 @@ public class TransactionCommandJob {
   private final TransactionCommandRepository commandRepository;
   private final TransactionBatchRepository batchRepository;
   private final TransactionPreparationService preparationService;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Scheduled(cron = TRANSACTION_COMMAND, zone = TIMEZONE)
   @SchedulerLock(name = "TransactionCommandJob", lockAtMostFor = "5m", lockAtLeastFor = "30s")
-  public void run() {
+  public void schedule() {
+    eventPublisher.publishEvent(new RunTransactionCommandRequested());
+  }
+
+  @EventListener
+  public void onTransactionCommandRequested(RunTransactionCommandRequested event) {
     processCommands();
     finalizeConfirmedBatches();
   }

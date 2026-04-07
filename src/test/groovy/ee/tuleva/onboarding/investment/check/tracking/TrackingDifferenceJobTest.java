@@ -4,6 +4,8 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doThrow;
 
+import ee.tuleva.onboarding.investment.event.FeeAccrualPositionsSynced;
+import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,11 +22,22 @@ class TrackingDifferenceJobTest {
   @InjectMocks TrackingDifferenceJob job;
 
   @Test
-  void delegatesToServiceAndNotifier() {
+  void chainEventDelegatesToServiceAndNotifier() {
     var results = List.<TrackingDifferenceResult>of();
     given(service.runChecks()).willReturn(results);
 
-    job.runTrackingDifferenceChecks();
+    job.onFeeAccrualPositionsSynced(new FeeAccrualPositionsSynced());
+
+    then(service).should().runChecks();
+    then(notifier).should().notify(results);
+  }
+
+  @Test
+  void adHocEventDelegatesToServiceAndNotifier() {
+    var results = List.<TrackingDifferenceResult>of();
+    given(service.runChecks()).willReturn(results);
+
+    job.onTrackingDifferenceCheckRequested(new RunTrackingDifferenceCheckRequested());
 
     then(service).should().runChecks();
     then(notifier).should().notify(results);
@@ -34,7 +47,7 @@ class TrackingDifferenceJobTest {
   void swallowsExceptions() {
     doThrow(new RuntimeException("boom")).when(service).runChecks();
 
-    job.runTrackingDifferenceChecks();
+    job.onFeeAccrualPositionsSynced(new FeeAccrualPositionsSynced());
 
     then(notifier).shouldHaveNoInteractions();
   }

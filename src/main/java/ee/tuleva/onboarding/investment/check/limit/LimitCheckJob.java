@@ -1,13 +1,16 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
-import static ee.tuleva.onboarding.investment.JobRunSchedule.LIMIT_CHECK;
+import static ee.tuleva.onboarding.investment.JobRunSchedule.LIMIT_CHECK_BACKFILL;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 
+import ee.tuleva.onboarding.investment.event.FeeAccrualPositionsSynced;
+import ee.tuleva.onboarding.investment.event.RunLimitCheckRequested;
 import ee.tuleva.onboarding.investment.position.FeeAccrualPositionSyncJob;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -21,9 +24,17 @@ public class LimitCheckJob {
   private final LimitCheckNotifier limitCheckNotifier;
   private final FeeAccrualPositionSyncJob feeAccrualPositionSyncJob;
 
-  @Scheduled(cron = LIMIT_CHECK, zone = TIMEZONE)
-  @SchedulerLock(name = "LimitCheckJob", lockAtMostFor = "30m", lockAtLeastFor = "5m")
-  void runLimitChecks() {
+  @EventListener
+  void onFeeAccrualPositionsSynced(FeeAccrualPositionsSynced event) {
+    runLimitChecks();
+  }
+
+  @EventListener
+  void onLimitCheckRequested(RunLimitCheckRequested event) {
+    runLimitChecks();
+  }
+
+  private void runLimitChecks() {
     log.info("Starting limit check");
 
     try {
@@ -36,7 +47,7 @@ public class LimitCheckJob {
     }
   }
 
-  @Scheduled(cron = "0 30 8 16 3 *", zone = TIMEZONE)
+  @Scheduled(cron = LIMIT_CHECK_BACKFILL, zone = TIMEZONE)
   @SchedulerLock(name = "LimitCheckBackfillJob", lockAtMostFor = "30m", lockAtLeastFor = "5m")
   void backfillLimitChecks() {
     log.info("Starting limit check backfill");

@@ -1,11 +1,15 @@
 package ee.tuleva.onboarding.investment.position;
 
+import static ee.tuleva.onboarding.investment.JobRunSchedule.FEE_ACCRUAL_POSITION_BACKFILL;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
 import static ee.tuleva.onboarding.investment.position.AccountType.FEE;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.event.FeeAccrualPositionsSynced;
+import ee.tuleva.onboarding.investment.event.FundPositionsImported;
+import ee.tuleva.onboarding.investment.event.RunFeeAccrualPositionSyncRequested;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -14,7 +18,9 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -28,16 +34,24 @@ public class FeeAccrualPositionSyncJob {
   private final FundPositionImportService fundPositionImportService;
   private final FundPositionRepository fundPositionRepository;
   private final Clock clock;
+  private final ApplicationEventPublisher eventPublisher;
 
-  @Scheduled(cron = "0 30 9 * * MON-FRI", zone = TIMEZONE)
-  @SchedulerLock(name = "FeeAccrualPositionSyncJob", lockAtMostFor = "30m", lockAtLeastFor = "5m")
-  void run() {
-    log.info("Starting fee accrual position sync");
+  @EventListener
+  void onFundPositionsImported(FundPositionsImported event) {
+    log.info("Starting fee accrual position sync (chain)");
+    int count = sync(7);
+    log.info("Fee accrual position sync completed: positionsWritten={}", count);
+    eventPublisher.publishEvent(new FeeAccrualPositionsSynced());
+  }
+
+  @EventListener
+  void onFeeAccrualPositionSyncRequested(RunFeeAccrualPositionSyncRequested event) {
+    log.info("Starting fee accrual position sync (ad-hoc)");
     int count = sync(7);
     log.info("Fee accrual position sync completed: positionsWritten={}", count);
   }
 
-  @Scheduled(cron = "0 25 12 12 3 *", zone = TIMEZONE)
+  @Scheduled(cron = FEE_ACCRUAL_POSITION_BACKFILL, zone = TIMEZONE)
   @SchedulerLock(
       name = "FeeAccrualPositionBackfillJob",
       lockAtMostFor = "30m",

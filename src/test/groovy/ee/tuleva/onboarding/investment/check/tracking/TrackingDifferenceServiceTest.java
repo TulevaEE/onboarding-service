@@ -155,28 +155,6 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
-  void usesPriceCutoffForSecurityPrices() {
-    setupFundData(TUK75);
-
-    service.runChecksAsOf(CHECK_DATE);
-
-    var expectedCutoff =
-        CHECK_DATE.atTime(TUK75.getNavCutoffTime()).atZone(ZoneId.of("Europe/Tallinn")).toInstant();
-    verify(priorityPriceProvider).resolve("IE00B4L5Y983", CHECK_DATE, expectedCutoff);
-  }
-
-  @Test
-  void usesPriceCutoffForFundNav() {
-    setupFundData(TUK75);
-
-    service.runChecksAsOf(CHECK_DATE);
-
-    var expectedCutoff =
-        CHECK_DATE.atTime(TUK75.getNavCutoffTime()).atZone(ZoneId.of("Europe/Tallinn")).toInstant();
-    verify(fundValueProvider).getLatestValue(TUK75.getIsin(), CHECK_DATE, expectedCutoff);
-  }
-
-  @Test
   void consecutiveBreachCountingStopsAtNonBreach() {
     setupFundData(TUK75);
 
@@ -225,9 +203,7 @@ class TrackingDifferenceServiceTest {
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, PREVIOUS_DATE))
         .willReturn(Optional.of(PREVIOUS_DATE));
 
-    var priceCutoff =
-        CHECK_DATE.atTime(TUK75.getNavCutoffTime()).atZone(ZoneId.of("Europe/Tallinn")).toInstant();
-    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE, priceCutoff))
+    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE))
         .willReturn(Optional.of(fundValue("10.10")));
     given(fundValueProvider.getLatestValue(TUK75.getIsin(), PREVIOUS_DATE))
         .willReturn(Optional.of(fundValue("10.00")));
@@ -253,7 +229,7 @@ class TrackingDifferenceServiceTest {
                 TUK75, CHECK_DATE, List.of(CASH)))
         .willReturn(ZERO);
 
-    given(priorityPriceProvider.resolve("IE00B4L5Y983", CHECK_DATE, priceCutoff))
+    given(priorityPriceProvider.resolve("IE00B4L5Y983", CHECK_DATE))
         .willReturn(Optional.of(fundValue("102.00")));
     given(priorityPriceProvider.resolve("IE00B4L5Y983", PREVIOUS_DATE))
         .willReturn(Optional.of(fundValue("100.00")));
@@ -292,9 +268,7 @@ class TrackingDifferenceServiceTest {
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, PREVIOUS_DATE))
         .willReturn(Optional.of(PREVIOUS_DATE));
 
-    var cutoff =
-        CHECK_DATE.atTime(fund.getNavCutoffTime()).atZone(ZoneId.of("Europe/Tallinn")).toInstant();
-    given(fundValueProvider.getLatestValue(fund.getIsin(), CHECK_DATE, cutoff))
+    given(fundValueProvider.getLatestValue(fund.getIsin(), CHECK_DATE))
         .willReturn(Optional.of(fundValue("10.10")));
     given(fundValueProvider.getLatestValue(fund.getIsin(), PREVIOUS_DATE))
         .willReturn(Optional.of(fundValue("10.00")));
@@ -329,7 +303,7 @@ class TrackingDifferenceServiceTest {
                 fund, CHECK_DATE, List.of(CASH)))
         .willReturn(new BigDecimal("50000"));
 
-    given(priorityPriceProvider.resolve("IE00B4L5Y983", CHECK_DATE, cutoff))
+    given(priorityPriceProvider.resolve("IE00B4L5Y983", CHECK_DATE))
         .willReturn(Optional.of(fundValue("102.00")));
     given(priorityPriceProvider.resolve("IE00B4L5Y983", PREVIOUS_DATE))
         .willReturn(Optional.of(fundValue("100.00")));

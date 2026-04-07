@@ -22,9 +22,7 @@ import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -40,7 +38,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class TrackingDifferenceService {
 
-  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
   private static final String MSCI_ACWI_KEY = "MSCI_ACWI";
   private static final int ESCALATION_LOOKBACK = 2;
 
@@ -107,9 +104,7 @@ class TrackingDifferenceService {
       return results;
     }
 
-    var priceCutoff = priceCutoff(fund, checkDate);
-
-    var todayNav = fundValueProvider.getLatestValue(fund.getIsin(), checkDate, priceCutoff);
+    var todayNav = fundValueProvider.getLatestValue(fund.getIsin(), checkDate);
     var yesterdayNav = fundValueProvider.getLatestValue(fund.getIsin(), previousDate.get());
 
     if (todayNav.isEmpty() || yesterdayNav.isEmpty()) {
@@ -146,8 +141,7 @@ class TrackingDifferenceService {
             .orElse(ZERO);
 
     var securities =
-        buildSecurityData(
-            allocations, positions, totalNav, checkDate, previousDate.get(), priceCutoff);
+        buildSecurityData(allocations, positions, totalNav, checkDate, previousDate.get());
 
     var priorBreaches = countConsecutiveBreaches(fund, MODEL_PORTFOLIO, checkDate);
 
@@ -273,8 +267,7 @@ class TrackingDifferenceService {
       List<FundPosition> positions,
       BigDecimal totalNav,
       LocalDate checkDate,
-      LocalDate previousDate,
-      Instant priceCutoff) {
+      LocalDate previousDate) {
 
     Map<String, BigDecimal> positionsByIsin =
         positions.stream()
@@ -287,7 +280,7 @@ class TrackingDifferenceService {
         .filter(a -> a.getIsin() != null)
         .map(
             a -> {
-              var todayPrice = priorityPriceProvider.resolve(a.getIsin(), checkDate, priceCutoff);
+              var todayPrice = priorityPriceProvider.resolve(a.getIsin(), checkDate);
               var yesterdayPrice = priorityPriceProvider.resolve(a.getIsin(), previousDate);
 
               var actualMarketValue = positionsByIsin.getOrDefault(a.getIsin(), ZERO);
@@ -309,10 +302,6 @@ class TrackingDifferenceService {
   private Optional<LocalDate> findPreviousNavDate(TulevaFund fund, LocalDate checkDate) {
     var previousWorkingDay = publicHolidays.previousWorkingDay(checkDate);
     return fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, previousWorkingDay);
-  }
-
-  private Instant priceCutoff(TulevaFund fund, LocalDate checkDate) {
-    return checkDate.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
   }
 
   private ConsecutiveBreachInfo countConsecutiveBreaches(

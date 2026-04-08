@@ -7,7 +7,7 @@ import static ee.tuleva.onboarding.investment.event.PipelineStep.LIMIT_CHECK;
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunLimitCheckRequested;
 import ee.tuleva.onboarding.investment.position.FeeAccrualPositionSyncJob;
-import ee.tuleva.onboarding.savings.fund.nav.NavCalculationCompleted;
+import ee.tuleva.onboarding.savings.fund.nav.AllNavCalculationsCompleted;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -28,7 +28,7 @@ public class LimitCheckJob {
   private final PipelineTracker pipelineTracker;
 
   @EventListener
-  void onNavCalculationCompleted(NavCalculationCompleted event) {
+  void onAllNavCalculationsCompleted(AllNavCalculationsCompleted event) {
     runLimitChecks();
   }
 

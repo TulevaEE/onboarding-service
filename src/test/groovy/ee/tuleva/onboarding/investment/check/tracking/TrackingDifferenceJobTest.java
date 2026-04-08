@@ -6,7 +6,7 @@ import static org.mockito.Mockito.doThrow;
 
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
-import ee.tuleva.onboarding.savings.fund.nav.NavCalculationCompleted;
+import ee.tuleva.onboarding.savings.fund.nav.AllNavCalculationsCompleted;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,7 +28,7 @@ class TrackingDifferenceJobTest {
     var results = List.<TrackingDifferenceResult>of();
     given(service.runChecks()).willReturn(results);
 
-    job.onNavCalculationCompleted(new NavCalculationCompleted());
+    job.onAllNavCalculationsCompleted(new AllNavCalculationsCompleted());
 
     then(service).should().runChecks();
     then(notifier).should().notify(results);
@@ -49,7 +49,7 @@ class TrackingDifferenceJobTest {
   void swallowsExceptions() {
     doThrow(new RuntimeException("boom")).when(service).runChecks();
 
-    job.onNavCalculationCompleted(new NavCalculationCompleted());
+    job.onAllNavCalculationsCompleted(new AllNavCalculationsCompleted());
 
     then(notifier).shouldHaveNoInteractions();
   }

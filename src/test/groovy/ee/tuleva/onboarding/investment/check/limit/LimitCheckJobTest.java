@@ -5,7 +5,7 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunLimitCheckRequested;
 import ee.tuleva.onboarding.investment.position.FeeAccrualPositionSyncJob;
-import ee.tuleva.onboarding.savings.fund.nav.NavCalculationCompleted;
+import ee.tuleva.onboarding.savings.fund.nav.AllNavCalculationsCompleted;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,7 +27,7 @@ class LimitCheckJobTest {
     var results = List.of(mock(LimitCheckResult.class));
     when(limitCheckService.runChecks()).thenReturn(results);
 
-    job.onNavCalculationCompleted(new NavCalculationCompleted());
+    job.onAllNavCalculationsCompleted(new AllNavCalculationsCompleted());
 
     verify(limitCheckService).runChecks();
     verify(limitCheckNotifier).notify(results);
@@ -48,7 +48,7 @@ class LimitCheckJobTest {
   void swallowsExceptions() {
     when(limitCheckService.runChecks()).thenThrow(new RuntimeException("DB down"));
 
-    job.onNavCalculationCompleted(new NavCalculationCompleted());
+    job.onAllNavCalculationsCompleted(new AllNavCalculationsCompleted());
 
     verify(limitCheckNotifier, never()).notify(any());
   }

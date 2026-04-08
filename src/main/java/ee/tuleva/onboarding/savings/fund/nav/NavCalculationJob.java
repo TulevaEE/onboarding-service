@@ -85,7 +85,6 @@ public class NavCalculationJob {
     calculateForFunds(event.funds());
     pipelineTracker.stepCompleted(NAV_CALCULATION);
     eventPublisher.publishEvent(new NavCalculationCompleted());
-    eventPublisher.publishEvent(new AllNavCalculationsCompleted());
   }
 
   private void calculateForFunds(List<TulevaFund> funds) {

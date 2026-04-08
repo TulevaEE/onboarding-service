@@ -14,6 +14,13 @@ public class PipelineTracker {
     return run;
   }
 
+  public void markChanged() {
+    var run = CURRENT.get();
+    if (run != null) {
+      run.markChanged();
+    }
+  }
+
   public void stepStarted(String name) {
     var run = CURRENT.get();
     if (run != null) {
@@ -25,6 +32,13 @@ public class PipelineTracker {
     var run = CURRENT.get();
     if (run != null) {
       run.stepCompleted(name);
+    }
+  }
+
+  public void stepCompleted(String name, String detail) {
+    var run = CURRENT.get();
+    if (run != null) {
+      run.stepCompleted(name, detail);
     }
   }
 

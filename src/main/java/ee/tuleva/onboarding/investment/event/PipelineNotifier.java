@@ -22,7 +22,7 @@ public class PipelineNotifier {
     try {
       if (pipeline.hasFailure()) {
         sendFailure(pipeline);
-      } else {
+      } else if (pipeline.isChanged() || pipeline.getType() == PipelineRun.PipelineType.NAV) {
         sendSuccess(pipeline);
       }
     } catch (Exception e) {
@@ -32,9 +32,7 @@ public class PipelineNotifier {
 
   private void sendSuccess(PipelineRun pipeline) {
     var stepDetails =
-        pipeline.getSteps().stream()
-            .map(s -> "%s (%s)".formatted(s.getName(), formatDuration(s.duration())))
-            .collect(Collectors.joining(", "));
+        pipeline.getSteps().stream().map(this::formatStepCompact).collect(Collectors.joining(", "));
 
     var label = pipelineLabel(pipeline);
     var message =
@@ -84,6 +82,14 @@ public class PipelineNotifier {
       case NAV -> PipelineStep.NAV_PIPELINE;
       case IMPORT -> PipelineStep.IMPORT_PIPELINE;
     };
+  }
+
+  private String formatStepCompact(PipelineRun.StepResult step) {
+    var duration = formatDuration(step.duration());
+    if (step.getDetail() != null) {
+      return "%s (%s, %s)".formatted(step.getName(), duration, step.getDetail());
+    }
+    return "%s (%s)".formatted(step.getName(), duration);
   }
 
   private String formatStep(PipelineRun.StepResult step) {

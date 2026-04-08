@@ -22,6 +22,7 @@ class PipelineNotifierTest {
   @Test
   void sendCompletedSuccessSendsCompactMessage() {
     var pipeline = new PipelineRun(PipelineRun.PipelineType.IMPORT, "cron:15:00");
+    pipeline.markChanged();
     pipeline.stepStarted("Report Import");
     pipeline.stepCompleted("Report Import");
     pipeline.stepStarted("Position Import");
@@ -30,6 +31,17 @@ class PipelineNotifierTest {
     notifier.sendCompleted(pipeline);
 
     then(notificationService).should().sendMessage(contains("Import pipeline"), eq(INVESTMENT));
+  }
+
+  @Test
+  void sendCompletedSuccessSilentWhenNoChanges() {
+    var pipeline = new PipelineRun(PipelineRun.PipelineType.IMPORT, "cron:15:00");
+    pipeline.stepStarted("Report Import");
+    pipeline.stepCompleted("Report Import");
+
+    notifier.sendCompleted(pipeline);
+
+    then(notificationService).shouldHaveNoInteractions();
   }
 
   @Test

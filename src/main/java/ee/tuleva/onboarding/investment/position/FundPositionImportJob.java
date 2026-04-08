@@ -64,48 +64,55 @@ public class FundPositionImportJob {
   @EventListener
   public void onReportImportCompleted(ReportImportCompleted event) {
     pipelineTracker.stepStarted(POSITION_IMPORT);
-    runImport();
-    pipelineTracker.stepCompleted(POSITION_IMPORT);
+    var totals = runImport();
+    pipelineTracker.stepCompleted(POSITION_IMPORT, totals);
     eventPublisher.publishEvent(new FundPositionsImported());
   }
 
   @EventListener
   public void onFundPositionImportRequested(RunFundPositionImportRequested event) {
     pipelineTracker.stepStarted(POSITION_IMPORT);
-    runImport();
-    pipelineTracker.stepCompleted(POSITION_IMPORT);
+    var totals = runImport();
+    pipelineTracker.stepCompleted(POSITION_IMPORT, totals);
     eventPublisher.publishEvent(new FundPositionsImported());
   }
 
-  public void runImport() {
+  public String runImport() {
     LocalDate today = LocalDate.now(clock);
+    int[] totals = {0, 0};
     IntStream.iterate(LOOKBACK_DAYS, i -> i >= 1, i -> i - 1)
         .mapToObj(today::minusDays)
         .forEach(
             date -> {
               for (ReportProvider provider : PROVIDERS) {
                 try {
-                  importForProviderAndDate(provider, date);
+                  var result = importForProviderAndDate(provider, date);
+                  totals[0] += result.imported();
+                  totals[1] += result.updated();
                 } catch (Exception e) {
                   log.error("Fund position import failed: provider={}, date={}", provider, date, e);
                 }
               }
             });
+    if (totals[0] == 0 && totals[1] == 0) {
+      return null;
+    }
+    return "%d new, %d updated".formatted(totals[0], totals[1]);
   }
 
-  public void importForProviderAndDate(ReportProvider provider, LocalDate date) {
+  public ImportResult importForProviderAndDate(ReportProvider provider, LocalDate date) {
     log.info("Starting fund position import: provider={}, date={}", provider, date);
 
     Optional<InvestmentReport> report = reportService.getReport(provider, POSITIONS, date);
     if (report.isEmpty()) {
       log.info("No positions report in database: provider={}, date={}", provider, date);
-      return;
+      return new ImportResult(0, 0);
     }
 
     FundPositionParser parser = parsers.get(provider);
     if (parser == null) {
       log.warn("No parser configured for provider: provider={}", provider);
-      return;
+      return new ImportResult(0, 0);
     }
 
     InvestmentReport investmentReport = report.get();
@@ -118,6 +125,9 @@ public class FundPositionImportJob {
         "Parsed fund positions: provider={}, date={}, count={}", provider, date, positions.size());
 
     ImportResult result = importService.upsertPositions(positions);
+    if (result.imported() > 0 || result.updated() > 0) {
+      pipelineTracker.markChanged();
+    }
     log.info(
         "Fund position import completed: provider={}, date={}, imported={}, updated={}, rowCount={}",
         provider,
@@ -138,5 +148,7 @@ public class FundPositionImportJob {
     if (result.updated() > 0) {
       navFunds.forEach(fund -> fundPositionLedgerService.rerecordPositionsFromDate(fund, date));
     }
+
+    return result;
   }
 }

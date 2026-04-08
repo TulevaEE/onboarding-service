@@ -16,6 +16,7 @@ public class PipelineRun {
   private final String trigger;
   private final Instant startedAt;
   private final List<StepResult> steps = new ArrayList<>();
+  private boolean changed;
 
   public PipelineRun(PipelineType type, String trigger) {
     this.type = type;
@@ -28,12 +29,20 @@ public class PipelineRun {
     NAV
   }
 
+  public void markChanged() {
+    this.changed = true;
+  }
+
   public void stepStarted(String name) {
     steps.add(new StepResult(name, clock().instant()));
   }
 
   public void stepCompleted(String name) {
     findStep(name).ifPresent(step -> step.complete(clock().instant()));
+  }
+
+  public void stepCompleted(String name, String detail) {
+    findStep(name).ifPresent(step -> step.complete(clock().instant(), detail));
   }
 
   public void stepFailed(String name, String error) {
@@ -69,6 +78,7 @@ public class PipelineRun {
     private Instant completedAt;
     private StepStatus status;
     private String error;
+    private String detail;
 
     StepResult(String name, Instant startedAt) {
       this.name = name;
@@ -79,6 +89,12 @@ public class PipelineRun {
     void complete(Instant at) {
       this.completedAt = at;
       this.status = StepStatus.COMPLETED;
+    }
+
+    void complete(Instant at, String detail) {
+      this.completedAt = at;
+      this.status = StepStatus.COMPLETED;
+      this.detail = detail;
     }
 
     void fail(Instant at, String error) {

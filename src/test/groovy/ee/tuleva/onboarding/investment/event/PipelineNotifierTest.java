@@ -29,8 +29,7 @@ class PipelineNotifierTest {
 
     notifier.sendCompleted(pipeline);
 
-    then(notificationService).should().sendMessage(contains("pipeline completed"), eq(INVESTMENT));
-    then(notificationService).should().sendMessage(contains("Report Import"), eq(INVESTMENT));
+    then(notificationService).should().sendMessage(contains("Import pipeline"), eq(INVESTMENT));
   }
 
   @Test

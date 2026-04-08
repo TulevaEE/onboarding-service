@@ -36,10 +36,10 @@ public class PipelineNotifier {
             .map(s -> "%s (%s)".formatted(s.getName(), formatDuration(s.duration())))
             .collect(Collectors.joining(", "));
 
+    var label = pipelineLabel(pipeline);
     var message =
-        "✅ %s pipeline completed (%s) — %s"
-            .formatted(
-                pipeline.getTrigger(), formatDuration(pipeline.totalDuration()), stepDetails);
+        "✅ %s pipeline (%s) — %s"
+            .formatted(label, formatDuration(pipeline.totalDuration()), stepDetails);
 
     notificationService.sendMessage(message, INVESTMENT);
   }
@@ -47,7 +47,7 @@ public class PipelineNotifier {
   private void sendFailure(PipelineRun pipeline) {
     var steps = resolveSteps(pipeline);
     var message = new StringBuilder();
-    message.append("INVESTMENT PIPELINE [%s]\n".formatted(pipeline.getTrigger()));
+    message.append("❌ %s PIPELINE FAILED\n".formatted(pipelineLabel(pipeline)));
 
     Set<String> completedStepNames =
         pipeline.getSteps().stream()
@@ -70,6 +70,13 @@ public class PipelineNotifier {
             .formatted(jobNameForStep(failed.getName())));
 
     notificationService.sendMessage(message.toString(), INVESTMENT);
+  }
+
+  private String pipelineLabel(PipelineRun pipeline) {
+    return switch (pipeline.getType()) {
+      case IMPORT -> "Import";
+      case NAV -> pipeline.getTrigger();
+    };
   }
 
   private List<String> resolveSteps(PipelineRun pipeline) {

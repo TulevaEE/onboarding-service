@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceSynchro
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
 import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
@@ -43,6 +44,7 @@ public class AdminController {
   private final ApplicationEventPublisher eventPublisher;
   private final SavingsFundLedger savingsFundLedger;
   private final NavFeeAccrualLedger navFeeAccrualLedger;
+  private final FeeAccrualRepository feeAccrualRepository;
   private final NavCalculationService navCalculationService;
   private final NavPublisher navPublisher;
   private final FundBalanceSynchronizer fundBalanceSynchronizer;
@@ -184,7 +186,7 @@ public class AdminController {
     ReportProvider reportProvider = ReportProvider.valueOf(provider);
     log.info("Admin triggered position reimport: provider={}, date={}", reportProvider, date);
 
-    reportImportJob.importForProviderAndDate(reportProvider, date);
+    reportImportJob.forceImportForProviderAndDate(reportProvider, date);
     fundPositionImportJob.importForProviderAndDate(reportProvider, date);
 
     return "Reimported positions for " + provider + "/" + date;
@@ -206,6 +208,27 @@ public class AdminController {
     navCalculationService.backfillFees(fund, fromDate, latestNavDate);
 
     return "Re-recorded positions and fees for " + fundCode + " from " + fromDate;
+  }
+
+  @Transactional
+  @PostMapping("/rerecord-positions-from-date")
+  public String rerecordPositionsFromDate(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam String fundCode,
+      @RequestParam @DateTimeFormat(iso = DATE) LocalDate fromDate) {
+
+    validateToken(token);
+
+    TulevaFund fund = TulevaFund.fromCode(fundCode);
+    log.info(
+        "Admin triggered date-scoped position re-record: fund={}, fromDate={}", fund, fromDate);
+    fundPositionLedgerService.rerecordPositionsFromDate(fund, fromDate);
+    navFeeAccrualLedger.deleteFeeAccrualsFromDate(fund, fromDate);
+    feeAccrualRepository.deleteByFundFromDate(fund, fromDate);
+    LocalDate latestNavDate = fundPositionRepository.findLatestNavDateByFund(fund).orElse(fromDate);
+    navCalculationService.backfillFees(fund, fromDate, latestNavDate);
+
+    return "Re-recorded positions and fees from " + fromDate + " for " + fundCode;
   }
 
   @PostMapping("/backfill-positions")

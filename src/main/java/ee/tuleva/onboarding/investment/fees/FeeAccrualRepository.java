@@ -109,6 +109,15 @@ public class FeeAccrualRepository {
         .update();
   }
 
+  public int deleteByFundFromDate(TulevaFund fund, LocalDate fromDate) {
+    return jdbcClient
+        .sql(
+            "DELETE FROM investment_fee_accrual WHERE fund_code = :fundCode AND accrual_date >= :fromDate")
+        .param("fundCode", fund.name())
+        .param("fromDate", fromDate)
+        .update();
+  }
+
   public void save(FeeAccrual accrual) {
     int updated =
         jdbcClient

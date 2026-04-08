@@ -74,52 +74,6 @@ public class NavPositionLedger {
         entries.toArray(new LedgerEntryDto[0]));
   }
 
-  @Transactional
-  public void recordPositionCorrection(
-      TulevaFund fund,
-      LocalDate reportDate,
-      Instant correctionTimestamp,
-      Map<String, BigDecimal> securitiesUnits,
-      BigDecimal cashValue,
-      BigDecimal receivablesValue,
-      BigDecimal payablesValue) {
-
-    UUID externalReference = generateCorrectionReference(fund, reportDate, correctionTimestamp);
-    if (ledgerTransactionService.existsByExternalReferenceAndTransactionType(
-        externalReference, POSITION_UPDATE)) {
-      log.debug(
-          "Position correction already recorded: fund={}, reportDate={}, correctionTimestamp={}",
-          fund,
-          reportDate,
-          correctionTimestamp);
-      return;
-    }
-
-    List<LedgerEntryDto> entries =
-        buildPositionEntries(fund, securitiesUnits, cashValue, receivablesValue, payablesValue);
-    if (entries.isEmpty()) {
-      return;
-    }
-
-    Map<String, Object> metadata =
-        Map.of(
-            "operationType",
-            "POSITION_CORRECTION",
-            "fund",
-            fund.name(),
-            "reportDate",
-            reportDate.toString(),
-            "correctionTimestamp",
-            correctionTimestamp.toString());
-
-    ledgerTransactionService.createTransaction(
-        POSITION_UPDATE,
-        transactionDate(fund, reportDate),
-        externalReference,
-        metadata,
-        entries.toArray(new LedgerEntryDto[0]));
-  }
-
   private List<LedgerEntryDto> buildPositionEntries(
       TulevaFund fund,
       Map<String, BigDecimal> securitiesUnits,
@@ -158,13 +112,6 @@ public class NavPositionLedger {
     return entries;
   }
 
-  private UUID generateCorrectionReference(
-      TulevaFund fund, LocalDate reportDate, Instant correctionTimestamp) {
-    String key =
-        "POSITION_CORRECTION:" + fund.name() + ":" + reportDate + ":" + correctionTimestamp;
-    return UUID.nameUUIDFromBytes(key.getBytes(UTF_8));
-  }
-
   private Instant transactionDate(TulevaFund fund, LocalDate reportDate) {
     Instant now = Instant.now(clock);
     LocalDate nowDate = now.atZone(ESTONIAN_ZONE).toLocalDate();
@@ -198,6 +145,82 @@ public class NavPositionLedger {
     return ledgerAccountService
         .findSystemAccount(systemAccount, fund)
         .orElseGet(() -> ledgerAccountService.createSystemAccount(systemAccount, fund));
+  }
+
+  @Transactional
+  public int deletePositionUpdatesForDates(TulevaFund fund, List<LocalDate> dates) {
+    if (dates.isEmpty()) {
+      return 0;
+    }
+
+    List<UUID> refs = dates.stream().map(date -> generatePositionReference(fund, date)).toList();
+
+    int deleted =
+        jdbcClient
+            .sql(
+                """
+                DELETE FROM ledger.entry
+                WHERE transaction_id IN (
+                  SELECT id FROM ledger.transaction
+                  WHERE external_reference IN (:refs)
+                )
+                """)
+            .param("refs", refs)
+            .update();
+
+    int txDeleted =
+        jdbcClient
+            .sql(
+                """
+                DELETE FROM ledger.transaction
+                WHERE external_reference IN (:refs)
+                """)
+            .param("refs", refs)
+            .update();
+
+    String fundName = fund.name();
+    for (LocalDate date : dates) {
+      deleted +=
+          jdbcClient
+              .sql(
+                  """
+                  DELETE FROM ledger.entry
+                  WHERE transaction_id IN (
+                    SELECT id FROM ledger.transaction
+                    WHERE transaction_type = 'POSITION_UPDATE'
+                      AND CAST(metadata AS VARCHAR) LIKE :fundPattern
+                      AND CAST(metadata AS VARCHAR) LIKE :correctionPattern
+                      AND CAST(metadata AS VARCHAR) LIKE :datePattern
+                  )
+                  """)
+              .param("fundPattern", "%\"fund\":%\"" + fundName + "\"%")
+              .param("correctionPattern", "%POSITION_CORRECTION%")
+              .param("datePattern", "%\"reportDate\":%\"" + date + "\"%")
+              .update();
+
+      txDeleted +=
+          jdbcClient
+              .sql(
+                  """
+                  DELETE FROM ledger.transaction
+                  WHERE transaction_type = 'POSITION_UPDATE'
+                    AND CAST(metadata AS VARCHAR) LIKE :fundPattern
+                    AND CAST(metadata AS VARCHAR) LIKE :correctionPattern
+                    AND CAST(metadata AS VARCHAR) LIKE :datePattern
+                  """)
+              .param("fundPattern", "%\"fund\":%\"" + fundName + "\"%")
+              .param("correctionPattern", "%POSITION_CORRECTION%")
+              .param("datePattern", "%\"reportDate\":%\"" + date + "\"%")
+              .update();
+    }
+
+    log.info(
+        "Deleted position updates for dates: fund={}, dates={}, transactions={}, entries={}",
+        fund,
+        dates.size(),
+        txDeleted,
+        deleted);
+    return txDeleted;
   }
 
   @Transactional

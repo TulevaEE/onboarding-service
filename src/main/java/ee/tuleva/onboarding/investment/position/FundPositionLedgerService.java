@@ -12,7 +12,6 @@ import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.NavPositionLedger;
 import ee.tuleva.onboarding.ledger.SystemAccount;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,27 +36,27 @@ public class FundPositionLedgerService {
   private final NavLedgerRepository navLedgerRepository;
   private final PublicHolidays publicHolidays;
 
-  public void correctPositionsInLedger(
-      TulevaFund fund, LocalDate date, Instant correctionTimestamp) {
-    PositionDeltas deltas = calculatePositionDeltas(fund, date);
+  @Transactional
+  public void rerecordPositionsFromDate(TulevaFund fund, LocalDate fromDate) {
+    log.info("Re-recording positions from date: fund={}, fromDate={}", fund, fromDate);
+
+    LocalDate lastWorkingDayBefore = publicHolidays.previousWorkingDay(fromDate);
+    List<LocalDate> datesToRerecord =
+        fundPositionRepository.findDistinctNavDatesByFund(fund).stream()
+            .filter(date -> !date.isBefore(lastWorkingDayBefore))
+            .toList();
+
+    navPositionLedger.deletePositionUpdatesForDates(fund, datesToRerecord);
+
+    for (LocalDate date : datesToRerecord) {
+      recordPositionsToLedger(fund, date);
+    }
 
     log.info(
-        "Correcting position deltas in ledger: fund={}, date={}, correctionTimestamp={}, securitiesUnitDeltas={}, cash={}, receivables={}, payables={}",
+        "Re-recorded positions from date: fund={}, fromDate={}, dates={}",
         fund,
-        date,
-        correctionTimestamp,
-        deltas.securitiesUnits,
-        deltas.cash,
-        deltas.receivables,
-        deltas.payables);
-    navPositionLedger.recordPositionCorrection(
-        fund,
-        date,
-        correctionTimestamp,
-        deltas.securitiesUnits,
-        deltas.cash,
-        deltas.receivables,
-        deltas.payables);
+        fromDate,
+        datesToRerecord.size());
   }
 
   @Transactional

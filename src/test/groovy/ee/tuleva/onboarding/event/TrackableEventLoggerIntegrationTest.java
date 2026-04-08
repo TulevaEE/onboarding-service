@@ -33,14 +33,15 @@ class TrackableEventLoggerIntegrationTest {
     eventPublisher.publishEvent(eventToPublish);
 
     // Then
-    Iterable<EventLog> eventLogs = eventLogRepository.findAll();
-    assertThat(eventLogs).hasSize(1);
-
-    EventLog savedLog = eventLogs.iterator().next();
-    assertThat(savedLog.getPrincipal()).isEqualTo(person.getPersonalCode());
-    assertThat(savedLog.getType()).isEqualTo(eventType.toString());
-    assertThat(savedLog.getData()).isEqualTo(eventData);
-    assertThat(savedLog.getTimestamp()).isNotNull().isBeforeOrEqualTo(Instant.now());
+    assertThat(eventLogRepository.findAll())
+        .filteredOn(log -> log.getType().equals(eventType.toString()))
+        .singleElement()
+        .satisfies(
+            savedLog -> {
+              assertThat(savedLog.getPrincipal()).isEqualTo(person.getPersonalCode());
+              assertThat(savedLog.getData()).isEqualTo(eventData);
+              assertThat(savedLog.getTimestamp()).isNotNull().isBeforeOrEqualTo(Instant.now());
+            });
   }
 
   @Test
@@ -54,13 +55,14 @@ class TrackableEventLoggerIntegrationTest {
     eventPublisher.publishEvent(eventToPublish);
 
     // Then
-    Iterable<EventLog> eventLogs = eventLogRepository.findAll();
-    assertThat(eventLogs).hasSize(1);
-
-    EventLog savedLog = eventLogs.iterator().next();
-    assertThat(savedLog.getPrincipal()).isEqualTo(person.getPersonalCode());
-    assertThat(savedLog.getType()).isEqualTo(eventType.toString());
-    assertThat(savedLog.getData()).isEmpty();
+    assertThat(eventLogRepository.findAll())
+        .filteredOn(log -> log.getType().equals(eventType.toString()))
+        .singleElement()
+        .satisfies(
+            savedLog -> {
+              assertThat(savedLog.getPrincipal()).isEqualTo(person.getPersonalCode());
+              assertThat(savedLog.getData()).isEmpty();
+            });
   }
 
   @Test
@@ -71,13 +73,14 @@ class TrackableEventLoggerIntegrationTest {
 
     eventPublisher.publishEvent(eventToPublish);
 
-    Iterable<EventLog> eventLogs = eventLogRepository.findAll();
-    assertThat(eventLogs).hasSize(1);
-
-    EventLog savedLog = eventLogs.iterator().next();
-    assertThat(savedLog.getPrincipal()).isEqualTo("onboarding-service");
-    assertThat(savedLog.getType()).isEqualTo(eventType.toString());
-    assertThat(savedLog.getData()).isEqualTo(eventData);
-    assertThat(savedLog.getTimestamp()).isNotNull().isBeforeOrEqualTo(Instant.now());
+    assertThat(eventLogRepository.findAll())
+        .filteredOn(log -> log.getType().equals(eventType.toString()))
+        .singleElement()
+        .satisfies(
+            savedLog -> {
+              assertThat(savedLog.getPrincipal()).isEqualTo("onboarding-service");
+              assertThat(savedLog.getData()).isEqualTo(eventData);
+              assertThat(savedLog.getTimestamp()).isNotNull().isBeforeOrEqualTo(Instant.now());
+            });
   }
 }

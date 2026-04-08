@@ -162,6 +162,48 @@ public class NavFeeAccrualLedger {
   }
 
   @Transactional
+  public int deleteFeeAccrualsFromDate(TulevaFund fund, LocalDate fromDate) {
+    String fundName = fund.name();
+    Instant cutoff = fromDate.atTime(9, 0).atZone(ESTONIAN_ZONE).toInstant();
+    int entriesDeleted =
+        jdbcClient
+            .sql(
+                """
+                DELETE FROM ledger.entry
+                WHERE transaction_id IN (
+                  SELECT id FROM ledger.transaction
+                  WHERE transaction_type = 'FEE_ACCRUAL'
+                    AND CAST(metadata AS VARCHAR) LIKE :fundPattern
+                    AND transaction_date >= :cutoff
+                )
+                """)
+            .param("fundPattern", "%\"fund\":%\"" + fundName + "\"%")
+            .param("cutoff", java.sql.Timestamp.from(cutoff))
+            .update();
+
+    int txDeleted =
+        jdbcClient
+            .sql(
+                """
+                DELETE FROM ledger.transaction
+                WHERE transaction_type = 'FEE_ACCRUAL'
+                  AND CAST(metadata AS VARCHAR) LIKE :fundPattern
+                  AND transaction_date >= :cutoff
+                """)
+            .param("fundPattern", "%\"fund\":%\"" + fundName + "\"%")
+            .param("cutoff", java.sql.Timestamp.from(cutoff))
+            .update();
+
+    log.info(
+        "Deleted fee accruals from date: fund={}, fromDate={}, transactions={}, entries={}",
+        fund,
+        fromDate,
+        txDeleted,
+        entriesDeleted);
+    return txDeleted;
+  }
+
+  @Transactional
   public int deleteFeeTransactionsByFund(TulevaFund fund) {
     String fundName = fund.name();
     int entriesDeleted =

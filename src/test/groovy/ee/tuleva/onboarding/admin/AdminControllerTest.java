@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceSynchronizer;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
 import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
@@ -51,6 +52,7 @@ class AdminControllerTest {
   @MockitoBean private ApplicationEventPublisher eventPublisher;
   @MockitoBean private SavingsFundLedger savingsFundLedger;
   @MockitoBean private NavFeeAccrualLedger navFeeAccrualLedger;
+  @MockitoBean private FeeAccrualRepository feeAccrualRepository;
   @MockitoBean private NavCalculationService navCalculationService;
   @MockitoBean private NavPublisher navPublisher;
   @MockitoBean private FundBalanceSynchronizer fundBalanceSynchronizer;
@@ -371,7 +373,7 @@ class AdminControllerTest {
         .andExpect(content().string(containsString("2026-03-10")));
 
     verify(reportImportJob)
-        .importForProviderAndDate(
+        .forceImportForProviderAndDate(
             ee.tuleva.onboarding.investment.report.ReportProvider.SEB, LocalDate.of(2026, 3, 10));
     verify(fundPositionImportJob)
         .importForProviderAndDate(

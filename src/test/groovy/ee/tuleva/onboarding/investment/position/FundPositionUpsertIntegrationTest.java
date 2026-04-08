@@ -25,7 +25,6 @@ class FundPositionUpsertIntegrationTest {
 
   static final LocalDate NAV_DATE = LocalDate.of(2026, 2, 5);
   static final String ISIN = "IE00BFG1TM61";
-  static final Instant CORRECTION_TIMESTAMP = Instant.parse("2026-02-06T10:00:00Z");
 
   @Autowired FundPositionImportService importService;
   @Autowired FundPositionRepository positionRepository;
@@ -129,7 +128,7 @@ class FundPositionUpsertIntegrationTest {
     assertThat(securityPositions.get(0).getMarketValue()).isEqualByComparingTo("105000");
     assertThat(securityPositions.get(0).getUpdatedAt()).isNotNull();
 
-    ledgerService.correctPositionsInLedger(TKF100, NAV_DATE, CORRECTION_TIMESTAMP);
+    ledgerService.rerecordPositionsFromDate(TKF100, NAV_DATE);
     entityManager.flush();
 
     assertThat(getSystemAccountBalance(CASH_POSITION, TKF100)).isEqualByComparingTo("5100000");
@@ -137,7 +136,7 @@ class FundPositionUpsertIntegrationTest {
   }
 
   @Test
-  void correctionIsIdempotent() {
+  void rerecordPositionsFromDate_producesCorrectBalancesAfterRerun() {
     importService.importNewPositions(originalPositions());
     entityManager.flush();
     ledgerService.recordPositionsToLedger(TKF100, NAV_DATE);
@@ -145,36 +144,17 @@ class FundPositionUpsertIntegrationTest {
 
     importService.upsertPositions(correctedPositions());
     entityManager.flush();
-    ledgerService.correctPositionsInLedger(TKF100, NAV_DATE, CORRECTION_TIMESTAMP);
+    ledgerService.rerecordPositionsFromDate(TKF100, NAV_DATE);
     entityManager.flush();
 
-    Instant updatedAtBefore =
-        positionRepository
-            .findByNavDateAndFundAndAccountTypeAndAccountName(
-                NAV_DATE, TKF100, CASH, "Overnight Deposit")
-            .orElseThrow()
-            .getUpdatedAt();
+    assertThat(getSystemAccountBalance(CASH_POSITION, TKF100)).isEqualByComparingTo("5100000");
+    assertThat(getSecuritiesUnitsBalance(TKF100, ISIN)).isEqualByComparingTo("1050");
 
-    int txCountBefore =
-        jdbcClient.sql("SELECT COUNT(*) FROM ledger.transaction").query(Integer.class).single();
-
-    importService.upsertPositions(correctedPositions());
-    entityManager.flush();
-    ledgerService.correctPositionsInLedger(TKF100, NAV_DATE, CORRECTION_TIMESTAMP);
+    ledgerService.rerecordPositionsFromDate(TKF100, NAV_DATE);
     entityManager.flush();
 
-    Instant updatedAtAfter =
-        positionRepository
-            .findByNavDateAndFundAndAccountTypeAndAccountName(
-                NAV_DATE, TKF100, CASH, "Overnight Deposit")
-            .orElseThrow()
-            .getUpdatedAt();
-
-    int txCountAfter =
-        jdbcClient.sql("SELECT COUNT(*) FROM ledger.transaction").query(Integer.class).single();
-
-    assertThat(updatedAtAfter).isEqualTo(updatedAtBefore);
-    assertThat(txCountAfter).isEqualTo(txCountBefore);
+    assertThat(getSystemAccountBalance(CASH_POSITION, TKF100)).isEqualByComparingTo("5100000");
+    assertThat(getSecuritiesUnitsBalance(TKF100, ISIN)).isEqualByComparingTo("1050");
   }
 
   private List<FundPosition> originalPositions() {

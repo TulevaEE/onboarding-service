@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
+import static java.util.Map.entry;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -64,38 +65,38 @@ class FundPositionImportJobTest {
   private static final List<Map<String, Object>> SAMPLE_RAW_DATA =
       List.of(
           Map.ofEntries(
-              Map.entry("ReportDate", "06.01.2026"),
-              Map.entry("NAVDate", "05.01.2026"),
-              Map.entry("Portfolio", "Tuleva Maailma Aktsiate Pensionifond"),
-              Map.entry("AssetType", "Equities"),
-              Map.entry("FundCurr", "EUR"),
-              Map.entry("ISIN", "IE00BFG1TM61"),
-              Map.entry("AssetName", "ISHARES DEV WLD ESG"),
-              Map.entry("Quantity", "1000000"),
-              Map.entry("AssetCurr", "EUR"),
-              Map.entry("MarketValuePC", "33500000")),
+              entry("ReportDate", "06.01.2026"),
+              entry("NAVDate", "05.01.2026"),
+              entry("Portfolio", "Tuleva Maailma Aktsiate Pensionifond"),
+              entry("AssetType", "Equities"),
+              entry("FundCurr", "EUR"),
+              entry("ISIN", "IE00BFG1TM61"),
+              entry("AssetName", "ISHARES DEV WLD ESG"),
+              entry("Quantity", "1000000"),
+              entry("AssetCurr", "EUR"),
+              entry("MarketValuePC", "33500000")),
           Map.ofEntries(
-              Map.entry("ReportDate", "06.01.2026"),
-              Map.entry("NAVDate", "05.01.2026"),
-              Map.entry("Portfolio", "Tuleva Maailma Aktsiate Pensionifond"),
-              Map.entry("AssetType", "Cash & Cash Equiv"),
-              Map.entry("FundCurr", "EUR"),
-              Map.entry("ISIN", ""),
-              Map.entry("AssetName", "Overnight Deposit"),
-              Map.entry("Quantity", "5000000"),
-              Map.entry("AssetCurr", "EUR"),
-              Map.entry("MarketValuePC", "5000000")),
+              entry("ReportDate", "06.01.2026"),
+              entry("NAVDate", "05.01.2026"),
+              entry("Portfolio", "Tuleva Maailma Aktsiate Pensionifond"),
+              entry("AssetType", "Cash & Cash Equiv"),
+              entry("FundCurr", "EUR"),
+              entry("ISIN", ""),
+              entry("AssetName", "Overnight Deposit"),
+              entry("Quantity", "5000000"),
+              entry("AssetCurr", "EUR"),
+              entry("MarketValuePC", "5000000")),
           Map.ofEntries(
-              Map.entry("ReportDate", "06.01.2026"),
-              Map.entry("NAVDate", "05.01.2026"),
-              Map.entry("Portfolio", "Tuleva Vabatahtlik Pensionifon"),
-              Map.entry("AssetType", "Equities"),
-              Map.entry("FundCurr", "EUR"),
-              Map.entry("ISIN", "IE00BFNM3G45"),
-              Map.entry("AssetName", "ISHARES USA ESG"),
-              Map.entry("Quantity", "500000"),
-              Map.entry("AssetCurr", "EUR"),
-              Map.entry("MarketValuePC", "6000000")));
+              entry("ReportDate", "06.01.2026"),
+              entry("NAVDate", "05.01.2026"),
+              entry("Portfolio", "Tuleva Vabatahtlik Pensionifon"),
+              entry("AssetType", "Equities"),
+              entry("FundCurr", "EUR"),
+              entry("ISIN", "IE00BFNM3G45"),
+              entry("AssetName", "ISHARES USA ESG"),
+              entry("Quantity", "500000"),
+              entry("AssetCurr", "EUR"),
+              entry("MarketValuePC", "6000000")));
 
   private InvestmentReport createSwedbankReport(LocalDate date) {
     return InvestmentReport.builder()

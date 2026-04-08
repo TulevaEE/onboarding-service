@@ -18,7 +18,6 @@ import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.report.ReportProvider;
 import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -137,14 +136,7 @@ public class FundPositionImportJob {
     navFunds.forEach(fund -> fundPositionLedgerService.recordPositionsToLedger(fund, date));
 
     if (result.updated() > 0) {
-      Instant correctionTimestamp =
-          Optional.ofNullable(investmentReport.getMetadata().get("s3LastModified"))
-              .map(Object::toString)
-              .map(Instant::parse)
-              .orElse(clock.instant());
-      navFunds.forEach(
-          fund ->
-              fundPositionLedgerService.correctPositionsInLedger(fund, date, correctionTimestamp));
+      navFunds.forEach(fund -> fundPositionLedgerService.rerecordPositionsFromDate(fund, date));
     }
   }
 }

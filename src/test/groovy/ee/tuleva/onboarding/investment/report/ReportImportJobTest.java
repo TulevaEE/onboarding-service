@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +39,9 @@ class ReportImportJobTest {
 
   private static final String SAMPLE_CSV = "col1;col2\nval1;val2";
 
+  private static final Clock FIXED_CLOCK =
+      Clock.fixed(Instant.parse("2026-04-07T09:00:00Z"), ZoneId.of("Europe/Tallinn"));
+
   @BeforeEach
   void setUp() {
     reportService = new InvestmentReportService(reportRepository, new CsvToJsonConverter());
@@ -45,7 +49,7 @@ class ReportImportJobTest {
         new ReportImportJob(
             List.of(source),
             reportService,
-            Clock.systemUTC(),
+            FIXED_CLOCK,
             eventPublisher,
             pipelineTracker,
             pipelineNotifier);
@@ -93,7 +97,7 @@ class ReportImportJobTest {
   @Test
   void importForDate_refetchesModifiedReport_forRecentDate() {
     setupReportRepositoryMocks();
-    LocalDate date = LocalDate.now().minusDays(1);
+    LocalDate date = LocalDate.now(FIXED_CLOCK).minusDays(1);
     Instant oldModified = Instant.parse("2026-02-05T08:00:00Z");
     Instant newModified = Instant.parse("2026-02-05T14:00:00Z");
 
@@ -121,7 +125,7 @@ class ReportImportJobTest {
 
   @Test
   void importForDate_skipsUnmodifiedReport_forRecentDate() {
-    LocalDate date = LocalDate.now().minusDays(1);
+    LocalDate date = LocalDate.now(FIXED_CLOCK).minusDays(1);
     Instant lastModified = Instant.parse("2026-02-05T08:00:00Z");
 
     Map<String, Object> metadata = new HashMap<>();
@@ -208,5 +212,53 @@ class ReportImportJobTest {
 
     verify(reportRepository, times(7))
         .findByProviderAndReportTypeAndReportDate(any(), any(), any());
+  }
+
+  @Test
+  void forceImportForProviderAndDate_alwaysRefetches_regardlessOfAge() {
+    setupReportRepositoryMocks();
+    LocalDate oldDate = LocalDate.now(FIXED_CLOCK).minusDays(5);
+    when(source.getProvider()).thenReturn(SWEDBANK);
+    when(source.getSupportedReportTypes()).thenReturn(List.of(POSITIONS));
+    when(source.fetch(eq(POSITIONS), eq(oldDate)))
+        .thenReturn(
+            Optional.of(new ByteArrayInputStream(SAMPLE_CSV.getBytes(StandardCharsets.UTF_8))));
+    when(source.getBucket()).thenReturn("tuleva-investment-reports");
+    when(source.getKey(POSITIONS, oldDate)).thenReturn("portfolio/" + oldDate + ".csv");
+    when(source.extractCsvMetadata(any())).thenReturn(Map.of());
+
+    job.forceImportForProviderAndDate(SWEDBANK, oldDate);
+
+    verify(source).fetch(POSITIONS, oldDate);
+    verify(reportRepository).save(any(InvestmentReport.class));
+  }
+
+  @Test
+  void shouldRefresh_returnsTrueForModifiedReport_withinLookbackWindow() {
+    setupReportRepositoryMocks();
+    LocalDate date = LocalDate.now(FIXED_CLOCK).minusDays(5);
+    Instant oldModified = Instant.parse("2026-04-01T08:00:00Z");
+    Instant newModified = Instant.parse("2026-04-07T11:00:00Z");
+
+    Map<String, Object> metadata = new HashMap<>();
+    metadata.put("s3LastModified", oldModified.toString());
+    InvestmentReport existing = InvestmentReport.builder().metadata(metadata).build();
+
+    when(source.getProvider()).thenReturn(SWEDBANK);
+    when(source.getSupportedReportTypes()).thenReturn(List.of(POSITIONS));
+    when(reportRepository.findByProviderAndReportTypeAndReportDate(SWEDBANK, POSITIONS, date))
+        .thenReturn(Optional.of(existing));
+    when(source.getLastModified(POSITIONS, date)).thenReturn(Optional.of(newModified));
+    when(source.fetch(eq(POSITIONS), eq(date)))
+        .thenReturn(
+            Optional.of(new ByteArrayInputStream(SAMPLE_CSV.getBytes(StandardCharsets.UTF_8))));
+    when(source.getBucket()).thenReturn("tuleva-investment-reports");
+    when(source.getKey(POSITIONS, date)).thenReturn("portfolio/" + date + ".csv");
+    when(source.extractCsvMetadata(any())).thenReturn(Map.of());
+
+    job.importForDate(date);
+
+    verify(source).fetch(POSITIONS, date);
+    verify(reportRepository).save(any(InvestmentReport.class));
   }
 }

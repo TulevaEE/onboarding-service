@@ -107,6 +107,27 @@ public class ReportImportJob {
             });
   }
 
+  public void forceImportForProviderAndDate(ReportProvider provider, LocalDate date) {
+    log.info("Force re-importing report: provider={}, date={}", provider, date);
+
+    sources.stream()
+        .filter(source -> source.getProvider() == provider)
+        .forEach(
+            source -> {
+              for (ReportType reportType : source.getSupportedReportTypes()) {
+                forceImportReport(source, reportType, date);
+              }
+            });
+  }
+
+  private void forceImportReport(ReportSource source, ReportType reportType, LocalDate date) {
+    Optional<InputStream> stream = source.fetch(reportType, date);
+    if (stream.isEmpty()) {
+      return;
+    }
+    saveReport(source, reportType, date, stream.get());
+  }
+
   private void importReport(ReportSource source, ReportType reportType, LocalDate date) {
     ReportProvider provider = source.getProvider();
 
@@ -122,7 +143,13 @@ public class ReportImportJob {
       return;
     }
 
-    try (InputStream csvStream = stream.get()) {
+    saveReport(source, reportType, date, stream.get());
+  }
+
+  private void saveReport(
+      ReportSource source, ReportType reportType, LocalDate date, InputStream csvStream) {
+    ReportProvider provider = source.getProvider();
+    try (csvStream) {
       byte[] csvBytes = csvStream.readAllBytes();
 
       Map<String, Object> metadata = new HashMap<>();
@@ -171,7 +198,7 @@ public class ReportImportJob {
 
   private boolean shouldRefresh(
       ReportSource source, ReportType reportType, LocalDate date, InvestmentReport existing) {
-    if (date.isBefore(LocalDate.now(clock).minusDays(1))) {
+    if (date.isBefore(LocalDate.now(clock).minusDays(LOOKBACK_DAYS))) {
       return false;
     }
     Optional<Instant> s3LastModified = source.getLastModified(reportType, date);

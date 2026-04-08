@@ -52,8 +52,7 @@ public class ReportImportJob {
   @SchedulerLock(name = "ReportImportJob", lockAtMostFor = "55m", lockAtLeastFor = "4m")
   public void schedule() {
     var trigger = "cron:" + LocalTime.now(clock.withZone(ESTONIAN_ZONE));
-    var pipeline = pipelineTracker.start(PipelineRun.PipelineType.IMPORT, trigger);
-    pipelineNotifier.sendStarted(pipeline);
+    pipelineTracker.start(PipelineRun.PipelineType.IMPORT, trigger);
     try {
       eventPublisher.publishEvent(new RunReportImportRequested());
     } finally {

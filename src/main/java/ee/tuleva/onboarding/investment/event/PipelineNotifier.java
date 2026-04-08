@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.event;
 
-import static ee.tuleva.onboarding.investment.event.PipelineRun.StepStatus.*;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -19,63 +18,58 @@ public class PipelineNotifier {
 
   private final OperationsNotificationService notificationService;
 
-  public void sendStarted(PipelineRun pipeline) {
+  public void sendCompleted(PipelineRun pipeline) {
     try {
-      var steps = resolveSteps(pipeline);
-      var message = new StringBuilder();
-      message.append("INVESTMENT PIPELINE [%s]\n".formatted(pipeline.getTrigger()));
-
-      var firstStep = steps.getFirst();
-      for (var stepName : steps) {
-        if (stepName.equals(firstStep)) {
-          message.append("\n\uD83D\uDD04 %s...".formatted(stepName));
-        } else {
-          message.append("\n⏳ %s".formatted(stepName));
-        }
+      if (pipeline.hasFailure()) {
+        sendFailure(pipeline);
+      } else {
+        sendSuccess(pipeline);
       }
-
-      notificationService.sendMessage(message.toString(), INVESTMENT);
     } catch (Exception e) {
-      log.error("Failed to send pipeline start notification", e);
+      log.error("Failed to send pipeline notification", e);
     }
   }
 
-  public void sendCompleted(PipelineRun pipeline) {
-    try {
-      var steps = resolveSteps(pipeline);
-      var message = new StringBuilder();
-      message.append("INVESTMENT PIPELINE [%s]\n".formatted(pipeline.getTrigger()));
+  private void sendSuccess(PipelineRun pipeline) {
+    var stepDetails =
+        pipeline.getSteps().stream()
+            .map(s -> "%s (%s)".formatted(s.getName(), formatDuration(s.duration())))
+            .collect(Collectors.joining(", "));
 
-      Set<String> completedStepNames =
-          pipeline.getSteps().stream()
-              .map(PipelineRun.StepResult::getName)
-              .collect(Collectors.toSet());
+    var message =
+        "✅ %s pipeline completed (%s) — %s"
+            .formatted(
+                pipeline.getTrigger(), formatDuration(pipeline.totalDuration()), stepDetails);
 
-      for (var step : pipeline.getSteps()) {
-        message.append("\n").append(formatStep(step));
-      }
+    notificationService.sendMessage(message, INVESTMENT);
+  }
 
-      for (var stepName : steps) {
-        if (!completedStepNames.contains(stepName)) {
-          if (pipeline.hasFailure()) {
-            message.append("\n⏭\uFE0F %s (skipped)".formatted(stepName));
-          }
-        }
-      }
+  private void sendFailure(PipelineRun pipeline) {
+    var steps = resolveSteps(pipeline);
+    var message = new StringBuilder();
+    message.append("INVESTMENT PIPELINE [%s]\n".formatted(pipeline.getTrigger()));
 
-      if (pipeline.hasFailure()) {
-        var failed = pipeline.firstFailure().orElseThrow();
-        message.append(
-            "\n\nChain stopped. Fix and re-trigger:\nINSERT INTO investment_job_trigger (job_name) VALUES ('%s');"
-                .formatted(jobNameForStep(failed.getName())));
-      } else {
-        message.append("\n\nDone in %s".formatted(formatDuration(pipeline.totalDuration())));
-      }
+    Set<String> completedStepNames =
+        pipeline.getSteps().stream()
+            .map(PipelineRun.StepResult::getName)
+            .collect(Collectors.toSet());
 
-      notificationService.sendMessage(message.toString(), INVESTMENT);
-    } catch (Exception e) {
-      log.error("Failed to send pipeline completion notification", e);
+    for (var step : pipeline.getSteps()) {
+      message.append("\n").append(formatStep(step));
     }
+
+    for (var stepName : steps) {
+      if (!completedStepNames.contains(stepName)) {
+        message.append("\n⏭\uFE0F %s (skipped)".formatted(stepName));
+      }
+    }
+
+    var failed = pipeline.firstFailure().orElseThrow();
+    message.append(
+        "\n\nChain stopped. Fix and re-trigger:\nINSERT INTO investment_job_trigger (job_name) VALUES ('%s');"
+            .formatted(jobNameForStep(failed.getName())));
+
+    notificationService.sendMessage(message.toString(), INVESTMENT);
   }
 
   private List<String> resolveSteps(PipelineRun pipeline) {

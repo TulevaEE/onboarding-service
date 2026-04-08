@@ -20,18 +20,7 @@ class PipelineNotifierTest {
   @InjectMocks PipelineNotifier notifier;
 
   @Test
-  void sendStartedShowsAllStepsPending() {
-    var pipeline = new PipelineRun(PipelineRun.PipelineType.IMPORT, "cron:15:00");
-
-    notifier.sendStarted(pipeline);
-
-    then(notificationService).should().sendMessage(contains("INVESTMENT PIPELINE"), eq(INVESTMENT));
-    then(notificationService).should().sendMessage(contains("Report Import"), eq(INVESTMENT));
-    then(notificationService).should().sendMessage(contains("Fee Accrual Sync"), eq(INVESTMENT));
-  }
-
-  @Test
-  void sendCompletedShowsAllStepsWithTiming() {
+  void sendCompletedSuccessSendsCompactMessage() {
     var pipeline = new PipelineRun(PipelineRun.PipelineType.IMPORT, "cron:15:00");
     pipeline.stepStarted("Report Import");
     pipeline.stepCompleted("Report Import");
@@ -40,11 +29,12 @@ class PipelineNotifierTest {
 
     notifier.sendCompleted(pipeline);
 
-    then(notificationService).should().sendMessage(contains("Done in"), eq(INVESTMENT));
+    then(notificationService).should().sendMessage(contains("pipeline completed"), eq(INVESTMENT));
+    then(notificationService).should().sendMessage(contains("Report Import"), eq(INVESTMENT));
   }
 
   @Test
-  void sendCompletedShowsFailureWithRetriggerHint() {
+  void sendCompletedFailureSendsFullBreakdown() {
     var pipeline = new PipelineRun(PipelineRun.PipelineType.IMPORT, "cron:15:00");
     pipeline.stepStarted("Report Import");
     pipeline.stepCompleted("Report Import");

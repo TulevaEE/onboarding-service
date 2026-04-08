@@ -63,8 +63,7 @@ public class NavCalculationJob {
   }
 
   private void runPipeline(TulevaFund trigger, List<TulevaFund> funds) {
-    var pipeline = pipelineTracker.start(PipelineRun.PipelineType.NAV, "NAV " + trigger.getCode());
-    pipelineNotifier.sendStarted(pipeline);
+    pipelineTracker.start(PipelineRun.PipelineType.NAV, "NAV " + trigger.getCode());
     try {
       eventPublisher.publishEvent(new RunNavCalculationRequested(funds));
     } finally {

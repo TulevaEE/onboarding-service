@@ -172,7 +172,6 @@ class NavCalculationJobTest {
     job.calculateDailyNav();
 
     verify(eventPublisher).publishEvent(any(RunNavCalculationRequested.class));
-    verify(pipelineNotifier).sendStarted(any());
     verify(pipelineNotifier).sendCompleted(any());
   }
 

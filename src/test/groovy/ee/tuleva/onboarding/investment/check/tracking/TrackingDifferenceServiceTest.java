@@ -7,15 +7,17 @@ import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.M
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
-import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeRate;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
@@ -46,7 +48,6 @@ class TrackingDifferenceServiceTest {
   @Mock PriorityPriceProvider priorityPriceProvider;
   @Mock FeeRateRepository feeRateRepository;
   @Mock TrackingDifferenceEventRepository eventRepository;
-  @Mock PublicHolidays publicHolidays;
 
   private TrackingDifferenceService service;
 
@@ -57,6 +58,9 @@ class TrackingDifferenceServiceTest {
 
   @BeforeEach
   void setUp() {
+    lenient()
+        .when(fundValueProvider.getLatestValue(anyString(), any(LocalDate.class)))
+        .thenReturn(Optional.empty());
     service =
         new TrackingDifferenceService(
             FIXED_CLOCK,
@@ -66,8 +70,7 @@ class TrackingDifferenceServiceTest {
             priorityPriceProvider,
             feeRateRepository,
             eventRepository,
-            new TrackingDifferenceCalculator(),
-            publicHolidays);
+            new TrackingDifferenceCalculator());
   }
 
   @Test
@@ -117,9 +120,9 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
-  void skipsWhenNoPositionData() {
+  void skipsWhenNoNavData() {
     for (var fund : TulevaFund.values()) {
-      given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, CHECK_DATE))
+      given(fundValueProvider.getLatestValue(fund.getIsin(), CHECK_DATE))
           .willReturn(Optional.empty());
     }
 
@@ -130,13 +133,12 @@ class TrackingDifferenceServiceTest {
 
   @Test
   void skipsWhenNoPreviousNavDate() {
-    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, CHECK_DATE))
-        .willReturn(Optional.of(CHECK_DATE));
-    given(publicHolidays.previousWorkingDay(CHECK_DATE)).willReturn(PREVIOUS_DATE);
-    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, PREVIOUS_DATE))
-        .willReturn(Optional.empty());
-
     skipOtherFunds(TUK75);
+
+    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE))
+        .willReturn(Optional.of(fundValue("10.10", CHECK_DATE)));
+    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE.minusDays(1)))
+        .willReturn(Optional.empty());
 
     var results = service.runChecksAsOf(CHECK_DATE);
 
@@ -197,16 +199,10 @@ class TrackingDifferenceServiceTest {
   void handlesZeroTotalNav() {
     skipOtherFunds(TUK75);
 
-    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, CHECK_DATE))
-        .willReturn(Optional.of(CHECK_DATE));
-    given(publicHolidays.previousWorkingDay(CHECK_DATE)).willReturn(PREVIOUS_DATE);
-    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, PREVIOUS_DATE))
-        .willReturn(Optional.of(PREVIOUS_DATE));
-
     given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE))
-        .willReturn(Optional.of(fundValue("10.10")));
-    given(fundValueProvider.getLatestValue(TUK75.getIsin(), PREVIOUS_DATE))
-        .willReturn(Optional.of(fundValue("10.00")));
+        .willReturn(Optional.of(fundValue("10.10", CHECK_DATE)));
+    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE.minusDays(1)))
+        .willReturn(Optional.of(fundValue("10.00", PREVIOUS_DATE)));
 
     var allocation =
         ModelPortfolioAllocation.builder()
@@ -259,19 +255,66 @@ class TrackingDifferenceServiceTest {
     verify(eventRepository).save(any(TrackingDifferenceEvent.class));
   }
 
+  @Test
+  void throwsWhenSecurityPriceDataIncomplete() {
+    skipOtherFunds(TUK75);
+
+    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE))
+        .willReturn(Optional.of(fundValue("10.10", CHECK_DATE)));
+    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE.minusDays(1)))
+        .willReturn(Optional.of(fundValue("10.00", PREVIOUS_DATE)));
+
+    var allocation1 =
+        ModelPortfolioAllocation.builder()
+            .fund(TUK75)
+            .isin("IE00B4L5Y983")
+            .weight(new BigDecimal("0.70"))
+            .effectiveDate(LocalDate.of(2026, 1, 1))
+            .build();
+    var allocation2 =
+        ModelPortfolioAllocation.builder()
+            .fund(TUK75)
+            .isin("IE00MISSING1")
+            .weight(new BigDecimal("0.30"))
+            .effectiveDate(LocalDate.of(2026, 1, 1))
+            .build();
+    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75))
+        .willReturn(List.of(allocation1, allocation2));
+
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
+        .willReturn(List.of());
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(CASH)))
+        .willReturn(new BigDecimal("50000"));
+
+    given(priorityPriceProvider.resolve("IE00B4L5Y983", CHECK_DATE))
+        .willReturn(Optional.of(fundValue("102.00")));
+    given(priorityPriceProvider.resolve("IE00B4L5Y983", PREVIOUS_DATE))
+        .willReturn(Optional.of(fundValue("100.00")));
+    given(priorityPriceProvider.resolve("IE00MISSING1", CHECK_DATE)).willReturn(Optional.empty());
+    given(priorityPriceProvider.resolve("IE00MISSING1", PREVIOUS_DATE))
+        .willReturn(Optional.empty());
+
+    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
+        .willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.runChecksAsOf(CHECK_DATE))
+        .isInstanceOf(TrackingDifferenceService.IncompletePriceDataException.class)
+        .hasMessageContaining("IE00MISSING1");
+  }
+
   private void setupFundData(TulevaFund fund) {
     skipOtherFunds(fund);
 
-    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, CHECK_DATE))
-        .willReturn(Optional.of(CHECK_DATE));
-    given(publicHolidays.previousWorkingDay(CHECK_DATE)).willReturn(PREVIOUS_DATE);
-    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, PREVIOUS_DATE))
-        .willReturn(Optional.of(PREVIOUS_DATE));
-
     given(fundValueProvider.getLatestValue(fund.getIsin(), CHECK_DATE))
-        .willReturn(Optional.of(fundValue("10.10")));
-    given(fundValueProvider.getLatestValue(fund.getIsin(), PREVIOUS_DATE))
-        .willReturn(Optional.of(fundValue("10.00")));
+        .willReturn(Optional.of(fundValue("10.10", CHECK_DATE)));
+    given(fundValueProvider.getLatestValue(fund.getIsin(), CHECK_DATE.minusDays(1)))
+        .willReturn(Optional.of(fundValue("10.00", PREVIOUS_DATE)));
 
     var allocation =
         ModelPortfolioAllocation.builder()
@@ -328,7 +371,7 @@ class TrackingDifferenceServiceTest {
   private void skipOtherFunds(TulevaFund fund) {
     for (var f : TulevaFund.values()) {
       if (f != fund) {
-        given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(f, CHECK_DATE))
+        given(fundValueProvider.getLatestValue(f.getIsin(), CHECK_DATE))
             .willReturn(Optional.empty());
       }
     }
@@ -361,6 +404,10 @@ class TrackingDifferenceServiceTest {
   }
 
   private FundValue fundValue(String value) {
-    return new FundValue("test", CHECK_DATE, new BigDecimal(value), "TEST", Instant.now());
+    return fundValue(value, CHECK_DATE);
+  }
+
+  private FundValue fundValue(String value, LocalDate date) {
+    return new FundValue("test", date, new BigDecimal(value), "TEST", Instant.now());
   }
 }

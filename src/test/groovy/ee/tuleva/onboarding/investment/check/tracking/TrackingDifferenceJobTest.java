@@ -53,4 +53,18 @@ class TrackingDifferenceJobTest {
 
     then(notifier).shouldHaveNoInteractions();
   }
+
+  @Test
+  void notifiesPartialResultsOnIncompletePriceData() {
+    var partialResults = List.<TrackingDifferenceResult>of();
+    doThrow(
+            new TrackingDifferenceService.IncompletePriceDataException(
+                "missing prices", partialResults))
+        .when(service)
+        .runChecks();
+
+    job.onAllNavCalculationsCompleted(new AllNavCalculationsCompleted());
+
+    then(notifier).should().notify(partialResults);
+  }
 }

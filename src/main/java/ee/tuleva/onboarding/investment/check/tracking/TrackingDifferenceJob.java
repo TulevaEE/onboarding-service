@@ -41,6 +41,10 @@ public class TrackingDifferenceJob {
       pipelineTracker.stepCompleted(TRACKING_DIFFERENCE);
 
       log.info("Tracking difference check completed: resultCount={}", results.size());
+    } catch (TrackingDifferenceService.IncompletePriceDataException e) {
+      trackingDifferenceNotifier.notify(e.completedResults());
+      pipelineTracker.stepFailed(TRACKING_DIFFERENCE, e.getMessage());
+      log.error("Tracking difference check incomplete", e);
     } catch (Exception e) {
       pipelineTracker.stepFailed(TRACKING_DIFFERENCE, e.getMessage());
       log.error("Tracking difference check failed", e);

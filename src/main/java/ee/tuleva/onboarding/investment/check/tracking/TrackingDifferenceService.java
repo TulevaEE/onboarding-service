@@ -8,7 +8,6 @@ import static java.math.BigDecimal.ZERO;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
-import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.SecurityData;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.TrackingInput;
@@ -60,7 +59,6 @@ class TrackingDifferenceService {
   private final FeeRateRepository feeRateRepository;
   private final TrackingDifferenceEventRepository eventRepository;
   private final TrackingDifferenceCalculator calculator;
-  private final PublicHolidays publicHolidays;
 
   List<TrackingDifferenceResult> runChecks() {
     return runChecksAsOf(LocalDate.now(clock));
@@ -68,16 +66,27 @@ class TrackingDifferenceService {
 
   List<TrackingDifferenceResult> runChecksAsOf(LocalDate asOfDate) {
     var results = new ArrayList<TrackingDifferenceResult>();
+    var incompleteChecks = new ArrayList<String>();
 
     for (var fund : TulevaFund.values()) {
-      var latestDate = fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, asOfDate);
-      if (latestDate.isEmpty()) {
-        log.warn("No position data for fund: fund={}, asOfDate={}", fund, asOfDate);
+      var latestNav = fundValueProvider.getLatestValue(fund.getIsin(), asOfDate);
+      if (latestNav.isEmpty()) {
+        log.warn("No NAV data for fund: fund={}, asOfDate={}", fund, asOfDate);
         continue;
       }
 
-      var checkDate = latestDate.get();
-      checkFund(fund, checkDate).forEach(results::add);
+      var checkDate = latestNav.get().date();
+      try {
+        checkFund(fund, checkDate).forEach(results::add);
+      } catch (IncompletePriceDataException e) {
+        log.warn("Skipping fund due to incomplete price data: {}", e.getMessage());
+        incompleteChecks.add(e.getMessage());
+      }
+    }
+
+    if (!incompleteChecks.isEmpty()) {
+      throw new IncompletePriceDataException(
+          "Incomplete security price data:\n" + String.join("\n", incompleteChecks), results);
     }
 
     return results;
@@ -98,14 +107,8 @@ class TrackingDifferenceService {
   private List<TrackingDifferenceResult> checkFund(TulevaFund fund, LocalDate checkDate) {
     var results = new ArrayList<TrackingDifferenceResult>();
 
-    var previousDate = findPreviousNavDate(fund, checkDate);
-    if (previousDate.isEmpty()) {
-      log.warn("No previous NAV date: fund={}, checkDate={}", fund, checkDate);
-      return results;
-    }
-
     var todayNav = fundValueProvider.getLatestValue(fund.getIsin(), checkDate);
-    var yesterdayNav = fundValueProvider.getLatestValue(fund.getIsin(), previousDate.get());
+    var yesterdayNav = fundValueProvider.getLatestValue(fund.getIsin(), checkDate.minusDays(1));
 
     if (todayNav.isEmpty() || yesterdayNav.isEmpty()) {
       log.warn(
@@ -116,6 +119,8 @@ class TrackingDifferenceService {
           yesterdayNav.isPresent());
       return results;
     }
+
+    var previousDate = yesterdayNav.get().date();
 
     var allocations = modelPortfolioAllocationRepository.findLatestByFund(fund);
     if (allocations.isEmpty()) {
@@ -140,8 +145,18 @@ class TrackingDifferenceService {
             .map(FeeRate::annualRate)
             .orElse(ZERO);
 
-    var securities =
-        buildSecurityData(allocations, positions, totalNav, checkDate, previousDate.get());
+    var securities = buildSecurityData(allocations, positions, totalNav, checkDate, previousDate);
+
+    var missingPrices =
+        securities.stream()
+            .filter(s -> s.todayPrice() == null || s.yesterdayPrice() == null)
+            .map(SecurityData::isin)
+            .toList();
+    if (!missingPrices.isEmpty()) {
+      throw new IncompletePriceDataException(
+          "fund=%s, checkDate=%s, missingIsins=%s".formatted(fund, checkDate, missingPrices),
+          List.of());
+    }
 
     var priorBreaches = countConsecutiveBreaches(fund, MODEL_PORTFOLIO, checkDate);
 
@@ -167,7 +182,7 @@ class TrackingDifferenceService {
               results.add(withConsecutive);
             });
 
-    buildBenchmarkCheck(fund, checkDate, previousDate.get(), todayNav.get(), yesterdayNav.get())
+    buildBenchmarkCheck(fund, checkDate, previousDate, todayNav.get(), yesterdayNav.get())
         .ifPresent(
             result -> {
               saveEvent(result);
@@ -299,11 +314,6 @@ class TrackingDifferenceService {
         .toList();
   }
 
-  private Optional<LocalDate> findPreviousNavDate(TulevaFund fund, LocalDate checkDate) {
-    var previousWorkingDay = publicHolidays.previousWorkingDay(checkDate);
-    return fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, previousWorkingDay);
-  }
-
   private ConsecutiveBreachInfo countConsecutiveBreaches(
       TulevaFund fund, TrackingCheckType checkType, LocalDate checkDate) {
     var recent =
@@ -388,4 +398,18 @@ class TrackingDifferenceService {
   }
 
   record BenchmarkComponent(String key, BigDecimal weight) {}
+
+  static class IncompletePriceDataException extends RuntimeException {
+
+    private final transient List<TrackingDifferenceResult> completedResults;
+
+    IncompletePriceDataException(String message, List<TrackingDifferenceResult> completedResults) {
+      super(message);
+      this.completedResults = completedResults;
+    }
+
+    List<TrackingDifferenceResult> completedResults() {
+      return completedResults;
+    }
+  }
 }

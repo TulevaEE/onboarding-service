@@ -17,7 +17,11 @@ import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
+import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
+import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
+import ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeRate;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
@@ -46,6 +50,8 @@ class TrackingDifferenceServiceTest {
   @Mock ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   @Mock FundValueProvider fundValueProvider;
   @Mock PriorityPriceProvider priorityPriceProvider;
+  @Mock PositionPriceResolver positionPriceResolver;
+  @Mock PublicHolidays publicHolidays;
   @Mock FeeRateRepository feeRateRepository;
   @Mock TrackingDifferenceEventRepository eventRepository;
 
@@ -61,6 +67,9 @@ class TrackingDifferenceServiceTest {
     lenient()
         .when(fundValueProvider.getLatestValue(anyString(), any(LocalDate.class)))
         .thenReturn(Optional.empty());
+    lenient()
+        .when(publicHolidays.nextWorkingDay(any(LocalDate.class)))
+        .thenAnswer(inv -> ((LocalDate) inv.getArgument(0)).plusDays(1));
     service =
         new TrackingDifferenceService(
             FIXED_CLOCK,
@@ -68,6 +77,8 @@ class TrackingDifferenceServiceTest {
             modelPortfolioAllocationRepository,
             fundValueProvider,
             priorityPriceProvider,
+            positionPriceResolver,
+            publicHolidays,
             feeRateRepository,
             eventRepository,
             new TrackingDifferenceCalculator());
@@ -225,10 +236,10 @@ class TrackingDifferenceServiceTest {
                 TUK75, CHECK_DATE, List.of(CASH)))
         .willReturn(ZERO);
 
-    given(priorityPriceProvider.resolve("IE00B4L5Y983", CHECK_DATE))
-        .willReturn(Optional.of(fundValue("102.00")));
-    given(priorityPriceProvider.resolve("IE00B4L5Y983", PREVIOUS_DATE))
-        .willReturn(Optional.of(fundValue("100.00")));
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("102.00")));
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
 
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
@@ -240,7 +251,6 @@ class TrackingDifferenceServiceTest {
 
     var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
     assertThat(modelResult).isPresent();
-    // Cash weight should be 0 when totalNav is 0
     assertThat(modelResult.get().cashDrag()).isEqualByComparingTo(ZERO);
   }
 
@@ -256,7 +266,7 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
-  void usesPositionMarketPriceForSecurityReturn() {
+  void usesCutoffAdjustedPriceForSecurityReturn() {
     skipOtherFunds(TUK75);
 
     given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE))
@@ -274,29 +284,21 @@ class TrackingDifferenceServiceTest {
     given(modelPortfolioAllocationRepository.findLatestByFund(TUK75))
         .willReturn(List.of(allocation));
 
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("101.00")));
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+
     var todayPosition =
         FundPosition.builder()
             .fund(TUK75)
             .navDate(CHECK_DATE)
             .accountType(SECURITY)
             .accountId("IE00B4L5Y983")
-            .marketPrice(new BigDecimal("101.00"))
             .marketValue(new BigDecimal("950000"))
             .build();
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
         .willReturn(List.of(todayPosition));
-
-    var yesterdayPosition =
-        FundPosition.builder()
-            .fund(TUK75)
-            .navDate(PREVIOUS_DATE)
-            .accountType(SECURITY)
-            .accountId("IE00B4L5Y983")
-            .marketPrice(new BigDecimal("100.00"))
-            .marketValue(new BigDecimal("940000"))
-            .build();
-    given(fundPositionRepository.findByNavDateAndFundAndAccountType(PREVIOUS_DATE, TUK75, SECURITY))
-        .willReturn(List.of(yesterdayPosition));
 
     given(
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
@@ -317,8 +319,7 @@ class TrackingDifferenceServiceTest {
 
     var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
     assertThat(modelResult).isPresent();
-    // Position prices: (101 - 100) / 100 = 0.01, NOT PriorityPriceProvider's (110 - 100) / 100 =
-    // 0.10
+    // Cutoff-adjusted prices: (101 - 100) / 100 = 0.01
     assertThat(modelResult.get().benchmarkReturn()).isEqualByComparingTo(new BigDecimal("0.01"));
   }
 
@@ -359,12 +360,11 @@ class TrackingDifferenceServiceTest {
                 TUK75, CHECK_DATE, List.of(CASH)))
         .willReturn(new BigDecimal("50000"));
 
-    given(priorityPriceProvider.resolve("IE00B4L5Y983", CHECK_DATE))
-        .willReturn(Optional.of(fundValue("102.00")));
-    given(priorityPriceProvider.resolve("IE00B4L5Y983", PREVIOUS_DATE))
-        .willReturn(Optional.of(fundValue("100.00")));
-    given(priorityPriceProvider.resolve("IE00MISSING1", CHECK_DATE)).willReturn(Optional.empty());
-    given(priorityPriceProvider.resolve("IE00MISSING1", PREVIOUS_DATE))
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("102.00")));
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+    given(positionPriceResolver.resolve(eq("IE00MISSING1"), any(LocalDate.class), any()))
         .willReturn(Optional.empty());
 
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
@@ -393,29 +393,21 @@ class TrackingDifferenceServiceTest {
     given(modelPortfolioAllocationRepository.findLatestByFund(fund))
         .willReturn(List.of(allocation));
 
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("102.00")));
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+
     var position =
         FundPosition.builder()
             .fund(fund)
             .navDate(CHECK_DATE)
             .accountType(SECURITY)
             .accountId("IE00B4L5Y983")
-            .marketPrice(new BigDecimal("102.00"))
             .marketValue(new BigDecimal("950000"))
             .build();
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, fund, SECURITY))
         .willReturn(List.of(position));
-
-    var previousPosition =
-        FundPosition.builder()
-            .fund(fund)
-            .navDate(PREVIOUS_DATE)
-            .accountType(SECURITY)
-            .accountId("IE00B4L5Y983")
-            .marketPrice(new BigDecimal("100.00"))
-            .marketValue(new BigDecimal("940000"))
-            .build();
-    given(fundPositionRepository.findByNavDateAndFundAndAccountType(PREVIOUS_DATE, fund, SECURITY))
-        .willReturn(List.of(previousPosition));
 
     given(
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
@@ -484,5 +476,12 @@ class TrackingDifferenceServiceTest {
 
   private FundValue fundValue(String value, LocalDate date) {
     return new FundValue("test", date, new BigDecimal(value), "TEST", Instant.now());
+  }
+
+  private ResolvedPrice resolvedPrice(String value) {
+    return ResolvedPrice.builder()
+        .usedPrice(new BigDecimal(value))
+        .validationStatus(ValidationStatus.OK)
+        .build();
   }
 }

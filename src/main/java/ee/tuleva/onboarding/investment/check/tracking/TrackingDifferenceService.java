@@ -7,7 +7,11 @@ import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
+import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
+import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
+import ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.SecurityData;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.TrackingInput;
@@ -21,7 +25,10 @@ import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +46,7 @@ class TrackingDifferenceService {
 
   private static final String MSCI_ACWI_KEY = "MSCI_ACWI";
   private static final int ESCALATION_LOOKBACK = 2;
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private static final Map<TulevaFund, BenchmarkConfig> BENCHMARK_CONFIGS =
       Map.of(
@@ -56,6 +64,8 @@ class TrackingDifferenceService {
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   private final FundValueProvider fundValueProvider;
   private final PriorityPriceProvider priorityPriceProvider;
+  private final PositionPriceResolver positionPriceResolver;
+  private final PublicHolidays publicHolidays;
   private final FeeRateRepository feeRateRepository;
   private final TrackingDifferenceEventRepository eventRepository;
   private final TrackingDifferenceCalculator calculator;
@@ -145,12 +155,8 @@ class TrackingDifferenceService {
             .map(FeeRate::annualRate)
             .orElse(ZERO);
 
-    var previousPositions =
-        fundPositionRepository.findByNavDateAndFundAndAccountType(previousDate, fund, SECURITY);
-
     var securities =
-        buildSecurityData(
-            allocations, positions, previousPositions, totalNav, checkDate, previousDate);
+        buildSecurityData(fund, allocations, positions, totalNav, checkDate, previousDate);
 
     var missingPrices =
         securities.stream()
@@ -283,9 +289,9 @@ class TrackingDifferenceService {
   }
 
   private List<SecurityData> buildSecurityData(
+      TulevaFund fund,
       List<ModelPortfolioAllocation> allocations,
       List<FundPosition> todayPositions,
-      List<FundPosition> previousPositions,
       BigDecimal totalNav,
       LocalDate checkDate,
       LocalDate previousDate) {
@@ -295,33 +301,27 @@ class TrackingDifferenceService {
             .filter(p -> p.getAccountId() != null)
             .collect(Collectors.toMap(FundPosition::getAccountId, p -> p, (a, b) -> a));
 
-    Map<String, FundPosition> previousByIsin =
-        previousPositions.stream()
-            .filter(p -> p.getAccountId() != null)
-            .collect(Collectors.toMap(FundPosition::getAccountId, p -> p, (a, b) -> a));
+    var todayCutoff = computePriceCutoff(fund, checkDate);
+    var yesterdayCutoff = computePriceCutoff(fund, previousDate);
 
     return allocations.stream()
         .filter(a -> a.getIsin() != null)
         .map(
             a -> {
-              var todayPos = todayByIsin.get(a.getIsin());
-              var previousPos = previousByIsin.get(a.getIsin());
-
               var todayPrice =
-                  todayPos != null && todayPos.getMarketPrice() != null
-                      ? todayPos.getMarketPrice()
-                      : priorityPriceProvider
-                          .resolve(a.getIsin(), checkDate)
-                          .map(FundValue::value)
-                          .orElse(null);
+                  positionPriceResolver
+                      .resolve(a.getIsin(), checkDate, todayCutoff)
+                      .filter(rp -> rp.validationStatus() == ValidationStatus.OK)
+                      .map(ResolvedPrice::usedPrice)
+                      .orElse(null);
               var yesterdayPrice =
-                  previousPos != null && previousPos.getMarketPrice() != null
-                      ? previousPos.getMarketPrice()
-                      : priorityPriceProvider
-                          .resolve(a.getIsin(), previousDate)
-                          .map(FundValue::value)
-                          .orElse(null);
+                  positionPriceResolver
+                      .resolve(a.getIsin(), previousDate, yesterdayCutoff)
+                      .filter(rp -> rp.validationStatus() == ValidationStatus.OK)
+                      .map(ResolvedPrice::usedPrice)
+                      .orElse(null);
 
+              var todayPos = todayByIsin.get(a.getIsin());
               var actualMarketValue = todayPos != null ? todayPos.getMarketValue() : ZERO;
               var actualWeight =
                   totalNav.signum() != 0
@@ -332,6 +332,12 @@ class TrackingDifferenceService {
                   a.getIsin(), a.getWeight(), actualWeight, todayPrice, yesterdayPrice);
             })
         .toList();
+  }
+
+  private Instant computePriceCutoff(TulevaFund fund, LocalDate navDate) {
+    var calculationDate = publicHolidays.nextWorkingDay(navDate);
+    var cutoff = calculationDate.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
+    return cutoff.plus(Duration.ofMinutes(5));
   }
 
   private ConsecutiveBreachInfo countConsecutiveBreaches(

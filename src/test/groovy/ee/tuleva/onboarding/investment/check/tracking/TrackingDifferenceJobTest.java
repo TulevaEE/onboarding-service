@@ -5,6 +5,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doThrow;
 
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
+import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
 import ee.tuleva.onboarding.savings.fund.nav.AllNavCalculationsCompleted;
 import java.util.List;
@@ -52,6 +53,40 @@ class TrackingDifferenceJobTest {
     job.onAllNavCalculationsCompleted(new AllNavCalculationsCompleted());
 
     then(notifier).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void backfillEventDelegatesToServiceBackfillAndNotifier() {
+    var results = List.<TrackingDifferenceResult>of();
+    given(service.backfillChecks(7)).willReturn(results);
+
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested());
+
+    then(service).should().backfillChecks(7);
+    then(notifier).should().notify(results);
+  }
+
+  @Test
+  void backfillSwallowsExceptions() {
+    doThrow(new RuntimeException("boom")).when(service).backfillChecks(7);
+
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested());
+
+    then(notifier).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void backfillNotifiesPartialResultsOnIncompletePriceData() {
+    var partialResults = List.<TrackingDifferenceResult>of();
+    doThrow(
+            new TrackingDifferenceService.IncompletePriceDataException(
+                "missing prices", partialResults))
+        .when(service)
+        .backfillChecks(7);
+
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested());
+
+    then(notifier).should().notify(partialResults);
   }
 
   @Test

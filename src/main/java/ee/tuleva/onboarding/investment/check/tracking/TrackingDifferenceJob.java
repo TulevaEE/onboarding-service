@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.check.tracking;
 import static ee.tuleva.onboarding.investment.event.PipelineStep.TRACKING_DIFFERENCE;
 
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
+import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
 import ee.tuleva.onboarding.savings.fund.nav.AllNavCalculationsCompleted;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,27 @@ public class TrackingDifferenceJob {
   @EventListener
   void onTrackingDifferenceCheckRequested(RunTrackingDifferenceCheckRequested event) {
     runTrackingDifferenceChecks();
+  }
+
+  @EventListener
+  void onTrackingDifferenceBackfillRequested(RunTrackingDifferenceBackfillRequested event) {
+    runTrackingDifferenceBackfill();
+  }
+
+  private void runTrackingDifferenceBackfill() {
+    log.info("Starting tracking difference backfill");
+
+    try {
+      var results = trackingDifferenceService.backfillChecks(7);
+      trackingDifferenceNotifier.notify(results);
+
+      log.info("Tracking difference backfill completed: resultCount={}", results.size());
+    } catch (TrackingDifferenceService.IncompletePriceDataException e) {
+      trackingDifferenceNotifier.notify(e.completedResults());
+      log.error("Tracking difference backfill incomplete", e);
+    } catch (Exception e) {
+      log.error("Tracking difference backfill failed", e);
+    }
   }
 
   private void runTrackingDifferenceChecks() {

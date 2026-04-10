@@ -23,6 +23,7 @@ class JobTriggerPoller {
   private static final Map<String, Supplier<Object>> EVENTS =
       Map.of(
           "TrackingDifferenceJob", RunTrackingDifferenceCheckRequested::new,
+          "TrackingDifferenceBackfillJob", RunTrackingDifferenceBackfillRequested::new,
           "LimitCheckJob", RunLimitCheckRequested::new,
           "ReportImportJob", RunReportImportRequested::new,
           "FundPositionImportJob", RunFundPositionImportRequested::new,

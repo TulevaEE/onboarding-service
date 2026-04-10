@@ -8,6 +8,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.investment.event.RunLimitCheckRequested;
+import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -82,6 +83,19 @@ class JobTriggerPollerTest {
     poller.poll();
 
     then(eventPublisher).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void publishesBackfillEventForTrackingDifferenceBackfillJob() {
+    var trigger =
+        JobTrigger.builder().jobName("TrackingDifferenceBackfillJob").status("PENDING").build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+
+    poller.poll();
+
+    var captor = ArgumentCaptor.forClass(Object.class);
+    then(eventPublisher).should().publishEvent(captor.capture());
+    assertThat(captor.getValue()).isInstanceOf(RunTrackingDifferenceBackfillRequested.class);
   }
 
   @Test

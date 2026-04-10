@@ -256,6 +256,73 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
+  void usesPositionMarketPriceForSecurityReturn() {
+    skipOtherFunds(TUK75);
+
+    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE))
+        .willReturn(Optional.of(fundValue("10.10", CHECK_DATE)));
+    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE.minusDays(1)))
+        .willReturn(Optional.of(fundValue("10.00", PREVIOUS_DATE)));
+
+    var allocation =
+        ModelPortfolioAllocation.builder()
+            .fund(TUK75)
+            .isin("IE00B4L5Y983")
+            .weight(new BigDecimal("1.00"))
+            .effectiveDate(LocalDate.of(2026, 1, 1))
+            .build();
+    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75))
+        .willReturn(List.of(allocation));
+
+    var todayPosition =
+        FundPosition.builder()
+            .fund(TUK75)
+            .navDate(CHECK_DATE)
+            .accountType(SECURITY)
+            .accountId("IE00B4L5Y983")
+            .marketPrice(new BigDecimal("101.00"))
+            .marketValue(new BigDecimal("950000"))
+            .build();
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
+        .willReturn(List.of(todayPosition));
+
+    var yesterdayPosition =
+        FundPosition.builder()
+            .fund(TUK75)
+            .navDate(PREVIOUS_DATE)
+            .accountType(SECURITY)
+            .accountId("IE00B4L5Y983")
+            .marketPrice(new BigDecimal("100.00"))
+            .marketValue(new BigDecimal("940000"))
+            .build();
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(PREVIOUS_DATE, TUK75, SECURITY))
+        .willReturn(List.of(yesterdayPosition));
+
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(CASH)))
+        .willReturn(new BigDecimal("50000"));
+
+    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
+        .willReturn(Optional.empty());
+
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+        .willReturn(List.of());
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+    // Position prices: (101 - 100) / 100 = 0.01, NOT PriorityPriceProvider's (110 - 100) / 100 =
+    // 0.10
+    assertThat(modelResult.get().benchmarkReturn()).isEqualByComparingTo(new BigDecimal("0.01"));
+  }
+
+  @Test
   void throwsWhenSecurityPriceDataIncomplete() {
     skipOtherFunds(TUK75);
 
@@ -332,10 +399,23 @@ class TrackingDifferenceServiceTest {
             .navDate(CHECK_DATE)
             .accountType(SECURITY)
             .accountId("IE00B4L5Y983")
+            .marketPrice(new BigDecimal("102.00"))
             .marketValue(new BigDecimal("950000"))
             .build();
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, fund, SECURITY))
         .willReturn(List.of(position));
+
+    var previousPosition =
+        FundPosition.builder()
+            .fund(fund)
+            .navDate(PREVIOUS_DATE)
+            .accountType(SECURITY)
+            .accountId("IE00B4L5Y983")
+            .marketPrice(new BigDecimal("100.00"))
+            .marketValue(new BigDecimal("940000"))
+            .build();
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(PREVIOUS_DATE, fund, SECURITY))
+        .willReturn(List.of(previousPosition));
 
     given(
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
@@ -345,11 +425,6 @@ class TrackingDifferenceServiceTest {
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
                 fund, CHECK_DATE, List.of(CASH)))
         .willReturn(new BigDecimal("50000"));
-
-    given(priorityPriceProvider.resolve("IE00B4L5Y983", CHECK_DATE))
-        .willReturn(Optional.of(fundValue("102.00")));
-    given(priorityPriceProvider.resolve("IE00B4L5Y983", PREVIOUS_DATE))
-        .willReturn(Optional.of(fundValue("100.00")));
 
     given(feeRateRepository.findValidRate(fund, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(

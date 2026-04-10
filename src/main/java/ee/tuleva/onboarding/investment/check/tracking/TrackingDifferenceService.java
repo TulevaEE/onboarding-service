@@ -145,7 +145,12 @@ class TrackingDifferenceService {
             .map(FeeRate::annualRate)
             .orElse(ZERO);
 
-    var securities = buildSecurityData(allocations, positions, totalNav, checkDate, previousDate);
+    var previousPositions =
+        fundPositionRepository.findByNavDateAndFundAndAccountType(previousDate, fund, SECURITY);
+
+    var securities =
+        buildSecurityData(
+            allocations, positions, previousPositions, totalNav, checkDate, previousDate);
 
     var missingPrices =
         securities.stream()
@@ -279,37 +284,52 @@ class TrackingDifferenceService {
 
   private List<SecurityData> buildSecurityData(
       List<ModelPortfolioAllocation> allocations,
-      List<FundPosition> positions,
+      List<FundPosition> todayPositions,
+      List<FundPosition> previousPositions,
       BigDecimal totalNav,
       LocalDate checkDate,
       LocalDate previousDate) {
 
-    Map<String, BigDecimal> positionsByIsin =
-        positions.stream()
+    Map<String, FundPosition> todayByIsin =
+        todayPositions.stream()
             .filter(p -> p.getAccountId() != null)
-            .collect(
-                Collectors.toMap(
-                    FundPosition::getAccountId, FundPosition::getMarketValue, BigDecimal::add));
+            .collect(Collectors.toMap(FundPosition::getAccountId, p -> p, (a, b) -> a));
+
+    Map<String, FundPosition> previousByIsin =
+        previousPositions.stream()
+            .filter(p -> p.getAccountId() != null)
+            .collect(Collectors.toMap(FundPosition::getAccountId, p -> p, (a, b) -> a));
 
     return allocations.stream()
         .filter(a -> a.getIsin() != null)
         .map(
             a -> {
-              var todayPrice = priorityPriceProvider.resolve(a.getIsin(), checkDate);
-              var yesterdayPrice = priorityPriceProvider.resolve(a.getIsin(), previousDate);
+              var todayPos = todayByIsin.get(a.getIsin());
+              var previousPos = previousByIsin.get(a.getIsin());
 
-              var actualMarketValue = positionsByIsin.getOrDefault(a.getIsin(), ZERO);
+              var todayPrice =
+                  todayPos != null && todayPos.getMarketPrice() != null
+                      ? todayPos.getMarketPrice()
+                      : priorityPriceProvider
+                          .resolve(a.getIsin(), checkDate)
+                          .map(FundValue::value)
+                          .orElse(null);
+              var yesterdayPrice =
+                  previousPos != null && previousPos.getMarketPrice() != null
+                      ? previousPos.getMarketPrice()
+                      : priorityPriceProvider
+                          .resolve(a.getIsin(), previousDate)
+                          .map(FundValue::value)
+                          .orElse(null);
+
+              var actualMarketValue = todayPos != null ? todayPos.getMarketValue() : ZERO;
               var actualWeight =
                   totalNav.signum() != 0
                       ? actualMarketValue.divide(totalNav, 6, RoundingMode.HALF_UP)
                       : ZERO;
 
               return new SecurityData(
-                  a.getIsin(),
-                  a.getWeight(),
-                  actualWeight,
-                  todayPrice.map(FundValue::value).orElse(null),
-                  yesterdayPrice.map(FundValue::value).orElse(null));
+                  a.getIsin(), a.getWeight(), actualWeight, todayPrice, yesterdayPrice);
             })
         .toList();
   }

@@ -32,14 +32,15 @@
 var S3_BUCKET = "tuleva-investment-reports";
 var UPLOAD_LABEL_PREFIX = "S3-Uploaded-";
 
-// Source configurations
+// Source configurations. Each pattern captures an 8-digit YYYYMMDD as match[1]
+// so getFileConfigAndDate can parse the report date from the filename without
+// a second loose regex.
 var SOURCES = {
     SWEDBANK: {
         senders: ["fundadmin@swedbank.ee"],
         files: [
             {
-                pattern: /^TULEVA_PORTFOLIO.*\.csv$/,
-                datePattern: /(\d{4})(\d{2})(\d{2})/,
+                pattern: /^TULEVA_PORTFOLIO.*?(\d{8}).*\.csv$/,
                 s3Prefix: "portfolio/",
                 s3Suffix: ".csv"
             }
@@ -49,14 +50,12 @@ var SOURCES = {
         senders: ["trustee@seb.ee", "taavi.pertman@tuleva.ee"],
         files: [
             {
-                pattern: /^TULEVA_pos_raport_\d+\.csv$/,
-                datePattern: /(\d{4})(\d{2})(\d{2})/,
+                pattern: /^TULEVA_pos_raport_(\d{8})(?:[ _().\-].*)?\.csv$/i,
                 s3Prefix: "seb/",
                 s3Suffix: "_positions.csv"
             },
             {
-                pattern: /^TULEVA_ootel_tehingud_\d+\.csv$/,
-                datePattern: /(\d{4})(\d{2})(\d{2})/,
+                pattern: /^TULEVA_ootel_tehingud_(\d{8})(?:[ _().\-].*)?\.csv$/i,
                 s3Prefix: "seb/",
                 s3Suffix: "_pending_transactions.csv"
             }
@@ -86,9 +85,12 @@ function processHistoricalEmails30Days() {
     processEmailsFromDays(30);
 }
 
-function processEmailsFromDays(days) {
+function processEmailsFromDays(days, options) {
+    options = options || {};
+    var minMessageDate = options.minMessageDate || null;
+
     var searchQuery = "to:funds@tuleva.ee has:attachment newer_than:" + days + "d";
-    Logger.log("Searching with query: " + searchQuery);
+    Logger.log("Searching with query: " + searchQuery + (minMessageDate ? ", minMessageDate=" + minMessageDate.toISOString() : ""));
 
     var threads = GmailApp.search(searchQuery);
     Logger.log("Found " + threads.length + " email threads");
@@ -102,6 +104,10 @@ function processEmailsFromDays(days) {
 
         for (var j = 0; j < messages.length; j++) {
             var message = messages[j];
+            // Per-message Date-header guard. GmailApp.search returns whole
+            // threads; without this check, an old message in a recently-replied
+            // thread could be re-processed by a tightly-scoped recovery run.
+            if (!isMessageWithinWindow(message.getDate(), minMessageDate)) continue;
             if (messageHasMatchingAttachments(message)) {
                 matchingCount++;
                 if (matchingCount > uploadCount) {
@@ -114,6 +120,14 @@ function processEmailsFromDays(days) {
     Logger.log("Processing complete");
 }
 
+// PURE — directly testable with literal Date inputs, no Gmail mocking.
+// Returns true if the message Date is on or after the cutoff (boundary inclusive),
+// or true unconditionally when no cutoff is configured.
+function isMessageWithinWindow(messageDate, minMessageDate) {
+    if (!minMessageDate) return true;
+    return messageDate.getTime() >= minMessageDate.getTime();
+}
+
 function messageHasMatchingAttachments(message) {
     var sender = message.getFrom();
     var source = getSourceForSender(sender);
@@ -121,7 +135,7 @@ function messageHasMatchingAttachments(message) {
 
     var attachments = message.getAttachments();
     for (var k = 0; k < attachments.length; k++) {
-        if (getFileConfig(source, attachments[k].getName())) {
+        if (getFileConfigAndDate(source, attachments[k].getName())) {
             return true;
         }
     }
@@ -143,23 +157,18 @@ function processMessage(message, thread) {
         var attachment = attachments[k];
         var filename = attachment.getName();
 
-        var fileConfig = getFileConfig(source, filename);
-        if (fileConfig) {
-            var reportDate = extractDateFromFilename(filename, fileConfig.datePattern);
-            if (reportDate) {
-                var s3Key = fileConfig.s3Prefix + reportDate + fileConfig.s3Suffix;
-                var content = attachment.getDataAsString();
+        var result = getFileConfigAndDate(source, filename);
+        if (result) {
+            var s3Key = result.fileConfig.s3Prefix + result.reportDate + result.fileConfig.s3Suffix;
+            var content = attachment.getDataAsString();
 
-                try {
-                    uploadToS3(S3_BUCKET, s3Key, content, "text/csv");
-                    Logger.log("SUCCESS: Uploaded " + filename + " -> s3://" + S3_BUCKET + "/" + s3Key);
-                    uploadedCount++;
-                } catch (e) {
-                    Logger.log("FAILED: " + filename + " -> " + e.message);
-                    throw e;
-                }
-            } else {
-                Logger.log("SKIPPED: Could not extract date from " + filename);
+            try {
+                uploadToS3(S3_BUCKET, s3Key, content, "text/csv");
+                Logger.log("SUCCESS: Uploaded " + filename + " -> s3://" + S3_BUCKET + "/" + s3Key);
+                uploadedCount++;
+            } catch (e) {
+                Logger.log("FAILED: " + filename + " -> " + e.message);
+                throw e;
             }
         }
     }
@@ -181,19 +190,19 @@ function getSourceForSender(sender) {
     return null;
 }
 
-function getFileConfig(source, filename) {
+// PURE — replaces the old getFileConfig + extractDateFromFilename two-step.
+// Returns { fileConfig, reportDate } using the captured 8-digit date group,
+// or null if no source file pattern matches. Tying date extraction to the
+// matching pattern eliminates the risk of a second loose regex picking up
+// digits from elsewhere in the filename.
+function getFileConfigAndDate(source, filename) {
     for (var i = 0; i < source.files.length; i++) {
-        if (source.files[i].pattern.test(filename)) {
-            return source.files[i];
+        var match = filename.match(source.files[i].pattern);
+        if (match && match[1]) {
+            var ymd = match[1];
+            var reportDate = ymd.substring(0, 4) + "-" + ymd.substring(4, 6) + "-" + ymd.substring(6, 8);
+            return { fileConfig: source.files[i], reportDate: reportDate };
         }
-    }
-    return null;
-}
-
-function extractDateFromFilename(filename, datePattern) {
-    var match = filename.match(datePattern);
-    if (match) {
-        return match[1] + "-" + match[2] + "-" + match[3];
     }
     return null;
 }
@@ -406,15 +415,10 @@ function dryRun() {
                 var attachment = attachments[k];
                 var filename = attachment.getName();
 
-                var fileConfig = getFileConfig(source, filename);
-                if (fileConfig) {
-                    var reportDate = extractDateFromFilename(filename, fileConfig.datePattern);
-                    if (reportDate) {
-                        var s3Key = fileConfig.s3Prefix + reportDate + fileConfig.s3Suffix;
-                        Logger.log("    -> Would UPLOAD: " + filename + " to s3://" + S3_BUCKET + "/" + s3Key);
-                    } else {
-                        Logger.log("    -> Would SKIP: Could not extract date from " + filename);
-                    }
+                var result = getFileConfigAndDate(source, filename);
+                if (result) {
+                    var s3Key = result.fileConfig.s3Prefix + result.reportDate + result.fileConfig.s3Suffix;
+                    Logger.log("    -> Would UPLOAD: " + filename + " to s3://" + S3_BUCKET + "/" + s3Key);
                 } else {
                     Logger.log("    -> Would SKIP: Unknown file pattern: " + filename);
                 }
@@ -464,7 +468,7 @@ if (typeof module !== "undefined" && module.exports) {
     module.exports = {
         SOURCES,
         getSourceForSender,
-        getFileConfig,
-        extractDateFromFilename,
+        getFileConfigAndDate,
+        isMessageWithinWindow,
     };
 }

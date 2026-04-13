@@ -6,9 +6,10 @@ public final class JobRunSchedule {
 
   public static final String TIMEZONE = "Europe/Tallinn";
 
-  // Report import from S3 (every 5 min, 8:00–11:55 and once at 15:00)
-  public static final String IMPORT_MORNING = "0 */5 8-11 * * *";
-  public static final String IMPORT_AFTERNOON = "0 0 15 * * *";
+  // Report import from S3 — every 5 min during the business day. Must cover any time SEB might
+  // send an intra-day correction (e.g. the 13:29 _uuendatud incident on 2026-04-10 that landed
+  // in a 17-hour gap between the old 11:55 last morning fire and the next 08:00 morning slot).
+  public static final String IMPORT_BUSINESS_HOURS = "0 */5 8-17 * * *";
 
   // Transaction command processing
   public static final String TRANSACTION_COMMAND = "0 * * * * *";

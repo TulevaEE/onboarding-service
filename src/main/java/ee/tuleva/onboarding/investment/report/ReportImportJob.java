@@ -27,7 +27,6 @@ import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.scheduling.annotation.Schedules;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -45,10 +44,7 @@ public class ReportImportJob {
   private final PipelineTracker pipelineTracker;
   private final PipelineNotifier pipelineNotifier;
 
-  @Schedules({
-    @Scheduled(cron = IMPORT_MORNING, zone = TIMEZONE),
-    @Scheduled(cron = IMPORT_AFTERNOON, zone = TIMEZONE)
-  })
+  @Scheduled(cron = IMPORT_BUSINESS_HOURS, zone = TIMEZONE)
   @SchedulerLock(name = "ReportImportJob", lockAtMostFor = "55m", lockAtLeastFor = "4m")
   public void schedule() {
     var trigger =

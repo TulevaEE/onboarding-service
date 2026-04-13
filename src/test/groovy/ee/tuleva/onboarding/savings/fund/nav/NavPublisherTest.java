@@ -83,7 +83,7 @@ class NavPublisherTest {
 
     verify(navNotifier).notify(result);
     verify(navReportMapper).map(result);
-    verify(navReportRepository).saveAll(any());
+    verify(navReportRepository).replaceByNavDateAndFundCode(eq(today), eq("TKF100"), any());
     verify(navReportEmailSender).send(any(), eq(result));
   }
 
@@ -150,7 +150,7 @@ class NavPublisherTest {
 
     doThrow(new DataIntegrityViolationException("null value in column created_at"))
         .when(navReportRepository)
-        .saveAll(any());
+        .replaceByNavDateAndFundCode(any(), any(), any());
 
     navPublisher.publish(result);
 

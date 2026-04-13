@@ -29,7 +29,8 @@ public class NavPublisher {
     List<NavReportRow> reportRows = List.of();
     try {
       reportRows = navReportMapper.map(result);
-      navReportRepository.saveAll(reportRows);
+      navReportRepository.replaceByNavDateAndFundCode(
+          result.calculationDate(), result.fund().getCode(), reportRows);
     } catch (Exception e) {
       log.error(
           "Failed to persist NAV report: fund={}, date={}",

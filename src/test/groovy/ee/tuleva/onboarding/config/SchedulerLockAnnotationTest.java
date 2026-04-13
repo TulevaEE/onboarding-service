@@ -45,6 +45,9 @@ class SchedulerLockAnnotationTest {
           ee.tuleva.onboarding.savings.fund.SavingsFundReservationJob.class,
           ee.tuleva.onboarding.savings.fund.issuing.FundAccountPaymentJob.class,
           ee.tuleva.onboarding.savings.fund.issuing.IssuingJob.class,
+          ee.tuleva.onboarding.savings.fund.nav.NavAlertJob.class,
+          ee.tuleva.onboarding.savings.fund.nav.NavCalculationJob.class,
+          ee.tuleva.onboarding.savings.fund.nav.NavSelfHealJob.class,
           ee.tuleva.onboarding.banking.processor.BankMessageProcessingScheduler.class,
           ee.tuleva.onboarding.investment.check.limit.LimitCheckJob.class,
         };

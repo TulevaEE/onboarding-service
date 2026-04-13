@@ -31,6 +31,7 @@ public class NavCalculationJob {
 
   private final NavCalculationService navCalculationService;
   private final NavPublisher navPublisher;
+  private final NavReportRepository navReportRepository;
   private final PublicHolidays publicHolidays;
   private final FundValueIndexingJob fundValueIndexingJob;
   private final Clock clock;
@@ -41,7 +42,7 @@ public class NavCalculationJob {
   @Scheduled(
       cron = "#{T(ee.tuleva.onboarding.fund.TulevaFund).TKF100.navCronExpression()}",
       zone = "Europe/Tallinn")
-  @SchedulerLock(name = "NavCalculationJob_TKF100", lockAtMostFor = "30m", lockAtLeastFor = "5m")
+  @SchedulerLock(name = "NavCalculationJob_TKF100", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   public void calculateDailyNav() {
     runPipeline(TKF100, List.of(TKF100));
   }
@@ -49,7 +50,7 @@ public class NavCalculationJob {
   @Scheduled(
       cron = "#{T(ee.tuleva.onboarding.fund.TulevaFund).TUK75.navCronExpression()}",
       zone = "Europe/Tallinn")
-  @SchedulerLock(name = "NavCalculationJob_Pillar2", lockAtMostFor = "30m", lockAtLeastFor = "5m")
+  @SchedulerLock(name = "NavCalculationJob_Pillar2", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   public void calculatePillar2Nav() {
     runPipeline(TUK75, TulevaFund.getPillar2Funds());
   }
@@ -57,7 +58,7 @@ public class NavCalculationJob {
   @Scheduled(
       cron = "#{T(ee.tuleva.onboarding.fund.TulevaFund).TUV100.navCronExpression()}",
       zone = "Europe/Tallinn")
-  @SchedulerLock(name = "NavCalculationJob_Pillar3", lockAtMostFor = "30m", lockAtLeastFor = "5m")
+  @SchedulerLock(name = "NavCalculationJob_Pillar3", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   public void calculatePillar3Nav() {
     runPipeline(TUV100, TulevaFund.getPillar3Funds(), true);
   }
@@ -69,10 +70,7 @@ public class NavCalculationJob {
   private void runPipeline(TulevaFund trigger, List<TulevaFund> funds, boolean lastOfDay) {
     pipelineTracker.start(PipelineRun.PipelineType.NAV, "NAV " + trigger.getCode());
     try {
-      eventPublisher.publishEvent(new RunNavCalculationRequested(funds));
-      if (lastOfDay) {
-        eventPublisher.publishEvent(new AllNavCalculationsCompleted());
-      }
+      eventPublisher.publishEvent(new RunNavCalculationRequested(funds, lastOfDay));
     } finally {
       pipelineNotifier.sendCompleted(pipelineTracker.current());
       pipelineTracker.clear();
@@ -82,39 +80,55 @@ public class NavCalculationJob {
   @EventListener
   public void onNavCalculationRequested(RunNavCalculationRequested event) {
     pipelineTracker.stepStarted(NAV_CALCULATION);
-    calculateForFunds(event.funds());
+    int successfullyPublishedCount = calculateForFunds(event.funds());
     pipelineTracker.stepCompleted(NAV_CALCULATION);
     eventPublisher.publishEvent(new NavCalculationCompleted());
+    if (event.lastOfDay() && successfullyPublishedCount > 0) {
+      eventPublisher.publishEvent(new AllNavCalculationsCompleted());
+    }
   }
 
-  private void calculateForFunds(List<TulevaFund> funds) {
+  private int calculateForFunds(List<TulevaFund> funds) {
     LocalDate today = LocalDate.now(clock);
 
     if (!publicHolidays.isWorkingDay(today)) {
       log.info("Skipping NAV calculation on non-working day: date={}", today);
-      return;
+      return 0;
+    }
+
+    List<TulevaFund> fundsToCalculate =
+        funds.stream()
+            .filter(TulevaFund::hasNavCalculation)
+            .filter(fund -> !isNavAlreadyPublishedToday(fund, today))
+            .toList();
+    if (fundsToCalculate.isEmpty()) {
+      log.info("NAV already published for all funds, skipping: funds={}, date={}", funds, today);
+      return 0;
     }
 
     try {
-      fundValueIndexingJob.refreshAll();
+      fundValueIndexingJob.refreshForNavCalculation();
     } catch (Exception e) {
       log.error("Failed to refresh fund values, continuing with NAV calculation", e);
     }
 
-    funds.stream()
-        .filter(TulevaFund::hasNavCalculation)
-        .forEach(
-            fund -> {
-              try {
-                calculateAndPublish(fund, today);
-              } catch (Exception e) {
-                log.error(
-                    "Failed NAV calculation, continuing with next fund: fund={}, date={}",
-                    fund,
-                    today,
-                    e);
-              }
-            });
+    return (int)
+        fundsToCalculate.stream().filter(fund -> tryCalculateAndPublish(fund, today)).count();
+  }
+
+  private boolean tryCalculateAndPublish(TulevaFund fund, LocalDate today) {
+    try {
+      calculateAndPublish(fund, today);
+      return true;
+    } catch (Exception e) {
+      log.error(
+          "Failed NAV calculation, continuing with next fund: fund={}, date={}", fund, today, e);
+      return false;
+    }
+  }
+
+  private boolean isNavAlreadyPublishedToday(TulevaFund fund, LocalDate today) {
+    return !navReportRepository.findByNavDateAndFundCodeOrderById(today, fund.getCode()).isEmpty();
   }
 
   private void calculateAndPublish(TulevaFund fund, LocalDate today) {

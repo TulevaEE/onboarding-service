@@ -1,9 +1,16 @@
 package ee.tuleva.onboarding.comparisons.fundvalue
 
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.BlackRockFundValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.DeutscheBoerseValueRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EODHDValueRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EuronextValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundNavRetrieverFactory
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.MorningstarNavRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.YahooFundValueRetriever
 import ee.tuleva.onboarding.deadline.PublicHolidays
 import org.springframework.core.env.Environment
 import spock.lang.Specification
@@ -150,6 +157,71 @@ class FundValueIndexingJobSpec extends Specification {
         then:
         1 * fundValueRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
         1 * dynamicRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
+    }
+
+    def "every FundTicker position is resolvable via a NAV-critical retriever before NAV publish"() {
+        expect:
+        FundTicker.values().each { ticker ->
+            Set<String> sources = [] as Set<String>
+            if (ticker.blackrockProductId != null) sources << BlackRockFundValueRetriever.KEY
+            if (ticker.morningstarId != null) sources << MorningstarNavRetriever.KEY
+            if (ticker.eodhdTicker != null) sources << EODHDValueRetriever.KEY
+            if (ticker.xetraStorageKey.isPresent()) sources << DeutscheBoerseValueRetriever.KEY
+            if (ticker.euronextParisStorageKey.isPresent()) sources << EuronextValueRetriever.KEY
+
+            Set<String> covered = sources.intersect(FundValueIndexingJob.NAV_CRITICAL_RETRIEVER_KEYS)
+            assert !covered.isEmpty():
+                "FundTicker ${ticker.name()} (ISIN ${ticker.isin}) has no price source in NAV_CRITICAL_RETRIEVER_KEYS. " +
+                "Sources=${sources}, critical=${FundValueIndexingJob.NAV_CRITICAL_RETRIEVER_KEYS}. " +
+                "Either add a covering retriever key to NAV_CRITICAL_RETRIEVER_KEYS, " +
+                "or ensure this FundTicker provides blackrockProductId / morningstarId / eodhdTicker."
+        }
+    }
+
+    def "refreshForNavCalculation refreshes only NAV-critical retrievers"() {
+        given:
+        def blackrock = Mock(ComparisonIndexRetriever)
+        def morningstar = Mock(ComparisonIndexRetriever)
+        def eodhd = Mock(ComparisonIndexRetriever)
+        def xetra = Mock(ComparisonIndexRetriever)
+        def euronext = Mock(ComparisonIndexRetriever)
+        def yahoo = Mock(ComparisonIndexRetriever)
+        def cpi = Mock(ComparisonIndexRetriever)
+        def dynamicEePensionFund = Mock(ComparisonIndexRetriever)
+
+        blackrock.getKey() >> BlackRockFundValueRetriever.KEY
+        morningstar.getKey() >> MorningstarNavRetriever.KEY
+        eodhd.getKey() >> EODHDValueRetriever.KEY
+        xetra.getKey() >> DeutscheBoerseValueRetriever.KEY
+        euronext.getKey() >> EuronextValueRetriever.KEY
+        yahoo.getKey() >> YahooFundValueRetriever.KEY
+        cpi.getKey() >> "CPI"
+        dynamicEePensionFund.getKey() >> "EE3600109435"
+
+        fundValueRepository.findLastValueForFund(_) >> Optional.empty()
+        fundNavRetrieverFactory.createAll() >> [dynamicEePensionFund]
+
+        def job = new FundValueIndexingJob(
+            fundValueRepository,
+            [blackrock, morningstar, eodhd, xetra, euronext, yahoo, cpi],
+            Mock(Environment),
+            fundNavRetrieverFactory,
+            CLOCK,
+            publicHolidays)
+        job.initDynamicRetrievers()
+
+        when:
+        job.refreshForNavCalculation()
+
+        then:
+        1 * blackrock.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
+        1 * morningstar.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
+        1 * eodhd.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
+        1 * xetra.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
+        1 * euronext.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
+        1 * yahoo.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
+        0 * cpi.retrieveValuesForRange(_, _)
+        0 * dynamicEePensionFund.retrieveValuesForRange(_, _)
     }
 
     def "skips retrievers that require working day on weekends"() {

@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueIndexingJob;
@@ -28,6 +30,7 @@ class NavCalculationJobTest {
 
   @Mock private NavCalculationService navCalculationService;
   @Mock private NavPublisher navPublisher;
+  @Mock private NavReportRepository navReportRepository;
   @Mock private PublicHolidays publicHolidays;
   @Mock private FundValueIndexingJob fundValueIndexingJob;
   @Mock private ApplicationEventPublisher eventPublisher;
@@ -46,7 +49,7 @@ class NavCalculationJobTest {
     job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TKF100)));
 
     InOrder inOrder = inOrder(fundValueIndexingJob, navCalculationService);
-    inOrder.verify(fundValueIndexingJob).refreshAll();
+    inOrder.verify(fundValueIndexingJob).refreshForNavCalculation();
     inOrder.verify(navCalculationService).calculate(TKF100, today);
   }
 
@@ -150,12 +153,53 @@ class NavCalculationJobTest {
   }
 
   @Test
-  void onNavCalculationRequested_continuesWhenRefreshAllThrows() {
+  void onNavCalculationRequested_skipsAlreadyPublishedFund() {
+    var job = jobOn("2025-01-15T09:00:00Z"); // 11:00 Tallinn, pillar 2 cutoff
+
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
+    List<TulevaFund> pillar2Funds =
+        getPillar2Funds().stream().filter(TulevaFund::hasNavCalculation).toList();
+    // TUK75 already has a nav_report row (from an earlier partial-failure run)
+    when(navReportRepository.findByNavDateAndFundCodeOrderById(today, TUK75.getCode()))
+        .thenReturn(List.of(new NavReportRow()));
+    // TUK00 is still missing → should be processed
+    when(navReportRepository.findByNavDateAndFundCodeOrderById(today, TUK00.getCode()))
+        .thenReturn(List.of());
+    when(navCalculationService.calculate(TUK00, today)).thenReturn(buildTestResult(TUK00, today));
+
+    job.onNavCalculationRequested(new RunNavCalculationRequested(pillar2Funds));
+
+    verify(navCalculationService, never()).calculate(TUK75, today);
+    verify(navCalculationService).calculate(TUK00, today);
+    verify(navPublisher, never()).publish(argThat(r -> r.fund() == TUK75));
+  }
+
+  @Test
+  void onNavCalculationRequested_skipsEverythingWhenAllAlreadyPublished() {
     var job = jobOn("2025-01-15T14:30:00Z");
 
     LocalDate today = LocalDate.of(2025, 1, 15);
     when(publicHolidays.isWorkingDay(today)).thenReturn(true);
-    doThrow(new RuntimeException("FTP connection failed")).when(fundValueIndexingJob).refreshAll();
+    when(navReportRepository.findByNavDateAndFundCodeOrderById(today, TKF100.getCode()))
+        .thenReturn(List.of(new NavReportRow()));
+
+    job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TKF100)));
+
+    verify(navCalculationService, never()).calculate(TKF100, today);
+    verify(navPublisher, never()).publish(any());
+    verify(fundValueIndexingJob, never()).refreshForNavCalculation();
+  }
+
+  @Test
+  void onNavCalculationRequested_continuesWhenRefreshThrows() {
+    var job = jobOn("2025-01-15T14:30:00Z");
+
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
+    doThrow(new RuntimeException("HTTP connection failed"))
+        .when(fundValueIndexingJob)
+        .refreshForNavCalculation();
     NavCalculationResult result = buildTestResult(today);
     when(navCalculationService.calculate(TKF100, today)).thenReturn(result);
 
@@ -163,6 +207,60 @@ class NavCalculationJobTest {
 
     verify(navCalculationService).calculate(TKF100, today);
     verify(navPublisher).publish(result);
+  }
+
+  @Test
+  void pillar3Retry_doesNotFireAllNavCalculationsCompleted_whenAllAlreadyPublished() {
+    var job = jobOn("2025-01-15T13:25:00Z"); // 15:25 Tallinn, after TUV100 cutoff
+
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
+    // TUV100 was already published by the normal cron and AllNavCalculationsCompleted was
+    // already fired; the retry must not re-trigger downstream LimitCheckJob /
+    // TrackingDifferenceJob.
+    when(navReportRepository.findByNavDateAndFundCodeOrderById(today, TUV100.getCode()))
+        .thenReturn(List.of(new NavReportRow()));
+
+    job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TUV100), true));
+
+    verify(eventPublisher, never()).publishEvent(any(AllNavCalculationsCompleted.class));
+    // NavCalculationCompleted is still fired (it's a per-event signal, not a downstream trigger)
+    verify(eventPublisher).publishEvent(any(NavCalculationCompleted.class));
+  }
+
+  @Test
+  void pillar3Retry_doesNotFireAllNavCalculationsCompleted_whenEveryFundThrows() {
+    var job = jobOn("2025-01-15T13:25:00Z");
+
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
+    when(navReportRepository.findByNavDateAndFundCodeOrderById(today, TUV100.getCode()))
+        .thenReturn(List.of());
+    when(navCalculationService.calculate(TUV100, today))
+        .thenThrow(new RuntimeException("Provider blew up"));
+
+    job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TUV100), true));
+
+    // Downstream must not run against incomplete data; a later retry that actually
+    // succeeds will be the run that fires AllNavCalculationsCompleted.
+    verify(eventPublisher, never()).publishEvent(any(AllNavCalculationsCompleted.class));
+    verify(eventPublisher).publishEvent(any(NavCalculationCompleted.class));
+  }
+
+  @Test
+  void pillar3Retry_firesAllNavCalculationsCompleted_whenActuallyCalculatingMissingFund() {
+    var job = jobOn("2025-01-15T13:25:00Z");
+
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
+    when(navReportRepository.findByNavDateAndFundCodeOrderById(today, TUV100.getCode()))
+        .thenReturn(List.of());
+    when(navCalculationService.calculate(TUV100, today)).thenReturn(buildTestResult(TUV100, today));
+
+    job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TUV100), true));
+
+    verify(eventPublisher).publishEvent(any(AllNavCalculationsCompleted.class));
+    verify(eventPublisher).publishEvent(any(NavCalculationCompleted.class));
   }
 
   @Test
@@ -180,6 +278,7 @@ class NavCalculationJobTest {
     return new NavCalculationJob(
         navCalculationService,
         navPublisher,
+        navReportRepository,
         publicHolidays,
         fundValueIndexingJob,
         clock,

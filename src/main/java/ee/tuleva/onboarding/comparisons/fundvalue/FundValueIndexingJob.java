@@ -3,14 +3,21 @@ package ee.tuleva.onboarding.comparisons.fundvalue;
 import static java.util.Collections.emptyList;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.BlackRockFundValueRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexRetriever;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.DeutscheBoerseValueRetriever;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EODHDValueRetriever;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EuronextValueRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundNavRetrieverFactory;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.MorningstarNavRetriever;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.YahooFundValueRetriever;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +45,15 @@ public class FundValueIndexingJob {
 
   static final LocalDate EARLIEST_DATE = LocalDate.parse("2003-01-07");
 
+  static final Set<String> NAV_CRITICAL_RETRIEVER_KEYS =
+      Set.of(
+          BlackRockFundValueRetriever.KEY,
+          MorningstarNavRetriever.KEY,
+          EODHDValueRetriever.KEY,
+          DeutscheBoerseValueRetriever.KEY,
+          EuronextValueRetriever.KEY,
+          YahooFundValueRetriever.KEY);
+
   @Scheduled(cron = "0 0 * * * *", zone = "Europe/Tallinn") // the top of every hour of every day
   @SchedulerLock(
       name = "FundValueIndexingJob_runIndexingJob",
@@ -53,6 +69,13 @@ public class FundValueIndexingJob {
         staticRetrievers,
         dynamicRetrievers);
     Stream.concat(staticRetrievers.stream(), dynamicRetrievers.stream())
+        .forEach(this::refreshRetriever);
+  }
+
+  public void refreshForNavCalculation() {
+    log.info("Running targeted NAV price refresh: keys={}", NAV_CRITICAL_RETRIEVER_KEYS);
+    staticRetrievers.stream()
+        .filter(retriever -> NAV_CRITICAL_RETRIEVER_KEYS.contains(retriever.getKey()))
         .forEach(this::refreshRetriever);
   }
 

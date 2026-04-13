@@ -12,6 +12,11 @@ executors:
       docker_layer_caching: true
     resource_class: medium
 
+  node:
+    docker:
+      - image: cimg/node:lts
+    resource_class: small
+
 jobs:
   build:
     environment:
@@ -237,6 +242,45 @@ jobs:
             sentry-cli releases finalize $SENTRY_RELEASE
             sentry-cli releases deploys $SENTRY_RELEASE new -e $SENTRY_ENVIRONMENT
 
+  appscript-test:
+    executor: node
+    working_directory: ~/project/appscripts/seb-position-uploader
+    steps:
+      - checkout:
+          path: ~/project
+      - restore_cache:
+          keys:
+            - v1-appscript-deps-{{ checksum "package-lock.json" }}
+      - run: npm ci
+      - save_cache:
+          key: v1-appscript-deps-{{ checksum "package-lock.json" }}
+          paths:
+            - node_modules
+      - run: npm test
+
+  appscript-deploy:
+    executor: node
+    working_directory: ~/project/appscripts/seb-position-uploader
+    steps:
+      - checkout:
+          path: ~/project
+      - run:
+          name: Skip if no appscript changes since last commit
+          command: |
+            cd ~/project
+            if ! git diff --name-only HEAD~1 HEAD | grep -q '^appscripts/'; then
+              echo "No appscript changes in HEAD~1..HEAD — skipping deploy."
+              circleci-agent step halt
+            fi
+      - restore_cache:
+          keys:
+            - v1-appscript-deps-{{ checksum "package-lock.json" }}
+      - run: npm ci
+      - run:
+          name: Restore clasp credentials
+          command: echo "$CLASPRC_JSON" > ~/.clasprc.json
+      - run: npx clasp push --force
+
 workflows:
   version: 2
   onboarding-service-workflow:
@@ -291,6 +335,16 @@ workflows:
       - notify-sentry-deploy:
           requires: [ deploy-ecs-production ]
           context: sentry
+          filters:
+            branches:
+              only: master
+
+      - appscript-test
+
+      - appscript-deploy:
+          requires:
+            - appscript-test
+          context: appscript
           filters:
             branches:
               only: master

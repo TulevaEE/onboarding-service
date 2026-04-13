@@ -1,40 +1,24 @@
-/**
- * Google Apps Script to upload fund position CSV reports to S3.
- *
- * Supports two sources:
- * 1. Swedbank (fundadmin@swedbank.ee) - TULEVA_PORTFOLIO files -> portfolio/
- * 2. SEB (trustee@seb.ee, plus one named internal forwarder) - TULEVA_pos_raport and TULEVA_ootel_tehingud files -> seb/
- *
- * Setup:
- * 1. Create a new Google Apps Script project at script.google.com
- * 2. Copy this code into the script editor
- * 3. Add Script Properties (Project Settings > Script Properties):
- *    - AWS_ACCESS_KEY_ID: (your access key)
- *    - AWS_SECRET_ACCESS_KEY: (your secret key)
- *    - AWS_REGION: eu-central-1
- * 4. Set up a time-driven trigger to run processNewEmails() every 5 minutes
- *
- * Testing:
- * 1. Run testUpload() to verify S3 credentials work
- * 2. Run dryRun() to see what would be uploaded without making changes
- * 3. Run processHistoricalEmails() to process last 7 days (one-time catch-up)
- * 4. Run processNewEmails() for regular processing (last 2 days)
- *
- * S3 structure:
- * - portfolio/2026-01-23.csv          (Swedbank positions)
- * - seb/2026-01-23_positions.csv      (SEB positions)
- * - seb/2026-01-23_pending_transactions.csv   (SEB pending transactions)
- *
- * Labels are added to track uploads: "S3-Uploaded-1x", "S3-Uploaded-2x", etc.
- * If you see "S3-Uploaded-2x" or higher, it means a correction was received.
- */
+// Investment CSV to S3
+//
+// Polls the funds@tuleva.ee Gmail mailbox for fund position-report attachments
+// and uploads them to the tuleva-investment-reports S3 bucket. The Spring Boot
+// ReportImportJob in TulevaEE/onboarding-service then pulls those files and
+// ingests them into investment_report and investment_fund_position.
+//
+// Required Apps Script Properties (Project Settings > Script properties):
+//   AWS_ACCESS_KEY_ID
+//   AWS_SECRET_ACCESS_KEY
+//   AWS_REGION (defaults to eu-central-1)
+//
+// Cron entry point: processNewEmails() — run every 5 min via a time-driven trigger.
+// Manual helpers:   processHistoricalEmails() (7-day catch-up), dryRun() (no-op preview).
+//
+// Per-thread `S3-Uploaded-Nx` Gmail labels track upload progress so a re-run
+// of the cron skips messages that have already been processed.
 
 var S3_BUCKET = "tuleva-investment-reports";
 var UPLOAD_LABEL_PREFIX = "S3-Uploaded-";
 
-// Source configurations. Each pattern captures an 8-digit YYYYMMDD as match[1]
-// so getFileConfigAndDate can parse the report date from the filename without
-// a second loose regex.
 var SOURCES = {
     SWEDBANK: {
         senders: ["fundadmin@swedbank.ee"],
@@ -63,24 +47,14 @@ var SOURCES = {
     }
 };
 
-/**
- * Process emails from last 2 days (for scheduled runs every 5 minutes)
- */
 function processNewEmails() {
     processEmailsFromDays(2);
 }
 
-/**
- * Process emails from last 7 days (for historical catch-up)
- * Run this manually once to upload historical files
- */
 function processHistoricalEmails() {
     processEmailsFromDays(7);
 }
 
-/**
- * Process emails from last 30 days (for extended catch-up)
- */
 function processHistoricalEmails30Days() {
     processEmailsFromDays(30);
 }
@@ -89,43 +63,61 @@ function processEmailsFromDays(days, options) {
     options = options || {};
     var minMessageDate = options.minMessageDate || null;
 
-    var searchQuery = "to:funds@tuleva.ee has:attachment newer_than:" + days + "d";
+    var searchQuery = gmailSearchQuery(days);
     Logger.log("Searching with query: " + searchQuery + (minMessageDate ? ", minMessageDate=" + minMessageDate.toISOString() : ""));
 
     var threads = GmailApp.search(searchQuery);
     Logger.log("Found " + threads.length + " email threads");
 
-    // Iterate oldest-first so the newest thread's upload wins on S3
+    // Process oldest threads first so the newest thread's upload wins on S3.
     for (var i = threads.length - 1; i >= 0; i--) {
-        var thread = threads[i];
-        var messages = thread.getMessages();
-        var uploadCount = getUploadCount(thread);
-        var matchingCount = 0;
-
-        for (var j = 0; j < messages.length; j++) {
-            var message = messages[j];
-            // Per-message Date-header guard. GmailApp.search returns whole
-            // threads; without this check, an old message in a recently-replied
-            // thread could be re-processed by a tightly-scoped recovery run.
-            if (!isMessageWithinWindow(message.getDate(), minMessageDate)) continue;
-            if (messageHasMatchingAttachments(message)) {
-                matchingCount++;
-                if (matchingCount > uploadCount) {
-                    processMessage(message, thread);
-                }
-            }
-        }
+        processThread(threads[i], minMessageDate);
     }
 
     Logger.log("Processing complete");
 }
 
-// PURE — directly testable with literal Date inputs, no Gmail mocking.
-// Returns true if the message Date is on or after the cutoff (boundary inclusive),
-// or true unconditionally when no cutoff is configured.
+function gmailSearchQuery(days) {
+    return "to:funds@tuleva.ee has:attachment newer_than:" + days + "d";
+}
+
+function processThread(thread, minMessageDate) {
+    var messages = thread.getMessages();
+    var uploadCount = getUploadCount(thread);
+    var matchingCount = 0;
+    for (var j = 0; j < messages.length; j++) {
+        var message = messages[j];
+        if (!isMessageWithinWindow(message.getDate(), minMessageDate)) continue;
+        if (messageHasMatchingAttachments(message)) {
+            matchingCount++;
+            if (shouldProcessMessage(matchingCount, uploadCount)) {
+                processMessage(message, thread);
+            }
+        }
+    }
+}
+
 function isMessageWithinWindow(messageDate, minMessageDate) {
     if (!minMessageDate) return true;
     return messageDate.getTime() >= minMessageDate.getTime();
+}
+
+function shouldProcessMessage(matchingMessageIndex, currentUploadCount) {
+    return matchingMessageIndex > currentUploadCount;
+}
+
+function parseUploadCountFromLabelNames(labelNames) {
+    for (var i = 0; i < labelNames.length; i++) {
+        if (labelNames[i].indexOf(UPLOAD_LABEL_PREFIX) === 0) {
+            var countStr = labelNames[i].replace(UPLOAD_LABEL_PREFIX, "").replace("x", "");
+            return parseInt(countStr, 10) || 0;
+        }
+    }
+    return 0;
+}
+
+function formatUploadLabelName(count) {
+    return UPLOAD_LABEL_PREFIX + count + "x";
 }
 
 function messageHasMatchingAttachments(message) {
@@ -190,11 +182,6 @@ function getSourceForSender(sender) {
     return null;
 }
 
-// PURE — replaces the old getFileConfig + extractDateFromFilename two-step.
-// Returns { fileConfig, reportDate } using the captured 8-digit date group,
-// or null if no source file pattern matches. Tying date extraction to the
-// matching pattern eliminates the risk of a second loose regex picking up
-// digits from elsewhere in the filename.
 function getFileConfigAndDate(source, filename) {
     for (var i = 0; i < source.files.length; i++) {
         var match = filename.match(source.files[i].pattern);
@@ -210,31 +197,23 @@ function getFileConfigAndDate(source, filename) {
 function incrementUploadLabel(thread) {
     var currentCount = getUploadCount(thread);
     var newCount = currentCount + 1;
+    var newLabelName = formatUploadLabelName(newCount);
 
-    // Remove old label if exists
     if (currentCount > 0) {
-        var oldLabel = GmailApp.getUserLabelByName(UPLOAD_LABEL_PREFIX + currentCount + "x");
+        var oldLabel = GmailApp.getUserLabelByName(formatUploadLabelName(currentCount));
         if (oldLabel) {
             thread.removeLabel(oldLabel);
         }
     }
 
-    // Add new label
-    var newLabel = getOrCreateLabel(UPLOAD_LABEL_PREFIX + newCount + "x");
+    var newLabel = getOrCreateLabel(newLabelName);
     thread.addLabel(newLabel);
-    Logger.log("Labeled thread: " + UPLOAD_LABEL_PREFIX + newCount + "x");
+    Logger.log("Labeled thread: " + newLabelName);
 }
 
 function getUploadCount(thread) {
-    var labels = thread.getLabels();
-    for (var i = 0; i < labels.length; i++) {
-        var labelName = labels[i].getName();
-        if (labelName.indexOf(UPLOAD_LABEL_PREFIX) === 0) {
-            var countStr = labelName.replace(UPLOAD_LABEL_PREFIX, "").replace("x", "");
-            return parseInt(countStr, 10) || 0;
-        }
-    }
-    return 0;
+    var labelNames = thread.getLabels().map(function (l) { return l.getName(); });
+    return parseUploadCountFromLabelNames(labelNames);
 }
 
 function getOrCreateLabel(labelName) {
@@ -356,14 +335,6 @@ function bytesToHex(bytes) {
     }).join("");
 }
 
-// ============================================================================
-// TEST FUNCTIONS
-// ============================================================================
-
-/**
- * Test S3 upload credentials - uploads test files to verify AWS credentials.
- * Run this first to verify AWS credentials are configured correctly.
- */
 function testUpload() {
     var testContent = "ReportDate;NAVDate;Portfolio\n06.01.2026;05.01.2026;Test";
 
@@ -376,76 +347,54 @@ function testUpload() {
     Logger.log("All test uploads successful!");
 }
 
-/**
- * Dry run - shows what would be uploaded without actually uploading
- * Useful for testing the email search and parsing logic
- */
 function dryRun() {
-    var days = 7;
-    var searchQuery = "to:funds@tuleva.ee has:attachment newer_than:" + days + "d";
+    var searchQuery = gmailSearchQuery(7);
     Logger.log("DRY RUN - Searching with query: " + searchQuery);
 
     var threads = GmailApp.search(searchQuery);
     Logger.log("Found " + threads.length + " email threads");
 
     for (var i = 0; i < threads.length; i++) {
-        var thread = threads[i];
-        var messages = thread.getMessages();
-        var currentLabel = getUploadCount(thread);
-
-        Logger.log("Thread: " + thread.getFirstMessageSubject() + " (current label: " + currentLabel + "x)");
-
-        for (var j = 0; j < messages.length; j++) {
-            var message = messages[j];
-            var sender = message.getFrom();
-            var date = message.getDate();
-            var source = getSourceForSender(sender);
-
-            Logger.log("  Message from: " + sender + " at " + date);
-
-            if (!source) {
-                Logger.log("    -> Would SKIP (not from known sender)");
-                continue;
-            }
-
-            Logger.log("    -> Source: " + (sender.indexOf("swedbank") !== -1 ? "SWEDBANK" : "SEB"));
-
-            var attachments = message.getAttachments();
-            for (var k = 0; k < attachments.length; k++) {
-                var attachment = attachments[k];
-                var filename = attachment.getName();
-
-                var result = getFileConfigAndDate(source, filename);
-                if (result) {
-                    var s3Key = result.fileConfig.s3Prefix + result.reportDate + result.fileConfig.s3Suffix;
-                    Logger.log("    -> Would UPLOAD: " + filename + " to s3://" + S3_BUCKET + "/" + s3Key);
-                } else {
-                    Logger.log("    -> Would SKIP: Unknown file pattern: " + filename);
-                }
-            }
-        }
+        dryRunThread(threads[i]);
     }
 
     Logger.log("DRY RUN complete");
 }
 
-/**
- * Clean up test files from S3
- */
-function cleanupTestFiles() {
-    Logger.log("To delete test files, run:");
-    Logger.log("  aws s3 rm s3://" + S3_BUCKET + "/portfolio/test.csv");
-    Logger.log("  aws s3 rm s3://" + S3_BUCKET + "/seb/test_positions.csv");
-    Logger.log("  aws s3 rm s3://" + S3_BUCKET + "/seb/test_pending_transactions.csv");
+function dryRunThread(thread) {
+    var currentLabel = getUploadCount(thread);
+    Logger.log("Thread: " + thread.getFirstMessageSubject() + " (current label: " + currentLabel + "x)");
+
+    var messages = thread.getMessages();
+    for (var j = 0; j < messages.length; j++) {
+        var message = messages[j];
+        var sender = message.getFrom();
+        var source = getSourceForSender(sender);
+
+        Logger.log("  Message from: " + sender + " at " + message.getDate());
+
+        if (!source) {
+            Logger.log("    -> Would SKIP (not from known sender)");
+            continue;
+        }
+
+        var attachments = message.getAttachments();
+        for (var k = 0; k < attachments.length; k++) {
+            var filename = attachments[k].getName();
+            var result = getFileConfigAndDate(source, filename);
+            if (result) {
+                var s3Key = result.fileConfig.s3Prefix + result.reportDate + result.fileConfig.s3Suffix;
+                Logger.log("    -> Would UPLOAD: " + filename + " to s3://" + S3_BUCKET + "/" + s3Key);
+            } else {
+                Logger.log("    -> Would SKIP: Unknown file pattern: " + filename);
+            }
+        }
+    }
 }
 
-/**
- * Remove all S3-Uploaded labels from threads (for re-processing)
- * Use with caution - this will cause all emails to be re-uploaded on next run
- */
 function removeAllUploadLabels() {
     for (var count = 1; count <= 10; count++) {
-        var labelName = UPLOAD_LABEL_PREFIX + count + "x";
+        var labelName = formatUploadLabelName(count);
         var label = GmailApp.getUserLabelByName(labelName);
         if (label) {
             var threads = label.getThreads();
@@ -458,17 +407,16 @@ function removeAllUploadLabels() {
     Logger.log("All upload labels removed");
 }
 
-// ============================================================================
-// Node.js compatibility shim — invisible to the V8 Apps Script runtime.
-// Lets Jest require this file and import pure helpers for unit testing
-// without any build step. The `if (typeof module !== "undefined")` block
-// is a no-op when this file runs in Apps Script.
-// ============================================================================
+// Node.js compatibility shim — invisible to the Apps Script V8 runtime; lets Jest
+// require this file for unit tests with no build step.
 if (typeof module !== "undefined" && module.exports) {
     module.exports = {
         SOURCES,
         getSourceForSender,
         getFileConfigAndDate,
         isMessageWithinWindow,
+        shouldProcessMessage,
+        parseUploadCountFromLabelNames,
+        formatUploadLabelName,
     };
 }

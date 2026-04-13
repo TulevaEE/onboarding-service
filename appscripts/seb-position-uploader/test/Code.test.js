@@ -3,6 +3,9 @@ const {
   getSourceForSender,
   getFileConfigAndDate,
   isMessageWithinWindow,
+  shouldProcessMessage,
+  parseUploadCountFromLabelNames,
+  formatUploadLabelName,
 } = require("../src/Code");
 
 describe("getSourceForSender", () => {
@@ -83,5 +86,50 @@ describe("isMessageWithinWindow", () => {
   });
   test("accepts everything when no cutoff is configured", () => {
     expect(isMessageWithinWindow(new Date("2026-04-08T00:00:00Z"), null)).toBe(true);
+  });
+});
+
+describe("shouldProcessMessage", () => {
+  test("processes the first matching message in a fresh thread", () => {
+    expect(shouldProcessMessage(1, 0)).toBe(true);
+  });
+  test("skips an already-processed matching message", () => {
+    expect(shouldProcessMessage(1, 1)).toBe(false);
+  });
+  test("processes a newly-arrived 2nd matching message in a thread previously processed once", () => {
+    expect(shouldProcessMessage(2, 1)).toBe(true);
+  });
+  test("processes a 3rd matching message even if the first two have been processed in earlier runs", () => {
+    expect(shouldProcessMessage(3, 1)).toBe(true);
+  });
+});
+
+describe("parseUploadCountFromLabelNames", () => {
+  test("returns 0 when no upload label is present", () => {
+    expect(parseUploadCountFromLabelNames(["Inbox", "Some-Other-Label"])).toBe(0);
+  });
+  test("returns the integer count from a single upload label", () => {
+    expect(parseUploadCountFromLabelNames(["S3-Uploaded-3x"])).toBe(3);
+  });
+  test("returns the count when the upload label is mixed with unrelated labels", () => {
+    expect(parseUploadCountFromLabelNames(["Inbox", "S3-Uploaded-7x", "Important"])).toBe(7);
+  });
+  test("returns the FIRST upload-style label encountered (defensive — should normally only be one)", () => {
+    expect(parseUploadCountFromLabelNames(["S3-Uploaded-2x", "S3-Uploaded-9x"])).toBe(2);
+  });
+  test("returns 0 when the label name is malformed", () => {
+    expect(parseUploadCountFromLabelNames(["S3-Uploaded-abcx"])).toBe(0);
+  });
+});
+
+describe("formatUploadLabelName", () => {
+  test("formats the label name from a count", () => {
+    expect(formatUploadLabelName(1)).toBe("S3-Uploaded-1x");
+    expect(formatUploadLabelName(9)).toBe("S3-Uploaded-9x");
+  });
+  test("round-trips with parseUploadCountFromLabelNames", () => {
+    for (var n = 0; n <= 10; n++) {
+      expect(parseUploadCountFromLabelNames([formatUploadLabelName(n)])).toBe(n);
+    }
   });
 });

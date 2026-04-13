@@ -1,0 +1,12 @@
+{
+  "name": "seb-position-uploader",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Google Apps Script that ingests position reports from Gmail into S3.",
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}

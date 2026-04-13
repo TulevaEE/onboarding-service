@@ -48,7 +48,13 @@ var SOURCES = {
 };
 
 function processNewEmails() {
-    processEmailsFromDays(2);
+    try {
+        processEmailsFromDays(2);
+    } catch (e) {
+        notifySlack(":rotating_light: Uncaught error in `processNewEmails`: `" + e.message +
+            "`. See Apps Script Executions: https://script.google.com/home/projects/1cpcI-qO0ZcCWqb6XdS0AjxE82N_F3rF926nhxyfgZlu3taeKD5qWLA8l/executions");
+        throw e;
+    }
 }
 
 function processHistoricalEmails() {
@@ -120,18 +126,102 @@ function formatUploadLabelName(count) {
     return UPLOAD_LABEL_PREFIX + count + "x";
 }
 
+function partitionFilenamesByMatch(source, filenames) {
+    var matched = [];
+    var unmatched = [];
+    for (var i = 0; i < filenames.length; i++) {
+        if (getFileConfigAndDate(source, filenames[i])) {
+            matched.push(filenames[i]);
+        } else {
+            unmatched.push(filenames[i]);
+        }
+    }
+    return { matched: matched, unmatched: unmatched };
+}
+
+function shouldAlertOnUnmatched(matchedCount, unmatchedCount) {
+    return unmatchedCount > 0;
+}
+
+function shouldNotifyAboutSkipped(messageId, filenames, alreadyNotified) {
+    return !(dedupKeyFor(messageId, filenames) in alreadyNotified);
+}
+
+function dedupKeyFor(messageId, filenames) {
+    var sortedNames = filenames.slice().sort().join(",");
+    return "skipped_notified:" + messageId + ":" + simpleHash(sortedNames);
+}
+
+function formatUnmatchedAttachmentAlert(sender, unmatchedFilenames, matchedCount, dedupKey) {
+    var prefix = matchedCount > 0
+        ? ":warning: SEB email contains UNMATCHED attachments (alongside " + matchedCount + " matched). "
+        : ":warning: SEB email skipped — no attachments matched. ";
+    return prefix + "Sender: `" + sender +
+        "`. Unmatched files: `" + unmatchedFilenames.join(",") +
+        "`. Probably a new filename variant — check the regex in `appscripts/seb-position-uploader/src/Code.js`. " +
+        "(To re-alert: delete the `" + dedupKey + "` Script Property.)";
+}
+
+function simpleHash(str) {
+    var h = 0;
+    for (var i = 0; i < str.length; i++) {
+        h = ((h << 5) - h) + str.charCodeAt(i);
+        h |= 0;
+    }
+    return (h >>> 0).toString(16);
+}
+
 function messageHasMatchingAttachments(message) {
     var sender = message.getFrom();
     var source = getSourceForSender(sender);
     if (!source) return false;
 
-    var attachments = message.getAttachments();
-    for (var k = 0; k < attachments.length; k++) {
-        if (getFileConfigAndDate(source, attachments[k].getName())) {
-            return true;
-        }
+    var filenames = message.getAttachments({ includeInlineImages: false })
+        .map(function (a) { return a.getName(); });
+    var partition = partitionFilenamesByMatch(source, filenames);
+
+    if (shouldAlertOnUnmatched(partition.matched.length, partition.unmatched.length)) {
+        notifyOnceForUnmatchedAttachments(message.getId(), sender, partition.unmatched, partition.matched.length);
     }
-    return false;
+    return partition.matched.length > 0;
+}
+
+function notifyOnceForUnmatchedAttachments(messageId, sender, unmatchedFilenames, matchedCount) {
+    var props = PropertiesService.getScriptProperties();
+    var key = dedupKeyFor(messageId, unmatchedFilenames);
+    var alreadyNotified = {};
+    if (props.getProperty(key)) alreadyNotified[key] = props.getProperty(key);
+
+    if (!shouldNotifyAboutSkipped(messageId, unmatchedFilenames, alreadyNotified)) return;
+
+    var logPrefix = matchedCount > 0
+        ? "WARNING: Known sender with mixed matched (" + matchedCount + ") + unmatched attachments: "
+        : "WARNING: Known sender but no attachments matched any pattern: ";
+    Logger.log(logPrefix + "sender=" + sender + ", unmatched=" + unmatchedFilenames.join(",") + ", messageId=" + messageId);
+    notifySlack(formatUnmatchedAttachmentAlert(sender, unmatchedFilenames, matchedCount, key));
+    props.setProperty(key, new Date().toISOString());
+}
+
+function notifySlack(message) {
+    var webhookUrl = PropertiesService.getScriptProperties().getProperty("SLACK_WEBHOOK_URL");
+    if (!webhookUrl) {
+        Logger.log("SLACK_WEBHOOK_URL not configured — would have sent: " + message);
+        return;
+    }
+    try {
+        var response = UrlFetchApp.fetch(webhookUrl, {
+            method: "post",
+            contentType: "application/json",
+            payload: JSON.stringify({ text: "*Investment CSV to S3*: " + message }),
+            muteHttpExceptions: true,
+        });
+        var code = response.getResponseCode();
+        if (code < 200 || code >= 300) {
+            Logger.log("Slack webhook non-2xx: status=" + code + ", body=" + response.getContentText());
+        }
+    } catch (e) {
+        Logger.log("Slack notify threw: " + e.message);
+    }
 }
 
 function processMessage(message, thread) {
@@ -418,5 +508,10 @@ if (typeof module !== "undefined" && module.exports) {
         shouldProcessMessage,
         parseUploadCountFromLabelNames,
         formatUploadLabelName,
+        partitionFilenamesByMatch,
+        shouldAlertOnUnmatched,
+        shouldNotifyAboutSkipped,
+        dedupKeyFor,
+        formatUnmatchedAttachmentAlert,
     };
 }

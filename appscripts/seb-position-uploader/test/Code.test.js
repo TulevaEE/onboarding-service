@@ -6,6 +6,11 @@ const {
   shouldProcessMessage,
   parseUploadCountFromLabelNames,
   formatUploadLabelName,
+  partitionFilenamesByMatch,
+  shouldAlertOnUnmatched,
+  shouldNotifyAboutSkipped,
+  dedupKeyFor,
+  formatUnmatchedAttachmentAlert,
 } = require("../src/Code");
 
 describe("getSourceForSender", () => {
@@ -131,5 +136,94 @@ describe("formatUploadLabelName", () => {
     for (var n = 0; n <= 10; n++) {
       expect(parseUploadCountFromLabelNames([formatUploadLabelName(n)])).toBe(n);
     }
+  });
+});
+
+describe("partitionFilenamesByMatch", () => {
+  test("splits filenames into matched and unmatched lists", () => {
+    const result = partitionFilenamesByMatch(SOURCES.SEB, [
+      "TULEVA_pos_raport_20260409.csv",
+      "junk.csv",
+      "TULEVA_ootel_tehingud_20260409_uuendatud.csv",
+    ]);
+    expect(result.matched).toEqual([
+      "TULEVA_pos_raport_20260409.csv",
+      "TULEVA_ootel_tehingud_20260409_uuendatud.csv",
+    ]);
+    expect(result.unmatched).toEqual(["junk.csv"]);
+  });
+  test("returns empty unmatched when everything matches", () => {
+    const result = partitionFilenamesByMatch(SOURCES.SEB, [
+      "TULEVA_pos_raport_20260409.csv",
+    ]);
+    expect(result.unmatched).toEqual([]);
+  });
+  test("returns empty matched when nothing matches", () => {
+    const result = partitionFilenamesByMatch(SOURCES.SEB, ["random.txt"]);
+    expect(result.matched).toEqual([]);
+    expect(result.unmatched).toEqual(["random.txt"]);
+  });
+});
+
+describe("shouldAlertOnUnmatched", () => {
+  test("alerts when a known sender has any unmatched attachment", () => {
+    expect(shouldAlertOnUnmatched(0, 1)).toBe(true);
+  });
+  test("alerts even when SOME attachments matched (mixed case)", () => {
+    expect(shouldAlertOnUnmatched(2, 1)).toBe(true);
+  });
+  test("does not alert when everything matched", () => {
+    expect(shouldAlertOnUnmatched(2, 0)).toBe(false);
+  });
+  test("does not alert when the message has no attachments at all", () => {
+    expect(shouldAlertOnUnmatched(0, 0)).toBe(false);
+  });
+});
+
+describe("dedupKeyFor", () => {
+  test("is sort-invariant on the filename list", () => {
+    expect(dedupKeyFor("msgA", ["b.csv", "a.csv"])).toBe(dedupKeyFor("msgA", ["a.csv", "b.csv"]));
+  });
+  test("is message-scoped", () => {
+    expect(dedupKeyFor("msgA", ["a.csv"])).not.toBe(dedupKeyFor("msgB", ["a.csv"]));
+  });
+  test("is filename-scoped", () => {
+    expect(dedupKeyFor("msgA", ["a.csv"])).not.toBe(dedupKeyFor("msgA", ["b.csv"]));
+  });
+});
+
+describe("shouldNotifyAboutSkipped", () => {
+  test("notifies when nothing has been recorded for this message", () => {
+    expect(shouldNotifyAboutSkipped("msgA", ["foo.csv"], {})).toBe(true);
+  });
+  test("does NOT notify when the same key is already present", () => {
+    const key = dedupKeyFor("msgA", ["foo.csv"]);
+    expect(shouldNotifyAboutSkipped("msgA", ["foo.csv"], { [key]: "anytime" })).toBe(false);
+  });
+  test("notifies when a NEW filename set arrives in the same message", () => {
+    const oldKey = dedupKeyFor("msgA", ["foo.csv"]);
+    expect(shouldNotifyAboutSkipped("msgA", ["foo.csv", "bar.csv"], { [oldKey]: "anytime" })).toBe(true);
+  });
+  test("notifies for a different message even if same filename", () => {
+    const otherKey = dedupKeyFor("msgA", ["foo.csv"]);
+    expect(shouldNotifyAboutSkipped("msgB", ["foo.csv"], { [otherKey]: "anytime" })).toBe(true);
+  });
+});
+
+describe("formatUnmatchedAttachmentAlert", () => {
+  test("pure-skip wording when zero attachments matched", () => {
+    const msg = formatUnmatchedAttachmentAlert("trustee@example", ["weird.csv"], 0, "k");
+    expect(msg).toContain("skipped — no attachments matched");
+    expect(msg).toContain("weird.csv");
+    expect(msg).toContain("trustee@example");
+  });
+  test("mixed wording when SOME attachments matched", () => {
+    const msg = formatUnmatchedAttachmentAlert("trustee@example", ["weird.csv"], 2, "k");
+    expect(msg).toContain("UNMATCHED attachments (alongside 2 matched)");
+    expect(msg).not.toContain("skipped — no attachments matched");
+  });
+  test("includes the dedup key so operators know how to re-trigger", () => {
+    const msg = formatUnmatchedAttachmentAlert("trustee@example", ["weird.csv"], 0, "skipped_notified:msgA:abcd");
+    expect(msg).toContain("skipped_notified:msgA:abcd");
   });
 });

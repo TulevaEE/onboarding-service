@@ -22,15 +22,15 @@ buildscript {
 }
 
 val springCloudVersion = "2025.1.1"
-val springModulithVersion = "2.0.3"
+val springModulithVersion = "2.0.5"
 
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "4.0.3"
+    id("org.springframework.boot") version "4.0.5"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "2.5.7"
-    id("com.diffplug.spotless") version "8.3.0"
+    id("com.diffplug.spotless") version "8.4.0"
     id("io.freefair.lombok") version "9.2.0"
     jacoco
 }
@@ -89,7 +89,7 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:10.8")
+    implementation("com.nimbusds:nimbus-jose-jwt:10.9")
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2")
     implementation("org.springdoc:springdoc-openapi-starter-common:3.0.2")
@@ -106,11 +106,11 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.jsoup:jsoup:1.22.1")
-    implementation("commons-net:commons-net:3.12.0")
+    implementation("commons-net:commons-net:3.13.0")
     implementation("org.apache.commons:commons-lang3")
     implementation("org.decampo:xirr:1.2")
-    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.9")
-    implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.4")
+    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:5.0.0")
+    implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.5")
     implementation("org.springframework.boot:spring-boot-starter-web-services")
     testImplementation("org.springframework.ws:spring-ws-test")
 
@@ -133,8 +133,8 @@ dependencies {
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-4:8.36.0")
-    implementation("io.sentry:sentry-logback:8.36.0")
+    implementation("io.sentry:sentry-spring-boot-4:8.37.1")
+    implementation("io.sentry:sentry-logback:8.37.1")
 
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
@@ -144,7 +144,7 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("software.amazon.awssdk:s3:2.42.15")
+    implementation("software.amazon.awssdk:s3:2.42.28")
     implementation("commons-io:commons-io:2.21.0")
     implementation("org.apache.commons:commons-csv:1.14.1")
     implementation("org.apache.poi:poi-ooxml:5.5.1")
@@ -172,8 +172,8 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.4-groovy-5.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy:5.0.4")
-    testImplementation("org.apache.groovy:groovy-json:5.0.4")
+    testImplementation("org.apache.groovy:groovy:5.0.5")
+    testImplementation("org.apache.groovy:groovy-json:5.0.5")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:postgresql:1.21.4")
     testImplementation("org.testcontainers:jdbc:1.21.4")

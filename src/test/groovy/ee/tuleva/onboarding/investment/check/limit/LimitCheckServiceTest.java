@@ -9,6 +9,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.portfolio.*;
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -39,6 +41,7 @@ class LimitCheckServiceTest {
   @Mock ProviderLimitChecker providerLimitChecker;
   @Mock ReserveLimitChecker reserveLimitChecker;
   @Mock FreeCashLimitChecker freeCashLimitChecker;
+  @Mock FundValueProvider fundValueProvider;
 
   Clock clock = Clock.fixed(Instant.parse("2026-03-04T16:00:00Z"), ZoneId.of("Europe/Tallinn"));
 
@@ -63,6 +66,8 @@ class LimitCheckServiceTest {
         .thenReturn(Optional.of(today));
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, SECURITY))
         .thenReturn(List.of(position));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, UNITS))
+        .thenReturn(List.of());
     when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(
             fund, today, List.of(CASH, RECEIVABLES, LIABILITY)))
         .thenReturn(nonSecurityNav);
@@ -175,6 +180,8 @@ class LimitCheckServiceTest {
         .thenReturn(Optional.of(today));
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, SECURITY))
         .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, UNITS))
+        .thenReturn(List.of());
     when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(
             fund, today, List.of(CASH, RECEIVABLES, LIABILITY)))
         .thenReturn(BigDecimal.ZERO);
@@ -251,10 +258,62 @@ class LimitCheckServiceTest {
         .findLatestNavDateByFundAndAsOfDate(any(), any());
   }
 
+  @Test
+  void usesOfficialAumForTotalNav() {
+    service = createService();
+    var today = LocalDate.of(2026, 3, 4);
+    var fund = TUK75;
+
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, today))
+        .thenReturn(Optional.of(today));
+
+    var position =
+        FundPosition.builder()
+            .accountId("IE001")
+            .fund(fund)
+            .marketValue(new BigDecimal("100000"))
+            .build();
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, SECURITY))
+        .thenReturn(List.of(position));
+
+    // UNITS position: 1,000,000 units
+    var unitsPosition =
+        FundPosition.builder().fund(fund).quantity(new BigDecimal("1000000")).build();
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, UNITS))
+        .thenReturn(List.of(unitsPosition));
+
+    // NAV per unit = 1.00 → official AUM = 1,000,000
+    when(fundValueProvider.getLatestValue(fund.getIsin(), today))
+        .thenReturn(
+            Optional.of(
+                new FundValue(fund.getIsin(), today, BigDecimal.ONE, "TEST", Instant.now())));
+
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, CASH))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, LIABILITY))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, FEE))
+        .thenReturn(List.of());
+
+    when(positionLimitRepository.findLatestByFund(fund)).thenReturn(List.of());
+    when(providerLimitRepository.findLatestByFund(fund)).thenReturn(List.of());
+    when(fundLimitRepository.findLatestByFund(fund)).thenReturn(Optional.empty());
+    when(modelPortfolioAllocationRepository.findLatestByFund(fund)).thenReturn(List.of());
+    when(positionLimitChecker.check(any(), any(), any(), any())).thenReturn(List.of());
+    when(providerLimitChecker.check(any(), any(), any(), any(), any())).thenReturn(List.of());
+
+    service.runChecksAsOf(today);
+
+    // totalNav should be 1,000,000 (units × NAV/unit), NOT 900,000 (position sum)
+    verify(positionLimitChecker)
+        .check(eq(fund), anyList(), eq(new BigDecimal("1000000")), anyList());
+  }
+
   private LimitCheckService createService() {
     return new LimitCheckService(
         clock,
         fundPositionRepository,
+        fundValueProvider,
         positionLimitRepository,
         providerLimitRepository,
         fundLimitRepository,

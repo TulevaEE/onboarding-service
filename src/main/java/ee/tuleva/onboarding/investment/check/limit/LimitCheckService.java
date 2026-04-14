@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.check.limit.CheckType.*;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static java.math.BigDecimal.ZERO;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.portfolio.*;
 import ee.tuleva.onboarding.investment.position.AccountType;
@@ -28,6 +29,7 @@ class LimitCheckService {
 
   private final Clock clock;
   private final FundPositionRepository fundPositionRepository;
+  private final FundValueProvider fundValueProvider;
   private final PositionLimitRepository positionLimitRepository;
   private final ProviderLimitRepository providerLimitRepository;
   private final FundLimitRepository fundLimitRepository;
@@ -77,13 +79,7 @@ class LimitCheckService {
     var positions =
         fundPositionRepository.findByNavDateAndFundAndAccountType(
             checkDate, fund, AccountType.SECURITY);
-    var nonSecurityNav =
-        fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-            fund, checkDate, List.of(CASH, RECEIVABLES, LIABILITY));
-    var securitiesNav =
-        fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-            fund, checkDate, List.of(AccountType.SECURITY));
-    var totalNav = nonSecurityNav.add(securitiesNav);
+    var totalNav = computeTotalNav(fund, checkDate);
 
     var cashTotal =
         sumMarketValues(
@@ -116,6 +112,28 @@ class LimitCheckService {
 
     return new LimitCheckResult(
         fund, checkDate, positionBreaches, providerBreaches, reserveBreach, freeCashBreach);
+  }
+
+  private BigDecimal computeTotalNav(TulevaFund fund, LocalDate checkDate) {
+    var unitsPositions =
+        fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, UNITS);
+    if (!unitsPositions.isEmpty()) {
+      var units = unitsPositions.getFirst().getQuantity();
+      if (units != null && units.signum() > 0) {
+        var navPerUnit = fundValueProvider.getLatestValue(fund.getIsin(), checkDate);
+        if (navPerUnit.isPresent()) {
+          return units.multiply(navPerUnit.get().value());
+        }
+      }
+    }
+    log.warn("UNITS or NAV per unit unavailable, falling back to position sum: fund={}", fund);
+    var nonSecurityNav =
+        fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+            fund, checkDate, List.of(CASH, RECEIVABLES, LIABILITY));
+    var securitiesNav =
+        fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+            fund, checkDate, List.of(AccountType.SECURITY));
+    return nonSecurityNav.add(securitiesNav);
   }
 
   private BigDecimal sumMarketValues(List<FundPosition> positions) {

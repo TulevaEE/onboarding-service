@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.ledger.LedgerService
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider
+import org.springframework.web.server.ResponseStatusException
 import spock.lang.Specification
 
 import java.time.LocalDate
@@ -397,6 +398,50 @@ class FundServiceSpec extends Specification {
     def fund = response.first()
     fund.nav == safeNav
     0 * fundValueRepository.findLastValueForFund(savingsFund.isin)
+  }
+
+  def "getNavHistory returns mapped fund values"() {
+    given:
+    def isin = "EE0000003283"
+    def startDate = LocalDate.of(2026, 2, 2)
+    def endDate = LocalDate.of(2026, 4, 14)
+    fundRepository.findByIsin(isin) >> additionalSavingsFund()
+    fundValueRepository.findValuesBetweenDates(isin, startDate, endDate) >> [
+        aFundValue(isin, LocalDate.of(2026, 2, 3), 1.0000),
+        aFundValue(isin, LocalDate.of(2026, 2, 4), 1.0012),
+    ]
+
+    when:
+    def result = fundService.getNavHistory(isin, startDate, endDate)
+
+    then:
+    result.size() == 2
+    result[0] == new NavValueResponse(LocalDate.of(2026, 2, 3), 1.0000G)
+    result[1] == new NavValueResponse(LocalDate.of(2026, 2, 4), 1.0012G)
+  }
+
+  def "getNavHistory defaults null dates to full range"() {
+    given:
+    def isin = "EE0000003283"
+    fundRepository.findByIsin(isin) >> additionalSavingsFund()
+    fundValueRepository.findValuesBetweenDates(isin, LocalDate.EPOCH, LocalDate.of(9999, 12, 31)) >> []
+
+    when:
+    def result = fundService.getNavHistory(isin, null, null)
+
+    then:
+    result.isEmpty()
+  }
+
+  def "getNavHistory throws 404 for unknown ISIN"() {
+    given:
+    fundRepository.findByIsin("UNKNOWN") >> null
+
+    when:
+    fundService.getNavHistory("UNKNOWN", null, null)
+
+    then:
+    thrown(ResponseStatusException)
   }
 
   def "non-savings fund returns null volume"() {

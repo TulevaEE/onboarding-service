@@ -30,6 +30,7 @@ class LimitCheckService {
   private final Clock clock;
   private final FundPositionRepository fundPositionRepository;
   private final FundValueProvider fundValueProvider;
+  private final NavReportPositionProvider navReportPositionProvider;
   private final PositionLimitRepository positionLimitRepository;
   private final ProviderLimitRepository providerLimitRepository;
   private final FundLimitRepository fundLimitRepository;
@@ -79,6 +80,16 @@ class LimitCheckService {
     var positions =
         fundPositionRepository.findByNavDateAndFundAndAccountType(
             checkDate, fund, AccountType.SECURITY);
+
+    var navMarketValues = navReportPositionProvider.getSecurityMarketValues(fund, checkDate);
+    positions.forEach(
+        p -> {
+          var navValue = navMarketValues.get(p.getAccountId());
+          if (navValue != null) {
+            p.setMarketValue(navValue);
+          }
+        });
+
     var totalNav = computeTotalNav(fund, checkDate);
 
     var cashTotal =

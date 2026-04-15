@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.investment.portfolio.Provider.ISHARES;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.lenient;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
@@ -21,6 +22,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,6 +44,7 @@ class LimitCheckServiceTest {
   @Mock ReserveLimitChecker reserveLimitChecker;
   @Mock FreeCashLimitChecker freeCashLimitChecker;
   @Mock FundValueProvider fundValueProvider;
+  @Mock NavReportPositionProvider navReportPositionProvider;
 
   Clock clock = Clock.fixed(Instant.parse("2026-03-04T16:00:00Z"), ZoneId.of("Europe/Tallinn"));
 
@@ -259,6 +262,67 @@ class LimitCheckServiceTest {
   }
 
   @Test
+  void usesNavReportPricesForPositionWeights() {
+    service = createService();
+    var today = LocalDate.of(2026, 3, 4);
+    var fund = TUK75;
+
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, today))
+        .thenReturn(Optional.of(today));
+
+    // FundPosition has custodian price (market_value=100,000)
+    var position =
+        FundPosition.builder()
+            .accountId("IE001")
+            .fund(fund)
+            .marketValue(new BigDecimal("100000"))
+            .build();
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, SECURITY))
+        .thenReturn(List.of(position));
+
+    // Nav report has different (NAV calculation) price: 95,000
+    when(navReportPositionProvider.getSecurityMarketValues(fund, today))
+        .thenReturn(Map.of("IE001", new BigDecimal("95000")));
+
+    var unitsPosition =
+        FundPosition.builder().fund(fund).quantity(new BigDecimal("1000000")).build();
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, UNITS))
+        .thenReturn(List.of(unitsPosition));
+    when(fundValueProvider.getLatestValue(fund.getIsin(), today))
+        .thenReturn(
+            Optional.of(
+                new FundValue(fund.getIsin(), today, BigDecimal.ONE, "TEST", Instant.now())));
+
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, CASH))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, LIABILITY))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, FEE))
+        .thenReturn(List.of());
+
+    when(positionLimitRepository.findLatestByFund(fund)).thenReturn(List.of());
+    when(providerLimitRepository.findLatestByFund(fund)).thenReturn(List.of());
+    when(fundLimitRepository.findLatestByFund(fund)).thenReturn(Optional.empty());
+    when(modelPortfolioAllocationRepository.findLatestByFund(fund)).thenReturn(List.of());
+    when(positionLimitChecker.check(any(), any(), any(), any())).thenReturn(List.of());
+    when(providerLimitChecker.check(any(), any(), any(), any(), any())).thenReturn(List.of());
+
+    service.runChecksAsOf(today);
+
+    // Position market_value should be overridden to 95,000 (NAV report), not 100,000 (custodian)
+    verify(positionLimitChecker)
+        .check(
+            eq(fund),
+            argThat(
+                positions ->
+                    positions.size() == 1
+                        && positions.getFirst().getMarketValue().compareTo(new BigDecimal("95000"))
+                            == 0),
+            any(),
+            anyList());
+  }
+
+  @Test
   void usesOfficialAumForTotalNav() {
     service = createService();
     var today = LocalDate.of(2026, 3, 4);
@@ -310,10 +374,14 @@ class LimitCheckServiceTest {
   }
 
   private LimitCheckService createService() {
+    lenient()
+        .when(navReportPositionProvider.getSecurityMarketValues(any(), any()))
+        .thenReturn(Map.of());
     return new LimitCheckService(
         clock,
         fundPositionRepository,
         fundValueProvider,
+        navReportPositionProvider,
         positionLimitRepository,
         providerLimitRepository,
         fundLimitRepository,

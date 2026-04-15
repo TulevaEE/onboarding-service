@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.stream.StreamSupport.stream;
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
@@ -16,7 +15,6 @@ import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
@@ -24,7 +22,6 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @Slf4j
@@ -107,17 +104,6 @@ class FundService {
 
   private BigDecimal toNavScale(BigDecimal nav) {
     return nav.setScale(TKF100.getNavScale());
-  }
-
-  List<NavValueResponse> getNavHistory(String isin, LocalDate startDate, LocalDate endDate) {
-    if (fundRepository.findByIsin(isin) == null) {
-      throw new ResponseStatusException(NOT_FOUND);
-    }
-    LocalDate start = startDate != null ? startDate : LocalDate.EPOCH;
-    LocalDate end = endDate != null ? endDate : LocalDate.of(9999, 12, 31);
-    return fundValueRepository.findValuesBetweenDates(isin, start, end).stream()
-        .map(fv -> new NavValueResponse(fv.date(), fv.value()))
-        .toList();
   }
 
   private Iterable<Fund> fundsBy(Optional<String> fundManagerName) {

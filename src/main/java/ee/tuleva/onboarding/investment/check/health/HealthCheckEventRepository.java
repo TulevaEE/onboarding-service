@@ -7,8 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 interface HealthCheckEventRepository extends JpaRepository<HealthCheckEvent, Long> {
 
-  void deleteByFundAndCheckDateAndCheckType(
-      TulevaFund fund, LocalDate checkDate, HealthCheckType checkType);
-
   List<HealthCheckEvent> findByFundAndCheckDate(TulevaFund fund, LocalDate checkDate);
 }

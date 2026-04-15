@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
@@ -16,7 +15,6 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 class TrackingDifferenceEventRepositoryTest {
 
   @Autowired TrackingDifferenceEventRepository repository;
-  @Autowired EntityManager entityManager;
 
   @Test
   void savesAndRetrievesEvent() {
@@ -41,16 +39,17 @@ class TrackingDifferenceEventRepositoryTest {
   }
 
   @Test
-  void deletesExistingEventOnRerun() {
+  void appendsMultipleEventsForSameDateAndReturnsLatest() {
     var checkDate = LocalDate.of(2026, 4, 3);
     repository.save(event(checkDate, true, 1));
-
-    repository.deleteByFundAndCheckDateAndCheckType(TUK75, checkDate, MODEL_PORTFOLIO);
-    entityManager.flush();
     repository.save(event(checkDate, false, 0));
 
     var found = repository.findAll();
-    assertThat(found).singleElement().satisfies(e -> assertThat(e.isBreach()).isFalse());
+    assertThat(found).hasSize(2);
+
+    var recent =
+        repository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, LocalDate.of(2026, 4, 4), 3);
+    assertThat(recent).singleElement().satisfies(e -> assertThat(e.isBreach()).isFalse());
   }
 
   @Test

@@ -260,8 +260,6 @@ class TrackingDifferenceServiceTest {
 
     service.runChecksAsOf(CHECK_DATE);
 
-    verify(eventRepository)
-        .deleteByFundAndCheckDateAndCheckType(TUK75, CHECK_DATE, MODEL_PORTFOLIO);
     verify(eventRepository).save(any(TrackingDifferenceEvent.class));
   }
 

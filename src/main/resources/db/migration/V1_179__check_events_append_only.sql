@@ -1,0 +1,8 @@
+ALTER TABLE investment_health_check_event
+  DROP CONSTRAINT uq_health_check_event_fund_date_type;
+
+ALTER TABLE investment_limit_check_event
+  DROP CONSTRAINT uq_limit_check_event_fund_date_type;
+
+ALTER TABLE investment_tracking_difference_event
+  DROP CONSTRAINT uq_td_event_fund_date_type;

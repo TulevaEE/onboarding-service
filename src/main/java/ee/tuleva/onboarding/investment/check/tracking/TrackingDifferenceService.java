@@ -369,9 +369,6 @@ class TrackingDifferenceService {
   record ConsecutiveBreachInfo(int count, BigDecimal netTd) {}
 
   private void saveEvent(TrackingDifferenceResult result) {
-    eventRepository.deleteByFundAndCheckDateAndCheckType(
-        result.fund(), result.checkDate(), result.checkType());
-
     var event =
         TrackingDifferenceEvent.builder()
             .fund(result.fund())

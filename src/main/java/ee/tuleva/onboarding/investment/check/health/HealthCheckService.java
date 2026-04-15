@@ -15,7 +15,6 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Component
@@ -31,7 +30,6 @@ public class HealthCheckService {
   private final ReceivablesChecker receivablesChecker;
   private final PayablesChecker payablesChecker;
 
-  @Transactional
   public List<HealthCheckResult> check(List<FundPosition> positions) {
     Map<TulevaFund, List<FundPosition>> byFund =
         positions.stream().collect(Collectors.groupingBy(FundPosition::getFund));
@@ -85,8 +83,6 @@ public class HealthCheckService {
     for (var checkType : HealthCheckType.values()) {
       var checkFindings = findings.stream().filter(f -> f.checkType() == checkType).toList();
       var issuesFound = checkFindings.stream().anyMatch(f -> f.severity() != PASS);
-
-      healthCheckEventRepository.deleteByFundAndCheckDateAndCheckType(fund, checkDate, checkType);
 
       var event =
           HealthCheckEvent.builder()

@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -13,14 +14,18 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.concurrent.ScheduledFuture;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.Trigger;
 
 @ExtendWith(MockitoExtension.class)
 class NavSelfHealJobTest {
@@ -37,6 +42,7 @@ class NavSelfHealJobTest {
   @Mock private NavReportRepository navReportRepository;
   @Mock private NavCalculationJob navCalculationJob;
   @Mock private PublicHolidays publicHolidays;
+  private final CapturingTaskScheduler taskScheduler = new CapturingTaskScheduler();
 
   @Test
   void healIfNeeded_firesDailyNav_whenTkf100MissingPastItsCutoff() {
@@ -139,6 +145,19 @@ class NavSelfHealJobTest {
   }
 
   @Test
+  void healIfNeeded_treatsNavAsPublished_whenRowExistsForPreviousWorkingDay() {
+    var job = jobOn(WED_1325_UTC);
+
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    given(publicHolidays.isWorkingDay(today)).willReturn(true);
+    stubAllPublished(today);
+
+    job.healIfNeeded();
+
+    verifyNoInteractions(navCalculationJob);
+  }
+
+  @Test
   void healIfNeeded_skips_whenAllPublished() {
     var job = jobOn(WED_1325_UTC);
 
@@ -197,7 +216,49 @@ class NavSelfHealJobTest {
   }
 
   @Test
-  void applicationReadyEvent_invokesHealIfNeeded() {
+  void onApplicationReady_doesNotRunHealIfNeededOnCallerThread() {
+    Instant readyInstant = Instant.parse(WED_1325_UTC);
+    var job = jobOn(WED_1325_UTC);
+
+    job.onApplicationReady();
+
+    assertThat(taskScheduler.capturedStartTime)
+        .isEqualTo(readyInstant.plus(Duration.ofSeconds(10)));
+    assertThat(taskScheduler.capturedRunnable).isNotNull();
+    verifyNoInteractions(navReportRepository);
+    verifyNoInteractions(navCalculationJob);
+    verifyNoInteractions(publicHolidays);
+  }
+
+  @Test
+  void deferredRunnableHonoursNonWorkingDayGate() {
+    var job = jobOn(SAT_1325_UTC);
+
+    LocalDate today = LocalDate.of(2025, 1, 18);
+    given(publicHolidays.isWorkingDay(today)).willReturn(false);
+
+    job.onApplicationReady();
+    taskScheduler.capturedRunnable.run();
+
+    verifyNoInteractions(navCalculationJob);
+  }
+
+  @Test
+  void deferredRunnableHonoursBetweenCutoffsGate() {
+    var job = jobOn(WED_1200_UTC);
+
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    given(publicHolidays.isWorkingDay(today)).willReturn(true);
+    stubAllPublished(today);
+
+    job.onApplicationReady();
+    taskScheduler.capturedRunnable.run();
+
+    verifyNoInteractions(navCalculationJob);
+  }
+
+  @Test
+  void deferredRunnable_invokesHealIfNeeded_whenFundMissingPastCutoff() {
     var job = jobOn(WED_1325_UTC);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
@@ -206,6 +267,7 @@ class NavSelfHealJobTest {
     stubMissing(today, TKF100);
 
     job.onApplicationReady();
+    taskScheduler.capturedRunnable.run();
 
     verify(navCalculationJob).calculateDailyNav();
   }
@@ -239,28 +301,76 @@ class NavSelfHealJobTest {
   }
 
   private void stubAllPublished(LocalDate today) {
+    LocalDate navDate = navDateFor(today);
     lenient()
-        .when(navReportRepository.findByNavDateAndFundCodeOrderById(today, TKF100.getCode()))
+        .when(navReportRepository.findByNavDateAndFundCodeOrderById(navDate, TKF100.getCode()))
         .thenReturn(List.of(new NavReportRow()));
     lenient()
-        .when(navReportRepository.findByNavDateAndFundCodeOrderById(today, TUK75.getCode()))
+        .when(navReportRepository.findByNavDateAndFundCodeOrderById(navDate, TUK75.getCode()))
         .thenReturn(List.of(new NavReportRow()));
     lenient()
-        .when(navReportRepository.findByNavDateAndFundCodeOrderById(today, TUK00.getCode()))
+        .when(navReportRepository.findByNavDateAndFundCodeOrderById(navDate, TUK00.getCode()))
         .thenReturn(List.of(new NavReportRow()));
     lenient()
-        .when(navReportRepository.findByNavDateAndFundCodeOrderById(today, TUV100.getCode()))
+        .when(navReportRepository.findByNavDateAndFundCodeOrderById(navDate, TUV100.getCode()))
         .thenReturn(List.of(new NavReportRow()));
   }
 
   private void stubMissing(LocalDate today, TulevaFund fund) {
+    LocalDate navDate = navDateFor(today);
     lenient()
-        .when(navReportRepository.findByNavDateAndFundCodeOrderById(today, fund.getCode()))
+        .when(navReportRepository.findByNavDateAndFundCodeOrderById(navDate, fund.getCode()))
         .thenReturn(List.of());
+  }
+
+  private LocalDate navDateFor(LocalDate today) {
+    LocalDate previousWorkingDay = today.minusDays(1);
+    lenient().when(publicHolidays.previousWorkingDay(today)).thenReturn(previousWorkingDay);
+    return previousWorkingDay;
   }
 
   private NavSelfHealJob jobOn(String instant) {
     Clock clock = Clock.fixed(Instant.parse(instant), TALLINN);
-    return new NavSelfHealJob(navReportRepository, navCalculationJob, publicHolidays, clock);
+    return new NavSelfHealJob(
+        navReportRepository, navCalculationJob, publicHolidays, clock, taskScheduler);
+  }
+
+  private static class CapturingTaskScheduler implements TaskScheduler {
+    Runnable capturedRunnable;
+    Instant capturedStartTime;
+
+    @Override
+    public ScheduledFuture<?> schedule(Runnable task, Instant startTime) {
+      this.capturedRunnable = task;
+      this.capturedStartTime = startTime;
+      return null;
+    }
+
+    @Override
+    public ScheduledFuture<?> schedule(Runnable task, Trigger trigger) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public ScheduledFuture<?> scheduleAtFixedRate(
+        Runnable task, Instant startTime, Duration period) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public ScheduledFuture<?> scheduleAtFixedRate(Runnable task, Duration period) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public ScheduledFuture<?> scheduleWithFixedDelay(
+        Runnable task, Instant startTime, Duration delay) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public ScheduledFuture<?> scheduleWithFixedDelay(Runnable task, Duration delay) {
+      throw new UnsupportedOperationException();
+    }
   }
 }

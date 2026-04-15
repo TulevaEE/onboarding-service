@@ -128,7 +128,11 @@ public class NavCalculationJob {
   }
 
   private boolean isNavAlreadyPublishedToday(TulevaFund fund, LocalDate today) {
-    return !navReportRepository.findByNavDateAndFundCodeOrderById(today, fund.getCode()).isEmpty();
+    LocalDate expectedNavDate =
+        NavCalculationService.expectedPositionReportDate(fund, today, publicHolidays);
+    return !navReportRepository
+        .findByNavDateAndFundCodeOrderById(expectedNavDate, fund.getCode())
+        .isEmpty();
   }
 
   private void calculateAndPublish(TulevaFund fund, LocalDate today) {

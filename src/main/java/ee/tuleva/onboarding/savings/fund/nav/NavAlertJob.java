@@ -84,6 +84,10 @@ public class NavAlertJob {
   }
 
   private boolean isNavMissingForToday(TulevaFund fund, LocalDate today) {
-    return navReportRepository.findByNavDateAndFundCodeOrderById(today, fund.getCode()).isEmpty();
+    LocalDate expectedNavDate =
+        NavCalculationService.expectedPositionReportDate(fund, today, publicHolidays);
+    return navReportRepository
+        .findByNavDateAndFundCodeOrderById(expectedNavDate, fund.getCode())
+        .isEmpty();
   }
 }

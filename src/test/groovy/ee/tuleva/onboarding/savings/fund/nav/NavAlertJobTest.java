@@ -71,6 +71,19 @@ class NavAlertJobTest {
   }
 
   @Test
+  void pillar2Alert_silent_whenNavPublishedForPreviousWorkingDay() {
+    var job = jobOn(WED_0906_UTC);
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    given(publicHolidays.isWorkingDay(today)).willReturn(true);
+    stubPublished(today, TUK75);
+    stubPublished(today, TUK00);
+
+    job.alertPillar2IfMissing();
+
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
   void pillar2Alert_silent_whenBothPillar2Present() {
     var job = jobOn(WED_0906_UTC);
     LocalDate today = LocalDate.of(2025, 1, 15);
@@ -152,15 +165,23 @@ class NavAlertJobTest {
   }
 
   private void stubMissing(LocalDate today, ee.tuleva.onboarding.fund.TulevaFund fund) {
+    LocalDate navDate = navDateFor(today);
     lenient()
-        .when(navReportRepository.findByNavDateAndFundCodeOrderById(today, fund.getCode()))
+        .when(navReportRepository.findByNavDateAndFundCodeOrderById(navDate, fund.getCode()))
         .thenReturn(List.of());
   }
 
   private void stubPublished(LocalDate today, ee.tuleva.onboarding.fund.TulevaFund fund) {
+    LocalDate navDate = navDateFor(today);
     lenient()
-        .when(navReportRepository.findByNavDateAndFundCodeOrderById(today, fund.getCode()))
+        .when(navReportRepository.findByNavDateAndFundCodeOrderById(navDate, fund.getCode()))
         .thenReturn(List.of(new NavReportRow()));
+  }
+
+  private LocalDate navDateFor(LocalDate today) {
+    LocalDate previousWorkingDay = today.minusDays(1);
+    lenient().when(publicHolidays.previousWorkingDay(today)).thenReturn(previousWorkingDay);
+    return previousWorkingDay;
   }
 
   private NavAlertJob jobOn(String instant) {

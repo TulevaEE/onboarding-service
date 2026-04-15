@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.fund.TulevaFund.getPillar3Funds;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -20,6 +21,7 @@ import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -30,11 +32,13 @@ import org.springframework.stereotype.Component;
 public class NavSelfHealJob {
 
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
+  private static final Duration STARTUP_DELAY = Duration.ofSeconds(10);
 
   private final NavReportRepository navReportRepository;
   private final NavCalculationJob navCalculationJob;
   private final PublicHolidays publicHolidays;
   private final Clock clock;
+  private final TaskScheduler taskScheduler;
 
   private record NavPipeline(TulevaFund trigger, List<TulevaFund> funds, Runnable invoke) {}
 
@@ -68,7 +72,15 @@ public class NavSelfHealJob {
 
   @EventListener(ApplicationReadyEvent.class)
   public void onApplicationReady() {
-    healIfNeeded();
+    taskScheduler.schedule(this::runDeferredStartupHeal, clock.instant().plus(STARTUP_DELAY));
+  }
+
+  private void runDeferredStartupHeal() {
+    try {
+      healIfNeeded();
+    } catch (Exception e) {
+      log.error("Deferred startup NAV self-heal failed", e);
+    }
   }
 
   void healIfNeeded() {
@@ -121,6 +133,10 @@ public class NavSelfHealJob {
   }
 
   private boolean isNavMissingForToday(TulevaFund fund, LocalDate today) {
-    return navReportRepository.findByNavDateAndFundCodeOrderById(today, fund.getCode()).isEmpty();
+    LocalDate expectedNavDate =
+        NavCalculationService.expectedPositionReportDate(fund, today, publicHolidays);
+    return navReportRepository
+        .findByNavDateAndFundCodeOrderById(expectedNavDate, fund.getCode())
+        .isEmpty();
   }
 }

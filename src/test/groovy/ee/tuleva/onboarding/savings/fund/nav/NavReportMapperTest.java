@@ -8,6 +8,7 @@ import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult.SecurityDetail;
@@ -234,5 +235,45 @@ class NavReportMapperTest {
     assertThat(rows.get(9).getAccountType()).isEqualTo("UNITS");
     assertThat(rows.get(10).getAccountType()).isEqualTo("NAV");
     assertThat(rows.get(10).getFundCode()).isEqualTo("TUK75");
+  }
+
+  @Test
+  void everyRowNavDateMatchesWhatGuardsQueryViaExpectedPositionReportDate() {
+    // Coupling contract: mapper writer and guard reader must agree on nav_date via
+    // NavCalculationService.expectedPositionReportDate. Protects against future drift.
+    LocalDate calculationDate = LocalDate.of(2026, 4, 15);
+    LocalDate positionReportDate = LocalDate.of(2026, 4, 14);
+
+    PublicHolidays publicHolidays = org.mockito.Mockito.mock(PublicHolidays.class);
+    when(publicHolidays.previousWorkingDay(calculationDate)).thenReturn(positionReportDate);
+
+    LocalDate expectedNavDate =
+        NavCalculationService.expectedPositionReportDate(TKF100, calculationDate, publicHolidays);
+
+    NavCalculationResult result =
+        NavCalculationResult.builder()
+            .fund(TKF100)
+            .calculationDate(calculationDate)
+            .positionReportDate(positionReportDate)
+            .priceDate(positionReportDate)
+            .calculatedAt(Instant.parse("2026-04-15T12:20:00Z"))
+            .securitiesDetail(List.of())
+            .cashPosition(new BigDecimal("100000.00"))
+            .receivables(ZERO)
+            .payables(ZERO)
+            .pendingSubscriptions(ZERO)
+            .pendingRedemptions(ZERO)
+            .managementFeeAccrual(ZERO)
+            .depotFeeAccrual(ZERO)
+            .blackrockAdjustment(ZERO)
+            .unitsOutstanding(new BigDecimal("100000.00000"))
+            .navPerUnit(new BigDecimal("1.0000"))
+            .aum(new BigDecimal("100000.00"))
+            .build();
+
+    List<NavReportRow> rows = navReportMapper.map(result);
+
+    assertThat(rows).isNotEmpty();
+    assertThat(rows).allSatisfy(row -> assertThat(row.getNavDate()).isEqualTo(expectedNavDate));
   }
 }

@@ -157,11 +157,15 @@ public class NavCalculationService {
     return result;
   }
 
+  static LocalDate expectedPositionReportDate(
+      TulevaFund fund, LocalDate calculationDate, PublicHolidays publicHolidays) {
+    return calculationDate.equals(fund.getInceptionDate())
+        ? calculationDate
+        : publicHolidays.previousWorkingDay(calculationDate);
+  }
+
   private LocalDate getPositionReportDate(TulevaFund fund, LocalDate calculationDate) {
-    LocalDate expectedDate =
-        calculationDate.equals(fund.getInceptionDate())
-            ? calculationDate
-            : publicHolidays.previousWorkingDay(calculationDate);
+    LocalDate expectedDate = expectedPositionReportDate(fund, calculationDate, publicHolidays);
     LocalDate actual =
         fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, expectedDate).orElse(null);
     if (actual != null && !actual.equals(expectedDate)) {

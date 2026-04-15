@@ -6,6 +6,9 @@ import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.check.health.HealthCheckNotifier;
+import ee.tuleva.onboarding.investment.check.health.HealthCheckResult;
+import ee.tuleva.onboarding.investment.check.health.HealthCheckService;
 import ee.tuleva.onboarding.investment.event.FundPositionsImported;
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
@@ -39,6 +42,8 @@ public class FundPositionImportJob {
   private final FundPositionImportService importService;
   private final InvestmentReportService reportService;
   private final FundPositionLedgerService fundPositionLedgerService;
+  private final HealthCheckService healthCheckService;
+  private final HealthCheckNotifier healthCheckNotifier;
   private final Clock clock;
   private final ApplicationEventPublisher eventPublisher;
   private final PipelineTracker pipelineTracker;
@@ -49,6 +54,8 @@ public class FundPositionImportJob {
       FundPositionImportService importService,
       InvestmentReportService reportService,
       FundPositionLedgerService fundPositionLedgerService,
+      HealthCheckService healthCheckService,
+      HealthCheckNotifier healthCheckNotifier,
       Clock clock,
       ApplicationEventPublisher eventPublisher,
       PipelineTracker pipelineTracker) {
@@ -56,6 +63,8 @@ public class FundPositionImportJob {
     this.importService = importService;
     this.reportService = reportService;
     this.fundPositionLedgerService = fundPositionLedgerService;
+    this.healthCheckService = healthCheckService;
+    this.healthCheckNotifier = healthCheckNotifier;
     this.clock = clock;
     this.eventPublisher = eventPublisher;
     this.pipelineTracker = pipelineTracker;
@@ -124,7 +133,18 @@ public class FundPositionImportJob {
     log.info(
         "Parsed fund positions: provider={}, date={}, count={}", provider, date, positions.size());
 
+    var healthResults = healthCheckService.check(positions);
+    if (healthResults.stream().anyMatch(HealthCheckResult::hasFails)) {
+      healthCheckNotifier.notify(provider, date, healthResults);
+      log.error("Health check failed, import blocked: provider={}, date={}", provider, date);
+      return new ImportResult(0, 0);
+    }
+
     ImportResult result = importService.upsertPositions(positions);
+
+    if (healthResults.stream().anyMatch(HealthCheckResult::hasWarnings)) {
+      healthCheckNotifier.notify(provider, date, healthResults);
+    }
     if (result.imported() > 0 || result.updated() > 0) {
       pipelineTracker.markChanged();
     }

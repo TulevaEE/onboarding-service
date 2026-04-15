@@ -8,11 +8,14 @@ import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static java.util.Map.entry;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.check.health.HealthCheckNotifier;
+import ee.tuleva.onboarding.investment.check.health.HealthCheckResult;
+import ee.tuleva.onboarding.investment.check.health.HealthCheckService;
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
@@ -37,6 +40,8 @@ class FundPositionImportJobTest {
   @Mock private FundPositionRepository repository;
   @Mock private InvestmentReportService reportService;
   @Mock private FundPositionLedgerService fundPositionLedgerService;
+  @Mock private HealthCheckService healthCheckService;
+  @Mock private HealthCheckNotifier healthCheckNotifier;
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private PipelineTracker pipelineTracker;
 
@@ -50,6 +55,7 @@ class FundPositionImportJobTest {
     swedbankParser = new SwedbankFundPositionParser(Clock.systemUTC());
     sebParser = new SebFundPositionParser(Clock.systemUTC());
     importService = new FundPositionImportService(repository, Clock.systemUTC());
+    lenient().when(healthCheckService.check(anyList())).thenReturn(List.of());
     job =
         new FundPositionImportJob(
             swedbankParser,
@@ -57,6 +63,8 @@ class FundPositionImportJobTest {
             importService,
             reportService,
             fundPositionLedgerService,
+            healthCheckService,
+            healthCheckNotifier,
             Clock.systemUTC(),
             eventPublisher,
             pipelineTracker);
@@ -213,5 +221,55 @@ class FundPositionImportJobTest {
 
     verify(fundPositionLedgerService, never())
         .recordPositionsToLedger(any(TulevaFund.class), any());
+  }
+
+  @Test
+  void importForProviderAndDate_blocksImportOnHealthCheckFail() {
+    LocalDate date = LocalDate.of(2026, 1, 5);
+    when(reportService.getReport(SWEDBANK, POSITIONS, date))
+        .thenReturn(Optional.of(createSwedbankReport(date)));
+    var failResult =
+        new HealthCheckResult(
+            TUK75,
+            date,
+            List.of(
+                new ee.tuleva.onboarding.investment.check.health.HealthCheckFinding(
+                    TUK75,
+                    ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_MATCH,
+                    ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL,
+                    "unknown ISIN")));
+    when(healthCheckService.check(anyList())).thenReturn(List.of(failResult));
+
+    var result = job.importForProviderAndDate(SWEDBANK, date);
+
+    assertThat(result.imported()).isEqualTo(0);
+    assertThat(result.updated()).isEqualTo(0);
+    verify(repository, never()).save(any(FundPosition.class));
+    verify(healthCheckNotifier).notify(eq(SWEDBANK), eq(date), anyList());
+  }
+
+  @Test
+  void importForProviderAndDate_proceedsAndNotifiesOnWarning() {
+    LocalDate date = LocalDate.of(2026, 1, 5);
+    when(reportService.getReport(SWEDBANK, POSITIONS, date))
+        .thenReturn(Optional.of(createSwedbankReport(date)));
+    when(repository.findByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
+        .thenReturn(Optional.empty());
+    var warningResult =
+        new HealthCheckResult(
+            TUK75,
+            date,
+            List.of(
+                new ee.tuleva.onboarding.investment.check.health.HealthCheckFinding(
+                    TUK75,
+                    ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS,
+                    ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING,
+                    "no CASH")));
+    when(healthCheckService.check(anyList())).thenReturn(List.of(warningResult));
+
+    job.importForProviderAndDate(SWEDBANK, date);
+
+    verify(repository, times(3)).save(any(FundPosition.class));
+    verify(healthCheckNotifier).notify(eq(SWEDBANK), eq(date), anyList());
   }
 }

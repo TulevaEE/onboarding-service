@@ -11,6 +11,7 @@ const {
   shouldNotifyAboutSkipped,
   dedupKeyFor,
   formatUnmatchedAttachmentAlert,
+  isIgnoredFilename,
 } = require("../src/Code");
 
 describe("getSourceForSender", () => {
@@ -162,6 +163,45 @@ describe("partitionFilenamesByMatch", () => {
     const result = partitionFilenamesByMatch(SOURCES.SEB, ["random.txt"]);
     expect(result.matched).toEqual([]);
     expect(result.unmatched).toEqual(["random.txt"]);
+  });
+  test("drops ignored filenames from both matched and unmatched (silences NAV-calc noise)", () => {
+    const result = partitionFilenamesByMatch(SOURCES.SEB, [
+      "TULEVA_pos_raport_20260415.csv",
+      "TKF100 NAV arvutamine 15042026.csv",
+      "TUV100 NAV arvutamine 15042026.csv",
+    ]);
+    expect(result.matched).toEqual(["TULEVA_pos_raport_20260415.csv"]);
+    expect(result.unmatched).toEqual([]);
+  });
+  test("reported Slack false-positive no longer triggers an alert", () => {
+    const result = partitionFilenamesByMatch(SOURCES.SEB, [
+      "TKF100 NAV arvutamine 15042026.csv",
+      "TUV100 NAV arvutamine 15042026.csv",
+    ]);
+    expect(shouldAlertOnUnmatched(result.matched.length, result.unmatched.length)).toBe(false);
+  });
+});
+
+describe("isIgnoredFilename", () => {
+  test.each([
+    "TKF100 NAV arvutamine 15042026.csv",
+    "TUV100 NAV arvutamine 15042026.csv",
+    "TKF100 NAV arvutamine 01012027.csv",
+  ])("ignores internal NAV-calc sheet %s", (filename) => {
+    expect(isIgnoredFilename(SOURCES.SEB, filename)).toBe(true);
+  });
+
+  test.each([
+    "TULEVA_pos_raport_20260409.csv",
+    "NAV arvutamine 15042026.csv",
+    "TKF100_NAV_arvutamine_15042026.csv",
+    "random.csv",
+  ])("does not ignore %s", (filename) => {
+    expect(isIgnoredFilename(SOURCES.SEB, filename)).toBe(false);
+  });
+
+  test("returns false for a source with no ignorePatterns (Swedbank)", () => {
+    expect(isIgnoredFilename(SOURCES.SWEDBANK, "anything.csv")).toBe(false);
   });
 });
 

@@ -43,6 +43,12 @@ var SOURCES = {
                 s3Prefix: "seb/",
                 s3Suffix: "_pending_transactions.csv"
             }
+        ],
+        // Filenames arriving from SEB senders that are NOT SEB position reports —
+        // e.g. Taavi's internal "{fund} NAV arvutamine {ddmmyyyy}.csv" sheets.
+        // Matching files are silently skipped: not uploaded, not alerted on.
+        ignorePatterns: [
+            /^T\w+\s+NAV\s+arvutamine\s+\d{8}\.csv$/i
         ]
     }
 };
@@ -130,6 +136,7 @@ function partitionFilenamesByMatch(source, filenames) {
     var matched = [];
     var unmatched = [];
     for (var i = 0; i < filenames.length; i++) {
+        if (isIgnoredFilename(source, filenames[i])) continue;
         if (getFileConfigAndDate(source, filenames[i])) {
             matched.push(filenames[i]);
         } else {
@@ -137,6 +144,14 @@ function partitionFilenamesByMatch(source, filenames) {
         }
     }
     return { matched: matched, unmatched: unmatched };
+}
+
+function isIgnoredFilename(source, filename) {
+    var patterns = source.ignorePatterns || [];
+    for (var i = 0; i < patterns.length; i++) {
+        if (patterns[i].test(filename)) return true;
+    }
+    return false;
 }
 
 function shouldAlertOnUnmatched(matchedCount, unmatchedCount) {
@@ -513,5 +528,6 @@ if (typeof module !== "undefined" && module.exports) {
         shouldNotifyAboutSkipped,
         dedupKeyFor,
         formatUnmatchedAttachmentAlert,
+        isIgnoredFilename,
     };
 }

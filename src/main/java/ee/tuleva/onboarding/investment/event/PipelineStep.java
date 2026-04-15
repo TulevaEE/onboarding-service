@@ -11,6 +11,7 @@ public final class PipelineStep {
   public static final String FEE_ACCRUAL_SYNC = "Fee Accrual Sync";
   public static final String NAV_CALCULATION = "NAV Calculation";
   public static final String LIMIT_CHECK = "Limit Check";
+  public static final String HEALTH_CHECK = "Health Check";
   public static final String TRACKING_DIFFERENCE = "Tracking Difference";
 
   public static final List<String> IMPORT_PIPELINE =

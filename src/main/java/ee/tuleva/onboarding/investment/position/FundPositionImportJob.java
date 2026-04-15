@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.position;
 
+import static ee.tuleva.onboarding.investment.event.PipelineStep.HEALTH_CHECK;
 import static ee.tuleva.onboarding.investment.event.PipelineStep.POSITION_IMPORT;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
@@ -133,12 +134,16 @@ public class FundPositionImportJob {
     log.info(
         "Parsed fund positions: provider={}, date={}, count={}", provider, date, positions.size());
 
+    pipelineTracker.stepStarted(HEALTH_CHECK);
     var healthResults = healthCheckService.check(positions);
     if (healthResults.stream().anyMatch(HealthCheckResult::hasFails)) {
+      pipelineTracker.stepFailed(
+          HEALTH_CHECK, "Import blocked: provider=%s, date=%s".formatted(provider, date));
       healthCheckNotifier.notify(provider, date, healthResults);
       log.error("Health check failed, import blocked: provider={}, date={}", provider, date);
       return new ImportResult(0, 0);
     }
+    pipelineTracker.stepCompleted(HEALTH_CHECK);
 
     ImportResult result = importService.upsertPositions(positions);
 

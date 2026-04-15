@@ -119,6 +119,7 @@ public class PipelineNotifier {
       case PipelineStep.FEE_ACCRUAL_SYNC -> "FeeAccrualPositionSyncJob";
       case PipelineStep.NAV_CALCULATION -> "NavCalculationJob";
       case PipelineStep.LIMIT_CHECK -> "LimitCheckJob";
+      case PipelineStep.HEALTH_CHECK -> "FundPositionImportJob";
       case PipelineStep.TRACKING_DIFFERENCE -> "TrackingDifferenceJob";
       default -> stepName;
     };

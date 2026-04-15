@@ -15,7 +15,7 @@ public final class PipelineStep {
   public static final String TRACKING_DIFFERENCE = "Tracking Difference";
 
   public static final List<String> IMPORT_PIPELINE =
-      List.of(REPORT_IMPORT, POSITION_IMPORT, FEE_ACCRUAL_SYNC);
+      List.of(REPORT_IMPORT, POSITION_IMPORT, HEALTH_CHECK, FEE_ACCRUAL_SYNC);
 
   public static final List<String> NAV_PIPELINE = List.of(NAV_CALCULATION);
 }

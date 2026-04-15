@@ -176,7 +176,7 @@ class FundPositionImportJobTest {
 
     job.runImport();
 
-    verify(reportService, times(60)).getReport(any(), any(), any());
+    verify(reportService, times(28)).getReport(any(), any(), any());
   }
 
   @Test
@@ -185,7 +185,7 @@ class FundPositionImportJobTest {
 
     job.runImport();
 
-    verify(reportService, times(60)).getReport(any(), any(), any());
+    verify(reportService, times(28)).getReport(any(), any(), any());
   }
 
   @Test
@@ -194,8 +194,8 @@ class FundPositionImportJobTest {
 
     job.runImport();
 
-    verify(reportService, times(30)).getReport(eq(SWEDBANK), eq(POSITIONS), any());
-    verify(reportService, times(30)).getReport(eq(SEB), eq(POSITIONS), any());
+    verify(reportService, times(14)).getReport(eq(SWEDBANK), eq(POSITIONS), any());
+    verify(reportService, times(14)).getReport(eq(SEB), eq(POSITIONS), any());
   }
 
   @Test

@@ -36,7 +36,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class FundPositionImportJob {
 
-  private static final int LOOKBACK_DAYS = 30;
+  private static final int LOOKBACK_DAYS = 14;
   private static final List<ReportProvider> PROVIDERS = List.of(SWEDBANK, SEB);
 
   private final Map<ReportProvider, FundPositionParser> parsers;

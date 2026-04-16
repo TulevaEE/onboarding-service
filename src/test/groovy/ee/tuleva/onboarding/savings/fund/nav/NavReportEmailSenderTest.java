@@ -65,14 +65,14 @@ class NavReportEmailSenderTest {
     var message = messageCaptor.getValue();
     assertThat(message.getFromEmail()).isEqualTo("funds@tuleva.ee");
     assertThat(message.getFromName()).isEqualTo("Tuleva");
-    assertThat(message.getSubject()).isEqualTo("TKF100 NAV arvutamine 16.03.2026");
+    assertThat(message.getSubject()).isEqualTo("TKF100 NAV arvutamine 13.03.2026");
 
     assertThat(message.getTo()).hasSize(2);
     assertThat(message.getTo().get(0).getEmail()).isEqualTo("funds@tuleva.ee");
     assertThat(message.getTo().get(1).getEmail()).isEqualTo("erko.risthein@tuleva.ee");
 
     var attachment = message.getAttachments().getFirst();
-    assertThat(attachment.getName()).isEqualTo("TKF100 NAV arvutamine 16032026.csv");
+    assertThat(attachment.getName()).isEqualTo("TKF100 NAV arvutamine 13032026.csv");
     assertThat(attachment.getType()).isEqualTo("text/csv");
     assertThat(Base64.getDecoder().decode(attachment.getContent())).isEqualTo(csvBytes);
   }

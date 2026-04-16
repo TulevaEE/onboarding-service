@@ -1,27 +1,22 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
+import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.position.FundPosition;
-import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult.SecurityDetail;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 class NavReportMapper {
 
   private static final BigDecimal ONE = new BigDecimal("1.00");
-
-  private final FundPositionRepository fundPositionRepository;
 
   List<NavReportRow> map(NavCalculationResult result) {
     var rows = new ArrayList<NavReportRow>();
@@ -30,7 +25,8 @@ class NavReportMapper {
     var fundCode = fund.getCode();
     var accountId = fund.getIsin();
 
-    result.securitiesDetail().forEach(detail -> rows.add(securityRow(navDate, fund, detail)));
+    sortedSecurities(fund, result.securitiesDetail())
+        .forEach(detail -> rows.add(securityRow(navDate, fundCode, detail)));
 
     rows.add(cashRow(navDate, fundCode, accountId, result.cashPosition()));
     rows.add(
@@ -58,12 +54,21 @@ class NavReportMapper {
     if (!fund.isSavingsFund()) {
       rows.add(
           receivablesRow(
-              navDate, fundCode, accountId, "Other receivables", new BigDecimal("0.00")));
+              navDate,
+              fundCode,
+              accountId,
+              "Other receivables",
+              result.blackrockAdjustment().max(ZERO)));
     }
 
-    if (fund == TUK00) {
+    if (!fund.isSavingsFund()) {
       rows.add(
-          liabilityRow(navDate, fundCode, accountId, "Liabilities Other", new BigDecimal("0.00")));
+          liabilityRow(
+              navDate,
+              fundCode,
+              accountId,
+              "Liabilities Other",
+              result.blackrockAdjustment().min(ZERO).negate()));
     }
 
     rows.add(
@@ -76,7 +81,6 @@ class NavReportMapper {
     rows.add(
         liabilityFeeRow(
             navDate, fundCode, accountId, "Management fee", result.managementFeeAccrual()));
-
     rows.add(
         liabilityFeeRow(navDate, fundCode, accountId, "Custody fee", result.depotFeeAccrual()));
 
@@ -86,22 +90,31 @@ class NavReportMapper {
     return rows;
   }
 
-  private NavReportRow securityRow(LocalDate navDate, TulevaFund fund, SecurityDetail detail) {
+  private List<SecurityDetail> sortedSecurities(TulevaFund fund, List<SecurityDetail> securities) {
+    var order = fund.getModelPortfolioOrder();
+    return securities.stream()
+        .sorted(
+            Comparator.comparingInt(
+                (SecurityDetail d) -> {
+                  int idx = order.indexOf(d.isin());
+                  return idx >= 0 ? idx : Integer.MAX_VALUE;
+                }))
+        .toList();
+  }
+
+  private NavReportRow securityRow(LocalDate navDate, String fundCode, SecurityDetail detail) {
     var displayName =
-        fundPositionRepository
-            .findByNavDateAndFundAndAccountTypeAndAccountId(navDate, fund, SECURITY, detail.isin())
-            .map(FundPosition::getAccountName)
-            .orElse(detail.isin());
+        FundTicker.findByIsin(detail.isin()).map(FundTicker::getDisplayName).orElse(detail.isin());
 
     return NavReportRow.builder()
         .navDate(navDate)
-        .fundCode(fund.getCode())
+        .fundCode(fundCode)
         .accountType("SECURITY")
         .accountName(displayName)
         .accountId(detail.isin())
         .quantity(detail.units().setScale(3, HALF_UP))
-        .marketPrice(detail.price())
-        .marketValue(detail.marketValue())
+        .marketPrice(detail.price().setScale(4, HALF_UP))
+        .marketValue(detail.marketValue().setScale(2, HALF_UP))
         .build();
   }
 
@@ -113,9 +126,9 @@ class NavReportMapper {
         .accountType("CASH")
         .accountName("Cash account in SEB Pank")
         .accountId(accountId)
-        .quantity(cashPosition)
+        .quantity(cashPosition.setScale(2, HALF_UP))
         .marketPrice(ONE)
-        .marketValue(cashPosition)
+        .marketValue(cashPosition.setScale(2, HALF_UP))
         .build();
   }
 
@@ -127,9 +140,9 @@ class NavReportMapper {
         .accountType("RECEIVABLES")
         .accountName(accountName)
         .accountId(accountId)
-        .quantity(amount)
+        .quantity(amount.setScale(2, HALF_UP))
         .marketPrice(ONE)
-        .marketValue(amount)
+        .marketValue(amount.setScale(2, HALF_UP))
         .build();
   }
 
@@ -141,9 +154,9 @@ class NavReportMapper {
         .accountType("LIABILITY")
         .accountName(accountName)
         .accountId(accountId)
-        .quantity(amount.negate())
+        .quantity(amount.negate().setScale(2, HALF_UP))
         .marketPrice(ONE)
-        .marketValue(amount.negate())
+        .marketValue(amount.negate().setScale(2, HALF_UP))
         .build();
   }
 
@@ -155,9 +168,9 @@ class NavReportMapper {
         .accountType("LIABILITY_FEE")
         .accountName(accountName)
         .accountId(accountId)
-        .quantity(amount.negate())
+        .quantity(amount.negate().setScale(2, HALF_UP))
         .marketPrice(ONE)
-        .marketValue(amount.negate())
+        .marketValue(amount.negate().setScale(2, HALF_UP))
         .build();
   }
 
@@ -169,7 +182,7 @@ class NavReportMapper {
         .accountName("Total outstanding units:")
         .quantity(result.unitsOutstanding().setScale(3, HALF_UP))
         .marketPrice(result.navPerUnit())
-        .marketValue(result.aum())
+        .marketValue(result.aum().setScale(2, HALF_UP))
         .build();
   }
 
@@ -181,7 +194,7 @@ class NavReportMapper {
         .accountName("Net Asset Value")
         .quantity(ONE)
         .marketPrice(result.navPerUnit())
-        .marketValue(result.navPerUnit())
+        .marketValue(result.navPerUnit().setScale(2, HALF_UP))
         .build();
   }
 }

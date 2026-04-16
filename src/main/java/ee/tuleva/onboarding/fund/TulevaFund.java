@@ -21,7 +21,14 @@ public enum TulevaFund {
       true,
       5,
       LocalTime.parse("11:00"),
-      LocalDate.parse("2017-03-28")),
+      LocalDate.parse("2017-03-28"),
+      List.of(
+          "IE00BFG1TM61",
+          "IE0009FT4LX4",
+          "IE00BFNM3G45",
+          "IE00BFNM3D14",
+          "IE00BFNM3L97",
+          "IE00BKPTWY98")),
   TUK00(
       "TUK00",
       2,
@@ -32,7 +39,8 @@ public enum TulevaFund {
       true,
       5,
       LocalTime.parse("11:00"),
-      LocalDate.parse("2017-03-28")),
+      LocalDate.parse("2017-03-28"),
+      List.of("LU0826455353", "IE0031080751", "LU0839970364", "IE0005032192")),
   TUV100(
       "TUV100",
       3,
@@ -43,7 +51,14 @@ public enum TulevaFund {
       true,
       4,
       LocalTime.parse("15:20"),
-      LocalDate.parse("2019-10-15")),
+      LocalDate.parse("2019-10-15"),
+      List.of(
+          "IE00BFG1TM61",
+          "IE0009FT4LX4",
+          "IE00BFNM3G45",
+          "IE00BFNM3D14",
+          "IE00BFNM3L97",
+          "IE00BKPTWY98")),
   TKF100(
       "TKF100",
       null,
@@ -54,7 +69,17 @@ public enum TulevaFund {
       true,
       4,
       LocalTime.parse("15:20"),
-      LocalDate.parse("2026-02-02"));
+      LocalDate.parse("2026-02-02"),
+      List.of(
+          "IE00BMDBMY19",
+          "IE00BFG1TM61",
+          "IE00BJZ2DC62",
+          "LU0476289540",
+          "IE000F60HVH9",
+          "IE000O58J820",
+          "LU1291099718",
+          "LU1291106356",
+          "LU1291102447"));
 
   private final String code;
   private final @Nullable Integer pillar;
@@ -66,6 +91,7 @@ public enum TulevaFund {
   private final int navScale;
   private final LocalTime navCutoffTime;
   private final LocalDate inceptionDate;
+  private final List<String> modelPortfolioOrder;
 
   public static List<TulevaFund> getPillar2Funds() {
     return Arrays.stream(values()).filter(fund -> fund.pillar != null && fund.pillar == 2).toList();

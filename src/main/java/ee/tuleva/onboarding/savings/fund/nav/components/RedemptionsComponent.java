@@ -29,16 +29,11 @@ public class RedemptionsComponent implements NavComponent {
   @Override
   public BigDecimal calculate(NavComponentContext context) {
     var fund = context.getFund();
-    BigDecimal value =
-        fundPositionRepository
-            .findByNavDateAndFundAndAccountTypeAndAccountId(
-                context.getPositionReportDate(), fund, LIABILITY, fund.getIsin())
-            .map(position -> position.getMarketValue())
-            .orElse(ZERO);
-    if (value.signum() < 0) {
-      throw new IllegalStateException(
-          "Payables of redeemed units should not be negative: value=" + value);
-    }
-    return value;
+    return fundPositionRepository
+        .findByNavDateAndFundAndAccountTypeAndAccountId(
+            context.getPositionReportDate(), fund, LIABILITY, fund.getIsin())
+        .map(position -> position.getMarketValue())
+        .orElse(ZERO)
+        .abs();
   }
 }

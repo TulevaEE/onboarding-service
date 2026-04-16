@@ -29,16 +29,11 @@ public class SubscriptionsComponent implements NavComponent {
   @Override
   public BigDecimal calculate(NavComponentContext context) {
     var fund = context.getFund();
-    BigDecimal value =
-        fundPositionRepository
-            .findByNavDateAndFundAndAccountTypeAndAccountId(
-                context.getPositionReportDate(), fund, RECEIVABLES, fund.getIsin())
-            .map(position -> position.getMarketValue())
-            .orElse(ZERO);
-    if (value.signum() < 0) {
-      throw new IllegalStateException(
-          "Receivables of outstanding units should not be negative: value=" + value);
-    }
-    return value;
+    return fundPositionRepository
+        .findByNavDateAndFundAndAccountTypeAndAccountId(
+            context.getPositionReportDate(), fund, RECEIVABLES, fund.getIsin())
+        .map(position -> position.getMarketValue())
+        .orElse(ZERO)
+        .abs();
   }
 }

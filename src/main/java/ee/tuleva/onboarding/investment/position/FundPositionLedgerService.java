@@ -186,8 +186,7 @@ public class FundPositionLedgerService {
   private boolean isTradePayable(String accountName) {
     return accountName != null
         && (accountName.contains("payables of unsettled transactions")
-            || accountName.contains("Trade Settlement Payable")
-            || accountName.contains("Payables of redeemed units"));
+            || accountName.contains("Trade Settlement Payable"));
   }
 
   private BigDecimal calculatePositionValue(TulevaFund fund, LocalDate date, AccountType type) {

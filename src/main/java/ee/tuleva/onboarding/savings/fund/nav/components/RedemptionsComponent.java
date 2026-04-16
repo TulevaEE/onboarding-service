@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavComponentContext;
 import java.math.BigDecimal;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -34,17 +35,25 @@ public class RedemptionsComponent implements NavComponent {
     var fund = context.getFund();
     BigDecimal value =
         fundPositionRepository
-            .findByNavDateAndFundAndAccountTypeAndAccountId(
-                context.getPositionReportDate(), fund, LIABILITY, fund.getIsin())
+            .findByNavDateAndFundAndAccountType(context.getPositionReportDate(), fund, LIABILITY)
+            .stream()
+            .filter(p -> isRedemptionPayable(p.getAccountName()))
             .map(FundPosition::getMarketValue)
-            .orElse(ZERO);
+            .filter(Objects::nonNull)
+            .reduce(ZERO, BigDecimal::add);
     if (value.signum() > 0) {
-      log.error(
-          "Unexpected positive redemption payables: fund={}, date={}, value={}",
-          fund,
-          context.getPositionReportDate(),
-          value);
+      throw new IllegalStateException(
+          "Redemption payables should be negative (liability): fund="
+              + fund
+              + ", date="
+              + context.getPositionReportDate()
+              + ", value="
+              + value);
     }
-    return value.abs();
+    return value.negate();
+  }
+
+  static boolean isRedemptionPayable(String accountName) {
+    return accountName != null && accountName.contains("Payables of redeemed units");
   }
 }

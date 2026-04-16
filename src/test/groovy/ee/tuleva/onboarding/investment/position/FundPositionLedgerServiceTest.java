@@ -56,7 +56,8 @@ class FundPositionLedgerServiceTest {
             .fund(TUK75)
             .accountType(LIABILITY)
             .accountName("Payables of redeemed units")
-            .marketValue(ZERO)
+            .accountId(TUK75.getIsin())
+            .marketValue(new BigDecimal("-138440.80"))
             .build();
     var managementFee =
         FundPosition.builder()

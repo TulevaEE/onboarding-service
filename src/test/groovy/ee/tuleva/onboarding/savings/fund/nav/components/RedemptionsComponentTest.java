@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.savings.fund.nav.components.NavComponent.NavComponentType;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -12,7 +13,7 @@ import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavComponentContext;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Optional;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -41,12 +42,11 @@ class RedemptionsComponentTest {
             .navDate(reportDate)
             .fund(TKF100)
             .accountType(LIABILITY)
-            .accountId(TKF100.getIsin())
-            .marketValue(new BigDecimal("10500.00"))
+            .accountName("Payables of redeemed units")
+            .marketValue(new BigDecimal("-10500.00"))
             .build();
-    when(fundPositionRepository.findByNavDateAndFundAndAccountTypeAndAccountId(
-            reportDate, TKF100, LIABILITY, TKF100.getIsin()))
-        .thenReturn(Optional.of(position));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(reportDate, TKF100, LIABILITY))
+        .thenReturn(List.of(position));
 
     BigDecimal result = component.calculate(context);
 
@@ -63,9 +63,8 @@ class RedemptionsComponentTest {
             .positionReportDate(reportDate)
             .build();
 
-    when(fundPositionRepository.findByNavDateAndFundAndAccountTypeAndAccountId(
-            reportDate, TKF100, LIABILITY, TKF100.getIsin()))
-        .thenReturn(Optional.empty());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(reportDate, TKF100, LIABILITY))
+        .thenReturn(List.of());
 
     BigDecimal result = component.calculate(context);
 
@@ -73,7 +72,7 @@ class RedemptionsComponentTest {
   }
 
   @Test
-  void calculate_returnsAbsoluteValueWhenNegative() {
+  void calculate_negatesNegativeValue() {
     LocalDate reportDate = LocalDate.of(2025, 1, 15);
     var context =
         NavComponentContext.builder()
@@ -87,16 +86,40 @@ class RedemptionsComponentTest {
             .navDate(reportDate)
             .fund(TKF100)
             .accountType(LIABILITY)
-            .accountId(TKF100.getIsin())
+            .accountName("Payables of redeemed units")
             .marketValue(new BigDecimal("-138440.80"))
             .build();
-    when(fundPositionRepository.findByNavDateAndFundAndAccountTypeAndAccountId(
-            reportDate, TKF100, LIABILITY, TKF100.getIsin()))
-        .thenReturn(Optional.of(position));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(reportDate, TKF100, LIABILITY))
+        .thenReturn(List.of(position));
 
     BigDecimal result = component.calculate(context);
 
     assertThat(result).isEqualByComparingTo("138440.80");
+  }
+
+  @Test
+  void calculate_throwsWhenPositiveValue() {
+    LocalDate reportDate = LocalDate.of(2025, 1, 15);
+    var context =
+        NavComponentContext.builder()
+            .fund(TKF100)
+            .calculationDate(LocalDate.of(2025, 1, 16))
+            .positionReportDate(reportDate)
+            .build();
+
+    var position =
+        FundPosition.builder()
+            .navDate(reportDate)
+            .fund(TKF100)
+            .accountType(LIABILITY)
+            .accountName("Payables of redeemed units")
+            .marketValue(new BigDecimal("138440.80"))
+            .build();
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(reportDate, TKF100, LIABILITY))
+        .thenReturn(List.of(position));
+
+    assertThatThrownBy(() -> component.calculate(context))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test

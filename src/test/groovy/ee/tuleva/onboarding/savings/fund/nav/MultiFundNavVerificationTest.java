@@ -123,6 +123,41 @@ class MultiFundNavVerificationTest {
     }
   }
 
+  @Test
+  @SneakyThrows
+  void navCalculation_doesNotDoubleCountPayablesWhenUsingProductionLedgerPath() {
+    Path csvFile = NAV_CSV_DIR.resolve("TUV100 NAV arvutamine 02032026.csv");
+    FundNavCsvData data = parseMultiFundCsv(csvFile, TUV100);
+    LocalDate calculationDate = LocalDate.of(2026, 3, 2);
+
+    Instant ledgerTime = data.navDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
+    ClockHolder.setClock(Clock.fixed(ledgerTime, ZoneId.of("UTC")));
+    try {
+      data.positions.forEach(fundPositionRepository::save);
+      entityManager.flush();
+
+      fundPositionLedgerService.recordPositionsToLedger(TUV100, data.navDate);
+
+      insertFeeRates(TUV100, data.navDate);
+      setupUnitsOutstanding(data);
+      insertPricesFromCsv(data);
+      entityManager.flush();
+      entityManager.clear();
+
+      var result = navCalculationService.calculate(TUV100, calculationDate);
+
+      assertThat(result.payables())
+          .as("Payables should only include trade payables, not redemption payables")
+          .isEqualByComparingTo(data.tradePayables.negate());
+      assertThat(result.pendingRedemptions()).isEqualByComparingTo(data.pendingRedemptions.abs());
+      assertThat(result.pendingSubscriptions()).isEqualByComparingTo(data.pendingSubscriptions);
+      assertThat(result.aum()).as("AUM should not double-count payables").isPositive();
+      assertThat(result.navPerUnit()).as("NAV per unit is positive").isPositive();
+    } finally {
+      ClockHolder.setDefaultClock();
+    }
+  }
+
   private void setupPositionsInLedger(FundNavCsvData data) {
     data.positions.forEach(fundPositionRepository::save);
     entityManager.flush();

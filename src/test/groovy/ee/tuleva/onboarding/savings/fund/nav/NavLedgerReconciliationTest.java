@@ -169,6 +169,53 @@ class NavLedgerReconciliationTest {
     assertThat(result.isReconciled()).isFalse();
   }
 
+  @Test
+  void reconcile_excludesPendingRedemptionsFromPayablesComparison() {
+    LocalDate date = LocalDate.of(2026, 2, 1);
+
+    when(navLedgerRepository.getSecuritiesUnitBalances(TKF100)).thenReturn(Map.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(date, TKF100, SECURITY))
+        .thenReturn(List.of());
+
+    when(navLedgerRepository.getSystemAccountBalance(CASH_POSITION.getAccountName(TKF100)))
+        .thenReturn(ZERO);
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(date, TKF100, CASH))
+        .thenReturn(List.of());
+
+    when(navLedgerRepository.getSystemAccountBalance(TRADE_RECEIVABLES.getAccountName(TKF100)))
+        .thenReturn(ZERO);
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(date, TKF100, RECEIVABLES))
+        .thenReturn(List.of());
+
+    when(navLedgerRepository.getSystemAccountBalance(TRADE_PAYABLES.getAccountName(TKF100)))
+        .thenReturn(new BigDecimal("-5000.00"));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(date, TKF100, LIABILITY))
+        .thenReturn(
+            List.of(
+                namedPosition(
+                    "Total payables of unsettled transactions", new BigDecimal("-5000.00")),
+                namedPosition("Payables of redeemed units", new BigDecimal("-58850.22"))));
+
+    when(navLedgerRepository.getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100)))
+        .thenReturn(ZERO);
+    when(feeAccrualRepository.findByFundAndAccrualDateAndFeeType(TKF100, date, MANAGEMENT))
+        .thenReturn(Optional.empty());
+
+    when(navLedgerRepository.getSystemAccountBalance(DEPOT_FEE_ACCRUAL.getAccountName(TKF100)))
+        .thenReturn(ZERO);
+    when(feeAccrualRepository.findByFundAndAccrualDateAndFeeType(TKF100, date, DEPOT))
+        .thenReturn(Optional.empty());
+
+    NavLedgerReconciliation.ReconciliationResult result = reconciliation.reconcile(TKF100, date);
+
+    assertThat(result.discrepancies()).isEmpty();
+    assertThat(result.isReconciled()).isTrue();
+  }
+
+  private FundPosition namedPosition(String accountName, BigDecimal marketValue) {
+    return FundPosition.builder().accountName(accountName).marketValue(marketValue).build();
+  }
+
   private FundPosition position(BigDecimal marketValue) {
     return FundPosition.builder().marketValue(marketValue).build();
   }

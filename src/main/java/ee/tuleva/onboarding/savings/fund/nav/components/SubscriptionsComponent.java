@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavComponentContext;
 import java.math.BigDecimal;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -34,17 +35,25 @@ public class SubscriptionsComponent implements NavComponent {
     var fund = context.getFund();
     BigDecimal value =
         fundPositionRepository
-            .findByNavDateAndFundAndAccountTypeAndAccountId(
-                context.getPositionReportDate(), fund, RECEIVABLES, fund.getIsin())
+            .findByNavDateAndFundAndAccountType(context.getPositionReportDate(), fund, RECEIVABLES)
+            .stream()
+            .filter(p -> isSubscriptionReceivable(p.getAccountName()))
             .map(FundPosition::getMarketValue)
-            .orElse(ZERO);
+            .filter(Objects::nonNull)
+            .reduce(ZERO, BigDecimal::add);
     if (value.signum() < 0) {
-      log.error(
-          "Unexpected negative subscription receivables: fund={}, date={}, value={}",
-          fund,
-          context.getPositionReportDate(),
-          value);
+      throw new IllegalStateException(
+          "Subscription receivables should be positive (asset): fund="
+              + fund
+              + ", date="
+              + context.getPositionReportDate()
+              + ", value="
+              + value);
     }
-    return value.abs();
+    return value;
+  }
+
+  static boolean isSubscriptionReceivable(String accountName) {
+    return accountName != null && accountName.contains("Receivables of outstanding units");
   }
 }

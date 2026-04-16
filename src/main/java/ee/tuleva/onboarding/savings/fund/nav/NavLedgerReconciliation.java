@@ -106,9 +106,11 @@ public class NavLedgerReconciliation {
 
   private Optional<Discrepancy> comparePayables(TulevaFund fund, LocalDate date) {
     BigDecimal ledgerValue = getLedgerBalance(TRADE_PAYABLES, fund);
-    BigDecimal externalValue = getPositionValue(fund, date, LIABILITY);
+    BigDecimal totalLiabilities = getPositionValue(fund, date, LIABILITY);
+    BigDecimal pendingRedemptions = getPendingRedemptions(fund, date);
+    BigDecimal tradePayables = totalLiabilities.subtract(pendingRedemptions);
 
-    return createDiscrepancyIfDifferent("payables", ledgerValue, externalValue);
+    return createDiscrepancyIfDifferent("payables", ledgerValue, tradePayables);
   }
 
   private Optional<Discrepancy> compareManagementFeeAccrual(TulevaFund fund, LocalDate date) {
@@ -138,6 +140,18 @@ public class NavLedgerReconciliation {
         .map(FundPosition::getMarketValue)
         .filter(Objects::nonNull)
         .reduce(ZERO, BigDecimal::add);
+  }
+
+  private BigDecimal getPendingRedemptions(TulevaFund fund, LocalDate date) {
+    return fundPositionRepository.findByNavDateAndFundAndAccountType(date, fund, LIABILITY).stream()
+        .filter(p -> isRedemptionPayable(p.getAccountName()))
+        .map(FundPosition::getMarketValue)
+        .filter(Objects::nonNull)
+        .reduce(ZERO, BigDecimal::add);
+  }
+
+  private boolean isRedemptionPayable(String accountName) {
+    return accountName != null && accountName.contains("Payables of redeemed units");
   }
 
   private BigDecimal getPendingSubscriptions(TulevaFund fund, LocalDate date) {

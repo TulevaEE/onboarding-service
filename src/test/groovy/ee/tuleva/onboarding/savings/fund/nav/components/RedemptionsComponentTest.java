@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.investment.position.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.savings.fund.nav.components.NavComponent.NavComponentType;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -74,7 +73,7 @@ class RedemptionsComponentTest {
   }
 
   @Test
-  void calculate_throwsWhenNegativeValue() {
+  void calculate_returnsAbsoluteValueWhenNegative() {
     LocalDate reportDate = LocalDate.of(2025, 1, 15);
     var context =
         NavComponentContext.builder()
@@ -89,14 +88,15 @@ class RedemptionsComponentTest {
             .fund(TKF100)
             .accountType(LIABILITY)
             .accountId(TKF100.getIsin())
-            .marketValue(new BigDecimal("-100.00"))
+            .marketValue(new BigDecimal("-138440.80"))
             .build();
     when(fundPositionRepository.findByNavDateAndFundAndAccountTypeAndAccountId(
             reportDate, TKF100, LIABILITY, TKF100.getIsin()))
         .thenReturn(Optional.of(position));
 
-    assertThatThrownBy(() -> component.calculate(context))
-        .isInstanceOf(IllegalStateException.class);
+    BigDecimal result = component.calculate(context);
+
+    assertThat(result).isEqualByComparingTo("138440.80");
   }
 
   @Test

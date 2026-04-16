@@ -246,7 +246,6 @@ class FundPositionImportJobTest {
     assertThat(result.updated()).isEqualTo(0);
     verify(repository, never()).save(any(FundPosition.class));
     verify(healthCheckNotifier).notify(eq(SWEDBANK), eq(date), anyList());
-    verify(pipelineTracker).stepFailed(eq("Health Check"), any());
   }
 
   @Test
@@ -272,6 +271,5 @@ class FundPositionImportJobTest {
 
     verify(repository, times(3)).save(any(FundPosition.class));
     verify(healthCheckNotifier).notify(eq(SWEDBANK), eq(date), anyList());
-    verify(pipelineTracker).stepCompleted("Health Check");
   }
 }

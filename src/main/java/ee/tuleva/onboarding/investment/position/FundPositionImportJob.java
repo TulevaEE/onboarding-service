@@ -73,21 +73,35 @@ public class FundPositionImportJob {
 
   @EventListener
   public void onReportImportCompleted(ReportImportCompleted event) {
-    pipelineTracker.stepStarted(POSITION_IMPORT);
-    var totals = runImport();
-    pipelineTracker.stepCompleted(POSITION_IMPORT, totals);
-    eventPublisher.publishEvent(new FundPositionsImported());
+    runImportPipeline();
   }
 
   @EventListener
   public void onFundPositionImportRequested(RunFundPositionImportRequested event) {
+    runImportPipeline();
+  }
+
+  private void runImportPipeline() {
     pipelineTracker.stepStarted(POSITION_IMPORT);
     var totals = runImport();
     pipelineTracker.stepCompleted(POSITION_IMPORT, totals);
+
+    pipelineTracker.stepStarted(HEALTH_CHECK);
+    if (healthCheckFailed) {
+      pipelineTracker.stepFailed(HEALTH_CHECK, healthCheckFailureDetail);
+    } else {
+      pipelineTracker.stepCompleted(HEALTH_CHECK);
+    }
+
     eventPublisher.publishEvent(new FundPositionsImported());
   }
 
+  private boolean healthCheckFailed;
+  private String healthCheckFailureDetail;
+
   public String runImport() {
+    healthCheckFailed = false;
+    healthCheckFailureDetail = null;
     LocalDate today = LocalDate.now(clock);
     int[] totals = {0, 0};
     IntStream.iterate(LOOKBACK_DAYS, i -> i >= 1, i -> i - 1)
@@ -134,16 +148,14 @@ public class FundPositionImportJob {
     log.info(
         "Parsed fund positions: provider={}, date={}, count={}", provider, date, positions.size());
 
-    pipelineTracker.stepStarted(HEALTH_CHECK);
     var healthResults = healthCheckService.check(positions);
     if (healthResults.stream().anyMatch(HealthCheckResult::hasFails)) {
-      pipelineTracker.stepFailed(
-          HEALTH_CHECK, "Import blocked: provider=%s, date=%s".formatted(provider, date));
+      healthCheckFailed = true;
+      healthCheckFailureDetail = "Import blocked: provider=%s, date=%s".formatted(provider, date);
       healthCheckNotifier.notify(provider, date, healthResults);
       log.error("Health check failed, import blocked: provider={}, date={}", provider, date);
       return new ImportResult(0, 0);
     }
-    pipelineTracker.stepCompleted(HEALTH_CHECK);
 
     ImportResult result = importService.upsertPositions(positions);
 

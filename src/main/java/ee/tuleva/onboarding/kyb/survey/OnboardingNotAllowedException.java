@@ -1,8 +1,14 @@
 package ee.tuleva.onboarding.kyb.survey;
 
+import lombok.Getter;
+
 class OnboardingNotAllowedException extends RuntimeException {
 
-  OnboardingNotAllowedException(String registryCode) {
-    super("Onboarding not allowed for company: registryCode=" + registryCode);
+  @Getter private final BlockedReason reason;
+
+  OnboardingNotAllowedException(String registryCode, BlockedReason reason) {
+    super(
+        "Onboarding not allowed for company: registryCode=" + registryCode + ", reason=" + reason);
+    this.reason = reason;
   }
 }

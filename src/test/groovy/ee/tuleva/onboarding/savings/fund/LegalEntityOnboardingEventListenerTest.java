@@ -4,12 +4,17 @@ import static ee.tuleva.onboarding.kyb.KybCheckType.*;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.kyb.*;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class LegalEntityOnboardingEventListenerTest {
@@ -38,11 +43,8 @@ class LegalEntityOnboardingEventListenerTest {
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(COMPANY_STRUCTURE, true, Map.of()));
-    var event =
-        new KybCheckPerformedEvent(
-            this, company, new PersonalCode("38501010001"), relatedPersons, checks);
 
-    listener.onKybCheckPerformed(event);
+    listener.onKybCheckPerformed(eventWith(checks));
 
     verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED);
   }
@@ -53,26 +55,8 @@ class LegalEntityOnboardingEventListenerTest {
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(COMPANY_STRUCTURE, false, Map.of()));
-    var event =
-        new KybCheckPerformedEvent(
-            this, company, new PersonalCode("38501010001"), relatedPersons, checks);
 
-    listener.onKybCheckPerformed(event);
-
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
-  }
-
-  @Test
-  void setsStatusRejectedEvenIfPreviouslyCompleted() {
-    var checks =
-        List.of(
-            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
-            new KybCheck(COMPANY_STRUCTURE, false, Map.of()));
-    var event =
-        new KybCheckPerformedEvent(
-            this, company, new PersonalCode("38501010001"), relatedPersons, checks);
-
-    listener.onKybCheckPerformed(event);
+    listener.onKybCheckPerformed(eventWith(checks));
 
     verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
   }
@@ -84,12 +68,40 @@ class LegalEntityOnboardingEventListenerTest {
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(COMPANY_STRUCTURE, true, Map.of()),
             new KybCheck(DATA_CHANGED, false, Map.of()));
-    var event =
-        new KybCheckPerformedEvent(
-            this, company, new PersonalCode("38501010001"), relatedPersons, checks);
 
-    listener.onKybCheckPerformed(event);
+    listener.onKybCheckPerformed(eventWith(checks));
 
     verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED);
+  }
+
+  @Test
+  void setsStatusRejectedEvenIfPreviouslyCompleted() {
+    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(COMPANY_STRUCTURE, false, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+  }
+
+  @Test
+  void doesNothingWhenStatusUnchanged() {
+    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(COMPANY_STRUCTURE, true, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+  }
+
+  private KybCheckPerformedEvent eventWith(List<KybCheck> checks) {
+    return new KybCheckPerformedEvent(
+        this, company, new PersonalCode("38501010001"), relatedPersons, checks);
   }
 }

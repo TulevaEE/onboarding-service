@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.kyb.survey;
 
+import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
 import static ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSource.*;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
@@ -8,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -16,6 +18,7 @@ import ee.tuleva.onboarding.ariregister.AriregisterClient;
 import ee.tuleva.onboarding.ariregister.CompanyAddress;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
+import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.kyb.*;
 import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSourceItem;
 import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanySourceOfIncome;
@@ -35,6 +38,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class KybSurveyServiceTest {
@@ -48,6 +52,7 @@ class KybSurveyServiceTest {
   @Mock private KybSurveyResponseMapper kybSurveyResponseMapper;
   @Mock private KybSurveyRepository kybSurveyRepository;
   @Mock private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   @Spy private Clock clock = Clock.fixed(Instant.parse("2026-03-25T10:00:00Z"), ZoneId.of("UTC"));
 
@@ -169,6 +174,132 @@ class KybSurveyServiceTest {
 
     assertThatThrownBy(() -> service.initialValidation(REGISTRY_CODE, PERSONAL_CODE))
         .isInstanceOf(NotBoardMemberException.class);
+  }
+
+  @Test
+  void initialValidation_publishesAuditEventWhenChecksFail() {
+    var detail =
+        new CompanyDetail(
+            "Test OÜ",
+            REGISTRY_CODE,
+            "R",
+            "OÜ",
+            null,
+            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
+            "Fondide valitsemine",
+            "6630");
+    var relationships = sampleRelationships();
+    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
+    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
+        .thenReturn(relationships);
+    var companyData =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
+            new PersonalCode(PERSONAL_CODE),
+            CompanyStatus.R,
+            List.of(),
+            null);
+    when(kybCompanyDataMapper.toKybCompanyData(
+            detail, new PersonalCode(PERSONAL_CODE), relationships, null))
+        .thenReturn(companyData);
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(HIGH_RISK_NACE, false, Map.of("naceCode", "6630")));
+    when(kybScreeningService.validate(companyData)).thenReturn(checks);
+
+    service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
+
+    verify(eventPublisher)
+        .publishEvent(
+            new TrackableSystemEvent(
+                SAVINGS_FUND_ONBOARDING_STATUS_CHANGE, validationFailedAuditData(checks)));
+  }
+
+  @Test
+  void initialValidation_doesNotPublishAuditEventWhenAllChecksPass() {
+    var detail =
+        new CompanyDetail(
+            "Test OÜ",
+            REGISTRY_CODE,
+            "R",
+            "OÜ",
+            null,
+            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
+            "Fondide valitsemine",
+            "6630");
+    var relationships = sampleRelationships();
+    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
+    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
+        .thenReturn(relationships);
+    var companyData =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
+            new PersonalCode(PERSONAL_CODE),
+            CompanyStatus.R,
+            List.of(),
+            null);
+    when(kybCompanyDataMapper.toKybCompanyData(
+            detail, new PersonalCode(PERSONAL_CODE), relationships, null))
+        .thenReturn(companyData);
+    when(kybScreeningService.validate(companyData))
+        .thenReturn(
+            List.of(
+                new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+                new KybCheck(SOLE_MEMBER_OWNERSHIP, true, Map.of()),
+                new KybCheck(DATA_CHANGED, false, Map.of("changes", List.of("status changed")))));
+
+    service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
+
+    verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  @Test
+  void initialValidation_publishesAuditEventWhenNotBoardMember() {
+    var relationships =
+        List.of(
+            new CompanyRelationship(
+                "F",
+                "JUHL",
+                "Juhatuse liige",
+                "Jaan",
+                "Tamm",
+                "39901010001",
+                null,
+                null,
+                null,
+                new BigDecimal("100.00"),
+                "Osaluse kaudu",
+                "EST"));
+    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
+        .thenReturn(relationships);
+
+    assertThatThrownBy(() -> service.initialValidation(REGISTRY_CODE, PERSONAL_CODE))
+        .isInstanceOf(NotBoardMemberException.class);
+
+    verify(eventPublisher)
+        .publishEvent(
+            new TrackableSystemEvent(
+                SAVINGS_FUND_ONBOARDING_STATUS_CHANGE, blockedAuditData("NOT_BOARD_MEMBER")));
+  }
+
+  private static Map<String, Object> validationFailedAuditData(List<KybCheck> checks) {
+    var data = new java.util.LinkedHashMap<String, Object>();
+    data.put("partyType", "LEGAL_ENTITY");
+    data.put("registryCode", REGISTRY_CODE);
+    data.put("personalCode", PERSONAL_CODE);
+    data.put("outcome", "VALIDATION_FAILED");
+    data.put(
+        "checks",
+        checks.stream()
+            .map(
+                c ->
+                    Map.of(
+                        "type", c.type().name(),
+                        "success", c.success(),
+                        "metadata", c.metadata()))
+            .toList());
+    return data;
   }
 
   @Test
@@ -518,6 +649,126 @@ class KybSurveyServiceTest {
     assertThatThrownBy(
             () -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, sampleSurveyResponse()))
         .isInstanceOf(OnboardingNotAllowedException.class);
+  }
+
+  @Test
+  void submit_publishesAuditEventWhenNotBoardMember() {
+    var surveyResponse = sampleSurveyResponse();
+    var relationships =
+        List.of(
+            new CompanyRelationship(
+                "F",
+                "JUHL",
+                "Juhatuse liige",
+                "Jaan",
+                "Tamm",
+                "39901010001",
+                null,
+                null,
+                null,
+                new BigDecimal("100.00"),
+                "Osaluse kaudu",
+                "EST"));
+    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
+        .thenReturn(relationships);
+
+    assertThatThrownBy(() -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse))
+        .isInstanceOf(NotBoardMemberException.class);
+
+    verify(eventPublisher)
+        .publishEvent(
+            new TrackableSystemEvent(
+                SAVINGS_FUND_ONBOARDING_STATUS_CHANGE, blockedAuditData("NOT_BOARD_MEMBER")));
+  }
+
+  @Test
+  void submit_publishesAuditEventWhenAlreadyOnboarded() {
+    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
+        .thenReturn(sampleRelationships());
+    when(kybSurveyRepository.save(any(KybSurvey.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
+        .thenReturn(Optional.of(SavingsFundOnboardingStatus.COMPLETED));
+
+    assertThatThrownBy(
+            () -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, sampleSurveyResponse()))
+        .isInstanceOf(OnboardingNotAllowedException.class);
+
+    verify(eventPublisher)
+        .publishEvent(
+            new TrackableSystemEvent(
+                SAVINGS_FUND_ONBOARDING_STATUS_CHANGE, blockedAuditData("ALREADY_ONBOARDED")));
+  }
+
+  @Test
+  void submit_publishesAuditEventWhenNotWhitelistedAfterCutoff() {
+    doReturn(Instant.parse("2026-03-28T10:00:00Z")).when(clock).instant();
+    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.of(2026, 3, 28)))
+        .thenReturn(sampleRelationships());
+    when(kybSurveyRepository.save(any(KybSurvey.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
+        .thenReturn(Optional.empty());
+
+    assertThatThrownBy(
+            () -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, sampleSurveyResponse()))
+        .isInstanceOf(OnboardingNotAllowedException.class);
+
+    verify(eventPublisher)
+        .publishEvent(
+            new TrackableSystemEvent(
+                SAVINGS_FUND_ONBOARDING_STATUS_CHANGE,
+                blockedAuditData("NO_WHITELIST_AFTER_CUTOFF")));
+  }
+
+  private static Map<String, Object> blockedAuditData(String reason) {
+    var data = new java.util.LinkedHashMap<String, Object>();
+    data.put("partyType", "LEGAL_ENTITY");
+    data.put("registryCode", REGISTRY_CODE);
+    data.put("personalCode", PERSONAL_CODE);
+    data.put("outcome", "BLOCKED");
+    data.put("blockedReason", reason);
+    return data;
+  }
+
+  @Test
+  void submit_doesNotPublishAuditEventOnSuccessfulSubmission() {
+    var selfCert = new SelfCertification(true, true, true);
+    var surveyResponse = sampleSurveyResponse();
+    when(kybSurveyResponseMapper.extractSelfCertification(surveyResponse)).thenReturn(selfCert);
+
+    var detail =
+        new CompanyDetail(
+            "Test OÜ",
+            REGISTRY_CODE,
+            "R",
+            "OÜ",
+            null,
+            new CompanyAddress("Tallinn", null),
+            "Fondide valitsemine",
+            "6630");
+    var relationships = sampleRelationships();
+    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
+    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
+        .thenReturn(relationships);
+    var companyData =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
+            new PersonalCode(PERSONAL_CODE),
+            CompanyStatus.R,
+            List.of(),
+            selfCert);
+    when(kybCompanyDataMapper.toKybCompanyData(
+            detail, new PersonalCode(PERSONAL_CODE), relationships, selfCert))
+        .thenReturn(companyData);
+    when(kybScreeningService.screen(companyData))
+        .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
+    when(kybSurveyRepository.save(any(KybSurvey.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse);
+
+    verify(eventPublisher, never()).publishEvent(any());
   }
 
   private KybSurveyResponse sampleSurveyResponse() {

@@ -130,7 +130,7 @@ class KybSurveyControllerTest {
 
   @Test
   void submit_returns403WhenOnboardingNotAllowed() throws Exception {
-    willThrow(new OnboardingNotAllowedException(REGISTRY_CODE))
+    willThrow(new OnboardingNotAllowedException(REGISTRY_CODE, BlockedReason.ALREADY_ONBOARDED))
         .given(kybSurveyService)
         .submit(eq(1L), eq(PERSONAL_CODE), eq(REGISTRY_CODE), any(KybSurveyResponse.class));
 

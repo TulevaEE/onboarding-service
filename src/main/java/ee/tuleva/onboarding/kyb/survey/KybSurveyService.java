@@ -1,27 +1,36 @@
 package ee.tuleva.onboarding.kyb.survey;
 
+import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
+import static ee.tuleva.onboarding.kyb.KybCheckType.DATA_CHANGED;
+import static ee.tuleva.onboarding.kyb.survey.BlockedReason.ALREADY_ONBOARDED;
+import static ee.tuleva.onboarding.kyb.survey.BlockedReason.NOT_BOARD_MEMBER;
+import static ee.tuleva.onboarding.kyb.survey.BlockedReason.NO_WHITELIST_AFTER_CUTOFF;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.WHITELISTED;
 import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.ariregister.AriregisterClient;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
+import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.kyb.*;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -37,6 +46,7 @@ class KybSurveyService {
   private final KybSurveyResponseMapper kybSurveyResponseMapper;
   private final KybSurveyRepository kybSurveyRepository;
   private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
+  private final ApplicationEventPublisher eventPublisher;
   private final Clock clock;
 
   private record FieldError(String field, String message) {}
@@ -60,6 +70,14 @@ class KybSurveyService {
     };
   }
 
+  private static String blockedReasonMessage(BlockedReason reason) {
+    return switch (reason) {
+      case ALREADY_ONBOARDED -> "Ettevõte on juba liitunud";
+      case NO_WHITELIST_AFTER_CUTOFF -> "Ettevõttel ei ole eelheakskiitu";
+      case NOT_BOARD_MEMBER -> "Isik ei ole ettevõtte juhatuse liige";
+    };
+  }
+
   private static final String BOARD_MEMBER_ROLE = "JUHL";
   // Founders (role "A") are historical — they don't imply any current relationship with the company
   private static final String FOUNDER_ROLE = "A";
@@ -70,7 +88,14 @@ class KybSurveyService {
         registryCode,
         personalCode);
 
-    var relationships = fetchRelationshipsAndVerifyBoardMember(registryCode, personalCode);
+    List<CompanyRelationship> relationships;
+    try {
+      relationships = fetchRelationshipsAndVerifyBoardMember(registryCode, personalCode);
+    } catch (NotBoardMemberException e) {
+      auditBlocked(registryCode, personalCode, NOT_BOARD_MEMBER);
+      throw e;
+    }
+
     var detail = fetchCompanyDetail(registryCode);
 
     var companyData =
@@ -78,6 +103,8 @@ class KybSurveyService {
             detail, new PersonalCode(personalCode), relationships, null);
 
     var checks = kybScreeningService.validate(companyData);
+
+    auditValidationFailures(registryCode, personalCode, checks);
 
     return buildLegalEntityData(detail, relationships, checks, getOnboardingError(registryCode));
   }
@@ -95,8 +122,21 @@ class KybSurveyService {
             .survey(surveyResponse)
             .build());
 
-    var relationships = fetchRelationshipsAndVerifyBoardMember(registryCode, personalCode);
-    verifyOnboardingAllowed(registryCode);
+    List<CompanyRelationship> relationships;
+    try {
+      relationships = fetchRelationshipsAndVerifyBoardMember(registryCode, personalCode);
+    } catch (NotBoardMemberException e) {
+      auditBlocked(registryCode, personalCode, NOT_BOARD_MEMBER);
+      throw e;
+    }
+
+    try {
+      verifyOnboardingAllowed(registryCode);
+    } catch (OnboardingNotAllowedException e) {
+      auditBlocked(registryCode, personalCode, e.getReason());
+      throw e;
+    }
+
     var detail = fetchCompanyDetail(registryCode);
 
     var companyData =
@@ -135,24 +175,81 @@ class KybSurveyService {
                     "Company not found in Ariregister: registryCode=" + registryCode));
   }
 
-  private Optional<String> getOnboardingError(String registryCode) {
+  private Optional<BlockedReason> getBlockedReason(String registryCode) {
     var status = savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY);
     if (status.filter(s -> s != WHITELISTED && s != REJECTED).isPresent()) {
-      return Optional.of("Ettevõte on juba liitunud");
+      return Optional.of(ALREADY_ONBOARDED);
     }
     if (!Instant.now(clock).isBefore(WHITELIST_CUTOFF)
         && status.filter(s -> s == WHITELISTED).isEmpty()) {
-      return Optional.of("Ettevõttel ei ole eelheakskiitu");
+      return Optional.of(NO_WHITELIST_AFTER_CUTOFF);
     }
     return Optional.empty();
   }
 
+  private Optional<String> getOnboardingError(String registryCode) {
+    return getBlockedReason(registryCode).map(KybSurveyService::blockedReasonMessage);
+  }
+
   private void verifyOnboardingAllowed(String registryCode) {
-    getOnboardingError(registryCode)
+    getBlockedReason(registryCode)
         .ifPresent(
-            error -> {
-              throw new OnboardingNotAllowedException(registryCode);
+            reason -> {
+              throw new OnboardingNotAllowedException(registryCode, reason);
             });
+  }
+
+  private void auditBlocked(String registryCode, String personalCode, BlockedReason reason) {
+    log.warn(
+        "Company onboarding blocked: registryCode={}, personalCode={}, reason={}",
+        registryCode,
+        personalCode,
+        reason);
+
+    var data = new LinkedHashMap<String, Object>();
+    data.put("partyType", LEGAL_ENTITY.name());
+    data.put("registryCode", registryCode);
+    data.put("personalCode", personalCode);
+    data.put("outcome", "BLOCKED");
+    data.put("blockedReason", reason.name());
+
+    eventPublisher.publishEvent(
+        new TrackableSystemEvent(SAVINGS_FUND_ONBOARDING_STATUS_CHANGE, data));
+  }
+
+  private void auditValidationFailures(
+      String registryCode, String personalCode, List<KybCheck> checks) {
+    if (checks.stream().allMatch(c -> c.type() == DATA_CHANGED || c.success())) {
+      return;
+    }
+
+    log.warn(
+        "Initial validation failed: registryCode={}, personalCode={}, failedChecks={}",
+        registryCode,
+        personalCode,
+        checks.stream()
+            .filter(c -> c.type() != DATA_CHANGED && !c.success())
+            .map(c -> c.type().name())
+            .collect(joining(",")));
+
+    var data = new LinkedHashMap<String, Object>();
+    data.put("partyType", LEGAL_ENTITY.name());
+    data.put("registryCode", registryCode);
+    data.put("personalCode", personalCode);
+    data.put("outcome", "VALIDATION_FAILED");
+    data.put(
+        "checks",
+        checks.stream()
+            .map(
+                c ->
+                    Map.of(
+                        "type", c.type().name(),
+                        "success", c.success(),
+                        "metadata", c.metadata()))
+            .toList());
+
+    eventPublisher.publishEvent(
+        new TrackableSystemEvent(SAVINGS_FUND_ONBOARDING_STATUS_CHANGE, data));
   }
 
   private LegalEntityData buildLegalEntityData(

@@ -17,6 +17,7 @@ import static org.hamcrest.Matchers.hasSize
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
@@ -88,6 +89,27 @@ class FundControllerSpec extends BaseControllerSpec {
                 .andExpect(jsonPath('$[0].value', is(1.0d)))
                 .andExpect(jsonPath('$[1].date', is("2026-02-04")))
                 .andExpect(jsonPath('$[1].value', is(1.0012d)))
+    }
+
+    def "get: Get NAV history as CSV"() {
+        given:
+        def isin = "EE0000003283"
+        def navValues = [
+            new NavValueResponse(LocalDate.of(2026, 2, 3), 1.0000G),
+            new NavValueResponse(LocalDate.of(2026, 2, 4), 1.0012G),
+        ]
+        1 * fundService.getNavHistory(isin, null, null) >> navValues
+        expect:
+        def result = mockMvc
+                .perform(get("/v1/funds/${isin}/nav?format=csv"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "text/csv;charset=UTF-8"))
+                .andExpect(header().string("Content-Disposition", 'attachment; filename="nav-EE0000003283.csv"'))
+                .andReturn()
+        def csv = result.response.contentAsString
+        csv.contains("Kuupäev;NAV (EUR)")
+        csv.contains("03.02.2026;1.0000")
+        csv.contains("04.02.2026;1.0012")
     }
 
     def "get: Get NAV history for unknown fund returns 404"() {

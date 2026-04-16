@@ -94,11 +94,8 @@ class FundControllerSpec extends BaseControllerSpec {
     def "get: Get NAV history as CSV"() {
         given:
         def isin = "EE0000003283"
-        def navValues = [
-            new NavValueResponse(LocalDate.of(2026, 2, 3), 1.0000G),
-            new NavValueResponse(LocalDate.of(2026, 2, 4), 1.0012G),
-        ]
-        1 * fundService.getNavHistory(isin, null, null) >> navValues
+        def csvBytes = "Kuupäev;NAV (EUR)\r\n03.02.2026;1.0000\r\n".getBytes("UTF-8")
+        1 * fundService.getNavHistoryCsv(isin, null, null) >> csvBytes
         expect:
         def result = mockMvc
                 .perform(get("/v1/funds/${isin}/nav?format=csv"))
@@ -106,10 +103,7 @@ class FundControllerSpec extends BaseControllerSpec {
                 .andExpect(header().string("Content-Type", "text/csv;charset=UTF-8"))
                 .andExpect(header().string("Content-Disposition", 'attachment; filename="nav-EE0000003283.csv"'))
                 .andReturn()
-        def csv = result.response.contentAsString
-        csv.contains("Kuupäev;NAV (EUR)")
-        csv.contains("03.02.2026;1.0000")
-        csv.contains("04.02.2026;1.0012")
+        result.response.contentAsByteArray == csvBytes
     }
 
     def "get: Get NAV history for unknown fund returns 404"() {
@@ -118,6 +112,15 @@ class FundControllerSpec extends BaseControllerSpec {
         expect:
         mockMvc
                 .perform(get("/v1/funds/UNKNOWN/nav"))
+                .andExpect(status().isNotFound())
+    }
+
+    def "get: Get NAV history as CSV for unknown fund returns 404"() {
+        given:
+        1 * fundService.getNavHistoryCsv("UNKNOWN", null, null) >> { throw new ResponseStatusException(NOT_FOUND) }
+        expect:
+        mockMvc
+                .perform(get("/v1/funds/UNKNOWN/nav?format=csv"))
                 .andExpect(status().isNotFound())
     }
 }

@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
 import static java.math.RoundingMode.HALF_UP;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.StreamSupport.stream;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
@@ -15,14 +16,20 @@ import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -109,6 +116,9 @@ class FundService {
     return nav.setScale(TKF100.getNavScale());
   }
 
+  private static final DateTimeFormatter ESTONIAN_DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+  private static final byte[] UTF8_BOM = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
+
   List<NavValueResponse> getNavHistory(String isin, LocalDate startDate, LocalDate endDate) {
     if (fundRepository.findByIsin(isin) == null) {
       throw new ResponseStatusException(NOT_FOUND);
@@ -118,6 +128,24 @@ class FundService {
     return fundValueRepository.findValuesBetweenDates(isin, start, end).stream()
         .map(fv -> new NavValueResponse(fv.date(), fv.value()))
         .toList();
+  }
+
+  byte[] getNavHistoryCsv(String isin, LocalDate startDate, LocalDate endDate) {
+    List<NavValueResponse> navHistory = getNavHistory(isin, startDate, endDate);
+    try (var outputStream = new ByteArrayOutputStream();
+        var writer = new OutputStreamWriter(outputStream, UTF_8)) {
+      outputStream.write(UTF8_BOM);
+      var csvFormat =
+          CSVFormat.DEFAULT.builder().setDelimiter(';').setHeader("Kuupäev", "NAV (EUR)").get();
+      try (var printer = new CSVPrinter(writer, csvFormat)) {
+        for (var row : navHistory) {
+          printer.printRecord(ESTONIAN_DATE.format(row.date()), row.value().toPlainString());
+        }
+      }
+      return outputStream.toByteArray();
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to generate NAV history CSV: isin=" + isin, e);
+    }
   }
 
   private Iterable<Fund> fundsBy(Optional<String> fundManagerName) {

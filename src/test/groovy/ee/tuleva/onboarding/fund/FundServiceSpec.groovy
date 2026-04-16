@@ -444,6 +444,32 @@ class FundServiceSpec extends Specification {
     thrown(ResponseStatusException)
   }
 
+  def "getNavHistoryCsv returns semicolon-delimited CSV with BOM"() {
+    given:
+    def isin = "EE0000003283"
+    def startDate = LocalDate.of(2026, 2, 2)
+    def endDate = LocalDate.of(2026, 4, 14)
+    fundRepository.findByIsin(isin) >> additionalSavingsFund()
+    fundValueRepository.findValuesBetweenDates(isin, startDate, endDate) >> [
+        aFundValue(isin, LocalDate.of(2026, 2, 3), 1.0000),
+        aFundValue(isin, LocalDate.of(2026, 2, 4), 1.0012),
+    ]
+
+    when:
+    def bytes = fundService.getNavHistoryCsv(isin, startDate, endDate)
+
+    then:
+    bytes[0] == (byte) 0xEF
+    bytes[1] == (byte) 0xBB
+    bytes[2] == (byte) 0xBF
+    def csv = new String(bytes, "UTF-8")
+    def lines = csv.trim().split("\r\n")
+    lines.length == 3
+    lines[0].endsWith("Kuupäev;NAV (EUR)")
+    lines[1] == "03.02.2026;1.0000"
+    lines[2] == "04.02.2026;1.0012"
+  }
+
   def "non-savings fund returns null volume"() {
     given:
     String fundManagerName = "Tuleva"

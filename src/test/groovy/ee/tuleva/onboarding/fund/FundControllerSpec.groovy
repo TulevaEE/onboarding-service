@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.fund
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.mandate.MandateFixture
 import org.springframework.http.MediaType
+import org.springframework.http.converter.ByteArrayHttpMessageConverter
 import org.springframework.test.web.servlet.MockMvc
 
 import org.springframework.web.server.ResponseStatusException
@@ -29,7 +30,37 @@ class FundControllerSpec extends BaseControllerSpec {
     private MockMvc mockMvc
 
     def setup() {
-        mockMvc = mockMvc(controller)
+        mockMvc = mockMvcWithByteArray(controller)
+    }
+
+    private MockMvc mockMvcWithByteArray(Object... controllers) {
+        return org.springframework.test.web.servlet.setup.MockMvcBuilders
+                .standaloneSetup(controllers)
+                .setMessageConverters(jacksonConverter(), new ByteArrayHttpMessageConverter())
+                .setControllerAdvice(new ee.tuleva.onboarding.error.ErrorHandlingControllerAdvice())
+                .setCustomArgumentResolvers(authResolver())
+                .build()
+    }
+
+    private org.springframework.http.converter.json.JacksonJsonHttpMessageConverter jacksonConverter() {
+        def objectMapper = tools.jackson.databind.json.JsonMapper.builder()
+                .enable(tools.jackson.core.StreamWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN)
+                .build()
+        return new org.springframework.http.converter.json.JacksonJsonHttpMessageConverter(objectMapper)
+    }
+
+    private org.springframework.web.method.support.HandlerMethodArgumentResolver authResolver() {
+        return new org.springframework.web.method.support.HandlerMethodArgumentResolver() {
+            boolean supportsParameter(org.springframework.core.MethodParameter parameter) {
+                return parameter.parameterType == ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
+            }
+            Object resolveArgument(org.springframework.core.MethodParameter parameter,
+                    org.springframework.web.method.support.ModelAndViewContainer mavContainer,
+                    org.springframework.web.context.request.NativeWebRequest webRequest,
+                    org.springframework.web.bind.support.WebDataBinderFactory binderFactory) {
+                return ee.tuleva.onboarding.auth.principal.AuthenticatedPerson.builder().userId(1L).build()
+            }
+        }
     }
 
     def "get: Get all funds"() {

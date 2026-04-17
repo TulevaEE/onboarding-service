@@ -168,7 +168,7 @@ class BankOperationProcessorTest {
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq("LU1291102447"),
             eq("EJAP"),
-            eq("BNP Paribas Easy MSCI Japan ESG Filtered"),
+            eq("BNP Paribas Easy MSCI Japan Min TE UCITS ETF"),
             eq(LocalDate.of(2025, 10, 1)));
   }
 
@@ -210,7 +210,7 @@ class BankOperationProcessorTest {
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq("IE00BFG1TM61"),
             eq("0P000152G5"),
-            eq("iShares Developed World ESG Screened Index Fund"),
+            eq("iShares Developed World Screened Index Fund"),
             eq(LocalDate.of(2025, 10, 1)));
   }
 

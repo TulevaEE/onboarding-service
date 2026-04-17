@@ -481,13 +481,13 @@ class SavingsFundLedgerTest {
             FUND_INVESTMENT_CASH_CLEARING,
             isin,
             "EJAP",
-            "BNP Paribas Easy MSCI Japan ESG Filtered");
+            "BNP Paribas Easy MSCI Japan Min TE UCITS ETF");
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("TRADE_SETTLEMENT");
     assertThat(transaction.getMetadata().get("instrument")).isEqualTo(isin);
     assertThat(transaction.getMetadata().get("ticker")).isEqualTo("EJAP");
     assertThat(transaction.getMetadata().get("displayName"))
-        .isEqualTo("BNP Paribas Easy MSCI Japan ESG Filtered");
+        .isEqualTo("BNP Paribas Easy MSCI Japan Min TE UCITS ETF");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
     assertThat(transaction.getEntries()).hasSize(4);
     assertThat(getFundInvestmentCashClearingAccount().getBalance()).isEqualByComparingTo(amount);

@@ -406,6 +406,7 @@ class FundServiceSpec extends Specification {
     def startDate = LocalDate.of(2026, 2, 2)
     def endDate = LocalDate.of(2026, 4, 14)
     fundRepository.findByIsin(isin) >> additionalSavingsFund()
+    savingsFundNavProvider.safeMaxNavDate() >> LocalDate.of(2099, 1, 1)
     fundValueRepository.findValuesBetweenDates(isin, startDate, endDate) >> [
         aFundValue(isin, LocalDate.of(2026, 2, 3), 1.0000),
         aFundValue(isin, LocalDate.of(2026, 2, 4), 1.0012),
@@ -423,14 +424,82 @@ class FundServiceSpec extends Specification {
   def "getNavHistory defaults null dates to full range"() {
     given:
     def isin = "EE0000003283"
+    def safeMaxDate = LocalDate.of(2026, 4, 19)
     fundRepository.findByIsin(isin) >> additionalSavingsFund()
-    fundValueRepository.findValuesBetweenDates(isin, LocalDate.EPOCH, LocalDate.of(9999, 12, 31)) >> []
+    savingsFundNavProvider.safeMaxNavDate() >> safeMaxDate
+    fundValueRepository.findValuesBetweenDates(isin, LocalDate.EPOCH, safeMaxDate) >> []
 
     when:
     def result = fundService.getNavHistory(isin, null, null)
 
     then:
     result.isEmpty()
+  }
+
+  def "getNavHistory caps savings fund end date to safeMaxNavDate to prevent early publication"() {
+    given:
+    def isin = "EE0000003283"
+    def safeMaxDate = LocalDate.of(2026, 4, 19)
+    def requestedEnd = LocalDate.of(2026, 4, 20)
+    fundRepository.findByIsin(isin) >> additionalSavingsFund()
+    savingsFundNavProvider.safeMaxNavDate() >> safeMaxDate
+
+    when:
+    fundService.getNavHistory(isin, null, requestedEnd)
+
+    then:
+    1 * fundValueRepository.findValuesBetweenDates(isin, LocalDate.EPOCH, safeMaxDate) >> []
+    0 * fundValueRepository.findValuesBetweenDates(isin, _, requestedEnd)
+  }
+
+  def "getNavHistory does not cap non-savings fund end date"() {
+    given:
+    def nonSavingsFund = sampleFunds().stream()
+        .filter({ f -> f.fundManager.name == "Tuleva" }).findFirst().get()
+    def isin = nonSavingsFund.isin
+    def requestedEnd = LocalDate.of(2026, 4, 20)
+    fundRepository.findByIsin(isin) >> nonSavingsFund
+
+    when:
+    fundService.getNavHistory(isin, null, requestedEnd)
+
+    then:
+    0 * savingsFundNavProvider.safeMaxNavDate()
+    1 * fundValueRepository.findValuesBetweenDates(isin, LocalDate.EPOCH, requestedEnd) >> []
+  }
+
+  def "getNavHistory returns empty list when start date is after capped end date"() {
+    given:
+    def isin = "EE0000003283"
+    def safeMaxDate = LocalDate.of(2026, 4, 19)
+    def requestedStart = LocalDate.of(2026, 4, 20)
+    def requestedEnd = LocalDate.of(2026, 4, 25)
+    fundRepository.findByIsin(isin) >> additionalSavingsFund()
+    savingsFundNavProvider.safeMaxNavDate() >> safeMaxDate
+
+    when:
+    def result = fundService.getNavHistory(isin, requestedStart, requestedEnd)
+
+    then:
+    result.isEmpty()
+    0 * fundValueRepository.findValuesBetweenDates(_, _, _)
+  }
+
+  def "getNavHistory uses DB fund ISIN not request ISIN for query and cap check"() {
+    given:
+    def requestIsin = "ee0000003283"
+    def dbIsin = "EE0000003283"
+    def savingsFund = additionalSavingsFund()
+    def safeMaxDate = LocalDate.of(2026, 4, 19)
+    fundRepository.findByIsin(requestIsin) >> savingsFund
+    savingsFundNavProvider.safeMaxNavDate() >> safeMaxDate
+
+    when:
+    fundService.getNavHistory(requestIsin, null, LocalDate.of(2026, 4, 25))
+
+    then:
+    1 * fundValueRepository.findValuesBetweenDates(dbIsin, LocalDate.EPOCH, safeMaxDate) >> []
+    0 * fundValueRepository.findValuesBetweenDates(requestIsin, _, _)
   }
 
   def "getNavHistory throws 404 for unknown ISIN"() {
@@ -450,6 +519,7 @@ class FundServiceSpec extends Specification {
     def startDate = LocalDate.of(2026, 2, 2)
     def endDate = LocalDate.of(2026, 4, 14)
     fundRepository.findByIsin(isin) >> additionalSavingsFund()
+    savingsFundNavProvider.safeMaxNavDate() >> LocalDate.of(2099, 1, 1)
     fundValueRepository.findValuesBetweenDates(isin, startDate, endDate) >> [
         aFundValue(isin, LocalDate.of(2026, 2, 3), 1.0000),
         aFundValue(isin, LocalDate.of(2026, 2, 4), 1.0012),

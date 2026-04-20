@@ -42,8 +42,11 @@ public class FundController {
           .header(
               HttpHeaders.CONTENT_DISPOSITION,
               "attachment; filename=\"nav-" + isin.replaceAll("[^A-Za-z0-9]", "") + ".csv\"")
+          .header(HttpHeaders.CACHE_CONTROL, "no-store")
           .body(csv);
     }
-    return ResponseEntity.ok(fundService.getNavHistory(isin, startDate, endDate));
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CACHE_CONTROL, "no-store")
+        .body(fundService.getNavHistory(isin, startDate, endDate));
   }
 }

@@ -3,6 +3,9 @@ package ee.tuleva.onboarding.config;
 import static java.lang.Thread.currentThread;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import io.sentry.Sentry;
+import io.sentry.SentryLevel;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.digidoc4j.Configuration;
@@ -53,9 +56,24 @@ public class DigiDocTslRefreshJob {
           sleep(sleepSeconds);
         } else {
           log.error("TSL refresh failed after all retries: attempts={}", MAX_ATTEMPTS, e);
+          reportToSentry(e);
         }
       }
     }
+  }
+
+  private void reportToSentry(Exception cause) {
+    Sentry.withScope(
+        scope -> {
+          scope.setLevel(SentryLevel.FATAL);
+          scope.setTag("action", "redeploy");
+          scope.setTag("component", "digidoc4j-tsl");
+          scope.setFingerprint(List.of("tsl-refresh-exhausted-retries"));
+          scope.setExtra("cause", String.valueOf(cause));
+          Sentry.captureMessage(
+              "TSL refresh failed on startup — signing will fail until redeploy. "
+                  + "Action: force a new ECS deployment of onboarding-service-production.");
+        });
   }
 
   private void sleep(long seconds) {

@@ -49,7 +49,7 @@ class DigiDocTslRefreshJobTest {
 
     digiDocTslRefreshJob.refreshTslOnStartup();
 
-    verify(tsl, times(3)).refresh();
+    verify(tsl, times(8)).refresh();
   }
 
   @Test

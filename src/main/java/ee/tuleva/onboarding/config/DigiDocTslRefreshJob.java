@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
 @Profile("!test")
 public class DigiDocTslRefreshJob {
 
-  private static final int MAX_ATTEMPTS = 3;
+  private static final int MAX_ATTEMPTS = 8;
 
   private final Configuration digiDocConfiguration;
 
@@ -47,7 +47,7 @@ public class DigiDocTslRefreshJob {
         return;
       } catch (Exception e) {
         if (attempt < MAX_ATTEMPTS) {
-          long sleepSeconds = backoffBaseSeconds * (long) Math.pow(3, attempt - 1);
+          long sleepSeconds = Math.min(60L, backoffBaseSeconds * (long) Math.pow(3, attempt - 1));
           log.warn(
               "TSL refresh failed: attempt={}, error={}, retrying in {}s",
               attempt,

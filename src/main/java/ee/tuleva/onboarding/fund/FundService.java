@@ -120,12 +120,22 @@ class FundService {
   private static final byte[] UTF8_BOM = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
 
   List<NavValueResponse> getNavHistory(String isin, LocalDate startDate, LocalDate endDate) {
-    if (fundRepository.findByIsin(isin) == null) {
+    Fund fund = fundRepository.findByIsin(isin);
+    if (fund == null) {
       throw new ResponseStatusException(NOT_FOUND);
     }
     LocalDate start = startDate != null ? startDate : LocalDate.EPOCH;
     LocalDate end = endDate != null ? endDate : LocalDate.of(9999, 12, 31);
-    return fundValueRepository.findValuesBetweenDates(isin, start, end).stream()
+    if (savingsFundConfiguration.getIsin().equals(fund.getIsin())) {
+      LocalDate safeMaxDate = fundNavProvider.safeMaxNavDate();
+      if (end.isAfter(safeMaxDate)) {
+        end = safeMaxDate;
+      }
+    }
+    if (start.isAfter(end)) {
+      return List.of();
+    }
+    return fundValueRepository.findValuesBetweenDates(fund.getIsin(), start, end).stream()
         .map(fv -> new NavValueResponse(fv.date(), fv.value()))
         .toList();
   }

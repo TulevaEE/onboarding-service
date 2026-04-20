@@ -115,6 +115,7 @@ class FundControllerSpec extends BaseControllerSpec {
                 .perform(get("/v1/funds/${isin}/nav"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath('$', hasSize(2)))
                 .andExpect(jsonPath('$[0].date', is("2026-02-03")))
                 .andExpect(jsonPath('$[0].value', is(1.0d)))
@@ -133,6 +134,7 @@ class FundControllerSpec extends BaseControllerSpec {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "text/csv;charset=UTF-8"))
                 .andExpect(header().string("Content-Disposition", 'attachment; filename="nav-EE0000003283.csv"'))
+                .andExpect(header().string("Cache-Control", "no-store"))
                 .andReturn()
         result.response.contentAsByteArray == csvBytes
     }

@@ -23,6 +23,8 @@ import org.springframework.stereotype.Component;
 @Profile({"production", "staging"})
 public class LimitCheckJob {
 
+  private static final int BACKFILL_DAYS = 25;
+
   private final LimitCheckService limitCheckService;
   private final LimitCheckNotifier limitCheckNotifier;
   private final FeeAccrualPositionSyncJob feeAccrualPositionSyncJob;
@@ -65,10 +67,10 @@ public class LimitCheckJob {
     log.info("Starting limit check backfill");
 
     try {
-      int synced = feeAccrualPositionSyncJob.sync(10);
+      int synced = feeAccrualPositionSyncJob.sync(BACKFILL_DAYS);
       log.info("Fee accrual positions synced before backfill: positionsWritten={}", synced);
 
-      var results = limitCheckService.backfillChecks(10);
+      var results = limitCheckService.backfillChecks(BACKFILL_DAYS);
       log.info("Limit check backfill completed: resultCount={}", results.size());
     } catch (Exception e) {
       log.error("Limit check backfill failed", e);

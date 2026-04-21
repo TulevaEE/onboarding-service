@@ -57,31 +57,31 @@ class LimitCheckJobTest {
   @Test
   void backfillSyncsFeeAccrualPositionsBeforeChecks() {
     var results = List.of(mock(LimitCheckResult.class));
-    when(limitCheckService.backfillChecks(10)).thenReturn(results);
+    when(limitCheckService.backfillChecks(25)).thenReturn(results);
 
     job.backfillLimitChecks();
 
     var inOrder = inOrder(feeAccrualPositionSyncJob, limitCheckService);
-    inOrder.verify(feeAccrualPositionSyncJob).sync(10);
-    inOrder.verify(limitCheckService).backfillChecks(10);
+    inOrder.verify(feeAccrualPositionSyncJob).sync(25);
+    inOrder.verify(limitCheckService).backfillChecks(25);
     verify(limitCheckNotifier, never()).notify(any());
   }
 
   @Test
   void adHocBackfillEventTriggersBackfill() {
     var results = List.of(mock(LimitCheckResult.class));
-    when(limitCheckService.backfillChecks(10)).thenReturn(results);
+    when(limitCheckService.backfillChecks(25)).thenReturn(results);
 
     job.onLimitCheckBackfillRequested(new RunLimitCheckBackfillRequested());
 
     var inOrder = inOrder(feeAccrualPositionSyncJob, limitCheckService);
-    inOrder.verify(feeAccrualPositionSyncJob).sync(10);
-    inOrder.verify(limitCheckService).backfillChecks(10);
+    inOrder.verify(feeAccrualPositionSyncJob).sync(25);
+    inOrder.verify(limitCheckService).backfillChecks(25);
   }
 
   @Test
   void backfillSwallowsExceptions() {
-    when(limitCheckService.backfillChecks(10)).thenThrow(new RuntimeException("DB down"));
+    when(limitCheckService.backfillChecks(25)).thenThrow(new RuntimeException("DB down"));
 
     job.backfillLimitChecks();
 

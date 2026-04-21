@@ -10,9 +10,14 @@ import ee.tuleva.onboarding.investment.portfolio.*;
 import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +26,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Component
@@ -40,6 +46,7 @@ class LimitCheckService {
   private final ProviderLimitChecker providerLimitChecker;
   private final ReserveLimitChecker reserveLimitChecker;
   private final FreeCashLimitChecker freeCashLimitChecker;
+  private final TransactionOrderRepository transactionOrderRepository;
 
   List<LimitCheckResult> runChecks() {
     return runChecksAsOf(LocalDate.now(clock));
@@ -76,7 +83,8 @@ class LimitCheckService {
     return allResults;
   }
 
-  private LimitCheckResult checkFund(TulevaFund fund, LocalDate checkDate) {
+  @Transactional
+  LimitCheckResult checkFund(TulevaFund fund, LocalDate checkDate) {
     var positions =
         fundPositionRepository.findByNavDateAndFundAndAccountType(
             checkDate, fund, AccountType.SECURITY);
@@ -104,18 +112,20 @@ class LimitCheckService {
                     fundPositionRepository.findByNavDateAndFundAndAccountType(
                         checkDate, fund, FEE)));
 
-    var positionLimits = positionLimitRepository.findLatestByFund(fund);
-    var providerLimits = providerLimitRepository.findLatestByFund(fund);
-    var fundLimit = fundLimitRepository.findLatestByFund(fund).orElse(null);
+    var positionLimits = positionLimitRepository.findLatestByFundAsOf(fund, checkDate);
+    var providerLimits = providerLimitRepository.findLatestByFundAsOf(fund, checkDate);
+    var fundLimit = fundLimitRepository.findLatestByFundAsOf(fund, checkDate).orElse(null);
     var isinToProvider = buildIsinToProviderMap(fund);
 
     var positionBreaches = positionLimitChecker.check(fund, positions, totalNav, positionLimits);
     var providerBreaches =
         providerLimitChecker.check(fund, positions, totalNav, isinToProvider, providerLimits);
     var reserveBreach = reserveLimitChecker.check(fund, cashTotal, fundLimit);
+    var pendingCashImpact = pendingCashImpact(fund, checkDate);
     var freeCashBreach =
-        freeCashLimitChecker.check(fund, cashTotal, liabilityTotal, ZERO, fundLimit);
+        freeCashLimitChecker.check(fund, cashTotal, liabilityTotal, pendingCashImpact, fundLimit);
 
+    limitCheckEventRepository.deleteByFundAndCheckDate(fund, checkDate);
     saveEvent(fund, checkDate, POSITION, positionBreaches);
     saveEvent(fund, checkDate, PROVIDER, providerBreaches);
     saveEvent(fund, checkDate, RESERVE, reserveBreach);
@@ -123,6 +133,23 @@ class LimitCheckService {
 
     return new LimitCheckResult(
         fund, checkDate, positionBreaches, providerBreaches, reserveBreach, freeCashBreach);
+  }
+
+  private BigDecimal pendingCashImpact(TulevaFund fund, LocalDate checkDate) {
+    var createdBefore = checkDate.plusDays(1).atTime(LocalTime.MIDNIGHT).toInstant(ZoneOffset.UTC);
+    return transactionOrderRepository
+        .findUnsettledOrdersAsOf(fund, checkDate, createdBefore)
+        .stream()
+        .map(this::signedCashImpact)
+        .reduce(ZERO, BigDecimal::add);
+  }
+
+  private BigDecimal signedCashImpact(TransactionOrder order) {
+    var amount = order.getOrderAmount();
+    if (amount == null) {
+      return ZERO;
+    }
+    return order.getTransactionType() == TransactionType.BUY ? amount : amount.negate();
   }
 
   private BigDecimal computeTotalNav(TulevaFund fund, LocalDate checkDate) {

@@ -168,4 +168,42 @@ class ProviderLimitRepositoryTest {
 
     assertThat(result).isEmpty();
   }
+
+  @Test
+  void findLatestByFundAsOf_returnsLimitsEffectiveOnOrBeforeAsOfDate() {
+    var olderDate = LocalDate.of(2025, 6, 30);
+    var newerDate = LocalDate.of(2026, 3, 30);
+
+    var older =
+        ProviderLimit.builder()
+            .effectiveDate(olderDate)
+            .fund(TUK75)
+            .provider(XTRACKERS)
+            .softLimitPercent(new BigDecimal("0.15"))
+            .hardLimitPercent(new BigDecimal("0.18"))
+            .build();
+    var newer =
+        ProviderLimit.builder()
+            .effectiveDate(newerDate)
+            .fund(TUK75)
+            .provider(XTRACKERS)
+            .softLimitPercent(new BigDecimal("0.1965"))
+            .hardLimitPercent(new BigDecimal("0.20"))
+            .build();
+
+    entityManager.persist(older);
+    entityManager.persist(newer);
+    entityManager.flush();
+
+    assertThat(repository.findLatestByFundAsOf(TUK75, LocalDate.of(2025, 6, 29))).isEmpty();
+
+    var asOfMid = repository.findLatestByFundAsOf(TUK75, LocalDate.of(2025, 11, 7));
+    assertThat(asOfMid).hasSize(1);
+    assertThat(asOfMid).extracting("effectiveDate").containsOnly(olderDate);
+    assertThat(asOfMid.getFirst().getSoftLimitPercent()).isEqualByComparingTo("0.15");
+
+    var asOfNow = repository.findLatestByFundAsOf(TUK75, LocalDate.of(2026, 4, 1));
+    assertThat(asOfNow).hasSize(1);
+    assertThat(asOfNow).extracting("effectiveDate").containsOnly(newerDate);
+  }
 }

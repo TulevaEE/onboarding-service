@@ -152,4 +152,45 @@ class PositionLimitRepositoryTest {
 
     assertThat(result).isEmpty();
   }
+
+  @Test
+  void findLatestByFundAsOf_returnsLimitsEffectiveOnOrBeforeAsOfDate() {
+    var olderDate = LocalDate.of(2025, 6, 30);
+    var newerDate = LocalDate.of(2026, 3, 30);
+
+    var older =
+        PositionLimit.builder()
+            .effectiveDate(olderDate)
+            .fund(TUK75)
+            .isin("IE00BKPTWY98")
+            .provider(ISHARES)
+            .softLimitPercent(new BigDecimal("0.1070"))
+            .hardLimitPercent(new BigDecimal("0.1150"))
+            .build();
+
+    var newer =
+        PositionLimit.builder()
+            .effectiveDate(newerDate)
+            .fund(TUK75)
+            .isin("IE00BKPTWY98")
+            .provider(ISHARES)
+            .softLimitPercent(new BigDecimal("0.1241"))
+            .hardLimitPercent(new BigDecimal("0.30"))
+            .build();
+
+    entityManager.persist(older);
+    entityManager.persist(newer);
+    entityManager.flush();
+
+    var beforeBoth = repository.findLatestByFundAsOf(TUK75, LocalDate.of(2025, 6, 29));
+    var afterOlder = repository.findLatestByFundAsOf(TUK75, LocalDate.of(2025, 11, 7));
+    var afterNewer = repository.findLatestByFundAsOf(TUK75, LocalDate.of(2026, 4, 1));
+
+    assertThat(beforeBoth).isEmpty();
+    assertThat(afterOlder).hasSize(1);
+    assertThat(afterOlder).extracting("effectiveDate").containsOnly(olderDate);
+    assertThat(afterOlder.getFirst().getSoftLimitPercent()).isEqualByComparingTo("0.1070");
+    assertThat(afterNewer).hasSize(1);
+    assertThat(afterNewer).extracting("effectiveDate").containsOnly(newerDate);
+  }
 }

@@ -143,4 +143,39 @@ class FundLimitRepositoryTest {
 
     assertThat(result).isEmpty();
   }
+
+  @Test
+  void findLatestByFundAsOf_returnsLimitEffectiveOnOrBeforeAsOfDate() {
+    var olderDate = LocalDate.of(2025, 6, 30);
+    var newerDate = LocalDate.of(2026, 3, 30);
+
+    var older =
+        FundLimit.builder()
+            .effectiveDate(olderDate)
+            .fund(TUK75)
+            .reserveSoft(new BigDecimal("400000.00"))
+            .reserveHard(new BigDecimal("150000.00"))
+            .build();
+    var newer =
+        FundLimit.builder()
+            .effectiveDate(newerDate)
+            .fund(TUK75)
+            .reserveSoft(new BigDecimal("500000.00"))
+            .reserveHard(new BigDecimal("200000.00"))
+            .build();
+
+    entityManager.persist(older);
+    entityManager.persist(newer);
+    entityManager.flush();
+
+    assertThat(repository.findLatestByFundAsOf(TUK75, LocalDate.of(2025, 6, 29))).isEmpty();
+
+    var asOfMid = repository.findLatestByFundAsOf(TUK75, LocalDate.of(2025, 11, 7)).orElseThrow();
+    assertThat(asOfMid.getEffectiveDate()).isEqualTo(olderDate);
+    assertThat(asOfMid.getReserveSoft()).isEqualByComparingTo("400000.00");
+
+    var asOfNow = repository.findLatestByFundAsOf(TUK75, LocalDate.of(2026, 4, 1)).orElseThrow();
+    assertThat(asOfNow.getEffectiveDate()).isEqualTo(newerDate);
+    assertThat(asOfNow.getReserveSoft()).isEqualByComparingTo("500000.00");
+  }
 }

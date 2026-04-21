@@ -25,6 +25,7 @@ class JobTriggerPoller {
           "TrackingDifferenceJob", RunTrackingDifferenceCheckRequested::new,
           "TrackingDifferenceBackfillJob", RunTrackingDifferenceBackfillRequested::new,
           "LimitCheckJob", RunLimitCheckRequested::new,
+          "LimitCheckBackfillJob", RunLimitCheckBackfillRequested::new,
           "ReportImportJob", RunReportImportRequested::new,
           "FundPositionImportJob", RunFundPositionImportRequested::new,
           "FeeAccrualPositionSyncJob", RunFeeAccrualPositionSyncRequested::new,

@@ -21,4 +21,16 @@ public interface PositionLimitRepository extends JpaRepository<PositionLimit, Lo
       )
       """)
   List<PositionLimit> findLatestByFund(TulevaFund fund);
+
+  @Query(
+      """
+      SELECT p FROM PositionLimit p
+      WHERE p.fund = :fund
+      AND p.effectiveDate = (
+        SELECT MAX(p2.effectiveDate)
+        FROM PositionLimit p2
+        WHERE p2.fund = :fund AND p2.effectiveDate <= :asOf
+      )
+      """)
+  List<PositionLimit> findLatestByFundAsOf(TulevaFund fund, LocalDate asOf);
 }

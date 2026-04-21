@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.event.PipelineStep.LIMIT_CHECK;
 
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
+import ee.tuleva.onboarding.investment.event.RunLimitCheckBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunLimitCheckRequested;
 import ee.tuleva.onboarding.investment.position.FeeAccrualPositionSyncJob;
 import ee.tuleva.onboarding.savings.fund.nav.AllNavCalculationsCompleted;
@@ -51,6 +52,11 @@ public class LimitCheckJob {
       pipelineTracker.stepFailed(LIMIT_CHECK, e.getMessage());
       log.error("Limit check failed", e);
     }
+  }
+
+  @EventListener
+  void onLimitCheckBackfillRequested(RunLimitCheckBackfillRequested event) {
+    backfillLimitChecks();
   }
 
   @Scheduled(cron = LIMIT_CHECK_BACKFILL, zone = TIMEZONE)

@@ -21,4 +21,16 @@ public interface FundLimitRepository extends JpaRepository<FundLimit, Long> {
       )
       """)
   Optional<FundLimit> findLatestByFund(TulevaFund fund);
+
+  @Query(
+      """
+      SELECT f FROM FundLimit f
+      WHERE f.fund = :fund
+      AND f.effectiveDate = (
+        SELECT MAX(f2.effectiveDate)
+        FROM FundLimit f2
+        WHERE f2.fund = :fund AND f2.effectiveDate <= :asOf
+      )
+      """)
+  Optional<FundLimit> findLatestByFundAsOf(TulevaFund fund, LocalDate asOf);
 }

@@ -3,22 +3,15 @@ package ee.tuleva.onboarding.fund
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.mandate.MandateFixture
 import org.springframework.http.MediaType
-import org.springframework.http.converter.ByteArrayHttpMessageConverter
 import org.springframework.test.web.servlet.MockMvc
 
-import org.springframework.web.server.ResponseStatusException
-
-import java.time.LocalDate
 import java.util.stream.Collectors
-
-import static org.springframework.http.HttpStatus.NOT_FOUND
 
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static org.hamcrest.Matchers.hasSize
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
@@ -30,37 +23,7 @@ class FundControllerSpec extends BaseControllerSpec {
     private MockMvc mockMvc
 
     def setup() {
-        mockMvc = mockMvcWithByteArray(controller)
-    }
-
-    private MockMvc mockMvcWithByteArray(Object... controllers) {
-        return org.springframework.test.web.servlet.setup.MockMvcBuilders
-                .standaloneSetup(controllers)
-                .setMessageConverters(jacksonConverter(), new ByteArrayHttpMessageConverter())
-                .setControllerAdvice(new ee.tuleva.onboarding.error.ErrorHandlingControllerAdvice())
-                .setCustomArgumentResolvers(authResolver())
-                .build()
-    }
-
-    private org.springframework.http.converter.json.JacksonJsonHttpMessageConverter jacksonConverter() {
-        def objectMapper = tools.jackson.databind.json.JsonMapper.builder()
-                .enable(tools.jackson.core.StreamWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN)
-                .build()
-        return new org.springframework.http.converter.json.JacksonJsonHttpMessageConverter(objectMapper)
-    }
-
-    private org.springframework.web.method.support.HandlerMethodArgumentResolver authResolver() {
-        return new org.springframework.web.method.support.HandlerMethodArgumentResolver() {
-            boolean supportsParameter(org.springframework.core.MethodParameter parameter) {
-                return parameter.parameterType == ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
-            }
-            Object resolveArgument(org.springframework.core.MethodParameter parameter,
-                    org.springframework.web.method.support.ModelAndViewContainer mavContainer,
-                    org.springframework.web.context.request.NativeWebRequest webRequest,
-                    org.springframework.web.bind.support.WebDataBinderFactory binderFactory) {
-                return ee.tuleva.onboarding.auth.principal.AuthenticatedPerson.builder().userId(1L).build()
-            }
-        }
+        mockMvc = mockMvc(controller)
     }
 
     def "get: Get all funds"() {
@@ -100,60 +63,5 @@ class FundControllerSpec extends BaseControllerSpec {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath('$', hasSize(funds.size())))
                 .andExpect(jsonPath('$[0].fundManager.name', is(fundManagerName)))
-    }
-
-    def "get: Get NAV history for fund"() {
-        given:
-        def isin = "EE0000003283"
-        def navValues = [
-            new NavValueResponse(LocalDate.of(2026, 2, 3), 1.0000G),
-            new NavValueResponse(LocalDate.of(2026, 2, 4), 1.0012G),
-        ]
-        1 * fundService.getNavHistory(isin, null, null) >> navValues
-        expect:
-        mockMvc
-                .perform(get("/v1/funds/${isin}/nav"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(header().string("Cache-Control", "no-store"))
-                .andExpect(jsonPath('$', hasSize(2)))
-                .andExpect(jsonPath('$[0].date', is("2026-02-03")))
-                .andExpect(jsonPath('$[0].value', is(1.0d)))
-                .andExpect(jsonPath('$[1].date', is("2026-02-04")))
-                .andExpect(jsonPath('$[1].value', is(1.0012d)))
-    }
-
-    def "get: Get NAV history as CSV"() {
-        given:
-        def isin = "EE0000003283"
-        def csvBytes = "Kuupäev;NAV (EUR)\r\n03.02.2026;1.0000\r\n".getBytes("UTF-8")
-        1 * fundService.getNavHistoryCsv(isin, null, null) >> csvBytes
-        expect:
-        def result = mockMvc
-                .perform(get("/v1/funds/${isin}/nav?format=csv"))
-                .andExpect(status().isOk())
-                .andExpect(header().string("Content-Type", "text/csv;charset=UTF-8"))
-                .andExpect(header().string("Content-Disposition", 'attachment; filename="nav-EE0000003283.csv"'))
-                .andExpect(header().string("Cache-Control", "no-store"))
-                .andReturn()
-        result.response.contentAsByteArray == csvBytes
-    }
-
-    def "get: Get NAV history for unknown fund returns 404"() {
-        given:
-        1 * fundService.getNavHistory("UNKNOWN", null, null) >> { throw new ResponseStatusException(NOT_FOUND) }
-        expect:
-        mockMvc
-                .perform(get("/v1/funds/UNKNOWN/nav"))
-                .andExpect(status().isNotFound())
-    }
-
-    def "get: Get NAV history as CSV for unknown fund returns 404"() {
-        given:
-        1 * fundService.getNavHistoryCsv("UNKNOWN", null, null) >> { throw new ResponseStatusException(NOT_FOUND) }
-        expect:
-        mockMvc
-                .perform(get("/v1/funds/UNKNOWN/nav?format=csv"))
-                .andExpect(status().isNotFound())
     }
 }

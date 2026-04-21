@@ -26,7 +26,6 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Component
@@ -83,7 +82,6 @@ class LimitCheckService {
     return allResults;
   }
 
-  @Transactional
   LimitCheckResult checkFund(TulevaFund fund, LocalDate checkDate) {
     var positions =
         fundPositionRepository.findByNavDateAndFundAndAccountType(

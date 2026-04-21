@@ -15,6 +15,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,6 +30,7 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
 
   @ToString.Include public static final String KEY = "EODHD_VALUE";
   public static final String PROVIDER = "EODHD";
+  private static final List<String> FOREX_TICKERS = List.of("EURUSD.FOREX");
   private static final ZoneId EUROPE_BERLIN = ZoneId.of("Europe/Berlin");
   private static final LocalTime CLOSING_PRICE_FINALIZED_TIME = LocalTime.of(6, 0);
 
@@ -57,7 +59,7 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
 
   @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
-    return FundTicker.getEodhdTickers().stream()
+    return Stream.concat(FundTicker.getEodhdTickers().stream(), FOREX_TICKERS.stream())
         .flatMap(ticker -> retrieveValuesForTicker(ticker, startDate, endDate).stream())
         .toList();
   }

@@ -64,6 +64,12 @@ class EODHDValueRetrieverTest {
                                 + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-02"))
                     .andRespond(withSuccess(mockResponse, MediaType.APPLICATION_JSON)));
 
+    server
+        .expect(
+            requestTo(
+                "https://eodhd.com/api/eod/EURUSD.FOREX?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-02"))
+        .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 2));
 
@@ -71,6 +77,51 @@ class EODHDValueRetrieverTest {
         result.stream().filter(fv -> fv.key().equals("USAS.PA.EODHD")).findFirst().orElseThrow();
     assertThat(amundiValue.key()).isEqualTo("USAS.PA.EODHD");
     assertThat(amundiValue.value()).isEqualByComparingTo(new BigDecimal("4.52"));
+  }
+
+  @Test
+  void retrievesEurUsdForexRates() {
+    var mockForexResponse =
+        """
+        [
+          {"date": "2024-01-02", "open": 1.0950, "high": 1.0970, "low": 1.0940, "close": 1.0960, "adjusted_close": 1.0960, "volume": 0},
+          {"date": "2024-01-03", "open": 1.0960, "high": 1.0985, "low": 1.0955, "close": 1.0975, "adjusted_close": 1.0975, "volume": 0},
+          {"date": "2024-01-04", "open": 1.0975, "high": 1.0990, "low": 1.0965, "close": 1.0980, "adjusted_close": 1.0980, "volume": 0}
+        ]
+        """;
+
+    FundTicker.getEodhdTickers()
+        .forEach(
+            ticker ->
+                server
+                    .expect(
+                        requestTo(
+                            "https://eodhd.com/api/eod/"
+                                + expectedApiTicker(ticker)
+                                + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-04"))
+                    .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON)));
+
+    server
+        .expect(
+            requestTo(
+                "https://eodhd.com/api/eod/EURUSD.FOREX?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-04"))
+        .andRespond(withSuccess(mockForexResponse, MediaType.APPLICATION_JSON));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
+
+    var forexValues = result.stream().filter(fv -> fv.key().equals("EURUSD.FOREX")).toList();
+    assertThat(forexValues).hasSize(3);
+    assertThat(forexValues)
+        .allSatisfy(
+            fv -> {
+              assertThat(fv.provider()).isEqualTo("EODHD");
+              assertThat(fv.key()).isEqualTo("EURUSD.FOREX");
+            });
+    assertThat(forexValues)
+        .extracting(FundValue::value)
+        .containsExactly(
+            new BigDecimal("1.0960"), new BigDecimal("1.0975"), new BigDecimal("1.0980"));
   }
 
   @Test
@@ -94,6 +145,12 @@ class EODHDValueRetrieverTest {
                                 + expectedApiTicker(ticker)
                                 + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-04"))
                     .andRespond(withSuccess(mockResponse, MediaType.APPLICATION_JSON)));
+
+    server
+        .expect(
+            requestTo(
+                "https://eodhd.com/api/eod/EURUSD.FOREX?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-04"))
+        .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
 
     var startDate = LocalDate.of(2024, 1, 2);
     var endDate = LocalDate.of(2024, 1, 4);
@@ -126,6 +183,12 @@ class EODHDValueRetrieverTest {
                                 + expectedApiTicker(ticker)
                                 + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-04"))
                     .andRespond(withSuccess(mockResponseWithZeros, MediaType.APPLICATION_JSON)));
+
+    server
+        .expect(
+            requestTo(
+                "https://eodhd.com/api/eod/EURUSD.FOREX?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-04"))
+        .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
 
     var startDate = LocalDate.of(2024, 1, 2);
     var endDate = LocalDate.of(2024, 1, 4);
@@ -166,6 +229,12 @@ class EODHDValueRetrieverTest {
                                 + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-02"))
                     .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON)));
 
+    server
+        .expect(
+            requestTo(
+                "https://eodhd.com/api/eod/EURUSD.FOREX?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-02"))
+        .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+
     var startDate = LocalDate.of(2024, 1, 2);
     var endDate = LocalDate.of(2024, 1, 2);
 
@@ -189,6 +258,12 @@ class EODHDValueRetrieverTest {
                                 + expectedApiTicker(ticker)
                                 + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-04"))
                     .andRespond(withServerError()));
+
+    server
+        .expect(
+            requestTo(
+                "https://eodhd.com/api/eod/EURUSD.FOREX?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-04"))
+        .andRespond(withServerError());
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
@@ -220,6 +295,12 @@ class EODHDValueRetrieverTest {
                                 + expectedApiTicker(ticker)
                                 + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-04"))
                     .andRespond(withSuccess(mockResponse, MediaType.APPLICATION_JSON)));
+
+    server
+        .expect(
+            requestTo(
+                "https://eodhd.com/api/eod/EURUSD.FOREX?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-04"))
+        .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));

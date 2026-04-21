@@ -64,7 +64,7 @@ class DepotFeeCalculatorTest {
   }
 
   @Test
-  void calculate_handlesLeapYear() {
+  void calculate_usesCalendar365EvenInLeapYear() {
     LocalDate date = LocalDate.of(2024, 2, 29);
     LocalDate feeMonth = LocalDate.of(2024, 2, 1);
     BigDecimal baseValue = new BigDecimal("100000000");
@@ -78,10 +78,10 @@ class DepotFeeCalculatorTest {
 
     FeeAccrual result = calculator.calculate(TKF100, date, baseValue);
 
-    assertThat(result.daysInYear()).isEqualTo(366);
+    assertThat(result.daysInYear()).isEqualTo(365);
 
     BigDecimal expectedDailyNet =
-        baseValue.multiply(fundRate).divide(BigDecimal.valueOf(366), 6, RoundingMode.HALF_UP);
+        baseValue.multiply(fundRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP);
     assertThat(result.dailyAmountNet()).isEqualByComparingTo(expectedDailyNet);
   }
 

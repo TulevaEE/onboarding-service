@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.fees;
 
-import static ee.tuleva.onboarding.investment.fees.FeeAccrualBuilder.daysInYear;
+import static ee.tuleva.onboarding.investment.fees.FeeAccrualBuilder.DAYS_IN_YEAR;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
 import static java.math.RoundingMode.HALF_UP;
 
@@ -20,7 +20,6 @@ public class ManagementFeeCalculator implements FeeCalculator {
   @Override
   public FeeAccrual calculate(TulevaFund fund, LocalDate calendarDate, BigDecimal baseValue) {
     LocalDate feeMonth = feeMonthResolver.resolveFeeMonth(calendarDate);
-    int daysInYear = daysInYear(calendarDate);
 
     FeeRate rate =
         feeRateRepository
@@ -31,7 +30,7 @@ public class ManagementFeeCalculator implements FeeCalculator {
                         "No management fee rate found: fund=" + fund + ", date=" + calendarDate));
 
     BigDecimal dailyFee =
-        baseValue.multiply(rate.annualRate()).divide(BigDecimal.valueOf(daysInYear), 6, HALF_UP);
+        baseValue.multiply(rate.annualRate()).divide(BigDecimal.valueOf(DAYS_IN_YEAR), 6, HALF_UP);
 
     return FeeAccrual.builder()
         .fund(fund)
@@ -42,7 +41,7 @@ public class ManagementFeeCalculator implements FeeCalculator {
         .annualRate(rate.annualRate())
         .dailyAmountNet(dailyFee)
         .dailyAmountGross(dailyFee)
-        .daysInYear(daysInYear)
+        .daysInYear(DAYS_IN_YEAR)
         .referenceDate(calendarDate)
         .build();
   }

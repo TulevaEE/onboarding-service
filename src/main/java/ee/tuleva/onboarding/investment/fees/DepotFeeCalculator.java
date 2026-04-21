@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.fees;
 
-import static ee.tuleva.onboarding.investment.fees.FeeAccrualBuilder.daysInYear;
+import static ee.tuleva.onboarding.investment.fees.FeeAccrualBuilder.DAYS_IN_YEAR;
 import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
@@ -28,13 +28,12 @@ public class DepotFeeCalculator implements FeeCalculator {
   @Override
   public FeeAccrual calculate(TulevaFund fund, LocalDate calendarDate, BigDecimal baseValue) {
     LocalDate feeMonth = feeMonthResolver.resolveFeeMonth(calendarDate);
-    int daysInYear = daysInYear(calendarDate);
 
     BigDecimal annualRate = determineDepotRate(fund, feeMonth);
     BigDecimal vatRate = vatRateProvider.getVatRate(feeMonth);
 
     BigDecimal dailyFeeNet =
-        baseValue.multiply(annualRate).divide(BigDecimal.valueOf(daysInYear), 6, HALF_UP);
+        baseValue.multiply(annualRate).divide(BigDecimal.valueOf(DAYS_IN_YEAR), 6, HALF_UP);
 
     BigDecimal dailyFeeGross = dailyFeeNet.multiply(ONE.add(vatRate)).setScale(6, HALF_UP);
 
@@ -48,7 +47,7 @@ public class DepotFeeCalculator implements FeeCalculator {
         .dailyAmountNet(dailyFeeNet)
         .dailyAmountGross(dailyFeeGross)
         .vatRate(vatRate)
-        .daysInYear(daysInYear)
+        .daysInYear(DAYS_IN_YEAR)
         .referenceDate(calendarDate)
         .build();
   }

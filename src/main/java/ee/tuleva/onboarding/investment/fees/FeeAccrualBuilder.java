@@ -1,11 +1,6 @@
 package ee.tuleva.onboarding.investment.fees;
 
-import java.time.LocalDate;
-import java.time.Year;
-
 public class FeeAccrualBuilder {
 
-  public static int daysInYear(LocalDate date) {
-    return Year.of(date.getYear()).length();
-  }
+  public static final int DAYS_IN_YEAR = 365;
 }

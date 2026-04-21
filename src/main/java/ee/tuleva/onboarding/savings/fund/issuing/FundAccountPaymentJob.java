@@ -42,7 +42,7 @@ public class FundAccountPaymentJob {
   @Scheduled(fixedRateString = "1m")
   @SchedulerLock(
       name = "FundAccountPaymentJob_runJob",
-      lockAtMostFor = "50s",
+      lockAtMostFor = "30m",
       lockAtLeastFor = "10s")
   public void runJob() {
     try {

@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 
@@ -18,6 +19,7 @@ public class SebGatewayClient {
 
   private final RestClient sebGatewayRestClient;
   private final SebHttpSignature sebHttpSignature;
+  private final RetryTemplate sebGatewayRetryTemplate;
 
   public String getEodTransactions(String iban) {
     log.info("Fetching EOD transactions: iban={}", iban);
@@ -70,6 +72,10 @@ public class SebGatewayClient {
   }
 
   public String submitPaymentFile(String paymentXml, String idempotencyKey) {
+    return sebGatewayRetryTemplate.invoke(() -> doSubmitPaymentFile(paymentXml, idempotencyKey));
+  }
+
+  private String doSubmitPaymentFile(String paymentXml, String idempotencyKey) {
     log.info("Submitting payment file: idempotencyKey={}", idempotencyKey);
     byte[] body = paymentXml.getBytes(UTF_8);
     String digest = sebHttpSignature.createDigest(body);

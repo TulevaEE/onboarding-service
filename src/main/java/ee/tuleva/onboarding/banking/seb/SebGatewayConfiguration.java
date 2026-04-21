@@ -19,11 +19,14 @@ import javax.net.ssl.SSLContext;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hc.client5.http.config.ConnectionConfig;
+import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
 import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
 import org.apache.hc.core5.ssl.SSLContexts;
+import org.apache.hc.core5.util.Timeout;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -32,8 +35,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.retry.RetryPolicy;
+import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.scheduling.TaskScheduler;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 @Configuration
@@ -114,12 +122,22 @@ public class SebGatewayConfiguration {
             .loadKeyMaterial(sebGatewayKeyStore, properties.keystore().password().toCharArray())
             .build();
 
+    var connectionConfig =
+        ConnectionConfig.custom().setConnectTimeout(Timeout.ofSeconds(5)).build();
+
     var connectionManager =
         PoolingHttpClientConnectionManagerBuilder.create()
             .setTlsSocketStrategy(tlsStrategyFactory.create(sslContext))
+            .setDefaultConnectionConfig(connectionConfig)
             .build();
 
-    var httpClient = HttpClients.custom().setConnectionManager(connectionManager).build();
+    var requestConfig = RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(30)).build();
+
+    var httpClient =
+        HttpClients.custom()
+            .setConnectionManager(connectionManager)
+            .setDefaultRequestConfig(requestConfig)
+            .build();
 
     HttpComponentsClientHttpRequestFactory requestFactory =
         new HttpComponentsClientHttpRequestFactory(httpClient);
@@ -142,6 +160,20 @@ public class SebGatewayConfiguration {
     return (PrivateKey)
         keyStore.getKey(
             getSingleKeyAlias(keyStore), properties.keystore().password().toCharArray());
+  }
+
+  @Bean
+  RetryTemplate sebGatewayRetryTemplate() {
+    var policy =
+        RetryPolicy.builder()
+            .includes(HttpServerErrorException.class, ResourceAccessException.class)
+            .excludes(HttpClientErrorException.class)
+            .maxRetries(7)
+            .delay(Duration.ofMillis(200))
+            .multiplier(3)
+            .maxDelay(Duration.ofSeconds(10))
+            .build();
+    return new RetryTemplate(policy);
   }
 
   @Bean

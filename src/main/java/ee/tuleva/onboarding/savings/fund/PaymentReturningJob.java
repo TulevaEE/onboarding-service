@@ -22,7 +22,7 @@ public class PaymentReturningJob {
   private final ApplicationEventPublisher eventPublisher;
 
   @Scheduled(fixedRateString = "1m")
-  @SchedulerLock(name = "PaymentReturningJob_runJob", lockAtMostFor = "50s", lockAtLeastFor = "10s")
+  @SchedulerLock(name = "PaymentReturningJob_runJob", lockAtMostFor = "30m", lockAtLeastFor = "10s")
   public void runJob() {
     log.info("Running payment returning job");
     List<SavingFundPayment> paymentsToBeReturned =

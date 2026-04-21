@@ -115,3 +115,4 @@ Prefer: `text` over `varchar` unless the length is a domain invariant (e.g., `va
 - **Streams** over for-loops. Method references over lambdas when clearer
 - **Method overloading** instead of passing null
 - **Law of Demeter**: push behavior to where the data lives (`account.isUserAccount()` not `entry.getAccount().getPurpose() == USER_ACCOUNT`)
+- **Retries on external calls**: use Spring Framework 7 native resilience (`org.springframework.core.retry.RetryTemplate` + `RetryPolicy.builder()` with `includes`/`excludes`), NOT the legacy `spring-retry` lib. Wrap the integration-boundary call and pair with a deterministic idempotency key. Reference: `SebGatewayClient.submitPaymentFile` + `SebGatewayConfiguration.sebGatewayRetryTemplate` + `SebGatewayClientRetryTest`.

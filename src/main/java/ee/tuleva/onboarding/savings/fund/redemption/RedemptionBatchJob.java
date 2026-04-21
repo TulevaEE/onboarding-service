@@ -62,7 +62,7 @@ public class RedemptionBatchJob {
   private final EndToEndIdConverter endToEndIdConverter;
 
   @Scheduled(fixedRateString = "1m")
-  @SchedulerLock(name = "RedemptionBatchJob", lockAtMostFor = "50s", lockAtLeastFor = "10s")
+  @SchedulerLock(name = "RedemptionBatchJob", lockAtMostFor = "30m", lockAtLeastFor = "10s")
   public void runJob() {
     Instant cutoff = getCutoffForProcessing();
     List<RedemptionRequest> toProcess =

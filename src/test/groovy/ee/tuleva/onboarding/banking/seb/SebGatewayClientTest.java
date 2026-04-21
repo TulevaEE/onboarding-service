@@ -11,6 +11,7 @@ import org.springframework.boot.restclient.test.autoconfigure.RestClientTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -83,7 +84,7 @@ class SebGatewayClientTest {
   static class TestConfig {
     @Bean
     SebGatewayClient sebGatewayClient(RestClient.Builder restClientBuilder) {
-      return new SebGatewayClient(restClientBuilder.build(), null);
+      return new SebGatewayClient(restClientBuilder.build(), null, new RetryTemplate());
     }
   }
 }

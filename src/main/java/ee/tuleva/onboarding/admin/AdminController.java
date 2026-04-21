@@ -20,6 +20,7 @@ import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionBatchJob;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -27,6 +28,7 @@ import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -52,6 +54,7 @@ public class AdminController {
   private final FundPositionRepository fundPositionRepository;
   private final ReportImportJob reportImportJob;
   private final FundPositionImportJob fundPositionImportJob;
+  private final RedemptionBatchJob redemptionBatchJob;
   private final Clock clock;
 
   @Value("${admin.api-token:}")
@@ -253,6 +256,18 @@ public class AdminController {
     }
 
     return "Backfilled positions for " + fundCode + " across " + dates.size() + " dates";
+  }
+
+  @PostMapping("/redemptions/{id}/retry-payout")
+  public String retryRedemptionPayout(
+      @RequestHeader("X-Admin-Token") String token, @PathVariable UUID id) {
+
+    validateToken(token);
+
+    log.info("Admin triggered redemption payout retry: id={}", id);
+    redemptionBatchJob.retryFailedPayout(id);
+
+    return "Retried redemption payout for " + id;
   }
 
   @PostMapping("/blackrock-adjustment")

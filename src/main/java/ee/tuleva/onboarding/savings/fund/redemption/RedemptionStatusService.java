@@ -29,7 +29,8 @@ public class RedemptionStatusService {
           new StatusTransition(VERIFIED, REDEEMED),
           new StatusTransition(VERIFIED, FAILED),
           new StatusTransition(REDEEMED, PROCESSED),
-          new StatusTransition(REDEEMED, FAILED));
+          new StatusTransition(REDEEMED, FAILED),
+          new StatusTransition(FAILED, REDEEMED));
 
   private final RedemptionRequestRepository repository;
 

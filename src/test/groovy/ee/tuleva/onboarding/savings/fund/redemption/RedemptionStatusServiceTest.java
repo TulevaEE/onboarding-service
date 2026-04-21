@@ -85,6 +85,20 @@ class RedemptionStatusServiceTest {
   }
 
   @Test
+  void changeStatus_failedToRedeemed_succeeds() {
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(FAILED).build();
+
+    when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    redemptionStatusService.changeStatus(requestId, REDEEMED);
+
+    var captor = ArgumentCaptor.forClass(RedemptionRequest.class);
+    verify(repository).save(captor.capture());
+    assertThat(captor.getValue().getStatus()).isEqualTo(REDEEMED);
+  }
+
+  @Test
   @DisplayName("changeStatus transitions from REDEEMED to PROCESSED")
   void changeStatus_redeemedToProcessed_succeeds() {
     var requestId = UUID.randomUUID();

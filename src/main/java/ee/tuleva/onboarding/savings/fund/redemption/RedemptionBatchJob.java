@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
@@ -26,6 +27,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +36,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
@@ -135,7 +138,7 @@ public class RedemptionBatchJob {
                   }
 
                   var user = userService.getByIdOrThrow(request.getUserId());
-                  var party = new PartyId(PartyId.Type.PERSON, user.getPersonalCode());
+                  var party = new PartyId(PERSON, user.getPersonalCode());
                   BigDecimal amount = request.getFundUnits().multiply(nav).setScale(2, HALF_UP);
 
                   toUpdate.setCashAmount(amount);
@@ -196,7 +199,7 @@ public class RedemptionBatchJob {
 
       try {
         var user = userService.getByIdOrThrow(updated.getUserId());
-        var party = new PartyId(PartyId.Type.PERSON, user.getPersonalCode());
+        var party = new PartyId(PERSON, user.getPersonalCode());
         String beneficiaryName = getBeneficiaryName(party, updated.getCustomerIban());
 
         PaymentRequest paymentRequest =
@@ -225,6 +228,49 @@ public class RedemptionBatchJob {
       }
     }
     return payoutCount;
+  }
+
+  @Transactional
+  public void retryFailedPayout(UUID requestId) {
+    RedemptionRequest request =
+        redemptionRequestRepository
+            .findByIdForUpdate(requestId)
+            .orElseThrow(
+                () -> new NoSuchElementException("Redemption request not found: id=" + requestId));
+
+    if (request.getStatus() != FAILED) {
+      throw new IllegalStateException(
+          "Cannot retry payout: id=" + requestId + ", status=" + request.getStatus());
+    }
+    if (request.getCashAmount() == null) {
+      throw new IllegalStateException("Cannot retry payout, not priced: id=" + requestId);
+    }
+
+    var user = userService.getByIdOrThrow(request.getUserId());
+    var party = new PartyId(PERSON, user.getPersonalCode());
+    String beneficiaryName = getBeneficiaryName(party, request.getCustomerIban());
+
+    PaymentRequest paymentRequest =
+        PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(request.getId()))
+            .remitterIban(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+            .beneficiaryName(beneficiaryName)
+            .beneficiaryIban(request.getCustomerIban())
+            .amount(request.getCashAmount())
+            .description("Fondi tagasivõtmine")
+            .build();
+
+    eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, request.getId()));
+
+    request.setErrorReason(null);
+    redemptionRequestRepository.save(request);
+    markAsRedeemed(request.getId());
+
+    log.info(
+        "Retried failed payout: id={}, amount={}, iban={}, beneficiaryName={}",
+        request.getId(),
+        request.getCashAmount(),
+        request.getCustomerIban(),
+        beneficiaryName);
   }
 
   private void markAsRedeemed(UUID requestId) {

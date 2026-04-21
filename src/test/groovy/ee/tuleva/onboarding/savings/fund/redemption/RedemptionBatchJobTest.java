@@ -8,12 +8,14 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixt
 import static java.time.ZoneOffset.UTC;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.BankAccountConfiguration;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
+import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -25,6 +27,7 @@ import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -527,5 +530,97 @@ class RedemptionBatchJobTest {
     assertThat(event.payoutCount()).isEqualTo(1);
     assertThat(event.totalCashAmount()).isEqualByComparingTo(new BigDecimal("10.00"));
     assertThat(event.nav()).isEqualTo(BigDecimal.ONE);
+  }
+
+  @Test
+  void retryFailedPayout_publishesPaymentEventAndMarksRedeemed() {
+    var batchJob = createBatchJob(Instant.parse("2025-01-15T15:00:00Z"));
+
+    var user = sampleUser().build();
+    var requestId = UUID.fromString("2db696b5-00ee-4937-87b4-8192c675e4b5");
+    var customerIban = "EE067700771004704071";
+    var beneficiaryName = "Jüri Laast-Laas";
+    var cashAmount = new BigDecimal("1009.74");
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .userId(user.getId())
+            .status(FAILED)
+            .customerIban(customerIban)
+            .cashAmount(cashAmount)
+            .errorReason("previous 502 Bad Gateway")
+            .build();
+
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+        .thenReturn("EE801010220306711229");
+    when(savingFundPaymentRepository.findRemitterNameByIban(
+            eq(new PartyId(PartyId.Type.PERSON, user.getPersonalCode())), eq(customerIban)))
+        .thenReturn(Optional.of(beneficiaryName));
+
+    batchJob.retryFailedPayout(requestId);
+
+    var expectedPayment =
+        PaymentRequest.tulevaPaymentBuilder("2db696b500ee493787b48192c675e4b5")
+            .remitterIban("EE801010220306711229")
+            .beneficiaryName(beneficiaryName)
+            .beneficiaryIban(customerIban)
+            .amount(cashAmount)
+            .description("Fondi tagasivõtmine")
+            .build();
+    verify(eventPublisher).publishEvent(new RequestPaymentEvent(expectedPayment, requestId));
+    verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
+    assertThat(request.getErrorReason()).isNull();
+  }
+
+  @Test
+  void retryFailedPayout_throwsIfStatusNotFailed() {
+    var batchJob = createBatchJob(Instant.parse("2025-01-15T15:00:00Z"));
+
+    var requestId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .status(VERIFIED)
+            .cashAmount(new BigDecimal("10.00"))
+            .build();
+
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    assertThatThrownBy(() -> batchJob.retryFailedPayout(requestId))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("VERIFIED");
+    verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
+    verify(redemptionStatusService, never()).changeStatus(any(), any());
+  }
+
+  @Test
+  void retryFailedPayout_throwsIfNotPriced() {
+    var batchJob = createBatchJob(Instant.parse("2025-01-15T15:00:00Z"));
+
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(FAILED).cashAmount(null).build();
+
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    assertThatThrownBy(() -> batchJob.retryFailedPayout(requestId))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("not priced");
+    verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
+    verify(redemptionStatusService, never()).changeStatus(any(), any());
+  }
+
+  @Test
+  void retryFailedPayout_throwsIfNotFound() {
+    var batchJob = createBatchJob(Instant.parse("2025-01-15T15:00:00Z"));
+
+    var requestId = UUID.randomUUID();
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> batchJob.retryFailedPayout(requestId))
+        .isInstanceOf(NoSuchElementException.class);
+    verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
   }
 }

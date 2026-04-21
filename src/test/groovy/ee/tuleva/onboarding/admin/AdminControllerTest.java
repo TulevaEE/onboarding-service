@@ -27,6 +27,7 @@ import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionBatchJob;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -60,6 +61,7 @@ class AdminControllerTest {
   @MockitoBean private FundPositionRepository fundPositionRepository;
   @MockitoBean private ReportImportJob reportImportJob;
   @MockitoBean private FundPositionImportJob fundPositionImportJob;
+  @MockitoBean private RedemptionBatchJob redemptionBatchJob;
   @MockitoBean private Clock clock;
 
   @Test
@@ -480,6 +482,45 @@ class AdminControllerTest {
                 .header("X-Admin-Token", "ops-token")
                 .param("date", "2026-02-17"))
         .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void retryRedemptionPayout_withValidToken_invokesBatchJobAndReturnsOk() throws Exception {
+    var requestId = UUID.fromString("2db696b5-00ee-4937-87b4-8192c675e4b5");
+
+    mockMvc
+        .perform(
+            post("/admin/redemptions/{id}/retry-payout", requestId)
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token"))
+        .andExpect(status().isOk());
+
+    verify(redemptionBatchJob).retryFailedPayout(requestId);
+  }
+
+  @Test
+  void retryRedemptionPayout_withInvalidToken_returnsUnauthorized() throws Exception {
+    var requestId = UUID.randomUUID();
+
+    mockMvc
+        .perform(
+            post("/admin/redemptions/{id}/retry-payout", requestId)
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token"))
+        .andExpect(status().isUnauthorized());
+
+    verify(redemptionBatchJob, never()).retryFailedPayout(any());
+  }
+
+  @Test
+  void retryRedemptionPayout_withMissingToken_returnsBadRequest() throws Exception {
+    var requestId = UUID.randomUUID();
+
+    mockMvc
+        .perform(post("/admin/redemptions/{id}/retry-payout", requestId).with(csrf()))
+        .andExpect(status().isBadRequest());
+
+    verify(redemptionBatchJob, never()).retryFailedPayout(any());
   }
 
   private NavCalculationResult sampleNavResult(LocalDate date) {

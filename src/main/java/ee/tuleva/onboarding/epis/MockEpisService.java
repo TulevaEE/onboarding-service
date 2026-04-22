@@ -23,6 +23,7 @@ import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
+import ee.tuleva.onboarding.secondpillarassets.SecondPillarAssets;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -231,5 +232,20 @@ public class MockEpisService extends EpisService {
   @Override
   public ContactDetails updateContactDetails(Person person, ContactDetails contactDetails) {
     return mockContactDetails();
+  }
+
+  @Override
+  public SecondPillarAssets getSecondPillarAssets(Person person) {
+    return new SecondPillarAssets(
+        new BigDecimal("25000.00"),
+        new BigDecimal("10000.00"),
+        new BigDecimal("8000.00"),
+        new BigDecimal("500.00"),
+        new BigDecimal("12.34"),
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO);
   }
 }

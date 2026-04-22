@@ -20,6 +20,7 @@ import ee.tuleva.onboarding.epis.transaction.*;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
+import ee.tuleva.onboarding.secondpillarassets.SecondPillarAssets;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
@@ -56,6 +57,7 @@ public class EpisService {
   private final String FUND_PENSION_CALCULATION_CACHE_NAME = "fundPensionCalculation";
   private final String FUND_PENSION_STATUS_CACHE_NAME = "fundPensionStatus";
   private final String ARRESTS_BANKRUPTCIES_CACHE_NAME = "arrestsBankruptcies";
+  private final String SECOND_PILLAR_ASSETS_CACHE_NAME = "secondPillarAssets";
 
   private final RestTemplate episRestTemplate;
 
@@ -110,6 +112,7 @@ public class EpisService {
         @CacheEvict(value = FUND_PENSION_CALCULATION_CACHE_NAME, key = "#person.personalCode"),
         @CacheEvict(value = FUND_PENSION_STATUS_CACHE_NAME, key = "#person.personalCode"),
         @CacheEvict(value = ARRESTS_BANKRUPTCIES_CACHE_NAME, key = "#person.personalCode"),
+        @CacheEvict(value = SECOND_PILLAR_ASSETS_CACHE_NAME, key = "#person.personalCode"),
       })
   public void clearCache(Person person) {
     log.info("Clearing cache for {}", person.getPersonalCode());
@@ -211,6 +214,18 @@ public class EpisService {
 
     ResponseEntity<ArrestsBankruptciesDto> response =
         episRestTemplate.exchange(url, GET, getHeadersEntity(), ArrestsBankruptciesDto.class);
+
+    return response.getBody();
+  }
+
+  @Cacheable(value = SECOND_PILLAR_ASSETS_CACHE_NAME, key = "#person.personalCode", sync = true)
+  public SecondPillarAssets getSecondPillarAssets(Person person) {
+    String url = episServiceUrl + "/second-pillar-assets";
+
+    log.info("Getting second pillar assets for {}", person.getPersonalCode());
+
+    ResponseEntity<SecondPillarAssets> response =
+        episRestTemplate.exchange(url, GET, getHeadersEntity(), SecondPillarAssets.class);
 
     return response.getBody();
   }

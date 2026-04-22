@@ -7,8 +7,11 @@ import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixtur
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE;
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate;
+import static ee.tuleva.onboarding.secondpillarassets.SecondPillarAssetsFixture.secondPillarAssetsFixture;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpStatus.OK;
@@ -31,6 +34,7 @@ import ee.tuleva.onboarding.epis.transaction.*;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
+import ee.tuleva.onboarding.secondpillarassets.SecondPillarAssets;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -429,6 +433,23 @@ class EpisServiceTest {
 
     // then
     assertEquals(fixture, result);
+  }
+
+  @Test
+  void getSecondPillarAssets() {
+    setupUserAuthentication();
+    var fixture = secondPillarAssetsFixture();
+    given(
+            restTemplate.exchange(
+                eq("http://epis/second-pillar-assets"),
+                eq(GET),
+                argThat(entity -> doesHttpEntityContainToken(entity, sampleUserToken)),
+                eq(SecondPillarAssets.class)))
+        .willReturn(ResponseEntity.ok(fixture));
+
+    SecondPillarAssets result = service.getSecondPillarAssets(samplePerson);
+
+    assertThat(result).isEqualTo(fixture);
   }
 
   @Test

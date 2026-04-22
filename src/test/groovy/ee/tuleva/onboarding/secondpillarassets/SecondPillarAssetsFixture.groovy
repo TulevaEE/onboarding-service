@@ -4,6 +4,7 @@ class SecondPillarAssetsFixture {
 
   static SecondPillarAssets secondPillarAssetsFixture() {
     return new SecondPillarAssets(
+        false,
         25000.00,
         10000.00,
         8000.00,

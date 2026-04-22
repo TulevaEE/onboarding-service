@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.secondpillarassets;
 import java.math.BigDecimal;
 
 public record SecondPillarAssets(
+    boolean pikFlag,
     BigDecimal balance,
     BigDecimal employeeWithheldPortion,
     BigDecimal socialTaxPortion,

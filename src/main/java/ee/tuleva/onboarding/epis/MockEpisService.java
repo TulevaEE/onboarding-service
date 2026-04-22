@@ -237,6 +237,7 @@ public class MockEpisService extends EpisService {
   @Override
   public SecondPillarAssets getSecondPillarAssets(Person person) {
     return new SecondPillarAssets(
+        false,
         new BigDecimal("25000.00"),
         new BigDecimal("10000.00"),
         new BigDecimal("8000.00"),

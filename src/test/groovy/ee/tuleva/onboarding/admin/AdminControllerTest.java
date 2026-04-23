@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.admin;
 
+import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
@@ -24,6 +25,8 @@ import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.savings.fund.CompanyAlreadyHasOnboardingStatusException;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
@@ -62,6 +65,7 @@ class AdminControllerTest {
   @MockitoBean private ReportImportJob reportImportJob;
   @MockitoBean private FundPositionImportJob fundPositionImportJob;
   @MockitoBean private RedemptionBatchJob redemptionBatchJob;
+  @MockitoBean private SavingsFundOnboardingService savingsFundOnboardingService;
   @MockitoBean private Clock clock;
 
   @Test
@@ -521,6 +525,81 @@ class AdminControllerTest {
         .andExpect(status().isBadRequest());
 
     verify(redemptionBatchJob, never()).retryFailedPayout(any());
+  }
+
+  @Test
+  void whitelistCompany_withValidToken_delegatesToServiceWithoutOverride() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/whitelist-company")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("registryCode", "12345678"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("12345678")));
+
+    verify(savingsFundOnboardingService).whitelistLegalEntity("12345678", false);
+  }
+
+  @Test
+  void whitelistCompany_withOverrideTrue_passesFlagToService() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/whitelist-company")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("registryCode", "12345678")
+                .param("override", "true"))
+        .andExpect(status().isOk());
+
+    verify(savingsFundOnboardingService).whitelistLegalEntity("12345678", true);
+  }
+
+  @Test
+  void whitelistCompany_whenServiceThrowsConflict_returnsConflict() throws Exception {
+    doThrow(new CompanyAlreadyHasOnboardingStatusException("12345678", REJECTED))
+        .when(savingsFundOnboardingService)
+        .whitelistLegalEntity("12345678", false);
+
+    mockMvc
+        .perform(
+            post("/admin/whitelist-company")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("registryCode", "12345678"))
+        .andExpect(status().isConflict());
+  }
+
+  @Test
+  void whitelistCompany_withInvalidToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/whitelist-company")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .param("registryCode", "12345678"))
+        .andExpect(status().isUnauthorized());
+
+    verify(savingsFundOnboardingService, never()).whitelistLegalEntity(any(), anyBoolean());
+  }
+
+  @Test
+  void whitelistCompany_withMissingToken_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(post("/admin/whitelist-company").with(csrf()).param("registryCode", "12345678"))
+        .andExpect(status().isBadRequest());
+
+    verify(savingsFundOnboardingService, never()).whitelistLegalEntity(any(), anyBoolean());
+  }
+
+  @Test
+  void whitelistCompany_withMissingRegistryCode_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/whitelist-company").with(csrf()).header("X-Admin-Token", "valid-token"))
+        .andExpect(status().isBadRequest());
+
+    verify(savingsFundOnboardingService, never()).whitelistLegalEntity(any(), anyBoolean());
   }
 
   private NavCalculationResult sampleNavResult(LocalDate date) {

@@ -7,6 +7,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 @RequiredArgsConstructor
@@ -28,6 +29,7 @@ public class SavingsFundOnboardingRepository {
         .map(SavingsFundOnboardingStatus::valueOf);
   }
 
+  @Transactional
   public void saveOnboardingStatus(
       String code, PartyId.Type type, SavingsFundOnboardingStatus status) {
     jdbcClient

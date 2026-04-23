@@ -1,13 +1,18 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.*;
+import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.user.User;
@@ -85,5 +90,72 @@ class SavingsFundOnboardingServiceTest {
 
     assertThat(savingsFundOnboardingService.getOnboardingStatus(new PartyId(PERSON, "38501010001")))
         .isEqualTo(COMPLETED);
+  }
+
+  @Test
+  void whitelistLegalEntity_withNoExistingStatus_savesWhitelistedAndPublishesEvent() {
+    given(savingsFundOnboardingRepository.findStatus("12345678", LEGAL_ENTITY))
+        .willReturn(Optional.empty());
+
+    savingsFundOnboardingService.whitelistLegalEntity("12345678", false);
+
+    verify(savingsFundOnboardingRepository)
+        .saveOnboardingStatus("12345678", LEGAL_ENTITY, WHITELISTED);
+
+    var event = captureTrackableSystemEvent();
+    assertThat(event.getType()).isEqualTo(SAVINGS_FUND_ONBOARDING_STATUS_CHANGE);
+    assertThat(event.getData())
+        .doesNotContainKey("oldStatus")
+        .containsEntry("partyType", "LEGAL_ENTITY")
+        .containsEntry("registryCode", "12345678")
+        .containsEntry("newStatus", WHITELISTED)
+        .containsEntry("outcome", "WHITELISTED")
+        .containsEntry("override", false);
+  }
+
+  @Test
+  void whitelistLegalEntity_withExistingNonWhitelistedStatusAndNoOverride_throwsConflict() {
+    given(savingsFundOnboardingRepository.findStatus("12345678", LEGAL_ENTITY))
+        .willReturn(Optional.of(REJECTED));
+
+    assertThatThrownBy(() -> savingsFundOnboardingService.whitelistLegalEntity("12345678", false))
+        .isInstanceOf(CompanyAlreadyHasOnboardingStatusException.class);
+
+    verify(savingsFundOnboardingRepository, never()).saveOnboardingStatus(any(), any(), any());
+    verify(eventPublisher, never()).publishEvent(any(TrackableSystemEvent.class));
+  }
+
+  @Test
+  void
+      whitelistLegalEntity_withExistingNonWhitelistedStatusAndOverrideTrue_savesAndEmitsOldStatus() {
+    given(savingsFundOnboardingRepository.findStatus("12345678", LEGAL_ENTITY))
+        .willReturn(Optional.of(REJECTED));
+
+    savingsFundOnboardingService.whitelistLegalEntity("12345678", true);
+
+    verify(savingsFundOnboardingRepository)
+        .saveOnboardingStatus("12345678", LEGAL_ENTITY, WHITELISTED);
+
+    assertThat(captureTrackableSystemEvent().getData())
+        .containsEntry("oldStatus", REJECTED)
+        .containsEntry("newStatus", WHITELISTED)
+        .containsEntry("override", true);
+  }
+
+  @Test
+  void whitelistLegalEntity_withExistingWhitelistedStatus_isNoOp() {
+    given(savingsFundOnboardingRepository.findStatus("12345678", LEGAL_ENTITY))
+        .willReturn(Optional.of(WHITELISTED));
+
+    savingsFundOnboardingService.whitelistLegalEntity("12345678", false);
+
+    verify(savingsFundOnboardingRepository, never()).saveOnboardingStatus(any(), any(), any());
+    verify(eventPublisher, never()).publishEvent(any(TrackableSystemEvent.class));
+  }
+
+  private TrackableSystemEvent captureTrackableSystemEvent() {
+    var captor = ArgumentCaptor.forClass(TrackableSystemEvent.class);
+    verify(eventPublisher).publishEvent(captor.capture());
+    return captor.getValue();
   }
 }

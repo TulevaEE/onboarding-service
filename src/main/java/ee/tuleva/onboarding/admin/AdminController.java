@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.investment.report.ReportProvider;
 import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
@@ -55,6 +56,7 @@ public class AdminController {
   private final ReportImportJob reportImportJob;
   private final FundPositionImportJob fundPositionImportJob;
   private final RedemptionBatchJob redemptionBatchJob;
+  private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final Clock clock;
 
   @Value("${admin.api-token:}")
@@ -268,6 +270,18 @@ public class AdminController {
     redemptionBatchJob.retryFailedPayout(id);
 
     return "Retried redemption payout for " + id;
+  }
+
+  @PostMapping("/whitelist-company")
+  public String whitelistCompany(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam String registryCode,
+      @RequestParam(defaultValue = "false") boolean override) {
+
+    validateToken(token);
+    savingsFundOnboardingService.whitelistLegalEntity(registryCode, override);
+
+    return "Whitelisted company: registryCode=" + registryCode;
   }
 
   @PostMapping("/blackrock-adjustment")

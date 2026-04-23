@@ -13,4 +13,5 @@ public record SecondPillarAssets(
     BigDecimal insurance,
     BigDecimal corrections,
     BigDecimal inheritance,
-    BigDecimal withdrawals) {}
+    BigDecimal withdrawals,
+    BigDecimal transferredToPik) {}

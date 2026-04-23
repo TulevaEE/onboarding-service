@@ -247,6 +247,7 @@ public class MockEpisService extends EpisService {
         BigDecimal.ZERO,
         BigDecimal.ZERO,
         BigDecimal.ZERO,
+        BigDecimal.ZERO,
         BigDecimal.ZERO);
   }
 }

@@ -12,7 +12,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import ee.tuleva.onboarding.epis.EpisService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,7 +29,7 @@ class SecondPillarAssetsControllerTest {
 
   @Autowired private MockMvc mvc;
 
-  @MockitoBean private EpisService episService;
+  @MockitoBean private SecondPillarAssetsService secondPillarAssetsService;
 
   @Test
   void getSecondPillarAssets_returnsBreakdownForAuthenticatedUser() throws Exception {
@@ -39,7 +38,7 @@ class SecondPillarAssetsControllerTest {
         new UsernamePasswordAuthenticationToken(
             person, null, List.of(new SimpleGrantedAuthority(USER)));
     SecondPillarAssets assets = secondPillarAssetsFixture();
-    given(episService.getSecondPillarAssets(person)).willReturn(assets);
+    given(secondPillarAssetsService.getSecondPillarAssets(person)).willReturn(assets);
 
     mvc.perform(get("/v1/second-pillar-assets").with(csrf()).with(authentication(auth)))
         .andExpect(status().isOk())
@@ -58,6 +57,7 @@ class SecondPillarAssetsControllerTest {
         .andExpect(jsonPath("$.insurance", is(assets.insurance().doubleValue())))
         .andExpect(jsonPath("$.corrections", is(assets.corrections().doubleValue())))
         .andExpect(jsonPath("$.inheritance", is(assets.inheritance().doubleValue())))
-        .andExpect(jsonPath("$.withdrawals", is(assets.withdrawals().doubleValue())));
+        .andExpect(jsonPath("$.withdrawals", is(assets.withdrawals().doubleValue())))
+        .andExpect(jsonPath("$.transferredToPik", is(assets.transferredToPik().doubleValue())));
   }
 }

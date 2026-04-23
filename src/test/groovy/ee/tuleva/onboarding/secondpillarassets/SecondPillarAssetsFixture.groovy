@@ -15,6 +15,24 @@ class SecondPillarAssetsFixture {
         0.00,
         0.00,
         0.00,
+        0.00,
+    )
+  }
+
+  static SecondPillarAssets secondPillarAssetsFixtureWithPik() {
+    return new SecondPillarAssets(
+        true,
+        25000.00,
+        10000.00,
+        8000.00,
+        500.00,
+        12.34,
+        0.00,
+        0.00,
+        0.00,
+        0.00,
+        0.00,
+        0.00,
     )
   }
 }

@@ -6,6 +6,8 @@ import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CAS
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH_WORKPLACE;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.REFUND;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.SUBTRACTION;
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.TRANSFER_FROM_PIK;
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.TRANSFER_TO_PIK;
 import static java.util.Comparator.comparing;
 import static java.util.Comparator.nullsLast;
 
@@ -68,6 +70,14 @@ public class CashFlow implements Comparable<CashFlow> {
     return type == REFUND;
   }
 
+  public boolean isTransferToPik() {
+    return type == TRANSFER_TO_PIK;
+  }
+
+  public boolean isTransferFromPik() {
+    return type == TRANSFER_FROM_PIK;
+  }
+
   @Override
   public int compareTo(@NotNull CashFlow other) {
     return comparing(CashFlow::getTime)
@@ -91,6 +101,8 @@ public class CashFlow implements Comparable<CashFlow> {
     SUBTRACTION,
     CASH,
     REFUND,
+    TRANSFER_TO_PIK,
+    TRANSFER_FROM_PIK,
     OTHER
   }
 }

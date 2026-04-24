@@ -23,6 +23,8 @@ import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.config.InvestmentParameter;
+import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.fees.FeeRate;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
@@ -54,6 +56,7 @@ class TrackingDifferenceServiceTest {
   @Mock PublicHolidays publicHolidays;
   @Mock FeeRateRepository feeRateRepository;
   @Mock TrackingDifferenceEventRepository eventRepository;
+  @Mock InvestmentParameterRepository parameterRepository;
 
   private TrackingDifferenceService service;
 
@@ -70,6 +73,16 @@ class TrackingDifferenceServiceTest {
     lenient()
         .when(publicHolidays.nextWorkingDay(any(LocalDate.class)))
         .thenAnswer(inv -> ((LocalDate) inv.getArgument(0)).plusDays(1));
+    lenient()
+        .when(
+            parameterRepository.findLatestValue(
+                eq(InvestmentParameter.TRACKING_BREACH_THRESHOLD), any(LocalDate.class)))
+        .thenReturn(new BigDecimal("0.005"));
+    lenient()
+        .when(
+            parameterRepository.findLatestValue(
+                eq(InvestmentParameter.TRACKING_MAX_DAILY_RETURN), any(LocalDate.class)))
+        .thenReturn(new BigDecimal("0.5"));
     service =
         new TrackingDifferenceService(
             FIXED_CLOCK,
@@ -81,7 +94,7 @@ class TrackingDifferenceServiceTest {
             publicHolidays,
             feeRateRepository,
             eventRepository,
-            new TrackingDifferenceCalculator());
+            new TrackingDifferenceCalculator(parameterRepository));
   }
 
   @Test

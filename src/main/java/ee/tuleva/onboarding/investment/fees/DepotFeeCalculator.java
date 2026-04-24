@@ -17,8 +17,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class DepotFeeCalculator implements FeeCalculator {
 
-  private static final BigDecimal MIN_ANNUAL_RATE = new BigDecimal("0.00020");
-
   private final DepotFeeTierRepository tierRepository;
   private final FundPositionRepository fundPositionRepository;
   private final FeeMonthResolver feeMonthResolver;
@@ -67,8 +65,7 @@ public class DepotFeeCalculator implements FeeCalculator {
   private BigDecimal determineDepotRateFromTier(LocalDate feeMonth) {
     LocalDate previousMonthEnd = feeMonth.minusDays(1);
     BigDecimal historicalMaxAum = getHistoricalMaxTotalValue(previousMonthEnd);
-    BigDecimal tierRate = tierRepository.findRateForAum(historicalMaxAum, feeMonth);
-    return tierRate.max(MIN_ANNUAL_RATE);
+    return tierRepository.findRateForAum(historicalMaxAum, feeMonth);
   }
 
   private BigDecimal getHistoricalMaxTotalValue(LocalDate upToDate) {

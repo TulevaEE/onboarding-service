@@ -28,7 +28,7 @@ class ManagementFeeCalculatorTest {
   void calculate_returnsCorrectDailyFee() {
     LocalDate date = LocalDate.of(2025, 1, 15);
     BigDecimal baseValue = new BigDecimal("1000000000");
-    BigDecimal annualRate = new BigDecimal("0.00215");
+    BigDecimal annualRate = new BigDecimal("0.02");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(LocalDate.of(2025, 1, 1));
     when(feeRateRepository.findValidRate(TUK75, MANAGEMENT, date))

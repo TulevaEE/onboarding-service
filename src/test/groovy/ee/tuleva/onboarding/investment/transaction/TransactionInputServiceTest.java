@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.*;
@@ -138,7 +139,8 @@ class TransactionInputServiceTest {
             eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
         .thenReturn(ZERO);
     when(modelPortfolioAllocationRepository.findLatestByFund(TUV100)).thenReturn(List.of());
-    when(fundLimitRepository.findLatestByFund(TUV100)).thenReturn(Optional.empty());
+    when(fundLimitRepository.findLatestByFund(TUV100))
+        .thenReturn(Optional.of(zeroFundLimit(TUV100)));
     when(positionLimitRepository.findLatestByFund(TUV100)).thenReturn(List.of());
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
@@ -177,7 +179,8 @@ class TransactionInputServiceTest {
     when(modelPortfolioAllocationRepository.findLatestByFund(TUV100))
         .thenReturn(List.of(fastAllocation, normalAllocation));
 
-    when(fundLimitRepository.findLatestByFund(TUV100)).thenReturn(Optional.empty());
+    when(fundLimitRepository.findLatestByFund(TUV100))
+        .thenReturn(Optional.of(zeroFundLimit(TUV100)));
     when(positionLimitRepository.findLatestByFund(TUV100)).thenReturn(List.of());
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
@@ -217,7 +220,8 @@ class TransactionInputServiceTest {
     when(modelPortfolioAllocationRepository.findLatestByFund(TUV100))
         .thenReturn(List.of(etfAllocation, fundAllocation));
 
-    when(fundLimitRepository.findLatestByFund(TUV100)).thenReturn(Optional.empty());
+    when(fundLimitRepository.findLatestByFund(TUV100))
+        .thenReturn(Optional.of(zeroFundLimit(TUV100)));
     when(positionLimitRepository.findLatestByFund(TUV100)).thenReturn(List.of());
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
@@ -259,7 +263,8 @@ class TransactionInputServiceTest {
         .thenReturn(new BigDecimal("3000"));
 
     when(modelPortfolioAllocationRepository.findLatestByFund(TKF100)).thenReturn(List.of());
-    when(fundLimitRepository.findLatestByFund(TKF100)).thenReturn(Optional.empty());
+    when(fundLimitRepository.findLatestByFund(TKF100))
+        .thenReturn(Optional.of(zeroFundLimit(TKF100)));
     when(positionLimitRepository.findLatestByFund(TKF100)).thenReturn(List.of());
 
     when(navLedgerRepository.getSystemAccountBalance("INCOMING_PAYMENTS_CLEARING"))
@@ -292,7 +297,8 @@ class TransactionInputServiceTest {
             eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
         .thenReturn(new BigDecimal("1000"));
     when(modelPortfolioAllocationRepository.findLatestByFund(TUV100)).thenReturn(List.of());
-    when(fundLimitRepository.findLatestByFund(TUV100)).thenReturn(Optional.empty());
+    when(fundLimitRepository.findLatestByFund(TUV100))
+        .thenReturn(Optional.of(zeroFundLimit(TUV100)));
     when(positionLimitRepository.findLatestByFund(TUV100)).thenReturn(List.of());
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
@@ -315,7 +321,8 @@ class TransactionInputServiceTest {
             eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
         .thenReturn(new BigDecimal("1000"));
     when(modelPortfolioAllocationRepository.findLatestByFund(TUV100)).thenReturn(List.of());
-    when(fundLimitRepository.findLatestByFund(TUV100)).thenReturn(Optional.empty());
+    when(fundLimitRepository.findLatestByFund(TUV100))
+        .thenReturn(Optional.of(zeroFundLimit(TUV100)));
     when(positionLimitRepository.findLatestByFund(TUV100)).thenReturn(List.of());
 
     Map<String, Object> adjustments =
@@ -331,7 +338,28 @@ class TransactionInputServiceTest {
   }
 
   @Test
-  void gatherInput_withNullReserveSoft_usesDefaultCashBuffer() {
+  void gatherInput_throwsWhenFundLimitMissing() {
+    var positionDate = AS_OF_DATE;
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .thenReturn(Optional.of(positionDate));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .thenReturn(List.of());
+    when(feeAccrualRepository.getAccruedFeesForMonth(
+            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+        .thenReturn(ZERO);
+    when(modelPortfolioAllocationRepository.findLatestByFund(TUV100)).thenReturn(List.of());
+    when(fundLimitRepository.findLatestByFund(TUV100)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.gatherInput(TUV100, AS_OF_DATE, Map.of()))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("No fund limit found")
+        .hasMessageContaining("fund=TUV100");
+  }
+
+  @Test
+  void gatherInput_throwsWhenReserveSoftNull() {
     var positionDate = AS_OF_DATE;
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
         .thenReturn(Optional.of(positionDate));
@@ -344,14 +372,40 @@ class TransactionInputServiceTest {
         .thenReturn(ZERO);
     when(modelPortfolioAllocationRepository.findLatestByFund(TUV100)).thenReturn(List.of());
 
-    var fundLimit = FundLimit.builder().fund(TUV100).reserveSoft(null).minTransaction(null).build();
+    var fundLimit = FundLimit.builder().fund(TUV100).reserveSoft(null).minTransaction(ZERO).build();
     when(fundLimitRepository.findLatestByFund(TUV100)).thenReturn(Optional.of(fundLimit));
-    when(positionLimitRepository.findLatestByFund(TUV100)).thenReturn(List.of());
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    assertThatThrownBy(() -> service.gatherInput(TUV100, AS_OF_DATE, Map.of()))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Fund limit field is missing")
+        .hasMessageContaining("field=reserveSoft");
+  }
 
-    assertThat(result.cashBuffer()).isEqualByComparingTo(ZERO);
-    assertThat(result.minTransactionThreshold()).isEqualByComparingTo(new BigDecimal("50000"));
+  @Test
+  void gatherInput_throwsWhenMinTransactionNull() {
+    var positionDate = AS_OF_DATE;
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .thenReturn(Optional.of(positionDate));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .thenReturn(List.of());
+    when(feeAccrualRepository.getAccruedFeesForMonth(
+            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+        .thenReturn(ZERO);
+    when(modelPortfolioAllocationRepository.findLatestByFund(TUV100)).thenReturn(List.of());
+
+    var fundLimit = FundLimit.builder().fund(TUV100).reserveSoft(ZERO).minTransaction(null).build();
+    when(fundLimitRepository.findLatestByFund(TUV100)).thenReturn(Optional.of(fundLimit));
+
+    assertThatThrownBy(() -> service.gatherInput(TUV100, AS_OF_DATE, Map.of()))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Fund limit field is missing")
+        .hasMessageContaining("field=minTransaction");
+  }
+
+  private static FundLimit zeroFundLimit(TulevaFund fund) {
+    return FundLimit.builder().fund(fund).reserveSoft(ZERO).minTransaction(ZERO).build();
   }
 
   @Test
@@ -383,7 +437,8 @@ class TransactionInputServiceTest {
             eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
         .thenReturn(ZERO);
     when(modelPortfolioAllocationRepository.findLatestByFund(TUV100)).thenReturn(List.of());
-    when(fundLimitRepository.findLatestByFund(TUV100)).thenReturn(Optional.empty());
+    when(fundLimitRepository.findLatestByFund(TUV100))
+        .thenReturn(Optional.of(zeroFundLimit(TUV100)));
     when(positionLimitRepository.findLatestByFund(TUV100)).thenReturn(List.of());
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
@@ -406,7 +461,8 @@ class TransactionInputServiceTest {
             eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
         .thenReturn(ZERO);
     when(modelPortfolioAllocationRepository.findLatestByFund(TUV100)).thenReturn(List.of());
-    when(fundLimitRepository.findLatestByFund(TUV100)).thenReturn(Optional.empty());
+    when(fundLimitRepository.findLatestByFund(TUV100))
+        .thenReturn(Optional.of(zeroFundLimit(TUV100)));
     when(positionLimitRepository.findLatestByFund(TUV100)).thenReturn(List.of());
 
     Map<String, Object> adjustments = Map.of("additionalLiabilities", "not-a-number");
@@ -443,7 +499,8 @@ class TransactionInputServiceTest {
     when(modelPortfolioAllocationRepository.findLatestByFund(TUV100))
         .thenReturn(List.of(allocationWithIsin, allocationWithoutIsin));
 
-    when(fundLimitRepository.findLatestByFund(TUV100)).thenReturn(Optional.empty());
+    when(fundLimitRepository.findLatestByFund(TUV100))
+        .thenReturn(Optional.of(zeroFundLimit(TUV100)));
     when(positionLimitRepository.findLatestByFund(TUV100)).thenReturn(List.of());
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
@@ -471,7 +528,8 @@ class TransactionInputServiceTest {
             eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
         .thenReturn(ZERO);
     when(modelPortfolioAllocationRepository.findLatestByFund(TUV100)).thenReturn(List.of());
-    when(fundLimitRepository.findLatestByFund(TUV100)).thenReturn(Optional.empty());
+    when(fundLimitRepository.findLatestByFund(TUV100))
+        .thenReturn(Optional.of(zeroFundLimit(TUV100)));
     when(positionLimitRepository.findLatestByFund(TUV100)).thenReturn(List.of());
 
     var pendingBuyOrder =

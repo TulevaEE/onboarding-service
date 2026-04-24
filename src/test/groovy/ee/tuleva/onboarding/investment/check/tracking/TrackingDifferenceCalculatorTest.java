@@ -2,18 +2,46 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_BREACH_THRESHOLD;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_MAX_DAILY_RETURN;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.SecurityData;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.TrackingInput;
+import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
+@ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class TrackingDifferenceCalculatorTest {
 
-  private final TrackingDifferenceCalculator calculator = new TrackingDifferenceCalculator();
+  private static final LocalDate CHECK_DATE = LocalDate.of(2026, 4, 3);
+  private static final BigDecimal BREACH_THRESHOLD = new BigDecimal("0.005");
+  private static final BigDecimal MAX_DAILY_RETURN = new BigDecimal("0.5");
+
+  @Mock private InvestmentParameterRepository parameterRepository;
+
+  @InjectMocks private TrackingDifferenceCalculator calculator;
+
+  @BeforeEach
+  void setUp() {
+    given(parameterRepository.findLatestValue(TRACKING_BREACH_THRESHOLD, CHECK_DATE))
+        .willReturn(BREACH_THRESHOLD);
+    given(parameterRepository.findLatestValue(TRACKING_MAX_DAILY_RETURN, CHECK_DATE))
+        .willReturn(MAX_DAILY_RETURN);
+  }
 
   @Test
   void calculatesFundDailyReturn() {
@@ -37,7 +65,6 @@ class TrackingDifferenceCalculatorTest {
     var result = calculator.calculate(input);
 
     assertThat(result).isPresent();
-    // model return = 0.60 * 0.02 + 0.40 * (-0.01) = 0.012 - 0.004 = 0.008
     assertThat(result.get().benchmarkReturn()).isEqualByComparingTo(new BigDecimal("0.008"));
   }
 
@@ -51,7 +78,7 @@ class TrackingDifferenceCalculatorTest {
     var input =
         TrackingInput.builder()
             .fund(TUK75)
-            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkDate(CHECK_DATE)
             .checkType(MODEL_PORTFOLIO)
             .todayNav(new BigDecimal("10.10"))
             .yesterdayNav(new BigDecimal("10.00"))
@@ -63,7 +90,6 @@ class TrackingDifferenceCalculatorTest {
     var result = calculator.calculate(input);
 
     assertThat(result).isPresent();
-    // fund return = 0.01, model return = 0.008, TD = 0.002
     assertThat(result.get().trackingDifference()).isEqualByComparingTo(new BigDecimal("0.002"));
   }
 
@@ -75,7 +101,7 @@ class TrackingDifferenceCalculatorTest {
     var input =
         TrackingInput.builder()
             .fund(TUK75)
-            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkDate(CHECK_DATE)
             .checkType(MODEL_PORTFOLIO)
             .todayNav(new BigDecimal("10.30"))
             .yesterdayNav(new BigDecimal("10.00"))
@@ -87,7 +113,7 @@ class TrackingDifferenceCalculatorTest {
     var result = calculator.calculate(input);
 
     assertThat(result).isPresent();
-    // fund return = 0.03, model return = 0.02, TD = 0.01 > 0.001
+    // fund return = 0.03, model return = 0.02, TD = 0.01 > 0.005 threshold
     assertThat(result.get().breach()).isTrue();
   }
 
@@ -99,7 +125,7 @@ class TrackingDifferenceCalculatorTest {
     var input =
         TrackingInput.builder()
             .fund(TUK75)
-            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkDate(CHECK_DATE)
             .checkType(MODEL_PORTFOLIO)
             .todayNav(new BigDecimal("10.10"))
             .yesterdayNav(new BigDecimal("10.00"))
@@ -111,7 +137,6 @@ class TrackingDifferenceCalculatorTest {
     var result = calculator.calculate(input);
 
     assertThat(result).isPresent();
-    // fund return = 0.01, model return = 0.01, TD = 0
     assertThat(result.get().breach()).isFalse();
   }
 
@@ -132,13 +157,11 @@ class TrackingDifferenceCalculatorTest {
 
     var attrA =
         attributions.stream().filter(a -> a.isin().equals("IE00A")).findFirst().orElseThrow();
-    // weight diff = 0.55 - 0.60 = -0.05, return = 0.02, contribution = -0.05 * 0.02 = -0.001
     assertThat(attrA.weightDifference()).isEqualByComparingTo(new BigDecimal("-0.05"));
     assertThat(attrA.contribution()).isEqualByComparingTo(new BigDecimal("-0.001"));
 
     var attrB =
         attributions.stream().filter(a -> a.isin().equals("IE00B")).findFirst().orElseThrow();
-    // weight diff = 0.45 - 0.40 = 0.05, return = -0.01, contribution = 0.05 * (-0.01) = -0.0005
     assertThat(attrB.weightDifference()).isEqualByComparingTo(new BigDecimal("0.05"));
     assertThat(attrB.contribution()).isEqualByComparingTo(new BigDecimal("-0.0005"));
   }
@@ -151,7 +174,7 @@ class TrackingDifferenceCalculatorTest {
     var input =
         TrackingInput.builder()
             .fund(TUK75)
-            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkDate(CHECK_DATE)
             .checkType(MODEL_PORTFOLIO)
             .todayNav(new BigDecimal("10.10"))
             .yesterdayNav(new BigDecimal("10.00"))
@@ -163,8 +186,6 @@ class TrackingDifferenceCalculatorTest {
     var result = calculator.calculate(input);
 
     assertThat(result).isPresent();
-    // model return = 1.00 * 0.02 = 0.02
-    // cash drag = -(0.05) * 0.02 = -0.001
     assertThat(result.get().cashDrag()).isEqualByComparingTo(new BigDecimal("-0.001"));
   }
 
@@ -176,19 +197,18 @@ class TrackingDifferenceCalculatorTest {
     var input =
         TrackingInput.builder()
             .fund(TUK75)
-            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkDate(CHECK_DATE)
             .checkType(MODEL_PORTFOLIO)
             .todayNav(new BigDecimal("10.20"))
             .yesterdayNav(new BigDecimal("10.00"))
             .securities(securities)
             .cashWeight(BigDecimal.ZERO)
-            .annualFeeRate(new BigDecimal("0.00365"))
+            .annualFeeRate(new BigDecimal("0.02"))
             .build();
 
     var result = calculator.calculate(input);
 
     assertThat(result).isPresent();
-    // fee drag = -(0.00365 / 365) = -0.00001
     assertThat(result.get().feeDrag()).isNegative();
   }
 
@@ -202,7 +222,7 @@ class TrackingDifferenceCalculatorTest {
     var input =
         TrackingInput.builder()
             .fund(TUK75)
-            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkDate(CHECK_DATE)
             .checkType(MODEL_PORTFOLIO)
             .todayNav(new BigDecimal("10.10"))
             .yesterdayNav(new BigDecimal("10.00"))
@@ -221,7 +241,6 @@ class TrackingDifferenceCalculatorTest {
             .reduce(BigDecimal.ZERO, BigDecimal::add)
             .add(result.get().cashDrag())
             .add(result.get().feeDrag());
-    // residual = TD - attributed
     assertThat(result.get().residual()).isEqualByComparingTo(td.subtract(attributedSum));
   }
 
@@ -244,7 +263,7 @@ class TrackingDifferenceCalculatorTest {
     var result = calculator.calculate(input);
 
     assertThat(result).isPresent();
-    // 100% return > 25% threshold, clamped to 0
+    // 100% return > 50% threshold, clamped to 0
     assertThat(result.get().benchmarkReturn()).isEqualByComparingTo(BigDecimal.ZERO);
   }
 
@@ -266,8 +285,28 @@ class TrackingDifferenceCalculatorTest {
 
     assertThat(result).isPresent();
     assertThat(result.get().securityAttributions()).hasSize(1);
-    // model return only from IE00A: 0.60 * 0.02 = 0.012
     assertThat(result.get().benchmarkReturn()).isEqualByComparingTo(new BigDecimal("0.012"));
+  }
+
+  @Test
+  void throwsWhenBreachThresholdParameterMissing() {
+    given(parameterRepository.findLatestValue(TRACKING_BREACH_THRESHOLD, CHECK_DATE))
+        .willThrow(
+            new IllegalStateException(
+                "No investment parameter found: parameter=TRACKING_BREACH_THRESHOLD"));
+
+    var input = inputWithNav(new BigDecimal("10.10"), new BigDecimal("10.00"));
+
+    assertThatThrownBy(() -> calculator.calculate(input))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("parameter=TRACKING_BREACH_THRESHOLD");
+  }
+
+  @Test
+  void breachThreshold_delegatesToRepository() {
+    BigDecimal value = calculator.breachThreshold(CHECK_DATE);
+
+    assertThat(value).isEqualByComparingTo(BREACH_THRESHOLD);
   }
 
   private TrackingInput inputWithNav(BigDecimal todayNav, BigDecimal yesterdayNav) {
@@ -276,7 +315,7 @@ class TrackingDifferenceCalculatorTest {
 
     return TrackingInput.builder()
         .fund(TUK75)
-        .checkDate(LocalDate.of(2026, 4, 3))
+        .checkDate(CHECK_DATE)
         .checkType(MODEL_PORTFOLIO)
         .todayNav(todayNav)
         .yesterdayNav(yesterdayNav)
@@ -289,7 +328,7 @@ class TrackingDifferenceCalculatorTest {
   private TrackingInput inputWithSecurities(List<SecurityData> securities) {
     return TrackingInput.builder()
         .fund(TUK75)
-        .checkDate(LocalDate.of(2026, 4, 3))
+        .checkDate(CHECK_DATE)
         .checkType(MODEL_PORTFOLIO)
         .todayNav(new BigDecimal("10.10"))
         .yesterdayNav(new BigDecimal("10.00"))

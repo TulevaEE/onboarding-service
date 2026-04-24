@@ -3,26 +3,38 @@ package ee.tuleva.onboarding.investment.check.tracking;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class TrackingDifferenceNotifierTest {
 
   @Mock OperationsNotificationService notificationService;
+  @Mock TrackingDifferenceCalculator calculator;
 
   @InjectMocks TrackingDifferenceNotifier notifier;
+
+  @BeforeEach
+  void setUp() {
+    given(calculator.breachThreshold(any(LocalDate.class))).willReturn(new BigDecimal("0.002"));
+  }
 
   @Test
   void sendsAllClearWhenNoBreaches() {
@@ -87,7 +99,7 @@ class TrackingDifferenceNotifierTest {
 
   @Test
   void sendsEscalationWhenThreeConsecutiveDaysAndNetSumExceedsThreshold() {
-    var result = result(true, 3, new BigDecimal("0.0045"));
+    var result = result(true, 3, new BigDecimal("0.005"));
 
     notifier.notify(List.of(result));
 
@@ -96,8 +108,8 @@ class TrackingDifferenceNotifierTest {
 
   @Test
   void noEscalationWhenNetSumBelowThreshold() {
-    // 3 consecutive days but alternating +/- that net to below threshold
-    var result = result(true, 3, new BigDecimal("0.0005"));
+    // 3 consecutive days but net sum below the 0.002 threshold
+    var result = result(true, 3, new BigDecimal("0.001"));
 
     notifier.notify(List.of(result));
 

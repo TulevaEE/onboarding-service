@@ -227,7 +227,7 @@ class TrackingDifferenceService {
             .subtract(yesterdayNav.value())
             .divide(yesterdayNav.value(), 6, RoundingMode.HALF_UP);
     var td = fundReturn.subtract(benchmarkReturn.get());
-    var breach = td.abs().compareTo(TrackingDifferenceCalculator.BREACH_THRESHOLD) >= 0;
+    var breach = td.abs().compareTo(calculator.breachThreshold(checkDate)) >= 0;
 
     var priorBreaches = countConsecutiveBreaches(fund, BENCHMARK, checkDate);
     int days = breach ? priorBreaches.count() + 1 : 0;

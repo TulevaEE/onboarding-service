@@ -162,7 +162,7 @@ class FeeCalculationIntegrationTest {
             VALUES (:minAum, :annualRate, :validFrom)
             """)
         .param("minAum", 0)
-        .param("annualRate", new BigDecimal("0.00035"))
+        .param("annualRate", new BigDecimal("0.01"))
         .param("validFrom", LocalDate.of(2025, 1, 1))
         .update();
   }

@@ -197,8 +197,8 @@ class MultiFundNavVerificationTest {
             VALUES (:fundCode, 'DEPOT', :annualRate, :validFrom, 'TEST')
             """)
         .param("fundCode", fund.name())
-        .param("annualRate", new BigDecimal("0.00035"))
-        .param("validFrom", validFrom)
+        .param("annualRate", new BigDecimal("0.01"))
+        .param("validFrom", validFrom.withDayOfMonth(1))
         .update();
   }
 

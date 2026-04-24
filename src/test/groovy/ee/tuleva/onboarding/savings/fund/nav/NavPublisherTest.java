@@ -83,7 +83,7 @@ class NavPublisherTest {
 
     verify(navNotifier).notify(result);
     verify(navReportMapper).map(result);
-    verify(navReportRepository).replaceByNavDateAndFundCode(eq(today), eq("TKF100"), any());
+    verify(navReportRepository).replaceByNavDateAndFundCode(eq(yesterday), eq("TKF100"), any());
     verify(navReportEmailSender).send(any(), eq(result));
   }
 

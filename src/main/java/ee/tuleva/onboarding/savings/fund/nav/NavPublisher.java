@@ -30,12 +30,13 @@ public class NavPublisher {
     try {
       reportRows = navReportMapper.map(result);
       navReportRepository.replaceByNavDateAndFundCode(
-          result.calculationDate(), result.fund().getCode(), reportRows);
+          result.positionReportDate(), result.fund().getCode(), reportRows);
     } catch (Exception e) {
       log.error(
-          "Failed to persist NAV report: fund={}, date={}",
+          "Failed to persist NAV report: fund={}, calculationDate={}, positionReportDate={}",
           result.fund(),
           result.calculationDate(),
+          result.positionReportDate(),
           e);
     }
 

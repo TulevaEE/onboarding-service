@@ -14,6 +14,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.NonNull;
 
 @Data
 @Builder
@@ -32,9 +33,11 @@ public class RedemptionRequest {
 
   @Enumerated(STRING)
   @Column(name = "party_type", nullable = false)
+  @NonNull
   private PartyId.Type partyType;
 
   @Column(name = "party_code", nullable = false)
+  @NonNull
   private String partyCode;
 
   @Column(nullable = false, precision = 15, scale = 5)

@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.payment.provider.montonio.MontonioCallbackService;
 import ee.tuleva.onboarding.payment.recurring.RecurringPaymentLinkGenerator;
 import ee.tuleva.onboarding.payment.savings.SavingsCallbackService;
 import ee.tuleva.onboarding.payment.savings.SavingsPaymentLinkGenerator;
+import ee.tuleva.onboarding.payment.savings.recurring.SavingsFundRecurringPaymentLinkGenerator;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
@@ -27,6 +28,7 @@ public class PaymentService {
   private final SinglePaymentLinkGenerator singlePaymentLinkGenerator;
   private final RecurringPaymentLinkGenerator recurringPaymentLinkGenerator;
   private final SavingsPaymentLinkGenerator savingsPaymentLinkGenerator;
+  private final SavingsFundRecurringPaymentLinkGenerator savingsFundRecurringPaymentLinkGenerator;
   private final MontonioCallbackService montonioCallbackService;
   private final SavingsCallbackService savingsCallbackService;
   private final UserService userService;
@@ -40,6 +42,8 @@ public class PaymentService {
   PaymentLink getLink(PaymentData paymentData, Person person) {
     return switch (paymentData.getType()) {
       case SAVINGS -> savingsPaymentLinkGenerator.getPaymentLink(paymentData, person);
+      case SAVINGS_RECURRING ->
+          savingsFundRecurringPaymentLinkGenerator.getPaymentLink(paymentData, person);
       case SINGLE, GIFT, MEMBER_FEE ->
           singlePaymentLinkGenerator.getPaymentLink(paymentData, person);
       case RECURRING -> recurringPaymentLinkGenerator.getPaymentLink(paymentData, person);

@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.PROCESS
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RECEIVED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
+import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -19,6 +20,7 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -465,5 +467,122 @@ class SavingFundPaymentRepositoryTest {
     var unmatchedReturns = repository.findUnmatchedOutgoingReturns(depositIban);
 
     assertThat(unmatchedReturns).extracting("id").containsExactly(depositReturn);
+  }
+
+  @Test
+  void findLastRemitterIban_returnsLatestProcessedIbanOrderedByCreatedAt() {
+    var user = createUser();
+    var party = new PartyId(PERSON, user.getPersonalCode());
+
+    var older =
+        repository.savePaymentData(
+            createPayment().externalId("older").remitterIban("EE111111111111111111").build());
+    var newer =
+        repository.savePaymentData(
+            createPayment().externalId("newer").remitterIban("EE782200221072366467").build());
+    repository.attachParty(older, party);
+    repository.attachParty(newer, party);
+    updatePaymentStatus(older, PROCESSED);
+    updatePaymentStatus(newer, PROCESSED);
+    backdateCreatedAt(older, Instant.now().minus(30, DAYS));
+
+    var result = repository.findLastRemitterIban(party);
+
+    assertThat(result).contains("EE782200221072366467");
+  }
+
+  @Test
+  void findLastRemitterIban_filtersOnlyProcessedStatus() {
+    var user = createUser();
+    var party = new PartyId(PERSON, user.getPersonalCode());
+
+    var reserved =
+        repository.savePaymentData(
+            createPayment().externalId("r").remitterIban("EE111111111111111111").build());
+    var issued =
+        repository.savePaymentData(
+            createPayment().externalId("i").remitterIban("EE222222222222222222").build());
+    var processed =
+        repository.savePaymentData(
+            createPayment().externalId("p").remitterIban("EE333333333333333333").build());
+    repository.attachParty(reserved, party);
+    repository.attachParty(issued, party);
+    repository.attachParty(processed, party);
+    updatePaymentStatus(reserved, RESERVED);
+    updatePaymentStatus(issued, ISSUED);
+    updatePaymentStatus(processed, PROCESSED);
+
+    var result = repository.findLastRemitterIban(party);
+
+    assertThat(result).contains("EE333333333333333333");
+  }
+
+  @Test
+  void findLastRemitterIban_ignoresNegativeAmounts() {
+    var user = createUser();
+    var party = new PartyId(PERSON, user.getPersonalCode());
+
+    var deposit =
+        repository.savePaymentData(
+            createPayment().externalId("dep").remitterIban("EE111111111111111111").build());
+    var refund =
+        repository.savePaymentData(
+            createPayment()
+                .externalId("ref")
+                .remitterIban("EE999999999999999999")
+                .amount(new BigDecimal("-50.00"))
+                .build());
+    repository.attachParty(deposit, party);
+    repository.attachParty(refund, party);
+    updatePaymentStatus(deposit, PROCESSED);
+    updatePaymentStatus(refund, PROCESSED);
+
+    var result = repository.findLastRemitterIban(party);
+
+    assertThat(result).contains("EE111111111111111111");
+  }
+
+  @Test
+  void findLastRemitterIban_returnsEmptyWhenUserHasNoProcessedPayments() {
+    var user = createUser();
+    var party = new PartyId(PERSON, user.getPersonalCode());
+
+    var reserved =
+        repository.savePaymentData(
+            createPayment().externalId("r").remitterIban("EE111111111111111111").build());
+    repository.attachParty(reserved, party);
+    updatePaymentStatus(reserved, RESERVED);
+
+    var result = repository.findLastRemitterIban(party);
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  void findLastRemitterIban_isolatesByParty() {
+    var user1 = createUser("37706154772");
+    var user2 = createUser("36407145233");
+    var party1 = new PartyId(PERSON, user1.getPersonalCode());
+    var party2 = new PartyId(PERSON, user2.getPersonalCode());
+
+    var p1 =
+        repository.savePaymentData(
+            createPayment().externalId("p1").remitterIban("EE111111111111111111").build());
+    var p2 =
+        repository.savePaymentData(
+            createPayment().externalId("p2").remitterIban("EE222222222222222222").build());
+    repository.attachParty(p1, party1);
+    repository.attachParty(p2, party2);
+    updatePaymentStatus(p1, PROCESSED);
+    updatePaymentStatus(p2, PROCESSED);
+
+    assertThat(repository.findLastRemitterIban(party1)).contains("EE111111111111111111");
+    assertThat(repository.findLastRemitterIban(party2)).contains("EE222222222222222222");
+  }
+
+  private int backdateCreatedAt(UUID paymentId, Instant createdAt) {
+    return jdbcTemplate.update(
+        "update saving_fund_payment set created_at=:createdAt where id=:id",
+        Map.of("createdAt", Timestamp.from(createdAt), "id", paymentId));
   }
 }

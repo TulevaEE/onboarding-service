@@ -13,11 +13,11 @@ public class PaymentDateProvider {
 
   private final Clock clock;
 
-  LocalDate tenthDayOfMonth() {
+  public LocalDate tenthDayOfMonth() {
     return tenthDayOfMonth(LocalDate.now(clock));
   }
 
-  LocalDate tenthDayOfMonth(LocalDate now) {
+  public LocalDate tenthDayOfMonth(LocalDate now) {
     LocalDate date = now.withDayOfMonth(10);
 
     if (now.getDayOfMonth() > 10) {
@@ -27,7 +27,7 @@ public class PaymentDateProvider {
     return date;
   }
 
-  static String format(LocalDate date) {
+  public static String format(LocalDate date) {
     return date.format(ofPattern("dd.MM.yyyy"));
   }
 }

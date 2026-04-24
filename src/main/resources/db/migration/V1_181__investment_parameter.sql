@@ -1,4 +1,4 @@
-CREATE TABLE investment_parameter (
+CREATE TABLE IF NOT EXISTS investment_parameter (
     id              bigserial       NOT NULL,
     effective_date  date            NOT NULL,
     parameter_name  varchar(64)     NOT NULL,
@@ -9,5 +9,5 @@ CREATE TABLE investment_parameter (
     CONSTRAINT investment_parameter_pkey PRIMARY KEY (id)
 );
 
-CREATE INDEX idx_investment_parameter_lookup
+CREATE INDEX IF NOT EXISTS idx_investment_parameter_lookup
     ON investment_parameter (parameter_name, fund_code, effective_date);

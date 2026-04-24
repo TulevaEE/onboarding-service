@@ -28,6 +28,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class SavingsFundRecurringPaymentLinkGeneratorTest {
 
@@ -170,6 +171,40 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
 
     assertThatThrownBy(() -> generator.getPaymentLink(paymentData, person()))
         .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"0", "-1", "0.001"})
+  void throwsWhenAmountIsNotPositive(String value) {
+    var paymentData =
+        PaymentData.builder()
+            .amount(new BigDecimal(value))
+            .currency(EUR)
+            .type(SAVINGS_RECURRING)
+            .paymentChannel(LHV)
+            .recipientPersonalCode(PERSONAL_CODE)
+            .build();
+
+    assertThatThrownBy(() -> generator.getPaymentLink(paymentData, person()))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void usesRecipientPersonalCodeFromPaymentDataAsDescription() {
+    var paymentData =
+        PaymentData.builder()
+            .amount(new BigDecimal("50"))
+            .currency(EUR)
+            .type(SAVINGS_RECURRING)
+            .paymentChannel(LHV)
+            .recipientPersonalCode("49001011234")
+            .build();
+    var callerPerson = sampleAuthenticatedPersonNonMember().personalCode("38812121215").build();
+
+    var link = generator.getPaymentLink(paymentData, callerPerson);
+
+    assertThat(link.description()).isEqualTo("49001011234");
+    assertThat(link.url()).contains("i_payment_desc=49001011234").doesNotContain("38812121215");
   }
 
   @Test

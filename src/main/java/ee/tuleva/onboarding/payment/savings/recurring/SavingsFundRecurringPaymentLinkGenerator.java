@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
 import ee.tuleva.onboarding.payment.recurring.PaymentDateProvider;
 import ee.tuleva.onboarding.payment.savings.SavingsFundRecipientConfiguration;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
+import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -25,6 +26,7 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
 
   private static final String SWEDBANK_BANK_CODE = "22";
   private static final int ESTONIAN_IBAN_LENGTH = 20;
+  private static final BigDecimal MIN_AMOUNT = new BigDecimal("0.01");
 
   private final SavingsFundRecipientConfiguration recipientConfiguration;
   private final PaymentDateProvider paymentDateProvider;
@@ -32,18 +34,18 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
 
   @Override
   public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
-    if (paymentData.getAmount() == null) {
-      throw new IllegalArgumentException("Amount is required for recurring savings fund payments");
+    if (paymentData.getAmount() == null || paymentData.getAmount().compareTo(MIN_AMOUNT) < 0) {
+      throw new IllegalArgumentException("Amount must be at least " + MIN_AMOUNT);
     }
-    var personalCode = person.getPersonalCode();
+    var description = paymentData.getRecipientPersonalCode();
     var amount = paymentData.getAmount().toPlainString();
     var firstPaymentDate = paymentDateProvider.tenthDayOfMonth();
 
     var url =
         switch (paymentData.getPaymentChannel()) {
-          case LHV -> buildLhvUrl(personalCode, amount, firstPaymentDate);
-          case COOP, COOP_WEB, PARTNER -> buildCoopUrl(personalCode, amount, firstPaymentDate);
-          case SWEDBANK -> buildSwedbankUrl(personalCode, amount, person);
+          case LHV -> buildLhvUrl(description, amount, firstPaymentDate);
+          case COOP, COOP_WEB, PARTNER -> buildCoopUrl(description, amount, firstPaymentDate);
+          case SWEDBANK -> buildSwedbankUrl(description, amount, person);
           case SEB -> "https://e.seb.ee/ib/p/payments/new-standing-order";
           case LUMINOR -> "https://luminor.ee/auth/#/web/view/autopilot/newpayment";
           case OTHER -> null;
@@ -57,15 +59,15 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
         url,
         recipientConfiguration.getRecipientName(),
         recipientConfiguration.getRecipientIban(),
-        personalCode,
+        description,
         amount);
   }
 
-  private String buildLhvUrl(String personalCode, String amount, LocalDate firstPaymentDate) {
+  private String buildLhvUrl(String description, String amount, LocalDate firstPaymentDate) {
     var params = new LinkedHashMap<String, String>();
     params.put("i_receiver_name", recipientConfiguration.getRecipientName());
     params.put("i_receiver_account_no", recipientConfiguration.getRecipientIban());
-    params.put("i_payment_desc", personalCode);
+    params.put("i_payment_desc", description);
     params.put("i_amount", amount);
     params.put("i_currency_id", "38");
     params.put("i_interval_type", "K");
@@ -73,24 +75,24 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
     return "https://www.lhv.ee/ibank/cf/portfolio/payment_standing_add?" + encode(params);
   }
 
-  private String buildCoopUrl(String personalCode, String amount, LocalDate firstPaymentDate) {
+  private String buildCoopUrl(String description, String amount, LocalDate firstPaymentDate) {
     var params = new LinkedHashMap<String, String>();
     params.put("whatform", "PermPaymentNew");
     params.put("SaajaNimi", recipientConfiguration.getRecipientName());
     params.put("SaajaKonto", recipientConfiguration.getRecipientIban());
     params.put("MakseSumma", amount);
-    params.put("MaksePohjus", personalCode);
+    params.put("MaksePohjus", description);
     params.put("MakseSagedus", "3");
     params.put("MakseEsimene", format(firstPaymentDate));
     return "https://i.cooppank.ee/newpmt?" + encode(params);
   }
 
-  private String buildSwedbankUrl(String personalCode, String amount, Person person) {
+  private String buildSwedbankUrl(String description, String amount, Person person) {
     var params = new LinkedHashMap<String, String>();
     params.put("standingOrder.beneficiaryAccountNumber", recipientConfiguration.getRecipientIban());
     params.put("standingOrder.beneficiaryName", recipientConfiguration.getRecipientName());
     params.put("standingOrder.amount", amount);
-    params.put("standingOrder.details", personalCode);
+    params.put("standingOrder.details", description);
     params.put("frequency", "K");
     swedbankAccountId(person).ifPresent(accountId -> params.put("account", accountId));
     return "https://www.swedbank.ee/private/d2d/payments2/standing_order/new?" + encode(params);

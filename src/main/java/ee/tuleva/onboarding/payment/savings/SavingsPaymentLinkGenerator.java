@@ -29,14 +29,13 @@ public class SavingsPaymentLinkGenerator implements PaymentLinkGenerator {
 
   @Override
   public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
-    var bic =
-        paymentChannelConfiguration
-            .getPaymentProviderChannel(paymentData.getPaymentChannel())
-            .getBic();
-    if (bic == null) {
+    var channel =
+        paymentChannelConfiguration.getPaymentProviderChannel(paymentData.getPaymentChannel());
+    if (channel == null || channel.getBic() == null) {
       throw new IllegalArgumentException(
           "Invalid payment channel: " + paymentData.getPaymentChannel());
     }
+    var bic = channel.getBic();
     if (paymentData.getAmount() == null || paymentData.getAmount().compareTo(MIN_AMOUNT) < 0) {
       throw new IllegalArgumentException("Amount must be at least " + MIN_AMOUNT);
     }

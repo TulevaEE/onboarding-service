@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConfigurationProperties("payment-provider.savings-fund")
 @Data
-public class SavingsFundConfiguration {
+public class SavingsFundRecipientConfiguration {
   private String recipientName;
   private String recipientIban;
 }

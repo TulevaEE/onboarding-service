@@ -8,7 +8,7 @@ import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
 import ee.tuleva.onboarding.payment.recurring.PaymentDateProvider;
-import ee.tuleva.onboarding.payment.savings.SavingsFundConfiguration;
+import ee.tuleva.onboarding.payment.savings.SavingsFundRecipientConfiguration;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -25,7 +25,7 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
 
   private static final String SWEDBANK_BANK_CODE = "22";
 
-  private final SavingsFundConfiguration savingsFundConfiguration;
+  private final SavingsFundRecipientConfiguration savingsFundConfiguration;
   private final PaymentDateProvider paymentDateProvider;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
 

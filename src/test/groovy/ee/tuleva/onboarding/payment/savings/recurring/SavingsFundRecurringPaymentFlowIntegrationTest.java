@@ -11,7 +11,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.payment.PaymentData;
-import ee.tuleva.onboarding.payment.PaymentService;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import java.math.BigDecimal;
@@ -29,7 +28,7 @@ class SavingsFundRecurringPaymentFlowIntegrationTest {
   private static final String PERSONAL_CODE = "38812121215";
   private static final String SWEDBANK_IBAN = "EE782200221072366467";
 
-  @Autowired private PaymentService paymentService;
+  @Autowired private SavingsFundRecurringPaymentLinkGenerator linkGenerator;
   @Autowired private SavingFundPaymentRepository savingFundPaymentRepository;
   @Autowired private NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -45,7 +44,7 @@ class SavingsFundRecurringPaymentFlowIntegrationTest {
             .recipientPersonalCode(PERSONAL_CODE)
             .build();
 
-    var link = paymentService.getLink(paymentData, person);
+    var link = linkGenerator.getPaymentLink(paymentData, person);
 
     assertThat(link.url())
         .startsWith("https://www.lhv.ee/ibank/cf/portfolio/payment_standing_add?")
@@ -87,7 +86,7 @@ class SavingsFundRecurringPaymentFlowIntegrationTest {
             .recipientPersonalCode(PERSONAL_CODE)
             .build();
 
-    var link = paymentService.getLink(paymentData, person);
+    var link = linkGenerator.getPaymentLink(paymentData, person);
 
     assertThat(link.url())
         .startsWith("https://www.swedbank.ee/private/d2d/payments2/standing_order/new?")

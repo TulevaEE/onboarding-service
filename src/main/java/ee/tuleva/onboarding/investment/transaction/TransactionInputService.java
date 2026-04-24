@@ -36,9 +36,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class TransactionInputService {
 
-  private static final BigDecimal DEFAULT_MIN_TRANSACTION = new BigDecimal("50000");
-  private static final BigDecimal DEFAULT_CASH_BUFFER = ZERO;
-
   private final FundPositionRepository fundPositionRepository;
   private final FeeAccrualRepository feeAccrualRepository;
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
@@ -153,19 +150,25 @@ public class TransactionInputService {
   }
 
   private BigDecimal getCashBuffer(TulevaFund fund) {
-    return getFundLimitValue(fund, limit -> limit.getReserveSoft(), DEFAULT_CASH_BUFFER);
+    return getFundLimitValue(fund, FundLimit::getReserveSoft, "reserveSoft");
   }
 
   private BigDecimal getMinTransaction(TulevaFund fund) {
-    return getFundLimitValue(fund, limit -> limit.getMinTransaction(), DEFAULT_MIN_TRANSACTION);
+    return getFundLimitValue(fund, FundLimit::getMinTransaction, "minTransaction");
   }
 
   private BigDecimal getFundLimitValue(
-      TulevaFund fund, Function<FundLimit, BigDecimal> extractor, BigDecimal defaultValue) {
-    return fundLimitRepository
-        .findLatestByFund(fund)
-        .map(limit -> extractor.apply(limit) != null ? extractor.apply(limit) : defaultValue)
-        .orElse(defaultValue);
+      TulevaFund fund, Function<FundLimit, BigDecimal> extractor, String fieldName) {
+    FundLimit limit =
+        fundLimitRepository
+            .findLatestByFund(fund)
+            .orElseThrow(() -> new IllegalStateException("No fund limit found: fund=" + fund));
+    BigDecimal value = extractor.apply(limit);
+    if (value == null) {
+      throw new IllegalStateException(
+          "Fund limit field is missing: fund=" + fund + ", field=" + fieldName);
+    }
+    return value;
   }
 
   private Map<String, PositionLimitSnapshot> getPositionLimits(TulevaFund fund) {

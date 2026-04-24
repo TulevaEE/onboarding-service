@@ -1,29 +1,42 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_BREACH_THRESHOLD;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_MAX_DAILY_RETURN;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import lombok.Builder;
+import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 class TrackingDifferenceCalculator {
 
-  static final BigDecimal BREACH_THRESHOLD = new BigDecimal("0.0010");
-  static final BigDecimal MAX_DAILY_RETURN = new BigDecimal("0.25");
   private static final int SCALE = 6;
   private static final BigDecimal DAYS_IN_YEAR = new BigDecimal("365");
+
+  private final InvestmentParameterRepository parameterRepository;
+
+  BigDecimal breachThreshold(LocalDate asOf) {
+    return parameterRepository.findLatestValue(TRACKING_BREACH_THRESHOLD, asOf);
+  }
 
   Optional<TrackingDifferenceResult> calculate(TrackingInput input) {
     if (input.yesterdayNav().signum() == 0) {
       return Optional.empty();
     }
+
+    BigDecimal breachThreshold = breachThreshold(input.checkDate());
+    BigDecimal maxDailyReturn =
+        parameterRepository.findLatestValue(TRACKING_MAX_DAILY_RETURN, input.checkDate());
 
     var fundReturn =
         input
@@ -41,20 +54,22 @@ class TrackingDifferenceCalculator {
         validSecurities.stream()
             .map(
                 s -> {
-                  var secReturn = safeDailyReturn(s.todayPrice(), s.yesterdayPrice());
+                  var secReturn =
+                      safeDailyReturn(s.todayPrice(), s.yesterdayPrice(), maxDailyReturn);
                   return s.modelWeight().multiply(secReturn);
                 })
             .reduce(ZERO, BigDecimal::add)
             .setScale(SCALE, HALF_UP);
 
     var trackingDifference = fundReturn.subtract(benchmarkReturn).setScale(SCALE, HALF_UP);
-    var breach = trackingDifference.abs().compareTo(BREACH_THRESHOLD) >= 0;
+    var breach = trackingDifference.abs().compareTo(breachThreshold) >= 0;
 
     var securityAttributions =
         validSecurities.stream()
             .map(
                 s -> {
-                  var secReturn = safeDailyReturn(s.todayPrice(), s.yesterdayPrice());
+                  var secReturn =
+                      safeDailyReturn(s.todayPrice(), s.yesterdayPrice(), maxDailyReturn);
                   var weightDiff =
                       s.actualWeight().subtract(s.modelWeight()).setScale(SCALE, HALF_UP);
                   var contribution = weightDiff.multiply(secReturn).setScale(SCALE, HALF_UP);
@@ -101,9 +116,10 @@ class TrackingDifferenceCalculator {
             .build());
   }
 
-  private BigDecimal safeDailyReturn(BigDecimal today, BigDecimal yesterday) {
+  private BigDecimal safeDailyReturn(
+      BigDecimal today, BigDecimal yesterday, BigDecimal maxDailyReturn) {
     var ret = today.subtract(yesterday).divide(yesterday, SCALE, HALF_UP);
-    return ret.abs().compareTo(MAX_DAILY_RETURN) > 0 ? ZERO : ret;
+    return ret.abs().compareTo(maxDailyReturn) > 0 ? ZERO : ret;
   }
 
   @Builder

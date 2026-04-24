@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.fees;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
@@ -33,19 +34,19 @@ class FeeRepositoriesIntegrationTest {
     @Test
     void findValidRate_returnsRateForExactDate() {
       LocalDate validFrom = LocalDate.of(2025, 1, 1);
-      insertFeeRate(TUK75, FeeType.MANAGEMENT, new BigDecimal("0.00215"), validFrom, null);
+      insertFeeRate(TUK75, FeeType.MANAGEMENT, new BigDecimal("0.02"), validFrom, null);
 
       var result = feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, validFrom);
 
       assertThat(result).isPresent();
-      assertThat(result.get().annualRate()).isEqualByComparingTo(new BigDecimal("0.00215"));
+      assertThat(result.get().annualRate()).isEqualByComparingTo(new BigDecimal("0.02"));
     }
 
     @Test
     void findValidRate_returnsRateForDateWithinValidity() {
       LocalDate validFrom = LocalDate.of(2025, 1, 1);
       LocalDate checkDate = LocalDate.of(2025, 6, 15);
-      insertFeeRate(TUK75, FeeType.MANAGEMENT, new BigDecimal("0.00215"), validFrom, null);
+      insertFeeRate(TUK75, FeeType.MANAGEMENT, new BigDecimal("0.02"), validFrom, null);
 
       var result = feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, checkDate);
 
@@ -56,7 +57,7 @@ class FeeRepositoriesIntegrationTest {
     void findValidRate_returnsEmptyWhenDateBeforeValidFrom() {
       LocalDate validFrom = LocalDate.of(2025, 1, 1);
       LocalDate checkDate = LocalDate.of(2024, 12, 31);
-      insertFeeRate(TUK75, FeeType.MANAGEMENT, new BigDecimal("0.00215"), validFrom, null);
+      insertFeeRate(TUK75, FeeType.MANAGEMENT, new BigDecimal("0.02"), validFrom, null);
 
       var result = feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, checkDate);
 
@@ -68,7 +69,7 @@ class FeeRepositoriesIntegrationTest {
       LocalDate validFrom = LocalDate.of(2025, 1, 1);
       LocalDate validTo = LocalDate.of(2025, 6, 30);
       LocalDate checkDate = LocalDate.of(2025, 7, 1);
-      insertFeeRate(TUK75, FeeType.MANAGEMENT, new BigDecimal("0.00215"), validFrom, validTo);
+      insertFeeRate(TUK75, FeeType.MANAGEMENT, new BigDecimal("0.02"), validFrom, validTo);
 
       var result = feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, checkDate);
 
@@ -84,13 +85,13 @@ class FeeRepositoriesIntegrationTest {
           LocalDate.of(2024, 1, 1),
           LocalDate.of(2024, 12, 31));
       insertFeeRate(
-          TUK75, FeeType.MANAGEMENT, new BigDecimal("0.00215"), LocalDate.of(2025, 1, 1), null);
+          TUK75, FeeType.MANAGEMENT, new BigDecimal("0.02"), LocalDate.of(2025, 1, 1), null);
 
       var result =
           feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 6, 15));
 
       assertThat(result).isPresent();
-      assertThat(result.get().annualRate()).isEqualByComparingTo(new BigDecimal("0.00215"));
+      assertThat(result.get().annualRate()).isEqualByComparingTo(new BigDecimal("0.02"));
     }
 
     private void insertFeeRate(
@@ -122,10 +123,10 @@ class FeeRepositoriesIntegrationTest {
     @BeforeEach
     void setUp() {
       jdbcClient.sql("DELETE FROM investment_depot_fee_tier").update();
-      insertDepotFeeTier(0, "0.00035", LocalDate.of(2025, 1, 1));
-      insertDepotFeeTier(1300000000, "0.00025", LocalDate.of(2025, 1, 1));
-      insertDepotFeeTier(1650000000, "0.000225", LocalDate.of(2025, 1, 1));
-      insertDepotFeeTier(2000000000, "0.00020", LocalDate.of(2025, 1, 1));
+      insertDepotFeeTier(0, "0.01", LocalDate.of(2025, 1, 1));
+      insertDepotFeeTier(1300000000, "0.005", LocalDate.of(2025, 1, 1));
+      insertDepotFeeTier(1650000000, "0.0025", LocalDate.of(2025, 1, 1));
+      insertDepotFeeTier(2000000000, "0.001", LocalDate.of(2025, 1, 1));
     }
 
     @Test
@@ -134,30 +135,32 @@ class FeeRepositoriesIntegrationTest {
 
       BigDecimal rateForSmallAum =
           depotFeeTierRepository.findRateForAum(new BigDecimal("500000000"), date);
-      assertThat(rateForSmallAum).isEqualByComparingTo(new BigDecimal("0.00035"));
+      assertThat(rateForSmallAum).isEqualByComparingTo(new BigDecimal("0.01"));
 
       BigDecimal rateFor1300M =
           depotFeeTierRepository.findRateForAum(new BigDecimal("1300000000"), date);
-      assertThat(rateFor1300M).isEqualByComparingTo(new BigDecimal("0.00025"));
+      assertThat(rateFor1300M).isEqualByComparingTo(new BigDecimal("0.005"));
 
       BigDecimal rateFor1650M =
           depotFeeTierRepository.findRateForAum(new BigDecimal("1650000000"), date);
-      assertThat(rateFor1650M).isEqualByComparingTo(new BigDecimal("0.000225"));
+      assertThat(rateFor1650M).isEqualByComparingTo(new BigDecimal("0.0025"));
 
       BigDecimal rateFor2000M =
           depotFeeTierRepository.findRateForAum(new BigDecimal("2000000000"), date);
-      assertThat(rateFor2000M).isEqualByComparingTo(new BigDecimal("0.00020"));
+      assertThat(rateFor2000M).isEqualByComparingTo(new BigDecimal("0.001"));
     }
 
     @Test
-    void findRateForAum_returnsDefaultWhenNoTierMatches() {
+    void findRateForAum_throwsWhenNoTierMatches() {
       LocalDate futureDate = LocalDate.of(2099, 1, 1);
       jdbcClient.sql("DELETE FROM investment_depot_fee_tier").update();
 
-      BigDecimal rate =
-          depotFeeTierRepository.findRateForAum(new BigDecimal("1000000000"), futureDate);
-
-      assertThat(rate).isEqualByComparingTo(new BigDecimal("0.00035"));
+      BigDecimal totalAum = new BigDecimal("1000000000");
+      assertThatThrownBy(() -> depotFeeTierRepository.findRateForAum(totalAum, futureDate))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("No depot fee tier found")
+          .hasMessageContaining("totalAum=" + totalAum)
+          .hasMessageContaining("date=" + futureDate);
     }
 
     private void insertDepotFeeTier(long minAum, String annualRate, LocalDate validFrom) {
@@ -193,7 +196,7 @@ class FeeRepositoriesIntegrationTest {
               .accrualDate(LocalDate.of(2025, 1, 15))
               .feeMonth(LocalDate.of(2025, 1, 1))
               .baseValue(BigDecimal.valueOf(1000000))
-              .annualRate(new BigDecimal("0.00215"))
+              .annualRate(new BigDecimal("0.02"))
               .dailyAmountNet(BigDecimal.TEN)
               .dailyAmountGross(BigDecimal.TEN)
               .daysInYear(365)
@@ -261,7 +264,7 @@ class FeeRepositoriesIntegrationTest {
               .accrualDate(accrualDate)
               .feeMonth(feeMonth)
               .baseValue(BigDecimal.valueOf(1000000))
-              .annualRate(new BigDecimal("0.00215"))
+              .annualRate(new BigDecimal("0.02"))
               .dailyAmountNet(BigDecimal.TEN)
               .dailyAmountGross(BigDecimal.TEN)
               .daysInYear(365)
@@ -275,7 +278,7 @@ class FeeRepositoriesIntegrationTest {
               .accrualDate(accrualDate)
               .feeMonth(feeMonth)
               .baseValue(BigDecimal.valueOf(2000000))
-              .annualRate(new BigDecimal("0.00215"))
+              .annualRate(new BigDecimal("0.02"))
               .dailyAmountNet(new BigDecimal("20"))
               .dailyAmountGross(new BigDecimal("20"))
               .daysInYear(365)
@@ -319,7 +322,7 @@ class FeeRepositoriesIntegrationTest {
               )
               VALUES (
                   :fundCode, :feeType, :accrualDate, :feeMonth, 1000000,
-                  0.00215, :dailyAmountNet, :dailyAmountNet, 365
+                  0.02, :dailyAmountNet, :dailyAmountNet, 365
               )
               """)
           .param("fundCode", fund.name())

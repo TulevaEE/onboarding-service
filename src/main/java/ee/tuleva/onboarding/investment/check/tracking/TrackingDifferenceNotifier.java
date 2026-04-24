@@ -20,6 +20,7 @@ class TrackingDifferenceNotifier {
   private static final BigDecimal HUNDRED = new BigDecimal("100");
 
   private final OperationsNotificationService notificationService;
+  private final TrackingDifferenceCalculator calculator;
 
   void notify(List<TrackingDifferenceResult> results) {
     try {
@@ -100,7 +101,7 @@ class TrackingDifferenceNotifier {
   private boolean isEscalation(TrackingDifferenceResult result) {
     return result.consecutiveBreachDays() >= ESCALATION_THRESHOLD
         && result.consecutiveNetTd() != null
-        && result.consecutiveNetTd().abs().compareTo(TrackingDifferenceCalculator.BREACH_THRESHOLD)
+        && result.consecutiveNetTd().abs().compareTo(calculator.breachThreshold(result.checkDate()))
             >= 0;
   }
 

@@ -87,7 +87,7 @@ class NavPipelineIntegrationTest {
       importPositionReport(pair.positionReportFile, navData.navDate);
       recordPositionsToLedger(navData);
       insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), navData.navDate);
-      insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.00035"), navData.navDate);
+      insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.01"), navData.navDate.withDayOfMonth(1));
       insertPrices(pair.calculationDate);
       issueFundUnits(navData.unitsOutstanding, navData.navDate);
       entityManager.flush();
@@ -140,7 +140,7 @@ class NavPipelineIntegrationTest {
     issueFundUnits(new BigDecimal("1000000.000"), feb3);
     insertPrices(calculationDate);
     insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), LocalDate.of(2026, 1, 1));
-    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.00035"), LocalDate.of(2026, 1, 1));
+    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.01"), LocalDate.of(2026, 1, 1));
     entityManager.flush();
     entityManager.clear();
 
@@ -170,7 +170,7 @@ class NavPipelineIntegrationTest {
     ZoneId eet = ZoneId.of("Europe/Tallinn");
 
     insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), LocalDate.of(2026, 1, 1));
-    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.00035"), LocalDate.of(2026, 1, 1));
+    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.01"), LocalDate.of(2026, 1, 1));
 
     // Establish first accrual at Feb 25
     Instant feb26Cutoff = LocalDate.of(2026, 2, 26).atStartOfDay(eet).toInstant();
@@ -193,20 +193,20 @@ class NavPipelineIntegrationTest {
             TKF100, LocalDate.of(2026, 3, 2), aum, tuesdayCutoff, null);
 
     // Daily management: 50,000,000 × 0.0029 / 365 → ledger 397.26/day
-    // Daily depot: 50,000,000 × 0.00035 / 365 → ledger 47.95/day
+    // Daily depot:      50,000,000 × 0.01   / 365 → ledger 1369.86/day
     assertThat(mondayResult.managementFeeAccrual())
         .as("Monday: 3 days of management fees (Feb 25-27)")
         .isEqualByComparingTo(new BigDecimal("1191.78"));
     assertThat(mondayResult.depotFeeAccrual())
         .as("Monday: 3 days of depot fees (Feb 25-27)")
-        .isEqualByComparingTo(new BigDecimal("143.84"));
+        .isEqualByComparingTo(new BigDecimal("4109.59"));
 
     assertThat(tuesdayResult.managementFeeAccrual())
         .as("Tuesday: 2 days of management fees (Mar 1-2), Feb settled")
         .isEqualByComparingTo(new BigDecimal("794.52"));
     assertThat(tuesdayResult.depotFeeAccrual())
         .as("Tuesday: 2 days of depot fees (Mar 1-2), Feb settled")
-        .isEqualByComparingTo(new BigDecimal("95.89"));
+        .isEqualByComparingTo(new BigDecimal("2739.73"));
   }
 
   @Test
@@ -228,7 +228,7 @@ class NavPipelineIntegrationTest {
             .build());
 
     insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), inceptionDate);
-    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.00035"), inceptionDate);
+    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.01"), inceptionDate.withDayOfMonth(1));
     issueFundUnits(new BigDecimal("1000000.000"), inceptionDate);
     entityManager.flush();
     entityManager.clear();
@@ -261,7 +261,7 @@ class NavPipelineIntegrationTest {
             .build());
 
     insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), feb2);
-    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.00035"), feb2);
+    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.01"), feb2.withDayOfMonth(1));
     issueFundUnits(new BigDecimal("1000000.000"), feb2);
     entityManager.flush();
     entityManager.clear();
@@ -288,7 +288,7 @@ class NavPipelineIntegrationTest {
     fundPositionLedgerService.recordPositionsToLedger(TKF100, fri);
 
     insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), thu);
-    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.00035"), thu);
+    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.01"), thu.withDayOfMonth(1));
     issueFundUnits(new BigDecimal("1000000.000"), thu);
     entityManager.flush();
     entityManager.clear();
@@ -322,7 +322,7 @@ class NavPipelineIntegrationTest {
     fundPositionLedgerService.recordPositionsToLedger(TKF100, pos3);
 
     insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), pos1);
-    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.00035"), pos1);
+    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.01"), pos1.withDayOfMonth(1));
     issueFundUnits(new BigDecimal("1000000.000"), pos1);
     insertPrices(calc3);
     entityManager.flush();
@@ -353,7 +353,7 @@ class NavPipelineIntegrationTest {
     fundPositionLedgerService.recordPositionsToLedger(TKF100, day2);
 
     insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), day1);
-    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.00035"), day1);
+    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.01"), day1.withDayOfMonth(1));
     issueFundUnits(new BigDecimal("1000000.000"), day1);
     entityManager.flush();
     entityManager.clear();
@@ -387,7 +387,7 @@ class NavPipelineIntegrationTest {
     fundPositionLedgerService.recordPositionsToLedger(TKF100, posDate);
 
     insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), posDate);
-    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.00035"), posDate);
+    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.01"), posDate.withDayOfMonth(1));
     issueFundUnits(new BigDecimal("1000000.000"), posDate);
     entityManager.flush();
     entityManager.clear();
@@ -408,7 +408,7 @@ class NavPipelineIntegrationTest {
 
     insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0025"));
     insertFeeRate(TUK75, "MANAGEMENT", new BigDecimal("0.0025"));
-    insertDepotFeeTier(new BigDecimal("0.00035"));
+    insertDepotFeeTier(new BigDecimal("0.01"));
 
     Instant feeCutoff =
         date.plusDays(1).atStartOfDay().atZone(ZoneId.of("Europe/Tallinn")).toInstant();

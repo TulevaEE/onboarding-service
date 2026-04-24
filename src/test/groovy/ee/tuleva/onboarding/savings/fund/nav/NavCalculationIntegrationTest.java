@@ -58,9 +58,9 @@ class NavCalculationIntegrationTest {
   @BeforeEach
   void setUp() {
     insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"));
-    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.00035"));
+    insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.01"));
     insertFeeRate(TUK75, "MANAGEMENT", new BigDecimal("0.0029"));
-    insertFeeRate(TUK75, "DEPOT", new BigDecimal("0.00035"));
+    insertFeeRate(TUK75, "DEPOT", new BigDecimal("0.01"));
   }
 
   @ParameterizedTest

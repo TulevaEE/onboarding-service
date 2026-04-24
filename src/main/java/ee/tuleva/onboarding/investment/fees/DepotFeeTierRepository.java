@@ -28,6 +28,9 @@ public class DepotFeeTierRepository {
         .param("date", date)
         .query(BigDecimal.class)
         .optional()
-        .orElse(new BigDecimal("0.00035"));
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "No depot fee tier found: totalAum=" + totalAum + ", date=" + date));
   }
 }

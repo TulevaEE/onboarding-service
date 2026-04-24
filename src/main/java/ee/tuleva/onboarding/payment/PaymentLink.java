@@ -1,5 +1,12 @@
 package ee.tuleva.onboarding.payment;
 
-import jakarta.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
-public record PaymentLink(@NotNull String url) {}
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public record PaymentLink(
+    String url, String recipientName, String recipientIban, String description, String amount) {
+
+  public PaymentLink(String url) {
+    this(url, null, null, null, null);
+  }
+}

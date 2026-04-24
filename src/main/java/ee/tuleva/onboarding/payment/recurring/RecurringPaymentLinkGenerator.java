@@ -57,7 +57,7 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
           case LUMINOR -> "https://luminor.ee/auth/#/web/view/autopilot/newpayment";
           case COOP, COOP_WEB, PARTNER ->
               coopPankPaymentLinkGenerator.getPaymentLink(paymentData, person).url();
-          case TULUNDUSUHISTU ->
+          case TULUNDUSUHISTU, OTHER ->
               throw new IllegalArgumentException(
                   "Recurring payments to the specified payment channel are not supported");
         };

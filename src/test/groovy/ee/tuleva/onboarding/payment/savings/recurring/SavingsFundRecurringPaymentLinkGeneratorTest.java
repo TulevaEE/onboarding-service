@@ -20,7 +20,7 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentData.PaymentChannel;
 import ee.tuleva.onboarding.payment.recurring.PaymentDateProvider;
-import ee.tuleva.onboarding.payment.savings.SavingsFundConfiguration;
+import ee.tuleva.onboarding.payment.savings.SavingsFundRecipientConfiguration;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -37,7 +37,8 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
   private static final String RECIPIENT_IBAN = "EE711010220306707220";
   private static final LocalDate FIRST_PAYMENT = LocalDate.of(2026, 5, 10);
 
-  private final SavingsFundConfiguration savingsFundConfiguration = new SavingsFundConfiguration();
+  private final SavingsFundRecipientConfiguration savingsFundConfiguration =
+      new SavingsFundRecipientConfiguration();
   private final PaymentDateProvider paymentDateProvider = mock(PaymentDateProvider.class);
   private final SavingFundPaymentRepository savingFundPaymentRepository =
       mock(SavingFundPaymentRepository.class);

@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPL
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_MATCH;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -24,24 +25,27 @@ class HealthCheckNotifierTest {
   private static final LocalDate DATE = LocalDate.of(2026, 4, 15);
 
   @Mock OperationsNotificationService notificationService;
+  @Mock HealthCheckEventRepository eventRepository;
   @InjectMocks HealthCheckNotifier notifier;
 
   @Test
-  void silentWhenNoIssues() {
+  void silentWhenNoIssuesAndNoPriorState() {
     var result = new HealthCheckResult(TUK75, DATE, List.of());
 
-    notifier.notify(SEB, DATE, List.of(result));
+    var notified = notifier.notify(SEB, DATE, List.of(result));
 
+    assertThat(notified).isFalse();
     verifyNoInteractions(notificationService);
   }
 
   @Test
-  void sendsImportBlockedOnFail() {
+  void sendsImportBlockedOnFirstFail() {
     var finding = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "TUK75: unknown ISIN");
     var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
 
-    notifier.notify(SEB, DATE, List.of(result));
+    var notified = notifier.notify(SEB, DATE, List.of(result));
 
+    assertThat(notified).isTrue();
     verify(notificationService).sendMessage(contains("IMPORT BLOCKED"), eq(INVESTMENT));
     verify(notificationService)
         .sendMessage(contains("source files need to be fixed"), eq(INVESTMENT));
@@ -53,8 +57,9 @@ class HealthCheckNotifierTest {
     var finding = new HealthCheckFinding(TUK75, COMPLETENESS, WARNING, "TUK75: no CASH");
     var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
 
-    notifier.notify(SEB, DATE, List.of(result));
+    var notified = notifier.notify(SEB, DATE, List.of(result));
 
+    assertThat(notified).isTrue();
     verify(notificationService).sendMessage(contains("Import warning"), eq(INVESTMENT));
     verify(notificationService).sendMessage(contains("[WARNING]"), eq(INVESTMENT));
   }
@@ -71,11 +76,58 @@ class HealthCheckNotifierTest {
   }
 
   @Test
+  void silentWhenSeverityUnchangedFromPriorRun() {
+    var finding = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "TUK75: unknown ISIN");
+    var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
+    givenPreviousSeverity(ISIN_MATCH, FAIL);
+
+    var notified = notifier.notify(SEB, DATE, List.of(result));
+
+    assertThat(notified).isFalse();
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void sendsWarningWhenSeverityDropsFromFailToWarning() {
+    var finding = new HealthCheckFinding(TUK75, ISIN_MATCH, WARNING, "TUK75: soft issue");
+    var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
+    givenPreviousSeverity(ISIN_MATCH, FAIL);
+
+    var notified = notifier.notify(SEB, DATE, List.of(result));
+
+    assertThat(notified).isTrue();
+    verify(notificationService).sendMessage(contains("Import warning"), eq(INVESTMENT));
+  }
+
+  @Test
+  void sendsClearedWhenResolvedAfterPriorFail() {
+    var result = new HealthCheckResult(TUK75, DATE, List.of());
+    givenPreviousSeverity(ISIN_MATCH, FAIL);
+
+    var notified = notifier.notify(SEB, DATE, List.of(result));
+
+    assertThat(notified).isTrue();
+    verify(notificationService).sendMessage(contains("Import cleared"), eq(INVESTMENT));
+    verify(notificationService).sendMessage(contains("[CLEARED]"), eq(INVESTMENT));
+  }
+
+  @Test
   void swallowsExceptions() {
     doThrow(new RuntimeException("Slack down")).when(notificationService).sendMessage(any(), any());
     var finding = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "test");
     var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
 
-    notifier.notify(SEB, DATE, List.of(result));
+    var notified = notifier.notify(SEB, DATE, List.of(result));
+
+    assertThat(notified).isFalse();
+  }
+
+  private void givenPreviousSeverity(HealthCheckType checkType, HealthCheckSeverity severity) {
+    var current = HealthCheckEvent.builder().severity(severity).build();
+    var previous = HealthCheckEvent.builder().severity(severity).build();
+    lenient()
+        .doReturn(List.of(current, previous))
+        .when(eventRepository)
+        .findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(TUK75, DATE, checkType);
   }
 }

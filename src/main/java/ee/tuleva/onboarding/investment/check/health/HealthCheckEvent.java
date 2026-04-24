@@ -48,6 +48,9 @@ class HealthCheckEvent {
 
   @NotNull private boolean issuesFound;
 
+  @Enumerated(STRING)
+  private HealthCheckSeverity severity;
+
   @NotNull
   @Builder.Default
   @JdbcTypeCode(JSON)

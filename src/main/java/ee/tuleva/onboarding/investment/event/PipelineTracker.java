@@ -21,6 +21,13 @@ public class PipelineTracker {
     }
   }
 
+  public void markHealthNotificationFired() {
+    var run = CURRENT.get();
+    if (run != null) {
+      run.markHealthNotificationFired();
+    }
+  }
+
   public void stepStarted(String name) {
     var run = CURRENT.get();
     if (run != null) {

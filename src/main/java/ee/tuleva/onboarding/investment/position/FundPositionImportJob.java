@@ -124,6 +124,14 @@ public class FundPositionImportJob {
     return "%d new, %d updated".formatted(totals[0], totals[1]);
   }
 
+  private void notifyHealth(
+      ReportProvider provider, LocalDate date, List<HealthCheckResult> healthResults) {
+    var notified = healthCheckNotifier.notify(provider, date, healthResults);
+    if (notified) {
+      pipelineTracker.markHealthNotificationFired();
+    }
+  }
+
   public ImportResult importForProviderAndDate(ReportProvider provider, LocalDate date) {
     log.info("Starting fund position import: provider={}, date={}", provider, date);
 
@@ -152,16 +160,14 @@ public class FundPositionImportJob {
     if (healthResults.stream().anyMatch(HealthCheckResult::hasFails)) {
       healthCheckFailed = true;
       healthCheckFailureDetail = "Import blocked: provider=%s, date=%s".formatted(provider, date);
-      healthCheckNotifier.notify(provider, date, healthResults);
+      notifyHealth(provider, date, healthResults);
       log.error("Health check failed, import blocked: provider={}, date={}", provider, date);
       return new ImportResult(0, 0);
     }
 
     ImportResult result = importService.upsertPositions(positions);
 
-    if (healthResults.stream().anyMatch(HealthCheckResult::hasWarnings)) {
-      healthCheckNotifier.notify(provider, date, healthResults);
-    }
+    notifyHealth(provider, date, healthResults);
     if (result.imported() > 0 || result.updated() > 0) {
       pipelineTracker.markChanged();
     }

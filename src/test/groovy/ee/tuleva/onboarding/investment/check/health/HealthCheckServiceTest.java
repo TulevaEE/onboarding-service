@@ -111,6 +111,40 @@ class HealthCheckServiceTest {
   }
 
   @Test
+  void persistsSeverityDerivedFromFindings() {
+    var positions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("1000")));
+
+    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).willReturn(List.of());
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
+        .willReturn(Optional.empty());
+
+    var failFinding = new HealthCheckFinding(TUK75, COMPLETENESS, FAIL, "missing CASH");
+    given(completenessChecker.check(eq(TUK75), eq(NAV_DATE), any()))
+        .willReturn(List.of(failFinding));
+    given(isinMatchChecker.check(any(), any(), any())).willReturn(List.of());
+    given(outstandingUnitsChecker.check(any(), any(), any())).willReturn(List.of());
+    given(receivablesChecker.check(any(), any(), any(), any())).willReturn(List.of());
+    given(payablesChecker.check(any(), any(), any(), any())).willReturn(List.of());
+
+    healthCheckService.check(positions);
+
+    verify(healthCheckEventRepository)
+        .save(
+            org.mockito.ArgumentMatchers.argThat(
+                e ->
+                    e.getCheckType() == COMPLETENESS
+                        && e.getSeverity() == FAIL
+                        && e.isIssuesFound()));
+    verify(healthCheckEventRepository)
+        .save(
+            org.mockito.ArgumentMatchers.argThat(
+                e ->
+                    e.getCheckType() == HealthCheckType.ISIN_MATCH
+                        && e.getSeverity() == PASS
+                        && !e.isIssuesFound()));
+  }
+
+  @Test
   void looksPreviousDaySecuritiesFromDatabase() {
     var previousDate = NAV_DATE.minusDays(1);
     var positions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("900")));

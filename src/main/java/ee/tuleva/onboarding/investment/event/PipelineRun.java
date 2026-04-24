@@ -17,6 +17,7 @@ public class PipelineRun {
   private final Instant startedAt;
   private final List<StepResult> steps = new ArrayList<>();
   private boolean changed;
+  private boolean healthNotificationFired;
 
   public PipelineRun(PipelineType type, String trigger) {
     this.type = type;
@@ -31,6 +32,10 @@ public class PipelineRun {
 
   public void markChanged() {
     this.changed = true;
+  }
+
+  public void markHealthNotificationFired() {
+    this.healthNotificationFired = true;
   }
 
   public void stepStarted(String name) {

@@ -8,4 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 interface HealthCheckEventRepository extends JpaRepository<HealthCheckEvent, Long> {
 
   List<HealthCheckEvent> findByFundAndCheckDate(TulevaFund fund, LocalDate checkDate);
+
+  List<HealthCheckEvent> findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
+      TulevaFund fund, LocalDate checkDate, HealthCheckType checkType);
 }

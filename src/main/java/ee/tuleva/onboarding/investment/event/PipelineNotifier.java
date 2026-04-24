@@ -43,6 +43,9 @@ public class PipelineNotifier {
   }
 
   private void sendFailure(PipelineRun pipeline) {
+    if (isDuplicateHealthCheckBlock(pipeline)) {
+      return;
+    }
     var steps = resolveSteps(pipeline);
     var message = new StringBuilder();
     message.append("❌ %s PIPELINE FAILED\n".formatted(pipelineLabel(pipeline)));
@@ -68,6 +71,18 @@ public class PipelineNotifier {
             .formatted(jobNameForStep(failed.getName())));
 
     notificationService.sendMessage(message.toString(), INVESTMENT);
+  }
+
+  private boolean isDuplicateHealthCheckBlock(PipelineRun pipeline) {
+    if (pipeline.isHealthNotificationFired()) {
+      return false;
+    }
+    var failures =
+        pipeline.getSteps().stream()
+            .filter(s -> s.getStatus() == PipelineRun.StepStatus.FAILED)
+            .toList();
+    return !failures.isEmpty()
+        && failures.stream().allMatch(s -> s.getName().equals(PipelineStep.HEALTH_CHECK));
   }
 
   private String pipelineLabel(PipelineRun pipeline) {

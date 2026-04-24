@@ -82,7 +82,8 @@ public class HealthCheckService {
   private void saveEvents(TulevaFund fund, LocalDate checkDate, List<HealthCheckFinding> findings) {
     for (var checkType : HealthCheckType.values()) {
       var checkFindings = findings.stream().filter(f -> f.checkType() == checkType).toList();
-      var issuesFound = checkFindings.stream().anyMatch(f -> f.severity() != PASS);
+      var severity = maxSeverity(checkFindings);
+      var issuesFound = severity != PASS;
 
       var event =
           HealthCheckEvent.builder()
@@ -90,10 +91,15 @@ public class HealthCheckService {
               .checkDate(checkDate)
               .checkType(checkType)
               .issuesFound(issuesFound)
+              .severity(severity)
               .result(Map.of("findings", checkFindings))
               .build();
 
       healthCheckEventRepository.save(event);
     }
+  }
+
+  private HealthCheckSeverity maxSeverity(List<HealthCheckFinding> findings) {
+    return findings.stream().map(HealthCheckFinding::severity).max(Enum::compareTo).orElse(PASS);
   }
 }

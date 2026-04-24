@@ -60,4 +60,46 @@ class PipelineNotifierTest {
         .sendMessage(contains("FundPositionImportJob"), eq(INVESTMENT));
     then(notificationService).should().sendMessage(contains("skipped"), eq(INVESTMENT));
   }
+
+  @Test
+  void skipsFailureMessageWhenOnlyHealthCheckFailedAndNoFreshHealthNotification() {
+    var pipeline = new PipelineRun(PipelineRun.PipelineType.IMPORT, "cron:15:00");
+    pipeline.stepStarted("Report Import");
+    pipeline.stepCompleted("Report Import");
+    pipeline.stepStarted("Position Import");
+    pipeline.stepCompleted("Position Import");
+    pipeline.stepStarted("Health Check");
+    pipeline.stepFailed("Health Check", "Import blocked: provider=SEB, date=2026-04-23");
+
+    notifier.sendCompleted(pipeline);
+
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void sendsFailureMessageWhenHealthCheckFailedAndFreshNotificationFired() {
+    var pipeline = new PipelineRun(PipelineRun.PipelineType.IMPORT, "cron:15:00");
+    pipeline.stepStarted("Report Import");
+    pipeline.stepCompleted("Report Import");
+    pipeline.stepStarted("Position Import");
+    pipeline.stepCompleted("Position Import");
+    pipeline.stepStarted("Health Check");
+    pipeline.stepFailed("Health Check", "Import blocked: provider=SEB, date=2026-04-23");
+    pipeline.markHealthNotificationFired();
+
+    notifier.sendCompleted(pipeline);
+
+    then(notificationService).should().sendMessage(contains("FAILED"), eq(INVESTMENT));
+  }
+
+  @Test
+  void sendsFailureMessageWhenNonHealthStepAlsoFailed() {
+    var pipeline = new PipelineRun(PipelineRun.PipelineType.IMPORT, "cron:15:00");
+    pipeline.stepStarted("Report Import");
+    pipeline.stepFailed("Report Import", "S3 unreachable");
+
+    notifier.sendCompleted(pipeline);
+
+    then(notificationService).should().sendMessage(contains("FAILED"), eq(INVESTMENT));
+  }
 }

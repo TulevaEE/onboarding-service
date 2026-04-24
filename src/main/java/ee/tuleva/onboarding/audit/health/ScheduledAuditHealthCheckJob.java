@@ -15,7 +15,7 @@ public class ScheduledAuditHealthCheckJob {
 
   private final AuditHealthService auditHealthService;
 
-  private static final String CRON_EXPRESSION = "0 0 * * * ?";
+  private static final String CRON_EXPRESSION = "0 0 7-22 * * ?";
   private static final String CRON_ZONE = "Europe/Tallinn";
 
   @Scheduled(cron = CRON_EXPRESSION, zone = CRON_ZONE)

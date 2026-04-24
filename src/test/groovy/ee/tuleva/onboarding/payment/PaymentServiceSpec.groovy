@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.payment.provider.montonio.MontonioCallbackService
 import ee.tuleva.onboarding.payment.recurring.RecurringPaymentLinkGenerator
 import ee.tuleva.onboarding.payment.savings.SavingsCallbackService
 import ee.tuleva.onboarding.payment.savings.SavingsPaymentLinkGenerator
+import ee.tuleva.onboarding.payment.savings.recurring.SavingsFundRecurringPaymentLinkGenerator
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
@@ -26,12 +27,13 @@ class PaymentServiceSpec extends Specification {
   SinglePaymentLinkGenerator singlePaymentLinkGenerator = Mock()
   RecurringPaymentLinkGenerator recurringPaymentLinkGenerator = Mock()
   SavingsPaymentLinkGenerator savingsPaymentLinkGenerator = Mock()
+  SavingsFundRecurringPaymentLinkGenerator savingsFundRecurringPaymentLinkGenerator = Mock()
   MontonioCallbackService paymentProviderCallbackService = Mock()
   SavingsCallbackService savingsCallbackService = Mock()
   UserService userService = Mock()
 
   PaymentService paymentService = new PaymentService(
-      paymentRepository, singlePaymentLinkGenerator, recurringPaymentLinkGenerator, savingsPaymentLinkGenerator, paymentProviderCallbackService, savingsCallbackService, userService)
+      paymentRepository, singlePaymentLinkGenerator, recurringPaymentLinkGenerator, savingsPaymentLinkGenerator, savingsFundRecurringPaymentLinkGenerator, paymentProviderCallbackService, savingsCallbackService, userService)
 
   def "can get payments"() {
     given:

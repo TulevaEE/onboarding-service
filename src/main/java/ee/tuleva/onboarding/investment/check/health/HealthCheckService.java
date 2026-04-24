@@ -61,13 +61,31 @@ public class HealthCheckService {
                 date ->
                     fundPositionRepository.findByNavDateAndFundAndAccountType(date, fund, SECURITY))
             .orElse(List.of());
+    var previousLiabilities =
+        previousNavDate
+            .map(
+                date ->
+                    fundPositionRepository.findByNavDateAndFundAndAccountType(
+                        date, fund, LIABILITY))
+            .orElse(List.of());
+    var previousReceivables =
+        previousNavDate
+            .map(
+                date ->
+                    fundPositionRepository.findByNavDateAndFundAndAccountType(
+                        date, fund, RECEIVABLES))
+            .orElse(List.of());
 
     var findings = new ArrayList<HealthCheckFinding>();
     findings.addAll(completenessChecker.check(fund, navDate, positions));
     findings.addAll(isinMatchChecker.check(fund, securities, allocations));
     findings.addAll(outstandingUnitsChecker.check(fund, navDate, unitsPositions));
-    findings.addAll(receivablesChecker.check(fund, securities, previousSecurities, receivables));
-    findings.addAll(payablesChecker.check(fund, securities, previousSecurities, liabilities));
+    findings.addAll(
+        receivablesChecker.check(
+            fund, securities, previousSecurities, receivables, previousReceivables));
+    findings.addAll(
+        payablesChecker.check(
+            fund, securities, previousSecurities, liabilities, previousLiabilities));
 
     saveEvents(fund, navDate, findings);
 

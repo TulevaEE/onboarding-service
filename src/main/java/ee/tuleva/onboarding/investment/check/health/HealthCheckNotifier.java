@@ -83,9 +83,13 @@ public class HealthCheckNotifier {
       for (var finding : transition.result.findings()) {
         if (finding.checkType() == transition.checkType && finding.severity() != PASS) {
           message.append(
-              "\n[%s] %s %s: %s"
+              "\n%s [%s] %s %s: %s"
                   .formatted(
-                      finding.severity(), finding.checkType(), finding.fund(), finding.message()));
+                      severityEmoji(finding.severity()),
+                      finding.severity(),
+                      finding.checkType(),
+                      finding.fund(),
+                      finding.message()));
         }
       }
     }
@@ -111,6 +115,14 @@ public class HealthCheckNotifier {
       return "Import warning: %s %s\n".formatted(provider, date);
     }
     return "✅ Import cleared: %s %s\n".formatted(provider, date);
+  }
+
+  private String severityEmoji(HealthCheckSeverity severity) {
+    return switch (severity) {
+      case FAIL -> "🛑";
+      case WARNING -> "⚠️";
+      case PASS -> "✅";
+    };
   }
 
   private record Transition(

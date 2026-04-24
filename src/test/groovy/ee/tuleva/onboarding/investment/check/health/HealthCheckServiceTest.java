@@ -10,6 +10,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -55,8 +56,8 @@ class HealthCheckServiceTest {
     given(completenessChecker.check(eq(TUK75), eq(NAV_DATE), any())).willReturn(List.of());
     given(isinMatchChecker.check(eq(TUK75), any(), eq(allocations))).willReturn(List.of());
     given(outstandingUnitsChecker.check(eq(TUK75), eq(NAV_DATE), any())).willReturn(List.of());
-    given(receivablesChecker.check(eq(TUK75), any(), any(), any())).willReturn(List.of());
-    given(payablesChecker.check(eq(TUK75), any(), any(), any())).willReturn(List.of());
+    given(receivablesChecker.check(eq(TUK75), any(), any(), any(), any())).willReturn(List.of());
+    given(payablesChecker.check(eq(TUK75), any(), any(), any(), any())).willReturn(List.of());
 
     var results = healthCheckService.check(positions);
 
@@ -80,8 +81,8 @@ class HealthCheckServiceTest {
     given(completenessChecker.check(any(), any(), any())).willReturn(List.of());
     given(isinMatchChecker.check(any(), any(), any())).willReturn(List.of());
     given(outstandingUnitsChecker.check(any(), any(), any())).willReturn(List.of());
-    given(receivablesChecker.check(any(), any(), any(), any())).willReturn(List.of());
-    given(payablesChecker.check(any(), any(), any(), any())).willReturn(List.of());
+    given(receivablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
+    given(payablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
 
     var results = healthCheckService.check(positions);
 
@@ -101,8 +102,8 @@ class HealthCheckServiceTest {
     given(completenessChecker.check(eq(TUK75), eq(NAV_DATE), any())).willReturn(List.of(finding));
     given(isinMatchChecker.check(any(), any(), any())).willReturn(List.of());
     given(outstandingUnitsChecker.check(any(), any(), any())).willReturn(List.of());
-    given(receivablesChecker.check(any(), any(), any(), any())).willReturn(List.of());
-    given(payablesChecker.check(any(), any(), any(), any())).willReturn(List.of());
+    given(receivablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
+    given(payablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
 
     healthCheckService.check(positions);
 
@@ -123,8 +124,8 @@ class HealthCheckServiceTest {
         .willReturn(List.of(failFinding));
     given(isinMatchChecker.check(any(), any(), any())).willReturn(List.of());
     given(outstandingUnitsChecker.check(any(), any(), any())).willReturn(List.of());
-    given(receivablesChecker.check(any(), any(), any(), any())).willReturn(List.of());
-    given(payablesChecker.check(any(), any(), any(), any())).willReturn(List.of());
+    given(receivablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
+    given(payablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
 
     healthCheckService.check(positions);
 
@@ -159,19 +160,51 @@ class HealthCheckServiceTest {
     given(completenessChecker.check(any(), any(), any())).willReturn(List.of());
     given(isinMatchChecker.check(any(), any(), any())).willReturn(List.of());
     given(outstandingUnitsChecker.check(any(), any(), any())).willReturn(List.of());
-    given(receivablesChecker.check(eq(TUK75), any(), eq(previousSecurities), any()))
+    given(receivablesChecker.check(eq(TUK75), any(), eq(previousSecurities), any(), any()))
         .willReturn(List.of());
-    given(payablesChecker.check(eq(TUK75), any(), eq(previousSecurities), any()))
+    given(payablesChecker.check(eq(TUK75), any(), eq(previousSecurities), any(), any()))
         .willReturn(List.of());
 
     healthCheckService.check(positions);
 
-    verify(receivablesChecker).check(eq(TUK75), any(), eq(previousSecurities), any());
-    verify(payablesChecker).check(eq(TUK75), any(), eq(previousSecurities), any());
+    verify(receivablesChecker).check(eq(TUK75), any(), eq(previousSecurities), any(), any());
+    verify(payablesChecker).check(eq(TUK75), any(), eq(previousSecurities), any(), any());
   }
 
-  private FundPosition securityPosition(
-      ee.tuleva.onboarding.fund.TulevaFund fund, String isin, BigDecimal quantity) {
+  @Test
+  void loadsPreviousDayLiabilitiesAndReceivablesFromDatabase() {
+    var previousDate = NAV_DATE.minusDays(1);
+    var positions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("1100")));
+    var previousLiabilities = List.of(liabilityPosition(TUK75, new BigDecimal("-1780760.00")));
+    var previousReceivables = List.of(receivablesPosition(TUK75, new BigDecimal("831.77")));
+
+    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).willReturn(List.of());
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
+        .willReturn(Optional.of(previousDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(previousDate, TUK75, SECURITY))
+        .willReturn(List.of());
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(previousDate, TUK75, LIABILITY))
+        .willReturn(previousLiabilities);
+    given(
+            fundPositionRepository.findByNavDateAndFundAndAccountType(
+                previousDate, TUK75, RECEIVABLES))
+        .willReturn(previousReceivables);
+
+    given(completenessChecker.check(any(), any(), any())).willReturn(List.of());
+    given(isinMatchChecker.check(any(), any(), any())).willReturn(List.of());
+    given(outstandingUnitsChecker.check(any(), any(), any())).willReturn(List.of());
+    given(receivablesChecker.check(any(), any(), any(), any(), eq(previousReceivables)))
+        .willReturn(List.of());
+    given(payablesChecker.check(any(), any(), any(), any(), eq(previousLiabilities)))
+        .willReturn(List.of());
+
+    healthCheckService.check(positions);
+
+    verify(payablesChecker).check(eq(TUK75), any(), any(), any(), eq(previousLiabilities));
+    verify(receivablesChecker).check(eq(TUK75), any(), any(), any(), eq(previousReceivables));
+  }
+
+  private FundPosition securityPosition(TulevaFund fund, String isin, BigDecimal quantity) {
     return FundPosition.builder()
         .navDate(NAV_DATE)
         .fund(fund)
@@ -182,13 +215,32 @@ class HealthCheckServiceTest {
         .build();
   }
 
-  private FundPosition cashPosition(
-      ee.tuleva.onboarding.fund.TulevaFund fund, BigDecimal marketValue) {
+  private FundPosition cashPosition(TulevaFund fund, BigDecimal marketValue) {
     return FundPosition.builder()
         .navDate(NAV_DATE)
         .fund(fund)
         .accountType(CASH)
         .accountName("Cash account in SEB Pank")
+        .marketValue(marketValue)
+        .build();
+  }
+
+  private FundPosition liabilityPosition(TulevaFund fund, BigDecimal marketValue) {
+    return FundPosition.builder()
+        .navDate(NAV_DATE.minusDays(1))
+        .fund(fund)
+        .accountType(LIABILITY)
+        .accountName("Total payables of unsettled transactions")
+        .marketValue(marketValue)
+        .build();
+  }
+
+  private FundPosition receivablesPosition(TulevaFund fund, BigDecimal marketValue) {
+    return FundPosition.builder()
+        .navDate(NAV_DATE.minusDays(1))
+        .fund(fund)
+        .accountType(RECEIVABLES)
+        .accountName("Receivables of outstanding units")
         .marketValue(marketValue)
         .build();
   }

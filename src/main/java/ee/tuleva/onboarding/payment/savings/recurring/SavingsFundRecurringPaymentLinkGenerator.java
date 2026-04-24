@@ -24,13 +24,17 @@ import org.springframework.stereotype.Service;
 public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGenerator {
 
   private static final String SWEDBANK_BANK_CODE = "22";
+  private static final int ESTONIAN_IBAN_LENGTH = 20;
 
-  private final SavingsFundRecipientConfiguration savingsFundConfiguration;
+  private final SavingsFundRecipientConfiguration recipientConfiguration;
   private final PaymentDateProvider paymentDateProvider;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
 
   @Override
   public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
+    if (paymentData.getAmount() == null) {
+      throw new IllegalArgumentException("Amount is required for recurring savings fund payments");
+    }
     var personalCode = person.getPersonalCode();
     var amount = paymentData.getAmount().toPlainString();
     var firstPaymentDate = paymentDateProvider.tenthDayOfMonth();
@@ -51,16 +55,16 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
 
     return new PaymentLink(
         url,
-        savingsFundConfiguration.getRecipientName(),
-        savingsFundConfiguration.getRecipientIban(),
+        recipientConfiguration.getRecipientName(),
+        recipientConfiguration.getRecipientIban(),
         personalCode,
         amount);
   }
 
   private String buildLhvUrl(String personalCode, String amount, LocalDate firstPaymentDate) {
     var params = new LinkedHashMap<String, String>();
-    params.put("i_receiver_name", savingsFundConfiguration.getRecipientName());
-    params.put("i_receiver_account_no", savingsFundConfiguration.getRecipientIban());
+    params.put("i_receiver_name", recipientConfiguration.getRecipientName());
+    params.put("i_receiver_account_no", recipientConfiguration.getRecipientIban());
     params.put("i_payment_desc", personalCode);
     params.put("i_amount", amount);
     params.put("i_currency_id", "38");
@@ -72,8 +76,8 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
   private String buildCoopUrl(String personalCode, String amount, LocalDate firstPaymentDate) {
     var params = new LinkedHashMap<String, String>();
     params.put("whatform", "PermPaymentNew");
-    params.put("SaajaNimi", savingsFundConfiguration.getRecipientName());
-    params.put("SaajaKonto", savingsFundConfiguration.getRecipientIban());
+    params.put("SaajaNimi", recipientConfiguration.getRecipientName());
+    params.put("SaajaKonto", recipientConfiguration.getRecipientIban());
     params.put("MakseSumma", amount);
     params.put("MaksePohjus", personalCode);
     params.put("MakseSagedus", "3");
@@ -83,9 +87,8 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
 
   private String buildSwedbankUrl(String personalCode, String amount, Person person) {
     var params = new LinkedHashMap<String, String>();
-    params.put(
-        "standingOrder.beneficiaryAccountNumber", savingsFundConfiguration.getRecipientIban());
-    params.put("standingOrder.beneficiaryName", savingsFundConfiguration.getRecipientName());
+    params.put("standingOrder.beneficiaryAccountNumber", recipientConfiguration.getRecipientIban());
+    params.put("standingOrder.beneficiaryName", recipientConfiguration.getRecipientName());
     params.put("standingOrder.amount", amount);
     params.put("standingOrder.details", personalCode);
     params.put("frequency", "K");
@@ -102,7 +105,7 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
 
   private static boolean isSwedbankIban(String iban) {
     return iban != null
-        && iban.length() >= 6
+        && iban.length() == ESTONIAN_IBAN_LENGTH
         && iban.startsWith("EE")
         && iban.substring(4, 6).equals(SWEDBANK_BANK_CODE);
   }

@@ -112,7 +112,7 @@ public class SavingFundPaymentRepository {
               AND status = :status
               AND amount > 0
               AND remitter_iban IS NOT NULL
-            ORDER BY created_at DESC
+            ORDER BY created_at DESC, id DESC
             LIMIT 1
             """)
         .param("party_type", partyId.type().name())

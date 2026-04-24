@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.check.health;
 
-import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.PAYABLES;
 import static java.math.BigDecimal.ZERO;
 
@@ -53,7 +53,7 @@ class PayablesChecker {
           new HealthCheckFinding(
               fund,
               PAYABLES,
-              FAIL,
+              WARNING,
               "%s: SECURITY quantities increased but no payables found".formatted(fund)));
     }
 

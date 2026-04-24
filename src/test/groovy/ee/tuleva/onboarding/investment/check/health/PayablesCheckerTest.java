@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -29,7 +29,7 @@ class PayablesCheckerTest {
   }
 
   @Test
-  void failsWhenQuantityIncreasedButNoLiabilities() {
+  void warnsWhenQuantityIncreasedButNoLiabilities() {
     var today = List.of(securityPosition("IE001", new BigDecimal("1100")));
     var previous = List.of(securityPosition("IE001", new BigDecimal("1000")));
 
@@ -41,7 +41,7 @@ class PayablesCheckerTest {
             f -> {
               assertThat(f.fund()).isEqualTo(TUK75);
               assertThat(f.checkType()).isEqualTo(HealthCheckType.PAYABLES);
-              assertThat(f.severity()).isEqualTo(FAIL);
+              assertThat(f.severity()).isEqualTo(WARNING);
             });
   }
 
@@ -65,14 +65,16 @@ class PayablesCheckerTest {
   }
 
   @Test
-  void failsWhenQuantityIncreasedAndLiabilitiesHaveZeroMarketValue() {
+  void warnsWhenQuantityIncreasedAndLiabilitiesHaveZeroMarketValue() {
     var today = List.of(securityPosition("IE001", new BigDecimal("1100")));
     var previous = List.of(securityPosition("IE001", new BigDecimal("1000")));
     var liabilities = List.of(liabilityPosition(BigDecimal.ZERO));
 
     var findings = checker.check(TUK75, today, previous, liabilities);
 
-    assertThat(findings).singleElement().satisfies(f -> assertThat(f.severity()).isEqualTo(FAIL));
+    assertThat(findings)
+        .singleElement()
+        .satisfies(f -> assertThat(f.severity()).isEqualTo(WARNING));
   }
 
   private FundPosition securityPosition(String isin, BigDecimal quantity) {

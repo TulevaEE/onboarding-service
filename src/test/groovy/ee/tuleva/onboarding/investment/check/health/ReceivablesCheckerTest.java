@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -29,7 +29,7 @@ class ReceivablesCheckerTest {
   }
 
   @Test
-  void failsWhenQuantityDecreasedButNoReceivables() {
+  void warnsWhenQuantityDecreasedButNoReceivables() {
     var today = List.of(securityPosition("IE001", new BigDecimal("900")));
     var previous = List.of(securityPosition("IE001", new BigDecimal("1000")));
 
@@ -41,7 +41,7 @@ class ReceivablesCheckerTest {
             f -> {
               assertThat(f.fund()).isEqualTo(TUK75);
               assertThat(f.checkType()).isEqualTo(HealthCheckType.RECEIVABLES);
-              assertThat(f.severity()).isEqualTo(FAIL);
+              assertThat(f.severity()).isEqualTo(WARNING);
             });
   }
 
@@ -65,14 +65,16 @@ class ReceivablesCheckerTest {
   }
 
   @Test
-  void failsWhenQuantityDecreasedAndReceivablesHaveZeroMarketValue() {
+  void warnsWhenQuantityDecreasedAndReceivablesHaveZeroMarketValue() {
     var today = List.of(securityPosition("IE001", new BigDecimal("900")));
     var previous = List.of(securityPosition("IE001", new BigDecimal("1000")));
     var receivables = List.of(receivablesPosition(BigDecimal.ZERO));
 
     var findings = checker.check(TUK75, today, previous, receivables);
 
-    assertThat(findings).singleElement().satisfies(f -> assertThat(f.severity()).isEqualTo(FAIL));
+    assertThat(findings)
+        .singleElement()
+        .satisfies(f -> assertThat(f.severity()).isEqualTo(WARNING));
   }
 
   private FundPosition securityPosition(String isin, BigDecimal quantity) {

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.check.health;
 
-import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.RECEIVABLES;
 import static java.math.BigDecimal.ZERO;
 
@@ -53,7 +53,7 @@ class ReceivablesChecker {
           new HealthCheckFinding(
               fund,
               RECEIVABLES,
-              FAIL,
+              WARNING,
               "%s: SECURITY quantities decreased but no receivables found".formatted(fund)));
     }
 

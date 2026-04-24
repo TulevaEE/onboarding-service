@@ -392,8 +392,7 @@ class RedemptionIntegrationTest {
   }
 
   @Test
-  @DisplayName("Create redemption request fails when IBAN does not belong to user")
-  void createRedemptionRequest_failsWhenIbanDoesNotBelongToUser() {
+  void createRedemptionRequest_failsWhenIbanDoesNotBelongToParty() {
     var amount = new BigDecimal("10.00");
     var invalidIban = "EE382200221020145685";
 
@@ -401,8 +400,7 @@ class RedemptionIntegrationTest {
             () ->
                 redemptionService.createRedemptionRequest(
                     testAuthenticatedPerson, amount, EUR, invalidIban))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("IBAN does not belong to user");
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test

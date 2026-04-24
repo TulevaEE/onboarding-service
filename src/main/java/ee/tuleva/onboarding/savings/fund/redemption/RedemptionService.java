@@ -193,7 +193,7 @@ public class RedemptionService {
     List<String> ibans = savingFundPaymentRepository.findDepositBankAccountIbans(partyId);
     if (!ibans.contains(iban)) {
       throw new IllegalArgumentException(
-          "IBAN does not belong to user: iban=" + iban + ", party=" + partyId);
+          "IBAN does not belong to party: iban=" + iban + ", party=" + partyId);
     }
   }
 

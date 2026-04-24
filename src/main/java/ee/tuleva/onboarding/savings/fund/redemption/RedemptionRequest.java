@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static jakarta.persistence.EnumType.STRING;
 
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.time.ClockHolder;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
@@ -28,6 +29,13 @@ public class RedemptionRequest {
 
   @Column(name = "user_id", nullable = false)
   private Long userId;
+
+  @Enumerated(STRING)
+  @Column(name = "party_type", nullable = false)
+  private PartyId.Type partyType;
+
+  @Column(name = "party_code", nullable = false)
+  private String partyCode;
 
   @Column(nullable = false, precision = 15, scale = 5)
   private BigDecimal fundUnits;
@@ -85,5 +93,17 @@ public class RedemptionRequest {
     REDEEMED,
     PROCESSED,
     FAILED
+  }
+
+  public PartyId getPartyId() {
+    return new PartyId(partyType, partyCode);
+  }
+
+  public static class RedemptionRequestBuilder {
+    public RedemptionRequestBuilder partyId(PartyId partyId) {
+      this.partyType = partyId.type();
+      this.partyCode = partyId.code();
+      return this;
+    }
   }
 }

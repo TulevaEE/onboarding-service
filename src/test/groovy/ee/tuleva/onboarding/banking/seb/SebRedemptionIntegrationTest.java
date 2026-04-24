@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.banking.seb;
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
@@ -88,7 +89,7 @@ class SebRedemptionIntegrationTest {
     ClockHolder.setClock(Clock.fixed(FRIDAY, UTC));
     var request =
         redemptionService.createRedemptionRequest(
-            testUser.getId(), redemptionAmount, EUR, SEB_DEPOSIT_IBAN);
+            authenticatedPersonFromUser(testUser).build(), redemptionAmount, EUR, SEB_DEPOSIT_IBAN);
 
     assertThat(request.getStatus()).isEqualTo(RESERVED);
 

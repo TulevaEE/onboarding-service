@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
@@ -18,7 +17,6 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.notification.RedemptionBatchCompletedEvent;
-import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -53,7 +51,6 @@ public class RedemptionBatchJob {
   private final RedemptionRequestRepository redemptionRequestRepository;
   private final RedemptionStatusService redemptionStatusService;
   private final SavingsFundLedger savingsFundLedger;
-  private final UserService userService;
   private final ApplicationEventPublisher eventPublisher;
   private final BankAccountConfiguration bankAccountConfiguration;
   private final TransactionTemplate transactionTemplate;
@@ -137,8 +134,7 @@ public class RedemptionBatchJob {
                     return ZERO;
                   }
 
-                  var user = userService.getByIdOrThrow(request.getUserId());
-                  var party = new PartyId(PERSON, user.getPersonalCode());
+                  PartyId party = toUpdate.getPartyId();
                   BigDecimal amount = request.getFundUnits().multiply(nav).setScale(2, HALF_UP);
 
                   toUpdate.setCashAmount(amount);
@@ -198,8 +194,7 @@ public class RedemptionBatchJob {
       }
 
       try {
-        var user = userService.getByIdOrThrow(updated.getUserId());
-        var party = new PartyId(PERSON, user.getPersonalCode());
+        PartyId party = updated.getPartyId();
         String beneficiaryName = getBeneficiaryName(party, updated.getCustomerIban());
 
         PaymentRequest paymentRequest =
@@ -246,8 +241,7 @@ public class RedemptionBatchJob {
       throw new IllegalStateException("Cannot retry payout, not priced: id=" + requestId);
     }
 
-    var user = userService.getByIdOrThrow(request.getUserId());
-    var party = new PartyId(PERSON, user.getPersonalCode());
+    PartyId party = request.getPartyId();
     String beneficiaryName = getBeneficiaryName(party, request.getCustomerIban());
 
     PaymentRequest paymentRequest =

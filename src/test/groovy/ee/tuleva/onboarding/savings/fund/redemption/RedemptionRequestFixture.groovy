@@ -1,14 +1,17 @@
 package ee.tuleva.onboarding.savings.fund.redemption
 
-
+import ee.tuleva.onboarding.party.PartyId
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.RedemptionRequestBuilder
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED
 
 class RedemptionRequestFixture {
 
   static RedemptionRequestBuilder redemptionRequestFixture() {
+    def user = sampleUser().build()
     return RedemptionRequest.builder()
-        .userId(1L)
+        .userId(user.id)
+        .partyId(new PartyId(PartyId.Type.PERSON, user.personalCode))
         .fundUnits(new BigDecimal("10.00000"))
         .requestedAmount(new BigDecimal("10.00"))
         .customerIban("EE123456789012345678")

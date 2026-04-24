@@ -26,6 +26,7 @@ public class PaymentData {
     GIFT,
     MEMBER_FEE,
     SAVINGS,
+    SAVINGS_RECURRING,
   }
 
   public enum PaymentChannel {
@@ -36,6 +37,7 @@ public class PaymentData {
     COOP,
     COOP_WEB,
     PARTNER, // COOP_APP
-    TULUNDUSUHISTU
+    TULUNDUSUHISTU,
+    OTHER
   }
 }

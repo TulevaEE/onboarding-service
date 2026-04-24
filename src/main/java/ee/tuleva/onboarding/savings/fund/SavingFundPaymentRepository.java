@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class SavingFundPaymentRepository {
   private final NamedParameterJdbcTemplate jdbcTemplate;
+  private final JdbcClient jdbcClient;
 
   public Optional<SavingFundPayment> findById(UUID id) {
     var result =
@@ -98,6 +100,26 @@ public class SavingFundPaymentRepository {
             "statuses",
             Arrays.stream(statuses).map(Enum::name).toList()),
         this::rowMapper);
+  }
+
+  public Optional<String> findLastRemitterIban(PartyId partyId) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT remitter_iban
+            FROM saving_fund_payment
+            WHERE party_type = :party_type AND party_code = :party_code
+              AND status = :status
+              AND amount > 0
+              AND remitter_iban IS NOT NULL
+            ORDER BY created_at DESC
+            LIMIT 1
+            """)
+        .param("party_type", partyId.type().name())
+        .param("party_code", partyId.code())
+        .param("status", PROCESSED.name())
+        .query(String.class)
+        .optional();
   }
 
   public List<String> findDepositBankAccountIbans(PartyId partyId) {

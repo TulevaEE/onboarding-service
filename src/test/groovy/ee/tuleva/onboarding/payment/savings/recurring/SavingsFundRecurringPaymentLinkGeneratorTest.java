@@ -14,7 +14,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.payment.PaymentData;
@@ -37,7 +36,7 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
   private static final String RECIPIENT_IBAN = "EE711010220306707220";
   private static final LocalDate FIRST_PAYMENT = LocalDate.of(2026, 5, 10);
 
-  private final SavingsFundRecipientConfiguration savingsFundConfiguration =
+  private final SavingsFundRecipientConfiguration recipientConfiguration =
       new SavingsFundRecipientConfiguration();
   private final PaymentDateProvider paymentDateProvider = mock(PaymentDateProvider.class);
   private final SavingFundPaymentRepository savingFundPaymentRepository =
@@ -45,16 +44,17 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
 
   private final SavingsFundRecurringPaymentLinkGenerator generator =
       new SavingsFundRecurringPaymentLinkGenerator(
-          savingsFundConfiguration, paymentDateProvider, savingFundPaymentRepository);
+          recipientConfiguration, paymentDateProvider, savingFundPaymentRepository);
 
   @BeforeEach
   void setup() {
-    savingsFundConfiguration.setRecipientName(RECIPIENT_NAME);
-    savingsFundConfiguration.setRecipientIban(RECIPIENT_IBAN);
-    when(paymentDateProvider.tenthDayOfMonth()).thenReturn(FIRST_PAYMENT);
-    when(savingFundPaymentRepository.findLastRemitterIban(
-            new PartyId(PartyId.Type.PERSON, PERSONAL_CODE)))
-        .thenReturn(Optional.empty());
+    recipientConfiguration.setRecipientName(RECIPIENT_NAME);
+    recipientConfiguration.setRecipientIban(RECIPIENT_IBAN);
+    given(paymentDateProvider.tenthDayOfMonth()).willReturn(FIRST_PAYMENT);
+    given(
+            savingFundPaymentRepository.findLastRemitterIban(
+                new PartyId(PartyId.Type.PERSON, PERSONAL_CODE)))
+        .willReturn(Optional.empty());
   }
 
   @Test
@@ -156,6 +156,43 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
   void throwsForUnsupportedChannel() {
     assertThatThrownBy(() -> generator.getPaymentLink(paymentData(TULUNDUSUHISTU), person()))
         .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void throwsWhenAmountIsMissing() {
+    var paymentData =
+        PaymentData.builder()
+            .currency(EUR)
+            .type(SAVINGS_RECURRING)
+            .paymentChannel(LHV)
+            .recipientPersonalCode(PERSONAL_CODE)
+            .build();
+
+    assertThatThrownBy(() -> generator.getPaymentLink(paymentData, person()))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void buildsSwedbankUrlWithoutAccountWhenRemitterIbanIsMalformed() {
+    given(
+            savingFundPaymentRepository.findLastRemitterIban(
+                new PartyId(PartyId.Type.PERSON, PERSONAL_CODE)))
+        .willReturn(Optional.of("EE22"));
+
+    var link = generator.getPaymentLink(paymentData(SWEDBANK), person());
+
+    assertThat(link.url()).doesNotContain("account=");
+  }
+
+  @Test
+  void encodesReservedUrlCharactersInRecipientName() {
+    recipientConfiguration.setRecipientName("Tuleva & Co?");
+
+    var link = generator.getPaymentLink(paymentData(LHV), person());
+
+    assertThat(link.url())
+        .contains("i_receiver_name=Tuleva%20%26%20Co%3F")
+        .doesNotContain("Tuleva & Co?");
   }
 
   @ParameterizedTest

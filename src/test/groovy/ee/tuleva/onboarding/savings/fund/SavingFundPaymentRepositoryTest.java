@@ -580,6 +580,31 @@ class SavingFundPaymentRepositoryTest {
     assertThat(repository.findLastRemitterIban(party2)).contains("EE222222222222222222");
   }
 
+  @Test
+  void findLastRemitterIban_isIdempotentWhenCreatedAtMatches() {
+    var user = createUser("37706154772");
+    var party = new PartyId(PERSON, user.getPersonalCode());
+    var sharedTimestamp = Instant.now().minus(1, DAYS);
+
+    var a =
+        repository.savePaymentData(
+            createPayment().externalId("tie-1").remitterIban("EE111111111111111111").build());
+    var b =
+        repository.savePaymentData(
+            createPayment().externalId("tie-2").remitterIban("EE222222222222222222").build());
+    repository.attachParty(a, party);
+    repository.attachParty(b, party);
+    updatePaymentStatus(a, PROCESSED);
+    updatePaymentStatus(b, PROCESSED);
+    backdateCreatedAt(a, sharedTimestamp);
+    backdateCreatedAt(b, sharedTimestamp);
+
+    var first = repository.findLastRemitterIban(party);
+    var second = repository.findLastRemitterIban(party);
+
+    assertThat(first).isPresent().isEqualTo(second);
+  }
+
   private int backdateCreatedAt(UUID paymentId, Instant createdAt) {
     return jdbcTemplate.update(
         "update saving_fund_payment set created_at=:createdAt where id=:id",

@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.payment;
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
-import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -72,11 +71,11 @@ class PaymentControllerSavingsRecurringTest {
                 .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.url", is(expectedUrl)))
-        .andExpect(jsonPath("$.recipientName", is("Tuleva Täiendav Kogumisfond")))
-        .andExpect(jsonPath("$.recipientIban", is("EE711010220306707220")))
-        .andExpect(jsonPath("$.description", is("38812121215")))
-        .andExpect(jsonPath("$.amount", is("50")));
+        .andExpect(jsonPath("$.url").value(expectedUrl))
+        .andExpect(jsonPath("$.recipientName").value("Tuleva Täiendav Kogumisfond"))
+        .andExpect(jsonPath("$.recipientIban").value("EE711010220306707220"))
+        .andExpect(jsonPath("$.description").value("38812121215"))
+        .andExpect(jsonPath("$.amount").value("50"));
   }
 
   @Test
@@ -105,6 +104,6 @@ class PaymentControllerSavingsRecurringTest {
                 .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.url").doesNotExist())
-        .andExpect(jsonPath("$.recipientIban", is("EE711010220306707220")));
+        .andExpect(jsonPath("$.recipientIban").value("EE711010220306707220"));
   }
 }

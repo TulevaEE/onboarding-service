@@ -1,10 +1,12 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -19,6 +21,7 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -42,6 +45,12 @@ class RedemptionControllerTest {
       new UsernamePasswordAuthenticationToken(
           authPerson, null, List.of(new SimpleGrantedAuthority(USER)));
 
+  private final AuthenticatedPerson legalEntityAuthPerson =
+      sampleAuthenticatedPersonLegalEntity().build();
+  private final Authentication legalEntityAuthentication =
+      new UsernamePasswordAuthenticationToken(
+          legalEntityAuthPerson, null, List.of(new SimpleGrantedAuthority(USER)));
+
   @Test
   @DisplayName("POST /v1/savings/redemptions creates redemption and returns 201")
   void createRedemption_createsAndReturnsCreated() throws Exception {
@@ -54,10 +63,7 @@ class RedemptionControllerTest {
             .build();
 
     when(redemptionService.createRedemptionRequest(
-            eq(authPerson.getUserId()),
-            eq(new BigDecimal("10.00")),
-            eq(EUR),
-            eq("EE471000001020145685")))
+            eq(authPerson), eq(new BigDecimal("10.00")), eq(EUR), eq("EE471000001020145685")))
         .thenReturn(redemptionRequest);
 
     String requestBody =
@@ -81,10 +87,7 @@ class RedemptionControllerTest {
 
     verify(redemptionService)
         .createRedemptionRequest(
-            eq(authPerson.getUserId()),
-            eq(new BigDecimal("10.00")),
-            eq(EUR),
-            eq("EE471000001020145685"));
+            eq(authPerson), eq(new BigDecimal("10.00")), eq(EUR), eq("EE471000001020145685"));
   }
 
   @Test
@@ -149,6 +152,33 @@ class RedemptionControllerTest {
   }
 
   @Test
+  void createRedemption_withLegalEntityRole_returnsForbidden() throws Exception {
+    String requestBody =
+        """
+        {
+          "amount": 10.00,
+          "currency": "EUR",
+          "iban": "EE471000001020145685"
+        }
+        """;
+
+    mvc.perform(
+            post("/v1/savings/redemptions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody)
+                .with(csrf())
+                .with(authentication(legalEntityAuthentication)))
+        .andExpect(status().isForbidden());
+
+    verify(redemptionService, never())
+        .createRedemptionRequest(
+            ArgumentMatchers.any(),
+            ArgumentMatchers.any(),
+            ArgumentMatchers.any(),
+            ArgumentMatchers.any());
+  }
+
+  @Test
   @DisplayName("DELETE /v1/savings/redemptions/{id} cancels redemption")
   void cancelRedemption_cancelsAndReturnsNoContent() throws Exception {
     var requestId = UUID.randomUUID();
@@ -159,6 +189,20 @@ class RedemptionControllerTest {
                 .with(authentication(authentication)))
         .andExpect(status().isNoContent());
 
-    verify(redemptionService).cancelRedemption(requestId, authPerson.getUserId());
+    verify(redemptionService).cancelRedemption(requestId, authPerson);
+  }
+
+  @Test
+  void cancelRedemption_withLegalEntityRole_returnsForbidden() throws Exception {
+    var requestId = UUID.randomUUID();
+
+    mvc.perform(
+            delete("/v1/savings/redemptions/{id}", requestId)
+                .with(csrf())
+                .with(authentication(legalEntityAuthentication)))
+        .andExpect(status().isForbidden());
+
+    verify(redemptionService, never())
+        .cancelRedemption(ArgumentMatchers.any(), ArgumentMatchers.<AuthenticatedPerson>any());
   }
 }

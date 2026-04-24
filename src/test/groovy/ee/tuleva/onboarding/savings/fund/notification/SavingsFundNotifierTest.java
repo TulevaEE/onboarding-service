@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.party.PartyId;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -104,7 +105,11 @@ class SavingsFundNotifierTest {
     var requestId = UUID.fromString("11111111-1111-1111-1111-111111111111");
     var event =
         new RedemptionRequestedEvent(
-            requestId, 42L, new BigDecimal("500.00"), new BigDecimal("50.12345"));
+            requestId,
+            42L,
+            new PartyId(PartyId.Type.PERSON, "38812121215"),
+            new BigDecimal("500.00"),
+            new BigDecimal("50.12345"));
 
     notifier.onRedemptionRequested(event);
 

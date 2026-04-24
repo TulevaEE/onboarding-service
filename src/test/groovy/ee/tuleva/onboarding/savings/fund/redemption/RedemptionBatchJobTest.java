@@ -23,7 +23,6 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.notification.RedemptionBatchCompletedEvent;
-import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.List;
@@ -46,7 +45,6 @@ class RedemptionBatchJobTest {
   @Mock private RedemptionRequestRepository redemptionRequestRepository;
   @Mock private RedemptionStatusService redemptionStatusService;
   @Mock private SavingsFundLedger savingsFundLedger;
-  @Mock private UserService userService;
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private BankAccountConfiguration bankAccountConfiguration;
   @Mock private TransactionTemplate transactionTemplate;
@@ -68,7 +66,6 @@ class RedemptionBatchJobTest {
         redemptionRequestRepository,
         redemptionStatusService,
         savingsFundLedger,
-        userService,
         eventPublisher,
         bankAccountConfiguration,
         transactionTemplate,
@@ -112,7 +109,6 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
-    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
         .thenReturn("EE111111111111111111");
     when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
@@ -257,7 +253,6 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
-    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
         .thenReturn("EE111111111111111111");
     when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
@@ -332,7 +327,6 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
-    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
         .thenReturn("EE111111111111111111");
     when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
@@ -375,7 +369,6 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
-    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
         .thenReturn("EE111111111111111111");
     when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
@@ -423,7 +416,6 @@ class RedemptionBatchJobTest {
         .thenReturn(List.of(request))
         .thenReturn(List.of()); // Second run finds no VERIFIED requests
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
-    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
         .thenReturn("EE111111111111111111");
     when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
@@ -504,7 +496,6 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
-    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
         .thenReturn("EE111111111111111111");
     when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
@@ -553,7 +544,6 @@ class RedemptionBatchJobTest {
 
     when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
-    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
         .thenReturn("EE801010220306711229");
     when(savingFundPaymentRepository.findRemitterNameByIban(

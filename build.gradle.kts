@@ -27,7 +27,7 @@ val springModulithVersion = "2.0.5"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "4.0.5"
+    id("org.springframework.boot") version "4.0.6"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "2.5.7"
     id("com.diffplug.spotless") version "8.4.0"
@@ -91,8 +91,8 @@ dependencies {
 
     implementation("com.nimbusds:nimbus-jose-jwt:10.9")
 
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2")
-    implementation("org.springdoc:springdoc-openapi-starter-common:3.0.2")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
+    implementation("org.springdoc:springdoc-openapi-starter-common:3.0.3")
     implementation("org.springframework.session:spring-session-jdbc")
 
     runtimeOnly("org.postgresql:postgresql")
@@ -114,8 +114,11 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web-services")
     testImplementation("org.springframework.ws:spring-ws-test")
 
-    xjc("org.glassfish.jaxb:jaxb-xjc:4.0.5")
-    xjc("org.glassfish.jaxb:jaxb-runtime:4.0.5")
+    xjc("org.glassfish.jaxb:jaxb-xjc:4.0.7")
+    xjc("org.glassfish.jaxb:jaxb-runtime:4.0.7")
+    xjc("org.glassfish.jaxb:jaxb-core:4.0.7")
+    xjc("org.glassfish.jaxb:codemodel:4.0.7")
+    xjc("org.glassfish.jaxb:xsom:4.0.7")
     xjc("io.github.threeten-jaxb:threeten-jaxb-core:2.2.0")
 
     implementation("io.github.threeten-jaxb:threeten-jaxb-core:2.2.0")
@@ -131,10 +134,13 @@ dependencies {
     implementation("org.digidoc4j:digidoc4j:6.1.0") {
         exclude(group = "commons-logging", module = "commons-logging")
     }
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.84")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.84")
+    implementation("org.bouncycastle:bcutil-jdk18on:1.84")
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-4:8.37.1")
-    implementation("io.sentry:sentry-logback:8.37.1")
+    implementation("io.sentry:sentry-spring-boot-4:8.39.1")
+    implementation("io.sentry:sentry-logback:8.39.1")
 
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
@@ -144,7 +150,7 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("software.amazon.awssdk:s3:2.42.28")
+    implementation("software.amazon.awssdk:s3:2.42.36")
     implementation("commons-io:commons-io:2.21.0")
     implementation("org.apache.commons:commons-csv:1.14.1")
     implementation("org.apache.poi:poi-ooxml:5.5.1")

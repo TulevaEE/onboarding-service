@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
+import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
@@ -18,7 +20,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.auth.role.Role;
+import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.banking.seb.SebGatewayClient;
+import ee.tuleva.onboarding.company.Company;
+import ee.tuleva.onboarding.company.CompanyParty;
+import ee.tuleva.onboarding.company.CompanyPartyRepository;
+import ee.tuleva.onboarding.company.CompanyRepository;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -38,15 +46,17 @@ import java.time.ZoneId;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Transactional
+@RecordApplicationEvents
 class RedemptionIntegrationTest {
 
   // Monday 2025-09-29 17:00 EET (15:00 UTC) - after 16:00 cutoff
@@ -55,6 +65,7 @@ class RedemptionIntegrationTest {
 
   @Autowired RedemptionService redemptionService;
   @Autowired RedemptionStatusService redemptionStatusService;
+  @Autowired RedemptionVerificationService redemptionVerificationService;
   @Autowired RedemptionRequestRepository redemptionRequestRepository;
   @Autowired RedemptionBatchJob redemptionBatchJob;
   @Autowired SavingsFundLedger savingsFundLedger;
@@ -62,6 +73,9 @@ class RedemptionIntegrationTest {
   @Autowired LedgerService ledgerService;
   @Autowired UserRepository userRepository;
   @Autowired SavingFundPaymentRepository savingFundPaymentRepository;
+  @Autowired CompanyRepository companyRepository;
+  @Autowired CompanyPartyRepository companyPartyRepository;
+  @Autowired ApplicationEvents applicationEvents;
 
   @MockitoBean SebGatewayClient sebGatewayClient;
   @MockitoBean FundNavProvider navProvider;
@@ -95,7 +109,6 @@ class RedemptionIntegrationTest {
   }
 
   @Test
-  @DisplayName("Create redemption request creates request in RESERVED status")
   void createRedemptionRequest_createsRequestInReservedStatus() {
     var amount = new BigDecimal("10.00");
 
@@ -114,7 +127,6 @@ class RedemptionIntegrationTest {
   }
 
   @Test
-  @DisplayName("Create redemption request fails when insufficient units")
   void createRedemptionRequest_failsWhenInsufficientUnits() {
     var amount = new BigDecimal("200.00");
 
@@ -126,7 +138,6 @@ class RedemptionIntegrationTest {
   }
 
   @Test
-  @DisplayName("Max withdrawal rounds to exact balance")
   void createRedemptionRequest_maxWithdrawalRoundsToExactBalance() {
     var maxAmount = new BigDecimal("100.00");
 
@@ -138,7 +149,6 @@ class RedemptionIntegrationTest {
   }
 
   @Test
-  @DisplayName("Create redemption request fails when amount has more than 2 decimals")
   void createRedemptionRequest_failsWhenAmountHasMoreThanTwoDecimals() {
     var amount = new BigDecimal("10.123");
 
@@ -150,7 +160,6 @@ class RedemptionIntegrationTest {
   }
 
   @Test
-  @DisplayName("Cancel redemption before cutoff")
   void cancelRedemption_cancelsRequestBeforeCutoff() {
     var amount = new BigDecimal("10.00");
     var request =
@@ -164,7 +173,20 @@ class RedemptionIntegrationTest {
   }
 
   @Test
-  @DisplayName("Cancel redemption after deadline fails")
+  void cancelRedemption_calledTwice_isIdempotent() {
+    var amount = new BigDecimal("10.00");
+    var request =
+        redemptionService.createRedemptionRequest(testAuthenticatedPerson, amount, EUR, VALID_IBAN);
+
+    redemptionService.cancelRedemption(request.getId(), testAuthenticatedPerson);
+    redemptionService.cancelRedemption(request.getId(), testAuthenticatedPerson);
+
+    var cancelled = redemptionRequestRepository.findById(request.getId()).orElseThrow();
+    assertThat(cancelled.getStatus()).isEqualTo(CANCELLED);
+    assertThat(getUserFundUnitsReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
   void cancelRedemption_afterDeadline_throwsException() {
     // Monday 2025-09-29 17:00 EET (15:00 UTC) - after 16:00 cutoff
     // Deadline for cancellation: Tuesday 2025-09-30 16:00 EET
@@ -185,20 +207,18 @@ class RedemptionIntegrationTest {
   }
 
   @Test
-  @DisplayName("Get user redemptions returns user's redemptions")
-  void getUserRedemptions_returnsUserRedemptions() {
+  void getPartyRedemptions_returnsPartyRedemptions() {
     redemptionService.createRedemptionRequest(
         testAuthenticatedPerson, new BigDecimal("5.00"), EUR, VALID_IBAN);
     redemptionService.createRedemptionRequest(
         testAuthenticatedPerson, new BigDecimal("3.00"), EUR, VALID_IBAN);
 
-    var redemptions = redemptionService.getPendingRedemptionsForUser(testUser.getId());
+    var redemptions = redemptionService.getPendingRedemptionsForParty(testParty);
 
     assertThat(redemptions).hasSize(2);
   }
 
   @Test
-  @DisplayName("Create redemption request locks units in ledger immediately")
   void createRedemptionRequest_locksUnitsInLedger() {
     var amount = new BigDecimal("10.00");
 
@@ -212,7 +232,6 @@ class RedemptionIntegrationTest {
   }
 
   @Test
-  @DisplayName("Full redemption flow with ledger operations")
   void fullRedemptionFlow_allBalancesCorrect() {
     var fundUnits = new BigDecimal("10.00000");
     var navPerUnit = new BigDecimal("10.00");
@@ -241,7 +260,6 @@ class RedemptionIntegrationTest {
   }
 
   @Test
-  @DisplayName("End-to-end batch job: RESERVED → VERIFIED → REDEEMED")
   void endToEndBatchJob_processesRedemptionRequest() {
     var initialFundUnits = new BigDecimal("100.00000");
     var redemptionAmount = new BigDecimal("25.00");
@@ -294,7 +312,6 @@ class RedemptionIntegrationTest {
   }
 
   @Test
-  @DisplayName("Cancelled redemption is not processed by batch job and releases reserved units")
   void cancelledRedemption_notProcessedByBatchJob() {
     var initialFundUnits = new BigDecimal("100.00000");
     var redemptionAmount = new BigDecimal("50.00");
@@ -404,7 +421,6 @@ class RedemptionIntegrationTest {
   }
 
   @Test
-  @DisplayName("Max withdrawal with precise NAV rounds to exact balance")
   void createRedemptionRequest_maxWithdrawalWithPreciseNavRoundsToExactBalance() {
     var preciseNav = new BigDecimal("1.23456");
     var availableFundUnits = new BigDecimal("100.00000");
@@ -421,7 +437,270 @@ class RedemptionIntegrationTest {
   }
 
   @Test
-  @DisplayName("Running batch job twice does not create duplicate ledger entries or payments")
+  void verifyLegalEntityRedemption_alwaysRoutesToInReviewUntilPeriodicKybLands() {
+    var registryCode = "16001234";
+    var companyName = "Acme Holding OÜ";
+    var companyIban = "EE382200221020145685";
+    var redemptionAmount = new BigDecimal("25.00");
+
+    var leParty = setUpLegalEntity(registryCode, companyName, companyIban);
+    var leAuthenticatedPerson =
+        authenticatedPersonFromUser(testUser)
+            .role(new Role(LEGAL_ENTITY, registryCode, companyName))
+            .build();
+
+    var request =
+        redemptionService.createRedemptionRequest(
+            leAuthenticatedPerson, redemptionAmount, EUR, companyIban);
+    var requestId = request.getId();
+
+    assertThat(request.getStatus()).isEqualTo(RESERVED);
+    assertThat(request.getPartyId()).isEqualTo(leParty);
+    assertThat(request.getPartyType()).isEqualTo(PartyId.Type.LEGAL_ENTITY);
+    assertThat(request.getPartyCode()).isEqualTo(registryCode);
+
+    redemptionVerificationService.process(request);
+
+    var afterVerification = redemptionRequestRepository.findById(requestId).orElseThrow();
+    assertThat(afterVerification.getStatus()).isEqualTo(IN_REVIEW);
+  }
+
+  @Test
+  void batchJob_paysOutManuallyVerifiedLegalEntityRedemption() {
+    var registryCode = "16001234";
+    var companyName = "Acme Holding OÜ";
+    var companyIban = "EE382200221020145685";
+    var redemptionAmount = new BigDecimal("25.00");
+
+    setUpLegalEntity(registryCode, companyName, companyIban);
+    var leAuthenticatedPerson =
+        authenticatedPersonFromUser(testUser)
+            .role(new Role(LEGAL_ENTITY, registryCode, companyName))
+            .build();
+
+    var friday = Instant.parse("2025-09-26T14:00:00Z");
+    var tuesday = Instant.parse("2025-09-30T15:00:00Z");
+
+    ClockHolder.setClock(Clock.fixed(friday, UTC));
+    var request =
+        redemptionService.createRedemptionRequest(
+            leAuthenticatedPerson, redemptionAmount, EUR, companyIban);
+    var requestId = request.getId();
+
+    // Simulate compliance officer manually clearing the LE redemption (until the periodic KYB
+    // recheck job lands and the LE branch in RedemptionVerificationService.process can transition
+    // to VERIFIED automatically).
+    redemptionStatusService.changeStatus(requestId, VERIFIED);
+
+    ClockHolder.setClock(Clock.fixed(tuesday, UTC));
+    redemptionBatchJob.runJob();
+
+    var afterBatch = redemptionRequestRepository.findById(requestId).orElseThrow();
+    assertThat(afterBatch.getStatus()).isEqualTo(REDEEMED);
+    assertThat(afterBatch.getCashAmount()).isEqualByComparingTo(redemptionAmount);
+    assertThat(afterBatch.getProcessedAt()).isNotNull();
+
+    var payoutEvent =
+        applicationEvents.stream(RequestPaymentEvent.class)
+            .filter(e -> requestId.equals(e.requestId()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("No RequestPaymentEvent for redemption request"));
+    assertThat(payoutEvent.paymentRequest().beneficiaryName()).isEqualTo(companyName);
+    assertThat(payoutEvent.paymentRequest().beneficiaryIban()).isEqualTo(companyIban);
+    assertThat(payoutEvent.paymentRequest().amount()).isEqualByComparingTo(redemptionAmount);
+  }
+
+  @Test
+  void createRedemption_legalEntityNonBoardMember_denied() {
+    var registryCode = "16002345";
+    var companyName = "Other OÜ";
+    var companyIban = "EE382200221020145685";
+
+    // Set up an LE that is whitelisted/onboarded but the testUser is NOT a board member
+    var company =
+        companyRepository.save(
+            Company.builder().registryCode(registryCode).name(companyName).build());
+    // Different person is the board member, not testUser
+    companyPartyRepository.save(
+        CompanyParty.builder()
+            .partyCode("99999999999")
+            .partyType(PartyId.Type.PERSON)
+            .companyId(company.getId())
+            .relationshipType(BOARD_MEMBER)
+            .build());
+    savingsFundOnboardingRepository.saveOnboardingStatus(
+        registryCode, PartyId.Type.LEGAL_ENTITY, COMPLETED);
+    setupPartyDepositIban(
+        new PartyId(PartyId.Type.LEGAL_ENTITY, registryCode),
+        companyIban,
+        companyName,
+        registryCode);
+    setupPartyWithFundUnits(
+        new PartyId(PartyId.Type.LEGAL_ENTITY, registryCode),
+        new BigDecimal("1000.00"),
+        new BigDecimal("100.00000"));
+
+    var leAuthenticatedPerson =
+        authenticatedPersonFromUser(testUser)
+            .role(new Role(LEGAL_ENTITY, registryCode, companyName))
+            .build();
+
+    assertThatThrownBy(
+            () ->
+                redemptionService.createRedemptionRequest(
+                    leAuthenticatedPerson, new BigDecimal("10.00"), EUR, companyIban))
+        .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+  }
+
+  @Test
+  void cancelRedemption_byOtherBoardMemberOfSameCompany_succeeds() {
+    var registryCode = "16003456";
+    var companyName = "Twoboard OÜ";
+    var companyIban = "EE471000001020145685";
+
+    var company =
+        companyRepository.save(
+            Company.builder().registryCode(registryCode).name(companyName).build());
+    // testUser is board member (creator)
+    companyPartyRepository.save(
+        CompanyParty.builder()
+            .partyCode(testUser.getPersonalCode())
+            .partyType(PartyId.Type.PERSON)
+            .companyId(company.getId())
+            .relationshipType(BOARD_MEMBER)
+            .build());
+
+    // Second board member of the same company
+    var otherBoardMember =
+        userRepository.save(
+            sampleUser()
+                .id(null)
+                .member(null)
+                .personalCode("38001085718")
+                .email("other.boardmember@example.com")
+                .build());
+    companyPartyRepository.save(
+        CompanyParty.builder()
+            .partyCode(otherBoardMember.getPersonalCode())
+            .partyType(PartyId.Type.PERSON)
+            .companyId(company.getId())
+            .relationshipType(BOARD_MEMBER)
+            .build());
+
+    savingsFundOnboardingRepository.saveOnboardingStatus(
+        registryCode, PartyId.Type.LEGAL_ENTITY, COMPLETED);
+    var leParty = new PartyId(PartyId.Type.LEGAL_ENTITY, registryCode);
+    setupPartyDepositIban(leParty, companyIban, companyName, registryCode);
+    setupPartyWithFundUnits(leParty, new BigDecimal("1000.00"), new BigDecimal("100.00000"));
+
+    var creatorAuthPerson =
+        authenticatedPersonFromUser(testUser)
+            .role(new Role(LEGAL_ENTITY, registryCode, companyName))
+            .build();
+    var otherBoardMemberAuthPerson =
+        authenticatedPersonFromUser(otherBoardMember)
+            .role(new Role(LEGAL_ENTITY, registryCode, companyName))
+            .build();
+
+    var request =
+        redemptionService.createRedemptionRequest(
+            creatorAuthPerson, new BigDecimal("10.00"), EUR, companyIban);
+
+    redemptionService.cancelRedemption(request.getId(), otherBoardMemberAuthPerson);
+
+    var cancelled = redemptionRequestRepository.findById(request.getId()).orElseThrow();
+    assertThat(cancelled.getStatus()).isEqualTo(CANCELLED);
+  }
+
+  @Test
+  void cancelRedemption_legalEntityByUnrelatedPerson_denied() {
+    var registryCode = "16004567";
+    var companyName = "Solo OÜ";
+    var companyIban = "EE471000001020145686";
+
+    var leParty = setUpLegalEntity(registryCode, companyName, companyIban);
+    var creatorAuthPerson =
+        authenticatedPersonFromUser(testUser)
+            .role(new Role(LEGAL_ENTITY, registryCode, companyName))
+            .build();
+    var request =
+        redemptionService.createRedemptionRequest(
+            creatorAuthPerson, new BigDecimal("10.00"), EUR, companyIban);
+
+    var unrelatedUser =
+        userRepository.save(
+            sampleUser()
+                .id(null)
+                .member(null)
+                .personalCode("39907052754")
+                .email("unrelated@example.com")
+                .build());
+    var unrelatedAuthPerson = authenticatedPersonFromUser(unrelatedUser).build();
+
+    assertThatThrownBy(
+            () -> redemptionService.cancelRedemption(request.getId(), unrelatedAuthPerson))
+        .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+
+    assertThat(leParty.type()).isEqualTo(PartyId.Type.LEGAL_ENTITY);
+  }
+
+  private PartyId setUpLegalEntity(String registryCode, String companyName, String companyIban) {
+    var company =
+        companyRepository.save(
+            Company.builder().registryCode(registryCode).name(companyName).build());
+    companyPartyRepository.save(
+        CompanyParty.builder()
+            .partyCode(testUser.getPersonalCode())
+            .partyType(PartyId.Type.PERSON)
+            .companyId(company.getId())
+            .relationshipType(BOARD_MEMBER)
+            .build());
+    savingsFundOnboardingRepository.saveOnboardingStatus(
+        registryCode, PartyId.Type.LEGAL_ENTITY, COMPLETED);
+
+    var leParty = new PartyId(PartyId.Type.LEGAL_ENTITY, registryCode);
+    setupPartyDepositIban(leParty, companyIban, companyName, registryCode);
+    setupPartyWithFundUnits(leParty, new BigDecimal("1000.00"), new BigDecimal("100.00000"));
+    return leParty;
+  }
+
+  private void setupPartyDepositIban(
+      PartyId party, String iban, String remitterName, String remitterIdCode) {
+    var payment =
+        SavingFundPayment.builder()
+            .externalId("TEST-" + UUID.randomUUID())
+            .amount(new BigDecimal("100.00"))
+            .currency(EUR)
+            .description("Test LE deposit")
+            .remitterIban(iban)
+            .remitterIdCode(remitterIdCode)
+            .remitterName(remitterName)
+            .beneficiaryIban("EE362200221234567897")
+            .beneficiaryIdCode("12345678")
+            .beneficiaryName("Tuleva")
+            .status(Status.PROCESSED)
+            .build();
+
+    var paymentId = savingFundPaymentRepository.savePaymentData(payment);
+    savingFundPaymentRepository.attachParty(paymentId, party);
+    savingFundPaymentRepository.changeStatus(paymentId, Status.RECEIVED);
+    savingFundPaymentRepository.changeStatus(paymentId, Status.VERIFIED);
+    savingFundPaymentRepository.changeStatus(paymentId, Status.RESERVED);
+    savingFundPaymentRepository.changeStatus(paymentId, Status.ISSUED);
+    savingFundPaymentRepository.changeStatus(paymentId, Status.PROCESSED);
+  }
+
+  private void setupPartyWithFundUnits(PartyId party, BigDecimal cashAmount, BigDecimal fundUnits) {
+    var navPerUnit = cashAmount.divide(fundUnits, 5, HALF_UP);
+    var paymentId = UUID.randomUUID();
+    savingsFundLedger.recordPaymentReceived(party, cashAmount, paymentId);
+    savingsFundLedger.reservePaymentForSubscription(party, cashAmount, paymentId);
+    savingsFundLedger.issueFundUnitsFromReserved(
+        party, cashAmount, fundUnits, navPerUnit, paymentId);
+    savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
+  }
+
+  @Test
   void batchJobIdempotency_runningTwiceDoesNotCreateDuplicates() {
     var redemptionAmount = new BigDecimal("25.00");
 

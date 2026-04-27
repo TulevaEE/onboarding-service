@@ -6,6 +6,7 @@ import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.company.BoardMembershipService;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.epis.EpisService;
@@ -53,6 +54,7 @@ public class ApplicationService {
   private final SavingFundDeadlinesService savingFundDeadlinesService;
   private final SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
   private final RedemptionService savingFundRedemptionService;
+  private final BoardMembershipService boardMembershipService;
 
   public Application<?> getApplication(Long id, AuthenticatedPerson authenticatedPerson) {
     return getAllApplications(authenticatedPerson).stream()
@@ -146,10 +148,17 @@ public class ApplicationService {
 
   private List<Application<? extends ApplicationDetails>> getSavingsFundApplications(
       AuthenticatedPerson person) {
-    var payments =
-        savingFundPaymentUpsertionService.getPendingPayments(PartyId.from(person.getRole()));
-    var redemptionRequests =
-        savingFundRedemptionService.getPendingRedemptionsForUser(person.getUserId());
+    var activeParty = PartyId.from(person.getRole());
+    if (activeParty.type() == PartyId.Type.LEGAL_ENTITY
+        && !boardMembershipService.isBoardMember(person.getPersonalCode(), activeParty.code())) {
+      log.info(
+          "Skipping savings-fund applications for stale legal-entity role: personalCode={}, registryCode={}",
+          person.getPersonalCode(),
+          activeParty.code());
+      return List.of();
+    }
+    var payments = savingFundPaymentUpsertionService.getPendingPayments(activeParty);
+    var redemptionRequests = savingFundRedemptionService.getPendingRedemptionsForParty(activeParty);
     return Stream.concat(
             payments.stream().map(this::convertSavingFundPayment),
             redemptionRequests.stream().map(this::convertSavingFundRedemptionRequest))

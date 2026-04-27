@@ -8,6 +8,7 @@ import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.company.BoardMembershipService;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerParty;
 import ee.tuleva.onboarding.ledger.LedgerService;
@@ -21,11 +22,14 @@ import ee.tuleva.onboarding.savings.fund.notification.RedemptionRequestedEvent;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,12 +40,15 @@ public class RedemptionService {
 
   private static final int FUND_UNITS_SCALE = 5;
   private static final BigDecimal MAX_WITHDRAWAL_TOLERANCE = new BigDecimal("0.01");
+  private static final Set<RedemptionRequest.Status> CANCELLABLE_STATUSES =
+      EnumSet.of(RESERVED, IN_REVIEW, VERIFIED);
 
   private final RedemptionRequestRepository redemptionRequestRepository;
   private final RedemptionStatusService redemptionStatusService;
   private final LedgerService ledgerService;
   private final SavingsFundLedger savingsFundLedger;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
+  private final BoardMembershipService boardMembershipService;
   private final FundNavProvider navProvider;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final SavingFundDeadlinesService deadlinesService;
@@ -61,7 +68,7 @@ public class RedemptionService {
     validateAmountPrecision(amount);
 
     PartyId partyId = authenticatedPerson.toPartyId();
-    validateOnboarding(partyId);
+    validateOnboarding(authenticatedPerson);
     validateIbanBelongsToParty(customerIban, partyId);
 
     BigDecimal nav = navProvider.getDisplayNav(TKF100);
@@ -118,9 +125,9 @@ public class RedemptionService {
     return fundUnits;
   }
 
-  public List<RedemptionRequest> getPendingRedemptionsForUser(Long userId) {
-    return redemptionRequestRepository.findByUserIdAndStatusIn(
-        userId, List.of(RESERVED, IN_REVIEW, VERIFIED));
+  public List<RedemptionRequest> getPendingRedemptionsForParty(PartyId partyId) {
+    return redemptionRequestRepository.findByPartyTypeAndPartyCodeAndStatusIn(
+        partyId.type(), partyId.code(), List.of(RESERVED, IN_REVIEW, VERIFIED));
   }
 
   public RedemptionRequest getRedemption(UUID id) {
@@ -132,22 +139,39 @@ public class RedemptionService {
   @Transactional
   public void cancelRedemption(UUID id, AuthenticatedPerson authenticatedPerson) {
     RedemptionRequest request = getRedemption(id);
-    PartyId partyId = authenticatedPerson.toPartyId();
+    PartyId requestParty = request.getPartyId();
+    PartyId actorParty = authenticatedPerson.toPartyId();
 
-    if (!request.getPartyId().equals(partyId)) {
-      throw new IllegalArgumentException(
-          "Redemption does not belong to party: id=" + id + ", party=" + partyId);
+    if (!requestParty.equals(actorParty)) {
+      throw new AccessDeniedException(
+          "Redemption does not belong to party: id=" + id + ", party=" + actorParty);
+    }
+
+    if (requestParty.type() == PartyId.Type.LEGAL_ENTITY
+        && !boardMembershipService.isBoardMember(
+            authenticatedPerson.getPersonalCode(), requestParty.code())) {
+      throw new AccessDeniedException(
+          "Not a board member of company: personalCode="
+              + authenticatedPerson.getPersonalCode()
+              + ", registryCode="
+              + requestParty.code());
+    }
+
+    if (!CANCELLABLE_STATUSES.contains(request.getStatus())) {
+      log.info("Redemption not cancellable, ignoring: id={}, status={}", id, request.getStatus());
+      return;
     }
 
     validateCancellationDeadline(request);
 
-    savingsFundLedger.cancelRedemptionReservation(partyId, request.getFundUnits(), request.getId());
+    savingsFundLedger.cancelRedemptionReservation(
+        requestParty, request.getFundUnits(), request.getId());
     redemptionStatusService.changeStatus(id, CANCELLED);
     log.info(
         "Cancelled redemption request: id={}, userId={}, party={}",
         id,
         authenticatedPerson.getUserId(),
-        partyId);
+        requestParty);
   }
 
   private void validateCancellationDeadline(RedemptionRequest request) {
@@ -165,7 +189,17 @@ public class RedemptionService {
     }
   }
 
-  private void validateOnboarding(PartyId partyId) {
+  private void validateOnboarding(AuthenticatedPerson authenticatedPerson) {
+    PartyId partyId = authenticatedPerson.toPartyId();
+    if (partyId.type() == PartyId.Type.LEGAL_ENTITY
+        && !boardMembershipService.isBoardMember(
+            authenticatedPerson.getPersonalCode(), partyId.code())) {
+      throw new AccessDeniedException(
+          "Not a board member of company: personalCode="
+              + authenticatedPerson.getPersonalCode()
+              + ", registryCode="
+              + partyId.code());
+    }
     if (!savingsFundOnboardingService.isOnboardingCompleted(partyId)) {
       throw new IllegalStateException("Savings fund onboarding not completed: party=" + partyId);
     }

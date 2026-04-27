@@ -17,6 +17,8 @@ import ee.tuleva.onboarding.banking.BankAccountConfiguration;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
+import ee.tuleva.onboarding.company.Company;
+import ee.tuleva.onboarding.company.CompanyRepository;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
@@ -50,6 +52,7 @@ class RedemptionBatchJobTest {
   @Mock private TransactionTemplate transactionTemplate;
   @Mock private FundNavProvider navProvider;
   @Mock private SavingFundPaymentRepository savingFundPaymentRepository;
+  @Mock private CompanyRepository companyRepository;
 
   @BeforeEach
   void setUp() {
@@ -71,7 +74,8 @@ class RedemptionBatchJobTest {
         transactionTemplate,
         navProvider,
         savingFundPaymentRepository,
-        new EndToEndIdConverter());
+        new EndToEndIdConverter(),
+        companyRepository);
   }
 
   @Test
@@ -612,5 +616,101 @@ class RedemptionBatchJobTest {
     assertThatThrownBy(() -> batchJob.retryFailedPayout(requestId))
         .isInstanceOf(NoSuchElementException.class);
     verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
+  }
+
+  @Test
+  void runJob_legalEntityWithoutPriorDeposit_usesCompanyNameAsBeneficiary() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var batchJob = createBatchJob(now);
+
+    var registryCode = "16001234";
+    var companyName = "Acme Holding OÜ";
+    var requestId = UUID.randomUUID();
+    var customerIban = "EE382200221020145685";
+    var legalEntityParty = new PartyId(PartyId.Type.LEGAL_ENTITY, registryCode);
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .partyId(legalEntityParty)
+            .status(VERIFIED)
+            .customerIban(customerIban)
+            .requestedAt(now.minus(1, DAYS))
+            .build();
+
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+        .thenReturn("EE111111111111111111");
+    when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+        .thenReturn("EE222222222222222222");
+    when(savingFundPaymentRepository.findRemitterNameByIban(eq(legalEntityParty), eq(customerIban)))
+        .thenReturn(Optional.empty());
+    when(companyRepository.findByRegistryCode(registryCode))
+        .thenReturn(
+            Optional.of(Company.builder().registryCode(registryCode).name(companyName).build()));
+
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> callback = invocation.getArgument(0);
+              return callback.doInTransaction(null);
+            })
+        .when(transactionTemplate)
+        .execute(any());
+
+    batchJob.runJob();
+
+    var eventCaptor = ArgumentCaptor.forClass(RequestPaymentEvent.class);
+    verify(eventPublisher, times(2)).publishEvent(eventCaptor.capture());
+    var payoutEvent =
+        eventCaptor.getAllValues().stream()
+            .filter(e -> requestId.equals(e.requestId()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(payoutEvent.paymentRequest().beneficiaryName()).isEqualTo(companyName);
+    assertThat(payoutEvent.paymentRequest().beneficiaryIban()).isEqualTo(customerIban);
+    verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
+  }
+
+  @Test
+  void runJob_legalEntityWithoutPriorDepositOrCompany_throwsAndMarksFailed() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var batchJob = createBatchJob(now);
+
+    var registryCode = "16001234";
+    var requestId = UUID.randomUUID();
+    var customerIban = "EE382200221020145685";
+    var legalEntityParty = new PartyId(PartyId.Type.LEGAL_ENTITY, registryCode);
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .partyId(legalEntityParty)
+            .status(VERIFIED)
+            .customerIban(customerIban)
+            .cashAmount(new BigDecimal("10.00"))
+            .build();
+
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+        .thenReturn("EE111111111111111111");
+    when(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+        .thenReturn("EE222222222222222222");
+    when(savingFundPaymentRepository.findRemitterNameByIban(eq(legalEntityParty), eq(customerIban)))
+        .thenReturn(Optional.empty());
+    when(companyRepository.findByRegistryCode(registryCode)).thenReturn(Optional.empty());
+
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> callback = invocation.getArgument(0);
+              return callback.doInTransaction(null);
+            })
+        .when(transactionTemplate)
+        .execute(any());
+
+    batchJob.runJob();
+
+    verify(redemptionStatusService).changeStatus(requestId, FAILED);
   }
 }

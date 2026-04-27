@@ -48,7 +48,7 @@ class CpiValueRetrieverSpec extends Specification {
   def "it is configured for the ECOICOP v2 CPI series"() {
     expect:
     cpiValueRetriever.getKey() == "CPI_ECOICOP2"
-    PROVIDER == "EUROSTAT_ECOICOP2"
+    PROVIDER == "EUROSTAT"
   }
 
   def "it parses the new ECOICOP v2 TSV file and returns raw I25 values"() {

@@ -22,7 +22,7 @@ buildscript {
 }
 
 val springCloudVersion = "2025.1.1"
-val springModulithVersion = "2.0.5"
+val springModulithVersion = "2.0.6"
 
 plugins {
     java

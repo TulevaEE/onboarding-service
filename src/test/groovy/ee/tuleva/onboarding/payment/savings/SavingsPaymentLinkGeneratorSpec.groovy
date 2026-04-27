@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.payment.savings
 
+import ee.tuleva.onboarding.error.exception.ErrorsResponseException
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.PaymentData
 import ee.tuleva.onboarding.payment.PaymentFixture
@@ -99,5 +100,18 @@ class SavingsPaymentLinkGeneratorSpec extends Specification {
         then:
         def exception = thrown(IllegalArgumentException)
         exception.message == "Invalid payment channel: LHV"
+    }
+
+    def "rejects savings payment without payment channel as 400"() {
+        given:
+        def person = samplePerson
+        def paymentData = new PaymentData("38812121215", new BigDecimal("10.00"), EUR, SAVINGS, null)
+
+        when:
+        generator.getPaymentLink(paymentData, person)
+
+        then:
+        def exception = thrown(ErrorsResponseException)
+        exception.errorsResponse.errors[0].code == "payment.channel.required"
     }
 }

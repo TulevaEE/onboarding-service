@@ -12,8 +12,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -78,8 +82,37 @@ class PaymentControllerSavingsRecurringTest {
         .andExpect(jsonPath("$.amount").value("50"));
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"SINGLE", "RECURRING", "SAVINGS"})
+  void getPaymentLink_withoutPaymentChannel_forChannelRequiredType_returns400(String type)
+      throws Exception {
+    var person = sampleAuthenticatedPersonNonMember().build();
+
+    given(paymentService.getLink(any(PaymentData.class), any(AuthenticatedPerson.class)))
+        .willThrow(
+            new ErrorsResponseException(
+                ErrorsResponse.ofSingleError(
+                    "payment.channel.required", "Payment channel is required.")));
+
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
+
+    mvc.perform(
+            get("/v1/payments/link"
+                    + "?amount=10"
+                    + "&currency=EUR"
+                    + "&type="
+                    + type
+                    + "&recipientPersonalCode=38812121215")
+                .with(authentication(auth))
+                .with(csrf()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("payment.channel.required"));
+  }
+
   @Test
-  void getPaymentLink_forSavingsRecurring_withOtherChannel_returnsNullUrlWithRecipientData()
+  void getPaymentLink_forSavingsRecurring_withoutPaymentChannel_returnsNullUrlWithRecipientData()
       throws Exception {
     var person = sampleAuthenticatedPersonNonMember().build();
     var link =
@@ -98,7 +131,6 @@ class PaymentControllerSavingsRecurringTest {
                     + "?amount=50"
                     + "&currency=EUR"
                     + "&type=SAVINGS_RECURRING"
-                    + "&paymentChannel=OTHER"
                     + "&recipientPersonalCode=38812121215")
                 .with(authentication(auth))
                 .with(csrf()))

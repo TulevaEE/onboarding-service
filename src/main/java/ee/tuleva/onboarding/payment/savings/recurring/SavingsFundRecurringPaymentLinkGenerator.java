@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.payment.savings.recurring;
 import static ee.tuleva.onboarding.payment.recurring.PaymentDateProvider.format;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentLink;
@@ -41,19 +43,23 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
     var amount = paymentData.getAmount().toPlainString();
     var firstPaymentDate = paymentDateProvider.tenthDayOfMonth();
 
+    var channel = paymentData.getPaymentChannel();
     var url =
-        switch (paymentData.getPaymentChannel()) {
-          case LHV -> buildLhvUrl(description, amount, firstPaymentDate);
-          case COOP, COOP_WEB, PARTNER -> buildCoopUrl(description, amount, firstPaymentDate);
-          case SWEDBANK -> buildSwedbankUrl(description, amount, person);
-          case SEB -> "https://e.seb.ee/ib/p/payments/new-standing-order";
-          case LUMINOR -> "https://luminor.ee/auth/#/web/view/autopilot/newpayment";
-          case OTHER -> null;
-          case TULUNDUSUHISTU ->
-              throw new IllegalArgumentException(
-                  "Recurring savings fund payments to the specified payment channel are not"
-                      + " supported");
-        };
+        channel == null
+            ? null
+            : switch (channel) {
+              case LHV -> buildLhvUrl(description, amount, firstPaymentDate);
+              case COOP, COOP_WEB, PARTNER -> buildCoopUrl(description, amount, firstPaymentDate);
+              case SWEDBANK -> buildSwedbankUrl(description, amount, person);
+              case SEB -> "https://e.seb.ee/ib/p/payments/new-standing-order";
+              case LUMINOR -> "https://luminor.ee/auth/#/web/view/autopilot/newpayment";
+              case TULUNDUSUHISTU ->
+                  throw new ErrorsResponseException(
+                      ErrorsResponse.ofSingleError(
+                          "payment.channel.not.supported",
+                          "Recurring savings fund payments to the specified payment channel are"
+                              + " not supported."));
+            };
 
     return new PaymentLink(
         url,

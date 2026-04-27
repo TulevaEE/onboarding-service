@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.COOP;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LHV;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LUMINOR;
-import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.OTHER;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.SEB;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.SWEDBANK;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.TULUNDUSUHISTU;
@@ -15,6 +14,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
+import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentData.PaymentChannel;
@@ -146,8 +147,8 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
   }
 
   @Test
-  void returnsNullUrlForOtherChannel() {
-    var link = generator.getPaymentLink(paymentData(OTHER), person());
+  void returnsNullUrlWhenPaymentChannelIsMissing() {
+    var link = generator.getPaymentLink(paymentData(null), person());
 
     assertThat(link.url()).isNull();
     assertCommonRecipientFields(link);
@@ -156,7 +157,10 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
   @Test
   void throwsForUnsupportedChannel() {
     assertThatThrownBy(() -> generator.getPaymentLink(paymentData(TULUNDUSUHISTU), person()))
-        .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(ErrorsResponseException.class)
+        .extracting(ex -> ((ErrorsResponseException) ex).getErrorsResponse().getErrors().get(0))
+        .extracting(ErrorResponse::getCode)
+        .isEqualTo("payment.channel.not.supported");
   }
 
   @Test
@@ -233,7 +237,7 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
   @ParameterizedTest
   @EnumSource(
       value = PaymentChannel.class,
-      names = {"LHV", "COOP", "SEB", "LUMINOR", "OTHER"})
+      names = {"LHV", "COOP", "SEB", "LUMINOR"})
   void doesNotIncludeAccountParamForNonSwedbankChannels(PaymentChannel channel) {
     given(
             savingFundPaymentRepository.findLastRemitterIban(

@@ -33,7 +33,7 @@ class CpiValueRetrieverSpec extends Specification {
   }
 
   static final String SOURCE_URL =
-      "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/prc_hicp_minr/M.I25.AP.EE/?format=TSV&compressed=true"
+      "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/prc_hicp_minr/M.I25.TOTAL.EE/?format=TSV&compressed=true"
 
   @Autowired
   CpiValueRetriever cpiValueRetriever
@@ -55,7 +55,7 @@ class CpiValueRetrieverSpec extends Specification {
     given:
     def mockApiResponse =
         """freq,unit,coicop18,geo\\TIME_PERIOD\t2025-12 \t2026-01\t2026-02
-M,I25,AP,EE\t101.01 \t101.05\t102.78"""
+M,I25,TOTAL,EE\t101.01 \t101.05\t102.78"""
 
     server.expect(requestTo(SOURCE_URL))
         .andRespond(withSuccess(gzip(mockApiResponse), MediaType.TEXT_PLAIN))
@@ -77,7 +77,7 @@ M,I25,AP,EE\t101.01 \t101.05\t102.78"""
     given:
     def mockApiResponse =
         """freq,unit,coicop18,geo\\TIME_PERIOD\t1996-01 \t1996-02 \t2026-01
-M,I25,AP,EE\t: \t: \t101.05"""
+M,I25,TOTAL,EE\t: \t: \t101.05"""
 
     server.expect(requestTo(SOURCE_URL))
         .andRespond(withSuccess(gzip(mockApiResponse), MediaType.TEXT_PLAIN))
@@ -96,7 +96,7 @@ M,I25,AP,EE\t: \t: \t101.05"""
     given:
     def mockApiResponse =
         """freq,unit,coicop18,geo\\TIME_PERIOD\t2025-12\t2026-01\t2026-02
-M,I25,AP,EE\t101.01 d\t101.05 e\t102.78 p"""
+M,I25,TOTAL,EE\t101.01 d\t101.05 e\t102.78 p"""
 
     server.expect(requestTo(SOURCE_URL))
         .andRespond(withSuccess(gzip(mockApiResponse), MediaType.TEXT_PLAIN))
@@ -113,7 +113,7 @@ M,I25,AP,EE\t101.01 d\t101.05 e\t102.78 p"""
     given:
     def mockApiResponse =
         """freq,unit,coicop18,geo\\TIME_PERIOD\t2025-11\t2025-12\t2026-01\t2026-02
-M,I25,AP,EE\t101.25\t101.01\t101.05\t102.78"""
+M,I25,TOTAL,EE\t101.25\t101.01\t101.05\t102.78"""
 
     server.expect(requestTo(SOURCE_URL))
         .andRespond(withSuccess(gzip(mockApiResponse), MediaType.TEXT_PLAIN))
@@ -130,7 +130,7 @@ M,I25,AP,EE\t101.25\t101.01\t101.05\t102.78"""
     given:
     def mockApiResponse =
         """freq,unit,coicop18,geo\\TIME_PERIOD\t2025-12\t2026-01
-M,I25,AP,EE\t: \t: """
+M,I25,TOTAL,EE\t: \t: """
 
     server.expect(requestTo(SOURCE_URL))
         .andRespond(withSuccess(gzip(mockApiResponse), MediaType.TEXT_PLAIN))

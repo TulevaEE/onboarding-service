@@ -29,9 +29,9 @@ public class CpiValueRetriever implements ComparisonIndexRetriever {
   @ToString.Include public static final String KEY = "CPI_ECOICOP2";
   public static final String PROVIDER = "EUROSTAT";
   private static final String SOURCE_URL =
-      "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/prc_hicp_minr/M.I25.AP.EE/?format=TSV&compressed=true";
+      "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/prc_hicp_minr/M.I25.TOTAL.EE/?format=TSV&compressed=true";
   private static final String HEADING_PREFIX = "freq,unit,coicop18,geo";
-  private static final String DATA_ROW_PREFIX = "M,I25,AP,EE";
+  private static final String DATA_ROW_PREFIX = "M,I25,TOTAL,EE";
 
   private final RestTemplate restTemplate;
   private final Clock clock;

@@ -143,9 +143,9 @@ M,I25,AP,EE\t: \t: """
     thrown(EurostatImportException)
   }
 
-  def "it has a 45-day staleness threshold"() {
+  def "it has a 90-day staleness threshold"() {
     expect:
-    cpiValueRetriever.stalenessThreshold().toDays() == 45
+    cpiValueRetriever.stalenessThreshold().toDays() == 90
   }
 
   private byte[] gzip(String input) {

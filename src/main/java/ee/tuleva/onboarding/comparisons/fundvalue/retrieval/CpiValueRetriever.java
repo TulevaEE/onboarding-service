@@ -43,7 +43,10 @@ public class CpiValueRetriever implements ComparisonIndexRetriever {
 
   @Override
   public Duration stalenessThreshold() {
-    return Duration.ofDays(45);
+    // Eurostat publishes monthly with a ~17-day lag (e.g. March data lands mid-April),
+    // so the natural in-cycle staleness reaches ~75 days right before the next release.
+    // 90 days = we've missed at least one full publication cycle.
+    return Duration.ofDays(90);
   }
 
   public CpiValueRetriever(RestTemplateBuilder restTemplateBuilder, Clock clock) {

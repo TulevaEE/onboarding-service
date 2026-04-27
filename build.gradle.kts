@@ -131,7 +131,7 @@ dependencies {
     }
     implementation("eu.webeid.security:authtoken-validation:3.2.0")
 
-    implementation("org.digidoc4j:digidoc4j:6.1.0") {
+    implementation("org.digidoc4j:digidoc4j:6.1.1") {
         exclude(group = "commons-logging", module = "commons-logging")
     }
     implementation("org.bouncycastle:bcpkix-jdk18on:1.84")

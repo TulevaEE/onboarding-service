@@ -11,6 +11,8 @@ import ee.tuleva.onboarding.banking.BankAccountConfiguration;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
+import ee.tuleva.onboarding.company.Company;
+import ee.tuleva.onboarding.company.CompanyRepository;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
@@ -26,6 +28,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +60,7 @@ public class RedemptionBatchJob {
   private final FundNavProvider navProvider;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final EndToEndIdConverter endToEndIdConverter;
+  private final CompanyRepository companyRepository;
 
   @Scheduled(fixedRateString = "1m")
   @SchedulerLock(name = "RedemptionBatchJob", lockAtMostFor = "30m", lockAtLeastFor = "10s")
@@ -277,13 +281,21 @@ public class RedemptionBatchJob {
   private String getBeneficiaryName(PartyId partyId, String iban) {
     return savingFundPaymentRepository
         .findRemitterNameByIban(partyId, iban)
+        .or(() -> companyNameFallback(partyId))
         .orElseThrow(
             () ->
                 new IllegalStateException(
-                    "IBAN not found in user's deposit accounts: party="
-                        + partyId
-                        + ", iban="
-                        + iban));
+                    "Beneficiary name not resolvable: party=" + partyId + ", iban=" + iban));
+  }
+
+  // Defensive: IBAN whitelist normally guarantees a deposit row, but the bank statement may have
+  // arrived without remitter_name (the column is nullable). Fall back to the registered company
+  // name rather than failing the payout.
+  private Optional<String> companyNameFallback(PartyId partyId) {
+    if (partyId.type() != PartyId.Type.LEGAL_ENTITY) {
+      return Optional.empty();
+    }
+    return companyRepository.findByRegistryCode(partyId.code()).map(Company::getName);
   }
 
   private void handleError(UUID requestId, Exception e) {

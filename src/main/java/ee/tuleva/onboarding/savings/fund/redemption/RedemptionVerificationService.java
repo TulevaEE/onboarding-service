@@ -20,15 +20,42 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class RedemptionVerificationService {
 
+  private final RedemptionStatusService redemptionStatusService;
   private final UserService userService;
   private final KycSurveyService kycSurveyService;
   private final AmlService amlService;
-  private final RedemptionStatusService redemptionStatusService;
 
   @Transactional
   public void process(RedemptionRequest request) {
-    log.info("Processing verification for redemption request: id={}", request.getId());
+    log.info(
+        "Processing verification for redemption request: id={}, party={}",
+        request.getId(),
+        request.getPartyId());
 
+    boolean passed =
+        switch (request.getPartyId().type()) {
+          case PERSON -> runPersonChecks(request);
+          // TODO: Replace this always-IN_REVIEW branch with a lookup against the periodic company
+          //  KYB recheck job (sanctions/PEP + structural checks driven by
+          // KybScreeningService.screen).
+          //  Until that job is in place, every legal-entity redemption is routed to IN_REVIEW for
+          //  manual compliance review. We are not going live with LE redemptions before the
+          //  periodic job lands.
+          case LEGAL_ENTITY -> false;
+        };
+
+    if (!passed) {
+      log.info(
+          "Redemption requires review: id={}, party={}", request.getId(), request.getPartyId());
+      redemptionStatusService.changeStatus(request.getId(), IN_REVIEW);
+    } else {
+      log.info(
+          "Redemption verification passed: id={}, party={}", request.getId(), request.getPartyId());
+      redemptionStatusService.changeStatus(request.getId(), VERIFIED);
+    }
+  }
+
+  private boolean runPersonChecks(RedemptionRequest request) {
     User user = userService.getByIdOrThrow(request.getUserId());
     Country country =
         kycSurveyService
@@ -39,15 +66,6 @@ public class RedemptionVerificationService {
                         "KYC survey with country not found: userId=" + user.getId()));
 
     List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, country);
-
-    boolean allChecksPassed = checks.isEmpty() || checks.stream().allMatch(AmlCheck::isSuccess);
-
-    if (!allChecksPassed) {
-      log.info("Redemption requires review: id={}, userId={}", request.getId(), user.getId());
-      redemptionStatusService.changeStatus(request.getId(), IN_REVIEW);
-    } else {
-      log.info("Redemption verification passed: id={}, userId={}", request.getId(), user.getId());
-      redemptionStatusService.changeStatus(request.getId(), VERIFIED);
-    }
+    return checks.stream().allMatch(AmlCheck::isSuccess);
   }
 }

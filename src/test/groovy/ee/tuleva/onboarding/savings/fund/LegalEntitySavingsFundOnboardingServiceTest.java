@@ -1,15 +1,12 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.company.CompanyFixture.*;
-import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
+import static ee.tuleva.onboarding.company.CompanyFixture.SAMPLE_REGISTRY_CODE;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
-import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
+import static org.mockito.BDDMockito.given;
 
-import ee.tuleva.onboarding.company.CompanyPartyRepository;
-import ee.tuleva.onboarding.company.CompanyRepository;
+import ee.tuleva.onboarding.company.BoardMembershipService;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,23 +17,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class LegalEntitySavingsFundOnboardingServiceTest {
 
-  @Mock private CompanyRepository companyRepository;
-  @Mock private CompanyPartyRepository companyPartyRepository;
+  private static final String PERSONAL_CODE = "38812121215";
+
+  @Mock private BoardMembershipService boardMembershipService;
   @Mock private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @InjectMocks private LegalEntitySavingsFundOnboardingService service;
 
-  private static final String PERSONAL_CODE = "38812121215";
-
   @Test
   void getOnboardingStatus_returnsStatusForBoardMember() {
-    var company = sampleCompany().build();
-    when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
-        .thenReturn(Optional.of(company));
-    when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-            PERSONAL_CODE, PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
-        .thenReturn(true);
-    when(savingsFundOnboardingRepository.findStatus(SAMPLE_REGISTRY_CODE, LEGAL_ENTITY))
-        .thenReturn(Optional.of(COMPLETED));
+    given(boardMembershipService.isBoardMember(PERSONAL_CODE, SAMPLE_REGISTRY_CODE))
+        .willReturn(true);
+    given(savingsFundOnboardingRepository.findStatus(SAMPLE_REGISTRY_CODE, LEGAL_ENTITY))
+        .willReturn(Optional.of(COMPLETED));
 
     assertThat(service.getOnboardingStatus(PERSONAL_CODE, SAMPLE_REGISTRY_CODE))
         .hasValue(COMPLETED);
@@ -44,48 +36,37 @@ class LegalEntitySavingsFundOnboardingServiceTest {
 
   @Test
   void getOnboardingStatus_returnsEmptyWhenNoStatus() {
-    var company = sampleCompany().build();
-    when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
-        .thenReturn(Optional.of(company));
-    when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-            PERSONAL_CODE, PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
-        .thenReturn(true);
-    when(savingsFundOnboardingRepository.findStatus(SAMPLE_REGISTRY_CODE, LEGAL_ENTITY))
-        .thenReturn(Optional.empty());
+    given(boardMembershipService.isBoardMember(PERSONAL_CODE, SAMPLE_REGISTRY_CODE))
+        .willReturn(true);
+    given(savingsFundOnboardingRepository.findStatus(SAMPLE_REGISTRY_CODE, LEGAL_ENTITY))
+        .willReturn(Optional.empty());
 
     assertThat(service.getOnboardingStatus(PERSONAL_CODE, SAMPLE_REGISTRY_CODE)).isEmpty();
   }
 
   @Test
   void getOnboardingStatus_returnsEmptyWhenNotBoardMember() {
-    var company = sampleCompany().build();
-    when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
-        .thenReturn(Optional.of(company));
-    when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-            PERSONAL_CODE, PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
-        .thenReturn(false);
+    given(boardMembershipService.isBoardMember(PERSONAL_CODE, SAMPLE_REGISTRY_CODE))
+        .willReturn(false);
 
     assertThat(service.getOnboardingStatus(PERSONAL_CODE, SAMPLE_REGISTRY_CODE)).isEmpty();
   }
 
   @Test
-  void getOnboardingStatus_returnsEmptyWhenCompanyNotFound() {
-    when(companyRepository.findByRegistryCode("99999999")).thenReturn(Optional.empty());
+  void isOnboardingCompleted_returnsTrueForCompletedBoardMember() {
+    given(boardMembershipService.isBoardMember(PERSONAL_CODE, SAMPLE_REGISTRY_CODE))
+        .willReturn(true);
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(SAMPLE_REGISTRY_CODE, LEGAL_ENTITY))
+        .willReturn(true);
 
-    assertThat(service.getOnboardingStatus(PERSONAL_CODE, "99999999")).isEmpty();
+    assertThat(service.isOnboardingCompleted(PERSONAL_CODE, SAMPLE_REGISTRY_CODE)).isTrue();
   }
 
   @Test
-  void isOnboardingCompleted_returnsTrueForCompletedBoardMember() {
-    var company = sampleCompany().build();
-    when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
-        .thenReturn(Optional.of(company));
-    when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-            PERSONAL_CODE, PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
-        .thenReturn(true);
-    when(savingsFundOnboardingRepository.isOnboardingCompleted(SAMPLE_REGISTRY_CODE, LEGAL_ENTITY))
-        .thenReturn(true);
+  void isOnboardingCompleted_returnsFalseForNonBoardMember() {
+    given(boardMembershipService.isBoardMember(PERSONAL_CODE, SAMPLE_REGISTRY_CODE))
+        .willReturn(false);
 
-    assertThat(service.isOnboardingCompleted(PERSONAL_CODE, SAMPLE_REGISTRY_CODE)).isTrue();
+    assertThat(service.isOnboardingCompleted(PERSONAL_CODE, SAMPLE_REGISTRY_CODE)).isFalse();
   }
 }

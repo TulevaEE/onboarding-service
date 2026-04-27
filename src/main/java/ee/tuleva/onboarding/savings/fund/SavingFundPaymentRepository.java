@@ -144,7 +144,7 @@ public class SavingFundPaymentRepository {
                 "statuses",
                 List.of(RESERVED.name(), ISSUED.name(), PROCESSED.name())),
             (rs, _) -> rs.getString("remitter_name"));
-    return results.isEmpty() ? Optional.empty() : Optional.of(results.getFirst());
+    return results.isEmpty() ? Optional.empty() : Optional.ofNullable(results.getFirst());
   }
 
   public Optional<SavingFundPayment> findByExternalId(String externalId) {

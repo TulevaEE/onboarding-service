@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status;
 import jakarta.persistence.LockModeType;
 import jakarta.transaction.Transactional;
@@ -17,13 +18,10 @@ public interface RedemptionRequestRepository extends CrudRepository<RedemptionRe
 
   List<RedemptionRequest> findByStatus(Status status);
 
-  List<RedemptionRequest> findByUserIdOrderByRequestedAtDesc(Long userId);
-
-  List<RedemptionRequest> findByUserIdAndStatus(Long userId, Status status);
-
   Optional<RedemptionRequest> findByIdAndStatus(UUID id, Status status);
 
-  List<RedemptionRequest> findByUserIdAndStatusIn(Long userId, List<Status> status);
+  List<RedemptionRequest> findByPartyTypeAndPartyCodeAndStatusIn(
+      PartyId.Type partyType, String partyCode, List<Status> statuses);
 
   List<RedemptionRequest> findByStatusAndRequestedAtBeforeAndCancelledAtIsNull(
       Status status, Instant cutoff);

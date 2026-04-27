@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.comparisons.fundvalue
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.BlackRockFundValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexRetriever
@@ -12,10 +16,12 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.MorningstarNavRetrie
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.YahooFundValueRetriever
 import ee.tuleva.onboarding.deadline.PublicHolidays
+import org.slf4j.LoggerFactory
 import org.springframework.core.env.Environment
 import spock.lang.Specification
 
 import java.time.Clock
+import java.time.Duration
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -40,6 +46,24 @@ class FundValueIndexingJobSpec extends Specification {
         CLOCK,
         publicHolidays)
 
+    Logger jobLogger = (Logger) LoggerFactory.getLogger(FundValueIndexingJob)
+    ListAppender<ILoggingEvent> logAppender = new ListAppender<>()
+
+    def setup() {
+        logAppender.start()
+        jobLogger.addAppender(logAppender)
+    }
+
+    def cleanup() {
+        jobLogger.detachAppender(logAppender)
+    }
+
+    private List<ILoggingEvent> errorEventsContaining(String substring) {
+        return logAppender.list.findAll {
+            it.level == Level.ERROR && it.formattedMessage.contains(substring)
+        }
+    }
+
     def "if no saved fund values found, downloads and saves from defined start time"() {
         given:
         List<FundValue> fundValues = fakeFundValues()
@@ -58,6 +82,7 @@ class FundValueIndexingJobSpec extends Specification {
         given:
         List<FundValue> fundValues = fakeFundValues()
         fundValueRetriever.getKey() >> UnionStockIndexRetriever.KEY
+        fundValueRetriever.stalenessThreshold() >> Duration.ofDays(7)
         def lastFundValueTime = LocalDate.parse("2018-05-01")
         def dayFromLastFundValueTime = LocalDate.parse("2018-05-02")
         fundValueRepository.findLastValueForFund(UnionStockIndexRetriever.KEY) >> Optional.of(aFundValue(UnionStockIndexRetriever.KEY, lastFundValueTime, 120.0))
@@ -81,16 +106,70 @@ class FundValueIndexingJobSpec extends Specification {
         0 * fundValueRepository.saveAll(_ as List<FundValue>)
     }
 
-    def "logs staleness error when EE fund last update is more than 1 week old"() {
+    def "logs ERROR when a daily index is past its 7-day staleness threshold"() {
         given:
-        fundValueRetriever.getKey() >> "EE1234"
-        def staleDate = TODAY.minusWeeks(2)
-        fundValueRepository.findLastValueForFund("EE1234") >> Optional.of(aFundValue("EE1234", staleDate, 100.0))
-        fundValueRepository.save(_ as FundValue) >> { FundValue fv -> Optional.of(fv) }
+        fundValueRetriever.getKey() >> UnionStockIndexRetriever.KEY
+        fundValueRetriever.stalenessThreshold() >> Duration.ofDays(7)
+        def staleDate = TODAY.minusDays(8)
+        fundValueRepository.findLastValueForFund(UnionStockIndexRetriever.KEY) >>
+            Optional.of(aFundValue(UnionStockIndexRetriever.KEY, staleDate, 100.0))
+        fundValueRetriever.retrieveValuesForRange(_, _) >> []
+
         when:
         fundValueIndexingJob.runIndexingJob()
+
         then:
-        1 * fundValueRetriever.retrieveValuesForRange(staleDate.plusDays(1), TODAY) >> []
+        def errors = errorEventsContaining("UNION_STOCK_INDEX")
+        errors.size() == 1
+        errors[0].formattedMessage.contains("lastDate=" + staleDate)
+    }
+
+    def "logs ERROR when CPI is past its 45-day staleness threshold"() {
+        given:
+        fundValueRetriever.getKey() >> "CPI_ECOICOP2"
+        fundValueRetriever.stalenessThreshold() >> Duration.ofDays(45)
+        def staleDate = TODAY.minusDays(50)
+        fundValueRepository.findLastValueForFund("CPI_ECOICOP2") >>
+            Optional.of(aFundValue("CPI_ECOICOP2", staleDate, 100.0))
+        fundValueRetriever.retrieveValuesForRange(_, _) >> []
+
+        when:
+        fundValueIndexingJob.runIndexingJob()
+
+        then:
+        errorEventsContaining("CPI_ECOICOP2").size() == 1
+    }
+
+    def "does NOT log ERROR when last update is within the staleness threshold"() {
+        given:
+        fundValueRetriever.getKey() >> "CPI_ECOICOP2"
+        fundValueRetriever.stalenessThreshold() >> Duration.ofDays(45)
+        def freshDate = TODAY.minusDays(30)
+        fundValueRepository.findLastValueForFund("CPI_ECOICOP2") >>
+            Optional.of(aFundValue("CPI_ECOICOP2", freshDate, 100.0))
+        fundValueRetriever.retrieveValuesForRange(_, _) >> []
+
+        when:
+        fundValueIndexingJob.runIndexingJob()
+
+        then:
+        errorEventsContaining("CPI_ECOICOP2").isEmpty()
+    }
+
+    def "logs ERROR when fetch returns 0 rows for a series past threshold"() {
+        given:
+        fundValueRetriever.getKey() >> "CPI_ECOICOP2"
+        fundValueRetriever.stalenessThreshold() >> Duration.ofDays(45)
+        def staleDate = TODAY.minusDays(50)
+        fundValueRepository.findLastValueForFund("CPI_ECOICOP2") >>
+            Optional.of(aFundValue("CPI_ECOICOP2", staleDate, 100.0))
+        fundValueRetriever.retrieveValuesForRange(_, _) >> []
+
+        when:
+        fundValueIndexingJob.runIndexingJob()
+
+        then:
+        !errorEventsContaining("CPI_ECOICOP2").isEmpty()
     }
 
     def "refreshes all static retrievers"() {

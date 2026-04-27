@@ -7,7 +7,8 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,25 +26,34 @@ import org.springframework.web.client.RestTemplate;
 @Service
 @ToString(onlyExplicitlyIncluded = true)
 public class CpiValueRetriever implements ComparisonIndexRetriever {
-  @ToString.Include public static final String KEY = "CPI";
-  public static final String PROVIDER = "EUROSTAT";
+  @ToString.Include public static final String KEY = "CPI_ECOICOP2";
+  public static final String PROVIDER = "EUROSTAT_ECOICOP2";
   private static final String SOURCE_URL =
-      "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/prc_hicp_midx/?format=TSV&compressed=true";
+      "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/prc_hicp_minr/M.I25.AP.EE/?format=TSV&compressed=true";
+  private static final String HEADING_PREFIX = "freq,unit,coicop18,geo";
+  private static final String DATA_ROW_PREFIX = "M,I25,AP,EE";
 
   private final RestTemplate restTemplate;
+  private final Clock clock;
 
   @Override
   public String getKey() {
     return KEY;
   }
 
-  public CpiValueRetriever(RestTemplateBuilder restTemplateBuilder) {
+  @Override
+  public Duration stalenessThreshold() {
+    return Duration.ofDays(45);
+  }
+
+  public CpiValueRetriever(RestTemplateBuilder restTemplateBuilder, Clock clock) {
     this.restTemplate = restTemplateBuilder.build();
+    this.clock = clock;
   }
 
   @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
-    List<FundValue> cpiValues = getCPIValues();
+    List<FundValue> cpiValues = getCpiValues();
     return cpiValues.stream()
         .filter(
             fundValue -> {
@@ -54,12 +64,12 @@ public class CpiValueRetriever implements ComparisonIndexRetriever {
         .toList();
   }
 
-  private List<FundValue> getCPIValues() {
+  private List<FundValue> getCpiValues() {
     ResponseExtractor<List<FundValue>> responseExtractor =
         response -> {
           try (GZIPInputStream gzipInputStream = new GZIPInputStream(response.getBody());
               BufferedReader reader = new BufferedReader(new InputStreamReader(gzipInputStream))) {
-            return parseCPIValues(reader);
+            return parseCpiValues(reader);
           }
         };
 
@@ -67,40 +77,48 @@ public class CpiValueRetriever implements ComparisonIndexRetriever {
   }
 
   @SneakyThrows
-  private List<FundValue> parseCPIValues(BufferedReader reader) {
-    String headingLine = "freq,unit,coicop,geo";
-    String indexEE = "M,I96,CP00,EE";
+  private List<FundValue> parseCpiValues(BufferedReader reader) {
     List<String[]> lines = new ArrayList<>();
     String line;
 
     while ((line = reader.readLine()) != null) {
-      if (Stream.of(headingLine, indexEE).anyMatch(line::startsWith)) {
+      if (Stream.of(HEADING_PREFIX, DATA_ROW_PREFIX).anyMatch(line::startsWith)) {
         lines.add(line.split("\t"));
       }
     }
 
-    String[][] table = new String[lines.size()][0];
-    lines.toArray(table);
+    if (lines.size() < 2) {
+      throw new EurostatImportException(
+          "Eurostat response missing expected rows: url=" + SOURCE_URL + ", lines=" + lines.size());
+    }
 
+    String[] header = lines.get(0);
+    String[] data = lines.get(1);
     List<FundValue> cpiValues = new ArrayList<>();
-    var now = Instant.now();
+    var now = clock.instant();
 
-    for (int i = 0; i < table[0].length - 1; i++) {
-      String yearMonth = table[0][1 + i].trim();
-      String cpi = table[1][1 + i].trim();
+    for (int i = 1; i < header.length && i < data.length; i++) {
+      String yearMonth = header[i].trim();
+      String rawValue = data[i].trim();
 
-      LocalDate date = LocalDate.parse(yearMonth + "-01", ofPattern("yyyy-MM-dd"));
-
-      if (cpi.startsWith(":")) {
+      if (rawValue.isEmpty() || rawValue.startsWith(":")) {
         continue;
       }
 
+      String numericPart = rawValue.split("\\s+", 2)[0];
+      LocalDate date = LocalDate.parse(yearMonth + "-01", ofPattern("yyyy-MM-dd"));
+
       try {
-        BigDecimal cpiValue = new BigDecimal(cpi);
+        BigDecimal cpiValue = new BigDecimal(numericPart);
         cpiValues.add(new FundValue(KEY, date, cpiValue, PROVIDER, now));
       } catch (NumberFormatException e) {
-        log.error("Could not convert CPI value to BigDecimal: {}", cpi);
+        log.error("Could not convert CPI value to BigDecimal: rawValue={}", rawValue);
       }
+    }
+
+    if (cpiValues.isEmpty()) {
+      throw new EurostatImportException(
+          "Eurostat response contained no parseable CPI values: url=" + SOURCE_URL);
     }
 
     return cpiValues;

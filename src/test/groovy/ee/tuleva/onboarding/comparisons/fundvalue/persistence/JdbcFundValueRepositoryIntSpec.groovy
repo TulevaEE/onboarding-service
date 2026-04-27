@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.comparisons.fundvalue.persistence
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EpiIndex
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.WorldIndexValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.GlobalStockIndexRetriever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
@@ -88,8 +87,8 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
     def "it can select global stock values from two tables"() {
         given:
         List<FundValue> values = [
-            aFundValue(WorldIndexValueRetriever.KEY, parse("2019-12-30"), 123.45000),
-            aFundValue(WorldIndexValueRetriever.KEY, parse("2019-12-31"), 124.45000),
+            aFundValue("MARKET", parse("2019-12-30"), 123.45000),
+            aFundValue("MARKET", parse("2019-12-31"), 124.45000),
             aFundValue(GlobalStockIndexRetriever.KEY, parse("2020-01-01"), 125.45000),
             aFundValue(GlobalStockIndexRetriever.KEY, parse("2020-01-02"), 126.45000)
         ]

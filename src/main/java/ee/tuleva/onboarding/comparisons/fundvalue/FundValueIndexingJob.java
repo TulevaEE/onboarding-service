@@ -13,7 +13,9 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.MorningstarNavRetrie
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.YahooFundValueRetriever;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -87,7 +89,7 @@ public class FundValueIndexingJob {
     }
     log.info("Starting to update values for {}", fund);
     try {
-      Optional<LocalDate> startDate = getStartDate(fund);
+      Optional<LocalDate> startDate = getStartDate(retriever);
       if (startDate.isEmpty()) {
         return;
       }
@@ -98,7 +100,8 @@ public class FundValueIndexingJob {
     }
   }
 
-  private Optional<LocalDate> getStartDate(String fund) {
+  private Optional<LocalDate> getStartDate(ComparisonIndexRetriever retriever) {
+    String fund = retriever.getKey();
     LocalDate today = LocalDate.now(clock);
     Optional<FundValue> fundValue = fundValueRepository.findLastValueForFund(fund);
 
@@ -117,15 +120,23 @@ public class FundValueIndexingJob {
     log.info(
         "Last update for comparison fund {}: {}. Updating from {}", fund, lastUpdate, startDate);
 
-    if (lastUpdate.isBefore(today.minusWeeks(1))
-        && (fund.startsWith("EE") || fund.startsWith("EPI"))) {
-      log.error(
-          "Last update for comparison fund {} is more than 1 week old. Last update: {}",
-          fund,
-          lastUpdate);
-    }
+    logIfStale(retriever, lastUpdate, today);
 
     return Optional.of(startDate);
+  }
+
+  private void logIfStale(
+      ComparisonIndexRetriever retriever, LocalDate lastUpdate, LocalDate today) {
+    Duration threshold = retriever.stalenessThreshold();
+    long ageDays = ChronoUnit.DAYS.between(lastUpdate, today);
+    if (ageDays > threshold.toDays()) {
+      log.error(
+          "Comparison index past staleness threshold: key={}, lastDate={}, threshold={}d, ageDays={}",
+          retriever.getKey(),
+          lastUpdate,
+          threshold.toDays(),
+          ageDays);
+    }
   }
 
   @EventListener(ApplicationReadyEvent.class)

@@ -5,6 +5,8 @@ import static ee.tuleva.onboarding.payment.recurring.PaymentDateProvider.format;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
+import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
@@ -23,6 +25,11 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
   @Override
   @SneakyThrows
   public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
+    if (paymentData.getPaymentChannel() == null) {
+      throw new ErrorsResponseException(
+          ErrorsResponse.ofSingleError(
+              "payment.channel.required", "Payment channel is required for recurring payments."));
+    }
     ContactDetails contactDetails = contactDetailsService.getContactDetails(person);
     var url =
         switch (paymentData.getPaymentChannel()) {
@@ -57,9 +64,11 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
           case LUMINOR -> "https://luminor.ee/auth/#/web/view/autopilot/newpayment";
           case COOP, COOP_WEB, PARTNER ->
               coopPankPaymentLinkGenerator.getPaymentLink(paymentData, person).url();
-          case TULUNDUSUHISTU, OTHER ->
-              throw new IllegalArgumentException(
-                  "Recurring payments to the specified payment channel are not supported");
+          case TULUNDUSUHISTU ->
+              throw new ErrorsResponseException(
+                  ErrorsResponse.ofSingleError(
+                      "payment.channel.not.supported",
+                      "Recurring payments to the specified payment channel are not supported."));
         };
     return new PaymentLink(url);
   }

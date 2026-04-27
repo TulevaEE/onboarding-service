@@ -123,7 +123,7 @@ dependencies {
 
     implementation("io.github.threeten-jaxb:threeten-jaxb-core:2.2.0")
 
-    implementation("ee.sk.smartid:smart-id-java-client:2.3.1") {
+    implementation("ee.sk.smartid:smart-id-java-client:3.2") {
         exclude(group = "org.bouncycastle")
     }
     implementation("ee.sk.mid:mid-rest-java-client:1.6") {

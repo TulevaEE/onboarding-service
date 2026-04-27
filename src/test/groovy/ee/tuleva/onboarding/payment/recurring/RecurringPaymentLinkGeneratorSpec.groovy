@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.payment.recurring
 
 
 import tools.jackson.databind.json.JsonMapper
+import ee.tuleva.onboarding.error.exception.ErrorsResponseException
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.PaymentData
 import spock.lang.Specification
@@ -59,7 +60,7 @@ class RecurringPaymentLinkGeneratorSpec extends Specification {
     link.url() == """{"accountNumber":"EE362200221067235244","recipientName":"AS Pensionikeskus","amount":null,"currency":null,"description":"30101119828, EE3600001707","reference":"993432432","interval":"MONTHLY","firstPaymentDate":"2020-01-10"}"""
   }
 
-  def "rejects recurring payments for TULUNDUSUHISTU"() {
+  def "rejects recurring payments for TULUNDUSUHISTU as 400"() {
     given:
     def person = samplePerson
     def paymentData = new PaymentData(samplePerson.personalCode, 12.34, EUR, RECURRING, TULUNDUSUHISTU)
@@ -68,6 +69,20 @@ class RecurringPaymentLinkGeneratorSpec extends Specification {
     recurringPaymentLinkGenerator.getPaymentLink(paymentData, person)
 
     then:
-    thrown(IllegalArgumentException)
+    def exception = thrown(ErrorsResponseException)
+    exception.errorsResponse.errors[0].code == "payment.channel.not.supported"
+  }
+
+  def "rejects recurring payment without payment channel as 400"() {
+    given:
+    def person = samplePerson
+    def paymentData = new PaymentData(samplePerson.personalCode, 12.34, EUR, RECURRING, null)
+
+    when:
+    recurringPaymentLinkGenerator.getPaymentLink(paymentData, person)
+
+    then:
+    def exception = thrown(ErrorsResponseException)
+    exception.errorsResponse.errors[0].code == "payment.channel.required"
   }
 }

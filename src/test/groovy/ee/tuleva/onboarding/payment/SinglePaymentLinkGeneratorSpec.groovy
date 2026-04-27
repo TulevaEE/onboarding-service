@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.payment
 
 import tools.jackson.databind.json.JsonMapper
+import ee.tuleva.onboarding.error.exception.ErrorsResponseException
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioPaymentLinkGenerator
 import ee.tuleva.onboarding.payment.recurring.CoopPankPaymentLinkGenerator
@@ -71,6 +72,22 @@ class SinglePaymentLinkGeneratorSpec extends Specification {
 
     then:
     returnedLink == new PaymentLink("newpmt-eng?SaajaNimi=AS%20Pensionikeskus&SaajaKonto=EE362200221067235244&MaksePohjus=30101119828%2c%20EE3600001707&ViiteNumber=993432432")
+  }
+
+  def "rejects single payment without payment channel as 400"() {
+    given:
+    def person = samplePerson
+    def paymentData = aPaymentData().tap {
+      type = SINGLE
+      paymentChannel = null
+    }
+
+    when:
+    singlePaymentLinkGenerator.getPaymentLink(paymentData, person)
+
+    then:
+    def exception = thrown(ErrorsResponseException)
+    exception.errorsResponse.errors[0].code == "payment.channel.required"
   }
 
 }

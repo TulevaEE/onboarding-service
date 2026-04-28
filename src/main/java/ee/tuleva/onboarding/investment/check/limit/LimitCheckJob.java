@@ -50,6 +50,13 @@ public class LimitCheckJob {
       pipelineTracker.stepCompleted(LIMIT_CHECK);
 
       log.info("Limit check completed: resultCount={}", results.size());
+    } catch (LimitCheckPartialFailureException e) {
+      var partial = e.getPartialResults();
+      if (partial.stream().anyMatch(LimitCheckResult::hasBreaches)) {
+        limitCheckNotifier.notify(partial);
+      }
+      pipelineTracker.stepFailed(LIMIT_CHECK, e.getMessage());
+      log.error("Limit check failed", e);
     } catch (Exception e) {
       pipelineTracker.stepFailed(LIMIT_CHECK, e.getMessage());
       log.error("Limit check failed", e);

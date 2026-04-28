@@ -73,7 +73,9 @@ class LimitCheckService {
     }
 
     if (!errors.isEmpty()) {
-      var combined = new IllegalStateException("Limit check failed for %d fund(s)".formatted(errors.size()));
+      var combined =
+          new LimitCheckPartialFailureException(
+              "Limit check failed for %d fund(s)".formatted(errors.size()), results);
       errors.forEach(combined::addSuppressed);
       throw combined;
     }

@@ -62,7 +62,7 @@ public class RedemptionPayoutWarningJob {
       String message =
           "WARNING: TKF100 estimated redemption payouts today: totalAmount=%s EUR, requests=%d. WITHDRAWAL_EUR credit limit increase may be needed."
               .formatted(totalAmount, requests.size());
-      log.warn("{}", message);
+      log.info("{}", message);
       notificationService.sendMessage(message, WITHDRAWALS);
     }
   }

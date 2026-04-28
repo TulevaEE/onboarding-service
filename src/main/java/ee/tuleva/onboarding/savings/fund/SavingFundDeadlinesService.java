@@ -20,9 +20,8 @@ public class SavingFundDeadlinesService {
     return publicHolidays.nextWorkingDay(date.minusDays(1));
   }
 
-  private boolean isBeforeCutoffOnWorkingDay(LocalDate date, LocalTime time) {
-    LocalDate firstWorkingDay = firstWorkingDayOnOrAfter(date);
-    return date.equals(firstWorkingDay) && time.isBefore(CUTOFF_TIME);
+  private boolean missedTodaysCutoff(LocalDate date, LocalTime time, LocalDate firstWorkingDay) {
+    return date.equals(firstWorkingDay) && !time.isBefore(CUTOFF_TIME);
   }
 
   public Instant getCancellationDeadline(RedemptionRequest redemptionRequest) {
@@ -44,9 +43,9 @@ public class SavingFundDeadlinesService {
 
     LocalDate firstWorkingDay = firstWorkingDayOnOrAfter(date);
     LocalDate deadlineDate =
-        isBeforeCutoffOnWorkingDay(date, time)
-            ? firstWorkingDay
-            : publicHolidays.nextWorkingDay(firstWorkingDay);
+        missedTodaysCutoff(date, time, firstWorkingDay)
+            ? publicHolidays.nextWorkingDay(firstWorkingDay)
+            : firstWorkingDay;
 
     return deadlineDate.atTime(CUTOFF_TIME).atZone(zone).toInstant();
   }

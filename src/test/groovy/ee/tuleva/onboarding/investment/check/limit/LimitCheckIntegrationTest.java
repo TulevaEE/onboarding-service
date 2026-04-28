@@ -236,6 +236,9 @@ class LimitCheckIntegrationTest {
     insertFundPosition("TUK75", NAV_DATE, "CASH", "CASH_ACCOUNT", 25_000);
     insertFundPosition("TUK75", NAV_DATE, "LIABILITY", "LIABILITY_ACCOUNT", -3_000);
 
+    // nav_report UNITS row: total calculated AUM = 10_000_000
+    insertNavReportUnits("TUK75", NAV_DATE, 10_000_000);
+
     // Fund limits (reserve + free cash)
     insertFundLimit("TUK75", 5_000, 3_000, 10_000);
 
@@ -296,6 +299,9 @@ class LimitCheckIntegrationTest {
 
     insertFundPosition("TUK00", NAV_DATE, "CASH", "CASH_ACCOUNT", 105_000);
     insertFundPosition("TUK00", NAV_DATE, "LIABILITY", "LIABILITY_ACCOUNT", -5_000);
+
+    // nav_report UNITS row: total calculated AUM = 10_000_000
+    insertNavReportUnits("TUK00", NAV_DATE, 10_000_000);
 
     insertFundLimit("TUK00", 100_000, 50_000, 1_000_000);
 
@@ -361,6 +367,20 @@ class LimitCheckIntegrationTest {
         .param("reserveSoft", BigDecimal.valueOf(reserveSoft))
         .param("reserveHard", BigDecimal.valueOf(reserveHard))
         .param("maxFreeCash", BigDecimal.valueOf(maxFreeCash))
+        .update();
+  }
+
+  private void insertNavReportUnits(String fund, LocalDate navDate, long aum) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO nav_report
+            (nav_date, fund_code, account_type, account_name, market_value)
+            VALUES (:navDate, :fund, 'UNITS', 'Total outstanding units:', :marketValue)
+            """)
+        .param("navDate", navDate)
+        .param("fund", fund)
+        .param("marketValue", BigDecimal.valueOf(aum))
         .update();
   }
 

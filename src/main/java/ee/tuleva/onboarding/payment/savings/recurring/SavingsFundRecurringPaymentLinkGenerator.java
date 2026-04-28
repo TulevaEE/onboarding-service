@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentDateProvider;
 import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
+import ee.tuleva.onboarding.payment.PrefilledLink;
 import ee.tuleva.onboarding.payment.savings.SavingsFundRecipientConfiguration;
 import java.math.BigDecimal;
 import java.net.URLEncoder;
@@ -55,7 +56,7 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
                               + " not supported."));
             };
 
-    return new PaymentLink(
+    return new PrefilledLink(
         url,
         recipientConfiguration.getRecipientName(),
         recipientConfiguration.getRecipientIban(),

@@ -50,7 +50,7 @@ class PaymentServiceSpec extends Specification {
     given:
     def person = samplePerson
     def paymentData = aPaymentData().tap { type = SINGLE }
-    def link = new PaymentLink("https://single.payment.url")
+    def link = new RedirectLink("https://single.payment.url")
     singlePaymentLinkGenerator.getPaymentLink(paymentData, person) >> link
 
     when:
@@ -64,7 +64,7 @@ class PaymentServiceSpec extends Specification {
     given:
     def person = samplePerson
     def paymentData = aPaymentData().tap { type = MEMBER_FEE }
-    def link = new PaymentLink("https://member.payment.url")
+    def link = new RedirectLink("https://member.payment.url")
     singlePaymentLinkGenerator.getPaymentLink(paymentData, person) >> link
 
     when:
@@ -78,7 +78,7 @@ class PaymentServiceSpec extends Specification {
     given:
     def person = samplePerson
     def paymentData = aPaymentData().tap { type = RECURRING }
-    def link = new PaymentLink("https://recurring.payment.url")
+    def link = new RedirectLink("https://recurring.payment.url")
     recurringPaymentLinkGenerator.getPaymentLink(paymentData, person) >> link
 
     when:
@@ -134,7 +134,7 @@ class PaymentServiceSpec extends Specification {
     given:
     def person = samplePerson
     def paymentData = aPaymentData().tap { type = SAVINGS }
-    def link = new PaymentLink("https://savings.payment.url")
+    def link = new RedirectLink("https://savings.payment.url")
     savingsPaymentLinkGenerator.getPaymentLink(paymentData, person) >> link
 
     when:

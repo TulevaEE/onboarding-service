@@ -19,6 +19,8 @@ import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentData.PaymentChannel;
 import ee.tuleva.onboarding.payment.PaymentDateProvider;
+import ee.tuleva.onboarding.payment.PaymentLink;
+import ee.tuleva.onboarding.payment.PrefilledLink;
 import ee.tuleva.onboarding.payment.savings.SavingsFundRecipientConfiguration;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -50,7 +52,7 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
 
   @Test
   void buildsLhvUrl() {
-    var link = generator.getPaymentLink(paymentData(LHV), person());
+    var link = prefilledLink(LHV);
 
     assertThat(link.url())
         .startsWith("https://www.lhv.ee/ibank/cf/portfolio/payment_standing_add?")
@@ -66,7 +68,7 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
 
   @Test
   void buildsCoopUrl() {
-    var link = generator.getPaymentLink(paymentData(COOP), person());
+    var link = prefilledLink(COOP);
 
     assertThat(link.url())
         .startsWith("https://i.cooppank.ee/newpmt?")
@@ -82,7 +84,7 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
 
   @Test
   void buildsSwedbankUrl() {
-    var link = generator.getPaymentLink(paymentData(SWEDBANK), person());
+    var link = prefilledLink(SWEDBANK);
 
     assertThat(link.url())
         .startsWith("https://www.swedbank.ee/private/d2d/payments2/standing_order/new?")
@@ -96,7 +98,7 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
 
   @Test
   void buildsSebLandingUrl() {
-    var link = generator.getPaymentLink(paymentData(SEB), person());
+    var link = prefilledLink(SEB);
 
     assertThat(link.url()).isEqualTo("https://e.seb.ee/ib/p/payments/new-standing-order");
     assertCommonRecipientFields(link);
@@ -104,7 +106,7 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
 
   @Test
   void buildsLuminorLandingUrl() {
-    var link = generator.getPaymentLink(paymentData(LUMINOR), person());
+    var link = prefilledLink(LUMINOR);
 
     assertThat(link.url()).isEqualTo("https://luminor.ee/auth/#/web/view/autopilot/newpayment");
     assertCommonRecipientFields(link);
@@ -112,7 +114,7 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
 
   @Test
   void returnsNullUrlWhenPaymentChannelIsMissing() {
-    var link = generator.getPaymentLink(paymentData(null), person());
+    var link = prefilledLink(null);
 
     assertThat(link.url()).isNull();
     assertCommonRecipientFields(link);
@@ -169,7 +171,7 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
             .build();
     var callerPerson = sampleAuthenticatedPersonNonMember().personalCode("38812121215").build();
 
-    var link = generator.getPaymentLink(paymentData, callerPerson);
+    var link = (PrefilledLink) generator.getPaymentLink(paymentData, callerPerson);
 
     assertThat(link.description()).isEqualTo("49001011234");
     assertThat(link.url()).contains("i_payment_desc=49001011234").doesNotContain("38812121215");
@@ -179,11 +181,17 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
   void encodesReservedUrlCharactersInRecipientName() {
     recipientConfiguration.setRecipientName("Tuleva & Co?");
 
-    var link = generator.getPaymentLink(paymentData(LHV), person());
+    var link = prefilledLink(LHV);
 
     assertThat(link.url())
         .contains("i_receiver_name=Tuleva%20%26%20Co%3F")
         .doesNotContain("Tuleva & Co?");
+  }
+
+  private PrefilledLink prefilledLink(PaymentChannel channel) {
+    PaymentLink link = generator.getPaymentLink(paymentData(channel), person());
+    assertThat(link).isInstanceOf(PrefilledLink.class);
+    return (PrefilledLink) link;
   }
 
   private PaymentData paymentData(PaymentChannel channel) {
@@ -200,7 +208,7 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
     return sampleAuthenticatedPersonNonMember().personalCode(PERSONAL_CODE).build();
   }
 
-  private void assertCommonRecipientFields(ee.tuleva.onboarding.payment.PaymentLink link) {
+  private void assertCommonRecipientFields(PrefilledLink link) {
     assertThat(link.recipientName()).isEqualTo(RECIPIENT_NAME);
     assertThat(link.recipientIban()).isEqualTo(RECIPIENT_IBAN);
     assertThat(link.description()).isEqualTo(PERSONAL_CODE);

@@ -59,7 +59,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     def person = sampleAuthenticatedPerson
     def mvc = mockMvcWithAuthenticationPrincipal(person, paymentController)
 
-    PaymentLink paymentLink = new PaymentLink("https://some.url?payment_token=23948h3t9gfd")
+    PaymentLink paymentLink = new RedirectLink("https://some.url?payment_token=23948h3t9gfd")
 
     PaymentData paymentData = PaymentData.builder()
         .amount(100.00)
@@ -83,7 +83,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     def person = sampleAuthenticatedPerson
     def mvc = mockMvcWithAuthenticationPrincipal(person, paymentController)
 
-    PaymentLink paymentLink = new PaymentLink("https://some.url?payment_token=23948h3t9gfd")
+    PaymentLink paymentLink = new RedirectLink("https://some.url?payment_token=23948h3t9gfd")
 
     PaymentData paymentData = PaymentData.builder()
         .amount(100.22)
@@ -107,7 +107,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     def person = sampleAuthenticatedPerson
     def mvc = mockMvcWithAuthenticationPrincipal(person, paymentController)
 
-    PaymentLink paymentLink = new PaymentLink("https://some.url?payment_token=23948h3t9gfd")
+    PaymentLink paymentLink = new RedirectLink("https://some.url?payment_token=23948h3t9gfd")
 
     PaymentData paymentData = PaymentData.builder()
         .type(RECURRING)

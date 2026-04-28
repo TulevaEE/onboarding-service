@@ -13,6 +13,8 @@ import ee.tuleva.onboarding.payment.PaymentData.PaymentChannel;
 import ee.tuleva.onboarding.payment.PaymentDateProvider;
 import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
+import ee.tuleva.onboarding.payment.PrefilledLink;
+import ee.tuleva.onboarding.payment.RedirectLink;
 import java.net.URLEncoder;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -38,10 +40,12 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
     ContactDetails contactDetails = contactDetailsService.getContactDetails(person);
     var encodedName = urlEncode(thirdPillarConfig.getRecipientName());
     var encodedDescription = urlEncode(thirdPillarConfig.getDescription());
-    var url =
-        switch (paymentData.getPaymentChannel()) {
-          case SWEDBANK -> "https://www.swedbank.ee/private/pensions/pillar3/orderp3p";
-          case SEB ->
+    var amount = paymentData.getAmount() == null ? null : paymentData.getAmount().toString();
+    return switch (paymentData.getPaymentChannel()) {
+      case SWEDBANK ->
+          new RedirectLink("https://www.swedbank.ee/private/pensions/pillar3/orderp3p");
+      case SEB ->
+          new RedirectLink(
               "https://e.seb.ee/web/ipank?act=PENSION3_STPAYM"
                   + "&saajakonto="
                   + thirdPillarConfig.getBankAccounts().get(PaymentChannel.SEB)
@@ -55,8 +59,9 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
                   + paymentData.getAmount()
                   + "&alguskuup="
                   + format(paymentDateProvider.tenthDayOfMonth())
-                  + "&sagedus=M"; // Monthly
-          case LHV ->
+                  + "&sagedus=M"); // Monthly
+      case LHV ->
+          new PrefilledLink(
               "https://www.lhv.ee/ibank/cf/portfolio/payment_standing_add"
                   + "?i_receiver_name="
                   + encodedName
@@ -72,17 +77,20 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
                   + "&i_currency_id=38" // EUR
                   + "&i_interval_type=K" // Kuu
                   + "&i_date_first_payment="
-                  + format(paymentDateProvider.tenthDayOfMonth());
-          case LUMINOR -> "https://luminor.ee/auth/#/web/view/autopilot/newpayment";
-          case COOP, COOP_WEB, PARTNER ->
-              coopPankPaymentLinkGenerator.getPaymentLink(paymentData, person).url();
-          case TULUNDUSUHISTU ->
-              throw new ErrorsResponseException(
-                  ErrorsResponse.ofSingleError(
-                      "payment.channel.not.supported",
-                      "Recurring payments to the specified payment channel are not supported."));
-        };
-    return new PaymentLink(url);
+                  + format(paymentDateProvider.tenthDayOfMonth()),
+              thirdPillarConfig.getRecipientName(),
+              thirdPillarConfig.getBankAccounts().get(PaymentChannel.LHV),
+              thirdPillarConfig.getDescription(),
+              amount);
+      case LUMINOR -> new RedirectLink("https://luminor.ee/auth/#/web/view/autopilot/newpayment");
+      case COOP, COOP_WEB, PARTNER ->
+          coopPankPaymentLinkGenerator.getPaymentLink(paymentData, person);
+      case TULUNDUSUHISTU ->
+          throw new ErrorsResponseException(
+              ErrorsResponse.ofSingleError(
+                  "payment.channel.not.supported",
+                  "Recurring payments to the specified payment channel are not supported."));
+    };
   }
 
   private static String urlEncode(String value) {

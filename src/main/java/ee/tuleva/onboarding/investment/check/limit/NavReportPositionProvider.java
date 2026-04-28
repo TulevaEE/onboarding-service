@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -32,5 +33,21 @@ class NavReportPositionProvider {
         .list()
         .stream()
         .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+  }
+
+  Optional<BigDecimal> getCalculatedAum(TulevaFund fund, LocalDate navDate) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT market_value
+            FROM nav_report
+            WHERE fund_code = :fundCode
+              AND nav_date = :navDate
+              AND account_type = 'UNITS'
+            """)
+        .param("fundCode", fund.getCode())
+        .param("navDate", navDate)
+        .query(BigDecimal.class)
+        .optional();
   }
 }

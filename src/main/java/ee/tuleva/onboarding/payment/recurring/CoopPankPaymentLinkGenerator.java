@@ -12,7 +12,6 @@ import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.PaymentData;
-import ee.tuleva.onboarding.payment.PaymentData.PaymentChannel;
 import ee.tuleva.onboarding.payment.PaymentDateProvider;
 import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
@@ -48,7 +47,7 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
           case PARTNER ->
               objectMapper.writeValueAsString(
                   new RecurringPaymentRequest(
-                      thirdPillarConfig.getBankAccounts().get(PaymentChannel.PARTNER),
+                      thirdPillarConfig.getBankAccounts().get(paymentData.getPaymentChannel()),
                       thirdPillarConfig.getRecipientName(),
                       paymentData.getAmount(),
                       paymentData.getCurrency(),
@@ -78,7 +77,7 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
         + "?SaajaNimi="
         + urlEncode(thirdPillarConfig.getRecipientName())
         + "&SaajaKonto="
-        + thirdPillarConfig.getBankAccounts().get(PaymentChannel.COOP_WEB)
+        + thirdPillarConfig.getBankAccounts().get(paymentData.getPaymentChannel())
         + (paymentData.getAmount() != null ? "&MuutMakseSumma=" + paymentData.getAmount() : "")
         + "&MaksePohjus="
         // Coop Pank's pre-existing URL uses lowercase %2c for the comma
@@ -88,17 +87,13 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
   }
 
   private String recurringPaymentPath(PaymentData paymentData, ContactDetails contactDetails) {
-    var coopChannel =
-        paymentData.getPaymentChannel() == PaymentChannel.COOP_WEB
-            ? PaymentChannel.COOP_WEB
-            : PaymentChannel.COOP;
     return "newpmt"
         + language()
         + "?whatform=PermPaymentNew"
         + "&SaajaNimi="
         + urlEncode(thirdPillarConfig.getRecipientName())
         + "&SaajaKonto="
-        + thirdPillarConfig.getBankAccounts().get(coopChannel)
+        + thirdPillarConfig.getBankAccounts().get(paymentData.getPaymentChannel())
         + (paymentData.getAmount() != null ? "&MakseSumma=" + paymentData.getAmount() : "")
         + "&MaksePohjus="
         // Coop Pank's pre-existing URL uses lowercase %2c for the comma

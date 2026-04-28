@@ -62,12 +62,8 @@ class LimitCheckService {
       }
 
       var checkDate = latestDate.get();
-      try {
-        var result = checkFund(fund, checkDate);
-        results.add(result);
-      } catch (Exception e) {
-        log.error("Limit check failed: fund={}, checkDate={}", fund, checkDate, e);
-      }
+      var result = checkFund(fund, checkDate);
+      results.add(result);
     }
 
     return results;
@@ -159,7 +155,7 @@ class LimitCheckService {
     if (calculatedAum.isPresent()) {
       return calculatedAum.get();
     }
-    log.warn("Calculated AUM unavailable in nav_report, falling back to units × NAV per unit: fund={}", fund);
+    log.error("Calculated AUM unavailable in nav_report, falling back to units × NAV per unit: fund={}", fund);
     var unitsPositions =
         fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, UNITS);
     if (!unitsPositions.isEmpty()) {

@@ -53,6 +53,7 @@ class LimitCheckService {
 
   List<LimitCheckResult> runChecksAsOf(LocalDate asOfDate) {
     var results = new ArrayList<LimitCheckResult>();
+    var errors = new ArrayList<Exception>();
 
     for (var fund : TulevaFund.values()) {
       var latestDate = fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, asOfDate);
@@ -62,8 +63,19 @@ class LimitCheckService {
       }
 
       var checkDate = latestDate.get();
-      var result = checkFund(fund, checkDate);
-      results.add(result);
+      try {
+        var result = checkFund(fund, checkDate);
+        results.add(result);
+      } catch (Exception e) {
+        log.error("Limit check failed: fund={}, checkDate={}", fund, checkDate, e);
+        errors.add(e);
+      }
+    }
+
+    if (!errors.isEmpty()) {
+      var combined = new IllegalStateException("Limit check failed for %d fund(s)".formatted(errors.size()));
+      errors.forEach(combined::addSuppressed);
+      throw combined;
     }
 
     return results;

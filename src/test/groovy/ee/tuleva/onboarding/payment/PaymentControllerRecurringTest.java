@@ -12,12 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
-import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -31,30 +27,31 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(PaymentController.class)
 @AutoConfigureMockMvc
 @WithMockUser
-class PaymentControllerSavingsRecurringTest {
+class PaymentControllerRecurringTest {
 
   @Autowired private MockMvc mvc;
 
   @MockitoBean private PaymentService paymentService;
 
   @Test
-  void getPaymentLink_forSavingsRecurring_returnsUrlFromService() throws Exception {
+  void getPaymentLink_forRecurringLhv_serializesAsPrefilledWithDiscriminator() throws Exception {
     var person = sampleAuthenticatedPersonNonMember().build();
     var expectedUrl =
         "https://www.lhv.ee/ibank/cf/portfolio/payment_standing_add"
-            + "?i_receiver_name=Tuleva%20T%C3%A4iendav%20Kogumisfond"
-            + "&i_receiver_account_no=EE711010220306707220"
-            + "&i_payment_desc=38812121215"
+            + "?i_receiver_name=AS%20Pensionikeskus"
+            + "&i_receiver_account_no=EE547700771002908125"
+            + "&i_payment_desc=30101119828%2c%20EE3600001707"
+            + "&i_payment_clirefno=993432432"
             + "&i_amount=50"
             + "&i_currency_id=38"
             + "&i_interval_type=K"
-            + "&i_date_first_payment=10.02.2020";
+            + "&i_date_first_payment=10.01.2020";
     var expectedLink =
         new PrefilledLink(
             expectedUrl,
-            "Tuleva Täiendav Kogumisfond",
-            "EE711010220306707220",
-            "38812121215",
+            "AS Pensionikeskus",
+            "EE547700771002908125",
+            "30101119828, EE3600001707",
             "50");
 
     given(paymentService.getLink(any(PaymentData.class), any(AuthenticatedPerson.class)))
@@ -68,7 +65,7 @@ class PaymentControllerSavingsRecurringTest {
             get("/v1/payments/link"
                     + "?amount=50"
                     + "&currency=EUR"
-                    + "&type=SAVINGS_RECURRING"
+                    + "&type=RECURRING"
                     + "&paymentChannel=LHV"
                     + "&recipientPersonalCode=38812121215")
                 .with(authentication(auth))
@@ -77,51 +74,20 @@ class PaymentControllerSavingsRecurringTest {
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.type").value("PREFILLED"))
         .andExpect(jsonPath("$.url").value(expectedUrl))
-        .andExpect(jsonPath("$.recipientName").value("Tuleva Täiendav Kogumisfond"))
-        .andExpect(jsonPath("$.recipientIban").value("EE711010220306707220"))
-        .andExpect(jsonPath("$.description").value("38812121215"))
+        .andExpect(jsonPath("$.recipientName").value("AS Pensionikeskus"))
+        .andExpect(jsonPath("$.recipientIban").value("EE547700771002908125"))
+        .andExpect(jsonPath("$.description").value("30101119828, EE3600001707"))
         .andExpect(jsonPath("$.amount").value("50"));
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = {"SINGLE", "RECURRING", "SAVINGS"})
-  void getPaymentLink_withoutPaymentChannel_forChannelRequiredType_returns400(String type)
-      throws Exception {
-    var person = sampleAuthenticatedPersonNonMember().build();
-
-    given(paymentService.getLink(any(PaymentData.class), any(AuthenticatedPerson.class)))
-        .willThrow(
-            new ErrorsResponseException(
-                ErrorsResponse.ofSingleError(
-                    "payment.channel.required", "Payment channel is required.")));
-
-    var auth =
-        new UsernamePasswordAuthenticationToken(
-            person, null, List.of(new SimpleGrantedAuthority(USER)));
-
-    mvc.perform(
-            get("/v1/payments/link"
-                    + "?amount=10"
-                    + "&currency=EUR"
-                    + "&type="
-                    + type
-                    + "&recipientPersonalCode=38812121215")
-                .with(authentication(auth))
-                .with(csrf()))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("payment.channel.required"));
-  }
-
   @Test
-  void getPaymentLink_forSavingsRecurring_withoutPaymentChannel_returnsNullUrlWithRecipientData()
-      throws Exception {
+  void getPaymentLink_forRecurringSwedbank_serializesAsRedirect() throws Exception {
     var person = sampleAuthenticatedPersonNonMember().build();
-    var link =
-        new PrefilledLink(
-            null, "Tuleva Täiendav Kogumisfond", "EE711010220306707220", "38812121215", "50");
+    var expectedLink =
+        new RedirectLink("https://www.swedbank.ee/private/pensions/pillar3/orderp3p");
 
     given(paymentService.getLink(any(PaymentData.class), any(AuthenticatedPerson.class)))
-        .willReturn(link);
+        .willReturn(expectedLink);
 
     var auth =
         new UsernamePasswordAuthenticationToken(
@@ -131,13 +97,19 @@ class PaymentControllerSavingsRecurringTest {
             get("/v1/payments/link"
                     + "?amount=50"
                     + "&currency=EUR"
-                    + "&type=SAVINGS_RECURRING"
+                    + "&type=RECURRING"
+                    + "&paymentChannel=SWEDBANK"
                     + "&recipientPersonalCode=38812121215")
                 .with(authentication(auth))
                 .with(csrf()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.type").value("PREFILLED"))
-        .andExpect(jsonPath("$.url").doesNotExist())
-        .andExpect(jsonPath("$.recipientIban").value("EE711010220306707220"));
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.type").value("REDIRECT"))
+        .andExpect(
+            jsonPath("$.url").value("https://www.swedbank.ee/private/pensions/pillar3/orderp3p"))
+        .andExpect(jsonPath("$.recipientName").doesNotExist())
+        .andExpect(jsonPath("$.recipientIban").doesNotExist())
+        .andExpect(jsonPath("$.description").doesNotExist())
+        .andExpect(jsonPath("$.amount").doesNotExist());
   }
 }

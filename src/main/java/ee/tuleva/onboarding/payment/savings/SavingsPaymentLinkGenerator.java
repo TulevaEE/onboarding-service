@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
+import ee.tuleva.onboarding.payment.RedirectLink;
 import ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService;
 import ee.tuleva.onboarding.payment.provider.montonio.*;
 import java.math.BigDecimal;
@@ -51,7 +52,7 @@ public class SavingsPaymentLinkGenerator implements PaymentLinkGenerator {
     }
     var order = buildOrder(paymentData, person, bic);
     var url = orderClient.getPaymentUrl(order, savingsChannelConfiguration);
-    return new PaymentLink(url);
+    return new RedirectLink(url);
   }
 
   private MontonioOrder buildOrder(PaymentData paymentData, Person person, String bic) {

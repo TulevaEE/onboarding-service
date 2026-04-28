@@ -53,6 +53,7 @@ class LimitCheckService {
 
   List<LimitCheckResult> runChecksAsOf(LocalDate asOfDate) {
     var results = new ArrayList<LimitCheckResult>();
+    var errors = new ArrayList<Exception>();
 
     for (var fund : TulevaFund.values()) {
       var latestDate = fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, asOfDate);
@@ -62,8 +63,21 @@ class LimitCheckService {
       }
 
       var checkDate = latestDate.get();
-      var result = checkFund(fund, checkDate);
-      results.add(result);
+      try {
+        var result = checkFund(fund, checkDate);
+        results.add(result);
+      } catch (Exception e) {
+        log.error("Limit check failed: fund={}, checkDate={}", fund, checkDate, e);
+        errors.add(e);
+      }
+    }
+
+    if (!errors.isEmpty()) {
+      var combined =
+          new LimitCheckPartialFailureException(
+              "Limit check failed for %d fund(s)".formatted(errors.size()), results);
+      errors.forEach(combined::addSuppressed);
+      throw combined;
     }
 
     return results;
@@ -75,8 +89,12 @@ class LimitCheckService {
 
     for (int i = daysBack; i >= 0; i--) {
       var asOfDate = today.minusDays(i);
-      var results = runChecksAsOf(asOfDate);
-      allResults.addAll(results);
+      try {
+        var results = runChecksAsOf(asOfDate);
+        allResults.addAll(results);
+      } catch (LimitCheckPartialFailureException e) {
+        allResults.addAll(e.getPartialResults());
+      }
     }
 
     return allResults;
@@ -151,6 +169,11 @@ class LimitCheckService {
   }
 
   private BigDecimal computeTotalNav(TulevaFund fund, LocalDate checkDate) {
+    var calculatedAum = navReportPositionProvider.getCalculatedAum(fund, checkDate);
+    if (calculatedAum.isPresent()) {
+      return calculatedAum.get();
+    }
+    log.error("Calculated AUM unavailable in nav_report, falling back to units × NAV per unit: fund={}", fund);
     var unitsPositions =
         fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, UNITS);
     if (!unitsPositions.isEmpty()) {
@@ -162,14 +185,9 @@ class LimitCheckService {
         }
       }
     }
-    log.warn("UNITS or NAV per unit unavailable, falling back to position sum: fund={}", fund);
-    var nonSecurityNav =
-        fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-            fund, checkDate, List.of(CASH, RECEIVABLES, LIABILITY));
-    var securitiesNav =
-        fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-            fund, checkDate, List.of(AccountType.SECURITY));
-    return nonSecurityNav.add(securitiesNav);
+    throw new IllegalStateException(
+        "No calculated AUM or units × NAV per unit available: fund=%s, date=%s"
+            .formatted(fund, checkDate));
   }
 
   private BigDecimal sumMarketValues(List<FundPosition> positions) {

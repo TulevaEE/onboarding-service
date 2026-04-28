@@ -10,7 +10,6 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.lenient;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.portfolio.*;
@@ -73,13 +72,8 @@ class LimitCheckServiceTest {
         .thenReturn(Optional.of(today));
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, SECURITY))
         .thenReturn(List.of(position));
-    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, UNITS))
-        .thenReturn(List.of());
-    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-            fund, today, List.of(CASH, RECEIVABLES, LIABILITY)))
-        .thenReturn(nonSecurityNav);
-    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(fund, today, List.of(SECURITY)))
-        .thenReturn(securitiesNav);
+    when(navReportPositionProvider.getCalculatedAum(fund, today))
+        .thenReturn(Optional.of(totalNav));
 
     var cashPosition =
         FundPosition.builder().marketValue(new BigDecimal("80000")).fund(fund).build();
@@ -189,13 +183,8 @@ class LimitCheckServiceTest {
         .thenReturn(Optional.of(today));
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, SECURITY))
         .thenReturn(List.of());
-    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, UNITS))
-        .thenReturn(List.of());
-    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-            fund, today, List.of(CASH, RECEIVABLES, LIABILITY)))
-        .thenReturn(BigDecimal.ZERO);
-    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(fund, today, List.of(SECURITY)))
-        .thenReturn(BigDecimal.ZERO);
+    when(navReportPositionProvider.getCalculatedAum(fund, today))
+        .thenReturn(Optional.of(BigDecimal.ZERO));
 
     var cash1 = FundPosition.builder().marketValue(new BigDecimal("50000")).fund(fund).build();
     var cash2 = FundPosition.builder().marketValue(new BigDecimal("30000")).fund(fund).build();
@@ -259,11 +248,8 @@ class LimitCheckServiceTest {
         .thenReturn(Optional.of(checkDate));
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, SECURITY))
         .thenReturn(List.of());
-    when(fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, UNITS))
-        .thenReturn(List.of());
-    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-            eq(fund), eq(checkDate), anyList()))
-        .thenReturn(BigDecimal.ZERO);
+    when(navReportPositionProvider.getCalculatedAum(fund, checkDate))
+        .thenReturn(Optional.of(BigDecimal.ZERO));
     var cashPosition =
         FundPosition.builder().marketValue(new BigDecimal("590345.14")).fund(fund).build();
     var feePosition =
@@ -326,11 +312,8 @@ class LimitCheckServiceTest {
         .thenReturn(Optional.of(checkDate));
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, SECURITY))
         .thenReturn(List.of());
-    when(fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, UNITS))
-        .thenReturn(List.of());
-    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-            eq(fund), eq(checkDate), anyList()))
-        .thenReturn(BigDecimal.ZERO);
+    when(navReportPositionProvider.getCalculatedAum(fund, checkDate))
+        .thenReturn(Optional.of(BigDecimal.ZERO));
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, CASH))
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, LIABILITY))
@@ -406,14 +389,8 @@ class LimitCheckServiceTest {
     when(navReportPositionProvider.getSecurityMarketValues(fund, today))
         .thenReturn(Map.of("IE001", new BigDecimal("95000")));
 
-    var unitsPosition =
-        FundPosition.builder().fund(fund).quantity(new BigDecimal("1000000")).build();
-    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, UNITS))
-        .thenReturn(List.of(unitsPosition));
-    when(fundValueProvider.getLatestValue(fund.getIsin(), today))
-        .thenReturn(
-            Optional.of(
-                new FundValue(fund.getIsin(), today, BigDecimal.ONE, "TEST", Instant.now())));
+    when(navReportPositionProvider.getCalculatedAum(fund, today))
+        .thenReturn(Optional.of(new BigDecimal("1000000")));
 
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, CASH))
         .thenReturn(List.of());
@@ -445,7 +422,7 @@ class LimitCheckServiceTest {
   }
 
   @Test
-  void usesOfficialAumForTotalNav() {
+  void usesCalculatedAumFromNavReport() {
     service = createService();
     var today = LocalDate.of(2026, 3, 4);
     var fund = TUK75;
@@ -462,17 +439,9 @@ class LimitCheckServiceTest {
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, SECURITY))
         .thenReturn(List.of(position));
 
-    // UNITS position: 1,000,000 units
-    var unitsPosition =
-        FundPosition.builder().fund(fund).quantity(new BigDecimal("1000000")).build();
-    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, UNITS))
-        .thenReturn(List.of(unitsPosition));
-
-    // NAV per unit = 1.00 → official AUM = 1,000,000
-    when(fundValueProvider.getLatestValue(fund.getIsin(), today))
-        .thenReturn(
-            Optional.of(
-                new FundValue(fund.getIsin(), today, BigDecimal.ONE, "TEST", Instant.now())));
+    // Calculated AUM from nav_report UNITS row = 1,000,000
+    when(navReportPositionProvider.getCalculatedAum(fund, today))
+        .thenReturn(Optional.of(new BigDecimal("1000000")));
 
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, CASH))
         .thenReturn(List.of());
@@ -490,7 +459,7 @@ class LimitCheckServiceTest {
 
     service.runChecksAsOf(today);
 
-    // totalNav should be 1,000,000 (units × NAV/unit), NOT 900,000 (position sum)
+    // totalNav should be 1,000,000 from nav_report calculated AUM
     verify(positionLimitChecker)
         .check(eq(fund), anyList(), eq(new BigDecimal("1000000")), anyList());
   }
@@ -499,6 +468,9 @@ class LimitCheckServiceTest {
     lenient()
         .when(navReportPositionProvider.getSecurityMarketValues(any(), any()))
         .thenReturn(Map.of());
+    lenient()
+        .when(navReportPositionProvider.getCalculatedAum(any(), any()))
+        .thenReturn(Optional.empty());
     lenient()
         .when(transactionOrderRepository.findUnsettledOrdersAsOf(any(), any(), any()))
         .thenReturn(List.of());

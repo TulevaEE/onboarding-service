@@ -36,6 +36,9 @@ class HealthCheckServiceTest {
   @Mock CompletenessChecker completenessChecker;
   @Mock IsinMatchChecker isinMatchChecker;
   @Mock OutstandingUnitsChecker outstandingUnitsChecker;
+  @Mock UnitReconciliationChecker unitReconciliationChecker;
+  @Mock UnitReconciliationThresholdRepository unitReconciliationThresholdRepository;
+  @Mock AuthoritativeUnitsSource authoritativeUnitsSource;
   @Mock ReceivablesChecker receivablesChecker;
   @Mock PayablesChecker payablesChecker;
 
@@ -204,6 +207,46 @@ class HealthCheckServiceTest {
     verify(receivablesChecker).check(eq(TUK75), any(), any(), any(), eq(previousReceivables));
   }
 
+  @Test
+  void invokesUnitReconciliationCheckerWithLoadedThresholdAndAuthoritativeUnits() {
+    var positions = List.of(unitsPosition(TUK75, new BigDecimal("1000000")));
+    var threshold =
+        UnitReconciliationThreshold.builder()
+            .fundCode(TUK75)
+            .warningUnits(new BigDecimal("0"))
+            .failUnits(null)
+            .build();
+    var authoritative = new BigDecimal("1000005");
+
+    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).willReturn(List.of());
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
+        .willReturn(Optional.empty());
+    given(unitReconciliationThresholdRepository.findByFundCode(TUK75))
+        .willReturn(Optional.of(threshold));
+    given(authoritativeUnitsSource.resolve(TUK75)).willReturn(Optional.of(authoritative));
+
+    healthCheckService.check(positions);
+
+    verify(unitReconciliationChecker)
+        .check(eq(TUK75), eq(NAV_DATE), eq(positions), eq(authoritative), eq(threshold));
+  }
+
+  @Test
+  void passesNullsToUnitReconciliationCheckerWhenThresholdOrAuthoritativeAbsent() {
+    var positions = List.of(unitsPosition(TUK75, new BigDecimal("1000000")));
+
+    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).willReturn(List.of());
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
+        .willReturn(Optional.empty());
+    given(unitReconciliationThresholdRepository.findByFundCode(TUK75)).willReturn(Optional.empty());
+    given(authoritativeUnitsSource.resolve(TUK75)).willReturn(Optional.empty());
+
+    healthCheckService.check(positions);
+
+    verify(unitReconciliationChecker)
+        .check(eq(TUK75), eq(NAV_DATE), eq(positions), eq(null), eq(null));
+  }
+
   private FundPosition securityPosition(TulevaFund fund, String isin, BigDecimal quantity) {
     return FundPosition.builder()
         .navDate(NAV_DATE)
@@ -242,6 +285,16 @@ class HealthCheckServiceTest {
         .accountType(RECEIVABLES)
         .accountName("Receivables of outstanding units")
         .marketValue(marketValue)
+        .build();
+  }
+
+  private FundPosition unitsPosition(TulevaFund fund, BigDecimal quantity) {
+    return FundPosition.builder()
+        .navDate(NAV_DATE)
+        .fund(fund)
+        .accountType(ee.tuleva.onboarding.investment.position.AccountType.UNITS)
+        .accountName("Total outstanding units")
+        .quantity(quantity)
         .build();
   }
 }

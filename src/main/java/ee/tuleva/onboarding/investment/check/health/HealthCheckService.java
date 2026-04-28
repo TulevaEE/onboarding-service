@@ -27,6 +27,9 @@ public class HealthCheckService {
   private final CompletenessChecker completenessChecker;
   private final IsinMatchChecker isinMatchChecker;
   private final OutstandingUnitsChecker outstandingUnitsChecker;
+  private final UnitReconciliationChecker unitReconciliationChecker;
+  private final UnitReconciliationThresholdRepository unitReconciliationThresholdRepository;
+  private final AuthoritativeUnitsSource authoritativeUnitsSource;
   private final ReceivablesChecker receivablesChecker;
   private final PayablesChecker payablesChecker;
 
@@ -76,10 +79,16 @@ public class HealthCheckService {
                         date, fund, RECEIVABLES))
             .orElse(List.of());
 
+    var threshold = unitReconciliationThresholdRepository.findByFundCode(fund).orElse(null);
+    var authoritativeUnits = authoritativeUnitsSource.resolve(fund).orElse(null);
+
     var findings = new ArrayList<HealthCheckFinding>();
     findings.addAll(completenessChecker.check(fund, navDate, positions));
     findings.addAll(isinMatchChecker.check(fund, securities, allocations));
     findings.addAll(outstandingUnitsChecker.check(fund, navDate, unitsPositions));
+    findings.addAll(
+        unitReconciliationChecker.check(
+            fund, navDate, unitsPositions, authoritativeUnits, threshold));
     findings.addAll(
         receivablesChecker.check(
             fund, securities, previousSecurities, receivables, previousReceivables));

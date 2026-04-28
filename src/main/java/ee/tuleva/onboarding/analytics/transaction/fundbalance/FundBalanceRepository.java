@@ -19,4 +19,6 @@ public interface FundBalanceRepository extends JpaRepository<FundBalance, Long> 
   Optional<LocalDate> findLatestRequestDate();
 
   Optional<FundBalance> findByIsinAndRequestDate(String isin, LocalDate requestDate);
+
+  Optional<FundBalance> findFirstByIsinOrderByRequestDateDesc(String isin);
 }

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.payment.recurring;
 
 import static ee.tuleva.onboarding.payment.PaymentDateProvider.format;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
@@ -8,9 +9,11 @@ import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.payment.PaymentData;
+import ee.tuleva.onboarding.payment.PaymentData.PaymentChannel;
 import ee.tuleva.onboarding.payment.PaymentDateProvider;
 import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
+import java.net.URLEncoder;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
@@ -22,6 +25,7 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
   private final ContactDetailsService contactDetailsService;
   private final PaymentDateProvider paymentDateProvider;
   private final CoopPankPaymentLinkGenerator coopPankPaymentLinkGenerator;
+  private final ThirdPillarRecipientConfiguration thirdPillarConfig;
 
   @Override
   @SneakyThrows
@@ -32,15 +36,19 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
               "payment.channel.required", "Payment channel is required for recurring payments."));
     }
     ContactDetails contactDetails = contactDetailsService.getContactDetails(person);
+    var encodedName = urlEncode(thirdPillarConfig.getRecipientName());
+    var encodedDescription = urlEncode(thirdPillarConfig.getDescription());
     var url =
         switch (paymentData.getPaymentChannel()) {
           case SWEDBANK -> "https://www.swedbank.ee/private/pensions/pillar3/orderp3p";
           case SEB ->
               "https://e.seb.ee/web/ipank?act=PENSION3_STPAYM"
-                  + "&saajakonto=EE141010220263146225" // SEB account
-                  + "&saajanimi=AS%20Pensionikeskus"
-                  + "&selgitus=30101119828%2C%20EE3600001707"
-                  // 3rd pillar processing code and Tuleva 3rd pillar fund ISIN
+                  + "&saajakonto="
+                  + thirdPillarConfig.getBankAccounts().get(PaymentChannel.SEB)
+                  + "&saajanimi="
+                  + encodedName
+                  + "&selgitus="
+                  + encodedDescription
                   + "&viitenr="
                   + contactDetails.getPensionAccountNumber()
                   + "&summa="
@@ -50,10 +58,13 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
                   + "&sagedus=M"; // Monthly
           case LHV ->
               "https://www.lhv.ee/ibank/cf/portfolio/payment_standing_add"
-                  + "?i_receiver_name=AS%20Pensionikeskus"
-                  + "&i_receiver_account_no=EE547700771002908125" // LHV account
-                  + "&i_payment_desc=30101119828%2c%20EE3600001707"
-                  // 3rd pillar processing code and Tuleva 3rd pillar fund ISIN
+                  + "?i_receiver_name="
+                  + encodedName
+                  + "&i_receiver_account_no="
+                  + thirdPillarConfig.getBankAccounts().get(PaymentChannel.LHV)
+                  + "&i_payment_desc="
+                  // LHV's pre-existing URL uses lowercase %2c for the comma
+                  + encodedDescription.replace("%2C", "%2c")
                   + "&i_payment_clirefno="
                   + contactDetails.getPensionAccountNumber()
                   + "&i_amount="
@@ -72,5 +83,9 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
                       "Recurring payments to the specified payment channel are not supported."));
         };
     return new PaymentLink(url);
+  }
+
+  private static String urlEncode(String value) {
+    return URLEncoder.encode(value, UTF_8).replace("+", "%20");
   }
 }

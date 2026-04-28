@@ -13,6 +13,7 @@ import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsServiceStub.stubContactDetailsService
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.*
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.RECURRING
+import static ee.tuleva.onboarding.payment.recurring.ThirdPillarRecipientConfigurationFixture.thirdPillarRecipientConfiguration
 import static ee.tuleva.onboarding.time.TestClockHolder.clock
 
 class RecurringPaymentLinkGeneratorSpec extends Specification {
@@ -21,8 +22,9 @@ class RecurringPaymentLinkGeneratorSpec extends Specification {
   def paymentDateProvider = new PaymentDateProvider(clock)
   def objectMapper = JsonMapper.builder().build()
   def localeService = new LocaleService()
-  def coopPankPaymentLinkGenerator = new CoopPankPaymentLinkGenerator(contactDetailsService, objectMapper, localeService, paymentDateProvider)
-  def recurringPaymentLinkGenerator = new RecurringPaymentLinkGenerator(contactDetailsService, paymentDateProvider, coopPankPaymentLinkGenerator)
+  def thirdPillarConfig = thirdPillarRecipientConfiguration()
+  def coopPankPaymentLinkGenerator = new CoopPankPaymentLinkGenerator(contactDetailsService, objectMapper, localeService, paymentDateProvider, thirdPillarConfig)
+  def recurringPaymentLinkGenerator = new RecurringPaymentLinkGenerator(contactDetailsService, paymentDateProvider, coopPankPaymentLinkGenerator, thirdPillarConfig)
 
   def "can get a recurring payment link"() {
     given:

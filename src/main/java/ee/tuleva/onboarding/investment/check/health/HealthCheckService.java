@@ -80,7 +80,7 @@ public class HealthCheckService {
             .orElse(List.of());
 
     var threshold = unitReconciliationThresholdRepository.findByFundCode(fund).orElse(null);
-    var authoritativeUnits = authoritativeUnitsSource.resolve(fund).orElse(null);
+    var authoritativeUnits = authoritativeUnitsSource.resolve(fund, navDate).orElse(null);
 
     var findings = new ArrayList<HealthCheckFinding>();
     findings.addAll(completenessChecker.check(fund, navDate, positions));

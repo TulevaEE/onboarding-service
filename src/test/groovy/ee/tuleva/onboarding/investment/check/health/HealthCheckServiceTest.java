@@ -223,7 +223,7 @@ class HealthCheckServiceTest {
         .willReturn(Optional.empty());
     given(unitReconciliationThresholdRepository.findByFundCode(TUK75))
         .willReturn(Optional.of(threshold));
-    given(authoritativeUnitsSource.resolve(TUK75)).willReturn(Optional.of(authoritative));
+    given(authoritativeUnitsSource.resolve(TUK75, NAV_DATE)).willReturn(Optional.of(authoritative));
 
     healthCheckService.check(positions);
 
@@ -239,7 +239,7 @@ class HealthCheckServiceTest {
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
         .willReturn(Optional.empty());
     given(unitReconciliationThresholdRepository.findByFundCode(TUK75)).willReturn(Optional.empty());
-    given(authoritativeUnitsSource.resolve(TUK75)).willReturn(Optional.empty());
+    given(authoritativeUnitsSource.resolve(TUK75, NAV_DATE)).willReturn(Optional.empty());
 
     healthCheckService.check(positions);
 

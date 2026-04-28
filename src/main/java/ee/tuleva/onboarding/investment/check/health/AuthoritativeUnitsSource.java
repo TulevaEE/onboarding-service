@@ -7,6 +7,9 @@ import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceReposit
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -15,15 +18,18 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class AuthoritativeUnitsSource {
 
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+
   private final FundBalanceRepository fundBalanceRepository;
   private final NavLedgerRepository navLedgerRepository;
 
-  Optional<BigDecimal> resolve(TulevaFund fund) {
+  Optional<BigDecimal> resolve(TulevaFund fund, LocalDate navDate) {
     if (fund.isSavingsFund()) {
-      return Optional.of(navLedgerRepository.getSystemAccountBalance(accountNameFor(fund)));
+      return Optional.of(
+          navLedgerRepository.getSystemAccountBalanceBefore(accountNameFor(fund), endOf(navDate)));
     }
     return fundBalanceRepository
-        .findFirstByIsinOrderByRequestDateDesc(fund.getIsin())
+        .findFirstByIsinAndRequestDateLessThanEqualOrderByRequestDateDesc(fund.getIsin(), navDate)
         .map(AuthoritativeUnitsSource::totalUnits);
   }
 
@@ -33,5 +39,9 @@ class AuthoritativeUnitsSource {
 
   private static String accountNameFor(TulevaFund fund) {
     return FUND_UNITS_OUTSTANDING.getAccountName(fund);
+  }
+
+  private static Instant endOf(LocalDate date) {
+    return date.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
   }
 }

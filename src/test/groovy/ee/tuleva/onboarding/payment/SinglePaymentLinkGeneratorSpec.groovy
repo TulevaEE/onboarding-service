@@ -14,6 +14,7 @@ import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.COOP_WEB
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.PARTNER
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
+import static ee.tuleva.onboarding.payment.recurring.ThirdPillarRecipientConfigurationFixture.thirdPillarRecipientConfiguration
 import static ee.tuleva.onboarding.time.TestClockHolder.clock
 
 class SinglePaymentLinkGeneratorSpec extends Specification {
@@ -22,8 +23,9 @@ class SinglePaymentLinkGeneratorSpec extends Specification {
   def paymentDateProvider = new PaymentDateProvider(clock)
   def objectMapper = JsonMapper.builder().build()
   def localeService = new LocaleService()
+  def thirdPillarConfig = thirdPillarRecipientConfiguration()
   CoopPankPaymentLinkGenerator coopPankPaymentLinkGenerator =
-      new CoopPankPaymentLinkGenerator(contactDetailsService, objectMapper, localeService, paymentDateProvider)
+      new CoopPankPaymentLinkGenerator(contactDetailsService, objectMapper, localeService, paymentDateProvider, thirdPillarConfig)
   MontonioPaymentLinkGenerator paymentProviderLinkGenerator = Mock()
   SinglePaymentLinkGenerator singlePaymentLinkGenerator =
       new SinglePaymentLinkGenerator(coopPankPaymentLinkGenerator, paymentProviderLinkGenerator)

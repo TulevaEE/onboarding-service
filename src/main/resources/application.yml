@@ -195,6 +195,16 @@ payment-provider:
   savings-fund:
     recipient-name: ${SAVINGS_FUND_RECIPIENT_NAME:Tuleva Täiendav Kogumisfond}
     recipient-iban: ${SAVINGS_FUND_RECIPIENT_IBAN:EE711010220306707220}
+  third-pillar:
+    recipient-name: "AS Pensionikeskus"
+    description: "30101119828, EE3600001707"
+    bank-accounts:
+      LHV: "EE547700771002908125"
+      SEB: "EE141010220263146225"
+      SWEDBANK: "EE362200221067235244"
+      COOP: "EE362200221067235244"
+      COOP_WEB: "EE362200221067235244"
+      PARTNER: "EE362200221067235244"
   payment-channels:
     luminor:
       access-key: 0be260f2-1966-4d18-bb9d-1f0909a663f7
@@ -333,6 +343,16 @@ payment-provider:
   savings-fund:
     recipient-name: ${SAVINGS_FUND_RECIPIENT_NAME:Tuleva Täiendav Kogumisfond}
     recipient-iban: ${SAVINGS_FUND_RECIPIENT_IBAN:EE711010220306707220}
+  third-pillar:
+    recipient-name: "AS Pensionikeskus"
+    description: "30101119828, EE3600001707"
+    bank-accounts:
+      LHV: "EE547700771002908125"
+      SEB: "EE141010220263146225"
+      SWEDBANK: "EE362200221067235244"
+      COOP: "EE362200221067235244"
+      COOP_WEB: "EE362200221067235244"
+      PARTNER: "EE362200221067235244"
   payment-channels:
     luminor:
       access-key: fb673dc3-d898-4592-844f-83491aa430cc

@@ -96,6 +96,22 @@ class RecurringPaymentLinkGeneratorSpec extends Specification {
     exception.errorsResponse.errors[0].code == "payment.channel.not.supported"
   }
 
+  def "rejects recurring #channel without amount as 400 instead of building null URL"() {
+    given:
+    def person = samplePerson
+    def paymentData = new PaymentData(samplePerson.personalCode, null, EUR, RECURRING, channel)
+
+    when:
+    recurringPaymentLinkGenerator.getPaymentLink(paymentData, person)
+
+    then:
+    def exception = thrown(ErrorsResponseException)
+    exception.errorsResponse.errors[0].code == "payment.amount.required"
+
+    where:
+    channel << [SEB, LHV]
+  }
+
   def "rejects recurring payment without payment channel as 400"() {
     given:
     def person = samplePerson

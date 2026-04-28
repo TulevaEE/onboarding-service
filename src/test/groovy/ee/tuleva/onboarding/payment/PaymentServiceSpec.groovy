@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.RECURRING
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SAVINGS
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SAVINGS_RECURRING
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPayment
@@ -142,6 +143,28 @@ class PaymentServiceSpec extends Specification {
 
     then:
     returnedLink == link
+  }
+
+  def "can get a savings recurring payment link"() {
+    given:
+    def person = samplePerson
+    def paymentData = aPaymentData().tap { type = SAVINGS_RECURRING }
+    def link = new PrefilledLink(
+        "https://www.lhv.ee/...",
+        "Tuleva Täiendav Kogumisfond",
+        "EE711010220306707220",
+        "38812121215",
+        "50")
+    savingsFundRecurringPaymentLinkGenerator.getPaymentLink(paymentData, person) >> link
+
+    when:
+    def returnedLink = paymentService.getLink(paymentData, person)
+
+    then:
+    returnedLink == link
+    0 * savingsPaymentLinkGenerator.getPaymentLink(_, _)
+    0 * recurringPaymentLinkGenerator.getPaymentLink(_, _)
+    0 * singlePaymentLinkGenerator.getPaymentLink(_, _)
   }
 
   def "can process savings payment"() {

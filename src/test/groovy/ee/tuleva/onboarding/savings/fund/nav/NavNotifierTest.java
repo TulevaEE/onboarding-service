@@ -17,20 +17,24 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class NavNotifierTest {
 
   @Mock private OperationsNotificationService notificationService;
-  @Spy private PublicHolidays publicHolidays;
+  private final PublicHolidays publicHolidays = new PublicHolidays();
 
-  @InjectMocks private NavNotifier navNotifier;
+  private NavNotifier navNotifier;
+
+  @BeforeEach
+  void setUp() {
+    navNotifier = new NavNotifier(notificationService, publicHolidays);
+  }
 
   @Test
   void formatMessage_includesAllComponentsAndSecuritiesDetail() {

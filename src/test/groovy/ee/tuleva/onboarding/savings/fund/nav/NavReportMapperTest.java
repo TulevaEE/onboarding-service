@@ -5,8 +5,6 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult.SecurityDetail;
@@ -219,8 +217,7 @@ class NavReportMapperTest {
     LocalDate calculationDate = LocalDate.of(2026, 4, 15);
     LocalDate positionReportDate = LocalDate.of(2026, 4, 14);
 
-    PublicHolidays publicHolidays = mock(PublicHolidays.class);
-    when(publicHolidays.previousWorkingDay(calculationDate)).thenReturn(positionReportDate);
+    PublicHolidays publicHolidays = new PublicHolidays();
 
     LocalDate expectedNavDate =
         NavCalculationService.expectedPositionReportDate(TKF100, calculationDate, publicHolidays);

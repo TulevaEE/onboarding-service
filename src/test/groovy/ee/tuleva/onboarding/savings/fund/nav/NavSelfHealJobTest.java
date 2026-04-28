@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -23,6 +22,7 @@ import java.util.concurrent.ScheduledFuture;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.Trigger;
@@ -41,7 +41,7 @@ class NavSelfHealJobTest {
 
   @Mock private NavReportRepository navReportRepository;
   @Mock private NavCalculationJob navCalculationJob;
-  @Mock private PublicHolidays publicHolidays;
+  @Spy private PublicHolidays publicHolidays = new PublicHolidays();
   private final CapturingTaskScheduler taskScheduler = new CapturingTaskScheduler();
 
   @Test
@@ -49,7 +49,6 @@ class NavSelfHealJobTest {
     var job = jobOn(WED_1325_UTC);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubAllPublished(today);
     stubMissing(today, TKF100);
 
@@ -65,7 +64,6 @@ class NavSelfHealJobTest {
     var job = jobOn(WED_1325_UTC);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubAllPublished(today);
     stubMissing(today, TUV100);
 
@@ -81,7 +79,6 @@ class NavSelfHealJobTest {
     var job = jobOn(WED_0910_UTC); // 11:10 Tallinn, past pillar 2 cutoff 11:00
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubAllPublished(today);
     stubMissing(today, TUK75);
 
@@ -97,7 +94,6 @@ class NavSelfHealJobTest {
     var job = jobOn(WED_0910_UTC);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubAllPublished(today);
     stubMissing(today, TUK00);
 
@@ -113,7 +109,6 @@ class NavSelfHealJobTest {
     var job = jobOn(WED_0910_UTC);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubAllPublished(today);
     stubMissing(today, TUK75);
     stubMissing(today, TUK00);
@@ -131,7 +126,6 @@ class NavSelfHealJobTest {
     var job = jobOn(WED_1325_UTC);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubMissing(today, TKF100);
     stubMissing(today, TUK75);
     stubMissing(today, TUK00);
@@ -149,7 +143,6 @@ class NavSelfHealJobTest {
     var job = jobOn(WED_1325_UTC);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubAllPublished(today);
 
     job.healIfNeeded();
@@ -162,7 +155,6 @@ class NavSelfHealJobTest {
     var job = jobOn(WED_1325_UTC);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubAllPublished(today);
 
     job.healIfNeeded();
@@ -175,7 +167,6 @@ class NavSelfHealJobTest {
     var job = jobOn(SAT_1325_UTC);
 
     LocalDate today = LocalDate.of(2025, 1, 18);
-    given(publicHolidays.isWorkingDay(today)).willReturn(false);
 
     job.healIfNeeded();
 
@@ -188,7 +179,6 @@ class NavSelfHealJobTest {
     var job = jobOn(WED_1200_UTC); // 14:00 Tallinn, past pillar 2 cutoff but before 15:20
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubAllPublished(today);
     stubMissing(today, TKF100);
     stubMissing(today, TUV100);
@@ -207,7 +197,6 @@ class NavSelfHealJobTest {
     var job = jobOn(WED_0800_UTC); // 10:00 Tallinn, before any cutoff
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
 
     job.healIfNeeded();
 
@@ -235,7 +224,6 @@ class NavSelfHealJobTest {
     var job = jobOn(SAT_1325_UTC);
 
     LocalDate today = LocalDate.of(2025, 1, 18);
-    given(publicHolidays.isWorkingDay(today)).willReturn(false);
 
     job.onApplicationReady();
     taskScheduler.capturedRunnable.run();
@@ -248,7 +236,6 @@ class NavSelfHealJobTest {
     var job = jobOn(WED_1200_UTC);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubAllPublished(today);
 
     job.onApplicationReady();
@@ -262,7 +249,6 @@ class NavSelfHealJobTest {
     var job = jobOn(WED_1325_UTC);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubAllPublished(today);
     stubMissing(today, TKF100);
 
@@ -277,7 +263,6 @@ class NavSelfHealJobTest {
     var job = jobOn(WED_0910_UTC);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubAllPublished(today);
     stubMissing(today, TUK75);
 
@@ -291,7 +276,6 @@ class NavSelfHealJobTest {
     var job = jobOn(WED_1325_UTC);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubAllPublished(today);
     stubMissing(today, TUV100);
 
@@ -325,7 +309,6 @@ class NavSelfHealJobTest {
 
   private LocalDate navDateFor(LocalDate today) {
     LocalDate previousWorkingDay = today.minusDays(1);
-    lenient().when(publicHolidays.previousWorkingDay(today)).thenReturn(previousWorkingDay);
     return previousWorkingDay;
   }
 

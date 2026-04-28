@@ -18,9 +18,9 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -32,9 +32,21 @@ class FundPositionLedgerServiceTest {
   @Mock private NavFeeAccrualLedger navFeeAccrualLedger;
   @Mock private FeeAccrualRepository feeAccrualRepository;
   @Mock private NavLedgerRepository navLedgerRepository;
-  @Mock private PublicHolidays publicHolidays;
+  private final PublicHolidays publicHolidays = new PublicHolidays();
 
-  @InjectMocks private FundPositionLedgerService service;
+  private FundPositionLedgerService service;
+
+  @BeforeEach
+  void setUp() {
+    service =
+        new FundPositionLedgerService(
+            fundPositionRepository,
+            navPositionLedger,
+            navFeeAccrualLedger,
+            feeAccrualRepository,
+            navLedgerRepository,
+            publicHolidays);
+  }
 
   private static final LocalDate DATE = LocalDate.of(2026, 2, 5);
   private static final String ISIN_A = "IE00BFG1TM61";
@@ -99,7 +111,6 @@ class FundPositionLedgerServiceTest {
     var date2 = LocalDate.of(2026, 3, 1);
     var date3 = LocalDate.of(2026, 3, 2);
 
-    when(publicHolidays.previousWorkingDay(fromDate)).thenReturn(lastWorkingDay);
     when(fundPositionRepository.findDistinctNavDatesByFund(TUK75))
         .thenReturn(List.of(febData, lastWorkingDay, date2, date3));
 
@@ -119,6 +130,28 @@ class FundPositionLedgerServiceTest {
     verify(navPositionLedger).recordPositions(eq(TUK75), eq(date3), any(), any(), any(), any());
     verify(navPositionLedger, never())
         .recordPositions(eq(TUK75), eq(febData), any(), any(), any(), any());
+  }
+
+  @Test
+  void rerecordPositions_skipsChristmasStretchToLastWorkingDayBeforeFromDate() {
+    var fromDate = LocalDate.of(2025, 12, 29); // Mon after Christmas Eve/Day/Boxing + weekend
+    var lastWorkingDayBeforeStretch = LocalDate.of(2025, 12, 23); // Tue before holidays
+    var dec29 = LocalDate.of(2025, 12, 29);
+    var dec30 = LocalDate.of(2025, 12, 30);
+
+    when(fundPositionRepository.findDistinctNavDatesByFund(TUK75))
+        .thenReturn(List.of(lastWorkingDayBeforeStretch, dec29, dec30));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(any(), eq(TUK75), any()))
+        .thenReturn(List.of());
+    when(navLedgerRepository.getSystemAccountBalance(anyString())).thenReturn(ZERO);
+    when(navLedgerRepository.getSecuritiesUnitBalances(TUK75)).thenReturn(Map.of());
+
+    service.rerecordPositions(TUK75, fromDate);
+
+    verify(navPositionLedger)
+        .recordPositions(eq(TUK75), eq(lastWorkingDayBeforeStretch), any(), any(), any(), any());
+    verify(navPositionLedger).recordPositions(eq(TUK75), eq(dec29), any(), any(), any(), any());
+    verify(navPositionLedger).recordPositions(eq(TUK75), eq(dec30), any(), any(), any(), any());
   }
 
   @Test

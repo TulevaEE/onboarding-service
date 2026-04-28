@@ -31,7 +31,7 @@ class NavCalculationJobTest {
   @Mock private NavCalculationService navCalculationService;
   @Mock private NavPublisher navPublisher;
   @Mock private NavReportRepository navReportRepository;
-  @Mock private PublicHolidays publicHolidays;
+  private final PublicHolidays publicHolidays = new PublicHolidays();
   @Mock private FundValueIndexingJob fundValueIndexingJob;
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private PipelineTracker pipelineTracker;
@@ -42,7 +42,6 @@ class NavCalculationJobTest {
     var job = jobOn("2025-01-15T14:30:00Z");
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
     NavCalculationResult result = buildTestResult(today);
     when(navCalculationService.calculate(TKF100, today)).thenReturn(result);
 
@@ -58,7 +57,6 @@ class NavCalculationJobTest {
     var job = jobOn("2025-01-15T14:30:00Z");
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
     NavCalculationResult result = buildTestResult(today);
     when(navCalculationService.calculate(TKF100, today)).thenReturn(result);
 
@@ -74,7 +72,6 @@ class NavCalculationJobTest {
     var job = jobOn("2025-01-18T14:30:00Z");
 
     LocalDate today = LocalDate.of(2025, 1, 18);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(false);
 
     job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TKF100)));
 
@@ -87,7 +84,6 @@ class NavCalculationJobTest {
     var job = jobOn("2025-01-15T09:00:00Z");
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
 
     List<TulevaFund> pillar2Funds =
         getPillar2Funds().stream().filter(TulevaFund::hasNavCalculation).toList();
@@ -113,7 +109,6 @@ class NavCalculationJobTest {
     var job = jobOn("2025-01-15T09:00:00Z");
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
 
     getPillar2Funds().stream()
         .filter(TulevaFund::hasNavCalculation)
@@ -135,7 +130,6 @@ class NavCalculationJobTest {
     var job = jobOn("2025-01-15T13:00:00Z");
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
 
     getPillar3Funds().stream()
         .filter(TulevaFund::hasNavCalculation)
@@ -158,8 +152,6 @@ class NavCalculationJobTest {
 
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
-    when(publicHolidays.previousWorkingDay(today)).thenReturn(previousWorkingDay);
     when(navReportRepository.findByNavDateAndFundCodeOrderById(previousWorkingDay, TUK75.getCode()))
         .thenReturn(List.of(new NavReportRow()));
     when(navReportRepository.findByNavDateAndFundCodeOrderById(previousWorkingDay, TUK00.getCode()))
@@ -184,8 +176,6 @@ class NavCalculationJobTest {
 
     LocalDate monday = LocalDate.of(2025, 1, 20);
     LocalDate friday = LocalDate.of(2025, 1, 17);
-    when(publicHolidays.isWorkingDay(monday)).thenReturn(true);
-    when(publicHolidays.previousWorkingDay(monday)).thenReturn(friday);
     when(navReportRepository.findByNavDateAndFundCodeOrderById(friday, TUK75.getCode()))
         .thenReturn(List.of(new NavReportRow()));
     when(navReportRepository.findByNavDateAndFundCodeOrderById(friday, TUK00.getCode()))
@@ -206,8 +196,6 @@ class NavCalculationJobTest {
 
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
-    when(publicHolidays.previousWorkingDay(today)).thenReturn(previousWorkingDay);
     List<TulevaFund> pillar2Funds =
         getPillar2Funds().stream().filter(TulevaFund::hasNavCalculation).toList();
     when(navReportRepository.findByNavDateAndFundCodeOrderById(previousWorkingDay, TUK75.getCode()))
@@ -229,8 +217,6 @@ class NavCalculationJobTest {
 
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
-    when(publicHolidays.previousWorkingDay(today)).thenReturn(previousWorkingDay);
     when(navReportRepository.findByNavDateAndFundCodeOrderById(
             previousWorkingDay, TKF100.getCode()))
         .thenReturn(List.of(new NavReportRow()));
@@ -247,7 +233,6 @@ class NavCalculationJobTest {
     var job = jobOn("2025-01-15T14:30:00Z");
 
     LocalDate today = LocalDate.of(2025, 1, 15);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
     doThrow(new RuntimeException("HTTP connection failed"))
         .when(fundValueIndexingJob)
         .refreshForNavCalculation();
@@ -266,8 +251,6 @@ class NavCalculationJobTest {
 
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
-    when(publicHolidays.previousWorkingDay(today)).thenReturn(previousWorkingDay);
     // TUV100 was already published by the normal cron and AllNavCalculationsCompleted was
     // already fired; the retry must not re-trigger downstream LimitCheckJob /
     // TrackingDifferenceJob.
@@ -288,8 +271,6 @@ class NavCalculationJobTest {
 
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
-    when(publicHolidays.previousWorkingDay(today)).thenReturn(previousWorkingDay);
     when(navReportRepository.findByNavDateAndFundCodeOrderById(
             previousWorkingDay, TUV100.getCode()))
         .thenReturn(List.of());
@@ -310,8 +291,6 @@ class NavCalculationJobTest {
 
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
-    when(publicHolidays.previousWorkingDay(today)).thenReturn(previousWorkingDay);
     when(navReportRepository.findByNavDateAndFundCodeOrderById(
             previousWorkingDay, TUV100.getCode()))
         .thenReturn(List.of());

@@ -34,13 +34,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class NavCalculationServiceTest {
 
   @Mock private FundPositionRepository fundPositionRepository;
-  @Mock private PublicHolidays publicHolidays;
+  @Spy private PublicHolidays publicHolidays = new PublicHolidays();
   @Mock private LedgerService ledgerService;
   @Mock private NavLedgerRepository navLedgerRepository;
   @Mock private SecuritiesValueComponent securitiesValueComponent;
@@ -82,7 +83,6 @@ class NavCalculationServiceTest {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
 
-    when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
@@ -136,7 +136,6 @@ class NavCalculationServiceTest {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
 
-    when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
@@ -162,7 +161,6 @@ class NavCalculationServiceTest {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
 
-    when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.empty());
 
@@ -177,7 +175,6 @@ class NavCalculationServiceTest {
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
     LocalDate staleDate = LocalDate.of(2025, 1, 13);
 
-    when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(staleDate));
 
@@ -190,7 +187,6 @@ class NavCalculationServiceTest {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
 
-    when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
@@ -217,7 +213,6 @@ class NavCalculationServiceTest {
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
     LocalDate positionDate = LocalDate.of(2025, 1, 14);
 
-    when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(positionDate));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
@@ -251,7 +246,6 @@ class NavCalculationServiceTest {
                 new EntryFixture(
                     new BigDecimal("20000.00000"), Instant.parse("2025-07-15T13:30:00Z"))));
 
-    when(publicHolidays.previousWorkingDay(summerDate)).thenReturn(previousWorkingDay);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100)).thenReturn(account);
@@ -286,7 +280,6 @@ class NavCalculationServiceTest {
                 new EntryFixture(
                     new BigDecimal("20000.00000"), Instant.parse("2026-01-15T09:30:00Z"))));
 
-    when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TUK75)).thenReturn(account);
@@ -315,7 +308,6 @@ class NavCalculationServiceTest {
     Instant expectedCutoff = Instant.parse("2025-01-15T13:20:00Z");
     Instant expectedPriceCutoff = Instant.parse("2025-01-15T13:25:00Z");
 
-    when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
@@ -356,10 +348,6 @@ class NavCalculationServiceTest {
 
     // backfill for fri/sat/sun calls computeFeeBaseValue with +1 day:
     // fri+1=sat, sat+1=sun, sun+1=mon — all resolve via previousWorkingDay to friday
-    when(publicHolidays.previousWorkingDay(LocalDate.of(2026, 3, 7))).thenReturn(friday);
-    when(publicHolidays.previousWorkingDay(LocalDate.of(2026, 3, 8))).thenReturn(friday);
-    when(publicHolidays.previousWorkingDay(LocalDate.of(2026, 3, 9))).thenReturn(friday);
-    when(publicHolidays.nextWorkingDay(friday)).thenReturn(LocalDate.of(2026, 3, 9));
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, friday))
         .thenReturn(Optional.of(friday));
     when(securitiesValueComponent.calculate(any())).thenReturn(ZERO);
@@ -387,8 +375,6 @@ class NavCalculationServiceTest {
     LocalDate tuesday = LocalDate.of(2026, 3, 3);
 
     // backfill calls computeFeeBaseValue(fund, tuesday) → previousWorkingDay(tuesday) = monday
-    when(publicHolidays.previousWorkingDay(tuesday)).thenReturn(monday);
-    when(publicHolidays.nextWorkingDay(monday)).thenReturn(tuesday);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, monday))
         .thenReturn(Optional.of(monday));
     when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("900000000"));
@@ -412,7 +398,6 @@ class NavCalculationServiceTest {
     LocalDate nextDay = LocalDate.of(2026, 3, 7);
 
     // backfill calls computeFeeBaseValue(fund, date+1) → previousWorkingDay(nextDay) = date
-    when(publicHolidays.previousWorkingDay(nextDay)).thenReturn(date);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, date))
         .thenReturn(Optional.empty());
 
@@ -427,7 +412,6 @@ class NavCalculationServiceTest {
 
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, inceptionDate))
         .thenReturn(Optional.of(inceptionDate));
-    when(publicHolidays.nextWorkingDay(inceptionDate)).thenReturn(LocalDate.of(2026, 2, 3));
     when(securitiesValueComponent.calculate(any())).thenReturn(ZERO);
     when(cashPositionComponent.calculate(any())).thenReturn(new BigDecimal("5500000.00"));
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
@@ -447,8 +431,6 @@ class NavCalculationServiceTest {
     LocalDate calcDate = LocalDate.of(2026, 3, 11);
     LocalDate previousWorkingDay = LocalDate.of(2026, 3, 10);
 
-    when(publicHolidays.previousWorkingDay(calcDate)).thenReturn(previousWorkingDay);
-    when(publicHolidays.nextWorkingDay(previousWorkingDay)).thenReturn(calcDate);
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
     when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("900000.00"));
@@ -466,7 +448,6 @@ class NavCalculationServiceTest {
   @Test
   void computeFeeBaseValue_returnsEmptyWhenNoPositionReport() {
     LocalDate date = LocalDate.of(2026, 1, 15);
-    when(publicHolidays.previousWorkingDay(date)).thenReturn(LocalDate.of(2026, 1, 14));
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(
             TKF100, LocalDate.of(2026, 1, 14)))
         .thenReturn(Optional.empty());

@@ -7,7 +7,6 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -35,16 +34,18 @@ class NavAlertJobTest {
   private static final String WED_1331_UTC = "2025-01-15T13:31:00Z"; // 15:31 Tallinn
   private static final String SAT_1331_UTC = "2025-01-18T13:31:00Z"; // Saturday 15:31 Tallinn
   private static final String SAT_0906_UTC = "2025-01-18T09:06:00Z"; // Saturday 11:06 Tallinn
+  // 2026-02-24 = Tuesday Independence Day (Estonian public holiday)
+  private static final String INDEPENDENCE_DAY_0906_UTC = "2026-02-24T09:06:00Z";
+  private static final String INDEPENDENCE_DAY_1331_UTC = "2026-02-24T13:31:00Z";
 
   @Mock private NavReportRepository navReportRepository;
   @Mock private OperationsNotificationService notificationService;
-  @Mock private PublicHolidays publicHolidays;
+  private final PublicHolidays publicHolidays = new PublicHolidays();
 
   @Test
   void pillar2Alert_fires_whenOnlyTuk75Missing() {
     var job = jobOn(WED_0906_UTC);
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubPublished(today, TUK00);
     stubMissing(today, TUK75);
 
@@ -57,7 +58,6 @@ class NavAlertJobTest {
   void pillar2Alert_fires_whenBothPillar2Missing() {
     var job = jobOn(WED_0906_UTC);
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubMissing(today, TUK75);
     stubMissing(today, TUK00);
 
@@ -74,7 +74,6 @@ class NavAlertJobTest {
   void pillar2Alert_silent_whenNavPublishedForPreviousWorkingDay() {
     var job = jobOn(WED_0906_UTC);
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubPublished(today, TUK75);
     stubPublished(today, TUK00);
 
@@ -87,7 +86,6 @@ class NavAlertJobTest {
   void pillar2Alert_silent_whenBothPillar2Present() {
     var job = jobOn(WED_0906_UTC);
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubPublished(today, TUK75);
     stubPublished(today, TUK00);
 
@@ -99,8 +97,16 @@ class NavAlertJobTest {
   @Test
   void pillar2Alert_silent_onNonWorkingDay() {
     var job = jobOn(SAT_0906_UTC);
-    LocalDate today = LocalDate.of(2025, 1, 18);
-    given(publicHolidays.isWorkingDay(today)).willReturn(false);
+
+    job.alertPillar2IfMissing();
+
+    verifyNoInteractions(notificationService);
+    verifyNoInteractions(navReportRepository);
+  }
+
+  @Test
+  void pillar2Alert_silent_onWeekdayPublicHoliday() {
+    var job = jobOn(INDEPENDENCE_DAY_0906_UTC);
 
     job.alertPillar2IfMissing();
 
@@ -112,7 +118,6 @@ class NavAlertJobTest {
   void savingsPillar3Alert_fires_whenOnlyTkf100Missing() {
     var job = jobOn(WED_1331_UTC);
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubPublished(today, TUV100);
     stubMissing(today, TKF100);
 
@@ -126,7 +131,6 @@ class NavAlertJobTest {
   void savingsPillar3Alert_fires_whenBothMissing() {
     var job = jobOn(WED_1331_UTC);
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubMissing(today, TKF100);
     stubMissing(today, TUV100);
 
@@ -143,7 +147,6 @@ class NavAlertJobTest {
   void savingsPillar3Alert_silent_whenBothPresent() {
     var job = jobOn(WED_1331_UTC);
     LocalDate today = LocalDate.of(2025, 1, 15);
-    given(publicHolidays.isWorkingDay(today)).willReturn(true);
     stubPublished(today, TKF100);
     stubPublished(today, TUV100);
 
@@ -155,8 +158,16 @@ class NavAlertJobTest {
   @Test
   void savingsPillar3Alert_silent_onNonWorkingDay() {
     var job = jobOn(SAT_1331_UTC);
-    LocalDate today = LocalDate.of(2025, 1, 18);
-    given(publicHolidays.isWorkingDay(today)).willReturn(false);
+
+    job.alertSavingsPillar3IfMissing();
+
+    verifyNoInteractions(notificationService);
+    verifyNoInteractions(navReportRepository);
+  }
+
+  @Test
+  void savingsPillar3Alert_silent_onWeekdayPublicHoliday() {
+    var job = jobOn(INDEPENDENCE_DAY_1331_UTC);
 
     job.alertSavingsPillar3IfMissing();
 
@@ -179,9 +190,7 @@ class NavAlertJobTest {
   }
 
   private LocalDate navDateFor(LocalDate today) {
-    LocalDate previousWorkingDay = today.minusDays(1);
-    lenient().when(publicHolidays.previousWorkingDay(today)).thenReturn(previousWorkingDay);
-    return previousWorkingDay;
+    return publicHolidays.previousWorkingDay(today);
   }
 
   private NavAlertJob jobOn(String instant) {

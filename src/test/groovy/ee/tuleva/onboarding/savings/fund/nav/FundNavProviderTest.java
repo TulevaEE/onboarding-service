@@ -26,7 +26,7 @@ class FundNavProviderTest {
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
   @Mock private FundValueRepository fundValueRepository;
-  @Mock private PublicHolidays publicHolidays;
+  private final PublicHolidays publicHolidays = new PublicHolidays();
 
   private FundNavProvider provider(String timeInTallinn) {
     var instant = java.time.LocalDateTime.parse(timeInTallinn).atZone(TALLINN).toInstant();
@@ -39,8 +39,6 @@ class FundNavProviderTest {
     var provider = provider("2025-01-15T17:00:00");
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
-    when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
 
     assertThat(provider.safeMaxNavDate()).isEqualTo(yesterday);
   }
@@ -50,8 +48,6 @@ class FundNavProviderTest {
     var provider = provider("2025-01-15T16:00:00");
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
-    when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
 
     assertThat(provider.safeMaxNavDate()).isEqualTo(yesterday);
   }
@@ -62,11 +58,18 @@ class FundNavProviderTest {
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
     LocalDate twoDaysBack = LocalDate.of(2025, 1, 13);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
-    when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
-    when(publicHolidays.previousWorkingDay(yesterday)).thenReturn(twoDaysBack);
 
     assertThat(provider.safeMaxNavDate()).isEqualTo(twoDaysBack);
+  }
+
+  @Test
+  void safeMaxNavDate_onMondayAfterChristmas_skipsHolidayStretchAndWeekend() {
+    var provider = provider("2025-12-29T10:00:00");
+    LocalDate mondayDec29 = LocalDate.of(2025, 12, 29);
+    LocalDate previousWorkingTuesdayDec23 = LocalDate.of(2025, 12, 23);
+    LocalDate twoWorkingDaysBackMondayDec22 = LocalDate.of(2025, 12, 22);
+
+    assertThat(provider.safeMaxNavDate()).isEqualTo(twoWorkingDaysBackMondayDec22);
   }
 
   @Test
@@ -75,9 +78,6 @@ class FundNavProviderTest {
     LocalDate saturday = LocalDate.of(2025, 1, 18);
     LocalDate friday = LocalDate.of(2025, 1, 17);
     LocalDate thursday = LocalDate.of(2025, 1, 16);
-    when(publicHolidays.isWorkingDay(saturday)).thenReturn(false);
-    when(publicHolidays.previousWorkingDay(saturday)).thenReturn(friday);
-    when(publicHolidays.previousWorkingDay(friday)).thenReturn(thursday);
 
     assertThat(provider.safeMaxNavDate()).isEqualTo(thursday);
   }
@@ -87,8 +87,6 @@ class FundNavProviderTest {
     var provider = provider("2025-01-15T17:00:00");
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
-    when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
     var fundValue =
         new FundValue(ISIN, yesterday, new BigDecimal("9.69940"), "TULEVA", Instant.now());
     when(fundValueRepository.getLatestValue(ISIN, yesterday)).thenReturn(Optional.of(fundValue));
@@ -101,8 +99,6 @@ class FundNavProviderTest {
     var provider = provider("2025-01-15T17:00:00");
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
-    when(publicHolidays.isWorkingDay(today)).thenReturn(true);
-    when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
     when(fundValueRepository.getLatestValue(ISIN, yesterday)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> provider.getDisplayNav(TKF100))
@@ -115,8 +111,6 @@ class FundNavProviderTest {
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
     LocalDate dayBefore = LocalDate.of(2025, 1, 13);
-    when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
-    when(publicHolidays.previousWorkingDay(yesterday)).thenReturn(dayBefore);
     var fundValue =
         new FundValue(ISIN, yesterday, new BigDecimal("9.6994"), "TULEVA", Instant.now());
     var previousValue =
@@ -134,7 +128,6 @@ class FundNavProviderTest {
     var provider = provider("2025-01-15T17:00:00");
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
-    when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
     var staleValue =
         new FundValue(
             ISIN, LocalDate.of(2025, 1, 10), new BigDecimal("9.6994"), "TULEVA", Instant.now());
@@ -150,8 +143,6 @@ class FundNavProviderTest {
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
     LocalDate dayBefore = LocalDate.of(2025, 1, 13);
-    when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
-    when(publicHolidays.previousWorkingDay(yesterday)).thenReturn(dayBefore);
     var currentNav =
         new FundValue(ISIN, yesterday, new BigDecimal("500.0000"), "TULEVA", Instant.now());
     var previousNav =
@@ -169,8 +160,6 @@ class FundNavProviderTest {
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
     LocalDate dayBefore = LocalDate.of(2025, 1, 13);
-    when(publicHolidays.previousWorkingDay(today)).thenReturn(yesterday);
-    when(publicHolidays.previousWorkingDay(yesterday)).thenReturn(dayBefore);
     var currentNav =
         new FundValue(ISIN, yesterday, new BigDecimal("10.5000"), "TULEVA", Instant.now());
     var previousNav =

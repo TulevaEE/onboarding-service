@@ -30,6 +30,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -41,7 +42,7 @@ class NavPositionLedgerTest {
 
   @Mock private LedgerAccountService ledgerAccountService;
   @Mock private LedgerTransactionService ledgerTransactionService;
-  @Mock private PublicHolidays publicHolidays;
+  @Spy private PublicHolidays publicHolidays = new PublicHolidays();
   @Mock private JdbcClient jdbcClient;
 
   @Mock private LedgerAccount securitiesUnitsAccount1;
@@ -67,8 +68,6 @@ class NavPositionLedgerTest {
     navPositionLedger =
         new NavPositionLedger(
             ledgerAccountService, ledgerTransactionService, publicHolidays, clock, jdbcClient);
-    when(publicHolidays.nextWorkingDay(LocalDate.of(2026, 2, 1)))
-        .thenReturn(LocalDate.of(2026, 2, 2));
     when(ledgerTransactionService.existsByExternalReferenceAndTransactionType(
             any(UUID.class), eq(POSITION_UPDATE)))
         .thenReturn(false);
@@ -357,7 +356,6 @@ class NavPositionLedgerTest {
             realTimeClock,
             jdbcClient);
 
-    when(publicHolidays.nextWorkingDay(reportDate)).thenReturn(LocalDate.of(2026, 2, 4));
     setupAccountMocks();
     when(ledgerTransactionService.createTransaction(
             any(TransactionType.class),
@@ -382,7 +380,6 @@ class NavPositionLedgerTest {
   @Test
   void recordPositions_usesFallbackTimestampWhenBackfilling() {
     LocalDate reportDate = LocalDate.of(2026, 2, 3);
-    when(publicHolidays.nextWorkingDay(reportDate)).thenReturn(LocalDate.of(2026, 2, 4));
     setupAccountMocks();
     when(ledgerTransactionService.createTransaction(
             any(TransactionType.class),
@@ -421,7 +418,6 @@ class NavPositionLedgerTest {
             afterCutoffClock,
             jdbcClient);
 
-    when(publicHolidays.nextWorkingDay(reportDate)).thenReturn(LocalDate.of(2026, 2, 4));
     setupAccountMocks();
     when(ledgerTransactionService.createTransaction(
             any(TransactionType.class),
@@ -476,7 +472,6 @@ class NavPositionLedgerTest {
   void recordPositions_skipsWeekendForFridayReport() {
     LocalDate friday = LocalDate.of(2026, 2, 6);
     LocalDate monday = LocalDate.of(2026, 2, 9);
-    when(publicHolidays.nextWorkingDay(friday)).thenReturn(monday);
     setupAccountMocks();
     when(ledgerTransactionService.createTransaction(
             any(TransactionType.class),

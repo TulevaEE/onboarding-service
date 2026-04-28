@@ -53,26 +53,23 @@ class TrackingDifferenceServiceTest {
   @Mock FundValueProvider fundValueProvider;
   @Mock PriorityPriceProvider priorityPriceProvider;
   @Mock PositionPriceResolver positionPriceResolver;
-  @Mock PublicHolidays publicHolidays;
+  final PublicHolidays publicHolidays = new PublicHolidays();
   @Mock FeeRateRepository feeRateRepository;
   @Mock TrackingDifferenceEventRepository eventRepository;
   @Mock InvestmentParameterRepository parameterRepository;
 
   private TrackingDifferenceService service;
 
-  private static final LocalDate CHECK_DATE = LocalDate.of(2026, 4, 3);
-  private static final LocalDate PREVIOUS_DATE = LocalDate.of(2026, 4, 2);
+  private static final LocalDate CHECK_DATE = LocalDate.of(2026, 4, 10);
+  private static final LocalDate PREVIOUS_DATE = LocalDate.of(2026, 4, 9);
   private static final Clock FIXED_CLOCK =
-      Clock.fixed(Instant.parse("2026-04-03T16:00:00Z"), ZoneId.of("Europe/Tallinn"));
+      Clock.fixed(Instant.parse("2026-04-10T16:00:00Z"), ZoneId.of("Europe/Tallinn"));
 
   @BeforeEach
   void setUp() {
     lenient()
         .when(fundValueProvider.getLatestValue(anyString(), any(LocalDate.class)))
         .thenReturn(Optional.empty());
-    lenient()
-        .when(publicHolidays.nextWorkingDay(any(LocalDate.class)))
-        .thenAnswer(inv -> ((LocalDate) inv.getArgument(0)).plusDays(1));
     lenient()
         .when(
             parameterRepository.findLatestValue(

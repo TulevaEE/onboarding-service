@@ -5,7 +5,7 @@ import ee.tuleva.onboarding.error.exception.ErrorsResponseException
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioPaymentLinkGenerator
 import ee.tuleva.onboarding.payment.recurring.CoopPankPaymentLinkGenerator
-import ee.tuleva.onboarding.payment.recurring.PaymentDateProvider
+import ee.tuleva.onboarding.payment.PaymentDateProvider
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson

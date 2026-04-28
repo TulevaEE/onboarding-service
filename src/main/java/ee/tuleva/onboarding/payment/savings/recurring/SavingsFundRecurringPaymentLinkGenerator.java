@@ -1,14 +1,14 @@
 package ee.tuleva.onboarding.payment.savings.recurring;
 
-import static ee.tuleva.onboarding.payment.recurring.PaymentDateProvider.format;
+import static ee.tuleva.onboarding.payment.PaymentDateProvider.format;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.payment.PaymentData;
+import ee.tuleva.onboarding.payment.PaymentDateProvider;
 import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
-import ee.tuleva.onboarding.payment.recurring.PaymentDateProvider;
 import ee.tuleva.onboarding.payment.savings.SavingsFundRecipientConfiguration;
 import java.math.BigDecimal;
 import java.net.URLEncoder;

@@ -1,0 +1,7 @@
+.env
+
+# Public RIA anchor files — easy to re-download, hashes verifiable on x-tee.ee
+*_anchor.xml
+*_anchor.asice
+EE_public-anchor.xml
+EE_public-anchor.asice

@@ -5,6 +5,7 @@ import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.PaymentData
+import ee.tuleva.onboarding.payment.PaymentDateProvider
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson

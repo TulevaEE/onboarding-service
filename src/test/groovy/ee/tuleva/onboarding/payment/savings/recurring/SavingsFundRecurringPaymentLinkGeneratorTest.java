@@ -18,7 +18,7 @@ import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentData.PaymentChannel;
-import ee.tuleva.onboarding.payment.recurring.PaymentDateProvider;
+import ee.tuleva.onboarding.payment.PaymentDateProvider;
 import ee.tuleva.onboarding.payment.savings.SavingsFundRecipientConfiguration;
 import java.math.BigDecimal;
 import java.time.LocalDate;

@@ -193,8 +193,8 @@ payment-provider:
     return-url: ${api.url}/payments/savings/callback
     notification-url: https://tuleva.ee/fake-notification-url
   savings-fund:
-    recipient-name: "Tuleva Täiendav Kogumisfond"
-    recipient-iban: "EE711010220306707220"
+    recipient-name: ${SAVINGS_FUND_RECIPIENT_NAME:Tuleva Täiendav Kogumisfond}
+    recipient-iban: ${SAVINGS_FUND_RECIPIENT_IBAN:EE711010220306707220}
   payment-channels:
     luminor:
       access-key: 0be260f2-1966-4d18-bb9d-1f0909a663f7
@@ -331,8 +331,8 @@ payment-provider:
     return-url: ${api.url}/payments/savings/callback
     notification-url: ${api.url}/payments/savings/notifications
   savings-fund:
-    recipient-name: "Tuleva Täiendav Kogumisfond"
-    recipient-iban: "EE711010220306707220"
+    recipient-name: ${SAVINGS_FUND_RECIPIENT_NAME:Tuleva Täiendav Kogumisfond}
+    recipient-iban: ${SAVINGS_FUND_RECIPIENT_IBAN:EE711010220306707220}
   payment-channels:
     luminor:
       access-key: fb673dc3-d898-4592-844f-83491aa430cc

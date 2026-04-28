@@ -1,14 +1,17 @@
 package ee.tuleva.onboarding.payment.recurring;
 
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE;
-import static ee.tuleva.onboarding.payment.recurring.PaymentDateProvider.format;
+import static ee.tuleva.onboarding.payment.PaymentDateProvider.format;
 import static ee.tuleva.onboarding.payment.recurring.RecurringPaymentRequest.PaymentInterval.MONTHLY;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
+import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.PaymentData;
+import ee.tuleva.onboarding.payment.PaymentDateProvider;
 import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
 import java.util.Locale;
@@ -49,8 +52,11 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
                       MONTHLY,
                       paymentDateProvider.tenthDayOfMonth()));
           default ->
-              throw new IllegalArgumentException(
-                  "Unsupported payment channel: " + paymentData.getPaymentChannel());
+              throw new ErrorsResponseException(
+                  ErrorsResponse.ofSingleError(
+                      "payment.channel.not.supported",
+                      "Coop Pank payment links to the specified payment channel are not"
+                          + " supported."));
         };
     return new PaymentLink(url);
   }

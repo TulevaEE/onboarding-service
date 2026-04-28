@@ -1,11 +1,11 @@
-package ee.tuleva.onboarding.payment.recurring
+package ee.tuleva.onboarding.payment
 
 
 import spock.lang.Specification
 
 import java.time.LocalDate
 
-import static ee.tuleva.onboarding.payment.recurring.PaymentDateProvider.format
+import static ee.tuleva.onboarding.payment.PaymentDateProvider.format
 import static ee.tuleva.onboarding.time.TestClockHolder.clock
 
 class PaymentDateProviderSpec extends Specification {

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.payment.recurring;
+package ee.tuleva.onboarding.payment;
 
 import static java.time.format.DateTimeFormatter.ofPattern;
 
@@ -17,7 +17,7 @@ public class PaymentDateProvider {
     return tenthDayOfMonth(LocalDate.now(clock));
   }
 
-  public LocalDate tenthDayOfMonth(LocalDate now) {
+  LocalDate tenthDayOfMonth(LocalDate now) {
     LocalDate date = now.withDayOfMonth(10);
 
     if (now.getDayOfMonth() > 10) {

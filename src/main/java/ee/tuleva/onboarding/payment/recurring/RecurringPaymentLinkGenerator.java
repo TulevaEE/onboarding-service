@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
 import ee.tuleva.onboarding.payment.PrefilledLink;
 import ee.tuleva.onboarding.payment.RedirectLink;
+import java.math.BigDecimal;
 import java.net.URLEncoder;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -40,48 +41,52 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
     ContactDetails contactDetails = contactDetailsService.getContactDetails(person);
     var encodedName = urlEncode(thirdPillarConfig.getRecipientName());
     var encodedDescription = urlEncode(thirdPillarConfig.getDescription());
-    var amount = paymentData.getAmount() == null ? null : paymentData.getAmount().toString();
-    return switch (paymentData.getPaymentChannel()) {
+    var channel = paymentData.getPaymentChannel();
+    return switch (channel) {
       case SWEDBANK ->
           new RedirectLink("https://www.swedbank.ee/private/pensions/pillar3/orderp3p");
-      case SEB ->
-          new RedirectLink(
-              "https://e.seb.ee/web/ipank?act=PENSION3_STPAYM"
-                  + "&saajakonto="
-                  + thirdPillarConfig.getBankAccounts().get(PaymentChannel.SEB)
-                  + "&saajanimi="
-                  + encodedName
-                  + "&selgitus="
-                  + encodedDescription
-                  + "&viitenr="
-                  + contactDetails.getPensionAccountNumber()
-                  + "&summa="
-                  + paymentData.getAmount()
-                  + "&alguskuup="
-                  + format(paymentDateProvider.tenthDayOfMonth())
-                  + "&sagedus=M"); // Monthly
-      case LHV ->
-          new PrefilledLink(
-              "https://www.lhv.ee/ibank/cf/portfolio/payment_standing_add"
-                  + "?i_receiver_name="
-                  + encodedName
-                  + "&i_receiver_account_no="
-                  + thirdPillarConfig.getBankAccounts().get(PaymentChannel.LHV)
-                  + "&i_payment_desc="
-                  // LHV's pre-existing URL uses lowercase %2c for the comma
-                  + encodedDescription.replace("%2C", "%2c")
-                  + "&i_payment_clirefno="
-                  + contactDetails.getPensionAccountNumber()
-                  + "&i_amount="
-                  + paymentData.getAmount()
-                  + "&i_currency_id=38" // EUR
-                  + "&i_interval_type=K" // Kuu
-                  + "&i_date_first_payment="
-                  + format(paymentDateProvider.tenthDayOfMonth()),
-              thirdPillarConfig.getRecipientName(),
-              thirdPillarConfig.getBankAccounts().get(PaymentChannel.LHV),
-              thirdPillarConfig.getDescription(),
-              amount);
+      case SEB -> {
+        var amount = requireAmount(paymentData, channel);
+        yield new RedirectLink(
+            "https://e.seb.ee/web/ipank?act=PENSION3_STPAYM"
+                + "&saajakonto="
+                + thirdPillarConfig.getBankAccounts().get(PaymentChannel.SEB)
+                + "&saajanimi="
+                + encodedName
+                + "&selgitus="
+                + encodedDescription
+                + "&viitenr="
+                + contactDetails.getPensionAccountNumber()
+                + "&summa="
+                + amount
+                + "&alguskuup="
+                + format(paymentDateProvider.tenthDayOfMonth())
+                + "&sagedus=M"); // Monthly
+      }
+      case LHV -> {
+        var amount = requireAmount(paymentData, channel);
+        yield new PrefilledLink(
+            "https://www.lhv.ee/ibank/cf/portfolio/payment_standing_add"
+                + "?i_receiver_name="
+                + encodedName
+                + "&i_receiver_account_no="
+                + thirdPillarConfig.getBankAccounts().get(PaymentChannel.LHV)
+                + "&i_payment_desc="
+                // LHV's pre-existing URL uses lowercase %2c for the comma
+                + encodedDescription.replace("%2C", "%2c")
+                + "&i_payment_clirefno="
+                + contactDetails.getPensionAccountNumber()
+                + "&i_amount="
+                + amount
+                + "&i_currency_id=38" // EUR
+                + "&i_interval_type=K" // Kuu
+                + "&i_date_first_payment="
+                + format(paymentDateProvider.tenthDayOfMonth()),
+            thirdPillarConfig.getRecipientName(),
+            thirdPillarConfig.getBankAccounts().get(PaymentChannel.LHV),
+            thirdPillarConfig.getDescription(),
+            amount.toString());
+      }
       case LUMINOR -> new RedirectLink("https://luminor.ee/auth/#/web/view/autopilot/newpayment");
       case COOP, COOP_WEB, PARTNER ->
           coopPankPaymentLinkGenerator.getPaymentLink(paymentData, person);
@@ -95,5 +100,16 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
 
   private static String urlEncode(String value) {
     return URLEncoder.encode(value, UTF_8).replace("+", "%20");
+  }
+
+  private static BigDecimal requireAmount(PaymentData paymentData, PaymentChannel channel) {
+    var amount = paymentData.getAmount();
+    if (amount == null) {
+      throw new ErrorsResponseException(
+          ErrorsResponse.ofSingleError(
+              "payment.amount.required",
+              "Payment amount is required for " + channel + " recurring links."));
+    }
+    return amount;
   }
 }

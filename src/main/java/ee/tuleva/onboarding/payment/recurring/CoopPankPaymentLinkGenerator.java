@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.payment.PaymentData.PaymentChannel;
 import ee.tuleva.onboarding.payment.PaymentDateProvider;
 import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
+import ee.tuleva.onboarding.payment.PrefilledLink;
 import java.net.URLEncoder;
 import java.util.Locale;
 import lombok.AllArgsConstructor;
@@ -62,7 +63,13 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
                       "Coop Pank payment links to the specified payment channel are not"
                           + " supported."));
         };
-    return new PaymentLink(url);
+    var amount = paymentData.getAmount() == null ? null : paymentData.getAmount().toString();
+    return new PrefilledLink(
+        url,
+        thirdPillarConfig.getRecipientName(),
+        thirdPillarConfig.getBankAccounts().get(paymentData.getPaymentChannel()),
+        thirdPillarConfig.getDescription(),
+        amount);
   }
 
   private String singlePaymentPath(PaymentData paymentData, ContactDetails contactDetails) {

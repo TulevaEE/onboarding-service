@@ -1,5 +1,14 @@
 package ee.tuleva.onboarding.payment;
 
-import jakarta.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-public record PaymentLink(@NotNull String url) {}
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
+@JsonSubTypes({
+  @JsonSubTypes.Type(value = RedirectLink.class, name = "REDIRECT"),
+  @JsonSubTypes.Type(value = PrefilledLink.class, name = "PREFILLED")
+})
+public sealed interface PaymentLink permits RedirectLink, PrefilledLink {
+
+  String url();
+}

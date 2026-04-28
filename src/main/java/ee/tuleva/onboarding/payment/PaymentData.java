@@ -18,7 +18,7 @@ public class PaymentData {
   private BigDecimal amount;
   private Currency currency;
   @NotNull private PaymentType type;
-  @NotNull private PaymentChannel paymentChannel;
+  private PaymentChannel paymentChannel;
 
   public enum PaymentType {
     SINGLE,
@@ -26,6 +26,7 @@ public class PaymentData {
     GIFT,
     MEMBER_FEE,
     SAVINGS,
+    SAVINGS_RECURRING,
   }
 
   public enum PaymentChannel {

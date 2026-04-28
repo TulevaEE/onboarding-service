@@ -2,10 +2,13 @@ package ee.tuleva.onboarding.payment.savings;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
+import ee.tuleva.onboarding.payment.RedirectLink;
 import ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService;
 import ee.tuleva.onboarding.payment.provider.montonio.*;
 import java.math.BigDecimal;
@@ -29,14 +32,18 @@ public class SavingsPaymentLinkGenerator implements PaymentLinkGenerator {
 
   @Override
   public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
-    var bic =
-        paymentChannelConfiguration
-            .getPaymentProviderChannel(paymentData.getPaymentChannel())
-            .getBic();
-    if (bic == null) {
+    if (paymentData.getPaymentChannel() == null) {
+      throw new ErrorsResponseException(
+          ErrorsResponse.ofSingleError(
+              "payment.channel.required", "Payment channel is required for savings payments."));
+    }
+    var channel =
+        paymentChannelConfiguration.getPaymentProviderChannel(paymentData.getPaymentChannel());
+    if (channel == null || channel.getBic() == null) {
       throw new IllegalArgumentException(
           "Invalid payment channel: " + paymentData.getPaymentChannel());
     }
+    var bic = channel.getBic();
     if (paymentData.getAmount() == null || paymentData.getAmount().compareTo(MIN_AMOUNT) < 0) {
       throw new IllegalArgumentException("Amount must be at least " + MIN_AMOUNT);
     }
@@ -45,7 +52,7 @@ public class SavingsPaymentLinkGenerator implements PaymentLinkGenerator {
     }
     var order = buildOrder(paymentData, person, bic);
     var url = orderClient.getPaymentUrl(order, savingsChannelConfiguration);
-    return new PaymentLink(url);
+    return new RedirectLink(url);
   }
 
   private MontonioOrder buildOrder(PaymentData paymentData, Person person, String bic) {

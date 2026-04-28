@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.payment.provider.montonio.MontonioCallbackService
 import ee.tuleva.onboarding.payment.recurring.RecurringPaymentLinkGenerator
 import ee.tuleva.onboarding.payment.savings.SavingsCallbackService
 import ee.tuleva.onboarding.payment.savings.SavingsPaymentLinkGenerator
+import ee.tuleva.onboarding.payment.savings.recurring.SavingsFundRecurringPaymentLinkGenerator
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
@@ -11,6 +12,7 @@ import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.RECURRING
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SAVINGS
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SAVINGS_RECURRING
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPayment
@@ -26,12 +28,13 @@ class PaymentServiceSpec extends Specification {
   SinglePaymentLinkGenerator singlePaymentLinkGenerator = Mock()
   RecurringPaymentLinkGenerator recurringPaymentLinkGenerator = Mock()
   SavingsPaymentLinkGenerator savingsPaymentLinkGenerator = Mock()
+  SavingsFundRecurringPaymentLinkGenerator savingsFundRecurringPaymentLinkGenerator = Mock()
   MontonioCallbackService paymentProviderCallbackService = Mock()
   SavingsCallbackService savingsCallbackService = Mock()
   UserService userService = Mock()
 
   PaymentService paymentService = new PaymentService(
-      paymentRepository, singlePaymentLinkGenerator, recurringPaymentLinkGenerator, savingsPaymentLinkGenerator, paymentProviderCallbackService, savingsCallbackService, userService)
+      paymentRepository, singlePaymentLinkGenerator, recurringPaymentLinkGenerator, savingsPaymentLinkGenerator, savingsFundRecurringPaymentLinkGenerator, paymentProviderCallbackService, savingsCallbackService, userService)
 
   def "can get payments"() {
     given:
@@ -48,7 +51,7 @@ class PaymentServiceSpec extends Specification {
     given:
     def person = samplePerson
     def paymentData = aPaymentData().tap { type = SINGLE }
-    def link = new PaymentLink("https://single.payment.url")
+    def link = new RedirectLink("https://single.payment.url")
     singlePaymentLinkGenerator.getPaymentLink(paymentData, person) >> link
 
     when:
@@ -62,7 +65,7 @@ class PaymentServiceSpec extends Specification {
     given:
     def person = samplePerson
     def paymentData = aPaymentData().tap { type = MEMBER_FEE }
-    def link = new PaymentLink("https://member.payment.url")
+    def link = new RedirectLink("https://member.payment.url")
     singlePaymentLinkGenerator.getPaymentLink(paymentData, person) >> link
 
     when:
@@ -76,7 +79,7 @@ class PaymentServiceSpec extends Specification {
     given:
     def person = samplePerson
     def paymentData = aPaymentData().tap { type = RECURRING }
-    def link = new PaymentLink("https://recurring.payment.url")
+    def link = new RedirectLink("https://recurring.payment.url")
     recurringPaymentLinkGenerator.getPaymentLink(paymentData, person) >> link
 
     when:
@@ -132,7 +135,7 @@ class PaymentServiceSpec extends Specification {
     given:
     def person = samplePerson
     def paymentData = aPaymentData().tap { type = SAVINGS }
-    def link = new PaymentLink("https://savings.payment.url")
+    def link = new RedirectLink("https://savings.payment.url")
     savingsPaymentLinkGenerator.getPaymentLink(paymentData, person) >> link
 
     when:
@@ -140,6 +143,28 @@ class PaymentServiceSpec extends Specification {
 
     then:
     returnedLink == link
+  }
+
+  def "can get a savings recurring payment link"() {
+    given:
+    def person = samplePerson
+    def paymentData = aPaymentData().tap { type = SAVINGS_RECURRING }
+    def link = new PrefilledLink(
+        "https://www.lhv.ee/...",
+        "Tuleva Täiendav Kogumisfond",
+        "EE711010220306707220",
+        "38812121215",
+        "50")
+    savingsFundRecurringPaymentLinkGenerator.getPaymentLink(paymentData, person) >> link
+
+    when:
+    def returnedLink = paymentService.getLink(paymentData, person)
+
+    then:
+    returnedLink == link
+    0 * savingsPaymentLinkGenerator.getPaymentLink(_, _)
+    0 * recurringPaymentLinkGenerator.getPaymentLink(_, _)
+    0 * singlePaymentLinkGenerator.getPaymentLink(_, _)
   }
 
   def "can process savings payment"() {

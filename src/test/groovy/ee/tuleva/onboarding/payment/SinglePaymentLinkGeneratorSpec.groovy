@@ -1,10 +1,11 @@
 package ee.tuleva.onboarding.payment
 
 import tools.jackson.databind.json.JsonMapper
+import ee.tuleva.onboarding.error.exception.ErrorsResponseException
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioPaymentLinkGenerator
 import ee.tuleva.onboarding.payment.recurring.CoopPankPaymentLinkGenerator
-import ee.tuleva.onboarding.payment.recurring.PaymentDateProvider
+import ee.tuleva.onboarding.payment.PaymentDateProvider
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
@@ -13,6 +14,7 @@ import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.COOP_WEB
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.PARTNER
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
+import static ee.tuleva.onboarding.payment.recurring.ThirdPillarRecipientConfigurationFixture.thirdPillarRecipientConfiguration
 import static ee.tuleva.onboarding.time.TestClockHolder.clock
 
 class SinglePaymentLinkGeneratorSpec extends Specification {
@@ -21,8 +23,9 @@ class SinglePaymentLinkGeneratorSpec extends Specification {
   def paymentDateProvider = new PaymentDateProvider(clock)
   def objectMapper = JsonMapper.builder().build()
   def localeService = new LocaleService()
+  def thirdPillarConfig = thirdPillarRecipientConfiguration()
   CoopPankPaymentLinkGenerator coopPankPaymentLinkGenerator =
-      new CoopPankPaymentLinkGenerator(contactDetailsService, objectMapper, localeService, paymentDateProvider)
+      new CoopPankPaymentLinkGenerator(contactDetailsService, objectMapper, localeService, paymentDateProvider, thirdPillarConfig)
   MontonioPaymentLinkGenerator paymentProviderLinkGenerator = Mock()
   SinglePaymentLinkGenerator singlePaymentLinkGenerator =
       new SinglePaymentLinkGenerator(coopPankPaymentLinkGenerator, paymentProviderLinkGenerator)
@@ -32,7 +35,7 @@ class SinglePaymentLinkGeneratorSpec extends Specification {
     given:
     def person = samplePerson
     def paymentData = aPaymentData().tap { type = SINGLE }
-    def link = new PaymentLink("https://single.payment.url")
+    def link = new RedirectLink("https://single.payment.url")
     paymentProviderLinkGenerator.getPaymentLink(paymentData, person) >> link
 
     when:
@@ -54,7 +57,12 @@ class SinglePaymentLinkGeneratorSpec extends Specification {
     def returnedLink = singlePaymentLinkGenerator.getPaymentLink(paymentData, person)
 
     then:
-    returnedLink == new PaymentLink("""{"accountNumber":"EE362200221067235244","recipientName":"AS Pensionikeskus","amount":null,"currency":null,"description":"30101119828, EE3600001707","reference":"993432432","interval":"MONTHLY","firstPaymentDate":"2020-01-10"}""")
+    returnedLink instanceof PrefilledLink
+    returnedLink.url() == """{"accountNumber":"EE362200221067235244","recipientName":"AS Pensionikeskus","amount":null,"currency":null,"description":"30101119828, EE3600001707","reference":"993432432","interval":"MONTHLY","firstPaymentDate":"2020-01-10"}"""
+    (returnedLink as PrefilledLink).recipientName() == "AS Pensionikeskus"
+    (returnedLink as PrefilledLink).recipientIban() == "EE362200221067235244"
+    (returnedLink as PrefilledLink).description() == "30101119828, EE3600001707"
+    (returnedLink as PrefilledLink).amount() == null
   }
 
   def "can get a coop web payment link"() {
@@ -70,7 +78,28 @@ class SinglePaymentLinkGeneratorSpec extends Specification {
     def returnedLink = singlePaymentLinkGenerator.getPaymentLink(paymentData, person)
 
     then:
-    returnedLink == new PaymentLink("newpmt-eng?SaajaNimi=AS%20Pensionikeskus&SaajaKonto=EE362200221067235244&MaksePohjus=30101119828%2c%20EE3600001707&ViiteNumber=993432432")
+    returnedLink instanceof PrefilledLink
+    returnedLink.url() == "newpmt-eng?SaajaNimi=AS%20Pensionikeskus&SaajaKonto=EE362200221067235244&MaksePohjus=30101119828%2c%20EE3600001707&ViiteNumber=993432432"
+    (returnedLink as PrefilledLink).recipientName() == "AS Pensionikeskus"
+    (returnedLink as PrefilledLink).recipientIban() == "EE362200221067235244"
+    (returnedLink as PrefilledLink).description() == "30101119828, EE3600001707"
+    (returnedLink as PrefilledLink).amount() == null
+  }
+
+  def "rejects single payment without payment channel as 400"() {
+    given:
+    def person = samplePerson
+    def paymentData = aPaymentData().tap {
+      type = SINGLE
+      paymentChannel = null
+    }
+
+    when:
+    singlePaymentLinkGenerator.getPaymentLink(paymentData, person)
+
+    then:
+    def exception = thrown(ErrorsResponseException)
+    exception.errorsResponse.errors[0].code == "payment.channel.required"
   }
 
 }

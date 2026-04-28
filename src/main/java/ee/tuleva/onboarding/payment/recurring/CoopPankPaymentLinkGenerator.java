@@ -1,16 +1,22 @@
 package ee.tuleva.onboarding.payment.recurring;
 
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE;
-import static ee.tuleva.onboarding.payment.recurring.PaymentDateProvider.format;
+import static ee.tuleva.onboarding.payment.PaymentDateProvider.format;
 import static ee.tuleva.onboarding.payment.recurring.RecurringPaymentRequest.PaymentInterval.MONTHLY;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
+import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.PaymentData;
+import ee.tuleva.onboarding.payment.PaymentDateProvider;
 import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
+import ee.tuleva.onboarding.payment.PrefilledLink;
+import java.net.URLEncoder;
 import java.util.Locale;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
@@ -25,6 +31,7 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
   private final JsonMapper objectMapper;
   private final LocaleService localeService;
   private final PaymentDateProvider paymentDateProvider;
+  private final ThirdPillarRecipientConfiguration thirdPillarConfig;
 
   @Override
   @SneakyThrows
@@ -40,28 +47,41 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
           case PARTNER ->
               objectMapper.writeValueAsString(
                   new RecurringPaymentRequest(
-                      "EE362200221067235244", // Swedbank account
-                      "AS Pensionikeskus",
+                      thirdPillarConfig.getBankAccounts().get(paymentData.getPaymentChannel()),
+                      thirdPillarConfig.getRecipientName(),
                       paymentData.getAmount(),
                       paymentData.getCurrency(),
-                      "30101119828, EE3600001707",
+                      thirdPillarConfig.getDescription(),
                       contactDetails.getPensionAccountNumber(),
                       MONTHLY,
                       paymentDateProvider.tenthDayOfMonth()));
           default ->
-              throw new IllegalArgumentException(
-                  "Unsupported payment channel: " + paymentData.getPaymentChannel());
+              throw new ErrorsResponseException(
+                  ErrorsResponse.ofSingleError(
+                      "payment.channel.not.supported",
+                      "Coop Pank payment links to the specified payment channel are not"
+                          + " supported."));
         };
-    return new PaymentLink(url);
+    var amount = paymentData.getAmount() == null ? null : paymentData.getAmount().toString();
+    return new PrefilledLink(
+        url,
+        thirdPillarConfig.getRecipientName(),
+        thirdPillarConfig.getBankAccounts().get(paymentData.getPaymentChannel()),
+        thirdPillarConfig.getDescription(),
+        amount);
   }
 
   private String singlePaymentPath(PaymentData paymentData, ContactDetails contactDetails) {
     return "newpmt"
         + language()
-        + "?SaajaNimi=AS%20Pensionikeskus"
-        + "&SaajaKonto=EE362200221067235244" // Swedbank account
+        + "?SaajaNimi="
+        + urlEncode(thirdPillarConfig.getRecipientName())
+        + "&SaajaKonto="
+        + thirdPillarConfig.getBankAccounts().get(paymentData.getPaymentChannel())
         + (paymentData.getAmount() != null ? "&MuutMakseSumma=" + paymentData.getAmount() : "")
-        + "&MaksePohjus=30101119828%2c%20EE3600001707"
+        + "&MaksePohjus="
+        // Coop Pank's pre-existing URL uses lowercase %2c for the comma
+        + urlEncode(thirdPillarConfig.getDescription()).replace("%2C", "%2c")
         + "&ViiteNumber="
         + contactDetails.getPensionAccountNumber();
   }
@@ -70,10 +90,14 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
     return "newpmt"
         + language()
         + "?whatform=PermPaymentNew"
-        + "&SaajaNimi=AS%20Pensionikeskus"
-        + "&SaajaKonto=EE362200221067235244" // Swedbank account
+        + "&SaajaNimi="
+        + urlEncode(thirdPillarConfig.getRecipientName())
+        + "&SaajaKonto="
+        + thirdPillarConfig.getBankAccounts().get(paymentData.getPaymentChannel())
         + (paymentData.getAmount() != null ? "&MakseSumma=" + paymentData.getAmount() : "")
-        + "&MaksePohjus=30101119828%2c%20EE3600001707"
+        + "&MaksePohjus="
+        // Coop Pank's pre-existing URL uses lowercase %2c for the comma
+        + urlEncode(thirdPillarConfig.getDescription()).replace("%2C", "%2c")
         + "&ViiteNumber="
         + contactDetails.getPensionAccountNumber()
         + "&MakseSagedus=3" // Monthly
@@ -83,5 +107,9 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
 
   private String language() {
     return Locale.ENGLISH.getLanguage().equals(localeService.getCurrentLanguage()) ? "-eng" : "";
+  }
+
+  private static String urlEncode(String value) {
+    return URLEncoder.encode(value, UTF_8).replace("+", "%20");
   }
 }

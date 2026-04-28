@@ -89,8 +89,12 @@ class LimitCheckService {
 
     for (int i = daysBack; i >= 0; i--) {
       var asOfDate = today.minusDays(i);
-      var results = runChecksAsOf(asOfDate);
-      allResults.addAll(results);
+      try {
+        var results = runChecksAsOf(asOfDate);
+        allResults.addAll(results);
+      } catch (LimitCheckPartialFailureException e) {
+        allResults.addAll(e.getPartialResults());
+      }
     }
 
     return allResults;

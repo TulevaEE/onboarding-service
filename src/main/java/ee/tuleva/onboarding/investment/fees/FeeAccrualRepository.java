@@ -88,6 +88,20 @@ public class FeeAccrualRepository {
         .optional();
   }
 
+  public Optional<BigDecimal> findLatestBaseValue(TulevaFund fund) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT base_value FROM investment_fee_accrual
+            WHERE fund_code = :fundCode
+            ORDER BY accrual_date DESC
+            LIMIT 1
+            """)
+        .param("fundCode", fund.name())
+        .query(BigDecimal.class)
+        .optional();
+  }
+
   public Optional<LocalDate> findLatestAccrualDate(TulevaFund fund) {
     return jdbcClient
         .sql(

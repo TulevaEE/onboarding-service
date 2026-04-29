@@ -220,7 +220,7 @@ class TrackingDifferenceService {
               results.add(result);
             });
 
-    buildBenchmarkModelCheck(fund, checkDate, todayNav.get(), yesterdayNav.get(), securities)
+    buildBenchmarkModelCheck(fund, checkDate, securities)
         .ifPresent(
             result -> {
               saveEvent(result);
@@ -316,11 +316,7 @@ class TrackingDifferenceService {
   }
 
   private Optional<TrackingDifferenceResult> buildBenchmarkModelCheck(
-      TulevaFund fund,
-      LocalDate checkDate,
-      FundValue todayNav,
-      FundValue yesterdayNav,
-      List<SecurityData> securities) {
+      TulevaFund fund, LocalDate checkDate, List<SecurityData> securities) {
 
     var validSecurities =
         securities.stream()

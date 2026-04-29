@@ -242,6 +242,45 @@ class PaymentVerificationServiceTest {
   }
 
   @Test
+  void
+      process_success_remitterIdCodeWithLetterPrefix_notParsedAsEstonianRegistryCode_wiseScenario() {
+    var payment =
+        SavingFundPayment.builder()
+            .id(randomUUID())
+            .amount(new BigDecimal("100.00"))
+            .remitterName("PÄRT ÕLEKÕRS")
+            .remitterIban("BE72967148007616")
+            .remitterIdCode("P13694547")
+            .description("37508295796")
+            .receivedBefore(Instant.parse("2025-10-01T20:59:59.999999Z"))
+            .build();
+    var user =
+        User.builder()
+            .id(444L)
+            .personalCode("37508295796")
+            .firstName("PÄRT")
+            .lastName("ÕLEKÕRS")
+            .build();
+    when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(user));
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+
+    service.process(payment);
+
+    verify(userRepository).findByPersonalCode("37508295796");
+    verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
+    verify(savingsFundLedger)
+        .recordPaymentReceived(
+            new PartyId(PERSON, user.getPersonalCode()),
+            payment.getAmount(),
+            payment.getId(),
+            LocalDate.of(2025, 10, 1));
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  @Test
   void process_success_allowNameMismatchIfRemitterIdCodeMatches() {
     var payment = createPayment("37508295796", "to user 37508295796");
     var user =
@@ -302,6 +341,39 @@ class PaymentVerificationServiceTest {
         .withFailMessage("7 digits not a valid registry code")
         .isEmpty();
     assertThat(service.extractPartyId("123456789"))
+        .withFailMessage("9 digits not a valid registry code")
+        .isEmpty();
+    assertThat(service.extractPartyId("P13694547 makse 37508295796"))
+        .withFailMessage(
+            "11-digit personal code must take precedence over any 8-digit substring elsewhere")
+        .contains(new PartyId(PERSON, "37508295796"));
+  }
+
+  @Test
+  void parsePartyId() {
+    assertThat(service.parsePartyId(null)).isEmpty();
+    assertThat(service.parsePartyId("")).isEmpty();
+    assertThat(service.parsePartyId("37508295796")).contains(new PartyId(PERSON, "37508295796"));
+    assertThat(service.parsePartyId("12345678")).contains(new PartyId(LEGAL_ENTITY, "12345678"));
+    assertThat(service.parsePartyId("P13694547"))
+        .withFailMessage("Wise customer ID must not match as a registry code")
+        .isEmpty();
+    assertThat(service.parsePartyId("P11268897"))
+        .withFailMessage("Wise customer ID must not match as a registry code")
+        .isEmpty();
+    assertThat(service.parsePartyId("some prefix 37508295796"))
+        .withFailMessage("substring extraction must not apply to structured ID field")
+        .isEmpty();
+    assertThat(service.parsePartyId("37508295796 trailing"))
+        .withFailMessage("substring extraction must not apply to structured ID field")
+        .isEmpty();
+    assertThat(service.parsePartyId("37508295795"))
+        .withFailMessage("invalid personal code (bad checksum) must not be accepted")
+        .isEmpty();
+    assertThat(service.parsePartyId("1234567"))
+        .withFailMessage("7 digits not a valid registry code")
+        .isEmpty();
+    assertThat(service.parsePartyId("123456789"))
         .withFailMessage("9 digits not a valid registry code")
         .isEmpty();
   }
@@ -383,6 +455,41 @@ class PaymentVerificationServiceTest {
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "maksja nimi ei klapi Tuleva andmetega");
+  }
+
+  @Test
+  void
+      process_success_companyPayment_remitterIdCodeWithLetterPrefix_notParsedAsEstonianRegistryCode() {
+    var payment =
+        SavingFundPayment.builder()
+            .id(randomUUID())
+            .amount(new BigDecimal("100.00"))
+            .remitterName("Tuleva AS")
+            .remitterIban("BE72967148007616")
+            .remitterIdCode("P13694547")
+            .description("12345678")
+            .receivedBefore(Instant.parse("2025-10-01T20:59:59.999999Z"))
+            .build();
+    var company = Company.builder().registryCode("12345678").name("Tuleva AS").build();
+    when(companyRepository.findByRegistryCode("12345678")).thenReturn(Optional.of(company));
+    when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "12345678")))
+        .thenReturn(true);
+
+    service.process(payment);
+
+    verify(companyRepository).findByRegistryCode("12345678");
+    verify(savingsFundOnboardingService)
+        .isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "12345678"));
+    verify(savingsFundLedger)
+        .recordPaymentReceived(
+            new PartyId(LEGAL_ENTITY, "12345678"),
+            payment.getAmount(),
+            payment.getId(),
+            LocalDate.of(2025, 10, 1));
+    verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "12345678"));
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
   @Test

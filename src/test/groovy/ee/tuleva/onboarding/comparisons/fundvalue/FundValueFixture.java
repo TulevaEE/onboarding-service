@@ -22,6 +22,10 @@ public class FundValueFixture {
     return new FundValue(key, date, value, provider, date.atStartOfDay(UTC).toInstant());
   }
 
+  public static FundValue aFundValue(String key, LocalDate date, double value, String provider) {
+    return aFundValue(key, date, BigDecimal.valueOf(value), provider);
+  }
+
   public static FundValue aFundValue(
       String key, LocalDate date, BigDecimal value, String provider, Instant updatedAt) {
     return new FundValue(key, date, value, provider, updatedAt);

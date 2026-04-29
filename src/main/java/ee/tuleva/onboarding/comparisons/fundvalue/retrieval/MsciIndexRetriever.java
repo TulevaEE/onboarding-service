@@ -11,30 +11,30 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.JsonNode;
 
-@Service
 @Slf4j
 @ToString(onlyExplicitlyIncluded = true)
-public class MsciAcwiIndexRetriever implements ComparisonIndexRetriever {
-  @ToString.Include public static final String KEY = "MSCI_ACWI";
+public class MsciIndexRetriever implements ComparisonIndexRetriever {
   public static final String PROVIDER = "MSCI";
 
-  private static final String INDEX_CODE = "892400";
   private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
 
+  @ToString.Include private final String key;
+  private final String indexCode;
   private final RestClient restClient;
 
-  public MsciAcwiIndexRetriever(RestClient.Builder restClientBuilder) {
+  public MsciIndexRetriever(String key, String indexCode, RestClient.Builder restClientBuilder) {
+    this.key = key;
+    this.indexCode = indexCode;
     this.restClient = restClientBuilder.build();
   }
 
   @Override
   public String getKey() {
-    return KEY;
+    return key;
   }
 
   @Override
@@ -58,7 +58,7 @@ public class MsciAcwiIndexRetriever implements ComparisonIndexRetriever {
               String dateString = node.path("calc_date").asText();
               LocalDate date = LocalDate.parse(dateString, DATE_FORMATTER);
               BigDecimal value = BigDecimal.valueOf(node.path("level_eod").asDouble());
-              return new FundValue(KEY, date, value, PROVIDER, now);
+              return new FundValue(key, date, value, PROVIDER, now);
             })
         .filter(
             fundValue -> {
@@ -70,7 +70,6 @@ public class MsciAcwiIndexRetriever implements ComparisonIndexRetriever {
   }
 
   private String buildFetchUri(LocalDate startDate, LocalDate endDate) {
-
     return UriComponentsBuilder.fromUriString(
             "https://app2.msci.com/products/service/index/indexmaster/getLevelDataForGraph")
         .queryParam("output", "INDEX_LEVELS")
@@ -80,7 +79,7 @@ public class MsciAcwiIndexRetriever implements ComparisonIndexRetriever {
         .queryParam("end_date", endDate.format(DATE_FORMATTER))
         .queryParam("data_frequency", "DAILY")
         .queryParam("baseValue", "false")
-        .queryParam("index_codes", INDEX_CODE)
+        .queryParam("index_codes", indexCode)
         .toUriString();
   }
 }

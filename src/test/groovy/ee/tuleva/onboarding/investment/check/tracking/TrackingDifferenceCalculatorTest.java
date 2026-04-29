@@ -277,7 +277,9 @@ class TrackingDifferenceCalculatorTest {
                 new BigDecimal("0.40"),
                 new BigDecimal("0.40"),
                 null,
-                new BigDecimal("100")));
+                new BigDecimal("100"),
+                null,
+                null));
 
     var input = inputWithSecurities(securities);
 
@@ -349,6 +351,8 @@ class TrackingDifferenceCalculatorTest {
         modelWeight,
         actualWeight,
         new BigDecimal(todayPrice),
-        new BigDecimal(yesterdayPrice));
+        new BigDecimal(yesterdayPrice),
+        null,
+        null);
   }
 }

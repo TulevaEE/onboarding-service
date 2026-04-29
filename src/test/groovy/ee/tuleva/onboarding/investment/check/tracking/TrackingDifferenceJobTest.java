@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doThrow;
@@ -7,7 +10,7 @@ import static org.mockito.Mockito.doThrow;
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
-import ee.tuleva.onboarding.savings.fund.nav.AllNavCalculationsCompleted;
+import ee.tuleva.onboarding.savings.fund.nav.NavCalculationCompleted;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,32 +28,34 @@ class TrackingDifferenceJobTest {
   @InjectMocks TrackingDifferenceJob job;
 
   @Test
-  void navCompletedDelegatesToServiceAndNotifier() {
+  void navCompletedDelegatesToServiceAndNotifierForSpecificFunds() {
+    var funds = List.of(TUK75, TUK00);
     var results = List.<TrackingDifferenceResult>of();
-    given(service.runChecks()).willReturn(results);
+    given(service.runChecksForFunds(funds)).willReturn(results);
 
-    job.onAllNavCalculationsCompleted(new AllNavCalculationsCompleted());
+    job.onNavCalculationCompleted(new NavCalculationCompleted(funds));
 
-    then(service).should().runChecks();
+    then(service).should().runChecksForFunds(funds);
     then(notifier).should().notify(results);
   }
 
   @Test
   void adHocEventDelegatesToServiceAndNotifier() {
     var results = List.<TrackingDifferenceResult>of();
-    given(service.runChecks()).willReturn(results);
+    given(service.runChecksForFunds(anyList())).willReturn(results);
 
     job.onTrackingDifferenceCheckRequested(new RunTrackingDifferenceCheckRequested());
 
-    then(service).should().runChecks();
+    then(service).should().runChecksForFunds(anyList());
     then(notifier).should().notify(results);
   }
 
   @Test
   void swallowsExceptions() {
-    doThrow(new RuntimeException("boom")).when(service).runChecks();
+    var funds = List.of(TUK75, TUK00);
+    doThrow(new RuntimeException("boom")).when(service).runChecksForFunds(funds);
 
-    job.onAllNavCalculationsCompleted(new AllNavCalculationsCompleted());
+    job.onNavCalculationCompleted(new NavCalculationCompleted(funds));
 
     then(notifier).shouldHaveNoInteractions();
   }
@@ -91,14 +96,15 @@ class TrackingDifferenceJobTest {
 
   @Test
   void notifiesPartialResultsOnIncompletePriceData() {
+    var funds = List.of(TUK75);
     var partialResults = List.<TrackingDifferenceResult>of();
     doThrow(
             new TrackingDifferenceService.IncompletePriceDataException(
                 "missing prices", partialResults))
         .when(service)
-        .runChecks();
+        .runChecksForFunds(funds);
 
-    job.onAllNavCalculationsCompleted(new AllNavCalculationsCompleted());
+    job.onNavCalculationCompleted(new NavCalculationCompleted(funds));
 
     then(notifier).should().notify(partialResults);
   }

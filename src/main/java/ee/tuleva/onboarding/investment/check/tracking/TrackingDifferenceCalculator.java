@@ -139,5 +139,7 @@ class TrackingDifferenceCalculator {
       BigDecimal modelWeight,
       BigDecimal actualWeight,
       @Nullable BigDecimal todayPrice,
-      @Nullable BigDecimal yesterdayPrice) {}
+      @Nullable BigDecimal yesterdayPrice,
+      @Nullable LocalDate todayPriceDate,
+      @Nullable LocalDate previousPriceDate) {}
 }

@@ -136,7 +136,27 @@ public enum FundTicker {
       "iShares Euro Credit Bond Index Fund",
       "BAREUBD",
       "229055",
-      "0P0000STQT");
+      "0P0000STQT"),
+
+  // Benchmark proxy ETFs (not held in portfolios — used for BENCHMARK_MODEL comparison)
+  ISHARES_CORE_MSCI_WORLD(
+      "IWDA.DE", "IWDA.XETRA", "IE00B4L5Y983", "iShares Core MSCI World UCITS ETF", "IWDA", null),
+  ISHARES_MSCI_EM(
+      "EUNM.DE", "EUNM.XETRA", "IE00B4L5YC18", "iShares MSCI EM UCITS ETF", "EUNM", null),
+  ISHARES_EURO_AGG_BOND_ETF(
+      "IEAG.DE",
+      "IEAG.XETRA",
+      "IE00B3DKXQ41",
+      "iShares Euro Aggregate Bond UCITS ETF",
+      "IEAG",
+      null),
+  ISHARES_GLOBAL_AGG_BOND_ETF(
+      "AGGH.DE",
+      "AGGH.XETRA",
+      "IE00BDBRDM35",
+      "iShares Global Aggregate Bond UCITS ETF",
+      "AGGH",
+      null);
 
   private final String yahooTicker;
   private final String eodhdTicker;

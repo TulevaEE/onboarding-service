@@ -2,10 +2,12 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.event.PipelineStep.TRACKING_DIFFERENCE;
 
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
-import ee.tuleva.onboarding.savings.fund.nav.AllNavCalculationsCompleted;
+import ee.tuleva.onboarding.savings.fund.nav.NavCalculationCompleted;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -23,8 +25,8 @@ public class TrackingDifferenceJob {
   private final PipelineTracker pipelineTracker;
 
   @EventListener
-  void onAllNavCalculationsCompleted(AllNavCalculationsCompleted event) {
-    runTrackingDifferenceChecks();
+  void onNavCalculationCompleted(NavCalculationCompleted event) {
+    runTrackingDifferenceChecks(event.funds());
   }
 
   @EventListener
@@ -54,11 +56,15 @@ public class TrackingDifferenceJob {
   }
 
   private void runTrackingDifferenceChecks() {
+    runTrackingDifferenceChecks(List.of(TulevaFund.values()));
+  }
+
+  private void runTrackingDifferenceChecks(List<TulevaFund> funds) {
     pipelineTracker.stepStarted(TRACKING_DIFFERENCE);
-    log.info("Starting tracking difference check");
+    log.info("Starting tracking difference check: funds={}", funds);
 
     try {
-      var results = trackingDifferenceService.runChecks();
+      var results = trackingDifferenceService.runChecksForFunds(funds);
       trackingDifferenceNotifier.notify(results);
       pipelineTracker.stepCompleted(TRACKING_DIFFERENCE);
 

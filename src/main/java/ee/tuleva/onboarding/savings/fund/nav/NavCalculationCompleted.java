@@ -1,3 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
-public record NavCalculationCompleted() {}
+import ee.tuleva.onboarding.fund.TulevaFund;
+import java.util.List;
+
+public record NavCalculationCompleted(List<TulevaFund> funds) {}

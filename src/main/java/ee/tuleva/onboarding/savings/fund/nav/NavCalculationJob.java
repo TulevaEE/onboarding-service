@@ -82,7 +82,7 @@ public class NavCalculationJob {
     pipelineTracker.stepStarted(NAV_CALCULATION);
     int successfullyPublishedCount = calculateForFunds(event.funds());
     pipelineTracker.stepCompleted(NAV_CALCULATION);
-    eventPublisher.publishEvent(new NavCalculationCompleted());
+    eventPublisher.publishEvent(new NavCalculationCompleted(event.funds()));
     if (event.lastOfDay() && successfullyPublishedCount > 0) {
       eventPublisher.publishEvent(new AllNavCalculationsCompleted());
     }

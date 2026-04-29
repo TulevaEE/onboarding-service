@@ -95,6 +95,8 @@ public class FeeCalculationService {
             .map(d -> d.plusDays(1))
             .orElse(positionReportDate);
 
+    BigDecimal previousBaseValue = feeAccrualRepository.findLatestBaseValue(fund).orElse(baseValue);
+
     log.info(
         "calculateFeesForNav: fund={}, positionReportDate={}, startDate={}, willProcess={}",
         fund,
@@ -108,7 +110,8 @@ public class FeeCalculationService {
       if (!feeMonth.equals(previousFeeMonth)) {
         settleMonthlyFeesIfNeeded(fund, feeMonth.minusMonths(1));
       }
-      recordDailyFees(fund, day, baseValue, securityPrices);
+      BigDecimal dayBaseValue = day.isBefore(positionReportDate) ? previousBaseValue : baseValue;
+      recordDailyFees(fund, day, dayBaseValue, securityPrices);
       previousFeeMonth = feeMonth;
     }
 

@@ -53,8 +53,11 @@ class FeeCalculationServiceTest {
 
   @Test
   void calculateFeesForNav_calculatesAndRecordsForPendingDays() {
+    // Jan 13 (Mon) is positionReportDate, last accrual was Jan 9 (Thu)
+    // Catch-up days Jan 10-12 use previous base value, Jan 13 uses current
     LocalDate positionReportDate = LocalDate.of(2025, 1, 13);
     BigDecimal baseValue = new BigDecimal("12000000");
+    BigDecimal previousBaseValue = new BigDecimal("11500000");
     Instant feeCutoff =
         positionReportDate.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
 
@@ -63,9 +66,11 @@ class FeeCalculationServiceTest {
 
     when(feeAccrualRepository.findLatestAccrualDate(TKF100))
         .thenReturn(Optional.of(LocalDate.of(2025, 1, 9)));
-    when(calculator1.calculate(eq(TKF100), any(LocalDate.class), eq(baseValue)))
+    when(feeAccrualRepository.findLatestBaseValue(TKF100))
+        .thenReturn(Optional.of(previousBaseValue));
+    when(calculator1.calculate(eq(TKF100), any(LocalDate.class), any(BigDecimal.class)))
         .thenReturn(mgmtAccrual);
-    when(calculator2.calculate(eq(TKF100), any(LocalDate.class), eq(baseValue)))
+    when(calculator2.calculate(eq(TKF100), any(LocalDate.class), any(BigDecimal.class)))
         .thenReturn(depotAccrual);
     stubZeroLedgerBalance();
     when(feeAccrualRepository.getUnsettledAccrual(TKF100, FeeType.MANAGEMENT, positionReportDate))
@@ -76,10 +81,16 @@ class FeeCalculationServiceTest {
     FeeResult result =
         service.calculateFeesForNav(TKF100, positionReportDate, baseValue, feeCutoff, null);
 
-    for (int day = 10; day <= 13; day++) {
-      verify(calculator1).calculate(eq(TKF100), eq(LocalDate.of(2025, 1, day)), eq(baseValue));
-      verify(calculator2).calculate(eq(TKF100), eq(LocalDate.of(2025, 1, day)), eq(baseValue));
+    // Catch-up days (Jan 10-12) use previous base value
+    for (int day = 10; day <= 12; day++) {
+      verify(calculator1)
+          .calculate(eq(TKF100), eq(LocalDate.of(2025, 1, day)), eq(previousBaseValue));
+      verify(calculator2)
+          .calculate(eq(TKF100), eq(LocalDate.of(2025, 1, day)), eq(previousBaseValue));
     }
+    // Position report date (Jan 13) uses current base value
+    verify(calculator1).calculate(eq(TKF100), eq(positionReportDate), eq(baseValue));
+    verify(calculator2).calculate(eq(TKF100), eq(positionReportDate), eq(baseValue));
     verify(feeAccrualRepository, times(8)).save(any(FeeAccrual.class));
     assertThat(result.managementFeeAccrual()).isEqualByComparingTo("400.00");
     assertThat(result.depotFeeAccrual()).isEqualByComparingTo("50.00");
@@ -95,6 +106,7 @@ class FeeCalculationServiceTest {
     FeeAccrual accrual = createAccrual(TKF100, FeeType.MANAGEMENT, positionReportDate);
 
     when(feeAccrualRepository.findLatestAccrualDate(TKF100)).thenReturn(Optional.empty());
+    when(feeAccrualRepository.findLatestBaseValue(TKF100)).thenReturn(Optional.empty());
     when(calculator1.calculate(eq(TKF100), eq(positionReportDate), eq(baseValue)))
         .thenReturn(accrual);
     when(calculator2.calculate(eq(TKF100), eq(positionReportDate), eq(baseValue)))

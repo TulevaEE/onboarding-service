@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.check.tracking;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK;
+import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static java.math.BigDecimal.ZERO;
@@ -119,6 +120,86 @@ class TrackingDifferenceServiceTest {
     assertThat(bmResult).isPresent();
     assertThat(bmResult.get().fund()).isEqualTo(TUK75);
     assertThat(bmResult.get().securityAttributions()).isEmpty();
+  }
+
+  @Test
+  void calculatesBenchmarkModelForEquityFund() {
+    skipOtherFunds(TUK75);
+
+    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE))
+        .willReturn(Optional.of(fundValue("10.10", CHECK_DATE)));
+    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE.minusDays(1)))
+        .willReturn(Optional.of(fundValue("10.00", PREVIOUS_DATE)));
+
+    var etfIsin = "IE00BFNM3G45";
+    var allocation =
+        ModelPortfolioAllocation.builder()
+            .fund(TUK75)
+            .isin(etfIsin)
+            .weight(new BigDecimal("1.00"))
+            .effectiveDate(LocalDate.of(2026, 1, 1))
+            .build();
+    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75))
+        .willReturn(List.of(allocation));
+
+    var todayPriceDate = CHECK_DATE;
+    var previousPriceDate = PREVIOUS_DATE;
+    given(positionPriceResolver.resolve(eq(etfIsin), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(new BigDecimal("51.00"))
+                    .validationStatus(ValidationStatus.OK)
+                    .priceDate(todayPriceDate)
+                    .build()));
+    given(positionPriceResolver.resolve(eq(etfIsin), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(new BigDecimal("50.00"))
+                    .validationStatus(ValidationStatus.OK)
+                    .priceDate(previousPriceDate)
+                    .build()));
+
+    var position =
+        FundPosition.builder()
+            .fund(TUK75)
+            .navDate(CHECK_DATE)
+            .accountType(SECURITY)
+            .accountId(etfIsin)
+            .marketValue(new BigDecimal("950000"))
+            .build();
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
+        .willReturn(List.of(position));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(CASH)))
+        .willReturn(new BigDecimal("50000"));
+    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
+        .willReturn(
+            Optional.of(
+                new FeeRate(
+                    1L, TUK75, FeeType.MANAGEMENT, new BigDecimal("0.0034"), CHECK_DATE, null)));
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+        .willReturn(List.of());
+
+    // IWDA.DE benchmark looked up on instrument's actual price dates
+    given(fundValueProvider.getLatestValue("IE00B4L5Y983.XETR", todayPriceDate))
+        .willReturn(Optional.of(fundValue("81.60")));
+    given(fundValueProvider.getLatestValue("IE00B4L5Y983.XETR", previousPriceDate))
+        .willReturn(Optional.of(fundValue("80.00")));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var bmModel = results.stream().filter(r -> r.checkType() == BENCHMARK_MODEL).findFirst();
+    assertThat(bmModel).isPresent();
+    assertThat(bmModel.get().fund()).isEqualTo(TUK75);
+    // ETF return = 51/50 - 1 = 0.02, IWDA return = 81.6/80 - 1 = 0.02, TD ≈ 0
+    assertThat(bmModel.get().trackingDifference().abs()).isLessThan(new BigDecimal("0.001"));
   }
 
   @Test

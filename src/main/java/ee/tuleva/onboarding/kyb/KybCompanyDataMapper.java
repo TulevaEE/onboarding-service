@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.kyb.survey;
+package ee.tuleva.onboarding.kyb;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.KYC_CHECK;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
-import ee.tuleva.onboarding.kyb.*;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -16,14 +15,14 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class KybCompanyDataMapper {
+class KybCompanyDataMapper {
 
   private static final String BOARD_MEMBER_ROLE = "JUHL";
   private static final String SHAREHOLDER_ROLE = "OSAN";
 
   private final AmlCheckRepository amlCheckRepository;
 
-  public KybCompanyData toKybCompanyData(
+  KybCompanyData toKybCompanyData(
       CompanyDetail detail,
       PersonalCode personalCode,
       List<CompanyRelationship> relationships,

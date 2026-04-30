@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.kyb.survey;
+package ee.tuleva.onboarding.kyb;
 
 import static ee.tuleva.onboarding.kyb.CompanyStatus.R;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -10,7 +10,6 @@ import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
-import ee.tuleva.onboarding.kyb.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;

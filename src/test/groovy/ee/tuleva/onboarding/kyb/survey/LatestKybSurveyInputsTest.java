@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
-class KybSurveyDataProviderTest {
+class LatestKybSurveyInputsTest {
 
   private static final String REGISTRY_CODE = "12345678";
   private static final Long USER_ID = 1L;
@@ -26,8 +26,8 @@ class KybSurveyDataProviderTest {
   private final KybSurveyResponseMapper kybSurveyResponseMapper = new KybSurveyResponseMapper();
   private final UserRepository userRepository = mock(UserRepository.class);
 
-  private final KybSurveyDataProvider provider =
-      new KybSurveyDataProvider(kybSurveyRepository, kybSurveyResponseMapper, userRepository);
+  private final LatestKybSurveyInputs latestInputs =
+      new LatestKybSurveyInputs(kybSurveyRepository, kybSurveyResponseMapper, userRepository);
 
   @Test
   void returnsPersonalCodeAndSelfCertificationFromLatestSurvey() {
@@ -43,7 +43,7 @@ class KybSurveyDataProviderTest {
     given(userRepository.findById(USER_ID))
         .willReturn(Optional.of(User.builder().personalCode(PERSONAL_CODE).build()));
 
-    var result = provider.getLatestByRegistryCode(REGISTRY_CODE);
+    var result = latestInputs.findByRegistryCode(REGISTRY_CODE);
 
     assertThat(result.personalCode()).isEqualTo(new PersonalCode(PERSONAL_CODE));
     assertThat(result.selfCertification()).isEqualTo(new SelfCertification(true, true, true));
@@ -54,7 +54,7 @@ class KybSurveyDataProviderTest {
     given(kybSurveyRepository.findTopByRegistryCodeOrderByCreatedTimeDesc(REGISTRY_CODE))
         .willReturn(Optional.empty());
 
-    assertThatThrownBy(() -> provider.getLatestByRegistryCode(REGISTRY_CODE))
+    assertThatThrownBy(() -> latestInputs.findByRegistryCode(REGISTRY_CODE))
         .isInstanceOf(IllegalStateException.class);
   }
 
@@ -70,7 +70,7 @@ class KybSurveyDataProviderTest {
         .willReturn(Optional.of(survey));
     given(userRepository.findById(USER_ID)).willReturn(Optional.empty());
 
-    assertThatThrownBy(() -> provider.getLatestByRegistryCode(REGISTRY_CODE))
+    assertThatThrownBy(() -> latestInputs.findByRegistryCode(REGISTRY_CODE))
         .isInstanceOf(IllegalStateException.class);
   }
 

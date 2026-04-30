@@ -11,9 +11,8 @@ import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.company.Company;
 import ee.tuleva.onboarding.company.CompanyRepository;
-import ee.tuleva.onboarding.kyb.survey.KybCompanyDataMapper;
-import ee.tuleva.onboarding.kyb.survey.KybSurveyDataProvider;
-import ee.tuleva.onboarding.kyb.survey.KybSurveyDataProvider.SurveyData;
+import ee.tuleva.onboarding.kyb.survey.KybSurveyInputs;
+import ee.tuleva.onboarding.kyb.survey.LatestKybSurveyInputs;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -32,23 +31,21 @@ class KybMonitoringServiceTest {
 
   private final AriregisterClient ariregisterClient = mock(AriregisterClient.class);
   private final KybCompanyDataMapper kybCompanyDataMapper = mock(KybCompanyDataMapper.class);
-  private final KybSurveyDataProvider kybSurveyDataProvider = mock(KybSurveyDataProvider.class);
+  private final LatestKybSurveyInputs latestKybSurveyInputs = mock(LatestKybSurveyInputs.class);
   private final KybScreeningService kybScreeningService = mock(KybScreeningService.class);
   private final CompanyRepository companyRepository = mock(CompanyRepository.class);
 
+  private final LegalEntityScreener legalEntityScreener =
+      new LegalEntityScreener(
+          ariregisterClient, kybCompanyDataMapper, kybScreeningService, FIXED_CLOCK);
+
   private final KybMonitoringService service =
-      new KybMonitoringService(
-          ariregisterClient,
-          kybCompanyDataMapper,
-          kybSurveyDataProvider,
-          kybScreeningService,
-          companyRepository,
-          FIXED_CLOCK);
+      new KybMonitoringService(legalEntityScreener, latestKybSurveyInputs, companyRepository);
 
   @Test
   void screensCompanyWithFreshAriregisterData() {
-    var surveyData = new SurveyData(PERSONAL_CODE, SELF_CERT);
-    given(kybSurveyDataProvider.getLatestByRegistryCode(REGISTRY_CODE)).willReturn(surveyData);
+    var surveyInputs = new KybSurveyInputs(PERSONAL_CODE, SELF_CERT);
+    given(latestKybSurveyInputs.findByRegistryCode(REGISTRY_CODE)).willReturn(surveyInputs);
 
     var relationships = List.<CompanyRelationship>of();
     given(
@@ -76,7 +73,7 @@ class KybMonitoringServiceTest {
 
   @Test
   void throwsWhenNoSurveyFound() {
-    given(kybSurveyDataProvider.getLatestByRegistryCode(REGISTRY_CODE))
+    given(latestKybSurveyInputs.findByRegistryCode(REGISTRY_CODE))
         .willThrow(new IllegalStateException("No KYB survey found"));
 
     assertThatThrownBy(() -> service.screenCompany(REGISTRY_CODE))
@@ -85,8 +82,8 @@ class KybMonitoringServiceTest {
 
   @Test
   void throwsWhenCompanyNotFoundInAriregister() {
-    given(kybSurveyDataProvider.getLatestByRegistryCode(REGISTRY_CODE))
-        .willReturn(new SurveyData(PERSONAL_CODE, SELF_CERT));
+    given(latestKybSurveyInputs.findByRegistryCode(REGISTRY_CODE))
+        .willReturn(new KybSurveyInputs(PERSONAL_CODE, SELF_CERT));
     given(ariregisterClient.getActiveCompanyRelationships(eq(REGISTRY_CODE), any()))
         .willReturn(List.of());
     given(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).willReturn(Optional.empty());
@@ -101,8 +98,8 @@ class KybMonitoringServiceTest {
     var company2 = Company.builder().registryCode("22222222").name("Company 2").build();
     given(companyRepository.findAll()).willReturn(List.of(company1, company2));
 
-    given(kybSurveyDataProvider.getLatestByRegistryCode(any()))
-        .willReturn(new SurveyData(PERSONAL_CODE, SELF_CERT));
+    given(latestKybSurveyInputs.findByRegistryCode(any()))
+        .willReturn(new KybSurveyInputs(PERSONAL_CODE, SELF_CERT));
     given(ariregisterClient.getActiveCompanyRelationships(any(), any())).willReturn(List.of());
 
     var detail1 = new CompanyDetail("Company 1", "11111111", "R", "OÜ", null, null, null, null);
@@ -123,10 +120,10 @@ class KybMonitoringServiceTest {
     var company2 = Company.builder().registryCode("22222222").name("Company 2").build();
     given(companyRepository.findAll()).willReturn(List.of(company1, company2));
 
-    given(kybSurveyDataProvider.getLatestByRegistryCode("11111111"))
+    given(latestKybSurveyInputs.findByRegistryCode("11111111"))
         .willThrow(new IllegalStateException("No survey"));
-    given(kybSurveyDataProvider.getLatestByRegistryCode("22222222"))
-        .willReturn(new SurveyData(PERSONAL_CODE, SELF_CERT));
+    given(latestKybSurveyInputs.findByRegistryCode("22222222"))
+        .willReturn(new KybSurveyInputs(PERSONAL_CODE, SELF_CERT));
 
     var detail = new CompanyDetail("Company 2", "22222222", "R", "OÜ", null, null, null, null);
     given(ariregisterClient.getActiveCompanyRelationships(eq("22222222"), any()))

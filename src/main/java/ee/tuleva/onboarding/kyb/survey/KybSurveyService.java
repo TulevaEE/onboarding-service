@@ -13,7 +13,6 @@ import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
 
-import ee.tuleva.onboarding.ariregister.AriregisterClient;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
@@ -21,7 +20,6 @@ import ee.tuleva.onboarding.kyb.*;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,9 +38,7 @@ class KybSurveyService {
 
   private static final Instant WHITELIST_CUTOFF = Instant.parse("2026-03-27T15:00:00Z");
 
-  private final AriregisterClient ariregisterClient;
-  private final KybCompanyDataMapper kybCompanyDataMapper;
-  private final KybScreeningService kybScreeningService;
+  private final LegalEntityScreener legalEntityScreener;
   private final KybSurveyResponseMapper kybSurveyResponseMapper;
   private final KybSurveyRepository kybSurveyRepository;
   private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
@@ -79,8 +75,6 @@ class KybSurveyService {
   }
 
   private static final String BOARD_MEMBER_ROLE = "JUHL";
-  // Founders (role "A") are historical — they don't imply any current relationship with the company
-  private static final String FOUNDER_ROLE = "A";
 
   LegalEntityData initialValidation(String registryCode, String personalCode) {
     log.info(
@@ -90,23 +84,20 @@ class KybSurveyService {
 
     List<CompanyRelationship> relationships;
     try {
-      relationships = fetchRelationshipsAndVerifyBoardMember(registryCode, personalCode);
+      relationships = fetchAndVerifyBoardMember(registryCode, personalCode);
     } catch (NotBoardMemberException e) {
       auditBlocked(registryCode, personalCode, NOT_BOARD_MEMBER);
       throw e;
     }
 
-    var detail = fetchCompanyDetail(registryCode);
+    var result =
+        legalEntityScreener.validate(
+            registryCode, new PersonalCode(personalCode), null, relationships);
 
-    var companyData =
-        kybCompanyDataMapper.toKybCompanyData(
-            detail, new PersonalCode(personalCode), relationships, null);
+    auditValidationFailures(registryCode, personalCode, result.checks());
 
-    var checks = kybScreeningService.validate(companyData);
-
-    auditValidationFailures(registryCode, personalCode, checks);
-
-    return buildLegalEntityData(detail, relationships, checks, getOnboardingError(registryCode));
+    return buildLegalEntityData(
+        result.detail(), relationships, result.checks(), getOnboardingError(registryCode));
   }
 
   void submit(
@@ -124,7 +115,7 @@ class KybSurveyService {
 
     List<CompanyRelationship> relationships;
     try {
-      relationships = fetchRelationshipsAndVerifyBoardMember(registryCode, personalCode);
+      relationships = fetchAndVerifyBoardMember(registryCode, personalCode);
     } catch (NotBoardMemberException e) {
       auditBlocked(registryCode, personalCode, NOT_BOARD_MEMBER);
       throw e;
@@ -137,21 +128,13 @@ class KybSurveyService {
       throw e;
     }
 
-    var detail = fetchCompanyDetail(registryCode);
-
-    var companyData =
-        kybCompanyDataMapper.toKybCompanyData(
-            detail, new PersonalCode(personalCode), relationships, selfCertification);
-
-    kybScreeningService.screen(companyData);
+    legalEntityScreener.screen(
+        registryCode, new PersonalCode(personalCode), selfCertification, relationships);
   }
 
-  private List<CompanyRelationship> fetchRelationshipsAndVerifyBoardMember(
+  private List<CompanyRelationship> fetchAndVerifyBoardMember(
       String registryCode, String personalCode) {
-    var relationships =
-        ariregisterClient.getActiveCompanyRelationships(registryCode, LocalDate.now(clock)).stream()
-            .filter(r -> !FOUNDER_ROLE.equals(r.roleCode()))
-            .toList();
+    var relationships = legalEntityScreener.fetchActiveRelationships(registryCode);
 
     boolean isBoardMember =
         relationships.stream()
@@ -164,15 +147,6 @@ class KybSurveyService {
     }
 
     return relationships;
-  }
-
-  private CompanyDetail fetchCompanyDetail(String registryCode) {
-    return ariregisterClient
-        .getCompanyDetails(registryCode)
-        .orElseThrow(
-            () ->
-                new IllegalStateException(
-                    "Company not found in Ariregister: registryCode=" + registryCode));
   }
 
   private Optional<BlockedReason> getBlockedReason(String registryCode) {

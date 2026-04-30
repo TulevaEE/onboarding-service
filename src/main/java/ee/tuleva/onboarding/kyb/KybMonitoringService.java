@@ -1,11 +1,7 @@
 package ee.tuleva.onboarding.kyb;
 
-import ee.tuleva.onboarding.ariregister.AriregisterClient;
 import ee.tuleva.onboarding.company.CompanyRepository;
-import ee.tuleva.onboarding.kyb.survey.KybCompanyDataMapper;
-import ee.tuleva.onboarding.kyb.survey.KybSurveyDataProvider;
-import java.time.Clock;
-import java.time.LocalDate;
+import ee.tuleva.onboarding.kyb.survey.LatestKybSurveyInputs;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,12 +11,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class KybMonitoringService {
 
-  private final AriregisterClient ariregisterClient;
-  private final KybCompanyDataMapper kybCompanyDataMapper;
-  private final KybSurveyDataProvider kybSurveyDataProvider;
-  private final KybScreeningService kybScreeningService;
+  private final LegalEntityScreener legalEntityScreener;
+  private final LatestKybSurveyInputs latestKybSurveyInputs;
   private final CompanyRepository companyRepository;
-  private final Clock clock;
 
   public void screenAllCompanies() {
     var companies = companyRepository.findAll();
@@ -44,22 +37,9 @@ public class KybMonitoringService {
   }
 
   void screenCompany(String registryCode) {
-    var surveyData = kybSurveyDataProvider.getLatestByRegistryCode(registryCode);
-
-    var relationships =
-        ariregisterClient.getActiveCompanyRelationships(registryCode, LocalDate.now(clock));
-    var detail =
-        ariregisterClient
-            .getCompanyDetails(registryCode)
-            .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        "Company not found in Ariregister: registryCode=" + registryCode));
-
-    var companyData =
-        kybCompanyDataMapper.toKybCompanyData(
-            detail, surveyData.personalCode(), relationships, surveyData.selfCertification());
-
-    kybScreeningService.screen(companyData);
+    var surveyInputs = latestKybSurveyInputs.findByRegistryCode(registryCode);
+    var relationships = legalEntityScreener.fetchActiveRelationships(registryCode);
+    legalEntityScreener.screen(
+        registryCode, surveyInputs.personalCode(), surveyInputs.selfCertification(), relationships);
   }
 }

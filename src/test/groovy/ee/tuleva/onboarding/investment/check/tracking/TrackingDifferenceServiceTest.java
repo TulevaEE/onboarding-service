@@ -203,6 +203,234 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
+  void calculatesBenchmarkModelForBondFund() {
+    skipOtherFunds(TUK00);
+
+    given(fundValueProvider.getLatestValue(TUK00.getIsin(), CHECK_DATE))
+        .willReturn(Optional.of(fundValue("10.10", CHECK_DATE)));
+    given(fundValueProvider.getLatestValue(TUK00.getIsin(), CHECK_DATE.minusDays(1)))
+        .willReturn(Optional.of(fundValue("10.00", PREVIOUS_DATE)));
+
+    var bondIsin = "LU0826455353";
+    var allocation =
+        ModelPortfolioAllocation.builder()
+            .fund(TUK00)
+            .isin(bondIsin)
+            .weight(new BigDecimal("1.00"))
+            .effectiveDate(LocalDate.of(2026, 1, 1))
+            .build();
+    given(modelPortfolioAllocationRepository.findLatestByFund(TUK00))
+        .willReturn(List.of(allocation));
+
+    given(positionPriceResolver.resolve(eq(bondIsin), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(new BigDecimal("116.00"))
+                    .validationStatus(ValidationStatus.OK)
+                    .priceDate(CHECK_DATE)
+                    .build()));
+    given(positionPriceResolver.resolve(eq(bondIsin), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(new BigDecimal("115.00"))
+                    .validationStatus(ValidationStatus.OK)
+                    .priceDate(PREVIOUS_DATE)
+                    .build()));
+
+    var position =
+        FundPosition.builder()
+            .fund(TUK00)
+            .navDate(CHECK_DATE)
+            .accountType(SECURITY)
+            .accountId(bondIsin)
+            .marketValue(new BigDecimal("950000"))
+            .build();
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK00, SECURITY))
+        .willReturn(List.of(position));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK00, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK00, CHECK_DATE, List.of(CASH)))
+        .willReturn(new BigDecimal("50000"));
+    given(feeRateRepository.findValidRate(TUK00, FeeType.MANAGEMENT, CHECK_DATE))
+        .willReturn(Optional.empty());
+    given(eventRepository.findMostRecentEvents(eq(TUK00), any(), eq(CHECK_DATE), eq(2)))
+        .willReturn(List.of());
+
+    // IEAG.DE benchmark for Euro Aggregate bonds
+    given(fundValueProvider.getLatestValue("IE00B3DKXQ41.XETR", CHECK_DATE))
+        .willReturn(Optional.of(fundValue("105.30")));
+    given(fundValueProvider.getLatestValue("IE00B3DKXQ41.XETR", PREVIOUS_DATE))
+        .willReturn(Optional.of(fundValue("105.00")));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var bmModel = results.stream().filter(r -> r.checkType() == BENCHMARK_MODEL).findFirst();
+    assertThat(bmModel).isPresent();
+    assertThat(bmModel.get().fund()).isEqualTo(TUK00);
+  }
+
+  @Test
+  void calculatesBenchmarkModelForEmMutualFund() {
+    skipOtherFunds(TUK75);
+
+    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE))
+        .willReturn(Optional.of(fundValue("10.10", CHECK_DATE)));
+    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE.minusDays(1)))
+        .willReturn(Optional.of(fundValue("10.00", PREVIOUS_DATE)));
+
+    // EM mutual fund ISIN → should resolve to MSCI_EM
+    var emIsin = "IE00BKPTWY98";
+    var allocation =
+        ModelPortfolioAllocation.builder()
+            .fund(TUK75)
+            .isin(emIsin)
+            .weight(new BigDecimal("1.00"))
+            .effectiveDate(LocalDate.of(2026, 1, 1))
+            .build();
+    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75))
+        .willReturn(List.of(allocation));
+
+    given(positionPriceResolver.resolve(eq(emIsin), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(new BigDecimal("20.40"))
+                    .validationStatus(ValidationStatus.OK)
+                    .priceDate(CHECK_DATE)
+                    .build()));
+    given(positionPriceResolver.resolve(eq(emIsin), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(new BigDecimal("20.00"))
+                    .validationStatus(ValidationStatus.OK)
+                    .priceDate(PREVIOUS_DATE)
+                    .build()));
+
+    var position =
+        FundPosition.builder()
+            .fund(TUK75)
+            .navDate(CHECK_DATE)
+            .accountType(SECURITY)
+            .accountId(emIsin)
+            .marketValue(new BigDecimal("950000"))
+            .build();
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
+        .willReturn(List.of(position));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(CASH)))
+        .willReturn(new BigDecimal("50000"));
+    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
+        .willReturn(Optional.empty());
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+        .willReturn(List.of());
+
+    // MSCI_EM benchmark for EM mutual fund
+    given(fundValueProvider.getLatestValue("MSCI_EM", CHECK_DATE))
+        .willReturn(Optional.of(fundValue("500.00")));
+    given(fundValueProvider.getLatestValue("MSCI_EM", PREVIOUS_DATE))
+        .willReturn(Optional.of(fundValue("490.00")));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var bmModel = results.stream().filter(r -> r.checkType() == BENCHMARK_MODEL).findFirst();
+    assertThat(bmModel).isPresent();
+    assertThat(bmModel.get().fund()).isEqualTo(TUK75);
+  }
+
+  @Test
+  void benchmarkModelSkipsWhenBenchmarkDataMissing() {
+    skipOtherFunds(TUK75);
+
+    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE))
+        .willReturn(Optional.of(fundValue("10.10", CHECK_DATE)));
+    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE.minusDays(1)))
+        .willReturn(Optional.of(fundValue("10.00", PREVIOUS_DATE)));
+
+    var etfIsin = "IE00BFNM3G45";
+    var allocation =
+        ModelPortfolioAllocation.builder()
+            .fund(TUK75)
+            .isin(etfIsin)
+            .weight(new BigDecimal("1.00"))
+            .effectiveDate(LocalDate.of(2026, 1, 1))
+            .build();
+    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75))
+        .willReturn(List.of(allocation));
+
+    given(positionPriceResolver.resolve(eq(etfIsin), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(new BigDecimal("51.00"))
+                    .validationStatus(ValidationStatus.OK)
+                    .priceDate(CHECK_DATE)
+                    .build()));
+    given(positionPriceResolver.resolve(eq(etfIsin), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(new BigDecimal("50.00"))
+                    .validationStatus(ValidationStatus.OK)
+                    .priceDate(PREVIOUS_DATE)
+                    .build()));
+
+    var position =
+        FundPosition.builder()
+            .fund(TUK75)
+            .navDate(CHECK_DATE)
+            .accountType(SECURITY)
+            .accountId(etfIsin)
+            .marketValue(new BigDecimal("950000"))
+            .build();
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
+        .willReturn(List.of(position));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(CASH)))
+        .willReturn(new BigDecimal("50000"));
+    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
+        .willReturn(Optional.empty());
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+        .willReturn(List.of());
+
+    // No IWDA.DE benchmark data — BENCHMARK_MODEL should be skipped
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var bmModel = results.stream().filter(r -> r.checkType() == BENCHMARK_MODEL).findFirst();
+    assertThat(bmModel).isEmpty();
+  }
+
+  @Test
+  void runChecksForFundsOnlyChecksSpecifiedFunds() {
+    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE))
+        .willReturn(Optional.of(fundValue("10.10", CHECK_DATE)));
+    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE.minusDays(1)))
+        .willReturn(Optional.of(fundValue("10.00", PREVIOUS_DATE)));
+
+    setupFundDataForFund(TUK75);
+
+    var results = service.runChecksForFunds(List.of(TUK75));
+
+    assertThat(results).allMatch(r -> r.fund() == TUK75);
+  }
+
+  @Test
   void calculatesCompositeBondBenchmarkForTUK00() {
     setupFundData(TUK00);
     given(priorityPriceProvider.resolve("LU0826455353", CHECK_DATE))
@@ -512,6 +740,49 @@ class TrackingDifferenceServiceTest {
             Optional.of(
                 new FeeRate(
                     1L, fund, FeeType.MANAGEMENT, new BigDecimal("0.0034"), CHECK_DATE, null)));
+
+    given(eventRepository.findMostRecentEvents(eq(fund), any(), eq(CHECK_DATE), eq(2)))
+        .willReturn(List.of());
+  }
+
+  private void setupFundDataForFund(TulevaFund fund) {
+    var allocation =
+        ModelPortfolioAllocation.builder()
+            .fund(fund)
+            .isin("IE00B4L5Y983")
+            .weight(new BigDecimal("1.00"))
+            .effectiveDate(LocalDate.of(2026, 1, 1))
+            .build();
+    given(modelPortfolioAllocationRepository.findLatestByFund(fund))
+        .willReturn(List.of(allocation));
+
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("102.00")));
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+
+    var position =
+        FundPosition.builder()
+            .fund(fund)
+            .navDate(CHECK_DATE)
+            .accountType(SECURITY)
+            .accountId("IE00B4L5Y983")
+            .marketValue(new BigDecimal("950000"))
+            .build();
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, fund, SECURITY))
+        .willReturn(List.of(position));
+
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                fund, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                fund, CHECK_DATE, List.of(CASH)))
+        .willReturn(new BigDecimal("50000"));
+
+    given(feeRateRepository.findValidRate(fund, FeeType.MANAGEMENT, CHECK_DATE))
+        .willReturn(Optional.empty());
 
     given(eventRepository.findMostRecentEvents(eq(fund), any(), eq(CHECK_DATE), eq(2)))
         .willReturn(List.of());

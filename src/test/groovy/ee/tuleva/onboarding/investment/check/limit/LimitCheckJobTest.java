@@ -1,12 +1,15 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunLimitCheckBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunLimitCheckRequested;
 import ee.tuleva.onboarding.investment.position.FeeAccrualPositionSyncJob;
-import ee.tuleva.onboarding.savings.fund.nav.AllNavCalculationsCompleted;
+import ee.tuleva.onboarding.savings.fund.nav.NavCalculationCompleted;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,13 +27,14 @@ class LimitCheckJobTest {
   @InjectMocks LimitCheckJob job;
 
   @Test
-  void navCompletedDelegatesToServiceAndNotifier() {
+  void navCompletedDelegatesToServiceForSpecificFunds() {
+    var funds = List.of(TUK75, TUK00);
     var results = List.of(mock(LimitCheckResult.class));
-    when(limitCheckService.runChecks()).thenReturn(results);
+    when(limitCheckService.runChecksForFunds(funds)).thenReturn(results);
 
-    job.onAllNavCalculationsCompleted(new AllNavCalculationsCompleted());
+    job.onNavCalculationCompleted(new NavCalculationCompleted(funds));
 
-    verify(limitCheckService).runChecks();
+    verify(limitCheckService).runChecksForFunds(funds);
     verify(limitCheckNotifier).notify(results);
   }
 
@@ -47,9 +51,10 @@ class LimitCheckJobTest {
 
   @Test
   void swallowsExceptions() {
-    when(limitCheckService.runChecks()).thenThrow(new RuntimeException("DB down"));
+    var funds = List.of(TUK75, TUK00);
+    when(limitCheckService.runChecksForFunds(funds)).thenThrow(new RuntimeException("DB down"));
 
-    job.onAllNavCalculationsCompleted(new AllNavCalculationsCompleted());
+    job.onNavCalculationCompleted(new NavCalculationCompleted(funds));
 
     verify(limitCheckNotifier, never()).notify(any());
   }

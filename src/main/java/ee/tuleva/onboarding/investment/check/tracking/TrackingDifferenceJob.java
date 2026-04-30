@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.check.tracking;
 import static ee.tuleva.onboarding.investment.event.PipelineStep.TRACKING_DIFFERENCE;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.event.NavEventListenerOrder;
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -25,6 +27,7 @@ public class TrackingDifferenceJob {
   private final PipelineTracker pipelineTracker;
 
   @EventListener
+  @Order(NavEventListenerOrder.TRACKING_DIFFERENCE)
   void onNavCalculationCompleted(NavCalculationCompleted event) {
     runTrackingDifferenceChecks(event.funds());
   }

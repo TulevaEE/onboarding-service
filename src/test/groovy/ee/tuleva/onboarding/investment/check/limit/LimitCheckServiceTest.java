@@ -250,6 +250,23 @@ class LimitCheckServiceTest {
   }
 
   @Test
+  void runChecksForFundsOnlyChecksSpecifiedFunds() {
+    service = createService();
+    var today = LocalDate.of(2026, 3, 4);
+    var funds = List.of(TUK75);
+
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, today))
+        .thenReturn(Optional.empty());
+
+    var results = service.runChecksForFunds(funds);
+
+    assertThat(results).isEmpty();
+    verify(fundPositionRepository).findLatestNavDateByFundAndAsOfDate(TUK75, today);
+    // Should NOT check any other funds
+    verify(fundPositionRepository, times(1)).findLatestNavDateByFundAndAsOfDate(any(), any());
+  }
+
+  @Test
   void freeCashSubtractsUnsettledSentOrders() {
     service = createService();
     var checkDate = LocalDate.of(2026, 3, 13);

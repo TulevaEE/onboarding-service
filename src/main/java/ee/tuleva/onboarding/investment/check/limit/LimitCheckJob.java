@@ -4,16 +4,20 @@ import static ee.tuleva.onboarding.investment.JobRunSchedule.LIMIT_CHECK_BACKFIL
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.event.PipelineStep.LIMIT_CHECK;
 
+import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.event.NavEventListenerOrder;
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunLimitCheckBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunLimitCheckRequested;
 import ee.tuleva.onboarding.investment.position.FeeAccrualPositionSyncJob;
-import ee.tuleva.onboarding.savings.fund.nav.AllNavCalculationsCompleted;
+import ee.tuleva.onboarding.savings.fund.nav.NavCalculationCompleted;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -31,13 +35,30 @@ public class LimitCheckJob {
   private final PipelineTracker pipelineTracker;
 
   @EventListener
-  void onAllNavCalculationsCompleted(AllNavCalculationsCompleted event) {
-    runLimitChecks();
+  @Order(NavEventListenerOrder.LIMIT_CHECK)
+  void onNavCalculationCompleted(NavCalculationCompleted event) {
+    runLimitChecksForFunds(event.funds());
   }
 
   @EventListener
   void onLimitCheckRequested(RunLimitCheckRequested event) {
     runLimitChecks();
+  }
+
+  private void runLimitChecksForFunds(List<TulevaFund> funds) {
+    pipelineTracker.stepStarted(LIMIT_CHECK);
+    log.info("Starting limit check: funds={}", funds);
+
+    try {
+      var results = limitCheckService.runChecksForFunds(funds);
+      limitCheckNotifier.notify(results);
+      pipelineTracker.stepCompleted(LIMIT_CHECK);
+
+      log.info("Limit check completed: funds={}, resultCount={}", funds, results.size());
+    } catch (Exception e) {
+      pipelineTracker.stepFailed(LIMIT_CHECK, e.getMessage());
+      log.error("Limit check failed", e);
+    }
   }
 
   private void runLimitChecks() {

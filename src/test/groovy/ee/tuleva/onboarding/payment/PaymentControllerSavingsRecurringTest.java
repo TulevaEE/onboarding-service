@@ -4,6 +4,8 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willAnswer;
+import static org.mockito.Mockito.mock;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -14,7 +16,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
+import ee.tuleva.onboarding.payment.savings.SavingsFundRecipientConfiguration;
+import ee.tuleva.onboarding.payment.savings.recurring.SavingsFundRecurringPaymentLinkGenerator;
+import java.time.LocalDate;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -36,6 +42,19 @@ class PaymentControllerSavingsRecurringTest {
   @Autowired private MockMvc mvc;
 
   @MockitoBean private PaymentService paymentService;
+
+  private final SavingsFundRecipientConfiguration recipientConfiguration =
+      new SavingsFundRecipientConfiguration();
+  private final PaymentDateProvider paymentDateProvider = mock(PaymentDateProvider.class);
+  private final SavingsFundRecurringPaymentLinkGenerator realSavingsRecurringGenerator =
+      new SavingsFundRecurringPaymentLinkGenerator(recipientConfiguration, paymentDateProvider);
+
+  @BeforeEach
+  void delegateSavingsRecurringToRealGenerator() {
+    recipientConfiguration.setRecipientName("Tuleva Täiendav Kogumisfond");
+    recipientConfiguration.setRecipientIban("EE711010220306707220");
+    given(paymentDateProvider.tenthDayOfMonth()).willReturn(LocalDate.of(2026, 5, 10));
+  }
 
   @Test
   void getPaymentLink_forSavingsRecurring_returnsUrlFromService() throws Exception {
@@ -110,6 +129,64 @@ class PaymentControllerSavingsRecurringTest {
                 .with(csrf()))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("payment.channel.required"));
+  }
+
+  @Test
+  void getPaymentLink_forSavingsRecurring_withoutAmount_returns400() throws Exception {
+    var person = sampleAuthenticatedPersonNonMember().build();
+
+    willAnswer(
+            invocation ->
+                realSavingsRecurringGenerator.getPaymentLink(
+                    invocation.getArgument(0), invocation.getArgument(1)))
+        .given(paymentService)
+        .getLink(any(PaymentData.class), any(AuthenticatedPerson.class));
+
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
+
+    mvc.perform(
+            get("/v1/payments/link"
+                    + "?currency=EUR"
+                    + "&type=SAVINGS_RECURRING"
+                    + "&paymentChannel=LHV"
+                    + "&recipientPersonalCode=38812121215")
+                .with(authentication(auth))
+                .with(csrf()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("payment.amount.required"));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"0", "0.001", "-1"})
+  void getPaymentLink_forSavingsRecurring_withInvalidAmount_returns400(String amount)
+      throws Exception {
+    var person = sampleAuthenticatedPersonNonMember().build();
+
+    willAnswer(
+            invocation ->
+                realSavingsRecurringGenerator.getPaymentLink(
+                    invocation.getArgument(0), invocation.getArgument(1)))
+        .given(paymentService)
+        .getLink(any(PaymentData.class), any(AuthenticatedPerson.class));
+
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
+
+    mvc.perform(
+            get("/v1/payments/link"
+                    + "?amount="
+                    + amount
+                    + "&currency=EUR"
+                    + "&type=SAVINGS_RECURRING"
+                    + "&paymentChannel=LHV"
+                    + "&recipientPersonalCode=38812121215")
+                .with(authentication(auth))
+                .with(csrf()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("payment.amount.invalid"));
   }
 
   @Test

@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.payment.recurring
 
 
-import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.PaymentData
@@ -11,6 +10,7 @@ import ee.tuleva.onboarding.payment.RedirectLink
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.config.JsonMapperFixture.jsonMapper
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsServiceStub.stubContactDetailsService
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.*
@@ -22,7 +22,7 @@ class RecurringPaymentLinkGeneratorSpec extends Specification {
 
   def contactDetailsService = stubContactDetailsService()
   def paymentDateProvider = new PaymentDateProvider(clock)
-  def objectMapper = JsonMapper.builder().build()
+  def objectMapper = jsonMapper()
   def localeService = new LocaleService()
   def thirdPillarConfig = thirdPillarRecipientConfiguration()
   def coopPankPaymentLinkGenerator = new CoopPankPaymentLinkGenerator(contactDetailsService, objectMapper, localeService, paymentDateProvider, thirdPillarConfig)
@@ -69,18 +69,69 @@ class RecurringPaymentLinkGeneratorSpec extends Specification {
     link.amount() == "12.34"
   }
 
-  def "works with no amount and currency"() {
+  def "renders #channel amount as plain decimal even when BigDecimal would print scientific"() {
     given:
     def person = samplePerson
-    def paymentData = new PaymentData(samplePerson.personalCode, null, null, RECURRING, PARTNER)
+    def paymentData = new PaymentData(samplePerson.personalCode, new BigDecimal("1E2"), EUR, RECURRING, channel)
+
+    when:
+    def link = recurringPaymentLinkGenerator.getPaymentLink(paymentData, person) as PrefilledLink
+
+    then:
+    link.url().contains(urlFragment)
+    !link.url().contains("1E+2")
+    !link.url().contains("1E2")
+    link.amount() == "100"
+
+    where:
+    channel  | urlFragment
+    LHV      | "&i_amount=100"
+    COOP     | "&MakseSumma=100"
+    COOP_WEB | "&MakseSumma=100"
+  }
+
+  def "renders SEB recurring amount as plain decimal even when BigDecimal would print scientific"() {
+    given:
+    def person = samplePerson
+    def paymentData = new PaymentData(samplePerson.personalCode, new BigDecimal("1E2"), EUR, RECURRING, SEB)
+
+    when:
+    def link = recurringPaymentLinkGenerator.getPaymentLink(paymentData, person) as RedirectLink
+
+    then:
+    link.url().contains("&summa=100")
+    !link.url().contains("1E+2")
+    !link.url().contains("1E2")
+  }
+
+  def "PARTNER recurring serializes amount as plain decimal not scientific"() {
+    given:
+    def person = samplePerson
+    def paymentData = new PaymentData(samplePerson.personalCode, new BigDecimal("1E2"), EUR, RECURRING, PARTNER)
+
+    when:
+    def link = recurringPaymentLinkGenerator.getPaymentLink(paymentData, person) as PrefilledLink
+
+    then:
+    link.url().contains('"amount":100')
+    !link.url().contains("1E+2")
+    !link.url().contains('"amount":"100"') // numeric, not stringified
+  }
+
+  def "accepts recurring #channel with amount exactly at MIN_AMOUNT"() {
+    given:
+    def person = samplePerson
+    def paymentData = new PaymentData(samplePerson.personalCode, new BigDecimal("0.01"), EUR, RECURRING, channel)
 
     when:
     def link = recurringPaymentLinkGenerator.getPaymentLink(paymentData, person)
 
     then:
-    link instanceof PrefilledLink
-    link.url() == """{"accountNumber":"EE362200221067235244","recipientName":"AS Pensionikeskus","amount":null,"currency":null,"description":"30101119828, EE3600001707","reference":"993432432","interval":"MONTHLY","firstPaymentDate":"2020-01-10"}"""
-    (link as PrefilledLink).amount() == null
+    noExceptionThrown()
+    link != null
+
+    where:
+    channel << [SEB, LHV, COOP, COOP_WEB, PARTNER]
   }
 
   def "rejects recurring payments for TULUNDUSUHISTU as 400"() {
@@ -110,6 +161,47 @@ class RecurringPaymentLinkGeneratorSpec extends Specification {
 
     where:
     channel << [SEB, LHV]
+  }
+
+  def "rejects recurring #channel with amount below MIN_AMOUNT as 400"() {
+    given:
+    def person = samplePerson
+    def paymentData = new PaymentData(samplePerson.personalCode, amount, EUR, RECURRING, channel)
+
+    when:
+    recurringPaymentLinkGenerator.getPaymentLink(paymentData, person)
+
+    then:
+    def exception = thrown(ErrorsResponseException)
+    exception.errorsResponse.errors[0].code == "payment.amount.invalid"
+
+    where:
+    channel  | amount
+    SEB      | 0.00
+    SEB      | -1
+    SEB      | 0.001
+    LHV      | 0.00
+    LHV      | -1
+    LHV      | 0.001
+    COOP     | 0.00
+    COOP_WEB | -1
+    PARTNER  | 0.001
+  }
+
+  def "rejects recurring #channel without amount as 400"() {
+    given:
+    def person = samplePerson
+    def paymentData = new PaymentData(samplePerson.personalCode, null, EUR, RECURRING, channel)
+
+    when:
+    recurringPaymentLinkGenerator.getPaymentLink(paymentData, person)
+
+    then:
+    def exception = thrown(ErrorsResponseException)
+    exception.errorsResponse.errors[0].code == "payment.amount.required"
+
+    where:
+    channel << [COOP, COOP_WEB, PARTNER]
   }
 
   def "rejects recurring payment without payment channel as 400"() {

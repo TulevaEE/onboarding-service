@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LHV;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.PARTNER;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.SEB;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.SWEDBANK;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import ee.tuleva.onboarding.payment.PaymentData.PaymentChannel;
 import jakarta.annotation.PostConstruct;
@@ -29,13 +30,23 @@ public class ThirdPillarRecipientConfiguration {
 
   @PostConstruct
   void validate() {
-    var missing =
+    if (isBlank(recipientName)) {
+      throw new IllegalStateException("Missing payment-provider.third-pillar.recipient-name");
+    }
+    if (isBlank(description)) {
+      throw new IllegalStateException("Missing payment-provider.third-pillar.description");
+    }
+    var invalid =
         REQUIRED_CHANNELS.stream()
-            .filter(c -> bankAccounts == null || !bankAccounts.containsKey(c))
+            .filter(
+                c ->
+                    bankAccounts == null
+                        || !bankAccounts.containsKey(c)
+                        || isBlank(bankAccounts.get(c)))
             .toList();
-    if (!missing.isEmpty()) {
+    if (!invalid.isEmpty()) {
       throw new IllegalStateException(
-          "Missing payment-provider.third-pillar.bank-accounts entries: " + missing);
+          "Missing or blank payment-provider.third-pillar.bank-accounts entries: " + invalid);
     }
   }
 }

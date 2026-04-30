@@ -25,6 +25,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
 
+  private static final BigDecimal MIN_AMOUNT = new BigDecimal("0.01");
+
   private final ContactDetailsService contactDetailsService;
   private final PaymentDateProvider paymentDateProvider;
   private final CoopPankPaymentLinkGenerator coopPankPaymentLinkGenerator;
@@ -72,7 +74,7 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
                 + "&i_receiver_account_no="
                 + thirdPillarConfig.getBankAccounts().get(PaymentChannel.LHV)
                 + "&i_payment_desc="
-                // LHV's pre-existing URL uses lowercase %2c for the comma
+                // LHV's standing-order form only accepts lowercase %2c; URLEncoder emits %2C
                 + encodedDescription.replace("%2C", "%2c")
                 + "&i_payment_clirefno="
                 + contactDetails.getPensionAccountNumber()
@@ -85,11 +87,13 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
             thirdPillarConfig.getRecipientName(),
             thirdPillarConfig.getBankAccounts().get(PaymentChannel.LHV),
             thirdPillarConfig.getDescription(),
-            amount.toString());
+            amount);
       }
       case LUMINOR -> new RedirectLink("https://luminor.ee/auth/#/web/view/autopilot/newpayment");
-      case COOP, COOP_WEB, PARTNER ->
-          coopPankPaymentLinkGenerator.getPaymentLink(paymentData, person);
+      case COOP, COOP_WEB, PARTNER -> {
+        requireAmount(paymentData, channel);
+        yield coopPankPaymentLinkGenerator.getPaymentLink(paymentData, person);
+      }
       case TULUNDUSUHISTU ->
           throw new ErrorsResponseException(
               ErrorsResponse.ofSingleError(
@@ -102,7 +106,7 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
     return URLEncoder.encode(value, UTF_8).replace("+", "%20");
   }
 
-  private static BigDecimal requireAmount(PaymentData paymentData, PaymentChannel channel) {
+  private static String requireAmount(PaymentData paymentData, PaymentChannel channel) {
     var amount = paymentData.getAmount();
     if (amount == null) {
       throw new ErrorsResponseException(
@@ -110,6 +114,11 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
               "payment.amount.required",
               "Payment amount is required for " + channel + " recurring links."));
     }
-    return amount;
+    if (amount.compareTo(MIN_AMOUNT) < 0) {
+      throw new ErrorsResponseException(
+          ErrorsResponse.ofSingleError(
+              "payment.amount.invalid", "Payment amount must be at least " + MIN_AMOUNT + "."));
+    }
+    return amount.toPlainString();
   }
 }

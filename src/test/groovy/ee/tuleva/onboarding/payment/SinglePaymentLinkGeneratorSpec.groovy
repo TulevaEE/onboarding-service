@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.payment
 
-import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioPaymentLinkGenerator
@@ -9,6 +8,7 @@ import ee.tuleva.onboarding.payment.PaymentDateProvider
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.config.JsonMapperFixture.jsonMapper
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsServiceStub.stubContactDetailsService
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.COOP_WEB
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.PARTNER
@@ -21,7 +21,7 @@ class SinglePaymentLinkGeneratorSpec extends Specification {
 
   def contactDetailsService = stubContactDetailsService()
   def paymentDateProvider = new PaymentDateProvider(clock)
-  def objectMapper = JsonMapper.builder().build()
+  def objectMapper = jsonMapper()
   def localeService = new LocaleService()
   def thirdPillarConfig = thirdPillarRecipientConfiguration()
   CoopPankPaymentLinkGenerator coopPankPaymentLinkGenerator =

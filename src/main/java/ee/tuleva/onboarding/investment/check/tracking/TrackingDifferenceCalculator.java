@@ -46,8 +46,8 @@ class TrackingDifferenceCalculator {
 
     var validSecurities =
         input.securities().stream()
-            .filter(s -> s.todayPrice() != null && s.yesterdayPrice() != null)
-            .filter(s -> s.yesterdayPrice().signum() != 0)
+            .filter(s -> s.today().price() != null && s.previous().price() != null)
+            .filter(s -> s.previous().price().signum() != 0)
             .toList();
 
     var benchmarkReturn =
@@ -55,7 +55,7 @@ class TrackingDifferenceCalculator {
             .map(
                 s -> {
                   var secReturn =
-                      safeDailyReturn(s.todayPrice(), s.yesterdayPrice(), maxDailyReturn);
+                      safeDailyReturn(s.today().price(), s.previous().price(), maxDailyReturn);
                   return s.modelWeight().multiply(secReturn);
                 })
             .reduce(ZERO, BigDecimal::add)
@@ -69,7 +69,7 @@ class TrackingDifferenceCalculator {
             .map(
                 s -> {
                   var secReturn =
-                      safeDailyReturn(s.todayPrice(), s.yesterdayPrice(), maxDailyReturn);
+                      safeDailyReturn(s.today().price(), s.previous().price(), maxDailyReturn);
                   var weightDiff =
                       s.actualWeight().subtract(s.modelWeight()).setScale(SCALE, HALF_UP);
                   var contribution = weightDiff.multiply(secReturn).setScale(SCALE, HALF_UP);
@@ -134,12 +134,12 @@ class TrackingDifferenceCalculator {
       BigDecimal annualFeeRate,
       int consecutiveBreachDays) {}
 
+  record PriceSnapshot(@Nullable BigDecimal price, @Nullable LocalDate date) {}
+
   record SecurityData(
       String isin,
       BigDecimal modelWeight,
       BigDecimal actualWeight,
-      @Nullable BigDecimal todayPrice,
-      @Nullable BigDecimal yesterdayPrice,
-      @Nullable LocalDate todayPriceDate,
-      @Nullable LocalDate previousPriceDate) {}
+      PriceSnapshot today,
+      PriceSnapshot previous) {}
 }

@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
+import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.PriceSnapshot;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.SecurityData;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.TrackingInput;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
@@ -276,10 +277,8 @@ class TrackingDifferenceCalculatorTest {
                 "IE00B",
                 new BigDecimal("0.40"),
                 new BigDecimal("0.40"),
-                null,
-                new BigDecimal("100"),
-                null,
-                null));
+                new PriceSnapshot(null, null),
+                new PriceSnapshot(new BigDecimal("100"), null)));
 
     var input = inputWithSecurities(securities);
 
@@ -350,9 +349,7 @@ class TrackingDifferenceCalculatorTest {
         isin,
         modelWeight,
         actualWeight,
-        new BigDecimal(todayPrice),
-        new BigDecimal(yesterdayPrice),
-        null,
-        null);
+        new PriceSnapshot(new BigDecimal(todayPrice), null),
+        new PriceSnapshot(new BigDecimal(yesterdayPrice), null));
   }
 }

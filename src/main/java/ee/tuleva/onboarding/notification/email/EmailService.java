@@ -26,6 +26,10 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class EmailService {
 
+  private static final int MAX_RETRIES = 3;
+  private static final long INITIAL_DELAY_MS = 200;
+  private static final int DELAY_MULTIPLIER = 3;
+
   private final EmailConfiguration emailConfiguration;
   private final MandrillApi mandrillApi;
 
@@ -131,25 +135,44 @@ public class EmailService {
     }
   }
 
-  public void sendSystemEmail(MandrillMessage message) {
+  public boolean sendSystemEmail(MandrillMessage message) {
     if (mandrillApi == null) {
       log.warn("Mandrill not initialised, not sending system email");
-      return;
+      return false;
     }
 
-    try {
-      log.info("Sending system email: to={}", message.getTo());
-      MandrillMessageStatus response = mandrillApi.messages().send(message, false)[0];
-      log.info(
-          "Mandrill API response: status={}, id={}, rejectReason={}",
-          response.getStatus(),
-          response.getId(),
-          response.getRejectReason());
-    } catch (MandrillApiError mandrillApiError) {
-      log.error(mandrillApiError.getMandrillErrorAsJson(), mandrillApiError);
-    } catch (Exception e) {
-      log.error("Failed to send system email", e);
+    long delayMs = INITIAL_DELAY_MS;
+    for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        log.info("Sending system email: to={}, attempt={}", message.getTo(), attempt);
+        MandrillMessageStatus response = mandrillApi.messages().send(message, false)[0];
+        log.info(
+            "Mandrill API response: status={}, id={}, rejectReason={}",
+            response.getStatus(),
+            response.getId(),
+            response.getRejectReason());
+        return true;
+      } catch (MandrillApiError mandrillApiError) {
+        log.error(
+            "System email attempt {} failed: {}",
+            attempt,
+            mandrillApiError.getMandrillErrorAsJson(),
+            mandrillApiError);
+      } catch (Exception e) {
+        log.error("System email attempt {} failed", attempt, e);
+      }
+      if (attempt < MAX_RETRIES) {
+        try {
+          Thread.sleep(delayMs);
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          break;
+        }
+        delayMs *= DELAY_MULTIPLIER;
+      }
     }
+    log.error("Failed to send system email after {} attempts", MAX_RETRIES);
+    return false;
   }
 
   public Optional<MandrillScheduledMessageInfo> cancelScheduledEmail(String mandrillMessageId) {

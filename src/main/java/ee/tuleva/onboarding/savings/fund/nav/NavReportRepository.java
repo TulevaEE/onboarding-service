@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.nav;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -10,18 +11,42 @@ import org.springframework.transaction.annotation.Transactional;
 
 interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
 
-  List<NavReportRow> findByNavDateAndFundCodeOrderById(LocalDate navDate, String fundCode);
+  @Query(
+      value =
+          """
+          SELECT * FROM nav_report
+          WHERE nav_date = :navDate AND fund_code = :fundCode
+            AND calculation_id = (
+              SELECT calculation_id FROM nav_report
+              WHERE nav_date = :navDate AND fund_code = :fundCode
+              ORDER BY id DESC LIMIT 1)
+          ORDER BY id
+          """,
+      nativeQuery = true)
+  List<NavReportRow> findLatestByNavDateAndFundCode(
+      @Param("navDate") LocalDate navDate, @Param("fundCode") String fundCode);
 
   @Transactional
   @Modifying(flushAutomatically = true)
-  @Query("delete from NavReportRow r where r.navDate = :navDate and r.fundCode = :fundCode")
-  void deleteByNavDateAndFundCode(
+  @Query(
+      "delete from NavReportRow r where r.navDate = :navDate and r.fundCode = :fundCode"
+          + " and r.publishedAt is null")
+  void deleteUnpublishedByNavDateAndFundCode(
       @Param("navDate") LocalDate navDate, @Param("fundCode") String fundCode);
 
   @Transactional
   default void replaceByNavDateAndFundCode(
       LocalDate navDate, String fundCode, List<NavReportRow> rows) {
-    deleteByNavDateAndFundCode(navDate, fundCode);
+    deleteUnpublishedByNavDateAndFundCode(navDate, fundCode);
     saveAll(rows);
   }
+
+  @Transactional
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(
+      value =
+          "UPDATE nav_report SET published_at = CURRENT_TIMESTAMP"
+              + " WHERE calculation_id = :calculationId",
+      nativeQuery = true)
+  void markAsPublished(@Param("calculationId") UUID calculationId);
 }

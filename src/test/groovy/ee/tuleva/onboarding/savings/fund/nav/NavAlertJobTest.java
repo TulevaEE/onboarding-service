@@ -178,14 +178,14 @@ class NavAlertJobTest {
   private void stubMissing(LocalDate today, ee.tuleva.onboarding.fund.TulevaFund fund) {
     LocalDate navDate = navDateFor(today);
     lenient()
-        .when(navReportRepository.findByNavDateAndFundCodeOrderById(navDate, fund.getCode()))
+        .when(navReportRepository.findLatestByNavDateAndFundCode(navDate, fund.getCode()))
         .thenReturn(List.of());
   }
 
   private void stubPublished(LocalDate today, ee.tuleva.onboarding.fund.TulevaFund fund) {
     LocalDate navDate = navDateFor(today);
     lenient()
-        .when(navReportRepository.findByNavDateAndFundCodeOrderById(navDate, fund.getCode()))
+        .when(navReportRepository.findLatestByNavDateAndFundCode(navDate, fund.getCode()))
         .thenReturn(List.of(new NavReportRow()));
   }
 

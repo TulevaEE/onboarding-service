@@ -76,10 +76,35 @@ class EmailServiceSpec extends Specification {
     def systemMessage = new MandrillMessage()
 
     when:
-    service.sendSystemEmail(systemMessage)
+    def result = service.sendSystemEmail(systemMessage)
 
     then:
     1 * mandrillMessagesApi.send(systemMessage, false) >> [mandrillMessageStatus]
+    result == true
+  }
+
+  def "sendSystemEmail returns false when Mandrill not initialised"() {
+    given:
+    def serviceWithoutMandrill = new EmailService(emailConfiguration, null)
+    def systemMessage = new MandrillMessage()
+
+    when:
+    def result = serviceWithoutMandrill.sendSystemEmail(systemMessage)
+
+    then:
+    result == false
+  }
+
+  def "sendSystemEmail returns false when all retries fail"() {
+    given:
+    def systemMessage = new MandrillMessage()
+
+    when:
+    def result = service.sendSystemEmail(systemMessage)
+
+    then:
+    _ * mandrillMessagesApi.send(systemMessage, false) >> { throw new IOException("Connection reset") }
+    result == false
   }
 
   def "does not send email when user has no email"() {

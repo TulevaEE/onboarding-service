@@ -2,15 +2,19 @@ package ee.tuleva.onboarding.savings.fund.report;
 
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.CC;
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.TO;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.savings.fund.notification.TrusteeReportSentEvent;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -36,6 +40,7 @@ class TrusteeReportJobTest {
   @Mock private TrusteeReportCsvGenerator csvGenerator;
   @Mock private EmailService emailService;
   @Mock private ApplicationEventPublisher eventPublisher;
+  @Mock private OperationsNotificationService notificationService;
 
   private final PublicHolidays publicHolidays = new PublicHolidays();
 
@@ -46,7 +51,12 @@ class TrusteeReportJobTest {
 
   private TrusteeReportJob createJob() {
     return new TrusteeReportJob(
-        repository, csvGenerator, emailService, publicHolidays, eventPublisher);
+        repository,
+        csvGenerator,
+        emailService,
+        publicHolidays,
+        eventPublisher,
+        notificationService);
   }
 
   private void setClockTo(LocalDate date) {
@@ -84,6 +94,7 @@ class TrusteeReportJobTest {
 
     when(repository.findAll()).thenReturn(rows);
     when(csvGenerator.generate(rows)).thenReturn(csvBytes);
+    when(emailService.sendSystemEmail(any())).thenReturn(true);
 
     createJob().sendReport();
 
@@ -119,6 +130,34 @@ class TrusteeReportJobTest {
         .publishEvent(
             new TrusteeReportSentEvent(
                 workingDay, 2, new BigDecimal("1.0000"), ZERO, ZERO, ZERO, ZERO, ZERO));
+  }
+
+  @Test
+  void doesNotPublishEvent_whenEmailFails() {
+    var workingDay = LocalDate.of(2020, 1, 2);
+    setClockTo(workingDay);
+
+    var row =
+        TrusteeReportRow.builder()
+            .reportDate(workingDay)
+            .nav(ONE)
+            .issuedUnits(ZERO)
+            .issuedAmount(ZERO)
+            .redeemedUnits(ZERO)
+            .redeemedAmount(ZERO)
+            .totalOutstandingUnits(ZERO)
+            .build();
+    var rows = List.of(row);
+    var csvBytes = "csv-content".getBytes(UTF_8);
+
+    when(repository.findAll()).thenReturn(rows);
+    when(csvGenerator.generate(rows)).thenReturn(csvBytes);
+    when(emailService.sendSystemEmail(any())).thenReturn(false);
+
+    createJob().sendReport();
+
+    verify(eventPublisher, never()).publishEvent(any(TrusteeReportSentEvent.class));
+    verify(notificationService).sendMessage(any(String.class), eq(SAVINGS));
   }
 
   @Test

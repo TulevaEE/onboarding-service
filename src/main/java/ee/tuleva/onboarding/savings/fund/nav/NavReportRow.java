@@ -15,6 +15,7 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -51,6 +52,10 @@ class NavReportRow {
   private Currency currency = EUR;
 
   private BigDecimal marketValue;
+
+  @NotNull private UUID calculationId;
+
+  private Instant publishedAt;
 
   @Column(insertable = false, updatable = false)
   private Instant createdAt;

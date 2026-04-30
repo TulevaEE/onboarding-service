@@ -24,7 +24,7 @@ class NavReportEmailSender {
   private final NavReportCsvGenerator navReportCsvGenerator;
   private final EmailService emailService;
 
-  void send(List<NavReportRow> rows, NavCalculationResult result) {
+  boolean send(List<NavReportRow> rows, NavCalculationResult result) {
     var csvBytes = navReportCsvGenerator.generate(rows);
 
     var fundCode = result.fund().getCode();
@@ -58,8 +58,14 @@ class NavReportEmailSender {
     attachment.setContent(Base64.getEncoder().encodeToString(csvBytes));
     message.setAttachments(List.of(attachment));
 
-    emailService.sendSystemEmail(message);
+    boolean sent = emailService.sendSystemEmail(message);
 
-    log.info("NAV report email sent: fund={}, date={}, rows={}", fundCode, navDate, rows.size());
+    if (sent) {
+      log.info("NAV report email sent: fund={}, date={}, rows={}", fundCode, navDate, rows.size());
+    } else {
+      log.error("NAV report email failed: fund={}, date={}", fundCode, navDate);
+    }
+
+    return sent;
   }
 }

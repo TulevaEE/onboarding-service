@@ -87,7 +87,7 @@ public class NavAlertJob {
     LocalDate expectedNavDate =
         NavCalculationService.expectedPositionReportDate(fund, today, publicHolidays);
     return navReportRepository
-        .findByNavDateAndFundCodeOrderById(expectedNavDate, fund.getCode())
+        .findLatestByNavDateAndFundCode(expectedNavDate, fund.getCode())
         .isEmpty();
   }
 }

@@ -2,18 +2,21 @@ package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
-import ee.tuleva.onboarding.investment.check.health.HealthCheckService;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -30,7 +33,7 @@ class NavPublisherTest {
   @Mock private NavReportRepository navReportRepository;
   @Mock private NavReportEmailSender navReportEmailSender;
   @Mock private NavNotifier navNotifier;
-  @Mock private HealthCheckService healthCheckService;
+  @Mock private OperationsNotificationService notificationService;
 
   @InjectMocks private NavPublisher navPublisher;
 
@@ -40,27 +43,11 @@ class NavPublisherTest {
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
     Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
 
-    var result =
-        NavCalculationResult.builder()
-            .fund(TKF100)
-            .calculationDate(today)
-            .securitiesValue(new BigDecimal("900000.00"))
-            .cashPosition(new BigDecimal("50000.00"))
-            .receivables(new BigDecimal("10000.00"))
-            .pendingSubscriptions(new BigDecimal("25000.00"))
-            .pendingRedemptions(new BigDecimal("10000.00"))
-            .managementFeeAccrual(new BigDecimal("52.08"))
-            .depotFeeAccrual(new BigDecimal("6.85"))
-            .payables(new BigDecimal("5000.00"))
-            .blackrockAdjustment(BigDecimal.ZERO)
-            .aum(new BigDecimal("969941.07"))
-            .unitsOutstanding(new BigDecimal("100000.00000"))
-            .navPerUnit(new BigDecimal("9.69941"))
-            .positionReportDate(yesterday)
-            .priceDate(yesterday)
-            .calculatedAt(calcTime)
-            .securitiesDetail(List.of())
-            .build();
+    var result = buildResult(TKF100, today, yesterday, calcTime);
+
+    var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TKF100").build();
+    when(navReportMapper.map(result)).thenReturn(List.of(reportRow));
+    when(navReportEmailSender.send(any(), eq(result))).thenReturn(true);
 
     navPublisher.publish(result);
 
@@ -86,7 +73,28 @@ class NavPublisherTest {
     verify(navNotifier).notify(result);
     verify(navReportMapper).map(result);
     verify(navReportRepository).replaceByNavDateAndFundCode(eq(yesterday), eq("TKF100"), any());
-    verify(navReportEmailSender).send(any(), eq(result));
+
+    assertThat(reportRow.getCalculationId()).isNotNull();
+    verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
+  }
+
+  @Test
+  void publish_doesNotMarkAsPublished_whenEmailFails() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
+
+    var result = buildResult(TKF100, today, yesterday, calcTime);
+
+    var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TKF100").build();
+    when(navReportMapper.map(result)).thenReturn(List.of(reportRow));
+    when(navReportEmailSender.send(any(), eq(result))).thenReturn(false);
+
+    navPublisher.publish(result);
+
+    verify(navReportRepository, never()).markAsPublished(any(UUID.class));
+    verify(notificationService).sendMessage(any(String.class), eq(SAVINGS));
+    verify(navNotifier).notify(result);
   }
 
   @Test
@@ -115,6 +123,8 @@ class NavPublisherTest {
             .calculatedAt(calcTime)
             .securitiesDetail(List.of())
             .build();
+
+    when(navReportEmailSender.send(any(), eq(result))).thenReturn(true);
 
     navPublisher.publish(result);
 
@@ -153,6 +163,7 @@ class NavPublisherTest {
     doThrow(new DataIntegrityViolationException("null value in column created_at"))
         .when(navReportRepository)
         .replaceByNavDateAndFundCode(any(), any(), any());
+    when(navReportEmailSender.send(any(), eq(result))).thenReturn(true);
 
     navPublisher.publish(result);
 
@@ -160,41 +171,30 @@ class NavPublisherTest {
     verify(navNotifier).notify(result);
   }
 
-  @Test
-  void publish_skipsEmailSendWhenHealthCheckBlocksPublication() {
-    LocalDate today = LocalDate.of(2025, 1, 15);
-    LocalDate yesterday = LocalDate.of(2025, 1, 14);
-    Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
-
-    var result =
-        NavCalculationResult.builder()
-            .fund(TKF100)
-            .calculationDate(today)
-            .securitiesValue(new BigDecimal("900000.00"))
-            .cashPosition(new BigDecimal("50000.00"))
-            .receivables(BigDecimal.ZERO)
-            .pendingSubscriptions(BigDecimal.ZERO)
-            .pendingRedemptions(BigDecimal.ZERO)
-            .managementFeeAccrual(BigDecimal.ZERO)
-            .depotFeeAccrual(BigDecimal.ZERO)
-            .payables(BigDecimal.ZERO)
-            .blackrockAdjustment(BigDecimal.ZERO)
-            .aum(new BigDecimal("950000.00"))
-            .unitsOutstanding(new BigDecimal("100000.00000"))
-            .navPerUnit(new BigDecimal("9.50000"))
-            .positionReportDate(yesterday)
-            .priceDate(yesterday)
-            .calculatedAt(calcTime)
-            .securitiesDetail(List.of())
-            .build();
-
-    when(healthCheckService.isNavPublishBlocked(TKF100, yesterday)).thenReturn(true);
-
-    navPublisher.publish(result);
-
-    verify(navReportEmailSender, never()).send(any(), any());
-    verify(fundValueRepository, times(2)).save(any());
-    verify(navReportRepository).replaceByNavDateAndFundCode(eq(yesterday), eq("TKF100"), any());
-    verify(navNotifier).notify(result);
+  private NavCalculationResult buildResult(
+      ee.tuleva.onboarding.fund.TulevaFund fund,
+      LocalDate calculationDate,
+      LocalDate positionReportDate,
+      Instant calculatedAt) {
+    return NavCalculationResult.builder()
+        .fund(fund)
+        .calculationDate(calculationDate)
+        .securitiesValue(new BigDecimal("900000.00"))
+        .cashPosition(new BigDecimal("50000.00"))
+        .receivables(new BigDecimal("10000.00"))
+        .pendingSubscriptions(new BigDecimal("25000.00"))
+        .pendingRedemptions(new BigDecimal("10000.00"))
+        .managementFeeAccrual(new BigDecimal("52.08"))
+        .depotFeeAccrual(new BigDecimal("6.85"))
+        .payables(new BigDecimal("5000.00"))
+        .blackrockAdjustment(BigDecimal.ZERO)
+        .aum(new BigDecimal("969941.07"))
+        .unitsOutstanding(new BigDecimal("100000.00000"))
+        .navPerUnit(new BigDecimal("9.69941"))
+        .positionReportDate(positionReportDate)
+        .priceDate(positionReportDate)
+        .calculatedAt(calculatedAt)
+        .securitiesDetail(List.of())
+        .build();
   }
 }

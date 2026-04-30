@@ -287,23 +287,23 @@ class NavSelfHealJobTest {
   private void stubAllPublished(LocalDate today) {
     LocalDate navDate = navDateFor(today);
     lenient()
-        .when(navReportRepository.findByNavDateAndFundCodeOrderById(navDate, TKF100.getCode()))
+        .when(navReportRepository.findLatestByNavDateAndFundCode(navDate, TKF100.getCode()))
         .thenReturn(List.of(new NavReportRow()));
     lenient()
-        .when(navReportRepository.findByNavDateAndFundCodeOrderById(navDate, TUK75.getCode()))
+        .when(navReportRepository.findLatestByNavDateAndFundCode(navDate, TUK75.getCode()))
         .thenReturn(List.of(new NavReportRow()));
     lenient()
-        .when(navReportRepository.findByNavDateAndFundCodeOrderById(navDate, TUK00.getCode()))
+        .when(navReportRepository.findLatestByNavDateAndFundCode(navDate, TUK00.getCode()))
         .thenReturn(List.of(new NavReportRow()));
     lenient()
-        .when(navReportRepository.findByNavDateAndFundCodeOrderById(navDate, TUV100.getCode()))
+        .when(navReportRepository.findLatestByNavDateAndFundCode(navDate, TUV100.getCode()))
         .thenReturn(List.of(new NavReportRow()));
   }
 
   private void stubMissing(LocalDate today, TulevaFund fund) {
     LocalDate navDate = navDateFor(today);
     lenient()
-        .when(navReportRepository.findByNavDateAndFundCodeOrderById(navDate, fund.getCode()))
+        .when(navReportRepository.findLatestByNavDateAndFundCode(navDate, fund.getCode()))
         .thenReturn(List.of());
   }
 

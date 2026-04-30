@@ -1,9 +1,12 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
+
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
-import ee.tuleva.onboarding.investment.check.health.HealthCheckService;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,7 +23,7 @@ public class NavPublisher {
   private final NavReportRepository navReportRepository;
   private final NavReportEmailSender navReportEmailSender;
   private final NavNotifier navNotifier;
-  private final HealthCheckService healthCheckService;
+  private final OperationsNotificationService notificationService;
 
   public void publish(NavCalculationResult result) {
     if (result.fund().isSavingsFund()) {
@@ -28,9 +31,11 @@ public class NavPublisher {
       publishAum(result);
     }
 
+    UUID calculationId = UUID.randomUUID();
     List<NavReportRow> reportRows = List.of();
     try {
       reportRows = navReportMapper.map(result);
+      reportRows.forEach(row -> row.setCalculationId(calculationId));
       navReportRepository.replaceByNavDateAndFundCode(
           result.positionReportDate(), result.fund().getCode(), reportRows);
     } catch (Exception e) {
@@ -42,23 +47,38 @@ public class NavPublisher {
           e);
     }
 
-    if (healthCheckService.isNavPublishBlocked(result.fund(), result.positionReportDate())) {
-      log.warn(
-          "Skipping NAV report email — health check blocks publication: fund={}, date={}",
-          result.fund(),
-          result.positionReportDate());
-    } else {
-      try {
-        navReportEmailSender.send(reportRows, result);
-      } catch (Exception e) {
+    try {
+      boolean emailSent = navReportEmailSender.send(reportRows, result);
+      if (emailSent) {
+        navReportRepository.markAsPublished(calculationId);
+      } else {
         log.error(
-            "Failed to send NAV report email: fund={}, date={}",
+            "NAV report email failed, rows remain unpublished: fund={}, date={}",
             result.fund(),
-            result.calculationDate(),
-            e);
+            result.positionReportDate());
+        notificationService.sendMessage(
+            "NAV report email failed: fund="
+                + result.fund().getCode()
+                + ", date="
+                + result.positionReportDate(),
+            SAVINGS);
       }
+    } catch (Exception e) {
+      log.error(
+          "Failed to send NAV report email: fund={}, date={}",
+          result.fund(),
+          result.calculationDate(),
+          e);
+      notificationService.sendMessage(
+          "NAV report email failed: fund="
+              + result.fund().getCode()
+              + ", date="
+              + result.positionReportDate(),
+          SAVINGS);
     }
 
+    // NAV/AUM values are always published to the API regardless of email success.
+    // The email is the audit trail for trustees; the API serves members and internal systems.
     navNotifier.notify(result);
 
     log.info(

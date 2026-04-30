@@ -60,17 +60,13 @@ public class NavCalculationJob {
       zone = "Europe/Tallinn")
   @SchedulerLock(name = "NavCalculationJob_Pillar3", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   public void calculatePillar3Nav() {
-    runPipeline(TUV100, TulevaFund.getPillar3Funds(), true);
+    runPipeline(TUV100, TulevaFund.getPillar3Funds());
   }
 
   private void runPipeline(TulevaFund trigger, List<TulevaFund> funds) {
-    runPipeline(trigger, funds, false);
-  }
-
-  private void runPipeline(TulevaFund trigger, List<TulevaFund> funds, boolean lastOfDay) {
     pipelineTracker.start(PipelineRun.PipelineType.NAV, "NAV " + trigger.getCode());
     try {
-      eventPublisher.publishEvent(new RunNavCalculationRequested(funds, lastOfDay));
+      eventPublisher.publishEvent(new RunNavCalculationRequested(funds));
     } finally {
       pipelineNotifier.sendCompleted(pipelineTracker.current());
       pipelineTracker.clear();
@@ -80,14 +76,9 @@ public class NavCalculationJob {
   @EventListener
   public void onNavCalculationRequested(RunNavCalculationRequested event) {
     pipelineTracker.stepStarted(NAV_CALCULATION);
-    int successfullyPublishedCount = calculateForFunds(event.funds());
+    calculateForFunds(event.funds());
     pipelineTracker.stepCompleted(NAV_CALCULATION);
-    if (successfullyPublishedCount > 0) {
-      eventPublisher.publishEvent(new NavCalculationCompleted(event.funds()));
-    }
-    if (event.lastOfDay() && successfullyPublishedCount > 0) {
-      eventPublisher.publishEvent(new AllNavCalculationsCompleted());
-    }
+    eventPublisher.publishEvent(new NavCalculationCompleted(event.funds()));
   }
 
   private int calculateForFunds(List<TulevaFund> funds) {

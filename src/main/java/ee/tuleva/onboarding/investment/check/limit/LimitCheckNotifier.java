@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.util.List;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -21,8 +22,13 @@ class LimitCheckNotifier {
       var hasAnyBreaches = results.stream().anyMatch(LimitCheckResult::hasBreaches);
 
       if (!hasAnyBreaches) {
+        if (results.isEmpty()) {
+          return;
+        }
+        var fundNames =
+            results.stream().map(r -> r.fund().getCode()).collect(Collectors.joining(", "));
         notificationService.sendMessage(
-            "Limit check completed: all funds within limits", INVESTMENT);
+            "Limit check completed: %s within limits".formatted(fundNames), INVESTMENT);
         return;
       }
 

@@ -246,60 +246,6 @@ class NavCalculationJobTest {
   }
 
   @Test
-  void pillar3Retry_doesNotFireAllNavCalculationsCompleted_whenAllAlreadyPublished() {
-    var job = jobOn("2025-01-15T13:25:00Z"); // 15:25 Tallinn, after TUV100 cutoff
-
-    LocalDate today = LocalDate.of(2025, 1, 15);
-    LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
-    // TUV100 was already published by the normal cron and AllNavCalculationsCompleted was
-    // already fired; the retry must not re-trigger downstream LimitCheckJob /
-    // TrackingDifferenceJob.
-    when(navReportRepository.findByNavDateAndFundCodeOrderById(
-            previousWorkingDay, TUV100.getCode()))
-        .thenReturn(List.of(new NavReportRow()));
-
-    job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TUV100), true));
-
-    verify(eventPublisher, never()).publishEvent(any(AllNavCalculationsCompleted.class));
-    verify(eventPublisher, never()).publishEvent(any(NavCalculationCompleted.class));
-  }
-
-  @Test
-  void pillar3Retry_doesNotFireAllNavCalculationsCompleted_whenEveryFundThrows() {
-    var job = jobOn("2025-01-15T13:25:00Z");
-
-    LocalDate today = LocalDate.of(2025, 1, 15);
-    LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
-    when(navReportRepository.findByNavDateAndFundCodeOrderById(
-            previousWorkingDay, TUV100.getCode()))
-        .thenReturn(List.of());
-    when(navCalculationService.calculate(TUV100, today))
-        .thenThrow(new RuntimeException("Provider blew up"));
-
-    job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TUV100), true));
-
-    verify(eventPublisher, never()).publishEvent(any(AllNavCalculationsCompleted.class));
-    verify(eventPublisher, never()).publishEvent(any(NavCalculationCompleted.class));
-  }
-
-  @Test
-  void pillar3Retry_firesAllNavCalculationsCompleted_whenActuallyCalculatingMissingFund() {
-    var job = jobOn("2025-01-15T13:25:00Z");
-
-    LocalDate today = LocalDate.of(2025, 1, 15);
-    LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
-    when(navReportRepository.findByNavDateAndFundCodeOrderById(
-            previousWorkingDay, TUV100.getCode()))
-        .thenReturn(List.of());
-    when(navCalculationService.calculate(TUV100, today)).thenReturn(buildTestResult(TUV100, today));
-
-    job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TUV100), true));
-
-    verify(eventPublisher).publishEvent(any(AllNavCalculationsCompleted.class));
-    verify(eventPublisher).publishEvent(any(NavCalculationCompleted.class));
-  }
-
-  @Test
   void scheduleMethodsPublishEvents() {
     var job = jobOn("2025-01-15T14:30:00Z");
 

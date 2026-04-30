@@ -1,12 +1,16 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
+import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
+import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.PENDING;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.IN_REVIEW;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.country.Country;
+import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyService;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
@@ -24,6 +28,8 @@ public class RedemptionVerificationService {
   private final UserService userService;
   private final KycSurveyService kycSurveyService;
   private final AmlService amlService;
+  private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
+  private final LegalEntityScreener legalEntityScreener;
 
   @Transactional
   public void process(RedemptionRequest request) {
@@ -35,13 +41,7 @@ public class RedemptionVerificationService {
     boolean passed =
         switch (request.getPartyId().type()) {
           case PERSON -> runPersonChecks(request);
-          // TODO: Replace this always-IN_REVIEW branch with a lookup against the periodic company
-          //  KYB recheck job (sanctions/PEP + structural checks driven by
-          // KybScreeningService.screen).
-          //  Until that job is in place, every legal-entity redemption is routed to IN_REVIEW for
-          //  manual compliance review. We are not going live with LE redemptions before the
-          //  periodic job lands.
-          case LEGAL_ENTITY -> false;
+          case LEGAL_ENTITY -> runLegalEntityChecks(request);
         };
 
     if (!passed) {
@@ -67,5 +67,31 @@ public class RedemptionVerificationService {
 
     List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, country);
     return checks.stream().allMatch(AmlCheck::isSuccess);
+  }
+
+  private boolean runLegalEntityChecks(RedemptionRequest request) {
+    var registryCode = request.getPartyId().code();
+    if (savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY)) {
+      return true;
+    }
+    var needsScreening =
+        savingsFundOnboardingRepository
+            .findStatus(registryCode, LEGAL_ENTITY)
+            .map(status -> status == PENDING)
+            .orElse(true);
+    if (!needsScreening) {
+      return false;
+    }
+    try {
+      legalEntityScreener.screenLatest(registryCode);
+    } catch (RuntimeException e) {
+      log.error(
+          "Failed to re-screen legal entity for redemption: requestId={}, registryCode={}",
+          request.getId(),
+          registryCode,
+          e);
+      return false;
+    }
+    return savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY);
   }
 }

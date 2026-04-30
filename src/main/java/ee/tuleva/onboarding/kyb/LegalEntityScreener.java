@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.kyb;
 import ee.tuleva.onboarding.ariregister.AriregisterClient;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
+import ee.tuleva.onboarding.kyb.survey.LatestKybSurveyInputs;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
@@ -18,6 +19,7 @@ public class LegalEntityScreener {
   private final AriregisterClient ariregisterClient;
   private final KybCompanyDataMapper kybCompanyDataMapper;
   private final KybScreeningService kybScreeningService;
+  private final LatestKybSurveyInputs latestKybSurveyInputs;
   private final Clock clock;
 
   public List<CompanyRelationship> fetchActiveRelationships(String registryCode) {
@@ -38,6 +40,13 @@ public class LegalEntityScreener {
         kybCompanyDataMapper.toKybCompanyData(
             detail, personalCode, relationships, selfCertification);
     return kybScreeningService.screen(data);
+  }
+
+  public List<KybCheck> screenLatest(String registryCode) {
+    var surveyInputs = latestKybSurveyInputs.findByRegistryCode(registryCode);
+    var relationships = fetchActiveRelationships(registryCode);
+    return screen(
+        registryCode, surveyInputs.personalCode(), surveyInputs.selfCertification(), relationships);
   }
 
   public ValidationResult validate(

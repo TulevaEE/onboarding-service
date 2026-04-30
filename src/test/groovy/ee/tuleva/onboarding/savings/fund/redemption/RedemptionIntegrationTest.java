@@ -437,7 +437,7 @@ class RedemptionIntegrationTest {
   }
 
   @Test
-  void verifyLegalEntityRedemption_alwaysRoutesToInReviewUntilPeriodicKybLands() {
+  void verifyLegalEntityRedemption_routesToVerifiedWhenLatestKybCompleted() {
     var registryCode = "16001234";
     var companyName = "Acme Holding OÜ";
     var companyIban = "EE382200221020145685";
@@ -462,7 +462,7 @@ class RedemptionIntegrationTest {
     redemptionVerificationService.process(request);
 
     var afterVerification = redemptionRequestRepository.findById(requestId).orElseThrow();
-    assertThat(afterVerification.getStatus()).isEqualTo(IN_REVIEW);
+    assertThat(afterVerification.getStatus()).isEqualTo(VERIFIED);
   }
 
   @Test
@@ -487,9 +487,6 @@ class RedemptionIntegrationTest {
             leAuthenticatedPerson, redemptionAmount, EUR, companyIban);
     var requestId = request.getId();
 
-    // Simulate compliance officer manually clearing the LE redemption (until the periodic KYB
-    // recheck job lands and the LE branch in RedemptionVerificationService.process can transition
-    // to VERIFIED automatically).
     redemptionStatusService.changeStatus(requestId, VERIFIED);
 
     ClockHolder.setClock(Clock.fixed(tuesday, UTC));

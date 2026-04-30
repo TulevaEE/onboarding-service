@@ -62,13 +62,12 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
                       "Coop Pank payment links to the specified payment channel are not"
                           + " supported."));
         };
-    var amount = paymentData.getAmount() == null ? null : paymentData.getAmount().toString();
     return new PrefilledLink(
         url,
         thirdPillarConfig.getRecipientName(),
         thirdPillarConfig.getBankAccounts().get(paymentData.getPaymentChannel()),
         thirdPillarConfig.getDescription(),
-        amount);
+        formattedAmount(paymentData));
   }
 
   private String singlePaymentPath(PaymentData paymentData, ContactDetails contactDetails) {
@@ -78,9 +77,11 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
         + urlEncode(thirdPillarConfig.getRecipientName())
         + "&SaajaKonto="
         + thirdPillarConfig.getBankAccounts().get(paymentData.getPaymentChannel())
-        + (paymentData.getAmount() != null ? "&MuutMakseSumma=" + paymentData.getAmount() : "")
+        + (paymentData.getAmount() != null
+            ? "&MuutMakseSumma=" + paymentData.getAmount().toPlainString()
+            : "")
         + "&MaksePohjus="
-        // Coop Pank's pre-existing URL uses lowercase %2c for the comma
+        // Coop Pank's form only accepts lowercase %2c; URLEncoder emits %2C
         + urlEncode(thirdPillarConfig.getDescription()).replace("%2C", "%2c")
         + "&ViiteNumber="
         + contactDetails.getPensionAccountNumber();
@@ -94,15 +95,21 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
         + urlEncode(thirdPillarConfig.getRecipientName())
         + "&SaajaKonto="
         + thirdPillarConfig.getBankAccounts().get(paymentData.getPaymentChannel())
-        + (paymentData.getAmount() != null ? "&MakseSumma=" + paymentData.getAmount() : "")
+        + (paymentData.getAmount() != null
+            ? "&MakseSumma=" + paymentData.getAmount().toPlainString()
+            : "")
         + "&MaksePohjus="
-        // Coop Pank's pre-existing URL uses lowercase %2c for the comma
+        // Coop Pank's form only accepts lowercase %2c; URLEncoder emits %2C
         + urlEncode(thirdPillarConfig.getDescription()).replace("%2C", "%2c")
         + "&ViiteNumber="
         + contactDetails.getPensionAccountNumber()
         + "&MakseSagedus=3" // Monthly
         + "&MakseEsimene="
         + format(paymentDateProvider.tenthDayOfMonth());
+  }
+
+  private static String formattedAmount(PaymentData paymentData) {
+    return paymentData.getAmount() == null ? null : paymentData.getAmount().toPlainString();
   }
 
   private String language() {

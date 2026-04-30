@@ -211,6 +211,23 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
         .doesNotContain("Tuleva & Co?");
   }
 
+  @Test
+  void rendersAmountAsPlainDecimalEvenWhenBigDecimalWouldPrintScientific() {
+    var paymentData =
+        PaymentData.builder()
+            .amount(new BigDecimal("1E2"))
+            .currency(EUR)
+            .type(SAVINGS_RECURRING)
+            .paymentChannel(LHV)
+            .recipientPersonalCode(PERSONAL_CODE)
+            .build();
+
+    var link = (PrefilledLink) generator.getPaymentLink(paymentData, person());
+
+    assertThat(link.amount()).isEqualTo("100");
+    assertThat(link.url()).contains("i_amount=100").doesNotContain("1E+2").doesNotContain("1E2");
+  }
+
   private PrefilledLink prefilledLink(PaymentChannel channel) {
     PaymentLink link = generator.getPaymentLink(paymentData(channel), person());
     assertThat(link).isInstanceOf(PrefilledLink.class);

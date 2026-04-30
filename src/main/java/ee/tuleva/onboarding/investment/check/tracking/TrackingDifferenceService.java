@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker.*;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
@@ -14,6 +15,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.PriceSnapshot;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.SecurityData;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.TrackingInput;
 import ee.tuleva.onboarding.investment.fees.FeeRate;
@@ -49,16 +51,6 @@ class TrackingDifferenceService {
   private static final int ESCALATION_LOOKBACK = 2;
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
   private static final int SCALE = 6;
-
-  private static final java.util.Set<String> EM_ISINS =
-      java.util.Set.of("IE00BKPTWY98", "IE00BMDBMY19");
-
-  private static final Map<String, String> BOND_BENCHMARK_KEYS =
-      Map.of(
-          "LU0826455353", "IE00B3DKXQ41.XETR",
-          "IE0031080751", "IE00B3DKXQ41.XETR",
-          "LU0839970364", "IE00BDBRDM35.XETR",
-          "IE0005032192", "IE00BDBRDM35.XETR");
 
   private static final Map<TulevaFund, BenchmarkConfig> BENCHMARK_CONFIGS =
       Map.of(
@@ -180,7 +172,7 @@ class TrackingDifferenceService {
 
     var missingPrices =
         securities.stream()
-            .filter(s -> s.todayPrice() == null || s.yesterdayPrice() == null)
+            .filter(s -> s.today().price() == null || s.previous().price() == null)
             .map(SecurityData::isin)
             .toList();
     if (!missingPrices.isEmpty()) {
@@ -320,70 +312,43 @@ class TrackingDifferenceService {
 
     var validSecurities =
         securities.stream()
-            .filter(s -> s.todayPrice() != null && s.yesterdayPrice() != null)
-            .filter(s -> s.yesterdayPrice().signum() != 0)
-            .filter(s -> s.todayPriceDate() != null && s.previousPriceDate() != null)
+            .filter(s -> s.today().price() != null && s.previous().price() != null)
+            .filter(s -> s.previous().price().signum() != 0)
+            .filter(s -> s.today().date() != null && s.previous().date() != null)
             .toList();
 
     if (validSecurities.isEmpty()) {
       return Optional.empty();
     }
 
-    var isBondFund = fund == TulevaFund.TUK00;
     var totalWeightedReturn = ZERO;
     var totalWeightedBenchmarkReturn = ZERO;
     var totalWeight = ZERO;
 
-    if (isBondFund) {
-      for (var s : validSecurities) {
-        var benchmarkKey = BOND_BENCHMARK_KEYS.get(s.isin());
-        if (benchmarkKey == null) {
-          continue;
-        }
-        var benchmarkReturn = lookupReturn(benchmarkKey, s.todayPriceDate(), s.previousPriceDate());
-        if (benchmarkReturn.isEmpty()) {
-          log.warn(
-              "Missing bond benchmark data: fund={}, isin={}, benchmarkKey={}",
-              fund,
-              s.isin(),
-              benchmarkKey);
-          continue;
-        }
-        var secReturn =
-            s.todayPrice()
-                .subtract(s.yesterdayPrice())
-                .divide(s.yesterdayPrice(), SCALE, RoundingMode.HALF_UP);
-        var weight = s.actualWeight();
-        totalWeightedReturn = totalWeightedReturn.add(weight.multiply(secReturn));
-        totalWeightedBenchmarkReturn =
-            totalWeightedBenchmarkReturn.add(weight.multiply(benchmarkReturn.get()));
-        totalWeight = totalWeight.add(weight);
+    for (var s : validSecurities) {
+      var benchmarkKey = resolveBenchmarkKey(s.isin());
+      if (benchmarkKey == null) {
+        continue;
       }
-    } else {
-      for (var s : validSecurities) {
-        var benchmarkKey = resolveBenchmarkKey(s.isin());
-        if (benchmarkKey == null) {
-          continue;
-        }
-        var benchmarkReturn = lookupReturn(benchmarkKey, s.todayPriceDate(), s.previousPriceDate());
-        if (benchmarkReturn.isEmpty()) {
-          log.warn(
-              "Missing benchmark model data: fund={}, isin={}, benchmarkKey={}",
-              fund,
-              s.isin(),
-              benchmarkKey);
-          continue;
-        }
-        var secReturn =
-            s.todayPrice()
-                .subtract(s.yesterdayPrice())
-                .divide(s.yesterdayPrice(), SCALE, RoundingMode.HALF_UP);
-        var weight = s.actualWeight();
-        totalWeightedReturn = totalWeightedReturn.add(weight.multiply(secReturn));
-        totalWeightedBenchmarkReturn =
-            totalWeightedBenchmarkReturn.add(weight.multiply(benchmarkReturn.get()));
-        totalWeight = totalWeight.add(weight);
+      var benchmarkReturn = lookupReturn(benchmarkKey, s.today().date(), s.previous().date());
+      if (benchmarkReturn.isEmpty()) {
+        log.warn(
+            "Missing benchmark model data: fund={}, isin={}, benchmarkKey={}",
+            fund,
+            s.isin(),
+            benchmarkKey);
+        continue;
       }
+      var secReturn =
+          s.today()
+              .price()
+              .subtract(s.previous().price())
+              .divide(s.previous().price(), SCALE, RoundingMode.HALF_UP);
+      var weight = s.actualWeight();
+      totalWeightedReturn = totalWeightedReturn.add(weight.multiply(secReturn));
+      totalWeightedBenchmarkReturn =
+          totalWeightedBenchmarkReturn.add(weight.multiply(benchmarkReturn.get()));
+      totalWeight = totalWeight.add(weight);
     }
 
     if (totalWeight.signum() == 0) {
@@ -419,20 +384,26 @@ class TrackingDifferenceService {
   }
 
   private String resolveBenchmarkKey(String isin) {
-    var isEm = EM_ISINS.contains(isin);
     var ticker = FundTicker.findByIsin(isin).orElse(null);
     if (ticker == null) {
+      return null;
+    }
+
+    var category = ticker.getBenchmarkCategory();
+    if (category == null) {
       return null;
     }
 
     var isEtf =
         ticker.getEodhdTicker().endsWith(".XETRA") || ticker.getEodhdTicker().endsWith(".PA.EODHD");
 
-    if (isEtf) {
-      return isEm ? "IE00B4L5YC18.XETR" : "IE00B4L5Y983.XETR";
-    } else {
-      return isEm ? "MSCI_EM" : "MSCI_WORLD";
-    }
+    return switch (category) {
+      case EQUITY_DM ->
+          isEtf ? ISHARES_CORE_MSCI_WORLD.getXetraStorageKey().orElseThrow() : "MSCI_WORLD";
+      case EQUITY_EM -> isEtf ? ISHARES_MSCI_EM.getXetraStorageKey().orElseThrow() : "MSCI_EM";
+      case BOND_EURO -> ISHARES_EURO_AGG_BOND_ETF.getXetraStorageKey().orElseThrow();
+      case BOND_GLOBAL -> ISHARES_GLOBAL_AGG_BOND_ETF.getXetraStorageKey().orElseThrow();
+    };
   }
 
   private Optional<BigDecimal> lookupReturn(
@@ -488,14 +459,16 @@ class TrackingDifferenceService {
                       ? actualMarketValue.divide(totalNav, 6, RoundingMode.HALF_UP)
                       : ZERO;
 
-              return new SecurityData(
-                  a.getIsin(),
-                  a.getWeight(),
-                  actualWeight,
-                  todayResolved != null ? todayResolved.usedPrice() : null,
-                  yesterdayResolved != null ? yesterdayResolved.usedPrice() : null,
-                  todayResolved != null ? todayResolved.priceDate() : null,
-                  yesterdayResolved != null ? yesterdayResolved.priceDate() : null);
+              var today =
+                  new PriceSnapshot(
+                      todayResolved != null ? todayResolved.usedPrice() : null,
+                      todayResolved != null ? todayResolved.priceDate() : null);
+              var previous =
+                  new PriceSnapshot(
+                      yesterdayResolved != null ? yesterdayResolved.usedPrice() : null,
+                      yesterdayResolved != null ? yesterdayResolved.priceDate() : null);
+
+              return new SecurityData(a.getIsin(), a.getWeight(), actualWeight, today, previous);
             })
         .toList();
   }

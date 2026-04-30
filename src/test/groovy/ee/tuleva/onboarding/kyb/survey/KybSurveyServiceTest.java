@@ -14,12 +14,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.ariregister.AddressDetails;
-import ee.tuleva.onboarding.ariregister.AriregisterClient;
 import ee.tuleva.onboarding.ariregister.CompanyAddress;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
-import ee.tuleva.onboarding.kyb.*;
+import ee.tuleva.onboarding.kyb.KybCheck;
+import ee.tuleva.onboarding.kyb.LegalEntityScreener;
+import ee.tuleva.onboarding.kyb.LegalEntityScreener.ValidationResult;
+import ee.tuleva.onboarding.kyb.PersonalCode;
+import ee.tuleva.onboarding.kyb.SelfCertification;
 import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSourceItem;
 import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanySourceOfIncome;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
@@ -27,14 +30,13 @@ import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -46,9 +48,7 @@ class KybSurveyServiceTest {
   private static final String REGISTRY_CODE = "12345678";
   private static final String PERSONAL_CODE = "38501010002";
 
-  @Mock private AriregisterClient ariregisterClient;
-  @Mock private KybCompanyDataMapper kybCompanyDataMapper;
-  @Mock private KybScreeningService kybScreeningService;
+  @Mock private LegalEntityScreener legalEntityScreener;
   @Mock private KybSurveyResponseMapper kybSurveyResponseMapper;
   @Mock private KybSurveyRepository kybSurveyRepository;
   @Mock private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
@@ -56,41 +56,60 @@ class KybSurveyServiceTest {
 
   @Spy private Clock clock = Clock.fixed(Instant.parse("2026-03-25T10:00:00Z"), ZoneId.of("UTC"));
 
-  @InjectMocks private KybSurveyService service;
+  private KybSurveyService service;
+
+  @BeforeEach
+  void setUp() {
+    service =
+        new KybSurveyService(
+            legalEntityScreener,
+            kybSurveyResponseMapper,
+            kybSurveyRepository,
+            savingsFundOnboardingRepository,
+            eventPublisher,
+            clock);
+  }
+
+  private CompanyDetail sampleDetail() {
+    return new CompanyDetail(
+        "Test OÜ",
+        REGISTRY_CODE,
+        "R",
+        "OÜ",
+        null,
+        new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
+        "Fondide valitsemine",
+        "6630");
+  }
+
+  private void stubInitialValidation(
+      List<CompanyRelationship> relationships, CompanyDetail detail, List<KybCheck> checks) {
+    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE)).thenReturn(relationships);
+    when(legalEntityScreener.validate(
+            REGISTRY_CODE, new PersonalCode(PERSONAL_CODE), null, relationships))
+        .thenReturn(new ValidationResult(detail, checks));
+  }
 
   @Test
   void initialValidation_returnsLegalEntityDataWithFieldErrors() {
-    var foundingDate = LocalDate.of(2020, 1, 15);
     var detail =
         new CompanyDetail(
             "Test OÜ",
             REGISTRY_CODE,
             "R",
             "OÜ",
-            foundingDate,
+            java.time.LocalDate.of(2020, 1, 15),
             new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
             "Fondide valitsemine",
             "6630");
     var relationships = sampleRelationships();
-    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
-        .thenReturn(relationships);
-    var companyData =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
-            new PersonalCode(PERSONAL_CODE),
-            CompanyStatus.R,
-            List.of(),
-            null);
-    when(kybCompanyDataMapper.toKybCompanyData(
-            detail, new PersonalCode(PERSONAL_CODE), relationships, null))
-        .thenReturn(companyData);
-    when(kybScreeningService.validate(companyData))
-        .thenReturn(
-            List.of(
-                new KybCheck(COMPANY_ACTIVE, true, Map.of()),
-                new KybCheck(HIGH_RISK_NACE, false, Map.of()),
-                new KybCheck(SOLE_MEMBER_OWNERSHIP, false, Map.of())));
+    stubInitialValidation(
+        relationships,
+        detail,
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(HIGH_RISK_NACE, false, Map.of()),
+            new KybCheck(SOLE_MEMBER_OWNERSHIP, false, Map.of())));
 
     var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
 
@@ -98,7 +117,7 @@ class KybSurveyServiceTest {
     assertThat(result.name().errors()).isEmpty();
     assertThat(result.registryCode().value()).isEqualTo(REGISTRY_CODE);
     assertThat(result.legalForm().value()).isEqualTo("OÜ");
-    assertThat(result.foundingDate().value()).isEqualTo(foundingDate);
+    assertThat(result.foundingDate().value()).isEqualTo(java.time.LocalDate.of(2020, 1, 15));
     assertThat(result.status().value()).isEqualTo(LegalEntityStatus.REGISTERED);
     assertThat(result.status().errors()).isEmpty();
     assertThat(result.address().value())
@@ -114,35 +133,12 @@ class KybSurveyServiceTest {
 
   @Test
   void initialValidation_returnsNoErrorsWhenAllChecksPassed() {
-    var detail =
-        new CompanyDetail(
-            "Test OÜ",
-            REGISTRY_CODE,
-            "R",
-            "OÜ",
-            null,
-            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
-            "Fondide valitsemine",
-            "6630");
-    var relationships = sampleRelationships();
-    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
-        .thenReturn(relationships);
-    var companyData =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
-            new PersonalCode(PERSONAL_CODE),
-            CompanyStatus.R,
-            List.of(),
-            null);
-    when(kybCompanyDataMapper.toKybCompanyData(
-            detail, new PersonalCode(PERSONAL_CODE), relationships, null))
-        .thenReturn(companyData);
-    when(kybScreeningService.validate(companyData))
-        .thenReturn(
-            List.of(
-                new KybCheck(COMPANY_ACTIVE, true, Map.of()),
-                new KybCheck(SOLE_MEMBER_OWNERSHIP, true, Map.of())));
+    stubInitialValidation(
+        sampleRelationships(),
+        sampleDetail(),
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(SOLE_MEMBER_OWNERSHIP, true, Map.of())));
 
     var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
 
@@ -169,8 +165,7 @@ class KybSurveyServiceTest {
                 new BigDecimal("100.00"),
                 "Osaluse kaudu",
                 "EST"));
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
-        .thenReturn(relationships);
+    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE)).thenReturn(relationships);
 
     assertThatThrownBy(() -> service.initialValidation(REGISTRY_CODE, PERSONAL_CODE))
         .isInstanceOf(NotBoardMemberException.class);
@@ -178,35 +173,11 @@ class KybSurveyServiceTest {
 
   @Test
   void initialValidation_publishesAuditEventWhenChecksFail() {
-    var detail =
-        new CompanyDetail(
-            "Test OÜ",
-            REGISTRY_CODE,
-            "R",
-            "OÜ",
-            null,
-            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
-            "Fondide valitsemine",
-            "6630");
-    var relationships = sampleRelationships();
-    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
-        .thenReturn(relationships);
-    var companyData =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
-            new PersonalCode(PERSONAL_CODE),
-            CompanyStatus.R,
-            List.of(),
-            null);
-    when(kybCompanyDataMapper.toKybCompanyData(
-            detail, new PersonalCode(PERSONAL_CODE), relationships, null))
-        .thenReturn(companyData);
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(HIGH_RISK_NACE, false, Map.of("naceCode", "6630")));
-    when(kybScreeningService.validate(companyData)).thenReturn(checks);
+    stubInitialValidation(sampleRelationships(), sampleDetail(), checks);
 
     service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
 
@@ -218,36 +189,13 @@ class KybSurveyServiceTest {
 
   @Test
   void initialValidation_doesNotPublishAuditEventWhenAllChecksPass() {
-    var detail =
-        new CompanyDetail(
-            "Test OÜ",
-            REGISTRY_CODE,
-            "R",
-            "OÜ",
-            null,
-            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
-            "Fondide valitsemine",
-            "6630");
-    var relationships = sampleRelationships();
-    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
-        .thenReturn(relationships);
-    var companyData =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
-            new PersonalCode(PERSONAL_CODE),
-            CompanyStatus.R,
-            List.of(),
-            null);
-    when(kybCompanyDataMapper.toKybCompanyData(
-            detail, new PersonalCode(PERSONAL_CODE), relationships, null))
-        .thenReturn(companyData);
-    when(kybScreeningService.validate(companyData))
-        .thenReturn(
-            List.of(
-                new KybCheck(COMPANY_ACTIVE, true, Map.of()),
-                new KybCheck(SOLE_MEMBER_OWNERSHIP, true, Map.of()),
-                new KybCheck(DATA_CHANGED, false, Map.of("changes", List.of("status changed")))));
+    stubInitialValidation(
+        sampleRelationships(),
+        sampleDetail(),
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(SOLE_MEMBER_OWNERSHIP, true, Map.of()),
+            new KybCheck(DATA_CHANGED, false, Map.of("changes", List.of("status changed")))));
 
     service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
 
@@ -271,8 +219,7 @@ class KybSurveyServiceTest {
                 new BigDecimal("100.00"),
                 "Osaluse kaudu",
                 "EST"));
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
-        .thenReturn(relationships);
+    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE)).thenReturn(relationships);
 
     assertThatThrownBy(() -> service.initialValidation(REGISTRY_CODE, PERSONAL_CODE))
         .isInstanceOf(NotBoardMemberException.class);
@@ -283,37 +230,8 @@ class KybSurveyServiceTest {
                 SAVINGS_FUND_ONBOARDING_STATUS_CHANGE, blockedAuditData("NOT_BOARD_MEMBER")));
   }
 
-  private static Map<String, Object> validationFailedAuditData(List<KybCheck> checks) {
-    var data = new java.util.LinkedHashMap<String, Object>();
-    data.put("partyType", "LEGAL_ENTITY");
-    data.put("registryCode", REGISTRY_CODE);
-    data.put("personalCode", PERSONAL_CODE);
-    data.put("outcome", "VALIDATION_FAILED");
-    data.put(
-        "checks",
-        checks.stream()
-            .map(
-                c ->
-                    Map.of(
-                        "type", c.type().name(),
-                        "success", c.success(),
-                        "metadata", c.metadata()))
-            .toList());
-    return data;
-  }
-
   @Test
   void initialValidation_deduplicatesRelatedPersons() {
-    var detail =
-        new CompanyDetail(
-            "Test OÜ",
-            REGISTRY_CODE,
-            "R",
-            "OÜ",
-            null,
-            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
-            "Fondide valitsemine",
-            "6630");
     var relationships =
         List.of(
             new CompanyRelationship(
@@ -342,24 +260,12 @@ class KybSurveyServiceTest {
                 new BigDecimal("100.00"),
                 "Osaluse kaudu",
                 "EST"));
-    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
-        .thenReturn(relationships);
-    var companyData =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
-            new PersonalCode(PERSONAL_CODE),
-            CompanyStatus.R,
-            List.of(),
-            null);
-    when(kybCompanyDataMapper.toKybCompanyData(
-            detail, new PersonalCode(PERSONAL_CODE), relationships, null))
-        .thenReturn(companyData);
-    when(kybScreeningService.validate(companyData))
-        .thenReturn(
-            List.of(
-                new KybCheck(COMPANY_ACTIVE, true, Map.of()),
-                new KybCheck(SOLE_MEMBER_OWNERSHIP, true, Map.of())));
+    stubInitialValidation(
+        relationships,
+        sampleDetail(),
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(SOLE_MEMBER_OWNERSHIP, true, Map.of())));
 
     var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
 
@@ -373,50 +279,21 @@ class KybSurveyServiceTest {
     var selfCert = new SelfCertification(true, true, true);
     var surveyResponse = sampleSurveyResponse();
     when(kybSurveyResponseMapper.extractSelfCertification(surveyResponse)).thenReturn(selfCert);
-
-    var detail =
-        new CompanyDetail(
-            "Test OÜ",
-            REGISTRY_CODE,
-            "R",
-            "OÜ",
-            null,
-            new CompanyAddress("Tallinn", null),
-            "Fondide valitsemine",
-            "6630");
     var relationships = sampleRelationships();
-    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
-        .thenReturn(relationships);
-    var companyData =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
-            new PersonalCode(PERSONAL_CODE),
-            CompanyStatus.R,
-            List.of(),
-            selfCert);
-    when(kybCompanyDataMapper.toKybCompanyData(
-            detail, new PersonalCode(PERSONAL_CODE), relationships, selfCert))
-        .thenReturn(companyData);
-    when(kybScreeningService.screen(companyData))
-        .thenReturn(
-            List.of(
-                new KybCheck(COMPANY_ACTIVE, true, Map.of()),
-                new KybCheck(SELF_CERTIFICATION, true, Map.of()),
-                new KybCheck(SOLE_MEMBER_OWNERSHIP, true, Map.of())));
+    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE)).thenReturn(relationships);
     when(kybSurveyRepository.save(any(KybSurvey.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse);
 
     verify(kybSurveyRepository).save(any(KybSurvey.class));
-    verify(kybScreeningService).screen(companyData);
+    verify(legalEntityScreener)
+        .screen(REGISTRY_CODE, new PersonalCode(PERSONAL_CODE), selfCert, relationships);
   }
 
   @Test
   void submit_throwsWhenPersonIsNotBoardMember() {
     var surveyResponse = sampleSurveyResponse();
-
     var relationships =
         List.of(
             new CompanyRelationship(
@@ -432,8 +309,7 @@ class KybSurveyServiceTest {
                 new BigDecimal("100.00"),
                 "Osaluse kaudu",
                 "EST"));
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
-        .thenReturn(relationships);
+    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE)).thenReturn(relationships);
 
     assertThatThrownBy(() -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse))
         .isInstanceOf(NotBoardMemberException.class);
@@ -441,35 +317,12 @@ class KybSurveyServiceTest {
 
   @Test
   void initialValidation_toleratesDataChangedCheck() {
-    var detail =
-        new CompanyDetail(
-            "Test OÜ",
-            REGISTRY_CODE,
-            "R",
-            "OÜ",
-            null,
-            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
-            "Fondide valitsemine",
-            "6630");
-    var relationships = sampleRelationships();
-    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
-        .thenReturn(relationships);
-    var companyData =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
-            new PersonalCode(PERSONAL_CODE),
-            CompanyStatus.R,
-            List.of(),
-            null);
-    when(kybCompanyDataMapper.toKybCompanyData(
-            detail, new PersonalCode(PERSONAL_CODE), relationships, null))
-        .thenReturn(companyData);
-    when(kybScreeningService.validate(companyData))
-        .thenReturn(
-            List.of(
-                new KybCheck(COMPANY_ACTIVE, true, Map.of()),
-                new KybCheck(DATA_CHANGED, false, Map.of("changes", List.of("status changed")))));
+    stubInitialValidation(
+        sampleRelationships(),
+        sampleDetail(),
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(DATA_CHANGED, false, Map.of("changes", List.of("status changed")))));
 
     var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
 
@@ -478,32 +331,10 @@ class KybSurveyServiceTest {
 
   @Test
   void initialValidation_allowsRejectedCompanyToRetry() {
-    var detail =
-        new CompanyDetail(
-            "Test OÜ",
-            REGISTRY_CODE,
-            "R",
-            "OÜ",
-            null,
-            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
-            "Fondide valitsemine",
-            "6630");
-    var relationships = sampleRelationships();
-    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
-        .thenReturn(relationships);
-    var companyData =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
-            new PersonalCode(PERSONAL_CODE),
-            CompanyStatus.R,
-            List.of(),
-            null);
-    when(kybCompanyDataMapper.toKybCompanyData(
-            detail, new PersonalCode(PERSONAL_CODE), relationships, null))
-        .thenReturn(companyData);
-    when(kybScreeningService.validate(companyData))
-        .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
+    stubInitialValidation(
+        sampleRelationships(),
+        sampleDetail(),
+        List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
     when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
         .thenReturn(Optional.of(SavingsFundOnboardingStatus.REJECTED));
 
@@ -514,32 +345,10 @@ class KybSurveyServiceTest {
 
   @Test
   void initialValidation_returnsNameErrorWhenAlreadyOnboarded() {
-    var detail =
-        new CompanyDetail(
-            "Test OÜ",
-            REGISTRY_CODE,
-            "R",
-            "OÜ",
-            null,
-            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
-            "Fondide valitsemine",
-            "6630");
-    var relationships = sampleRelationships();
-    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
-        .thenReturn(relationships);
-    var companyData =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
-            new PersonalCode(PERSONAL_CODE),
-            CompanyStatus.R,
-            List.of(),
-            null);
-    when(kybCompanyDataMapper.toKybCompanyData(
-            detail, new PersonalCode(PERSONAL_CODE), relationships, null))
-        .thenReturn(companyData);
-    when(kybScreeningService.validate(companyData))
-        .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
+    stubInitialValidation(
+        sampleRelationships(),
+        sampleDetail(),
+        List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
     when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
         .thenReturn(Optional.of(SavingsFundOnboardingStatus.COMPLETED));
 
@@ -551,32 +360,10 @@ class KybSurveyServiceTest {
   @Test
   void initialValidation_returnsNameErrorWhenNotWhitelistedAfterCutoff() {
     doReturn(Instant.parse("2026-03-28T10:00:00Z")).when(clock).instant();
-    var detail =
-        new CompanyDetail(
-            "Test OÜ",
-            REGISTRY_CODE,
-            "R",
-            "OÜ",
-            null,
-            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
-            "Fondide valitsemine",
-            "6630");
-    var relationships = sampleRelationships();
-    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.of(2026, 3, 28)))
-        .thenReturn(relationships);
-    var companyData =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
-            new PersonalCode(PERSONAL_CODE),
-            CompanyStatus.R,
-            List.of(),
-            null);
-    when(kybCompanyDataMapper.toKybCompanyData(
-            detail, new PersonalCode(PERSONAL_CODE), relationships, null))
-        .thenReturn(companyData);
-    when(kybScreeningService.validate(companyData))
-        .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
+    stubInitialValidation(
+        sampleRelationships(),
+        sampleDetail(),
+        List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
     when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
         .thenReturn(Optional.empty());
 
@@ -588,32 +375,10 @@ class KybSurveyServiceTest {
   @Test
   void initialValidation_returnsNoWhitelistErrorWhenWhitelisted() {
     doReturn(Instant.parse("2026-03-28T10:00:00Z")).when(clock).instant();
-    var detail =
-        new CompanyDetail(
-            "Test OÜ",
-            REGISTRY_CODE,
-            "R",
-            "OÜ",
-            null,
-            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
-            "Fondide valitsemine",
-            "6630");
-    var relationships = sampleRelationships();
-    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.of(2026, 3, 28)))
-        .thenReturn(relationships);
-    var companyData =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
-            new PersonalCode(PERSONAL_CODE),
-            CompanyStatus.R,
-            List.of(),
-            null);
-    when(kybCompanyDataMapper.toKybCompanyData(
-            detail, new PersonalCode(PERSONAL_CODE), relationships, null))
-        .thenReturn(companyData);
-    when(kybScreeningService.validate(companyData))
-        .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
+    stubInitialValidation(
+        sampleRelationships(),
+        sampleDetail(),
+        List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
     when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
         .thenReturn(Optional.of(WHITELISTED));
 
@@ -625,7 +390,7 @@ class KybSurveyServiceTest {
   @Test
   void submit_throwsWhenNotWhitelistedAfterCutoff() {
     doReturn(Instant.parse("2026-03-28T10:00:00Z")).when(clock).instant();
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.of(2026, 3, 28)))
+    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
         .thenReturn(sampleRelationships());
     when(kybSurveyRepository.save(any(KybSurvey.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
@@ -639,7 +404,7 @@ class KybSurveyServiceTest {
 
   @Test
   void submit_throwsWhenAlreadyOnboarded() {
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
+    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
         .thenReturn(sampleRelationships());
     when(kybSurveyRepository.save(any(KybSurvey.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
@@ -669,8 +434,7 @@ class KybSurveyServiceTest {
                 new BigDecimal("100.00"),
                 "Osaluse kaudu",
                 "EST"));
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
-        .thenReturn(relationships);
+    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE)).thenReturn(relationships);
 
     assertThatThrownBy(() -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse))
         .isInstanceOf(NotBoardMemberException.class);
@@ -683,7 +447,7 @@ class KybSurveyServiceTest {
 
   @Test
   void submit_publishesAuditEventWhenAlreadyOnboarded() {
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
+    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
         .thenReturn(sampleRelationships());
     when(kybSurveyRepository.save(any(KybSurvey.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
@@ -703,7 +467,7 @@ class KybSurveyServiceTest {
   @Test
   void submit_publishesAuditEventWhenNotWhitelistedAfterCutoff() {
     doReturn(Instant.parse("2026-03-28T10:00:00Z")).when(clock).instant();
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.of(2026, 3, 28)))
+    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
         .thenReturn(sampleRelationships());
     when(kybSurveyRepository.save(any(KybSurvey.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
@@ -721,6 +485,40 @@ class KybSurveyServiceTest {
                 blockedAuditData("NO_WHITELIST_AFTER_CUTOFF")));
   }
 
+  @Test
+  void submit_doesNotPublishAuditEventOnSuccessfulSubmission() {
+    var selfCert = new SelfCertification(true, true, true);
+    var surveyResponse = sampleSurveyResponse();
+    when(kybSurveyResponseMapper.extractSelfCertification(surveyResponse)).thenReturn(selfCert);
+    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
+        .thenReturn(sampleRelationships());
+    when(kybSurveyRepository.save(any(KybSurvey.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse);
+
+    verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  private static Map<String, Object> validationFailedAuditData(List<KybCheck> checks) {
+    var data = new java.util.LinkedHashMap<String, Object>();
+    data.put("partyType", "LEGAL_ENTITY");
+    data.put("registryCode", REGISTRY_CODE);
+    data.put("personalCode", PERSONAL_CODE);
+    data.put("outcome", "VALIDATION_FAILED");
+    data.put(
+        "checks",
+        checks.stream()
+            .map(
+                c ->
+                    Map.of(
+                        "type", c.type().name(),
+                        "success", c.success(),
+                        "metadata", c.metadata()))
+            .toList());
+    return data;
+  }
+
   private static Map<String, Object> blockedAuditData(String reason) {
     var data = new java.util.LinkedHashMap<String, Object>();
     data.put("partyType", "LEGAL_ENTITY");
@@ -729,46 +527,6 @@ class KybSurveyServiceTest {
     data.put("outcome", "BLOCKED");
     data.put("blockedReason", reason);
     return data;
-  }
-
-  @Test
-  void submit_doesNotPublishAuditEventOnSuccessfulSubmission() {
-    var selfCert = new SelfCertification(true, true, true);
-    var surveyResponse = sampleSurveyResponse();
-    when(kybSurveyResponseMapper.extractSelfCertification(surveyResponse)).thenReturn(selfCert);
-
-    var detail =
-        new CompanyDetail(
-            "Test OÜ",
-            REGISTRY_CODE,
-            "R",
-            "OÜ",
-            null,
-            new CompanyAddress("Tallinn", null),
-            "Fondide valitsemine",
-            "6630");
-    var relationships = sampleRelationships();
-    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
-        .thenReturn(relationships);
-    var companyData =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
-            new PersonalCode(PERSONAL_CODE),
-            CompanyStatus.R,
-            List.of(),
-            selfCert);
-    when(kybCompanyDataMapper.toKybCompanyData(
-            detail, new PersonalCode(PERSONAL_CODE), relationships, selfCert))
-        .thenReturn(companyData);
-    when(kybScreeningService.screen(companyData))
-        .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
-    when(kybSurveyRepository.save(any(KybSurvey.class)))
-        .thenAnswer(invocation -> invocation.getArgument(0));
-
-    service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse);
-
-    verify(eventPublisher, never()).publishEvent(any());
   }
 
   private KybSurveyResponse sampleSurveyResponse() {
@@ -780,84 +538,6 @@ class KybSurveyServiceTest {
                     new CompanyIncomeSourceItem.Option(
                         NOT_SANCTIONED_NOT_PROFITING_FROM_SANCTIONED_COUNTRIES),
                     new CompanyIncomeSourceItem.Option(NOT_IN_CRYPTO)))));
-  }
-
-  @Test
-  void initialValidation_excludesFounderOnlyPersonsFromRelatedPersons() {
-    var detail =
-        new CompanyDetail(
-            "Test OÜ",
-            REGISTRY_CODE,
-            "R",
-            "OÜ",
-            null,
-            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
-            "Fondide valitsemine",
-            "6630");
-    var jaanBoardMember =
-        new CompanyRelationship(
-            "F",
-            "JUHL",
-            "Juhatuse liige",
-            "Jaan",
-            "Tamm",
-            PERSONAL_CODE,
-            null,
-            null,
-            null,
-            new BigDecimal("100.00"),
-            "Osaluse kaudu",
-            "EST");
-    var jaanFounder =
-        new CompanyRelationship(
-            "F",
-            "A",
-            "Asutaja",
-            "Jaan",
-            "Tamm",
-            PERSONAL_CODE,
-            null,
-            null,
-            null,
-            null,
-            null,
-            "EST");
-    var mariFounder =
-        new CompanyRelationship(
-            "F",
-            "A",
-            "Asutaja",
-            "Mari",
-            "Mets",
-            "49901010003",
-            null,
-            null,
-            null,
-            null,
-            null,
-            "EST");
-    when(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).thenReturn(Optional.of(detail));
-    when(ariregisterClient.getActiveCompanyRelationships(REGISTRY_CODE, LocalDate.now(clock)))
-        .thenReturn(List.of(jaanBoardMember, jaanFounder, mariFounder));
-    var filteredRelationships = List.of(jaanBoardMember);
-    var companyData =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "6630", LegalForm.OÜ),
-            new PersonalCode(PERSONAL_CODE),
-            CompanyStatus.R,
-            List.of(),
-            null);
-    when(kybCompanyDataMapper.toKybCompanyData(
-            detail, new PersonalCode(PERSONAL_CODE), filteredRelationships, null))
-        .thenReturn(companyData);
-    when(kybScreeningService.validate(companyData))
-        .thenReturn(List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
-
-    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
-
-    assertThat(result.relatedPersons().value()).hasSize(1);
-    assertThat(result.relatedPersons().value().getFirst())
-        .isEqualTo(new RelatedPersonData(PERSONAL_CODE, "Jaan Tamm"));
   }
 
   private List<CompanyRelationship> sampleRelationships() {

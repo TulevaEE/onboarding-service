@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Sta
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -15,8 +16,11 @@ import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.country.Country;
+import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyService;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
 import java.util.Optional;
@@ -34,6 +38,8 @@ class RedemptionVerificationServiceTest {
   @Mock private UserService userService;
   @Mock private KycSurveyService kycSurveyService;
   @Mock private AmlService amlService;
+  @Mock private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
+  @Mock private LegalEntityScreener legalEntityScreener;
 
   @InjectMocks private RedemptionVerificationService service;
 
@@ -134,17 +140,131 @@ class RedemptionVerificationServiceTest {
   }
 
   @Test
-  void process_legalEntityRequest_alwaysTransitionsToInReviewUntilPeriodicKybRecheckLands() {
+  void process_legalEntityRequest_transitionsToVerifiedWhenLatestKybCompleted() {
+    var registryCode = "16001234";
     var requestId = UUID.randomUUID();
-    var request =
-        redemptionRequestFixture()
-            .id(requestId)
-            .partyId(new PartyId(LEGAL_ENTITY, "16001234"))
-            .build();
+    var request = legalEntityRequest(requestId, registryCode);
+
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
+        .willReturn(true);
+
+    service.process(request);
+
+    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
+    verify(redemptionStatusService, never()).changeStatus(requestId, IN_REVIEW);
+    verify(legalEntityScreener, never()).screenLatest(registryCode);
+  }
+
+  @Test
+  void process_legalEntityRequest_routesToInReviewWhenStatusWhitelistedWithoutCompletedKyb() {
+    var registryCode = "16001234";
+    var requestId = UUID.randomUUID();
+    var request = legalEntityRequest(requestId, registryCode);
+
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
+        .willReturn(false);
+    given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
+        .willReturn(Optional.of(SavingsFundOnboardingStatus.WHITELISTED));
+
+    service.process(request);
+
+    verify(redemptionStatusService).changeStatus(requestId, IN_REVIEW);
+    verify(legalEntityScreener, never()).screenLatest(registryCode);
+  }
+
+  @Test
+  void process_legalEntityRequest_transitionsToInReviewWhenLatestKybRejected() {
+    var registryCode = "16001234";
+    var requestId = UUID.randomUUID();
+    var request = legalEntityRequest(requestId, registryCode);
+
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
+        .willReturn(false);
+    given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
+        .willReturn(Optional.of(SavingsFundOnboardingStatus.REJECTED));
 
     service.process(request);
 
     verify(redemptionStatusService).changeStatus(requestId, IN_REVIEW);
     verify(redemptionStatusService, never()).changeStatus(requestId, VERIFIED);
+    verify(legalEntityScreener, never()).screenLatest(registryCode);
+  }
+
+  @Test
+  void process_legalEntityRequest_reScreensWhenStatusMissingThenVerifiesIfCompleted() {
+    var registryCode = "16001234";
+    var requestId = UUID.randomUUID();
+    var request = legalEntityRequest(requestId, registryCode);
+
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
+        .willReturn(false, true);
+    given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
+        .willReturn(Optional.empty());
+
+    service.process(request);
+
+    verify(legalEntityScreener).screenLatest(registryCode);
+    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
+  }
+
+  @Test
+  void process_legalEntityRequest_reScreensWhenStatusPendingThenInReviewIfRejected() {
+    var registryCode = "16001234";
+    var requestId = UUID.randomUUID();
+    var request = legalEntityRequest(requestId, registryCode);
+
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
+        .willReturn(false, false);
+    given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
+        .willReturn(Optional.of(SavingsFundOnboardingStatus.PENDING));
+
+    service.process(request);
+
+    verify(legalEntityScreener).screenLatest(registryCode);
+    verify(redemptionStatusService).changeStatus(requestId, IN_REVIEW);
+  }
+
+  @Test
+  void process_legalEntityRequest_routesToInReviewWhenStatusStillMissingAfterReScreen() {
+    var registryCode = "16001234";
+    var requestId = UUID.randomUUID();
+    var request = legalEntityRequest(requestId, registryCode);
+
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
+        .willReturn(false, false);
+    given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
+        .willReturn(Optional.empty());
+
+    service.process(request);
+
+    verify(legalEntityScreener).screenLatest(registryCode);
+    verify(redemptionStatusService).changeStatus(requestId, IN_REVIEW);
+  }
+
+  @Test
+  void process_legalEntityRequest_routesToInReviewWhenScreenLatestThrows() {
+    var registryCode = "16001234";
+    var requestId = UUID.randomUUID();
+    var request = legalEntityRequest(requestId, registryCode);
+
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
+        .willReturn(false);
+    given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
+        .willReturn(Optional.empty());
+    willThrow(new IllegalStateException("Ariregister unavailable"))
+        .given(legalEntityScreener)
+        .screenLatest(registryCode);
+
+    service.process(request);
+
+    verify(redemptionStatusService).changeStatus(requestId, IN_REVIEW);
+    verify(redemptionStatusService, never()).changeStatus(requestId, VERIFIED);
+  }
+
+  private static RedemptionRequest legalEntityRequest(UUID requestId, String registryCode) {
+    return redemptionRequestFixture()
+        .id(requestId)
+        .partyId(new PartyId(LEGAL_ENTITY, registryCode))
+        .build();
   }
 }

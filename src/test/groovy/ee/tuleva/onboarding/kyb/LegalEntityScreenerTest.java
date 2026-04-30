@@ -9,6 +9,8 @@ import static org.mockito.Mockito.verify;
 import ee.tuleva.onboarding.ariregister.AriregisterClient;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
+import ee.tuleva.onboarding.kyb.survey.KybSurveyInputs;
+import ee.tuleva.onboarding.kyb.survey.LatestKybSurveyInputs;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -30,10 +32,15 @@ class LegalEntityScreenerTest {
   private final AriregisterClient ariregisterClient = mock(AriregisterClient.class);
   private final KybCompanyDataMapper kybCompanyDataMapper = mock(KybCompanyDataMapper.class);
   private final KybScreeningService kybScreeningService = mock(KybScreeningService.class);
+  private final LatestKybSurveyInputs latestKybSurveyInputs = mock(LatestKybSurveyInputs.class);
 
   private final LegalEntityScreener screener =
       new LegalEntityScreener(
-          ariregisterClient, kybCompanyDataMapper, kybScreeningService, FIXED_CLOCK);
+          ariregisterClient,
+          kybCompanyDataMapper,
+          kybScreeningService,
+          latestKybSurveyInputs,
+          FIXED_CLOCK);
 
   @Test
   void fetchActiveRelationshipsExcludesFounders() {
@@ -94,6 +101,38 @@ class LegalEntityScreenerTest {
 
     assertThat(result.detail()).isEqualTo(detail);
     assertThat(result.checks()).isEqualTo(checks);
+  }
+
+  @Test
+  void screenLatestResolvesSurveyInputsAndRunsScreening() {
+    var boardMember = relationship("JUHL", "Jaan", "Tamm", "38501010002");
+    var founder = relationship("A", "Mari", "Asutaja", "39901010001");
+    given(
+            ariregisterClient.getActiveCompanyRelationships(
+                REGISTRY_CODE, LocalDate.now(FIXED_CLOCK)))
+        .willReturn(List.of(boardMember, founder));
+    var detail = sampleDetail();
+    given(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).willReturn(Optional.of(detail));
+    given(latestKybSurveyInputs.findByRegistryCode(REGISTRY_CODE))
+        .willReturn(new KybSurveyInputs(PERSONAL_CODE, SELF_CERT));
+    var companyData =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", null, LegalForm.OÜ),
+            PERSONAL_CODE,
+            CompanyStatus.R,
+            List.of(),
+            SELF_CERT);
+    given(
+            kybCompanyDataMapper.toKybCompanyData(
+                detail, PERSONAL_CODE, List.of(boardMember), SELF_CERT))
+        .willReturn(companyData);
+    var checks = List.of(new KybCheck(KybCheckType.COMPANY_ACTIVE, true, Map.of()));
+    given(kybScreeningService.screen(companyData)).willReturn(checks);
+
+    var result = screener.screenLatest(REGISTRY_CODE);
+
+    assertThat(result).isEqualTo(checks);
+    verify(kybScreeningService).screen(companyData);
   }
 
   @Test

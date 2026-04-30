@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.kyb;
 
 import ee.tuleva.onboarding.company.CompanyRepository;
-import ee.tuleva.onboarding.kyb.survey.LatestKybSurveyInputs;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -12,7 +11,6 @@ import org.springframework.stereotype.Service;
 public class KybMonitoringService {
 
   private final LegalEntityScreener legalEntityScreener;
-  private final LatestKybSurveyInputs latestKybSurveyInputs;
   private final CompanyRepository companyRepository;
 
   public void screenAllCompanies() {
@@ -23,7 +21,7 @@ public class KybMonitoringService {
 
     for (var company : companies) {
       try {
-        screenCompany(company.getRegistryCode());
+        legalEntityScreener.screenLatest(company.getRegistryCode());
         successCount++;
       } catch (Exception e) {
         failureCount++;
@@ -34,12 +32,5 @@ public class KybMonitoringService {
         "Daily KYB monitoring completed: successCount={}, failureCount={}",
         successCount,
         failureCount);
-  }
-
-  void screenCompany(String registryCode) {
-    var surveyInputs = latestKybSurveyInputs.findByRegistryCode(registryCode);
-    var relationships = legalEntityScreener.fetchActiveRelationships(registryCode);
-    legalEntityScreener.screen(
-        registryCode, surveyInputs.personalCode(), surveyInputs.selfCertification(), relationships);
   }
 }

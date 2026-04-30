@@ -1,117 +1,31 @@
 package ee.tuleva.onboarding.kyb;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.ariregister.AriregisterClient;
-import ee.tuleva.onboarding.ariregister.CompanyDetail;
-import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.company.Company;
 import ee.tuleva.onboarding.company.CompanyRepository;
-import ee.tuleva.onboarding.kyb.survey.KybSurveyInputs;
-import ee.tuleva.onboarding.kyb.survey.LatestKybSurveyInputs;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class KybMonitoringServiceTest {
 
-  private static final String REGISTRY_CODE = "12345678";
-  private static final PersonalCode PERSONAL_CODE = new PersonalCode("38501010002");
-  private static final SelfCertification SELF_CERT = new SelfCertification(true, true, true);
-  private static final Clock FIXED_CLOCK =
-      Clock.fixed(Instant.parse("2026-03-27T10:00:00Z"), ZoneId.of("Europe/Tallinn"));
-
-  private final AriregisterClient ariregisterClient = mock(AriregisterClient.class);
-  private final KybCompanyDataMapper kybCompanyDataMapper = mock(KybCompanyDataMapper.class);
-  private final LatestKybSurveyInputs latestKybSurveyInputs = mock(LatestKybSurveyInputs.class);
-  private final KybScreeningService kybScreeningService = mock(KybScreeningService.class);
+  private final LegalEntityScreener legalEntityScreener = mock(LegalEntityScreener.class);
   private final CompanyRepository companyRepository = mock(CompanyRepository.class);
 
-  private final LegalEntityScreener legalEntityScreener =
-      new LegalEntityScreener(
-          ariregisterClient, kybCompanyDataMapper, kybScreeningService, FIXED_CLOCK);
-
   private final KybMonitoringService service =
-      new KybMonitoringService(legalEntityScreener, latestKybSurveyInputs, companyRepository);
+      new KybMonitoringService(legalEntityScreener, companyRepository);
 
   @Test
-  void screensCompanyWithFreshAriregisterData() {
-    var surveyInputs = new KybSurveyInputs(PERSONAL_CODE, SELF_CERT);
-    given(latestKybSurveyInputs.findByRegistryCode(REGISTRY_CODE)).willReturn(surveyInputs);
-
-    var relationships = List.<CompanyRelationship>of();
-    given(
-            ariregisterClient.getActiveCompanyRelationships(
-                REGISTRY_CODE, LocalDate.now(FIXED_CLOCK)))
-        .willReturn(relationships);
-
-    var detail = new CompanyDetail("Test OÜ", REGISTRY_CODE, "R", "OÜ", null, null, null, null);
-    given(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).willReturn(Optional.of(detail));
-
-    var companyData =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", null, LegalForm.OÜ),
-            PERSONAL_CODE,
-            CompanyStatus.R,
-            List.of(),
-            SELF_CERT);
-    given(kybCompanyDataMapper.toKybCompanyData(detail, PERSONAL_CODE, relationships, SELF_CERT))
-        .willReturn(companyData);
-
-    service.screenCompany(REGISTRY_CODE);
-
-    verify(kybScreeningService).screen(companyData);
-  }
-
-  @Test
-  void throwsWhenNoSurveyFound() {
-    given(latestKybSurveyInputs.findByRegistryCode(REGISTRY_CODE))
-        .willThrow(new IllegalStateException("No KYB survey found"));
-
-    assertThatThrownBy(() -> service.screenCompany(REGISTRY_CODE))
-        .isInstanceOf(IllegalStateException.class);
-  }
-
-  @Test
-  void throwsWhenCompanyNotFoundInAriregister() {
-    given(latestKybSurveyInputs.findByRegistryCode(REGISTRY_CODE))
-        .willReturn(new KybSurveyInputs(PERSONAL_CODE, SELF_CERT));
-    given(ariregisterClient.getActiveCompanyRelationships(eq(REGISTRY_CODE), any()))
-        .willReturn(List.of());
-    given(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).willReturn(Optional.empty());
-
-    assertThatThrownBy(() -> service.screenCompany(REGISTRY_CODE))
-        .isInstanceOf(IllegalStateException.class);
-  }
-
-  @Test
-  void screenAllCompaniesProcessesEachCompany() {
+  void screenAllCompaniesScreensEachCompany() {
     var company1 = Company.builder().registryCode("11111111").name("Company 1").build();
     var company2 = Company.builder().registryCode("22222222").name("Company 2").build();
     given(companyRepository.findAll()).willReturn(List.of(company1, company2));
 
-    given(latestKybSurveyInputs.findByRegistryCode(any()))
-        .willReturn(new KybSurveyInputs(PERSONAL_CODE, SELF_CERT));
-    given(ariregisterClient.getActiveCompanyRelationships(any(), any())).willReturn(List.of());
-
-    var detail1 = new CompanyDetail("Company 1", "11111111", "R", "OÜ", null, null, null, null);
-    var detail2 = new CompanyDetail("Company 2", "22222222", "R", "OÜ", null, null, null, null);
-    given(ariregisterClient.getCompanyDetails("11111111")).willReturn(Optional.of(detail1));
-    given(ariregisterClient.getCompanyDetails("22222222")).willReturn(Optional.of(detail2));
-    given(kybCompanyDataMapper.toKybCompanyData(any(), any(), any(), any()))
-        .willReturn(mock(KybCompanyData.class));
-
     service.screenAllCompanies();
 
-    verify(kybScreeningService, times(2)).screen(any());
+    verify(legalEntityScreener).screenLatest("11111111");
+    verify(legalEntityScreener).screenLatest("22222222");
   }
 
   @Test
@@ -119,22 +33,12 @@ class KybMonitoringServiceTest {
     var company1 = Company.builder().registryCode("11111111").name("Company 1").build();
     var company2 = Company.builder().registryCode("22222222").name("Company 2").build();
     given(companyRepository.findAll()).willReturn(List.of(company1, company2));
-
-    given(latestKybSurveyInputs.findByRegistryCode("11111111"))
-        .willThrow(new IllegalStateException("No survey"));
-    given(latestKybSurveyInputs.findByRegistryCode("22222222"))
-        .willReturn(new KybSurveyInputs(PERSONAL_CODE, SELF_CERT));
-
-    var detail = new CompanyDetail("Company 2", "22222222", "R", "OÜ", null, null, null, null);
-    given(ariregisterClient.getActiveCompanyRelationships(eq("22222222"), any()))
-        .willReturn(List.of());
-    given(ariregisterClient.getCompanyDetails("22222222")).willReturn(Optional.of(detail));
-    given(kybCompanyDataMapper.toKybCompanyData(any(), any(), any(), any()))
-        .willReturn(mock(KybCompanyData.class));
+    doThrow(new IllegalStateException("boom")).when(legalEntityScreener).screenLatest("11111111");
 
     service.screenAllCompanies();
 
-    verify(kybScreeningService, times(1)).screen(any());
+    verify(legalEntityScreener).screenLatest("11111111");
+    verify(legalEntityScreener).screenLatest("22222222");
   }
 
   @Test
@@ -143,6 +47,6 @@ class KybMonitoringServiceTest {
 
     service.screenAllCompanies();
 
-    verifyNoInteractions(kybScreeningService);
+    verifyNoInteractions(legalEntityScreener);
   }
 }

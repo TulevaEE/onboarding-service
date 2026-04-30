@@ -31,8 +31,16 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
 
   @Override
   public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
-    if (paymentData.getAmount() == null || paymentData.getAmount().compareTo(MIN_AMOUNT) < 0) {
-      throw new IllegalArgumentException("Amount must be at least " + MIN_AMOUNT);
+    if (paymentData.getAmount() == null) {
+      throw new ErrorsResponseException(
+          ErrorsResponse.ofSingleError(
+              "payment.amount.required",
+              "Payment amount is required for recurring savings fund links."));
+    }
+    if (paymentData.getAmount().compareTo(MIN_AMOUNT) < 0) {
+      throw new ErrorsResponseException(
+          ErrorsResponse.ofSingleError(
+              "payment.amount.invalid", "Payment amount must be at least " + MIN_AMOUNT + "."));
     }
     var description = paymentData.getRecipientPersonalCode();
     var amount = paymentData.getAmount().toPlainString();

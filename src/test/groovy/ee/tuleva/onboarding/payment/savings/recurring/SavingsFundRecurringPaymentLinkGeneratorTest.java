@@ -140,7 +140,27 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
             .build();
 
     assertThatThrownBy(() -> generator.getPaymentLink(paymentData, person()))
-        .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(ErrorsResponseException.class)
+        .extracting(ex -> ((ErrorsResponseException) ex).getErrorsResponse().getErrors().get(0))
+        .extracting(ErrorResponse::getCode)
+        .isEqualTo("payment.amount.required");
+  }
+
+  @Test
+  void acceptsExactMinimumAmount() {
+    var paymentData =
+        PaymentData.builder()
+            .amount(new BigDecimal("0.01"))
+            .currency(EUR)
+            .type(SAVINGS_RECURRING)
+            .paymentChannel(LHV)
+            .recipientPersonalCode(PERSONAL_CODE)
+            .build();
+
+    var link = (PrefilledLink) generator.getPaymentLink(paymentData, person());
+
+    assertThat(link.amount()).isEqualTo("0.01");
+    assertThat(link.url()).contains("i_amount=0.01");
   }
 
   @ParameterizedTest
@@ -156,7 +176,10 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
             .build();
 
     assertThatThrownBy(() -> generator.getPaymentLink(paymentData, person()))
-        .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(ErrorsResponseException.class)
+        .extracting(ex -> ((ErrorsResponseException) ex).getErrorsResponse().getErrors().get(0))
+        .extracting(ErrorResponse::getCode)
+        .isEqualTo("payment.amount.invalid");
   }
 
   @Test

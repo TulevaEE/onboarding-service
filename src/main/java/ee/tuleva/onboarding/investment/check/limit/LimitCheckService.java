@@ -48,14 +48,22 @@ class LimitCheckService {
   private final TransactionOrderRepository transactionOrderRepository;
 
   List<LimitCheckResult> runChecks() {
-    return runChecksAsOf(LocalDate.now(clock));
+    return runChecksForFunds(List.of(TulevaFund.values()));
+  }
+
+  List<LimitCheckResult> runChecksForFunds(List<TulevaFund> funds) {
+    return runChecksForFundsAsOf(funds, LocalDate.now(clock));
   }
 
   List<LimitCheckResult> runChecksAsOf(LocalDate asOfDate) {
+    return runChecksForFundsAsOf(List.of(TulevaFund.values()), asOfDate);
+  }
+
+  List<LimitCheckResult> runChecksForFundsAsOf(List<TulevaFund> funds, LocalDate asOfDate) {
     var results = new ArrayList<LimitCheckResult>();
     var errors = new ArrayList<Exception>();
 
-    for (var fund : TulevaFund.values()) {
+    for (var fund : funds) {
       var latestDate = fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, asOfDate);
       if (latestDate.isEmpty()) {
         log.warn("No position data for fund: fund={}, asOfDate={}", fund, asOfDate);

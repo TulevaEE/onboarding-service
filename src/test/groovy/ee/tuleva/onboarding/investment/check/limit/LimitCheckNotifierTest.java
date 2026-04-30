@@ -51,7 +51,7 @@ class LimitCheckNotifierTest {
 
     notifier.notify(List.of(result));
 
-    verify(notificationService).sendMessage(contains("all funds within limits"), eq(INVESTMENT));
+    verify(notificationService).sendMessage(contains("TUK75 within limits"), eq(INVESTMENT));
   }
 
   @Test

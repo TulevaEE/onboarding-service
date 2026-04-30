@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.notification.email
 
 import com.microtripit.mandrillapp.lutung.MandrillApi
 import com.microtripit.mandrillapp.lutung.controller.MandrillMessagesApi
+import com.microtripit.mandrillapp.lutung.model.MandrillApiError
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import com.microtripit.mandrillapp.lutung.view.MandrillScheduledMessageInfo
@@ -95,7 +96,7 @@ class EmailServiceSpec extends Specification {
     result == false
   }
 
-  def "sendSystemEmail returns false when all retries fail"() {
+  def "sendSystemEmail retries and returns false when all attempts throw IOException"() {
     given:
     def systemMessage = new MandrillMessage()
 
@@ -103,8 +104,35 @@ class EmailServiceSpec extends Specification {
     def result = service.sendSystemEmail(systemMessage)
 
     then:
-    _ * mandrillMessagesApi.send(systemMessage, false) >> { throw new IOException("Connection reset") }
+    3 * mandrillMessagesApi.send(systemMessage, false) >> { throw new IOException("Connection reset") }
     result == false
+  }
+
+  def "sendSystemEmail retries and returns false when all attempts throw MandrillApiError"() {
+    given:
+    def systemMessage = new MandrillMessage()
+
+    when:
+    def result = service.sendSystemEmail(systemMessage)
+
+    then:
+    3 * mandrillMessagesApi.send(systemMessage, false) >> { throw new MandrillApiError() }
+    result == false
+  }
+
+  def "sendSystemEmail succeeds on second attempt after first fails"() {
+    given:
+    def systemMessage = new MandrillMessage()
+
+    when:
+    def result = service.sendSystemEmail(systemMessage)
+
+    then:
+    1 * mandrillMessagesApi.send(systemMessage, false) >> { throw new IOException("Connection reset") }
+
+    then:
+    1 * mandrillMessagesApi.send(systemMessage, false) >> [mandrillMessageStatus]
+    result == true
   }
 
   def "does not send email when user has no email"() {

@@ -98,6 +98,27 @@ class NavPublisherTest {
   }
 
   @Test
+  void publish_sendsSlackAlert_whenEmailSenderThrowsException() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
+
+    var result = buildResult(TKF100, today, yesterday, calcTime);
+
+    var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TKF100").build();
+    when(navReportMapper.map(result)).thenReturn(List.of(reportRow));
+    doThrow(new RuntimeException("Unexpected error"))
+        .when(navReportEmailSender)
+        .send(any(), eq(result));
+
+    navPublisher.publish(result);
+
+    verify(navReportRepository, never()).markAsPublished(any(UUID.class));
+    verify(notificationService).sendMessage(any(String.class), eq(SAVINGS));
+    verify(navNotifier).notify(result);
+  }
+
+  @Test
   void publish_onlyNotifiesForPensionFund() {
     LocalDate today = LocalDate.of(2025, 1, 15);
     Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");

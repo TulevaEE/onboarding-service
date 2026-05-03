@@ -166,7 +166,8 @@ public class EmailService {
           Thread.sleep(delayMs);
         } catch (InterruptedException ie) {
           Thread.currentThread().interrupt();
-          break;
+          log.error("System email interrupted after {} attempts", attempt);
+          return false;
         }
         delayMs *= DELAY_MULTIPLIER;
       }

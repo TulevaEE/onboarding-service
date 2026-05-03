@@ -135,8 +135,7 @@ public class NavSelfHealJob {
   private boolean isNavMissingForToday(TulevaFund fund, LocalDate today) {
     LocalDate expectedNavDate =
         NavCalculationService.expectedPositionReportDate(fund, today, publicHolidays);
-    return navReportRepository
-        .findLatestByNavDateAndFundCode(expectedNavDate, fund.getCode())
-        .isEmpty();
+    return !navReportRepository.existsPublishedByNavDateAndFundCode(
+        expectedNavDate, fund.getCode());
   }
 }

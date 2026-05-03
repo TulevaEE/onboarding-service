@@ -17,7 +17,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -287,24 +286,24 @@ class NavSelfHealJobTest {
   private void stubAllPublished(LocalDate today) {
     LocalDate navDate = navDateFor(today);
     lenient()
-        .when(navReportRepository.findLatestByNavDateAndFundCode(navDate, TKF100.getCode()))
-        .thenReturn(List.of(new NavReportRow()));
+        .when(navReportRepository.existsPublishedByNavDateAndFundCode(navDate, TKF100.getCode()))
+        .thenReturn(true);
     lenient()
-        .when(navReportRepository.findLatestByNavDateAndFundCode(navDate, TUK75.getCode()))
-        .thenReturn(List.of(new NavReportRow()));
+        .when(navReportRepository.existsPublishedByNavDateAndFundCode(navDate, TUK75.getCode()))
+        .thenReturn(true);
     lenient()
-        .when(navReportRepository.findLatestByNavDateAndFundCode(navDate, TUK00.getCode()))
-        .thenReturn(List.of(new NavReportRow()));
+        .when(navReportRepository.existsPublishedByNavDateAndFundCode(navDate, TUK00.getCode()))
+        .thenReturn(true);
     lenient()
-        .when(navReportRepository.findLatestByNavDateAndFundCode(navDate, TUV100.getCode()))
-        .thenReturn(List.of(new NavReportRow()));
+        .when(navReportRepository.existsPublishedByNavDateAndFundCode(navDate, TUV100.getCode()))
+        .thenReturn(true);
   }
 
   private void stubMissing(LocalDate today, TulevaFund fund) {
     LocalDate navDate = navDateFor(today);
     lenient()
-        .when(navReportRepository.findLatestByNavDateAndFundCode(navDate, fund.getCode()))
-        .thenReturn(List.of());
+        .when(navReportRepository.existsPublishedByNavDateAndFundCode(navDate, fund.getCode()))
+        .thenReturn(false);
   }
 
   private LocalDate navDateFor(LocalDate today) {

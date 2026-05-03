@@ -18,7 +18,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -178,15 +177,15 @@ class NavAlertJobTest {
   private void stubMissing(LocalDate today, ee.tuleva.onboarding.fund.TulevaFund fund) {
     LocalDate navDate = navDateFor(today);
     lenient()
-        .when(navReportRepository.findLatestByNavDateAndFundCode(navDate, fund.getCode()))
-        .thenReturn(List.of());
+        .when(navReportRepository.existsPublishedByNavDateAndFundCode(navDate, fund.getCode()))
+        .thenReturn(false);
   }
 
   private void stubPublished(LocalDate today, ee.tuleva.onboarding.fund.TulevaFund fund) {
     LocalDate navDate = navDateFor(today);
     lenient()
-        .when(navReportRepository.findLatestByNavDateAndFundCode(navDate, fund.getCode()))
-        .thenReturn(List.of(new NavReportRow()));
+        .when(navReportRepository.existsPublishedByNavDateAndFundCode(navDate, fund.getCode()))
+        .thenReturn(true);
   }
 
   private LocalDate navDateFor(LocalDate today) {

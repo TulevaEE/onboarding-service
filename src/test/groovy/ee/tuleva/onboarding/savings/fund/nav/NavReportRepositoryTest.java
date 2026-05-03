@@ -160,4 +160,47 @@ class NavReportRepositoryTest {
     var found = navReportRepository.findLatestByNavDateAndFundCode(navDate, "TKF100");
     assertThat(found).singleElement().satisfies(r -> assertThat(r.getPublishedAt()).isNotNull());
   }
+
+  @Test
+  void existsPublishedByNavDateAndFundCode_returnsFalseForUnpublished() {
+    var navDate = LocalDate.of(2026, 4, 22);
+    var row =
+        NavReportRow.builder()
+            .navDate(navDate)
+            .fundCode("TKF100")
+            .accountType("CASH")
+            .accountName("Cash")
+            .quantity(new BigDecimal("100.00"))
+            .marketPrice(new BigDecimal("1.00"))
+            .marketValue(new BigDecimal("100.00"))
+            .calculationId(UUID.randomUUID())
+            .build();
+
+    navReportRepository.save(row);
+
+    assertThat(navReportRepository.existsPublishedByNavDateAndFundCode(navDate, "TKF100"))
+        .isFalse();
+  }
+
+  @Test
+  void existsPublishedByNavDateAndFundCode_returnsTrueForPublished() {
+    var navDate = LocalDate.of(2026, 4, 22);
+    var calcId = UUID.randomUUID();
+    var row =
+        NavReportRow.builder()
+            .navDate(navDate)
+            .fundCode("TKF100")
+            .accountType("CASH")
+            .accountName("Cash")
+            .quantity(new BigDecimal("100.00"))
+            .marketPrice(new BigDecimal("1.00"))
+            .marketValue(new BigDecimal("100.00"))
+            .calculationId(calcId)
+            .build();
+
+    navReportRepository.save(row);
+    navReportRepository.markAsPublished(calcId);
+
+    assertThat(navReportRepository.existsPublishedByNavDateAndFundCode(navDate, "TKF100")).isTrue();
+  }
 }

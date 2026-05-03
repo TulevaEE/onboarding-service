@@ -152,17 +152,21 @@ class NavCalculationJobTest {
 
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
-    when(navReportRepository.findLatestByNavDateAndFundCode(previousWorkingDay, TUK75.getCode()))
-        .thenReturn(List.of(new NavReportRow()));
-    when(navReportRepository.findLatestByNavDateAndFundCode(previousWorkingDay, TUK00.getCode()))
-        .thenReturn(List.of(new NavReportRow()));
+    when(navReportRepository.existsPublishedByNavDateAndFundCode(
+            previousWorkingDay, TUK75.getCode()))
+        .thenReturn(true);
+    when(navReportRepository.existsPublishedByNavDateAndFundCode(
+            previousWorkingDay, TUK00.getCode()))
+        .thenReturn(true);
 
     List<TulevaFund> pillar2Funds =
         getPillar2Funds().stream().filter(TulevaFund::hasNavCalculation).toList();
     job.onNavCalculationRequested(new RunNavCalculationRequested(pillar2Funds));
 
-    verify(navReportRepository).findLatestByNavDateAndFundCode(previousWorkingDay, TUK75.getCode());
-    verify(navReportRepository).findLatestByNavDateAndFundCode(previousWorkingDay, TUK00.getCode());
+    verify(navReportRepository)
+        .existsPublishedByNavDateAndFundCode(previousWorkingDay, TUK75.getCode());
+    verify(navReportRepository)
+        .existsPublishedByNavDateAndFundCode(previousWorkingDay, TUK00.getCode());
     verify(navCalculationService, never()).calculate(any(TulevaFund.class), any(LocalDate.class));
     verify(navPublisher, never()).publish(any());
     verify(fundValueIndexingJob, never()).refreshForNavCalculation();
@@ -174,17 +178,17 @@ class NavCalculationJobTest {
 
     LocalDate monday = LocalDate.of(2025, 1, 20);
     LocalDate friday = LocalDate.of(2025, 1, 17);
-    when(navReportRepository.findLatestByNavDateAndFundCode(friday, TUK75.getCode()))
-        .thenReturn(List.of(new NavReportRow()));
-    when(navReportRepository.findLatestByNavDateAndFundCode(friday, TUK00.getCode()))
-        .thenReturn(List.of(new NavReportRow()));
+    when(navReportRepository.existsPublishedByNavDateAndFundCode(friday, TUK75.getCode()))
+        .thenReturn(true);
+    when(navReportRepository.existsPublishedByNavDateAndFundCode(friday, TUK00.getCode()))
+        .thenReturn(true);
 
     List<TulevaFund> pillar2Funds =
         getPillar2Funds().stream().filter(TulevaFund::hasNavCalculation).toList();
     job.onNavCalculationRequested(new RunNavCalculationRequested(pillar2Funds));
 
-    verify(navReportRepository).findLatestByNavDateAndFundCode(friday, TUK75.getCode());
-    verify(navReportRepository).findLatestByNavDateAndFundCode(friday, TUK00.getCode());
+    verify(navReportRepository).existsPublishedByNavDateAndFundCode(friday, TUK75.getCode());
+    verify(navReportRepository).existsPublishedByNavDateAndFundCode(friday, TUK00.getCode());
     verify(navCalculationService, never()).calculate(any(TulevaFund.class), any(LocalDate.class));
   }
 
@@ -196,10 +200,12 @@ class NavCalculationJobTest {
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
     List<TulevaFund> pillar2Funds =
         getPillar2Funds().stream().filter(TulevaFund::hasNavCalculation).toList();
-    when(navReportRepository.findLatestByNavDateAndFundCode(previousWorkingDay, TUK75.getCode()))
-        .thenReturn(List.of(new NavReportRow()));
-    when(navReportRepository.findLatestByNavDateAndFundCode(previousWorkingDay, TUK00.getCode()))
-        .thenReturn(List.of());
+    when(navReportRepository.existsPublishedByNavDateAndFundCode(
+            previousWorkingDay, TUK75.getCode()))
+        .thenReturn(true);
+    when(navReportRepository.existsPublishedByNavDateAndFundCode(
+            previousWorkingDay, TUK00.getCode()))
+        .thenReturn(false);
     when(navCalculationService.calculate(TUK00, today)).thenReturn(buildTestResult(TUK00, today));
 
     job.onNavCalculationRequested(new RunNavCalculationRequested(pillar2Funds));
@@ -215,8 +221,9 @@ class NavCalculationJobTest {
 
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
-    when(navReportRepository.findLatestByNavDateAndFundCode(previousWorkingDay, TKF100.getCode()))
-        .thenReturn(List.of(new NavReportRow()));
+    when(navReportRepository.existsPublishedByNavDateAndFundCode(
+            previousWorkingDay, TKF100.getCode()))
+        .thenReturn(true);
 
     job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TKF100)));
 
@@ -251,8 +258,9 @@ class NavCalculationJobTest {
     // TUV100 was already published by the normal cron and AllNavCalculationsCompleted was
     // already fired; the retry must not re-trigger downstream LimitCheckJob /
     // TrackingDifferenceJob.
-    when(navReportRepository.findLatestByNavDateAndFundCode(previousWorkingDay, TUV100.getCode()))
-        .thenReturn(List.of(new NavReportRow()));
+    when(navReportRepository.existsPublishedByNavDateAndFundCode(
+            previousWorkingDay, TUV100.getCode()))
+        .thenReturn(true);
 
     job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TUV100), true));
 
@@ -266,8 +274,9 @@ class NavCalculationJobTest {
 
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
-    when(navReportRepository.findLatestByNavDateAndFundCode(previousWorkingDay, TUV100.getCode()))
-        .thenReturn(List.of());
+    when(navReportRepository.existsPublishedByNavDateAndFundCode(
+            previousWorkingDay, TUV100.getCode()))
+        .thenReturn(false);
     when(navCalculationService.calculate(TUV100, today))
         .thenThrow(new RuntimeException("Provider blew up"));
 
@@ -283,8 +292,9 @@ class NavCalculationJobTest {
 
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
-    when(navReportRepository.findLatestByNavDateAndFundCode(previousWorkingDay, TUV100.getCode()))
-        .thenReturn(List.of());
+    when(navReportRepository.existsPublishedByNavDateAndFundCode(
+            previousWorkingDay, TUV100.getCode()))
+        .thenReturn(false);
     when(navCalculationService.calculate(TUV100, today)).thenReturn(buildTestResult(TUV100, today));
 
     job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TUV100), true));

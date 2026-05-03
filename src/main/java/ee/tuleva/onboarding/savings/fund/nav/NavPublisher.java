@@ -65,9 +65,10 @@ public class NavPublisher {
       }
     } catch (Exception e) {
       log.error(
-          "Failed to send NAV report email: fund={}, date={}",
+          "Failed to send NAV report email: fund={}, calculationDate={}, positionReportDate={}",
           result.fund(),
           result.calculationDate(),
+          result.positionReportDate(),
           e);
       notificationService.sendMessage(
           "NAV report email failed: fund="

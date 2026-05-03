@@ -26,6 +26,19 @@ interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
   List<NavReportRow> findLatestByNavDateAndFundCode(
       @Param("navDate") LocalDate navDate, @Param("fundCode") String fundCode);
 
+  @Query(
+      value =
+          """
+          SELECT CASE WHEN EXISTS (
+            SELECT 1 FROM nav_report
+            WHERE nav_date = :navDate AND fund_code = :fundCode
+              AND published_at IS NOT NULL
+          ) THEN true ELSE false END
+          """,
+      nativeQuery = true)
+  boolean existsPublishedByNavDateAndFundCode(
+      @Param("navDate") LocalDate navDate, @Param("fundCode") String fundCode);
+
   @Transactional
   @Modifying(flushAutomatically = true)
   @Query(
@@ -46,7 +59,7 @@ interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
   @Query(
       value =
           "UPDATE nav_report SET published_at = CURRENT_TIMESTAMP"
-              + " WHERE calculation_id = :calculationId",
+              + " WHERE calculation_id = :calculationId AND published_at IS NULL",
       nativeQuery = true)
   void markAsPublished(@Param("calculationId") UUID calculationId);
 }

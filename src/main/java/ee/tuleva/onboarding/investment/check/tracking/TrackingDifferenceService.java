@@ -321,6 +321,7 @@ class TrackingDifferenceService {
       return Optional.empty();
     }
 
+    var maxDailyReturn = calculator.maxDailyReturn(checkDate);
     var totalWeightedReturn = ZERO;
     var totalWeightedBenchmarkReturn = ZERO;
     var totalWeight = ZERO;
@@ -340,10 +341,7 @@ class TrackingDifferenceService {
         continue;
       }
       var secReturn =
-          s.today()
-              .price()
-              .subtract(s.previous().price())
-              .divide(s.previous().price(), SCALE, RoundingMode.HALF_UP);
+          calculator.safeDailyReturn(s.today().price(), s.previous().price(), maxDailyReturn);
       var weight = s.actualWeight();
       totalWeightedReturn = totalWeightedReturn.add(weight.multiply(secReturn));
       totalWeightedBenchmarkReturn =

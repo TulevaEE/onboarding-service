@@ -261,8 +261,7 @@ class NavCalculationJobTest {
     job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TUV100), true));
 
     verify(eventPublisher, never()).publishEvent(any(AllNavCalculationsCompleted.class));
-    // NavCalculationCompleted is still fired (it's a per-event signal, not a downstream trigger)
-    verify(eventPublisher).publishEvent(any(NavCalculationCompleted.class));
+    verify(eventPublisher, never()).publishEvent(any(NavCalculationCompleted.class));
   }
 
   @Test
@@ -279,10 +278,8 @@ class NavCalculationJobTest {
 
     job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TUV100), true));
 
-    // Downstream must not run against incomplete data; a later retry that actually
-    // succeeds will be the run that fires AllNavCalculationsCompleted.
     verify(eventPublisher, never()).publishEvent(any(AllNavCalculationsCompleted.class));
-    verify(eventPublisher).publishEvent(any(NavCalculationCompleted.class));
+    verify(eventPublisher, never()).publishEvent(any(NavCalculationCompleted.class));
   }
 
   @Test

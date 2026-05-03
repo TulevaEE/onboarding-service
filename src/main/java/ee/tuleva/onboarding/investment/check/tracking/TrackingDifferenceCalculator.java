@@ -116,8 +116,11 @@ class TrackingDifferenceCalculator {
             .build());
   }
 
-  private BigDecimal safeDailyReturn(
-      BigDecimal today, BigDecimal yesterday, BigDecimal maxDailyReturn) {
+  BigDecimal maxDailyReturn(LocalDate asOf) {
+    return parameterRepository.findLatestValue(TRACKING_MAX_DAILY_RETURN, asOf);
+  }
+
+  BigDecimal safeDailyReturn(BigDecimal today, BigDecimal yesterday, BigDecimal maxDailyReturn) {
     var ret = today.subtract(yesterday).divide(yesterday, SCALE, HALF_UP);
     return ret.abs().compareTo(maxDailyReturn) > 0 ? ZERO : ret;
   }

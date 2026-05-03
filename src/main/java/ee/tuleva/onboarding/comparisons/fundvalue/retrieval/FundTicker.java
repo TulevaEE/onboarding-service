@@ -157,7 +157,7 @@ public enum FundTicker {
       "BAREUBD",
       "229055",
       "0P0000STQT",
-      BenchmarkCategory.BOND_GLOBAL),
+      BenchmarkCategory.BOND_EURO),
 
   // Benchmark proxy ETFs (not held in portfolios — used for BENCHMARK_MODEL comparison)
   ISHARES_CORE_MSCI_WORLD(

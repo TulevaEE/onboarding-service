@@ -10,7 +10,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
-import ee.tuleva.onboarding.party.PartyId;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -129,11 +128,8 @@ class RedemptionPayoutWarningJobTest {
   }
 
   private RedemptionRequest requestWithAmount(BigDecimal amount) {
-    return RedemptionRequest.builder()
-        .partyId(new PartyId(PartyId.Type.PERSON, "38501010000"))
-        .fundUnits(new BigDecimal("10.00000"))
+    return RedemptionRequestFixture.redemptionRequestFixture()
         .requestedAmount(amount)
-        .customerIban("EE123456789012345678")
         .status(VERIFIED)
         .build();
   }

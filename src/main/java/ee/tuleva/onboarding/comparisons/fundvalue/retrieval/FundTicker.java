@@ -159,7 +159,8 @@ public enum FundTicker {
       "0P0000STQT",
       BenchmarkCategory.BOND_EURO),
 
-  // Benchmark proxy ETFs (not held in portfolios — used for BENCHMARK_MODEL comparison)
+  // Benchmark proxy ETFs (not held in portfolios — used for BENCHMARK_MODEL comparison).
+  // benchmarkCategory is intentionally null: these are the benchmarks themselves, not tracked instruments.
   ISHARES_CORE_MSCI_WORLD(
       "IWDA.DE", "IWDA.XETRA", "IE00B4L5Y983", "iShares Core MSCI World UCITS ETF", "IWDA", null),
   ISHARES_MSCI_EM(

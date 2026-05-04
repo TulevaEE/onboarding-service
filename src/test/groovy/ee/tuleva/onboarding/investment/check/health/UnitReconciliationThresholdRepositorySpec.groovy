@@ -28,14 +28,14 @@ class UnitReconciliationThresholdRepositorySpec extends Specification {
         def threshold = repository.findByFundCode(TKF100).get()
 
         then:
-        threshold.warningUnits == 0.02
+        threshold.warningUnits == 0.5
         threshold.failUnits == 0.5
     }
 
     def "pillar 2/3 funds default to notify-only (no fail threshold)"() {
         expect:
         with(repository.findByFundCode(fund).get()) {
-            warningUnits == 0
+            warningUnits == 0.5
             failUnits == null
         }
 

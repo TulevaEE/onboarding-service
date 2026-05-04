@@ -1,17 +1,21 @@
 package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.PASS;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_UNIT_IMPACT;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -28,6 +32,7 @@ public class HealthCheckService {
   private final IsinMatchChecker isinMatchChecker;
   private final OutstandingUnitsChecker outstandingUnitsChecker;
   private final UnitReconciliationChecker unitReconciliationChecker;
+  private final NavUnitImpactChecker navUnitImpactChecker;
   private final UnitReconciliationThresholdRepository unitReconciliationThresholdRepository;
   private final AuthoritativeUnitsSource authoritativeUnitsSource;
   private final ReceivablesChecker receivablesChecker;
@@ -82,6 +87,9 @@ public class HealthCheckService {
     var threshold = unitReconciliationThresholdRepository.findByFundCode(fund).orElse(null);
     var authoritativeUnits = authoritativeUnitsSource.resolve(fund, navDate).orElse(null);
 
+    var reportedUnits = unitsPositions.isEmpty() ? null : unitsPositions.getFirst().getQuantity();
+    var aum = resolveAum(positions, securities, receivables, liabilities);
+
     var findings = new ArrayList<HealthCheckFinding>();
     findings.addAll(completenessChecker.check(fund, navDate, positions));
     findings.addAll(isinMatchChecker.check(fund, securities, allocations));
@@ -89,6 +97,8 @@ public class HealthCheckService {
     findings.addAll(
         unitReconciliationChecker.check(
             fund, navDate, unitsPositions, authoritativeUnits, threshold));
+    findings.addAll(
+        navUnitImpactChecker.check(fund, navDate, reportedUnits, authoritativeUnits, aum));
     findings.addAll(
         receivablesChecker.check(
             fund, securities, previousSecurities, receivables, previousReceivables));
@@ -99,6 +109,32 @@ public class HealthCheckService {
     saveEvents(fund, navDate, findings);
 
     return new HealthCheckResult(fund, navDate, findings);
+  }
+
+  public boolean isNavPublishBlocked(TulevaFund fund, LocalDate navDate) {
+    return healthCheckEventRepository
+        .findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(fund, navDate, NAV_UNIT_IMPACT)
+        .stream()
+        .findFirst()
+        .map(HealthCheckEvent::isIssuesFound)
+        .orElse(false);
+  }
+
+  private BigDecimal resolveAum(
+      List<FundPosition> positions,
+      List<FundPosition> securities,
+      List<FundPosition> receivables,
+      List<FundPosition> liabilities) {
+    var navPositions = filterByType(positions, NAV);
+    if (!navPositions.isEmpty() && navPositions.getFirst().getMarketValue() != null) {
+      return navPositions.getFirst().getMarketValue();
+    }
+    var cashPositions = filterByType(positions, CASH);
+    return Stream.of(securities, cashPositions, receivables, liabilities)
+        .flatMap(List::stream)
+        .map(FundPosition::getMarketValue)
+        .filter(Objects::nonNull)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
   private List<FundPosition> filterByType(

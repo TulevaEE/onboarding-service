@@ -175,7 +175,7 @@ class SebFundPositionParserTest {
   }
 
   @Test
-  void parse_skipsTotalRow() {
+  void parse_parsesTotalRowAsNav() {
     List<Map<String, Object>> rawData =
         List.of(
             Map.of(
@@ -185,7 +185,12 @@ class SebFundPositionParserTest {
 
     List<FundPosition> positions = parser.parse(rawData, REPORT_DATE);
 
-    assertThat(positions).isEmpty();
+    assertThat(positions).hasSize(1);
+    FundPosition position = positions.getFirst();
+    assertThat(position.getFund()).isEqualTo(TKF100);
+    assertThat(position.getAccountType()).isEqualTo(NAV);
+    assertThat(position.getAccountName()).isEqualTo("Total");
+    assertThat(position.getMarketValue()).isEqualByComparingTo(new BigDecimal("59801848.29"));
   }
 
   @Test

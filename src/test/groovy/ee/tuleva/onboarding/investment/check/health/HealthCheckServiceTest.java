@@ -37,6 +37,7 @@ class HealthCheckServiceTest {
   @Mock IsinMatchChecker isinMatchChecker;
   @Mock OutstandingUnitsChecker outstandingUnitsChecker;
   @Mock UnitReconciliationChecker unitReconciliationChecker;
+  @Mock NavUnitImpactChecker navUnitImpactChecker;
   @Mock UnitReconciliationThresholdRepository unitReconciliationThresholdRepository;
   @Mock AuthoritativeUnitsSource authoritativeUnitsSource;
   @Mock ReceivablesChecker receivablesChecker;

@@ -107,11 +107,21 @@ public class SebFundPositionParser implements FundPositionParser {
       }
 
       String accountColumn = getString(row, "Account");
-      if (isSkippableRow(accountColumn)) {
-        return Optional.empty();
+      TulevaFund fund = TulevaFund.fromCode(fundCode);
+
+      if (isTotalRow(accountColumn)) {
+        return Optional.of(
+            FundPosition.builder()
+                .navDate(navDate)
+                .reportDate(reportDate)
+                .fund(fund)
+                .accountType(AccountType.NAV)
+                .accountName("Total")
+                .marketValue(getBigDecimal(row, "Market Value (EUR)"))
+                .createdAt(Instant.now(clock))
+                .build());
       }
 
-      TulevaFund fund = TulevaFund.fromCode(fundCode);
       String accountName = getString(row, "Name");
       if (accountName == null || accountName.isBlank()) {
         return Optional.empty();
@@ -154,11 +164,8 @@ public class SebFundPositionParser implements FundPositionParser {
         .orElse(null);
   }
 
-  private boolean isSkippableRow(String accountColumn) {
-    if (accountColumn == null) {
-      return false;
-    }
-    return "Total".equalsIgnoreCase(accountColumn.trim());
+  private boolean isTotalRow(String accountColumn) {
+    return accountColumn != null && "Total".equalsIgnoreCase(accountColumn.trim());
   }
 
   private AccountType determineAccountType(String accountName, String accountColumn) {

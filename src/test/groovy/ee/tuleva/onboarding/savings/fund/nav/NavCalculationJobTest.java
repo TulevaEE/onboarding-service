@@ -77,6 +77,7 @@ class NavCalculationJobTest {
 
     verifyNoInteractions(navCalculationService);
     verifyNoInteractions(navPublisher);
+    verify(eventPublisher, never()).publishEvent(any(NavCalculationCompleted.class));
   }
 
   @Test
@@ -226,6 +227,7 @@ class NavCalculationJobTest {
     verify(navCalculationService, never()).calculate(TKF100, today);
     verify(navPublisher, never()).publish(any());
     verify(fundValueIndexingJob, never()).refreshForNavCalculation();
+    verify(eventPublisher, never()).publishEvent(any(NavCalculationCompleted.class));
   }
 
   @Test

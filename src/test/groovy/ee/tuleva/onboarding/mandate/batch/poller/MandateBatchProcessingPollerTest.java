@@ -23,6 +23,7 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import lombok.SneakyThrows;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +40,11 @@ class MandateBatchProcessingPollerTest {
   @Mock private EpisService episService;
 
   @InjectMocks private MandateBatchProcessingPoller mandateBatchProcessingPoller;
+
+  @AfterEach
+  void tearDown() {
+    mandateBatchProcessingPoller.stop();
+  }
 
   @SneakyThrows
   @SuppressWarnings("unchecked")

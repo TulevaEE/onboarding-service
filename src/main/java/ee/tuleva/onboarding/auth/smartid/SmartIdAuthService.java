@@ -1,10 +1,13 @@
 package ee.tuleva.onboarding.auth.smartid;
 
-import static ee.tuleva.onboarding.error.response.ErrorsResponse.ofSingleError;
-import static java.util.Collections.*;
-import static java.util.concurrent.Executors.*;
+import static java.util.concurrent.Executors.newFixedThreadPool;
 
-import ee.sk.smartid.*;
+import ee.sk.smartid.AuthenticationHash;
+import ee.sk.smartid.AuthenticationIdentity;
+import ee.sk.smartid.AuthenticationRequestBuilder;
+import ee.sk.smartid.AuthenticationResponseValidator;
+import ee.sk.smartid.SmartIdAuthenticationResponse;
+import ee.sk.smartid.SmartIdClient;
 import ee.sk.smartid.exception.UnprocessableSmartIdResponseException;
 import ee.sk.smartid.exception.useraccount.UserAccountNotFoundException;
 import ee.sk.smartid.exception.useraction.UserRefusedException;
@@ -12,21 +15,16 @@ import ee.sk.smartid.rest.dao.Interaction;
 import ee.sk.smartid.rest.dao.SemanticsIdentifier;
 import ee.sk.smartid.rest.dao.SemanticsIdentifier.CountryCode;
 import ee.sk.smartid.rest.dao.SemanticsIdentifier.IdentityType;
+import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import jakarta.annotation.PreDestroy;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-import lombok.Builder;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections4.map.LRUMap;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -34,23 +32,12 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class SmartIdAuthService {
 
-  @Builder
-  @Data
-  static class SmartIdResult {
-
-    private AuthenticationIdentity authenticationIdentity;
-    private SmartIdException error;
-    private Instant createdAt;
-  }
-
-  private static final Duration TTL = Duration.ofSeconds(60);
-
-  private final Map<String, SmartIdResult> smartIdResults = synchronizedMap(new LRUMap<>());
   private final ExecutorService poller = newFixedThreadPool(20);
 
   private final SmartIdClient smartIdClient;
   private final SmartIdAuthenticationHashGenerator hashGenerator;
   private final AuthenticationResponseValidator authenticationResponseValidator;
+  private final GenericSessionStore genericSessionStore;
   private final Clock clock;
 
   @SneakyThrows
@@ -66,70 +53,44 @@ public class SmartIdAuthService {
     }
   }
 
-  public SmartIdSession startLogin(String personalCode) {
+  public SmartIdSession startLogin(String personalCode, String httpSessionId) {
     var authenticationHash = hashGenerator.generateHash();
-    String verificationCode = authenticationHash.calculateVerificationCode();
-    SmartIdSession session = new SmartIdSession(verificationCode, personalCode, authenticationHash);
-    poll(session);
+    var verificationCode = authenticationHash.calculateVerificationCode();
+    var session =
+        new SmartIdSession(verificationCode, personalCode, authenticationHash, Instant.now(clock));
+    poll(session, httpSessionId);
     return session;
   }
 
-  public Optional<AuthenticationIdentity> getAuthenticationIdentity(String authenticationHash) {
-    var result =
-        smartIdResults.computeIfPresent(
-            authenticationHash,
-            (key, value) -> {
-              if (Instant.now(clock).isAfter(value.getCreatedAt().plus(TTL))) {
-                return null; // Remove the entry
-              }
-              return value; // Keep the entry
-            });
-    if (result == null) {
-      return Optional.empty();
-    }
-    if (result.error != null) {
-      throw result.error;
-    }
-    return Optional.ofNullable(result.getAuthenticationIdentity());
-  }
-
-  private void poll(SmartIdSession session) {
+  private void poll(SmartIdSession session, String httpSessionId) {
     log.info("Starting to poll");
     poller.submit(
         () -> {
-          final var resultBuilder = SmartIdResult.builder().createdAt(Instant.now(clock));
           try {
             SmartIdAuthenticationResponse response =
                 requestBuilder(session.getPersonalCode(), session.getAuthenticationHash())
                     .authenticate();
-            AuthenticationIdentity authenticationIdentity =
-                authenticationResponseValidator.validate(response);
-            resultBuilder.authenticationIdentity(authenticationIdentity);
+            AuthenticationIdentity identity = authenticationResponseValidator.validate(response);
+            session.setPerson(new SmartIdPerson(identity));
           } catch (UnprocessableSmartIdResponseException e) {
             log.info("Smart ID validation failed: personalCode=" + session.getPersonalCode(), e);
-            resultBuilder.error(
-                new SmartIdException(
-                    ofSingleError("smart.id.validation.failed", "Smart ID validation failed")));
+            session.setErrorCode("smart.id.validation.failed");
+            session.setErrorMessage("Smart ID validation failed");
           } catch (UserAccountNotFoundException e) {
             log.info(
                 "Smart ID User account not found: personalCode=" + session.getPersonalCode(), e);
-            resultBuilder.error(
-                new SmartIdException(
-                    ofSingleError(
-                        "smart.id.account.not.found", "Smart ID user account not found")));
+            session.setErrorCode("smart.id.account.not.found");
+            session.setErrorMessage("Smart ID user account not found");
           } catch (UserRefusedException e) {
-            resultBuilder.error(
-                new SmartIdException(
-                    ofSingleError("smart.id.user.refused", "Smart ID User refused")));
+            session.setErrorCode("smart.id.user.refused");
+            session.setErrorMessage("Smart ID User refused");
           } catch (Exception e) {
             log.error("Smart ID technical error", e);
-            resultBuilder.error(
-                new SmartIdException(
-                    ofSingleError("smart.id.technical.error", "Smart ID technical error")));
+            session.setErrorCode("smart.id.technical.error");
+            session.setErrorMessage("Smart ID technical error");
           } finally {
             log.info("Smart ID authentication ended");
-            smartIdResults.put(
-                session.getAuthenticationHash().getHashInBase64(), resultBuilder.build());
+            genericSessionStore.saveBySessionId(httpSessionId, session);
           }
         });
   }

@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.auth.mobileid.MobileIdFixture
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.auth.smartid.SmartIdAuthService
 import ee.tuleva.onboarding.auth.smartid.SmartIdFixture
+import ee.tuleva.onboarding.auth.smartid.SmartIdSession
 import ee.tuleva.onboarding.auth.webeid.WebEidAuthService
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
@@ -48,7 +49,8 @@ class AuthControllerSpec extends BaseControllerSpec {
 
   def "Authenticate: Initiate smart id authentication"() {
     given:
-    1 * smartIdAuthService.startLogin(SmartIdFixture.personalCode) >> SmartIdFixture.sampleSmartIdSession
+    1 * smartIdAuthService.startLogin(SmartIdFixture.personalCode, _ as String) >> SmartIdFixture.sampleSmartIdSession
+    1 * sessionStore.save(_ as SmartIdSession)
     when:
     def result = mockMvc.perform(post("/authenticate")
         .contentType(MediaType.APPLICATION_JSON)

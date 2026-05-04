@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth.session
 
+import org.springframework.session.FindByIndexNameSessionRepository
 import spock.lang.Specification
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpSession
@@ -15,7 +16,7 @@ class GenericSessionStoreSpec extends Specification {
         request.setSession(session)
         ServletRequestAttributes attributes = new ServletRequestAttributes(request)
         RequestContextHolder.setRequestAttributes(attributes)
-        GenericSessionStore sessionStore = new GenericSessionStore()
+        GenericSessionStore sessionStore = new GenericSessionStore(Mock(FindByIndexNameSessionRepository))
 
     and: "A serializable session attribute"
         String testAttribute = "TestAttribute"

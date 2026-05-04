@@ -555,6 +555,45 @@ class LimitCheckServiceTest {
   }
 
   @Test
+  void backfillCollectsPartialResultsOnFailure() {
+    service = createService();
+    var today = LocalDate.of(2026, 3, 4);
+
+    // TUK75 succeeds
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, today))
+        .thenReturn(Optional.of(today));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, TUK75, SECURITY))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, TUK75, CASH))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, TUK75, LIABILITY))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, TUK75, FEE))
+        .thenReturn(List.of());
+    when(navReportPositionProvider.getCalculatedAum(TUK75, today))
+        .thenReturn(Optional.of(new BigDecimal("1000000")));
+    when(positionLimitRepository.findLatestByFundAsOf(eq(TUK75), any())).thenReturn(List.of());
+    when(providerLimitRepository.findLatestByFundAsOf(eq(TUK75), any())).thenReturn(List.of());
+    when(fundLimitRepository.findLatestByFundAsOf(eq(TUK75), any())).thenReturn(Optional.empty());
+    when(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).thenReturn(List.of());
+    when(positionLimitChecker.check(eq(TUK75), any(), any(), any())).thenReturn(List.of());
+    when(providerLimitChecker.check(eq(TUK75), any(), any(), any(), any())).thenReturn(List.of());
+
+    // TUK00 fails
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK00, today))
+        .thenReturn(Optional.of(today));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, TUK00, SECURITY))
+        .thenReturn(List.of());
+    when(navReportPositionProvider.getCalculatedAum(TUK00, today))
+        .thenThrow(new RuntimeException("DB error"));
+
+    var results = service.backfillChecks(0);
+
+    assertThat(results).hasSize(1);
+    assertThat(results.getFirst().fund()).isEqualTo(TUK75);
+  }
+
+  @Test
   void computeTotalNavThrowsWhenBothSourcesMissing() {
     service = createService();
     var today = LocalDate.of(2026, 3, 4);

@@ -50,6 +50,7 @@ public class SmartIdAuthService {
       }
     } catch (InterruptedException e) {
       poller.shutdownNow();
+      Thread.currentThread().interrupt();
     }
   }
 

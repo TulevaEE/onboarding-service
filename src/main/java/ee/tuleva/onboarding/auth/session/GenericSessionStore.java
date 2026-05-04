@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth.session;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -19,12 +20,15 @@ public class GenericSessionStore {
   private final FindByIndexNameSessionRepository<? extends Session> sessionRepository;
 
   public <T> void save(T sessionAttribute) {
-    HttpSession session = getSession();
+    HttpSession session = currentRequest().getSession(true);
     session.setAttribute(sessionAttribute.getClass().getName(), sessionAttribute);
   }
 
   public <T> Optional<T> get(Class<T> clazz) {
-    HttpSession session = getSession();
+    HttpSession session = currentRequest().getSession(false);
+    if (session == null) {
+      return Optional.empty();
+    }
     @SuppressWarnings("unchecked")
     T sessionAttribute = (T) session.getAttribute(clazz.getName());
     return Optional.ofNullable(sessionAttribute);
@@ -49,6 +53,10 @@ public class GenericSessionStore {
         Thread.sleep(100);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
+        log.error(
+            "Interrupted while waiting for session; dropping attribute: sessionId={}, attribute={}",
+            sessionId,
+            attribute.getClass().getName());
         return;
       }
     }
@@ -58,9 +66,8 @@ public class GenericSessionStore {
         attribute.getClass().getName());
   }
 
-  private static HttpSession getSession() {
-    ServletRequestAttributes attr =
-        (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
-    return attr.getRequest().getSession(true);
+  private static HttpServletRequest currentRequest() {
+    return ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes())
+        .getRequest();
   }
 }

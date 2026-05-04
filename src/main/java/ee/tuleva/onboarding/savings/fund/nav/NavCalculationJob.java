@@ -76,9 +76,11 @@ public class NavCalculationJob {
   @EventListener
   public void onNavCalculationRequested(RunNavCalculationRequested event) {
     pipelineTracker.stepStarted(NAV_CALCULATION);
-    calculateForFunds(event.funds());
+    int successfullyPublishedCount = calculateForFunds(event.funds());
     pipelineTracker.stepCompleted(NAV_CALCULATION);
-    eventPublisher.publishEvent(new NavCalculationCompleted(event.funds()));
+    if (successfullyPublishedCount > 0) {
+      eventPublisher.publishEvent(new NavCalculationCompleted(event.funds()));
+    }
   }
 
   private int calculateForFunds(List<TulevaFund> funds) {

@@ -173,7 +173,9 @@ class LimitCheckService {
     if (calculatedAum.isPresent()) {
       return calculatedAum.get();
     }
-    log.error("Calculated AUM unavailable in nav_report, falling back to units × NAV per unit: fund={}", fund);
+    log.warn(
+        "Calculated AUM unavailable in nav_report, falling back to units × NAV per unit: fund={}",
+        fund);
     var unitsPositions =
         fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, UNITS);
     if (!unitsPositions.isEmpty()) {

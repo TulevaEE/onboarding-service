@@ -80,6 +80,36 @@ class LimitCheckJobTest {
   }
 
   @Test
+  void partialFailureNotifiesBreachesAndMarksStepFailed() {
+    var breachResult = mock(LimitCheckResult.class);
+    when(breachResult.hasBreaches()).thenReturn(true);
+    var partial = List.of(breachResult);
+
+    when(limitCheckService.runChecks())
+        .thenThrow(new LimitCheckPartialFailureException("1 fund(s) failed", partial));
+
+    job.onAllNavCalculationsCompleted(new AllNavCalculationsCompleted());
+
+    verify(limitCheckNotifier).notify(partial);
+    verify(pipelineTracker).stepFailed(any(), eq("1 fund(s) failed"));
+  }
+
+  @Test
+  void partialFailureWithoutBreachesSkipsNotification() {
+    var okResult = mock(LimitCheckResult.class);
+    when(okResult.hasBreaches()).thenReturn(false);
+    var partial = List.of(okResult);
+
+    when(limitCheckService.runChecks())
+        .thenThrow(new LimitCheckPartialFailureException("1 fund(s) failed", partial));
+
+    job.onAllNavCalculationsCompleted(new AllNavCalculationsCompleted());
+
+    verify(limitCheckNotifier, never()).notify(any());
+    verify(pipelineTracker).stepFailed(any(), eq("1 fund(s) failed"));
+  }
+
+  @Test
   void backfillSwallowsExceptions() {
     when(limitCheckService.backfillChecks(25)).thenThrow(new RuntimeException("DB down"));
 

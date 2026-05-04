@@ -44,6 +44,9 @@ class NavReportPositionProvider {
             WHERE fund_code = :fundCode
               AND nav_date = :navDate
               AND account_type = 'UNITS'
+              AND account_name = 'Total outstanding units:'
+            ORDER BY id DESC
+            LIMIT 1
             """)
         .param("fundCode", fund.getCode())
         .param("navDate", navDate)

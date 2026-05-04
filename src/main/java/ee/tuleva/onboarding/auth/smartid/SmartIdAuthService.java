@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.auth.smartid;
 
-import static java.util.concurrent.Executors.newFixedThreadPool;
+import static java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import ee.sk.smartid.AuthenticationHash;
@@ -32,7 +32,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class SmartIdAuthService {
 
-  private final ExecutorService poller = newFixedThreadPool(20);
+  private final ExecutorService poller = newVirtualThreadPerTaskExecutor();
 
   private final SmartIdClient smartIdClient;
   private final SmartIdAuthenticationHashGenerator hashGenerator;

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.WITHDRAWALS;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionCutoff.TALLINN;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -9,9 +10,6 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,8 +25,6 @@ import org.springframework.stereotype.Component;
 public class RedemptionPayoutWarningJob {
 
   private static final BigDecimal PAYOUT_WARNING_THRESHOLD = new BigDecimal("40000");
-  private static final LocalTime CUTOFF_TIME = LocalTime.of(16, 0, 0);
-  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
   private final Clock clock;
   private final PublicHolidays publicHolidays;
@@ -44,7 +40,7 @@ public class RedemptionPayoutWarningJob {
     }
 
     LocalDate previousWorkingDay = publicHolidays.previousWorkingDay(today);
-    Instant cutoff = ZonedDateTime.of(previousWorkingDay, CUTOFF_TIME, TALLINN).toInstant();
+    Instant cutoff = RedemptionCutoff.cutoffInstant(previousWorkingDay);
 
     List<RedemptionRequest> requests =
         redemptionRequestRepository.findByStatusAndRequestedAtBefore(VERIFIED, cutoff);

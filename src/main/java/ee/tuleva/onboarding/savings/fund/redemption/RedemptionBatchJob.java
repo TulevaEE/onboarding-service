@@ -21,9 +21,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -43,8 +41,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Profile("!staging")
 public class RedemptionBatchJob {
 
-  private static final LocalTime CUTOFF_TIME = LocalTime.of(16, 0, 0);
-  private static final ZoneId CUTOFF_TIMEZONE = ZoneId.of("Europe/Tallinn");
+  private static final ZoneId CUTOFF_TIMEZONE = RedemptionCutoff.TALLINN;
 
   private final Clock clock;
   private final PublicHolidays publicHolidays;
@@ -104,7 +101,7 @@ public class RedemptionBatchJob {
   }
 
   private Instant getCutoff(LocalDate date) {
-    return ZonedDateTime.of(date, CUTOFF_TIME, CUTOFF_TIMEZONE).toInstant();
+    return RedemptionCutoff.cutoffInstant(date);
   }
 
   private void processVerifiedRequests(List<RedemptionRequest> toProcess) {

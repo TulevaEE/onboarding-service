@@ -21,9 +21,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SmartIdAuthProvider implements AuthProvider {
 
-  // Smart-ID's own server-side session TTL is ~90 s (the app warns the user at ~60 s
-  // that 30 s remain). We give 120 s here to cover SK's window + the poll/write-back
-  // roundtrip; anything shorter would reject users SK still accepts.
+  // SK accepts up to ~90s of user idle; 120s covers that plus poll/write-back roundtrip.
   private static final Duration GRANT_TTL = Duration.ofSeconds(120);
 
   private final GenericSessionStore genericSessionStore;

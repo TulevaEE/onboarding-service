@@ -1,35 +1,74 @@
 package ee.tuleva.onboarding.auth.session
 
-import org.springframework.session.FindByIndexNameSessionRepository
-import spock.lang.Specification
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpSession
-import org.springframework.web.context.request.ServletRequestAttributes
+import org.springframework.session.FindByIndexNameSessionRepository
+import org.springframework.session.MapSession
+import org.springframework.session.Session
 import org.springframework.web.context.request.RequestContextHolder
+import org.springframework.web.context.request.ServletRequestAttributes
+import spock.lang.Specification
 
 class GenericSessionStoreSpec extends Specification {
 
-  def "ensure serializable attribute round-trip works"() {
-    given: "A mock HTTP session and a GenericSessionStore instance"
-        MockHttpServletRequest request = new MockHttpServletRequest()
-        MockHttpSession session = new MockHttpSession()
-        request.setSession(session)
-        ServletRequestAttributes attributes = new ServletRequestAttributes(request)
-        RequestContextHolder.setRequestAttributes(attributes)
-        GenericSessionStore sessionStore = new GenericSessionStore(Mock(FindByIndexNameSessionRepository))
+  FindByIndexNameSessionRepository<Session> sessionRepository = Mock()
+  GenericSessionStore sessionStore = new GenericSessionStore(sessionRepository)
 
-    and: "A serializable session attribute"
-        String testAttribute = "TestAttribute"
+  def "save and get round-trip works through HttpSession"() {
+    given:
+    MockHttpServletRequest request = new MockHttpServletRequest()
+    request.setSession(new MockHttpSession())
+    RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request))
 
-    when: "save is called with the session attribute"
-        sessionStore.save(testAttribute)
+    when:
+    sessionStore.save("TestAttribute")
 
-    then: "The attribute can be retrieved using its class"
-        Optional<String> retrievedAttribute = sessionStore.get(String.class)
-        assert retrievedAttribute.isPresent()
-        assert retrievedAttribute.get() == testAttribute
+    then:
+    sessionStore.get(String.class) == Optional.of("TestAttribute")
 
-    cleanup: "Clear the request attributes after test"
-        RequestContextHolder.resetRequestAttributes()
+    cleanup:
+    RequestContextHolder.resetRequestAttributes()
+  }
+
+  def "saveBySessionId stores the attribute on the looked-up session"() {
+    given:
+    Session session = new MapSession("session-42")
+    sessionRepository.findById("session-42") >> session
+
+    when:
+    sessionStore.saveBySessionId("session-42", "stored-value")
+
+    then:
+    session.getAttribute(String.class.getName()) == "stored-value"
+    1 * sessionRepository.save(session)
+  }
+
+  def "saveBySessionId retries when the session is not yet available"() {
+    given:
+    Session session = new MapSession("session-42")
+    int callCount = 0
+    sessionRepository.findById("session-42") >> {
+      callCount++
+      callCount < 3 ? null : session
+    }
+
+    when:
+    sessionStore.saveBySessionId("session-42", "stored-value")
+
+    then:
+    callCount == 3
+    session.getAttribute(String.class.getName()) == "stored-value"
+    1 * sessionRepository.save(session)
+  }
+
+  def "saveBySessionId drops the attribute when retries exhaust"() {
+    given:
+    sessionRepository.findById("missing-session") >> null
+
+    when:
+    sessionStore.saveBySessionId("missing-session", "stored-value")
+
+    then:
+    0 * sessionRepository.save(_)
   }
 }

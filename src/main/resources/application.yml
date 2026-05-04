@@ -29,7 +29,8 @@ spring:
     username: tuleva-onboarding
     password: tuleva-onboarding
   session:
-    store-type: jdbc
+    jdbc:
+      initialize-schema: never
 
   sql:
     init:

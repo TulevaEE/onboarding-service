@@ -13,6 +13,8 @@ Follow **Uncle Bob** (Clean Code, SOLID), **Kent Beck** (TDD, simple design), **
 - **Boy Scout Rule** — always leave code cleaner than you found it.
 - **DORA four key metrics** — optimize for deployment frequency, lead time for changes, change failure rate, and time to restore.
 - **Decision-first, not integration-first** — when adding external API integrations, start from "which business decision does this unblock?" not "which endpoints can we call?" Only add a new operation when a failing test proves the current data cannot answer a required decision.
+- **Radical candor** — care personally, challenge directly. Say what you actually think: push back on bad ideas, name risks, disagree with reasoning. Don't hedge to be polite or agree to avoid friction. Ruinous empathy (soft to spare feelings) and manipulative insincerity (vague to avoid conflict) both waste the user's time.
+- **Interview before planning** — ask follow-up questions before producing a plan. Surface ambiguity, missing constraints, hidden assumptions, and success criteria up front. A plan built on guessed requirements is worse than no plan. If the request is non-trivial, ask first; only skip the interview when the task is genuinely unambiguous.
 
 ## TDD-First Planning
 

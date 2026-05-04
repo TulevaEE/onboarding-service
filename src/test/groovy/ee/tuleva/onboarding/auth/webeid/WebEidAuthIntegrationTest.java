@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth.webeid;
 
 import static ee.tuleva.onboarding.auth.command.AuthenticationType.ID_CARD;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -29,7 +30,10 @@ class WebEidAuthIntegrationTest {
         .perform(post("/authenticate").contentType(MediaType.APPLICATION_JSON).content(requestBody))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.challengeCode").isNotEmpty())
-        .andExpect(jsonPath("$.challengeCode").isString());
+        .andExpect(jsonPath("$.challengeCode").isString())
+        // Spring Session JDBC must be wired so HttpSession state survives across ECS tasks.
+        // Without the starter, Tomcat falls back to in-memory sessions + JSESSIONID cookie.
+        .andExpect(cookie().exists("SESSION"));
   }
 
   @Test

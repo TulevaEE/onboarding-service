@@ -47,5 +47,6 @@ src/test/resources/banking/seb/real-data/
 
 # Claude Code local settings
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 CLAUDE.local.md
 .playwright-mcp/

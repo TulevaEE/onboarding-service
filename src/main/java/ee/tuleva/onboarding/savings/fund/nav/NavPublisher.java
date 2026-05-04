@@ -47,22 +47,9 @@ public class NavPublisher {
           e);
     }
 
+    boolean emailSent = false;
     try {
-      boolean emailSent = navReportEmailSender.send(reportRows, result);
-      if (emailSent) {
-        navReportRepository.markAsPublished(calculationId);
-      } else {
-        log.error(
-            "NAV report email failed, rows remain unpublished: fund={}, date={}",
-            result.fund(),
-            result.positionReportDate());
-        notificationService.sendMessage(
-            "NAV report email failed: fund="
-                + result.fund().getCode()
-                + ", date="
-                + result.positionReportDate(),
-            SAVINGS);
-      }
+      emailSent = navReportEmailSender.send(reportRows, result);
     } catch (Exception e) {
       log.error(
           "Failed to send NAV report email: fund={}, calculationDate={}, positionReportDate={}",
@@ -70,6 +57,15 @@ public class NavPublisher {
           result.calculationDate(),
           result.positionReportDate(),
           e);
+    }
+
+    if (emailSent) {
+      navReportRepository.markAsPublished(calculationId);
+    } else {
+      log.error(
+          "NAV report email failed, rows remain unpublished: fund={}, date={}",
+          result.fund(),
+          result.positionReportDate());
       notificationService.sendMessage(
           "NAV report email failed: fund="
               + result.fund().getCode()

@@ -27,6 +27,7 @@ class NavReportPositionProvider {
               AND calculation_id = (
                 SELECT calculation_id FROM nav_report
                 WHERE fund_code = :fundCode AND nav_date = :navDate
+                  AND published_at IS NOT NULL
                 ORDER BY id DESC LIMIT 1)
             """)
         .param("fundCode", fund.getCode())

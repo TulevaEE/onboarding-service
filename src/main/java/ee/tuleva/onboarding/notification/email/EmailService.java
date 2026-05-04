@@ -13,6 +13,7 @@ import com.microtripit.mandrillapp.lutung.view.MandrillScheduledMessageInfo;
 import ee.tuleva.onboarding.config.EmailConfiguration;
 import ee.tuleva.onboarding.user.User;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -20,23 +21,32 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.retry.RetryException;
+import org.springframework.core.retry.RetryPolicy;
+import org.springframework.core.retry.RetryTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
 public class EmailService {
 
-  private static final int MAX_RETRIES = 3;
-  private static final long INITIAL_DELAY_MS = 200;
-  private static final int DELAY_MULTIPLIER = 3;
-
   private final EmailConfiguration emailConfiguration;
   private final MandrillApi mandrillApi;
+  private final RetryTemplate retryTemplate;
 
   public EmailService(
       EmailConfiguration emailConfiguration, @Autowired(required = false) MandrillApi mandrillApi) {
     this.emailConfiguration = emailConfiguration;
     this.mandrillApi = mandrillApi;
+    this.retryTemplate =
+        new RetryTemplate(
+            RetryPolicy.builder()
+                .includes(MandrillApiError.class, IOException.class)
+                .maxRetries(2)
+                .delay(Duration.ofMillis(200))
+                .multiplier(3)
+                .maxDelay(Duration.ofSeconds(2))
+                .build());
   }
 
   public MandrillMessage newMandrillMessage(
@@ -141,38 +151,22 @@ public class EmailService {
       return false;
     }
 
-    long delayMs = INITIAL_DELAY_MS;
-    for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        log.info("Sending system email: to={}, attempt={}", message.getTo(), attempt);
-        MandrillMessageStatus response = mandrillApi.messages().send(message, false)[0];
-        log.info(
-            "Mandrill API response: status={}, id={}, rejectReason={}",
-            response.getStatus(),
-            response.getId(),
-            response.getRejectReason());
-        return true;
-      } catch (MandrillApiError mandrillApiError) {
-        log.error(
-            "System email attempt {} failed: {}",
-            attempt,
-            mandrillApiError.getMandrillErrorAsJson(),
-            mandrillApiError);
-      } catch (Exception e) {
-        log.error("System email attempt {} failed", attempt, e);
-      }
-      if (attempt < MAX_RETRIES) {
-        try {
-          Thread.sleep(delayMs);
-        } catch (InterruptedException ie) {
-          Thread.currentThread().interrupt();
-          log.error("System email interrupted after {} attempts", attempt);
-          return false;
-        }
-        delayMs *= DELAY_MULTIPLIER;
-      }
+    try {
+      retryTemplate.execute(
+          () -> {
+            log.info("Sending system email: to={}", message.getTo());
+            MandrillMessageStatus response = mandrillApi.messages().send(message, false)[0];
+            log.info(
+                "Mandrill API response: status={}, id={}, rejectReason={}",
+                response.getStatus(),
+                response.getId(),
+                response.getRejectReason());
+            return response;
+          });
+      return true;
+    } catch (RetryException e) {
+      log.error("Failed to send system email after retries", e.getCause());
     }
-    log.error("Failed to send system email after {} attempts", MAX_RETRIES);
     return false;
   }
 

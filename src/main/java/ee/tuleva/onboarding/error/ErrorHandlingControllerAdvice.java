@@ -6,8 +6,10 @@ import ee.tuleva.onboarding.account.PensionRegistryAccountStatementConnectionExc
 import ee.tuleva.onboarding.auth.ExpiredRefreshJwtException;
 import ee.tuleva.onboarding.auth.idcard.exception.IdCardSessionNotFoundException;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
+import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionNotFoundException;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import ee.tuleva.onboarding.auth.role.RoleSwitchAccessDeniedException;
+import ee.tuleva.onboarding.auth.smartid.SmartIdSessionNotFoundException;
 import ee.tuleva.onboarding.auth.webeid.WebEidAuthException;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
@@ -47,6 +49,14 @@ public class ErrorHandlingControllerAdvice {
   public ResponseEntity<ErrorsResponse> handleErrors(IdSessionException exception) {
     log.warn("IdSessionException {}", exception.toString());
     return new ResponseEntity<>(exception.getErrorsResponse(), UNAUTHORIZED);
+  }
+
+  @ExceptionHandler({SmartIdSessionNotFoundException.class, MobileIdSessionNotFoundException.class})
+  public ResponseEntity<ErrorsResponse> handleAuthSessionNotFound(RuntimeException exception) {
+    log.error("Auth session not found: {}", exception.getMessage());
+    return new ResponseEntity<>(
+        ErrorsResponse.ofSingleError("auth.session.not.found", exception.getMessage()),
+        UNAUTHORIZED);
   }
 
   @ExceptionHandler(PensionRegistryAccountStatementConnectionException.class)

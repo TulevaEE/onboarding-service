@@ -103,10 +103,6 @@ class SmartIdAuthIntegrationTest {
             .get("authenticationHash")
             .asText();
 
-    // Background poll runs in a fixed-thread-pool, writes the result via Spring Session JDBC,
-    // and the next /oauth/token request reads it back through the SESSION cookie. If the
-    // SmartIdSession were still kept in a per-JVM map (the original bug), this would fail
-    // when ECS handed the next request to a different task.
     await()
         .atMost(ofSeconds(5))
         .untilAsserted(

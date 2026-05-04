@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth.smartid;
 
 import static java.util.concurrent.Executors.newFixedThreadPool;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import ee.sk.smartid.AuthenticationHash;
 import ee.sk.smartid.AuthenticationIdentity;
@@ -21,7 +22,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -45,7 +45,7 @@ public class SmartIdAuthService {
   public void stop() {
     poller.shutdown();
     try {
-      if (!poller.awaitTermination(800, TimeUnit.MILLISECONDS)) {
+      if (!poller.awaitTermination(800, MILLISECONDS)) {
         poller.shutdownNow();
       }
     } catch (InterruptedException e) {

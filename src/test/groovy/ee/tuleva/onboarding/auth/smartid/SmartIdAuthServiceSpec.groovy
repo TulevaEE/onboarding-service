@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.*
+import static java.util.concurrent.TimeUnit.SECONDS
 
 class SmartIdAuthServiceSpec extends Specification {
 
@@ -44,6 +45,10 @@ class SmartIdAuthServiceSpec extends Specification {
     saveBySessionIdCalled = new CountDownLatch(1)
 
     smartIdAuthService = new SmartIdAuthService(smartIdClient, hashGenerator, validator, genericSessionStore, clock)
+  }
+
+  def cleanup() {
+    smartIdAuthService.stop()
   }
 
   def "StartLogin: returns a session with hash, verification code and personal code"() {
@@ -122,7 +127,7 @@ class SmartIdAuthServiceSpec extends Specification {
   }
 
   private void waitForPollComplete() {
-    if (!saveBySessionIdCalled.await(2, TimeUnit.SECONDS)) {
+    if (!saveBySessionIdCalled.await(2, SECONDS)) {
       throw new TimeoutException('Polling timed out')
     }
   }

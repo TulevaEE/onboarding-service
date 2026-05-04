@@ -39,12 +39,14 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles({"test", "mock"})
 @Import(SmartIdAuthIntegrationTest.SmartIdTestConfig.class)
+@Transactional
 class SmartIdAuthIntegrationTest {
 
   @Autowired private MockMvc mockMvc;
@@ -104,6 +106,7 @@ class SmartIdAuthIntegrationTest {
             .asText();
 
     await()
+        .pollInSameThread() // keep test transaction visible to /oauth/token's MockMvc call
         .atMost(ofSeconds(5))
         .untilAsserted(
             () ->

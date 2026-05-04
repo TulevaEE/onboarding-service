@@ -35,6 +35,8 @@ import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.*
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
+import static java.util.concurrent.TimeUnit.MILLISECONDS
+import static java.util.concurrent.TimeUnit.SECONDS
 import static org.mockserver.model.HttpRequest.request
 import static org.mockserver.model.HttpResponse.response
 import static org.mockserver.model.JsonBody.json
@@ -101,7 +103,7 @@ class EpisServiceIntegrationSpec extends Specification {
         .when(request("/applications")
             .withHeader("Authorization", "Bearer dummy"))
         .respond(response()
-            .withDelay(TimeUnit.MILLISECONDS, 500)
+            .withDelay(MILLISECONDS, 500)
             .withContentType(MediaType.APPLICATION_JSON)
             .withBody(json("""
                         [{
@@ -127,7 +129,7 @@ class EpisServiceIntegrationSpec extends Specification {
         SecurityContextHolder.clearContext()
       })
       shutdown()
-      awaitTermination(5, TimeUnit.SECONDS)
+      awaitTermination(5, SECONDS)
     }
     then:
     mockServerClient.verify(request().withPath("/applications"), VerificationTimes.exactly(1))
@@ -139,7 +141,7 @@ class EpisServiceIntegrationSpec extends Specification {
         .when(request("/account-cash-flow-statement")
             .withHeader("Authorization", "Bearer dummy"))
         .respond(response()
-            .withDelay(TimeUnit.MILLISECONDS, 500)
+            .withDelay(MILLISECONDS, 500)
             .withContentType(MediaType.APPLICATION_JSON)
             .withBody(json("""
                         {"startBalance": {}, "endBalance": {}, "transactions": []}
@@ -158,7 +160,7 @@ class EpisServiceIntegrationSpec extends Specification {
         SecurityContextHolder.clearContext()
       })
       shutdown()
-      awaitTermination(5, TimeUnit.SECONDS)
+      awaitTermination(5, SECONDS)
     }
     then:
     mockServerClient.verify(request().withPath("/account-cash-flow-statement"), VerificationTimes.exactly(1))

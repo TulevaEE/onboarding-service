@@ -331,7 +331,8 @@ class TrackingDifferenceService {
       if (benchmarkKey == null) {
         continue;
       }
-      var benchmarkReturn = lookupReturn(benchmarkKey, s.today().date(), s.previous().date());
+      var benchmarkReturn =
+          lookupReturn(benchmarkKey, s.today().date(), s.previous().date(), maxDailyReturn);
       if (benchmarkReturn.isEmpty()) {
         log.warn(
             "Missing benchmark model data: fund={}, isin={}, benchmarkKey={}",
@@ -405,18 +406,14 @@ class TrackingDifferenceService {
   }
 
   private Optional<BigDecimal> lookupReturn(
-      String key, LocalDate todayDate, LocalDate previousDate) {
+      String key, LocalDate todayDate, LocalDate previousDate, BigDecimal maxDailyReturn) {
     var today = fundValueProvider.getLatestValue(key, todayDate);
     var yesterday = fundValueProvider.getLatestValue(key, previousDate);
     if (today.isEmpty() || yesterday.isEmpty() || yesterday.get().value().signum() == 0) {
       return Optional.empty();
     }
     return Optional.of(
-        today
-            .get()
-            .value()
-            .subtract(yesterday.get().value())
-            .divide(yesterday.get().value(), SCALE, RoundingMode.HALF_UP));
+        calculator.safeDailyReturn(today.get().value(), yesterday.get().value(), maxDailyReturn));
   }
 
   private List<SecurityData> buildSecurityData(

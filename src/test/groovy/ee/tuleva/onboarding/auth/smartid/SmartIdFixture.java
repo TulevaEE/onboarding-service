@@ -5,6 +5,7 @@ import ee.sk.smartid.AuthenticationIdentity;
 import ee.sk.smartid.rest.dao.SemanticsIdentifier;
 import ee.sk.smartid.rest.dao.SemanticsIdentifier.CountryCode;
 import ee.sk.smartid.rest.dao.SemanticsIdentifier.IdentityType;
+import java.time.Instant;
 
 public class SmartIdFixture {
 
@@ -14,9 +15,11 @@ public class SmartIdFixture {
   private static final String verificationCode = "12345";
   public static final String aSessionId = "someSessionId";
   public static SmartIdSession sampleSmartIdSession =
-      new SmartIdSession(verificationCode, personalCode, AuthenticationHash.generateRandomHash());
+      new SmartIdSession(
+          verificationCode, personalCode, AuthenticationHash.generateRandomHash(), Instant.now());
   public static SmartIdSession sampleFinalSmartIdSession =
-      new SmartIdSession(verificationCode, personalCode, AuthenticationHash.generateRandomHash());
+      new SmartIdSession(
+          verificationCode, personalCode, AuthenticationHash.generateRandomHash(), Instant.now());
 
   public static AuthenticationIdentity anAuthenticationIdentity = new AuthenticationIdentity();
   public static SemanticsIdentifier aSemanticsIdentifier =

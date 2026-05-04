@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.auth.webeid.WebEidAuthService;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.net.URLDecoder;
@@ -49,7 +50,9 @@ public class AuthController {
   @Operation(summary = "Initiate authentication")
   @PostMapping(value = "/authenticate", consumes = MediaType.APPLICATION_JSON_VALUE)
   public AuthenticateResponse authenticate(
-      @Valid @RequestBody AuthenticateCommand command, @Parameter(hidden = true) Errors errors) {
+      @Valid @RequestBody AuthenticateCommand command,
+      @Parameter(hidden = true) Errors errors,
+      @Parameter(hidden = true) HttpServletRequest request) {
     if (errors != null && errors.hasErrors()) {
       throw new ValidationErrorsException(errors);
     }
@@ -59,7 +62,9 @@ public class AuthController {
         yield AuthenticateResponse.fromWebEidChallenge(challengeNonce);
       }
       case SmartIdAuthenticateCommand cmd -> {
-        var loginSession = smartIdAuthService.startLogin(cmd.personalCode());
+        var httpSessionId = request.getSession(true).getId();
+        var loginSession = smartIdAuthService.startLogin(cmd.personalCode(), httpSessionId);
+        genericSessionStore.save(loginSession);
         yield AuthenticateResponse.fromSmartIdSession(loginSession);
       }
       case MobileIdAuthenticateCommand cmd -> {

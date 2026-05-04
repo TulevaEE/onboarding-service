@@ -9,6 +9,7 @@ import ee.sk.smartid.exception.useraccount.UserAccountNotFoundException
 import ee.sk.smartid.exception.useraction.UserRefusedException
 import ee.sk.smartid.rest.SmartIdConnector
 import ee.sk.smartid.rest.dao.*
+import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.time.MutableClock
 import spock.lang.Specification
 
@@ -17,14 +18,16 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.*
-import static java.time.temporal.ChronoUnit.SECONDS
 
 class SmartIdAuthServiceSpec extends Specification {
+
+  static final String httpSessionId = "test-http-session"
 
   SmartIdAuthService smartIdAuthService
   SmartIdAuthenticationHashGenerator hashGenerator = Mock(SmartIdAuthenticationHashGenerator)
   AuthenticationResponseValidator validator = Mock(AuthenticationResponseValidator)
   SmartIdConnector connector = Mock(SmartIdConnector)
+  GenericSessionStore genericSessionStore = Mock(GenericSessionStore)
   Clock clock = new MutableClock()
   AuthenticationHash hash
 
@@ -37,141 +40,100 @@ class SmartIdAuthServiceSpec extends Specification {
     hash = AuthenticationHash.generateRandomHash()
     hashGenerator.generateHash() >> hash
 
-    smartIdAuthService = new SmartIdAuthService(smartIdClient, hashGenerator, validator, clock)
+    smartIdAuthService = new SmartIdAuthService(smartIdClient, hashGenerator, validator, genericSessionStore, clock)
   }
 
-  def "StartLogin: Start smart id login generates hash"() {
+  def "StartLogin: returns a session with hash, verification code and personal code"() {
     when:
-    SmartIdSession session = smartIdAuthService.startLogin(personalCode)
+    SmartIdSession session = smartIdAuthService.startLogin(personalCode, httpSessionId)
     then:
     session.verificationCode == hash.calculateVerificationCode()
     session.personalCode == personalCode
     session.authenticationHash == hash
   }
 
-  def "IsLoginComplete: Login is not complete when result is not valid"() {
+  def "Polling: invalid SK response records error code and stores session"() {
     given:
     1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
     1 * connector.getSessionStatus(aSessionId) >> sessionStatus("COMPLETE", "DOCUMENT_UNUSABLE")
+    1 * genericSessionStore.saveBySessionId(httpSessionId, _ as SmartIdSession)
     when:
-    SmartIdSession session = smartIdAuthService.startLogin(personalCode)
-    waitForLoginComplete(session)
+    SmartIdSession session = smartIdAuthService.startLogin(personalCode, httpSessionId)
+    waitForPollComplete(session)
     then:
-    thrown(SmartIdException)
+    session.errorCode == "smart.id.technical.error"
   }
 
-  def "IsLoginComplete: Login is not complete when user account not found"() {
+  def "Polling: user account not found records the corresponding error and stores session"() {
     given:
     1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
-    1 * connector.getSessionStatus(aSessionId) >> {
-      throw new UserAccountNotFoundException()
-    }
+    1 * connector.getSessionStatus(aSessionId) >> { throw new UserAccountNotFoundException() }
+    1 * genericSessionStore.saveBySessionId(httpSessionId, _ as SmartIdSession)
     when:
-    SmartIdSession session = smartIdAuthService.startLogin(personalCode)
-    waitForLoginComplete(session)
+    SmartIdSession session = smartIdAuthService.startLogin(personalCode, httpSessionId)
+    waitForPollComplete(session)
     then:
-    thrown(SmartIdException)
+    session.errorCode == "smart.id.account.not.found"
   }
 
-  def "IsLoginComplete: Login is not complete when user refused authentication"() {
+  def "Polling: user refused records the corresponding error and stores session"() {
     given:
     1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
-    1 * connector.getSessionStatus(aSessionId) >> {
-      throw new UserRefusedException()
-    }
+    1 * connector.getSessionStatus(aSessionId) >> { throw new UserRefusedException() }
+    1 * genericSessionStore.saveBySessionId(httpSessionId, _ as SmartIdSession)
     when:
-    SmartIdSession session = smartIdAuthService.startLogin(personalCode)
-    waitForLoginComplete(session)
+    SmartIdSession session = smartIdAuthService.startLogin(personalCode, httpSessionId)
+    waitForPollComplete(session)
     then:
-    thrown(SmartIdException)
+    session.errorCode == "smart.id.user.refused"
   }
 
-  def "IsLoginComplete: Fetch state of smart id login"() {
-    given:
-    1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
-    1 * connector.getSessionStatus(aSessionId) >> sessionStatus("COMPLETE", "OK", "sessionSignature")
-    1 * validator.validate(_) >> validAuthIdentity()
-    when:
-    SmartIdSession session = smartIdAuthService.startLogin(personalCode)
-    boolean isLoginComplete = waitForLoginComplete(session)
-    then:
-    isLoginComplete
-  }
-
-  def "IsLoginComplete: Error with authentication result"() {
+  def "Polling: validator failure records technical error and stores session"() {
     given:
     1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
     1 * connector.getSessionStatus(aSessionId) >> sessionStatus("COMPLETE", "OK", "signature")
-    1 * validator.validate(_) >> {
-      throw new UnprocessableSmartIdResponseException("Something went wrong")
-    }
+    1 * validator.validate(_) >> { throw new UnprocessableSmartIdResponseException("Something went wrong") }
+    1 * genericSessionStore.saveBySessionId(httpSessionId, _ as SmartIdSession)
     when:
-    SmartIdSession session = smartIdAuthService.startLogin(personalCode)
-    waitForLoginComplete(session)
+    SmartIdSession session = smartIdAuthService.startLogin(personalCode, httpSessionId)
+    waitForPollComplete(session)
     then:
-    thrown(SmartIdException)
+    session.errorCode == "smart.id.validation.failed"
   }
 
-  def "Idempotent: authentication result can be fetched twice within TTL"() {
+  def "Polling: successful authentication records person and stores session"() {
     given:
     1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
     1 * connector.getSessionStatus(aSessionId) >> sessionStatus("COMPLETE", "OK", "sessionSignature")
     1 * validator.validate(_) >> validAuthIdentity()
-
+    1 * genericSessionStore.saveBySessionId(httpSessionId, _ as SmartIdSession)
     when:
-    SmartIdSession session = smartIdAuthService.startLogin(personalCode)
-    waitForLoginComplete(session)
-
-    and:
-    def first = smartIdAuthService.getAuthenticationIdentity(session.authenticationHash.hashInBase64)
-    def second = smartIdAuthService.getAuthenticationIdentity(session.authenticationHash.hashInBase64)
-
+    SmartIdSession session = smartIdAuthService.startLogin(personalCode, httpSessionId)
+    waitForPollComplete(session)
     then:
-    first == second
+    session.person != null
+    session.person.firstName == firstName
+    session.person.lastName == lastName
+    session.person.personalCode == personalCode
+    session.errorCode == null
   }
 
-  def "TTL expiry: authentication result is purged after 60 seconds"() {
-    given:
-    1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
-    1 * connector.getSessionStatus(aSessionId) >> sessionStatus("COMPLETE", "OK", "sessionSignature")
-    1 * validator.validate(_) >> validAuthIdentity()
-
-    when:
-    SmartIdSession session = smartIdAuthService.startLogin(personalCode)
-    waitForLoginComplete(session)
-
-    and:
-    def first = smartIdAuthService.getAuthenticationIdentity(session.authenticationHash.hashInBase64)
-
-    then:
-    first.present
-
-    when:
-    clock.tick(61, SECONDS)
-
-    and:
-    def second = smartIdAuthService.getAuthenticationIdentity(session.authenticationHash.hashInBase64)
-
-    then:
-    second.empty
-  }
-
-  private boolean waitForLoginComplete(SmartIdSession session) {
+  private static void waitForPollComplete(SmartIdSession session) {
     int pollCount = 0
-    while (true) {
-      if (smartIdAuthService.getAuthenticationIdentity(session.authenticationHash.hashInBase64).isPresent()) {
-        return true
-      }
+    while (session.person == null && session.errorCode == null) {
       pollCount++
-      if (pollCount > 10) {
+      if (pollCount > 50) {
         throw new TimeoutException('Polling timed out')
       }
       TimeUnit.MILLISECONDS.sleep(20)
     }
+    // give the finally block a moment to call saveBySessionId
+    TimeUnit.MILLISECONDS.sleep(40)
   }
 
   private static AuthenticationIdentity validAuthIdentity() {
     AuthenticationIdentity identity = new AuthenticationIdentity()
+    identity.identityCode = personalCode
     identity.givenName = firstName
     identity.surname = lastName
     return identity

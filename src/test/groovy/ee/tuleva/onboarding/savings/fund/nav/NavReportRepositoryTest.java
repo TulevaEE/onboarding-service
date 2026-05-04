@@ -71,6 +71,7 @@ class NavReportRepositoryTest {
             .build();
 
     navReportRepository.replaceByNavDateAndFundCode(navDate, "TUK75", List.of(second));
+    navReportRepository.markAsPublished(calcId2);
 
     var rows = navReportRepository.findLatestByNavDateAndFundCode(navDate, "TUK75");
     assertThat(rows)
@@ -119,13 +120,13 @@ class NavReportRepositoryTest {
 
     navReportRepository.replaceByNavDateAndFundCode(navDate, "TKF100", List.of(recalculated));
 
-    var latestRows = navReportRepository.findLatestByNavDateAndFundCode(navDate, "TKF100");
-    assertThat(latestRows)
+    var latestPublished = navReportRepository.findLatestByNavDateAndFundCode(navDate, "TKF100");
+    assertThat(latestPublished)
         .singleElement()
         .satisfies(
             r -> {
-              assertThat(r.getCalculationId()).isEqualTo(calcId2);
-              assertThat(r.getMarketPrice()).isEqualByComparingTo("11.00");
+              assertThat(r.getCalculationId()).isEqualTo(calcId1);
+              assertThat(r.getMarketPrice()).isEqualByComparingTo("10.00");
             });
 
     var allRows = navReportRepository.findAll();
@@ -134,6 +135,16 @@ class NavReportRepositoryTest {
             .filter(r -> "TKF100".equals(r.getFundCode()) && navDate.equals(r.getNavDate()))
             .toList();
     assertThat(tkf100Rows).hasSize(2);
+
+    navReportRepository.markAsPublished(calcId2);
+    var latestAfterPublish = navReportRepository.findLatestByNavDateAndFundCode(navDate, "TKF100");
+    assertThat(latestAfterPublish)
+        .singleElement()
+        .satisfies(
+            r -> {
+              assertThat(r.getCalculationId()).isEqualTo(calcId2);
+              assertThat(r.getMarketPrice()).isEqualByComparingTo("11.00");
+            });
   }
 
   @Test

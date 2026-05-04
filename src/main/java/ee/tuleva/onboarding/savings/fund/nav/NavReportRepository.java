@@ -19,6 +19,7 @@ interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
             AND calculation_id = (
               SELECT calculation_id FROM nav_report
               WHERE nav_date = :navDate AND fund_code = :fundCode
+                AND published_at IS NOT NULL
               ORDER BY id DESC LIMIT 1)
           ORDER BY id
           """,

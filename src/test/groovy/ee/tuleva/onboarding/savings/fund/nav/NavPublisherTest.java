@@ -6,16 +6,19 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.investment.check.tracking.NavTrackingDifferenceGate;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,6 +37,7 @@ class NavPublisherTest {
   @Mock private NavReportEmailSender navReportEmailSender;
   @Mock private NavNotifier navNotifier;
   @Mock private OperationsNotificationService notificationService;
+  @Mock private NavTrackingDifferenceGate trackingDifferenceGate;
 
   @InjectMocks private NavPublisher navPublisher;
 
@@ -145,6 +149,8 @@ class NavPublisherTest {
             .securitiesDetail(List.of())
             .build();
 
+    var reportRow = NavReportRow.builder().navDate(today).fundCode("TUK75").build();
+    when(navReportMapper.map(result)).thenReturn(List.of(reportRow));
     when(navReportEmailSender.send(any(), eq(result))).thenReturn(true);
 
     navPublisher.publish(result);
@@ -181,6 +187,8 @@ class NavPublisherTest {
             .securitiesDetail(List.of())
             .build();
 
+    var reportRow = NavReportRow.builder().navDate(today).fundCode("TKF100").build();
+    when(navReportMapper.map(result)).thenReturn(List.of(reportRow));
     doThrow(new DataIntegrityViolationException("null value in column created_at"))
         .when(navReportRepository)
         .replaceByNavDateAndFundCode(any(), any(), any());
@@ -189,7 +197,68 @@ class NavPublisherTest {
     navPublisher.publish(result);
 
     verify(fundValueRepository, times(2)).save(any());
+    verify(navReportEmailSender).send(any(), eq(result));
     verify(navNotifier).notify(result);
+  }
+
+  @Test
+  void publish_skipsEmail_whenTdGateBlocksPublication() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
+
+    var result = buildResult(TKF100, today, yesterday, calcTime);
+
+    var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TKF100").build();
+    when(navReportMapper.map(result)).thenReturn(List.of(reportRow));
+    when(trackingDifferenceGate.check(TKF100, yesterday))
+        .thenReturn(Optional.of("TD breach: fund=TKF100, MODEL_PORTFOLIO TD=0.015"));
+
+    navPublisher.publish(result);
+
+    verifyNoInteractions(navReportEmailSender);
+    verify(navReportRepository, never()).markAsPublished(any(UUID.class));
+    verify(notificationService).sendMessage(contains("TD breach"), eq(SAVINGS));
+    verify(navNotifier).notify(result);
+  }
+
+  @Test
+  void publish_sendsEmail_whenTdGatePasses() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
+
+    var result = buildResult(TKF100, today, yesterday, calcTime);
+
+    var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TKF100").build();
+    when(navReportMapper.map(result)).thenReturn(List.of(reportRow));
+    when(trackingDifferenceGate.check(TKF100, yesterday)).thenReturn(Optional.empty());
+    when(navReportEmailSender.send(any(), eq(result))).thenReturn(true);
+
+    navPublisher.publish(result);
+
+    verify(navReportEmailSender).send(any(), eq(result));
+    verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
+  }
+
+  @Test
+  void publish_sendsEmail_whenTdGateThrowsException() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
+
+    var result = buildResult(TKF100, today, yesterday, calcTime);
+
+    var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TKF100").build();
+    when(navReportMapper.map(result)).thenReturn(List.of(reportRow));
+    when(trackingDifferenceGate.check(TKF100, yesterday))
+        .thenThrow(new RuntimeException("gate error"));
+    when(navReportEmailSender.send(any(), eq(result))).thenReturn(true);
+
+    navPublisher.publish(result);
+
+    verify(navReportEmailSender).send(any(), eq(result));
+    verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
   }
 
   private NavCalculationResult buildResult(

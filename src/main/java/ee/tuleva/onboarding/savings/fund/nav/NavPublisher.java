@@ -4,8 +4,10 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.investment.check.tracking.NavTrackingDifferenceGate;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +26,7 @@ public class NavPublisher {
   private final NavReportEmailSender navReportEmailSender;
   private final NavNotifier navNotifier;
   private final OperationsNotificationService notificationService;
+  private final NavTrackingDifferenceGate trackingDifferenceGate;
 
   public void publish(NavCalculationResult result) {
     if (result.fund().isSavingsFund()) {
@@ -47,31 +50,56 @@ public class NavPublisher {
           e);
     }
 
-    boolean emailSent = false;
-    try {
-      emailSent = navReportEmailSender.send(reportRows, result);
-    } catch (Exception e) {
+    if (reportRows.isEmpty()) {
       log.error(
-          "Failed to send NAV report email: fund={}, calculationDate={}, positionReportDate={}",
-          result.fund(),
-          result.calculationDate(),
-          result.positionReportDate(),
-          e);
-    }
-
-    if (emailSent) {
-      navReportRepository.markAsPublished(calculationId);
-    } else {
-      log.error(
-          "NAV report email failed, rows remain unpublished: fund={}, date={}",
+          "No report rows to publish, skipping email: fund={}, date={}",
           result.fund(),
           result.positionReportDate());
       notificationService.sendMessage(
-          "NAV report email failed: fund="
+          "NAV report has no rows: fund="
               + result.fund().getCode()
               + ", date="
               + result.positionReportDate(),
           SAVINGS);
+      navNotifier.notify(result);
+      return;
+    }
+
+    Optional<String> gateFailure = checkGates(result);
+    if (gateFailure.isPresent()) {
+      log.error(
+          "NAV report blocked by gate, rows remain unpublished: fund={}, date={}, reason={}",
+          result.fund(),
+          result.positionReportDate(),
+          gateFailure.get());
+      notificationService.sendMessage("NAV report blocked: " + gateFailure.get(), SAVINGS);
+    } else {
+      boolean emailSent = false;
+      try {
+        emailSent = navReportEmailSender.send(reportRows, result);
+      } catch (Exception e) {
+        log.error(
+            "Failed to send NAV report email: fund={}, calculationDate={}, positionReportDate={}",
+            result.fund(),
+            result.calculationDate(),
+            result.positionReportDate(),
+            e);
+      }
+
+      if (emailSent) {
+        navReportRepository.markAsPublished(calculationId);
+      } else {
+        log.error(
+            "NAV report email failed, rows remain unpublished: fund={}, date={}",
+            result.fund(),
+            result.positionReportDate());
+        notificationService.sendMessage(
+            "NAV report email failed: fund="
+                + result.fund().getCode()
+                + ", date="
+                + result.positionReportDate(),
+            SAVINGS);
+      }
     }
 
     // NAV/AUM values are always published to the API regardless of email success.
@@ -84,6 +112,22 @@ public class NavPublisher {
         result.calculationDate(),
         result.navPerUnit(),
         result.aum());
+  }
+
+  private Optional<String> checkGates(NavCalculationResult result) {
+    try {
+      var tdResult = trackingDifferenceGate.check(result.fund(), result.positionReportDate());
+      if (tdResult.isPresent()) {
+        return tdResult;
+      }
+    } catch (Exception e) {
+      log.warn(
+          "TD gate error, proceeding with email: fund={}, date={}",
+          result.fund(),
+          result.positionReportDate(),
+          e);
+    }
+    return Optional.empty();
   }
 
   private void publishNav(NavCalculationResult result) {

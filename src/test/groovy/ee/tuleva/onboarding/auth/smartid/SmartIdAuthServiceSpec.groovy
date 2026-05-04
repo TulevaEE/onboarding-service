@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.time.MutableClock
 import spock.lang.Specification
 
 import java.time.Clock
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
@@ -30,6 +31,7 @@ class SmartIdAuthServiceSpec extends Specification {
   GenericSessionStore genericSessionStore = Mock(GenericSessionStore)
   Clock clock = new MutableClock()
   AuthenticationHash hash
+  CountDownLatch saveBySessionIdCalled
 
   def setup() {
     SmartIdClient smartIdClient = new SmartIdClient()
@@ -39,6 +41,7 @@ class SmartIdAuthServiceSpec extends Specification {
 
     hash = AuthenticationHash.generateRandomHash()
     hashGenerator.generateHash() >> hash
+    saveBySessionIdCalled = new CountDownLatch(1)
 
     smartIdAuthService = new SmartIdAuthService(smartIdClient, hashGenerator, validator, genericSessionStore, clock)
   }
@@ -56,10 +59,10 @@ class SmartIdAuthServiceSpec extends Specification {
     given:
     1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
     1 * connector.getSessionStatus(aSessionId) >> sessionStatus("COMPLETE", "DOCUMENT_UNUSABLE")
-    1 * genericSessionStore.saveBySessionId(httpSessionId, _ as SmartIdSession)
+    1 * genericSessionStore.saveBySessionId(httpSessionId, _ as SmartIdSession) >> { saveBySessionIdCalled.countDown() }
     when:
     SmartIdSession session = smartIdAuthService.startLogin(personalCode, httpSessionId)
-    waitForPollComplete(session)
+    waitForPollComplete()
     then:
     session.errorCode == "smart.id.technical.error"
   }
@@ -68,10 +71,10 @@ class SmartIdAuthServiceSpec extends Specification {
     given:
     1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
     1 * connector.getSessionStatus(aSessionId) >> { throw new UserAccountNotFoundException() }
-    1 * genericSessionStore.saveBySessionId(httpSessionId, _ as SmartIdSession)
+    1 * genericSessionStore.saveBySessionId(httpSessionId, _ as SmartIdSession) >> { saveBySessionIdCalled.countDown() }
     when:
     SmartIdSession session = smartIdAuthService.startLogin(personalCode, httpSessionId)
-    waitForPollComplete(session)
+    waitForPollComplete()
     then:
     session.errorCode == "smart.id.account.not.found"
   }
@@ -80,10 +83,10 @@ class SmartIdAuthServiceSpec extends Specification {
     given:
     1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
     1 * connector.getSessionStatus(aSessionId) >> { throw new UserRefusedException() }
-    1 * genericSessionStore.saveBySessionId(httpSessionId, _ as SmartIdSession)
+    1 * genericSessionStore.saveBySessionId(httpSessionId, _ as SmartIdSession) >> { saveBySessionIdCalled.countDown() }
     when:
     SmartIdSession session = smartIdAuthService.startLogin(personalCode, httpSessionId)
-    waitForPollComplete(session)
+    waitForPollComplete()
     then:
     session.errorCode == "smart.id.user.refused"
   }
@@ -93,10 +96,10 @@ class SmartIdAuthServiceSpec extends Specification {
     1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
     1 * connector.getSessionStatus(aSessionId) >> sessionStatus("COMPLETE", "OK", "signature")
     1 * validator.validate(_) >> { throw new UnprocessableSmartIdResponseException("Something went wrong") }
-    1 * genericSessionStore.saveBySessionId(httpSessionId, _ as SmartIdSession)
+    1 * genericSessionStore.saveBySessionId(httpSessionId, _ as SmartIdSession) >> { saveBySessionIdCalled.countDown() }
     when:
     SmartIdSession session = smartIdAuthService.startLogin(personalCode, httpSessionId)
-    waitForPollComplete(session)
+    waitForPollComplete()
     then:
     session.errorCode == "smart.id.validation.failed"
   }
@@ -106,10 +109,10 @@ class SmartIdAuthServiceSpec extends Specification {
     1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
     1 * connector.getSessionStatus(aSessionId) >> sessionStatus("COMPLETE", "OK", "sessionSignature")
     1 * validator.validate(_) >> validAuthIdentity()
-    1 * genericSessionStore.saveBySessionId(httpSessionId, _ as SmartIdSession)
+    1 * genericSessionStore.saveBySessionId(httpSessionId, _ as SmartIdSession) >> { saveBySessionIdCalled.countDown() }
     when:
     SmartIdSession session = smartIdAuthService.startLogin(personalCode, httpSessionId)
-    waitForPollComplete(session)
+    waitForPollComplete()
     then:
     session.person != null
     session.person.firstName == firstName
@@ -118,17 +121,10 @@ class SmartIdAuthServiceSpec extends Specification {
     session.errorCode == null
   }
 
-  private static void waitForPollComplete(SmartIdSession session) {
-    int pollCount = 0
-    while (session.person == null && session.errorCode == null) {
-      pollCount++
-      if (pollCount > 50) {
-        throw new TimeoutException('Polling timed out')
-      }
-      TimeUnit.MILLISECONDS.sleep(20)
+  private void waitForPollComplete() {
+    if (!saveBySessionIdCalled.await(2, TimeUnit.SECONDS)) {
+      throw new TimeoutException('Polling timed out')
     }
-    // give the finally block a moment to call saveBySessionId
-    TimeUnit.MILLISECONDS.sleep(40)
   }
 
   private static AuthenticationIdentity validAuthIdentity() {

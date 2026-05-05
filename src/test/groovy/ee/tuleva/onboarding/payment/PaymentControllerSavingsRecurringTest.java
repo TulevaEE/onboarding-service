@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.payment;
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willAnswer;
@@ -132,7 +134,8 @@ class PaymentControllerSavingsRecurringTest {
   }
 
   @Test
-  void getPaymentLink_forSavingsRecurring_withoutAmount_returns400() throws Exception {
+  void getPaymentLink_forSavingsRecurring_withoutAmount_buildsUrlWithoutAmountParam()
+      throws Exception {
     var person = sampleAuthenticatedPersonNonMember().build();
 
     willAnswer(
@@ -154,23 +157,18 @@ class PaymentControllerSavingsRecurringTest {
                     + "&recipientPersonalCode=38812121215")
                 .with(authentication(auth))
                 .with(csrf()))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("payment.amount.required"));
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.type").value("PREFILLED"))
+        .andExpect(jsonPath("$.amount").doesNotExist())
+        .andExpect(jsonPath("$.recipientName").value("Tuleva Täiendav Kogumisfond"))
+        .andExpect(jsonPath("$.recipientIban").value("EE711010220306707220"))
+        .andExpect(jsonPath("$.url").value(not(containsString("i_amount="))));
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"0", "0.001", "-1"})
-  void getPaymentLink_forSavingsRecurring_withInvalidAmount_returns400(String amount)
-      throws Exception {
+  void getPaymentLink_withAmountBelowMinimum_returns400(String amount) throws Exception {
     var person = sampleAuthenticatedPersonNonMember().build();
-
-    willAnswer(
-            invocation ->
-                realSavingsRecurringGenerator.getPaymentLink(
-                    invocation.getArgument(0), invocation.getArgument(1)))
-        .given(paymentService)
-        .getLink(any(PaymentData.class), any(AuthenticatedPerson.class));
-
     var auth =
         new UsernamePasswordAuthenticationToken(
             person, null, List.of(new SimpleGrantedAuthority(USER)));
@@ -186,7 +184,8 @@ class PaymentControllerSavingsRecurringTest {
                 .with(authentication(auth))
                 .with(csrf()))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("payment.amount.invalid"));
+        .andExpect(jsonPath("$.errors[0].code").value("DecimalMin"))
+        .andExpect(jsonPath("$.errors[0].path").value("amount"));
   }
 
   @Test

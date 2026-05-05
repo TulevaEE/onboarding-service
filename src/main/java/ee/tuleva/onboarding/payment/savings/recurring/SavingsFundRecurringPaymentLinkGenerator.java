@@ -11,39 +11,26 @@ import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
 import ee.tuleva.onboarding.payment.PrefilledLink;
 import ee.tuleva.onboarding.payment.savings.SavingsFundRecipientConfiguration;
-import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGenerator {
 
-  private static final BigDecimal MIN_AMOUNT = new BigDecimal("0.01");
-
   private final SavingsFundRecipientConfiguration recipientConfiguration;
   private final PaymentDateProvider paymentDateProvider;
 
   @Override
   public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
-    if (paymentData.getAmount() == null) {
-      throw new ErrorsResponseException(
-          ErrorsResponse.ofSingleError(
-              "payment.amount.required",
-              "Payment amount is required for recurring savings fund links."));
-    }
-    if (paymentData.getAmount().compareTo(MIN_AMOUNT) < 0) {
-      throw new ErrorsResponseException(
-          ErrorsResponse.ofSingleError(
-              "payment.amount.invalid", "Payment amount must be at least " + MIN_AMOUNT + "."));
-    }
     var description = paymentData.getRecipientPersonalCode();
-    var amount = paymentData.getAmount().toPlainString();
+    var amount = paymentData.getAmount() == null ? null : paymentData.getAmount().toPlainString();
     var firstPaymentDate = paymentDateProvider.tenthDayOfMonth();
 
     var channel = paymentData.getPaymentChannel();
@@ -72,35 +59,43 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
         amount);
   }
 
-  private String buildLhvUrl(String description, String amount, LocalDate firstPaymentDate) {
+  private String buildLhvUrl(
+      String description, @Nullable String amount, LocalDate firstPaymentDate) {
     var params = new LinkedHashMap<String, String>();
     params.put("i_receiver_name", recipientConfiguration.getRecipientName());
     params.put("i_receiver_account_no", recipientConfiguration.getRecipientIban());
     params.put("i_payment_desc", description);
-    params.put("i_amount", amount);
+    if (amount != null) {
+      params.put("i_amount", amount);
+    }
     params.put("i_currency_id", "38");
     params.put("i_interval_type", "K");
     params.put("i_date_first_payment", format(firstPaymentDate));
     return "https://www.lhv.ee/ibank/cf/portfolio/payment_standing_add?" + encode(params);
   }
 
-  private String buildCoopUrl(String description, String amount, LocalDate firstPaymentDate) {
+  private String buildCoopUrl(
+      String description, @Nullable String amount, LocalDate firstPaymentDate) {
     var params = new LinkedHashMap<String, String>();
     params.put("whatform", "PermPaymentNew");
     params.put("SaajaNimi", recipientConfiguration.getRecipientName());
     params.put("SaajaKonto", recipientConfiguration.getRecipientIban());
-    params.put("MakseSumma", amount);
+    if (amount != null) {
+      params.put("MakseSumma", amount);
+    }
     params.put("MaksePohjus", description);
     params.put("MakseSagedus", "3");
     params.put("MakseEsimene", format(firstPaymentDate));
     return "https://i.cooppank.ee/newpmt?" + encode(params);
   }
 
-  private String buildSwedbankUrl(String description, String amount) {
+  private String buildSwedbankUrl(String description, @Nullable String amount) {
     var params = new LinkedHashMap<String, String>();
     params.put("standingOrder.beneficiaryAccountNumber", recipientConfiguration.getRecipientIban());
     params.put("standingOrder.beneficiaryName", recipientConfiguration.getRecipientName());
-    params.put("standingOrder.amount", amount);
+    if (amount != null) {
+      params.put("standingOrder.amount", amount);
+    }
     params.put("standingOrder.details", description);
     params.put("frequency", "K");
     return "https://www.swedbank.ee/private/d2d/payments2/standing_order/new?" + encode(params);

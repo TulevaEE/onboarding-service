@@ -26,8 +26,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
 class SavingsFundRecurringPaymentLinkGeneratorTest {
 
@@ -130,7 +128,7 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
   }
 
   @Test
-  void throwsWhenAmountIsMissing() {
+  void buildsUrlWithoutAmountWhenAmountIsMissing() {
     var paymentData =
         PaymentData.builder()
             .currency(EUR)
@@ -139,11 +137,15 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
             .recipientPersonalCode(PERSONAL_CODE)
             .build();
 
-    assertThatThrownBy(() -> generator.getPaymentLink(paymentData, person()))
-        .isInstanceOf(ErrorsResponseException.class)
-        .extracting(ex -> ((ErrorsResponseException) ex).getErrorsResponse().getErrors().get(0))
-        .extracting(ErrorResponse::getCode)
-        .isEqualTo("payment.amount.required");
+    var link = (PrefilledLink) generator.getPaymentLink(paymentData, person());
+
+    assertThat(link.amount()).isNull();
+    assertThat(link.url())
+        .startsWith("https://www.lhv.ee/ibank/cf/portfolio/payment_standing_add?")
+        .doesNotContain("i_amount=");
+    assertThat(link.recipientName()).isEqualTo(RECIPIENT_NAME);
+    assertThat(link.recipientIban()).isEqualTo(RECIPIENT_IBAN);
+    assertThat(link.description()).isEqualTo(PERSONAL_CODE);
   }
 
   @Test
@@ -161,25 +163,6 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
 
     assertThat(link.amount()).isEqualTo("0.01");
     assertThat(link.url()).contains("i_amount=0.01");
-  }
-
-  @ParameterizedTest
-  @ValueSource(strings = {"0", "-1", "0.001"})
-  void throwsWhenAmountIsNotPositive(String value) {
-    var paymentData =
-        PaymentData.builder()
-            .amount(new BigDecimal(value))
-            .currency(EUR)
-            .type(SAVINGS_RECURRING)
-            .paymentChannel(LHV)
-            .recipientPersonalCode(PERSONAL_CODE)
-            .build();
-
-    assertThatThrownBy(() -> generator.getPaymentLink(paymentData, person()))
-        .isInstanceOf(ErrorsResponseException.class)
-        .extracting(ex -> ((ErrorsResponseException) ex).getErrorsResponse().getErrors().get(0))
-        .extracting(ErrorResponse::getCode)
-        .isEqualTo("payment.amount.invalid");
   }
 
   @Test

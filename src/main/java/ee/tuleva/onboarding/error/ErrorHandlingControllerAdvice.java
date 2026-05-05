@@ -25,6 +25,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
@@ -43,6 +44,12 @@ public class ErrorHandlingControllerAdvice {
   public ResponseEntity<ErrorsResponse> handleErrors(ValidationErrorsException exception) {
     log.info("ValidationErrorsException {}", exception.toString());
     return errorResponseEntityFactory.fromErrors(exception.getErrors());
+  }
+
+  @ExceptionHandler(BindException.class)
+  public ResponseEntity<ErrorsResponse> handleBindException(BindException exception) {
+    log.info("BindException: {}", exception.toString());
+    return errorResponseEntityFactory.fromErrors(exception);
   }
 
   @ExceptionHandler(IdSessionException.class)

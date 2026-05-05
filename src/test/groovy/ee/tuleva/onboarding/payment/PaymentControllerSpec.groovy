@@ -54,6 +54,38 @@ class PaymentControllerSpec extends BaseControllerSpec {
         .andExpect(status().isBadRequest())
   }
 
+  def "GET /payments/link rejects amount below 0.01"() {
+    given:
+    def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, paymentController)
+
+    expect:
+    mvc.perform(get("/v1/payments/link?amount=0.001&currency=EUR&type=SAVINGS_RECURRING&paymentChannel=LHV&recipientPersonalCode=37605030299"))
+        .andExpect(status().isBadRequest())
+  }
+
+  def "GET /payments/link works for MEMBER_FEE without amount"() {
+    given:
+    def person = sampleAuthenticatedPerson
+    def mvc = mockMvcWithAuthenticationPrincipal(person, paymentController)
+
+    PaymentLink paymentLink = new RedirectLink("https://some.url?payment_token=23948h3t9gfd")
+
+    PaymentData paymentData = PaymentData.builder()
+        .currency(EUR)
+        .type(MEMBER_FEE)
+        .paymentChannel(LHV)
+        .recipientPersonalCode("37605030299")
+        .build()
+
+    1 * paymentService.getLink(paymentData, person) >> paymentLink
+
+    expect:
+    mvc.perform(get("/v1/payments/link?currency=EUR&type=MEMBER_FEE&paymentChannel=LHV&recipientPersonalCode=37605030299"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.url', is(paymentLink.url())))
+  }
+
   def "GET /payments/link accepts registry code for SAVINGS type"() {
     given:
     def person = sampleAuthenticatedPerson

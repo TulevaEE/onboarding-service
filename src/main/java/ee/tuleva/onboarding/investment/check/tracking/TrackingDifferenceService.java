@@ -164,6 +164,7 @@ class TrackingDifferenceService {
       log.warn("No model portfolio for fund: fund={}", fund);
       return results;
     }
+    var previousAllocations = modelPortfolioAllocationRepository.findPreviousByFund(fund);
 
     var positions =
         fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, SECURITY);
@@ -183,10 +184,12 @@ class TrackingDifferenceService {
             .orElse(ZERO);
 
     var securities =
-        buildSecurityData(fund, allocations, positions, totalNav, checkDate, previousDate);
+        buildSecurityData(
+            fund, allocations, previousAllocations, positions, totalNav, checkDate, previousDate);
 
     var missingPrices =
         securities.stream()
+            .filter(s -> s.modelWeight().signum() > 0)
             .filter(s -> s.today().price() == null || s.previous().price() == null)
             .map(SecurityData::isin)
             .toList();
@@ -440,6 +443,7 @@ class TrackingDifferenceService {
   private List<SecurityData> buildSecurityData(
       TulevaFund fund,
       List<ModelPortfolioAllocation> allocations,
+      List<ModelPortfolioAllocation> previousAllocations,
       List<FundPosition> todayPositions,
       BigDecimal totalNav,
       LocalDate checkDate,
@@ -453,40 +457,85 @@ class TrackingDifferenceService {
     var todayCutoff = computePriceCutoff(fund, checkDate);
     var yesterdayCutoff = computePriceCutoff(fund, previousDate);
 
-    return allocations.stream()
+    var currentIsins =
+        allocations.stream()
+            .map(ModelPortfolioAllocation::getIsin)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+
+    var result =
+        new ArrayList<>(
+            allocations.stream()
+                .filter(a -> a.getIsin() != null)
+                .map(
+                    a ->
+                        buildOneSecurityData(
+                            a.getIsin(),
+                            a.getWeight(),
+                            todayByIsin,
+                            totalNav,
+                            checkDate,
+                            previousDate,
+                            todayCutoff,
+                            yesterdayCutoff))
+                .toList());
+
+    previousAllocations.stream()
         .filter(a -> a.getIsin() != null)
+        .filter(a -> !currentIsins.contains(a.getIsin()))
+        .filter(a -> todayByIsin.containsKey(a.getIsin()))
         .map(
-            a -> {
-              var todayResolved =
-                  positionPriceResolver
-                      .resolve(a.getIsin(), checkDate, todayCutoff)
-                      .filter(rp -> rp.validationStatus() == ValidationStatus.OK)
-                      .orElse(null);
-              var yesterdayResolved =
-                  positionPriceResolver
-                      .resolve(a.getIsin(), previousDate, yesterdayCutoff)
-                      .filter(rp -> rp.validationStatus() == ValidationStatus.OK)
-                      .orElse(null);
+            a ->
+                buildOneSecurityData(
+                    a.getIsin(),
+                    ZERO,
+                    todayByIsin,
+                    totalNav,
+                    checkDate,
+                    previousDate,
+                    todayCutoff,
+                    yesterdayCutoff))
+        .forEach(result::add);
 
-              var todayPos = todayByIsin.get(a.getIsin());
-              var actualMarketValue = todayPos != null ? todayPos.getMarketValue() : ZERO;
-              var actualWeight =
-                  totalNav.signum() != 0
-                      ? actualMarketValue.divide(totalNav, 6, RoundingMode.HALF_UP)
-                      : ZERO;
+    return result;
+  }
 
-              var today =
-                  new PriceSnapshot(
-                      todayResolved != null ? todayResolved.usedPrice() : null,
-                      todayResolved != null ? todayResolved.priceDate() : null);
-              var previous =
-                  new PriceSnapshot(
-                      yesterdayResolved != null ? yesterdayResolved.usedPrice() : null,
-                      yesterdayResolved != null ? yesterdayResolved.priceDate() : null);
+  private SecurityData buildOneSecurityData(
+      String isin,
+      BigDecimal modelWeight,
+      Map<String, FundPosition> todayByIsin,
+      BigDecimal totalNav,
+      LocalDate checkDate,
+      LocalDate previousDate,
+      Instant todayCutoff,
+      Instant yesterdayCutoff) {
 
-              return new SecurityData(a.getIsin(), a.getWeight(), actualWeight, today, previous);
-            })
-        .toList();
+    var todayResolved =
+        positionPriceResolver
+            .resolve(isin, checkDate, todayCutoff)
+            .filter(rp -> rp.validationStatus() == ValidationStatus.OK)
+            .orElse(null);
+    var yesterdayResolved =
+        positionPriceResolver
+            .resolve(isin, previousDate, yesterdayCutoff)
+            .filter(rp -> rp.validationStatus() == ValidationStatus.OK)
+            .orElse(null);
+
+    var todayPos = todayByIsin.get(isin);
+    var actualMarketValue = todayPos != null ? todayPos.getMarketValue() : ZERO;
+    var actualWeight =
+        totalNav.signum() != 0 ? actualMarketValue.divide(totalNav, 6, RoundingMode.HALF_UP) : ZERO;
+
+    var today =
+        new PriceSnapshot(
+            todayResolved != null ? todayResolved.usedPrice() : null,
+            todayResolved != null ? todayResolved.priceDate() : null);
+    var previous =
+        new PriceSnapshot(
+            yesterdayResolved != null ? yesterdayResolved.usedPrice() : null,
+            yesterdayResolved != null ? yesterdayResolved.priceDate() : null);
+
+    return new SecurityData(isin, modelWeight, actualWeight, today, previous);
   }
 
   private Instant computePriceCutoff(TulevaFund fund, LocalDate navDate) {

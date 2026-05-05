@@ -21,6 +21,7 @@ import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -65,13 +66,18 @@ public class TransactionInputService {
     BigDecimal cash = getCashBalance(fund, positionDate);
     BigDecimal accruedFees = getAccruedFees(fund, asOfDate);
     List<ModelPortfolioAllocation> allocations = getModelAllocations(fund);
+    List<ModelPortfolioAllocation> previousAllocations =
+        modelPortfolioAllocationRepository.findPreviousByFund(fund).stream()
+            .filter(a -> a.getIsin() != null)
+            .toList();
     List<ModelWeight> modelWeights = toModelWeights(allocations);
     BigDecimal cashBuffer = getCashBuffer(fund);
     BigDecimal minTransaction = getMinTransaction(fund);
     Map<String, PositionLimitSnapshot> positionLimits = getPositionLimits(fund);
     Set<String> fastSellIsins = getFastSellIsins(allocations);
-    Map<String, InstrumentType> instrumentTypes = getInstrumentTypes(allocations);
-    Map<String, OrderVenue> orderVenues = getOrderVenues(allocations);
+    Map<String, InstrumentType> instrumentTypes =
+        getInstrumentTypes(allocations, previousAllocations);
+    Map<String, OrderVenue> orderVenues = getOrderVenues(allocations, previousAllocations);
 
     BigDecimal securityValue =
         positions.stream()
@@ -190,14 +196,20 @@ public class TransactionInputService {
   }
 
   private Map<String, InstrumentType> getInstrumentTypes(
-      List<ModelPortfolioAllocation> allocations) {
-    return allocations.stream()
-        .filter(allocation -> allocation.getInstrumentType() != null)
-        .collect(
-            Collectors.toMap(
-                ModelPortfolioAllocation::getIsin,
-                ModelPortfolioAllocation::getInstrumentType,
-                (a, b) -> b));
+      List<ModelPortfolioAllocation> current, List<ModelPortfolioAllocation> previous) {
+    var merged =
+        new HashMap<>(
+            previous.stream()
+                .filter(a -> a.getInstrumentType() != null)
+                .collect(
+                    Collectors.toMap(
+                        ModelPortfolioAllocation::getIsin,
+                        ModelPortfolioAllocation::getInstrumentType,
+                        (a, b) -> b)));
+    current.stream()
+        .filter(a -> a.getInstrumentType() != null)
+        .forEach(a -> merged.put(a.getIsin(), a.getInstrumentType()));
+    return merged;
   }
 
   private BigDecimal getFundUnitsReservedValue() {
@@ -226,14 +238,21 @@ public class TransactionInputService {
     }
   }
 
-  private Map<String, OrderVenue> getOrderVenues(List<ModelPortfolioAllocation> allocations) {
-    return allocations.stream()
-        .filter(allocation -> allocation.getOrderVenue() != null)
-        .collect(
-            Collectors.toMap(
-                ModelPortfolioAllocation::getIsin,
-                ModelPortfolioAllocation::getOrderVenue,
-                (a, b) -> b));
+  private Map<String, OrderVenue> getOrderVenues(
+      List<ModelPortfolioAllocation> current, List<ModelPortfolioAllocation> previous) {
+    var merged =
+        new HashMap<>(
+            previous.stream()
+                .filter(a -> a.getOrderVenue() != null)
+                .collect(
+                    Collectors.toMap(
+                        ModelPortfolioAllocation::getIsin,
+                        ModelPortfolioAllocation::getOrderVenue,
+                        (a, b) -> b)));
+    current.stream()
+        .filter(a -> a.getOrderVenue() != null)
+        .forEach(a -> merged.put(a.getIsin(), a.getOrderVenue()));
+    return merged;
   }
 
   private BigDecimal getPendingCashImpact(TulevaFund fund, LocalDate asOfDate) {

@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.investment.transaction.export.TransactionExportUploa
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -129,14 +130,18 @@ public class TransactionPreparationService {
         });
     orderRepository.saveAll(orders);
 
-    List<ModelPortfolioAllocation> allocations =
+    List<ModelPortfolioAllocation> currentAllocations =
         modelPortfolioAllocationRepository.findLatestByFund(batch.getFund());
+    List<ModelPortfolioAllocation> previousAllocations =
+        modelPortfolioAllocationRepository.findPreviousByFund(batch.getFund());
+    var mergedAllocations = new ArrayList<>(previousAllocations);
+    mergedAllocations.addAll(currentAllocations);
     Map<String, String> labelsByIsin =
-        buildLookupMap(allocations, ModelPortfolioAllocation::getLabel);
+        buildLookupMap(mergedAllocations, ModelPortfolioAllocation::getLabel);
     Map<String, String> ricByIsin =
-        buildLookupMap(allocations, ModelPortfolioAllocation::getTicker);
+        buildLookupMap(mergedAllocations, ModelPortfolioAllocation::getTicker);
     Map<String, String> bbgByIsin =
-        buildLookupMap(allocations, ModelPortfolioAllocation::getBbgTicker);
+        buildLookupMap(mergedAllocations, ModelPortfolioAllocation::getBbgTicker);
 
     byte[] xlsxExport = exportService.generateOrdersExport(orders);
     byte[] sebFundXlsx = exportService.generateSebFundExport(orders, labelsByIsin);

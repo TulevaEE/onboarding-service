@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_MATCH;
 import static java.math.BigDecimal.ZERO;
 
@@ -17,23 +18,42 @@ import org.springframework.stereotype.Component;
 class IsinMatchChecker {
 
   List<HealthCheckFinding> check(
-      TulevaFund fund, List<FundPosition> securities, List<ModelPortfolioAllocation> allocations) {
+      TulevaFund fund,
+      List<FundPosition> securities,
+      List<ModelPortfolioAllocation> allocations,
+      List<ModelPortfolioAllocation> previousAllocations) {
     var findings = new ArrayList<HealthCheckFinding>();
-    Set<String> allowedIsins =
+    Set<String> currentIsins =
         allocations.stream()
+            .map(ModelPortfolioAllocation::getIsin)
+            .filter(isin -> isin != null)
+            .collect(Collectors.toSet());
+
+    Set<String> previousIsins =
+        previousAllocations.stream()
             .map(ModelPortfolioAllocation::getIsin)
             .filter(isin -> isin != null)
             .collect(Collectors.toSet());
 
     for (var position : securities) {
       String isin = position.getAccountId();
-      if (isin == null || !allowedIsins.contains(isin)) {
-        findings.add(
-            new HealthCheckFinding(
-                fund,
-                ISIN_MATCH,
-                FAIL,
-                "%s: ISIN %s not in model portfolio".formatted(fund, isin)));
+      if (isin == null || !currentIsins.contains(isin)) {
+        if (isin != null && previousIsins.contains(isin)) {
+          findings.add(
+              new HealthCheckFinding(
+                  fund,
+                  ISIN_MATCH,
+                  WARNING,
+                  "%s: ISIN %s not in current model portfolio but present in previous (in-runoff)"
+                      .formatted(fund, isin)));
+        } else {
+          findings.add(
+              new HealthCheckFinding(
+                  fund,
+                  ISIN_MATCH,
+                  FAIL,
+                  "%s: ISIN %s not in model portfolio".formatted(fund, isin)));
+        }
       }
       if (position.getQuantity() == null || position.getQuantity().compareTo(ZERO) == 0) {
         findings.add(

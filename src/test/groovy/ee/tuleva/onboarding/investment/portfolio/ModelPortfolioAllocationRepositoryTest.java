@@ -146,4 +146,70 @@ class ModelPortfolioAllocationRepositoryTest {
 
     assertThat(result).isEmpty();
   }
+
+  @Test
+  void findPreviousByFund_returnsSecondToLatestEffectiveDate() {
+    var oldestDate = LocalDate.of(2025, 3, 1);
+    var previousDate = LocalDate.of(2025, 6, 30);
+    var latestDate = LocalDate.of(2025, 12, 1);
+
+    entityManager.persist(
+        ModelPortfolioAllocation.builder()
+            .effectiveDate(oldestDate)
+            .fund(TUK75)
+            .isin("IE00OLDEST")
+            .weight(new BigDecimal("0.30"))
+            .provider(ISHARES)
+            .build());
+
+    entityManager.persist(
+        ModelPortfolioAllocation.builder()
+            .effectiveDate(previousDate)
+            .fund(TUK75)
+            .isin("IE00PREVIOUS")
+            .weight(new BigDecimal("0.25"))
+            .provider(ISHARES)
+            .build());
+
+    entityManager.persist(
+        ModelPortfolioAllocation.builder()
+            .effectiveDate(latestDate)
+            .fund(TUK75)
+            .isin("IE00LATEST")
+            .weight(new BigDecimal("0.174"))
+            .provider(XTRACKERS)
+            .build());
+
+    entityManager.flush();
+
+    var result = repository.findPreviousByFund(TUK75);
+
+    assertThat(result).hasSize(1);
+    assertThat(result).extracting("effectiveDate").containsOnly(previousDate);
+    assertThat(result).extracting("isin").containsOnly("IE00PREVIOUS");
+  }
+
+  @Test
+  void findPreviousByFund_returnsEmptyWhenOnlyOneVersion() {
+    entityManager.persist(
+        ModelPortfolioAllocation.builder()
+            .effectiveDate(LocalDate.of(2025, 12, 1))
+            .fund(TUK75)
+            .isin("IE00BJZ2DC62")
+            .weight(new BigDecimal("0.174"))
+            .provider(XTRACKERS)
+            .build());
+    entityManager.flush();
+
+    var result = repository.findPreviousByFund(TUK75);
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  void findPreviousByFund_returnsEmptyWhenNoData() {
+    var result = repository.findPreviousByFund(TUK75);
+
+    assertThat(result).isEmpty();
+  }
 }

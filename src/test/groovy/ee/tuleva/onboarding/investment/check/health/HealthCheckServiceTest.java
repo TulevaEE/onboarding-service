@@ -58,7 +58,7 @@ class HealthCheckServiceTest {
         .willReturn(Optional.empty());
 
     given(completenessChecker.check(eq(TUK75), eq(NAV_DATE), any())).willReturn(List.of());
-    given(isinMatchChecker.check(eq(TUK75), any(), eq(allocations))).willReturn(List.of());
+    given(isinMatchChecker.check(eq(TUK75), any(), eq(allocations), any())).willReturn(List.of());
     given(outstandingUnitsChecker.check(eq(TUK75), eq(NAV_DATE), any())).willReturn(List.of());
     given(receivablesChecker.check(eq(TUK75), any(), any(), any(), any())).willReturn(List.of());
     given(payablesChecker.check(eq(TUK75), any(), any(), any(), any())).willReturn(List.of());
@@ -83,7 +83,7 @@ class HealthCheckServiceTest {
         .willReturn(Optional.empty());
 
     given(completenessChecker.check(any(), any(), any())).willReturn(List.of());
-    given(isinMatchChecker.check(any(), any(), any())).willReturn(List.of());
+    given(isinMatchChecker.check(any(), any(), any(), any())).willReturn(List.of());
     given(outstandingUnitsChecker.check(any(), any(), any())).willReturn(List.of());
     given(receivablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
     given(payablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
@@ -104,7 +104,7 @@ class HealthCheckServiceTest {
 
     var finding = new HealthCheckFinding(TUK75, COMPLETENESS, WARNING, "test");
     given(completenessChecker.check(eq(TUK75), eq(NAV_DATE), any())).willReturn(List.of(finding));
-    given(isinMatchChecker.check(any(), any(), any())).willReturn(List.of());
+    given(isinMatchChecker.check(any(), any(), any(), any())).willReturn(List.of());
     given(outstandingUnitsChecker.check(any(), any(), any())).willReturn(List.of());
     given(receivablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
     given(payablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
@@ -126,7 +126,7 @@ class HealthCheckServiceTest {
     var failFinding = new HealthCheckFinding(TUK75, COMPLETENESS, FAIL, "missing CASH");
     given(completenessChecker.check(eq(TUK75), eq(NAV_DATE), any()))
         .willReturn(List.of(failFinding));
-    given(isinMatchChecker.check(any(), any(), any())).willReturn(List.of());
+    given(isinMatchChecker.check(any(), any(), any(), any())).willReturn(List.of());
     given(outstandingUnitsChecker.check(any(), any(), any())).willReturn(List.of());
     given(receivablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
     given(payablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
@@ -162,7 +162,7 @@ class HealthCheckServiceTest {
         .willReturn(previousSecurities);
 
     given(completenessChecker.check(any(), any(), any())).willReturn(List.of());
-    given(isinMatchChecker.check(any(), any(), any())).willReturn(List.of());
+    given(isinMatchChecker.check(any(), any(), any(), any())).willReturn(List.of());
     given(outstandingUnitsChecker.check(any(), any(), any())).willReturn(List.of());
     given(receivablesChecker.check(eq(TUK75), any(), eq(previousSecurities), any(), any()))
         .willReturn(List.of());
@@ -195,7 +195,7 @@ class HealthCheckServiceTest {
         .willReturn(previousReceivables);
 
     given(completenessChecker.check(any(), any(), any())).willReturn(List.of());
-    given(isinMatchChecker.check(any(), any(), any())).willReturn(List.of());
+    given(isinMatchChecker.check(any(), any(), any(), any())).willReturn(List.of());
     given(outstandingUnitsChecker.check(any(), any(), any())).willReturn(List.of());
     given(receivablesChecker.check(any(), any(), any(), any(), eq(previousReceivables)))
         .willReturn(List.of());

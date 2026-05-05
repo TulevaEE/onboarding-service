@@ -60,6 +60,7 @@ public class HealthCheckService {
     var receivables = filterByType(positions, RECEIVABLES);
     var liabilities = filterByType(positions, LIABILITY);
     var allocations = modelPortfolioAllocationRepository.findLatestByFund(fund);
+    var previousAllocations = modelPortfolioAllocationRepository.findPreviousByFund(fund);
 
     var previousNavDate =
         fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, navDate.minusDays(1));
@@ -92,7 +93,7 @@ public class HealthCheckService {
 
     var findings = new ArrayList<HealthCheckFinding>();
     findings.addAll(completenessChecker.check(fund, navDate, positions));
-    findings.addAll(isinMatchChecker.check(fund, securities, allocations));
+    findings.addAll(isinMatchChecker.check(fund, securities, allocations, previousAllocations));
     findings.addAll(outstandingUnitsChecker.check(fund, navDate, unitsPositions));
     findings.addAll(
         unitReconciliationChecker.check(

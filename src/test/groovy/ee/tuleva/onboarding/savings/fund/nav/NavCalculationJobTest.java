@@ -231,6 +231,21 @@ class NavCalculationJobTest {
   }
 
   @Test
+  void onNavCalculationRequested_publishesEventWithOnlySuccessfullyCalculatedFunds() {
+    var job = jobOn("2025-01-15T09:00:00Z");
+
+    LocalDate today = LocalDate.of(2025, 1, 15);
+
+    when(navCalculationService.calculate(TUK75, today))
+        .thenThrow(new RuntimeException("Price missing"));
+    when(navCalculationService.calculate(TUK00, today)).thenReturn(buildTestResult(TUK00, today));
+
+    job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TUK75, TUK00)));
+
+    verify(eventPublisher).publishEvent(new NavCalculationCompleted(List.of(TUK00)));
+  }
+
+  @Test
   void onNavCalculationRequested_continuesWhenRefreshThrows() {
     var job = jobOn("2025-01-15T14:30:00Z");
 

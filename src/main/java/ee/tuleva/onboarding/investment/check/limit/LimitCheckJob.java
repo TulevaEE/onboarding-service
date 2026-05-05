@@ -37,15 +37,15 @@ public class LimitCheckJob {
   @EventListener
   @Order(NavEventListenerOrder.LIMIT_CHECK)
   void onNavCalculationCompleted(NavCalculationCompleted event) {
-    runLimitChecksForFunds(event.funds());
+    runLimitChecks(event.funds());
   }
 
   @EventListener
   void onLimitCheckRequested(RunLimitCheckRequested event) {
-    runLimitChecks();
+    runLimitChecks(List.of(TulevaFund.values()));
   }
 
-  private void runLimitChecksForFunds(List<TulevaFund> funds) {
+  private void runLimitChecks(List<TulevaFund> funds) {
     pipelineTracker.stepStarted(LIMIT_CHECK);
     log.info("Starting limit check: funds={}", funds);
 
@@ -55,22 +55,6 @@ public class LimitCheckJob {
       pipelineTracker.stepCompleted(LIMIT_CHECK);
 
       log.info("Limit check completed: funds={}, resultCount={}", funds, results.size());
-    } catch (Exception e) {
-      pipelineTracker.stepFailed(LIMIT_CHECK, e.getMessage());
-      log.error("Limit check failed", e);
-    }
-  }
-
-  private void runLimitChecks() {
-    pipelineTracker.stepStarted(LIMIT_CHECK);
-    log.info("Starting limit check");
-
-    try {
-      var results = limitCheckService.runChecks();
-      limitCheckNotifier.notify(results);
-      pipelineTracker.stepCompleted(LIMIT_CHECK);
-
-      log.info("Limit check completed: resultCount={}", results.size());
     } catch (Exception e) {
       pipelineTracker.stepFailed(LIMIT_CHECK, e.getMessage());
       log.error("Limit check failed", e);

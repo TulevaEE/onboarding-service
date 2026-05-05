@@ -76,19 +76,19 @@ public class NavCalculationJob {
   @EventListener
   public void onNavCalculationRequested(RunNavCalculationRequested event) {
     pipelineTracker.stepStarted(NAV_CALCULATION);
-    int successfullyPublishedCount = calculateForFunds(event.funds());
+    List<TulevaFund> calculatedFunds = calculateForFunds(event.funds());
     pipelineTracker.stepCompleted(NAV_CALCULATION);
-    if (successfullyPublishedCount > 0) {
-      eventPublisher.publishEvent(new NavCalculationCompleted(event.funds()));
+    if (!calculatedFunds.isEmpty()) {
+      eventPublisher.publishEvent(new NavCalculationCompleted(calculatedFunds));
     }
   }
 
-  private int calculateForFunds(List<TulevaFund> funds) {
+  private List<TulevaFund> calculateForFunds(List<TulevaFund> funds) {
     LocalDate today = LocalDate.now(clock);
 
     if (!publicHolidays.isWorkingDay(today)) {
       log.info("Skipping NAV calculation on non-working day: date={}", today);
-      return 0;
+      return List.of();
     }
 
     List<TulevaFund> fundsToCalculate =
@@ -98,7 +98,7 @@ public class NavCalculationJob {
             .toList();
     if (fundsToCalculate.isEmpty()) {
       log.info("NAV already published for all funds, skipping: funds={}, date={}", funds, today);
-      return 0;
+      return List.of();
     }
 
     try {
@@ -107,8 +107,7 @@ public class NavCalculationJob {
       log.error("Failed to refresh fund values, continuing with NAV calculation", e);
     }
 
-    return (int)
-        fundsToCalculate.stream().filter(fund -> tryCalculateAndPublish(fund, today)).count();
+    return fundsToCalculate.stream().filter(fund -> tryCalculateAndPublish(fund, today)).toList();
   }
 
   private boolean tryCalculateAndPublish(TulevaFund fund, LocalDate today) {

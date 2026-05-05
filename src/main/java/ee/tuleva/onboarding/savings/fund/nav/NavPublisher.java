@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.nav;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.investment.check.health.HealthCheckService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,7 @@ public class NavPublisher {
   private final NavReportRepository navReportRepository;
   private final NavReportEmailSender navReportEmailSender;
   private final NavNotifier navNotifier;
+  private final HealthCheckService healthCheckService;
 
   public void publish(NavCalculationResult result) {
     if (result.fund().isSavingsFund()) {
@@ -40,14 +42,21 @@ public class NavPublisher {
           e);
     }
 
-    try {
-      navReportEmailSender.send(reportRows, result);
-    } catch (Exception e) {
-      log.error(
-          "Failed to send NAV report email: fund={}, date={}",
+    if (healthCheckService.isNavPublishBlocked(result.fund(), result.positionReportDate())) {
+      log.warn(
+          "Skipping NAV report email — health check blocks publication: fund={}, date={}",
           result.fund(),
-          result.calculationDate(),
-          e);
+          result.positionReportDate());
+    } else {
+      try {
+        navReportEmailSender.send(reportRows, result);
+      } catch (Exception e) {
+        log.error(
+            "Failed to send NAV report email: fund={}, date={}",
+            result.fund(),
+            result.calculationDate(),
+            e);
+      }
     }
 
     navNotifier.notify(result);

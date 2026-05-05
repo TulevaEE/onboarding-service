@@ -9,6 +9,7 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.investment.check.health.HealthCheckService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -29,6 +30,7 @@ class NavPublisherTest {
   @Mock private NavReportRepository navReportRepository;
   @Mock private NavReportEmailSender navReportEmailSender;
   @Mock private NavNotifier navNotifier;
+  @Mock private HealthCheckService healthCheckService;
 
   @InjectMocks private NavPublisher navPublisher;
 
@@ -155,6 +157,44 @@ class NavPublisherTest {
     navPublisher.publish(result);
 
     verify(fundValueRepository, times(2)).save(any());
+    verify(navNotifier).notify(result);
+  }
+
+  @Test
+  void publish_skipsEmailSendWhenHealthCheckBlocksPublication() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
+
+    var result =
+        NavCalculationResult.builder()
+            .fund(TKF100)
+            .calculationDate(today)
+            .securitiesValue(new BigDecimal("900000.00"))
+            .cashPosition(new BigDecimal("50000.00"))
+            .receivables(BigDecimal.ZERO)
+            .pendingSubscriptions(BigDecimal.ZERO)
+            .pendingRedemptions(BigDecimal.ZERO)
+            .managementFeeAccrual(BigDecimal.ZERO)
+            .depotFeeAccrual(BigDecimal.ZERO)
+            .payables(BigDecimal.ZERO)
+            .blackrockAdjustment(BigDecimal.ZERO)
+            .aum(new BigDecimal("950000.00"))
+            .unitsOutstanding(new BigDecimal("100000.00000"))
+            .navPerUnit(new BigDecimal("9.50000"))
+            .positionReportDate(yesterday)
+            .priceDate(yesterday)
+            .calculatedAt(calcTime)
+            .securitiesDetail(List.of())
+            .build();
+
+    when(healthCheckService.isNavPublishBlocked(TKF100, yesterday)).thenReturn(true);
+
+    navPublisher.publish(result);
+
+    verify(navReportEmailSender, never()).send(any(), any());
+    verify(fundValueRepository, times(2)).save(any());
+    verify(navReportRepository).replaceByNavDateAndFundCode(eq(yesterday), eq("TKF100"), any());
     verify(navNotifier).notify(result);
   }
 }

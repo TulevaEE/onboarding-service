@@ -40,7 +40,7 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
             : switch (channel) {
               case LHV -> buildLhvUrl(description, amount, firstPaymentDate);
               case COOP, COOP_WEB, PARTNER -> buildCoopUrl(description, amount, firstPaymentDate);
-              case SWEDBANK -> buildSwedbankUrl(description, amount);
+              case SWEDBANK -> buildSwedbankUrl(description, amount, firstPaymentDate);
               case SEB -> "https://e.seb.ee/ib/p/payments/new-standing-order";
               case LUMINOR -> "https://luminor.ee/auth/#/web/view/autopilot/newpayment";
               case TULUNDUSUHISTU ->
@@ -89,7 +89,8 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
     return "https://i.cooppank.ee/newpmt?" + encode(params);
   }
 
-  private String buildSwedbankUrl(String description, @Nullable String amount) {
+  private String buildSwedbankUrl(
+      String description, @Nullable String amount, LocalDate firstPaymentDate) {
     var params = new LinkedHashMap<String, String>();
     params.put("standingOrder.beneficiaryAccountNumber", recipientConfiguration.getRecipientIban());
     params.put("standingOrder.beneficiaryName", recipientConfiguration.getRecipientName());
@@ -97,6 +98,7 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
       params.put("standingOrder.amount", amount);
     }
     params.put("standingOrder.details", description);
+    params.put("standingOrder.firstPaymentDate", format(firstPaymentDate));
     params.put("frequency", "K");
     return "https://www.swedbank.ee/private/d2d/payments2/standing_order/new?" + encode(params);
   }

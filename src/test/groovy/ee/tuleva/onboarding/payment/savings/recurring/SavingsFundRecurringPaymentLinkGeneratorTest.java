@@ -90,6 +90,7 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
         .contains("standingOrder.beneficiaryName=Tuleva%20T%C3%A4iendav%20Kogumisfond")
         .contains("standingOrder.amount=50")
         .contains("standingOrder.details=38812121215")
+        .contains("standingOrder.firstPaymentDate=10.05.2026")
         .contains("frequency=K");
     assertCommonRecipientFields(link);
   }

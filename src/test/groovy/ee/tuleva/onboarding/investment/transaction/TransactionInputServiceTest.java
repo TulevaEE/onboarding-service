@@ -404,6 +404,100 @@ class TransactionInputServiceTest {
         .hasMessageContaining("field=minTransaction");
   }
 
+  @Test
+  void gatherInput_includesInRunoffInstrumentTypesAndOrderVenues() {
+    var positionDate = AS_OF_DATE;
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .thenReturn(Optional.of(positionDate));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .thenReturn(List.of());
+    when(feeAccrualRepository.getAccruedFeesForMonth(
+            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+        .thenReturn(ZERO);
+
+    var currentAllocation =
+        ModelPortfolioAllocation.builder()
+            .fund(TUV100)
+            .isin("IE00NEW")
+            .weight(new BigDecimal("1.00"))
+            .instrumentType(InstrumentType.ETF)
+            .orderVenue(OrderVenue.SEB)
+            .build();
+    when(modelPortfolioAllocationRepository.findLatestByFund(TUV100))
+        .thenReturn(List.of(currentAllocation));
+
+    var previousAllocation =
+        ModelPortfolioAllocation.builder()
+            .fund(TUV100)
+            .isin("IE00OLD")
+            .weight(new BigDecimal("1.00"))
+            .instrumentType(InstrumentType.FUND)
+            .orderVenue(OrderVenue.FT)
+            .build();
+    when(modelPortfolioAllocationRepository.findPreviousByFund(TUV100))
+        .thenReturn(List.of(previousAllocation));
+
+    when(fundLimitRepository.findLatestByFund(TUV100))
+        .thenReturn(Optional.of(zeroFundLimit(TUV100)));
+    when(positionLimitRepository.findLatestByFund(TUV100)).thenReturn(List.of());
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.instrumentTypes())
+        .containsEntry("IE00NEW", InstrumentType.ETF)
+        .containsEntry("IE00OLD", InstrumentType.FUND);
+    assertThat(result.orderVenues())
+        .containsEntry("IE00NEW", OrderVenue.SEB)
+        .containsEntry("IE00OLD", OrderVenue.FT);
+  }
+
+  @Test
+  void gatherInput_currentAllocationOverridesPreviousInstrumentTypeAndVenue() {
+    var positionDate = AS_OF_DATE;
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .thenReturn(Optional.of(positionDate));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .thenReturn(List.of());
+    when(feeAccrualRepository.getAccruedFeesForMonth(
+            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+        .thenReturn(ZERO);
+
+    var currentAllocation =
+        ModelPortfolioAllocation.builder()
+            .fund(TUV100)
+            .isin("IE00SAME")
+            .weight(new BigDecimal("1.00"))
+            .instrumentType(InstrumentType.ETF)
+            .orderVenue(OrderVenue.SEB)
+            .build();
+    when(modelPortfolioAllocationRepository.findLatestByFund(TUV100))
+        .thenReturn(List.of(currentAllocation));
+
+    var previousAllocation =
+        ModelPortfolioAllocation.builder()
+            .fund(TUV100)
+            .isin("IE00SAME")
+            .weight(new BigDecimal("1.00"))
+            .instrumentType(InstrumentType.FUND)
+            .orderVenue(OrderVenue.FT)
+            .build();
+    when(modelPortfolioAllocationRepository.findPreviousByFund(TUV100))
+        .thenReturn(List.of(previousAllocation));
+
+    when(fundLimitRepository.findLatestByFund(TUV100))
+        .thenReturn(Optional.of(zeroFundLimit(TUV100)));
+    when(positionLimitRepository.findLatestByFund(TUV100)).thenReturn(List.of());
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.instrumentTypes()).containsEntry("IE00SAME", InstrumentType.ETF);
+    assertThat(result.orderVenues()).containsEntry("IE00SAME", OrderVenue.SEB);
+  }
+
   private static FundLimit zeroFundLimit(TulevaFund fund) {
     return FundLimit.builder().fund(fund).reserveSoft(ZERO).minTransaction(ZERO).build();
   }

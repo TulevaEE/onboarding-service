@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.OK;
 import static ee.tuleva.onboarding.investment.check.limit.CheckType.*;
+import static ee.tuleva.onboarding.investment.portfolio.Provider.INVESCO;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.ISHARES;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -626,6 +627,67 @@ class LimitCheckServiceTest {
 
     assertThatThrownBy(() -> service.runChecksAsOf(today))
         .isInstanceOf(LimitCheckPartialFailureException.class);
+  }
+
+  @Test
+  void includesInRunoffIsinsInProviderMap() {
+    service = createService();
+    var today = LocalDate.of(2026, 3, 4);
+    var fund = TUK75;
+
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, today))
+        .thenReturn(Optional.of(today));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, SECURITY))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, UNITS))
+        .thenReturn(List.of());
+    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+            fund, today, List.of(CASH, RECEIVABLES, LIABILITY)))
+        .thenReturn(BigDecimal.ZERO);
+    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(fund, today, List.of(SECURITY)))
+        .thenReturn(BigDecimal.ZERO);
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, CASH))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, LIABILITY))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, FEE))
+        .thenReturn(List.of());
+
+    var currentAllocation =
+        ModelPortfolioAllocation.builder()
+            .isin("IE00NEW")
+            .fund(fund)
+            .provider(ISHARES)
+            .weight(BigDecimal.ONE)
+            .build();
+    when(modelPortfolioAllocationRepository.findLatestByFund(fund))
+        .thenReturn(List.of(currentAllocation));
+
+    var previousAllocation =
+        ModelPortfolioAllocation.builder()
+            .isin("IE00OLD")
+            .fund(fund)
+            .provider(INVESCO)
+            .weight(BigDecimal.ONE)
+            .build();
+    when(modelPortfolioAllocationRepository.findPreviousByFund(fund))
+        .thenReturn(List.of(previousAllocation));
+
+    when(positionLimitRepository.findLatestByFundAsOf(fund, today)).thenReturn(List.of());
+    when(providerLimitRepository.findLatestByFundAsOf(fund, today)).thenReturn(List.of());
+    when(fundLimitRepository.findLatestByFundAsOf(fund, today)).thenReturn(Optional.empty());
+    when(positionLimitChecker.check(any(), any(), any(), any())).thenReturn(List.of());
+    when(providerLimitChecker.check(any(), any(), any(), any(), any())).thenReturn(List.of());
+
+    service.runChecks();
+
+    verify(providerLimitChecker)
+        .check(
+            eq(fund),
+            anyList(),
+            any(),
+            eq(Map.of("IE00NEW", ISHARES, "IE00OLD", INVESCO)),
+            anyList());
   }
 
   private LimitCheckService createService() {

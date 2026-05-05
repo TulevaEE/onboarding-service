@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.check.health;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 interface HealthCheckEventRepository extends JpaRepository<HealthCheckEvent, Long> {
@@ -10,5 +11,8 @@ interface HealthCheckEventRepository extends JpaRepository<HealthCheckEvent, Lon
   List<HealthCheckEvent> findByFundAndCheckDate(TulevaFund fund, LocalDate checkDate);
 
   List<HealthCheckEvent> findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
+      TulevaFund fund, LocalDate checkDate, HealthCheckType checkType);
+
+  Optional<HealthCheckEvent> findTopByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
       TulevaFund fund, LocalDate checkDate, HealthCheckType checkType);
 }

@@ -113,9 +113,7 @@ public class HealthCheckService {
 
   public boolean isNavPublishBlocked(TulevaFund fund, LocalDate navDate) {
     return healthCheckEventRepository
-        .findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(fund, navDate, NAV_UNIT_IMPACT)
-        .stream()
-        .findFirst()
+        .findTopByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(fund, navDate, NAV_UNIT_IMPACT)
         .map(HealthCheckEvent::isIssuesFound)
         .orElse(false);
   }

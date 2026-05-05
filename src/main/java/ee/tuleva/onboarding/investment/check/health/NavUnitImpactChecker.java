@@ -48,8 +48,10 @@ class NavUnitImpactChecker {
               fund,
               NAV_UNIT_IMPACT,
               WARNING,
-              "NAV_SEB=%s vs NAV_EPIS=%s = %s%% NAV difference"
+              "%s navDate=%s: NAV_SEB=%s vs NAV_EPIS=%s = %s%% NAV difference"
                   .formatted(
+                      fund,
+                      navDate,
                       navWithReported.toPlainString(),
                       navWithAuthoritative.toPlainString(),
                       navWithReported

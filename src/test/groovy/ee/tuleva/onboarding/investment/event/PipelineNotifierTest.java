@@ -102,4 +102,20 @@ class PipelineNotifierTest {
 
     then(notificationService).should().sendMessage(contains("FAILED"), eq(INVESTMENT));
   }
+
+  @Test
+  void navFailureShowsTrackingDifferenceAndLimitCheckAsSkippedWhenNotRun() {
+    var pipeline = new PipelineRun(PipelineRun.PipelineType.NAV, "NAV TUK75");
+    pipeline.stepStarted("NAV Calculation");
+    pipeline.stepFailed("NAV Calculation", "boom");
+
+    notifier.sendCompleted(pipeline);
+
+    then(notificationService)
+        .should()
+        .sendMessage(contains("Tracking Difference (skipped)"), eq(INVESTMENT));
+    then(notificationService)
+        .should()
+        .sendMessage(contains("Limit Check (skipped)"), eq(INVESTMENT));
+  }
 }

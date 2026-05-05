@@ -130,6 +130,7 @@ public class HealthCheckService {
       return navPositions.getFirst().getMarketValue();
     }
     var cashPositions = filterByType(positions, CASH);
+    // Liabilities have negative marketValue — simple sum is correct
     return Stream.of(securities, cashPositions, receivables, liabilities)
         .flatMap(List::stream)
         .map(FundPosition::getMarketValue)

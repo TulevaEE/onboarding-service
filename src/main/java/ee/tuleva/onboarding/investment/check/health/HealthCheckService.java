@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.PASS;
-import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_UNIT_IMPACT;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -110,13 +109,6 @@ public class HealthCheckService {
     saveEvents(fund, navDate, findings);
 
     return new HealthCheckResult(fund, navDate, findings);
-  }
-
-  public boolean isNavPublishBlocked(TulevaFund fund, LocalDate navDate) {
-    return healthCheckEventRepository
-        .findTopByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(fund, navDate, NAV_UNIT_IMPACT)
-        .map(HealthCheckEvent::isIssuesFound)
-        .orElse(false);
   }
 
   private BigDecimal resolveAum(

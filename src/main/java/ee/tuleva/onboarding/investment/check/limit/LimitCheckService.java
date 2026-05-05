@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -208,11 +209,19 @@ class LimitCheckService {
   }
 
   private Map<String, Provider> buildIsinToProviderMap(TulevaFund fund) {
-    return modelPortfolioAllocationRepository.findLatestByFund(fund).stream()
+    var merged =
+        new HashMap<>(
+            modelPortfolioAllocationRepository.findPreviousByFund(fund).stream()
+                .filter(a -> a.getIsin() != null && a.getProvider() != null)
+                .collect(
+                    Collectors.toMap(
+                        ModelPortfolioAllocation::getIsin,
+                        ModelPortfolioAllocation::getProvider,
+                        (a, b) -> b)));
+    modelPortfolioAllocationRepository.findLatestByFund(fund).stream()
         .filter(a -> a.getIsin() != null && a.getProvider() != null)
-        .collect(
-            Collectors.toMap(
-                ModelPortfolioAllocation::getIsin, ModelPortfolioAllocation::getProvider));
+        .forEach(a -> merged.put(a.getIsin(), a.getProvider()));
+    return merged;
   }
 
   private void saveEvent(

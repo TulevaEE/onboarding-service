@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunLimitCheckBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunLimitCheckRequested;
@@ -40,12 +41,13 @@ class LimitCheckJobTest {
 
   @Test
   void adHocEventDelegatesToServiceAndNotifier() {
+    var allFunds = List.of(TulevaFund.values());
     var results = List.of(mock(LimitCheckResult.class));
-    when(limitCheckService.runChecks()).thenReturn(results);
+    when(limitCheckService.runChecksForFunds(allFunds)).thenReturn(results);
 
     job.onLimitCheckRequested(new RunLimitCheckRequested());
 
-    verify(limitCheckService).runChecks();
+    verify(limitCheckService).runChecksForFunds(allFunds);
     verify(limitCheckNotifier).notify(results);
   }
 

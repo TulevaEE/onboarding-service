@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_MATCH;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,17 +24,18 @@ class IsinMatchCheckerTest {
     var positions = List.of(securityPosition("IE00BFG1TM61", new BigDecimal("1000")));
     var allocations = List.of(allocation("IE00BFG1TM61"));
 
-    var findings = checker.check(TUK75, positions, allocations);
+    var findings = checker.check(TUK75, positions, allocations, List.of());
 
     assertThat(findings).isEmpty();
   }
 
   @Test
-  void failsWhenIsinNotInModelPortfolio() {
+  void failsWhenIsinNotInCurrentOrPreviousModelPortfolio() {
     var positions = List.of(securityPosition("IE00UNKNOWN", new BigDecimal("1000")));
     var allocations = List.of(allocation("IE00BFG1TM61"));
+    var previousAllocations = List.of(allocation("IE00ANOTHER"));
 
-    var findings = checker.check(TUK75, positions, allocations);
+    var findings = checker.check(TUK75, positions, allocations, previousAllocations);
 
     assertThat(findings)
         .singleElement()
@@ -46,11 +48,29 @@ class IsinMatchCheckerTest {
   }
 
   @Test
+  void warningWhenIsinInPreviousButNotCurrentModelPortfolio() {
+    var positions = List.of(securityPosition("IE00OLDONE", new BigDecimal("1000")));
+    var allocations = List.of(allocation("IE00BFG1TM61"));
+    var previousAllocations = List.of(allocation("IE00OLDONE"));
+
+    var findings = checker.check(TUK75, positions, allocations, previousAllocations);
+
+    assertThat(findings)
+        .singleElement()
+        .satisfies(
+            f -> {
+              assertThat(f.fund()).isEqualTo(TUK75);
+              assertThat(f.checkType()).isEqualTo(ISIN_MATCH);
+              assertThat(f.severity()).isEqualTo(WARNING);
+            });
+  }
+
+  @Test
   void failsWhenQuantityIsNull() {
     var positions = List.of(securityPosition("IE00BFG1TM61", null));
     var allocations = List.of(allocation("IE00BFG1TM61"));
 
-    var findings = checker.check(TUK75, positions, allocations);
+    var findings = checker.check(TUK75, positions, allocations, List.of());
 
     assertThat(findings).singleElement().satisfies(f -> assertThat(f.severity()).isEqualTo(FAIL));
   }
@@ -60,7 +80,7 @@ class IsinMatchCheckerTest {
     var positions = List.of(securityPosition("IE00BFG1TM61", BigDecimal.ZERO));
     var allocations = List.of(allocation("IE00BFG1TM61"));
 
-    var findings = checker.check(TUK75, positions, allocations);
+    var findings = checker.check(TUK75, positions, allocations, List.of());
 
     assertThat(findings).singleElement().satisfies(f -> assertThat(f.severity()).isEqualTo(FAIL));
   }
@@ -73,9 +93,24 @@ class IsinMatchCheckerTest {
             securityPosition("IE00BFG1TM61", new BigDecimal("500")));
     var allocations = List.of(allocation("IE00BFG1TM61"));
 
-    var findings = checker.check(TUK75, positions, allocations);
+    var findings = checker.check(TUK75, positions, allocations, List.of());
 
     assertThat(findings).hasSize(2);
+  }
+
+  @Test
+  void noPreviousAllocationsStillFailsUnknownIsin() {
+    var positions = List.of(securityPosition("IE00UNKNOWN", new BigDecimal("1000")));
+    var allocations = List.of(allocation("IE00BFG1TM61"));
+
+    var findings = checker.check(TUK75, positions, allocations, List.of());
+
+    assertThat(findings)
+        .singleElement()
+        .satisfies(
+            f -> {
+              assertThat(f.severity()).isEqualTo(FAIL);
+            });
   }
 
   private FundPosition securityPosition(String isin, BigDecimal quantity) {

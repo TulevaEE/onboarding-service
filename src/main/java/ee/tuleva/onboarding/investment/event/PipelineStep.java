@@ -17,5 +17,6 @@ public final class PipelineStep {
   public static final List<String> IMPORT_PIPELINE =
       List.of(REPORT_IMPORT, POSITION_IMPORT, HEALTH_CHECK, FEE_ACCRUAL_SYNC);
 
-  public static final List<String> NAV_PIPELINE = List.of(NAV_CALCULATION);
+  public static final List<String> NAV_PIPELINE =
+      List.of(NAV_CALCULATION, TRACKING_DIFFERENCE, LIMIT_CHECK);
 }

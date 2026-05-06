@@ -6,7 +6,6 @@ import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -18,7 +17,6 @@ class NavUnitImpactChecker {
 
   List<HealthCheckFinding> check(
       TulevaFund fund,
-      LocalDate navDate,
       @Nullable BigDecimal reportedUnits,
       @Nullable BigDecimal authoritativeUnits,
       @Nullable BigDecimal aum) {

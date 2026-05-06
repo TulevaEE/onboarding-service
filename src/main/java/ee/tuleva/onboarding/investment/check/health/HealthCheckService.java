@@ -97,8 +97,7 @@ public class HealthCheckService {
     findings.addAll(
         unitReconciliationChecker.check(
             fund, navDate, unitsPositions, authoritativeUnits, threshold));
-    findings.addAll(
-        navUnitImpactChecker.check(fund, navDate, reportedUnits, authoritativeUnits, aum));
+    findings.addAll(navUnitImpactChecker.check(fund, reportedUnits, authoritativeUnits, aum));
     findings.addAll(
         receivablesChecker.check(
             fund, securities, previousSecurities, receivables, previousReceivables));

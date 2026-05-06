@@ -48,8 +48,8 @@ class PaymentVerificationServiceTest {
           partyResolver);
 
   @Test
-  void process_noCodeInDescription() {
-    var payment = createPayment("37508295796", "my money");
+  void process_returnsPaymentWhenNoCodeAnywhere() {
+    var payment = createPayment(null, "my money");
 
     service.process(payment);
 
@@ -62,6 +62,37 @@ class PaymentVerificationServiceTest {
         .publishEvent(
             new UnattributedPaymentEvent(
                 payment.getId(), payment.getAmount(), "selgituses puudub isikukood/registrikood"));
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  @Test
+  void process_success_fallsBackToRemitterIdCodeWhenDescriptionLacksCode() {
+    var payment = createPayment("37508295796", "my money");
+    var user =
+        User.builder()
+            .id(123L)
+            .personalCode("37508295796")
+            .firstName("PÄRT")
+            .lastName("ÕLEKÕRS")
+            .build();
+    when(userRepository.findByPersonalCode("37508295796")).thenReturn(Optional.of(user));
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+
+    service.process(payment);
+
+    verify(userRepository).findByPersonalCode("37508295796");
+    verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
+    verify(savingsFundLedger)
+        .recordPaymentReceived(
+            new PartyId(PERSON, "37508295796"),
+            payment.getAmount(),
+            payment.getId(),
+            LocalDate.of(2025, 10, 1));
+    var inOrder = inOrder(savingFundPaymentRepository);
+    inOrder
+        .verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
+    inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 

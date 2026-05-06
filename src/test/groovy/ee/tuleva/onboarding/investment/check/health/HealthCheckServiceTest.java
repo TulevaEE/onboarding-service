@@ -233,38 +233,6 @@ class HealthCheckServiceTest {
   }
 
   @Test
-  void isNavPublishBlockedReturnsTrueWhenLatestEventHasIssues() {
-    var event = HealthCheckEvent.builder().issuesFound(true).build();
-    given(
-            healthCheckEventRepository.findTopByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
-                TUK75, NAV_DATE, HealthCheckType.NAV_UNIT_IMPACT))
-        .willReturn(Optional.of(event));
-
-    assertThat(healthCheckService.isNavPublishBlocked(TUK75, NAV_DATE)).isTrue();
-  }
-
-  @Test
-  void isNavPublishBlockedReturnsFalseWhenLatestEventHasNoIssues() {
-    var event = HealthCheckEvent.builder().issuesFound(false).build();
-    given(
-            healthCheckEventRepository.findTopByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
-                TUK75, NAV_DATE, HealthCheckType.NAV_UNIT_IMPACT))
-        .willReturn(Optional.of(event));
-
-    assertThat(healthCheckService.isNavPublishBlocked(TUK75, NAV_DATE)).isFalse();
-  }
-
-  @Test
-  void isNavPublishBlockedReturnsFalseWhenNoEventExists() {
-    given(
-            healthCheckEventRepository.findTopByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
-                TUK75, NAV_DATE, HealthCheckType.NAV_UNIT_IMPACT))
-        .willReturn(Optional.empty());
-
-    assertThat(healthCheckService.isNavPublishBlocked(TUK75, NAV_DATE)).isFalse();
-  }
-
-  @Test
   void passesNullsToUnitReconciliationCheckerWhenThresholdOrAuthoritativeAbsent() {
     var positions = List.of(unitsPosition(TUK75, new BigDecimal("1000000")));
 

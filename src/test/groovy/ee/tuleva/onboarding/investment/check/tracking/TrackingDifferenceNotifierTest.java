@@ -1,8 +1,11 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK;
+import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
@@ -57,7 +60,7 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
-  void includesTopContributors() {
+  void includesFullAttributionDetail() {
     var attributions =
         List.of(
             new SecurityAttribution(
@@ -66,14 +69,32 @@ class TrackingDifferenceNotifierTest {
                 new BigDecimal("0.55"),
                 new BigDecimal("-0.05"),
                 new BigDecimal("0.02"),
+                null,
                 new BigDecimal("-0.001")),
             new SecurityAttribution(
                 "IE00B",
-                new BigDecimal("0.40"),
-                new BigDecimal("0.45"),
+                new BigDecimal("0.20"),
+                new BigDecimal("0.25"),
                 new BigDecimal("0.05"),
                 new BigDecimal("-0.01"),
-                new BigDecimal("-0.0005")));
+                null,
+                new BigDecimal("-0.0005")),
+            new SecurityAttribution(
+                "IE00C",
+                new BigDecimal("0.10"),
+                new BigDecimal("0.10"),
+                new BigDecimal("0.00"),
+                new BigDecimal("0.005"),
+                null,
+                new BigDecimal("0.0000")),
+            new SecurityAttribution(
+                "IE00D",
+                new BigDecimal("0.10"),
+                new BigDecimal("0.10"),
+                new BigDecimal("0.00"),
+                new BigDecimal("-0.003"),
+                null,
+                new BigDecimal("0.0000")));
 
     var result =
         TrackingDifferenceResult.builder()
@@ -94,7 +115,14 @@ class TrackingDifferenceNotifierTest {
 
     notifier.notify(List.of(result));
 
-    then(notificationService).should().sendMessage(contains("IE00A"), eq(INVESTMENT));
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    var message = captor.getValue();
+
+    assertThat(message).contains("IE00A").contains("IE00B").contains("IE00C").contains("IE00D");
+    assertThat(message).contains("weight");
+    assertThat(message).contains("Fee drag");
+    assertThat(message).contains("Residual");
   }
 
   @Test
@@ -104,6 +132,91 @@ class TrackingDifferenceNotifierTest {
     notifier.notify(List.of(result));
 
     then(notificationService).should().sendMessage(contains("TD ESCALATION"), eq(INVESTMENT));
+  }
+
+  @Test
+  void includesActionHintForModelPortfolio() {
+    var result = result(true, 1, new BigDecimal("0.0015"));
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue()).contains("check NAV calculation");
+  }
+
+  @Test
+  void includesActionHintAndAttributionForBenchmarkModel() {
+    var attributions =
+        List.of(
+            new SecurityAttribution(
+                "IE00BFG1TM61",
+                null,
+                new BigDecimal("0.40"),
+                null,
+                new BigDecimal("0.015"),
+                new BigDecimal("0.010"),
+                new BigDecimal("0.002")),
+            new SecurityAttribution(
+                "IE00BKPTWY98",
+                null,
+                new BigDecimal("0.20"),
+                null,
+                new BigDecimal("0.008"),
+                new BigDecimal("0.012"),
+                new BigDecimal("-0.0008")));
+
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkType(BENCHMARK_MODEL)
+            .trackingDifference(new BigDecimal("0.005"))
+            .fundReturn(new BigDecimal("0.0100"))
+            .benchmarkReturn(new BigDecimal("0.0050"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .consecutiveNetTd(new BigDecimal("0.005"))
+            .securityAttributions(attributions)
+            .cashDrag(BigDecimal.ZERO)
+            .feeDrag(BigDecimal.ZERO)
+            .residual(BigDecimal.ZERO)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    var message = captor.getValue();
+    assertThat(message).contains("review instrument prices and benchmark data");
+    assertThat(message).contains("IE00BFG1TM61").contains("IE00BKPTWY98");
+    assertThat(message).contains("instrument").contains("benchmark").contains("diff");
+  }
+
+  @Test
+  void filtersBenchmarkAcwiFromSlackAlerts() {
+    var benchmarkResult =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkType(BENCHMARK)
+            .trackingDifference(new BigDecimal("0.005"))
+            .fundReturn(new BigDecimal("0.0100"))
+            .benchmarkReturn(new BigDecimal("0.0050"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .consecutiveNetTd(new BigDecimal("0.005"))
+            .securityAttributions(List.of())
+            .cashDrag(BigDecimal.ZERO)
+            .feeDrag(BigDecimal.ZERO)
+            .residual(BigDecimal.ZERO)
+            .build();
+
+    notifier.notify(List.of(benchmarkResult));
+
+    then(notificationService)
+        .should()
+        .sendMessage(contains("all funds within limits"), eq(INVESTMENT));
   }
 
   @Test

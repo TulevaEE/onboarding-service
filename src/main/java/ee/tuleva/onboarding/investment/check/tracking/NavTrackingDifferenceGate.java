@@ -37,9 +37,12 @@ public class NavTrackingDifferenceGate {
       }
       return Optional.empty();
     } catch (TrackingDifferenceService.IncompletePriceDataException e) {
+      // Fail-open: missing price data should not block NAV publication.
+      // Can tighten to fail-closed once TD gate is proven stable in production.
       log.warn("TD gate incomplete price data, proceeding: fund={}, date={}", fund, navDate);
       return Optional.empty();
     } catch (Exception e) {
+      // Fail-open: gate errors should not block NAV publication.
       log.warn("TD gate error, proceeding: fund={}, date={}", fund, navDate, e);
       return Optional.empty();
     }

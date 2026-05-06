@@ -79,6 +79,7 @@ class TrackingDifferenceCalculator {
                       s.actualWeight(),
                       weightDiff,
                       secReturn,
+                      null,
                       contribution);
                 })
             .toList();

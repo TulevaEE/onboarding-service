@@ -8,4 +8,5 @@ record SecurityAttribution(
     BigDecimal actualWeight,
     BigDecimal weightDifference,
     BigDecimal securityReturn,
+    BigDecimal benchmarkReturn,
     BigDecimal contribution) {}

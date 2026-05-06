@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK;
+import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK_MODEL;
+import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -24,7 +27,8 @@ class TrackingDifferenceNotifier {
 
   void notify(List<TrackingDifferenceResult> results) {
     try {
-      var hasAnyBreaches = results.stream().anyMatch(TrackingDifferenceResult::breach);
+      var alertableResults = results.stream().filter(r -> r.checkType() != BENCHMARK).toList();
+      var hasAnyBreaches = alertableResults.stream().anyMatch(TrackingDifferenceResult::breach);
 
       if (!hasAnyBreaches) {
         notificationService.sendMessage(
@@ -35,7 +39,7 @@ class TrackingDifferenceNotifier {
       var message = new StringBuilder("TD BREACH DETECTED\n");
       var hasEscalation = false;
 
-      for (var result : results) {
+      for (var result : alertableResults) {
         if (!result.breach()) {
           continue;
         }
@@ -70,24 +74,50 @@ class TrackingDifferenceNotifier {
                 formatPercent(result.fundReturn()),
                 formatPercent(result.benchmarkReturn())));
 
+    if (result.checkType() == MODEL_PORTFOLIO) {
+      sb.append("\n  Action: check NAV calculation — weights, prices, cash, fees");
+    } else if (result.checkType() == BENCHMARK_MODEL) {
+      sb.append("\n  Action: review instrument prices and benchmark data for pricing errors");
+    }
+
     if (!result.securityAttributions().isEmpty()) {
-      var topContributors =
+      var sorted =
           result.securityAttributions().stream()
               .sorted(
                   Comparator.comparing(
                       (SecurityAttribution a) -> a.contribution().abs(), Comparator.reverseOrder()))
-              .limit(3)
               .toList();
 
-      sb.append("\n  Top: ");
-      for (int i = 0; i < topContributors.size(); i++) {
-        var attr = topContributors.get(i);
-        if (i > 0) sb.append(", ");
-        sb.append("%s (%s%%)".formatted(attr.isin(), formatPercent(attr.contribution())));
-      }
+      if (result.checkType() == BENCHMARK_MODEL) {
+        for (var attr : sorted) {
+          sb.append(
+              "\n  %s: instrument %s%%, benchmark %s%%, diff %s%%"
+                  .formatted(
+                      attr.isin(),
+                      formatPercent(attr.securityReturn()),
+                      formatPercent(attr.benchmarkReturn()),
+                      formatPercent(attr.contribution())));
+        }
+      } else {
+        for (var attr : sorted) {
+          sb.append(
+              "\n  %s: weight %s%%, return %s%%, impact %s%%"
+                  .formatted(
+                      attr.isin(),
+                      formatPercent(attr.weightDifference()),
+                      formatPercent(attr.securityReturn()),
+                      formatPercent(attr.contribution())));
+        }
 
-      if (result.cashDrag().signum() != 0) {
-        sb.append(", cash drag (%s%%)".formatted(formatPercent(result.cashDrag())));
+        if (result.cashDrag().signum() != 0) {
+          sb.append("\n  Cash drag: %s%%".formatted(formatPercent(result.cashDrag())));
+        }
+        if (result.feeDrag().signum() != 0) {
+          sb.append("\n  Fee drag: %s%%".formatted(formatPercent(result.feeDrag())));
+        }
+        if (result.residual().signum() != 0) {
+          sb.append("\n  Residual: %s%%".formatted(formatPercent(result.residual())));
+        }
       }
     }
 

@@ -68,13 +68,19 @@ public class PaymentVerificationService {
   public void process(SavingFundPayment payment) {
     log.info("Processing payment {}", payment.getId());
 
-    var extractPartyId = extractPartyId(payment.getDescription());
-    if (extractPartyId.isEmpty()) {
+    var partyIdFromDescription = extractPartyId(payment.getDescription());
+    var partyIdOpt = partyIdFromDescription.or(() -> parsePartyId(payment.getRemitterIdCode()));
+    if (partyIdOpt.isEmpty()) {
       identityCheckFailure(payment, "selgituses puudub isikukood/registrikood");
       return;
     }
+    if (partyIdFromDescription.isEmpty()) {
+      log.info(
+          "Payment {} has no code in description, falling back to remitter id code",
+          payment.getId());
+    }
 
-    PartyId partyId = extractPartyId.get();
+    PartyId partyId = partyIdOpt.get();
     var messages = VerificationMessages.forType(partyId.type());
 
     var remitterPartyId = parsePartyId(payment.getRemitterIdCode());

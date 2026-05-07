@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
+import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.BCC;
+import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.CC;
+import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.TO;
+
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
@@ -43,13 +47,27 @@ class NavReportEmailSender {
         """
             .formatted(fundCode));
 
-    var funds = new Recipient();
-    funds.setEmail("funds@tuleva.ee");
+    var trustee = new Recipient();
+    trustee.setEmail("trustee@seb.ee");
+    trustee.setType(TO);
+
+    var fundsRecipient = new Recipient();
+    fundsRecipient.setEmail("funds@tuleva.ee");
+    fundsRecipient.setType(CC);
+
+    var taavi = new Recipient();
+    taavi.setEmail("taavi.pertman@tuleva.ee");
+    taavi.setType(CC);
+
+    var compliance = new Recipient();
+    compliance.setEmail("compliance@tuleva.ee");
+    compliance.setType(CC);
 
     var erko = new Recipient();
     erko.setEmail("erko.risthein@tuleva.ee");
+    erko.setType(BCC);
 
-    message.setTo(List.of(funds, erko));
+    message.setTo(List.of(trustee, fundsRecipient, taavi, compliance, erko));
 
     var attachment = new MessageContent();
     attachment.setName(

@@ -9,7 +9,12 @@ public class PipelineTracker {
   private static final ThreadLocal<PipelineRun> CURRENT = new ThreadLocal<>();
 
   public PipelineRun start(PipelineRun.PipelineType type, String trigger) {
-    var run = new PipelineRun(type, trigger);
+    return start(type, trigger, PipelineRun.TriggerSource.SCHEDULED);
+  }
+
+  public PipelineRun start(
+      PipelineRun.PipelineType type, String trigger, PipelineRun.TriggerSource triggerSource) {
+    var run = new PipelineRun(type, trigger, triggerSource);
     CURRENT.set(run);
     return run;
   }

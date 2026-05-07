@@ -31,33 +31,17 @@ class NavReportEmailSenderTest {
   @Test
   void sendsEmailWithCsvAttachment() {
     var navDate = LocalDate.of(2026, 3, 13);
-    var result =
-        NavCalculationResult.builder()
-            .fund(TKF100)
-            .calculationDate(LocalDate.of(2026, 3, 16))
-            .positionReportDate(navDate)
-            .priceDate(navDate)
-            .calculatedAt(Instant.parse("2026-03-16T13:20:00Z"))
-            .securitiesDetail(List.of())
-            .cashPosition(ZERO)
-            .receivables(ZERO)
-            .payables(ZERO)
-            .pendingSubscriptions(ZERO)
-            .pendingRedemptions(ZERO)
-            .managementFeeAccrual(ZERO)
-            .depotFeeAccrual(ZERO)
-            .blackrockAdjustment(ZERO)
-            .unitsOutstanding(ZERO)
-            .navPerUnit(BigDecimal.ONE)
-            .aum(ZERO)
-            .build();
+    var result = buildResult(navDate);
 
     var rows = List.of(NavReportRow.builder().navDate(navDate).fundCode("TKF100").build());
     var csvBytes = "csv-content".getBytes(UTF_8);
 
     when(navReportCsvGenerator.generate(rows)).thenReturn(csvBytes);
+    when(emailService.sendSystemEmail(any())).thenReturn(true);
 
-    navReportEmailSender.send(rows, result);
+    boolean sent = navReportEmailSender.send(rows, result);
+
+    assertThat(sent).isTrue();
 
     var messageCaptor = ArgumentCaptor.forClass(MandrillMessage.class);
     verify(emailService).sendSystemEmail(messageCaptor.capture());
@@ -75,5 +59,43 @@ class NavReportEmailSenderTest {
     assertThat(attachment.getName()).isEqualTo("TKF100 NAV arvutamine 13032026.csv");
     assertThat(attachment.getType()).isEqualTo("text/csv");
     assertThat(Base64.getDecoder().decode(attachment.getContent())).isEqualTo(csvBytes);
+  }
+
+  @Test
+  void returnsFalse_whenEmailFails() {
+    var navDate = LocalDate.of(2026, 3, 13);
+    var result = buildResult(navDate);
+
+    var rows = List.of(NavReportRow.builder().navDate(navDate).fundCode("TKF100").build());
+    var csvBytes = "csv-content".getBytes(UTF_8);
+
+    when(navReportCsvGenerator.generate(rows)).thenReturn(csvBytes);
+    when(emailService.sendSystemEmail(any())).thenReturn(false);
+
+    boolean sent = navReportEmailSender.send(rows, result);
+
+    assertThat(sent).isFalse();
+  }
+
+  private NavCalculationResult buildResult(LocalDate navDate) {
+    return NavCalculationResult.builder()
+        .fund(TKF100)
+        .calculationDate(LocalDate.of(2026, 3, 16))
+        .positionReportDate(navDate)
+        .priceDate(navDate)
+        .calculatedAt(Instant.parse("2026-03-16T13:20:00Z"))
+        .securitiesDetail(List.of())
+        .cashPosition(ZERO)
+        .receivables(ZERO)
+        .payables(ZERO)
+        .pendingSubscriptions(ZERO)
+        .pendingRedemptions(ZERO)
+        .managementFeeAccrual(ZERO)
+        .depotFeeAccrual(ZERO)
+        .blackrockAdjustment(ZERO)
+        .unitsOutstanding(ZERO)
+        .navPerUnit(BigDecimal.ONE)
+        .aum(ZERO)
+        .build();
   }
 }

@@ -14,20 +14,32 @@ public class PipelineRun {
 
   private final PipelineType type;
   private final String trigger;
+  private final TriggerSource triggerSource;
   private final Instant startedAt;
   private final List<StepResult> steps = new ArrayList<>();
   private boolean changed;
   private boolean healthNotificationFired;
 
   public PipelineRun(PipelineType type, String trigger) {
+    this(type, trigger, TriggerSource.SCHEDULED);
+  }
+
+  public PipelineRun(PipelineType type, String trigger, TriggerSource triggerSource) {
     this.type = type;
     this.trigger = trigger;
+    this.triggerSource = triggerSource;
     this.startedAt = clock().instant();
   }
 
   public enum PipelineType {
     IMPORT,
     NAV
+  }
+
+  public enum TriggerSource {
+    SCHEDULED,
+    SELF_HEAL,
+    MANUAL
   }
 
   public void markChanged() {

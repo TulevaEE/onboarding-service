@@ -1,19 +1,13 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
-import static ee.tuleva.onboarding.investment.event.PipelineStep.TRACKING_DIFFERENCE;
-
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.event.NavEventListenerOrder;
-import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
-import ee.tuleva.onboarding.savings.fund.nav.NavCalculationCompleted;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -24,61 +18,36 @@ public class TrackingDifferenceJob {
 
   private final TrackingDifferenceService trackingDifferenceService;
   private final TrackingDifferenceNotifier trackingDifferenceNotifier;
-  private final PipelineTracker pipelineTracker;
-
-  @EventListener
-  @Order(NavEventListenerOrder.TRACKING_DIFFERENCE)
-  void onNavCalculationCompleted(NavCalculationCompleted event) {
-    runTrackingDifferenceChecks(event.funds());
-  }
 
   @EventListener
   void onTrackingDifferenceCheckRequested(RunTrackingDifferenceCheckRequested event) {
-    runTrackingDifferenceChecks();
+    log.info("Starting ad-hoc tracking difference check");
+
+    try {
+      var results = trackingDifferenceService.runChecksForFunds(List.of(TulevaFund.values()));
+      trackingDifferenceNotifier.notify(results);
+      log.info("Tracking difference check completed: resultCount={}", results.size());
+    } catch (TrackingDifferenceService.IncompletePriceDataException e) {
+      trackingDifferenceNotifier.notify(e.completedResults());
+      log.error("Tracking difference check incomplete", e);
+    } catch (Exception e) {
+      log.error("Tracking difference check failed", e);
+    }
   }
 
   @EventListener
   void onTrackingDifferenceBackfillRequested(RunTrackingDifferenceBackfillRequested event) {
-    runTrackingDifferenceBackfill();
-  }
-
-  private void runTrackingDifferenceBackfill() {
     log.info("Starting tracking difference backfill");
 
     try {
       var results = trackingDifferenceService.backfillChecks(7);
       trackingDifferenceNotifier.notify(results);
-
       log.info("Tracking difference backfill completed: resultCount={}", results.size());
     } catch (TrackingDifferenceService.IncompletePriceDataException e) {
       trackingDifferenceNotifier.notify(e.completedResults());
       log.error("Tracking difference backfill incomplete", e);
     } catch (Exception e) {
       log.error("Tracking difference backfill failed", e);
-    }
-  }
-
-  private void runTrackingDifferenceChecks() {
-    runTrackingDifferenceChecks(List.of(TulevaFund.values()));
-  }
-
-  private void runTrackingDifferenceChecks(List<TulevaFund> funds) {
-    pipelineTracker.stepStarted(TRACKING_DIFFERENCE);
-    log.info("Starting tracking difference check: funds={}", funds);
-
-    try {
-      var results = trackingDifferenceService.runChecksForFunds(funds);
-      trackingDifferenceNotifier.notify(results);
-      pipelineTracker.stepCompleted(TRACKING_DIFFERENCE);
-
-      log.info("Tracking difference check completed: resultCount={}", results.size());
-    } catch (TrackingDifferenceService.IncompletePriceDataException e) {
-      trackingDifferenceNotifier.notify(e.completedResults());
-      pipelineTracker.stepFailed(TRACKING_DIFFERENCE, e.getMessage());
-      log.error("Tracking difference check incomplete", e);
-    } catch (Exception e) {
-      pipelineTracker.stepFailed(TRACKING_DIFFERENCE, e.getMessage());
-      log.error("Tracking difference check failed", e);
     }
   }
 }

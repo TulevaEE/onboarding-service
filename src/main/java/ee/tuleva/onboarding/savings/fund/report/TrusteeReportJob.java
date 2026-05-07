@@ -4,6 +4,7 @@ import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.TO;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static java.math.RoundingMode.UNNECESSARY;
 
@@ -11,6 +12,7 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.savings.fund.notification.TrusteeReportSentEvent;
 import java.time.LocalDate;
@@ -39,6 +41,7 @@ class TrusteeReportJob {
   private final EmailService emailService;
   private final PublicHolidays publicHolidays;
   private final ApplicationEventPublisher eventPublisher;
+  private final OperationsNotificationService notificationService;
 
   @Scheduled(cron = "0 15 16 * * *", zone = TIMEZONE)
   @SchedulerLock(name = "TrusteeReportJob", lockAtMostFor = "23h", lockAtLeastFor = "30m")
@@ -56,7 +59,15 @@ class TrusteeReportJob {
     var csvBytes = csvGenerator.generate(rows);
     var message = buildMessage(today, csvBytes);
 
-    emailService.sendSystemEmail(message);
+    boolean sent = emailService.sendSystemEmail(message);
+
+    if (!sent) {
+      log.error("Trustee report email failed: date={}", today);
+      notificationService.sendMessage(
+          "Trustee report email failed: date=" + today + ", rows=" + rows.size(), SAVINGS);
+      return;
+    }
+
     log.info("Trustee report sent: date={}, rows={}", today, rows.size());
 
     var latestRow = rows.getFirst();

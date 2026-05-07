@@ -20,6 +20,8 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.retry.RetryException;
+import org.springframework.core.retry.RetryTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -28,11 +30,15 @@ public class EmailService {
 
   private final EmailConfiguration emailConfiguration;
   private final MandrillApi mandrillApi;
+  private final RetryTemplate emailServiceRetryTemplate;
 
   public EmailService(
-      EmailConfiguration emailConfiguration, @Autowired(required = false) MandrillApi mandrillApi) {
+      EmailConfiguration emailConfiguration,
+      @Autowired(required = false) MandrillApi mandrillApi,
+      RetryTemplate emailServiceRetryTemplate) {
     this.emailConfiguration = emailConfiguration;
     this.mandrillApi = mandrillApi;
+    this.emailServiceRetryTemplate = emailServiceRetryTemplate;
   }
 
   public MandrillMessage newMandrillMessage(
@@ -131,25 +137,29 @@ public class EmailService {
     }
   }
 
-  public void sendSystemEmail(MandrillMessage message) {
+  public boolean sendSystemEmail(MandrillMessage message) {
     if (mandrillApi == null) {
       log.warn("Mandrill not initialised, not sending system email");
-      return;
+      return false;
     }
 
     try {
-      log.info("Sending system email: to={}", message.getTo());
-      MandrillMessageStatus response = mandrillApi.messages().send(message, false)[0];
-      log.info(
-          "Mandrill API response: status={}, id={}, rejectReason={}",
-          response.getStatus(),
-          response.getId(),
-          response.getRejectReason());
-    } catch (MandrillApiError mandrillApiError) {
-      log.error(mandrillApiError.getMandrillErrorAsJson(), mandrillApiError);
-    } catch (Exception e) {
-      log.error("Failed to send system email", e);
+      emailServiceRetryTemplate.execute(
+          () -> {
+            log.info("Sending system email: to={}", message.getTo());
+            MandrillMessageStatus response = mandrillApi.messages().send(message, false)[0];
+            log.info(
+                "Mandrill API response: status={}, id={}, rejectReason={}",
+                response.getStatus(),
+                response.getId(),
+                response.getRejectReason());
+            return response;
+          });
+      return true;
+    } catch (RetryException e) {
+      log.error("Failed to send system email after retries", e.getCause());
     }
+    return false;
   }
 
   public Optional<MandrillScheduledMessageInfo> cancelScheduledEmail(String mandrillMessageId) {

@@ -1,9 +1,17 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
+import static ee.tuleva.onboarding.investment.event.PipelineStep.REPORT_EMAIL;
+import static ee.tuleva.onboarding.investment.event.PipelineStep.REPORT_PERSIST;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
+
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
-import ee.tuleva.onboarding.investment.check.health.HealthCheckService;
+import ee.tuleva.onboarding.investment.check.tracking.NavTrackingDifferenceGate;
+import ee.tuleva.onboarding.investment.event.PipelineTracker;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,43 +28,22 @@ public class NavPublisher {
   private final NavReportRepository navReportRepository;
   private final NavReportEmailSender navReportEmailSender;
   private final NavNotifier navNotifier;
-  private final HealthCheckService healthCheckService;
+  private final OperationsNotificationService notificationService;
+  private final NavTrackingDifferenceGate trackingDifferenceGate;
+  private final PipelineTracker pipelineTracker;
 
+  // NAV/AUM go to the FundValue API (and navNotifier) regardless of trustee email outcome.
+  // The trustee email is the audit trail; the API serves members and internal systems.
   public void publish(NavCalculationResult result) {
-    if (result.fund().isSavingsFund()) {
-      publishNav(result);
-      publishAum(result);
-    }
+    publishToFundValueApi(result);
 
-    List<NavReportRow> reportRows = List.of();
-    try {
-      reportRows = navReportMapper.map(result);
-      navReportRepository.replaceByNavDateAndFundCode(
-          result.positionReportDate(), result.fund().getCode(), reportRows);
-    } catch (Exception e) {
-      log.error(
-          "Failed to persist NAV report: fund={}, calculationDate={}, positionReportDate={}",
-          result.fund(),
-          result.calculationDate(),
-          result.positionReportDate(),
-          e);
-    }
+    UUID calculationId = UUID.randomUUID();
+    List<NavReportRow> reportRows = persistReportRows(result, calculationId);
 
-    if (healthCheckService.isNavPublishBlocked(result.fund(), result.positionReportDate())) {
-      log.warn(
-          "Skipping NAV report email — health check blocks publication: fund={}, date={}",
-          result.fund(),
-          result.positionReportDate());
+    if (reportRows.isEmpty()) {
+      notifyEmptyReport(result);
     } else {
-      try {
-        navReportEmailSender.send(reportRows, result);
-      } catch (Exception e) {
-        log.error(
-            "Failed to send NAV report email: fund={}, date={}",
-            result.fund(),
-            result.calculationDate(),
-            e);
-      }
+      sendReportEmailWithGate(result, reportRows, calculationId);
     }
 
     navNotifier.notify(result);
@@ -67,6 +54,109 @@ public class NavPublisher {
         result.calculationDate(),
         result.navPerUnit(),
         result.aum());
+  }
+
+  private void publishToFundValueApi(NavCalculationResult result) {
+    if (result.fund().isSavingsFund()) {
+      publishNav(result);
+      publishAum(result);
+    }
+  }
+
+  private List<NavReportRow> persistReportRows(NavCalculationResult result, UUID calculationId) {
+    pipelineTracker.stepStarted(REPORT_PERSIST);
+    try {
+      var rows = navReportMapper.map(result);
+      rows.forEach(row -> row.setCalculationId(calculationId));
+      navReportRepository.replaceByNavDateAndFundCode(
+          result.positionReportDate(), result.fund().getCode(), rows);
+      pipelineTracker.stepCompleted(REPORT_PERSIST);
+      return rows;
+    } catch (Exception e) {
+      pipelineTracker.stepFailed(REPORT_PERSIST, e.getMessage());
+      log.error(
+          "Failed to persist NAV report: fund={}, calculationDate={}, positionReportDate={}",
+          result.fund(),
+          result.calculationDate(),
+          result.positionReportDate(),
+          e);
+      return List.of();
+    }
+  }
+
+  private void notifyEmptyReport(NavCalculationResult result) {
+    log.error(
+        "No report rows to publish, skipping email: fund={}, date={}",
+        result.fund(),
+        result.positionReportDate());
+    notificationService.sendMessage(
+        "NAV report has no rows: fund="
+            + result.fund().getCode()
+            + ", date="
+            + result.positionReportDate(),
+        SAVINGS);
+  }
+
+  private void sendReportEmailWithGate(
+      NavCalculationResult result, List<NavReportRow> reportRows, UUID calculationId) {
+    Optional<String> gateFailure = checkGates(result);
+    if (gateFailure.isPresent()) {
+      log.error(
+          "NAV report blocked by gate, rows remain unpublished: fund={}, date={}, reason={}",
+          result.fund(),
+          result.positionReportDate(),
+          gateFailure.get());
+      notificationService.sendMessage("NAV report blocked: " + gateFailure.get(), SAVINGS);
+      return;
+    }
+
+    pipelineTracker.stepStarted(REPORT_EMAIL);
+    if (sendEmail(reportRows, result)) {
+      navReportRepository.markAsPublished(calculationId);
+      pipelineTracker.stepCompleted(REPORT_EMAIL);
+    } else {
+      pipelineTracker.stepFailed(REPORT_EMAIL, "Mandrill send failed");
+      log.error(
+          "NAV report email failed, rows remain unpublished: fund={}, date={}",
+          result.fund(),
+          result.positionReportDate());
+      notificationService.sendMessage(
+          "NAV report email failed: fund="
+              + result.fund().getCode()
+              + ", date="
+              + result.positionReportDate(),
+          SAVINGS);
+    }
+  }
+
+  private boolean sendEmail(List<NavReportRow> reportRows, NavCalculationResult result) {
+    try {
+      return navReportEmailSender.send(reportRows, result);
+    } catch (Exception e) {
+      log.error(
+          "Failed to send NAV report email: fund={}, calculationDate={}, positionReportDate={}",
+          result.fund(),
+          result.calculationDate(),
+          result.positionReportDate(),
+          e);
+      return false;
+    }
+  }
+
+  private Optional<String> checkGates(NavCalculationResult result) {
+    try {
+      var tdResult = trackingDifferenceGate.check(result.fund(), result.positionReportDate());
+      if (tdResult.isPresent()) {
+        return tdResult;
+      }
+    } catch (Exception e) {
+      log.warn(
+          "TD gate error, proceeding with email: fund={}, date={}",
+          result.fund(),
+          result.positionReportDate(),
+          e);
+    }
+    return Optional.empty();
   }
 
   private void publishNav(NavCalculationResult result) {

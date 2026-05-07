@@ -126,7 +126,7 @@ class TrackingDifferenceService {
     return allResults;
   }
 
-  private List<TrackingDifferenceResult> checkFund(TulevaFund fund, LocalDate checkDate) {
+  List<TrackingDifferenceResult> checkFund(TulevaFund fund, LocalDate checkDate) {
     var results = new ArrayList<TrackingDifferenceResult>();
 
     var todayNav = fundValueProvider.getLatestValue(fund.getIsin(), checkDate);

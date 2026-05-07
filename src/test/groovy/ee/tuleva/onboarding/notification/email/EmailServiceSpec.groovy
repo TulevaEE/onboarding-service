@@ -2,13 +2,17 @@ package ee.tuleva.onboarding.notification.email
 
 import com.microtripit.mandrillapp.lutung.MandrillApi
 import com.microtripit.mandrillapp.lutung.controller.MandrillMessagesApi
+import com.microtripit.mandrillapp.lutung.model.MandrillApiError
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import com.microtripit.mandrillapp.lutung.view.MandrillScheduledMessageInfo
 import ee.tuleva.onboarding.config.EmailConfiguration
 import ee.tuleva.onboarding.user.User
+import org.springframework.core.retry.RetryPolicy
+import org.springframework.core.retry.RetryTemplate
 import spock.lang.Specification
 
+import java.time.Duration
 import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
@@ -18,7 +22,13 @@ class EmailServiceSpec extends Specification {
   EmailConfiguration emailConfiguration = Mock()
   MandrillApi mandrillApi = Mock()
   MandrillMessagesApi mandrillMessagesApi = Mock()
-  EmailService service = new EmailService(emailConfiguration, mandrillApi)
+  RetryTemplate retryTemplate = new RetryTemplate(
+      RetryPolicy.builder()
+          .includes(MandrillApiError, IOException)
+          .maxRetries(2)
+          .delay(Duration.ofMillis(1))
+          .build())
+  EmailService service = new EmailService(emailConfiguration, mandrillApi, retryTemplate)
   User user = sampleUser().build()
   String templateName = "sample_template"
   MandrillMessage message = service.newMandrillMessage(
@@ -76,10 +86,62 @@ class EmailServiceSpec extends Specification {
     def systemMessage = new MandrillMessage()
 
     when:
-    service.sendSystemEmail(systemMessage)
+    def result = service.sendSystemEmail(systemMessage)
 
     then:
     1 * mandrillMessagesApi.send(systemMessage, false) >> [mandrillMessageStatus]
+    result == true
+  }
+
+  def "sendSystemEmail returns false when Mandrill not initialised"() {
+    given:
+    def serviceWithoutMandrill = new EmailService(emailConfiguration, null, retryTemplate)
+    def systemMessage = new MandrillMessage()
+
+    when:
+    def result = serviceWithoutMandrill.sendSystemEmail(systemMessage)
+
+    then:
+    result == false
+  }
+
+  def "sendSystemEmail retries and returns false when all attempts throw IOException"() {
+    given:
+    def systemMessage = new MandrillMessage()
+
+    when:
+    def result = service.sendSystemEmail(systemMessage)
+
+    then:
+    3 * mandrillMessagesApi.send(systemMessage, false) >> { throw new IOException("Connection reset") }
+    result == false
+  }
+
+  def "sendSystemEmail retries and returns false when all attempts throw MandrillApiError"() {
+    given:
+    def systemMessage = new MandrillMessage()
+
+    when:
+    def result = service.sendSystemEmail(systemMessage)
+
+    then:
+    3 * mandrillMessagesApi.send(systemMessage, false) >> { throw new MandrillApiError() }
+    result == false
+  }
+
+  def "sendSystemEmail succeeds on second attempt after first fails"() {
+    given:
+    def systemMessage = new MandrillMessage()
+
+    when:
+    def result = service.sendSystemEmail(systemMessage)
+
+    then:
+    1 * mandrillMessagesApi.send(systemMessage, false) >> { throw new IOException("Connection reset") }
+
+    then:
+    1 * mandrillMessagesApi.send(systemMessage, false) >> [mandrillMessageStatus]
+    result == true
   }
 
   def "does not send email when user has no email"() {

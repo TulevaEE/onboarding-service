@@ -40,13 +40,13 @@ public class NavSelfHealJob {
   private final Clock clock;
   private final TaskScheduler taskScheduler;
 
-  private record NavPipeline(TulevaFund trigger, List<TulevaFund> funds, Runnable invoke) {}
+  private record NavPipeline(TulevaFund trigger, List<TulevaFund> funds) {}
 
   private List<NavPipeline> pipelines() {
     return List.of(
-        new NavPipeline(TKF100, List.of(TKF100), navCalculationJob::calculateDailyNav),
-        new NavPipeline(TUK75, getPillar2Funds(), navCalculationJob::calculatePillar2Nav),
-        new NavPipeline(TUV100, getPillar3Funds(), navCalculationJob::calculatePillar3Nav));
+        new NavPipeline(TKF100, List.of(TKF100)),
+        new NavPipeline(TUK75, getPillar2Funds()),
+        new NavPipeline(TUV100, getPillar3Funds()));
   }
 
   @Scheduled(cron = "0 5/5 11 * * MON-FRI", zone = "Europe/Tallinn")
@@ -125,7 +125,7 @@ public class NavSelfHealJob {
         pipeline.funds(),
         today,
         now);
-    pipeline.invoke().run();
+    navCalculationJob.recoverPipeline(pipeline.trigger(), pipeline.funds());
     log.info(
         "NavSelfHealJob: recovery pipeline invoked: trigger={}, date={}",
         pipeline.trigger(),

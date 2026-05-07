@@ -38,8 +38,12 @@ public class PipelineNotifier {
 
     var label = pipelineLabel(pipeline);
     var message =
-        "✅ %s pipeline (%s) — %s"
-            .formatted(label, formatDuration(pipeline.totalDuration()), stepDetails);
+        "✅ %s pipeline%s (%s) — %s"
+            .formatted(
+                label,
+                triggerSourceTag(pipeline),
+                formatDuration(pipeline.totalDuration()),
+                stepDetails);
 
     notificationService.sendMessage(message, INVESTMENT);
   }
@@ -50,7 +54,8 @@ public class PipelineNotifier {
     }
     var steps = resolveSteps(pipeline);
     var message = new StringBuilder();
-    message.append("❌ %s PIPELINE FAILED\n".formatted(pipelineLabel(pipeline)));
+    message.append(
+        "❌ %s PIPELINE%s FAILED\n".formatted(pipelineLabel(pipeline), triggerSourceTag(pipeline)));
 
     Set<String> completedStepNames =
         pipeline.getSteps().stream()
@@ -91,6 +96,14 @@ public class PipelineNotifier {
     return switch (pipeline.getType()) {
       case IMPORT -> "Import";
       case NAV -> pipeline.getTrigger();
+    };
+  }
+
+  private String triggerSourceTag(PipelineRun pipeline) {
+    return switch (pipeline.getTriggerSource()) {
+      case SCHEDULED -> "";
+      case SELF_HEAL -> " [self-heal]";
+      case MANUAL -> " [manual]";
     };
   }
 

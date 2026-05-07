@@ -5,6 +5,8 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -53,9 +55,9 @@ class NavSelfHealJobTest {
 
     job.healIfNeeded();
 
-    verify(navCalculationJob).calculateDailyNav();
-    verify(navCalculationJob, never()).calculatePillar2Nav();
-    verify(navCalculationJob, never()).calculatePillar3Nav();
+    verify(navCalculationJob).recoverPipeline(eq(TKF100), any());
+    verify(navCalculationJob, never()).recoverPipeline(eq(TUK75), any());
+    verify(navCalculationJob, never()).recoverPipeline(eq(TUV100), any());
   }
 
   @Test
@@ -68,9 +70,9 @@ class NavSelfHealJobTest {
 
     job.healIfNeeded();
 
-    verify(navCalculationJob).calculatePillar3Nav();
-    verify(navCalculationJob, never()).calculateDailyNav();
-    verify(navCalculationJob, never()).calculatePillar2Nav();
+    verify(navCalculationJob).recoverPipeline(eq(TUV100), any());
+    verify(navCalculationJob, never()).recoverPipeline(eq(TKF100), any());
+    verify(navCalculationJob, never()).recoverPipeline(eq(TUK75), any());
   }
 
   @Test
@@ -83,9 +85,9 @@ class NavSelfHealJobTest {
 
     job.healIfNeeded();
 
-    verify(navCalculationJob).calculatePillar2Nav();
-    verify(navCalculationJob, never()).calculateDailyNav();
-    verify(navCalculationJob, never()).calculatePillar3Nav();
+    verify(navCalculationJob).recoverPipeline(eq(TUK75), any());
+    verify(navCalculationJob, never()).recoverPipeline(eq(TKF100), any());
+    verify(navCalculationJob, never()).recoverPipeline(eq(TUV100), any());
   }
 
   @Test
@@ -98,9 +100,9 @@ class NavSelfHealJobTest {
 
     job.healIfNeeded();
 
-    verify(navCalculationJob).calculatePillar2Nav();
-    verify(navCalculationJob, never()).calculateDailyNav();
-    verify(navCalculationJob, never()).calculatePillar3Nav();
+    verify(navCalculationJob).recoverPipeline(eq(TUK75), any());
+    verify(navCalculationJob, never()).recoverPipeline(eq(TKF100), any());
+    verify(navCalculationJob, never()).recoverPipeline(eq(TUV100), any());
   }
 
   @Test
@@ -114,10 +116,10 @@ class NavSelfHealJobTest {
 
     job.healIfNeeded();
 
-    verify(navCalculationJob).calculatePillar2Nav();
+    verify(navCalculationJob).recoverPipeline(eq(TUK75), any());
     // Invoked once even though both pillar 2 funds are missing — trigger is the whole pipeline.
-    verify(navCalculationJob, never()).calculateDailyNav();
-    verify(navCalculationJob, never()).calculatePillar3Nav();
+    verify(navCalculationJob, never()).recoverPipeline(eq(TKF100), any());
+    verify(navCalculationJob, never()).recoverPipeline(eq(TUV100), any());
   }
 
   @Test
@@ -132,9 +134,9 @@ class NavSelfHealJobTest {
 
     job.healIfNeeded();
 
-    verify(navCalculationJob).calculateDailyNav();
-    verify(navCalculationJob).calculatePillar2Nav();
-    verify(navCalculationJob).calculatePillar3Nav();
+    verify(navCalculationJob).recoverPipeline(eq(TKF100), any());
+    verify(navCalculationJob).recoverPipeline(eq(TUK75), any());
+    verify(navCalculationJob).recoverPipeline(eq(TUV100), any());
   }
 
   @Test
@@ -186,9 +188,9 @@ class NavSelfHealJobTest {
 
     // Pillar 2 window is past, so pillar 2 pipeline is checked (and no-op since all published).
     // TKF100 and TUV100 are still before their cutoff — no pipeline should fire for them.
-    verify(navCalculationJob, never()).calculateDailyNav();
-    verify(navCalculationJob, never()).calculatePillar3Nav();
-    verify(navCalculationJob, never()).calculatePillar2Nav();
+    verify(navCalculationJob, never()).recoverPipeline(eq(TKF100), any());
+    verify(navCalculationJob, never()).recoverPipeline(eq(TUV100), any());
+    verify(navCalculationJob, never()).recoverPipeline(eq(TUK75), any());
   }
 
   @Test
@@ -254,7 +256,7 @@ class NavSelfHealJobTest {
     job.onApplicationReady();
     taskScheduler.capturedRunnable.run();
 
-    verify(navCalculationJob).calculateDailyNav();
+    verify(navCalculationJob).recoverPipeline(eq(TKF100), any());
   }
 
   @Test
@@ -267,7 +269,7 @@ class NavSelfHealJobTest {
 
     job.scheduledPillar2Retry();
 
-    verify(navCalculationJob).calculatePillar2Nav();
+    verify(navCalculationJob).recoverPipeline(eq(TUK75), any());
   }
 
   @Test
@@ -280,7 +282,7 @@ class NavSelfHealJobTest {
 
     job.scheduledSavingsPillar3Retry();
 
-    verify(navCalculationJob).calculatePillar3Nav();
+    verify(navCalculationJob).recoverPipeline(eq(TUV100), any());
   }
 
   private void stubAllPublished(LocalDate today) {

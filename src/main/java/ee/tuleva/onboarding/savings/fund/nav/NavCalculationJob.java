@@ -44,7 +44,7 @@ public class NavCalculationJob {
       zone = "Europe/Tallinn")
   @SchedulerLock(name = "NavCalculationJob_TKF100", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   public void calculateDailyNav() {
-    runPipeline(TKF100, List.of(TKF100));
+    runPipeline(TKF100, List.of(TKF100), PipelineRun.TriggerSource.SCHEDULED);
   }
 
   @Scheduled(
@@ -52,7 +52,7 @@ public class NavCalculationJob {
       zone = "Europe/Tallinn")
   @SchedulerLock(name = "NavCalculationJob_Pillar2", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   public void calculatePillar2Nav() {
-    runPipeline(TUK75, TulevaFund.getPillar2Funds());
+    runPipeline(TUK75, TulevaFund.getPillar2Funds(), PipelineRun.TriggerSource.SCHEDULED);
   }
 
   @Scheduled(
@@ -60,11 +60,16 @@ public class NavCalculationJob {
       zone = "Europe/Tallinn")
   @SchedulerLock(name = "NavCalculationJob_Pillar3", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   public void calculatePillar3Nav() {
-    runPipeline(TUV100, TulevaFund.getPillar3Funds());
+    runPipeline(TUV100, TulevaFund.getPillar3Funds(), PipelineRun.TriggerSource.SCHEDULED);
   }
 
-  private void runPipeline(TulevaFund trigger, List<TulevaFund> funds) {
-    pipelineTracker.start(PipelineRun.PipelineType.NAV, "NAV " + trigger.getCode());
+  public void recoverPipeline(TulevaFund trigger, List<TulevaFund> funds) {
+    runPipeline(trigger, funds, PipelineRun.TriggerSource.SELF_HEAL);
+  }
+
+  private void runPipeline(
+      TulevaFund trigger, List<TulevaFund> funds, PipelineRun.TriggerSource source) {
+    pipelineTracker.start(PipelineRun.PipelineType.NAV, "NAV " + trigger.getCode(), source);
     try {
       eventPublisher.publishEvent(new RunNavCalculationRequested(funds));
     } finally {

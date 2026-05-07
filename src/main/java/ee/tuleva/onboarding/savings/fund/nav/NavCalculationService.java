@@ -86,20 +86,6 @@ public class NavCalculationService {
     BigDecimal receivables = receivablesComponent.calculate(context);
     BigDecimal payables = payablesComponent.calculate(context);
     BigDecimal pendingSubscriptions = subscriptionsComponent.calculate(context);
-
-    BigDecimal feeBaseValue =
-        securitiesValue
-            .add(cashPosition)
-            .add(receivables)
-            .add(pendingSubscriptions)
-            .subtract(payables);
-    Instant feeCutoff = positionReportDate.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
-    FeeResult fees =
-        feeCalculationService.calculateFeesForNav(
-            fund, positionReportDate, feeBaseValue, feeCutoff, context.getSecurityPrices());
-    BigDecimal managementFeeAccrual = fees.managementFeeAccrual();
-    BigDecimal depotFeeAccrual = fees.depotFeeAccrual();
-
     BigDecimal blackrockAdjustment = blackrockAdjustmentComponent.calculate(context);
 
     BigDecimal unitsOutstanding = getUnitsOutstanding(fund, calculationDate);
@@ -109,6 +95,21 @@ public class NavCalculationService {
     if (unitsOutstanding.signum() > 0) {
       pendingRedemptions = redemptionsComponent.calculate(context);
     }
+
+    BigDecimal feeBaseValue =
+        securitiesValue
+            .add(cashPosition)
+            .add(receivables)
+            .add(pendingSubscriptions)
+            .add(blackrockAdjustment)
+            .subtract(payables)
+            .subtract(pendingRedemptions);
+    Instant feeCutoff = positionReportDate.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
+    FeeResult fees =
+        feeCalculationService.calculateFeesForNav(
+            fund, positionReportDate, feeBaseValue, feeCutoff, context.getSecurityPrices());
+    BigDecimal managementFeeAccrual = fees.managementFeeAccrual();
+    BigDecimal depotFeeAccrual = fees.depotFeeAccrual();
 
     BigDecimal aum =
         calculateAum(
@@ -255,11 +256,15 @@ public class NavCalculationService {
     BigDecimal receivables = receivablesComponent.calculate(context);
     BigDecimal payables = payablesComponent.calculate(context);
     BigDecimal pendingSubscriptions = subscriptionsComponent.calculate(context);
+    BigDecimal blackrockAdjustment = blackrockAdjustmentComponent.calculate(context);
+    BigDecimal pendingRedemptions = redemptionsComponent.calculate(context);
     return securitiesValue
         .add(cashPosition)
         .add(receivables)
         .add(pendingSubscriptions)
-        .subtract(payables);
+        .add(blackrockAdjustment)
+        .subtract(payables)
+        .subtract(pendingRedemptions);
   }
 
   public record FeeBaseValueResult(

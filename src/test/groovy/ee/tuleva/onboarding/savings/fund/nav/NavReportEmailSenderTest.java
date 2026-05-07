@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
+import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.BCC;
+import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.CC;
+import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.TO;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -51,9 +54,17 @@ class NavReportEmailSenderTest {
     assertThat(message.getFromName()).isEqualTo("Tuleva");
     assertThat(message.getSubject()).isEqualTo("TKF100 NAV arvutamine 13.03.2026");
 
-    assertThat(message.getTo()).hasSize(2);
-    assertThat(message.getTo().get(0).getEmail()).isEqualTo("funds@tuleva.ee");
-    assertThat(message.getTo().get(1).getEmail()).isEqualTo("erko.risthein@tuleva.ee");
+    assertThat(message.getTo()).hasSize(5);
+    assertThat(message.getTo().get(0).getEmail()).isEqualTo("trustee@seb.ee");
+    assertThat(message.getTo().get(0).getType()).isEqualTo(TO);
+    assertThat(message.getTo().get(1).getEmail()).isEqualTo("funds@tuleva.ee");
+    assertThat(message.getTo().get(1).getType()).isEqualTo(CC);
+    assertThat(message.getTo().get(2).getEmail()).isEqualTo("taavi.pertman@tuleva.ee");
+    assertThat(message.getTo().get(2).getType()).isEqualTo(CC);
+    assertThat(message.getTo().get(3).getEmail()).isEqualTo("compliance@tuleva.ee");
+    assertThat(message.getTo().get(3).getType()).isEqualTo(CC);
+    assertThat(message.getTo().get(4).getEmail()).isEqualTo("erko.risthein@tuleva.ee");
+    assertThat(message.getTo().get(4).getType()).isEqualTo(BCC);
 
     var attachment = message.getAttachments().getFirst();
     assertThat(attachment.getName()).isEqualTo("TKF100 NAV arvutamine 13032026.csv");

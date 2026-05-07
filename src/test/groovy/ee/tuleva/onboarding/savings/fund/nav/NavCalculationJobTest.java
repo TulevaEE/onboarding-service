@@ -77,6 +77,7 @@ class NavCalculationJobTest {
 
     verifyNoInteractions(navCalculationService);
     verifyNoInteractions(navPublisher);
+    verify(eventPublisher, never()).publishEvent(any(NavCalculationCompleted.class));
   }
 
   @Test
@@ -230,6 +231,22 @@ class NavCalculationJobTest {
     verify(navCalculationService, never()).calculate(TKF100, today);
     verify(navPublisher, never()).publish(any());
     verify(fundValueIndexingJob, never()).refreshForNavCalculation();
+    verify(eventPublisher, never()).publishEvent(any(NavCalculationCompleted.class));
+  }
+
+  @Test
+  void onNavCalculationRequested_publishesEventWithOnlySuccessfullyCalculatedFunds() {
+    var job = jobOn("2025-01-15T09:00:00Z");
+
+    LocalDate today = LocalDate.of(2025, 1, 15);
+
+    when(navCalculationService.calculate(TUK75, today))
+        .thenThrow(new RuntimeException("Price missing"));
+    when(navCalculationService.calculate(TUK00, today)).thenReturn(buildTestResult(TUK00, today));
+
+    job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TUK75, TUK00)));
+
+    verify(eventPublisher).publishEvent(new NavCalculationCompleted(List.of(TUK00)));
   }
 
   @Test
@@ -247,60 +264,6 @@ class NavCalculationJobTest {
 
     verify(navCalculationService).calculate(TKF100, today);
     verify(navPublisher).publish(result);
-  }
-
-  @Test
-  void pillar3Retry_doesNotFireAllNavCalculationsCompleted_whenAllAlreadyPublished() {
-    var job = jobOn("2025-01-15T13:25:00Z"); // 15:25 Tallinn, after TUV100 cutoff
-
-    LocalDate today = LocalDate.of(2025, 1, 15);
-    LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
-    // TUV100 was already published by the normal cron and AllNavCalculationsCompleted was
-    // already fired; the retry must not re-trigger downstream LimitCheckJob /
-    // TrackingDifferenceJob.
-    when(navReportRepository.existsPublishedByNavDateAndFundCode(
-            previousWorkingDay, TUV100.getCode()))
-        .thenReturn(true);
-
-    job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TUV100), true));
-
-    verify(eventPublisher, never()).publishEvent(any(AllNavCalculationsCompleted.class));
-    verify(eventPublisher, never()).publishEvent(any(NavCalculationCompleted.class));
-  }
-
-  @Test
-  void pillar3Retry_doesNotFireAllNavCalculationsCompleted_whenEveryFundThrows() {
-    var job = jobOn("2025-01-15T13:25:00Z");
-
-    LocalDate today = LocalDate.of(2025, 1, 15);
-    LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
-    when(navReportRepository.existsPublishedByNavDateAndFundCode(
-            previousWorkingDay, TUV100.getCode()))
-        .thenReturn(false);
-    when(navCalculationService.calculate(TUV100, today))
-        .thenThrow(new RuntimeException("Provider blew up"));
-
-    job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TUV100), true));
-
-    verify(eventPublisher, never()).publishEvent(any(AllNavCalculationsCompleted.class));
-    verify(eventPublisher, never()).publishEvent(any(NavCalculationCompleted.class));
-  }
-
-  @Test
-  void pillar3Retry_firesAllNavCalculationsCompleted_whenActuallyCalculatingMissingFund() {
-    var job = jobOn("2025-01-15T13:25:00Z");
-
-    LocalDate today = LocalDate.of(2025, 1, 15);
-    LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
-    when(navReportRepository.existsPublishedByNavDateAndFundCode(
-            previousWorkingDay, TUV100.getCode()))
-        .thenReturn(false);
-    when(navCalculationService.calculate(TUV100, today)).thenReturn(buildTestResult(TUV100, today));
-
-    job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TUV100), true));
-
-    verify(eventPublisher).publishEvent(any(AllNavCalculationsCompleted.class));
-    verify(eventPublisher).publishEvent(any(NavCalculationCompleted.class));
   }
 
   @Test

@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.OK;
 import static ee.tuleva.onboarding.investment.check.limit.CheckType.*;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.ISHARES;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.lenient;
 import static org.mockito.Mockito.*;
@@ -73,13 +75,7 @@ class LimitCheckServiceTest {
         .thenReturn(Optional.of(today));
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, SECURITY))
         .thenReturn(List.of(position));
-    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, UNITS))
-        .thenReturn(List.of());
-    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-            fund, today, List.of(CASH, RECEIVABLES, LIABILITY)))
-        .thenReturn(nonSecurityNav);
-    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(fund, today, List.of(SECURITY)))
-        .thenReturn(securitiesNav);
+    when(navReportPositionProvider.getCalculatedAum(fund, today)).thenReturn(Optional.of(totalNav));
 
     var cashPosition =
         FundPosition.builder().marketValue(new BigDecimal("80000")).fund(fund).build();
@@ -189,13 +185,8 @@ class LimitCheckServiceTest {
         .thenReturn(Optional.of(today));
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, SECURITY))
         .thenReturn(List.of());
-    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, UNITS))
-        .thenReturn(List.of());
-    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-            fund, today, List.of(CASH, RECEIVABLES, LIABILITY)))
-        .thenReturn(BigDecimal.ZERO);
-    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(fund, today, List.of(SECURITY)))
-        .thenReturn(BigDecimal.ZERO);
+    when(navReportPositionProvider.getCalculatedAum(fund, today))
+        .thenReturn(Optional.of(BigDecimal.ZERO));
 
     var cash1 = FundPosition.builder().marketValue(new BigDecimal("50000")).fund(fund).build();
     var cash2 = FundPosition.builder().marketValue(new BigDecimal("30000")).fund(fund).build();
@@ -250,6 +241,23 @@ class LimitCheckServiceTest {
   }
 
   @Test
+  void runChecksForFundsOnlyChecksSpecifiedFunds() {
+    service = createService();
+    var today = LocalDate.of(2026, 3, 4);
+    var funds = List.of(TUK75);
+
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, today))
+        .thenReturn(Optional.empty());
+
+    var results = service.runChecksForFunds(funds);
+
+    assertThat(results).isEmpty();
+    verify(fundPositionRepository).findLatestNavDateByFundAndAsOfDate(TUK75, today);
+    // Should NOT check any other funds
+    verify(fundPositionRepository, times(1)).findLatestNavDateByFundAndAsOfDate(any(), any());
+  }
+
+  @Test
   void freeCashSubtractsUnsettledSentOrders() {
     service = createService();
     var checkDate = LocalDate.of(2026, 3, 13);
@@ -259,11 +267,8 @@ class LimitCheckServiceTest {
         .thenReturn(Optional.of(checkDate));
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, SECURITY))
         .thenReturn(List.of());
-    when(fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, UNITS))
-        .thenReturn(List.of());
-    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-            eq(fund), eq(checkDate), anyList()))
-        .thenReturn(BigDecimal.ZERO);
+    when(navReportPositionProvider.getCalculatedAum(fund, checkDate))
+        .thenReturn(Optional.of(BigDecimal.ZERO));
     var cashPosition =
         FundPosition.builder().marketValue(new BigDecimal("590345.14")).fund(fund).build();
     var feePosition =
@@ -326,11 +331,8 @@ class LimitCheckServiceTest {
         .thenReturn(Optional.of(checkDate));
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, SECURITY))
         .thenReturn(List.of());
-    when(fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, UNITS))
-        .thenReturn(List.of());
-    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-            eq(fund), eq(checkDate), anyList()))
-        .thenReturn(BigDecimal.ZERO);
+    when(navReportPositionProvider.getCalculatedAum(fund, checkDate))
+        .thenReturn(Optional.of(BigDecimal.ZERO));
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, CASH))
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, LIABILITY))
@@ -406,14 +408,8 @@ class LimitCheckServiceTest {
     when(navReportPositionProvider.getSecurityMarketValues(fund, today))
         .thenReturn(Map.of("IE001", new BigDecimal("95000")));
 
-    var unitsPosition =
-        FundPosition.builder().fund(fund).quantity(new BigDecimal("1000000")).build();
-    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, UNITS))
-        .thenReturn(List.of(unitsPosition));
-    when(fundValueProvider.getLatestValue(fund.getIsin(), today))
-        .thenReturn(
-            Optional.of(
-                new FundValue(fund.getIsin(), today, BigDecimal.ONE, "TEST", Instant.now())));
+    when(navReportPositionProvider.getCalculatedAum(fund, today))
+        .thenReturn(Optional.of(new BigDecimal("1000000")));
 
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, CASH))
         .thenReturn(List.of());
@@ -445,7 +441,7 @@ class LimitCheckServiceTest {
   }
 
   @Test
-  void usesOfficialAumForTotalNav() {
+  void usesCalculatedAumFromNavReport() {
     service = createService();
     var today = LocalDate.of(2026, 3, 4);
     var fund = TUK75;
@@ -462,17 +458,9 @@ class LimitCheckServiceTest {
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, SECURITY))
         .thenReturn(List.of(position));
 
-    // UNITS position: 1,000,000 units
-    var unitsPosition =
-        FundPosition.builder().fund(fund).quantity(new BigDecimal("1000000")).build();
-    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, UNITS))
-        .thenReturn(List.of(unitsPosition));
-
-    // NAV per unit = 1.00 → official AUM = 1,000,000
-    when(fundValueProvider.getLatestValue(fund.getIsin(), today))
-        .thenReturn(
-            Optional.of(
-                new FundValue(fund.getIsin(), today, BigDecimal.ONE, "TEST", Instant.now())));
+    // Calculated AUM from nav_report UNITS row = 1,000,000
+    when(navReportPositionProvider.getCalculatedAum(fund, today))
+        .thenReturn(Optional.of(new BigDecimal("1000000")));
 
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, CASH))
         .thenReturn(List.of());
@@ -490,15 +478,163 @@ class LimitCheckServiceTest {
 
     service.runChecksAsOf(today);
 
-    // totalNav should be 1,000,000 (units × NAV/unit), NOT 900,000 (position sum)
+    // totalNav should be 1,000,000 from nav_report calculated AUM
     verify(positionLimitChecker)
         .check(eq(fund), anyList(), eq(new BigDecimal("1000000")), anyList());
+  }
+
+  @Test
+  void runChecksAsOfContinuesAfterPerFundFailureAndThrowsPartialFailure() {
+    service = createService();
+    var today = LocalDate.of(2026, 3, 4);
+
+    // TUK75: full setup — succeeds
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, today))
+        .thenReturn(Optional.of(today));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, TUK75, SECURITY))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, TUK75, CASH))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, TUK75, LIABILITY))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, TUK75, FEE))
+        .thenReturn(List.of());
+    when(navReportPositionProvider.getCalculatedAum(TUK75, today))
+        .thenReturn(Optional.of(new BigDecimal("1000000")));
+    when(positionLimitRepository.findLatestByFundAsOf(eq(TUK75), any())).thenReturn(List.of());
+    when(providerLimitRepository.findLatestByFundAsOf(eq(TUK75), any())).thenReturn(List.of());
+    when(fundLimitRepository.findLatestByFundAsOf(eq(TUK75), any())).thenReturn(Optional.empty());
+    when(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).thenReturn(List.of());
+    when(positionLimitChecker.check(eq(TUK75), any(), any(), any())).thenReturn(List.of());
+    when(providerLimitChecker.check(eq(TUK75), any(), any(), any(), any())).thenReturn(List.of());
+
+    // TUK00: has position data but getCalculatedAum throws — fails in computeTotalNav
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK00, today))
+        .thenReturn(Optional.of(today));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, TUK00, SECURITY))
+        .thenReturn(List.of());
+    when(navReportPositionProvider.getCalculatedAum(TUK00, today))
+        .thenThrow(new RuntimeException("DB error"));
+
+    assertThatThrownBy(() -> service.runChecksAsOf(today))
+        .isInstanceOf(LimitCheckPartialFailureException.class)
+        .satisfies(
+            e -> {
+              var partial = ((LimitCheckPartialFailureException) e).getPartialResults();
+              assertThat(partial.stream().anyMatch(r -> r.fund() == TUK75)).isTrue();
+              assertThat(partial.stream().noneMatch(r -> r.fund() == TUK00)).isTrue();
+              assertThat(e.getSuppressed()).hasSize(1);
+            });
+  }
+
+  @Test
+  void computeTotalNavFallsBackToUnitsTimesNavPerUnit() {
+    service = createService();
+    var today = LocalDate.of(2026, 3, 4);
+    var fund = TUK75;
+
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, today))
+        .thenReturn(Optional.of(today));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, SECURITY))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, CASH))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, LIABILITY))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, FEE))
+        .thenReturn(List.of());
+
+    // AUM not available in nav_report
+    when(navReportPositionProvider.getCalculatedAum(fund, today)).thenReturn(Optional.empty());
+
+    // Fallback: units × NAV per unit
+    var unitsPosition =
+        FundPosition.builder().quantity(new BigDecimal("100000")).fund(fund).build();
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, UNITS))
+        .thenReturn(List.of(unitsPosition));
+    when(fundValueProvider.getLatestValue(fund.getIsin(), today))
+        .thenReturn(
+            Optional.of(
+                new FundValue(fund.getIsin(), today, new BigDecimal("10.50"), "TULEVA", null)));
+
+    when(positionLimitRepository.findLatestByFundAsOf(fund, today)).thenReturn(List.of());
+    when(providerLimitRepository.findLatestByFundAsOf(fund, today)).thenReturn(List.of());
+    when(fundLimitRepository.findLatestByFundAsOf(fund, today)).thenReturn(Optional.empty());
+    when(modelPortfolioAllocationRepository.findLatestByFund(fund)).thenReturn(List.of());
+    when(positionLimitChecker.check(any(), any(), any(), any())).thenReturn(List.of());
+    when(providerLimitChecker.check(any(), any(), any(), any(), any())).thenReturn(List.of());
+
+    service.runChecksAsOf(today);
+
+    // totalNav = 100,000 × 10.50 = 1,050,000
+    verify(positionLimitChecker)
+        .check(eq(fund), anyList(), eq(new BigDecimal("1050000.00")), anyList());
+  }
+
+  @Test
+  void backfillCollectsPartialResultsOnFailure() {
+    service = createService();
+    var today = LocalDate.of(2026, 3, 4);
+
+    // TUK75 succeeds
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, today))
+        .thenReturn(Optional.of(today));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, TUK75, SECURITY))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, TUK75, CASH))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, TUK75, LIABILITY))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, TUK75, FEE))
+        .thenReturn(List.of());
+    when(navReportPositionProvider.getCalculatedAum(TUK75, today))
+        .thenReturn(Optional.of(new BigDecimal("1000000")));
+    when(positionLimitRepository.findLatestByFundAsOf(eq(TUK75), any())).thenReturn(List.of());
+    when(providerLimitRepository.findLatestByFundAsOf(eq(TUK75), any())).thenReturn(List.of());
+    when(fundLimitRepository.findLatestByFundAsOf(eq(TUK75), any())).thenReturn(Optional.empty());
+    when(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).thenReturn(List.of());
+    when(positionLimitChecker.check(eq(TUK75), any(), any(), any())).thenReturn(List.of());
+    when(providerLimitChecker.check(eq(TUK75), any(), any(), any(), any())).thenReturn(List.of());
+
+    // TUK00 fails
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK00, today))
+        .thenReturn(Optional.of(today));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, TUK00, SECURITY))
+        .thenReturn(List.of());
+    when(navReportPositionProvider.getCalculatedAum(TUK00, today))
+        .thenThrow(new RuntimeException("DB error"));
+
+    var results = service.backfillChecks(0);
+
+    assertThat(results).hasSize(1);
+    assertThat(results.getFirst().fund()).isEqualTo(TUK75);
+  }
+
+  @Test
+  void computeTotalNavThrowsWhenBothSourcesMissing() {
+    service = createService();
+    var today = LocalDate.of(2026, 3, 4);
+    var fund = TUK75;
+
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, today))
+        .thenReturn(Optional.of(today));
+    when(navReportPositionProvider.getCalculatedAum(fund, today)).thenReturn(Optional.empty());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, UNITS))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, SECURITY))
+        .thenReturn(List.of());
+
+    assertThatThrownBy(() -> service.runChecksAsOf(today))
+        .isInstanceOf(LimitCheckPartialFailureException.class);
   }
 
   private LimitCheckService createService() {
     lenient()
         .when(navReportPositionProvider.getSecurityMarketValues(any(), any()))
         .thenReturn(Map.of());
+    lenient()
+        .when(navReportPositionProvider.getCalculatedAum(any(), any()))
+        .thenReturn(Optional.empty());
     lenient()
         .when(transactionOrderRepository.findUnsettledOrdersAsOf(any(), any(), any()))
         .thenReturn(List.of());

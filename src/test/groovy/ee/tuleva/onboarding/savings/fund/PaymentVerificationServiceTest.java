@@ -55,13 +55,15 @@ class PaymentVerificationServiceTest {
 
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
-        .addReturnReason(payment.getId(), "selgituses puudub isikukood/registrikood");
+        .addReturnReason(payment.getId(), "makse ei sisalda tuvastatavat isikukoodi/registrikoodi");
     verify(savingsFundLedger)
         .recordUnattributedPayment(payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     verify(applicationEventPublisher)
         .publishEvent(
             new UnattributedPaymentEvent(
-                payment.getId(), payment.getAmount(), "selgituses puudub isikukood/registrikood"));
+                payment.getId(),
+                payment.getAmount(),
+                "makse ei sisalda tuvastatavat isikukoodi/registrikoodi"));
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -341,40 +343,45 @@ class PaymentVerificationServiceTest {
   }
 
   @Test
-  void extractPartyId() {
-    assertThat(service.extractPartyId(null)).isEmpty();
-    assertThat(service.extractPartyId("")).isEmpty();
-    assertThat(service.extractPartyId("abc")).isEmpty();
-    assertThat(service.extractPartyId("abc123")).isEmpty();
-    assertThat(service.extractPartyId("1234567890")).isEmpty();
-    assertThat(service.extractPartyId("12345678901")).isEmpty();
-    assertThat(service.extractPartyId("45009144745")).contains(new PartyId(PERSON, "45009144745"));
-    assertThat(service.extractPartyId("37508295796")).contains(new PartyId(PERSON, "37508295796"));
-    assertThat(service.extractPartyId("37508295795"))
+  void extractPartyIdFromDescription() {
+    assertThat(service.extractPartyIdFromDescription(null)).isEmpty();
+    assertThat(service.extractPartyIdFromDescription("")).isEmpty();
+    assertThat(service.extractPartyIdFromDescription("abc")).isEmpty();
+    assertThat(service.extractPartyIdFromDescription("abc123")).isEmpty();
+    assertThat(service.extractPartyIdFromDescription("1234567890")).isEmpty();
+    assertThat(service.extractPartyIdFromDescription("12345678901")).isEmpty();
+    assertThat(service.extractPartyIdFromDescription("45009144745"))
+        .contains(new PartyId(PERSON, "45009144745"));
+    assertThat(service.extractPartyIdFromDescription("37508295796"))
+        .contains(new PartyId(PERSON, "37508295796"));
+    assertThat(service.extractPartyIdFromDescription("37508295795"))
         .withFailMessage("invalid personal code not accepted")
         .isEmpty();
-    assertThat(service.extractPartyId("375082957961"))
+    assertThat(service.extractPartyIdFromDescription("375082957961"))
         .withFailMessage("additional digits not accepted")
         .isEmpty();
-    assertThat(service.extractPartyId("137508295796"))
+    assertThat(service.extractPartyIdFromDescription("137508295796"))
         .withFailMessage("additional digits not accepted")
         .isEmpty();
-    assertThat(service.extractPartyId("some prefix 37508295796"))
+    assertThat(service.extractPartyIdFromDescription("some prefix 37508295796"))
         .contains(new PartyId(PERSON, "37508295796"));
-    assertThat(service.extractPartyId("some prefix,37508295796,some suffix"))
+    assertThat(service.extractPartyIdFromDescription("some prefix,37508295796,some suffix"))
         .contains(new PartyId(PERSON, "37508295796"));
-    assertThat(service.extractPartyId("some prefix+37508295796/some suffix,45009144745"))
+    assertThat(
+            service.extractPartyIdFromDescription(
+                "some prefix+37508295796/some suffix,45009144745"))
         .contains(new PartyId(PERSON, "37508295796"));
-    assertThat(service.extractPartyId("12345678")).contains(new PartyId(LEGAL_ENTITY, "12345678"));
-    assertThat(service.extractPartyId("company 12345678"))
+    assertThat(service.extractPartyIdFromDescription("12345678"))
         .contains(new PartyId(LEGAL_ENTITY, "12345678"));
-    assertThat(service.extractPartyId("1234567"))
+    assertThat(service.extractPartyIdFromDescription("company 12345678"))
+        .contains(new PartyId(LEGAL_ENTITY, "12345678"));
+    assertThat(service.extractPartyIdFromDescription("1234567"))
         .withFailMessage("7 digits not a valid registry code")
         .isEmpty();
-    assertThat(service.extractPartyId("123456789"))
+    assertThat(service.extractPartyIdFromDescription("123456789"))
         .withFailMessage("9 digits not a valid registry code")
         .isEmpty();
-    assertThat(service.extractPartyId("P13694547 makse 37508295796"))
+    assertThat(service.extractPartyIdFromDescription("P13694547 makse 37508295796"))
         .withFailMessage(
             "11-digit personal code must take precedence over any 8-digit substring elsewhere")
         .contains(new PartyId(PERSON, "37508295796"));

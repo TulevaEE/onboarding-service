@@ -4,7 +4,9 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
+import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -18,6 +20,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class NavTrackingDifferenceGateTest {
 
   @Mock private TrackingDifferenceService trackingDifferenceService;
+  @Mock private TrackingDifferenceNotifier trackingDifferenceNotifier;
+  @Mock private PipelineTracker pipelineTracker;
 
   @InjectMocks private NavTrackingDifferenceGate gate;
 
@@ -45,6 +49,8 @@ class NavTrackingDifferenceGateTest {
     given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(List.of(result));
 
     assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
+
+    then(trackingDifferenceNotifier).should().notify(List.of(result));
   }
 
   @Test
@@ -71,6 +77,8 @@ class NavTrackingDifferenceGateTest {
     var failure = gate.check(TUK75, NAV_DATE);
     assertThat(failure).isPresent();
     assertThat(failure.get()).contains("TD breach").contains("TUK75");
+
+    then(trackingDifferenceNotifier).should().notify(List.of(result));
   }
 
   @Test
@@ -78,16 +86,21 @@ class NavTrackingDifferenceGateTest {
     given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(List.of());
 
     assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
+
+    then(trackingDifferenceNotifier).should().notify(List.of());
   }
 
   @Test
-  void passes_whenIncompletePriceData() {
+  void passes_andNotifiesPartialResults_whenIncompletePriceData() {
+    var partialResults = List.<TrackingDifferenceResult>of();
     given(trackingDifferenceService.checkFund(TUK75, NAV_DATE))
         .willThrow(
             new TrackingDifferenceService.IncompletePriceDataException(
-                "missing prices", List.of()));
+                "missing prices", partialResults));
 
     assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
+
+    then(trackingDifferenceNotifier).should().notify(partialResults);
   }
 
   @Test

@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.event.PipelineStep.TRACKING_DIFFERENCE;
 import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -15,10 +17,16 @@ import org.springframework.stereotype.Component;
 public class NavTrackingDifferenceGate {
 
   private final TrackingDifferenceService trackingDifferenceService;
+  private final TrackingDifferenceNotifier trackingDifferenceNotifier;
+  private final PipelineTracker pipelineTracker;
 
   public Optional<String> check(TulevaFund fund, LocalDate navDate) {
+    pipelineTracker.stepStarted(TRACKING_DIFFERENCE);
     try {
       var results = trackingDifferenceService.checkFund(fund, navDate);
+      trackingDifferenceNotifier.notify(results);
+      pipelineTracker.stepCompleted(TRACKING_DIFFERENCE);
+
       var breaches = results.stream().filter(TrackingDifferenceResult::breach).toList();
       if (!breaches.isEmpty()) {
         var details =
@@ -37,12 +45,12 @@ public class NavTrackingDifferenceGate {
       }
       return Optional.empty();
     } catch (TrackingDifferenceService.IncompletePriceDataException e) {
-      // Fail-open: missing price data should not block NAV publication.
-      // Can tighten to fail-closed once TD gate is proven stable in production.
+      trackingDifferenceNotifier.notify(e.completedResults());
+      pipelineTracker.stepFailed(TRACKING_DIFFERENCE, e.getMessage());
       log.warn("TD gate incomplete price data, proceeding: fund={}, date={}", fund, navDate);
       return Optional.empty();
     } catch (Exception e) {
-      // Fail-open: gate errors should not block NAV publication.
+      pipelineTracker.stepFailed(TRACKING_DIFFERENCE, e.getMessage());
       log.warn("TD gate error, proceeding: fund={}, date={}", fund, navDate, e);
       return Optional.empty();
     }

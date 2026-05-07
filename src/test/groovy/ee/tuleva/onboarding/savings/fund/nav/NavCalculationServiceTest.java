@@ -93,12 +93,12 @@ class NavCalculationServiceTest {
     when(receivablesComponent.calculate(any())).thenReturn(new BigDecimal("10000.00"));
     when(payablesComponent.calculate(any())).thenReturn(new BigDecimal("5000.00"));
     when(subscriptionsComponent.calculate(any())).thenReturn(new BigDecimal("25000.00"));
-    BigDecimal expectedBaseValue = new BigDecimal("980000.00");
+    when(blackrockAdjustmentComponent.calculate(any())).thenReturn(new BigDecimal("500.00"));
+    when(redemptionsComponent.calculate(any())).thenReturn(new BigDecimal("10500.00"));
+    BigDecimal expectedBaseValue = new BigDecimal("970000.00");
     when(feeCalculationService.calculateFeesForNav(
             eq(TKF100), eq(previousWorkingDay), eq(expectedBaseValue), any(), any()))
         .thenReturn(new FeeResult(new BigDecimal("52.08"), new BigDecimal("6.85")));
-    when(blackrockAdjustmentComponent.calculate(any())).thenReturn(new BigDecimal("500.00"));
-    when(redemptionsComponent.calculate(any())).thenReturn(new BigDecimal("10500.00"));
 
     NavCalculationResult result = service.calculate(TKF100, calcDate);
 
@@ -355,6 +355,8 @@ class NavCalculationServiceTest {
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
+    when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
+    when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
     when(feeCalculationService.calculateFeesForNav(any(), any(), any(), any(), any()))
         .thenReturn(new FeeResult(ZERO, ZERO));
 
@@ -382,6 +384,8 @@ class NavCalculationServiceTest {
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
+    when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
+    when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
     when(feeCalculationService.calculateFeesForNav(any(), any(), any(), any(), any()))
         .thenReturn(new FeeResult(ZERO, ZERO));
 
@@ -417,6 +421,8 @@ class NavCalculationServiceTest {
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
+    when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
+    when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
 
     var result = service.computeFeeBaseValue(TKF100, inceptionDate);
 
@@ -438,6 +444,8 @@ class NavCalculationServiceTest {
     when(receivablesComponent.calculate(any())).thenReturn(new BigDecimal("10000.00"));
     when(payablesComponent.calculate(any())).thenReturn(new BigDecimal("5000.00"));
     when(subscriptionsComponent.calculate(any())).thenReturn(new BigDecimal("24816.87"));
+    when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
+    when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
 
     var result = service.computeFeeBaseValue(TUK75, calcDate);
 

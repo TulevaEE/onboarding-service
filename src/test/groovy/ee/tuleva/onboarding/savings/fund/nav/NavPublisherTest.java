@@ -161,7 +161,7 @@ class NavPublisherTest {
   }
 
   @Test
-  void publish_continuesIfReportPersistFails() {
+  void publish_skipsEmailAndAlerts_whenReportPersistFails() {
     LocalDate today = LocalDate.of(2025, 1, 15);
     Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
 
@@ -192,12 +192,13 @@ class NavPublisherTest {
     doThrow(new DataIntegrityViolationException("null value in column created_at"))
         .when(navReportRepository)
         .replaceByNavDateAndFundCode(any(), any(), any());
-    when(navReportEmailSender.send(any(), eq(result))).thenReturn(true);
 
     navPublisher.publish(result);
 
     verify(fundValueRepository, times(2)).save(any());
-    verify(navReportEmailSender).send(any(), eq(result));
+    verifyNoInteractions(navReportEmailSender);
+    verify(navReportRepository, never()).markAsPublished(any(UUID.class));
+    verify(notificationService).sendMessage(contains("has no rows"), eq(SAVINGS));
     verify(navNotifier).notify(result);
   }
 

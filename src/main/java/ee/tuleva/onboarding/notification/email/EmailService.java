@@ -13,7 +13,6 @@ import com.microtripit.mandrillapp.lutung.view.MandrillScheduledMessageInfo;
 import ee.tuleva.onboarding.config.EmailConfiguration;
 import ee.tuleva.onboarding.user.User;
 import java.io.IOException;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -22,7 +21,6 @@ import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.retry.RetryException;
-import org.springframework.core.retry.RetryPolicy;
 import org.springframework.core.retry.RetryTemplate;
 import org.springframework.stereotype.Service;
 
@@ -32,21 +30,15 @@ public class EmailService {
 
   private final EmailConfiguration emailConfiguration;
   private final MandrillApi mandrillApi;
-  private final RetryTemplate retryTemplate;
+  private final RetryTemplate emailServiceRetryTemplate;
 
   public EmailService(
-      EmailConfiguration emailConfiguration, @Autowired(required = false) MandrillApi mandrillApi) {
+      EmailConfiguration emailConfiguration,
+      @Autowired(required = false) MandrillApi mandrillApi,
+      RetryTemplate emailServiceRetryTemplate) {
     this.emailConfiguration = emailConfiguration;
     this.mandrillApi = mandrillApi;
-    this.retryTemplate =
-        new RetryTemplate(
-            RetryPolicy.builder()
-                .includes(MandrillApiError.class, IOException.class)
-                .maxRetries(2)
-                .delay(Duration.ofMillis(200))
-                .multiplier(3)
-                .maxDelay(Duration.ofSeconds(2))
-                .build());
+    this.emailServiceRetryTemplate = emailServiceRetryTemplate;
   }
 
   public MandrillMessage newMandrillMessage(
@@ -152,7 +144,7 @@ public class EmailService {
     }
 
     try {
-      retryTemplate.execute(
+      emailServiceRetryTemplate.execute(
           () -> {
             log.info("Sending system email: to={}", message.getTo());
             MandrillMessageStatus response = mandrillApi.messages().send(message, false)[0];

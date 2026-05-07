@@ -48,7 +48,8 @@ interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
   void deleteUnpublishedByNavDateAndFundCode(
       @Param("navDate") LocalDate navDate, @Param("fundCode") String fundCode);
 
-  @Transactional
+  // Delete + saveAll commit independently. If saveAll fails, partial rows share the new
+  // calculationId and remain unpublished, so the next NAV run replaces them.
   default void replaceByNavDateAndFundCode(
       LocalDate navDate, String fundCode, List<NavReportRow> rows) {
     deleteUnpublishedByNavDateAndFundCode(navDate, fundCode);

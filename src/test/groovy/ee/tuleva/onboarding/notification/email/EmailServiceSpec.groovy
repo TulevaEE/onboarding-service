@@ -8,8 +8,11 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import com.microtripit.mandrillapp.lutung.view.MandrillScheduledMessageInfo
 import ee.tuleva.onboarding.config.EmailConfiguration
 import ee.tuleva.onboarding.user.User
+import org.springframework.core.retry.RetryPolicy
+import org.springframework.core.retry.RetryTemplate
 import spock.lang.Specification
 
+import java.time.Duration
 import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
@@ -19,7 +22,13 @@ class EmailServiceSpec extends Specification {
   EmailConfiguration emailConfiguration = Mock()
   MandrillApi mandrillApi = Mock()
   MandrillMessagesApi mandrillMessagesApi = Mock()
-  EmailService service = new EmailService(emailConfiguration, mandrillApi)
+  RetryTemplate retryTemplate = new RetryTemplate(
+      RetryPolicy.builder()
+          .includes(MandrillApiError, IOException)
+          .maxRetries(2)
+          .delay(Duration.ofMillis(1))
+          .build())
+  EmailService service = new EmailService(emailConfiguration, mandrillApi, retryTemplate)
   User user = sampleUser().build()
   String templateName = "sample_template"
   MandrillMessage message = service.newMandrillMessage(
@@ -86,7 +95,7 @@ class EmailServiceSpec extends Specification {
 
   def "sendSystemEmail returns false when Mandrill not initialised"() {
     given:
-    def serviceWithoutMandrill = new EmailService(emailConfiguration, null)
+    def serviceWithoutMandrill = new EmailService(emailConfiguration, null, retryTemplate)
     def systemMessage = new MandrillMessage()
 
     when:

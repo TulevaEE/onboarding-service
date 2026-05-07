@@ -1,12 +1,13 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
 import java.math.BigDecimal;
+import org.jspecify.annotations.Nullable;
 
 record SecurityAttribution(
     String isin,
-    BigDecimal modelWeight,
-    BigDecimal actualWeight,
-    BigDecimal weightDifference,
+    @Nullable BigDecimal modelWeight,
+    @Nullable BigDecimal actualWeight,
+    @Nullable BigDecimal weightDifference,
     BigDecimal securityReturn,
-    BigDecimal benchmarkReturn,
+    @Nullable BigDecimal benchmarkReturn,
     BigDecimal contribution) {}

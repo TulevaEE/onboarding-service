@@ -200,6 +200,16 @@ class TrackingDifferenceServiceTest {
     assertThat(bmModel.get().fund()).isEqualTo(TUK75);
     // ETF return = 51/50 - 1 = 0.02, IWDA return = 81.6/80 - 1 = 0.02, TD ≈ 0
     assertThat(bmModel.get().trackingDifference().abs()).isLessThan(new BigDecimal("0.001"));
+
+    var attributions = bmModel.get().securityAttributions();
+    assertThat(attributions).hasSize(1);
+    var attr = attributions.getFirst();
+    assertThat(attr.isin()).isEqualTo(etfIsin);
+    assertThat(attr.modelWeight()).isNull();
+    assertThat(attr.actualWeight()).isEqualByComparingTo(new BigDecimal("0.95"));
+    assertThat(attr.securityReturn()).isEqualByComparingTo(new BigDecimal("0.02"));
+    assertThat(attr.benchmarkReturn()).isEqualByComparingTo(new BigDecimal("0.02"));
+    assertThat(attr.contribution().abs()).isLessThan(new BigDecimal("0.001"));
   }
 
   @Test

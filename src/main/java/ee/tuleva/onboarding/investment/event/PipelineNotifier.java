@@ -32,7 +32,9 @@ public class PipelineNotifier {
 
   private void sendSuccess(PipelineRun pipeline) {
     var stepDetails =
-        pipeline.getSteps().stream().map(this::formatStepCompact).collect(Collectors.joining(", "));
+        pipeline.getSteps().stream()
+            .map(this::formatStepCompact)
+            .collect(Collectors.joining(" → "));
 
     var label = pipelineLabel(pipeline);
     var message =
@@ -132,7 +134,8 @@ public class PipelineNotifier {
       case PipelineStep.REPORT_IMPORT -> "ReportImportJob";
       case PipelineStep.POSITION_IMPORT -> "FundPositionImportJob";
       case PipelineStep.FEE_ACCRUAL_SYNC -> "FeeAccrualPositionSyncJob";
-      case PipelineStep.NAV_CALCULATION -> "NavCalculationJob";
+      case PipelineStep.NAV_CALCULATION, PipelineStep.REPORT_PERSIST, PipelineStep.REPORT_EMAIL ->
+          "NavCalculationJob";
       case PipelineStep.LIMIT_CHECK -> "LimitCheckJob";
       case PipelineStep.HEALTH_CHECK -> "FundPositionImportJob";
       case PipelineStep.TRACKING_DIFFERENCE -> "TrackingDifferenceJob";

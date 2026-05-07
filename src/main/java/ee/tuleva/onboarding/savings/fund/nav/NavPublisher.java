@@ -1,10 +1,13 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
+import static ee.tuleva.onboarding.investment.event.PipelineStep.REPORT_EMAIL;
+import static ee.tuleva.onboarding.investment.event.PipelineStep.REPORT_PERSIST;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.investment.check.tracking.NavTrackingDifferenceGate;
+import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +30,7 @@ public class NavPublisher {
   private final NavNotifier navNotifier;
   private final OperationsNotificationService notificationService;
   private final NavTrackingDifferenceGate trackingDifferenceGate;
+  private final PipelineTracker pipelineTracker;
 
   // NAV/AUM go to the FundValue API (and navNotifier) regardless of trustee email outcome.
   // The trustee email is the audit trail; the API serves members and internal systems.
@@ -60,13 +64,16 @@ public class NavPublisher {
   }
 
   private List<NavReportRow> persistReportRows(NavCalculationResult result, UUID calculationId) {
+    pipelineTracker.stepStarted(REPORT_PERSIST);
     try {
       var rows = navReportMapper.map(result);
       rows.forEach(row -> row.setCalculationId(calculationId));
       navReportRepository.replaceByNavDateAndFundCode(
           result.positionReportDate(), result.fund().getCode(), rows);
+      pipelineTracker.stepCompleted(REPORT_PERSIST);
       return rows;
     } catch (Exception e) {
+      pipelineTracker.stepFailed(REPORT_PERSIST, e.getMessage());
       log.error(
           "Failed to persist NAV report: fund={}, calculationDate={}, positionReportDate={}",
           result.fund(),
@@ -103,9 +110,12 @@ public class NavPublisher {
       return;
     }
 
+    pipelineTracker.stepStarted(REPORT_EMAIL);
     if (sendEmail(reportRows, result)) {
       navReportRepository.markAsPublished(calculationId);
+      pipelineTracker.stepCompleted(REPORT_EMAIL);
     } else {
+      pipelineTracker.stepFailed(REPORT_EMAIL, "Mandrill send failed");
       log.error(
           "NAV report email failed, rows remain unpublished: fund={}, date={}",
           result.fund(),

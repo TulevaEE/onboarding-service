@@ -13,6 +13,7 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.investment.check.tracking.NavTrackingDifferenceGate;
+import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -38,6 +39,7 @@ class NavPublisherTest {
   @Mock private NavNotifier navNotifier;
   @Mock private OperationsNotificationService notificationService;
   @Mock private NavTrackingDifferenceGate trackingDifferenceGate;
+  @Mock private PipelineTracker pipelineTracker;
 
   @InjectMocks private NavPublisher navPublisher;
 

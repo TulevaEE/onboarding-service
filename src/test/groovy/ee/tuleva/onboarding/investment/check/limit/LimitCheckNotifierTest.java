@@ -82,14 +82,14 @@ class LimitCheckNotifierTest {
   }
 
   @Test
-  void includesFreeCashBreachDetails() {
+  void freeCashBreachDoesNotTriggerNotification() {
     var breach = new FreeCashBreach(TUK75, new BigDecimal("25000"), new BigDecimal("10000"), HARD);
     var result =
         new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), null, breach);
 
     notifier.notify(List.of(result));
 
-    verify(notificationService).sendMessage(contains("FREE_CASH"), eq(INVESTMENT));
+    verify(notificationService).sendMessage(contains("within limits"), eq(INVESTMENT));
   }
 
   @Test

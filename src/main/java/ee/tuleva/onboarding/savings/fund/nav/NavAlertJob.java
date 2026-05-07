@@ -50,6 +50,43 @@ public class NavAlertJob {
     alertIfMissing(List.of(TKF100, TUV100), "15:20", "15:31", "17:45");
   }
 
+  @Scheduled(cron = "0 35 11 * * MON-FRI", zone = "Europe/Tallinn")
+  @SchedulerLock(name = "NavEscalation_pillar2", lockAtMostFor = "5m", lockAtLeastFor = "1m")
+  public void escalatePillar2IfStillMissing() {
+    escalateIfStillMissing(List.of(TUK75, TUK00), "11:30");
+  }
+
+  @Scheduled(cron = "0 35 15 * * MON-FRI", zone = "Europe/Tallinn")
+  @SchedulerLock(name = "NavEscalation_savingsPillar3", lockAtMostFor = "5m", lockAtLeastFor = "1m")
+  public void escalateSavingsPillar3IfStillMissing() {
+    escalateIfStillMissing(List.of(TKF100, TUV100), "15:30");
+  }
+
+  private void escalateIfStillMissing(List<TulevaFund> funds, String deadline) {
+    LocalDate today = ZonedDateTime.now(clock).withZoneSameInstant(TALLINN).toLocalDate();
+    if (!publicHolidays.isWorkingDay(today)) {
+      return;
+    }
+    List<TulevaFund> missing =
+        funds.stream()
+            .filter(TulevaFund::hasNavCalculation)
+            .filter(fund -> isNavMissingForToday(fund, today))
+            .toList();
+    if (missing.isEmpty()) {
+      return;
+    }
+    String missingCodes =
+        missing.stream().map(TulevaFund::getCode).collect(Collectors.joining(", ", "[", "]"));
+    String message =
+        "URGENT: NAV still missing, deadline was "
+            + deadline
+            + " Tallinn: funds="
+            + missingCodes
+            + ", autoRetriesContinueUntil=17:45 Tallinn";
+    log.error("{}", message);
+    notificationService.sendMessage(message, INVESTMENT);
+  }
+
   private void alertIfMissing(
       List<TulevaFund> funds,
       String cronFireTime,

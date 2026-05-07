@@ -68,16 +68,10 @@ public class PaymentVerificationService {
   public void process(SavingFundPayment payment) {
     log.info("Processing payment {}", payment.getId());
 
-    var partyIdFromDescription = extractPartyId(payment.getDescription());
-    var partyIdOpt = partyIdFromDescription.or(() -> parsePartyId(payment.getRemitterIdCode()));
+    var partyIdOpt = extractPartyId(payment);
     if (partyIdOpt.isEmpty()) {
-      identityCheckFailure(payment, "selgituses puudub isikukood/registrikood");
+      identityCheckFailure(payment, "makse ei sisalda tuvastatavat isikukoodi/registrikoodi");
       return;
-    }
-    if (partyIdFromDescription.isEmpty()) {
-      log.info(
-          "Payment {} has no code in description, falling back to remitter id code",
-          payment.getId());
     }
 
     PartyId partyId = partyIdOpt.get();
@@ -139,7 +133,17 @@ public class PaymentVerificationService {
     return payment.getReceivedBefore().atZone(ESTONIAN_ZONE).toLocalDate();
   }
 
-  Optional<PartyId> extractPartyId(String text) {
+  private Optional<PartyId> extractPartyId(SavingFundPayment payment) {
+    var partyIdFromDescription = extractPartyIdFromDescription(payment.getDescription());
+    if (partyIdFromDescription.isPresent()) {
+      return partyIdFromDescription;
+    }
+    log.info(
+        "Payment {} has no code in description, falling back to remitter id code", payment.getId());
+    return parsePartyId(payment.getRemitterIdCode());
+  }
+
+  Optional<PartyId> extractPartyIdFromDescription(String text) {
     return extractPersonalCode(text)
         .map(code -> new PartyId(PERSON, code))
         .or(() -> extractRegistryCode(text).map(code -> new PartyId(LEGAL_ENTITY, code)));

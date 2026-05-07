@@ -18,7 +18,6 @@ public record LimitCheckResult(
   public boolean hasBreaches() {
     return positionBreaches.stream().anyMatch(b -> b.severity() != OK)
         || providerBreaches.stream().anyMatch(b -> b.severity() != OK)
-        || (reserveBreach != null && reserveBreach.severity() != OK)
-        || (freeCashBreach != null && freeCashBreach.severity() != OK);
+        || (reserveBreach != null && reserveBreach.severity() != OK);
   }
 }

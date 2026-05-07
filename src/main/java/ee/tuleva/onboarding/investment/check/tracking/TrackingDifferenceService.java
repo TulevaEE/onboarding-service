@@ -537,9 +537,7 @@ class TrackingDifferenceService {
                   map.put(
                       "weightDifference", Objects.requireNonNullElse(a.weightDifference(), ZERO));
                   map.put("securityReturn", a.securityReturn());
-                  if (a.benchmarkReturn() != null) {
-                    map.put("benchmarkReturn", a.benchmarkReturn());
-                  }
+                  map.put("benchmarkReturn", Objects.requireNonNullElse(a.benchmarkReturn(), ZERO));
                   map.put("contribution", a.contribution());
                   return map;
                 })

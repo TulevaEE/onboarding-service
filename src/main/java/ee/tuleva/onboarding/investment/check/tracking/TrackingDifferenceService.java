@@ -325,15 +325,16 @@ class TrackingDifferenceService {
     var totalWeightedReturn = ZERO;
     var totalWeightedBenchmarkReturn = ZERO;
     var totalWeight = ZERO;
+    var attributions = new ArrayList<SecurityAttribution>();
 
     for (var s : validSecurities) {
       var benchmarkKey = resolveBenchmarkKey(s.isin());
       if (benchmarkKey == null) {
         continue;
       }
-      var benchmarkReturn =
+      var bmReturn =
           lookupReturn(benchmarkKey, s.today().date(), s.previous().date(), maxDailyReturn);
-      if (benchmarkReturn.isEmpty()) {
+      if (bmReturn.isEmpty()) {
         log.warn(
             "Missing benchmark model data: fund={}, isin={}, benchmarkKey={}",
             fund,
@@ -344,10 +345,15 @@ class TrackingDifferenceService {
       var secReturn =
           calculator.safeDailyReturn(s.today().price(), s.previous().price(), maxDailyReturn);
       var weight = s.actualWeight();
+      var returnDiff = secReturn.subtract(bmReturn.get()).setScale(SCALE, RoundingMode.HALF_UP);
+      var contribution = weight.multiply(returnDiff).setScale(SCALE, RoundingMode.HALF_UP);
       totalWeightedReturn = totalWeightedReturn.add(weight.multiply(secReturn));
       totalWeightedBenchmarkReturn =
-          totalWeightedBenchmarkReturn.add(weight.multiply(benchmarkReturn.get()));
+          totalWeightedBenchmarkReturn.add(weight.multiply(bmReturn.get()));
       totalWeight = totalWeight.add(weight);
+      attributions.add(
+          new SecurityAttribution(
+              s.isin(), null, weight, null, secReturn, bmReturn.get(), contribution));
     }
 
     if (totalWeight.signum() == 0) {
@@ -375,7 +381,7 @@ class TrackingDifferenceService {
             .breach(breach)
             .consecutiveBreachDays(days)
             .consecutiveNetTd(netTd)
-            .securityAttributions(List.of())
+            .securityAttributions(List.copyOf(attributions))
             .cashDrag(ZERO)
             .feeDrag(ZERO)
             .residual(ZERO)
@@ -523,14 +529,18 @@ class TrackingDifferenceService {
     var attributions =
         result.securityAttributions().stream()
             .map(
-                a ->
-                    Map.<String, Object>of(
-                        "isin", a.isin(),
-                        "modelWeight", a.modelWeight(),
-                        "actualWeight", a.actualWeight(),
-                        "weightDifference", a.weightDifference(),
-                        "securityReturn", a.securityReturn(),
-                        "contribution", a.contribution()))
+                a -> {
+                  var map = new java.util.LinkedHashMap<String, Object>();
+                  map.put("isin", a.isin());
+                  map.put("modelWeight", Objects.requireNonNullElse(a.modelWeight(), ZERO));
+                  map.put("actualWeight", Objects.requireNonNullElse(a.actualWeight(), ZERO));
+                  map.put(
+                      "weightDifference", Objects.requireNonNullElse(a.weightDifference(), ZERO));
+                  map.put("securityReturn", a.securityReturn());
+                  map.put("benchmarkReturn", Objects.requireNonNullElse(a.benchmarkReturn(), ZERO));
+                  map.put("contribution", a.contribution());
+                  return map;
+                })
             .toList();
 
     return Map.of(

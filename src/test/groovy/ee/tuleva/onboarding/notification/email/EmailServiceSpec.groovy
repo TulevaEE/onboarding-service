@@ -144,6 +144,34 @@ class EmailServiceSpec extends Specification {
     result == true
   }
 
+  def "sendSystemEmail throws when Mandrill returns rejected"() {
+    given:
+    def systemMessage = new MandrillMessage()
+    def rejectedStatus = new MandrillMessageStatus()
+    rejectedStatus.status = "rejected"
+
+    when:
+    service.sendSystemEmail(systemMessage)
+
+    then:
+    1 * mandrillMessagesApi.send(systemMessage, false) >> [rejectedStatus]
+    thrown(EmailDeliveryException)
+  }
+
+  def "sendSystemEmail throws when Mandrill returns invalid"() {
+    given:
+    def systemMessage = new MandrillMessage()
+    def invalidStatus = new MandrillMessageStatus()
+    invalidStatus.status = "invalid"
+
+    when:
+    service.sendSystemEmail(systemMessage)
+
+    then:
+    1 * mandrillMessagesApi.send(systemMessage, false) >> [invalidStatus]
+    thrown(EmailDeliveryException)
+  }
+
   def "does not send email when user has no email"() {
     given:
     def userWithoutEmail = sampleUser().email(null).build()

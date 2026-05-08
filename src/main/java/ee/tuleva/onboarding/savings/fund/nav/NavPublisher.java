@@ -56,14 +56,11 @@ public class NavPublisher {
         result.aum());
   }
 
-  // Writes the freshly-calculated NAV+AUM to index_values for every fund (savings AND pillar 2/3).
-  // index_values is INSERT-IF-NOT-EXISTS (see fundvalue/CLAUDE.md), so for pillar 2 this means the
-  // TULEVA-source row arrives at the publishing time (~D+1 morning) and the next-day PENSIONIKESKUS
-  // arrival for the same (key, date) is silently dropped — TULEVA becomes the source of truth in
-  // index_values for Tuleva's own pillar 2 funds.
   private void publishToFundValueApi(NavCalculationResult result) {
-    publishNav(result);
-    publishAum(result);
+    if (result.fund().isSavingsFund()) {
+      publishNav(result);
+      publishAum(result);
+    }
   }
 
   private List<NavReportRow> persistReportRows(NavCalculationResult result, UUID calculationId) {
@@ -148,9 +145,7 @@ public class NavPublisher {
 
   private Optional<String> checkGates(NavCalculationResult result) {
     try {
-      var tdResult =
-          trackingDifferenceGate.check(
-              result.fund(), result.positionReportDate(), result.navPerUnit());
+      var tdResult = trackingDifferenceGate.check(result.fund(), result.positionReportDate());
       if (tdResult.isPresent()) {
         return tdResult;
       }

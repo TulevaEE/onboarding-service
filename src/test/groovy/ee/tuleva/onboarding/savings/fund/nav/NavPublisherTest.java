@@ -125,7 +125,7 @@ class NavPublisherTest {
   }
 
   @Test
-  void publish_writesNavAndAumToFundValueApi_forPillar2Fund() {
+  void publish_onlyNotifiesForPensionFund() {
     LocalDate today = LocalDate.of(2025, 1, 15);
     Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
 
@@ -157,19 +157,7 @@ class NavPublisherTest {
 
     navPublisher.publish(result);
 
-    ArgumentCaptor<FundValue> captor = forClass(FundValue.class);
-    verify(fundValueRepository, times(2)).save(captor.capture());
-
-    var navValue = captor.getAllValues().get(0);
-    assertThat(navValue.key()).isEqualTo(TUK75.getIsin());
-    assertThat(navValue.date()).isEqualTo(today);
-    assertThat(navValue.value()).isEqualByComparingTo("9.50000");
-    assertThat(navValue.provider()).isEqualTo("TULEVA");
-
-    var aumValue = captor.getAllValues().get(1);
-    assertThat(aumValue.key()).isEqualTo(TUK75.getAumKey());
-    assertThat(aumValue.value()).isEqualByComparingTo("950000000.00");
-
+    verifyNoInteractions(fundValueRepository);
     verify(navNotifier).notify(result);
     verify(navReportEmailSender).send(any(), eq(result));
   }
@@ -226,7 +214,7 @@ class NavPublisherTest {
 
     var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TKF100").build();
     when(navReportMapper.map(result)).thenReturn(List.of(reportRow));
-    when(trackingDifferenceGate.check(eq(TKF100), eq(yesterday), any(BigDecimal.class)))
+    when(trackingDifferenceGate.check(TKF100, yesterday))
         .thenReturn(Optional.of("TD breach: fund=TKF100, MODEL_PORTFOLIO TD=0.015"));
 
     navPublisher.publish(result);
@@ -238,7 +226,7 @@ class NavPublisherTest {
   }
 
   @Test
-  void publish_passesNavPerUnitToTdGate() {
+  void publish_sendsEmail_whenTdGatePasses() {
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
     Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
@@ -247,13 +235,12 @@ class NavPublisherTest {
 
     var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TKF100").build();
     when(navReportMapper.map(result)).thenReturn(List.of(reportRow));
-    when(trackingDifferenceGate.check(eq(TKF100), eq(yesterday), any(BigDecimal.class)))
-        .thenReturn(Optional.empty());
+    when(trackingDifferenceGate.check(TKF100, yesterday)).thenReturn(Optional.empty());
     when(navReportEmailSender.send(any(), eq(result))).thenReturn(true);
 
     navPublisher.publish(result);
 
-    verify(trackingDifferenceGate).check(TKF100, yesterday, result.navPerUnit());
+    verify(navReportEmailSender).send(any(), eq(result));
     verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
   }
 
@@ -267,7 +254,7 @@ class NavPublisherTest {
 
     var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TKF100").build();
     when(navReportMapper.map(result)).thenReturn(List.of(reportRow));
-    when(trackingDifferenceGate.check(eq(TKF100), eq(yesterday), any(BigDecimal.class)))
+    when(trackingDifferenceGate.check(TKF100, yesterday))
         .thenThrow(new RuntimeException("gate error"));
     when(navReportEmailSender.send(any(), eq(result))).thenReturn(true);
 

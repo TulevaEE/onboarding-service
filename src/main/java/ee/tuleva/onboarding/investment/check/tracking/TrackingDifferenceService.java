@@ -127,22 +127,9 @@ class TrackingDifferenceService {
   }
 
   List<TrackingDifferenceResult> checkFund(TulevaFund fund, LocalDate checkDate) {
-    return checkFund(fund, checkDate, null);
-  }
-
-  // todayNavOverride: when called from the publishing pipeline, the freshly-calculated NAV is
-  // passed in directly so the gate tests the value about to be published rather than re-reading
-  // index_values, which for pillar 2 funds may not yet contain the day's value at gate time.
-  List<TrackingDifferenceResult> checkFund(
-      TulevaFund fund, LocalDate checkDate, BigDecimal todayNavOverride) {
     var results = new ArrayList<TrackingDifferenceResult>();
 
-    var todayNav =
-        todayNavOverride != null
-            ? Optional.of(
-                new FundValue(
-                    fund.getIsin(), checkDate, todayNavOverride, "TULEVA", clock.instant()))
-            : fundValueProvider.getLatestValue(fund.getIsin(), checkDate);
+    var todayNav = fundValueProvider.getLatestValue(fund.getIsin(), checkDate);
     var yesterdayNav = fundValueProvider.getLatestValue(fund.getIsin(), checkDate.minusDays(1));
 
     if (todayNav.isEmpty() || yesterdayNav.isEmpty()) {

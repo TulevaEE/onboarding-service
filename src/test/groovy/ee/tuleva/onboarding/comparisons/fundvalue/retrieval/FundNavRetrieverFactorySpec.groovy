@@ -16,21 +16,16 @@ class FundNavRetrieverFactorySpec extends Specification {
       new FundNavRetrieverFactory(fundRepository, episService)
 
 
-  def "creates fund nav retrievers for all active funds, suffixing Tuleva-owned ISINs"() {
+  def "creates fund nav retrievers for all active funds"() {
     given:
     def sampleFunds = [tuleva2ndPillarBondFund(), tuleva2ndPillarStockFund(),
                        tuleva3rdPillarFund(), lhv2ndPillarFund(), lhv3rdPillarFund()]
-    def tulevaIsins = [tuleva2ndPillarBondFund().isin,
-                       tuleva2ndPillarStockFund().isin,
-                       tuleva3rdPillarFund().isin] as Set
     fundRepository.findAllByStatus(ACTIVE) >> sampleFunds
     when:
     def retrievers = fundNavRetrieverFactory.createAll()
     then:
     retrievers.eachWithIndex { retriever, i ->
-      def isin = sampleFunds[i].isin
-      def expectedKey = isin in tulevaIsins ? isin + ":PENSIONIKESKUS" : isin
-      assert retriever.key == expectedKey
+      assert retriever.key == sampleFunds[i].isin
     }
   }
 }

@@ -5,7 +5,6 @@ import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -21,10 +20,10 @@ public class NavTrackingDifferenceGate {
   private final TrackingDifferenceNotifier trackingDifferenceNotifier;
   private final PipelineTracker pipelineTracker;
 
-  public Optional<String> check(TulevaFund fund, LocalDate navDate, BigDecimal todayNav) {
+  public Optional<String> check(TulevaFund fund, LocalDate navDate) {
     pipelineTracker.stepStarted(TRACKING_DIFFERENCE);
     try {
-      var results = trackingDifferenceService.checkFund(fund, navDate, todayNav);
+      var results = trackingDifferenceService.checkFund(fund, navDate);
       trackingDifferenceNotifier.notify(results);
       pipelineTracker.stepCompleted(TRACKING_DIFFERENCE);
 

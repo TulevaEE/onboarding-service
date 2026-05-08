@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.event.PipelineStep.TRACKING_DIFFERENCE;
 import static java.util.stream.Collectors.joining;
 
@@ -27,7 +28,11 @@ public class NavTrackingDifferenceGate {
       trackingDifferenceNotifier.notify(results);
       pipelineTracker.stepCompleted(TRACKING_DIFFERENCE);
 
-      var breaches = results.stream().filter(TrackingDifferenceResult::breach).toList();
+      var breaches =
+          results.stream()
+              .filter(r -> r.checkType() == MODEL_PORTFOLIO)
+              .filter(TrackingDifferenceResult::breach)
+              .toList();
       if (!breaches.isEmpty()) {
         var details =
             breaches.stream()

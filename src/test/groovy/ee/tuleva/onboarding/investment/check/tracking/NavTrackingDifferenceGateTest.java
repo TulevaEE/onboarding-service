@@ -82,6 +82,46 @@ class NavTrackingDifferenceGateTest {
   }
 
   @Test
+  void passes_whenOnlyBenchmarkBreach() {
+    var result = breachResult(TrackingCheckType.BENCHMARK);
+
+    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(List.of(result));
+
+    assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
+
+    then(trackingDifferenceNotifier).should().notify(List.of(result));
+  }
+
+  @Test
+  void passes_whenOnlyBenchmarkModelBreach() {
+    var result = breachResult(TrackingCheckType.BENCHMARK_MODEL);
+
+    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(List.of(result));
+
+    assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
+
+    then(trackingDifferenceNotifier).should().notify(List.of(result));
+  }
+
+  private static TrackingDifferenceResult breachResult(TrackingCheckType checkType) {
+    return TrackingDifferenceResult.builder()
+        .fund(TUK75)
+        .checkDate(NAV_DATE)
+        .checkType(checkType)
+        .trackingDifference(new BigDecimal("0.015"))
+        .fundReturn(new BigDecimal("0.02"))
+        .benchmarkReturn(new BigDecimal("0.005"))
+        .breach(true)
+        .consecutiveBreachDays(1)
+        .consecutiveNetTd(new BigDecimal("0.015"))
+        .securityAttributions(List.of())
+        .cashDrag(ZERO)
+        .feeDrag(ZERO)
+        .residual(ZERO)
+        .build();
+  }
+
+  @Test
   void passes_whenNoResults() {
     given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(List.of());
 

@@ -41,4 +41,21 @@ class FundNavRetrieverSpec extends Specification {
         ]
         assertThat(result).usingRecursiveComparison().ignoringFields("updatedAt").isEqualTo(expected)
     }
+
+    def "key reflects storage key when one is provided, and stored values use the storage key"() {
+        given:
+        def storageKey = isin + ":PENSIONIKESKUS"
+        def suffixedRetriever = new FundNavRetriever(episService, isin, storageKey)
+        def date = parse("2019-08-19")
+        episService.getNav(isin, date) >> new NavDto(isin, date, 19.0)
+
+        when:
+        def result = suffixedRetriever.retrieveValuesForRange(date, date)
+
+        then:
+        suffixedRetriever.key == storageKey
+        result.size() == 1
+        result[0].key() == storageKey
+        result[0].provider() == PROVIDER
+    }
 }

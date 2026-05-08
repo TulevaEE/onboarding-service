@@ -26,6 +26,7 @@ class NavTrackingDifferenceGateTest {
   @InjectMocks private NavTrackingDifferenceGate gate;
 
   private static final LocalDate NAV_DATE = LocalDate.of(2026, 3, 14);
+  private static final BigDecimal TODAY_NAV = new BigDecimal("1.50000");
 
   @Test
   void passes_whenNoBreaches() {
@@ -46,9 +47,10 @@ class NavTrackingDifferenceGateTest {
             .residual(ZERO)
             .build();
 
-    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(List.of(result));
+    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE, TODAY_NAV))
+        .willReturn(List.of(result));
 
-    assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
+    assertThat(gate.check(TUK75, NAV_DATE, TODAY_NAV)).isEmpty();
 
     then(trackingDifferenceNotifier).should().notify(List.of(result));
   }
@@ -72,9 +74,10 @@ class NavTrackingDifferenceGateTest {
             .residual(ZERO)
             .build();
 
-    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(List.of(result));
+    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE, TODAY_NAV))
+        .willReturn(List.of(result));
 
-    var failure = gate.check(TUK75, NAV_DATE);
+    var failure = gate.check(TUK75, NAV_DATE, TODAY_NAV);
     assertThat(failure).isPresent();
     assertThat(failure.get()).contains("TD breach").contains("TUK75");
 
@@ -83,9 +86,9 @@ class NavTrackingDifferenceGateTest {
 
   @Test
   void passes_whenNoResults() {
-    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(List.of());
+    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE, TODAY_NAV)).willReturn(List.of());
 
-    assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
+    assertThat(gate.check(TUK75, NAV_DATE, TODAY_NAV)).isEmpty();
 
     then(trackingDifferenceNotifier).should().notify(List.of());
   }
@@ -93,21 +96,21 @@ class NavTrackingDifferenceGateTest {
   @Test
   void passes_andNotifiesPartialResults_whenIncompletePriceData() {
     var partialResults = List.<TrackingDifferenceResult>of();
-    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE))
+    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE, TODAY_NAV))
         .willThrow(
             new TrackingDifferenceService.IncompletePriceDataException(
                 "missing prices", partialResults));
 
-    assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
+    assertThat(gate.check(TUK75, NAV_DATE, TODAY_NAV)).isEmpty();
 
     then(trackingDifferenceNotifier).should().notify(partialResults);
   }
 
   @Test
   void passes_whenUnexpectedException() {
-    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE))
+    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE, TODAY_NAV))
         .willThrow(new RuntimeException("unexpected"));
 
-    assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
+    assertThat(gate.check(TUK75, NAV_DATE, TODAY_NAV)).isEmpty();
   }
 }

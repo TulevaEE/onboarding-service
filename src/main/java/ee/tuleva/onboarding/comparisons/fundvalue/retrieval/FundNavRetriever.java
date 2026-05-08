@@ -8,11 +8,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
-@RequiredArgsConstructor
 @Slf4j
 @ToString(onlyExplicitlyIncluded = true)
 public class FundNavRetriever implements ComparisonIndexRetriever {
@@ -20,10 +18,24 @@ public class FundNavRetriever implements ComparisonIndexRetriever {
 
   private final EpisService episService;
   @ToString.Include private final String isin;
+  // Where this retriever persists in index_values. For Tuleva's own funds we route
+  // PENSIONIKESKUS values to a suffixed key so they don't collide with the TULEVA-source
+  // row written by NavPublisher (index_values is INSERT-IF-NOT-EXISTS — first writer wins).
+  private final String storageKey;
+
+  public FundNavRetriever(EpisService episService, String isin) {
+    this(episService, isin, isin);
+  }
+
+  public FundNavRetriever(EpisService episService, String isin, String storageKey) {
+    this.episService = episService;
+    this.isin = isin;
+    this.storageKey = storageKey;
+  }
 
   @Override
   public String getKey() {
-    return isin;
+    return storageKey;
   }
 
   @Override
@@ -43,6 +55,6 @@ public class FundNavRetriever implements ComparisonIndexRetriever {
   }
 
   private FundValue toFundValue(NavDto nav) {
-    return new FundValue(nav.getIsin(), nav.getDate(), nav.getValue(), PROVIDER, Instant.now());
+    return new FundValue(storageKey, nav.getDate(), nav.getValue(), PROVIDER, Instant.now());
   }
 }

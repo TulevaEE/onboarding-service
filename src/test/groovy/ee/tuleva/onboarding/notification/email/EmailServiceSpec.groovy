@@ -68,6 +68,32 @@ class EmailServiceSpec extends Specification {
     response == Optional.of(mandrillMessageStatus)
   }
 
+  def "send throws when Mandrill returns rejected"() {
+    given:
+    def rejectedStatus = new MandrillMessageStatus()
+    rejectedStatus.status = "rejected"
+
+    when:
+    service.send(user, message, templateName)
+
+    then:
+    1 * mandrillMessagesApi.sendTemplate(templateName, [:], message, false, null, null) >> [rejectedStatus]
+    thrown(EmailDeliveryException)
+  }
+
+  def "send throws when Mandrill returns invalid"() {
+    given:
+    def invalidStatus = new MandrillMessageStatus()
+    invalidStatus.status = "invalid"
+
+    when:
+    service.send(user, message, templateName)
+
+    then:
+    1 * mandrillMessagesApi.sendTemplate(templateName, [:], message, false, null, null) >> [invalidStatus]
+    thrown(EmailDeliveryException)
+  }
+
   def "Can cancel scheduled emails"() {
     given:
     String mandrillMessageId = "100"

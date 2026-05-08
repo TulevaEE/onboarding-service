@@ -25,6 +25,7 @@ import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
@@ -66,6 +67,7 @@ class TrackingDifferenceService {
   private final Clock clock;
   private final FundPositionRepository fundPositionRepository;
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
+  // External feeds (benchmarks, ETF prices). Fund's own NAV no longer comes from here.
   private final FundValueProvider fundValueProvider;
   private final PriorityPriceProvider priorityPriceProvider;
   private final PositionPriceResolver positionPriceResolver;
@@ -73,6 +75,9 @@ class TrackingDifferenceService {
   private final FeeRateRepository feeRateRepository;
   private final TrackingDifferenceEventRepository eventRepository;
   private final TrackingDifferenceCalculator calculator;
+  // Tuleva-internal source of truth for fund's own NAV per unit, populated by every NAV
+  // calculation run (regardless of whether publishing succeeds).
+  private final FundNavQueryService fundNavQueryService;
 
   List<TrackingDifferenceResult> runChecks() {
     return runChecksAsOf(LocalDate.now(clock), List.of(TulevaFund.values()));
@@ -91,13 +96,13 @@ class TrackingDifferenceService {
     var incompleteChecks = new ArrayList<String>();
 
     for (var fund : funds) {
-      var latestNav = fundValueProvider.getLatestValue(fund.getIsin(), asOfDate);
-      if (latestNav.isEmpty()) {
+      var checkDate =
+          fundNavQueryService.findLatestNavDateOnOrBefore(fund.getCode(), asOfDate).orElse(null);
+      if (checkDate == null) {
         log.warn("No NAV data for fund: fund={}, asOfDate={}", fund, asOfDate);
         continue;
       }
 
-      var checkDate = latestNav.get().date();
       try {
         checkFund(fund, checkDate).forEach(results::add);
       } catch (IncompletePriceDataException e) {
@@ -129,20 +134,30 @@ class TrackingDifferenceService {
   List<TrackingDifferenceResult> checkFund(TulevaFund fund, LocalDate checkDate) {
     var results = new ArrayList<TrackingDifferenceResult>();
 
-    var todayNav = fundValueProvider.getLatestValue(fund.getIsin(), checkDate);
-    var yesterdayNav = fundValueProvider.getLatestValue(fund.getIsin(), checkDate.minusDays(1));
+    // Fund's own NAV comes from nav_report (Tuleva-internal). Today's row is persisted by
+    // NavPublisher BEFORE the gate runs, so it is always present when called from the gate.
+    // For yesterday we walk back to the previous working day rather than relying on the
+    // fundValueProvider's at-or-before fallback.
+    var previousDate = publicHolidays.previousWorkingDay(checkDate);
+    var todayValue = fundNavQueryService.findNavPerUnit(fund.getCode(), checkDate);
+    var yesterdayValue = fundNavQueryService.findNavPerUnit(fund.getCode(), previousDate);
 
-    if (todayNav.isEmpty() || yesterdayNav.isEmpty()) {
+    if (todayValue.isEmpty() || yesterdayValue.isEmpty()) {
       log.warn(
-          "Missing NAV data: fund={}, checkDate={}, todayNav={}, yesterdayNav={}",
+          "Missing NAV data: fund={}, checkDate={}, previousDate={}, todayNav={}, yesterdayNav={}",
           fund,
           checkDate,
-          todayNav.isPresent(),
-          yesterdayNav.isPresent());
+          previousDate,
+          todayValue.isPresent(),
+          yesterdayValue.isPresent());
       return results;
     }
 
-    var previousDate = yesterdayNav.get().date();
+    var todayNav =
+        new FundValue(fund.getIsin(), checkDate, todayValue.get(), "TULEVA", clock.instant());
+    var yesterdayNav =
+        new FundValue(
+            fund.getIsin(), previousDate, yesterdayValue.get(), "TULEVA", clock.instant());
 
     var allocations = modelPortfolioAllocationRepository.findLatestByFund(fund);
     if (allocations.isEmpty()) {
@@ -188,8 +203,8 @@ class TrackingDifferenceService {
             .fund(fund)
             .checkDate(checkDate)
             .checkType(MODEL_PORTFOLIO)
-            .todayNav(todayNav.get().value())
-            .yesterdayNav(yesterdayNav.get().value())
+            .todayNav(todayNav.value())
+            .yesterdayNav(yesterdayNav.value())
             .securities(securities)
             .cashWeight(cashWeight)
             .annualFeeRate(annualFeeRate)
@@ -205,7 +220,7 @@ class TrackingDifferenceService {
               results.add(withConsecutive);
             });
 
-    buildBenchmarkCheck(fund, checkDate, previousDate, todayNav.get(), yesterdayNav.get())
+    buildBenchmarkCheck(fund, checkDate, previousDate, todayNav, yesterdayNav)
         .ifPresent(
             result -> {
               saveEvent(result);

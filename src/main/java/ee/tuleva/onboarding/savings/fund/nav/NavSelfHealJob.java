@@ -1,10 +1,9 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
-import static ee.tuleva.onboarding.fund.TulevaFund.getPillar2Funds;
-import static ee.tuleva.onboarding.fund.TulevaFund.getPillar3Funds;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -45,8 +44,9 @@ public class NavSelfHealJob {
   private List<NavPipeline> pipelines() {
     return List.of(
         new NavPipeline(TKF100, List.of(TKF100)),
-        new NavPipeline(TUK75, getPillar2Funds()),
-        new NavPipeline(TUV100, getPillar3Funds()));
+        new NavPipeline(TUK75, List.of(TUK75)),
+        new NavPipeline(TUK00, List.of(TUK00)),
+        new NavPipeline(TUV100, List.of(TUV100)));
   }
 
   @Scheduled(cron = "0 5/5 11 * * MON-FRI", zone = "Europe/Tallinn")

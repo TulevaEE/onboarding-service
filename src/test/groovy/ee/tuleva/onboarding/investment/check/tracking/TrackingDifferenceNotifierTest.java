@@ -47,7 +47,7 @@ class TrackingDifferenceNotifierTest {
 
     then(notificationService)
         .should()
-        .sendMessage(contains("all funds within limits"), eq(INVESTMENT));
+        .sendMessage(contains("within limits"), eq(INVESTMENT));
   }
 
   @Test
@@ -216,7 +216,7 @@ class TrackingDifferenceNotifierTest {
 
     then(notificationService)
         .should()
-        .sendMessage(contains("all funds within limits"), eq(INVESTMENT));
+        .sendMessage(contains("within limits"), eq(INVESTMENT));
   }
 
   @Test

@@ -91,7 +91,7 @@ class NavSelfHealJobTest {
   }
 
   @Test
-  void healIfNeeded_firesPillar2Once_whenTuk00Missing() {
+  void healIfNeeded_firesTuk00Pipeline_whenTuk00Missing() {
     var job = jobOn(WED_0910_UTC);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
@@ -100,13 +100,14 @@ class NavSelfHealJobTest {
 
     job.healIfNeeded();
 
-    verify(navCalculationJob).recoverPipeline(eq(TUK75), any());
+    verify(navCalculationJob).recoverPipeline(eq(TUK00), any());
+    verify(navCalculationJob, never()).recoverPipeline(eq(TUK75), any());
     verify(navCalculationJob, never()).recoverPipeline(eq(TKF100), any());
     verify(navCalculationJob, never()).recoverPipeline(eq(TUV100), any());
   }
 
   @Test
-  void healIfNeeded_firesPillar2Once_whenBothTuk75AndTuk00Missing() {
+  void healIfNeeded_firesBothPillar2Pipelines_whenBothTuk75AndTuk00Missing() {
     var job = jobOn(WED_0910_UTC);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
@@ -117,13 +118,13 @@ class NavSelfHealJobTest {
     job.healIfNeeded();
 
     verify(navCalculationJob).recoverPipeline(eq(TUK75), any());
-    // Invoked once even though both pillar 2 funds are missing — trigger is the whole pipeline.
+    verify(navCalculationJob).recoverPipeline(eq(TUK00), any());
     verify(navCalculationJob, never()).recoverPipeline(eq(TKF100), any());
     verify(navCalculationJob, never()).recoverPipeline(eq(TUV100), any());
   }
 
   @Test
-  void healIfNeeded_firesAllThreePipelines_whenEverythingMissing() {
+  void healIfNeeded_firesAllFourPipelines_whenEverythingMissing() {
     var job = jobOn(WED_1325_UTC);
 
     LocalDate today = LocalDate.of(2025, 1, 15);
@@ -136,6 +137,7 @@ class NavSelfHealJobTest {
 
     verify(navCalculationJob).recoverPipeline(eq(TKF100), any());
     verify(navCalculationJob).recoverPipeline(eq(TUK75), any());
+    verify(navCalculationJob).recoverPipeline(eq(TUK00), any());
     verify(navCalculationJob).recoverPipeline(eq(TUV100), any());
   }
 

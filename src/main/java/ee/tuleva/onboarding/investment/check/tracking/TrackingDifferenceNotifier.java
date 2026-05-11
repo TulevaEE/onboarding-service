@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -31,8 +32,14 @@ class TrackingDifferenceNotifier {
       var hasAnyBreaches = alertableResults.stream().anyMatch(TrackingDifferenceResult::breach);
 
       if (!hasAnyBreaches) {
+        var fundCodes =
+            alertableResults.stream()
+                .map(r -> r.fund().getCode())
+                .distinct()
+                .sorted()
+                .collect(Collectors.joining(", "));
         notificationService.sendMessage(
-            "Tracking difference check completed: all funds within limits", INVESTMENT);
+            "%s TD check completed: within limits".formatted(fundCodes), INVESTMENT);
         return;
       }
 

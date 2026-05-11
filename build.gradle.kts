@@ -114,11 +114,11 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web-services")
     testImplementation("org.springframework.ws:spring-ws-test")
 
-    xjc("org.glassfish.jaxb:jaxb-xjc:4.0.7")
-    xjc("org.glassfish.jaxb:jaxb-runtime:4.0.7")
-    xjc("org.glassfish.jaxb:jaxb-core:4.0.7")
-    xjc("org.glassfish.jaxb:codemodel:4.0.7")
-    xjc("org.glassfish.jaxb:xsom:4.0.7")
+    xjc("org.glassfish.jaxb:jaxb-xjc:4.0.8")
+    xjc("org.glassfish.jaxb:jaxb-runtime:4.0.8")
+    xjc("org.glassfish.jaxb:jaxb-core:4.0.8")
+    xjc("org.glassfish.jaxb:codemodel:4.0.8")
+    xjc("org.glassfish.jaxb:xsom:4.0.8")
     xjc("io.github.threeten-jaxb:threeten-jaxb-core:2.2.0")
 
     implementation("io.github.threeten-jaxb:threeten-jaxb-core:2.2.0")

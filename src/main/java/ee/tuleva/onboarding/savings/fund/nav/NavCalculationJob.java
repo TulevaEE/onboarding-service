@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.event.PipelineStep.NAV_CALCULATION;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueIndexingJob;

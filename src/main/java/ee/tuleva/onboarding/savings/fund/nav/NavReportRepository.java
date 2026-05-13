@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.nav;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -10,6 +11,23 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
+
+  Optional<NavReportRow> findFirstByFundCodeAndNavDateAndAccountType(
+      String fundCode, LocalDate navDate, String accountType);
+
+  @Query(
+      value =
+          """
+          SELECT MAX(nav_date) FROM nav_report
+          WHERE fund_code = :fundCode
+            AND account_type = :accountType
+            AND nav_date <= :asOfDate
+          """,
+      nativeQuery = true)
+  Optional<LocalDate> findLatestNavDateByFundAndAccountTypeOnOrBefore(
+      @Param("fundCode") String fundCode,
+      @Param("accountType") String accountType,
+      @Param("asOfDate") LocalDate asOfDate);
 
   @Query(
       value =

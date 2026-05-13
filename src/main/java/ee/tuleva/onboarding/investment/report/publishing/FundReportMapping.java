@@ -105,9 +105,9 @@ public enum FundReportMapping {
   public String buildPdfFilename(java.time.YearMonth month) {
     return titleGenitive
         + " investeeringute aruanne "
-        + estonianMonth(month.getMonthValue())
-        + " "
         + month.getYear()
+        + "-"
+        + String.format("%02d", month.getMonthValue())
         + ".pdf";
   }
 }

@@ -11,10 +11,12 @@ import java.time.YearMonth;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
+@ConditionalOnProperty(name = "investment-report-publishing.enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class InvestmentReportPublisher {
 
@@ -93,7 +95,10 @@ public class InvestmentReportPublisher {
       }
       if (!attachments.isEmpty()) {
         var signature = gmailDraftClient.fetchSignature();
-        var htmlBody = "<p>Tere,</p><p></p>" + signature;
+        var htmlBody =
+            "Tere<br><br>"
+                + "Saadan Tuleva pensionifondide investeeringute aruanded.<br><br>"
+                + signature;
         draftId =
             gmailDraftClient.createDraft(
                 gmailProperties.to(),

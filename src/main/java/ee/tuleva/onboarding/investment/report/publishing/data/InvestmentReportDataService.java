@@ -7,7 +7,6 @@ import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportCon
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportRow;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -254,8 +253,8 @@ public class InvestmentReportDataService {
     }
 
     var secTotal = BigDecimal.ZERO;
-    var cashTotal = BigDecimal.ZERO;
-    var recTotal = BigDecimal.ZERO;
+    BigDecimal cashTotal = null;
+    BigDecimal recTotal = null;
 
     for (var r : prevRows) {
       if ("SECURITY".equals(r.getAccountType())) {
@@ -263,12 +262,14 @@ public class InvestmentReportDataService {
       } else if ("CASH".equals(r.getAccountType())
           && r.getMarketValue() != null
           && r.getMarketValue().signum() != 0) {
-        cashTotal = cashTotal.add(r.getMarketValue().divide(prevNav, 6, RoundingMode.HALF_UP));
+        var pct = r.getMarketValue().divide(prevNav, 6, RoundingMode.HALF_UP);
+        cashTotal = cashTotal != null ? cashTotal.add(pct) : pct;
       } else if ("RECEIVABLES".equals(r.getAccountType())
           && !"Total receivables of unsettled transactions".equals(r.getAccountName())
           && r.getMarketValue() != null
           && r.getMarketValue().signum() > 0) {
-        recTotal = recTotal.add(r.getMarketValue().divide(prevNav, 6, RoundingMode.HALF_UP));
+        var pct = r.getMarketValue().divide(prevNav, 6, RoundingMode.HALF_UP);
+        recTotal = recTotal != null ? recTotal.add(pct) : pct;
       }
     }
 
@@ -283,15 +284,13 @@ public class InvestmentReportDataService {
   }
 
   static CashAccountInfo formatCashAccount(String accountName) {
-    if (accountName == null) return new CashAccountInfo(accountName, null);
+    if (accountName == null) return new CashAccountInfo("Arvelduskonto", accountName);
     var lower = accountName.toLowerCase();
-    if (lower.contains("seb")) return new CashAccountInfo("Arvelduskonto SEB", "AS SEB Pank");
-    if (lower.contains("swedbank"))
-      return new CashAccountInfo("Arvelduskonto Swedbank", "Swedbank AS");
-    if (lower.contains("lhv")) return new CashAccountInfo("Arvelduskonto LHV", "AS LHV Pank");
-    if (lower.contains("luminor"))
-      return new CashAccountInfo("Arvelduskonto Luminor", "Luminor Bank AS");
-    return new CashAccountInfo(accountName, null);
+    if (lower.contains("seb")) return new CashAccountInfo("Arvelduskonto", "AS SEB Pank");
+    if (lower.contains("swedbank")) return new CashAccountInfo("Arvelduskonto", "Swedbank AS");
+    if (lower.contains("lhv")) return new CashAccountInfo("Arvelduskonto", "AS LHV Pank");
+    if (lower.contains("luminor")) return new CashAccountInfo("Arvelduskonto", "Luminor Bank AS");
+    return new CashAccountInfo("Arvelduskonto", accountName);
   }
 
   record CashAccountInfo(String name, String institution) {}
@@ -301,16 +300,5 @@ public class InvestmentReportDataService {
     static PrevMonthPercentages empty() {
       return new PrevMonthPercentages(null, null, null);
     }
-  }
-
-  LocalDate findNavDate(TulevaFund fund, YearMonth month) {
-    var navDate =
-        navReportRepository.findLatestPublishedNavDate(
-            fund.getCode(), month.atDay(1), month.atEndOfMonth());
-    if (navDate == null) {
-      throw new IllegalStateException(
-          "No published NAV data for fund=%s, month=%s".formatted(fund.getCode(), month));
-    }
-    return navDate;
   }
 }

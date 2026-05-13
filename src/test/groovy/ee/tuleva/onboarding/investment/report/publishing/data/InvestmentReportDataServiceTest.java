@@ -82,7 +82,7 @@ class InvestmentReportDataServiceTest {
     assertThat(section.totalChange()).isNull();
 
     assertThat(ctx.cashRows()).hasSize(1);
-    assertThat(ctx.cashRows().getFirst().displayName()).isEqualTo("Arvelduskonto SEB");
+    assertThat(ctx.cashRows().getFirst().displayName()).isEqualTo("Arvelduskonto");
     assertThat(ctx.cashRows().getFirst().institution()).isEqualTo("AS SEB Pank");
   }
 
@@ -222,12 +222,16 @@ class InvestmentReportDataServiceTest {
   @Test
   void formatCashAccountIdentifiesBanks() {
     assertThat(InvestmentReportDataService.formatCashAccount("SEB deposit account").name())
-        .isEqualTo("Arvelduskonto SEB");
+        .isEqualTo("Arvelduskonto");
+    assertThat(InvestmentReportDataService.formatCashAccount("SEB deposit account").institution())
+        .isEqualTo("AS SEB Pank");
     assertThat(InvestmentReportDataService.formatCashAccount("Swedbank current").institution())
         .isEqualTo("Swedbank AS");
     assertThat(InvestmentReportDataService.formatCashAccount("LHV savings").institution())
         .isEqualTo("AS LHV Pank");
     assertThat(InvestmentReportDataService.formatCashAccount("Unknown bank").name())
+        .isEqualTo("Arvelduskonto");
+    assertThat(InvestmentReportDataService.formatCashAccount("Unknown bank").institution())
         .isEqualTo("Unknown bank");
   }
 

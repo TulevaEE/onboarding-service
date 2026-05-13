@@ -74,7 +74,7 @@ class InvestmentReportPdfGeneratorTest {
 
     var cashRow =
         new InvestmentReportRow(
-            "Arvelduskonto SEB",
+            "Arvelduskonto",
             "AS SEB Pank",
             null,
             "EE",

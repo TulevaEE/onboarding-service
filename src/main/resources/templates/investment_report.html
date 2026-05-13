@@ -120,7 +120,8 @@
             <td class="num placeholder" th:if="${row.avgCostPerUnit() == null}">&#8212;</td>
             <td class="num" th:if="${row.avgCostTotal() != null}" th:text="${#numbers.formatInteger(row.avgCostTotal(), 1, 'WHITESPACE')}">0</td>
             <td class="num placeholder" th:if="${row.avgCostTotal() == null}">&#8212;</td>
-            <td class="num" th:text="${#numbers.formatDecimal(row.marketPricePerUnit(), 1, 2)}">0.00</td>
+            <td class="num" th:if="${row.marketPricePerUnit() != null}" th:text="${#numbers.formatDecimal(row.marketPricePerUnit(), 1, 2)}">0.00</td>
+            <td class="num" th:if="${row.marketPricePerUnit() == null}"></td>
             <td class="num" th:text="${#numbers.formatInteger(row.marketValueTotal(), 1, 'WHITESPACE')}">0</td>
             <td class="num" th:text="${#numbers.formatDecimal(row.navSharePercent() * 100, 1, 2) + '%'}">0.00%</td>
             <td class="num"></td>

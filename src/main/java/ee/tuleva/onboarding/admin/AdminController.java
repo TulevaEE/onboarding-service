@@ -32,6 +32,7 @@ import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -61,7 +62,7 @@ public class AdminController {
   private final RedemptionBatchJob redemptionBatchJob;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final Clock clock;
-  private final java.util.Optional<InvestmentReportPublisher> investmentReportPublisher;
+  private final Optional<InvestmentReportPublisher> investmentReportPublisher;
 
   @Value("${admin.api-token:}")
   private String adminApiToken;

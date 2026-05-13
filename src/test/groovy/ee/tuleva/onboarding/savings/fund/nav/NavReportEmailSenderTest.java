@@ -67,7 +67,7 @@ class NavReportEmailSenderTest {
     assertThat(message.getTo().get(4).getType()).isEqualTo(BCC);
 
     var attachment = message.getAttachments().getFirst();
-    assertThat(attachment.getName()).isEqualTo("TKF100 NAV arvutamine 13032026.csv");
+    assertThat(attachment.getName()).isEqualTo("TKF100 NAV arvutamine 16032026.csv");
     assertThat(attachment.getType()).isEqualTo("text/csv");
     assertThat(Base64.getDecoder().decode(attachment.getContent())).isEqualTo(csvBytes);
   }

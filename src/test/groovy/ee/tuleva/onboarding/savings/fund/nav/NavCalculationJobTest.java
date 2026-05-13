@@ -267,13 +267,37 @@ class NavCalculationJobTest {
   }
 
   @Test
-  void scheduleMethodsPublishEvents() {
+  void calculateDailyNavPublishesEvent() {
     var job = jobOn("2025-01-15T14:30:00Z");
 
     job.calculateDailyNav();
 
     verify(eventPublisher).publishEvent(any(RunNavCalculationRequested.class));
     verify(pipelineNotifier).sendCompleted(any());
+  }
+
+  @Test
+  void calculatePillar2NavRunsPipelinePerFund() {
+    var job = jobOn("2025-01-15T09:00:00Z");
+
+    job.calculatePillar2Nav();
+
+    for (TulevaFund fund : getPillar2Funds()) {
+      verify(eventPublisher).publishEvent(new RunNavCalculationRequested(List.of(fund)));
+    }
+    verify(pipelineNotifier, times(getPillar2Funds().size())).sendCompleted(any());
+  }
+
+  @Test
+  void calculatePillar3NavRunsPipelinePerFund() {
+    var job = jobOn("2025-01-15T13:00:00Z");
+
+    job.calculatePillar3Nav();
+
+    for (TulevaFund fund : getPillar3Funds()) {
+      verify(eventPublisher).publishEvent(new RunNavCalculationRequested(List.of(fund)));
+    }
+    verify(pipelineNotifier, times(getPillar3Funds().size())).sendCompleted(any());
   }
 
   private NavCalculationJob jobOn(String instant) {

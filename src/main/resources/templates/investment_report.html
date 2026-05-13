@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 15mm 10mm 10mm 10mm;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            font-size: 9pt;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        .fund-title {
+            font-family: 'Merriweather', serif;
+            font-size: 16pt;
+            font-weight: bold;
+            color: #002F63;
+            margin: 0 0 4px 0;
+        }
+        .report-subtitle {
+            font-size: 11pt;
+            font-style: italic;
+            color: #00AEEA;
+            margin: 0 0 2px 0;
+        }
+        .report-date {
+            font-size: 10pt;
+            margin: 0 0 12px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+        }
+        th {
+            background-color: #002F63;
+            color: white;
+            font-weight: bold;
+            font-size: 8pt;
+            text-align: center;
+            vertical-align: middle;
+            padding: 6px 4px;
+            border: 1px solid #002F63;
+        }
+        th.left { text-align: left; }
+        td {
+            padding: 3px 4px;
+            vertical-align: middle;
+            font-size: 9pt;
+        }
+        td.num { text-align: right; }
+        td.center { text-align: center; }
+        .section-header td {
+            background-color: #F0F4F7;
+            font-weight: bold;
+            padding: 4px;
+        }
+        .section-subheader td {
+            background-color: #F0F4F7;
+            font-style: italic;
+            padding: 4px;
+        }
+        .section-total td {
+            background-color: #F0F4F7;
+            font-weight: bold;
+            padding: 4px;
+        }
+        .grand-total td {
+            font-weight: bold;
+            padding: 5px 4px;
+        }
+        .spacer { height: 8px; }
+        .placeholder { color: #999; }
+    </style>
+</head>
+<body>
+<div class="fund-title" th:text="${fundTitle}">Tuleva Maailma Aktsiate Pensionifond</div>
+<div class="report-subtitle">Investeeringute aruanne</div>
+<div class="report-date">seisuga <span th:text="${reportDate}">31.03.2026</span></div>
+
+<!-- TABLE 1: FONDIOSAKUD (Securities) -->
+<table>
+    <thead>
+    <tr>
+        <th class="left" style="width:28%">Nimetus</th>
+        <th class="left" style="width:19%">Fondivalitseja nimi</th>
+        <th style="width:8%">ISIN-kood</th>
+        <th style="width:3%">Riik</th>
+        <th style="width:4%">Valuuta</th>
+        <th style="width:6%">Keskmine soetus-maksumus ühikule</th>
+        <th style="width:8%">Keskmine soetus-maksumus kokku</th>
+        <th style="width:5%">Turu-väärtus ühikule</th>
+        <th style="width:8%">Turuväärtus kokku</th>
+        <th style="width:6%">Osakaal fondi puhas-väärtusest</th>
+        <th style="width:5%">Osakaalu muutus võrreldes eelneva kuuga</th>
+    </tr>
+    </thead>
+    <tbody>
+    <!-- FONDIOSAKUD section header -->
+    <tr class="section-header">
+        <td colspan="11">FONDIOSAKUD</td>
+    </tr>
+    <!-- Per-section (Aktsiafondid / Võlakirjafondid) -->
+    <th:block th:each="section : ${securitiesSections}">
+        <tr class="section-subheader">
+            <td colspan="11" th:text="${section.heading}">Aktsiafondid</td>
+        </tr>
+        <!-- Individual security rows -->
+        <tr th:each="row : ${section.rows}">
+            <td th:text="${row.displayName()}">Fund name</td>
+            <td th:text="${row.institution()}">Manager</td>
+            <td class="center" th:text="${row.isin()}">ISIN</td>
+            <td class="center" th:text="${row.country()}">IE</td>
+            <td class="center" th:text="${row.currency()}">EUR</td>
+            <td class="num" th:if="${row.avgCostPerUnit() != null}" th:text="${#numbers.formatDecimal(row.avgCostPerUnit(), 1, 2)}">0.00</td>
+            <td class="num placeholder" th:if="${row.avgCostPerUnit() == null}">&#8212;</td>
+            <td class="num" th:if="${row.avgCostTotal() != null}" th:text="${#numbers.formatInteger(row.avgCostTotal(), 1, 'WHITESPACE')}">0</td>
+            <td class="num placeholder" th:if="${row.avgCostTotal() == null}">&#8212;</td>
+            <td class="num" th:text="${#numbers.formatDecimal(row.marketPricePerUnit(), 1, 2)}">0.00</td>
+            <td class="num" th:text="${#numbers.formatInteger(row.marketValueTotal(), 1, 'WHITESPACE')}">0</td>
+            <td class="num" th:text="${#numbers.formatDecimal(row.navSharePercent() * 100, 1, 2) + '%'}">0.00%</td>
+            <td class="num"></td>
+        </tr>
+        <!-- Section total -->
+        <tr class="section-total">
+            <td th:text="${section.heading} + ' kokku'">Aktsiafondid kokku</td>
+            <td></td><td></td><td></td><td></td><td></td>
+            <td class="num" th:if="${section.totalCost() != null}" th:text="${#numbers.formatInteger(section.totalCost(), 1, 'WHITESPACE')}"></td>
+            <td class="num" th:if="${section.totalCost() == null}"></td>
+            <td></td>
+            <td class="num" th:text="${#numbers.formatInteger(section.totalMarketValue(), 1, 'WHITESPACE')}">0</td>
+            <td class="num" th:text="${#numbers.formatDecimal(section.totalNavPercent() * 100, 1, 2) + '%'}">0.00%</td>
+            <td class="num" th:if="${section.totalChange() != null}" th:text="${(section.totalChange() >= 0 ? '+' : '') + #numbers.formatDecimal(section.totalChange() * 100, 1, 2) + '%'}"></td>
+            <td class="num" th:if="${section.totalChange() == null}"></td>
+        </tr>
+    </th:block>
+    <!-- FONDIOSAKUD KOKKU -->
+    <tr class="section-total">
+        <td>FONDIOSAKUD KOKKU</td>
+        <td></td><td></td><td></td><td></td><td></td>
+        <td class="num" th:if="${securitiesTotalCost != null}" th:text="${#numbers.formatInteger(securitiesTotalCost, 1, 'WHITESPACE')}"></td>
+        <td class="num" th:if="${securitiesTotalCost == null}"></td>
+        <td></td>
+        <td class="num" th:text="${#numbers.formatInteger(securitiesTotalMarketValue, 1, 'WHITESPACE')}">0</td>
+        <td class="num" th:text="${#numbers.formatDecimal(securitiesTotalNavPercent * 100, 1, 2) + '%'}">0.00%</td>
+        <td class="num" th:if="${securitiesTotalChange != null}" th:text="${(securitiesTotalChange >= 0 ? '+' : '') + #numbers.formatDecimal(securitiesTotalChange * 100, 1, 2) + '%'}"></td>
+        <td class="num" th:if="${securitiesTotalChange == null}"></td>
+    </tr>
+    </tbody>
+</table>
+
+<!-- TABLE 2: HOIUSED (Deposits) -->
+<table>
+    <thead>
+    <tr>
+        <th class="left" style="width:28%">Nimetus</th>
+        <th class="left" style="width:19%">Krediidiasutus</th>
+        <th style="width:8%"></th>
+        <th style="width:3%">Riik</th>
+        <th style="width:4%">Valuuta</th>
+        <th style="width:6%"></th>
+        <th style="width:8%">Keskmine soetus-maksumus kokku</th>
+        <th style="width:5%"></th>
+        <th style="width:8%">Turuväärtus kokku</th>
+        <th style="width:6%">Osakaal fondi puhas-väärtusest</th>
+        <th style="width:5%">Osakaalu muutus võrreldes eelneva kuuga</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="section-header">
+        <td colspan="11">HOIUSED</td>
+    </tr>
+    <tr th:each="row : ${cashRows}">
+        <td th:text="${row.displayName()}">Account</td>
+        <td th:text="${row.institution()}">Bank</td>
+        <td></td>
+        <td class="center" th:text="${row.country()}">EE</td>
+        <td class="center" th:text="${row.currency()}">EUR</td>
+        <td></td>
+        <td class="num" th:text="${#numbers.formatInteger(row.marketValueTotal(), 1, 'WHITESPACE')}">0</td>
+        <td></td>
+        <td class="num" th:text="${#numbers.formatInteger(row.marketValueTotal(), 1, 'WHITESPACE')}">0</td>
+        <td class="num" th:text="${#numbers.formatDecimal(row.navSharePercent() * 100, 1, 2) + '%'}">0.00%</td>
+        <td class="num"></td>
+    </tr>
+    <tr class="section-total">
+        <td>HOIUSED KOKKU</td>
+        <td></td><td></td><td></td><td></td><td></td>
+        <td class="num" th:text="${#numbers.formatInteger(cashTotalMarketValue, 1, 'WHITESPACE')}">0</td>
+        <td></td>
+        <td class="num" th:text="${#numbers.formatInteger(cashTotalMarketValue, 1, 'WHITESPACE')}">0</td>
+        <td class="num" th:text="${#numbers.formatDecimal(cashTotalNavPercent * 100, 1, 2) + '%'}">0.00%</td>
+        <td class="num" th:if="${cashTotalChange != null}" th:text="${(cashTotalChange >= 0 ? '+' : '') + #numbers.formatDecimal(cashTotalChange * 100, 1, 2) + '%'}"></td>
+        <td class="num" th:if="${cashTotalChange == null}"></td>
+    </tr>
+    </tbody>
+</table>
+
+<!-- FOOTER: Total assets + Fund NAV -->
+<table>
+    <tbody>
+    <tr class="grand-total">
+        <td style="width:28%">AKTIVATE TURUVÄÄRTUS KOKKU</td>
+        <td style="width:19%"></td><td style="width:8%"></td><td style="width:3%"></td><td style="width:4%"></td><td style="width:6%"></td>
+        <td class="num" style="width:8%" th:if="${totalAssetsCost != null}" th:text="${#numbers.formatInteger(totalAssetsCost, 1, 'WHITESPACE')}"></td>
+        <td class="num" style="width:8%" th:if="${totalAssetsCost == null}"></td>
+        <td style="width:5%"></td>
+        <td class="num" style="width:8%" th:text="${#numbers.formatInteger(totalAssetsMarketValue, 1, 'WHITESPACE')}">0</td>
+        <td class="num" style="width:6%" th:text="${#numbers.formatDecimal(totalAssetsNavPercent * 100, 1, 2) + '%'}">0.00%</td>
+        <td style="width:5%"></td>
+    </tr>
+    <tr class="grand-total">
+        <td>FONDI PUHASVÄÄRTUS</td>
+        <td></td><td></td><td></td><td></td><td></td>
+        <td></td><td></td>
+        <td class="num" th:text="${#numbers.formatInteger(fundNav, 1, 'WHITESPACE')}">0</td>
+        <td></td><td></td>
+    </tr>
+    </tbody>
+</table>
+</body>
+</html>

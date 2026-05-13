@@ -14,6 +14,8 @@ import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.report.ReportImportJob;
 import ee.tuleva.onboarding.investment.report.ReportProvider;
+import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublisher;
+import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublishingResult;
 import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -26,6 +28,7 @@ import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +61,7 @@ public class AdminController {
   private final RedemptionBatchJob redemptionBatchJob;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final Clock clock;
+  private final java.util.Optional<InvestmentReportPublisher> investmentReportPublisher;
 
   @Value("${admin.api-token:}")
   private String adminApiToken;
@@ -301,6 +305,26 @@ public class AdminController {
         amount);
 
     return navFeeAccrualLedger.recordBlackrockAdjustment(fund, date, amount);
+  }
+
+  @PostMapping("/publish-investment-reports")
+  public InvestmentReportPublishingResult publishInvestmentReports(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam(required = false) Integer month,
+      @RequestParam(required = false) Integer year) {
+    validateToken(token);
+
+    var publisher =
+        investmentReportPublisher.orElseThrow(
+            () ->
+                new ResponseStatusException(
+                    SERVICE_UNAVAILABLE, "Investment report publishing not enabled"));
+
+    var previousMonth = YearMonth.now(clock).minusMonths(1);
+    var targetMonth = (month != null && year != null) ? YearMonth.of(year, month) : previousMonth;
+
+    log.info("Admin triggered investment report publishing: month={}", targetMonth);
+    return publisher.publish(targetMonth);
   }
 
   private void validateTokenWithOpsAccess(String token) {

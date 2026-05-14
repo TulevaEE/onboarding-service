@@ -5,8 +5,10 @@ import ee.tuleva.onboarding.investment.report.publishing.github.GitHubPrClient;
 import ee.tuleva.onboarding.investment.report.publishing.gmail.GmailDraftClient;
 import ee.tuleva.onboarding.investment.report.publishing.gmail.GmailDraftClient.PdfAttachment;
 import ee.tuleva.onboarding.investment.report.publishing.gmail.GmailProperties;
+import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
+import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,10 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class InvestmentReportPublisher {
 
+  private static final int MIN_END_OF_MONTH_DAY = 25;
+  private static final BigDecimal ALLOCATION_LOWER = new BigDecimal("0.985");
+  private static final BigDecimal ALLOCATION_UPPER = new BigDecimal("1.015");
+
   private final InvestmentReportDataService dataService;
   private final InvestmentReportPdfGenerator pdfGenerator;
   private final WordPressMediaClient wordPressClient;
@@ -30,16 +36,29 @@ public class InvestmentReportPublisher {
   public InvestmentReportPublishingResult publish(YearMonth month) {
     log.info("Starting investment report publishing for month={}", month);
 
+    // Pre-publish validation: NAV dates
+    var navDateErrors = validateNavDates(month);
+    if (!navDateErrors.isEmpty()) {
+      log.warn("Pre-publish validation failed: {}", navDateErrors);
+      return new InvestmentReportPublishingResult(Map.of(), null, null, navDateErrors);
+    }
+
     var errors = new ArrayList<String>();
     var pdfs = new LinkedHashMap<FundReportMapping, byte[]>();
     var wpUrls = new LinkedHashMap<String, String>();
     String prUrl = null;
     String draftId = null;
 
-    // Step 1: Generate PDFs for all funds
+    // Step 1: Generate PDFs for all funds and validate allocation
+    var allocationErrors = new ArrayList<String>();
     for (var mapping : FundReportMapping.all()) {
       try {
         var context = dataService.getReportData(mapping.fund(), month);
+        var allocationError = validateAllocation(mapping.fund().getCode(), context);
+        if (allocationError != null) {
+          allocationErrors.add(allocationError);
+          continue;
+        }
         var pdfBytes = pdfGenerator.generatePdf(context);
         pdfs.put(mapping, pdfBytes);
         log.info("Generated PDF: fund={}, size={}bytes", mapping.fund().getCode(), pdfBytes.length);
@@ -49,6 +68,11 @@ public class InvestmentReportPublisher {
         log.error(msg, e);
         errors.add(msg);
       }
+    }
+
+    if (!allocationErrors.isEmpty()) {
+      log.warn("Allocation validation failed, aborting publish: {}", allocationErrors);
+      return new InvestmentReportPublishingResult(Map.of(), null, null, allocationErrors);
     }
 
     // Step 2: Upload all PDFs to WordPress
@@ -122,4 +146,48 @@ public class InvestmentReportPublisher {
         errors.size());
     return result;
   }
+
+  private List<String> validateNavDates(YearMonth month) {
+    var navDates = dataService.findNavDatesForAllFunds(month);
+    var errors = new ArrayList<String>();
+
+    // Check all funds have published NAV data
+    var allFundCodes = FundReportMapping.all().stream().map(m -> m.fund().getCode()).toList();
+    var missingFunds = allFundCodes.stream().filter(code -> !navDates.containsKey(code)).toList();
+    if (!missingFunds.isEmpty()) {
+      errors.add("No published NAV data for funds: %s (month=%s)".formatted(missingFunds, month));
+      return errors;
+    }
+
+    // Check all funds have the same NAV date
+    var distinctDates = new LinkedHashSet<>(navDates.values());
+    if (distinctDates.size() > 1) {
+      errors.add("Inconsistent NAV dates across funds: %s".formatted(navDates));
+      return errors;
+    }
+
+    // Check NAV date is end-of-month (day >= 25)
+    var navDate = distinctDates.iterator().next();
+    if (navDate.getDayOfMonth() < MIN_END_OF_MONTH_DAY) {
+      errors.add(
+          "NAV date %s is mid-month (day %d, expected >= %d)"
+              .formatted(navDate, navDate.getDayOfMonth(), MIN_END_OF_MONTH_DAY));
+    }
+
+    return errors;
+  }
+
+  private String validateAllocation(String fundCode, InvestmentReportContext context) {
+    var pct = context.totalAssetsNavPercent();
+    if (pct.compareTo(ALLOCATION_LOWER) < 0 || pct.compareTo(ALLOCATION_UPPER) > 0) {
+      return "%s total asset allocation is %.2f%% (expected ~100%%, tolerance ±1.5%%)"
+          .formatted(fundCode, pct.movePointRight(2));
+    }
+    return null;
+  }
+
+  // TODO: B1 — validate all instruments have avg_cost_per_unit once cost basis data
+  //       is available from transaction registry migration
+  // TODO: B2 — validate instrument quantities match between NAV report and transaction
+  //       registry settled positions (safety net for late-arriving settlement data)
 }

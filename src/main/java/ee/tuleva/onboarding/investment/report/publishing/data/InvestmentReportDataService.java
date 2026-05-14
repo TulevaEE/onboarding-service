@@ -7,9 +7,11 @@ import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportCon
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportRow;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -27,6 +29,21 @@ public class InvestmentReportDataService {
 
   private final NavReportViewRepository navReportRepository;
   private final InstrumentReferenceRepository instrumentReferenceRepository;
+
+  public Map<String, LocalDate> findNavDatesForAllFunds(YearMonth month) {
+    var startDate = month.atDay(1);
+    var endDate = month.atEndOfMonth();
+    var result = new LinkedHashMap<String, LocalDate>();
+    for (var mapping : FundReportMapping.all()) {
+      var navDate =
+          navReportRepository.findLatestPublishedNavDate(
+              mapping.fund().getCode(), startDate, endDate);
+      if (navDate != null) {
+        result.put(mapping.fund().getCode(), navDate);
+      }
+    }
+    return result;
+  }
 
   public InvestmentReportContext getReportData(TulevaFund fund, YearMonth month) {
     var mapping = FundReportMapping.forFund(fund);

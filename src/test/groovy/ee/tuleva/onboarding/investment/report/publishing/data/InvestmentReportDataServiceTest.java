@@ -220,6 +220,148 @@ class InvestmentReportDataServiceTest {
   }
 
   @Test
+  void getReportDataThrowsWhenNoUnitsRow() {
+    var sec =
+        navRow(
+            "SECURITY",
+            "Fund A",
+            "IE0009FT4LX4",
+            new BigDecimal("100"),
+            new BigDecimal("50.00"),
+            new BigDecimal("5000"));
+
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", MARCH_2026.atDay(1), MARCH_2026.atEndOfMonth()))
+        .willReturn(NAV_DATE);
+    given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
+        .willReturn(List.of(sec));
+
+    assertThatThrownBy(() -> service.getReportData(TUK75, MARCH_2026))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void getReportDataExcludesZeroReceivablesFromCashSection() {
+    var sec =
+        navRow(
+            "SECURITY",
+            "Fund A",
+            "IE0009FT4LX4",
+            new BigDecimal("100"),
+            new BigDecimal("50.00"),
+            new BigDecimal("5000"));
+    var zeroRec = navRow("RECEIVABLES", "Other receivables", null, null, null, BigDecimal.ZERO);
+    var cash = navRow("CASH", "SEB deposit", null, null, null, new BigDecimal("1000"));
+    var units = navRow("UNITS", "Total", null, null, null, new BigDecimal("6000"));
+
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", MARCH_2026.atDay(1), MARCH_2026.atEndOfMonth()))
+        .willReturn(NAV_DATE);
+    given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
+        .willReturn(List.of(sec, zeroRec, cash, units));
+    given(instrumentReferenceRepository.findByIsinIn(List.of("IE0009FT4LX4")))
+        .willReturn(List.of());
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 2, 28)))
+        .willReturn(null);
+
+    var ctx = service.getReportData(TUK75, MARCH_2026);
+
+    // Only cash row, no "Muud nõuded" row since receivables are zero
+    assertThat(ctx.cashRows()).hasSize(1);
+    assertThat(ctx.cashRows().getFirst().displayName()).isEqualTo("Arvelduskonto");
+  }
+
+  @Test
+  void getReportDataHandlesPreviousMonthWithEmptyRows() {
+    var sec =
+        navRow(
+            "SECURITY",
+            "Fund A",
+            "IE0009FT4LX4",
+            new BigDecimal("100"),
+            new BigDecimal("60"),
+            new BigDecimal("6000"));
+    var units = navRow("UNITS", "Total", null, null, null, new BigDecimal("10000"));
+
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", MARCH_2026.atDay(1), MARCH_2026.atEndOfMonth()))
+        .willReturn(NAV_DATE);
+    given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
+        .willReturn(List.of(sec, units));
+    given(instrumentReferenceRepository.findByIsinIn(List.of("IE0009FT4LX4")))
+        .willReturn(List.of());
+
+    // Previous month has a NAV date but empty rows
+    var prevDate = LocalDate.of(2026, 2, 28);
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 2, 28)))
+        .willReturn(prevDate);
+    given(navReportRepository.findPublishedByNavDateAndFundCode(prevDate, "TUK75"))
+        .willReturn(List.of());
+
+    var ctx = service.getReportData(TUK75, MARCH_2026);
+
+    // No previous month data available, so change should be null
+    assertThat(ctx.securitiesSections().getFirst().totalChange()).isNull();
+  }
+
+  @Test
+  void getReportDataHandlesPreviousMonthWithCashAndReceivables() {
+    var sec =
+        navRow(
+            "SECURITY",
+            "Fund A",
+            "IE0009FT4LX4",
+            new BigDecimal("100"),
+            new BigDecimal("60"),
+            new BigDecimal("6000"));
+    var cash = navRow("CASH", "SEB deposit", null, null, null, new BigDecimal("3000"));
+    var rec = navRow("RECEIVABLES", "Other receivables", null, null, null, new BigDecimal("500"));
+    var units = navRow("UNITS", "Total", null, null, null, new BigDecimal("10000"));
+
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", MARCH_2026.atDay(1), MARCH_2026.atEndOfMonth()))
+        .willReturn(NAV_DATE);
+    given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
+        .willReturn(List.of(sec, cash, rec, units));
+    given(instrumentReferenceRepository.findByIsinIn(List.of("IE0009FT4LX4")))
+        .willReturn(List.of());
+
+    // Previous month with cash and receivables
+    var prevDate = LocalDate.of(2026, 2, 28);
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 2, 28)))
+        .willReturn(prevDate);
+    var prevSec =
+        navRow(
+            "SECURITY",
+            "Fund A",
+            "IE0009FT4LX4",
+            new BigDecimal("100"),
+            new BigDecimal("50"),
+            new BigDecimal("5000"));
+    var prevCash = navRow("CASH", "SEB deposit", null, null, null, new BigDecimal("4000"));
+    var prevRec =
+        navRow("RECEIVABLES", "Other receivables", null, null, null, new BigDecimal("200"));
+    var prevUnits = navRow("UNITS", "Total", null, null, null, new BigDecimal("10000"));
+    given(navReportRepository.findPublishedByNavDateAndFundCode(prevDate, "TUK75"))
+        .willReturn(List.of(prevSec, prevCash, prevRec, prevUnits));
+
+    var ctx = service.getReportData(TUK75, MARCH_2026);
+
+    // Cash change = current cash+rec NAV% - previous cash+rec NAV%
+    assertThat(ctx.cashTotalChange()).isNotNull();
+  }
+
+  @Test
   void formatCashAccountIdentifiesBanks() {
     assertThat(InvestmentReportDataService.formatCashAccount("SEB deposit account").name())
         .isEqualTo("Arvelduskonto");
@@ -231,8 +373,11 @@ class InvestmentReportDataServiceTest {
         .isEqualTo("AS LHV Pank");
     assertThat(InvestmentReportDataService.formatCashAccount("Unknown bank").name())
         .isEqualTo("Arvelduskonto");
+    assertThat(InvestmentReportDataService.formatCashAccount("Luminor current").institution())
+        .isEqualTo("Luminor Bank AS");
     assertThat(InvestmentReportDataService.formatCashAccount("Unknown bank").institution())
         .isEqualTo("Unknown bank");
+    assertThat(InvestmentReportDataService.formatCashAccount(null).institution()).isNull();
   }
 
   private NavReportView navRow(

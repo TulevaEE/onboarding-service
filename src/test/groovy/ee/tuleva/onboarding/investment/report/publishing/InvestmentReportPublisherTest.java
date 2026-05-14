@@ -238,6 +238,29 @@ class InvestmentReportPublisherTest {
   }
 
   @Test
+  void publishSkipsGitHubPrWhenAllFundsFailWordPressUpload() {
+    given(dataService.findNavDatesForAllFunds(MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
+    var context = sampleContext("Test Fund");
+    var pdfBytes = new byte[] {0x25, 0x50, 0x44, 0x46};
+
+    given(dataService.getReportData(any(), eq(MARCH_2026))).willReturn(context);
+    given(pdfGenerator.generatePdf(context)).willReturn(pdfBytes);
+    given(wordPressClient.upload(any(), any())).willThrow(new RuntimeException("WP unavailable"));
+    given(gmailDraftClient.fetchSignature()).willReturn("sig");
+    given(gmailDraftClient.createDraft(any(), any(), any(), any(), any())).willReturn("draft-1");
+    given(gmailProperties.to()).willReturn("test@example.com");
+    given(gmailProperties.cc()).willReturn("cc@example.com");
+
+    var result = publisher.publish(MARCH_2026);
+
+    assertThat(result.wordPressUrls()).isEmpty();
+    assertThat(result.gitHubPrUrl()).isNull();
+    assertThat(result.errors()).hasSize(4);
+    // GitHub PR skipped because no successful WP uploads → prMappings is empty
+    verifyNoInteractions(gitHubPrClient);
+  }
+
+  @Test
   void publishRejectsMissingNavDateForFund() {
     var navDates =
         Map.of(

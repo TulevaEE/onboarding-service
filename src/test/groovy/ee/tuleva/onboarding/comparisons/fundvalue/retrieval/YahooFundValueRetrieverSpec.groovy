@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.time.ClockHolder
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.restclient.test.autoconfigure.RestClientTest
 import org.springframework.context.annotation.Import
+import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.test.web.client.MockRestServiceServer
 import spock.lang.Specification
@@ -17,6 +18,7 @@ import java.time.LocalDate
 import static java.math.BigDecimal.ZERO
 import static java.time.ZoneOffset.UTC
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
 
 @RestClientTest(YahooFundValueRetriever)
@@ -183,6 +185,57 @@ class YahooFundValueRetrieverSpec extends Specification {
       assert tickerValues[1].value() == 13.7229995727539
       assert tickerValues[2].date() == LocalDate.of(2018, 1, 6)
       assert tickerValues[2].value() == 13.85
+    }
+  }
+
+  def "skips a ticker that returns 404 and continues with the rest"() {
+    given:
+    def validResponse = """
+      {
+        "chart": {
+          "result": [
+            {
+              "timestamp": [1514876400],
+              "indicators": {
+                "adjclose": [
+                  { "adjclose": [10.0] }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    """
+    def notFoundBody = '{"chart":{"result":null,"error":{"code":"Not Found","description":"No data found, symbol may be delisted"}}}'
+
+    def tickers = YahooFundValueRetriever.FUND_TICKERS
+    def failingTicker = tickers[0]
+    tickers.each { fund ->
+      def url = String.format(
+          "https://query1.finance.yahoo.com/v8/finance/chart/%s?interval=1d&events=history&includeAdjustedClose=true&period1=1514764800&period2=1514937600",
+          fund)
+      if (fund == failingTicker) {
+        server.expect(requestTo(url))
+            .andRespond(withStatus(HttpStatus.NOT_FOUND)
+                .body(notFoundBody)
+                .contentType(MediaType.APPLICATION_JSON))
+      } else {
+        server.expect(requestTo(url))
+            .andRespond(withSuccess(validResponse, MediaType.APPLICATION_JSON))
+      }
+    }
+
+    when:
+    LocalDate startDate = LocalDate.of(2018, 1, 2)
+    LocalDate endDate = LocalDate.of(2018, 1, 2)
+    def result = retriever.retrieveValuesForRange(startDate, endDate)
+
+    then:
+    noExceptionThrown()
+    result.findAll { it.key() == failingTicker }.isEmpty()
+    (tickers - failingTicker).each { ticker ->
+      assert result.findAll { it.key() == ticker }.size() == 1
     }
   }
 

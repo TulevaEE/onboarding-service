@@ -21,6 +21,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
@@ -56,9 +57,19 @@ public class YahooFundValueRetriever implements ComparisonIndexRetriever {
   @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
     return FUND_TICKERS.stream()
-        .map(fundName -> retrieveValuesForFund(fundName, startDate, endDate))
+        .map(fundName -> retrieveValuesForFundSafely(fundName, startDate, endDate))
         .flatMap(List::stream)
         .toList();
+  }
+
+  private List<FundValue> retrieveValuesForFundSafely(
+      String fundName, LocalDate startDate, LocalDate endDate) {
+    try {
+      return retrieveValuesForFund(fundName, startDate, endDate);
+    } catch (RestClientException | IllegalStateException e) {
+      log.warn("Skipping fund: ticker={}, reason={}", fundName, e.getMessage());
+      return List.of();
+    }
   }
 
   private List<FundValue> retrieveValuesForFund(

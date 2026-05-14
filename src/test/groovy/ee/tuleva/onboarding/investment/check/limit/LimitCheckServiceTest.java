@@ -639,19 +639,14 @@ class LimitCheckServiceTest {
         .thenReturn(Optional.of(today));
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, SECURITY))
         .thenReturn(List.of());
-    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, UNITS))
-        .thenReturn(List.of());
-    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-            fund, today, List.of(CASH, RECEIVABLES, LIABILITY)))
-        .thenReturn(BigDecimal.ZERO);
-    when(fundPositionRepository.sumMarketValueByFundAndAccountTypes(fund, today, List.of(SECURITY)))
-        .thenReturn(BigDecimal.ZERO);
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, CASH))
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, LIABILITY))
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, FEE))
         .thenReturn(List.of());
+    when(navReportPositionProvider.getCalculatedAum(fund, today))
+        .thenReturn(Optional.of(new BigDecimal("1000000")));
 
     var currentAllocation =
         ModelPortfolioAllocation.builder()

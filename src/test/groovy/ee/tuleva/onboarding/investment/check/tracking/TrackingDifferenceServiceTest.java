@@ -1069,10 +1069,10 @@ class TrackingDifferenceServiceTest {
   void includesInRunoffSecuritiesWithZeroModelWeight() {
     skipOtherFunds(TUK75);
 
-    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE))
-        .willReturn(Optional.of(fundValue("10.10", CHECK_DATE)));
-    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE.minusDays(1)))
-        .willReturn(Optional.of(fundValue("10.00", PREVIOUS_DATE)));
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var currentAllocation =
         ModelPortfolioAllocation.builder()
@@ -1154,10 +1154,10 @@ class TrackingDifferenceServiceTest {
   void doesNotThrowForInRunoffSecuritiesWithMissingPrices() {
     skipOtherFunds(TUK75);
 
-    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE))
-        .willReturn(Optional.of(fundValue("10.10", CHECK_DATE)));
-    given(fundValueProvider.getLatestValue(TUK75.getIsin(), CHECK_DATE.minusDays(1)))
-        .willReturn(Optional.of(fundValue("10.00", PREVIOUS_DATE)));
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var currentAllocation =
         ModelPortfolioAllocation.builder()

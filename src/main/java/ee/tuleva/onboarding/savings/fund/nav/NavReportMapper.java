@@ -113,7 +113,7 @@ class NavReportMapper {
         .accountName(displayName)
         .accountId(detail.isin())
         .quantity(detail.units().setScale(3, HALF_UP))
-        .marketPrice(detail.price().setScale(4, HALF_UP))
+        .marketPrice(detail.price())
         .marketValue(detail.marketValue().setScale(2, HALF_UP))
         .build();
   }

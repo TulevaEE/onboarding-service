@@ -161,24 +161,25 @@ public enum FundTicker {
 
   // Benchmark proxy ETFs (not held in portfolios — used for BENCHMARK_MODEL comparison).
   // benchmarkCategory is intentionally null: these are the benchmarks themselves, not tracked
-  // instruments.
+  // instruments. Tickers below are the XETRA listings (Yahoo/EODHD/Bloomberg short form), which
+  // differ from the Amsterdam/London listings for the same ISINs.
   ISHARES_CORE_MSCI_WORLD(
-      "IWDA.DE", "IWDA.XETRA", "IE00B4L5Y983", "iShares Core MSCI World UCITS ETF", "IWDA", null),
+      "EUNL.DE", "EUNL.XETRA", "IE00B4L5Y983", "iShares Core MSCI World UCITS ETF", "EUNL", null),
   ISHARES_MSCI_EM(
       "EUNM.DE", "EUNM.XETRA", "IE00B4L5YC18", "iShares MSCI EM UCITS ETF", "EUNM", null),
   ISHARES_EURO_AGG_BOND_ETF(
-      "IEAG.DE",
-      "IEAG.XETRA",
+      "EUN4.DE",
+      "EUN4.XETRA",
       "IE00B3DKXQ41",
       "iShares Euro Aggregate Bond UCITS ETF",
-      "IEAG",
+      "EUN4",
       null),
   ISHARES_GLOBAL_AGG_BOND_ETF(
-      "AGGH.DE",
-      "AGGH.XETRA",
+      "EUNA.DE",
+      "EUNA.XETRA",
       "IE00BDBRDM35",
       "iShares Global Aggregate Bond UCITS ETF",
-      "AGGH",
+      "EUNA",
       null);
 
   private final String yahooTicker;

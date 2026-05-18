@@ -42,6 +42,23 @@ public class SebPendingTransactionReconciliationService {
         orderOpt = complexMatcher.match(row);
       }
       if (orderOpt.isEmpty()) {
+        Optional<QuantityAmountMismatchEvent> nearMiss = complexMatcher.findNearMiss(row);
+        if (nearMiss.isPresent()) {
+          QuantityAmountMismatchEvent event = nearMiss.get().withReportDate(report.getReportDate());
+          log.info(
+              "Quantity/amount near-miss: clientRef={}, ourRef={}, isin={}, kind={}, expected={},"
+                  + " actual={}, reportDate={}",
+              row.clientRef(),
+              row.ourRef(),
+              row.isin(),
+              event.kind(),
+              event.expected(),
+              event.actual(),
+              report.getReportDate());
+          eventPublisher.publishEvent(event);
+          unmatched++;
+          continue;
+        }
         log.info(
             "Unmatched pending transaction: clientRef={}, ourRef={}, isin={}, reportDate={}",
             row.clientRef(),

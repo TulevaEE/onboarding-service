@@ -164,6 +164,44 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
+  void reconcile_nearMissOrder_publishesQuantityAmountMismatchEventAndNotUnmatched() {
+    service = newService();
+    UUID clientRef = UUID.fromString("00000000-0000-0000-0000-000000000099");
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.empty());
+
+    // Order quantity 15007 vs row 15007.0003 → outside 0.0001 tolerance but inside 0.0005 (5x)
+    TransactionOrder order =
+        TransactionOrder.builder()
+            .id(123L)
+            .fund(TKF100)
+            .instrumentIsin("IE000F60HVH9")
+            .transactionType(BUY)
+            .instrumentType(ETF)
+            .orderQuantity(15007L)
+            .orderVenue(OrderVenue.SEB)
+            .orderUuid(UUID.randomUUID())
+            .orderStatus(SENT)
+            .build();
+    given(orderRepository.findByInstrumentIsin("IE000F60HVH9")).willReturn(List.of(order));
+    given(executionRepository.findByOrderId(123L)).willReturn(Optional.empty());
+
+    InvestmentReport report = reportWithSingleRowQuantity(clientRef, new BigDecimal("15007.0003"));
+    service.reconcile(report);
+
+    verify(eventPublisher)
+        .publishEvent(
+            argThat(
+                (Object e) ->
+                    e instanceof QuantityAmountMismatchEvent qe
+                        && qe.reportDate().equals(report.getReportDate())
+                        && qe.nearMissOrder().getId().equals(123L)
+                        && qe.kind() == QuantityAmountMismatchEvent.MismatchKind.ETF_QUANTITY));
+    verify(eventPublisher, org.mockito.Mockito.never())
+        .publishEvent(any(UnmatchedPendingTransactionEvent.class));
+    verify(executionRepository, org.mockito.Mockito.never()).save(any());
+  }
+
+  @Test
   void reconcile_neitherUuidNorComplexMatch_publishesUnmatchedEvent() {
     service = newService();
     UUID clientRef = UUID.fromString("00000000-0000-0000-0000-000000000099");
@@ -219,6 +257,32 @@ class SebPendingTransactionReconciliationServiceTest {
         .orderVenue(OrderVenue.SEB)
         .orderUuid(clientRef)
         .orderStatus(SENT)
+        .build();
+  }
+
+  private static InvestmentReport reportWithSingleRowQuantity(UUID clientRef, BigDecimal quantity) {
+    Map<String, Object> raw = new HashMap<>();
+    raw.put("ISIN", "IE000F60HVH9");
+    raw.put("Price", new BigDecimal("4.7255"));
+    raw.put("Total", new BigDecimal("70915.58"));
+    raw.put("Account", "VP68168");
+    raw.put("Our ref", "DLA0799512");
+    raw.put("Buy/Sell", "Buy");
+    raw.put("Quantity", quantity);
+    raw.put("Broker fee", new BigDecimal("0.00"));
+    if (clientRef != null) {
+      raw.put("Client ref", clientRef.toString());
+    }
+    raw.put("Trade date", "2026-05-11T10:26:04Z");
+    raw.put("Settlement date", "2026-05-13");
+    raw.put("Settlement amount", new BigDecimal("70915.58"));
+    raw.put("Client name", "Tuleva Täiendav Kogumisfond");
+    raw.put("Instrument name", "ICAV Amundi MSCI USA Screened UCITS ETF");
+    return InvestmentReport.builder()
+        .provider(SEB)
+        .reportType(PENDING_TRANSACTIONS)
+        .reportDate(LocalDate.of(2026, 5, 13))
+        .rawData(List.of(raw))
         .build();
   }
 

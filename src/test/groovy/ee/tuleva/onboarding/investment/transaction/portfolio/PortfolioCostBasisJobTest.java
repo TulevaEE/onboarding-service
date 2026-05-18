@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;

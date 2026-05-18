@@ -1,12 +1,14 @@
-package ee.tuleva.onboarding.investment.transaction.portfolio;
+package ee.tuleva.onboarding.investment.transaction;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
-import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
-import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
-import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
+import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisCalculator;
 import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisCalculator.ExecutionEvent;
 import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisCalculator.PriorPosition;
+import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioBaseline;
+import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioBaselineEntry;
+import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioBaselineRepository;
+import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasis;
+import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasisRepository;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Comparator;
@@ -159,8 +161,7 @@ public class PortfolioCostBasisService {
                     "Execution refers to missing order: orderId=" + execution.getOrderId()));
   }
 
-  private ee.tuleva.onboarding.investment.transaction.TransactionType sideFor(
-      TransactionExecution execution) {
+  private TransactionType sideFor(TransactionExecution execution) {
     return orderRepository
         .findById(execution.getOrderId())
         .map(TransactionOrder::getTransactionType)

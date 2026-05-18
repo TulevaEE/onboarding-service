@@ -58,7 +58,8 @@ class TransactionModuleBoundaryTest {
             TRANSACTION_PACKAGE + ".TransactionOrder",
             TRANSACTION_PACKAGE + ".TransactionOrderRepository",
             TRANSACTION_PACKAGE + ".TransactionExecution",
-            TRANSACTION_PACKAGE + ".TransactionExecutionRepository");
+            TRANSACTION_PACKAGE + ".TransactionExecutionRepository",
+            TRANSACTION_PACKAGE + ".PortfolioCostBasisService");
   }
 
   @Test
@@ -84,9 +85,9 @@ class TransactionModuleBoundaryTest {
         .dependOnClassesThat()
         .resideInAPackage(PORTFOLIO_PACKAGE)
         .because(
-            "portfolio/ is internal; the only public read API is"
+            "portfolio/ is internal; the public read API"
                 + " PortfolioCostBasisService.snapshotForFundAndDate(TulevaFund, LocalDate)"
-                + " and even that should be promoted to the package root before external use")
+                + " lives at the package root")
         .check(PRODUCTION_CLASSES);
   }
 

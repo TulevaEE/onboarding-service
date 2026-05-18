@@ -7,9 +7,9 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import ee.tuleva.onboarding.investment.transaction.ingest.PortfolioReconciliationMismatchEvent.MismatchEntry;
 import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasis;
-import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasisService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;

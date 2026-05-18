@@ -73,6 +73,9 @@ public class FundPositionImportJob {
 
   @EventListener
   public void onReportImportCompleted(ReportImportCompleted event) {
+    if (event.reportType() != POSITIONS) {
+      return;
+    }
     runImportPipeline();
   }
 

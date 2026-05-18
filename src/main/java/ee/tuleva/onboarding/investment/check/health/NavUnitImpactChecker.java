@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.check.health;
 
-import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_UNIT_IMPACT;
 import static java.math.RoundingMode.HALF_UP;
 
@@ -45,7 +45,7 @@ class NavUnitImpactChecker {
           new HealthCheckFinding(
               fund,
               NAV_UNIT_IMPACT,
-              WARNING,
+              FAIL,
               "NAV_SEB=%s vs NAV_EPIS=%s = %s%% NAV difference"
                   .formatted(
                       navWithReported.toPlainString(),

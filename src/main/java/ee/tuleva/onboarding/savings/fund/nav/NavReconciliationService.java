@@ -21,9 +21,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 class NavReconciliationService {
 
-  // Pensionikeskus computes AUM as registry_units × NAV_per_unit, which differs from
-  // Tuleva's bottom-up calculation (assets - liabilities) by the value of pending
-  // subscription/redemption units. Differences under 0.10% are expected.
   static final BigDecimal AUM_TOLERANCE_PERCENT = new BigDecimal("0.10");
 
   private final NavReportRepository navReportRepository;

@@ -74,8 +74,7 @@ class NavReconciliationServiceTest {
   }
 
   @Test
-  void reconcile_silent_whenAumWithinTolerance() {
-    // 0.0002% difference — typical Pensionikeskus vs Tuleva gap from pending subscriptions
+  void reconcile_silent_whenPensionikeskusAumDiffersFromTulevaByPendingSubscriptionUnits() {
     stubNavReport(TUK75, NAV_DATE, "1.53105", "1055262737.00");
     stubFundValue(TUK75.getIsin(), NAV_DATE, "1.53105");
     stubFundValue(TUK75.getAumKey(), NAV_DATE, "1055264997");
@@ -87,7 +86,6 @@ class NavReconciliationServiceTest {
 
   @Test
   void reconcile_alerts_whenAumExceedsTolerance() {
-    // >0.10% difference
     stubNavReport(TKF100, NAV_DATE, "9.6994", "969941.07");
     stubFundValue(TKF100.getIsin(), NAV_DATE, "9.6994");
     stubFundValue(TKF100.getAumKey(), NAV_DATE, "971000.00");

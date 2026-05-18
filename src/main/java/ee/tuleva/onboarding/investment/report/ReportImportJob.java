@@ -65,7 +65,6 @@ public class ReportImportJob {
     pipelineTracker.stepStarted(REPORT_IMPORT);
     runImport();
     pipelineTracker.stepCompleted(REPORT_IMPORT);
-    eventPublisher.publishEvent(new ReportImportCompleted());
   }
 
   public void runImport() {
@@ -169,12 +168,15 @@ public class ReportImportJob {
               source.getHeaderRowIndex(),
               metadata);
 
+      int rowCount = report.getRawData().size();
       log.info(
           "Report import completed: provider={}, reportType={}, date={}, rowCount={}",
           provider,
           reportType,
           date,
-          report.getRawData().size());
+          rowCount);
+
+      eventPublisher.publishEvent(new ReportImportCompleted(provider, reportType, date, rowCount));
 
     } catch (IOException e) {
       log.error(

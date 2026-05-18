@@ -99,6 +99,17 @@ class NavReconciliationServiceTest {
   }
 
   @Test
+  void reconcile_alerts_whenAumIsZeroButFundValueIsNot() {
+    stubNavReport(TKF100, NAV_DATE, "9.6994", "0.00");
+    stubFundValue(TKF100.getIsin(), NAV_DATE, "9.6994");
+    stubFundValue(TKF100.getAumKey(), NAV_DATE, "100.00");
+
+    reconciliationService.reconcile(NAV_DATE);
+
+    verify(notificationService).sendMessage(contains("AUM mismatch"), eq(INVESTMENT));
+  }
+
+  @Test
   void reconcile_alerts_whenFundValueMissing() {
     stubNavReport(TKF100, NAV_DATE, "9.6994", "969941.07");
     when(fundValueProvider.getValueForDate(TKF100.getIsin(), NAV_DATE))

@@ -145,6 +145,24 @@ class LiquidityRiskAlertJobTest {
     verifyNoInteractions(notificationService);
   }
 
+  @Test
+  void silent_whenAumIsZero() {
+    var job = jobOn(WED_1605_UTC);
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    given(publicHolidays.isWorkingDay(today)).willReturn(true);
+
+    Instant cutoff = Instant.parse("2025-01-15T14:00:00Z");
+    given(redemptionRequestRepository.findByStatusAndRequestedAtBefore(VERIFIED, cutoff))
+        .willReturn(List.of(requestWithAmount(new BigDecimal("5000.00"))));
+
+    given(fundValueRepository.findLastValueForFund(TKF100.getAumKey()))
+        .willReturn(Optional.of(aumValue(BigDecimal.ZERO)));
+
+    job.checkLiquidityRisk();
+
+    verifyNoInteractions(notificationService);
+  }
+
   private LiquidityRiskAlertJob jobOn(String instant) {
     Clock clock = Clock.fixed(Instant.parse(instant), TALLINN);
     return new LiquidityRiskAlertJob(

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
@@ -19,6 +20,11 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 class NavReconciliationService {
+
+  // Pensionikeskus computes AUM as registry_units × NAV_per_unit, which differs from
+  // Tuleva's bottom-up calculation (assets - liabilities) by the value of pending
+  // subscription/redemption units. Differences under 0.10% are expected.
+  static final BigDecimal AUM_TOLERANCE_PERCENT = new BigDecimal("0.10");
 
   private final NavReportRepository navReportRepository;
   private final FundValueProvider fundValueProvider;
@@ -70,7 +76,7 @@ class NavReconciliationService {
               fundValueProvider.getValueForDate(fund.getAumKey(), navDate);
           if (fundValue.isEmpty()) {
             mismatches.add("AUM fund_value missing (nav_report has " + reportAum + ")");
-          } else if (reportAum.compareTo(fundValue.get().value()) != 0) {
+          } else if (exceedsTolerance(reportAum, fundValue.get().value())) {
             mismatches.add(
                 "AUM mismatch: nav_report="
                     + reportAum
@@ -92,5 +98,18 @@ class NavReconciliationService {
     } else {
       log.info("CSV-to-API reconciliation passed: fund={}, date={}", fund.getCode(), navDate);
     }
+  }
+
+  private boolean exceedsTolerance(BigDecimal expected, BigDecimal actual) {
+    if (expected.signum() == 0) {
+      return actual.signum() != 0;
+    }
+    BigDecimal percentDiff =
+        expected
+            .subtract(actual)
+            .abs()
+            .multiply(new BigDecimal("100"))
+            .divide(expected.abs(), 6, HALF_UP);
+    return percentDiff.compareTo(AUM_TOLERANCE_PERCENT) > 0;
   }
 }

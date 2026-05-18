@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_UNIT_IMPACT;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,7 +26,7 @@ class NavUnitImpactCheckerTest {
   }
 
   @Test
-  void warningWhenUnitDifferenceAffectsNav() {
+  void failWhenUnitDifferenceAffectsNav() {
     // TKF100 navScale=4: 1000000/100000 = 10.0000, 1000000/100001 = 9.9999
     var findings =
         checker.check(
@@ -38,7 +38,7 @@ class NavUnitImpactCheckerTest {
             f -> {
               assertThat(f.fund()).isEqualTo(TKF100);
               assertThat(f.checkType()).isEqualTo(NAV_UNIT_IMPACT);
-              assertThat(f.severity()).isEqualTo(WARNING);
+              assertThat(f.severity()).isEqualTo(FAIL);
             });
   }
 

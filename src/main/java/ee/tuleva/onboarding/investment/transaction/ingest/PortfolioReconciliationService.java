@@ -2,12 +2,11 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
+import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisSnapshot;
 import ee.tuleva.onboarding.investment.transaction.ingest.PortfolioReconciliationMismatchEvent.MismatchEntry;
-import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasis;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -81,12 +80,10 @@ public class PortfolioReconciliationService {
   }
 
   private Map<String, BigDecimal> readOurQuantities(TulevaFund fund, LocalDate asOfDate) {
-    List<PortfolioCostBasis> rows = costBasisService.snapshotForFundAndDate(fund, asOfDate);
+    List<PortfolioCostBasisSnapshot> snapshots =
+        costBasisService.snapshotForFundAndDate(fund, asOfDate);
     Map<String, BigDecimal> result = new HashMap<>();
-    rows.stream()
-        .sorted(
-            Comparator.comparing(PortfolioCostBasis::getId, Comparator.nullsLast(Long::compare)))
-        .forEach(row -> result.put(row.getInstrumentIsin(), row.getQuantity()));
+    snapshots.forEach(snapshot -> result.put(snapshot.instrumentIsin(), snapshot.quantity()));
     return result;
   }
 

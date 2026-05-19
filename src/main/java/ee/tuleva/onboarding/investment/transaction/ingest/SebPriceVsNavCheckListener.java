@@ -22,11 +22,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class SebPriceVsNavCheckListener {
 
-  /**
-   * Must run AFTER {@link SebPendingTransactionReconciliationListener} (order 0) so the matched
-   * {@link TransactionExecution} rows are already persisted when we look them up.
-   */
-  static final int LISTENER_ORDER = 10;
+  static final int LISTENER_ORDER = SebPendingTransactionReconciliationListener.LISTENER_ORDER + 10;
 
   private final InvestmentReportService reportService;
   private final SebPendingTransactionExtractor extractor;

@@ -215,6 +215,41 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
+  void reconcile_malformedRow_isSkippedAndValidRowsStillProcessed() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+    given(executionRepository.findByOrderId(123L)).willReturn(Optional.empty());
+
+    Map<String, Object> malformed = new HashMap<>();
+    malformed.put("ISIN", "IE000F60HVH9");
+    malformed.put("Client ref", "not-a-uuid");
+    malformed.put("Buy/Sell", "Buy");
+    malformed.put("Our ref", "DLA9999999");
+
+    Map<String, Object> validRow = validRawRow(clientRef);
+
+    InvestmentReport report =
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(PENDING_TRANSACTIONS)
+            .reportDate(LocalDate.of(2026, 5, 13))
+            .rawData(List.of(malformed, validRow))
+            .build();
+
+    service.reconcile(report);
+
+    verify(executionRepository)
+        .save(
+            argThat(
+                (TransactionExecution e) ->
+                    e.getOrderId().equals(123L)
+                        && "DLA0799512".equals(e.getBrokerTransactionId())));
+    assertThat(order.getOrderStatus()).isEqualTo(EXECUTED);
+  }
+
+  @Test
   void reconcile_secondRunResolvesToDifferentOrder_doesNotRelink() {
     service = newService();
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
@@ -287,6 +322,15 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   private static InvestmentReport reportWithSingleRow(UUID clientRef) {
+    return InvestmentReport.builder()
+        .provider(SEB)
+        .reportType(PENDING_TRANSACTIONS)
+        .reportDate(LocalDate.of(2026, 5, 13))
+        .rawData(List.of(validRawRow(clientRef)))
+        .build();
+  }
+
+  private static Map<String, Object> validRawRow(UUID clientRef) {
     Map<String, Object> raw = new HashMap<>();
     raw.put("ISIN", "IE000F60HVH9");
     raw.put("Price", new BigDecimal("4.7255"));
@@ -304,11 +348,6 @@ class SebPendingTransactionReconciliationServiceTest {
     raw.put("Settlement amount", new BigDecimal("70915.58"));
     raw.put("Client name", "Tuleva Täiendav Kogumisfond");
     raw.put("Instrument name", "ICAV Amundi MSCI USA Screened UCITS ETF");
-    return InvestmentReport.builder()
-        .provider(SEB)
-        .reportType(PENDING_TRANSACTIONS)
-        .reportDate(LocalDate.of(2026, 5, 13))
-        .rawData(List.of(raw))
-        .build();
+    return raw;
   }
 }

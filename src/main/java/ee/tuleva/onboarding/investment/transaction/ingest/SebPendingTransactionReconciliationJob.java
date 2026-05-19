@@ -12,11 +12,13 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@Profile({"production", "staging"})
 @RequiredArgsConstructor
 class SebPendingTransactionReconciliationJob {
 
@@ -37,7 +39,7 @@ class SebPendingTransactionReconciliationJob {
         "Running scheduled SEB pending transactions reconciliation: today={}, lookbackDays={}",
         today,
         LOOKBACK_DAYS);
-    for (int i = 1; i <= LOOKBACK_DAYS; i++) {
+    for (int i = 0; i <= LOOKBACK_DAYS; i++) {
       LocalDate date = today.minusDays(i);
       try {
         Optional<InvestmentReport> report =

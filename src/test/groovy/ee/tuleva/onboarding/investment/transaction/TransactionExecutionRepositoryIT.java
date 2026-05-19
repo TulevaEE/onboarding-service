@@ -10,6 +10,7 @@ import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -105,6 +106,63 @@ class TransactionExecutionRepositoryIT {
   @Test
   void findByOrderId_returnsEmptyWhenMissing() {
     assertThat(executionRepository.findByOrderId(999_999L)).isEmpty();
+  }
+
+  @Test
+  void findByOrderIdInAndExecutionTimestampInRange_returnsOnlyMatchingOrdersWithinHalfOpenWindow() {
+    TransactionOrder withinOrder1 = persistOrder();
+    TransactionOrder withinOrder2 = persistOrder();
+    TransactionOrder beforeOrder = persistOrder();
+    TransactionOrder boundaryOrder = persistOrder();
+    TransactionOrder unrelatedOrder = persistOrder();
+
+    Instant inside = Instant.parse("2026-05-11T10:00:00Z");
+    Instant fromInclusive = Instant.parse("2026-05-11T00:00:00Z");
+    Instant toExclusive = Instant.parse("2026-05-12T00:00:00Z");
+    Instant beforeWindow = Instant.parse("2026-05-10T23:59:59Z");
+    Instant atUpperBoundary = toExclusive;
+
+    TransactionExecution withinForOrder1 =
+        executionRepository.save(execution(withinOrder1.getId(), "DLA_W1", inside));
+    TransactionExecution withinForOrder2 =
+        executionRepository.save(execution(withinOrder2.getId(), "DLA_W2", inside));
+    executionRepository.save(execution(beforeOrder.getId(), "DLA_BEFORE", beforeWindow));
+    executionRepository.save(execution(boundaryOrder.getId(), "DLA_BOUNDARY", atUpperBoundary));
+    executionRepository.save(execution(unrelatedOrder.getId(), "DLA_UNRELATED", inside));
+
+    entityManager.flush();
+    entityManager.clear();
+
+    List<TransactionExecution> matches =
+        executionRepository.findByOrderIdInAndExecutionTimestampInRange(
+            List.of(
+                withinOrder1.getId(),
+                withinOrder2.getId(),
+                beforeOrder.getId(),
+                boundaryOrder.getId()),
+            fromInclusive,
+            toExclusive);
+
+    assertThat(matches)
+        .extracting(TransactionExecution::getId)
+        .containsExactlyInAnyOrder(withinForOrder1.getId(), withinForOrder2.getId());
+  }
+
+  @Test
+  void findByOrderIdInAndExecutionTimestampInRange_returnsEmptyForEmptyOrderIds() {
+    assertThat(
+            executionRepository.findByOrderIdInAndExecutionTimestampInRange(
+                List.of(), Instant.EPOCH, Instant.parse("2099-01-01T00:00:00Z")))
+        .isEmpty();
+  }
+
+  private TransactionExecution execution(Long orderId, String brokerTxId, Instant timestamp) {
+    return TransactionExecution.builder()
+        .orderId(orderId)
+        .brokerTransactionId(brokerTxId)
+        .executionTimestamp(timestamp)
+        .source("SEB_OOTEL")
+        .build();
   }
 
   private TransactionOrder persistOrder() {

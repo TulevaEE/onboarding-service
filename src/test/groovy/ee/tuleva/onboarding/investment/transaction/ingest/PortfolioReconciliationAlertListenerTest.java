@@ -58,7 +58,7 @@ class PortfolioReconciliationAlertListenerTest {
 
     assertThat(message.getFromEmail()).isEqualTo("funds@tuleva.ee");
     assertThat(message.getSubject())
-        .isEqualTo("[HOIATUS] Portfellipositsioonide lahknevus – 2026-05-18 – 1 fondi");
+        .isEqualTo("[HOIATUS] Portfellipositsioonide lahknevus – TUK75 – 2026-05-18");
 
     assertThat(message.getTo()).hasSize(2);
     assertThat(message.getTo().get(0).getEmail()).isEqualTo("funds@tuleva.ee");

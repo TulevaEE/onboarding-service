@@ -9,13 +9,12 @@ import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioBaselineEn
 import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioBaselineRepository;
 import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasis;
 import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasisRepository;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -73,8 +72,20 @@ public class PortfolioCostBasisService {
   }
 
   @Transactional(readOnly = true)
-  public List<PortfolioCostBasis> snapshotForFundAndDate(TulevaFund fund, LocalDate asOfDate) {
-    return costBasisRepository.findByFundIsinAndAsOfDate(fund.getIsin(), asOfDate);
+  public List<PortfolioCostBasisSnapshot> snapshotForFundAndDate(
+      TulevaFund fund, LocalDate asOfDate) {
+    return costBasisRepository.findByFundIsinAndAsOfDate(fund.getIsin(), asOfDate).stream()
+        .map(PortfolioCostBasisService::toSnapshot)
+        .toList();
+  }
+
+  private static PortfolioCostBasisSnapshot toSnapshot(PortfolioCostBasis row) {
+    return new PortfolioCostBasisSnapshot(
+        row.getInstrumentIsin(),
+        row.getQuantity(),
+        row.getAvgUnitCost(),
+        row.getTotalCost(),
+        row.getAsOfDate());
   }
 
   private void computeAndUpsert(
@@ -125,15 +136,16 @@ public class PortfolioCostBasisService {
   }
 
   private List<TransactionExecution> findExecutionsByTradeDate(TulevaFund fund, LocalDate date) {
-    List<TransactionOrder> orders =
-        orderRepository.findAll().stream().filter(o -> o.getFund() == fund).toList();
-    Map<Long, TransactionOrder> byId = new HashMap<>();
-    for (TransactionOrder o : orders) {
-      byId.put(o.getId(), o);
+    List<Long> fundOrderIds =
+        orderRepository.findByFund(fund).stream().map(TransactionOrder::getId).toList();
+    if (fundOrderIds.isEmpty()) {
+      return List.of();
     }
-    return executionRepository.findAll().stream()
-        .filter(e -> byId.containsKey(e.getOrderId()))
-        .filter(e -> tradeDate(e).equals(date))
+    Instant fromInclusive = date.atStartOfDay(TALLINN).toInstant();
+    Instant toExclusive = date.plusDays(1).atStartOfDay(TALLINN).toInstant();
+    return executionRepository
+        .findByOrderIdInAndExecutionTimestampInRange(fundOrderIds, fromInclusive, toExclusive)
+        .stream()
         .sorted(
             Comparator.comparing(
                     TransactionExecution::getExecutionTimestamp,
@@ -169,16 +181,6 @@ public class PortfolioCostBasisService {
             () ->
                 new IllegalStateException(
                     "Execution refers to missing order: orderId=" + execution.getOrderId()));
-  }
-
-  private LocalDate tradeDate(TransactionExecution execution) {
-    if (execution.getExecutionTimestamp() != null) {
-      return execution.getExecutionTimestamp().atZone(TALLINN).toLocalDate();
-    }
-    if (execution.getActualSettlementDate() != null) {
-      return execution.getActualSettlementDate();
-    }
-    return execution.getNavDate();
   }
 
   private static List<String> baselineEntryIsins(PortfolioBaseline baseline) {

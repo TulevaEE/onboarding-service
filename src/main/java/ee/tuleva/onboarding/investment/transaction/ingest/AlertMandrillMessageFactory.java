@@ -22,7 +22,6 @@ class AlertMandrillMessageFactory {
     message.setFromName("Tuleva");
     message.setSubject(subject);
     message.setText(textBody);
-    message.setAutoHtml(true);
     message.setPreserveRecipients(true);
     message.setTo(buildRecipients());
     return message;

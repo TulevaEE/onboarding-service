@@ -8,31 +8,24 @@ import org.springframework.stereotype.Component;
 class TransactionExecutionMapper {
 
   static final String SOURCE_SEB_OOTEL = "SEB_OOTEL";
+  static final String MODIFIED_BY_SEB_RECONCILIATION = "system:seb-reconciliation";
 
   TransactionExecution toExecution(SebPendingTransactionRow row, TransactionOrder order) {
-    return TransactionExecution.builder()
-        .orderId(order.getId())
-        .brokerTransactionId(row.ourRef())
-        .executionTimestamp(row.tradeDate())
-        .executedQuantity(row.quantity())
-        .unitPrice(row.price())
-        .totalConsideration(row.total())
-        .commissionAmount(row.brokerFee())
-        .actualSettlementDate(row.settlementDate())
-        .source(SOURCE_SEB_OOTEL)
-        .build();
+    return applyTo(new TransactionExecution(), row, order);
   }
 
-  void applyTo(
-      TransactionExecution existing, SebPendingTransactionRow row, TransactionOrder order) {
-    existing.setOrderId(order.getId());
-    existing.setBrokerTransactionId(row.ourRef());
-    existing.setExecutionTimestamp(row.tradeDate());
-    existing.setExecutedQuantity(row.quantity());
-    existing.setUnitPrice(row.price());
-    existing.setTotalConsideration(row.total());
-    existing.setCommissionAmount(row.brokerFee());
-    existing.setActualSettlementDate(row.settlementDate());
-    existing.setSource(SOURCE_SEB_OOTEL);
+  TransactionExecution applyTo(
+      TransactionExecution execution, SebPendingTransactionRow row, TransactionOrder order) {
+    execution.setOrderId(order.getId());
+    execution.setBrokerTransactionId(row.ourRef());
+    execution.setExecutionTimestamp(row.tradeDate());
+    execution.setExecutedQuantity(row.quantity());
+    execution.setUnitPrice(row.price());
+    execution.setTotalConsideration(row.total());
+    execution.setCommissionAmount(row.brokerFee());
+    execution.setActualSettlementDate(row.settlementDate());
+    execution.setSource(SOURCE_SEB_OOTEL);
+    execution.setModifiedBy(MODIFIED_BY_SEB_RECONCILIATION);
+    return execution;
   }
 }

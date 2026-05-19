@@ -7,7 +7,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record AlertProperties(List<String> to, List<String> cc) {
 
   public AlertProperties {
-    to = to == null ? List.of() : List.copyOf(to);
+    if (to == null || to.isEmpty()) {
+      throw new IllegalStateException(
+          "Transaction registry alerts misconfigured: property=transaction-registry.alerts.to,"
+              + " value=empty — at least one recipient is required");
+    }
+    to = List.copyOf(to);
     cc = cc == null ? List.of() : List.copyOf(cc);
   }
 }

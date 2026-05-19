@@ -33,10 +33,11 @@ public class CostBasisCalculator {
     for (ExecutionEvent event : executions) {
       BigDecimal execQty = nullSafe(event.quantity());
       BigDecimal execPrice = nullSafe(event.unitPrice());
-      BigDecimal commission = nullSafe(event.commission());
 
       if (event.side() == TransactionType.BUY) {
-        totalCost = totalCost.add(execQty.multiply(execPrice)).add(commission);
+        // Commission excluded to match legacy AppScript Portfolio_History; see remaining-tasks.md
+        // F.7 for FI-practice divergence note
+        totalCost = totalCost.add(execQty.multiply(execPrice));
         qty = qty.add(execQty);
       } else {
         BigDecimal avgBefore =

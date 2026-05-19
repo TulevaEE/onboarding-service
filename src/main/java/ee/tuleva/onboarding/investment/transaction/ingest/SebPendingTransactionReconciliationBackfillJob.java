@@ -21,7 +21,11 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class SebPendingTransactionReconciliationBackfillJob {
 
-  private static final int BACKFILL_DAYS = 30;
+  // Wide enough to cover the full investment_report.PENDING_TRANSACTIONS history (back to
+  // 2026-02-02 when the upstream import started). Lookup for dates with no matching report is
+  // a cheap no-op, and the reconciliation service is idempotent via UNIQUE(order_id), so a wider
+  // window is safe to keep at steady state.
+  private static final int BACKFILL_DAYS = 365;
 
   private final Clock clock;
   private final InvestmentReportService reportService;

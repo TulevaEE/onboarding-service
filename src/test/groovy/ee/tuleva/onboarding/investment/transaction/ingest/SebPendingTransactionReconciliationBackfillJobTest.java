@@ -27,7 +27,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
 
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final LocalDate TODAY = LocalDate.of(2026, 5, 18);
-  private static final int BACKFILL_DAYS = 30;
+  private static final int BACKFILL_DAYS = 365;
 
   @Spy private Clock clock = Clock.fixed(TODAY.atStartOfDay(TALLINN).toInstant(), TALLINN);
 

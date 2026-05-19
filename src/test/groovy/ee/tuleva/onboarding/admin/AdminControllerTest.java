@@ -465,6 +465,33 @@ class AdminControllerTest {
   }
 
   @Test
+  void recordBlackrockAdjustment_roundsAmountToTwoDecimalPlaces() throws Exception {
+    var result =
+        new BlackrockAdjustmentResult(
+            TulevaFund.TUK75,
+            LocalDate.of(2026, 4, 2),
+            BigDecimal.ZERO,
+            new BigDecimal("56980.96"),
+            new BigDecimal("56980.96"),
+            true);
+    given(
+            navFeeAccrualLedger.recordBlackrockAdjustment(
+                TulevaFund.TUK75, LocalDate.of(2026, 4, 2), new BigDecimal("56980.96")))
+        .willReturn(result);
+
+    mockMvc
+        .perform(
+            post("/admin/blackrock-adjustment")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("fundCode", "TUK75")
+                .param("amount", "56980.95999999999")
+                .param("date", "2026-04-02"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.targetBalance").value(56980.96));
+  }
+
+  @Test
   void recordBlackrockAdjustment_withInvalidToken_returnsUnauthorized() throws Exception {
     mockMvc
         .perform(
@@ -478,14 +505,18 @@ class AdminControllerTest {
   }
 
   @Test
-  void calculateNav_withOpsToken_returnsUnauthorized() throws Exception {
+  void calculateNav_withOpsToken_returnsOk() throws Exception {
+    var result = sampleNavResult(LocalDate.of(2026, 2, 17));
+    when(navCalculationService.calculate("TKF100", LocalDate.of(2026, 2, 17))).thenReturn(result);
+
     mockMvc
         .perform(
             post("/admin/calculate-nav")
                 .with(csrf())
                 .header("X-Admin-Token", "ops-token")
                 .param("date", "2026-02-17"))
-        .andExpect(status().isUnauthorized());
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.navPerUnit").value(1.0));
   }
 
   @Test

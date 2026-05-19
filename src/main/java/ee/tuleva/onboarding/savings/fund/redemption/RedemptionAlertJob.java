@@ -27,8 +27,9 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @Profile({"production", "staging"})
-public class LiquidityRiskAlertJob {
+public class RedemptionAlertJob {
 
+  private static final BigDecimal PAYOUT_WARNING_THRESHOLD = new BigDecimal("40000");
   private static final BigDecimal LIQUIDITY_THRESHOLD_PERCENT = new BigDecimal("0.01");
 
   private final Clock clock;
@@ -38,8 +39,8 @@ public class LiquidityRiskAlertJob {
   private final OperationsNotificationService notificationService;
 
   @Scheduled(cron = "0 5 16 * * MON-FRI", zone = "Europe/Tallinn")
-  @SchedulerLock(name = "LiquidityRiskAlertJob", lockAtMostFor = "5m", lockAtLeastFor = "1m")
-  public void checkLiquidityRisk() {
+  @SchedulerLock(name = "RedemptionAlertJob", lockAtMostFor = "5m", lockAtLeastFor = "1m")
+  public void checkRedemptionAlerts() {
     LocalDate today = clock.instant().atZone(TALLINN).toLocalDate();
     if (!publicHolidays.isWorkingDay(today)) {
       return;
@@ -58,6 +59,21 @@ public class LiquidityRiskAlertJob {
             .map(RedemptionRequest::getRequestedAmount)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+    checkPayoutThreshold(totalAmount, requests.size());
+    checkLiquidityRisk(totalAmount, requests.size());
+  }
+
+  private void checkPayoutThreshold(BigDecimal totalAmount, int requestCount) {
+    if (totalAmount.compareTo(PAYOUT_WARNING_THRESHOLD) > 0) {
+      String message =
+          "PAYOUT WARNING: TKF100 pending redemption payouts: totalAmount=%s EUR, requests=%d. WITHDRAWAL_EUR credit limit increase may be needed."
+              .formatted(totalAmount, requestCount);
+      log.info("{}", message);
+      notificationService.sendMessage(message, WITHDRAWALS);
+    }
+  }
+
+  private void checkLiquidityRisk(BigDecimal totalAmount, int requestCount) {
     Optional<FundValue> aum = fundValueRepository.findLastValueForFund(TKF100.getAumKey());
     if (aum.isEmpty()) {
       log.warn("AUM not available for TKF100, skipping liquidity risk check");
@@ -69,14 +85,14 @@ public class LiquidityRiskAlertJob {
       log.warn("AUM for TKF100 is not positive: value={}, skipping liquidity risk check", aumValue);
       return;
     }
-    BigDecimal threshold = aumValue.multiply(LIQUIDITY_THRESHOLD_PERCENT);
 
+    BigDecimal threshold = aumValue.multiply(LIQUIDITY_THRESHOLD_PERCENT);
     if (totalAmount.compareTo(threshold) > 0) {
       BigDecimal percentage =
           totalAmount.multiply(new BigDecimal("100")).divide(aumValue, 2, RoundingMode.HALF_UP);
       String message =
           "LIQUIDITY WARNING: TKF100 pending withdrawals totalAmount=%s EUR (%s%% of AUM), requests=%d, AUM=%s EUR. Exceeds 1%% threshold."
-              .formatted(totalAmount, percentage, requests.size(), aumValue);
+              .formatted(totalAmount, percentage, requestCount, aumValue);
       log.info("{}", message);
       notificationService.sendMessage(message, WITHDRAWALS);
     }

@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.event.RunPortfolioReconciliationRequested;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -49,5 +50,14 @@ class PortfolioReconciliationJobTest {
     verify(service).reconcile(TUK00, TODAY);
     verify(service).reconcile(TUV100, TODAY);
     verify(service).reconcile(TKF100, TODAY);
+  }
+
+  @Test
+  void onPortfolioReconciliationRequested_triggersRun() {
+    job.onPortfolioReconciliationRequested(new RunPortfolioReconciliationRequested());
+
+    for (TulevaFund fund : new TulevaFund[] {TUK75, TUK00, TUV100, TKF100}) {
+      verify(service).reconcile(fund, TODAY);
+    }
   }
 }

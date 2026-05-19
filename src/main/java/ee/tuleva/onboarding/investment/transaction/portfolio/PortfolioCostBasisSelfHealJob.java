@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction.portfolio;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.event.RunPortfolioCostBasisSelfHealRequested;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -36,6 +38,11 @@ public class PortfolioCostBasisSelfHealJob {
     LocalDate today = LocalDate.now(clock);
     LocalDate from = today.minusDays(SELF_HEAL_DAYS);
     runForRange(from, today);
+  }
+
+  @EventListener
+  void onPortfolioCostBasisSelfHealRequested(RunPortfolioCostBasisSelfHealRequested event) {
+    run();
   }
 
   public void runForRange(LocalDate from, LocalDate to) {

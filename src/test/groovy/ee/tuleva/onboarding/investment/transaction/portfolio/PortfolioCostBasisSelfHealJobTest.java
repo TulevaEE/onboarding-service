@@ -7,6 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.event.RunPortfolioCostBasisSelfHealRequested;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -51,5 +52,21 @@ class PortfolioCostBasisSelfHealJobTest {
         verify(service, never()).rebuildRange(fund, TODAY.minusDays(SELF_HEAL_DAYS), TODAY);
       }
     }
+  }
+
+  @Test
+  void onPortfolioCostBasisSelfHealRequested_triggersRun() {
+    PortfolioBaseline baseline =
+        PortfolioBaseline.builder().fundIsin(TUK75.getIsin()).baselineDate(TODAY).build();
+    given(baselineRepository.findByFundIsin(TUK75.getIsin())).willReturn(Optional.of(baseline));
+    for (TulevaFund fund : TulevaFund.values()) {
+      if (fund != TUK75) {
+        given(baselineRepository.findByFundIsin(fund.getIsin())).willReturn(Optional.empty());
+      }
+    }
+
+    job.onPortfolioCostBasisSelfHealRequested(new RunPortfolioCostBasisSelfHealRequested());
+
+    verify(service).rebuildRange(TUK75, TODAY.minusDays(SELF_HEAL_DAYS), TODAY);
   }
 }

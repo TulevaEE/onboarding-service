@@ -13,6 +13,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
+import ee.tuleva.onboarding.investment.event.RunOverdueSettlementRequested;
 import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
@@ -175,6 +176,16 @@ class OverdueSettlementJobTest {
     job().run();
 
     verify(emailService, never()).sendSystemEmail(org.mockito.ArgumentMatchers.any());
+  }
+
+  @Test
+  void onOverdueSettlementRequested_triggersRun() {
+    given(orderRepository.findOverdueOrders(SENT, EXECUTED)).willReturn(List.of());
+
+    job().onOverdueSettlementRequested(new RunOverdueSettlementRequested());
+
+    verify(emailService, never()).sendSystemEmail(org.mockito.ArgumentMatchers.any());
+    verify(orderRepository).findOverdueOrders(SENT, EXECUTED);
   }
 
   private static Instant dateOnly(int year, int month, int day) {

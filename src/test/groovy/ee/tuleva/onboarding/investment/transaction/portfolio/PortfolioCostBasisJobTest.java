@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.event.RunPortfolioCostBasisRequested;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -50,5 +51,14 @@ class PortfolioCostBasisJobTest {
     verify(service).runForFundAndDate(TUK00, TODAY);
     verify(service).runForFundAndDate(TUV100, TODAY);
     verify(service).runForFundAndDate(TKF100, TODAY);
+  }
+
+  @Test
+  void onPortfolioCostBasisRequested_triggersRun() {
+    job.onPortfolioCostBasisRequested(new RunPortfolioCostBasisRequested());
+
+    for (TulevaFund fund : new TulevaFund[] {TUK75, TUK00, TUV100, TKF100}) {
+      verify(service).runForFundAndDate(fund, TODAY);
+    }
   }
 }

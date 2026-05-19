@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import java.util.Optional;
@@ -16,6 +17,8 @@ class SebPendingTransactionMatcher {
     if (row.clientRef() == null) {
       return Optional.empty();
     }
-    return orderRepository.findByOrderUuid(row.clientRef());
+    return orderRepository
+        .findByOrderUuid(row.clientRef())
+        .filter(order -> order.getOrderStatus() != OrderStatus.CANCELLED);
   }
 }

@@ -19,7 +19,10 @@ class PortfolioReconciliationAlertListener {
   @EventListener
   public void onMismatch(PortfolioReconciliationMismatchEvent event) {
     var subject =
-        "[HOIATUS] Portfellipositsioonide lahknevus – " + event.asOfDate() + " – " + 1 + " fondi";
+        "[HOIATUS] Portfellipositsioonide lahknevus – "
+            + event.fund().getCode()
+            + " – "
+            + event.asOfDate();
     var body = buildBody(event);
 
     boolean sent = emailService.sendSystemEmail(messageFactory.create(subject, body));

@@ -4,7 +4,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 public class SebPriceVsNavCheckService {
 
   private static final BigDecimal DEFAULT_TOLERANCE = new BigDecimal("0.01");
+  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
   private final NavLookup navLookup;
   private final PriceValidator priceValidator;
@@ -45,7 +46,7 @@ public class SebPriceVsNavCheckService {
     }
 
     String isin = order.getInstrumentIsin();
-    LocalDate tradeDate = execution.getExecutionTimestamp().atZone(ZoneOffset.UTC).toLocalDate();
+    LocalDate tradeDate = execution.getExecutionTimestamp().atZone(TALLINN).toLocalDate();
     Optional<BigDecimal> navPriceOpt = navLookup.findMarketPrice(isin, tradeDate);
 
     if (navPriceOpt.isEmpty()) {

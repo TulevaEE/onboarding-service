@@ -14,7 +14,6 @@ import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -106,18 +105,20 @@ class SebPriceVsNavCheckServiceTest {
   }
 
   @Test
-  void tradeDateIsDerivedFromExecutionTimestampInUtc() {
-    // Late-evening UTC trade should still resolve to its UTC calendar date.
-    Instant lateTrade = LocalDate.of(2026, 5, 11).atTime(23, 30).toInstant(ZoneOffset.UTC);
+  void tradeDateIsDerivedFromExecutionTimestampInTallinnZone() {
+    // 22:30Z on May 11 is already May 12 in Europe/Tallinn (summer time, UTC+3).
+    // NAV table is Tallinn-keyed; cost-basis is Tallinn-keyed; this must match.
+    Instant lateTrade = Instant.parse("2026-05-11T22:30:00Z");
+    LocalDate expectedTallinnDate = LocalDate.of(2026, 5, 12);
     TransactionExecution exec = execution(new BigDecimal("4.7255"));
     exec.setExecutionTimestamp(lateTrade);
 
-    given(navLookup.findMarketPrice(ISIN, TRADE_DATE))
+    given(navLookup.findMarketPrice(ISIN, expectedTallinnDate))
         .willReturn(Optional.of(new BigDecimal("4.7255")));
 
     service.check(exec, etfOrder());
 
-    verify(navLookup).findMarketPrice(ISIN, TRADE_DATE);
+    verify(navLookup).findMarketPrice(ISIN, expectedTallinnDate);
     verify(eventPublisher, never()).publishEvent(any());
   }
 

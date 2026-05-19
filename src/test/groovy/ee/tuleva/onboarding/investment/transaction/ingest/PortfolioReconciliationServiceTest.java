@@ -8,8 +8,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
+import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisSnapshot;
 import ee.tuleva.onboarding.investment.transaction.ingest.PortfolioReconciliationMismatchEvent.MismatchEntry;
-import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasis;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -166,16 +166,8 @@ class PortfolioReconciliationServiceTest {
     verify(eventPublisher, org.mockito.Mockito.never()).publishEvent(any());
   }
 
-  private PortfolioCostBasis costBasis(String isin, String quantity) {
-    return PortfolioCostBasis.builder()
-        .id(1L)
-        .fundIsin(TUK75.getIsin())
-        .instrumentIsin(isin)
-        .asOfDate(AS_OF)
-        .quantity(new BigDecimal(quantity))
-        .avgUnitCost(BigDecimal.ZERO)
-        .totalCost(BigDecimal.ZERO)
-        .source("test")
-        .build();
+  private PortfolioCostBasisSnapshot costBasis(String isin, String quantity) {
+    return new PortfolioCostBasisSnapshot(
+        isin, new BigDecimal(quantity), BigDecimal.ZERO, BigDecimal.ZERO, AS_OF);
   }
 }

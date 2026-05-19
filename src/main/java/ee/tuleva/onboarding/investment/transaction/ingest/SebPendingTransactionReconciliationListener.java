@@ -19,10 +19,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class SebPendingTransactionReconciliationListener {
 
-  /**
-   * Reconciliation (writing the TransactionExecution row) must run BEFORE downstream listeners such
-   * as {@link SebPriceVsNavCheckListener} that read the persisted execution.
-   */
   static final int LISTENER_ORDER = 0;
 
   private final InvestmentReportService reportService;

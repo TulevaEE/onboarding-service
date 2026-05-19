@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -113,5 +114,40 @@ class TransactionModuleBoundaryTest {
         .resideInAPackage(EXPORT_PACKAGE)
         .because("export/ is internal to the investment.transaction module")
         .check(PRODUCTION_CLASSES);
+  }
+
+  @Test
+  void publicMethodsInPackageRootDoNotReturnInternalSubPackageTypes() {
+    methods()
+        .that()
+        .areDeclaredInClassesThat()
+        .resideInAPackage(TRANSACTION_PACKAGE)
+        .and()
+        .arePublic()
+        .should()
+        .notHaveRawReturnType(resideInAPackagePredicate(INGEST_PACKAGE))
+        .andShould()
+        .notHaveRawReturnType(resideInAPackagePredicate(PORTFOLIO_PACKAGE))
+        .andShould()
+        .notHaveRawReturnType(resideInAPackagePredicate(CALCULATION_PACKAGE))
+        .andShould()
+        .notHaveRawReturnType(resideInAPackagePredicate(EXPORT_PACKAGE))
+        .because(
+            "public API methods at the transaction package root must not expose types from "
+                + "internal sub-packages; map to a package-root record at the boundary")
+        .check(PRODUCTION_CLASSES);
+  }
+
+  private static com.tngtech.archunit.base.DescribedPredicate<
+          com.tngtech.archunit.core.domain.JavaClass>
+      resideInAPackagePredicate(String packageIdentifier) {
+    return new com.tngtech.archunit.base.DescribedPredicate<>(
+        "reside in package " + packageIdentifier) {
+      @Override
+      public boolean test(com.tngtech.archunit.core.domain.JavaClass javaClass) {
+        return com.tngtech.archunit.core.domain.PackageMatcher.of(packageIdentifier)
+            .matches(javaClass.getPackageName());
+      }
+    };
   }
 }

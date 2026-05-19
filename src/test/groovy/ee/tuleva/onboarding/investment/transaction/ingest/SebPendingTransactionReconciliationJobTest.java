@@ -33,14 +33,16 @@ class SebPendingTransactionReconciliationJobTest {
   @InjectMocks private SebPendingTransactionReconciliationJob job;
 
   @Test
-  void run_iteratesLastSevenDaysAndReconcilesEachFoundReport() {
+  void run_iteratesTodayPlusLastSevenDaysAndReconcilesEachFoundReport() {
+    InvestmentReport day0 = report(TODAY);
     InvestmentReport day1 = report(TODAY.minusDays(1));
     InvestmentReport day3 = report(TODAY.minusDays(3));
 
-    for (int i = 1; i <= 7; i++) {
+    for (int i = 0; i <= 7; i++) {
       LocalDate date = TODAY.minusDays(i);
       Optional<InvestmentReport> r =
           switch (i) {
+            case 0 -> Optional.of(day0);
             case 1 -> Optional.of(day1);
             case 3 -> Optional.of(day3);
             default -> Optional.empty();
@@ -50,13 +52,28 @@ class SebPendingTransactionReconciliationJobTest {
 
     job.run();
 
+    verify(reconciliationService).reconcile(day0);
     verify(reconciliationService).reconcile(day1);
     verify(reconciliationService).reconcile(day3);
   }
 
   @Test
+  void run_includesTodayInFallbackScan() {
+    InvestmentReport today = report(TODAY);
+    for (int i = 0; i <= 7; i++) {
+      LocalDate date = TODAY.minusDays(i);
+      given(reportService.getReport(SEB, PENDING_TRANSACTIONS, date))
+          .willReturn(i == 0 ? Optional.of(today) : Optional.empty());
+    }
+
+    job.run();
+
+    verify(reconciliationService).reconcile(today);
+  }
+
+  @Test
   void run_missingReportsAreSkipped() {
-    for (int i = 1; i <= 7; i++) {
+    for (int i = 0; i <= 7; i++) {
       given(reportService.getReport(SEB, PENDING_TRANSACTIONS, TODAY.minusDays(i)))
           .willReturn(Optional.empty());
     }
@@ -70,6 +87,7 @@ class SebPendingTransactionReconciliationJobTest {
   void run_continuesAfterReconciliationException() {
     InvestmentReport day1 = report(TODAY.minusDays(1));
     InvestmentReport day2 = report(TODAY.minusDays(2));
+    given(reportService.getReport(SEB, PENDING_TRANSACTIONS, TODAY)).willReturn(Optional.empty());
     given(reportService.getReport(SEB, PENDING_TRANSACTIONS, TODAY.minusDays(1)))
         .willReturn(Optional.of(day1));
     given(reportService.getReport(SEB, PENDING_TRANSACTIONS, TODAY.minusDays(2)))

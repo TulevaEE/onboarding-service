@@ -19,6 +19,8 @@ public interface TransactionOrderRepository extends JpaRepository<TransactionOrd
 
   List<TransactionOrder> findByInstrumentIsin(String instrumentIsin);
 
+  List<TransactionOrder> findByFund(TulevaFund fund);
+
   @Query(
       """
       SELECT o FROM TransactionOrder o

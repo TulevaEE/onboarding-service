@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.CANCELLED;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,6 +43,28 @@ class SebPendingTransactionMatcherTest {
   @Test
   void match_missingClientRef_returnsEmpty() {
     SebPendingTransactionRow row = sampleRow(null);
+    Optional<TransactionOrder> result = matcher.match(row);
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  void match_cancelledOrder_returnsEmptyToAvoidResurrection() {
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder cancelled =
+        TransactionOrder.builder()
+            .id(123L)
+            .fund(TKF100)
+            .instrumentIsin("IE000F60HVH9")
+            .transactionType(BUY)
+            .instrumentType(ETF)
+            .orderVenue(SEB)
+            .orderUuid(clientRef)
+            .orderStatus(CANCELLED)
+            .build();
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(cancelled));
+
+    SebPendingTransactionRow row = sampleRow(clientRef);
     Optional<TransactionOrder> result = matcher.match(row);
 
     assertThat(result).isEmpty();

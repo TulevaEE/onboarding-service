@@ -64,8 +64,8 @@ class PortfolioCostBasisIT {
             .orElseThrow();
 
     assertThat(row.getQuantity()).isEqualByComparingTo("120000.0000");
-    assertThat(row.getTotalCost()).isEqualByComparingTo("1220050.00");
-    assertThat(row.getAvgUnitCost()).isEqualByComparingTo("10.16708333");
+    assertThat(row.getTotalCost()).isEqualByComparingTo("1220000.00");
+    assertThat(row.getAvgUnitCost()).isEqualByComparingTo("10.16666667");
     assertThat(row.getDeltaQuantity()).isEqualByComparingTo("20000.0000");
     assertThat(row.getSource()).isEqualTo("DERIVED");
   }

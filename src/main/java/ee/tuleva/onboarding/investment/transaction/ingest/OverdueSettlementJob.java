@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.notification.email.EmailService;
 import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ class OverdueSettlementJob {
 
   private static final int ETF_THRESHOLD_BUSINESS_DAYS = 3;
   private static final int FUND_THRESHOLD_BUSINESS_DAYS = 5;
+  private static final ZoneId TALLINN = ZoneId.of(TIMEZONE);
 
   private final Clock clock;
   private final TransactionOrderRepository orderRepository;
@@ -65,16 +67,21 @@ class OverdueSettlementJob {
     }
   }
 
+  // Deadline = orderTimestamp + N business days (N=3 ETF, N=5 FUND). Mirrors the AppScript at
+  // tmp/transaction-registry/Tehingute register 2026 (SEB) - Import_Orders -
+  // transaction_registry.gs:1994, which alerts when latestSebReportDate > orderTimestamp + N bdays.
+  // Strict ">" so the first alert fires on business day N+1.
   private static boolean isOverdue(TransactionOrder order, LocalDate today) {
-    if (order.getExpectedSettlementDate() == null || order.getInstrumentType() == null) {
+    if (order.getOrderTimestamp() == null || order.getInstrumentType() == null) {
       return false;
     }
     int threshold =
         order.getInstrumentType() == InstrumentType.ETF
             ? ETF_THRESHOLD_BUSINESS_DAYS
             : FUND_THRESHOLD_BUSINESS_DAYS;
-    LocalDate cutoff = addBusinessDays(order.getExpectedSettlementDate(), threshold);
-    return cutoff.isBefore(today);
+    LocalDate orderDate = order.getOrderTimestamp().atZone(TALLINN).toLocalDate();
+    LocalDate deadline = addBusinessDays(orderDate, threshold);
+    return deadline.isBefore(today);
   }
 
   private static LocalDate addBusinessDays(LocalDate from, int businessDays) {
@@ -103,8 +110,8 @@ class OverdueSettlementJob {
     return """
         Tänase seisuga (%s) on ootel %d tehingut, mille arveldus on tähtaja ületanud.
 
-        ETF tehingutel on lubatud kuni 3 tööpäeva pärast oodatud arvelduskuupäeva.
-        FOND tehingutel on lubatud kuni 5 tööpäeva pärast oodatud arvelduskuupäeva.
+        ETF tehingutel on lubatud kuni 3 tööpäeva pärast tellimuse saatmist SEB-i.
+        FOND tehingutel on lubatud kuni 5 tööpäeva pärast tellimuse saatmist SEB-i.
 
         %s
         """
@@ -119,6 +126,7 @@ class OverdueSettlementJob {
         Instrument type: %s
         Order status: %s
         Order venue: %s
+        Order sent: %s
         Expected settlement: %s
         Order uuid: %s"""
         .formatted(
@@ -128,6 +136,7 @@ class OverdueSettlementJob {
             order.getInstrumentType(),
             order.getOrderStatus(),
             order.getOrderVenue(),
+            order.getOrderTimestamp(),
             order.getExpectedSettlementDate(),
             order.getOrderUuid());
   }

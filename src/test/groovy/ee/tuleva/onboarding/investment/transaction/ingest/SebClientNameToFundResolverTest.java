@@ -50,4 +50,26 @@ class SebClientNameToFundResolverTest {
   void resolve_blankName_returnsEmpty() {
     assertThat(resolver.resolve("   ")).isEqualTo(Optional.empty());
   }
+
+  @Test
+  void match_acceptsDiacriticStrippedClientName_returnsCorrectFund() {
+    assertThat(resolver.resolve("Tuleva Maailma Volakirjade Pensionifond"))
+        .contains(TulevaFund.TUK00);
+  }
+
+  @Test
+  void match_acceptsCanonicalClientName_returnsCorrectFund() {
+    assertThat(resolver.resolve("Tuleva Maailma Võlakirjade Pensionifond"))
+        .contains(TulevaFund.TUK00);
+  }
+
+  @Test
+  void match_acceptsTaiendavKogumisfond_returnsCorrectFund() {
+    assertThat(resolver.resolve("Tuleva Taiendav Kogumisfond")).contains(TulevaFund.TKF100);
+  }
+
+  @Test
+  void match_handlesTrailingWhitespace() {
+    assertThat(resolver.resolve("Tuleva III Samba Pensionifond ")).contains(TulevaFund.TUV100);
+  }
 }

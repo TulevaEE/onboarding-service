@@ -36,9 +36,25 @@ class CostBasisCalculatorSpec extends Specification {
 
         where:
         priorQty | priorAvg | buyQty | buyPrice | commission || expectedQty | expectedAvg   | expectedTotal
-        "100000" | "10.00"  | "20000" | "11.00" | "50.00"    || "120000"    | "10.16708333" | "1220050.00"
+        "100000" | "10.00"  | "20000" | "11.00" | "50.00"    || "120000"    | "10.16666667" | "1220000.00"
         "0"      | "0"      | "1000"  | "5.00"  | "0"        || "1000"      | "5.00000000"  | "5000.00"
-        "0"      | "0"      | "1000"  | "5.00"  | "10"       || "1000"      | "5.01000000"  | "5010.00"
+        "0"      | "0"      | "1000"  | "5.00"  | "10"       || "1000"      | "5.00000000"  | "5000.00"
+    }
+
+    def "buy_excludesBrokerCommissionFromTotalCostToMatchLegacyAppScript"() {
+        given:
+        def prior = Optional.of(new PriorPosition(new BigDecimal("0"), new BigDecimal("0")))
+        def execs = [
+                new ExecutionEvent(TransactionType.BUY, new BigDecimal("1000"), new BigDecimal("10.00"), new BigDecimal("5.00"))
+        ]
+
+        when:
+        def result = calculator.calculate(prior, execs, FUND_ISIN, INSTRUMENT_ISIN, DATE)
+
+        then:
+        result.totalCost.compareTo(new BigDecimal("10000.00")) == 0
+        result.avgUnitCost.compareTo(new BigDecimal("10.00000000")) == 0
+        result.quantity.compareTo(new BigDecimal("1000")) == 0
     }
 
     def "BUY accumulates same-day multiple executions"() {
@@ -118,8 +134,8 @@ class CostBasisCalculatorSpec extends Specification {
 
         then:
         result.quantity.compareTo(new BigDecimal("500")) == 0
-        result.totalCost.compareTo(new BigDecimal("3775.00")) == 0
-        result.avgUnitCost.compareTo(new BigDecimal("7.55000000")) == 0
+        result.totalCost.compareTo(new BigDecimal("3750.00")) == 0
+        result.avgUnitCost.compareTo(new BigDecimal("7.50000000")) == 0
         result.deltaQuantity.compareTo(new BigDecimal("500")) == 0
         result.source == "DERIVED"
     }
@@ -148,7 +164,7 @@ class CostBasisCalculatorSpec extends Specification {
         result.deltaQuantity.compareTo(BigDecimal.ZERO) == 0
     }
 
-    def "commission included in cost basis for BUY"() {
+    def "commission excluded from cost basis for BUY"() {
         given:
         def prior = Optional.of(new PriorPosition(new BigDecimal("0"), new BigDecimal("0")))
         def execs = [
@@ -159,8 +175,8 @@ class CostBasisCalculatorSpec extends Specification {
         def result = calculator.calculate(prior, execs, FUND_ISIN, INSTRUMENT_ISIN, DATE)
 
         then:
-        result.totalCost.compareTo(new BigDecimal("1100.00")) == 0
-        result.avgUnitCost.compareTo(new BigDecimal("11.00000000")) == 0
+        result.totalCost.compareTo(new BigDecimal("1000.00")) == 0
+        result.avgUnitCost.compareTo(new BigDecimal("10.00000000")) == 0
     }
 
     def "mixed BUY then SELL same day"() {

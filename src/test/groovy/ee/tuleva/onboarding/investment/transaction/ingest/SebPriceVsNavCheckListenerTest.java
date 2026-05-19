@@ -11,7 +11,6 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -22,6 +21,7 @@ import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -39,30 +39,57 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class SebPriceVsNavCheckListenerTest {
 
   private static final UUID CLIENT_REF = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+  private static final String OUR_REF = "DLA0799512";
 
   @Mock private InvestmentReportService reportService;
-  @Mock private SebPendingTransactionMatcher matcher;
   @Mock private TransactionExecutionRepository executionRepository;
+  @Mock private TransactionOrderRepository orderRepository;
   @Mock private SebPriceVsNavCheckService checkService;
 
   private final SebPendingTransactionExtractor extractor = new SebPendingTransactionExtractor();
 
   private SebPriceVsNavCheckListener newListener() {
     return new SebPriceVsNavCheckListener(
-        reportService, extractor, matcher, executionRepository, checkService);
+        reportService, extractor, executionRepository, orderRepository, checkService);
   }
 
   @Test
-  void onReportImportCompleted_sebPending_runsCheckForEachMatchedExecution() {
+  void onReportImportCompleted_simpleMatchedRow_runsCheck() {
     LocalDate reportDate = LocalDate.of(2026, 5, 13);
-    InvestmentReport report = reportWithSingleRow(CLIENT_REF, reportDate);
+    InvestmentReport report = reportWithSingleRow(CLIENT_REF, OUR_REF, reportDate);
     given(reportService.getReport(SEB, PENDING_TRANSACTIONS, reportDate))
         .willReturn(Optional.of(report));
 
     TransactionOrder order = sampleOrder(CLIENT_REF);
     TransactionExecution execution = sampleExecution(order.getId());
-    given(matcher.match(any(SebPendingTransactionRow.class))).willReturn(Optional.of(order));
-    given(executionRepository.findByOrderId(order.getId())).willReturn(Optional.of(execution));
+    given(executionRepository.findByBrokerTransactionId(OUR_REF))
+        .willReturn(Optional.of(execution));
+    given(orderRepository.findById(order.getId())).willReturn(Optional.of(order));
+
+    newListener()
+        .onReportImportCompleted(
+            new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, reportDate, 1));
+
+    verify(checkService).check(execution, order);
+  }
+
+  @Test
+  void onReportImportCompleted_fuzzyMatchedRow_runsCheck() {
+    // Row whose clientRef does NOT match the order's orderUuid — the M3 complex matcher
+    // would have linked the execution to the order. The listener must still NAV-check it,
+    // discovering the linkage via brokerTransactionId.
+    LocalDate reportDate = LocalDate.of(2026, 5, 13);
+    UUID rowClientRef = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    UUID orderUuidDifferent = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    InvestmentReport report = reportWithSingleRow(rowClientRef, OUR_REF, reportDate);
+    given(reportService.getReport(SEB, PENDING_TRANSACTIONS, reportDate))
+        .willReturn(Optional.of(report));
+
+    TransactionOrder order = sampleOrder(orderUuidDifferent);
+    TransactionExecution execution = sampleExecution(order.getId());
+    given(executionRepository.findByBrokerTransactionId(OUR_REF))
+        .willReturn(Optional.of(execution));
+    given(orderRepository.findById(order.getId())).willReturn(Optional.of(order));
 
     newListener()
         .onReportImportCompleted(
@@ -78,7 +105,7 @@ class SebPriceVsNavCheckListenerTest {
             new ReportImportCompleted(
                 SWEDBANK, PENDING_TRANSACTIONS, LocalDate.of(2026, 5, 13), 1));
 
-    verifyNoInteractions(reportService, matcher, executionRepository, checkService);
+    verifyNoInteractions(reportService, executionRepository, orderRepository, checkService);
   }
 
   @Test
@@ -87,7 +114,7 @@ class SebPriceVsNavCheckListenerTest {
         .onReportImportCompleted(
             new ReportImportCompleted(SEB, POSITIONS, LocalDate.of(2026, 5, 13), 1));
 
-    verifyNoInteractions(reportService, matcher, executionRepository, checkService);
+    verifyNoInteractions(reportService, executionRepository, orderRepository, checkService);
   }
 
   @Test
@@ -106,38 +133,20 @@ class SebPriceVsNavCheckListenerTest {
   @Test
   void onReportImportCompleted_unmatchedRow_skipsCheck() {
     LocalDate reportDate = LocalDate.of(2026, 5, 13);
-    InvestmentReport report = reportWithSingleRow(CLIENT_REF, reportDate);
+    InvestmentReport report = reportWithSingleRow(CLIENT_REF, OUR_REF, reportDate);
     given(reportService.getReport(SEB, PENDING_TRANSACTIONS, reportDate))
         .willReturn(Optional.of(report));
-    given(matcher.match(any(SebPendingTransactionRow.class))).willReturn(Optional.empty());
+    given(executionRepository.findByBrokerTransactionId(OUR_REF)).willReturn(Optional.empty());
 
     newListener()
         .onReportImportCompleted(
             new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, reportDate, 1));
 
     verify(checkService, never()).check(any(), any());
-    verify(executionRepository, never()).findByOrderId(any());
+    verifyNoInteractions(orderRepository);
   }
 
-  @Test
-  void onReportImportCompleted_matchedButNoExecutionYet_skipsCheck() {
-    LocalDate reportDate = LocalDate.of(2026, 5, 13);
-    InvestmentReport report = reportWithSingleRow(CLIENT_REF, reportDate);
-    given(reportService.getReport(SEB, PENDING_TRANSACTIONS, reportDate))
-        .willReturn(Optional.of(report));
-    TransactionOrder order = sampleOrder(CLIENT_REF);
-    given(matcher.match(any(SebPendingTransactionRow.class))).willReturn(Optional.of(order));
-    given(executionRepository.findByOrderId(order.getId())).willReturn(Optional.empty());
-
-    newListener()
-        .onReportImportCompleted(
-            new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, reportDate, 1));
-
-    verify(checkService, never()).check(any(), any());
-    verify(executionRepository, times(1)).findByOrderId(order.getId());
-  }
-
-  private static TransactionOrder sampleOrder(UUID clientRef) {
+  private static TransactionOrder sampleOrder(UUID orderUuid) {
     return TransactionOrder.builder()
         .id(123L)
         .fund(TKF100)
@@ -145,7 +154,7 @@ class SebPriceVsNavCheckListenerTest {
         .transactionType(BUY)
         .instrumentType(ETF)
         .orderVenue(OrderVenue.SEB)
-        .orderUuid(clientRef)
+        .orderUuid(orderUuid)
         .orderStatus(EXECUTED)
         .build();
   }
@@ -155,18 +164,20 @@ class SebPriceVsNavCheckListenerTest {
         .id(999L)
         .orderId(orderId)
         .source("SEB_OOTEL")
+        .brokerTransactionId(OUR_REF)
         .unitPrice(new BigDecimal("4.7255"))
         .executionTimestamp(Instant.parse("2026-05-11T10:26:04Z"))
         .build();
   }
 
-  private static InvestmentReport reportWithSingleRow(UUID clientRef, LocalDate reportDate) {
+  private static InvestmentReport reportWithSingleRow(
+      UUID clientRef, String ourRef, LocalDate reportDate) {
     Map<String, Object> raw = new HashMap<>();
     raw.put("ISIN", "IE000F60HVH9");
     raw.put("Price", new BigDecimal("4.7255"));
     raw.put("Total", new BigDecimal("70915.58"));
     raw.put("Account", "VP68168");
-    raw.put("Our ref", "DLA0799512");
+    raw.put("Our ref", ourRef);
     raw.put("Buy/Sell", "Buy");
     raw.put("Quantity", new BigDecimal("15007"));
     raw.put("Broker fee", new BigDecimal("0.00"));

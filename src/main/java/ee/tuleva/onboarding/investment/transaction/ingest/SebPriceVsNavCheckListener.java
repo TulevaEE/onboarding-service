@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,8 +27,8 @@ class SebPriceVsNavCheckListener {
 
   private final InvestmentReportService reportService;
   private final SebPendingTransactionExtractor extractor;
-  private final SebPendingTransactionMatcher matcher;
   private final TransactionExecutionRepository executionRepository;
+  private final TransactionOrderRepository orderRepository;
   private final SebPriceVsNavCheckService checkService;
 
   @EventListener
@@ -52,21 +53,35 @@ class SebPriceVsNavCheckListener {
         rows.size());
 
     for (SebPendingTransactionRow row : rows) {
-      Optional<TransactionOrder> orderOpt = matcher.match(row);
-      if (orderOpt.isEmpty()) {
-        continue;
-      }
-      TransactionOrder order = orderOpt.get();
-      Optional<TransactionExecution> executionOpt =
-          executionRepository.findByOrderId(order.getId());
-      if (executionOpt.isEmpty()) {
-        log.debug(
-            "No execution yet for matched order, skipping NAV check: orderId={}, orderUuid={}",
-            order.getId(),
-            order.getOrderUuid());
-        continue;
-      }
-      checkService.check(executionOpt.get(), order);
+      checkRow(row);
     }
+  }
+
+  private void checkRow(SebPendingTransactionRow row) {
+    if (row.ourRef() == null) {
+      return;
+    }
+    // Find via brokerTransactionId so we cover both simple (UUID) and complex (fuzzy)
+    // reconciliation linkages — by the time this listener fires, the reconciliation
+    // listener has already persisted the execution row.
+    Optional<TransactionExecution> executionOpt =
+        executionRepository.findByBrokerTransactionId(row.ourRef());
+    if (executionOpt.isEmpty()) {
+      return;
+    }
+    TransactionExecution execution = executionOpt.get();
+    if (execution.getOrderId() == null) {
+      return;
+    }
+    Optional<TransactionOrder> orderOpt = orderRepository.findById(execution.getOrderId());
+    if (orderOpt.isEmpty()) {
+      log.warn(
+          "Execution has orderId but order not found, skipping NAV check: executionId={},"
+              + " orderId={}",
+          execution.getId(),
+          execution.getOrderId());
+      return;
+    }
+    checkService.check(execution, orderOpt.get());
   }
 }

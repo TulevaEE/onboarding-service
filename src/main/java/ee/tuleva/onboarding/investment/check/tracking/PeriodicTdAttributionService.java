@@ -71,8 +71,7 @@ class PeriodicTdAttributionService {
     return result;
   }
 
-  public void computeForAllFunds(
-      LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
+  void computeForAllFunds(LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
     for (var fund : TulevaFund.values()) {
       try {
         computeAttribution(fund, periodStart, periodEnd, periodType);
@@ -100,18 +99,16 @@ class PeriodicTdAttributionService {
         modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
             fund, periodStart, periodEnd);
 
-    var mgmtFeeDrag = computeFeeDragPeriod(feeAccruals, FeeType.MANAGEMENT);
-    var depotFeeDrag = computeFeeDragPeriod(feeAccruals, FeeType.DEPOT);
+    var dailyRecords = buildDailyRecords(fund, tdEvents, modelAllocations);
 
-    var avgAumForFees = computeAvgAum(fund, tdEvents);
+    var mgmtFeeDragTotal = computeFeeDragPeriod(feeAccruals, FeeType.MANAGEMENT);
+    var depotFeeDragTotal = computeFeeDragPeriod(feeAccruals, FeeType.DEPOT);
+
+    var avgAum = computeAvgAumFromDailyRecords(dailyRecords);
     var mgmtFeeDragReturn =
-        avgAumForFees.signum() > 0
-            ? mgmtFeeDrag.negate().divide(avgAumForFees, SCALE, HALF_UP)
-            : ZERO;
+        avgAum.signum() > 0 ? mgmtFeeDragTotal.negate().divide(avgAum, SCALE, HALF_UP) : ZERO;
     var depotFeeDragReturn =
-        avgAumForFees.signum() > 0
-            ? depotFeeDrag.negate().divide(avgAumForFees, SCALE, HALF_UP)
-            : ZERO;
+        avgAum.signum() > 0 ? depotFeeDragTotal.negate().divide(avgAum, SCALE, HALF_UP) : ZERO;
 
     var calendarDays = (int) ChronoUnit.DAYS.between(periodStart, periodEnd) + 1;
     var expectedAnnualFeeRate =
@@ -119,8 +116,6 @@ class PeriodicTdAttributionService {
             .findValidRate(fund, FeeType.MANAGEMENT, periodEnd)
             .map(r -> r.annualRate())
             .orElse(ZERO);
-
-    var dailyRecords = buildDailyRecords(fund, tdEvents, modelAllocations);
 
     return TdAttributionInput.builder()
         .fund(fund)
@@ -142,13 +137,12 @@ class PeriodicTdAttributionService {
         .reduce(ZERO, BigDecimal::add);
   }
 
-  private BigDecimal computeAvgAum(TulevaFund fund, List<TrackingDifferenceEvent> tdEvents) {
+  private BigDecimal computeAvgAumFromDailyRecords(List<DailyRecord> records) {
     var totalAum = ZERO;
     int count = 0;
-    for (var event : tdEvents) {
-      var aum = fundNavQueryService.findAum(fund.getCode(), event.getCheckDate());
-      if (aum != null && aum.signum() > 0) {
-        totalAum = totalAum.add(aum);
+    for (var record : records) {
+      if (record.aum().signum() > 0) {
+        totalAum = totalAum.add(record.aum());
         count++;
       }
     }
@@ -164,11 +158,10 @@ class PeriodicTdAttributionService {
 
     for (var event : tdEvents) {
       var date = event.getCheckDate();
-      var fundCode = fund.getCode();
 
-      var aum = fundNavQueryService.findAum(fundCode, date);
-      if (aum == null || aum.signum() <= 0) {
-        log.warn("Missing AUM for daily record: fund={}, date={}", fund, date);
+      var navComponents = loadNavComponents(fund, date);
+      if (navComponents == null) {
+        log.warn("Missing nav_report data for daily record: fund={}, date={}", fund, date);
         records.add(
             DailyRecord.builder()
                 .date(date)
@@ -182,27 +175,17 @@ class PeriodicTdAttributionService {
         continue;
       }
 
-      var cash = fundNavQueryService.findCashValue(fundCode, date);
-      var securities = fundNavQueryService.findSecuritiesTotalValue(fundCode, date);
-      var feeAccrualLiabilities = fundNavQueryService.findFeeAccrualLiabilities(fundCode, date);
-
-      // Non-security value: AUM - securities - cash - feeAccruals
-      // LIABILITY_FEE market_values are NEGATIVE in nav_report (NavReportMapper.liabilityFeeRow
-      // stores amount.negate()), so subtracting a negative adds them back — correctly excluding
-      // fee accruals from this component (they are attributed in components A+B).
-      var nonSecurityValue =
-          aum.subtract(securities).subtract(cash).subtract(feeAccrualLiabilities);
-
-      var securityDailyData = buildSecurityDailyData(fund, event, modelAllocations, date);
+      var securityDailyData =
+          buildSecurityDailyData(fund, event, modelAllocations, date, navComponents);
 
       records.add(
           DailyRecord.builder()
               .date(date)
               .fundReturn(event.getFundReturn())
               .modelReturn(event.getBenchmarkReturn())
-              .aum(aum)
-              .cashValue(cash)
-              .nonSecurityValue(nonSecurityValue)
+              .aum(navComponents.aum())
+              .cashValue(navComponents.cash())
+              .nonSecurityValue(navComponents.nonSecurityValue())
               .securities(securityDailyData)
               .build());
     }
@@ -210,12 +193,34 @@ class PeriodicTdAttributionService {
     return records;
   }
 
+  private NavComponents loadNavComponents(TulevaFund fund, LocalDate date) {
+    var aum = fundNavQueryService.findAum(fund.getCode(), date);
+    if (aum == null || aum.signum() <= 0) {
+      return null;
+    }
+    var securities = fundNavQueryService.findSecuritiesTotalValue(fund.getCode(), date);
+    var cash = fundNavQueryService.findCashValue(fund.getCode(), date);
+    var feeAccrualLiabilities = fundNavQueryService.findFeeAccrualLiabilities(fund.getCode(), date);
+
+    // Non-security value: AUM - securities - cash - feeAccruals
+    // LIABILITY_FEE market_values are NEGATIVE in nav_report (NavReportMapper.liabilityFeeRow
+    // stores amount.negate()), so subtracting a negative adds them back — correctly excluding
+    // fee accruals from this component (they are attributed in components A+B).
+    var nonSecurityValue = aum.subtract(securities).subtract(cash).subtract(feeAccrualLiabilities);
+
+    return new NavComponents(aum, securities, cash, nonSecurityValue);
+  }
+
+  private record NavComponents(
+      BigDecimal aum, BigDecimal securities, BigDecimal cash, BigDecimal nonSecurityValue) {}
+
   @SuppressWarnings("unchecked")
   private List<SecurityDailyData> buildSecurityDailyData(
       TulevaFund fund,
       TrackingDifferenceEvent event,
       List<ModelPortfolioAllocation> modelAllocations,
-      LocalDate date) {
+      LocalDate date,
+      NavComponents navComponents) {
 
     var result = event.getResult();
     var attributions =
@@ -224,30 +229,24 @@ class PeriodicTdAttributionService {
       return List.of();
     }
 
-    // Get actual positions for normalization
-    var positions = fundPositionRepository.findByNavDateAndFundAndAccountType(date, fund, SECURITY);
-    var totalSecurityValue =
-        positions.stream().map(FundPosition::getMarketValue).reduce(ZERO, BigDecimal::add);
-
+    var totalSecurityValue = navComponents.securities();
     if (totalSecurityValue.signum() <= 0) {
       return List.of();
     }
 
+    var positions = fundPositionRepository.findByNavDateAndFundAndAccountType(date, fund, SECURITY);
     var positionByIsin =
         positions.stream()
             .filter(p -> p.getAccountId() != null)
             .collect(Collectors.toMap(FundPosition::getAccountId, p -> p, (a, b) -> a));
 
-    // Get model weights for this date
     var modelWeights = getModelWeightsForDate(modelAllocations, date);
-
-    var result2 = new ArrayList<SecurityDailyData>();
+    var securityDataList = new ArrayList<SecurityDailyData>();
 
     for (var attr : attributions) {
       var isin = (String) attr.get("isin");
       var securityReturn = toBigDecimal(attr.get("securityReturn"));
 
-      // Normalize actual weight against total security value
       var position = positionByIsin.get(isin);
       var actualMv = position != null ? position.getMarketValue() : ZERO;
       var normalizedActualWeight = actualMv.divide(totalSecurityValue, SCALE, HALF_UP);
@@ -255,7 +254,7 @@ class PeriodicTdAttributionService {
       var modelWeight = modelWeights.getOrDefault(isin, ZERO);
       var normalizedWeightDiff = normalizedActualWeight.subtract(modelWeight);
 
-      result2.add(
+      securityDataList.add(
           SecurityDailyData.builder()
               .isin(isin)
               .modelWeight(modelWeight)
@@ -265,7 +264,7 @@ class PeriodicTdAttributionService {
               .build());
     }
 
-    return result2;
+    return securityDataList;
   }
 
   private Map<String, BigDecimal> getModelWeightsForDate(
@@ -326,9 +325,9 @@ class PeriodicTdAttributionService {
     return entity;
   }
 
-  private static BigDecimal toBigDecimal(Object value) {
+  static BigDecimal toBigDecimal(Object value) {
     if (value instanceof BigDecimal bd) return bd;
-    if (value instanceof Number n) return BigDecimal.valueOf(n.doubleValue());
+    if (value instanceof Number n) return new BigDecimal(n.toString());
     if (value instanceof String s) return new BigDecimal(s);
     return ZERO;
   }

@@ -445,4 +445,124 @@ class PeriodicTdAttributionServiceTest {
         .marketValue(new BigDecimal(marketValue))
         .build();
   }
+
+  @Test
+  void blendsModelWeightsDuringTransitionInPeriodicAttribution() {
+    var date1 = LocalDate.of(2026, 4, 1);
+    var date2 = LocalDate.of(2026, 4, 2);
+
+    var isinNew = "IE00NEW";
+
+    given(
+            tdEventRepository.findDeduplicatedEventsForPeriod(
+                TUK75, MODEL_PORTFOLIO, PERIOD_START, PERIOD_END))
+        .willReturn(
+            List.of(
+                tdEvent(date1, "0.0008", "0.001"),
+                tdEventWithTransition(date2, "0.0005", "0.0007", isinNew)));
+
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, PERIOD_START, PERIOD_END))
+        .willReturn(
+            List.of(
+                feeAccrual(date1, FeeType.MANAGEMENT, "27.40"),
+                feeAccrual(date2, FeeType.MANAGEMENT, "27.40")));
+
+    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, PERIOD_END))
+        .willReturn(
+            Optional.of(
+                new FeeRate(
+                    1L, TUK75, FeeType.MANAGEMENT, new BigDecimal("0.0027"), PERIOD_START, null)));
+
+    given(
+            modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
+                TUK75, PERIOD_START, PERIOD_END))
+        .willReturn(
+            List.of(
+                modelAllocation(ISIN_DW, "0.70", date1),
+                modelAllocation(ISIN_EM, "0.30", date1),
+                modelAllocation(ISIN_DW, "0.70", date2),
+                modelAllocation(isinNew, "0.30", date2)));
+
+    given(fundNavQueryService.findAum(FUND_CODE, date1)).willReturn(new BigDecimal("100000000"));
+    given(fundNavQueryService.findAum(FUND_CODE, date2)).willReturn(new BigDecimal("100050000"));
+    given(fundNavQueryService.findCashValue(anyString(), any()))
+        .willReturn(new BigDecimal("1500000"));
+    given(fundNavQueryService.findSecuritiesTotalValue(anyString(), any()))
+        .willReturn(new BigDecimal("98000000"));
+    given(fundNavQueryService.findFeeAccrualLiabilities(anyString(), any()))
+        .willReturn(new BigDecimal("-50000"));
+
+    given(
+            fundPositionRepository.findByNavDateAndFundAndAccountType(
+                eq(date1), eq(TUK75), eq(SECURITY)))
+        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EM, "29400000")));
+
+    given(
+            fundPositionRepository.findByNavDateAndFundAndAccountType(
+                eq(date2), eq(TUK75), eq(SECURITY)))
+        .willReturn(
+            List.of(
+                position(ISIN_DW, "68600000"),
+                position(ISIN_EM, "20000000"),
+                position(isinNew, "10000000")));
+
+    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    var emDetail =
+        result.instrumentDetails().stream()
+            .filter(d -> d.isin().equals(ISIN_EM))
+            .findFirst()
+            .orElseThrow();
+    var newDetail =
+        result.instrumentDetails().stream()
+            .filter(d -> d.isin().equals(isinNew))
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(emDetail.weightDevContribution().abs()).isLessThan(new BigDecimal("0.001"));
+    assertThat(newDetail.weightDevContribution().abs()).isLessThan(new BigDecimal("0.001"));
+  }
+
+  private TrackingDifferenceEvent tdEventWithTransition(
+      LocalDate date, String fundReturn, String benchmarkReturn, String newIsin) {
+    return TrackingDifferenceEvent.builder()
+        .fund(TUK75)
+        .checkDate(date)
+        .checkType(MODEL_PORTFOLIO)
+        .trackingDifference(new BigDecimal(fundReturn).subtract(new BigDecimal(benchmarkReturn)))
+        .fundReturn(new BigDecimal(fundReturn))
+        .benchmarkReturn(new BigDecimal(benchmarkReturn))
+        .breach(false)
+        .result(
+            Map.of(
+                "securityAttributions",
+                List.of(
+                    Map.<String, Object>of(
+                        "isin", ISIN_DW,
+                        "modelWeight", new BigDecimal("0.70"),
+                        "actualWeight", new BigDecimal("0.70"),
+                        "securityReturn", new BigDecimal("0.001")),
+                    Map.<String, Object>of(
+                        "isin",
+                        ISIN_EM,
+                        "modelWeight",
+                        ZERO,
+                        "actualWeight",
+                        new BigDecimal("0.20"),
+                        "securityReturn",
+                        new BigDecimal("0.0005")),
+                    Map.<String, Object>of(
+                        "isin", newIsin,
+                        "modelWeight", new BigDecimal("0.30"),
+                        "actualWeight", new BigDecimal("0.10"),
+                        "securityReturn", new BigDecimal("0.002"))),
+                "cashDrag",
+                ZERO,
+                "feeDrag",
+                ZERO,
+                "residual",
+                ZERO))
+        .createdAt(Instant.now())
+        .build();
+  }
 }

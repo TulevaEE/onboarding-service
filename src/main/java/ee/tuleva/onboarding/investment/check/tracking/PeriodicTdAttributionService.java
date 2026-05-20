@@ -22,8 +22,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -240,7 +242,11 @@ class PeriodicTdAttributionService {
             .filter(p -> p.getAccountId() != null)
             .collect(Collectors.toMap(FundPosition::getAccountId, p -> p, (a, b) -> a));
 
-    var modelWeights = getModelWeightsForDate(modelAllocations, date);
+    var currentWeights = getModelWeightsForDate(modelAllocations, date);
+    var previousWeights = getPreviousModelWeightsForDate(modelAllocations, date);
+    var transitionIsins =
+        findTransitionIsins(currentWeights, previousWeights, positionByIsin.keySet(), fund);
+
     var securityDataList = new ArrayList<SecurityDailyData>();
 
     for (var attr : attributions) {
@@ -251,7 +257,10 @@ class PeriodicTdAttributionService {
       var actualMv = position != null ? position.getMarketValue() : ZERO;
       var normalizedActualWeight = actualMv.divide(totalSecurityValue, SCALE, HALF_UP);
 
-      var modelWeight = modelWeights.getOrDefault(isin, ZERO);
+      var modelWeight =
+          transitionIsins.contains(isin)
+              ? normalizedActualWeight
+              : currentWeights.getOrDefault(isin, ZERO);
       var normalizedWeightDiff = normalizedActualWeight.subtract(modelWeight);
 
       securityDataList.add(
@@ -284,6 +293,71 @@ class PeriodicTdAttributionService {
         .collect(
             Collectors.toMap(
                 ModelPortfolioAllocation::getIsin, ModelPortfolioAllocation::getWeight));
+  }
+
+  private Map<String, BigDecimal> getPreviousModelWeightsForDate(
+      List<ModelPortfolioAllocation> allVersions, LocalDate date) {
+    var activeAllocations =
+        allVersions.stream().filter(a -> !a.getEffectiveDate().isAfter(date)).toList();
+    var distinctDates =
+        activeAllocations.stream()
+            .map(ModelPortfolioAllocation::getEffectiveDate)
+            .distinct()
+            .sorted()
+            .toList();
+    if (distinctDates.size() < 2) {
+      return Map.of();
+    }
+    var previousDate = distinctDates.get(distinctDates.size() - 2);
+    return activeAllocations.stream()
+        .filter(a -> a.getEffectiveDate().equals(previousDate))
+        .collect(
+            Collectors.toMap(
+                ModelPortfolioAllocation::getIsin, ModelPortfolioAllocation::getWeight));
+  }
+
+  private Set<String> findTransitionIsins(
+      Map<String, BigDecimal> currentWeights,
+      Map<String, BigDecimal> previousWeights,
+      Set<String> positionIsins,
+      TulevaFund fund) {
+
+    if (previousWeights.isEmpty()) {
+      return Set.of();
+    }
+
+    var addedIsins = new HashSet<>(currentWeights.keySet());
+    addedIsins.removeAll(previousWeights.keySet());
+    var removedIsins = new HashSet<>(previousWeights.keySet());
+    removedIsins.removeAll(currentWeights.keySet());
+
+    if (addedIsins.isEmpty() && removedIsins.isEmpty()) {
+      return Set.of();
+    }
+
+    var knownIsins = new HashSet<>(currentWeights.keySet());
+    knownIsins.addAll(previousWeights.keySet());
+    var unexpectedIsins = new HashSet<>(positionIsins);
+    unexpectedIsins.removeAll(knownIsins);
+
+    if (!unexpectedIsins.isEmpty()) {
+      log.warn(
+          "Unexpected ISINs in portfolio, skipping transition blending: fund={}, unexpected={}",
+          fund,
+          unexpectedIsins);
+      return Set.of();
+    }
+
+    var removedAndHeld = new HashSet<>(removedIsins);
+    removedAndHeld.retainAll(positionIsins);
+
+    if (removedAndHeld.isEmpty()) {
+      return Set.of();
+    }
+
+    var transitionIsins = new HashSet<>(addedIsins);
+    transitionIsins.addAll(removedIsins);
+    return transitionIsins;
   }
 
   private PeriodicTdAttribution toEntity(TdAttributionResult result) {

@@ -34,6 +34,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -200,6 +201,9 @@ class TrackingDifferenceService {
           List.of());
     }
 
+    var blendedSecurities =
+        blendTransitionWeights(securities, allocations, previousAllocations, positions, fund);
+
     var priorBreaches = countConsecutiveBreaches(fund, MODEL_PORTFOLIO, checkDate);
 
     var modelInput =
@@ -209,7 +213,7 @@ class TrackingDifferenceService {
             .checkType(MODEL_PORTFOLIO)
             .todayNav(todayNav.value())
             .yesterdayNav(yesterdayNav.value())
-            .securities(securities)
+            .securities(blendedSecurities)
             .cashWeight(cashWeight)
             .annualFeeRate(annualFeeRate)
             .consecutiveBreachDays(priorBreaches.count())
@@ -499,6 +503,82 @@ class TrackingDifferenceService {
         .forEach(result::add);
 
     return result;
+  }
+
+  private List<SecurityData> blendTransitionWeights(
+      List<SecurityData> securities,
+      List<ModelPortfolioAllocation> allocations,
+      List<ModelPortfolioAllocation> previousAllocations,
+      List<FundPosition> positions,
+      TulevaFund fund) {
+
+    if (previousAllocations.isEmpty()) {
+      return securities;
+    }
+
+    var currentIsins =
+        allocations.stream()
+            .map(ModelPortfolioAllocation::getIsin)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+    var previousIsins =
+        previousAllocations.stream()
+            .map(ModelPortfolioAllocation::getIsin)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+
+    var addedIsins = new HashSet<>(currentIsins);
+    addedIsins.removeAll(previousIsins);
+    var removedIsins = new HashSet<>(previousIsins);
+    removedIsins.removeAll(currentIsins);
+
+    if (addedIsins.isEmpty() && removedIsins.isEmpty()) {
+      return securities;
+    }
+
+    var positionIsins =
+        positions.stream()
+            .map(FundPosition::getAccountId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+
+    var knownIsins = new HashSet<>(currentIsins);
+    knownIsins.addAll(previousIsins);
+    var unexpectedIsins = new HashSet<>(positionIsins);
+    unexpectedIsins.removeAll(knownIsins);
+
+    if (!unexpectedIsins.isEmpty()) {
+      log.warn(
+          "Unexpected ISINs in portfolio, skipping transition blending: fund={}, unexpected={}",
+          fund,
+          unexpectedIsins);
+      return securities;
+    }
+
+    var removedAndHeld = new HashSet<>(removedIsins);
+    removedAndHeld.retainAll(positionIsins);
+
+    if (removedAndHeld.isEmpty()) {
+      return securities;
+    }
+
+    var transitionIsins = new HashSet<>(addedIsins);
+    transitionIsins.addAll(removedIsins);
+
+    log.info(
+        "Transition blending applied: fund={}, removedAndHeld={}, addedIsins={}",
+        fund,
+        removedAndHeld,
+        addedIsins);
+
+    return securities.stream()
+        .map(
+            s ->
+                transitionIsins.contains(s.isin())
+                    ? new SecurityData(
+                        s.isin(), s.actualWeight(), s.actualWeight(), s.today(), s.previous())
+                    : s)
+        .toList();
   }
 
   private SecurityData buildOneSecurityData(

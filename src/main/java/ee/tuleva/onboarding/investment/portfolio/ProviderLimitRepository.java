@@ -21,7 +21,7 @@ public interface ProviderLimitRepository extends JpaRepository<ProviderLimit, Lo
       AND pl.effectiveDate = (
         SELECT MAX(pl2.effectiveDate)
         FROM ProviderLimit pl2
-        WHERE pl2.fund = :fund
+        WHERE pl2.fund = :fund AND pl2.provider = pl.provider
       )
       """)
   List<ProviderLimit> findLatestByFund(TulevaFund fund);
@@ -33,7 +33,7 @@ public interface ProviderLimitRepository extends JpaRepository<ProviderLimit, Lo
       AND pl.effectiveDate = (
         SELECT MAX(pl2.effectiveDate)
         FROM ProviderLimit pl2
-        WHERE pl2.fund = :fund AND pl2.effectiveDate <= :asOf
+        WHERE pl2.fund = :fund AND pl2.provider = pl.provider AND pl2.effectiveDate <= :asOf
       )
       """)
   List<ProviderLimit> findLatestByFundAsOf(TulevaFund fund, LocalDate asOf);

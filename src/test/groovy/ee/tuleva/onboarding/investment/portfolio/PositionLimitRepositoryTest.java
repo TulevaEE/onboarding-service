@@ -141,9 +141,10 @@ class PositionLimitRepositoryTest {
 
     var result = repository.findLatestByFund(TUK75);
 
-    assertThat(result).hasSize(2);
-    assertThat(result).extracting("effectiveDate").containsOnly(newerDate);
-    assertThat(result).extracting("provider").containsExactlyInAnyOrder(XTRACKERS, BNP_PARIBAS);
+    assertThat(result).hasSize(3);
+    assertThat(result)
+        .extracting("isin")
+        .containsExactlyInAnyOrder("IE00B4L5Y983", "IE00BJZ2DC62", "LU1291099718");
   }
 
   @Test
@@ -192,5 +193,88 @@ class PositionLimitRepositoryTest {
     assertThat(afterOlder.getFirst().getSoftLimitPercent()).isEqualByComparingTo("0.1070");
     assertThat(afterNewer).hasSize(1);
     assertThat(afterNewer).extracting("effectiveDate").containsOnly(newerDate);
+  }
+
+  @Test
+  void findLatestByFund_resolvesPerIsinEffectiveDate() {
+    var originalDate = LocalDate.of(2025, 6, 30);
+    var updatedDate = LocalDate.of(2025, 11, 7);
+
+    entityManager.persist(
+        PositionLimit.builder()
+            .effectiveDate(originalDate)
+            .fund(TUK75)
+            .isin("IE00UNCHANGED")
+            .provider(ISHARES)
+            .softLimitPercent(new BigDecimal("0.10"))
+            .hardLimitPercent(new BigDecimal("0.12"))
+            .build());
+    entityManager.persist(
+        PositionLimit.builder()
+            .effectiveDate(originalDate)
+            .fund(TUK75)
+            .isin("IE00UPDATED")
+            .provider(XTRACKERS)
+            .softLimitPercent(new BigDecimal("0.12"))
+            .hardLimitPercent(new BigDecimal("0.15"))
+            .build());
+    entityManager.persist(
+        PositionLimit.builder()
+            .effectiveDate(updatedDate)
+            .fund(TUK75)
+            .isin("IE00UPDATED")
+            .provider(XTRACKERS)
+            .softLimitPercent(new BigDecimal("0.15"))
+            .hardLimitPercent(new BigDecimal("0.18"))
+            .build());
+    entityManager.flush();
+
+    var result = repository.findLatestByFund(TUK75);
+
+    assertThat(result).hasSize(2);
+    var unchanged = result.stream().filter(l -> l.getIsin().equals("IE00UNCHANGED")).findFirst();
+    var updated = result.stream().filter(l -> l.getIsin().equals("IE00UPDATED")).findFirst();
+    assertThat(unchanged).isPresent();
+    assertThat(unchanged.get().getEffectiveDate()).isEqualTo(originalDate);
+    assertThat(unchanged.get().getSoftLimitPercent()).isEqualByComparingTo("0.10");
+    assertThat(updated).isPresent();
+    assertThat(updated.get().getEffectiveDate()).isEqualTo(updatedDate);
+    assertThat(updated.get().getSoftLimitPercent()).isEqualByComparingTo("0.15");
+  }
+
+  @Test
+  void findLatestByFundAsOf_resolvesPerIsinEffectiveDate() {
+    var originalDate = LocalDate.of(2025, 6, 30);
+    var updatedDate = LocalDate.of(2025, 11, 7);
+
+    entityManager.persist(
+        PositionLimit.builder()
+            .effectiveDate(originalDate)
+            .fund(TUK75)
+            .isin("IE00UNCHANGED")
+            .provider(ISHARES)
+            .softLimitPercent(new BigDecimal("0.10"))
+            .hardLimitPercent(new BigDecimal("0.12"))
+            .build());
+    entityManager.persist(
+        PositionLimit.builder()
+            .effectiveDate(updatedDate)
+            .fund(TUK75)
+            .isin("IE00NEW")
+            .provider(XTRACKERS)
+            .softLimitPercent(new BigDecimal("0.15"))
+            .hardLimitPercent(new BigDecimal("0.18"))
+            .build());
+    entityManager.flush();
+
+    var beforeBoth = repository.findLatestByFundAsOf(TUK75, LocalDate.of(2025, 6, 29));
+    var afterFirst = repository.findLatestByFundAsOf(TUK75, LocalDate.of(2025, 8, 1));
+    var afterBoth = repository.findLatestByFundAsOf(TUK75, LocalDate.of(2025, 12, 1));
+
+    assertThat(beforeBoth).isEmpty();
+    assertThat(afterFirst).hasSize(1);
+    assertThat(afterFirst.getFirst().getIsin()).isEqualTo("IE00UNCHANGED");
+    assertThat(afterBoth).hasSize(2);
+    assertThat(afterBoth).extracting("isin").containsExactlyInAnyOrder("IE00UNCHANGED", "IE00NEW");
   }
 }

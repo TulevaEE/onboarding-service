@@ -58,8 +58,9 @@ public class HealthCheckService {
     var unitsPositions = filterByType(positions, UNITS);
     var receivables = filterByType(positions, RECEIVABLES);
     var liabilities = filterByType(positions, LIABILITY);
-    var allocations = modelPortfolioAllocationRepository.findLatestByFund(fund);
-    var previousAllocations = modelPortfolioAllocationRepository.findPreviousByFund(fund);
+    var allocations = modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, navDate);
+    var previousAllocations =
+        modelPortfolioAllocationRepository.findPreviousByFundAsOf(fund, navDate);
 
     var previousNavDate =
         fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, navDate.minusDays(1));

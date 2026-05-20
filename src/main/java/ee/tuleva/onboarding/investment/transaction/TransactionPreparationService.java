@@ -131,9 +131,9 @@ public class TransactionPreparationService {
     orderRepository.saveAll(orders);
 
     List<ModelPortfolioAllocation> currentAllocations =
-        modelPortfolioAllocationRepository.findLatestByFund(batch.getFund());
+        modelPortfolioAllocationRepository.findLatestByFundAsOf(batch.getFund(), tradeDate);
     List<ModelPortfolioAllocation> previousAllocations =
-        modelPortfolioAllocationRepository.findPreviousByFund(batch.getFund());
+        modelPortfolioAllocationRepository.findPreviousByFundAsOf(batch.getFund(), tradeDate);
     var mergedAllocations = new ArrayList<>(previousAllocations);
     mergedAllocations.addAll(currentAllocations);
     Map<String, String> labelsByIsin =

@@ -19,10 +19,10 @@ public interface ModelPortfolioAllocationRepository
       AND m.effectiveDate = (
         SELECT MAX(m2.effectiveDate)
         FROM ModelPortfolioAllocation m2
-        WHERE m2.fund = :fund
+        WHERE m2.fund = :fund AND m2.effectiveDate <= :asOf
       )
       """)
-  List<ModelPortfolioAllocation> findLatestByFund(TulevaFund fund);
+  List<ModelPortfolioAllocation> findLatestByFundAsOf(TulevaFund fund, LocalDate asOf);
 
   @Query(
       """
@@ -31,15 +31,15 @@ public interface ModelPortfolioAllocationRepository
       AND m.effectiveDate = (
         SELECT MAX(m2.effectiveDate)
         FROM ModelPortfolioAllocation m2
-        WHERE m2.fund = :fund
+        WHERE m2.fund = :fund AND m2.effectiveDate <= :asOf
         AND m2.effectiveDate < (
           SELECT MAX(m3.effectiveDate)
           FROM ModelPortfolioAllocation m3
-          WHERE m3.fund = :fund
+          WHERE m3.fund = :fund AND m3.effectiveDate <= :asOf
         )
       )
       """)
-  List<ModelPortfolioAllocation> findPreviousByFund(TulevaFund fund);
+  List<ModelPortfolioAllocation> findPreviousByFundAsOf(TulevaFund fund, LocalDate asOf);
 
   @Query(
       """

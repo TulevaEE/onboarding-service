@@ -53,7 +53,8 @@ class HealthCheckServiceTest {
             cashPosition(TUK75, new BigDecimal("50000")));
 
     var allocations = List.of(ModelPortfolioAllocation.builder().fund(TUK75).isin("IE001").build());
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).willReturn(allocations);
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(allocations);
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
         .willReturn(Optional.empty());
 
@@ -78,7 +79,8 @@ class HealthCheckServiceTest {
             securityPosition(TUK75, "IE001", new BigDecimal("1000")),
             securityPosition(TUK00, "LU001", new BigDecimal("500")));
 
-    given(modelPortfolioAllocationRepository.findLatestByFund(any())).willReturn(List.of());
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(any(), any()))
+        .willReturn(List.of());
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(any(), any()))
         .willReturn(Optional.empty());
 
@@ -98,7 +100,8 @@ class HealthCheckServiceTest {
   void savesEventsPerCheckType() {
     var positions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("1000")));
 
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).willReturn(List.of());
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(List.of());
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
         .willReturn(Optional.empty());
 
@@ -119,7 +122,8 @@ class HealthCheckServiceTest {
   void persistsSeverityDerivedFromFindings() {
     var positions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("1000")));
 
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).willReturn(List.of());
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(List.of());
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
         .willReturn(Optional.empty());
 
@@ -155,7 +159,8 @@ class HealthCheckServiceTest {
     var positions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("900")));
     var previousSecurities = List.of(securityPosition(TUK75, "IE001", new BigDecimal("1000")));
 
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).willReturn(List.of());
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(List.of());
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
         .willReturn(Optional.of(previousDate));
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(previousDate, TUK75, SECURITY))
@@ -182,7 +187,8 @@ class HealthCheckServiceTest {
     var previousLiabilities = List.of(liabilityPosition(TUK75, new BigDecimal("-1780760.00")));
     var previousReceivables = List.of(receivablesPosition(TUK75, new BigDecimal("831.77")));
 
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).willReturn(List.of());
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(List.of());
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
         .willReturn(Optional.of(previousDate));
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(previousDate, TUK75, SECURITY))
@@ -219,7 +225,8 @@ class HealthCheckServiceTest {
             .build();
     var authoritative = new BigDecimal("1000005");
 
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).willReturn(List.of());
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(List.of());
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
         .willReturn(Optional.empty());
     given(unitReconciliationThresholdRepository.findByFundCode(TUK75))
@@ -236,7 +243,8 @@ class HealthCheckServiceTest {
   void passesNullsToUnitReconciliationCheckerWhenThresholdOrAuthoritativeAbsent() {
     var positions = List.of(unitsPosition(TUK75, new BigDecimal("1000000")));
 
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).willReturn(List.of());
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(List.of());
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
         .willReturn(Optional.empty());
     given(unitReconciliationThresholdRepository.findByFundCode(TUK75)).willReturn(Optional.empty());

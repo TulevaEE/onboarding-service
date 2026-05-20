@@ -97,61 +97,10 @@ class ModelPortfolioAllocationRepositoryTest {
   }
 
   @Test
-  void findLatestByFund_returnsNewestEffectiveDate() {
-    var olderDate = LocalDate.of(2025, 6, 30);
-    var newerDate = LocalDate.of(2025, 12, 1);
-
-    var olderAllocation =
-        ModelPortfolioAllocation.builder()
-            .effectiveDate(olderDate)
-            .fund(TUK75)
-            .isin("IE00B4L5Y983")
-            .weight(new BigDecimal("0.25"))
-            .provider(ISHARES)
-            .build();
-
-    var newerAllocation1 =
-        ModelPortfolioAllocation.builder()
-            .effectiveDate(newerDate)
-            .fund(TUK75)
-            .isin("IE00BJZ2DC62")
-            .weight(new BigDecimal("0.174"))
-            .provider(XTRACKERS)
-            .build();
-
-    var newerAllocation2 =
-        ModelPortfolioAllocation.builder()
-            .effectiveDate(newerDate)
-            .fund(TUK75)
-            .isin("LU1291099718")
-            .weight(new BigDecimal("0.125"))
-            .provider(BNP_PARIBAS)
-            .build();
-
-    entityManager.persist(olderAllocation);
-    entityManager.persist(newerAllocation1);
-    entityManager.persist(newerAllocation2);
-    entityManager.flush();
-
-    var result = repository.findLatestByFund(TUK75);
-
-    assertThat(result).hasSize(2);
-    assertThat(result).extracting("effectiveDate").containsOnly(newerDate);
-    assertThat(result).extracting("provider").containsExactlyInAnyOrder(XTRACKERS, BNP_PARIBAS);
-  }
-
-  @Test
-  void findLatestByFund_returnsEmptyWhenNoData() {
-    var result = repository.findLatestByFund(TUK75);
-
-    assertThat(result).isEmpty();
-  }
-
-  @Test
-  void findPreviousByFund_returnsSecondToLatestEffectiveDate() {
+  void findLatestByFundAsOf_returnsAllocationsEffectiveOnOrBeforeAsOfDate() {
     var oldestDate = LocalDate.of(2025, 3, 1);
-    var previousDate = LocalDate.of(2025, 6, 30);
-    var latestDate = LocalDate.of(2025, 12, 1);
+    var middleDate = LocalDate.of(2025, 6, 30);
+    var newestDate = LocalDate.of(2025, 12, 1);
 
     entityManager.persist(
         ModelPortfolioAllocation.builder()
@@ -161,55 +110,75 @@ class ModelPortfolioAllocationRepositoryTest {
             .weight(new BigDecimal("0.30"))
             .provider(ISHARES)
             .build());
-
     entityManager.persist(
         ModelPortfolioAllocation.builder()
-            .effectiveDate(previousDate)
+            .effectiveDate(middleDate)
             .fund(TUK75)
-            .isin("IE00PREVIOUS")
+            .isin("IE00MIDDLE")
             .weight(new BigDecimal("0.25"))
             .provider(ISHARES)
             .build());
-
     entityManager.persist(
         ModelPortfolioAllocation.builder()
-            .effectiveDate(latestDate)
+            .effectiveDate(newestDate)
             .fund(TUK75)
-            .isin("IE00LATEST")
-            .weight(new BigDecimal("0.174"))
-            .provider(XTRACKERS)
-            .build());
-
-    entityManager.flush();
-
-    var result = repository.findPreviousByFund(TUK75);
-
-    assertThat(result).hasSize(1);
-    assertThat(result).extracting("effectiveDate").containsOnly(previousDate);
-    assertThat(result).extracting("isin").containsOnly("IE00PREVIOUS");
-  }
-
-  @Test
-  void findPreviousByFund_returnsEmptyWhenOnlyOneVersion() {
-    entityManager.persist(
-        ModelPortfolioAllocation.builder()
-            .effectiveDate(LocalDate.of(2025, 12, 1))
-            .fund(TUK75)
-            .isin("IE00BJZ2DC62")
+            .isin("IE00NEWEST")
             .weight(new BigDecimal("0.174"))
             .provider(XTRACKERS)
             .build());
     entityManager.flush();
 
-    var result = repository.findPreviousByFund(TUK75);
+    var beforeAll = repository.findLatestByFundAsOf(TUK75, LocalDate.of(2025, 2, 1));
+    var afterOldest = repository.findLatestByFundAsOf(TUK75, LocalDate.of(2025, 8, 1));
+    var afterNewest = repository.findLatestByFundAsOf(TUK75, LocalDate.of(2025, 12, 1));
 
-    assertThat(result).isEmpty();
+    assertThat(beforeAll).isEmpty();
+    assertThat(afterOldest).hasSize(1);
+    assertThat(afterOldest).extracting("effectiveDate").containsOnly(middleDate);
+    assertThat(afterNewest).hasSize(1);
+    assertThat(afterNewest).extracting("effectiveDate").containsOnly(newestDate);
   }
 
   @Test
-  void findPreviousByFund_returnsEmptyWhenNoData() {
-    var result = repository.findPreviousByFund(TUK75);
+  void findPreviousByFundAsOf_returnsSecondToLatestAsOf() {
+    var oldestDate = LocalDate.of(2025, 3, 1);
+    var middleDate = LocalDate.of(2025, 6, 30);
+    var newestDate = LocalDate.of(2025, 12, 1);
 
-    assertThat(result).isEmpty();
+    entityManager.persist(
+        ModelPortfolioAllocation.builder()
+            .effectiveDate(oldestDate)
+            .fund(TUK75)
+            .isin("IE00OLDEST")
+            .weight(new BigDecimal("0.30"))
+            .provider(ISHARES)
+            .build());
+    entityManager.persist(
+        ModelPortfolioAllocation.builder()
+            .effectiveDate(middleDate)
+            .fund(TUK75)
+            .isin("IE00MIDDLE")
+            .weight(new BigDecimal("0.25"))
+            .provider(ISHARES)
+            .build());
+    entityManager.persist(
+        ModelPortfolioAllocation.builder()
+            .effectiveDate(newestDate)
+            .fund(TUK75)
+            .isin("IE00NEWEST")
+            .weight(new BigDecimal("0.174"))
+            .provider(XTRACKERS)
+            .build());
+    entityManager.flush();
+
+    var asOfNewest = repository.findPreviousByFundAsOf(TUK75, newestDate);
+    var asOfMiddle = repository.findPreviousByFundAsOf(TUK75, LocalDate.of(2025, 8, 1));
+    var asOfOldest = repository.findPreviousByFundAsOf(TUK75, LocalDate.of(2025, 4, 1));
+
+    assertThat(asOfNewest).hasSize(1);
+    assertThat(asOfNewest).extracting("effectiveDate").containsOnly(middleDate);
+    assertThat(asOfMiddle).hasSize(1);
+    assertThat(asOfMiddle).extracting("effectiveDate").containsOnly(oldestDate);
+    assertThat(asOfOldest).isEmpty();
   }
 }

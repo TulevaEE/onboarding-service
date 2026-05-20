@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.locale.LocaleService;
+import ee.tuleva.onboarding.payment.CoopLanguage;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentDateProvider;
 import ee.tuleva.onboarding.payment.PaymentLink;
@@ -84,7 +85,7 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
     params.put("cur", "EUR");
     params.put("desc", thirdPillarConfig.getDescription());
     params.put("ref", contactDetails.getPensionAccountNumber());
-    params.put("lang", lang());
+    params.put("lang", CoopLanguage.code(localeService.getCurrentLanguage()));
     return SINGLE_PATH + "?" + PaymentUrlEncoder.encode(params);
   }
 
@@ -100,20 +101,11 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
     params.put("ref", contactDetails.getPensionAccountNumber());
     params.put("date", format(paymentDateProvider.tenthDayOfMonth()));
     params.put("freq", MONTHLY_FREQ);
-    params.put("lang", lang());
+    params.put("lang", CoopLanguage.code(localeService.getCurrentLanguage()));
     return STANDING_ORDER_PATH + "?" + PaymentUrlEncoder.encode(params);
   }
 
   private static String formattedAmount(PaymentData paymentData) {
     return paymentData.getAmount() == null ? null : paymentData.getAmount().toPlainString();
-  }
-
-  private String lang() {
-    // Coop uses country code "ee" for Estonian, not ISO 639 "et".
-    return switch (localeService.getCurrentLanguage()) {
-      case "en" -> "en";
-      case "ru" -> "ru";
-      default -> "ee";
-    };
   }
 }

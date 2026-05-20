@@ -104,7 +104,7 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
 
   @Test
   void buildsCoopUrlWithEstonianLocale() {
-    LocaleContextHolder.setLocale(new Locale("et"));
+    LocaleContextHolder.setLocale(Locale.of("et"));
 
     var link = prefilledLink(COOP);
 

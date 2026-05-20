@@ -7,7 +7,10 @@ import ee.tuleva.onboarding.payment.PaymentData
 import ee.tuleva.onboarding.payment.PaymentDateProvider
 import ee.tuleva.onboarding.payment.PrefilledLink
 import ee.tuleva.onboarding.payment.RedirectLink
+import org.springframework.context.i18n.LocaleContextHolder
 import spock.lang.Specification
+
+import java.util.Locale
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.config.JsonMapperFixture.jsonMapper
@@ -27,6 +30,14 @@ class RecurringPaymentLinkGeneratorSpec extends Specification {
   def thirdPillarConfig = thirdPillarRecipientConfiguration()
   def coopPankPaymentLinkGenerator = new CoopPankPaymentLinkGenerator(contactDetailsService, objectMapper, localeService, paymentDateProvider, thirdPillarConfig)
   def recurringPaymentLinkGenerator = new RecurringPaymentLinkGenerator(contactDetailsService, paymentDateProvider, coopPankPaymentLinkGenerator, thirdPillarConfig)
+
+  def setup() {
+    LocaleContextHolder.setLocale(Locale.ENGLISH)
+  }
+
+  def cleanup() {
+    LocaleContextHolder.resetLocaleContext()
+  }
 
   def "can get a recurring payment link"() {
     given:
@@ -49,8 +60,8 @@ class RecurringPaymentLinkGeneratorSpec extends Specification {
     SEB            | RedirectLink  | "https://e.seb.ee/web/ipank?act=PENSION3_STPAYM&saajakonto=EE141010220263146225&saajanimi=" +
         "AS%20Pensionikeskus&selgitus=30101119828%2C%20EE3600001707&viitenr=993432432&summa=12.34&alguskuup=10.01.2020&sagedus=M"
     LUMINOR        | RedirectLink  | "https://luminor.ee/auth/#/web/view/autopilot/newpayment"
-    COOP           | PrefilledLink | "https://i.cooppank.ee/newpmt-eng?whatform=PermPaymentNew&SaajaNimi=AS%20Pensionikeskus&SaajaKonto=EE362200221067235244&MakseSumma=12.34&MaksePohjus=30101119828%2c%20EE3600001707&ViiteNumber=993432432&MakseSagedus=3&MakseEsimene=10.01.2020"
-    COOP_WEB       | PrefilledLink | "newpmt-eng?whatform=PermPaymentNew&SaajaNimi=AS%20Pensionikeskus&SaajaKonto=EE362200221067235244&MakseSumma=12.34&MaksePohjus=30101119828%2c%20EE3600001707&ViiteNumber=993432432&MakseSagedus=3&MakseEsimene=10.01.2020"
+    COOP           | PrefilledLink | "https://i.cooppank.ee/i/standing-orders/new?bname=AS%20Pensionikeskus&bacc=EE362200221067235244&amt=12.34&cur=EUR&desc=30101119828%2C%20EE3600001707&ref=993432432&date=10.01.2020&freq=2&lang=en"
+    COOP_WEB       | PrefilledLink | "i/standing-orders/new?bname=AS%20Pensionikeskus&bacc=EE362200221067235244&amt=12.34&cur=EUR&desc=30101119828%2C%20EE3600001707&ref=993432432&date=10.01.2020&freq=2&lang=en"
     PARTNER        | PrefilledLink | """{"accountNumber":"EE362200221067235244","recipientName":"AS Pensionikeskus","amount":12.34,"currency":"EUR","description":"30101119828, EE3600001707","reference":"993432432","interval":"MONTHLY","firstPaymentDate":"2020-01-10"}"""
   }
 
@@ -86,8 +97,26 @@ class RecurringPaymentLinkGeneratorSpec extends Specification {
     where:
     channel  | urlFragment
     LHV      | "&i_amount=100"
-    COOP     | "&MakseSumma=100"
-    COOP_WEB | "&MakseSumma=100"
+    COOP     | "&amt=100"
+    COOP_WEB | "&amt=100"
+  }
+
+  def "Coop recurring URL contains no legacy keys from the old platform"() {
+    given:
+    def person = samplePerson
+    def paymentData = new PaymentData(samplePerson.personalCode, 12.34, EUR, RECURRING, channel)
+
+    when:
+    def link = recurringPaymentLinkGenerator.getPaymentLink(paymentData, person) as PrefilledLink
+
+    then:
+    def url = link.url()
+    ["SaajaNimi", "SaajaKonto", "MaksePohjus", "ViiteNumber", "MakseSumma", "MuutMakseSumma", "MakseSagedus", "MakseEsimene", "whatform", "newpmt", "-eng"].each { legacy ->
+      assert !url.contains(legacy), "URL should not contain legacy key '${legacy}': ${url}"
+    }
+
+    where:
+    channel << [COOP, COOP_WEB]
   }
 
   def "renders SEB recurring amount as plain decimal even when BigDecimal would print scientific"() {

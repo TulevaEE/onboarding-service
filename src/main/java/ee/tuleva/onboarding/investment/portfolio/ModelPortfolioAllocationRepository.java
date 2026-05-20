@@ -40,4 +40,21 @@ public interface ModelPortfolioAllocationRepository
       )
       """)
   List<ModelPortfolioAllocation> findPreviousByFund(TulevaFund fund);
+
+  @Query(
+      """
+      SELECT a FROM ModelPortfolioAllocation a
+      WHERE a.fund = :fund
+        AND a.effectiveDate IN (
+          SELECT DISTINCT mpa.effectiveDate FROM ModelPortfolioAllocation mpa
+          WHERE mpa.fund = :fund AND mpa.effectiveDate <= :end
+            AND mpa.effectiveDate >= (
+              SELECT MAX(mpa2.effectiveDate) FROM ModelPortfolioAllocation mpa2
+              WHERE mpa2.fund = :fund AND mpa2.effectiveDate <= :start
+            )
+        )
+      ORDER BY a.effectiveDate, a.isin
+      """)
+  List<ModelPortfolioAllocation> findVersionsActiveDuringPeriod(
+      TulevaFund fund, LocalDate start, LocalDate end);
 }

@@ -123,6 +123,22 @@ public class FeeAccrualRepository {
         .update();
   }
 
+  public List<FeeAccrual> findByFundAndDateRange(TulevaFund fund, LocalDate start, LocalDate end) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT * FROM investment_fee_accrual
+            WHERE fund_code = :fundCode
+              AND accrual_date BETWEEN :start AND :end
+            ORDER BY accrual_date, fee_type
+            """)
+        .param("fundCode", fund.name())
+        .param("start", start)
+        .param("end", end)
+        .query(FeeAccrual::fromResultSet)
+        .list();
+  }
+
   public int deleteByFundFromDate(TulevaFund fund, LocalDate fromDate) {
     return jdbcClient
         .sql(

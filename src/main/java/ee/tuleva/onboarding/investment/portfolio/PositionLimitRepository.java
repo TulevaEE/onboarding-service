@@ -10,6 +10,9 @@ public interface PositionLimitRepository extends JpaRepository<PositionLimit, Lo
 
   List<PositionLimit> findByFundAndEffectiveDate(TulevaFund fund, LocalDate effectiveDate);
 
+  // Per-ISIN latest version as of :asOf. Limits can be introduced incrementally for individual
+  // ISINs, so we resolve the newest effectiveDate independently for each isin (and for the
+  // NULL-isin index-group aggregate row, which uses IS NULL matching).
   @Query(
       """
       SELECT p FROM PositionLimit p

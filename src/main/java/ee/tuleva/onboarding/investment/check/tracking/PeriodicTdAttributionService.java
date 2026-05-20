@@ -37,7 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 class PeriodicTdAttributionService {
 
-  private static final int SCALE = 10;
+  private static final int SCALE = TdAttributionCalculator.SCALE;
 
   private final TrackingDifferenceEventRepository tdEventRepository;
   private final FeeAccrualRepository feeAccrualRepository;
@@ -132,6 +132,9 @@ class PeriodicTdAttributionService {
         .build();
   }
 
+  // DEPOT fee is billed VAT-inclusive: gross is what the fund actually pays out, so the NAV
+  // drag uses gross. MANAGEMENT fee has net == gross (no VAT applied), but we use net as the
+  // canonical figure for consistency with FeeCalculationService ledger postings.
   private BigDecimal computeFeeDragPeriod(List<FeeAccrual> accruals, FeeType feeType) {
     return accruals.stream()
         .filter(a -> a.feeType() == feeType)

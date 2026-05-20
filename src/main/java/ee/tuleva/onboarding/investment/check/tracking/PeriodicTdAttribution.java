@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.investment.check.tracking;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.CascadeType.ALL;
 import static jakarta.persistence.EnumType.STRING;
-import static jakarta.persistence.FetchType.EAGER;
+import static jakarta.persistence.FetchType.LAZY;
 import static org.hibernate.type.SqlTypes.JSON;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -27,6 +27,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.hibernate.annotations.JdbcTypeCode;
 
 @Data
@@ -76,7 +77,8 @@ class PeriodicTdAttribution {
   private Map<String, Object> checks = Map.of();
 
   @Builder.Default
-  @OneToMany(mappedBy = "attribution", cascade = ALL, orphanRemoval = true, fetch = EAGER)
+  @ToString.Exclude
+  @OneToMany(mappedBy = "attribution", cascade = ALL, orphanRemoval = true, fetch = LAZY)
   private List<TdAttributionDetail> details = new ArrayList<>();
 
   private Instant createdAt;

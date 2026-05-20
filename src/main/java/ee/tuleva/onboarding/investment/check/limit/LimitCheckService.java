@@ -140,7 +140,7 @@ class LimitCheckService {
     var positionLimits = positionLimitRepository.findLatestByFundAsOf(fund, checkDate);
     var providerLimits = providerLimitRepository.findLatestByFundAsOf(fund, checkDate);
     var fundLimit = fundLimitRepository.findLatestByFundAsOf(fund, checkDate).orElse(null);
-    var isinToProvider = buildIsinToProviderMap(fund);
+    var isinToProvider = buildIsinToProviderMap(fund, checkDate);
 
     var positionBreaches = positionLimitChecker.check(fund, positions, totalNav, positionLimits);
     var providerBreaches =
@@ -208,17 +208,17 @@ class LimitCheckService {
         .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
-  private Map<String, Provider> buildIsinToProviderMap(TulevaFund fund) {
+  private Map<String, Provider> buildIsinToProviderMap(TulevaFund fund, LocalDate checkDate) {
     var merged =
         new HashMap<>(
-            modelPortfolioAllocationRepository.findPreviousByFund(fund).stream()
+            modelPortfolioAllocationRepository.findPreviousByFundAsOf(fund, checkDate).stream()
                 .filter(a -> a.getIsin() != null && a.getProvider() != null)
                 .collect(
                     Collectors.toMap(
                         ModelPortfolioAllocation::getIsin,
                         ModelPortfolioAllocation::getProvider,
                         (a, b) -> b)));
-    modelPortfolioAllocationRepository.findLatestByFund(fund).stream()
+    modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, checkDate).stream()
         .filter(a -> a.getIsin() != null && a.getProvider() != null)
         .forEach(a -> merged.put(a.getIsin(), a.getProvider()));
     return merged;

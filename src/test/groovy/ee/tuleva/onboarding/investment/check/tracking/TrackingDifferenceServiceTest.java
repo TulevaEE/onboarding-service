@@ -147,7 +147,7 @@ class TrackingDifferenceServiceTest {
             .weight(new BigDecimal("1.00"))
             .effectiveDate(LocalDate.of(2026, 1, 1))
             .build();
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75))
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
         .willReturn(List.of(allocation));
 
     var todayPriceDate = CHECK_DATE;
@@ -237,7 +237,7 @@ class TrackingDifferenceServiceTest {
             .weight(new BigDecimal("1.00"))
             .effectiveDate(LocalDate.of(2026, 1, 1))
             .build();
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK00))
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK00, CHECK_DATE))
         .willReturn(List.of(allocation));
 
     given(positionPriceResolver.resolve(eq(bondIsin), eq(CHECK_DATE), any(Instant.class)))
@@ -311,7 +311,7 @@ class TrackingDifferenceServiceTest {
             .weight(new BigDecimal("1.00"))
             .effectiveDate(LocalDate.of(2026, 1, 1))
             .build();
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75))
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
         .willReturn(List.of(allocation));
 
     given(positionPriceResolver.resolve(eq(emIsin), eq(CHECK_DATE), any(Instant.class)))
@@ -384,7 +384,7 @@ class TrackingDifferenceServiceTest {
             .weight(new BigDecimal("1.00"))
             .effectiveDate(LocalDate.of(2026, 1, 1))
             .build();
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75))
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
         .willReturn(List.of(allocation));
 
     given(positionPriceResolver.resolve(eq(etfIsin), eq(CHECK_DATE), any(Instant.class)))
@@ -468,7 +468,7 @@ class TrackingDifferenceServiceTest {
             .weight(new BigDecimal("1.00"))
             .effectiveDate(LocalDate.of(2026, 1, 1))
             .build();
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75))
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
         .willReturn(List.of(allocation));
 
     given(positionPriceResolver.resolve(eq(emEtfIsin), eq(CHECK_DATE), any(Instant.class)))
@@ -541,7 +541,7 @@ class TrackingDifferenceServiceTest {
             .weight(new BigDecimal("1.00"))
             .effectiveDate(LocalDate.of(2026, 1, 1))
             .build();
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75))
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
         .willReturn(List.of(allocation));
 
     given(positionPriceResolver.resolve(eq(unknownIsin), eq(CHECK_DATE), any(Instant.class)))
@@ -609,7 +609,7 @@ class TrackingDifferenceServiceTest {
             .weight(new BigDecimal("1.00"))
             .effectiveDate(LocalDate.of(2026, 1, 1))
             .build();
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK00))
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK00, CHECK_DATE))
         .willReturn(List.of(allocation));
 
     given(positionPriceResolver.resolve(eq(unknownBondIsin), eq(CHECK_DATE), any(Instant.class)))
@@ -766,7 +766,7 @@ class TrackingDifferenceServiceTest {
             .weight(new BigDecimal("1.00"))
             .effectiveDate(LocalDate.of(2026, 1, 1))
             .build();
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75))
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
         .willReturn(List.of(allocation));
 
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
@@ -823,7 +823,7 @@ class TrackingDifferenceServiceTest {
             .weight(new BigDecimal("1.00"))
             .effectiveDate(LocalDate.of(2026, 1, 1))
             .build();
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75))
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
         .willReturn(List.of(allocation));
 
     given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(CHECK_DATE), any(Instant.class)))
@@ -888,7 +888,7 @@ class TrackingDifferenceServiceTest {
             .weight(new BigDecimal("0.30"))
             .effectiveDate(LocalDate.of(2026, 1, 1))
             .build();
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75))
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
         .willReturn(List.of(allocation1, allocation2));
 
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
@@ -932,7 +932,7 @@ class TrackingDifferenceServiceTest {
             .weight(new BigDecimal("1.00"))
             .effectiveDate(LocalDate.of(2026, 1, 1))
             .build();
-    given(modelPortfolioAllocationRepository.findLatestByFund(fund))
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, CHECK_DATE))
         .willReturn(List.of(allocation));
 
     given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(CHECK_DATE), any(Instant.class)))
@@ -978,7 +978,7 @@ class TrackingDifferenceServiceTest {
             .weight(new BigDecimal("1.00"))
             .effectiveDate(LocalDate.of(2026, 1, 1))
             .build();
-    given(modelPortfolioAllocationRepository.findLatestByFund(fund))
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, CHECK_DATE))
         .willReturn(List.of(allocation));
 
     given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(CHECK_DATE), any(Instant.class)))
@@ -1081,7 +1081,7 @@ class TrackingDifferenceServiceTest {
             .weight(new BigDecimal("1.00"))
             .effectiveDate(LocalDate.of(2026, 4, 1))
             .build();
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75))
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
         .willReturn(List.of(currentAllocation));
 
     var previousAllocation =
@@ -1091,7 +1091,7 @@ class TrackingDifferenceServiceTest {
             .weight(new BigDecimal("1.00"))
             .effectiveDate(LocalDate.of(2026, 1, 1))
             .build();
-    given(modelPortfolioAllocationRepository.findPreviousByFund(TUK75))
+    given(modelPortfolioAllocationRepository.findPreviousByFundAsOf(TUK75, CHECK_DATE))
         .willReturn(List.of(previousAllocation));
 
     var oldPosition =
@@ -1166,7 +1166,7 @@ class TrackingDifferenceServiceTest {
             .weight(new BigDecimal("1.00"))
             .effectiveDate(LocalDate.of(2026, 4, 1))
             .build();
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75))
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
         .willReturn(List.of(currentAllocation));
 
     var previousAllocation =
@@ -1176,7 +1176,7 @@ class TrackingDifferenceServiceTest {
             .weight(new BigDecimal("1.00"))
             .effectiveDate(LocalDate.of(2026, 1, 1))
             .build();
-    given(modelPortfolioAllocationRepository.findPreviousByFund(TUK75))
+    given(modelPortfolioAllocationRepository.findPreviousByFundAsOf(TUK75, CHECK_DATE))
         .willReturn(List.of(previousAllocation));
 
     var oldPosition =

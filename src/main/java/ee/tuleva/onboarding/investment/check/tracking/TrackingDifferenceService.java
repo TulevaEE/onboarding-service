@@ -159,12 +159,13 @@ class TrackingDifferenceService {
         new FundValue(
             fund.getIsin(), previousDate, yesterdayValue.get(), "TULEVA", clock.instant());
 
-    var allocations = modelPortfolioAllocationRepository.findLatestByFund(fund);
+    var allocations = modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, checkDate);
     if (allocations.isEmpty()) {
       log.warn("No model portfolio for fund: fund={}", fund);
       return results;
     }
-    var previousAllocations = modelPortfolioAllocationRepository.findPreviousByFund(fund);
+    var previousAllocations =
+        modelPortfolioAllocationRepository.findPreviousByFundAsOf(fund, checkDate);
 
     var positions =
         fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, SECURITY);

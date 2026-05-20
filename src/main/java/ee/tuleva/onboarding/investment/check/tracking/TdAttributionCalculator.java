@@ -103,9 +103,7 @@ class TdAttributionCalculator {
     var checks = buildChecks(tdGeometric, componentsArithmetic, residualArithmetic, scale, input);
 
     var instrumentDetails =
-        instrumentContributions.values().stream()
-            .map(acc -> acc.toAttribution(scale, businessDays))
-            .toList();
+        instrumentContributions.values().stream().map(acc -> acc.toAttribution(scale)).toList();
 
     return TdAttributionResult.builder()
         .fund(input.fund())
@@ -266,7 +264,7 @@ class TdAttributionCalculator {
       days++;
     }
 
-    TdAttributionResult.InstrumentAttribution toAttribution(BigDecimal scale, int businessDays) {
+    TdAttributionResult.InstrumentAttribution toAttribution(BigDecimal scale) {
       var avgModel =
           days > 0 ? totalModelWeight.divide(BigDecimal.valueOf(days), 6, HALF_UP) : ZERO;
       var avgActual =

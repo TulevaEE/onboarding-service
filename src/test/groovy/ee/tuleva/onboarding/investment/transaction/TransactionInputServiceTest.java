@@ -192,6 +192,48 @@ class TransactionInputServiceTest {
   }
 
   @Test
+  void gatherInput_mergesFastSellFromPreviousAllocations() {
+    var positionDate = AS_OF_DATE;
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .thenReturn(Optional.of(positionDate));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .thenReturn(List.of());
+    when(feeAccrualRepository.getAccruedFeesForMonth(
+            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+        .thenReturn(ZERO);
+
+    var currentAllocation =
+        ModelPortfolioAllocation.builder()
+            .fund(TUV100)
+            .isin("IE00NEW")
+            .weight(new BigDecimal("1.00"))
+            .fastSell(false)
+            .build();
+    when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .thenReturn(List.of(currentAllocation));
+
+    var previousAllocation =
+        ModelPortfolioAllocation.builder()
+            .fund(TUV100)
+            .isin("IE00OLD")
+            .weight(new BigDecimal("1.00"))
+            .fastSell(true)
+            .build();
+    when(modelPortfolioAllocationRepository.findPreviousByFundAsOf(TUV100, AS_OF_DATE))
+        .thenReturn(List.of(previousAllocation));
+
+    when(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .thenReturn(Optional.of(zeroFundLimit(TUV100)));
+    when(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).thenReturn(List.of());
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.fastSellIsins()).containsExactly("IE00OLD");
+  }
+
+  @Test
   void gatherInput_withInstrumentTypeAndVenue_populatesModelWeights() {
     var positionDate = AS_OF_DATE;
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))

@@ -366,9 +366,6 @@ class LimitCheckServiceTest {
     verify(positionLimitRepository).findLatestByFundAsOf(fund, checkDate);
     verify(providerLimitRepository).findLatestByFundAsOf(fund, checkDate);
     verify(fundLimitRepository).findLatestByFundAsOf(fund, checkDate);
-    verify(positionLimitRepository, never()).findLatestByFund(any());
-    verify(providerLimitRepository, never()).findLatestByFund(any());
-    verify(fundLimitRepository, never()).findLatestByFund(any());
     verify(positionLimitChecker).check(eq(fund), anyList(), any(), eq(List.of(oldPositionLimit)));
   }
 

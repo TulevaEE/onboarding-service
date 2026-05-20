@@ -19,19 +19,6 @@ public interface PositionLimitRepository extends JpaRepository<PositionLimit, Lo
         FROM PositionLimit p2
         WHERE p2.fund = :fund
         AND (p2.isin = p.isin OR (p2.isin IS NULL AND p.isin IS NULL))
-      )
-      """)
-  List<PositionLimit> findLatestByFund(TulevaFund fund);
-
-  @Query(
-      """
-      SELECT p FROM PositionLimit p
-      WHERE p.fund = :fund
-      AND p.effectiveDate = (
-        SELECT MAX(p2.effectiveDate)
-        FROM PositionLimit p2
-        WHERE p2.fund = :fund
-        AND (p2.isin = p.isin OR (p2.isin IS NULL AND p.isin IS NULL))
         AND p2.effectiveDate <= :asOf
       )
       """)

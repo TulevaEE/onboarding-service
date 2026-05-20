@@ -167,6 +167,160 @@ class PeriodicTdAttributionServiceTest {
   }
 
   @Test
+  void handlesMissingAumGracefully() {
+    var date1 = LocalDate.of(2026, 4, 1);
+
+    given(
+            tdEventRepository.findDeduplicatedEventsForPeriod(
+                TUK75, MODEL_PORTFOLIO, PERIOD_START, PERIOD_END))
+        .willReturn(List.of(tdEvent(date1, "0.001", "0.0012")));
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, PERIOD_START, PERIOD_END))
+        .willReturn(List.of());
+    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, PERIOD_END))
+        .willReturn(Optional.empty());
+    given(
+            modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
+                TUK75, PERIOD_START, PERIOD_END))
+        .willReturn(List.of());
+    given(fundNavQueryService.findAum(FUND_CODE, date1)).willReturn(ZERO);
+
+    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    assertThat(result.businessDays()).isEqualTo(1);
+    assertThat(result.avgAum()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void handlesEmptySecurityAttributions() {
+    var date1 = LocalDate.of(2026, 4, 1);
+    var eventNoAttrs =
+        TrackingDifferenceEvent.builder()
+            .fund(TUK75)
+            .checkDate(date1)
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("-0.0002"))
+            .fundReturn(new BigDecimal("0.0008"))
+            .benchmarkReturn(new BigDecimal("0.001"))
+            .breach(false)
+            .result(
+                Map.of(
+                    "securityAttributions",
+                    List.of(),
+                    "cashDrag",
+                    ZERO,
+                    "feeDrag",
+                    ZERO,
+                    "residual",
+                    ZERO))
+            .createdAt(Instant.now())
+            .build();
+
+    given(
+            tdEventRepository.findDeduplicatedEventsForPeriod(
+                TUK75, MODEL_PORTFOLIO, PERIOD_START, PERIOD_END))
+        .willReturn(List.of(eventNoAttrs));
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, PERIOD_START, PERIOD_END))
+        .willReturn(List.of());
+    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, PERIOD_END))
+        .willReturn(Optional.empty());
+    given(
+            modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
+                TUK75, PERIOD_START, PERIOD_END))
+        .willReturn(List.of());
+    given(fundNavQueryService.findAum(FUND_CODE, date1)).willReturn(new BigDecimal("100000000"));
+    given(fundNavQueryService.findCashValue(anyString(), any()))
+        .willReturn(new BigDecimal("1000000"));
+    given(fundNavQueryService.findSecuritiesTotalValue(anyString(), any()))
+        .willReturn(new BigDecimal("99000000"));
+    given(fundNavQueryService.findFeeAccrualLiabilities(anyString(), any()))
+        .willReturn(new BigDecimal("-50000"));
+
+    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    assertThat(result.instrumentDetails()).isEmpty();
+    assertThat(result.weightDeviation()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void handlesZeroSecurityValue() {
+    var date1 = LocalDate.of(2026, 4, 1);
+
+    given(
+            tdEventRepository.findDeduplicatedEventsForPeriod(
+                TUK75, MODEL_PORTFOLIO, PERIOD_START, PERIOD_END))
+        .willReturn(List.of(tdEvent(date1, "0.001", "0.0012")));
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, PERIOD_START, PERIOD_END))
+        .willReturn(List.of());
+    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, PERIOD_END))
+        .willReturn(Optional.empty());
+    given(
+            modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
+                TUK75, PERIOD_START, PERIOD_END))
+        .willReturn(List.of());
+    given(fundNavQueryService.findAum(FUND_CODE, date1)).willReturn(new BigDecimal("100000000"));
+    given(fundNavQueryService.findCashValue(anyString(), any()))
+        .willReturn(new BigDecimal("100000000"));
+    given(fundNavQueryService.findSecuritiesTotalValue(anyString(), any())).willReturn(ZERO);
+    given(fundNavQueryService.findFeeAccrualLiabilities(anyString(), any())).willReturn(ZERO);
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(any(), eq(TUK75), eq(SECURITY)))
+        .willReturn(List.of());
+
+    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    assertThat(result.instrumentDetails()).isEmpty();
+  }
+
+  @Test
+  void handlesDepotFeeAccruals() {
+    var date1 = LocalDate.of(2026, 4, 1);
+
+    given(
+            tdEventRepository.findDeduplicatedEventsForPeriod(
+                TUK75, MODEL_PORTFOLIO, PERIOD_START, PERIOD_END))
+        .willReturn(List.of(tdEvent(date1, "0.0008", "0.001")));
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, PERIOD_START, PERIOD_END))
+        .willReturn(
+            List.of(
+                feeAccrual(date1, FeeType.MANAGEMENT, "27.40"),
+                FeeAccrual.builder()
+                    .fund(TUK75)
+                    .feeType(FeeType.DEPOT)
+                    .accrualDate(date1)
+                    .feeMonth(date1.withDayOfMonth(1))
+                    .baseValue(new BigDecimal("100000000"))
+                    .annualRate(new BigDecimal("0.0003"))
+                    .dailyAmountNet(new BigDecimal("6.85"))
+                    .dailyAmountGross(new BigDecimal("8.36"))
+                    .daysInYear(365)
+                    .build()));
+    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, PERIOD_END))
+        .willReturn(
+            Optional.of(
+                new FeeRate(
+                    1L, TUK75, FeeType.MANAGEMENT, new BigDecimal("0.0027"), PERIOD_START, null)));
+    given(
+            modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
+                TUK75, PERIOD_START, PERIOD_END))
+        .willReturn(
+            List.of(
+                modelAllocation(ISIN_DW, "0.70", date1), modelAllocation(ISIN_EM, "0.30", date1)));
+    given(fundNavQueryService.findAum(FUND_CODE, date1)).willReturn(new BigDecimal("100000000"));
+    given(fundNavQueryService.findCashValue(anyString(), any()))
+        .willReturn(new BigDecimal("1500000"));
+    given(fundNavQueryService.findSecuritiesTotalValue(anyString(), any()))
+        .willReturn(new BigDecimal("98000000"));
+    given(fundNavQueryService.findFeeAccrualLiabilities(anyString(), any()))
+        .willReturn(new BigDecimal("-50000"));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(any(), eq(TUK75), eq(SECURITY)))
+        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EM, "29400000")));
+
+    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    assertThat(result.depotFeeDrag()).isNegative();
+    assertThat(result.mgmtFeeDrag()).isNegative();
+  }
+
+  @Test
   void toBigDecimalHandlesVariousTypes() {
     assertThat(PeriodicTdAttributionService.toBigDecimal(new BigDecimal("1.23")))
         .isEqualByComparingTo(new BigDecimal("1.23"));

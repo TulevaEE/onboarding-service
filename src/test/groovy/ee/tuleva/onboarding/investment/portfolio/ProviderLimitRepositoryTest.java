@@ -119,57 +119,6 @@ class ProviderLimitRepositoryTest {
   }
 
   @Test
-  void findLatestByFund() {
-    var olderDate = LocalDate.of(2025, 1, 1);
-    var newerDate = LocalDate.of(2025, 11, 7);
-
-    var olderLimit =
-        ProviderLimit.builder()
-            .effectiveDate(olderDate)
-            .fund(TUK75)
-            .provider(XTRACKERS)
-            .softLimitPercent(new BigDecimal("0.15"))
-            .hardLimitPercent(new BigDecimal("0.18"))
-            .build();
-
-    var newerXtrackers =
-        ProviderLimit.builder()
-            .effectiveDate(newerDate)
-            .fund(TUK75)
-            .provider(XTRACKERS)
-            .softLimitPercent(new BigDecimal("0.1965"))
-            .hardLimitPercent(new BigDecimal("0.20"))
-            .build();
-
-    var newerBnp =
-        ProviderLimit.builder()
-            .effectiveDate(newerDate)
-            .fund(TUK75)
-            .provider(BNP_PARIBAS)
-            .softLimitPercent(new BigDecimal("0.1965"))
-            .hardLimitPercent(new BigDecimal("0.20"))
-            .build();
-
-    entityManager.persist(olderLimit);
-    entityManager.persist(newerXtrackers);
-    entityManager.persist(newerBnp);
-    entityManager.flush();
-
-    var result = repository.findLatestByFund(TUK75);
-
-    assertThat(result).hasSize(2);
-    assertThat(result).extracting("effectiveDate").containsOnly(newerDate);
-    assertThat(result).extracting("provider").containsExactlyInAnyOrder(XTRACKERS, BNP_PARIBAS);
-  }
-
-  @Test
-  void findLatestByFund_returnsEmptyWhenNoData() {
-    var result = repository.findLatestByFund(TUK75);
-
-    assertThat(result).isEmpty();
-  }
-
-  @Test
   void findLatestByFundAsOf_returnsLimitsEffectiveOnOrBeforeAsOfDate() {
     var olderDate = LocalDate.of(2025, 6, 30);
     var newerDate = LocalDate.of(2026, 3, 30);
@@ -205,50 +154,6 @@ class ProviderLimitRepositoryTest {
     var asOfNow = repository.findLatestByFundAsOf(TUK75, LocalDate.of(2026, 4, 1));
     assertThat(asOfNow).hasSize(1);
     assertThat(asOfNow).extracting("effectiveDate").containsOnly(newerDate);
-  }
-
-  @Test
-  void findLatestByFund_resolvesPerProviderEffectiveDate() {
-    var originalDate = LocalDate.of(2025, 6, 30);
-    var updatedDate = LocalDate.of(2025, 11, 7);
-
-    entityManager.persist(
-        ProviderLimit.builder()
-            .effectiveDate(originalDate)
-            .fund(TUK75)
-            .provider(XTRACKERS)
-            .softLimitPercent(new BigDecimal("0.15"))
-            .hardLimitPercent(new BigDecimal("0.18"))
-            .build());
-    entityManager.persist(
-        ProviderLimit.builder()
-            .effectiveDate(originalDate)
-            .fund(TUK75)
-            .provider(BNP_PARIBAS)
-            .softLimitPercent(new BigDecimal("0.12"))
-            .hardLimitPercent(new BigDecimal("0.15"))
-            .build());
-    entityManager.persist(
-        ProviderLimit.builder()
-            .effectiveDate(updatedDate)
-            .fund(TUK75)
-            .provider(BNP_PARIBAS)
-            .softLimitPercent(new BigDecimal("0.14"))
-            .hardLimitPercent(new BigDecimal("0.17"))
-            .build());
-    entityManager.flush();
-
-    var result = repository.findLatestByFund(TUK75);
-
-    assertThat(result).hasSize(2);
-    var xtrackers = result.stream().filter(l -> l.getProvider() == XTRACKERS).findFirst();
-    var bnp = result.stream().filter(l -> l.getProvider() == BNP_PARIBAS).findFirst();
-    assertThat(xtrackers).isPresent();
-    assertThat(xtrackers.get().getEffectiveDate()).isEqualTo(originalDate);
-    assertThat(xtrackers.get().getSoftLimitPercent()).isEqualByComparingTo("0.15");
-    assertThat(bnp).isPresent();
-    assertThat(bnp.get().getEffectiveDate()).isEqualTo(updatedDate);
-    assertThat(bnp.get().getSoftLimitPercent()).isEqualByComparingTo("0.14");
   }
 
   @Test

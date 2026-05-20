@@ -90,11 +90,7 @@ class SinglePaymentLinkGeneratorSpec extends Specification {
 
     then:
     returnedLink instanceof PrefilledLink
-    def url = returnedLink.url()
-    url == "i/payments/new?bname=AS%20Pensionikeskus&bacc=EE362200221067235244&cur=EUR&desc=30101119828%2C%20EE3600001707&ref=993432432&lang=en"
-    ["SaajaNimi", "SaajaKonto", "MaksePohjus", "ViiteNumber", "MakseSumma", "MuutMakseSumma", "whatform", "newpmt", "-eng"].each { legacy ->
-      assert !url.contains(legacy), "URL should not contain legacy key '${legacy}': ${url}"
-    }
+    returnedLink.url() == "i/payments/new?bname=AS%20Pensionikeskus&bacc=EE362200221067235244&cur=EUR&desc=30101119828%2C%20EE3600001707&ref=993432432&lang=en"
     (returnedLink as PrefilledLink).recipientName() == "AS Pensionikeskus"
     (returnedLink as PrefilledLink).recipientIban() == "EE362200221067235244"
     (returnedLink as PrefilledLink).description() == "30101119828, EE3600001707"

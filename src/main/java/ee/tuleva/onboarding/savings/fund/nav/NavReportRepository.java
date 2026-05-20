@@ -84,6 +84,8 @@ interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
       nativeQuery = true)
   void markAsPublished(@Param("calculationId") UUID calculationId);
 
+  // Pick the most recently published calculation. Order by published_at first so a backdated
+  // calc (lower id but later published_at) doesn't get masked by an earlier-published one.
   @Query(
       value =
           """
@@ -95,7 +97,7 @@ interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
               SELECT calculation_id FROM nav_report
               WHERE nav_date = :navDate AND fund_code = :fundCode
                 AND published_at IS NOT NULL
-              ORDER BY id DESC LIMIT 1
+              ORDER BY published_at DESC, id DESC LIMIT 1
             )
           """,
       nativeQuery = true)

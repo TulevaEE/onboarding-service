@@ -14,6 +14,8 @@ public interface ProviderLimitRepository extends JpaRepository<ProviderLimit, Lo
   Optional<ProviderLimit> findByFundAndEffectiveDateAndProvider(
       TulevaFund fund, LocalDate effectiveDate, Provider provider);
 
+  // Per-provider latest version as of :asOf. Limits can be introduced incrementally per
+  // provider, so the newest effectiveDate is resolved independently for each provider.
   @Query(
       """
       SELECT pl FROM ProviderLimit pl

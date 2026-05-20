@@ -1,3 +1,50 @@
+-- Dedup before adding constraints: keep the highest-id row per uniqueness group, which
+-- represents the most recently inserted version. Without dedup the ALTER TABLE would fail
+-- on any environment that already accumulated duplicates.
+--
+-- NULL-isin rows are not deduped: SQL UNIQUE treats multiple NULLs as distinct, so they
+-- don't violate the constraint and we don't want to discard index-group aggregate limits.
+
+DELETE FROM investment_model_portfolio_allocation
+WHERE isin IS NOT NULL
+  AND id NOT IN (
+    SELECT max_id FROM (
+      SELECT MAX(id) AS max_id
+      FROM investment_model_portfolio_allocation
+      WHERE isin IS NOT NULL
+      GROUP BY effective_date, fund_code, isin
+    ) keepers
+  );
+
+DELETE FROM investment_position_limit
+WHERE isin IS NOT NULL
+  AND id NOT IN (
+    SELECT max_id FROM (
+      SELECT MAX(id) AS max_id
+      FROM investment_position_limit
+      WHERE isin IS NOT NULL
+      GROUP BY effective_date, fund_code, isin
+    ) keepers
+  );
+
+DELETE FROM investment_provider_limit
+WHERE id NOT IN (
+  SELECT max_id FROM (
+    SELECT MAX(id) AS max_id
+    FROM investment_provider_limit
+    GROUP BY effective_date, fund_code, provider
+  ) keepers
+);
+
+DELETE FROM investment_fund_limit
+WHERE id NOT IN (
+  SELECT max_id FROM (
+    SELECT MAX(id) AS max_id
+    FROM investment_fund_limit
+    GROUP BY effective_date, fund_code
+  ) keepers
+);
+
 -- Model portfolio allocation: one row per (date, fund, isin).
 -- isin is nullable but in practice always populated for allocation rows.
 -- SQL UNIQUE allows multiple NULLs, so NULL-isin rows (if any) are unaffected.

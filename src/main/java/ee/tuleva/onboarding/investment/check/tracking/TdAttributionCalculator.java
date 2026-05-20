@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 class TdAttributionCalculator {
 
-  private static final int SCALE = 10;
+  static final int SCALE = 10;
   private static final BigDecimal NEAR_ZERO = new BigDecimal("0.0000001");
   private static final BigDecimal EXTREME_SCALE = new BigDecimal("2.0");
 

@@ -12,6 +12,10 @@ public interface ModelPortfolioAllocationRepository
   List<ModelPortfolioAllocation> findByFundAndEffectiveDate(
       TulevaFund fund, LocalDate effectiveDate);
 
+  // Snapshot semantics: a model portfolio is versioned as a whole, so all allocations on a given
+  // effective date form one indivisible version. Returns every row from the single newest
+  // effectiveDate <= :asOf. Contrast with PositionLimit/ProviderLimit, where each ISIN/provider
+  // versions independently.
   @Query(
       """
       SELECT m FROM ModelPortfolioAllocation m

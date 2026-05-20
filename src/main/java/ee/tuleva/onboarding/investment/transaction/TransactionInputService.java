@@ -22,6 +22,7 @@ import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -74,7 +75,7 @@ public class TransactionInputService {
     BigDecimal cashBuffer = getCashBuffer(fund, asOfDate);
     BigDecimal minTransaction = getMinTransaction(fund, asOfDate);
     Map<String, PositionLimitSnapshot> positionLimits = getPositionLimits(fund, asOfDate);
-    Set<String> fastSellIsins = getFastSellIsins(allocations);
+    Set<String> fastSellIsins = getFastSellIsins(allocations, previousAllocations);
     Map<String, InstrumentType> instrumentTypes =
         getInstrumentTypes(allocations, previousAllocations);
     Map<String, OrderVenue> orderVenues = getOrderVenues(allocations, previousAllocations);
@@ -192,11 +193,19 @@ public class TransactionInputService {
                 (a, b) -> b));
   }
 
-  private Set<String> getFastSellIsins(List<ModelPortfolioAllocation> allocations) {
-    return allocations.stream()
+  private Set<String> getFastSellIsins(
+      List<ModelPortfolioAllocation> current, List<ModelPortfolioAllocation> previous) {
+    var merged =
+        new HashSet<>(
+            previous.stream()
+                .filter(ModelPortfolioAllocation::isFastSell)
+                .map(ModelPortfolioAllocation::getIsin)
+                .collect(Collectors.toSet()));
+    current.stream()
         .filter(ModelPortfolioAllocation::isFastSell)
         .map(ModelPortfolioAllocation::getIsin)
-        .collect(Collectors.toSet());
+        .forEach(merged::add);
+    return merged;
   }
 
   private Map<String, InstrumentType> getInstrumentTypes(

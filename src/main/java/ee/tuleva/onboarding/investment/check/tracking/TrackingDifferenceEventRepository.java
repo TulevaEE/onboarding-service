@@ -22,4 +22,19 @@ interface TrackingDifferenceEventRepository extends JpaRepository<TrackingDiffer
       """)
   List<TrackingDifferenceEvent> findMostRecentEvents(
       TulevaFund fund, TrackingCheckType checkType, LocalDate checkDate, int limit);
+
+  @Query(
+      """
+      SELECT e FROM TrackingDifferenceEvent e
+      WHERE e.fund = :fund AND e.checkType = :checkType
+        AND e.checkDate BETWEEN :start AND :end
+        AND e.id = (
+          SELECT MAX(e2.id) FROM TrackingDifferenceEvent e2
+          WHERE e2.fund = e.fund AND e2.checkType = e.checkType
+            AND e2.checkDate = e.checkDate
+        )
+      ORDER BY e.checkDate
+      """)
+  List<TrackingDifferenceEvent> findDeduplicatedEventsForPeriod(
+      TulevaFund fund, TrackingCheckType checkType, LocalDate start, LocalDate end);
 }

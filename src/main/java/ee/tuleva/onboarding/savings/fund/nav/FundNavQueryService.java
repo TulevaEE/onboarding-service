@@ -28,4 +28,21 @@ public class FundNavQueryService {
     return navReportRepository.findLatestNavDateByFundAndAccountTypeOnOrBefore(
         fundCode, NAV_ACCOUNT_TYPE, asOfDate);
   }
+
+  public BigDecimal findAum(String fundCode, LocalDate navDate) {
+    return navReportRepository.sumPublishedMarketValueByAccountType(fundCode, navDate, "UNITS");
+  }
+
+  public BigDecimal findSecuritiesTotalValue(String fundCode, LocalDate navDate) {
+    return navReportRepository.sumPublishedMarketValueByAccountType(fundCode, navDate, "SECURITY");
+  }
+
+  public BigDecimal findCashValue(String fundCode, LocalDate navDate) {
+    return navReportRepository.sumPublishedMarketValueByAccountType(fundCode, navDate, "CASH");
+  }
+
+  public BigDecimal findFeeAccrualLiabilities(String fundCode, LocalDate navDate) {
+    return navReportRepository.sumPublishedMarketValueByAccountType(
+        fundCode, navDate, "LIABILITY_FEE");
+  }
 }

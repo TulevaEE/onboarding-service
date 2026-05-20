@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -82,4 +83,24 @@ interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
               + " WHERE calculation_id = :calculationId AND published_at IS NULL",
       nativeQuery = true)
   void markAsPublished(@Param("calculationId") UUID calculationId);
+
+  @Query(
+      value =
+          """
+          SELECT COALESCE(SUM(nr.market_value), 0)
+          FROM nav_report nr
+          WHERE nr.fund_code = :fundCode AND nr.nav_date = :navDate
+            AND nr.account_type = :accountType
+            AND nr.calculation_id = (
+              SELECT calculation_id FROM nav_report
+              WHERE nav_date = :navDate AND fund_code = :fundCode
+                AND published_at IS NOT NULL
+              ORDER BY id DESC LIMIT 1
+            )
+          """,
+      nativeQuery = true)
+  BigDecimal sumPublishedMarketValueByAccountType(
+      @Param("fundCode") String fundCode,
+      @Param("navDate") LocalDate navDate,
+      @Param("accountType") String accountType);
 }

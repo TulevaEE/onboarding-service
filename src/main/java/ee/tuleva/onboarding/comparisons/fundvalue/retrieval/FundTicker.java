@@ -95,6 +95,22 @@ public enum FundTicker {
       "USAS",
       null,
       BenchmarkCategory.EQUITY_DM),
+  AMUNDI_WORLD_EX_USA_SCREENED(
+      "WLXU.DE",
+      "WLXU.XETRA",
+      "FR0013209921",
+      "Amundi MSCI World Ex USA Screened UCITS ETF",
+      "WLXU",
+      null,
+      BenchmarkCategory.EQUITY_DM),
+  ISHARES_EM_IMI_SCREENED(
+      "AYEM.DE",
+      "AYEM.XETRA",
+      "IE00BFNM3P36",
+      "iShares MSCI EM IMI Screened UCITS ETF",
+      "AYEM",
+      null,
+      BenchmarkCategory.EQUITY_EM),
   ISHARES_DEVELOPED_WORLD_ESG_SCREENED(
       "0P000152G5.F",
       "IE00BFG1TM61.EUFUND",

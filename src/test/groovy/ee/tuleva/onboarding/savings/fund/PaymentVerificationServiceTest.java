@@ -418,27 +418,27 @@ class PaymentVerificationServiceTest {
 
   @Test
   void process_companyPayment_success() {
-    var payment = createPayment("12345678", "company 12345678");
-    var company = Company.builder().registryCode("12345678").name("Tuleva AS").build();
-    when(companyRepository.findByRegistryCode("12345678")).thenReturn(Optional.of(company));
-    when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "12345678")))
+    var payment = createPayment("14118923", "company 14118923");
+    var company = Company.builder().registryCode("14118923").name("Tuleva AS").build();
+    when(companyRepository.findByRegistryCode("14118923")).thenReturn(Optional.of(company));
+    when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "14118923")))
         .thenReturn(true);
 
     service.process(payment);
 
-    verify(companyRepository).findByRegistryCode("12345678");
+    verify(companyRepository).findByRegistryCode("14118923");
     verify(savingsFundOnboardingService)
-        .isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "12345678"));
+        .isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "14118923"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(LEGAL_ENTITY, "12345678"),
+            new PartyId(LEGAL_ENTITY, "14118923"),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
     var inOrder = inOrder(savingFundPaymentRepository);
     inOrder
         .verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "12345678"));
+        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "14118923"));
     inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
@@ -505,33 +505,54 @@ class PaymentVerificationServiceTest {
             .remitterName("Tuleva AS")
             .remitterIban("BE72967148007616")
             .remitterIdCode("P13694547")
-            .description("12345678")
+            .description("14118923")
             .receivedBefore(Instant.parse("2025-10-01T20:59:59.999999Z"))
             .build();
-    var company = Company.builder().registryCode("12345678").name("Tuleva AS").build();
-    when(companyRepository.findByRegistryCode("12345678")).thenReturn(Optional.of(company));
-    when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "12345678")))
+    var company = Company.builder().registryCode("14118923").name("Tuleva AS").build();
+    when(companyRepository.findByRegistryCode("14118923")).thenReturn(Optional.of(company));
+    when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "14118923")))
         .thenReturn(true);
 
     service.process(payment);
 
-    verify(companyRepository).findByRegistryCode("12345678");
+    verify(companyRepository).findByRegistryCode("14118923");
     verify(savingsFundOnboardingService)
-        .isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "12345678"));
+        .isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "14118923"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(LEGAL_ENTITY, "12345678"),
+            new PartyId(LEGAL_ENTITY, "14118923"),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "12345678"));
+        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "14118923"));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
   @Test
   void process_companyPayment_success_nameMismatchAllowed_whenRemitterIdCodeMatches() {
+    var payment = createPayment("14118923", "company 14118923");
+    var company = Company.builder().registryCode("14118923").name("Tuleva AS").build();
+    when(companyRepository.findByRegistryCode("14118923")).thenReturn(Optional.of(company));
+    when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "14118923")))
+        .thenReturn(true);
+
+    service.process(payment);
+
+    verify(savingsFundLedger)
+        .recordPaymentReceived(
+            new PartyId(LEGAL_ENTITY, "14118923"),
+            payment.getAmount(),
+            payment.getId(),
+            LocalDate.of(2025, 10, 1));
+    verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "14118923"));
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+  }
+
+  @Test
+  void process_companyPayment_preGoLive_returnsPaymentForNonTulevaFondidLegalEntity() {
     var payment = createPayment("12345678", "company 12345678");
     var company = Company.builder().registryCode("12345678").name("Tuleva AS").build();
     when(companyRepository.findByRegistryCode("12345678")).thenReturn(Optional.of(company));
@@ -540,15 +561,74 @@ class PaymentVerificationServiceTest {
 
     service.process(payment);
 
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
+    verify(savingFundPaymentRepository)
+        .addReturnReason(
+            payment.getId(), "pre-go-live: only Tuleva Fondid AS can receive TKF payments");
+    verify(savingsFundLedger)
+        .recordUnattributedPayment(payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
+    verify(applicationEventPublisher)
+        .publishEvent(
+            new UnattributedPaymentEvent(
+                payment.getId(),
+                payment.getAmount(),
+                "pre-go-live: only Tuleva Fondid AS can receive TKF payments"));
+    verify(savingsFundLedger, never()).recordPaymentReceived(any(), any(), any(), any());
+    verify(savingFundPaymentRepository, never()).attachParty(any(), any());
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  @Test
+  void process_companyPayment_preGoLive_tulevaFondidAsPaymentGoesThrough() {
+    var payment = createPayment("14118923", "company 14118923");
+    var company = Company.builder().registryCode("14118923").name("PÄRT ÕLEKÕRS").build();
+    when(companyRepository.findByRegistryCode("14118923")).thenReturn(Optional.of(company));
+    when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "14118923")))
+        .thenReturn(true);
+
+    service.process(payment);
+
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(LEGAL_ENTITY, "12345678"),
+            new PartyId(LEGAL_ENTITY, "14118923"),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
-    verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "12345678"));
-    verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    var inOrder = inOrder(savingFundPaymentRepository);
+    inOrder
+        .verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "14118923"));
+    inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  @Test
+  void process_personalPayment_preGoLive_personPaymentsUnaffected() {
+    var payment = createPayment("37508295796", "to user 37508295796");
+    var user =
+        User.builder()
+            .id(123L)
+            .personalCode("37508295796")
+            .firstName("PÄRT")
+            .lastName("ÕLEKÕRS")
+            .build();
+    when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(user));
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+
+    service.process(payment);
+
+    verify(savingsFundLedger)
+        .recordPaymentReceived(
+            new PartyId(PERSON, "37508295796"),
+            payment.getAmount(),
+            payment.getId(),
+            LocalDate.of(2025, 10, 1));
+    var inOrder = inOrder(savingFundPaymentRepository);
+    inOrder
+        .verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
+    inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
   @Test

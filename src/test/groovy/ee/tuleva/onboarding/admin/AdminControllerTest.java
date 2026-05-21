@@ -573,6 +573,20 @@ class AdminControllerTest {
   }
 
   @Test
+  void whitelistCompany_withOpsToken_delegatesToService() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/whitelist-company")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("registryCode", "12345678"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("12345678")));
+
+    verify(savingsFundOnboardingService).whitelistLegalEntity("12345678", false);
+  }
+
+  @Test
   void whitelistCompany_withOverrideTrue_passesFlagToService() throws Exception {
     mockMvc
         .perform(

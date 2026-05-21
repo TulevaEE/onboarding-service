@@ -279,7 +279,7 @@ public class AdminController {
       @RequestParam String registryCode,
       @RequestParam(defaultValue = "false") boolean override) {
 
-    validateToken(token);
+    validateTokenWithOpsAccess(token);
     savingsFundOnboardingService.whitelistLegalEntity(registryCode, override);
 
     return "Whitelisted company: registryCode=" + registryCode;

@@ -1,19 +1,19 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
-
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.event.NavEventListenerOrder;
 import ee.tuleva.onboarding.investment.event.RunPortfolioReconciliationRequested;
+import ee.tuleva.onboarding.savings.fund.nav.NavCalculationCompleted;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -23,34 +23,32 @@ import org.springframework.stereotype.Component;
 public class PortfolioReconciliationJob {
 
   private final Clock clock;
+  private final PublicHolidays publicHolidays;
   private final PortfolioReconciliationService service;
 
-  @Scheduled(cron = "0 30 10 * * *", zone = TIMEZONE)
-  @SchedulerLock(
-      name = "portfolio-reconciliation-job",
-      lockAtMostFor = "10m",
-      lockAtLeastFor = "1m")
-  public void run() {
-    LocalDate today = LocalDate.now(clock);
-    runForDate(today);
+  @EventListener
+  @Order(NavEventListenerOrder.PORTFOLIO_RECONCILIATION)
+  void onNavCalculationCompleted(NavCalculationCompleted event) {
+    LocalDate navDate = publicHolidays.previousWorkingDay(LocalDate.now(clock));
+    reconcileFunds(event.funds(), navDate);
   }
 
   @EventListener
   void onPortfolioReconciliationRequested(RunPortfolioReconciliationRequested event) {
-    run();
+    LocalDate navDate = publicHolidays.previousWorkingDay(LocalDate.now(clock));
+    reconcileFunds(Arrays.asList(TulevaFund.values()), navDate);
   }
 
-  public void runForDate(LocalDate date) {
-    List<TulevaFund> funds = Arrays.asList(TulevaFund.values());
-    log.info("Running portfolio reconciliation job: date={}, fundCount={}", date, funds.size());
+  private void reconcileFunds(List<TulevaFund> funds, LocalDate navDate) {
+    log.info("Running portfolio reconciliation: navDate={}, fundCount={}", navDate, funds.size());
     for (TulevaFund fund : funds) {
       try {
-        service.reconcile(fund, date);
+        service.reconcile(fund, navDate);
       } catch (RuntimeException e) {
         log.error(
-            "Portfolio reconciliation failed: fundCode={}, date={}, error={}",
+            "Portfolio reconciliation failed: fundCode={}, navDate={}, error={}",
             fund.getCode(),
-            date,
+            navDate,
             e.getMessage(),
             e);
       }

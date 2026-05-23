@@ -16,7 +16,10 @@ import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import ee.tuleva.onboarding.company.CompanyPartyRepository;
 import ee.tuleva.onboarding.company.CompanyRepository;
+import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -32,10 +35,24 @@ class RoleSwitchServiceTest {
   @Mock private CompanyPartyRepository companyPartyRepository;
   @Mock private PrincipalService principalService;
   @Mock private TokenService tokenService;
+  @Mock private ParentChildLinkService parentChildLinkService;
+  @Mock private UserService userService;
 
   @InjectMocks private RoleSwitchService roleSwitchService;
 
   private final AuthenticatedPerson person = sampleAuthenticatedPersonAndMember().build();
+
+  private static final String CHILD_CODE = "61506150006";
+
+  private static User childUser() {
+    return User.builder()
+        .id(42L)
+        .personalCode(CHILD_CODE)
+        .firstName("Mari")
+        .lastName("Maasikas")
+        .active(true)
+        .build();
+  }
 
   @Test
   void switchRoleToCompany() {
@@ -155,6 +172,49 @@ class RoleSwitchServiceTest {
     assertThat(result).hasSize(2);
     assertThat(result.getFirst().type()).isEqualTo(PERSON);
     assertThat(result.getLast().code()).isEqualTo("11111111");
+  }
+
+  @Test
+  void getRolesIncludesActivelyRepresentedChildren() {
+    when(companyPartyRepository.findByPartyCodeAndPartyTypeAndRelationshipType(
+            person.getPersonalCode(), PartyId.Type.PERSON, BOARD_MEMBER))
+        .thenReturn(List.of());
+    when(parentChildLinkService.findActivelyRepresentedChildCodes(person.getPersonalCode()))
+        .thenReturn(List.of(CHILD_CODE));
+    when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
+
+    List<Role> result = roleSwitchService.getRoles(person);
+
+    assertThat(result).hasSize(2);
+    assertThat(result.getFirst().type()).isEqualTo(PERSON);
+    assertThat(result.getFirst().code()).isEqualTo(person.getPersonalCode());
+    Role childRole = result.getLast();
+    assertThat(childRole.type()).isEqualTo(PERSON);
+    assertThat(childRole.code()).isEqualTo(CHILD_CODE);
+    assertThat(childRole.name()).isEqualTo("Mari Maasikas");
+  }
+
+  @Test
+  void switchToActivelyRepresentedChildGeneratesTokens() {
+    when(parentChildLinkService.represents(person.getPersonalCode(), CHILD_CODE)).thenReturn(true);
+    when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
+    when(principalService.withRole(any(), any())).thenReturn(person);
+    when(tokenService.generateTokens(any()))
+        .thenReturn(new AuthenticationTokens("access", "refresh"));
+
+    AuthenticationTokens tokens =
+        roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, CHILD_CODE));
+
+    assertThat(tokens.accessToken()).isEqualTo("access");
+  }
+
+  @Test
+  void switchToChildWithoutActiveLinkThrows() {
+    when(parentChildLinkService.represents(person.getPersonalCode(), CHILD_CODE)).thenReturn(false);
+
+    assertThatThrownBy(
+            () -> roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, CHILD_CODE)))
+        .isInstanceOf(RoleSwitchAccessDeniedException.class);
   }
 
   @Test

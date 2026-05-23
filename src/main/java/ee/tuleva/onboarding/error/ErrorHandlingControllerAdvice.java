@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.auth.ExpiredRefreshJwtException;
 import ee.tuleva.onboarding.auth.idcard.exception.IdCardSessionNotFoundException;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionNotFoundException;
+import ee.tuleva.onboarding.auth.principal.MinorCannotSelfAuthenticateException;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import ee.tuleva.onboarding.auth.role.RoleSwitchAccessDeniedException;
 import ee.tuleva.onboarding.auth.smartid.SmartIdSessionNotFoundException;
@@ -130,6 +131,15 @@ public class ErrorHandlingControllerAdvice {
     log.info("RoleSwitchAccessDeniedException: {}", exception.getMessage());
     return new ResponseEntity<>(
         Map.of("error", "ROLE_SWITCH_DENIED", "error_description", exception.getMessage()),
+        FORBIDDEN);
+  }
+
+  @ExceptionHandler(MinorCannotSelfAuthenticateException.class)
+  public ResponseEntity<Object> handleErrors(MinorCannotSelfAuthenticateException exception) {
+    log.info("MinorCannotSelfAuthenticateException: {}", exception.getMessage());
+    return new ResponseEntity<>(
+        Map.of(
+            "error", "MINOR_CANNOT_SELF_AUTHENTICATE", "error_description", exception.getMessage()),
         FORBIDDEN);
   }
 

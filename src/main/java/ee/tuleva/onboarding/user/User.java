@@ -13,7 +13,6 @@ import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
@@ -54,7 +53,6 @@ public class User implements Person, Emailable, Serializable, Party {
 
   @NotNull @Builder.Default private Boolean active = true;
 
-  @Min(18)
   public int getAge() {
     return PersonalCode.getAge(personalCode);
   }

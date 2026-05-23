@@ -13,9 +13,13 @@ import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import ee.tuleva.onboarding.company.CompanyParty;
 import ee.tuleva.onboarding.company.CompanyPartyRepository;
 import ee.tuleva.onboarding.company.CompanyRepository;
+import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserService;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,10 +33,12 @@ public class RoleSwitchService {
   private final CompanyPartyRepository companyPartyRepository;
   private final PrincipalService principalService;
   private final TokenService tokenService;
+  private final ParentChildLinkService parentChildLinkService;
+  private final UserService userService;
 
   public AuthenticationTokens switchRole(AuthenticatedPerson person, SwitchRoleCommand command) {
     return switch (command.type()) {
-      case PERSON -> switchToSelf(person, command);
+      case PERSON -> switchToPerson(person, command);
       case LEGAL_ENTITY -> switchToCompany(person, command);
     };
   }
@@ -52,16 +58,40 @@ public class RoleSwitchService {
         .map(company -> new Role(LEGAL_ENTITY, company.getRegistryCode(), company.getName()))
         .forEach(roles::add);
 
+    parentChildLinkService.findActivelyRepresentedChildCodes(person.getPersonalCode()).stream()
+        .map(userService::findByPersonalCode)
+        .flatMap(Optional::stream)
+        .map(child -> new Role(PERSON, child.getPersonalCode(), child.getFullName()))
+        .forEach(roles::add);
+
     return unmodifiableList(roles);
   }
 
-  private AuthenticationTokens switchToSelf(AuthenticatedPerson person, SwitchRoleCommand command) {
-    if (!command.code().equals(person.getPersonalCode())) {
+  private AuthenticationTokens switchToPerson(
+      AuthenticatedPerson person, SwitchRoleCommand command) {
+    if (command.code().equals(person.getPersonalCode())) {
+      log.info("Role switch to self: personalCode={}", person.getPersonalCode());
+      return generateTokens(person, new Role(PERSON, command.code(), person.getFullName()));
+    }
+    return switchToRepresentedChild(person, command);
+  }
+
+  private AuthenticationTokens switchToRepresentedChild(
+      AuthenticatedPerson person, SwitchRoleCommand command) {
+    if (!parentChildLinkService.represents(person.getPersonalCode(), command.code())) {
       throw new RoleSwitchAccessDeniedException(person.getPersonalCode(), command.code());
     }
-    log.info("Role switch to self: personalCode={}", person.getPersonalCode());
-    var role = new Role(PERSON, command.code(), person.getFullName());
-    return generateTokens(person, role);
+    User child =
+        userService
+            .findByPersonalCode(command.code())
+            .orElseThrow(
+                () ->
+                    new RoleSwitchAccessDeniedException(person.getPersonalCode(), command.code()));
+    log.info(
+        "Role switch to represented child: personalCode={}, childCode={}",
+        person.getPersonalCode(),
+        command.code());
+    return generateTokens(person, new Role(PERSON, command.code(), child.getFullName()));
   }
 
   private AuthenticationTokens switchToCompany(

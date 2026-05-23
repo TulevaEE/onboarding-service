@@ -17,12 +17,14 @@ import ee.tuleva.onboarding.investment.report.ReportProvider;
 import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.ParentChildLinkRegistrationService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionBatchJob;
 import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
@@ -58,6 +60,7 @@ public class AdminController {
   private final FundPositionImportJob fundPositionImportJob;
   private final RedemptionBatchJob redemptionBatchJob;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
+  private final ParentChildLinkRegistrationService parentChildLinkRegistrationService;
   private final Clock clock;
 
   @Value("${admin.api-token:}")
@@ -283,6 +286,25 @@ public class AdminController {
     savingsFundOnboardingService.whitelistLegalEntity(registryCode, override);
 
     return "Whitelisted company: registryCode=" + registryCode;
+  }
+
+  @PostMapping("/parent-child-link")
+  public String createParentChildLink(
+      @RequestHeader("X-Admin-Token") String token,
+      @Valid @RequestBody CreateParentChildLinkRequest request) {
+
+    validateTokenWithOpsAccess(token);
+    parentChildLinkRegistrationService.register(
+        request.parentCode(),
+        request.childCode(),
+        request.childFirstName(),
+        request.childLastName(),
+        request.relationshipType());
+
+    return "Created parent-child link: parentCode="
+        + request.parentCode()
+        + ", childCode="
+        + request.childCode();
   }
 
   @PostMapping("/blackrock-adjustment")

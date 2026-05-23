@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
+import ee.tuleva.onboarding.party.ChildIsNotAMinorException;
 import io.jsonwebtoken.ExpiredJwtException;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -132,6 +133,14 @@ public class ErrorHandlingControllerAdvice {
     return new ResponseEntity<>(
         Map.of("error", "ROLE_SWITCH_DENIED", "error_description", exception.getMessage()),
         FORBIDDEN);
+  }
+
+  @ExceptionHandler(ChildIsNotAMinorException.class)
+  public ResponseEntity<Object> handleErrors(ChildIsNotAMinorException exception) {
+    log.info("ChildIsNotAMinorException: {}", exception.getMessage());
+    return new ResponseEntity<>(
+        Map.of("error", "CHILD_IS_NOT_A_MINOR", "error_description", exception.getMessage()),
+        BAD_REQUEST);
   }
 
   @ExceptionHandler(MinorCannotSelfAuthenticateException.class)

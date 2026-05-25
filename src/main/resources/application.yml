@@ -194,8 +194,8 @@ transaction-registry:
 
 investor-count:
   guardrail:
-    min-count: 50000
-    max-count: 200000
+    min-count: 80000
+    max-count: 95000
     max-delta-percent: 5.0
 
 payment-provider:

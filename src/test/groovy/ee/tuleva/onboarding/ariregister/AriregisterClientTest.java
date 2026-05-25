@@ -142,7 +142,7 @@ class AriregisterClientTest {
         .contains(
             new CompanyAddress(
                 "Pärnu mnt 123, 11313 Tallinn",
-                new AddressDetails("Pärnu mnt 123", "Tallinn", "11313", "EST")));
+                new AddressDetails("Pärnu mnt 123", "Tallinn", "11313", "EE")));
     assertThat(detail.getMainActivity()).contains("Fondide valitsemine");
 
     mockServer.verify();

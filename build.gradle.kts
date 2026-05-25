@@ -129,7 +129,7 @@ dependencies {
     implementation("ee.sk.mid:mid-rest-java-client:1.7") {
         exclude(group = "org.bouncycastle")
     }
-    implementation("eu.webeid.security:authtoken-validation:3.2.0")
+    implementation("eu.webeid.security:authtoken-validation:3.2.1")
 
     implementation("org.digidoc4j:digidoc4j:6.1.1") {
         exclude(group = "commons-logging", module = "commons-logging")

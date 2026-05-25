@@ -5,7 +5,9 @@ import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACT
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationRequested;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
@@ -25,16 +27,31 @@ class SebPendingTransactionReconciliationJobTest {
 
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final LocalDate TODAY = LocalDate.of(2026, 5, 18);
+  private static final LocalDate SATURDAY = LocalDate.of(2026, 5, 23);
 
   @Spy private Clock clock = Clock.fixed(TODAY.atStartOfDay(TALLINN).toInstant(), TALLINN);
 
+  @Mock private PublicHolidays publicHolidays;
   @Mock private InvestmentReportService reportService;
   @Mock private SebPendingTransactionReconciliationService reconciliationService;
 
   @InjectMocks private SebPendingTransactionReconciliationJob job;
 
   @Test
+  void run_skipsOnNonWorkingDay() {
+    Clock saturdayClock = Clock.fixed(SATURDAY.atStartOfDay(TALLINN).toInstant(), TALLINN);
+    given(clock.instant()).willReturn(saturdayClock.instant());
+    given(clock.getZone()).willReturn(saturdayClock.getZone());
+    given(publicHolidays.isWorkingDay(SATURDAY)).willReturn(false);
+
+    job.run();
+
+    verifyNoInteractions(reportService, reconciliationService);
+  }
+
+  @Test
   void run_iteratesTodayPlusLastSevenDaysAndReconcilesEachFoundReport() {
+    given(publicHolidays.isWorkingDay(TODAY)).willReturn(true);
     InvestmentReport day0 = report(TODAY);
     InvestmentReport day1 = report(TODAY.minusDays(1));
     InvestmentReport day3 = report(TODAY.minusDays(3));
@@ -60,6 +77,7 @@ class SebPendingTransactionReconciliationJobTest {
 
   @Test
   void run_includesTodayInFallbackScan() {
+    given(publicHolidays.isWorkingDay(TODAY)).willReturn(true);
     InvestmentReport today = report(TODAY);
     for (int i = 0; i <= 7; i++) {
       LocalDate date = TODAY.minusDays(i);
@@ -74,6 +92,7 @@ class SebPendingTransactionReconciliationJobTest {
 
   @Test
   void run_missingReportsAreSkipped() {
+    given(publicHolidays.isWorkingDay(TODAY)).willReturn(true);
     for (int i = 0; i <= 7; i++) {
       given(reportService.getReport(SEB, PENDING_TRANSACTIONS, TODAY.minusDays(i)))
           .willReturn(Optional.empty());
@@ -86,6 +105,7 @@ class SebPendingTransactionReconciliationJobTest {
 
   @Test
   void run_continuesAfterReconciliationException() {
+    given(publicHolidays.isWorkingDay(TODAY)).willReturn(true);
     InvestmentReport day1 = report(TODAY.minusDays(1));
     InvestmentReport day2 = report(TODAY.minusDays(2));
     given(reportService.getReport(SEB, PENDING_TRANSACTIONS, TODAY)).willReturn(Optional.empty());
@@ -109,6 +129,7 @@ class SebPendingTransactionReconciliationJobTest {
 
   @Test
   void onSebPendingTransactionReconciliationRequested_triggersRun() {
+    given(publicHolidays.isWorkingDay(TODAY)).willReturn(true);
     InvestmentReport today = report(TODAY);
     for (int i = 0; i <= 7; i++) {
       LocalDate date = TODAY.minusDays(i);

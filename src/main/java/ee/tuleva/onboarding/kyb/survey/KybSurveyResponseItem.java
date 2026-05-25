@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.kyb.survey;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import jakarta.annotation.Nullable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.io.Serializable;
@@ -44,7 +45,8 @@ sealed interface KybSurveyResponseItem extends Serializable {
   record AddressValue(String type, @Valid AddressDetails value) implements Serializable {}
 
   record AddressDetails(
-      @NotBlank String countryCode,
+      @Nullable String fullAddress,
+      @Nullable String countryCode,
       @NotBlank String street,
       @NotBlank String city,
       @NotBlank String postalCode)

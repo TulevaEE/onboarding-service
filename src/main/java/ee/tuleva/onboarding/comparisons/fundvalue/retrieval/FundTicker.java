@@ -174,6 +174,30 @@ public enum FundTicker {
       "229055",
       "0P0000STQT",
       BenchmarkCategory.BOND_EURO),
+  VANGUARD_EUROZONE_GOV_BOND(
+      "VGEA.DE",
+      "VGEA.XETRA",
+      "IE00BH04GL39",
+      "Vanguard EUR Eurozone Government Bond UCITS ETF",
+      "VGEA",
+      null,
+      BenchmarkCategory.BOND_EURO),
+  XTRACKERS_EUR_CORPORATE_BOND(
+      "D5BG.DE",
+      "D5BG.XETRA",
+      "LU0478205379",
+      "Xtrackers II EUR Corporate Bond UCITS ETF",
+      "XBLC",
+      null,
+      BenchmarkCategory.BOND_EURO),
+  SPDR_GLOBAL_AGG_BOND_HEDGED(
+      "SPFF.DE",
+      "SPFF.XETRA",
+      "IE000AQ7A2X6",
+      "SPDR Bloomberg Global Aggregate Bond UCITS ETF EUR Hedged",
+      "SPFF",
+      null,
+      BenchmarkCategory.BOND_GLOBAL),
 
   // Benchmark proxy ETFs (not held in portfolios — used for BENCHMARK_MODEL comparison).
   // benchmarkCategory is intentionally null: these are the benchmarks themselves, not tracked
@@ -190,12 +214,22 @@ public enum FundTicker {
       "iShares Euro Aggregate Bond UCITS ETF",
       "EUN4",
       null),
+  // Step 1: EUNA stays as benchmark proxy (null category) until GAGH has price history.
+  // Step 2: After GAGH has 2+ days of prices, change EUNA to BOND_GLOBAL and switch
+  //         TrackingDifferenceService.benchmarkKey(BOND_GLOBAL) from EUNA to GAGH.
   ISHARES_GLOBAL_AGG_BOND_ETF(
       "EUNA.DE",
       "EUNA.XETRA",
       "IE00BDBRDM35",
-      "iShares Global Aggregate Bond UCITS ETF",
+      "iShares Core Global Aggregate Bond UCITS ETF EUR Hedged",
       "EUNA",
+      null),
+  AMUNDI_GLOBAL_AGG_BOND_HEDGED(
+      "GAGH.DE",
+      "GAGH.XETRA",
+      "LU1708330318",
+      "Amundi Index Bloomberg Global Aggregate Bond UCITS ETF EUR Hedged",
+      "GAGH",
       null);
 
   private final String yahooTicker;

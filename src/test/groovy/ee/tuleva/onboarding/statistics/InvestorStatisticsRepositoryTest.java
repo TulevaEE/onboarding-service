@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
+import java.util.Optional;
 import java.util.OptionalLong;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,12 +54,14 @@ class InvestorStatisticsRepositoryTest {
 
     given(jdbcClient.sql(sqlCaptor.capture())).willReturn(statementSpec);
     given(statementSpec.query(Long.class)).willReturn(mappedQuerySpec);
-    given(mappedQuerySpec.single()).willReturn(84000L);
+    given(mappedQuerySpec.optional()).willReturn(Optional.of(84000L));
 
     OptionalLong previous = repository.getPreviousActiveInvestorCount();
 
     assertThat(previous).hasValue(84000L);
-    assertThat(sqlCaptor.getValue())
+    String sql = sqlCaptor.getValue();
+    assertThat(sql).doesNotContain("COALESCE");
+    assertThat(sql)
         .contains("reporting_date < (SELECT MAX(reporting_date) FROM analytics.mv_kpi_new)");
   }
 
@@ -70,8 +73,21 @@ class InvestorStatisticsRepositoryTest {
 
     given(jdbcClient.sql(any())).willReturn(statementSpec);
     given(statementSpec.query(Long.class)).willReturn(mappedQuerySpec);
-    given(mappedQuerySpec.single()).willReturn(0L);
+    given(mappedQuerySpec.optional()).willReturn(Optional.empty());
 
     assertThat(repository.getPreviousActiveInvestorCount()).isEmpty();
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void getPreviousActiveInvestorCount_keepsRealZero() {
+    StatementSpec statementSpec = mock(StatementSpec.class);
+    MappedQuerySpec<Long> mappedQuerySpec = mock(MappedQuerySpec.class);
+
+    given(jdbcClient.sql(any())).willReturn(statementSpec);
+    given(statementSpec.query(Long.class)).willReturn(mappedQuerySpec);
+    given(mappedQuerySpec.optional()).willReturn(Optional.of(0L));
+
+    assertThat(repository.getPreviousActiveInvestorCount()).hasValue(0L);
   }
 }

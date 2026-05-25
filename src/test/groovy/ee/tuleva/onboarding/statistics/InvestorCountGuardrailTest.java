@@ -41,4 +41,11 @@ class InvestorCountGuardrailTest {
   void onlyChecksBounds_whenNoPreviousPeriod() {
     assertThat(guardrail.findViolations(85000, OptionalLong.empty())).isEmpty();
   }
+
+  @Test
+  void flagsJumpFromZeroPreviousPeriod() {
+    assertThat(guardrail.findViolations(85000, OptionalLong.of(0)))
+        .hasSize(1)
+        .allMatch(violation -> violation.contains("changed from 0"));
+  }
 }

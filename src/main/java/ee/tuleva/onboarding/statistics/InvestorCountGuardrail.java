@@ -28,12 +28,18 @@ public class InvestorCountGuardrail {
 
     if (previous.isPresent()) {
       long previousCount = previous.getAsLong();
-      double deltaPercent = Math.abs(current - previousCount) / (double) previousCount * 100.0;
-      if (deltaPercent > properties.maxDeltaPercent()) {
-        violations.add(
-            String.format(
-                "count changed by %.2f%% vs previous period: previous=%d, current=%d, maxDeltaPercent=%.2f",
-                deltaPercent, previousCount, current, properties.maxDeltaPercent()));
+      if (previousCount == 0) {
+        if (current != 0) {
+          violations.add("count changed from 0 in the previous period to current=" + current);
+        }
+      } else {
+        double deltaPercent = Math.abs(current - previousCount) / (double) previousCount * 100.0;
+        if (deltaPercent > properties.maxDeltaPercent()) {
+          violations.add(
+              String.format(
+                  "count changed by %.2f%% vs previous period: previous=%d, current=%d, maxDeltaPercent=%.2f",
+                  deltaPercent, previousCount, current, properties.maxDeltaPercent()));
+        }
       }
     }
 

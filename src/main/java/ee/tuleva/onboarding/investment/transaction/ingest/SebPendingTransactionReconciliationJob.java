@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationRequested;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
@@ -27,16 +28,22 @@ class SebPendingTransactionReconciliationJob {
   private static final int LOOKBACK_DAYS = 7;
 
   private final Clock clock;
+  private final PublicHolidays publicHolidays;
   private final InvestmentReportService reportService;
   private final SebPendingTransactionReconciliationService reconciliationService;
 
-  @Scheduled(cron = "0 0 9 * * *", zone = TIMEZONE)
+  @Scheduled(cron = "0 0 9 * * MON-FRI", zone = TIMEZONE)
   @SchedulerLock(
       name = "SebPendingTransactionReconciliationJob",
       lockAtMostFor = "30m",
       lockAtLeastFor = "1m")
   public void run() {
     LocalDate today = LocalDate.now(clock);
+    if (!publicHolidays.isWorkingDay(today)) {
+      log.info(
+          "Skipping SEB pending transaction reconciliation on non-working day: date={}", today);
+      return;
+    }
     log.info(
         "Running scheduled SEB pending transactions reconciliation: today={}, lookbackDays={}",
         today,

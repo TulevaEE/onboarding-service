@@ -139,8 +139,8 @@ dependencies {
     implementation("org.bouncycastle:bcutil-jdk18on:1.84")
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-4:8.40.0")
-    implementation("io.sentry:sentry-logback:8.40.0")
+    implementation("io.sentry:sentry-spring-boot-4:8.42.0")
+    implementation("io.sentry:sentry-logback:8.42.0")
 
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")

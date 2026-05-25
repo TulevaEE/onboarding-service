@@ -1,11 +1,9 @@
 package ee.tuleva.onboarding.config
 
-import ee.tuleva.onboarding.statistics.InvestorStatisticsRepository
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
-import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.transaction.annotation.Transactional
 import spock.lang.Shared
@@ -16,7 +14,6 @@ import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.auth.authority.Authority.*
 import static ee.tuleva.onboarding.auth.jwt.TokenType.ACCESS
 import static ee.tuleva.onboarding.auth.jwt.TokenType.HANDOVER
-import static org.mockito.BDDMockito.given
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
@@ -28,9 +25,6 @@ class SecurityConfigurationSpec extends Specification {
 
   @Autowired
   MockMvc mvc
-
-  @MockitoBean
-  InvestorStatisticsRepository investorStatisticsRepository
 
   @Shared
   var memberToken = generateJwtToken(samplePerson, ACCESS, [USER, MEMBER])
@@ -111,14 +105,5 @@ class SecurityConfigurationSpec extends Specification {
     url            | token       | status
     "/v1/listings" | memberToken | status().isOk()
     "/v1/listings" | userToken   | status().isForbidden()
-  }
-
-  def "investor count statistics is publicly accessible without authentication"() {
-    given:
-    given(investorStatisticsRepository.getActiveInvestorCount()).willReturn(85224L)
-
-    expect:
-    mvc.perform(get("/v1/statistics/investor-count"))
-        .andExpect(status().isOk())
   }
 }

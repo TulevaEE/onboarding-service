@@ -192,6 +192,12 @@ transaction-registry:
     cc:
       - taavi.pertman@tuleva.ee
 
+investor-count:
+  guardrail:
+    min-count: 50000
+    max-count: 200000
+    max-delta-percent: 5.0
+
 payment-provider:
   url: https://sandbox-stargate.montonio.com/api
   use-fake-notification-url: true

@@ -51,10 +51,14 @@ class FundTickerTest {
             "LU1291102447",
             "FR0013209921",
             "IE00BFNM3P36",
+            "IE00BH04GL39",
+            "LU0478205379",
+            "IE000AQ7A2X6",
             "IE00B4L5Y983",
             "IE00B4L5YC18",
             "IE00B3DKXQ41",
-            "IE00BDBRDM35");
+            "IE00BDBRDM35",
+            "LU1708330318");
   }
 
   @Test

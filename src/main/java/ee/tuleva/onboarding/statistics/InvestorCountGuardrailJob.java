@@ -1,8 +1,5 @@
 package ee.tuleva.onboarding.statistics;
 
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
-
-import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.util.List;
 import java.util.OptionalLong;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +17,6 @@ public class InvestorCountGuardrailJob {
 
   private final InvestorStatisticsRepository investorStatisticsRepository;
   private final InvestorCountGuardrail investorCountGuardrail;
-  private final OperationsNotificationService notificationService;
 
   @Scheduled(cron = "0 30 7 * * *", zone = "Europe/Tallinn")
   @SchedulerLock(
@@ -37,11 +33,8 @@ public class InvestorCountGuardrailJob {
       return;
     }
 
-    String message =
-        "Investor count guardrail failed: "
-            + String.join("; ", violations)
-            + ". Source: analytics.mv_kpi_new, shown on tuleva.ee front page.";
-    log.warn("{}", message);
-    notificationService.sendMessage(message, SAVINGS);
+    log.error(
+        "Investor count guardrail failed: violations={}, source=analytics.mv_kpi_new shown on tuleva.ee front page",
+        String.join("; ", violations));
   }
 }

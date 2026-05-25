@@ -1,32 +1,48 @@
 package ee.tuleva.onboarding.statistics;
 
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.contains;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 
-import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import java.util.List;
 import java.util.OptionalLong;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
 
 @ExtendWith(MockitoExtension.class)
 class InvestorCountGuardrailJobTest {
 
   @Mock private InvestorStatisticsRepository investorStatisticsRepository;
   @Mock private InvestorCountGuardrail investorCountGuardrail;
-  @Mock private OperationsNotificationService notificationService;
   @InjectMocks private InvestorCountGuardrailJob job;
 
+  private Logger logger;
+  private ListAppender<ILoggingEvent> logAppender;
+
+  @BeforeEach
+  void setUp() {
+    logger = (Logger) LoggerFactory.getLogger(InvestorCountGuardrailJob.class);
+    logAppender = new ListAppender<>();
+    logAppender.start();
+    logger.addAppender(logAppender);
+  }
+
+  @AfterEach
+  void tearDown() {
+    logger.detachAppender(logAppender);
+  }
+
   @Test
-  void doesNotAlert_whenNoViolations() {
+  void logsNoError_whenNoViolations() {
     given(investorStatisticsRepository.getActiveInvestorCount()).willReturn(85224L);
     given(investorStatisticsRepository.getPreviousActiveInvestorCount())
         .willReturn(OptionalLong.of(85000L));
@@ -35,11 +51,11 @@ class InvestorCountGuardrailJobTest {
 
     job.checkInvestorCount();
 
-    verify(notificationService, never()).sendMessage(any(), any());
+    assertThat(logAppender.list).noneMatch(event -> event.getLevel() == Level.ERROR);
   }
 
   @Test
-  void alertsToSavingsChannel_whenViolations() {
+  void logsError_whenViolations() {
     given(investorStatisticsRepository.getActiveInvestorCount()).willReturn(120000L);
     given(investorStatisticsRepository.getPreviousActiveInvestorCount())
         .willReturn(OptionalLong.of(85000L));
@@ -48,7 +64,6 @@ class InvestorCountGuardrailJobTest {
 
     job.checkInvestorCount();
 
-    verify(notificationService)
-        .sendMessage(contains("Investor count guardrail failed"), eq(SAVINGS));
+    assertThat(logAppender.list).anyMatch(event -> event.getLevel() == Level.ERROR);
   }
 }

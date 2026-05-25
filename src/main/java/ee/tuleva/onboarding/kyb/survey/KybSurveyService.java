@@ -57,6 +57,8 @@ class KybSurveyService {
           new FieldError(
               "relatedPersons", "Seotud isikute isikusamasuse tuvastamine on lõpetamata");
       case COMPANY_LEGAL_FORM -> new FieldError("legalForm", "Ainult OÜ on toetatud");
+      case COMPANY_REGISTERED_IN_ESTONIA ->
+          new FieldError("address", "Ettevõte ei ole registreeritud Eestis");
       case COMPANY_STRUCTURE,
           SOLE_MEMBER_OWNERSHIP,
           DUAL_MEMBER_OWNERSHIP,
@@ -260,8 +262,9 @@ class KybSurveyService {
             detail.getLegalForm().orElse(null), errorsByField.getOrDefault("legalForm", List.of())),
         ValidatedField.valid(detail.getFoundingDate().orElse(null)),
         validatedField(status, errorsByField.getOrDefault("status", List.of())),
-        ValidatedField.valid(
-            LegalEntityAddress.fromCompanyAddress(detail.getAddress().orElse(null))),
+        validatedField(
+            LegalEntityAddress.fromCompanyAddress(detail.getAddress().orElse(null)),
+            errorsByField.getOrDefault("address", List.of())),
         ValidatedField.valid(detail.getMainActivity().orElse(null)),
         validatedField(
             detail.getNaceCode().orElse(null), errorsByField.getOrDefault("naceCode", List.of())),

@@ -94,6 +94,22 @@ public final class KybTestFixtures {
     return new KybCheck(type, success, Map.of());
   }
 
+  static KybCompanyData companyData(
+      CompanyDto company,
+      PersonalCode personalCode,
+      CompanyStatus status,
+      List<KybRelatedPerson> relatedPersons,
+      SelfCertification selfCertification) {
+    return new KybCompanyData(
+        company,
+        personalCode,
+        status,
+        relatedPersons,
+        selfCertification,
+        "EE",
+        "Harju maakond, Tallinn, Pärnu mnt 1");
+  }
+
   // =====================================================================
   // Rule 31: Single person OÜ — sole board member is 100% owner
   // =====================================================================
@@ -123,12 +139,12 @@ public final class KybTestFixtures {
 
   static KybCompanyData rule31Pass() {
     var owner = person(JAAN, true, true, true, BigDecimal.valueOf(100), COMPLETED);
-    return new KybCompanyData(VALID_COMPANY, JAAN, R, List.of(owner), VALID_CERT);
+    return companyData(VALID_COMPANY, JAAN, R, List.of(owner), VALID_CERT);
   }
 
   static KybCompanyData rule31Fail_notBeneficialOwner() {
     var owner = person(JAAN, true, true, false, BigDecimal.valueOf(100), COMPLETED);
-    return new KybCompanyData(VALID_COMPANY, JAAN, R, List.of(owner), VALID_CERT);
+    return companyData(VALID_COMPANY, JAAN, R, List.of(owner), VALID_CERT);
   }
 
   static List<KybCheck> rule31PassExpectedChecks() {
@@ -182,13 +198,13 @@ public final class KybTestFixtures {
   static KybCompanyData rule32Pass() {
     var person1 = person(JAAN, true, true, true, BigDecimal.valueOf(50), COMPLETED);
     var person2 = person(MARI, true, true, true, BigDecimal.valueOf(50), COMPLETED);
-    return new KybCompanyData(VALID_COMPANY, JAAN, R, List.of(person1, person2), VALID_CERT);
+    return companyData(VALID_COMPANY, JAAN, R, List.of(person1, person2), VALID_CERT);
   }
 
   static KybCompanyData rule32Fail_incompleteOwnership() {
     var person1 = person(JAAN, true, true, true, BigDecimal.valueOf(30), COMPLETED);
     var person2 = person(MARI, true, true, true, BigDecimal.valueOf(30), COMPLETED);
-    return new KybCompanyData(VALID_COMPANY, JAAN, R, List.of(person1, person2), VALID_CERT);
+    return companyData(VALID_COMPANY, JAAN, R, List.of(person1, person2), VALID_CERT);
   }
 
   static List<KybCheck> rule32PassExpectedChecks() {
@@ -225,13 +241,13 @@ public final class KybTestFixtures {
   static KybCompanyData rule33Pass() {
     var boardMember = person(JAAN, true, true, true, BigDecimal.valueOf(50), COMPLETED);
     var otherOwner = person(MARI, false, true, true, BigDecimal.valueOf(50), COMPLETED);
-    return new KybCompanyData(VALID_COMPANY, JAAN, R, List.of(boardMember, otherOwner), VALID_CERT);
+    return companyData(VALID_COMPANY, JAAN, R, List.of(boardMember, otherOwner), VALID_CERT);
   }
 
   static KybCompanyData rule33Fail_boardMemberNotOwner() {
     var boardMember = person(JAAN, true, false, false, BigDecimal.ZERO, COMPLETED);
     var owner = person(MARI, false, true, true, BigDecimal.valueOf(100), COMPLETED);
-    return new KybCompanyData(VALID_COMPANY, JAAN, R, List.of(boardMember, owner), VALID_CERT);
+    return companyData(VALID_COMPANY, JAAN, R, List.of(boardMember, owner), VALID_CERT);
   }
 
   static List<KybCheck> rule33PassExpectedChecks() {
@@ -270,7 +286,7 @@ public final class KybTestFixtures {
 
   static KybCompanyData rule34Fail_companyInLiquidation() {
     var owner = person(JAAN, true, true, true, BigDecimal.valueOf(100), COMPLETED);
-    return new KybCompanyData(VALID_COMPANY, JAAN, L, List.of(owner), VALID_CERT);
+    return companyData(VALID_COMPANY, JAAN, L, List.of(owner), VALID_CERT);
   }
 
   // =====================================================================
@@ -291,26 +307,25 @@ public final class KybTestFixtures {
   static KybCompanyData rule36Fail_relatedPersonNotCitizen() {
     var passedKyc = person(JAAN, true, true, true, BigDecimal.valueOf(50), COMPLETED);
     var notCitizen = person(MARI, true, true, true, BigDecimal.valueOf(50), REJECTED);
-    return new KybCompanyData(VALID_COMPANY, JAAN, R, List.of(passedKyc, notCitizen), VALID_CERT);
+    return companyData(VALID_COMPANY, JAAN, R, List.of(passedKyc, notCitizen), VALID_CERT);
   }
 
   static KybCompanyData rule37Fail_relatedPersonHighRiskCountry() {
     var passedKyc = person(JAAN, true, true, true, BigDecimal.valueOf(50), COMPLETED);
     var highRisk = person(MARI, true, true, true, BigDecimal.valueOf(50), REJECTED);
-    return new KybCompanyData(VALID_COMPANY, JAAN, R, List.of(passedKyc, highRisk), VALID_CERT);
+    return companyData(VALID_COMPANY, JAAN, R, List.of(passedKyc, highRisk), VALID_CERT);
   }
 
   static KybCompanyData rule39Fail_relatedPersonSanctioned() {
     var passedKyc = person(JAAN, true, true, true, BigDecimal.valueOf(50), COMPLETED);
     var sanctioned = person(MARI, true, true, true, BigDecimal.valueOf(50), REJECTED);
-    return new KybCompanyData(VALID_COMPANY, JAAN, R, List.of(passedKyc, sanctioned), VALID_CERT);
+    return companyData(VALID_COMPANY, JAAN, R, List.of(passedKyc, sanctioned), VALID_CERT);
   }
 
   static KybCompanyData rule40Fail_relatedPersonNotCitizenButResident() {
     var passedKyc = person(JAAN, true, true, true, BigDecimal.valueOf(50), COMPLETED);
     var nonCitizenResident = person(MARI, true, true, true, BigDecimal.valueOf(50), UNKNOWN);
-    return new KybCompanyData(
-        VALID_COMPANY, JAAN, R, List.of(passedKyc, nonCitizenResident), VALID_CERT);
+    return companyData(VALID_COMPANY, JAAN, R, List.of(passedKyc, nonCitizenResident), VALID_CERT);
   }
 
   static KybCompanyData rules36to40Pass_allKycCompleted() {
@@ -340,7 +355,7 @@ public final class KybTestFixtures {
   static KybCompanyData rule41Fail_highRiskNace() {
     var company = new CompanyDto(new RegistryCode("12345678"), "Crypto OÜ", "64321", OÜ);
     var owner = person(JAAN, true, true, true, BigDecimal.valueOf(100), COMPLETED);
-    return new KybCompanyData(company, JAAN, R, List.of(owner), VALID_CERT);
+    return companyData(company, JAAN, R, List.of(owner), VALID_CERT);
   }
 
   // =====================================================================
@@ -395,7 +410,7 @@ public final class KybTestFixtures {
   static KybCompanyData rule50Fail_notOÜ() {
     var company = new CompanyDto(new RegistryCode("12345678"), "Test AS", "62011", AS);
     var owner = person(JAAN, true, true, true, BigDecimal.valueOf(100), COMPLETED);
-    return new KybCompanyData(company, JAAN, R, List.of(owner), VALID_CERT);
+    return companyData(company, JAAN, R, List.of(owner), VALID_CERT);
   }
 
   // =====================================================================
@@ -409,7 +424,7 @@ public final class KybTestFixtures {
   static KybCompanyData selfCertificationFail() {
     var owner = person(JAAN, true, true, true, BigDecimal.valueOf(100), COMPLETED);
     var badCert = new SelfCertification(true, false, true);
-    return new KybCompanyData(VALID_COMPANY, JAAN, R, List.of(owner), badCert);
+    return companyData(VALID_COMPANY, JAAN, R, List.of(owner), badCert);
   }
 
   // =====================================================================
@@ -429,8 +444,7 @@ public final class KybTestFixtures {
     var person1 = person(JAAN, true, true, true, BigDecimal.valueOf(34), COMPLETED);
     var person2 = person(MARI, true, true, true, BigDecimal.valueOf(33), COMPLETED);
     var person3 = person(PEETER, false, true, true, BigDecimal.valueOf(33), COMPLETED);
-    return new KybCompanyData(
-        VALID_COMPANY, JAAN, R, List.of(person1, person2, person3), VALID_CERT);
+    return companyData(VALID_COMPANY, JAAN, R, List.of(person1, person2, person3), VALID_CERT);
   }
 
   static List<KybCheck> threePersonsExpectedChecks() {

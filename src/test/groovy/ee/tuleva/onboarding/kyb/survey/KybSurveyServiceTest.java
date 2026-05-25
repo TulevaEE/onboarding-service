@@ -132,6 +132,34 @@ class KybSurveyServiceTest {
   }
 
   @Test
+  void initialValidation_returnsAddressErrorWhenNotRegisteredInEstonia() {
+    stubInitialValidation(
+        sampleRelationships(),
+        sampleDetail(),
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(COMPANY_REGISTERED_IN_ESTONIA, false, Map.of("countryCode", "DE"))));
+
+    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
+
+    assertThat(result.address().errors()).containsExactly("Ettevõte ei ole registreeritud Eestis");
+  }
+
+  @Test
+  void initialValidation_returnsNoAddressErrorWhenRegisteredInEstonia() {
+    stubInitialValidation(
+        sampleRelationships(),
+        sampleDetail(),
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(COMPANY_REGISTERED_IN_ESTONIA, true, Map.of("countryCode", "EE"))));
+
+    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
+
+    assertThat(result.address().errors()).isEmpty();
+  }
+
+  @Test
   void initialValidation_returnsNoErrorsWhenAllChecksPassed() {
     stubInitialValidation(
         sampleRelationships(),

@@ -8,6 +8,8 @@ import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlCheckType;
+import ee.tuleva.onboarding.ariregister.AddressDetails;
+import ee.tuleva.onboarding.ariregister.CompanyAddress;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import java.math.BigDecimal;
@@ -146,6 +148,30 @@ class KybCompanyDataMapperTest {
         .containsExactly(
             new KybRelatedPerson(
                 PERSONAL_CODE, false, true, true, new BigDecimal("75.00"), KybKycStatus.UNKNOWN));
+  }
+
+  @Test
+  void mapsCompanyAddressCountryCodeAndFullAddress() {
+    var address =
+        new CompanyAddress(
+            "Tartu maakond, Tartu linn, Paju 2",
+            new AddressDetails("Paju 2", "Tartu linn", "50104", "EE"));
+    var detail = new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, address, null, null);
+
+    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), SELF_CERT);
+
+    assertThat(result.countryCode()).isEqualTo("EE");
+    assertThat(result.fullAddress()).isEqualTo("Tartu maakond, Tartu linn, Paju 2");
+  }
+
+  @Test
+  void mapsNullAddressToNullCountryCodeAndFullAddress() {
+    var detail = new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null);
+
+    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), SELF_CERT);
+
+    assertThat(result.countryCode()).isNull();
+    assertThat(result.fullAddress()).isNull();
   }
 
   @Test

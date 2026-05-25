@@ -29,6 +29,9 @@ public class AmlKybCheckEventListener {
           entry(KybCheckType.COMPANY_PEP, AmlCheckType.KYB_COMPANY_PEP),
           entry(KybCheckType.HIGH_RISK_NACE, AmlCheckType.KYB_HIGH_RISK_NACE),
           entry(KybCheckType.COMPANY_LEGAL_FORM, AmlCheckType.KYB_COMPANY_LEGAL_FORM),
+          entry(
+              KybCheckType.COMPANY_REGISTERED_IN_ESTONIA,
+              AmlCheckType.KYB_COMPANY_REGISTERED_IN_ESTONIA),
           entry(KybCheckType.SELF_CERTIFICATION, AmlCheckType.KYB_SELF_CERTIFICATION),
           entry(KybCheckType.DATA_CHANGED, AmlCheckType.KYB_DATA_CHANGED));
 

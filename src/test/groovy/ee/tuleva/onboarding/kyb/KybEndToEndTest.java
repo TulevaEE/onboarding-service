@@ -45,7 +45,7 @@ class KybEndToEndTest {
   void rule31_soleOwnerBoardMemberBeneficialOwner_allChecksPass() {
     var results = kybScreeningService.screen(rule31Pass());
 
-    assertThat(results).hasSize(10).allMatch(KybCheck::success);
+    assertThat(results).hasSize(11).allMatch(KybCheck::success);
     assertCheckPersisted(JAAN, KYB_SOLE_MEMBER_OWNERSHIP, true);
   }
 
@@ -196,7 +196,13 @@ class KybEndToEndTest {
         person(MARI, true, true, true, java.math.BigDecimal.valueOf(50), KybKycStatus.REJECTED);
     var data =
         new KybCompanyData(
-            VALID_COMPANY, JAAN, CompanyStatus.R, List.of(person1, person2), VALID_CERT);
+            VALID_COMPANY,
+            JAAN,
+            CompanyStatus.R,
+            List.of(person1, person2),
+            VALID_CERT,
+            "EE",
+            "Harju maakond, Tallinn, Pärnu mnt 1");
 
     var results = kybScreeningService.screen(data);
 
@@ -341,6 +347,7 @@ class KybEndToEndTest {
             KYB_COMPANY_PEP,
             KYB_HIGH_RISK_NACE,
             KYB_COMPANY_LEGAL_FORM,
+            KYB_COMPANY_REGISTERED_IN_ESTONIA,
             KYB_SELF_CERTIFICATION,
             KYB_DATA_CHANGED);
     assertThat(amlChecks).allMatch(AmlCheck::isSuccess);

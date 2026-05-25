@@ -43,6 +43,8 @@ class CompanyActiveScreenerTest {
         new PersonalCode("38501010001"),
         status,
         List.of(),
-        new SelfCertification(true, true, true));
+        new SelfCertification(true, true, true),
+        "EE",
+        "Harju maakond, Tallinn, Pärnu mnt 1");
   }
 }

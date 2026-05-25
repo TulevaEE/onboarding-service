@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.ariregister;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6Ettevotja;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6TeatatudTegevusala;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6Yldandmed;
+import ee.tuleva.onboarding.country.CountryCodes;
 import java.time.LocalDate;
 import java.util.Optional;
 
@@ -39,7 +40,7 @@ class CompanyDetailMapper {
                         a.getTanavMajaKorter(),
                         a.getEhakNimetus(),
                         a.getPostiindeks(),
-                        a.getRiik())));
+                        CountryCodes.toAlpha2(a.getRiik()))));
   }
 
   private static Optional<DetailandmedV6TeatatudTegevusala> extractMainActivityRecord(

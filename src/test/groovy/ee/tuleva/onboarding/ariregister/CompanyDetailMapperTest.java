@@ -28,7 +28,7 @@ class CompanyDetailMapperTest {
     assertThat(result.getAddress())
         .contains(
             new CompanyAddress(
-                "Pärnu mnt 1", new AddressDetails("Pärnu mnt 1", "Tallinn", "11313", "EST")));
+                "Pärnu mnt 1", new AddressDetails("Pärnu mnt 1", "Tallinn", "11313", "EE")));
     assertThat(result.getMainActivity()).contains("Fondide valitsemine");
     assertThat(result.getNaceCode()).contains("6630");
   }

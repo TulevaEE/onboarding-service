@@ -73,7 +73,7 @@ public class SavingFundPaymentController {
   @GetMapping("/bank-accounts")
   public List<String> getBankAccounts(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    return savingFundPaymentRepository.findDepositBankAccountIbans(
+    return savingFundPaymentRepository.findWithdrawableIbans(
         PartyId.from(authenticatedPerson.getRole()));
   }
 }

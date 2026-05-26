@@ -323,7 +323,7 @@ class SavingFundPaymentRepositoryTest {
   }
 
   @Test
-  void findDepositBankAccountIbans() {
+  void findWithdrawableIbans() {
     var user1 = createUser("37706154772");
     var user2 = createUser("36407145233");
 
@@ -371,7 +371,7 @@ class SavingFundPaymentRepositoryTest {
     updatePaymentStatus(id6, RESERVED);
     updatePaymentStatus(id7, PROCESSED);
 
-    var result = repository.findDepositBankAccountIbans(party1);
+    var result = repository.findWithdrawableIbans(party1);
 
     assertThat(result)
         .containsExactly("EE111111111111111111", "EE222222222222222222", "EE333333333333333333");

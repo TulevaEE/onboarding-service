@@ -185,6 +185,10 @@ async:
 savings-fund:
   isin: EE0000003283
 
+wordpress-documents:
+  url: 'https://tuleva.ee/wp-json/wp/v2'
+  slug: 'tuleva-taiendav-kogumisfond-dokumendid'
+
 transaction-registry:
   alerts:
     to:

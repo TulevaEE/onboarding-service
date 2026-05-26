@@ -56,6 +56,8 @@ public class SecurityConfiguration {
                     .permitAll()
                     .requestMatchers(GET, "/v1/funds/*/nav")
                     .permitAll()
+                    .requestMatchers(GET, "/v1/savings/documents")
+                    .permitAll()
                     .requestMatchers(HEAD, "/v1/members")
                     .permitAll()
                     .requestMatchers(GET, "/v1/members/lookup")

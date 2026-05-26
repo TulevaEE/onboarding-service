@@ -100,7 +100,7 @@ public class SavingFundPaymentRepository {
         this::rowMapper);
   }
 
-  public List<String> findDepositBankAccountIbans(PartyId partyId) {
+  public List<String> findWithdrawableIbans(PartyId partyId) {
     return jdbcTemplate.query(
         """
             SELECT DISTINCT remitter_iban

@@ -179,7 +179,7 @@ class SavingFundPaymentControllerTest {
         new UsernamePasswordAuthenticationToken(
             person, null, List.of(new SimpleGrantedAuthority(USER)));
 
-    when(savingFundPaymentRepository.findDepositBankAccountIbans(PartyId.from(person.getRole())))
+    when(savingFundPaymentRepository.findWithdrawableIbans(PartyId.from(person.getRole())))
         .thenReturn(List.of("EE123456789012345678", "EE987654321098765432"));
 
     mvc.perform(get("/v1/savings/bank-accounts").with(authentication(auth)))

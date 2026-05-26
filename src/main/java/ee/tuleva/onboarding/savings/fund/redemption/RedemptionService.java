@@ -224,7 +224,7 @@ public class RedemptionService {
   }
 
   private void validateIbanBelongsToParty(String iban, PartyId partyId) {
-    List<String> ibans = savingFundPaymentRepository.findDepositBankAccountIbans(partyId);
+    List<String> ibans = savingFundPaymentRepository.findWithdrawableIbans(partyId);
     if (!ibans.contains(iban)) {
       throw new IllegalArgumentException(
           "IBAN does not belong to party: iban=" + iban + ", party=" + partyId);

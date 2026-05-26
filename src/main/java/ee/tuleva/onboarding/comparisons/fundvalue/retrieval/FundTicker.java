@@ -201,8 +201,9 @@ public enum FundTicker {
 
   // Benchmark proxy ETFs (not held in portfolios — used for BENCHMARK_MODEL comparison).
   // benchmarkCategory is intentionally null: these are the benchmarks themselves, not tracked
-  // instruments. Tickers below are the XETRA listings (Yahoo/EODHD/Bloomberg short form), which
-  // differ from the Amsterdam/London listings for the same ISINs.
+  // instruments. Tickers below are mostly XETRA listings (Yahoo/EODHD/Bloomberg short form), which
+  // differ from the Amsterdam/London listings for the same ISINs. GAGH is the exception — it is
+  // listed on Euronext Paris, not XETRA.
   ISHARES_CORE_MSCI_WORLD(
       "EUNL.DE", "EUNL.XETRA", "IE00B4L5Y983", "iShares Core MSCI World UCITS ETF", "EUNL", null),
   ISHARES_MSCI_EM(
@@ -216,7 +217,8 @@ public enum FundTicker {
       null),
   // Step 1: EUNA stays as benchmark proxy (null category) until GAGH has price history.
   // Step 2: After GAGH has 2+ days of prices, change EUNA to BOND_GLOBAL and switch
-  //         TrackingDifferenceService.benchmarkKey(BOND_GLOBAL) from EUNA to GAGH.
+  //         TrackingDifferenceService.benchmarkKey(BOND_GLOBAL) from EUNA to GAGH. GAGH trades on
+  //         Euronext Paris, not XETRA, so use getEuronextParisStorageKey() (.XPAR), not .XETR.
   ISHARES_GLOBAL_AGG_BOND_ETF(
       "EUNA.DE",
       "EUNA.XETRA",
@@ -224,11 +226,13 @@ public enum FundTicker {
       "iShares Core Global Aggregate Bond UCITS ETF EUR Hedged",
       "EUNA",
       null),
+  // LU1708330318 is listed on Euronext Paris and Borsa Italiana (ticker GAGH), not XETRA, so it
+  // uses the Euronext Paris listing like AMUNDI_USA_SCREENED.
   AMUNDI_GLOBAL_AGG_BOND_HEDGED(
-      "GAGH.DE",
-      "GAGH.XETRA",
+      "GAGH.PA",
+      "GAGH.PA.EODHD",
       "LU1708330318",
-      "Amundi Index Bloomberg Global Aggregate Bond UCITS ETF EUR Hedged",
+      "Amundi Core Global Aggregate Bond UCITS ETF EUR Hedged",
       "GAGH",
       null);
 

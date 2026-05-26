@@ -315,6 +315,8 @@ class EODHDValueRetrieverTest {
   }
 
   private String expectedApiTicker(String storageTicker) {
-    return storageTicker.equals("USAS.PA.EODHD") ? "USAS.PA" : storageTicker;
+    return storageTicker.endsWith(".EODHD")
+        ? storageTicker.substring(0, storageTicker.lastIndexOf("."))
+        : storageTicker;
   }
 }

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.auth.principal;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity;
 import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
+import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.auth.role.Role;
@@ -40,5 +41,36 @@ class AuthenticatedPersonTest {
     var person = AuthenticatedPerson.builder().personalCode("1212").build();
 
     assertThat(person.toString()).isEqualTo("1212");
+  }
+
+  @Test
+  void isActingAsSelfWhenRoleMatchesPersonalCode() {
+    var person = sampleAuthenticatedPersonAndMember().build();
+
+    assertThat(person.isActingAsSelf()).isTrue();
+  }
+
+  @Test
+  void isNotActingAsSelfWhenRepresentingLegalEntity() {
+    var person = sampleAuthenticatedPersonLegalEntity().build();
+
+    assertThat(person.isActingAsSelf()).isFalse();
+  }
+
+  @Test
+  void isNotActingAsSelfWhenRepresentingAnotherPerson() {
+    var person =
+        sampleAuthenticatedPersonAndMember()
+            .role(new Role(PERSON, "61506150006", "Child Name"))
+            .build();
+
+    assertThat(person.isActingAsSelf()).isFalse();
+  }
+
+  @Test
+  void isActingAsSelfWhenRoleIsNull() {
+    var person = AuthenticatedPerson.builder().personalCode("38501010002").build();
+
+    assertThat(person.isActingAsSelf()).isTrue();
   }
 }

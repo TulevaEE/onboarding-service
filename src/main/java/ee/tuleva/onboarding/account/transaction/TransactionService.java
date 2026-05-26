@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.account.transaction;
 
-import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
 import static java.util.Comparator.reverseOrder;
 
 import ee.tuleva.onboarding.account.CashFlowService;
@@ -21,7 +20,7 @@ public class TransactionService {
   public List<Transaction> getTransactions(AuthenticatedPerson person) {
     List<Transaction> savingsTransactions = savingsFundTransactionService.getTransactions(person);
 
-    if (person.getRoleType() == LEGAL_ENTITY) {
+    if (!person.isActingAsSelf()) {
       return savingsTransactions;
     }
 

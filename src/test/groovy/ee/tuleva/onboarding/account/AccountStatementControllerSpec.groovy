@@ -1,13 +1,17 @@
 package ee.tuleva.onboarding.account
 
 import ee.tuleva.onboarding.BaseControllerSpec
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.Person
+import ee.tuleva.onboarding.auth.role.Role
 import ee.tuleva.onboarding.fund.FundFixture
 import ee.tuleva.onboarding.locale.LocaleConfiguration
 import ee.tuleva.onboarding.locale.LocaleService
 import org.springframework.test.web.servlet.MockMvc
 
 import static ee.tuleva.onboarding.account.AccountStatementFixture.activeTuleva2ndPillarFundBalance
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
+import static ee.tuleva.onboarding.auth.role.RoleType.PERSON
 import static org.hamcrest.Matchers.hasSize
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -80,6 +84,22 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
     "et"     | "Tuleva maailma aktsiate pensionifond"
     "en"     | "Tuleva world stock pensionfund"
 
+  }
+
+  def "/pension-account-statement endpoint returns empty when representing another party"() {
+    given:
+    AuthenticatedPerson representing = sampleAuthenticatedPersonAndMember()
+        .role(new Role(PERSON, "61506150006", "Child Name"))
+        .build()
+    MockMvc mockMvcRepresenting = mockMvcWithAuthenticationPrincipal(representing, controller)
+
+    when:
+    def result = mockMvcRepresenting.perform(get("/v1/pension-account-statement"))
+
+    then:
+    result.andExpect(status().isOk())
+        .andExpect(jsonPath('$', hasSize(0)))
+    0 * accountStatementService.getAccountStatement(_, _, _)
   }
 
   def "/savings-account-statement endpoint returns savings account balance if onboarded"() {

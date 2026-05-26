@@ -1,13 +1,17 @@
 package ee.tuleva.onboarding.account.transaction;
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember;
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity;
+import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.account.CashFlowService;
+import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.savings.fund.SavingsFundTransactionService;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -70,6 +74,44 @@ class TransactionServiceTest {
 
     assertThat(transactions).hasSize(4);
     assertThat(transactions.getFirst()).isEqualTo(savingsTransaction);
+  }
+
+  @Test
+  void returnsOnlySavingsTransactionsWhenRepresentingAnotherPerson() {
+    var person =
+        sampleAuthenticatedPersonAndMember()
+            .role(new Role(PERSON, "61506150006", "Child Name"))
+            .build();
+    var savingsTransaction =
+        Transaction.builder()
+            .amount(new BigDecimal("100.00"))
+            .currency(EUR)
+            .time(Instant.parse("2099-01-01T00:00:00Z"))
+            .isin("EE0000003283")
+            .type(CONTRIBUTION_CASH)
+            .units(new BigDecimal("10.00000"))
+            .nav(new BigDecimal("10.0000"))
+            .build();
+
+    when(savingsFundTransactionService.getTransactions(person))
+        .thenReturn(List.of(savingsTransaction));
+
+    List<Transaction> transactions = service.getTransactions(person);
+
+    assertThat(transactions).containsExactly(savingsTransaction);
+    verifyNoInteractions(cashFlowService);
+  }
+
+  @Test
+  void returnsOnlySavingsTransactionsWhenRepresentingLegalEntity() {
+    var person = sampleAuthenticatedPersonLegalEntity().build();
+
+    when(savingsFundTransactionService.getTransactions(person)).thenReturn(List.of());
+
+    List<Transaction> transactions = service.getTransactions(person);
+
+    assertThat(transactions).isEmpty();
+    verifyNoInteractions(cashFlowService);
   }
 
   @Test

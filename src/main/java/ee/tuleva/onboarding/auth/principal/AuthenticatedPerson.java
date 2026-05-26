@@ -54,6 +54,11 @@ public class AuthenticatedPerson implements Person, Serializable {
     return PartyId.from(role);
   }
 
+  @JsonIgnore
+  public boolean isActingAsSelf() {
+    return role == null || role.code().equals(personalCode);
+  }
+
   public String getAttribute(String attribute) {
     return attributes.get(attribute);
   }

@@ -764,6 +764,65 @@ class AdminControllerTest {
     verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any(), any());
   }
 
+  @Test
+  void calculateOcf_forSingleFund_returnsOk() throws Exception {
+    var snapshot =
+        new ee.tuleva.onboarding.investment.fees.ocf.OcfSnapshot(
+            1L,
+            "TUK75",
+            LocalDate.of(2026, 4, 1),
+            new BigDecimal("0.00340000"),
+            new BigDecimal("0.00100000"),
+            new BigDecimal("0.00070000"),
+            new BigDecimal("0.00020000"),
+            new BigDecimal("0.00530000"));
+    given(ocfCalculationService.calculateOcf(TulevaFund.TUK75, java.time.YearMonth.of(2026, 4)))
+        .willReturn(snapshot);
+
+    mockMvc
+        .perform(
+            post("/admin/ocf")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK75")
+                .param("month", "2026-04"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("TUK75")));
+  }
+
+  @Test
+  void calculateOcf_forAllFunds_returnsOk() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/ocf")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("month", "2026-04"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("all funds")));
+
+    verify(ocfCalculationService).calculateForAllFunds(java.time.YearMonth.of(2026, 4));
+  }
+
+  @Test
+  void calculateOcf_withInvalidToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(post("/admin/ocf").with(csrf()).header("X-Admin-Token", "wrong-token"))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void backfillOcf_returnsOk() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/ocf-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("monthsBack", "3"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("3 months")));
+  }
+
   private NavCalculationResult sampleNavResult(LocalDate date) {
     return NavCalculationResult.builder()
         .fund(TulevaFund.fromCode("TKF100"))

@@ -272,6 +272,35 @@ class TrackingDifferenceNotifierTest {
     then(notificationService).should().sendMessage(contains("TD BREACH DETECTED"), eq(INVESTMENT));
   }
 
+  @Test
+  void mixedBreachAndNonBreachResultsSkipsNonBreaches() {
+    var breachResult = result(true, 1, new BigDecimal("0.003"));
+    var nonBreachResult = result(false, 0, BigDecimal.ZERO);
+
+    notifier.notify(List.of(breachResult, nonBreachResult));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue()).contains("TD BREACH DETECTED");
+    assertThat(captor.getValue()).doesNotContain("within limits");
+  }
+
+  @Test
+  void isEscalationFallsBackWhenParameterMissing() {
+    given(calculator.escalationThresholdDays(any(LocalDate.class)))
+        .willThrow(new IllegalStateException("No parameter"));
+    given(calculator.escalationNetTdThreshold(any(LocalDate.class)))
+        .willThrow(new IllegalStateException("No parameter"));
+
+    var result = result(true, 3, new BigDecimal("0.003"));
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue()).contains("TD ESCALATION");
+  }
+
   private TrackingDifferenceResult result(
       boolean breach, int consecutiveBreachDays, BigDecimal consecutiveNetTd) {
     return TrackingDifferenceResult.builder()

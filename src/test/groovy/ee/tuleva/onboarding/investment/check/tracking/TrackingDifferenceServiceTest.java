@@ -39,6 +39,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -143,6 +144,40 @@ class TrackingDifferenceServiceTest {
     assertThat(bmResult).isPresent();
     assertThat(bmResult.get().fund()).isEqualTo(TUK75);
     assertThat(bmResult.get().securityAttributions()).isEmpty();
+  }
+
+  @Test
+  void benchmarkBreachCompoundsReturnsAcrossConsecutiveDays() {
+    setupFundData(TUK75);
+    setupBenchmarkData("MSCI_ACWI");
+
+    var priorBreach =
+        TrackingDifferenceEvent.builder()
+            .fund(TUK75)
+            .checkDate(PREVIOUS_DATE)
+            .checkType(BENCHMARK)
+            .trackingDifference(new BigDecimal("0.0100"))
+            .fundReturn(new BigDecimal("0.0200"))
+            .benchmarkReturn(new BigDecimal("0.0100"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .result(Map.of())
+            .createdAt(java.time.Instant.now())
+            .build();
+    lenient()
+        .when(
+            eventRepository.findMostRecentEvents(eq(TUK75), eq(BENCHMARK), eq(CHECK_DATE), eq(10)))
+        .thenReturn(List.of(priorBreach));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var bmResult = results.stream().filter(r -> r.checkType() == BENCHMARK).findFirst();
+    assertThat(bmResult).isPresent();
+    if (bmResult.get().breach()) {
+      assertThat(bmResult.get().consecutiveBreachDays()).isEqualTo(2);
+      assertThat(bmResult.get().compoundedFundReturn()).isNotNull();
+      assertThat(bmResult.get().compoundedBenchmarkReturn()).isNotNull();
+    }
   }
 
   @Test
@@ -775,6 +810,38 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
+  void escalationAggregatesAttributionsFromPriorBreaches() {
+    setupFundData(TUK75);
+
+    var breach1 =
+        breachEventWithAttribution(
+            LocalDate.of(2026, 4, 2),
+            new BigDecimal("0.0020"),
+            "IE00BFG1TM61",
+            new BigDecimal("0.0015"));
+    var breach2 =
+        breachEventWithAttribution(
+            LocalDate.of(2026, 4, 1),
+            new BigDecimal("0.0015"),
+            "IE00BFG1TM61",
+            new BigDecimal("0.0010"));
+
+    lenient()
+        .when(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .thenReturn(List.of(breach1, breach2));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+    assertThat(modelResult.get().consecutiveBreachDays()).isEqualTo(3);
+    assertThat(modelResult.get().escalationAttributions()).isNotNull();
+    assertThat(modelResult.get().escalationAttributions()).containsKey("IE00BFG1TM61");
+    assertThat(modelResult.get().escalationCashDrag()).isNotNull();
+    assertThat(modelResult.get().escalationFeeDrag()).isNotNull();
+  }
+
+  @Test
   void singleDayBreachHasCompoundedReturnEqualToDaily() {
     setupFundData(TUK75);
 
@@ -1101,6 +1168,31 @@ class TrackingDifferenceServiceTest {
         .benchmarkReturn(new BigDecimal("0.008"))
         .breach(true)
         .consecutiveBreachDays(1)
+        .build();
+  }
+
+  private TrackingDifferenceEvent breachEventWithAttribution(
+      LocalDate date, BigDecimal td, String isin, BigDecimal contribution) {
+    return TrackingDifferenceEvent.builder()
+        .fund(TUK75)
+        .checkDate(date)
+        .checkType(MODEL_PORTFOLIO)
+        .trackingDifference(td)
+        .fundReturn(new BigDecimal("0.01"))
+        .benchmarkReturn(new BigDecimal("0.008"))
+        .breach(true)
+        .consecutiveBreachDays(1)
+        .result(
+            Map.of(
+                "securityAttributions",
+                List.of(Map.of("isin", isin, "contribution", contribution)),
+                "cashDrag",
+                new BigDecimal("-0.0001"),
+                "feeDrag",
+                new BigDecimal("-0.00005"),
+                "residual",
+                BigDecimal.ZERO))
+        .createdAt(java.time.Instant.now())
         .build();
   }
 

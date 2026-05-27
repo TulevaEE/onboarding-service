@@ -21,6 +21,7 @@ import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeRate;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
+import ee.tuleva.onboarding.investment.fees.InstrumentFeeRepository;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -59,6 +60,7 @@ class PeriodicTdAttributionServiceTest {
   @Mock ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   @Mock PeriodicTdAttributionRepository attributionRepository;
   @Mock TransactionExecutionRepository transactionExecutionRepository;
+  @Mock InstrumentFeeRepository instrumentFeeRepository;
 
   private PeriodicTdAttributionService service;
 
@@ -73,7 +75,8 @@ class PeriodicTdAttributionServiceTest {
             fundNavQueryService,
             modelPortfolioAllocationRepository,
             attributionRepository,
-            transactionExecutionRepository);
+            transactionExecutionRepository,
+            instrumentFeeRepository);
 
     // Default lenient stubs for Phase 3 data sources (overridden in specific tests)
     given(transactionExecutionRepository.sumCommissionsForFundAndPeriod(anyString(), any(), any()))
@@ -82,6 +85,7 @@ class PeriodicTdAttributionServiceTest {
             tdEventRepository.findDeduplicatedEventsForPeriod(
                 any(), eq(TrackingCheckType.BENCHMARK_MODEL), any(), any()))
         .willReturn(List.of());
+    given(instrumentFeeRepository.findAllValidRates(any())).willReturn(List.of());
   }
 
   @Test

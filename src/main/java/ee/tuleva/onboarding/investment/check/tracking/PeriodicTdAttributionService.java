@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
+import ee.tuleva.onboarding.investment.fees.InstrumentFeeRepository;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -51,6 +52,7 @@ public class PeriodicTdAttributionService {
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   private final PeriodicTdAttributionRepository attributionRepository;
   private final TransactionExecutionRepository transactionExecutionRepository;
+  private final InstrumentFeeRepository instrumentFeeRepository;
 
   private final TdAttributionCalculator calculator = new TdAttributionCalculator();
 
@@ -148,7 +150,7 @@ public class PeriodicTdAttributionService {
             .map(TrackingDifferenceEvent::getTrackingDifference)
             .reduce(ZERO, BigDecimal::add);
 
-    var weightedOcf = computeWeightedOcf();
+    var weightedOcf = computeWeightedOcf(modelAllocations, periodEnd);
     var etfOcfDrag =
         weightedOcf
             .negate()
@@ -182,8 +184,29 @@ public class PeriodicTdAttributionService {
         fund, LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31), PeriodType.ANNUAL);
   }
 
-  private BigDecimal computeWeightedOcf() {
-    return ZERO;
+  private BigDecimal computeWeightedOcf(
+      List<ModelPortfolioAllocation> allocations, LocalDate asOf) {
+    var rates = instrumentFeeRepository.findAllValidRates(asOf);
+    if (rates.isEmpty()) {
+      return ZERO;
+    }
+    var rateByIsin =
+        rates.stream().collect(Collectors.toMap(r -> r.isin(), r -> r.netOcf(), (a, b) -> a));
+
+    var latestDate =
+        allocations.stream()
+            .map(ModelPortfolioAllocation::getEffectiveDate)
+            .filter(d -> !d.isAfter(asOf))
+            .max(LocalDate::compareTo)
+            .orElse(null);
+    if (latestDate == null) {
+      return ZERO;
+    }
+
+    return allocations.stream()
+        .filter(a -> a.getEffectiveDate().equals(latestDate))
+        .map(a -> a.getWeight().multiply(rateByIsin.getOrDefault(a.getIsin(), ZERO)))
+        .reduce(ZERO, BigDecimal::add);
   }
 
   private BigDecimal computeFeeDragPeriod(List<FeeAccrual> accruals, FeeType feeType) {

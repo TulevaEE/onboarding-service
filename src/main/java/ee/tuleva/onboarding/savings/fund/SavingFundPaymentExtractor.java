@@ -72,7 +72,7 @@ public class SavingFundPaymentExtractor {
     if (entry.transactionType() == TransactionType.CREDIT) {
       builder
           .remitterIban(counterParty.getIban())
-          .remitterIdCode(counterParty.getPersonalCode().orElse(null))
+          .remitterIdCode(counterParty.getIdCode().orElse(null))
           .remitterName(counterParty.getName())
           .beneficiaryIban(account.iban())
           .beneficiaryIdCode(account.accountHolderIdCode())
@@ -83,7 +83,7 @@ public class SavingFundPaymentExtractor {
           .remitterIdCode(account.accountHolderIdCode())
           .remitterName(account.accountHolderName())
           .beneficiaryIban(counterParty.getIban())
-          .beneficiaryIdCode(counterParty.getPersonalCode().orElse(null))
+          .beneficiaryIdCode(counterParty.getIdCode().orElse(null))
           .beneficiaryName(counterParty.getName());
     }
 

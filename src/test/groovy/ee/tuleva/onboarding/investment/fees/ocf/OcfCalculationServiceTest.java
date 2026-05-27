@@ -19,6 +19,9 @@ import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -186,6 +189,80 @@ class OcfCalculationServiceTest {
   }
 
   @Test
+  void underlyingFundCostReturnsZeroWhenNoPositionNavDate() {
+    given(instrumentFeeRepository.findAllValidRates(MONTH_END))
+        .willReturn(
+            List.of(
+                InstrumentFee.builder()
+                    .isin("IE00BFNM3G45")
+                    .netOcf(new BigDecimal("0.0007"))
+                    .build()));
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, MONTH_END))
+        .willReturn(Optional.empty());
+
+    var cost = service.getUnderlyingFundCost(TUK75, MONTH_END);
+
+    assertThat(cost).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void underlyingFundCostReturnsZeroWhenNoPositions() {
+    given(instrumentFeeRepository.findAllValidRates(MONTH_END))
+        .willReturn(
+            List.of(
+                InstrumentFee.builder()
+                    .isin("IE00BFNM3G45")
+                    .netOcf(new BigDecimal("0.0007"))
+                    .build()));
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, MONTH_END))
+        .willReturn(Optional.of(MONTH_END));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(MONTH_END, TUK75, SECURITY))
+        .willReturn(List.of());
+
+    var cost = service.getUnderlyingFundCost(TUK75, MONTH_END);
+
+    assertThat(cost).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void underlyingFundCostReturnsZeroWhenZeroTotalValue() {
+    given(instrumentFeeRepository.findAllValidRates(MONTH_END))
+        .willReturn(
+            List.of(
+                InstrumentFee.builder()
+                    .isin("IE00BFNM3G45")
+                    .netOcf(new BigDecimal("0.0007"))
+                    .build()));
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, MONTH_END))
+        .willReturn(Optional.of(MONTH_END));
+    var position = mock(FundPosition.class);
+    given(position.getMarketValue()).willReturn(ZERO);
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(MONTH_END, TUK75, SECURITY))
+        .willReturn(List.of(position));
+
+    var cost = service.getUnderlyingFundCost(TUK75, MONTH_END);
+
+    assertThat(cost).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void tkf100ReturnsZeroWhenNoModelAllocations() {
+    given(instrumentFeeRepository.findAllValidRates(MONTH_END))
+        .willReturn(
+            List.of(
+                InstrumentFee.builder()
+                    .isin("IE00BJZ2DC62")
+                    .netOcf(new BigDecimal("0.0007"))
+                    .build()));
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TKF100, MONTH_END))
+        .willReturn(List.of());
+
+    var cost = service.getUnderlyingFundCost(TKF100, MONTH_END);
+
+    assertThat(cost).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
   void transactionCostReturnsZeroWhenNoTransactions() {
     given(
             transactionExecutionRepository.sumCommissionsForFundAndPeriod(
@@ -198,23 +275,41 @@ class OcfCalculationServiceTest {
   }
 
   @Test
+  void transactionCostReturnsZeroWhenZeroAum() {
+    given(
+            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+                eq(TUK75.getCode()), any(), eq(MONTH_END)))
+        .willReturn(new BigDecimal("1000"));
+    given(fundPositionRepository.findDistinctNavDatesByFund(TUK75)).willReturn(List.of());
+
+    var cost = service.getTransactionCostRate(TUK75, MONTH_END);
+
+    assertThat(cost).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
   void calculateForAllFundsIsolatesErrors() {
     for (var fund : TulevaFund.values()) {
-      given(feeRateRepository.findValidRate(eq(fund), eq(MANAGEMENT), any()))
-          .willReturn(Optional.empty());
-      given(feeRateRepository.findValidRate(eq(fund), eq(DEPOT), any()))
-          .willReturn(
-              Optional.of(new FeeRate(1L, fund, DEPOT, ZERO, MONTH_END.minusYears(1), null)));
-      given(instrumentFeeRepository.findAllValidRates(any())).willReturn(List.of());
-      given(
-              transactionExecutionRepository.sumCommissionsForFundAndPeriod(
-                  eq(fund.getCode()), any(), any()))
-          .willReturn(ZERO);
+      if (fund == TUK75) {
+        given(feeRateRepository.findValidRate(eq(fund), eq(MANAGEMENT), any()))
+            .willThrow(new RuntimeException("test error"));
+      } else {
+        given(feeRateRepository.findValidRate(eq(fund), eq(MANAGEMENT), any()))
+            .willReturn(Optional.empty());
+        given(feeRateRepository.findValidRate(eq(fund), eq(DEPOT), any()))
+            .willReturn(
+                Optional.of(new FeeRate(1L, fund, DEPOT, ZERO, MONTH_END.minusYears(1), null)));
+        given(
+                transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+                    eq(fund.getCode()), any(), any()))
+            .willReturn(ZERO);
+      }
     }
+    given(instrumentFeeRepository.findAllValidRates(any())).willReturn(List.of());
 
     service.calculateForAllFunds(MONTH);
 
-    verify(ocfSnapshotRepository, times(TulevaFund.values().length)).save(any());
+    verify(ocfSnapshotRepository, times(TulevaFund.values().length - 1)).save(any());
   }
 
   @Test
@@ -244,6 +339,30 @@ class OcfCalculationServiceTest {
 
     // 3 months * 4 funds = 12 saves
     verify(ocfSnapshotRepository, times(3 * TulevaFund.values().length)).save(any());
+  }
+
+  @Test
+  void ocfSnapshotFromResultSetMapsAllFields() throws SQLException {
+    var rs = mock(ResultSet.class);
+    given(rs.getLong("id")).willReturn(42L);
+    given(rs.getString("fund_code")).willReturn("TUK75");
+    given(rs.getDate("snapshot_month")).willReturn(Date.valueOf("2026-04-01"));
+    given(rs.getBigDecimal("management_fee_rate")).willReturn(new BigDecimal("0.0034"));
+    given(rs.getBigDecimal("depot_fee_rate")).willReturn(new BigDecimal("0.0010"));
+    given(rs.getBigDecimal("underlying_fund_cost")).willReturn(new BigDecimal("0.0007"));
+    given(rs.getBigDecimal("transaction_cost_rate")).willReturn(new BigDecimal("0.0002"));
+    given(rs.getBigDecimal("total_ocf")).willReturn(new BigDecimal("0.0053"));
+
+    var snapshot = OcfSnapshot.fromResultSet(rs, 1);
+
+    assertThat(snapshot.id()).isEqualTo(42L);
+    assertThat(snapshot.fundCode()).isEqualTo("TUK75");
+    assertThat(snapshot.snapshotMonth()).isEqualTo(LocalDate.of(2026, 4, 1));
+    assertThat(snapshot.managementFeeRate()).isEqualByComparingTo(new BigDecimal("0.0034"));
+    assertThat(snapshot.depotFeeRate()).isEqualByComparingTo(new BigDecimal("0.0010"));
+    assertThat(snapshot.underlyingFundCost()).isEqualByComparingTo(new BigDecimal("0.0007"));
+    assertThat(snapshot.transactionCostRate()).isEqualByComparingTo(new BigDecimal("0.0002"));
+    assertThat(snapshot.totalOcf()).isEqualByComparingTo(new BigDecimal("0.0053"));
   }
 
   private void setupManagementFee(TulevaFund fund, BigDecimal rate) {

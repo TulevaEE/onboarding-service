@@ -18,19 +18,23 @@ public class OcfSnapshotRepository {
     jdbcClient
         .sql(
             """
-            INSERT INTO investment_ocf_snapshot
+            MERGE INTO investment_ocf_snapshot AS t
+            USING (VALUES (:fundCode, :snapshotMonth, :managementFeeRate, :depotFeeRate,
+                           :underlyingFundCost, :transactionCostRate, :totalOcf))
+              AS s(fund_code, snapshot_month, management_fee_rate, depot_fee_rate,
+                   underlying_fund_cost, transaction_cost_rate, total_ocf)
+            ON t.fund_code = s.fund_code AND t.snapshot_month = s.snapshot_month
+            WHEN MATCHED THEN UPDATE SET
+              management_fee_rate = s.management_fee_rate,
+              depot_fee_rate = s.depot_fee_rate,
+              underlying_fund_cost = s.underlying_fund_cost,
+              transaction_cost_rate = s.transaction_cost_rate,
+              total_ocf = s.total_ocf
+            WHEN NOT MATCHED THEN INSERT
               (fund_code, snapshot_month, management_fee_rate, depot_fee_rate,
                underlying_fund_cost, transaction_cost_rate, total_ocf)
-            VALUES
-              (:fundCode, :snapshotMonth, :managementFeeRate, :depotFeeRate,
-               :underlyingFundCost, :transactionCostRate, :totalOcf)
-            ON CONFLICT (fund_code, snapshot_month) DO UPDATE SET
-              management_fee_rate = EXCLUDED.management_fee_rate,
-              depot_fee_rate = EXCLUDED.depot_fee_rate,
-              underlying_fund_cost = EXCLUDED.underlying_fund_cost,
-              transaction_cost_rate = EXCLUDED.transaction_cost_rate,
-              total_ocf = EXCLUDED.total_ocf,
-              created_at = now()
+            VALUES (s.fund_code, s.snapshot_month, s.management_fee_rate, s.depot_fee_rate,
+                    s.underlying_fund_cost, s.transaction_cost_rate, s.total_ocf)
             """)
         .param("fundCode", snapshot.fundCode())
         .param("snapshotMonth", snapshot.snapshotMonth())

@@ -761,8 +761,52 @@ class TrackingDifferenceServiceTest {
     var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
     assertThat(modelResult).isPresent();
     assertThat(modelResult.get().consecutiveBreachDays()).isEqualTo(3);
-    // net = prior net (0.0020 + 0.0015) + today's TD (-0.01)
-    assertThat(modelResult.get().consecutiveNetTd()).isNotNull();
+    // Compounded, not arithmetic: (1+0.002)*(1+0.0015)*(1+today) - (1+benchmark)^3
+    var compoundedTd = modelResult.get().consecutiveNetTd();
+    assertThat(compoundedTd).isNotNull();
+    // Verify it's not a simple sum (arithmetic sum would be 0.002 + 0.0015 + todayTd)
+    var arithmeticSum =
+        new BigDecimal("0.0020")
+            .add(new BigDecimal("0.0015"))
+            .add(modelResult.get().trackingDifference());
+    assertThat(compoundedTd).isNotEqualByComparingTo(arithmeticSum);
+    assertThat(modelResult.get().compoundedFundReturn()).isNotNull();
+    assertThat(modelResult.get().compoundedBenchmarkReturn()).isNotNull();
+  }
+
+  @Test
+  void singleDayBreachHasCompoundedReturnEqualToDaily() {
+    setupFundData(TUK75);
+
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .willReturn(List.of());
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+    if (modelResult.get().breach()) {
+      assertThat(modelResult.get().consecutiveBreachDays()).isEqualTo(1);
+      assertThat(modelResult.get().compoundedFundReturn())
+          .isEqualByComparingTo(modelResult.get().fundReturn());
+      assertThat(modelResult.get().compoundedBenchmarkReturn())
+          .isEqualByComparingTo(modelResult.get().benchmarkReturn());
+    }
+  }
+
+  @Test
+  void escalationCountFailureDoesNotBlockTdCalculation() {
+    setupFundData(TUK75);
+
+    lenient()
+        .when(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
+        .thenThrow(new RuntimeException("DB connection error"));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+    assertThat(modelResult.get().consecutiveBreachDays()).isLessThanOrEqualTo(1);
   }
 
   @Test
@@ -981,8 +1025,9 @@ class TrackingDifferenceServiceTest {
                 new FeeRate(
                     1L, fund, FeeType.MANAGEMENT, new BigDecimal("0.0034"), CHECK_DATE, null)));
 
-    given(eventRepository.findMostRecentEvents(eq(fund), any(), eq(CHECK_DATE), eq(10)))
-        .willReturn(List.of());
+    lenient()
+        .when(eventRepository.findMostRecentEvents(eq(fund), any(), eq(CHECK_DATE), eq(10)))
+        .thenReturn(List.of());
   }
 
   private void setupFundDataForFund(TulevaFund fund) {

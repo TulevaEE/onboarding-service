@@ -667,6 +667,20 @@ class TrackingDifferenceService {
 
   private ConsecutiveBreachInfo countConsecutiveBreaches(
       TulevaFund fund, TrackingCheckType checkType, LocalDate checkDate) {
+    try {
+      return doCountConsecutiveBreaches(fund, checkType, checkDate);
+    } catch (Exception e) {
+      log.warn(
+          "Escalation count failed, using empty: fund={}, checkType={}, error={}",
+          fund,
+          checkType,
+          e.getMessage());
+      return new ConsecutiveBreachInfo(0, ZERO, ZERO, ZERO, Map.of(), ZERO, ZERO, ZERO);
+    }
+  }
+
+  private ConsecutiveBreachInfo doCountConsecutiveBreaches(
+      TulevaFund fund, TrackingCheckType checkType, LocalDate checkDate) {
     int lookback;
     try {
       lookback = calculator.escalationLookbackDays(checkDate);
@@ -735,6 +749,13 @@ class TrackingDifferenceService {
     if (value == null) return ZERO;
     if (value instanceof BigDecimal bd) return bd;
     if (value instanceof Number n) return new BigDecimal(n.toString());
+    if (value instanceof String s && !s.isBlank()) {
+      try {
+        return new BigDecimal(s);
+      } catch (NumberFormatException e) {
+        return ZERO;
+      }
+    }
     return ZERO;
   }
 

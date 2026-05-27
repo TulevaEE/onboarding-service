@@ -70,6 +70,11 @@ class AdminControllerTest {
   @MockitoBean private RedemptionBatchJob redemptionBatchJob;
   @MockitoBean private SavingsFundOnboardingService savingsFundOnboardingService;
   @MockitoBean private ParentChildLinkRegistrationService parentChildLinkRegistrationService;
+
+  @MockitoBean
+  private ee.tuleva.onboarding.investment.check.tracking.PeriodicTdAttributionService
+      tdAttributionService;
+
   @MockitoBean private Clock clock;
 
   private static final String VALID_LINK_BODY =

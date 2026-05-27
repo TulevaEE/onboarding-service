@@ -25,6 +25,7 @@ import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -57,6 +58,7 @@ class PeriodicTdAttributionServiceTest {
   @Mock FundNavQueryService fundNavQueryService;
   @Mock ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   @Mock PeriodicTdAttributionRepository attributionRepository;
+  @Mock TransactionExecutionRepository transactionExecutionRepository;
 
   private PeriodicTdAttributionService service;
 
@@ -70,7 +72,16 @@ class PeriodicTdAttributionServiceTest {
             fundPositionRepository,
             fundNavQueryService,
             modelPortfolioAllocationRepository,
-            attributionRepository);
+            attributionRepository,
+            transactionExecutionRepository);
+
+    // Default lenient stubs for Phase 3 data sources (overridden in specific tests)
+    given(transactionExecutionRepository.sumCommissionsForFundAndPeriod(anyString(), any(), any()))
+        .willReturn(ZERO);
+    given(
+            tdEventRepository.findDeduplicatedEventsForPeriod(
+                any(), eq(TrackingCheckType.BENCHMARK_MODEL), any(), any()))
+        .willReturn(List.of());
   }
 
   @Test

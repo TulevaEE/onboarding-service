@@ -79,13 +79,15 @@ class TdAttributionCalculator {
 
     mgmtFeeDragArithmetic = input.mgmtFeeDragPeriod();
     depotFeeDragArithmetic = input.depotFeeDragPeriod();
+    var txnCostsArithmetic = orZero(input.transactionCostsPeriod());
 
     var componentsArithmetic =
         mgmtFeeDragArithmetic
             .add(depotFeeDragArithmetic)
             .add(cashDragArithmetic)
             .add(nonSecDragArithmetic)
-            .add(weightDevArithmetic);
+            .add(weightDevArithmetic)
+            .add(txnCostsArithmetic);
 
     var residualArithmetic = tdArithmetic.subtract(componentsArithmetic);
 
@@ -105,6 +107,12 @@ class TdAttributionCalculator {
     var instrumentDetails =
         instrumentContributions.values().stream().map(acc -> acc.toAttribution(scale)).toList();
 
+    // View 2: fund-vs-benchmark layer (scaled together with View 1 in one chain)
+    var etfOcfDrag = orZero(input.etfOcfDragPeriod()).multiply(scale).setScale(8, HALF_UP);
+    var etfTrackingResidual =
+        orZero(input.etfTrackingResidualArithmetic()).multiply(scale).setScale(8, HALF_UP);
+    var tdVsBenchmark = tdGeometric.add(etfOcfDrag).add(etfTrackingResidual).setScale(8, HALF_UP);
+
     return TdAttributionResult.builder()
         .fund(input.fund())
         .periodStart(input.periodStart())
@@ -119,8 +127,11 @@ class TdAttributionCalculator {
         .cashDrag(cashDragArithmetic.multiply(scale).setScale(8, HALF_UP))
         .nonSecurityDrag(nonSecDragArithmetic.multiply(scale).setScale(8, HALF_UP))
         .weightDeviation(weightDevArithmetic.multiply(scale).setScale(8, HALF_UP))
-        .transactionCosts(ZERO)
+        .transactionCosts(txnCostsArithmetic.multiply(scale).setScale(8, HALF_UP))
         .residual(residualArithmetic.multiply(scale).setScale(8, HALF_UP))
+        .etfOcfDrag(etfOcfDrag)
+        .etfTrackingResidual(etfTrackingResidual)
+        .tdVsBenchmark(tdVsBenchmark)
         .businessDays(businessDays)
         .avgAum(avgAum)
         .avgCashPct(avgCashPct.setScale(6, HALF_UP))
@@ -205,12 +216,19 @@ class TdAttributionCalculator {
         .weightDeviation(ZERO)
         .transactionCosts(ZERO)
         .residual(ZERO)
+        .etfOcfDrag(ZERO)
+        .etfTrackingResidual(ZERO)
+        .tdVsBenchmark(ZERO)
         .businessDays(0)
         .avgAum(ZERO)
         .avgCashPct(ZERO)
         .instrumentDetails(List.of())
         .checks(Map.of())
         .build();
+  }
+
+  private static BigDecimal orZero(BigDecimal value) {
+    return value != null ? value : ZERO;
   }
 
   @Builder
@@ -222,6 +240,9 @@ class TdAttributionCalculator {
       int calendarDays,
       BigDecimal mgmtFeeDragPeriod,
       BigDecimal depotFeeDragPeriod,
+      BigDecimal transactionCostsPeriod,
+      BigDecimal etfOcfDragPeriod,
+      BigDecimal etfTrackingResidualArithmetic,
       BigDecimal expectedAnnualFeeRate,
       List<DailyRecord> dailyRecords) {}
 

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static java.math.BigDecimal.ZERO;
@@ -17,6 +18,7 @@ import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -48,6 +50,7 @@ public class PeriodicTdAttributionService {
   private final FundNavQueryService fundNavQueryService;
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   private final PeriodicTdAttributionRepository attributionRepository;
+  private final TransactionExecutionRepository transactionExecutionRepository;
 
   private final TdAttributionCalculator calculator = new TdAttributionCalculator();
 
@@ -131,6 +134,27 @@ public class PeriodicTdAttributionService {
             .map(r -> r.annualRate())
             .orElse(ZERO);
 
+    var txnCosts =
+        transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+            fund.getCode(), periodStart, periodEnd);
+    var txnCostReturn =
+        avgAum.signum() > 0 ? txnCosts.negate().divide(avgAum, SCALE, HALF_UP) : ZERO;
+
+    var bmModelEvents =
+        tdEventRepository.findDeduplicatedEventsForPeriod(
+            fund, BENCHMARK_MODEL, periodStart, periodEnd);
+    var etfTrackingArithmetic =
+        bmModelEvents.stream()
+            .map(TrackingDifferenceEvent::getTrackingDifference)
+            .reduce(ZERO, BigDecimal::add);
+
+    var weightedOcf = computeWeightedOcf(modelAllocations, periodEnd);
+    var etfOcfDrag =
+        weightedOcf
+            .negate()
+            .multiply(BigDecimal.valueOf(calendarDays))
+            .divide(BigDecimal.valueOf(365), SCALE, HALF_UP);
+
     return TdAttributionInput.builder()
         .fund(fund)
         .periodStart(periodStart)
@@ -139,14 +163,30 @@ public class PeriodicTdAttributionService {
         .calendarDays(calendarDays)
         .mgmtFeeDragPeriod(mgmtFeeDragReturn)
         .depotFeeDragPeriod(depotFeeDragReturn)
+        .transactionCostsPeriod(txnCostReturn)
+        .etfOcfDragPeriod(etfOcfDrag)
+        .etfTrackingResidualArithmetic(etfTrackingArithmetic)
         .expectedAnnualFeeRate(expectedAnnualFeeRate)
         .dailyRecords(dailyRecords)
         .build();
   }
 
-  // DEPOT fee is billed VAT-inclusive: gross is what the fund actually pays out, so the NAV
-  // drag uses gross. MANAGEMENT fee has net == gross (no VAT applied), but we use net as the
-  // canonical figure for consistency with FeeCalculationService ledger postings.
+  public void computeQuarterly(TulevaFund fund, int year, int quarter) {
+    var start = LocalDate.of(year, (quarter - 1) * 3 + 1, 1);
+    var end = start.plusMonths(3).minusDays(1);
+    computeAttribution(fund, start, end, PeriodType.QUARTERLY);
+  }
+
+  public void computeAnnual(TulevaFund fund, int year) {
+    computeAttribution(
+        fund, LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31), PeriodType.ANNUAL);
+  }
+
+  private BigDecimal computeWeightedOcf(
+      List<ModelPortfolioAllocation> allocations, LocalDate asOf) {
+    return ZERO;
+  }
+
   private BigDecimal computeFeeDragPeriod(List<FeeAccrual> accruals, FeeType feeType) {
     return accruals.stream()
         .filter(a -> a.feeType() == feeType)
@@ -393,6 +433,9 @@ public class PeriodicTdAttributionService {
             .weightDeviation(result.weightDeviation())
             .transactionCosts(result.transactionCosts())
             .residual(result.residual())
+            .etfOcfDrag(result.etfOcfDrag())
+            .etfTrackingResidual(result.etfTrackingResidual())
+            .tdVsBenchmark(result.tdVsBenchmark())
             .businessDays(result.businessDays())
             .avgAum(result.avgAum())
             .avgCashPct(result.avgCashPct())

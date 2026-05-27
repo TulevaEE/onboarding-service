@@ -19,7 +19,9 @@ import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -35,7 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-class PeriodicTdAttributionService {
+public class PeriodicTdAttributionService {
 
   private static final int SCALE = TdAttributionCalculator.SCALE;
 
@@ -73,7 +75,8 @@ class PeriodicTdAttributionService {
     return result;
   }
 
-  void computeForAllFunds(LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
+  public void computeForAllFunds(
+      LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
     for (var fund : TulevaFund.values()) {
       try {
         computeAttribution(fund, periodStart, periodEnd, periodType);
@@ -85,6 +88,15 @@ class PeriodicTdAttributionService {
             periodEnd,
             e);
       }
+    }
+  }
+
+  public void backfillMonths(int monthsBack, Clock clock) {
+    var today = LocalDate.now(clock);
+    for (int i = monthsBack; i >= 1; i--) {
+      var month = YearMonth.from(today).minusMonths(i);
+      log.info("Backfilling TD attribution: period={}", month);
+      computeForAllFunds(month.atDay(1), month.atEndOfMonth(), PeriodType.MONTHLY);
     }
   }
 

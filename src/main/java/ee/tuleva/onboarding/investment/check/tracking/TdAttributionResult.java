@@ -8,7 +8,7 @@ import java.util.Map;
 import lombok.Builder;
 
 @Builder
-record TdAttributionResult(
+public record TdAttributionResult(
     TulevaFund fund,
     LocalDate periodStart,
     LocalDate periodEnd,

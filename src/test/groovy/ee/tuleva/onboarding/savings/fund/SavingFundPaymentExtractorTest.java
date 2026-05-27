@@ -331,7 +331,7 @@ class SavingFundPaymentExtractorTest {
   }
 
   private BankStatementEntry.CounterPartyDetails createCounterPartyDetails(
-      String name, String iban, String personalCode) {
-    return new BankStatementEntry.CounterPartyDetails(name, iban, personalCode);
+      String name, String iban, String idCode) {
+    return new BankStatementEntry.CounterPartyDetails(name, iban, idCode);
   }
 }

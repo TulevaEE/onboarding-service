@@ -35,10 +35,10 @@ public record BankStatementEntry(
 
     @Getter private final String name;
     @Getter private final String iban;
-    @Nullable private final String personalCode;
+    @Nullable private final String idCode;
 
-    public Optional<String> getPersonalCode() {
-      return Optional.ofNullable(personalCode);
+    public Optional<String> getIdCode() {
+      return Optional.ofNullable(idCode);
     }
 
     @Nullable

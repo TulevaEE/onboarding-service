@@ -148,7 +148,7 @@ public class PeriodicTdAttributionService {
             .map(TrackingDifferenceEvent::getTrackingDifference)
             .reduce(ZERO, BigDecimal::add);
 
-    var weightedOcf = computeWeightedOcf(modelAllocations, periodEnd);
+    var weightedOcf = computeWeightedOcf();
     var etfOcfDrag =
         weightedOcf
             .negate()
@@ -182,8 +182,7 @@ public class PeriodicTdAttributionService {
         fund, LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31), PeriodType.ANNUAL);
   }
 
-  private BigDecimal computeWeightedOcf(
-      List<ModelPortfolioAllocation> allocations, LocalDate asOf) {
+  private BigDecimal computeWeightedOcf() {
     return ZERO;
   }
 

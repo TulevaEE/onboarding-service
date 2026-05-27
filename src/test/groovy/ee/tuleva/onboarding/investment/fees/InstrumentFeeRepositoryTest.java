@@ -65,6 +65,18 @@ class InstrumentFeeRepositoryTest {
     assertThat(result).isEmpty();
   }
 
+  @Test
+  void findValidRateReturnsRateWithNonNullValidTo() {
+    insertFee(
+        "IE00BFNM3G45", "iShares USA", "0.0007", "0.0002", "0.0005", "2025-01-01", "2026-12-31");
+
+    var result = repository.findValidRate("IE00BFNM3G45", LocalDate.of(2026, 4, 30));
+
+    assertThat(result).isPresent();
+    assertThat(result.get().validTo()).isEqualTo(LocalDate.of(2026, 12, 31));
+    assertThat(result.get().source()).isNull();
+  }
+
   // findAllValidRates uses DISTINCT ON (PostgreSQL-only), tested in PostgreSQL profile
 
   private void insertFee(

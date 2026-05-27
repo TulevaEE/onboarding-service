@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.banking.statement;
 import static ee.tuleva.onboarding.banking.iso20022.camt052.CreditDebitCode.CRDT;
 import static java.time.temporal.ChronoUnit.MICROS;
 
+import ee.tuleva.onboarding.banking.iso20022.camt052.GenericOrganisationIdentification1;
 import ee.tuleva.onboarding.banking.iso20022.camt052.GenericPersonIdentification1;
-import ee.tuleva.onboarding.banking.iso20022.camt052.Party6Choice;
 import ee.tuleva.onboarding.banking.iso20022.camt052.ReportEntry2;
 import ee.tuleva.onboarding.banking.iso20022.camt053.CreditDebitCode;
 import ee.tuleva.onboarding.banking.iso20022.camt053.DateAndDateTimeChoice;
@@ -13,7 +13,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
-import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.Getter;
@@ -72,19 +71,28 @@ public record BankStatementEntry(
       }
 
       var name = otherParty.getNm();
-      var personalIdCodes =
-          Optional.ofNullable(otherParty.getId())
-              .map(Party6Choice::getPrvtId)
-              .map(
-                  prvtId ->
-                      prvtId.getOthr().stream()
-                          .map(GenericPersonIdentification1::getId)
-                          .filter(id -> id != null && !id.isBlank())
-                          .toList())
-              .orElseGet(List::of);
-      var personalIdCode = Require.atMostOne(personalIdCodes, "personal ID code");
+      var partyId = otherParty.getId();
+      var prvtId = partyId == null ? null : partyId.getPrvtId();
+      var orgId = partyId == null ? null : partyId.getOrgId();
 
-      return new CounterPartyDetails(name, iban, personalIdCode);
+      if (prvtId != null && orgId != null) {
+        throw new BankStatementParseException(
+            "Counterparty has both OrgId and PrvtId: name=" + name + ", iban=" + iban);
+      }
+
+      var idCodes =
+          Stream.concat(
+                  prvtId == null
+                      ? Stream.<String>empty()
+                      : prvtId.getOthr().stream().map(GenericPersonIdentification1::getId),
+                  orgId == null
+                      ? Stream.<String>empty()
+                      : orgId.getOthr().stream().map(GenericOrganisationIdentification1::getId))
+              .filter(id -> id != null && !id.isBlank())
+              .toList();
+      var idCode = Require.atMostOne(idCodes, "counterparty ID code");
+
+      return new CounterPartyDetails(name, iban, idCode);
     }
 
     @Nullable
@@ -124,22 +132,36 @@ public record BankStatementEntry(
       }
 
       var name = otherParty.getNm();
-      var personalIdCodes =
-          Optional.ofNullable(otherParty.getId())
-              .map(ee.tuleva.onboarding.banking.iso20022.camt053.Party6Choice::getPrvtId)
-              .map(
-                  prvtId ->
-                      prvtId.getOthr().stream()
+      var partyId = otherParty.getId();
+      var prvtId = partyId == null ? null : partyId.getPrvtId();
+      var orgId = partyId == null ? null : partyId.getOrgId();
+
+      if (prvtId != null && orgId != null) {
+        throw new BankStatementParseException(
+            "Counterparty has both OrgId and PrvtId: name=" + name + ", iban=" + iban);
+      }
+
+      var idCodes =
+          Stream.concat(
+                  prvtId == null
+                      ? Stream.<String>empty()
+                      : prvtId.getOthr().stream()
                           .map(
                               ee.tuleva.onboarding.banking.iso20022.camt053
                                       .GenericPersonIdentification1
-                                  ::getId)
-                          .filter(id -> id != null && !id.isBlank())
-                          .toList())
-              .orElseGet(List::of);
-      var personalIdCode = Require.atMostOne(personalIdCodes, "personal ID code");
+                                  ::getId),
+                  orgId == null
+                      ? Stream.<String>empty()
+                      : orgId.getOthr().stream()
+                          .map(
+                              ee.tuleva.onboarding.banking.iso20022.camt053
+                                      .GenericOrganisationIdentification1
+                                  ::getId))
+              .filter(id -> id != null && !id.isBlank())
+              .toList();
+      var idCode = Require.atMostOne(idCodes, "counterparty ID code");
 
-      return new CounterPartyDetails(name, iban, personalIdCode);
+      return new CounterPartyDetails(name, iban, idCode);
     }
   }
 

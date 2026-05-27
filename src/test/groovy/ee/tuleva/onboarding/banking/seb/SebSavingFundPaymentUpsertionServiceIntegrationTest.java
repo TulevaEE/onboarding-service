@@ -115,6 +115,60 @@ class SebSavingFundPaymentUpsertionServiceIntegrationTest {
   }
 
   @Test
+  void companyRemitterIdCodeIsExtractedFromOrgId() {
+    // given - a CREDIT from a business account: payer id is in OrgId, not PrvtId
+    var companyXml =
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
+            + "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.052.001.02\"> "
+            + "<BkToCstmrAcctRpt> "
+            + "<GrpHdr> <MsgId>test</MsgId> <CreDtTm>2025-10-01T12:00:00</CreDtTm> </GrpHdr> "
+            + "<Rpt> "
+            + "<Id>test-company</Id> "
+            + "<CreDtTm>2025-10-01T12:00:00</CreDtTm> "
+            + "<FrToDt> "
+            + "<FrDtTm>2025-10-01T00:00:00</FrDtTm> "
+            + "<ToDtTm>2025-10-01T12:00:00</ToDtTm> "
+            + "</FrToDt> "
+            + "<Acct> "
+            + "<Id> <IBAN>EE001234567890123456</IBAN> </Id> "
+            + "<Ownr> <Nm>TULEVA FONDID AS</Nm> "
+            + "<Id> <OrgId> <Othr> <Id>14118923</Id> </Othr> </OrgId> </Id> "
+            + "</Ownr> "
+            + "</Acct> "
+            + "<Ntry> "
+            + "<NtryRef>2025100112345-2</NtryRef>"
+            + "<Amt Ccy=\"EUR\">250.00</Amt> "
+            + "<CdtDbtInd>CRDT</CdtDbtInd> "
+            + "<Sts>BOOK</Sts> "
+            + "<BookgDt> <Dt>2025-10-01</Dt> </BookgDt> "
+            + "<NtryDtls> <TxDtls> "
+            + "<Refs> <AcctSvcrRef>2025100112345-2</AcctSvcrRef> </Refs> "
+            + "<AmtDtls> <TxAmt> <Amt Ccy=\"EUR\">250.00</Amt> </TxAmt> </AmtDtls> "
+            + "<RltdPties> "
+            + "<Dbtr> <Nm>Acme OÜ</Nm> "
+            + "<Id> <OrgId> <Othr> <Id>10060701</Id> </Othr> </OrgId> </Id> "
+            + "</Dbtr> "
+            + "<DbtrAcct> <Id> <IBAN>EE157700771001802057</IBAN> </Id> </DbtrAcct> "
+            + "</RltdPties> "
+            + "<RmtInf> <Ustrd>Company payment</Ustrd> </RmtInf> "
+            + "</TxDtls> </NtryDtls> "
+            + "</Ntry> "
+            + "</Rpt> "
+            + "</BkToCstmrAcctRpt> "
+            + "</Document>";
+
+    // when
+    processXmlMessage(companyXml);
+
+    // then
+    assertThat(repository.findAll()).hasSize(1);
+    var savedPayment = repository.findAll().iterator().next();
+    assertThat(savedPayment.getRemitterIdCode()).isEqualTo("10060701");
+    assertThat(savedPayment.getRemitterName()).isEqualTo("Acme OÜ");
+    assertThat(savedPayment.getRemitterIban()).isEqualTo("EE157700771001802057");
+  }
+
+  @Test
   void doesNotProcessFailedMessages() {
     // given - a failed message with malformed XML
     var failedMessage =

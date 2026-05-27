@@ -6,7 +6,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.investment.event.RunOcfCalculationRequested;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -55,7 +54,7 @@ class OcfCalculationJobTest {
     var today = LocalDate.of(2026, 6, 15);
     setupClock(today);
 
-    job.onOcfCalculationRequested(new RunOcfCalculationRequested());
+    job.onOcfCalculationRequested();
 
     verify(service).calculateForAllFunds(YearMonth.of(2026, 5));
   }

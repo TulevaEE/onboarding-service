@@ -10,7 +10,6 @@ import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.event.RunTdAttributionBackfillRequested;
-import ee.tuleva.onboarding.investment.event.RunTdAttributionMonthlyRequested;
 import ee.tuleva.onboarding.investment.event.RunTdAttributionRequested;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -73,7 +72,7 @@ class PeriodicTdAttributionJobTest {
     var jobWithClock =
         new PeriodicTdAttributionJob(service, publicHolidays, clockFor("2026-05-07"));
 
-    jobWithClock.onMonthlyRequested(new RunTdAttributionMonthlyRequested());
+    jobWithClock.onMonthlyRequested();
 
     verify(service)
         .computeForAllFunds(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), MONTHLY);

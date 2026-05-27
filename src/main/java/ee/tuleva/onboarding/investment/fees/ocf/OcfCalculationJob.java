@@ -37,8 +37,8 @@ public class OcfCalculationJob {
     service.calculateForAllFunds(lastMonth);
   }
 
-  @EventListener
-  void onOcfCalculationRequested(RunOcfCalculationRequested event) {
+  @EventListener(RunOcfCalculationRequested.class)
+  void onOcfCalculationRequested() {
     var lastMonth = YearMonth.now(clock).minusMonths(1);
     log.info("OCF calculation requested: period={}", lastMonth);
     service.calculateForAllFunds(lastMonth);

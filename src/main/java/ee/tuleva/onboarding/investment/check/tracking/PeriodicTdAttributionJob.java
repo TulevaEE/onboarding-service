@@ -56,8 +56,8 @@ public class PeriodicTdAttributionJob {
         fund, event.periodStart(), event.periodEnd(), PeriodType.valueOf(event.periodType()));
   }
 
-  @EventListener
-  void onMonthlyRequested(RunTdAttributionMonthlyRequested event) {
+  @EventListener(RunTdAttributionMonthlyRequested.class)
+  void onMonthlyRequested() {
     var lastMonth = YearMonth.now(clock).minusMonths(1);
     log.info("TD attribution monthly requested: period={}", lastMonth);
     service.computeForAllFunds(lastMonth.atDay(1), lastMonth.atEndOfMonth(), PeriodType.MONTHLY);

@@ -37,6 +37,9 @@ class TrackingDifferenceNotifierTest {
   @BeforeEach
   void setUp() {
     given(calculator.breachThreshold(any(LocalDate.class))).willReturn(new BigDecimal("0.002"));
+    given(calculator.escalationThresholdDays(any(LocalDate.class))).willReturn(3);
+    given(calculator.escalationNetTdThreshold(any(LocalDate.class)))
+        .willReturn(new BigDecimal("0.005"));
   }
 
   @Test

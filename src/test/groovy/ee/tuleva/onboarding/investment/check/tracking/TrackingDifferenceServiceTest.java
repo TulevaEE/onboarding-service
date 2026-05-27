@@ -88,6 +88,21 @@ class TrackingDifferenceServiceTest {
             parameterRepository.findLatestValue(
                 eq(InvestmentParameter.TRACKING_MAX_DAILY_RETURN), any(LocalDate.class)))
         .thenReturn(new BigDecimal("0.5"));
+    lenient()
+        .when(
+            parameterRepository.findLatestValue(
+                eq(InvestmentParameter.ESCALATION_LOOKBACK_DAYS), any(LocalDate.class)))
+        .thenReturn(new BigDecimal("10"));
+    lenient()
+        .when(
+            parameterRepository.findLatestValue(
+                eq(InvestmentParameter.ESCALATION_THRESHOLD_DAYS), any(LocalDate.class)))
+        .thenReturn(new BigDecimal("3"));
+    lenient()
+        .when(
+            parameterRepository.findLatestValue(
+                eq(InvestmentParameter.ESCALATION_NET_TD_THRESHOLD), any(LocalDate.class)))
+        .thenReturn(new BigDecimal("0.005"));
     service =
         new TrackingDifferenceService(
             FIXED_CLOCK,
@@ -192,7 +207,7 @@ class TrackingDifferenceServiceTest {
             Optional.of(
                 new FeeRate(
                     1L, TUK75, FeeType.MANAGEMENT, new BigDecimal("0.0034"), CHECK_DATE, null)));
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     // IWDA.DE benchmark looked up on instrument's actual price dates
@@ -277,7 +292,7 @@ class TrackingDifferenceServiceTest {
         .willReturn(new BigDecimal("50000"));
     given(feeRateRepository.findValidRate(TUK00, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK00), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK00), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     // IEAG.DE benchmark for Euro Aggregate bonds
@@ -351,7 +366,7 @@ class TrackingDifferenceServiceTest {
         .willReturn(new BigDecimal("50000"));
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     // MSCI_EM benchmark for EM mutual fund
@@ -424,7 +439,7 @@ class TrackingDifferenceServiceTest {
         .willReturn(new BigDecimal("50000"));
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     // No IWDA.DE benchmark data — BENCHMARK_MODEL should be skipped
@@ -508,7 +523,7 @@ class TrackingDifferenceServiceTest {
         .willReturn(new BigDecimal("50000"));
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     // EUNM.DE benchmark for EM ETF
@@ -581,7 +596,7 @@ class TrackingDifferenceServiceTest {
         .willReturn(new BigDecimal("50000"));
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -649,7 +664,7 @@ class TrackingDifferenceServiceTest {
         .willReturn(new BigDecimal("50000"));
     given(feeRateRepository.findValidRate(TUK00, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK00), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK00), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -718,7 +733,7 @@ class TrackingDifferenceServiceTest {
     var breachEvent = breachEvent(LocalDate.of(2026, 4, 2), new BigDecimal("0.0020"));
     var nonBreachEvent = nonBreachEvent(LocalDate.of(2026, 4, 1));
 
-    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 2))
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
         .willReturn(List.of(breachEvent, nonBreachEvent));
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -738,7 +753,7 @@ class TrackingDifferenceServiceTest {
     var breachEvent1 = breachEvent(LocalDate.of(2026, 4, 2), new BigDecimal("0.0020"));
     var breachEvent2 = breachEvent(LocalDate.of(2026, 4, 1), new BigDecimal("0.0015"));
 
-    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 2))
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
         .willReturn(List.of(breachEvent1, breachEvent2));
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -788,7 +803,7 @@ class TrackingDifferenceServiceTest {
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
 
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -854,7 +869,7 @@ class TrackingDifferenceServiceTest {
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
 
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -966,7 +981,7 @@ class TrackingDifferenceServiceTest {
                 new FeeRate(
                     1L, fund, FeeType.MANAGEMENT, new BigDecimal("0.0034"), CHECK_DATE, null)));
 
-    given(eventRepository.findMostRecentEvents(eq(fund), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(fund), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
   }
 
@@ -1009,7 +1024,7 @@ class TrackingDifferenceServiceTest {
     given(feeRateRepository.findValidRate(fund, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
 
-    given(eventRepository.findMostRecentEvents(eq(fund), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(fund), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
   }
 
@@ -1133,7 +1148,7 @@ class TrackingDifferenceServiceTest {
 
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -1219,7 +1234,7 @@ class TrackingDifferenceServiceTest {
 
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -1303,7 +1318,7 @@ class TrackingDifferenceServiceTest {
 
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -1411,7 +1426,7 @@ class TrackingDifferenceServiceTest {
 
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -1498,7 +1513,7 @@ class TrackingDifferenceServiceTest {
 
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -1560,7 +1575,7 @@ class TrackingDifferenceServiceTest {
 
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -1653,7 +1668,7 @@ class TrackingDifferenceServiceTest {
 
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);

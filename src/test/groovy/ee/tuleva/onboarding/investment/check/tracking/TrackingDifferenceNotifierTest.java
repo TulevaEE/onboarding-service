@@ -136,6 +136,50 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
+  void escalationShowsCompoundedReturnsAndMultiDayAttribution() {
+    var attrs =
+        java.util.Map.of(
+            "IE00BFG1TM61", new BigDecimal("0.0020"),
+            "IE0009FT4LX4", new BigDecimal("-0.0008"));
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 5))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0015"))
+            .fundReturn(new BigDecimal("0.0320"))
+            .benchmarkReturn(new BigDecimal("0.0275"))
+            .breach(true)
+            .consecutiveBreachDays(4)
+            .consecutiveNetTd(new BigDecimal("0.0060"))
+            .compoundedFundReturn(new BigDecimal("0.0320"))
+            .compoundedBenchmarkReturn(new BigDecimal("0.0275"))
+            .escalationAttributions(attrs)
+            .escalationCashDrag(new BigDecimal("-0.0012"))
+            .escalationFeeDrag(new BigDecimal("-0.0005"))
+            .escalationResidual(new BigDecimal("0.0002"))
+            .securityAttributions(List.of())
+            .cashDrag(BigDecimal.ZERO)
+            .feeDrag(BigDecimal.ZERO)
+            .residual(BigDecimal.ZERO)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    var message = captor.getValue();
+    assertThat(message).contains("TD ESCALATION");
+    assertThat(message).contains("4 consecutive days");
+    assertThat(message).contains("Compounded: fund=");
+    assertThat(message).contains("Multi-day attribution:");
+    assertThat(message).contains("IE00BFG1TM61");
+    assertThat(message).contains("Cash drag:");
+    assertThat(message).contains("Fee drag:");
+    assertThat(message).contains("Residual:");
+  }
+
+  @Test
   void includesActionHintForModelPortfolio() {
     var result = result(true, 1, new BigDecimal("0.0015"));
 

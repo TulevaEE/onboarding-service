@@ -2,6 +2,9 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_LOOKBACK_DAYS;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_NET_TD_THRESHOLD;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_THRESHOLD_DAYS;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_BREACH_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_MAX_DAILY_RETURN;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -337,6 +340,31 @@ class TrackingDifferenceCalculatorTest {
         .cashWeight(BigDecimal.ZERO)
         .annualFeeRate(BigDecimal.ZERO)
         .build();
+  }
+
+  @Test
+  void escalationLookbackDaysReadsFromParameter() {
+    given(parameterRepository.findLatestValue(ESCALATION_LOOKBACK_DAYS, CHECK_DATE))
+        .willReturn(new BigDecimal("10"));
+
+    assertThat(calculator.escalationLookbackDays(CHECK_DATE)).isEqualTo(10);
+  }
+
+  @Test
+  void escalationThresholdDaysReadsFromParameter() {
+    given(parameterRepository.findLatestValue(ESCALATION_THRESHOLD_DAYS, CHECK_DATE))
+        .willReturn(new BigDecimal("3"));
+
+    assertThat(calculator.escalationThresholdDays(CHECK_DATE)).isEqualTo(3);
+  }
+
+  @Test
+  void escalationNetTdThresholdReadsFromParameter() {
+    given(parameterRepository.findLatestValue(ESCALATION_NET_TD_THRESHOLD, CHECK_DATE))
+        .willReturn(new BigDecimal("0.005"));
+
+    assertThat(calculator.escalationNetTdThreshold(CHECK_DATE))
+        .isEqualByComparingTo(new BigDecimal("0.005"));
   }
 
   private SecurityData security(

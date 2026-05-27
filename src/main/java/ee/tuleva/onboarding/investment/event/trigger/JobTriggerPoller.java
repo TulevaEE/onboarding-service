@@ -41,7 +41,8 @@ class JobTriggerPoller {
           Map.entry("PortfolioReconciliationJob", RunPortfolioReconciliationRequested::new),
           Map.entry("OverdueSettlementJob", RunOverdueSettlementRequested::new),
           Map.entry("TdAttributionJob", RunTdAttributionMonthlyRequested::new),
-          Map.entry("TdAttributionBackfillJob", () -> new RunTdAttributionBackfillRequested(6)));
+          Map.entry("TdAttributionBackfillJob", () -> new RunTdAttributionBackfillRequested(6)),
+          Map.entry("OcfCalculationJob", RunOcfCalculationRequested::new));
 
   private final JobTriggerRepository repository;
   private final ApplicationEventPublisher eventPublisher;

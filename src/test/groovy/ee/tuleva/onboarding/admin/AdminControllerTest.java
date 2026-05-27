@@ -75,6 +75,9 @@ class AdminControllerTest {
   private ee.tuleva.onboarding.investment.check.tracking.PeriodicTdAttributionService
       tdAttributionService;
 
+  @MockitoBean
+  private ee.tuleva.onboarding.investment.fees.ocf.OcfCalculationService ocfCalculationService;
+
   @MockitoBean private Clock clock;
 
   private static final String VALID_LINK_BODY =

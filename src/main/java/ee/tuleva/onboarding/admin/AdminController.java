@@ -63,6 +63,8 @@ public class AdminController {
   private final ParentChildLinkRegistrationService parentChildLinkRegistrationService;
   private final ee.tuleva.onboarding.investment.check.tracking.PeriodicTdAttributionService
       tdAttributionService;
+  private final ee.tuleva.onboarding.investment.fees.ocf.OcfCalculationService
+      ocfCalculationService;
   private final Clock clock;
 
   @Value("${admin.api-token:}")
@@ -360,6 +362,40 @@ public class AdminController {
     validateToken(token);
     tdAttributionService.backfillMonths(monthsBack, clock);
     return "TD attribution backfilled for last %d months".formatted(monthsBack);
+  }
+
+  @PostMapping("/ocf")
+  public String calculateOcf(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam(required = false) String fundCode,
+      @RequestParam(required = false) String month) {
+
+    validateToken(token);
+
+    var yearMonth =
+        month != null
+            ? java.time.YearMonth.parse(month)
+            : java.time.YearMonth.now(clock).minusMonths(1);
+
+    if (fundCode != null) {
+      var fund = TulevaFund.valueOf(fundCode);
+      var result = ocfCalculationService.calculateOcf(fund, yearMonth);
+      return "OCF calculated: %s %s = %.2f%%"
+          .formatted(fundCode, yearMonth, result.totalOcf().multiply(BigDecimal.valueOf(100)));
+    }
+
+    ocfCalculationService.calculateForAllFunds(yearMonth);
+    return "OCF calculated for all funds: %s".formatted(yearMonth);
+  }
+
+  @PostMapping("/ocf-backfill")
+  public String backfillOcf(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam(defaultValue = "6") int monthsBack) {
+
+    validateToken(token);
+    ocfCalculationService.backfillMonths(monthsBack, clock);
+    return "OCF backfilled for last %d months".formatted(monthsBack);
   }
 
   private void validateTokenWithOpsAccess(String token) {

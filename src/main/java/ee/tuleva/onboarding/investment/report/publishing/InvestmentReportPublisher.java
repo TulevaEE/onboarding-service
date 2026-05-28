@@ -15,7 +15,6 @@ import java.time.YearMonth;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
@@ -33,9 +32,6 @@ public class InvestmentReportPublisher {
   private final InvestmentReportPdfGenerator pdfGenerator;
   private final WordPressMediaClient wordPressClient;
   private final EmailService emailService;
-
-  @Value("${investment-report-publishing.email-to}")
-  private String emailTo;
 
   public InvestmentReportPublishingResult publish(YearMonth month) {
     log.info("Starting investment report publishing for month={}", month);
@@ -118,7 +114,7 @@ public class InvestmentReportPublisher {
               + "<p>Parimat,<br>Tuleva robot</p>");
 
       var recipient = new Recipient();
-      recipient.setEmail(emailTo);
+      recipient.setEmail("funds@tuleva.ee");
       recipient.setType(TO);
       message.setTo(List.of(recipient));
 

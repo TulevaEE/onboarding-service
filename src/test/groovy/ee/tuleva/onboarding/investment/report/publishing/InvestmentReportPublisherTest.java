@@ -38,8 +38,6 @@ class InvestmentReportPublisherTest {
   @BeforeEach
   void setUp() {
     lenient().when(dataService.validateQuantities(any(), eq(MARCH_2026))).thenReturn(List.of());
-    org.springframework.test.util.ReflectionTestUtils.setField(
-        publisher, "emailTo", "funds@tuleva.ee");
   }
 
   private static final Map<String, LocalDate> CONSISTENT_NAV_DATES =

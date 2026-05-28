@@ -43,6 +43,11 @@ class YahooFundValueRetrieverSpec extends Specification {
     retrievalFund == YahooFundValueRetriever.KEY
   }
 
+  def "it tracks its latest stored date by provider"() {
+    expect:
+    retriever.trackingProvider() == Optional.of(YahooFundValueRetriever.PROVIDER)
+  }
+
   def "it successfully fetches quotes for all funds"() {
     given:
     def mockApiResponse = """

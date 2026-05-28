@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
@@ -37,6 +38,11 @@ public class MorningstarNavRetriever implements ComparisonIndexRetriever {
   @Override
   public String getKey() {
     return KEY;
+  }
+
+  @Override
+  public Optional<String> trackingProvider() {
+    return Optional.of(PROVIDER);
   }
 
   @Override

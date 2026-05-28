@@ -16,6 +16,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -46,6 +47,11 @@ public class EuronextValueRetriever implements ComparisonIndexRetriever {
   @Override
   public String getKey() {
     return KEY;
+  }
+
+  @Override
+  public Optional<String> trackingProvider() {
+    return Optional.of(PROVIDER);
   }
 
   @Override

@@ -350,6 +350,33 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
     result.isPresent()
   }
 
+  def "it finds the latest date across all keys for a provider"() {
+    given:
+    def provider = "PROVIDER_TEST_" + UUID.randomUUID()
+    List<FundValue> values = [
+        aFundValue("AAA.XETR", parse("2026-05-24"), 100.0, provider),
+        aFundValue("BBB.XETR", parse("2026-05-25"), 200.0, provider),
+        aFundValue("AAA.XETR", parse("2026-05-23"), 99.0, provider),
+        aFundValue("OTHER.KEY", parse("2026-05-31"), 999.0, "DIFFERENT_PROVIDER"),
+    ]
+    fundValueRepository.saveAll(values)
+
+    when:
+    Optional<LocalDate> latestDate = fundValueRepository.findLatestDateForProvider(provider)
+
+    then:
+    latestDate.isPresent()
+    latestDate.get() == parse("2026-05-25")
+  }
+
+  def "it returns empty when no values exist for a provider"() {
+    when:
+    Optional<LocalDate> latestDate = fundValueRepository.findLatestDateForProvider("MISSING_PROVIDER_" + UUID.randomUUID())
+
+    then:
+    !latestDate.isPresent()
+  }
+
   private static List<FundValue> getFakeFundValues() {
         def today = LocalDate.now()
         def yesterday = LocalDate.now().minusDays(1)

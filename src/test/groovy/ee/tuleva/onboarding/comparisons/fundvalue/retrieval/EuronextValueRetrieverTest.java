@@ -43,6 +43,11 @@ class EuronextValueRetrieverTest {
   }
 
   @Test
+  void tracksLatestStoredDateByProvider() {
+    assertThat(retriever.trackingProvider()).contains("EURONEXT");
+  }
+
+  @Test
   void retrievesFundValuesFromEuronextApi() {
     FundTicker.getEuronextParisIsins()
         .forEach(

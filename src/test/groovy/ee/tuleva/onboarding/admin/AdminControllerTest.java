@@ -682,7 +682,7 @@ class AdminControllerTest {
 
     var expectedResult =
         new InvestmentReportPublishingResult(
-            Map.of("TUK75", "https://tuleva.ee/test.pdf"), "pr-url", "draft-id", List.of());
+            Map.of("TUK75", "https://tuleva.ee/test.pdf"), "pr-url", true, List.of());
     given(investmentReportPublisher.publish(YearMonth.of(2026, 3))).willReturn(expectedResult);
 
     mockMvc
@@ -694,7 +694,7 @@ class AdminControllerTest {
                 .param("year", "2026"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.gitHubPrUrl").value("pr-url"))
-        .andExpect(jsonPath("$.gmailDraftId").value("draft-id"));
+        .andExpect(jsonPath("$.emailSent").value(true));
 
     verify(investmentReportPublisher).publish(YearMonth.of(2026, 3));
   }
@@ -705,7 +705,7 @@ class AdminControllerTest {
     given(clock.instant()).willReturn(fixedInstant);
     given(clock.getZone()).willReturn(ZoneId.of("UTC"));
 
-    var expectedResult = new InvestmentReportPublishingResult(Map.of(), null, null, List.of());
+    var expectedResult = new InvestmentReportPublishingResult(Map.of(), null, false, List.of());
     given(investmentReportPublisher.publish(YearMonth.of(2026, 3))).willReturn(expectedResult);
 
     mockMvc

@@ -412,11 +412,6 @@ investment-report-publishing:
     token: ${GITHUB_TOKEN:}
     repo: TulevaEE/wordpress-theme
     default-branch: master
-  gmail:
-    service-account-json: ${GMAIL_SERVICE_ACCOUNT_JSON:}
-    delegate-user: ${GMAIL_DELEGATE_USER:}
-    to: info@pensionikeskus.ee
-    cc: compliance@tuleva.ee
 
 #Sentry environment configuration
 ---

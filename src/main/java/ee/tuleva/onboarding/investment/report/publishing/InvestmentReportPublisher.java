@@ -1,16 +1,20 @@
 package ee.tuleva.onboarding.investment.report.publishing;
 
+import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.TO;
+
+import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
+import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
+import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
 import ee.tuleva.onboarding.investment.report.publishing.github.GitHubPrClient;
-import ee.tuleva.onboarding.investment.report.publishing.gmail.GmailDraftClient;
-import ee.tuleva.onboarding.investment.report.publishing.gmail.GmailDraftClient.PdfAttachment;
-import ee.tuleva.onboarding.investment.report.publishing.gmail.GmailProperties;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
+import ee.tuleva.onboarding.notification.email.EmailService;
 import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.*;
+import java.util.Base64;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -30,8 +34,7 @@ public class InvestmentReportPublisher {
   private final InvestmentReportPdfGenerator pdfGenerator;
   private final WordPressMediaClient wordPressClient;
   private final GitHubPrClient gitHubPrClient;
-  private final GmailDraftClient gmailDraftClient;
-  private final GmailProperties gmailProperties;
+  private final EmailService emailService;
 
   public InvestmentReportPublishingResult publish(YearMonth month) {
     log.info("Starting investment report publishing for month={}", month);
@@ -40,7 +43,7 @@ public class InvestmentReportPublisher {
     var navDateErrors = validateNavDates(month);
     if (!navDateErrors.isEmpty()) {
       log.warn("Pre-publish validation failed: {}", navDateErrors);
-      return new InvestmentReportPublishingResult(Map.of(), null, null, navDateErrors);
+      return new InvestmentReportPublishingResult(Map.of(), null, false, navDateErrors);
     }
 
     // Pre-publish validation: quantity reconciliation (warning only)
@@ -56,7 +59,7 @@ public class InvestmentReportPublisher {
     var pdfs = new LinkedHashMap<FundReportMapping, byte[]>();
     var wpUrls = new LinkedHashMap<String, String>();
     String prUrl = null;
-    String draftId = null;
+    boolean emailSent = false;
 
     // Step 1: Generate PDFs for all funds and validate allocation
     var allocationErrors = new ArrayList<String>();
@@ -81,7 +84,7 @@ public class InvestmentReportPublisher {
 
     if (!allocationErrors.isEmpty()) {
       log.warn("Allocation validation failed, aborting publish: {}", allocationErrors);
-      return new InvestmentReportPublishingResult(Map.of(), null, null, allocationErrors);
+      return new InvestmentReportPublishingResult(Map.of(), null, false, allocationErrors);
     }
 
     // Step 2: Upload all PDFs to WordPress
@@ -117,41 +120,48 @@ public class InvestmentReportPublisher {
       errors.add(msg);
     }
 
-    // Step 4: Create Gmail draft (only funds included in email)
+    // Step 4: Send email with PDF attachments (only funds included in email)
     try {
-      var attachments = new ArrayList<PdfAttachment>();
+      var message = new MandrillMessage();
+      message.setFromEmail("funds@tuleva.ee");
+      message.setFromName("Tuleva");
+      message.setSubject("Tuleva investeeringute aruanded " + month);
+      message.setHtml(
+          "<p>Tere,</p>"
+              + "<p>Manuses on Tuleva pensionifondide investeeringute aruanded.</p>"
+              + "<p>See on automaatne kiri.</p>"
+              + "<p>Parimat,<br>Tuleva robot</p>");
+
+      var recipient = new Recipient();
+      recipient.setEmail("funds@tuleva.ee");
+      recipient.setType(TO);
+      message.setTo(List.of(recipient));
+
+      var attachments = new ArrayList<MessageContent>();
       for (var entry : pdfs.entrySet()) {
         if (entry.getKey().includeInEmail()) {
-          attachments.add(
-              new PdfAttachment(entry.getKey().buildPdfFilename(month), entry.getValue()));
+          var attachment = new MessageContent();
+          attachment.setName(entry.getKey().buildPdfFilename(month));
+          attachment.setType("application/pdf");
+          attachment.setContent(Base64.getEncoder().encodeToString(entry.getValue()));
+          attachments.add(attachment);
         }
       }
-      if (!attachments.isEmpty()) {
-        var signature = gmailDraftClient.fetchSignature();
-        var htmlBody =
-            "Tere<br><br>"
-                + "Saadan Tuleva pensionifondide investeeringute aruanded.<br><br>"
-                + signature;
-        draftId =
-            gmailDraftClient.createDraft(
-                gmailProperties.to(),
-                gmailProperties.cc(),
-                "Tuleva investeeringute aruanded",
-                htmlBody,
-                attachments);
-      }
+      message.setAttachments(attachments);
+
+      emailSent = emailService.sendSystemEmail(message);
     } catch (Exception e) {
-      var msg = "Gmail draft creation failed: " + e.getMessage();
+      var msg = "Email send failed: " + e.getMessage();
       log.error(msg, e);
       errors.add(msg);
     }
 
-    var result = new InvestmentReportPublishingResult(wpUrls, prUrl, draftId, errors);
+    var result = new InvestmentReportPublishingResult(wpUrls, prUrl, emailSent, errors);
     log.info(
-        "Investment report publishing completed: wpUrls={}, prUrl={}, draftId={}, errors={}",
+        "Investment report publishing completed: wpUrls={}, prUrl={}, emailSent={}, errors={}",
         wpUrls.size(),
         prUrl != null ? "created" : "skipped",
-        draftId != null ? "created" : "skipped",
+        emailSent,
         errors.size());
     return result;
   }

@@ -7,5 +7,5 @@ import org.jspecify.annotations.Nullable;
 public record InvestmentReportPublishingResult(
     Map<String, String> wordPressUrls,
     @Nullable String gitHubPrUrl,
-    @Nullable String gmailDraftId,
+    boolean emailSent,
     List<String> errors) {}

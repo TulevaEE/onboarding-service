@@ -369,6 +369,29 @@ class SavingsFundLedgerTest {
   }
 
   @Test
+  void recordManagementFeeRebate_createsCorrectLedgerEntries() {
+    var amount = new BigDecimal("4370.58");
+    var externalReference = randomUUID();
+    var description = "Management fee kickback VP68168 02/2026";
+
+    var transaction =
+        savingsFundLedger.recordManagementFeeRebate(
+            amount,
+            externalReference,
+            FUND_INVESTMENT_CASH_CLEARING,
+            LocalDate.of(2026, 5, 28),
+            description);
+
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("MANAGEMENT_FEE_REBATE");
+    assertThat(transaction.getMetadata().get("description")).isEqualTo(description);
+    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
+    assertThat(getFundInvestmentCashClearingAccount().getBalance()).isEqualByComparingTo(amount);
+    assertThat(getSystemAccount(MANAGEMENT_FEE_REBATE).getBalance())
+        .isEqualByComparingTo(amount.negate());
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
   void recordAdjustment_systemToSystem_createsCorrectLedgerEntries() {
     var amount = new BigDecimal("50.00");
 

@@ -404,6 +404,7 @@ google-drive:
 
 investment-report-publishing:
   enabled: ${INVESTMENT_REPORT_PUBLISHING_ENABLED:false}
+  email-to: ${INVESTMENT_REPORT_EMAIL_TO:funds@tuleva.ee}
   wordpress:
     api-base: https://tuleva.ee/wp-json/wp/v2
     username: ${WP_USERNAME:}

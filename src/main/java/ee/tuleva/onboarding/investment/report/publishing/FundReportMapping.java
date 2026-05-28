@@ -12,25 +12,25 @@ public enum FundReportMapping {
       TulevaFund.TUK75,
       "Tuleva Maailma Aktsiate Pensionifondi",
       "Aktsiafondid",
-      "tuleva-maailma-aktsiate-pensionifond-dokumendid",
+      "tuleva-maailma-aktsiate-pensionifond",
       true),
   TUK00(
       TulevaFund.TUK00,
       "Tuleva Maailma Võlakirjade Pensionifondi",
       "Võlakirjafondid",
-      "tuleva-maailma-volakirjade-pensionifond-dokumendid",
+      "tuleva-maailma-volakirjade-pensionifond",
       true),
   TUV100(
       TulevaFund.TUV100,
       "Tuleva III Samba Pensionifondi",
       "Aktsiafondid",
-      "tuleva-iii-samba-pensionifond-dokumendid",
+      "tuleva-iii-samba-pensionifond",
       true),
   TKF100(
       TulevaFund.TKF100,
       "Tuleva Täiendava Kogumisfondi",
       "Aktsiafondid",
-      "tuleva-taiendav-kogumisfond-dokumendid",
+      "taiendav-kogumisfond",
       false);
 
   private static final Map<TulevaFund, FundReportMapping> BY_FUND =

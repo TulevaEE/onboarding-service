@@ -1052,6 +1052,68 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
+  void handlesUnparseableAndUnexpectedTypesInJsonbEvent() {
+    setupFundData(TUK75);
+
+    var resultMap = new java.util.HashMap<String, Object>();
+    resultMap.put("securityAttributions", List.of());
+    resultMap.put("cashDrag", "not-a-number");
+    resultMap.put("feeDrag", Boolean.TRUE);
+    resultMap.put("residual", BigDecimal.ZERO);
+
+    var eventWithBadTypes =
+        TrackingDifferenceEvent.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 2))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0020"))
+            .fundReturn(new BigDecimal("0.01"))
+            .benchmarkReturn(new BigDecimal("0.008"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .result(resultMap)
+            .createdAt(java.time.Instant.now())
+            .build();
+
+    lenient()
+        .when(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .thenReturn(List.of(eventWithBadTypes));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+  }
+
+  @Test
+  void checkFundReturnsEmptyWhenYesterdayNavMissing() {
+    skipOtherFunds(TUK75);
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.empty());
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    assertThat(results).isEmpty();
+  }
+
+  @Test
+  void checkFundReturnsEmptyWhenAllocationsEmpty() {
+    skipOtherFunds(TUK75);
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
+        .willReturn(List.of());
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    assertThat(results).isEmpty();
+  }
+
+  @Test
   void invalidLookbackParameterFallsBackToDefault() {
     setupFundData(TUK75);
 

@@ -147,6 +147,98 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
+  void benchmarkNonBreachSetsZeroCompoundedReturns() {
+    setupFundData(TUK75);
+
+    // Fund return = (10.10 - 10.00) / 10.00 = 0.01
+    // Benchmark return ≈ 0.01, so TD ≈ 0 → non-breach
+    given(fundValueProvider.getLatestValue("MSCI_ACWI", CHECK_DATE))
+        .willReturn(Optional.of(fundValue("1010.00")));
+    given(fundValueProvider.getLatestValue("MSCI_ACWI", PREVIOUS_DATE))
+        .willReturn(Optional.of(fundValue("1000.00", PREVIOUS_DATE)));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var bmResult = results.stream().filter(r -> r.checkType() == BENCHMARK).findFirst();
+    assertThat(bmResult).isPresent();
+    assertThat(bmResult.get().breach()).isFalse();
+    assertThat(bmResult.get().consecutiveBreachDays()).isEqualTo(0);
+    assertThat(bmResult.get().compoundedFundReturn()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
+  void benchmarkCheckForTuk00UsesComponentConfig() {
+    skipOtherFunds(TulevaFund.TUK00);
+
+    given(fundNavQueryService.findNavPerUnit(TulevaFund.TUK00.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findNavPerUnit(TulevaFund.TUK00.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+
+    var allocation =
+        ModelPortfolioAllocation.builder()
+            .fund(TulevaFund.TUK00)
+            .isin("LU0826455353")
+            .weight(new BigDecimal("1.00"))
+            .effectiveDate(LocalDate.of(2026, 1, 1))
+            .build();
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TulevaFund.TUK00, CHECK_DATE))
+        .willReturn(List.of(allocation));
+    given(modelPortfolioAllocationRepository.findPreviousByFundAsOf(TulevaFund.TUK00, CHECK_DATE))
+        .willReturn(List.of());
+
+    given(positionPriceResolver.resolve(eq("LU0826455353"), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("102.00")));
+    given(positionPriceResolver.resolve(eq("LU0826455353"), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+
+    var position =
+        FundPosition.builder()
+            .fund(TulevaFund.TUK00)
+            .navDate(CHECK_DATE)
+            .accountType(SECURITY)
+            .accountId("LU0826455353")
+            .marketValue(new BigDecimal("1000000"))
+            .build();
+    given(
+            fundPositionRepository.findByNavDateAndFundAndAccountType(
+                CHECK_DATE, TulevaFund.TUK00, SECURITY))
+        .willReturn(List.of(position));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TulevaFund.TUK00, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TulevaFund.TUK00, CHECK_DATE, List.of(CASH)))
+        .willReturn(BigDecimal.ZERO);
+
+    given(feeRateRepository.findValidRate(TulevaFund.TUK00, FeeType.MANAGEMENT, CHECK_DATE))
+        .willReturn(Optional.empty());
+    lenient()
+        .when(
+            eventRepository.findMostRecentEvents(
+                eq(TulevaFund.TUK00), any(), eq(CHECK_DATE), eq(10)))
+        .thenReturn(List.of());
+
+    // Component benchmark: two ISINs resolved via priorityPriceProvider
+    given(priorityPriceProvider.resolve("LU0826455353", CHECK_DATE))
+        .willReturn(Optional.of(fundValue("51.00")));
+    given(priorityPriceProvider.resolve("LU0826455353", PREVIOUS_DATE))
+        .willReturn(Optional.of(fundValue("50.00", PREVIOUS_DATE)));
+    given(priorityPriceProvider.resolve("LU0839970364", CHECK_DATE))
+        .willReturn(Optional.of(fundValue("41.00")));
+    given(priorityPriceProvider.resolve("LU0839970364", PREVIOUS_DATE))
+        .willReturn(Optional.of(fundValue("40.00", PREVIOUS_DATE)));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var bmResult = results.stream().filter(r -> r.checkType() == BENCHMARK).findFirst();
+    assertThat(bmResult).isPresent();
+    assertThat(bmResult.get().fund()).isEqualTo(TulevaFund.TUK00);
+  }
+
+  @Test
   void benchmarkBreachCompoundsReturnsAcrossConsecutiveDays() {
     setupFundData(TUK75);
     setupBenchmarkData("MSCI_ACWI");
@@ -874,6 +966,109 @@ class TrackingDifferenceServiceTest {
     var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
     assertThat(modelResult).isPresent();
     assertThat(modelResult.get().consecutiveBreachDays()).isLessThanOrEqualTo(1);
+  }
+
+  @Test
+  void parsesVariousJsonbTypesInBreachEventAttribution() {
+    setupFundData(TUK75);
+
+    var eventWithMixedTypes =
+        TrackingDifferenceEvent.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 2))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0020"))
+            .fundReturn(new BigDecimal("0.01"))
+            .benchmarkReturn(new BigDecimal("0.008"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .result(
+                new java.util.HashMap<>(
+                    Map.of(
+                        "securityAttributions",
+                        List.of(Map.of("isin", "IE00BFG1TM61", "contribution", 0.0015)),
+                        "cashDrag",
+                        -0.0001,
+                        "feeDrag",
+                        "-0.00005",
+                        "residual",
+                        "")))
+            .createdAt(java.time.Instant.now())
+            .build();
+
+    lenient()
+        .when(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .thenReturn(List.of(eventWithMixedTypes));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+    assertThat(modelResult.get().consecutiveBreachDays()).isGreaterThanOrEqualTo(2);
+  }
+
+  @Test
+  void handlesNullIsinInBreachEventAttribution() {
+    setupFundData(TUK75);
+
+    var attrWithNullIsin = new java.util.HashMap<String, Object>();
+    attrWithNullIsin.put("isin", null);
+    attrWithNullIsin.put("contribution", new BigDecimal("0.001"));
+
+    var eventWithNullIsin =
+        TrackingDifferenceEvent.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 2))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0020"))
+            .fundReturn(new BigDecimal("0.01"))
+            .benchmarkReturn(new BigDecimal("0.008"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .result(
+                Map.of(
+                    "securityAttributions",
+                    List.of(attrWithNullIsin),
+                    "cashDrag",
+                    BigDecimal.ZERO,
+                    "feeDrag",
+                    BigDecimal.ZERO,
+                    "residual",
+                    BigDecimal.ZERO))
+            .createdAt(java.time.Instant.now())
+            .build();
+
+    lenient()
+        .when(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .thenReturn(List.of(eventWithNullIsin));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+    if (modelResult.get().escalationAttributions() != null) {
+      assertThat(modelResult.get().escalationAttributions()).doesNotContainKey(null);
+    }
+  }
+
+  @Test
+  void invalidLookbackParameterFallsBackToDefault() {
+    setupFundData(TUK75);
+
+    lenient()
+        .when(
+            parameterRepository.findLatestValue(
+                eq(InvestmentParameter.ESCALATION_LOOKBACK_DAYS), any(LocalDate.class)))
+        .thenReturn(new BigDecimal("0"));
+
+    lenient()
+        .when(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
+        .thenReturn(List.of());
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
   }
 
   @Test

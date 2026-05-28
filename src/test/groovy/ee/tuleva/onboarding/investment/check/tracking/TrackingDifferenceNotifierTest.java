@@ -301,6 +301,142 @@ class TrackingDifferenceNotifierTest {
     assertThat(captor.getValue()).contains("TD ESCALATION");
   }
 
+  @Test
+  void escalationWithoutCompoundedReturnsSkipsCompoundedLine() {
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 5))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0015"))
+            .fundReturn(new BigDecimal("0.0100"))
+            .benchmarkReturn(new BigDecimal("0.0085"))
+            .breach(true)
+            .consecutiveBreachDays(4)
+            .consecutiveNetTd(new BigDecimal("0.0060"))
+            .compoundedFundReturn(null)
+            .compoundedBenchmarkReturn(null)
+            .escalationAttributions(null)
+            .securityAttributions(List.of())
+            .cashDrag(BigDecimal.ZERO)
+            .feeDrag(BigDecimal.ZERO)
+            .residual(BigDecimal.ZERO)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    var message = captor.getValue();
+    assertThat(message).contains("TD ESCALATION");
+    assertThat(message).contains("4 consecutive days");
+    assertThat(message).doesNotContain("Compounded: fund=");
+    assertThat(message).doesNotContain("Multi-day attribution");
+  }
+
+  @Test
+  void escalationWithEmptyAttributionsSkipsAttributionSection() {
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 5))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0015"))
+            .fundReturn(new BigDecimal("0.0100"))
+            .benchmarkReturn(new BigDecimal("0.0085"))
+            .breach(true)
+            .consecutiveBreachDays(3)
+            .consecutiveNetTd(new BigDecimal("0.0060"))
+            .compoundedFundReturn(new BigDecimal("0.0300"))
+            .compoundedBenchmarkReturn(new BigDecimal("0.0240"))
+            .escalationAttributions(java.util.Map.of())
+            .securityAttributions(List.of())
+            .cashDrag(BigDecimal.ZERO)
+            .feeDrag(BigDecimal.ZERO)
+            .residual(BigDecimal.ZERO)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    var message = captor.getValue();
+    assertThat(message).contains("Compounded: fund=");
+    assertThat(message).doesNotContain("Multi-day attribution");
+  }
+
+  @Test
+  void escalationWithZeroDragsOmitsDragLines() {
+    var attrs = java.util.Map.of("IE00BFG1TM61", new BigDecimal("0.0020"));
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 5))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0015"))
+            .fundReturn(new BigDecimal("0.0100"))
+            .benchmarkReturn(new BigDecimal("0.0085"))
+            .breach(true)
+            .consecutiveBreachDays(3)
+            .consecutiveNetTd(new BigDecimal("0.0060"))
+            .compoundedFundReturn(new BigDecimal("0.0300"))
+            .compoundedBenchmarkReturn(new BigDecimal("0.0240"))
+            .escalationAttributions(attrs)
+            .escalationCashDrag(BigDecimal.ZERO)
+            .escalationFeeDrag(BigDecimal.ZERO)
+            .escalationResidual(BigDecimal.ZERO)
+            .securityAttributions(List.of())
+            .cashDrag(BigDecimal.ZERO)
+            .feeDrag(BigDecimal.ZERO)
+            .residual(BigDecimal.ZERO)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    var message = captor.getValue();
+    assertThat(message).contains("Multi-day attribution (summed daily):");
+    assertThat(message).contains("IE00BFG1TM61");
+    assertThat(message).doesNotContain("Cash drag:");
+    assertThat(message).doesNotContain("Fee drag:");
+    assertThat(message).doesNotContain("Residual:");
+  }
+
+  @Test
+  void escalationWithNullDragsOmitsDragLines() {
+    var attrs = java.util.Map.of("IE00BFG1TM61", new BigDecimal("0.0020"));
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 5))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0015"))
+            .fundReturn(new BigDecimal("0.0100"))
+            .benchmarkReturn(new BigDecimal("0.0085"))
+            .breach(true)
+            .consecutiveBreachDays(3)
+            .consecutiveNetTd(new BigDecimal("0.0060"))
+            .compoundedFundReturn(new BigDecimal("0.0300"))
+            .compoundedBenchmarkReturn(new BigDecimal("0.0240"))
+            .escalationAttributions(attrs)
+            .escalationCashDrag(null)
+            .escalationFeeDrag(null)
+            .escalationResidual(null)
+            .securityAttributions(List.of())
+            .cashDrag(BigDecimal.ZERO)
+            .feeDrag(BigDecimal.ZERO)
+            .residual(BigDecimal.ZERO)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue()).contains("Multi-day attribution (summed daily):");
+    assertThat(captor.getValue()).doesNotContain("Cash drag:");
+  }
+
   private TrackingDifferenceResult result(
       boolean breach, int consecutiveBreachDays, BigDecimal consecutiveNetTd) {
     return TrackingDifferenceResult.builder()

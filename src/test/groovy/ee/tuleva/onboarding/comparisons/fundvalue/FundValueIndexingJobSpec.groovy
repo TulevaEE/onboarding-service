@@ -37,6 +37,7 @@ class FundValueIndexingJobSpec extends Specification {
     ComparisonIndexRetriever fundValueRetriever = Mock(ComparisonIndexRetriever)
     FundNavRetrieverFactory fundNavRetrieverFactory = Mock(FundNavRetrieverFactory)
     PublicHolidays publicHolidays = new PublicHolidays()
+    PriceDataFreshnessAlertJob priceDataFreshnessAlertJob = Mock(PriceDataFreshnessAlertJob)
 
     FundValueIndexingJob fundValueIndexingJob = new FundValueIndexingJob(
         fundValueRepository,
@@ -44,7 +45,8 @@ class FundValueIndexingJobSpec extends Specification {
         Mock(Environment),
         fundNavRetrieverFactory,
         CLOCK,
-        publicHolidays)
+        publicHolidays,
+        priceDataFreshnessAlertJob)
 
     Logger jobLogger = (Logger) LoggerFactory.getLogger(FundValueIndexingJob)
     ListAppender<ILoggingEvent> logAppender = new ListAppender<>()
@@ -186,7 +188,8 @@ class FundValueIndexingJobSpec extends Specification {
             Mock(Environment),
             fundNavRetrieverFactory,
             CLOCK,
-            publicHolidays)
+            publicHolidays,
+            priceDataFreshnessAlertJob)
 
         when:
         job.refreshAll()
@@ -210,7 +213,8 @@ class FundValueIndexingJobSpec extends Specification {
             Mock(Environment),
             fundNavRetrieverFactory,
             CLOCK,
-            publicHolidays)
+            publicHolidays,
+            priceDataFreshnessAlertJob)
 
         when:
         job.refreshAll()
@@ -286,7 +290,8 @@ class FundValueIndexingJobSpec extends Specification {
             Mock(Environment),
             fundNavRetrieverFactory,
             CLOCK,
-            publicHolidays)
+            publicHolidays,
+            priceDataFreshnessAlertJob)
         job.initDynamicRetrievers()
 
         when:
@@ -323,7 +328,8 @@ class FundValueIndexingJobSpec extends Specification {
             Mock(Environment),
             fundNavRetrieverFactory,
             saturdayClock,
-            publicHolidays)
+            publicHolidays,
+            priceDataFreshnessAlertJob)
 
         when:
         job.refreshAll()

@@ -1099,6 +1099,45 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
+  void compoundsCorrectlyWhenPriorReturnIsZero() {
+    setupFundData(TUK75);
+
+    var zeroReturnBreach =
+        TrackingDifferenceEvent.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 2))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0060"))
+            .fundReturn(BigDecimal.ZERO)
+            .benchmarkReturn(new BigDecimal("-0.006"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .result(
+                Map.of(
+                    "securityAttributions", List.of(),
+                    "cashDrag", BigDecimal.ZERO,
+                    "feeDrag", BigDecimal.ZERO,
+                    "residual", BigDecimal.ZERO))
+            .createdAt(java.time.Instant.now())
+            .build();
+
+    lenient()
+        .when(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .thenReturn(List.of(zeroReturnBreach));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+    if (modelResult.get().breach()) {
+      assertThat(modelResult.get().consecutiveBreachDays()).isEqualTo(2);
+      // (1+0) * (1+todayReturn) - 1 = todayReturn
+      assertThat(modelResult.get().compoundedFundReturn())
+          .isEqualByComparingTo(modelResult.get().fundReturn());
+    }
+  }
+
+  @Test
   void checkFundReturnsEmptyWhenAllocationsEmpty() {
     skipOtherFunds(TUK75);
     given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))

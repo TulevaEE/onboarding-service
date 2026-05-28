@@ -200,6 +200,23 @@ class PriceDataFreshnessAlertJobTest {
   }
 
   @Test
+  void retriesAfterFailure() {
+    var job = jobOn(WED_0800_UTC);
+    when(fundValueRepository.findLatestDateByKeys(any()))
+        .thenThrow(new RuntimeException("DB down"))
+        .thenReturn(buildAllFreshDates(LocalDate.of(2026, 1, 12)));
+
+    try {
+      job.checkAfterIndexing();
+    } catch (Exception ignored) {
+    }
+
+    job.checkAfterIndexing();
+
+    verify(fundValueRepository, org.mockito.Mockito.times(2)).findLatestDateByKeys(any());
+  }
+
+  @Test
   void getEtfTickers_excludesMutualFunds() {
     List<FundTicker> etfTickers = PriceDataFreshnessAlertJob.getEtfTickers();
 

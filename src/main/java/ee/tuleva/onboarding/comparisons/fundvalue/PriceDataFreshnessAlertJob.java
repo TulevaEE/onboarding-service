@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +30,7 @@ public class PriceDataFreshnessAlertJob {
   private final PublicHolidays publicHolidays;
   private final Clock clock;
 
-  private volatile LocalDate lastAlertDate;
+  private final AtomicReference<LocalDate> lastAlertDate = new AtomicReference<>();
 
   record ProviderKey(String provider, String storageKey) {}
 
@@ -43,12 +44,20 @@ public class PriceDataFreshnessAlertJob {
     if (now.getHour() < EARLIEST_ALERT_HOUR) {
       return;
     }
-    if (today.equals(lastAlertDate)) {
+    LocalDate previous = lastAlertDate.get();
+    if (today.equals(previous)) {
+      return;
+    }
+    if (!lastAlertDate.compareAndSet(previous, today)) {
       return;
     }
 
-    lastAlertDate = today;
-    runFreshnessCheck(today);
+    try {
+      runFreshnessCheck(today);
+    } catch (Exception e) {
+      lastAlertDate.compareAndSet(today, previous);
+      throw e;
+    }
   }
 
   void runFreshnessCheck(LocalDate today) {

@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.investment.report.publishing.wordpress;
 
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 
@@ -17,7 +19,9 @@ public class WordPressMediaClient {
 
   private final RestClient restClient;
 
-  public String upload(String filename, byte[] pdfBytes) {
+  public record UploadResult(int attachmentId, String sourceUrl) {}
+
+  public UploadResult upload(String filename, byte[] pdfBytes) {
     var sanitizedFilename = sanitizeFilename(filename);
     log.info(
         "Uploading PDF to WordPress: filename={}, size={}bytes",
@@ -41,8 +45,46 @@ public class WordPressMediaClient {
           "WordPress returned invalid source_url: " + truncate(String.valueOf(sourceUrl), 200));
     }
 
-    log.info("WordPress upload successful: sourceUrl={}", sourceUrl);
-    return sourceUrl;
+    var attachmentId = (Integer) response.get("id");
+    if (attachmentId == null) {
+      throw new IllegalStateException("WordPress returned no attachment id");
+    }
+
+    log.info("WordPress upload successful: attachmentId={}, sourceUrl={}", attachmentId, sourceUrl);
+    return new UploadResult(attachmentId, sourceUrl);
+  }
+
+  public void updateAcfReportField(String pageSlug, int attachmentId) {
+    var pageId = findPageIdBySlug(pageSlug);
+
+    restClient
+        .post()
+        .uri("/pages/{pageId}", pageId)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(Map.of("acf", Map.of("investment_report_file", attachmentId)))
+        .retrieve()
+        .body(Map.class);
+
+    log.info(
+        "Updated ACF investment_report_file: pageSlug={}, pageId={}, attachmentId={}",
+        pageSlug,
+        pageId,
+        attachmentId);
+  }
+
+  private int findPageIdBySlug(String slug) {
+    var pages =
+        restClient
+            .get()
+            .uri("/pages?slug={slug}", slug)
+            .retrieve()
+            .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+
+    if (pages == null || pages.isEmpty()) {
+      throw new IllegalStateException("No WordPress page found with slug: " + slug);
+    }
+
+    return (Integer) pages.getFirst().get("id");
   }
 
   static String sanitizeFilename(String filename) {

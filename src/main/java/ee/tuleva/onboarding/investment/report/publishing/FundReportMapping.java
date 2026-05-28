@@ -12,24 +12,26 @@ public enum FundReportMapping {
       TulevaFund.TUK75,
       "Tuleva Maailma Aktsiate Pensionifondi",
       "Aktsiafondid",
-      "src/wp-content/themes/tuleva/templates/components/fund-stocks-details.php",
-      true,
+      "tuleva-maailma-aktsiate-pensionifond-dokumendid",
       true),
   TUK00(
       TulevaFund.TUK00,
       "Tuleva Maailma Võlakirjade Pensionifondi",
       "Võlakirjafondid",
-      "src/wp-content/themes/tuleva/templates/components/fund-bonds-details.php",
-      true,
+      "tuleva-maailma-volakirjade-pensionifond-dokumendid",
       true),
   TUV100(
       TulevaFund.TUV100,
       "Tuleva III Samba Pensionifondi",
       "Aktsiafondid",
-      "src/wp-content/themes/tuleva/templates/components/fund-third-details.php",
-      true,
+      "tuleva-iii-samba-pensionifond-dokumendid",
       true),
-  TKF100(TulevaFund.TKF100, "Tuleva Täiendava Kogumisfondi", "Aktsiafondid", null, false, false);
+  TKF100(
+      TulevaFund.TKF100,
+      "Tuleva Täiendava Kogumisfondi",
+      "Aktsiafondid",
+      "tuleva-taiendav-kogumisfond-dokumendid",
+      false);
 
   private static final Map<TulevaFund, FundReportMapping> BY_FUND =
       Arrays.stream(values())
@@ -43,22 +45,19 @@ public enum FundReportMapping {
   private final TulevaFund fund;
   private final String titleGenitive;
   private final String sectionHeading;
-  private final String phpFilePath;
-  private final boolean includeInPr;
+  private final String pageSlug;
   private final boolean includeInEmail;
 
   FundReportMapping(
       TulevaFund fund,
       String titleGenitive,
       String sectionHeading,
-      String phpFilePath,
-      boolean includeInPr,
+      String pageSlug,
       boolean includeInEmail) {
     this.fund = fund;
     this.titleGenitive = titleGenitive;
     this.sectionHeading = sectionHeading;
-    this.phpFilePath = phpFilePath;
-    this.includeInPr = includeInPr;
+    this.pageSlug = pageSlug;
     this.includeInEmail = includeInEmail;
   }
 
@@ -74,12 +73,8 @@ public enum FundReportMapping {
     return sectionHeading;
   }
 
-  public String phpFilePath() {
-    return phpFilePath;
-  }
-
-  public boolean includeInPr() {
-    return includeInPr;
+  public String pageSlug() {
+    return pageSlug;
   }
 
   public boolean includeInEmail() {

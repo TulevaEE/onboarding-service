@@ -6,7 +6,6 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
-import ee.tuleva.onboarding.investment.report.publishing.github.GitHubPrClient;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
@@ -33,7 +32,6 @@ public class InvestmentReportPublisher {
   private final InvestmentReportDataService dataService;
   private final InvestmentReportPdfGenerator pdfGenerator;
   private final WordPressMediaClient wordPressClient;
-  private final GitHubPrClient gitHubPrClient;
   private final EmailService emailService;
 
   public InvestmentReportPublishingResult publish(YearMonth month) {
@@ -43,7 +41,7 @@ public class InvestmentReportPublisher {
     var navDateErrors = validateNavDates(month);
     if (!navDateErrors.isEmpty()) {
       log.warn("Pre-publish validation failed: {}", navDateErrors);
-      return new InvestmentReportPublishingResult(Map.of(), null, false, navDateErrors);
+      return new InvestmentReportPublishingResult(Map.of(), false, navDateErrors);
     }
 
     // Pre-publish validation: quantity reconciliation (warning only)
@@ -58,7 +56,6 @@ public class InvestmentReportPublisher {
     var errors = new ArrayList<String>();
     var pdfs = new LinkedHashMap<FundReportMapping, byte[]>();
     var wpUrls = new LinkedHashMap<String, String>();
-    String prUrl = null;
     boolean emailSent = false;
 
     // Step 1: Generate PDFs for all funds and validate allocation
@@ -84,43 +81,28 @@ public class InvestmentReportPublisher {
 
     if (!allocationErrors.isEmpty()) {
       log.warn("Allocation validation failed, aborting publish: {}", allocationErrors);
-      return new InvestmentReportPublishingResult(Map.of(), null, false, allocationErrors);
+      return new InvestmentReportPublishingResult(Map.of(), false, allocationErrors);
     }
 
-    // Step 2: Upload all PDFs to WordPress
+    // Step 2: Upload PDFs to WordPress and update ACF fields on fund pages
     for (var entry : pdfs.entrySet()) {
+      var mapping = entry.getKey();
       try {
-        var filename = entry.getKey().buildPdfFilename(month);
-        var sourceUrl = wordPressClient.upload(filename, entry.getValue());
-        wpUrls.put(entry.getKey().fund().getCode(), sourceUrl);
+        var filename = mapping.buildPdfFilename(month);
+        var result = wordPressClient.upload(filename, entry.getValue());
+        wpUrls.put(mapping.fund().getCode(), result.sourceUrl());
+
+        wordPressClient.updateAcfReportField(mapping.pageSlug(), result.attachmentId());
       } catch (Exception e) {
         var msg =
-            "WordPress upload failed for %s: %s"
-                .formatted(entry.getKey().fund().getCode(), e.getMessage());
+            "WordPress publish failed for %s: %s"
+                .formatted(mapping.fund().getCode(), e.getMessage());
         log.error(msg, e);
         errors.add(msg);
       }
     }
 
-    // Step 3: Create GitHub PR (only funds included in PR with successful WP uploads)
-    try {
-      var prMappings = new LinkedHashMap<FundReportMapping, String>();
-      for (var entry : pdfs.entrySet()) {
-        var mapping = entry.getKey();
-        if (mapping.includeInPr() && wpUrls.containsKey(mapping.fund().getCode())) {
-          prMappings.put(mapping, wpUrls.get(mapping.fund().getCode()));
-        }
-      }
-      if (!prMappings.isEmpty()) {
-        prUrl = gitHubPrClient.createReportPr(prMappings, month);
-      }
-    } catch (Exception e) {
-      var msg = "GitHub PR creation failed: " + e.getMessage();
-      log.error(msg, e);
-      errors.add(msg);
-    }
-
-    // Step 4: Send email with PDF attachments (only funds included in email)
+    // Step 3: Send email with PDF attachments (only funds included in email)
     try {
       var message = new MandrillMessage();
       message.setFromEmail("funds@tuleva.ee");
@@ -156,11 +138,10 @@ public class InvestmentReportPublisher {
       errors.add(msg);
     }
 
-    var result = new InvestmentReportPublishingResult(wpUrls, prUrl, emailSent, errors);
+    var result = new InvestmentReportPublishingResult(wpUrls, emailSent, errors);
     log.info(
-        "Investment report publishing completed: wpUrls={}, prUrl={}, emailSent={}, errors={}",
+        "Investment report publishing completed: wpUrls={}, emailSent={}, errors={}",
         wpUrls.size(),
-        prUrl != null ? "created" : "skipped",
         emailSent,
         errors.size());
     return result;

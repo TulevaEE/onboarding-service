@@ -40,17 +40,15 @@ class FundReportMappingTest {
   }
 
   @Test
-  void tkf100ExcludedFromPrAndEmail() {
-    assertThat(FundReportMapping.TKF100.includeInPr()).isFalse();
+  void tkf100ExcludedFromEmail() {
     assertThat(FundReportMapping.TKF100.includeInEmail()).isFalse();
-    assertThat(FundReportMapping.TKF100.phpFilePath()).isNull();
+    assertThat(FundReportMapping.TKF100.pageSlug()).isNotNull();
   }
 
   @Test
-  void tuk75IncludedInPrAndEmail() {
-    assertThat(FundReportMapping.TUK75.includeInPr()).isTrue();
+  void tuk75IncludedInEmail() {
     assertThat(FundReportMapping.TUK75.includeInEmail()).isTrue();
-    assertThat(FundReportMapping.TUK75.phpFilePath()).isNotNull();
+    assertThat(FundReportMapping.TUK75.pageSlug()).isNotNull();
   }
 
   @Test

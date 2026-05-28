@@ -424,10 +424,7 @@ class TrackingDifferenceService {
               .multiply(BigDecimal.ONE.add(benchmarkReturn))
               .subtract(BigDecimal.ONE);
       compTd = compFund.subtract(compBenchmark);
-      escalationAttrs = new java.util.LinkedHashMap<>(priorBreaches.contributionByIsin());
-      for (var attr : attributions) {
-        escalationAttrs.merge(attr.isin(), attr.contribution(), BigDecimal::add);
-      }
+      escalationAttrs = mergeAttributions(priorBreaches.contributionByIsin(), attributions);
     }
 
     return Optional.of(
@@ -705,17 +702,25 @@ class TrackingDifferenceService {
       compoundedBenchmark =
           compoundedBenchmark.multiply(BigDecimal.ONE.add(event.getBenchmarkReturn()));
 
-      var result = event.getResult();
-      cashDragSum = cashDragSum.add(toBd(result.get("cashDrag")));
-      feeDragSum = feeDragSum.add(toBd(result.get("feeDrag")));
-      residualSum = residualSum.add(toBd(result.get("residual")));
+      try {
+        var result = event.getResult();
+        cashDragSum = cashDragSum.add(toBd(result.get("cashDrag")));
+        feeDragSum = feeDragSum.add(toBd(result.get("feeDrag")));
+        residualSum = residualSum.add(toBd(result.get("residual")));
 
-      var attrs =
-          (List<Map<String, Object>>) result.getOrDefault("securityAttributions", List.of());
-      for (var attr : attrs) {
-        var isin = (String) attr.get("isin");
-        var contribution = toBd(attr.get("contribution"));
-        contributionByIsin.merge(isin, contribution, BigDecimal::add);
+        @SuppressWarnings("unchecked")
+        var attrs =
+            (List<Map<String, Object>>) result.getOrDefault("securityAttributions", List.of());
+        for (var attr : attrs) {
+          var isin = (String) attr.get("isin");
+          var contribution = toBd(attr.get("contribution"));
+          contributionByIsin.merge(isin, contribution, BigDecimal::add);
+        }
+      } catch (Exception e) {
+        log.warn(
+            "Failed to parse attribution from event: checkDate={}, error={}",
+            event.getCheckDate(),
+            e.getMessage());
       }
     }
 
@@ -753,8 +758,12 @@ class TrackingDifferenceService {
       try {
         return new BigDecimal(s);
       } catch (NumberFormatException e) {
+        log.warn("Unparseable BigDecimal in JSONB: value={}", s);
         return ZERO;
       }
+    }
+    if (!(value instanceof String)) {
+      log.warn("Unexpected type in JSONB numeric field: type={}", value.getClass().getSimpleName());
     }
     return ZERO;
   }

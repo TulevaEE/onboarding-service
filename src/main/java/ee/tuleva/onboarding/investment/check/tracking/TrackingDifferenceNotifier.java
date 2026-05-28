@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
 class TrackingDifferenceNotifier {
 
   private static final int ESCALATION_THRESHOLD_FALLBACK = 3;
+  private static final BigDecimal ESCALATION_NET_TD_THRESHOLD_FALLBACK = new BigDecimal("0.002");
   private static final BigDecimal HUNDRED = new BigDecimal("100");
 
   private final OperationsNotificationService notificationService;
@@ -51,11 +52,12 @@ class TrackingDifferenceNotifier {
           continue;
         }
 
-        if (isEscalation(result)) {
+        var escalation = isEscalation(result);
+        if (escalation) {
           hasEscalation = true;
         }
 
-        message.append(formatBreach(result));
+        message.append(formatBreach(result, escalation));
       }
 
       if (hasEscalation) {
@@ -68,7 +70,7 @@ class TrackingDifferenceNotifier {
     }
   }
 
-  private String formatBreach(TrackingDifferenceResult result) {
+  private String formatBreach(TrackingDifferenceResult result, boolean escalation) {
     var sb = new StringBuilder();
     sb.append(
         "\n[%s] %s %s: TD=%s%% (fund=%s%%, benchmark=%s%%)"
@@ -127,7 +129,7 @@ class TrackingDifferenceNotifier {
       }
     }
 
-    if (isEscalation(result)) {
+    if (escalation) {
       sb.append(
           "\n  [%d consecutive days, compounded TD=%s%%]"
               .formatted(result.consecutiveBreachDays(), formatPercent(result.consecutiveNetTd())));
@@ -140,7 +142,7 @@ class TrackingDifferenceNotifier {
       }
 
       if (result.escalationAttributions() != null && !result.escalationAttributions().isEmpty()) {
-        sb.append("\n  Multi-day attribution:");
+        sb.append("\n  Multi-day attribution (summed daily):");
         result.escalationAttributions().entrySet().stream()
             .sorted(
                 java.util.Comparator.comparing(
@@ -173,7 +175,7 @@ class TrackingDifferenceNotifier {
       netTdThreshold = calculator.escalationNetTdThreshold(result.checkDate());
     } catch (Exception e) {
       threshold = ESCALATION_THRESHOLD_FALLBACK;
-      netTdThreshold = calculator.breachThreshold(result.checkDate());
+      netTdThreshold = ESCALATION_NET_TD_THRESHOLD_FALLBACK;
     }
     return result.consecutiveBreachDays() >= threshold
         && result.consecutiveNetTd() != null

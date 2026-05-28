@@ -33,11 +33,19 @@ class TrackingDifferenceCalculator {
   }
 
   int escalationLookbackDays(LocalDate asOf) {
-    return parameterRepository.findLatestValue(ESCALATION_LOOKBACK_DAYS, asOf).intValue();
+    int value = parameterRepository.findLatestValue(ESCALATION_LOOKBACK_DAYS, asOf).intValue();
+    if (value < 1) {
+      throw new IllegalStateException("ESCALATION_LOOKBACK_DAYS must be positive: " + value);
+    }
+    return value;
   }
 
   int escalationThresholdDays(LocalDate asOf) {
-    return parameterRepository.findLatestValue(ESCALATION_THRESHOLD_DAYS, asOf).intValue();
+    int value = parameterRepository.findLatestValue(ESCALATION_THRESHOLD_DAYS, asOf).intValue();
+    if (value < 1) {
+      throw new IllegalStateException("ESCALATION_THRESHOLD_DAYS must be positive: " + value);
+    }
+    return value;
   }
 
   BigDecimal escalationNetTdThreshold(LocalDate asOf) {

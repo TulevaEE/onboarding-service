@@ -172,7 +172,7 @@ class TrackingDifferenceNotifierTest {
     assertThat(message).contains("TD ESCALATION");
     assertThat(message).contains("4 consecutive days");
     assertThat(message).contains("Compounded: fund=");
-    assertThat(message).contains("Multi-day attribution:");
+    assertThat(message).contains("Multi-day attribution (summed daily):");
     assertThat(message).contains("IE00BFG1TM61");
     assertThat(message).contains("Cash drag:");
     assertThat(message).contains("Fee drag:");

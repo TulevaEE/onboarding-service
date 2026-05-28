@@ -151,16 +151,16 @@ class TrackingDifferenceNotifier {
             .forEach(
                 e ->
                     sb.append("\n    %s: %s%%".formatted(e.getKey(), formatPercent(e.getValue()))));
+      }
 
-        if (result.escalationCashDrag() != null && result.escalationCashDrag().signum() != 0) {
-          sb.append("\n    Cash drag: %s%%".formatted(formatPercent(result.escalationCashDrag())));
-        }
-        if (result.escalationFeeDrag() != null && result.escalationFeeDrag().signum() != 0) {
-          sb.append("\n    Fee drag: %s%%".formatted(formatPercent(result.escalationFeeDrag())));
-        }
-        if (result.escalationResidual() != null && result.escalationResidual().signum() != 0) {
-          sb.append("\n    Residual: %s%%".formatted(formatPercent(result.escalationResidual())));
-        }
+      if (result.escalationCashDrag() != null && result.escalationCashDrag().signum() != 0) {
+        sb.append("\n    Cash drag: %s%%".formatted(formatPercent(result.escalationCashDrag())));
+      }
+      if (result.escalationFeeDrag() != null && result.escalationFeeDrag().signum() != 0) {
+        sb.append("\n    Fee drag: %s%%".formatted(formatPercent(result.escalationFeeDrag())));
+      }
+      if (result.escalationResidual() != null && result.escalationResidual().signum() != 0) {
+        sb.append("\n    Residual: %s%%".formatted(formatPercent(result.escalationResidual())));
       }
     }
 
@@ -178,6 +178,7 @@ class TrackingDifferenceNotifier {
       threshold = ESCALATION_THRESHOLD_FALLBACK;
       netTdThreshold = ESCALATION_NET_TD_THRESHOLD_FALLBACK;
     } catch (Exception e) {
+      log.warn("Escalation parameter lookup failed, using fallback: {}", e.getMessage());
       threshold = ESCALATION_THRESHOLD_FALLBACK;
       netTdThreshold = ESCALATION_NET_TD_THRESHOLD_FALLBACK;
     }

@@ -685,6 +685,7 @@ class TrackingDifferenceService {
       log.error("Invalid escalation parameter configuration: {}", e.getMessage());
       lookback = ESCALATION_LOOKBACK_FALLBACK;
     } catch (Exception e) {
+      log.warn("Escalation lookback parameter lookup failed, using fallback: {}", e.getMessage());
       lookback = ESCALATION_LOOKBACK_FALLBACK;
     }
     var recent = eventRepository.findMostRecentEvents(fund, checkType, checkDate, lookback);

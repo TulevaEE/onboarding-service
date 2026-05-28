@@ -52,6 +52,9 @@ public class PriceDataFreshnessAlertJob {
       return;
     }
 
+    // Guard is process-local (AtomicReference) — a restart on the same day may re-trigger.
+    // Multi-node is handled by @SchedulerLock on the parent FundValueIndexingJob.
+    log.info("Running price data freshness check: today={}", today);
     try {
       runFreshnessCheck(today);
     } catch (Exception e) {

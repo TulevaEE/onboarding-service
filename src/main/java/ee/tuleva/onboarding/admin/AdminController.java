@@ -14,6 +14,11 @@ import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.report.ReportImportJob;
 import ee.tuleva.onboarding.investment.report.ReportProvider;
+import ee.tuleva.onboarding.investment.report.publishing.FundReportMapping;
+import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublisher;
+import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublishingResult;
+import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
+import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
 import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -29,15 +34,20 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -62,6 +72,9 @@ public class AdminController {
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final ParentChildLinkRegistrationService parentChildLinkRegistrationService;
   private final Clock clock;
+  private final Optional<InvestmentReportPublisher> investmentReportPublisher;
+  private final InvestmentReportDataService investmentReportDataService;
+  private final InvestmentReportPdfGenerator investmentReportPdfGenerator;
 
   @Value("${admin.api-token:}")
   private String adminApiToken;
@@ -325,6 +338,46 @@ public class AdminController {
         roundedAmount);
 
     return navFeeAccrualLedger.recordBlackrockAdjustment(fund, date, roundedAmount);
+  }
+
+  @PostMapping("/publish-investment-reports")
+  public InvestmentReportPublishingResult publishInvestmentReports(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam(required = false) Integer month,
+      @RequestParam(required = false) Integer year) {
+    validateToken(token);
+
+    var publisher =
+        investmentReportPublisher.orElseThrow(
+            () ->
+                new ResponseStatusException(
+                    SERVICE_UNAVAILABLE, "Investment report publishing not enabled"));
+
+    var previousMonth = YearMonth.now(clock).minusMonths(1);
+    var targetMonth = (month != null && year != null) ? YearMonth.of(year, month) : previousMonth;
+
+    log.info("Admin triggered investment report publishing: month={}", targetMonth);
+    return publisher.publish(targetMonth);
+  }
+
+  @GetMapping("/preview-investment-report")
+  public ResponseEntity<byte[]> previewInvestmentReport(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam String fundCode,
+      @RequestParam int month,
+      @RequestParam int year) {
+    validateToken(token);
+
+    var fund = TulevaFund.fromCode(fundCode);
+    var targetMonth = YearMonth.of(year, month);
+    var context = investmentReportDataService.getReportData(fund, targetMonth);
+    var pdfBytes = investmentReportPdfGenerator.generatePdf(context);
+
+    var filename = FundReportMapping.forFund(fund).buildPdfFilename(targetMonth);
+    return ResponseEntity.ok()
+        .contentType(MediaType.APPLICATION_PDF)
+        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"%s\"".formatted(filename))
+        .body(pdfBytes);
   }
 
   private void validateTokenWithOpsAccess(String token) {

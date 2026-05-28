@@ -402,6 +402,13 @@ google-drive:
   service-account-json: ${GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON:}
   root-folder-id: ${GOOGLE_DRIVE_ROOT_FOLDER_ID:}
 
+investment-report-publishing:
+  enabled: ${INVESTMENT_REPORT_PUBLISHING_ENABLED:false}
+  wordpress:
+    api-base: https://tuleva.ee/wp-json/wp/v2
+    username: ${WP_USERNAME:}
+    app-password: ${WP_APP_PASSWORD:}
+
 #Sentry environment configuration
 ---
 spring:

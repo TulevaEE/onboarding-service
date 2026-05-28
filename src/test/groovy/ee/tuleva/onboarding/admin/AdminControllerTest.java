@@ -9,6 +9,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -21,6 +22,11 @@ import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
 import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.report.ReportImportJob;
+import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublisher;
+import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublishingResult;
+import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
+import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
+import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
 import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
@@ -38,7 +44,10 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,6 +80,9 @@ class AdminControllerTest {
   @MockitoBean private SavingsFundOnboardingService savingsFundOnboardingService;
   @MockitoBean private ParentChildLinkRegistrationService parentChildLinkRegistrationService;
   @MockitoBean private Clock clock;
+  @MockitoBean private InvestmentReportPublisher investmentReportPublisher;
+  @MockitoBean private InvestmentReportDataService investmentReportDataService;
+  @MockitoBean private InvestmentReportPdfGenerator investmentReportPdfGenerator;
 
   private static final String VALID_LINK_BODY =
       """
@@ -663,6 +675,91 @@ class AdminControllerTest {
   }
 
   @Test
+  void publishInvestmentReports_withValidTokenAndParams_publishesForGivenMonth() throws Exception {
+    var fixedInstant = Instant.parse("2026-04-15T10:00:00Z");
+    given(clock.instant()).willReturn(fixedInstant);
+    given(clock.getZone()).willReturn(ZoneId.of("UTC"));
+
+    var expectedResult =
+        new InvestmentReportPublishingResult(
+            Map.of("TUK75", "https://tuleva.ee/test.pdf"), true, List.of());
+    given(investmentReportPublisher.publish(YearMonth.of(2026, 3))).willReturn(expectedResult);
+
+    mockMvc
+        .perform(
+            post("/admin/publish-investment-reports")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("month", "3")
+                .param("year", "2026"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.emailSent").value(true));
+
+    verify(investmentReportPublisher).publish(YearMonth.of(2026, 3));
+  }
+
+  @Test
+  void publishInvestmentReports_withoutParams_defaultsToPreviousMonth() throws Exception {
+    var fixedInstant = Instant.parse("2026-04-15T10:00:00Z");
+    given(clock.instant()).willReturn(fixedInstant);
+    given(clock.getZone()).willReturn(ZoneId.of("UTC"));
+
+    var expectedResult = new InvestmentReportPublishingResult(Map.of(), false, List.of());
+    given(investmentReportPublisher.publish(YearMonth.of(2026, 3))).willReturn(expectedResult);
+
+    mockMvc
+        .perform(
+            post("/admin/publish-investment-reports")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token"))
+        .andExpect(status().isOk());
+
+    verify(investmentReportPublisher).publish(YearMonth.of(2026, 3));
+  }
+
+  @Test
+  void publishInvestmentReports_withInvalidToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/publish-investment-reports")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token"))
+        .andExpect(status().isUnauthorized());
+
+    verify(investmentReportPublisher, never()).publish(any());
+  }
+
+  @Test
+  void previewInvestmentReport_returnsGeneratedPdf() throws Exception {
+    var pdfBytes = new byte[] {0x25, 0x50, 0x44, 0x46};
+    given(investmentReportDataService.getReportData(TulevaFund.TUK75, YearMonth.of(2026, 3)))
+        .willReturn(sampleReportContext());
+    given(investmentReportPdfGenerator.generatePdf(any())).willReturn(pdfBytes);
+
+    mockMvc
+        .perform(
+            get("/admin/preview-investment-report")
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK75")
+                .param("month", "3")
+                .param("year", "2026"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType("application/pdf"));
+  }
+
+  @Test
+  void previewInvestmentReport_withInvalidToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            get("/admin/preview-investment-report")
+                .header("X-Admin-Token", "wrong-token")
+                .param("fundCode", "TUK75")
+                .param("month", "3")
+                .param("year", "2026"))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
   void createParentChildLink_withValidToken_delegatesToService() throws Exception {
     mockMvc
         .perform(
@@ -754,6 +851,25 @@ class AdminControllerTest {
         .andExpect(status().isBadRequest());
 
     verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any(), any());
+  }
+
+  private static InvestmentReportContext sampleReportContext() {
+    return new InvestmentReportContext(
+        "Tuleva Maailma Aktsiate Pensionifond",
+        "31.03.2026",
+        List.of(),
+        null,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        null,
+        List.of(),
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        null,
+        BigDecimal.ZERO,
+        null,
+        new BigDecimal("0.998"),
+        new BigDecimal("10000000"));
   }
 
   private NavCalculationResult sampleNavResult(LocalDate date) {

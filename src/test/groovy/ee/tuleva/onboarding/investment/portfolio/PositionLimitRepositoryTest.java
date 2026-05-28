@@ -100,60 +100,6 @@ class PositionLimitRepositoryTest {
   }
 
   @Test
-  void findLatestByFund_returnsNewestEffectiveDate() {
-    var olderDate = LocalDate.of(2025, 6, 30);
-    var newerDate = LocalDate.of(2025, 11, 7);
-
-    var olderLimit =
-        PositionLimit.builder()
-            .effectiveDate(olderDate)
-            .fund(TUK75)
-            .isin("IE00B4L5Y983")
-            .provider(ISHARES)
-            .softLimitPercent(new BigDecimal("0.25"))
-            .hardLimitPercent(new BigDecimal("0.27"))
-            .build();
-
-    var newerXtrackers =
-        PositionLimit.builder()
-            .effectiveDate(newerDate)
-            .fund(TUK75)
-            .isin("IE00BJZ2DC62")
-            .provider(XTRACKERS)
-            .softLimitPercent(new BigDecimal("0.1862"))
-            .hardLimitPercent(new BigDecimal("0.20"))
-            .build();
-
-    var newerBnp =
-        PositionLimit.builder()
-            .effectiveDate(newerDate)
-            .fund(TUK75)
-            .isin("LU1291099718")
-            .provider(BNP_PARIBAS)
-            .softLimitPercent(new BigDecimal("0.1338"))
-            .hardLimitPercent(new BigDecimal("0.1438"))
-            .build();
-
-    entityManager.persist(olderLimit);
-    entityManager.persist(newerXtrackers);
-    entityManager.persist(newerBnp);
-    entityManager.flush();
-
-    var result = repository.findLatestByFund(TUK75);
-
-    assertThat(result).hasSize(2);
-    assertThat(result).extracting("effectiveDate").containsOnly(newerDate);
-    assertThat(result).extracting("provider").containsExactlyInAnyOrder(XTRACKERS, BNP_PARIBAS);
-  }
-
-  @Test
-  void findLatestByFund_returnsEmptyWhenNoData() {
-    var result = repository.findLatestByFund(TUK75);
-
-    assertThat(result).isEmpty();
-  }
-
-  @Test
   void findLatestByFundAsOf_returnsLimitsEffectiveOnOrBeforeAsOfDate() {
     var olderDate = LocalDate.of(2025, 6, 30);
     var newerDate = LocalDate.of(2026, 3, 30);
@@ -192,5 +138,41 @@ class PositionLimitRepositoryTest {
     assertThat(afterOlder.getFirst().getSoftLimitPercent()).isEqualByComparingTo("0.1070");
     assertThat(afterNewer).hasSize(1);
     assertThat(afterNewer).extracting("effectiveDate").containsOnly(newerDate);
+  }
+
+  @Test
+  void findLatestByFundAsOf_resolvesPerIsinEffectiveDate() {
+    var originalDate = LocalDate.of(2025, 6, 30);
+    var updatedDate = LocalDate.of(2025, 11, 7);
+
+    entityManager.persist(
+        PositionLimit.builder()
+            .effectiveDate(originalDate)
+            .fund(TUK75)
+            .isin("IE00UNCHANGED")
+            .provider(ISHARES)
+            .softLimitPercent(new BigDecimal("0.10"))
+            .hardLimitPercent(new BigDecimal("0.12"))
+            .build());
+    entityManager.persist(
+        PositionLimit.builder()
+            .effectiveDate(updatedDate)
+            .fund(TUK75)
+            .isin("IE00NEW")
+            .provider(XTRACKERS)
+            .softLimitPercent(new BigDecimal("0.15"))
+            .hardLimitPercent(new BigDecimal("0.18"))
+            .build());
+    entityManager.flush();
+
+    var beforeBoth = repository.findLatestByFundAsOf(TUK75, LocalDate.of(2025, 6, 29));
+    var afterFirst = repository.findLatestByFundAsOf(TUK75, LocalDate.of(2025, 8, 1));
+    var afterBoth = repository.findLatestByFundAsOf(TUK75, LocalDate.of(2025, 12, 1));
+
+    assertThat(beforeBoth).isEmpty();
+    assertThat(afterFirst).hasSize(1);
+    assertThat(afterFirst.getFirst().getIsin()).isEqualTo("IE00UNCHANGED");
+    assertThat(afterBoth).hasSize(2);
+    assertThat(afterBoth).extracting("isin").containsExactlyInAnyOrder("IE00UNCHANGED", "IE00NEW");
   }
 }

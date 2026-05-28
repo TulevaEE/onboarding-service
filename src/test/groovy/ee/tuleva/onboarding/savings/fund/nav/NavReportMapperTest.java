@@ -2,8 +2,10 @@ package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
+import static java.math.RoundingMode.HALF_UP;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -129,6 +131,46 @@ class NavReportMapperTest {
           assertThat(row.getFundCode()).isEqualTo("TKF100");
           assertThat(row.getCurrency()).isEqualTo(EUR);
         });
+  }
+
+  @Test
+  void securityPriceRetainsFullPrecisionSoMarketValueIsVerifiable() {
+    var navDate = LocalDate.of(2026, 5, 7);
+    var price = new BigDecimal("22.70196");
+    var units = new BigDecimal("125765.36");
+    var marketValue = units.multiply(price).setScale(2, HALF_UP);
+
+    var result =
+        NavCalculationResult.builder()
+            .fund(TUK00)
+            .calculationDate(LocalDate.of(2026, 5, 8))
+            .positionReportDate(navDate)
+            .priceDate(navDate)
+            .calculatedAt(Instant.parse("2026-05-08T09:00:00Z"))
+            .securitiesDetail(
+                List.of(
+                    new SecurityDetail("IE0031080751", "EGBI", units, price, marketValue, navDate)))
+            .cashPosition(new BigDecimal("1000.00"))
+            .receivables(ZERO)
+            .payables(ZERO)
+            .pendingSubscriptions(ZERO)
+            .pendingRedemptions(ZERO)
+            .managementFeeAccrual(ZERO)
+            .depotFeeAccrual(ZERO)
+            .blackrockAdjustment(ZERO)
+            .unitsOutstanding(new BigDecimal("100000.000"))
+            .navPerUnit(new BigDecimal("28.56"))
+            .aum(marketValue)
+            .build();
+
+    var rows = navReportMapper.map(result);
+
+    var securityRow = rows.get(0);
+    assertThat(securityRow.getMarketPrice()).isEqualTo(price);
+    assertThat(securityRow.getMarketPrice().scale()).isGreaterThan(4);
+    assertThat(
+            securityRow.getQuantity().multiply(securityRow.getMarketPrice()).setScale(2, HALF_UP))
+        .isEqualTo(securityRow.getMarketValue());
   }
 
   @Test

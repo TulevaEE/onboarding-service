@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.auth.ExpiredRefreshJwtException;
 import ee.tuleva.onboarding.auth.idcard.exception.IdCardSessionNotFoundException;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionNotFoundException;
+import ee.tuleva.onboarding.auth.principal.MinorCannotSelfAuthenticateException;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import ee.tuleva.onboarding.auth.role.RoleSwitchAccessDeniedException;
 import ee.tuleva.onboarding.auth.smartid.SmartIdSessionNotFoundException;
@@ -18,6 +19,7 @@ import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
+import ee.tuleva.onboarding.party.ChildIsNotAMinorException;
 import io.jsonwebtoken.ExpiredJwtException;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -130,6 +132,23 @@ public class ErrorHandlingControllerAdvice {
     log.info("RoleSwitchAccessDeniedException: {}", exception.getMessage());
     return new ResponseEntity<>(
         Map.of("error", "ROLE_SWITCH_DENIED", "error_description", exception.getMessage()),
+        FORBIDDEN);
+  }
+
+  @ExceptionHandler(ChildIsNotAMinorException.class)
+  public ResponseEntity<Object> handleErrors(ChildIsNotAMinorException exception) {
+    log.info("ChildIsNotAMinorException: {}", exception.getMessage());
+    return new ResponseEntity<>(
+        Map.of("error", "CHILD_IS_NOT_A_MINOR", "error_description", exception.getMessage()),
+        BAD_REQUEST);
+  }
+
+  @ExceptionHandler(MinorCannotSelfAuthenticateException.class)
+  public ResponseEntity<Object> handleErrors(MinorCannotSelfAuthenticateException exception) {
+    log.info("MinorCannotSelfAuthenticateException: {}", exception.getMessage());
+    return new ResponseEntity<>(
+        Map.of(
+            "error", "MINOR_CANNOT_SELF_AUTHENTICATE", "error_description", exception.getMessage()),
         FORBIDDEN);
   }
 

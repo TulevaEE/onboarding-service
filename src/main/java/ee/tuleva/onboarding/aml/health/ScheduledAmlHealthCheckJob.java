@@ -36,6 +36,7 @@ public class ScheduledAmlHealthCheckJob {
           AmlCheckType.KYB_COMPANY_PEP,
           AmlCheckType.KYB_HIGH_RISK_NACE,
           AmlCheckType.KYB_COMPANY_LEGAL_FORM,
+          AmlCheckType.KYB_COMPANY_REGISTERED_IN_ESTONIA,
           AmlCheckType.KYB_SELF_CERTIFICATION,
           AmlCheckType.KYB_DATA_CHANGED);
 

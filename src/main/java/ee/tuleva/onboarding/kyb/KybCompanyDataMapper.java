@@ -4,6 +4,8 @@ import static ee.tuleva.onboarding.aml.AmlCheckType.KYC_CHECK;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
+import ee.tuleva.onboarding.ariregister.AddressDetails;
+import ee.tuleva.onboarding.ariregister.CompanyAddress;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import java.math.BigDecimal;
@@ -31,6 +33,11 @@ class KybCompanyDataMapper {
     var status = detail.getStatus().map(CompanyStatus::valueOf).orElse(null);
     var legalForm = detail.getLegalForm().map(LegalForm::fromString).orElse(null);
 
+    var address = detail.getAddress();
+    var countryCode =
+        address.map(CompanyAddress::addressDetails).map(AddressDetails::countryCode).orElse(null);
+    var fullAddress = address.map(CompanyAddress::fullAddress).orElse(null);
+
     var companyDto =
         new CompanyDto(
             new RegistryCode(detail.getRegistryCode()),
@@ -53,7 +60,14 @@ class KybCompanyDataMapper {
 
     var relatedPersons = Stream.concat(grouped, ungrouped).toList();
 
-    return new KybCompanyData(companyDto, personalCode, status, relatedPersons, selfCertification);
+    return new KybCompanyData(
+        companyDto,
+        personalCode,
+        status,
+        relatedPersons,
+        selfCertification,
+        countryCode,
+        fullAddress);
   }
 
   private KybRelatedPerson toRelatedPerson(PersonalCode code, List<CompanyRelationship> roles) {

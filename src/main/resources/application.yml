@@ -185,6 +185,13 @@ async:
 savings-fund:
   isin: EE0000003283
 
+transaction-registry:
+  alerts:
+    to:
+      - funds@tuleva.ee
+    cc:
+      - taavi.pertman@tuleva.ee
+
 payment-provider:
   url: https://sandbox-stargate.montonio.com/api
   use-fake-notification-url: true

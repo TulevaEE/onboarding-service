@@ -95,6 +95,22 @@ public enum FundTicker {
       "USAS",
       null,
       BenchmarkCategory.EQUITY_DM),
+  AMUNDI_WORLD_EX_USA_SCREENED(
+      "WLXU.DE",
+      "WLXU.XETRA",
+      "FR0013209921",
+      "Amundi MSCI World Ex USA Screened UCITS ETF",
+      "WLXU",
+      null,
+      BenchmarkCategory.EQUITY_DM),
+  ISHARES_EM_IMI_SCREENED(
+      "AYEM.DE",
+      "AYEM.XETRA",
+      "IE00BFNM3P36",
+      "iShares MSCI EM IMI Screened UCITS ETF",
+      "AYEM",
+      null,
+      BenchmarkCategory.EQUITY_EM),
   ISHARES_DEVELOPED_WORLD_ESG_SCREENED(
       "0P000152G5.F",
       "IE00BFG1TM61.EUFUND",
@@ -158,27 +174,66 @@ public enum FundTicker {
       "229055",
       "0P0000STQT",
       BenchmarkCategory.BOND_EURO),
+  VANGUARD_EUROZONE_GOV_BOND(
+      "VGEA.DE",
+      "VGEA.XETRA",
+      "IE00BH04GL39",
+      "Vanguard EUR Eurozone Government Bond UCITS ETF",
+      "VGEA",
+      null,
+      BenchmarkCategory.BOND_EURO),
+  XTRACKERS_EUR_CORPORATE_BOND(
+      "D5BG.DE",
+      "D5BG.XETRA",
+      "LU0478205379",
+      "Xtrackers II EUR Corporate Bond UCITS ETF",
+      "XBLC",
+      null,
+      BenchmarkCategory.BOND_EURO),
+  SPDR_GLOBAL_AGG_BOND_HEDGED(
+      "SPFF.DE",
+      "SPFF.XETRA",
+      "IE000AQ7A2X6",
+      "SPDR Bloomberg Global Aggregate Bond UCITS ETF EUR Hedged",
+      "SPFF",
+      null,
+      BenchmarkCategory.BOND_GLOBAL),
 
   // Benchmark proxy ETFs (not held in portfolios — used for BENCHMARK_MODEL comparison).
   // benchmarkCategory is intentionally null: these are the benchmarks themselves, not tracked
-  // instruments.
+  // instruments. Tickers below are mostly XETRA listings (Yahoo/EODHD/Bloomberg short form), which
+  // differ from the Amsterdam/London listings for the same ISINs. GAGH is the exception — it is
+  // listed on Euronext Paris, not XETRA.
   ISHARES_CORE_MSCI_WORLD(
-      "IWDA.DE", "IWDA.XETRA", "IE00B4L5Y983", "iShares Core MSCI World UCITS ETF", "IWDA", null),
+      "EUNL.DE", "EUNL.XETRA", "IE00B4L5Y983", "iShares Core MSCI World UCITS ETF", "EUNL", null),
   ISHARES_MSCI_EM(
       "EUNM.DE", "EUNM.XETRA", "IE00B4L5YC18", "iShares MSCI EM UCITS ETF", "EUNM", null),
   ISHARES_EURO_AGG_BOND_ETF(
-      "IEAG.DE",
-      "IEAG.XETRA",
+      "EUN4.DE",
+      "EUN4.XETRA",
       "IE00B3DKXQ41",
       "iShares Euro Aggregate Bond UCITS ETF",
-      "IEAG",
+      "EUN4",
       null),
+  // Step 1: EUNA stays as benchmark proxy (null category) until GAGH has price history.
+  // Step 2: After GAGH has 2+ days of prices, change EUNA to BOND_GLOBAL and switch
+  //         TrackingDifferenceService.benchmarkKey(BOND_GLOBAL) from EUNA to GAGH. GAGH trades on
+  //         Euronext Paris, not XETRA, so use getEuronextParisStorageKey() (.XPAR), not .XETR.
   ISHARES_GLOBAL_AGG_BOND_ETF(
-      "AGGH.DE",
-      "AGGH.XETRA",
+      "EUNA.DE",
+      "EUNA.XETRA",
       "IE00BDBRDM35",
-      "iShares Global Aggregate Bond UCITS ETF",
-      "AGGH",
+      "iShares Core Global Aggregate Bond UCITS ETF EUR Hedged",
+      "EUNA",
+      null),
+  // LU1708330318 is listed on Euronext Paris and Borsa Italiana (ticker GAGH), not XETRA, so it
+  // uses the Euronext Paris listing like AMUNDI_USA_SCREENED.
+  AMUNDI_GLOBAL_AGG_BOND_HEDGED(
+      "GAGH.PA",
+      "GAGH.PA.EODHD",
+      "LU1708330318",
+      "Amundi Core Global Aggregate Bond UCITS ETF EUR Hedged",
+      "GAGH",
       null);
 
   private final String yahooTicker;

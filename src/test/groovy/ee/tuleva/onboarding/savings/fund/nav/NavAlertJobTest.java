@@ -31,11 +31,17 @@ class NavAlertJobTest {
   // 2025-01-15 = Wednesday; all times below are UTC+2 → EET (winter)
   private static final String WED_0906_UTC = "2025-01-15T09:06:00Z"; // 11:06 Tallinn
   private static final String WED_1331_UTC = "2025-01-15T13:31:00Z"; // 15:31 Tallinn
+  private static final String WED_0935_UTC = "2025-01-15T09:35:00Z"; // 11:35 Tallinn
+  private static final String WED_1335_UTC = "2025-01-15T13:35:00Z"; // 15:35 Tallinn
   private static final String SAT_1331_UTC = "2025-01-18T13:31:00Z"; // Saturday 15:31 Tallinn
   private static final String SAT_0906_UTC = "2025-01-18T09:06:00Z"; // Saturday 11:06 Tallinn
+  private static final String SAT_0935_UTC = "2025-01-18T09:35:00Z"; // Saturday 11:35 Tallinn
+  private static final String SAT_1335_UTC = "2025-01-18T13:35:00Z"; // Saturday 15:35 Tallinn
   // 2026-02-24 = Tuesday Independence Day (Estonian public holiday)
   private static final String INDEPENDENCE_DAY_0906_UTC = "2026-02-24T09:06:00Z";
   private static final String INDEPENDENCE_DAY_1331_UTC = "2026-02-24T13:31:00Z";
+  private static final String INDEPENDENCE_DAY_0935_UTC = "2026-02-24T09:35:00Z";
+  private static final String INDEPENDENCE_DAY_1335_UTC = "2026-02-24T13:35:00Z";
 
   @Mock private NavReportRepository navReportRepository;
   @Mock private OperationsNotificationService notificationService;
@@ -169,6 +175,104 @@ class NavAlertJobTest {
     var job = jobOn(INDEPENDENCE_DAY_1331_UTC);
 
     job.alertSavingsPillar3IfMissing();
+
+    verifyNoInteractions(notificationService);
+    verifyNoInteractions(navReportRepository);
+  }
+
+  @Test
+  void pillar2Escalation_fires_whenStillMissing() {
+    var job = jobOn(WED_0935_UTC);
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    stubMissing(today, TUK75);
+    stubMissing(today, TUK00);
+
+    job.escalatePillar2IfStillMissing();
+
+    verify(notificationService)
+        .sendMessage(
+            org.mockito.ArgumentMatchers.argThat(
+                (String msg) ->
+                    msg.contains("URGENT") && msg.contains("TUK75") && msg.contains("TUK00")),
+            eq(INVESTMENT));
+  }
+
+  @Test
+  void pillar2Escalation_silent_whenPublished() {
+    var job = jobOn(WED_0935_UTC);
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    stubPublished(today, TUK75);
+    stubPublished(today, TUK00);
+
+    job.escalatePillar2IfStillMissing();
+
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void pillar2Escalation_silent_onNonWorkingDay() {
+    var job = jobOn(SAT_0935_UTC);
+
+    job.escalatePillar2IfStillMissing();
+
+    verifyNoInteractions(notificationService);
+    verifyNoInteractions(navReportRepository);
+  }
+
+  @Test
+  void pillar2Escalation_silent_onWeekdayPublicHoliday() {
+    var job = jobOn(INDEPENDENCE_DAY_0935_UTC);
+
+    job.escalatePillar2IfStillMissing();
+
+    verifyNoInteractions(notificationService);
+    verifyNoInteractions(navReportRepository);
+  }
+
+  @Test
+  void savingsPillar3Escalation_fires_whenStillMissing() {
+    var job = jobOn(WED_1335_UTC);
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    stubMissing(today, TKF100);
+    stubMissing(today, TUV100);
+
+    job.escalateSavingsPillar3IfStillMissing();
+
+    verify(notificationService)
+        .sendMessage(
+            org.mockito.ArgumentMatchers.argThat(
+                (String msg) ->
+                    msg.contains("URGENT") && msg.contains("TKF100") && msg.contains("TUV100")),
+            eq(INVESTMENT));
+  }
+
+  @Test
+  void savingsPillar3Escalation_silent_whenPublished() {
+    var job = jobOn(WED_1335_UTC);
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    stubPublished(today, TKF100);
+    stubPublished(today, TUV100);
+
+    job.escalateSavingsPillar3IfStillMissing();
+
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void savingsPillar3Escalation_silent_onNonWorkingDay() {
+    var job = jobOn(SAT_1335_UTC);
+
+    job.escalateSavingsPillar3IfStillMissing();
+
+    verifyNoInteractions(notificationService);
+    verifyNoInteractions(navReportRepository);
+  }
+
+  @Test
+  void savingsPillar3Escalation_silent_onWeekdayPublicHoliday() {
+    var job = jobOn(INDEPENDENCE_DAY_1335_UTC);
+
+    job.escalateSavingsPillar3IfStillMissing();
 
     verifyNoInteractions(notificationService);
     verifyNoInteractions(navReportRepository);

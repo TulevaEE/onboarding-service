@@ -1,9 +1,14 @@
 package ee.tuleva.onboarding.auth.principal
 
 import ee.tuleva.onboarding.auth.role.Role
+import ee.tuleva.onboarding.time.ClockHolder
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
+
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
@@ -13,6 +18,14 @@ class PrincipalServiceSpec extends Specification {
 
   UserService userService = Mock(UserService)
   PrincipalService service = new PrincipalService(userService)
+
+  def setup() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-05-22T00:00:00Z"), ZoneOffset.UTC))
+  }
+
+  def cleanup() {
+    ClockHolder.setDefaultClock()
+  }
 
   User sampleUser = User.builder()
       .firstName("John")
@@ -128,6 +141,47 @@ class PrincipalServiceSpec extends Specification {
 
     then:
     authenticatedPerson.role.name() == "John Doe"
+  }
+
+  def "getFromPerson: a minor cannot self-authenticate"() {
+    given:
+    Person minor = samplePerson().toBuilder().personalCode("61506150006").build()
+
+    when:
+    service.getFrom(minor, Map.of())
+
+    then:
+    thrown(MinorCannotSelfAuthenticateException)
+    0 * userService.findByPersonalCode(_)
+    0 * userService.createNewUser(_)
+  }
+
+  def "withRole into a minor child role is not blocked by the self-auth gate"() {
+    given:
+    def parent = sampleAuthenticatedPersonAndMember().build()
+    def childRole = new Role(PERSON, "61506150006", "Mari Maasikas")
+
+    when:
+    def result = service.withRole(parent, childRole)
+
+    then:
+    result.role == childRole
+    result.personalCode == parent.personalCode
+    0 * userService._
+  }
+
+  def "rebuilding a principal from a token is not blocked by the self-auth gate"() {
+    given:
+    Person minor = samplePerson().toBuilder().personalCode("61506150006").build()
+    def role = new Role(PERSON, minor.personalCode, "Mari Maasikas")
+    1 * userService.findByPersonalCode(minor.personalCode) >> Optional.of(sampleUser)
+
+    when:
+    AuthenticatedPerson authenticatedPerson = service.getFrom(minor, Map.of(), role)
+
+    then:
+    authenticatedPerson.personalCode == minor.personalCode
+    authenticatedPerson.role == role
   }
 
   def "getFromPerson: initialising non active user throws exception"() {

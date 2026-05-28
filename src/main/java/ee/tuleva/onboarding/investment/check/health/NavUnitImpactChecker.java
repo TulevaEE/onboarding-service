@@ -1,12 +1,11 @@
 package ee.tuleva.onboarding.investment.check.health;
 
-import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_UNIT_IMPACT;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -18,7 +17,6 @@ class NavUnitImpactChecker {
 
   List<HealthCheckFinding> check(
       TulevaFund fund,
-      LocalDate navDate,
       @Nullable BigDecimal reportedUnits,
       @Nullable BigDecimal authoritativeUnits,
       @Nullable BigDecimal aum) {
@@ -47,11 +45,9 @@ class NavUnitImpactChecker {
           new HealthCheckFinding(
               fund,
               NAV_UNIT_IMPACT,
-              WARNING,
-              "%s navDate=%s: NAV_SEB=%s vs NAV_EPIS=%s = %s%% NAV difference"
+              FAIL,
+              "NAV_SEB=%s vs NAV_EPIS=%s = %s%% NAV difference"
                   .formatted(
-                      fund,
-                      navDate,
                       navWithReported.toPlainString(),
                       navWithAuthoritative.toPlainString(),
                       navWithReported

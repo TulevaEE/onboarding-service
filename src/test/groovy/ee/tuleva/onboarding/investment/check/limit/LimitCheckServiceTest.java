@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.OK;
 import static ee.tuleva.onboarding.investment.check.limit.CheckType.*;
+import static ee.tuleva.onboarding.investment.portfolio.Provider.INVESCO;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.ISHARES;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -123,7 +124,8 @@ class LimitCheckServiceTest {
             .provider(ISHARES)
             .weight(BigDecimal.ONE)
             .build();
-    when(modelPortfolioAllocationRepository.findLatestByFund(fund)).thenReturn(List.of(allocation));
+    when(modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, today))
+        .thenReturn(List.of(allocation));
 
     var positionBreach =
         new PositionBreach(
@@ -208,7 +210,8 @@ class LimitCheckServiceTest {
             .reserveHard(new BigDecimal("30000"))
             .build();
     when(fundLimitRepository.findLatestByFundAsOf(fund, today)).thenReturn(Optional.of(fundLimit));
-    when(modelPortfolioAllocationRepository.findLatestByFund(fund)).thenReturn(List.of());
+    when(modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, today))
+        .thenReturn(List.of());
     when(positionLimitChecker.check(any(), any(), any(), any())).thenReturn(List.of());
     when(providerLimitChecker.check(any(), any(), any(), any(), any())).thenReturn(List.of());
 
@@ -290,7 +293,8 @@ class LimitCheckServiceTest {
             .build();
     when(fundLimitRepository.findLatestByFundAsOf(fund, checkDate))
         .thenReturn(Optional.of(fundLimit));
-    when(modelPortfolioAllocationRepository.findLatestByFund(fund)).thenReturn(List.of());
+    when(modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, checkDate))
+        .thenReturn(List.of());
     when(positionLimitChecker.check(any(), any(), any(), any())).thenReturn(List.of());
     when(providerLimitChecker.check(any(), any(), any(), any(), any())).thenReturn(List.of());
 
@@ -339,7 +343,8 @@ class LimitCheckServiceTest {
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, FEE))
         .thenReturn(List.of());
-    when(modelPortfolioAllocationRepository.findLatestByFund(fund)).thenReturn(List.of());
+    when(modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, checkDate))
+        .thenReturn(List.of());
 
     var oldPositionLimit =
         PositionLimit.builder()
@@ -361,9 +366,6 @@ class LimitCheckServiceTest {
     verify(positionLimitRepository).findLatestByFundAsOf(fund, checkDate);
     verify(providerLimitRepository).findLatestByFundAsOf(fund, checkDate);
     verify(fundLimitRepository).findLatestByFundAsOf(fund, checkDate);
-    verify(positionLimitRepository, never()).findLatestByFund(any());
-    verify(providerLimitRepository, never()).findLatestByFund(any());
-    verify(fundLimitRepository, never()).findLatestByFund(any());
     verify(positionLimitChecker).check(eq(fund), anyList(), any(), eq(List.of(oldPositionLimit)));
   }
 
@@ -421,7 +423,8 @@ class LimitCheckServiceTest {
     when(positionLimitRepository.findLatestByFundAsOf(fund, today)).thenReturn(List.of());
     when(providerLimitRepository.findLatestByFundAsOf(fund, today)).thenReturn(List.of());
     when(fundLimitRepository.findLatestByFundAsOf(fund, today)).thenReturn(Optional.empty());
-    when(modelPortfolioAllocationRepository.findLatestByFund(fund)).thenReturn(List.of());
+    when(modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, today))
+        .thenReturn(List.of());
     when(positionLimitChecker.check(any(), any(), any(), any())).thenReturn(List.of());
     when(providerLimitChecker.check(any(), any(), any(), any(), any())).thenReturn(List.of());
 
@@ -472,7 +475,8 @@ class LimitCheckServiceTest {
     when(positionLimitRepository.findLatestByFundAsOf(fund, today)).thenReturn(List.of());
     when(providerLimitRepository.findLatestByFundAsOf(fund, today)).thenReturn(List.of());
     when(fundLimitRepository.findLatestByFundAsOf(fund, today)).thenReturn(Optional.empty());
-    when(modelPortfolioAllocationRepository.findLatestByFund(fund)).thenReturn(List.of());
+    when(modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, today))
+        .thenReturn(List.of());
     when(positionLimitChecker.check(any(), any(), any(), any())).thenReturn(List.of());
     when(providerLimitChecker.check(any(), any(), any(), any(), any())).thenReturn(List.of());
 
@@ -504,7 +508,8 @@ class LimitCheckServiceTest {
     when(positionLimitRepository.findLatestByFundAsOf(eq(TUK75), any())).thenReturn(List.of());
     when(providerLimitRepository.findLatestByFundAsOf(eq(TUK75), any())).thenReturn(List.of());
     when(fundLimitRepository.findLatestByFundAsOf(eq(TUK75), any())).thenReturn(Optional.empty());
-    when(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).thenReturn(List.of());
+    when(modelPortfolioAllocationRepository.findLatestByFundAsOf(eq(TUK75), any()))
+        .thenReturn(List.of());
     when(positionLimitChecker.check(eq(TUK75), any(), any(), any())).thenReturn(List.of());
     when(providerLimitChecker.check(eq(TUK75), any(), any(), any(), any())).thenReturn(List.of());
 
@@ -560,7 +565,8 @@ class LimitCheckServiceTest {
     when(positionLimitRepository.findLatestByFundAsOf(fund, today)).thenReturn(List.of());
     when(providerLimitRepository.findLatestByFundAsOf(fund, today)).thenReturn(List.of());
     when(fundLimitRepository.findLatestByFundAsOf(fund, today)).thenReturn(Optional.empty());
-    when(modelPortfolioAllocationRepository.findLatestByFund(fund)).thenReturn(List.of());
+    when(modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, today))
+        .thenReturn(List.of());
     when(positionLimitChecker.check(any(), any(), any(), any())).thenReturn(List.of());
     when(providerLimitChecker.check(any(), any(), any(), any(), any())).thenReturn(List.of());
 
@@ -592,7 +598,8 @@ class LimitCheckServiceTest {
     when(positionLimitRepository.findLatestByFundAsOf(eq(TUK75), any())).thenReturn(List.of());
     when(providerLimitRepository.findLatestByFundAsOf(eq(TUK75), any())).thenReturn(List.of());
     when(fundLimitRepository.findLatestByFundAsOf(eq(TUK75), any())).thenReturn(Optional.empty());
-    when(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).thenReturn(List.of());
+    when(modelPortfolioAllocationRepository.findLatestByFundAsOf(eq(TUK75), any()))
+        .thenReturn(List.of());
     when(positionLimitChecker.check(eq(TUK75), any(), any(), any())).thenReturn(List.of());
     when(providerLimitChecker.check(eq(TUK75), any(), any(), any(), any())).thenReturn(List.of());
 
@@ -626,6 +633,62 @@ class LimitCheckServiceTest {
 
     assertThatThrownBy(() -> service.runChecksAsOf(today))
         .isInstanceOf(LimitCheckPartialFailureException.class);
+  }
+
+  @Test
+  void includesInRunoffIsinsInProviderMap() {
+    service = createService();
+    var today = LocalDate.of(2026, 3, 4);
+    var fund = TUK75;
+
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, today))
+        .thenReturn(Optional.of(today));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, SECURITY))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, CASH))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, LIABILITY))
+        .thenReturn(List.of());
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(today, fund, FEE))
+        .thenReturn(List.of());
+    when(navReportPositionProvider.getCalculatedAum(fund, today))
+        .thenReturn(Optional.of(new BigDecimal("1000000")));
+
+    var currentAllocation =
+        ModelPortfolioAllocation.builder()
+            .isin("IE00NEW")
+            .fund(fund)
+            .provider(ISHARES)
+            .weight(BigDecimal.ONE)
+            .build();
+    when(modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, today))
+        .thenReturn(List.of(currentAllocation));
+
+    var previousAllocation =
+        ModelPortfolioAllocation.builder()
+            .isin("IE00OLD")
+            .fund(fund)
+            .provider(INVESCO)
+            .weight(BigDecimal.ONE)
+            .build();
+    when(modelPortfolioAllocationRepository.findPreviousByFundAsOf(fund, today))
+        .thenReturn(List.of(previousAllocation));
+
+    when(positionLimitRepository.findLatestByFundAsOf(fund, today)).thenReturn(List.of());
+    when(providerLimitRepository.findLatestByFundAsOf(fund, today)).thenReturn(List.of());
+    when(fundLimitRepository.findLatestByFundAsOf(fund, today)).thenReturn(Optional.empty());
+    when(positionLimitChecker.check(any(), any(), any(), any())).thenReturn(List.of());
+    when(providerLimitChecker.check(any(), any(), any(), any(), any())).thenReturn(List.of());
+
+    service.runChecks();
+
+    verify(providerLimitChecker)
+        .check(
+            eq(fund),
+            anyList(),
+            any(),
+            eq(Map.of("IE00NEW", ISHARES, "IE00OLD", INVESCO)),
+            anyList());
   }
 
   private LimitCheckService createService() {

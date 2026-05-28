@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.payment.recurring;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE;
 import static ee.tuleva.onboarding.payment.PaymentDateProvider.format;
 import static ee.tuleva.onboarding.payment.recurring.RecurringPaymentRequest.PaymentInterval.MONTHLY;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
@@ -11,13 +10,14 @@ import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.locale.LocaleService;
+import ee.tuleva.onboarding.payment.CoopLanguage;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentDateProvider;
 import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
+import ee.tuleva.onboarding.payment.PaymentUrlEncoder;
 import ee.tuleva.onboarding.payment.PrefilledLink;
-import java.net.URLEncoder;
-import java.util.Locale;
+import java.util.LinkedHashMap;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
@@ -26,6 +26,11 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 @AllArgsConstructor
 public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
+
+  private static final String HOST = "https://i.cooppank.ee/";
+  private static final String SINGLE_PATH = "i/payments/new";
+  private static final String STANDING_ORDER_PATH = "i/standing-orders/new";
+  private static final String MONTHLY_FREQ = "2";
 
   private final ContactDetailsService contactDetailsService;
   private final JsonMapper objectMapper;
@@ -39,7 +44,7 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
     ContactDetails contactDetails = contactDetailsService.getContactDetails(person);
     var url =
         switch (paymentData.getPaymentChannel()) {
-          case COOP -> "https://i.cooppank.ee/" + recurringPaymentPath(paymentData, contactDetails);
+          case COOP -> HOST + recurringPaymentPath(paymentData, contactDetails);
           case COOP_WEB ->
               SINGLE == paymentData.getType()
                   ? singlePaymentPath(paymentData, contactDetails)
@@ -71,52 +76,36 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
   }
 
   private String singlePaymentPath(PaymentData paymentData, ContactDetails contactDetails) {
-    return "newpmt"
-        + language()
-        + "?SaajaNimi="
-        + urlEncode(thirdPillarConfig.getRecipientName())
-        + "&SaajaKonto="
-        + thirdPillarConfig.getBankAccounts().get(paymentData.getPaymentChannel())
-        + (paymentData.getAmount() != null
-            ? "&MuutMakseSumma=" + paymentData.getAmount().toPlainString()
-            : "")
-        + "&MaksePohjus="
-        // Coop Pank's form only accepts lowercase %2c; URLEncoder emits %2C
-        + urlEncode(thirdPillarConfig.getDescription()).replace("%2C", "%2c")
-        + "&ViiteNumber="
-        + contactDetails.getPensionAccountNumber();
+    var params = new LinkedHashMap<String, String>();
+    params.put("bname", thirdPillarConfig.getRecipientName());
+    params.put("bacc", thirdPillarConfig.getBankAccounts().get(paymentData.getPaymentChannel()));
+    if (paymentData.getAmount() != null) {
+      params.put("amt", paymentData.getAmount().toPlainString());
+    }
+    params.put("cur", "EUR");
+    params.put("desc", thirdPillarConfig.getDescription());
+    params.put("ref", contactDetails.getPensionAccountNumber());
+    params.put("lang", CoopLanguage.code(localeService.getCurrentLanguage()));
+    return SINGLE_PATH + "?" + PaymentUrlEncoder.encode(params);
   }
 
   private String recurringPaymentPath(PaymentData paymentData, ContactDetails contactDetails) {
-    return "newpmt"
-        + language()
-        + "?whatform=PermPaymentNew"
-        + "&SaajaNimi="
-        + urlEncode(thirdPillarConfig.getRecipientName())
-        + "&SaajaKonto="
-        + thirdPillarConfig.getBankAccounts().get(paymentData.getPaymentChannel())
-        + (paymentData.getAmount() != null
-            ? "&MakseSumma=" + paymentData.getAmount().toPlainString()
-            : "")
-        + "&MaksePohjus="
-        // Coop Pank's form only accepts lowercase %2c; URLEncoder emits %2C
-        + urlEncode(thirdPillarConfig.getDescription()).replace("%2C", "%2c")
-        + "&ViiteNumber="
-        + contactDetails.getPensionAccountNumber()
-        + "&MakseSagedus=3" // Monthly
-        + "&MakseEsimene="
-        + format(paymentDateProvider.tenthDayOfMonth());
+    var params = new LinkedHashMap<String, String>();
+    params.put("bname", thirdPillarConfig.getRecipientName());
+    params.put("bacc", thirdPillarConfig.getBankAccounts().get(paymentData.getPaymentChannel()));
+    if (paymentData.getAmount() != null) {
+      params.put("amt", paymentData.getAmount().toPlainString());
+    }
+    params.put("cur", "EUR");
+    params.put("desc", thirdPillarConfig.getDescription());
+    params.put("ref", contactDetails.getPensionAccountNumber());
+    params.put("date", format(paymentDateProvider.tenthDayOfMonth()));
+    params.put("freq", MONTHLY_FREQ);
+    params.put("lang", CoopLanguage.code(localeService.getCurrentLanguage()));
+    return STANDING_ORDER_PATH + "?" + PaymentUrlEncoder.encode(params);
   }
 
   private static String formattedAmount(PaymentData paymentData) {
     return paymentData.getAmount() == null ? null : paymentData.getAmount().toPlainString();
-  }
-
-  private String language() {
-    return Locale.ENGLISH.getLanguage().equals(localeService.getCurrentLanguage()) ? "-eng" : "";
-  }
-
-  private static String urlEncode(String value) {
-    return URLEncoder.encode(value, UTF_8).replace("+", "%20");
   }
 }

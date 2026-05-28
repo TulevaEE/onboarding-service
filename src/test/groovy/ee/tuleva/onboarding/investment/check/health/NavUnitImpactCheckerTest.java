@@ -2,17 +2,15 @@ package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_UNIT_IMPACT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 
 class NavUnitImpactCheckerTest {
 
-  private static final LocalDate NAV_DATE = LocalDate.of(2026, 4, 15);
   private final NavUnitImpactChecker checker = new NavUnitImpactChecker();
 
   @Test
@@ -20,7 +18,6 @@ class NavUnitImpactCheckerTest {
     var findings =
         checker.check(
             TKF100,
-            NAV_DATE,
             new BigDecimal("100000.30"),
             new BigDecimal("100000.00"),
             new BigDecimal("1000000"));
@@ -29,15 +26,11 @@ class NavUnitImpactCheckerTest {
   }
 
   @Test
-  void warningWhenUnitDifferenceAffectsNav() {
+  void failWhenUnitDifferenceAffectsNav() {
     // TKF100 navScale=4: 1000000/100000 = 10.0000, 1000000/100001 = 9.9999
     var findings =
         checker.check(
-            TKF100,
-            NAV_DATE,
-            new BigDecimal("100000"),
-            new BigDecimal("100001"),
-            new BigDecimal("1000000"));
+            TKF100, new BigDecimal("100000"), new BigDecimal("100001"), new BigDecimal("1000000"));
 
     assertThat(findings)
         .singleElement()
@@ -45,7 +38,7 @@ class NavUnitImpactCheckerTest {
             f -> {
               assertThat(f.fund()).isEqualTo(TKF100);
               assertThat(f.checkType()).isEqualTo(NAV_UNIT_IMPACT);
-              assertThat(f.severity()).isEqualTo(WARNING);
+              assertThat(f.severity()).isEqualTo(FAIL);
             });
   }
 
@@ -60,7 +53,6 @@ class NavUnitImpactCheckerTest {
     var findings =
         checker.check(
             TUK75,
-            NAV_DATE,
             new BigDecimal("50000000.6"),
             new BigDecimal("50000000.0"),
             new BigDecimal("500000000"));
@@ -70,8 +62,7 @@ class NavUnitImpactCheckerTest {
 
   @Test
   void noFindingWhenAumIsNull() {
-    var findings =
-        checker.check(TKF100, NAV_DATE, new BigDecimal("100000"), new BigDecimal("100001"), null);
+    var findings = checker.check(TKF100, new BigDecimal("100000"), new BigDecimal("100001"), null);
 
     assertThat(findings).isEmpty();
   }
@@ -79,24 +70,21 @@ class NavUnitImpactCheckerTest {
   @Test
   void noFindingWhenAumIsZero() {
     var findings =
-        checker.check(
-            TKF100, NAV_DATE, new BigDecimal("100000"), new BigDecimal("100001"), BigDecimal.ZERO);
+        checker.check(TKF100, new BigDecimal("100000"), new BigDecimal("100001"), BigDecimal.ZERO);
 
     assertThat(findings).isEmpty();
   }
 
   @Test
   void noFindingWhenReportedUnitsIsNull() {
-    var findings =
-        checker.check(TKF100, NAV_DATE, null, new BigDecimal("100000"), new BigDecimal("1000000"));
+    var findings = checker.check(TKF100, null, new BigDecimal("100000"), new BigDecimal("1000000"));
 
     assertThat(findings).isEmpty();
   }
 
   @Test
   void noFindingWhenAuthoritativeUnitsIsNull() {
-    var findings =
-        checker.check(TKF100, NAV_DATE, new BigDecimal("100000"), null, new BigDecimal("1000000"));
+    var findings = checker.check(TKF100, new BigDecimal("100000"), null, new BigDecimal("1000000"));
 
     assertThat(findings).isEmpty();
   }

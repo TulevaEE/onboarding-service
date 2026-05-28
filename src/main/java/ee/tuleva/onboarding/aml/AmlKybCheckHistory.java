@@ -29,6 +29,9 @@ public class AmlKybCheckHistory implements KybCheckHistory {
           entry(AmlCheckType.KYB_COMPANY_SANCTION, KybCheckType.COMPANY_SANCTION),
           entry(AmlCheckType.KYB_COMPANY_PEP, KybCheckType.COMPANY_PEP),
           entry(AmlCheckType.KYB_HIGH_RISK_NACE, KybCheckType.HIGH_RISK_NACE),
+          entry(
+              AmlCheckType.KYB_COMPANY_REGISTERED_IN_ESTONIA,
+              KybCheckType.COMPANY_REGISTERED_IN_ESTONIA),
           entry(AmlCheckType.KYB_SELF_CERTIFICATION, KybCheckType.SELF_CERTIFICATION));
 
   private final AmlCheckRepository amlCheckRepository;

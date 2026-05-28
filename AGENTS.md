@@ -43,7 +43,7 @@ Follow **Uncle Bob** (Clean Code, SOLID), **Kent Beck** (TDD, simple design), **
 
 ### Testing
 - `./gradlew test` (H2) | `SPRING_PROFILES_ACTIVE=pg,test ./gradlew test` (Testcontainers PostgreSQL, requires Docker)
-- `./gradlew test --tests MyTest` | `./gradlew integrationTest`
+- `./gradlew test --tests MyTest` (integration tests live under `src/test/groovy/` alongside unit tests and run as part of `test` — there's no separate `integrationTest` task)
 - `./gradlew jacocoTestReport`
 - Some tests require PostgreSQL and are skipped on H2
 
@@ -62,6 +62,18 @@ Spring Boot application following DDD and Spring Modulith best practices. Java 2
 **Spring Modulith** — each top-level package under `ee.tuleva.onboarding` is a module. Only types in the package root are public API; sub-packages are internal. Modules communicate via Spring application events, not direct cross-module injection. Use `@ApplicationModuleTest` to verify module boundaries.
 
 **Anti-corruption layer for external APIs** — external API response types (JAXB, JSON DTOs) must not leak outside their module. Map to domain records at the module boundary. Use stable identifiers (codes, enums) over localized text for domain rules. External API modules expose only domain types as their public API.
+
+### Transaction registry
+
+Post-send order lifecycle (was a Google Sheet, now Java/Postgres). Pipeline: SEB pushes `seb/yyyy-MM-dd_pending_transactions.csv` to S3 → `ReportImportJob` parses to `investment_report.raw_data` (provider=SEB, reportType=PENDING_TRANSACTIONS) → `SebPendingTransactionReconciliationService` matches `Client ref` → `TransactionOrder.orderUuid` (M3 falls back to fund/ISIN/side/quantity when uuid missing) → writes `TransactionExecution` (1:1 with order, table `investment_transaction_execution`) and transitions `OrderStatus` to `EXECUTED`.
+
+Package layout: `ee.tuleva.onboarding.investment.transaction.ingest/` holds reconciliation, matchers, NAV cross-check, and alert listeners; `ee.tuleva.onboarding.investment.transaction.portfolio/` holds the cost-basis ledger (`investment_portfolio_cost_basis`). Module public API is just `TransactionExecution`, `TransactionExecutionRepository`, and `PortfolioCostBasisService.snapshotForFundAndDate(TulevaFund, LocalDate)` — everything else is package-private.
+
+Scheduled jobs: `SebPendingTransactionReconciliationJob` (daily 09:00 EET, 7-day lookback) is load-bearing because `ReportImportCompleted` only fires on a *successful* `saveReport` — unchanged S3 files produce no event. `PortfolioCostBasisJob` (daily 10:00 EET) advances the ledger; a self-heal job (02:30 EET) rebuilds the last 14 days.
+
+NAV cross-check: SEB execution `unit_price` vs `nav_report.market_price` for same ISIN+date, ETF-only, T+0, `1.0%` tolerance. Alerts (unmatched rows, price mismatches, overdue settlements) go through `EmailService.sendSystemEmail` (Mandrill).
+
+See `tmp/transaction-registry/implementation-plan.md` for the full milestone-by-milestone history.
 
 ## Database
 

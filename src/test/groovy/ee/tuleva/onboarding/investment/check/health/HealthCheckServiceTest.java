@@ -53,12 +53,13 @@ class HealthCheckServiceTest {
             cashPosition(TUK75, new BigDecimal("50000")));
 
     var allocations = List.of(ModelPortfolioAllocation.builder().fund(TUK75).isin("IE001").build());
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).willReturn(allocations);
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(allocations);
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
         .willReturn(Optional.empty());
 
     given(completenessChecker.check(eq(TUK75), eq(NAV_DATE), any())).willReturn(List.of());
-    given(isinMatchChecker.check(eq(TUK75), any(), eq(allocations))).willReturn(List.of());
+    given(isinMatchChecker.check(eq(TUK75), any(), eq(allocations), any())).willReturn(List.of());
     given(outstandingUnitsChecker.check(eq(TUK75), eq(NAV_DATE), any())).willReturn(List.of());
     given(receivablesChecker.check(eq(TUK75), any(), any(), any(), any())).willReturn(List.of());
     given(payablesChecker.check(eq(TUK75), any(), any(), any(), any())).willReturn(List.of());
@@ -78,12 +79,13 @@ class HealthCheckServiceTest {
             securityPosition(TUK75, "IE001", new BigDecimal("1000")),
             securityPosition(TUK00, "LU001", new BigDecimal("500")));
 
-    given(modelPortfolioAllocationRepository.findLatestByFund(any())).willReturn(List.of());
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(any(), any()))
+        .willReturn(List.of());
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(any(), any()))
         .willReturn(Optional.empty());
 
     given(completenessChecker.check(any(), any(), any())).willReturn(List.of());
-    given(isinMatchChecker.check(any(), any(), any())).willReturn(List.of());
+    given(isinMatchChecker.check(any(), any(), any(), any())).willReturn(List.of());
     given(outstandingUnitsChecker.check(any(), any(), any())).willReturn(List.of());
     given(receivablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
     given(payablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
@@ -98,13 +100,14 @@ class HealthCheckServiceTest {
   void savesEventsPerCheckType() {
     var positions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("1000")));
 
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).willReturn(List.of());
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(List.of());
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
         .willReturn(Optional.empty());
 
     var finding = new HealthCheckFinding(TUK75, COMPLETENESS, WARNING, "test");
     given(completenessChecker.check(eq(TUK75), eq(NAV_DATE), any())).willReturn(List.of(finding));
-    given(isinMatchChecker.check(any(), any(), any())).willReturn(List.of());
+    given(isinMatchChecker.check(any(), any(), any(), any())).willReturn(List.of());
     given(outstandingUnitsChecker.check(any(), any(), any())).willReturn(List.of());
     given(receivablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
     given(payablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
@@ -119,14 +122,15 @@ class HealthCheckServiceTest {
   void persistsSeverityDerivedFromFindings() {
     var positions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("1000")));
 
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).willReturn(List.of());
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(List.of());
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
         .willReturn(Optional.empty());
 
     var failFinding = new HealthCheckFinding(TUK75, COMPLETENESS, FAIL, "missing CASH");
     given(completenessChecker.check(eq(TUK75), eq(NAV_DATE), any()))
         .willReturn(List.of(failFinding));
-    given(isinMatchChecker.check(any(), any(), any())).willReturn(List.of());
+    given(isinMatchChecker.check(any(), any(), any(), any())).willReturn(List.of());
     given(outstandingUnitsChecker.check(any(), any(), any())).willReturn(List.of());
     given(receivablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
     given(payablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
@@ -155,14 +159,15 @@ class HealthCheckServiceTest {
     var positions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("900")));
     var previousSecurities = List.of(securityPosition(TUK75, "IE001", new BigDecimal("1000")));
 
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).willReturn(List.of());
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(List.of());
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
         .willReturn(Optional.of(previousDate));
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(previousDate, TUK75, SECURITY))
         .willReturn(previousSecurities);
 
     given(completenessChecker.check(any(), any(), any())).willReturn(List.of());
-    given(isinMatchChecker.check(any(), any(), any())).willReturn(List.of());
+    given(isinMatchChecker.check(any(), any(), any(), any())).willReturn(List.of());
     given(outstandingUnitsChecker.check(any(), any(), any())).willReturn(List.of());
     given(receivablesChecker.check(eq(TUK75), any(), eq(previousSecurities), any(), any()))
         .willReturn(List.of());
@@ -182,7 +187,8 @@ class HealthCheckServiceTest {
     var previousLiabilities = List.of(liabilityPosition(TUK75, new BigDecimal("-1780760.00")));
     var previousReceivables = List.of(receivablesPosition(TUK75, new BigDecimal("831.77")));
 
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).willReturn(List.of());
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(List.of());
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
         .willReturn(Optional.of(previousDate));
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(previousDate, TUK75, SECURITY))
@@ -195,7 +201,7 @@ class HealthCheckServiceTest {
         .willReturn(previousReceivables);
 
     given(completenessChecker.check(any(), any(), any())).willReturn(List.of());
-    given(isinMatchChecker.check(any(), any(), any())).willReturn(List.of());
+    given(isinMatchChecker.check(any(), any(), any(), any())).willReturn(List.of());
     given(outstandingUnitsChecker.check(any(), any(), any())).willReturn(List.of());
     given(receivablesChecker.check(any(), any(), any(), any(), eq(previousReceivables)))
         .willReturn(List.of());
@@ -219,7 +225,8 @@ class HealthCheckServiceTest {
             .build();
     var authoritative = new BigDecimal("1000005");
 
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).willReturn(List.of());
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(List.of());
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
         .willReturn(Optional.empty());
     given(unitReconciliationThresholdRepository.findByFundCode(TUK75))
@@ -233,42 +240,11 @@ class HealthCheckServiceTest {
   }
 
   @Test
-  void isNavPublishBlockedReturnsTrueWhenLatestEventHasIssues() {
-    var event = HealthCheckEvent.builder().issuesFound(true).build();
-    given(
-            healthCheckEventRepository.findTopByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
-                TUK75, NAV_DATE, HealthCheckType.NAV_UNIT_IMPACT))
-        .willReturn(Optional.of(event));
-
-    assertThat(healthCheckService.isNavPublishBlocked(TUK75, NAV_DATE)).isTrue();
-  }
-
-  @Test
-  void isNavPublishBlockedReturnsFalseWhenLatestEventHasNoIssues() {
-    var event = HealthCheckEvent.builder().issuesFound(false).build();
-    given(
-            healthCheckEventRepository.findTopByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
-                TUK75, NAV_DATE, HealthCheckType.NAV_UNIT_IMPACT))
-        .willReturn(Optional.of(event));
-
-    assertThat(healthCheckService.isNavPublishBlocked(TUK75, NAV_DATE)).isFalse();
-  }
-
-  @Test
-  void isNavPublishBlockedReturnsFalseWhenNoEventExists() {
-    given(
-            healthCheckEventRepository.findTopByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
-                TUK75, NAV_DATE, HealthCheckType.NAV_UNIT_IMPACT))
-        .willReturn(Optional.empty());
-
-    assertThat(healthCheckService.isNavPublishBlocked(TUK75, NAV_DATE)).isFalse();
-  }
-
-  @Test
   void passesNullsToUnitReconciliationCheckerWhenThresholdOrAuthoritativeAbsent() {
     var positions = List.of(unitsPosition(TUK75, new BigDecimal("1000000")));
 
-    given(modelPortfolioAllocationRepository.findLatestByFund(TUK75)).willReturn(List.of());
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(List.of());
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
         .willReturn(Optional.empty());
     given(unitReconciliationThresholdRepository.findByFundCode(TUK75)).willReturn(Optional.empty());

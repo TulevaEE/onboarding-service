@@ -231,7 +231,7 @@ class TransactionPreparationServiceTest {
     when(orderRepository.findByBatchId(batch.getId())).thenReturn(List.of(order));
     when(settlementDateCalculator.calculateSettlementDate(any(), eq(InstrumentType.ETF)))
         .thenReturn(LocalDate.of(2026, 1, 19));
-    when(modelPortfolioAllocationRepository.findLatestByFund(TUV100))
+    when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, LocalDate.of(2026, 1, 15)))
         .thenReturn(List.of(allocation));
     when(exportService.generateOrdersExport(any())).thenReturn(new byte[] {1, 2, 3});
     when(exportService.generateSebFundExport(any(), any())).thenReturn(new byte[] {4, 5});
@@ -415,7 +415,8 @@ class TransactionPreparationServiceTest {
     when(orderRepository.findByBatchId(batch.getId())).thenReturn(List.of(order));
     when(settlementDateCalculator.calculateSettlementDate(any(), any()))
         .thenReturn(LocalDate.of(2026, 1, 19));
-    when(modelPortfolioAllocationRepository.findLatestByFund(TUV100)).thenReturn(List.of());
+    when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, LocalDate.of(2026, 1, 15)))
+        .thenReturn(List.of());
     when(exportService.generateOrdersExport(any())).thenReturn(new byte[] {1});
     when(exportService.generateSebFundExport(any(), any())).thenReturn(new byte[] {2});
     when(exportService.generateSebEtfExport(any(), any())).thenReturn(new byte[] {3});

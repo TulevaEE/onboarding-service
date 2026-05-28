@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.event.PipelineStep.NAV_CALCULATION;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueIndexingJob;
@@ -52,7 +50,8 @@ public class NavCalculationJob {
       zone = "Europe/Tallinn")
   @SchedulerLock(name = "NavCalculationJob_Pillar2", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   public void calculatePillar2Nav() {
-    runPipeline(TUK75, TulevaFund.getPillar2Funds(), PipelineRun.TriggerSource.SCHEDULED);
+    TulevaFund.getPillar2Funds()
+        .forEach(fund -> runPipeline(fund, List.of(fund), PipelineRun.TriggerSource.SCHEDULED));
   }
 
   @Scheduled(
@@ -60,7 +59,8 @@ public class NavCalculationJob {
       zone = "Europe/Tallinn")
   @SchedulerLock(name = "NavCalculationJob_Pillar3", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   public void calculatePillar3Nav() {
-    runPipeline(TUV100, TulevaFund.getPillar3Funds(), PipelineRun.TriggerSource.SCHEDULED);
+    TulevaFund.getPillar3Funds()
+        .forEach(fund -> runPipeline(fund, List.of(fund), PipelineRun.TriggerSource.SCHEDULED));
   }
 
   public void recoverPipeline(TulevaFund trigger, List<TulevaFund> funds) {

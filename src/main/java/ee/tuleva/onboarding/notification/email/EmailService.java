@@ -18,6 +18,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.retry.RetryException;
@@ -27,6 +28,8 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 public class EmailService {
+
+  private static final Set<String> FAILED_STATUSES = Set.of("rejected", "invalid");
 
   private final EmailConfiguration emailConfiguration;
   private final MandrillApi mandrillApi;
@@ -126,8 +129,16 @@ public class EmailService {
           response.getStatus(),
           response.getId(),
           response.getRejectReason());
+
+      if (response.getStatus() != null && FAILED_STATUSES.contains(response.getStatus())) {
+        throw new EmailDeliveryException(
+            "Mandrill rejected email: status=%s, rejectReason=%s, id=%s"
+                .formatted(response.getStatus(), response.getRejectReason(), response.getId()));
+      }
       return Optional.of(response);
 
+    } catch (EmailDeliveryException e) {
+      throw e;
     } catch (MandrillApiError mandrillApiError) {
       log.error(mandrillApiError.getMandrillErrorAsJson(), mandrillApiError);
       return Optional.empty();
@@ -153,10 +164,20 @@ public class EmailService {
                 response.getStatus(),
                 response.getId(),
                 response.getRejectReason());
+
+            if (response.getStatus() != null && FAILED_STATUSES.contains(response.getStatus())) {
+              throw new EmailDeliveryException(
+                  "Mandrill rejected email: status=%s, rejectReason=%s, id=%s"
+                      .formatted(
+                          response.getStatus(), response.getRejectReason(), response.getId()));
+            }
             return response;
           });
       return true;
     } catch (RetryException e) {
+      if (e.getCause() instanceof EmailDeliveryException ede) {
+        throw ede;
+      }
       log.error("Failed to send system email after retries", e.getCause());
     }
     return false;

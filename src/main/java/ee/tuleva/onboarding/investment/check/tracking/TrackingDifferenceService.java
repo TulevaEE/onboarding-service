@@ -34,6 +34,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -159,11 +160,13 @@ class TrackingDifferenceService {
         new FundValue(
             fund.getIsin(), previousDate, yesterdayValue.get(), "TULEVA", clock.instant());
 
-    var allocations = modelPortfolioAllocationRepository.findLatestByFund(fund);
+    var allocations = modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, checkDate);
     if (allocations.isEmpty()) {
       log.warn("No model portfolio for fund: fund={}", fund);
       return results;
     }
+    var previousAllocations =
+        modelPortfolioAllocationRepository.findPreviousByFundAsOf(fund, checkDate);
 
     var positions =
         fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, SECURITY);
@@ -183,10 +186,12 @@ class TrackingDifferenceService {
             .orElse(ZERO);
 
     var securities =
-        buildSecurityData(fund, allocations, positions, totalNav, checkDate, previousDate);
+        buildSecurityData(
+            fund, allocations, previousAllocations, positions, totalNav, checkDate, previousDate);
 
     var missingPrices =
         securities.stream()
+            .filter(s -> s.modelWeight().signum() > 0)
             .filter(s -> s.today().price() == null || s.previous().price() == null)
             .map(SecurityData::isin)
             .toList();
@@ -195,6 +200,9 @@ class TrackingDifferenceService {
           "fund=%s, checkDate=%s, missingIsins=%s".formatted(fund, checkDate, missingPrices),
           List.of());
     }
+
+    var blendedSecurities =
+        blendTransitionWeights(securities, allocations, previousAllocations, positions, fund);
 
     var priorBreaches = countConsecutiveBreaches(fund, MODEL_PORTFOLIO, checkDate);
 
@@ -205,7 +213,7 @@ class TrackingDifferenceService {
             .checkType(MODEL_PORTFOLIO)
             .todayNav(todayNav.value())
             .yesterdayNav(yesterdayNav.value())
-            .securities(securities)
+            .securities(blendedSecurities)
             .cashWeight(cashWeight)
             .annualFeeRate(annualFeeRate)
             .consecutiveBreachDays(priorBreaches.count())
@@ -440,6 +448,7 @@ class TrackingDifferenceService {
   private List<SecurityData> buildSecurityData(
       TulevaFund fund,
       List<ModelPortfolioAllocation> allocations,
+      List<ModelPortfolioAllocation> previousAllocations,
       List<FundPosition> todayPositions,
       BigDecimal totalNav,
       LocalDate checkDate,
@@ -453,40 +462,161 @@ class TrackingDifferenceService {
     var todayCutoff = computePriceCutoff(fund, checkDate);
     var yesterdayCutoff = computePriceCutoff(fund, previousDate);
 
-    return allocations.stream()
+    var currentIsins =
+        allocations.stream()
+            .map(ModelPortfolioAllocation::getIsin)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+
+    var result =
+        new ArrayList<>(
+            allocations.stream()
+                .filter(a -> a.getIsin() != null)
+                .map(
+                    a ->
+                        buildOneSecurityData(
+                            a.getIsin(),
+                            a.getWeight(),
+                            todayByIsin,
+                            totalNav,
+                            checkDate,
+                            previousDate,
+                            todayCutoff,
+                            yesterdayCutoff))
+                .toList());
+
+    previousAllocations.stream()
         .filter(a -> a.getIsin() != null)
+        .filter(a -> !currentIsins.contains(a.getIsin()))
+        .filter(a -> todayByIsin.containsKey(a.getIsin()))
         .map(
-            a -> {
-              var todayResolved =
-                  positionPriceResolver
-                      .resolve(a.getIsin(), checkDate, todayCutoff)
-                      .filter(rp -> rp.validationStatus() == ValidationStatus.OK)
-                      .orElse(null);
-              var yesterdayResolved =
-                  positionPriceResolver
-                      .resolve(a.getIsin(), previousDate, yesterdayCutoff)
-                      .filter(rp -> rp.validationStatus() == ValidationStatus.OK)
-                      .orElse(null);
+            a ->
+                buildOneSecurityData(
+                    a.getIsin(),
+                    ZERO,
+                    todayByIsin,
+                    totalNav,
+                    checkDate,
+                    previousDate,
+                    todayCutoff,
+                    yesterdayCutoff))
+        .forEach(result::add);
 
-              var todayPos = todayByIsin.get(a.getIsin());
-              var actualMarketValue = todayPos != null ? todayPos.getMarketValue() : ZERO;
-              var actualWeight =
-                  totalNav.signum() != 0
-                      ? actualMarketValue.divide(totalNav, 6, RoundingMode.HALF_UP)
-                      : ZERO;
+    return result;
+  }
 
-              var today =
-                  new PriceSnapshot(
-                      todayResolved != null ? todayResolved.usedPrice() : null,
-                      todayResolved != null ? todayResolved.priceDate() : null);
-              var previous =
-                  new PriceSnapshot(
-                      yesterdayResolved != null ? yesterdayResolved.usedPrice() : null,
-                      yesterdayResolved != null ? yesterdayResolved.priceDate() : null);
+  private List<SecurityData> blendTransitionWeights(
+      List<SecurityData> securities,
+      List<ModelPortfolioAllocation> allocations,
+      List<ModelPortfolioAllocation> previousAllocations,
+      List<FundPosition> positions,
+      TulevaFund fund) {
 
-              return new SecurityData(a.getIsin(), a.getWeight(), actualWeight, today, previous);
-            })
+    if (previousAllocations.isEmpty()) {
+      return securities;
+    }
+
+    var currentIsins =
+        allocations.stream()
+            .map(ModelPortfolioAllocation::getIsin)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+    var previousIsins =
+        previousAllocations.stream()
+            .map(ModelPortfolioAllocation::getIsin)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+
+    var addedIsins = new HashSet<>(currentIsins);
+    addedIsins.removeAll(previousIsins);
+    var removedIsins = new HashSet<>(previousIsins);
+    removedIsins.removeAll(currentIsins);
+
+    if (addedIsins.isEmpty() && removedIsins.isEmpty()) {
+      return securities;
+    }
+
+    var positionIsins =
+        positions.stream()
+            .map(FundPosition::getAccountId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+
+    var knownIsins = new HashSet<>(currentIsins);
+    knownIsins.addAll(previousIsins);
+    var unexpectedIsins = new HashSet<>(positionIsins);
+    unexpectedIsins.removeAll(knownIsins);
+
+    if (!unexpectedIsins.isEmpty()) {
+      log.warn(
+          "Unexpected ISINs in portfolio, skipping transition blending: fund={}, unexpected={}",
+          fund,
+          unexpectedIsins);
+      return securities;
+    }
+
+    var removedAndHeld = new HashSet<>(removedIsins);
+    removedAndHeld.retainAll(positionIsins);
+
+    if (removedAndHeld.isEmpty()) {
+      return securities;
+    }
+
+    var transitionIsins = new HashSet<>(addedIsins);
+    transitionIsins.addAll(removedIsins);
+
+    log.info(
+        "Transition blending applied: fund={}, removedAndHeld={}, addedIsins={}",
+        fund,
+        removedAndHeld,
+        addedIsins);
+
+    return securities.stream()
+        .map(
+            s ->
+                transitionIsins.contains(s.isin())
+                    ? new SecurityData(
+                        s.isin(), s.actualWeight(), s.actualWeight(), s.today(), s.previous())
+                    : s)
         .toList();
+  }
+
+  private SecurityData buildOneSecurityData(
+      String isin,
+      BigDecimal modelWeight,
+      Map<String, FundPosition> todayByIsin,
+      BigDecimal totalNav,
+      LocalDate checkDate,
+      LocalDate previousDate,
+      Instant todayCutoff,
+      Instant yesterdayCutoff) {
+
+    var todayResolved =
+        positionPriceResolver
+            .resolve(isin, checkDate, todayCutoff)
+            .filter(rp -> rp.validationStatus() == ValidationStatus.OK)
+            .orElse(null);
+    var yesterdayResolved =
+        positionPriceResolver
+            .resolve(isin, previousDate, yesterdayCutoff)
+            .filter(rp -> rp.validationStatus() == ValidationStatus.OK)
+            .orElse(null);
+
+    var todayPos = todayByIsin.get(isin);
+    var actualMarketValue = todayPos != null ? todayPos.getMarketValue() : ZERO;
+    var actualWeight =
+        totalNav.signum() != 0 ? actualMarketValue.divide(totalNav, 6, RoundingMode.HALF_UP) : ZERO;
+
+    var today =
+        new PriceSnapshot(
+            todayResolved != null ? todayResolved.usedPrice() : null,
+            todayResolved != null ? todayResolved.priceDate() : null);
+    var previous =
+        new PriceSnapshot(
+            yesterdayResolved != null ? yesterdayResolved.usedPrice() : null,
+            yesterdayResolved != null ? yesterdayResolved.priceDate() : null);
+
+    return new SecurityData(isin, modelWeight, actualWeight, today, previous);
   }
 
   private Instant computePriceCutoff(TulevaFund fund, LocalDate navDate) {

@@ -3,11 +3,15 @@ package ee.tuleva.onboarding.kyb.survey;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.AddressDetails;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
 import org.junit.jupiter.api.Test;
 
 class KybSurveyResponseItemTest {
 
   private final ObjectMapper objectMapper = new ObjectMapper();
+  private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
   @Test
   void deserializesFullSurveyResponse() throws Exception {
@@ -16,7 +20,7 @@ class KybSurveyResponseItemTest {
         {
           "answers": [
             { "type": "BUSINESS_REGISTRY_NUMBER", "value": { "type": "TEXT", "value": "12345678" } },
-            { "type": "COMPANY_ADDRESS", "value": { "type": "ADDRESS", "value": { "countryCode": "EE", "street": "Paju 2", "city": "Tartu linn", "postalCode": "50104" } } },
+            { "type": "COMPANY_ADDRESS", "value": { "type": "ADDRESS", "value": { "fullAddress": "Tartu maakond, Tartu linn, Paju 2", "countryCode": "EE", "street": "Paju 2", "city": "Tartu linn", "postalCode": "50104" } } },
             { "type": "INVESTMENT_GOALS", "value": { "type": "OPTION", "value": "LONG_TERM" } },
             { "type": "INVESTABLE_ASSETS", "value": { "type": "OPTION", "value": "MORE_THAN_80K" } },
             { "type": "COMPANY_SOURCE_OF_INCOME", "value": [{ "type": "OPTION", "value": "ONLY_ACTIVE_IN_ESTONIA" }, { "type": "OPTION", "value": "NOT_IN_CRYPTO" }] }
@@ -40,6 +44,8 @@ class KybSurveyResponseItemTest {
     assertThat(registryNumber.value().value()).isEqualTo("12345678");
 
     var address = (KybSurveyResponseItem.CompanyAddress) response.answers().get(1);
+    assertThat(address.value().value().fullAddress())
+        .isEqualTo("Tartu maakond, Tartu linn, Paju 2");
     assertThat(address.value().value().countryCode()).isEqualTo("EE");
     assertThat(address.value().value().street()).isEqualTo("Paju 2");
     assertThat(address.value().value().city()).isEqualTo("Tartu linn");
@@ -53,5 +59,14 @@ class KybSurveyResponseItemTest {
 
     var sourceOfIncome = (KybSurveyResponseItem.CompanySourceOfIncome) response.answers().get(4);
     assertThat(sourceOfIncome.value()).hasSize(2);
+  }
+
+  @Test
+  void countryAndFullAddressAreOptionalButStreetCityPostalCodeAreRequired() {
+    var addressWithoutCountry = new AddressDetails(null, null, "Paju 2", "Tartu linn", "50104");
+    assertThat(validator.validate(addressWithoutCountry)).isEmpty();
+
+    var missingRequiredFields = new AddressDetails("Tartu maakond, Paju 2", "EE", null, "", "  ");
+    assertThat(validator.validate(missingRequiredFields)).hasSize(3);
   }
 }

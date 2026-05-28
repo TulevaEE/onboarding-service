@@ -103,48 +103,6 @@ class FundLimitRepositoryTest {
   }
 
   @Test
-  void findLatestByFund_returnsNewestEffectiveDate() {
-    var olderDate = LocalDate.of(2025, 6, 30);
-    var newerDate = LocalDate.of(2025, 11, 7);
-
-    var olderLimit =
-        FundLimit.builder()
-            .effectiveDate(olderDate)
-            .fund(TUK75)
-            .reserveSoft(new BigDecimal("400000.00"))
-            .minTransaction(new BigDecimal("40000.00"))
-            .build();
-
-    var newerLimit =
-        FundLimit.builder()
-            .effectiveDate(newerDate)
-            .fund(TUK75)
-            .reserveSoft(new BigDecimal("500000.00"))
-            .reserveHard(new BigDecimal("200000.00"))
-            .minTransaction(new BigDecimal("50000.00"))
-            .build();
-
-    entityManager.persist(olderLimit);
-    entityManager.persist(newerLimit);
-    entityManager.flush();
-
-    var result = repository.findLatestByFund(TUK75);
-
-    assertThat(result).isPresent();
-    assertThat(result.get().getEffectiveDate()).isEqualTo(newerDate);
-    assertThat(result.get().getReserveSoft()).isEqualByComparingTo("500000.00");
-    assertThat(result.get().getReserveHard()).isEqualByComparingTo("200000.00");
-    assertThat(result.get().getMinTransaction()).isEqualByComparingTo("50000.00");
-  }
-
-  @Test
-  void findLatestByFund_returnsEmptyWhenNoData() {
-    var result = repository.findLatestByFund(TUK75);
-
-    assertThat(result).isEmpty();
-  }
-
-  @Test
   void findLatestByFundAsOf_returnsLimitEffectiveOnOrBeforeAsOfDate() {
     var olderDate = LocalDate.of(2025, 6, 30);
     var newerDate = LocalDate.of(2026, 3, 30);

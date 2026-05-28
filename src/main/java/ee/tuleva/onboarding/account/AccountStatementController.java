@@ -31,6 +31,9 @@ public class AccountStatementController {
       @RequestParam(value = "from-date", required = false) LocalDate fromDate,
       @RequestParam(value = "to-date", required = false) LocalDate toDate,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    if (!authenticatedPerson.isActingAsSelf()) {
+      return List.of();
+    }
     List<FundBalance> fundBalances =
         accountStatementService.getAccountStatement(authenticatedPerson, fromDate, toDate);
     return convertToDtos(fundBalances, localeService.getCurrentLocale());

@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
+import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.savings.SavingsFundRecipientConfiguration;
 import ee.tuleva.onboarding.payment.savings.recurring.SavingsFundRecurringPaymentLinkGenerator;
 import java.time.LocalDate;
@@ -48,8 +49,10 @@ class PaymentControllerSavingsRecurringTest {
   private final SavingsFundRecipientConfiguration recipientConfiguration =
       new SavingsFundRecipientConfiguration();
   private final PaymentDateProvider paymentDateProvider = mock(PaymentDateProvider.class);
+  private final LocaleService localeService = new LocaleService();
   private final SavingsFundRecurringPaymentLinkGenerator realSavingsRecurringGenerator =
-      new SavingsFundRecurringPaymentLinkGenerator(recipientConfiguration, paymentDateProvider);
+      new SavingsFundRecurringPaymentLinkGenerator(
+          recipientConfiguration, paymentDateProvider, localeService);
 
   @BeforeEach
   void delegateSavingsRecurringToRealGenerator() {

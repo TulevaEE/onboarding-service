@@ -21,15 +21,25 @@ import org.springframework.stereotype.Component;
 class JobTriggerPoller {
 
   private static final Map<String, Supplier<Object>> EVENTS =
-      Map.of(
-          "TrackingDifferenceJob", RunTrackingDifferenceCheckRequested::new,
-          "TrackingDifferenceBackfillJob", RunTrackingDifferenceBackfillRequested::new,
-          "LimitCheckJob", RunLimitCheckRequested::new,
-          "LimitCheckBackfillJob", RunLimitCheckBackfillRequested::new,
-          "ReportImportJob", RunReportImportRequested::new,
-          "FundPositionImportJob", RunFundPositionImportRequested::new,
-          "FeeAccrualPositionSyncJob", RunFeeAccrualPositionSyncRequested::new,
-          "TransactionCommandJob", RunTransactionCommandRequested::new);
+      Map.ofEntries(
+          Map.entry("TrackingDifferenceJob", RunTrackingDifferenceCheckRequested::new),
+          Map.entry("TrackingDifferenceBackfillJob", RunTrackingDifferenceBackfillRequested::new),
+          Map.entry("LimitCheckJob", RunLimitCheckRequested::new),
+          Map.entry("LimitCheckBackfillJob", RunLimitCheckBackfillRequested::new),
+          Map.entry("ReportImportJob", RunReportImportRequested::new),
+          Map.entry("FundPositionImportJob", RunFundPositionImportRequested::new),
+          Map.entry("FeeAccrualPositionSyncJob", RunFeeAccrualPositionSyncRequested::new),
+          Map.entry("TransactionCommandJob", RunTransactionCommandRequested::new),
+          Map.entry(
+              "SebPendingTransactionReconciliationJob",
+              RunSebPendingTransactionReconciliationRequested::new),
+          Map.entry(
+              "SebPendingTransactionReconciliationBackfillJob",
+              RunSebPendingTransactionReconciliationBackfillRequested::new),
+          Map.entry("PortfolioCostBasisJob", RunPortfolioCostBasisRequested::new),
+          Map.entry("PortfolioCostBasisSelfHealJob", RunPortfolioCostBasisSelfHealRequested::new),
+          Map.entry("PortfolioReconciliationJob", RunPortfolioReconciliationRequested::new),
+          Map.entry("OverdueSettlementJob", RunOverdueSettlementRequested::new));
 
   private final JobTriggerRepository repository;
   private final ApplicationEventPublisher eventPublisher;

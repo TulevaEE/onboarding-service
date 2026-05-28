@@ -73,23 +73,17 @@ class EuronextValueRetrieverTest {
   @Test
   void usesIsinAsKeyWithXparSuffix() {
     var isin = FundTicker.getEuronextParisIsins().getFirst();
-    var mockResponse =
-        """
-        "Historical Data"
-        "From 2024-01-02 to 2024-01-02"
-        %s
-        Date;Open;High;Low;Last;Close;Number of Shares;Number of Trades;Turnover
-        02/01/2024;4.506;4.506;4.4925;4.497;4.495;3370;6;15147;4.494641
-        """
-            .formatted(isin);
 
-    server
-        .expect(
-            requestTo(
-                "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
-                    + isin
-                    + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-02"))
-        .andRespond(withSuccess(mockResponse, TEXT_PLAIN));
+    FundTicker.getEuronextParisIsins()
+        .forEach(
+            parisIsin ->
+                server
+                    .expect(
+                        requestTo(
+                            "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
+                                + parisIsin
+                                + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-02"))
+                    .andRespond(withSuccess(singleRowCsvResponse(parisIsin), TEXT_PLAIN)));
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 2));
@@ -267,6 +261,17 @@ class EuronextValueRetrieverTest {
         02/01/2024;4.506;4.506;4.4925;4.497;4.495;3370;6;15147;4.494641
         03/01/2024;0;0;0;0;0;0;0;0;0
         04/01/2024;4.4875;4.4875;4.4545;4.4545;4.452;4929;6;22006;4.464614
+        """
+        .formatted(isin);
+  }
+
+  private String singleRowCsvResponse(String isin) {
+    return """
+        "Historical Data"
+        "From 2024-01-02 to 2024-01-02"
+        %s
+        Date;Open;High;Low;Last;Close;Number of Shares;Number of Trades;Turnover
+        02/01/2024;4.506;4.506;4.4925;4.497;4.495;3370;6;15147;4.494641
         """
         .formatted(isin);
   }

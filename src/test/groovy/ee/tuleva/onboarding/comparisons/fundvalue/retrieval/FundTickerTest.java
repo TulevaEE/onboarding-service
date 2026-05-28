@@ -36,6 +36,16 @@ class FundTickerTest {
   }
 
   @Test
+  void amundiGlobalAggBondTradesOnEuronextParisNotXetra() {
+    var ticker = AMUNDI_GLOBAL_AGG_BOND_HEDGED;
+
+    assertThat(ticker.getYahooTicker()).isEqualTo("GAGH.PA");
+    assertThat(ticker.getEodhdTicker()).isEqualTo("GAGH.PA.EODHD");
+    assertThat(ticker.getEuronextParisStorageKey()).hasValue("LU1708330318.XPAR");
+    assertThat(ticker.getXetraStorageKey()).isEmpty();
+  }
+
+  @Test
   void getXetraIsinsReturnsOnlyXetraTradedEtfs() {
     assertThat(getXetraIsins())
         .containsExactlyInAnyOrder(
@@ -49,6 +59,11 @@ class FundTickerTest {
             "LU1291099718",
             "LU1291106356",
             "LU1291102447",
+            "FR0013209921",
+            "IE00BFNM3P36",
+            "IE00BH04GL39",
+            "LU0478205379",
+            "IE000AQ7A2X6",
             "IE00B4L5Y983",
             "IE00B4L5YC18",
             "IE00B3DKXQ41",
@@ -57,7 +72,7 @@ class FundTickerTest {
 
   @Test
   void getEuronextParisIsinsReturnsOnlyParisTradedEtfs() {
-    assertThat(getEuronextParisIsins()).containsExactly("IE000F60HVH9");
+    assertThat(getEuronextParisIsins()).containsExactlyInAnyOrder("IE000F60HVH9", "LU1708330318");
   }
 
   @Test

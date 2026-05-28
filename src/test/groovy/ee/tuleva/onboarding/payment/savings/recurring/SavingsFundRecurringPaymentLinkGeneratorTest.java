@@ -16,6 +16,7 @@ import static org.mockito.Mockito.mock;
 
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorResponse;
+import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentData.PaymentChannel;
 import ee.tuleva.onboarding.payment.PaymentDateProvider;
@@ -24,8 +25,11 @@ import ee.tuleva.onboarding.payment.PrefilledLink;
 import ee.tuleva.onboarding.payment.savings.SavingsFundRecipientConfiguration;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Locale;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.i18n.LocaleContextHolder;
 
 class SavingsFundRecurringPaymentLinkGeneratorTest {
 
@@ -37,15 +41,23 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
   private final SavingsFundRecipientConfiguration recipientConfiguration =
       new SavingsFundRecipientConfiguration();
   private final PaymentDateProvider paymentDateProvider = mock(PaymentDateProvider.class);
+  private final LocaleService localeService = new LocaleService();
 
   private final SavingsFundRecurringPaymentLinkGenerator generator =
-      new SavingsFundRecurringPaymentLinkGenerator(recipientConfiguration, paymentDateProvider);
+      new SavingsFundRecurringPaymentLinkGenerator(
+          recipientConfiguration, paymentDateProvider, localeService);
 
   @BeforeEach
   void setup() {
     recipientConfiguration.setRecipientName(RECIPIENT_NAME);
     recipientConfiguration.setRecipientIban(RECIPIENT_IBAN);
     given(paymentDateProvider.tenthDayOfMonth()).willReturn(FIRST_PAYMENT);
+    LocaleContextHolder.setLocale(Locale.ENGLISH);
+  }
+
+  @AfterEach
+  void cleanup() {
+    LocaleContextHolder.resetLocaleContext();
   }
 
   @Test
@@ -69,15 +81,34 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
     var link = prefilledLink(COOP);
 
     assertThat(link.url())
-        .startsWith("https://i.cooppank.ee/newpmt?")
-        .contains("whatform=PermPaymentNew")
-        .contains("SaajaNimi=Tuleva%20T%C3%A4iendav%20Kogumisfond")
-        .contains("SaajaKonto=EE711010220306707220")
-        .contains("MakseSumma=50")
-        .contains("MaksePohjus=38812121215")
-        .contains("MakseSagedus=3")
-        .contains("MakseEsimene=10.05.2026");
+        .startsWith("https://i.cooppank.ee/i/standing-orders/new?")
+        .contains("bname=Tuleva%20T%C3%A4iendav%20Kogumisfond")
+        .contains("bacc=EE711010220306707220")
+        .contains("amt=50")
+        .contains("cur=EUR")
+        .contains("desc=38812121215")
+        .contains("date=10.05.2026")
+        .contains("freq=2")
+        .contains("lang=en")
+        .doesNotContain(
+            "SaajaNimi",
+            "SaajaKonto",
+            "MaksePohjus",
+            "MakseSumma",
+            "MakseSagedus",
+            "MakseEsimene",
+            "whatform",
+            "newpmt");
     assertCommonRecipientFields(link);
+  }
+
+  @Test
+  void buildsCoopUrlWithEstonianLocale() {
+    LocaleContextHolder.setLocale(Locale.of("et"));
+
+    var link = prefilledLink(COOP);
+
+    assertThat(link.url()).contains("lang=ee").doesNotContain("lang=et");
   }
 
   @Test

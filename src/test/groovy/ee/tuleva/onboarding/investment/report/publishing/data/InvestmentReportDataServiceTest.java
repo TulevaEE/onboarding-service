@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
+import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
+import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisSnapshot;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -20,6 +22,7 @@ class InvestmentReportDataServiceTest {
 
   @Mock private NavReportViewRepository navReportRepository;
   @Mock private InstrumentReferenceRepository instrumentReferenceRepository;
+  @Mock private PortfolioCostBasisService costBasisService;
   @InjectMocks private InvestmentReportDataService service;
 
   private static final YearMonth MARCH_2026 = YearMonth.of(2026, 3);
@@ -57,6 +60,21 @@ class InvestmentReportDataServiceTest {
     var ref2 = instrumentRef("IE00BFG1TM61", "BlackRock ISF DW Screened", "BlackRock", "IE");
     given(instrumentReferenceRepository.findByIsinIn(List.of("IE0009FT4LX4", "IE00BFG1TM61")))
         .willReturn(List.of(ref1, ref2));
+    var cb1 =
+        new PortfolioCostBasisSnapshot(
+            "IE0009FT4LX4",
+            new BigDecimal("100"),
+            new BigDecimal("48.00"),
+            new BigDecimal("4800"),
+            NAV_DATE);
+    var cb2 =
+        new PortfolioCostBasisSnapshot(
+            "IE00BFG1TM61",
+            new BigDecimal("200"),
+            new BigDecimal("28.00"),
+            new BigDecimal("5600"),
+            NAV_DATE);
+    given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE)).willReturn(List.of(cb1, cb2));
 
     // No previous month data
     given(
@@ -75,10 +93,17 @@ class InvestmentReportDataServiceTest {
     assertThat(section.heading()).isEqualTo("Aktsiafondid");
     assertThat(section.rows()).hasSize(2);
     assertThat(section.rows().get(0).displayName()).isEqualTo("CCF Developed World");
+    assertThat(section.rows().get(0).avgCostPerUnit())
+        .isEqualByComparingTo(new BigDecimal("48.00"));
+    assertThat(section.rows().get(0).avgCostTotal()).isEqualByComparingTo(new BigDecimal("4800"));
     assertThat(section.rows().get(1).displayName()).isEqualTo("BlackRock ISF DW Screened");
+    assertThat(section.rows().get(1).avgCostPerUnit())
+        .isEqualByComparingTo(new BigDecimal("28.00"));
+    assertThat(section.rows().get(1).avgCostTotal()).isEqualByComparingTo(new BigDecimal("5600"));
 
     // 5000/12000 + 6000/12000 = 11000/12000
     assertThat(section.totalMarketValue()).isEqualByComparingTo(new BigDecimal("11000"));
+    assertThat(section.totalCost()).isEqualByComparingTo(new BigDecimal("10400"));
     assertThat(section.totalChange()).isNull();
 
     assertThat(ctx.cashRows()).hasSize(1);
@@ -115,6 +140,7 @@ class InvestmentReportDataServiceTest {
         .willReturn(List.of(sec, rec, settledRec, units));
     given(instrumentReferenceRepository.findByIsinIn(List.of("IE0009FT4LX4")))
         .willReturn(List.of());
+    given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE)).willReturn(List.of());
     given(
             navReportRepository.findLatestPublishedNavDate(
                 "TUK75", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 2, 28)))
@@ -149,6 +175,7 @@ class InvestmentReportDataServiceTest {
         .willReturn(List.of(sec, units));
     given(instrumentReferenceRepository.findByIsinIn(List.of("XX1234567890")))
         .willReturn(List.of());
+    given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE)).willReturn(List.of());
     given(
             navReportRepository.findLatestPublishedNavDate(
                 "TUK75", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 2, 28)))
@@ -181,6 +208,7 @@ class InvestmentReportDataServiceTest {
         .willReturn(List.of(sec, units));
     given(instrumentReferenceRepository.findByIsinIn(List.of("IE0009FT4LX4")))
         .willReturn(List.of());
+    given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE)).willReturn(List.of());
 
     // Previous month: security was 50% of NAV
     var prevDate = LocalDate.of(2026, 2, 28);
@@ -263,6 +291,7 @@ class InvestmentReportDataServiceTest {
         .willReturn(List.of(sec, zeroRec, cash, units));
     given(instrumentReferenceRepository.findByIsinIn(List.of("IE0009FT4LX4")))
         .willReturn(List.of());
+    given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE)).willReturn(List.of());
     given(
             navReportRepository.findLatestPublishedNavDate(
                 "TUK75", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 2, 28)))
@@ -295,6 +324,7 @@ class InvestmentReportDataServiceTest {
         .willReturn(List.of(sec, units));
     given(instrumentReferenceRepository.findByIsinIn(List.of("IE0009FT4LX4")))
         .willReturn(List.of());
+    given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE)).willReturn(List.of());
 
     // Previous month has a NAV date but empty rows
     var prevDate = LocalDate.of(2026, 2, 28);
@@ -333,6 +363,7 @@ class InvestmentReportDataServiceTest {
         .willReturn(List.of(sec, cash, rec, units));
     given(instrumentReferenceRepository.findByIsinIn(List.of("IE0009FT4LX4")))
         .willReturn(List.of());
+    given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE)).willReturn(List.of());
 
     // Previous month with cash and receivables
     var prevDate = LocalDate.of(2026, 2, 28);

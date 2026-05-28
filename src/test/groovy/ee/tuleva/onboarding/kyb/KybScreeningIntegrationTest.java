@@ -51,11 +51,13 @@ class KybScreeningIntegrationTest {
             PERSONAL_CODE,
             R,
             List.of(person),
-            new SelfCertification(true, true, true));
+            new SelfCertification(true, true, true),
+            "EE",
+            "Harju maakond, Tallinn, Pärnu mnt 1");
 
     var results = kybScreeningService.screen(data);
 
-    assertThat(results).hasSize(10).allMatch(KybCheck::success);
+    assertThat(results).hasSize(11).allMatch(KybCheck::success);
 
     var amlChecks =
         amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
@@ -71,6 +73,7 @@ class KybScreeningIntegrationTest {
             KYB_COMPANY_PEP,
             KYB_HIGH_RISK_NACE,
             KYB_COMPANY_LEGAL_FORM,
+            KYB_COMPANY_REGISTERED_IN_ESTONIA,
             KYB_SELF_CERTIFICATION,
             KYB_DATA_CHANGED);
     assertThat(amlChecks).allMatch(AmlCheck::isSuccess);
@@ -86,7 +89,9 @@ class KybScreeningIntegrationTest {
             PERSONAL_CODE,
             R,
             List.of(person),
-            new SelfCertification(true, true, true));
+            new SelfCertification(true, true, true),
+            "EE",
+            "Harju maakond, Tallinn, Pärnu mnt 1");
 
     var results = kybScreeningService.screen(data);
 
@@ -112,7 +117,9 @@ class KybScreeningIntegrationTest {
             PERSONAL_CODE,
             R,
             List.of(person),
-            new SelfCertification(true, true, true));
+            new SelfCertification(true, true, true),
+            "EE",
+            "Harju maakond, Tallinn, Pärnu mnt 1");
 
     kybScreeningService.screen(data);
 
@@ -122,7 +129,9 @@ class KybScreeningIntegrationTest {
             PERSONAL_CODE,
             CompanyStatus.L,
             List.of(person),
-            new SelfCertification(true, true, true));
+            new SelfCertification(true, true, true),
+            "EE",
+            "Harju maakond, Tallinn, Pärnu mnt 1");
 
     var secondResults = kybScreeningService.screen(changedData);
 
@@ -146,7 +155,9 @@ class KybScreeningIntegrationTest {
             PERSONAL_CODE,
             R,
             List.of(person),
-            new SelfCertification(true, true, true));
+            new SelfCertification(true, true, true),
+            "EE",
+            "Harju maakond, Tallinn, Pärnu mnt 1");
 
     var results = kybScreeningService.screen(data);
 

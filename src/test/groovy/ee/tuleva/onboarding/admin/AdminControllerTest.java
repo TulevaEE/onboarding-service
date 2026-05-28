@@ -27,6 +27,9 @@ import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.ChildIsNotAMinorException;
+import ee.tuleva.onboarding.party.ParentChildLinkRegistrationService;
+import ee.tuleva.onboarding.party.RepresentationType;
 import ee.tuleva.onboarding.savings.fund.CompanyAlreadyHasOnboardingStatusException;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
@@ -71,8 +74,20 @@ class AdminControllerTest {
   @MockitoBean private FundPositionImportJob fundPositionImportJob;
   @MockitoBean private RedemptionBatchJob redemptionBatchJob;
   @MockitoBean private SavingsFundOnboardingService savingsFundOnboardingService;
+  @MockitoBean private ParentChildLinkRegistrationService parentChildLinkRegistrationService;
   @MockitoBean private Clock clock;
   @MockitoBean private InvestmentReportPublisher investmentReportPublisher;
+
+  private static final String VALID_LINK_BODY =
+      """
+      {
+        "parentCode": "38812121215",
+        "childCode": "61506150006",
+        "childFirstName": "Mari",
+        "childLastName": "Maasikas",
+        "relationshipType": "LEGAL_REPRESENTATIVE"
+      }
+      """;
 
   @Test
   void fetchSebHistory_withValidToken_returnsOk() throws Exception {
@@ -471,6 +486,33 @@ class AdminControllerTest {
   }
 
   @Test
+  void recordBlackrockAdjustment_roundsAmountToTwoDecimalPlaces() throws Exception {
+    var result =
+        new BlackrockAdjustmentResult(
+            TulevaFund.TUK75,
+            LocalDate.of(2026, 4, 2),
+            BigDecimal.ZERO,
+            new BigDecimal("56980.96"),
+            new BigDecimal("56980.96"),
+            true);
+    given(
+            navFeeAccrualLedger.recordBlackrockAdjustment(
+                TulevaFund.TUK75, LocalDate.of(2026, 4, 2), new BigDecimal("56980.96")))
+        .willReturn(result);
+
+    mockMvc
+        .perform(
+            post("/admin/blackrock-adjustment")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("fundCode", "TUK75")
+                .param("amount", "56980.95999999999")
+                .param("date", "2026-04-02"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.targetBalance").value(56980.96));
+  }
+
+  @Test
   void recordBlackrockAdjustment_withInvalidToken_returnsUnauthorized() throws Exception {
     mockMvc
         .perform(
@@ -484,14 +526,18 @@ class AdminControllerTest {
   }
 
   @Test
-  void calculateNav_withOpsToken_returnsUnauthorized() throws Exception {
+  void calculateNav_withOpsToken_returnsOk() throws Exception {
+    var result = sampleNavResult(LocalDate.of(2026, 2, 17));
+    when(navCalculationService.calculate("TKF100", LocalDate.of(2026, 2, 17))).thenReturn(result);
+
     mockMvc
         .perform(
             post("/admin/calculate-nav")
                 .with(csrf())
                 .header("X-Admin-Token", "ops-token")
                 .param("date", "2026-02-17"))
-        .andExpect(status().isUnauthorized());
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.navPerUnit").value(1.0));
   }
 
   @Test
@@ -540,6 +586,20 @@ class AdminControllerTest {
             post("/admin/whitelist-company")
                 .with(csrf())
                 .header("X-Admin-Token", "valid-token")
+                .param("registryCode", "12345678"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("12345678")));
+
+    verify(savingsFundOnboardingService).whitelistLegalEntity("12345678", false);
+  }
+
+  @Test
+  void whitelistCompany_withOpsToken_delegatesToService() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/whitelist-company")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
                 .param("registryCode", "12345678"))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("12345678")));
@@ -662,6 +722,100 @@ class AdminControllerTest {
         .andExpect(status().isUnauthorized());
 
     verify(investmentReportPublisher, never()).publish(any());
+  }
+
+  @Test
+  void createParentChildLink_withValidToken_delegatesToService() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/parent-child-link")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(VALID_LINK_BODY))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("61506150006")));
+
+    verify(parentChildLinkRegistrationService)
+        .register(
+            "38812121215",
+            "61506150006",
+            "Mari",
+            "Maasikas",
+            RepresentationType.LEGAL_REPRESENTATIVE);
+  }
+
+  @Test
+  void createParentChildLink_withOpsToken_delegatesToService() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/parent-child-link")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .contentType(APPLICATION_JSON)
+                .content(VALID_LINK_BODY))
+        .andExpect(status().isOk());
+
+    verify(parentChildLinkRegistrationService)
+        .register(
+            "38812121215",
+            "61506150006",
+            "Mari",
+            "Maasikas",
+            RepresentationType.LEGAL_REPRESENTATIVE);
+  }
+
+  @Test
+  void createParentChildLink_withInvalidToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/parent-child-link")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .contentType(APPLICATION_JSON)
+                .content(VALID_LINK_BODY))
+        .andExpect(status().isUnauthorized());
+
+    verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void createParentChildLink_whenChildNotAMinor_returnsBadRequest() throws Exception {
+    doThrow(new ChildIsNotAMinorException("38812121215"))
+        .when(parentChildLinkRegistrationService)
+        .register(any(), any(), any(), any(), any());
+
+    mockMvc
+        .perform(
+            post("/admin/parent-child-link")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(VALID_LINK_BODY))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void createParentChildLink_withInvalidPersonalCode_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/parent-child-link")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "parentCode": "not-a-code",
+                      "childCode": "61506150006",
+                      "childFirstName": "Mari",
+                      "childLastName": "Maasikas",
+                      "relationshipType": "LEGAL_REPRESENTATIVE"
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any(), any());
   }
 
   private NavCalculationResult sampleNavResult(LocalDate date) {

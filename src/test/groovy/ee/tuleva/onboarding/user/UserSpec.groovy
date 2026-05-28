@@ -24,6 +24,26 @@ class UserSpec extends Specification {
 		violations.isEmpty()
 	}
 
+	def "validation passes for a minor user"() {
+		given:
+		def user = User.builder()
+				.firstName("Mari")
+				.lastName("Maasikas")
+				.personalCode("61506150006")
+				.email("mari@maasikas.ee")
+				.phoneNumber("5555555")
+				.createdDate(Instant.parse("2017-01-31T10:06:01Z"))
+				.updatedDate(Instant.parse("2017-01-31T10:06:01Z"))
+				.active(true)
+				.build()
+
+		when:
+		def violations = validator.validate(user)
+
+		then:
+		violations.isEmpty()
+	}
+
 	@Unroll
 	def "#propertyName #message"() {
 		given:
@@ -55,7 +75,6 @@ class UserSpec extends Specification {
 		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | null                                  | "erko@risthein.ee" | "5555555" | true   || "updatedDate"  | "must not be null"
 		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | " "                | "5555555" | true   || "email"        | "must be a well-formed email address"
 		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | "erko@risthein.ee" | "5555555" | null   || "active"       | "must not be null"
-		"Erko"    | "Risthein" | "59001010002"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | "erko@risthein.ee" | "5555555" | true   || "age"          | "must be greater than or equal to 18" // ticking time bomb. test will start failing in a hundred years :trollface:
 	}
 
 	def cleanup() {

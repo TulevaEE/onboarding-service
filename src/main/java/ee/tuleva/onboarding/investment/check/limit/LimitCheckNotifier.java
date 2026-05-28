@@ -78,14 +78,6 @@ class LimitCheckNotifier {
                       breach.reserveSoft(),
                       breach.reserveHard()));
         }
-
-        if (result.freeCashBreach() != null && result.freeCashBreach().severity() != OK) {
-          var breach = result.freeCashBreach();
-          message.append(
-              "\n[%s] FREE_CASH %s: freeCash=%s, max=%s"
-                  .formatted(
-                      breach.severity(), result.fund(), breach.freeCash(), breach.maxFreeCash()));
-        }
       }
 
       notificationService.sendMessage(message.toString(), INVESTMENT);

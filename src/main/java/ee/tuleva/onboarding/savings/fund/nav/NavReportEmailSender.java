@@ -33,6 +33,7 @@ class NavReportEmailSender {
 
     var fundCode = result.fund().getCode();
     var navDate = result.positionReportDate();
+    var calculationDate = result.calculationDate();
 
     var message = new MandrillMessage();
     message.setFromEmail("funds@tuleva.ee");
@@ -71,7 +72,7 @@ class NavReportEmailSender {
 
     var attachment = new MessageContent();
     attachment.setName(
-        fundCode + " NAV arvutamine " + navDate.format(FILENAME_DATE_FORMAT) + ".csv");
+        fundCode + " NAV arvutamine " + calculationDate.format(FILENAME_DATE_FORMAT) + ".csv");
     attachment.setType("text/csv");
     attachment.setContent(Base64.getEncoder().encodeToString(csvBytes));
     message.setAttachments(List.of(attachment));

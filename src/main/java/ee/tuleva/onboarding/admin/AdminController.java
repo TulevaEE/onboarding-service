@@ -19,13 +19,16 @@ import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublish
 import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.ParentChildLinkRegistrationService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionBatchJob;
 import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -61,6 +64,7 @@ public class AdminController {
   private final FundPositionImportJob fundPositionImportJob;
   private final RedemptionBatchJob redemptionBatchJob;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
+  private final ParentChildLinkRegistrationService parentChildLinkRegistrationService;
   private final Clock clock;
   private final Optional<InvestmentReportPublisher> investmentReportPublisher;
 
@@ -135,7 +139,7 @@ public class AdminController {
       @RequestParam(required = false) @DateTimeFormat(iso = DATE) LocalDate date,
       @RequestParam(defaultValue = "false") boolean publish) {
 
-    validateToken(token);
+    validateTokenWithOpsAccess(token);
 
     LocalDate calculationDate = date != null ? date : LocalDate.now(clock);
 
@@ -283,10 +287,29 @@ public class AdminController {
       @RequestParam String registryCode,
       @RequestParam(defaultValue = "false") boolean override) {
 
-    validateToken(token);
+    validateTokenWithOpsAccess(token);
     savingsFundOnboardingService.whitelistLegalEntity(registryCode, override);
 
     return "Whitelisted company: registryCode=" + registryCode;
+  }
+
+  @PostMapping("/parent-child-link")
+  public String createParentChildLink(
+      @RequestHeader("X-Admin-Token") String token,
+      @Valid @RequestBody CreateParentChildLinkRequest request) {
+
+    validateTokenWithOpsAccess(token);
+    parentChildLinkRegistrationService.register(
+        request.parentCode(),
+        request.childCode(),
+        request.childFirstName(),
+        request.childLastName(),
+        request.relationshipType());
+
+    return "Created parent-child link: parentCode="
+        + request.parentCode()
+        + ", childCode="
+        + request.childCode();
   }
 
   @PostMapping("/blackrock-adjustment")
@@ -299,13 +322,14 @@ public class AdminController {
     validateTokenWithOpsAccess(token);
 
     TulevaFund fund = TulevaFund.fromCode(fundCode);
+    BigDecimal roundedAmount = amount.setScale(2, RoundingMode.HALF_UP);
     log.info(
         "Admin triggered BlackRock adjustment: fund={}, date={}, targetBalance={}",
         fund,
         date,
-        amount);
+        roundedAmount);
 
-    return navFeeAccrualLedger.recordBlackrockAdjustment(fund, date, amount);
+    return navFeeAccrualLedger.recordBlackrockAdjustment(fund, date, roundedAmount);
   }
 
   @PostMapping("/publish-investment-reports")

@@ -87,25 +87,25 @@ public class Iso20022MarshallerTest {
     var firstEntry = parsed.getEntries().get(0);
     assertEquals("Toomas Raudsepp", firstEntry.details().getName());
     assertEquals("EE042200000000100031", firstEntry.details().getIban());
-    assertEquals(Optional.of("38009293505"), firstEntry.details().getPersonalCode());
+    assertEquals(Optional.of("38009293505"), firstEntry.details().getIdCode());
     assertEquals(0, new BigDecimal("772.88").compareTo(firstEntry.amount()));
 
     var secondEntry = parsed.getEntries().get(1);
     assertEquals("Kristjan Värk", secondEntry.details().getName());
     assertEquals("EE082200000000100056", secondEntry.details().getIban());
-    assertEquals(Optional.of("39609307495"), secondEntry.details().getPersonalCode());
+    assertEquals(Optional.of("39609307495"), secondEntry.details().getIdCode());
     assertEquals(0, new BigDecimal("612.37").compareTo(secondEntry.amount()));
 
     var thirdEntry = parsed.getEntries().get(2);
     assertEquals("Jüri Tamm", thirdEntry.details().getName());
     assertEquals("EE532200000000010006", thirdEntry.details().getIban());
-    assertEquals(Optional.of("39910273027"), thirdEntry.details().getPersonalCode());
+    assertEquals(Optional.of("39910273027"), thirdEntry.details().getIdCode());
     assertEquals(0, new BigDecimal("454.76").compareTo(thirdEntry.amount()));
 
     var fourthEntry = parsed.getEntries().get(3);
     assertEquals("Rasmus Lind", fourthEntry.details().getName());
     assertEquals("EE522200000000100040", fourthEntry.details().getIban());
-    assertEquals(Optional.of("37603135585"), fourthEntry.details().getPersonalCode());
+    assertEquals(Optional.of("37603135585"), fourthEntry.details().getIdCode());
     assertEquals(0, new BigDecimal("726.06").compareTo(fourthEntry.amount()));
   }
 }

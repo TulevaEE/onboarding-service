@@ -323,38 +323,65 @@ class SavingFundPaymentRepositoryTest {
   }
 
   @Test
-  void findDepositBankAccountIbans() {
+  void findWithdrawableIbans() {
     var user1 = createUser("37706154772");
     var user2 = createUser("36407145233");
+    var code1 = user1.getPersonalCode();
+    var code2 = user2.getPersonalCode();
 
     var id1 =
         repository.savePaymentData(
-            createPayment().externalId("1").remitterIban("EE111111111111111111").build());
+            createPayment()
+                .externalId("1")
+                .remitterIban("EE111111111111111111")
+                .remitterIdCode(code1)
+                .build());
     var id2 =
         repository.savePaymentData(
-            createPayment().externalId("2").remitterIban("EE222222222222222222").build());
+            createPayment()
+                .externalId("2")
+                .remitterIban("EE222222222222222222")
+                .remitterIdCode(code1)
+                .build());
     var id3 =
         repository.savePaymentData(
-            createPayment().externalId("3").remitterIban("EE333333333333333333").build());
+            createPayment()
+                .externalId("3")
+                .remitterIban("EE333333333333333333")
+                .remitterIdCode(code1)
+                .build());
     var id4 =
         repository.savePaymentData(
-            createPayment().externalId("4").remitterIban("EE111111111111111111").build());
+            createPayment()
+                .externalId("4")
+                .remitterIban("EE111111111111111111")
+                .remitterIdCode(code1)
+                .build());
     var id5 =
         repository.savePaymentData(
-            createPayment().externalId("5").remitterIban("EE444444444444444444").build());
+            createPayment()
+                .externalId("5")
+                .remitterIban("EE444444444444444444")
+                .remitterIdCode(code1)
+                .build());
     var id6 =
         repository.savePaymentData(
-            createPayment().externalId("6").remitterIban("EE555555555555555555").build());
+            createPayment()
+                .externalId("6")
+                .remitterIban("EE555555555555555555")
+                .remitterIdCode(code2)
+                .build());
     var id7 =
         repository.savePaymentData(
             createPayment()
                 .externalId("7")
                 .remitterIban("EE666666666666666666")
+                .remitterIdCode(code1)
                 .amount(new BigDecimal("-50.00"))
                 .build());
 
-    var party1 = new PartyId(PERSON, user1.getPersonalCode());
-    var party2 = new PartyId(PERSON, user2.getPersonalCode());
+    var party1 = new PartyId(PERSON, code1);
+    var party2 = new PartyId(PERSON, code2);
     repository.attachParty(id1, party1);
     repository.attachParty(id2, party1);
     repository.attachParty(id3, party1);
@@ -371,10 +398,43 @@ class SavingFundPaymentRepositoryTest {
     updatePaymentStatus(id6, RESERVED);
     updatePaymentStatus(id7, PROCESSED);
 
-    var result = repository.findDepositBankAccountIbans(party1);
+    var result = repository.findWithdrawableIbans(party1);
 
     assertThat(result)
         .containsExactly("EE111111111111111111", "EE222222222222222222", "EE333333333333333333");
+  }
+
+  @Test
+  void findWithdrawableIbansExcludesIbansDepositedByAnotherParty() {
+    var child = createUser("37706154772");
+    var childCode = child.getPersonalCode();
+    var parentCode = "38812121215";
+
+    var selfDeposit =
+        repository.savePaymentData(
+            createPayment()
+                .externalId("self")
+                .remitterIban("EE111111111111111111")
+                .remitterIdCode(childCode)
+                .build());
+    var parentDeposit =
+        repository.savePaymentData(
+            createPayment()
+                .externalId("parent")
+                .remitterIban("EE222222222222222222")
+                .remitterIdCode(parentCode)
+                .build());
+
+    var childParty = new PartyId(PERSON, childCode);
+    repository.attachParty(selfDeposit, childParty);
+    repository.attachParty(parentDeposit, childParty);
+
+    updatePaymentStatus(selfDeposit, PROCESSED);
+    updatePaymentStatus(parentDeposit, PROCESSED);
+
+    var result = repository.findWithdrawableIbans(childParty);
+
+    assertThat(result).containsExactly("EE111111111111111111");
   }
 
   private SavingFundPayment.SavingFundPaymentBuilder createPayment() {

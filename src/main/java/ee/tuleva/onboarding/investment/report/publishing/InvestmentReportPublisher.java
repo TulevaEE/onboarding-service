@@ -186,8 +186,6 @@ public class InvestmentReportPublisher {
     return null;
   }
 
-  // TODO: B1 — validate all instruments have avg_cost_per_unit once cost basis data
-  //       is available from transaction registry migration
-  // TODO: B2 — validate instrument quantities match between NAV report and transaction
+  // TODO: validate instrument quantities match between NAV report and transaction
   //       registry settled positions (safety net for late-arriving settlement data)
 }

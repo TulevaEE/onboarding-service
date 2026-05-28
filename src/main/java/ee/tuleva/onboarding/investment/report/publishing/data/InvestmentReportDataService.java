@@ -5,6 +5,8 @@ import ee.tuleva.onboarding.investment.report.publishing.FundReportMapping;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext.SecuritySection;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportRow;
+import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
+import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisSnapshot;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -29,6 +31,7 @@ public class InvestmentReportDataService {
 
   private final NavReportViewRepository navReportRepository;
   private final InstrumentReferenceRepository instrumentReferenceRepository;
+  private final PortfolioCostBasisService costBasisService;
 
   public Map<String, LocalDate> findNavDatesForAllFunds(YearMonth month) {
     var startDate = month.atDay(1);
@@ -86,7 +89,11 @@ public class InvestmentReportDataService {
 
     var instrumentMap = loadInstrumentMap(securities);
 
-    var securityRows = buildSecurityRows(securities, instrumentMap, fundNav);
+    var costBasisMap =
+        costBasisService.snapshotForFundAndDate(fund, navDate).stream()
+            .collect(Collectors.toMap(PortfolioCostBasisSnapshot::instrumentIsin, s -> s));
+
+    var securityRows = buildSecurityRows(securities, instrumentMap, costBasisMap, fundNav);
     var secTotalCost =
         securityRows.stream()
             .map(InvestmentReportRow::avgCostTotal)
@@ -168,6 +175,7 @@ public class InvestmentReportDataService {
   private List<InvestmentReportRow> buildSecurityRows(
       List<NavReportView> securities,
       Map<String, InstrumentReference> instrumentMap,
+      Map<String, PortfolioCostBasisSnapshot> costBasisMap,
       BigDecimal fundNav) {
     return securities.stream()
         .map(
@@ -181,14 +189,18 @@ public class InvestmentReportDataService {
                       ? sec.getMarketValue().divide(fundNav, 6, RoundingMode.HALF_UP)
                       : BigDecimal.ZERO;
 
+              var costBasis = costBasisMap.get(sec.getAccountId());
+              var avgCostPerUnit = costBasis != null ? costBasis.avgUnitCost() : null;
+              var avgCostTotal = costBasis != null ? costBasis.totalCost() : null;
+
               return new InvestmentReportRow(
                   displayName,
                   manager,
                   sec.getAccountId(),
                   country,
                   "EUR",
-                  null,
-                  null,
+                  avgCostPerUnit,
+                  avgCostTotal,
                   sec.getMarketPrice(),
                   sec.getMarketValue(),
                   navPct,

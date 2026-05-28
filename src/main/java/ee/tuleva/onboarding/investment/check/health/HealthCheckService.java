@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.PASS;
-import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_UNIT_IMPACT;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -59,7 +58,9 @@ public class HealthCheckService {
     var unitsPositions = filterByType(positions, UNITS);
     var receivables = filterByType(positions, RECEIVABLES);
     var liabilities = filterByType(positions, LIABILITY);
-    var allocations = modelPortfolioAllocationRepository.findLatestByFund(fund);
+    var allocations = modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, navDate);
+    var previousAllocations =
+        modelPortfolioAllocationRepository.findPreviousByFundAsOf(fund, navDate);
 
     var previousNavDate =
         fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, navDate.minusDays(1));
@@ -92,13 +93,12 @@ public class HealthCheckService {
 
     var findings = new ArrayList<HealthCheckFinding>();
     findings.addAll(completenessChecker.check(fund, navDate, positions));
-    findings.addAll(isinMatchChecker.check(fund, securities, allocations));
+    findings.addAll(isinMatchChecker.check(fund, securities, allocations, previousAllocations));
     findings.addAll(outstandingUnitsChecker.check(fund, navDate, unitsPositions));
     findings.addAll(
         unitReconciliationChecker.check(
             fund, navDate, unitsPositions, authoritativeUnits, threshold));
-    findings.addAll(
-        navUnitImpactChecker.check(fund, navDate, reportedUnits, authoritativeUnits, aum));
+    findings.addAll(navUnitImpactChecker.check(fund, reportedUnits, authoritativeUnits, aum));
     findings.addAll(
         receivablesChecker.check(
             fund, securities, previousSecurities, receivables, previousReceivables));
@@ -109,13 +109,6 @@ public class HealthCheckService {
     saveEvents(fund, navDate, findings);
 
     return new HealthCheckResult(fund, navDate, findings);
-  }
-
-  public boolean isNavPublishBlocked(TulevaFund fund, LocalDate navDate) {
-    return healthCheckEventRepository
-        .findTopByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(fund, navDate, NAV_UNIT_IMPACT)
-        .map(HealthCheckEvent::isIssuesFound)
-        .orElse(false);
   }
 
   private BigDecimal resolveAum(

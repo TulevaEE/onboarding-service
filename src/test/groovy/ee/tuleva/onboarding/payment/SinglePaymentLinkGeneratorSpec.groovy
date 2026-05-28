@@ -5,7 +5,10 @@ import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioPaymentLinkGenerator
 import ee.tuleva.onboarding.payment.recurring.CoopPankPaymentLinkGenerator
 import ee.tuleva.onboarding.payment.PaymentDateProvider
+import org.springframework.context.i18n.LocaleContextHolder
 import spock.lang.Specification
+
+import java.util.Locale
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.config.JsonMapperFixture.jsonMapper
@@ -29,6 +32,14 @@ class SinglePaymentLinkGeneratorSpec extends Specification {
   MontonioPaymentLinkGenerator paymentProviderLinkGenerator = Mock()
   SinglePaymentLinkGenerator singlePaymentLinkGenerator =
       new SinglePaymentLinkGenerator(coopPankPaymentLinkGenerator, paymentProviderLinkGenerator)
+
+  def setup() {
+    LocaleContextHolder.setLocale(Locale.ENGLISH)
+  }
+
+  def cleanup() {
+    LocaleContextHolder.resetLocaleContext()
+  }
 
 
   def "can get a single payment link"() {
@@ -79,7 +90,7 @@ class SinglePaymentLinkGeneratorSpec extends Specification {
 
     then:
     returnedLink instanceof PrefilledLink
-    returnedLink.url() == "newpmt-eng?SaajaNimi=AS%20Pensionikeskus&SaajaKonto=EE362200221067235244&MaksePohjus=30101119828%2c%20EE3600001707&ViiteNumber=993432432"
+    returnedLink.url() == "i/payments/new?bname=AS%20Pensionikeskus&bacc=EE362200221067235244&cur=EUR&desc=30101119828%2C%20EE3600001707&ref=993432432&lang=en"
     (returnedLink as PrefilledLink).recipientName() == "AS Pensionikeskus"
     (returnedLink as PrefilledLink).recipientIban() == "EE362200221067235244"
     (returnedLink as PrefilledLink).description() == "30101119828, EE3600001707"

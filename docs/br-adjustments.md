@@ -19,6 +19,7 @@ given fund and date. The system computes the delta from whatever is currently in
 
 - Re-submitting the same value is safe (no duplicate entries)
 - Corrections work automatically (submit the corrected value, the system records the difference)
+- Amounts are rounded to 2 decimal places server-side (floating-point artifacts like `56980.95999999999` are handled automatically)
 
 ## Recording adjustments
 

@@ -100,12 +100,13 @@ public class SavingFundPaymentRepository {
         this::rowMapper);
   }
 
-  public List<String> findDepositBankAccountIbans(PartyId partyId) {
+  public List<String> findWithdrawableIbans(PartyId partyId) {
     return jdbcTemplate.query(
         """
             SELECT DISTINCT remitter_iban
             FROM saving_fund_payment
             WHERE party_type = :party_type AND party_code = :party_code
+              AND remitter_id_code = :party_code
               AND status IN (:statuses)
               AND amount > 0
               AND remitter_iban IS NOT NULL

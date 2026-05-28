@@ -250,7 +250,7 @@ public class FundValueIntegrityChecker {
           .orphanedData(orphanedData)
           .build();
     } catch (Exception e) {
-      log.error("Failed to verify data integrity for fund {}: {}", fundTicker, e.getMessage(), e);
+      log.warn("Skipping integrity check: fund={}, reason={}", fundTicker, e.getMessage());
       return IntegrityCheckResult.empty();
     }
   }

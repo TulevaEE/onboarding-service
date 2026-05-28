@@ -412,6 +412,32 @@ class InvestmentReportDataServiceTest {
   }
 
   @Test
+  void findNavDatesForAllFundsReturnsAvailableDates() {
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", MARCH_2026.atDay(1), MARCH_2026.atEndOfMonth()))
+        .willReturn(NAV_DATE);
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK00", MARCH_2026.atDay(1), MARCH_2026.atEndOfMonth()))
+        .willReturn(NAV_DATE);
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUV100", MARCH_2026.atDay(1), MARCH_2026.atEndOfMonth()))
+        .willReturn(NAV_DATE);
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TKF100", MARCH_2026.atDay(1), MARCH_2026.atEndOfMonth()))
+        .willReturn(null);
+
+    var result = service.findNavDatesForAllFunds(MARCH_2026);
+
+    assertThat(result).hasSize(3);
+    assertThat(result).containsKeys("TUK75", "TUK00", "TUV100");
+    assertThat(result).doesNotContainKey("TKF100");
+  }
+
+  @Test
   void validateQuantitiesReturnsEmptyWhenQuantitiesMatch() {
     var sec =
         navRow(

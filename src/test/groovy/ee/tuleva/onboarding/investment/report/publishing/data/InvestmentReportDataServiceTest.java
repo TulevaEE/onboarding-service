@@ -411,6 +411,100 @@ class InvestmentReportDataServiceTest {
     assertThat(InvestmentReportDataService.formatCashAccount(null).institution()).isNull();
   }
 
+  @Test
+  void validateQuantitiesReturnsEmptyWhenQuantitiesMatch() {
+    var sec =
+        navRow(
+            "SECURITY",
+            "Fund A",
+            "IE0009FT4LX4",
+            new BigDecimal("100"),
+            new BigDecimal("50"),
+            new BigDecimal("5000"));
+    var units = navRow("UNITS", "Total", null, null, null, new BigDecimal("5000"));
+
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", MARCH_2026.atDay(1), MARCH_2026.atEndOfMonth()))
+        .willReturn(NAV_DATE);
+    given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
+        .willReturn(List.of(sec, units));
+    given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE))
+        .willReturn(
+            List.of(
+                new PortfolioCostBasisSnapshot(
+                    "IE0009FT4LX4",
+                    new BigDecimal("100"),
+                    new BigDecimal("48"),
+                    new BigDecimal("4800"),
+                    NAV_DATE)));
+
+    assertThat(service.validateQuantities(TUK75, MARCH_2026)).isEmpty();
+  }
+
+  @Test
+  void validateQuantitiesReportsMismatch() {
+    var sec =
+        navRow(
+            "SECURITY",
+            "Fund A",
+            "IE0009FT4LX4",
+            new BigDecimal("100"),
+            new BigDecimal("50"),
+            new BigDecimal("5000"));
+    var units = navRow("UNITS", "Total", null, null, null, new BigDecimal("5000"));
+
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", MARCH_2026.atDay(1), MARCH_2026.atEndOfMonth()))
+        .willReturn(NAV_DATE);
+    given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
+        .willReturn(List.of(sec, units));
+    given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE))
+        .willReturn(
+            List.of(
+                new PortfolioCostBasisSnapshot(
+                    "IE0009FT4LX4",
+                    new BigDecimal("95"),
+                    new BigDecimal("48"),
+                    new BigDecimal("4560"),
+                    NAV_DATE)));
+
+    var errors = service.validateQuantities(TUK75, MARCH_2026);
+
+    assertThat(errors).hasSize(1);
+    assertThat(errors.getFirst())
+        .contains("quantity mismatch")
+        .contains("NAV=100")
+        .contains("costBasis=95");
+  }
+
+  @Test
+  void validateQuantitiesReportsMissingCostBasis() {
+    var sec =
+        navRow(
+            "SECURITY",
+            "Fund A",
+            "IE0009FT4LX4",
+            new BigDecimal("100"),
+            new BigDecimal("50"),
+            new BigDecimal("5000"));
+    var units = navRow("UNITS", "Total", null, null, null, new BigDecimal("5000"));
+
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", MARCH_2026.atDay(1), MARCH_2026.atEndOfMonth()))
+        .willReturn(NAV_DATE);
+    given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
+        .willReturn(List.of(sec, units));
+    given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE)).willReturn(List.of());
+
+    var errors = service.validateQuantities(TUK75, MARCH_2026);
+
+    assertThat(errors).hasSize(1);
+    assertThat(errors.getFirst()).contains("no cost basis data");
+  }
+
   private NavReportView navRow(
       String accountType,
       String accountName,

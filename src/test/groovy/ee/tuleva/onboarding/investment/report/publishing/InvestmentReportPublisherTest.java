@@ -37,6 +37,11 @@ class InvestmentReportPublisherTest {
 
   private static final YearMonth MARCH_2026 = YearMonth.of(2026, 3);
 
+  @org.junit.jupiter.api.BeforeEach
+  void setUp() {
+    lenient().when(dataService.validateQuantities(any(), eq(MARCH_2026))).thenReturn(List.of());
+  }
+
   private static final Map<String, LocalDate> CONSISTENT_NAV_DATES =
       Map.of(
           "TUK75", LocalDate.of(2026, 3, 31),

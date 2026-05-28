@@ -43,6 +43,15 @@ public class InvestmentReportPublisher {
       return new InvestmentReportPublishingResult(Map.of(), null, null, navDateErrors);
     }
 
+    // Pre-publish validation: quantity reconciliation (warning only)
+    for (var mapping : FundReportMapping.all()) {
+      var quantityWarnings = dataService.validateQuantities(mapping.fund(), month);
+      if (!quantityWarnings.isEmpty()) {
+        log.warn(
+            "Quantity mismatch warnings for {}: {}", mapping.fund().getCode(), quantityWarnings);
+      }
+    }
+
     var errors = new ArrayList<String>();
     var pdfs = new LinkedHashMap<FundReportMapping, byte[]>();
     var wpUrls = new LinkedHashMap<String, String>();
@@ -185,7 +194,4 @@ public class InvestmentReportPublisher {
     }
     return null;
   }
-
-  // TODO: validate instrument quantities match between NAV report and transaction
-  //       registry settled positions (safety net for late-arriving settlement data)
 }

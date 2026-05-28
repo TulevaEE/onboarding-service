@@ -48,6 +48,43 @@ public class InvestmentReportDataService {
     return result;
   }
 
+  public List<String> validateQuantities(TulevaFund fund, YearMonth month) {
+    var startDate = month.atDay(1);
+    var endDate = month.atEndOfMonth();
+    var navDate =
+        navReportRepository.findLatestPublishedNavDate(fund.getCode(), startDate, endDate);
+    if (navDate == null) {
+      return List.of();
+    }
+
+    var navRows =
+        navReportRepository.findPublishedByNavDateAndFundCode(navDate, fund.getCode()).stream()
+            .filter(r -> "SECURITY".equals(r.getAccountType()))
+            .toList();
+
+    var costBasisMap =
+        costBasisService.snapshotForFundAndDate(fund, navDate).stream()
+            .collect(Collectors.toMap(PortfolioCostBasisSnapshot::instrumentIsin, s -> s));
+
+    var errors = new ArrayList<String>();
+    for (var nav : navRows) {
+      var isin = nav.getAccountId();
+      var snapshot = costBasisMap.get(isin);
+      if (snapshot == null) {
+        errors.add(
+            "%s %s: no cost basis data (NAV quantity=%s)"
+                .formatted(fund.getCode(), isin, nav.getQuantity()));
+        continue;
+      }
+      if (nav.getQuantity() != null && nav.getQuantity().compareTo(snapshot.quantity()) != 0) {
+        errors.add(
+            "%s %s: quantity mismatch — NAV=%s, costBasis=%s"
+                .formatted(fund.getCode(), isin, nav.getQuantity(), snapshot.quantity()));
+      }
+    }
+    return errors;
+  }
+
   public InvestmentReportContext getReportData(TulevaFund fund, YearMonth month) {
     var mapping = FundReportMapping.forFund(fund);
     var startDate = month.atDay(1);

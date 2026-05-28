@@ -50,6 +50,7 @@ class FundValueIndexingJobSpec extends Specification {
     ListAppender<ILoggingEvent> logAppender = new ListAppender<>()
 
     def setup() {
+        fundValueRetriever.trackingProvider() >> Optional.empty()
         logAppender.start()
         jobLogger.addAppender(logAppender)
     }
@@ -104,6 +105,43 @@ class FundValueIndexingJobSpec extends Specification {
         then:
         0 * fundValueRetriever.retrieveValuesForRange(_, _)
         0 * fundValueRepository.saveAll(_ as List<FundValue>)
+    }
+
+    def "tracks last date by provider for retrievers that declare a tracking provider"() {
+        given:
+        def eodhd = Mock(ComparisonIndexRetriever)
+        eodhd.getKey() >> EODHDValueRetriever.KEY
+        eodhd.trackingProvider() >> Optional.of(EODHDValueRetriever.PROVIDER)
+        eodhd.stalenessThreshold() >> Duration.ofDays(7)
+        def lastDate = LocalDate.parse("2026-03-01")
+        fundValueRepository.findLatestDateForProvider(EODHDValueRetriever.PROVIDER) >> Optional.of(lastDate)
+
+        def job = new FundValueIndexingJob(
+            fundValueRepository, [eodhd], Mock(Environment), fundNavRetrieverFactory, CLOCK, publicHolidays)
+
+        when:
+        job.refreshAll()
+
+        then:
+        1 * eodhd.retrieveValuesForRange(LocalDate.parse("2026-03-02"), TODAY) >> []
+        0 * fundValueRepository.findLastValueForFund(_)
+    }
+
+    def "downloads full history when a provider-tracked retriever has no stored values"() {
+        given:
+        def eodhd = Mock(ComparisonIndexRetriever)
+        eodhd.getKey() >> EODHDValueRetriever.KEY
+        eodhd.trackingProvider() >> Optional.of(EODHDValueRetriever.PROVIDER)
+        fundValueRepository.findLatestDateForProvider(EODHDValueRetriever.PROVIDER) >> Optional.empty()
+
+        def job = new FundValueIndexingJob(
+            fundValueRepository, [eodhd], Mock(Environment), fundNavRetrieverFactory, CLOCK, publicHolidays)
+
+        when:
+        job.refreshAll()
+
+        then:
+        1 * eodhd.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
     }
 
     def "logs ERROR when a daily index is past its 7-day staleness threshold"() {
@@ -178,6 +216,8 @@ class FundValueIndexingJobSpec extends Specification {
         def retriever2 = Mock(ComparisonIndexRetriever)
         retriever1.getKey() >> "FUND_A"
         retriever2.getKey() >> "FUND_B"
+        retriever1.trackingProvider() >> Optional.empty()
+        retriever2.trackingProvider() >> Optional.empty()
         fundValueRepository.findLastValueForFund(_) >> Optional.empty()
 
         def job = new FundValueIndexingJob(
@@ -202,6 +242,8 @@ class FundValueIndexingJobSpec extends Specification {
         def successRetriever = Mock(ComparisonIndexRetriever)
         failingRetriever.getKey() >> "FAILING_FUND"
         successRetriever.getKey() >> "SUCCESS_FUND"
+        failingRetriever.trackingProvider() >> Optional.empty()
+        successRetriever.trackingProvider() >> Optional.empty()
         fundValueRepository.findLastValueForFund(_) >> Optional.empty()
 
         def job = new FundValueIndexingJob(
@@ -224,6 +266,7 @@ class FundValueIndexingJobSpec extends Specification {
         given:
         def dynamicRetriever = Mock(ComparisonIndexRetriever)
         dynamicRetriever.getKey() >> "DYNAMIC_FUND"
+        dynamicRetriever.trackingProvider() >> Optional.empty()
         fundNavRetrieverFactory.createAll() >> [dynamicRetriever]
 
         fundValueRetriever.getKey() >> UnionStockIndexRetriever.KEY
@@ -277,6 +320,10 @@ class FundValueIndexingJobSpec extends Specification {
         cpi.getKey() >> "CPI"
         dynamicEePensionFund.getKey() >> "EE3600109435"
 
+        [blackrock, morningstar, eodhd, xetra, euronext, yahoo].each {
+            it.trackingProvider() >> Optional.empty()
+        }
+
         fundValueRepository.findLastValueForFund(_) >> Optional.empty()
         fundNavRetrieverFactory.createAll() >> [dynamicEePensionFund]
 
@@ -315,6 +362,7 @@ class FundValueIndexingJobSpec extends Specification {
         def anyDayRetriever = Mock(ComparisonIndexRetriever)
         anyDayRetriever.getKey() >> "CPI_INDEX"
         anyDayRetriever.requiresWorkingDay() >> false
+        anyDayRetriever.trackingProvider() >> Optional.empty()
         fundValueRepository.findLastValueForFund("CPI_INDEX") >> Optional.empty()
 
         def job = new FundValueIndexingJob(

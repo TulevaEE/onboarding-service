@@ -103,14 +103,14 @@ public class FundValueIndexingJob {
   private Optional<LocalDate> getStartDate(ComparisonIndexRetriever retriever) {
     String fund = retriever.getKey();
     LocalDate today = LocalDate.now(clock);
-    Optional<FundValue> fundValue = fundValueRepository.findLastValueForFund(fund);
+    Optional<LocalDate> latestStoredDate = findLatestStoredDate(retriever);
 
-    if (fundValue.isEmpty()) {
+    if (latestStoredDate.isEmpty()) {
       log.info("No info for comparison fund {} so downloading all data until today", fund);
       return Optional.of(EARLIEST_DATE);
     }
 
-    LocalDate lastUpdate = fundValue.get().date();
+    LocalDate lastUpdate = latestStoredDate.get();
     if (lastUpdate.equals(today)) {
       log.info("Last update for comparison fund {}: {}. Not updating", fund, lastUpdate);
       return Optional.empty();
@@ -123,6 +123,14 @@ public class FundValueIndexingJob {
     logIfStale(retriever, lastUpdate, today);
 
     return Optional.of(startDate);
+  }
+
+  private Optional<LocalDate> findLatestStoredDate(ComparisonIndexRetriever retriever) {
+    Optional<String> provider = retriever.trackingProvider();
+    if (provider.isPresent()) {
+      return fundValueRepository.findLatestDateForProvider(provider.get());
+    }
+    return fundValueRepository.findLastValueForFund(retriever.getKey()).map(FundValue::date);
   }
 
   private void logIfStale(

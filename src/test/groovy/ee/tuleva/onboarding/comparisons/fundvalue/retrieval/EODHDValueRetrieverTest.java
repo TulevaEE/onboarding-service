@@ -45,6 +45,11 @@ class EODHDValueRetrieverTest {
   }
 
   @Test
+  void tracksLatestStoredDateByProvider() {
+    assertThat(retriever.trackingProvider()).contains("EODHD");
+  }
+
+  @Test
   void stripsProviderSuffixFromApiCallButKeepsItInStoredKey() {
     var mockResponse =
         """

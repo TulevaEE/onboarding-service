@@ -41,6 +41,11 @@ class BlackRockFundValueRetrieverTest {
   }
 
   @Test
+  void tracksLatestStoredDateByProvider() {
+    assertThat(retriever.trackingProvider()).contains("BLACKROCK");
+  }
+
+  @Test
   void parsesNavDataWithCorrectMonthOffset() {
     var fund = FundTicker.getBlackrockFunds().getFirst();
     var storageKey = fund.getBlackrockStorageKey().orElseThrow();

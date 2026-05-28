@@ -681,6 +681,9 @@ class TrackingDifferenceService {
     int lookback;
     try {
       lookback = calculator.escalationLookbackDays(checkDate);
+    } catch (IllegalStateException e) {
+      log.error("Invalid escalation parameter configuration: {}", e.getMessage());
+      lookback = ESCALATION_LOOKBACK_FALLBACK;
     } catch (Exception e) {
       lookback = ESCALATION_LOOKBACK_FALLBACK;
     }
@@ -713,6 +716,9 @@ class TrackingDifferenceService {
             (List<Map<String, Object>>) result.getOrDefault("securityAttributions", List.of());
         for (var attr : attrs) {
           var isin = (String) attr.get("isin");
+          if (isin == null || isin.isBlank()) {
+            continue;
+          }
           var contribution = toBd(attr.get("contribution"));
           contributionByIsin.merge(isin, contribution, BigDecimal::add);
         }

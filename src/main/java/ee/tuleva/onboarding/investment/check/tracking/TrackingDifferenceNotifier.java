@@ -173,6 +173,10 @@ class TrackingDifferenceNotifier {
     try {
       threshold = calculator.escalationThresholdDays(result.checkDate());
       netTdThreshold = calculator.escalationNetTdThreshold(result.checkDate());
+    } catch (IllegalStateException e) {
+      log.error("Invalid escalation parameter configuration: {}", e.getMessage());
+      threshold = ESCALATION_THRESHOLD_FALLBACK;
+      netTdThreshold = ESCALATION_NET_TD_THRESHOLD_FALLBACK;
     } catch (Exception e) {
       threshold = ESCALATION_THRESHOLD_FALLBACK;
       netTdThreshold = ESCALATION_NET_TD_THRESHOLD_FALLBACK;

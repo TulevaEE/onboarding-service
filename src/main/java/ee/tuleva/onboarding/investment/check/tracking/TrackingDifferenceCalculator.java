@@ -33,7 +33,13 @@ class TrackingDifferenceCalculator {
   }
 
   int escalationLookbackDays(LocalDate asOf) {
-    int value = parameterRepository.findLatestValue(ESCALATION_LOOKBACK_DAYS, asOf).intValue();
+    BigDecimal raw = parameterRepository.findLatestValue(ESCALATION_LOOKBACK_DAYS, asOf);
+    int value;
+    try {
+      value = raw.intValueExact();
+    } catch (ArithmeticException e) {
+      throw new IllegalStateException("ESCALATION_LOOKBACK_DAYS must be a whole number: " + raw, e);
+    }
     if (value < 1) {
       throw new IllegalStateException("ESCALATION_LOOKBACK_DAYS must be positive: " + value);
     }
@@ -41,7 +47,14 @@ class TrackingDifferenceCalculator {
   }
 
   int escalationThresholdDays(LocalDate asOf) {
-    int value = parameterRepository.findLatestValue(ESCALATION_THRESHOLD_DAYS, asOf).intValue();
+    BigDecimal raw = parameterRepository.findLatestValue(ESCALATION_THRESHOLD_DAYS, asOf);
+    int value;
+    try {
+      value = raw.intValueExact();
+    } catch (ArithmeticException e) {
+      throw new IllegalStateException(
+          "ESCALATION_THRESHOLD_DAYS must be a whole number: " + raw, e);
+    }
     if (value < 1) {
       throw new IllegalStateException("ESCALATION_THRESHOLD_DAYS must be positive: " + value);
     }
@@ -49,7 +62,11 @@ class TrackingDifferenceCalculator {
   }
 
   BigDecimal escalationNetTdThreshold(LocalDate asOf) {
-    return parameterRepository.findLatestValue(ESCALATION_NET_TD_THRESHOLD, asOf);
+    BigDecimal value = parameterRepository.findLatestValue(ESCALATION_NET_TD_THRESHOLD, asOf);
+    if (value.signum() <= 0) {
+      throw new IllegalStateException("ESCALATION_NET_TD_THRESHOLD must be positive: " + value);
+    }
+    return value;
   }
 
   Optional<TrackingDifferenceResult> calculate(TrackingInput input) {

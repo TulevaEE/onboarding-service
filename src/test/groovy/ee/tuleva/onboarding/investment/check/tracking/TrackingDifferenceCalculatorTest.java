@@ -379,12 +379,32 @@ class TrackingDifferenceCalculatorTest {
   }
 
   @Test
+  void escalationLookbackDaysRejectsFractionalValue() {
+    given(parameterRepository.findLatestValue(ESCALATION_LOOKBACK_DAYS, CHECK_DATE))
+        .willReturn(new BigDecimal("3.5"));
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(
+            () -> calculator.escalationLookbackDays(CHECK_DATE))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
   void escalationNetTdThresholdReadsFromParameter() {
     given(parameterRepository.findLatestValue(ESCALATION_NET_TD_THRESHOLD, CHECK_DATE))
         .willReturn(new BigDecimal("0.005"));
 
     assertThat(calculator.escalationNetTdThreshold(CHECK_DATE))
         .isEqualByComparingTo(new BigDecimal("0.005"));
+  }
+
+  @Test
+  void escalationNetTdThresholdRejectsZeroOrNegative() {
+    given(parameterRepository.findLatestValue(ESCALATION_NET_TD_THRESHOLD, CHECK_DATE))
+        .willReturn(BigDecimal.ZERO);
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(
+            () -> calculator.escalationNetTdThreshold(CHECK_DATE))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   private SecurityData security(

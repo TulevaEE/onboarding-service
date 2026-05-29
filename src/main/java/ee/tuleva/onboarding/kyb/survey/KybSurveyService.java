@@ -12,6 +12,7 @@ import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
@@ -47,15 +48,14 @@ class KybSurveyService {
 
   private record FieldError(String field, String message) {}
 
-  private static FieldError fieldErrorFor(KybCheckType type) {
-    return switch (type) {
+  private static FieldError fieldErrorFor(KybCheck check, Map<String, String> namesByPersonalCode) {
+    return switch (check.type()) {
       case COMPANY_ACTIVE -> new FieldError("status", "Ettevõte ei ole aktiivne");
       case HIGH_RISK_NACE -> new FieldError("naceCode", "See tegevusala ei ole toetatud");
       case COMPANY_SANCTION -> new FieldError("name", "Ettevõtet ei ole võimalik teenindada");
       case COMPANY_PEP -> new FieldError("name", "Ettevõtet ei ole võimalik teenindada");
       case RELATED_PERSONS_KYC ->
-          new FieldError(
-              "relatedPersons", "Seotud isikute isikusamasuse tuvastamine on lõpetamata");
+          new FieldError("relatedPersons", relatedPersonsKycMessage(check, namesByPersonalCode));
       case COMPANY_LEGAL_FORM -> new FieldError("legalForm", "Ainult OÜ on toetatud");
       case COMPANY_REGISTERED_IN_ESTONIA ->
           new FieldError("address", "Ettevõte ei ole registreeritud Eestis");
@@ -66,6 +66,22 @@ class KybSurveyService {
           new FieldError("relatedPersons", "Ettevõtte omandistruktuur ei ole toetatud");
       case DATA_CHANGED, SELF_CERTIFICATION -> null;
     };
+  }
+
+  @SuppressWarnings("unchecked")
+  private static String relatedPersonsKycMessage(
+      KybCheck check, Map<String, String> namesByPersonalCode) {
+    var baseMessage = "Isikusamasuse tuvastamine on lõpetamata";
+    var incompletePersons =
+        (List<Map<String, String>>) check.metadata().getOrDefault("incompletePersons", List.of());
+    var names =
+        incompletePersons.stream()
+            .map(person -> person.get("personalCode"))
+            .filter(Objects::nonNull)
+            .map(personalCode -> namesByPersonalCode.getOrDefault(personalCode, personalCode))
+            .distinct()
+            .collect(joining(", "));
+    return names.isBlank() ? baseMessage : baseMessage + ": " + names;
   }
 
   private static String blockedReasonMessage(BlockedReason reason) {
@@ -234,7 +250,21 @@ class KybSurveyService {
       List<KybCheck> checks,
       Optional<String> onboardingError) {
 
-    var errorsByField = collectErrorsByField(checks);
+    var relatedPersons =
+        relationships.stream()
+            .map(r -> new RelatedPersonData(r.personalCode(), formatName(r)))
+            .collect(groupingBy(RelatedPersonData::personalCode))
+            .values()
+            .stream()
+            .map(List::getFirst)
+            .toList();
+
+    var namesByPersonalCode =
+        relatedPersons.stream()
+            .filter(person -> person.personalCode() != null && person.name() != null)
+            .collect(toMap(RelatedPersonData::personalCode, RelatedPersonData::name, (a, b) -> a));
+
+    var errorsByField = collectErrorsByField(checks, namesByPersonalCode);
 
     var nameErrors = new ArrayList<>(errorsByField.getOrDefault("name", List.of()));
     onboardingError.ifPresent(nameErrors::add);
@@ -245,15 +275,6 @@ class KybSurveyService {
             .map(CompanyStatus::valueOf)
             .map(LegalEntityStatus::fromCompanyStatus)
             .orElse(null);
-
-    var relatedPersons =
-        relationships.stream()
-            .map(r -> new RelatedPersonData(r.personalCode(), formatName(r)))
-            .collect(groupingBy(RelatedPersonData::personalCode))
-            .values()
-            .stream()
-            .map(List::getFirst)
-            .toList();
 
     return new LegalEntityData(
         validatedField(detail.getName(), nameErrors),
@@ -271,10 +292,11 @@ class KybSurveyService {
         validatedField(relatedPersons, errorsByField.getOrDefault("relatedPersons", List.of())));
   }
 
-  private static Map<String, List<String>> collectErrorsByField(List<KybCheck> checks) {
+  private static Map<String, List<String>> collectErrorsByField(
+      List<KybCheck> checks, Map<String, String> namesByPersonalCode) {
     return checks.stream()
         .filter(check -> !check.success())
-        .map(check -> fieldErrorFor(check.type()))
+        .map(check -> fieldErrorFor(check, namesByPersonalCode))
         .filter(Objects::nonNull)
         .collect(groupingBy(FieldError::field, mapping(FieldError::message, toList())));
   }

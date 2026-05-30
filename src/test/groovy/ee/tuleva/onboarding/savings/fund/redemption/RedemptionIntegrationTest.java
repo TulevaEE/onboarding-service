@@ -18,6 +18,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.role.Role;
@@ -49,14 +52,19 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
+import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
+@AutoConfigureMockMvc
 @Transactional
 @RecordApplicationEvents
+@TestPropertySource(properties = "admin.api-token=it-token")
 class RedemptionIntegrationTest {
 
   // Monday 2025-09-29 17:00 EET (15:00 UTC) - after 16:00 cutoff
@@ -73,6 +81,7 @@ class RedemptionIntegrationTest {
   @Autowired LedgerService ledgerService;
   @Autowired UserRepository userRepository;
   @Autowired SavingFundPaymentRepository savingFundPaymentRepository;
+  @Autowired MockMvc mockMvc;
   @Autowired CompanyRepository companyRepository;
   @Autowired CompanyPartyRepository companyPartyRepository;
   @Autowired ApplicationEvents applicationEvents;
@@ -418,6 +427,45 @@ class RedemptionIntegrationTest {
                 redemptionService.createRedemptionRequest(
                     testAuthenticatedPerson, amount, EUR, invalidIban))
         .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void createRedemptionRequest_succeedsForWhitelistedIban() throws Exception {
+    var whitelistedIban = "EE382200221020145685";
+    whitelistIbanViaAdminEndpoint(whitelistedIban);
+
+    var request =
+        redemptionService.createRedemptionRequest(
+            testAuthenticatedPerson, new BigDecimal("10.00"), EUR, whitelistedIban);
+
+    assertThat(request.getStatus()).isEqualTo(RESERVED);
+    assertThat(request.getCustomerIban()).isEqualTo(whitelistedIban);
+  }
+
+  @Test
+  void createRedemptionRequest_canonicalizesCustomerIbanBeforeStoring() throws Exception {
+    var canonicalIban = "EE382200221020145685";
+    var messyIban = "ee38 2200 2210 2014 5685";
+    whitelistIbanViaAdminEndpoint(messyIban);
+
+    var request =
+        redemptionService.createRedemptionRequest(
+            testAuthenticatedPerson, new BigDecimal("10.00"), EUR, messyIban);
+
+    assertThat(request.getCustomerIban()).isEqualTo(canonicalIban);
+  }
+
+  private void whitelistIbanViaAdminEndpoint(String iban) throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/whitelist-iban")
+                .with(csrf())
+                .header("X-Admin-Token", "it-token")
+                .param("partyType", testParty.type().name())
+                .param("partyCode", testParty.code())
+                .param("iban", iban)
+                .param("comment", "verified via bank statement"))
+        .andExpect(status().isOk());
   }
 
   @Test

@@ -1,12 +1,14 @@
 package ee.tuleva.onboarding.admin;
 
 import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceSynchronizer;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
+import ee.tuleva.onboarding.capital.transfer.iban.IbanValidator;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
@@ -18,6 +20,9 @@ import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.ParentChildLinkRegistrationService;
+import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.fund.IbanWhitelistEntry;
+import ee.tuleva.onboarding.savings.fund.IbanWhitelistService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
@@ -61,6 +66,7 @@ public class AdminController {
   private final RedemptionBatchJob redemptionBatchJob;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final ParentChildLinkRegistrationService parentChildLinkRegistrationService;
+  private final IbanWhitelistService ibanWhitelistService;
   private final Clock clock;
 
   @Value("${admin.api-token:}")
@@ -286,6 +292,63 @@ public class AdminController {
     savingsFundOnboardingService.whitelistLegalEntity(registryCode, override);
 
     return "Whitelisted company: registryCode=" + registryCode;
+  }
+
+  @PostMapping("/whitelist-iban")
+  public String whitelistIban(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam PartyId.Type partyType,
+      @RequestParam String partyCode,
+      @RequestParam String iban,
+      @RequestParam(required = false) String comment) {
+
+    validateTokenWithOpsAccess(token);
+    if (!IbanValidator.isValid(iban)) {
+      throw new ResponseStatusException(BAD_REQUEST, "Invalid IBAN: iban=" + iban);
+    }
+    ibanWhitelistService.add(new PartyId(partyType, partyCode), iban, comment);
+
+    return "Whitelisted IBAN: partyType="
+        + partyType
+        + ", partyCode="
+        + partyCode
+        + ", iban="
+        + iban;
+  }
+
+  @GetMapping("/whitelist-iban")
+  public List<IbanWhitelistEntry> listWhitelistedIbans(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam(required = false) PartyId.Type partyType,
+      @RequestParam(required = false) String partyCode) {
+
+    validateTokenWithOpsAccess(token);
+    if ((partyType == null) != (partyCode == null)) {
+      throw new ResponseStatusException(
+          BAD_REQUEST, "Provide both partyType and partyCode, or neither");
+    }
+    PartyId partyId =
+        (partyType != null && partyCode != null) ? new PartyId(partyType, partyCode) : null;
+
+    return ibanWhitelistService.list(partyId);
+  }
+
+  @DeleteMapping("/whitelist-iban")
+  public String removeWhitelistedIban(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam PartyId.Type partyType,
+      @RequestParam String partyCode,
+      @RequestParam String iban) {
+
+    validateTokenWithOpsAccess(token);
+    ibanWhitelistService.remove(new PartyId(partyType, partyCode), iban);
+
+    return "Removed whitelisted IBAN: partyType="
+        + partyType
+        + ", partyCode="
+        + partyCode
+        + ", iban="
+        + iban;
   }
 
   @PostMapping("/parent-child-link")

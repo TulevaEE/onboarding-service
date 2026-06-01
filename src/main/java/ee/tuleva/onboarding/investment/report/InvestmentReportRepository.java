@@ -15,4 +15,7 @@ public interface InvestmentReportRepository extends JpaRepository<InvestmentRepo
 
   List<InvestmentReport> findAllByProviderAndReportType(
       ReportProvider provider, ReportType reportType);
+
+  Optional<InvestmentReport> findTopByProviderAndReportTypeOrderByReportDateDesc(
+      ReportProvider provider, ReportType reportType);
 }

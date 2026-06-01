@@ -21,7 +21,6 @@ import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,17 +29,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
-import org.springframework.context.event.EventListener;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
-@Import(SebPendingTransactionReconciliationIdempotencyIT.RecorderConfig.class)
 class SebPendingTransactionReconciliationIdempotencyIT {
 
   private static final UUID CLIENT_REF = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
@@ -52,14 +46,12 @@ class SebPendingTransactionReconciliationIdempotencyIT {
   @Autowired private TransactionOrderRepository orderRepository;
   @Autowired private TransactionExecutionRepository executionRepository;
   @Autowired private EntityManager entityManager;
-  @Autowired private TestUnmatchedEventRecorder recorder;
 
   private TransactionOrder order;
   private InvestmentReport report;
 
   @BeforeEach
   void seed() {
-    recorder.events.clear();
     TransactionBatch batch =
         batchRepository.save(TransactionBatch.builder().fund(TKF100).createdBy("test").build());
     order =
@@ -89,7 +81,7 @@ class SebPendingTransactionReconciliationIdempotencyIT {
   }
 
   @Test
-  void reconcile_runTwice_producesExactlyOneExecutionAndNoUnmatchedEvents() {
+  void reconcile_runTwice_producesExactlyOneExecution() {
     reconciliationService.reconcile(report);
     entityManager.flush();
     Long firstExecutionId = executionRepository.findByOrderId(order.getId()).orElseThrow().getId();
@@ -106,8 +98,6 @@ class SebPendingTransactionReconciliationIdempotencyIT {
             .filter(e -> order.getId().equals(e.getOrderId()))
             .toList();
     assertThat(allForOrder).hasSize(1);
-
-    assertThat(recorder.events).isEmpty();
   }
 
   private static Map<String, Object> rawRow() {
@@ -128,22 +118,5 @@ class SebPendingTransactionReconciliationIdempotencyIT {
     raw.put("Trade date", "2026-05-11T10:26:04Z");
     raw.put("Settlement date", "2026-05-13");
     return raw;
-  }
-
-  static class TestUnmatchedEventRecorder {
-    final List<UnmatchedPendingTransactionEvent> events = new ArrayList<>();
-
-    @EventListener
-    void onUnmatched(UnmatchedPendingTransactionEvent event) {
-      events.add(event);
-    }
-  }
-
-  @TestConfiguration
-  static class RecorderConfig {
-    @Bean
-    TestUnmatchedEventRecorder testUnmatchedEventRecorder() {
-      return new TestUnmatchedEventRecorder();
-    }
   }
 }

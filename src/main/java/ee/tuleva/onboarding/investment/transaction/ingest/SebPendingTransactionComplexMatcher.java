@@ -53,6 +53,18 @@ class SebPendingTransactionComplexMatcher {
     return Optional.of(inTolerance.get(0));
   }
 
+  // True if the row has any same-fund+ISIN+side order within the near-miss band — including the
+  // ambiguous case where findNearMiss returns empty because there is more than one candidate. The
+  // settlement digest uses this so a near-miss row is treated as a mismatch, not as "unmatched".
+  boolean hasNearMissCandidate(SebPendingTransactionRow row) {
+    List<TransactionOrder> candidates = sameFundIsinSideCandidates(row);
+    if (candidates == null) {
+      return false;
+    }
+    return candidates.stream()
+        .anyMatch(candidate -> quantityOrAmountWithinNearMiss(candidate, row));
+  }
+
   Optional<QuantityAmountMismatchEvent> findNearMiss(SebPendingTransactionRow row) {
     List<TransactionOrder> candidates = sameFundIsinSideCandidates(row);
     if (candidates == null) {

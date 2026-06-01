@@ -106,22 +106,14 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
-  void reconcile_unmatchedRow_publishesUnmatchedEventAndDoesNotPersistExecution() {
+  void reconcile_unmatchedRow_publishesNoEventAndDoesNotPersistExecution() {
     service = newService();
     UUID clientRef = UUID.fromString("00000000-0000-0000-0000-000000000099");
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.empty());
 
-    InvestmentReport report = reportWithSingleRow(clientRef);
-    service.reconcile(report);
+    service.reconcile(reportWithSingleRow(clientRef));
 
-    verify(eventPublisher)
-        .publishEvent(
-            argThat(
-                (Object e) ->
-                    e instanceof UnmatchedPendingTransactionEvent ue
-                        && ue.reportDate().equals(report.getReportDate())
-                        && clientRef.equals(ue.row().clientRef())));
-
+    verify(eventPublisher, org.mockito.Mockito.never()).publishEvent(any());
     verify(executionRepository, org.mockito.Mockito.never()).save(any());
   }
 
@@ -141,8 +133,6 @@ class SebPendingTransactionReconciliationServiceTest {
                 (TransactionExecution e) ->
                     e.getOrderId().equals(123L) && "SEB_OOTEL".equals(e.getSource())));
     assertThat(order.getOrderStatus()).isEqualTo(EXECUTED);
-    verify(eventPublisher, org.mockito.Mockito.never())
-        .publishEvent(any(UnmatchedPendingTransactionEvent.class));
   }
 
   @Test
@@ -159,8 +149,6 @@ class SebPendingTransactionReconciliationServiceTest {
 
     verify(executionRepository).save(any(TransactionExecution.class));
     assertThat(order.getOrderStatus()).isEqualTo(EXECUTED);
-    verify(eventPublisher, org.mockito.Mockito.never())
-        .publishEvent(any(UnmatchedPendingTransactionEvent.class));
   }
 
   @Test
@@ -196,13 +184,11 @@ class SebPendingTransactionReconciliationServiceTest {
                         && qe.reportDate().equals(report.getReportDate())
                         && qe.nearMissOrder().getId().equals(123L)
                         && qe.kind() == QuantityAmountMismatchEvent.MismatchKind.ETF_QUANTITY));
-    verify(eventPublisher, org.mockito.Mockito.never())
-        .publishEvent(any(UnmatchedPendingTransactionEvent.class));
     verify(executionRepository, org.mockito.Mockito.never()).save(any());
   }
 
   @Test
-  void reconcile_neitherUuidNorComplexMatch_publishesUnmatchedEvent() {
+  void reconcile_neitherUuidNorComplexMatch_publishesNoEventAndDoesNotPersist() {
     service = newService();
     UUID clientRef = UUID.fromString("00000000-0000-0000-0000-000000000099");
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.empty());
@@ -210,7 +196,7 @@ class SebPendingTransactionReconciliationServiceTest {
 
     service.reconcile(reportWithSingleRow(clientRef));
 
-    verify(eventPublisher).publishEvent(any(UnmatchedPendingTransactionEvent.class));
+    verify(eventPublisher, org.mockito.Mockito.never()).publishEvent(any());
     verify(executionRepository, org.mockito.Mockito.never()).save(any());
   }
 

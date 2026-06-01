@@ -59,14 +59,14 @@ public class SebPendingTransactionReconciliationService {
           unmatched++;
           continue;
         }
+        // Unmatched rows are surfaced read-only by the daily SettlementCheckJob digest,
+        // not alerted per-row here.
         log.info(
             "Unmatched pending transaction: clientRef={}, ourRef={}, isin={}, reportDate={}",
             row.clientRef(),
             row.ourRef(),
             row.isin(),
             report.getReportDate());
-        eventPublisher.publishEvent(
-            new UnmatchedPendingTransactionEvent(row, report.getReportDate()));
         unmatched++;
         continue;
       }

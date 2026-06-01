@@ -35,6 +35,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -49,9 +50,11 @@ class SettlementCheckJob {
   private static final ZoneId TALLINN = ZoneId.of(TIMEZONE);
   private static final int ETF_THRESHOLD_BUSINESS_DAYS = 3;
   private static final int FUND_THRESHOLD_BUSINESS_DAYS = 5;
-  private static final int SCAN_LOOKBACK_DAYS = 60;
   private static final List<TulevaFund> FUND_ORDER =
       List.of(TulevaFund.TUK75, TulevaFund.TUK00, TulevaFund.TUV100, TulevaFund.TKF100);
+
+  @Value("${transaction-registry.settlement-check.scan-lookback-days:60}")
+  private int scanLookbackDays = 60;
 
   private final Clock clock;
   private final PublicHolidays publicHolidays;
@@ -114,7 +117,7 @@ class SettlementCheckJob {
 
   private List<OverdueLine> collectOverdue(
       LocalDate today, boolean fresh, Set<UUID> reportClientRefs, Set<String> reportOurRefs) {
-    Instant since = today.minusDays(SCAN_LOOKBACK_DAYS).atStartOfDay(TALLINN).toInstant();
+    Instant since = today.minusDays(scanLookbackDays).atStartOfDay(TALLINN).toInstant();
     List<TransactionOrder> candidates =
         orderRepository.findByOrderStatusInAndOrderTimestampSince(List.of(SENT, EXECUTED), since);
 

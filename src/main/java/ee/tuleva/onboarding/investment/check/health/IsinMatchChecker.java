@@ -60,8 +60,9 @@ class IsinMatchChecker {
             new HealthCheckFinding(
                 fund,
                 ISIN_MATCH,
-                FAIL,
-                "%s: quantity is %s for ISIN %s".formatted(fund, position.getQuantity(), isin)));
+                WARNING,
+                "%s: quantity is %s for ISIN %s (newly added / not yet bought?)"
+                    .formatted(fund, position.getQuantity(), isin)));
       }
     }
 

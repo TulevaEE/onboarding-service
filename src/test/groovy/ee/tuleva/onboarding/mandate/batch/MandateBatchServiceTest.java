@@ -2,9 +2,10 @@ package ee.tuleva.onboarding.mandate.batch;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
+import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
+import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.SIGNED;
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.WITHDRAWALS;
 import static ee.tuleva.onboarding.signature.response.SignatureStatus.OUTSTANDING_TRANSACTION;
 import static ee.tuleva.onboarding.signature.response.SignatureStatus.SIGNATURE;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -12,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.aml.WithdrawalNotifier;
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.error.response.ErrorResponse;
@@ -24,7 +26,6 @@ import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
-import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
 import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession;
@@ -40,6 +41,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -63,7 +65,7 @@ public class MandateBatchServiceTest {
   @Mock private MandateBatchProcessingPoller mandateBatchProcessingPoller;
   @Mock private EpisService episService;
   @Mock private ApplicationEventPublisher applicationEventPublisher;
-  @Mock private OperationsNotificationService notificationService;
+  @Mock private WithdrawalNotifier withdrawalNotifier;
 
   @Mock private SignatureService signService;
 
@@ -192,16 +194,12 @@ public class MandateBatchServiceTest {
     assertThat(result.getMandates().size()).isEqualTo(2);
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
 
-    verify(notificationService, times(1))
-        .sendMessage(
-            argThat(
-                message -> {
-                  var age = PersonalCode.getAge(authenticatedPerson.getPersonalCode());
-                  return message.contains("age=" + age)
-                      && message.contains("SECOND")
-                      && message.contains("FUND_PENSION_OPENING");
-                }),
-            eq(WITHDRAWALS));
+    verify(withdrawalNotifier, times(1))
+        .notifyWithdrawalBatchCreated(
+            eq(PersonalCode.getAge(authenticatedPerson.getPersonalCode())),
+            eq(aMandateBatchDto.getWithdrawalBatchPillars()),
+            eq(Set.of(FUND_PENSION_OPENING)),
+            any());
   }
 
   @Test
@@ -242,16 +240,12 @@ public class MandateBatchServiceTest {
     assertThat(result.getMandates().size()).isEqualTo(2);
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
 
-    verify(notificationService, times(1))
-        .sendMessage(
-            argThat(
-                message -> {
-                  var age = PersonalCode.getAge(authenticatedPerson.getPersonalCode());
-                  return message.contains("age=" + age)
-                      && message.contains("THIRD")
-                      && message.contains("FUND_PENSION_OPENING");
-                }),
-            eq(WITHDRAWALS));
+    verify(withdrawalNotifier, times(1))
+        .notifyWithdrawalBatchCreated(
+            eq(PersonalCode.getAge(authenticatedPerson.getPersonalCode())),
+            eq(aMandateBatchDto.getWithdrawalBatchPillars()),
+            eq(Set.of(FUND_PENSION_OPENING)),
+            any());
   }
 
   @Test
@@ -389,16 +383,12 @@ public class MandateBatchServiceTest {
 
     assertThat(result.getMandates().size()).isEqualTo(1);
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
-    verify(notificationService, times(1))
-        .sendMessage(
-            argThat(
-                message -> {
-                  var age = PersonalCode.getAge(authenticatedPerson.getPersonalCode());
-                  return message.contains("age=" + age)
-                      && message.contains("THIRD")
-                      && message.contains("PARTIAL_WITHDRAWAL");
-                }),
-            eq(WITHDRAWALS));
+    verify(withdrawalNotifier, times(1))
+        .notifyWithdrawalBatchCreated(
+            eq(PersonalCode.getAge(authenticatedPerson.getPersonalCode())),
+            eq(aMandateBatchDto.getWithdrawalBatchPillars()),
+            eq(Set.of(PARTIAL_WITHDRAWAL)),
+            any());
   }
 
   @Test
@@ -431,7 +421,9 @@ public class MandateBatchServiceTest {
     when(mandateBatchRepository.save(
             argThat(mandateBatch -> mandateBatch.getStatus().equals(INITIALIZED))))
         .thenReturn(aMandateBatch);
-    doThrow(new IllegalStateException()).when(notificationService).sendMessage(any(), any());
+    doThrow(new IllegalStateException())
+        .when(withdrawalNotifier)
+        .notifyWithdrawalBatchCreated(anyInt(), any(), any(), any());
 
     MandateBatch result =
         mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto);

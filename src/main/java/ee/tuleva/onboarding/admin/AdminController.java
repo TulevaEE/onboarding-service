@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.admin;
 
 import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
@@ -33,6 +34,7 @@ import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Arrays;
@@ -353,8 +355,10 @@ public class AdminController {
                 new ResponseStatusException(
                     SERVICE_UNAVAILABLE, "Investment report publishing not enabled"));
 
-    var previousMonth = YearMonth.now(clock).minusMonths(1);
-    var targetMonth = (month != null && year != null) ? YearMonth.of(year, month) : previousMonth;
+    var targetMonth =
+        (month != null && year != null)
+            ? parseReportMonth(year, month)
+            : YearMonth.now(clock).minusMonths(1);
 
     log.info("Admin triggered investment report publishing: month={}", targetMonth);
     return publisher.publish(targetMonth);
@@ -369,7 +373,7 @@ public class AdminController {
     validateToken(token);
 
     var fund = TulevaFund.fromCode(fundCode);
-    var targetMonth = YearMonth.of(year, month);
+    var targetMonth = parseReportMonth(year, month);
     var context = investmentReportDataService.getReportData(fund, targetMonth);
     var pdfBytes = investmentReportPdfGenerator.generatePdf(context);
 
@@ -395,5 +399,20 @@ public class AdminController {
     if (!adminApiToken.equals(token)) {
       throw new ResponseStatusException(UNAUTHORIZED, "Invalid admin token");
     }
+  }
+
+  private YearMonth parseReportMonth(int year, int month) {
+    YearMonth reportMonth;
+    try {
+      reportMonth = YearMonth.of(year, month);
+    } catch (DateTimeException e) {
+      throw new ResponseStatusException(
+          BAD_REQUEST, "Invalid report month: year=%d, month=%d".formatted(year, month));
+    }
+    if (reportMonth.isAfter(YearMonth.now(clock))) {
+      throw new ResponseStatusException(
+          BAD_REQUEST, "Report month is in the future: " + reportMonth);
+    }
+    return reportMonth;
   }
 }

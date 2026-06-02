@@ -730,7 +730,40 @@ class AdminControllerTest {
   }
 
   @Test
+  void publishInvestmentReports_withInvalidMonth_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/publish-investment-reports")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("month", "13")
+                .param("year", "2026"))
+        .andExpect(status().isBadRequest());
+
+    verify(investmentReportPublisher, never()).publish(any());
+  }
+
+  @Test
+  void publishInvestmentReports_withFutureMonth_returnsBadRequest() throws Exception {
+    given(clock.instant()).willReturn(Instant.parse("2026-04-15T10:00:00Z"));
+    given(clock.getZone()).willReturn(ZoneId.of("UTC"));
+
+    mockMvc
+        .perform(
+            post("/admin/publish-investment-reports")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("month", "12")
+                .param("year", "2026"))
+        .andExpect(status().isBadRequest());
+
+    verify(investmentReportPublisher, never()).publish(any());
+  }
+
+  @Test
   void previewInvestmentReport_returnsGeneratedPdf() throws Exception {
+    given(clock.instant()).willReturn(Instant.parse("2026-04-15T10:00:00Z"));
+    given(clock.getZone()).willReturn(ZoneId.of("UTC"));
     var pdfBytes = new byte[] {0x25, 0x50, 0x44, 0x46};
     given(investmentReportDataService.getReportData(TulevaFund.TUK75, YearMonth.of(2026, 3)))
         .willReturn(sampleReportContext());

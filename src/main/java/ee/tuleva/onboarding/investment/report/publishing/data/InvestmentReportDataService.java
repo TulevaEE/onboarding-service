@@ -221,9 +221,11 @@ public class InvestmentReportDataService {
               var displayName = ref != null ? ref.getDisplayName() : sec.getAccountName();
               var manager = ref != null ? ref.getFundManager() : null;
               var country = ref != null ? ref.getCountry() : null;
+              var marketValue =
+                  sec.getMarketValue() != null ? sec.getMarketValue() : BigDecimal.ZERO;
               var navPct =
                   fundNav.signum() != 0
-                      ? sec.getMarketValue().divide(fundNav, 6, RoundingMode.HALF_UP)
+                      ? marketValue.divide(fundNav, 6, RoundingMode.HALF_UP)
                       : BigDecimal.ZERO;
 
               var costBasis = costBasisMap.get(sec.getAccountId());
@@ -239,7 +241,7 @@ public class InvestmentReportDataService {
                   avgCostPerUnit,
                   avgCostTotal,
                   sec.getMarketPrice(),
-                  sec.getMarketValue(),
+                  marketValue,
                   navPct,
                   null);
             })
@@ -323,7 +325,7 @@ public class InvestmentReportDataService {
     BigDecimal recTotal = null;
 
     for (var r : prevRows) {
-      if ("SECURITY".equals(r.getAccountType())) {
+      if ("SECURITY".equals(r.getAccountType()) && r.getMarketValue() != null) {
         secTotal = secTotal.add(r.getMarketValue().divide(prevNav, 6, RoundingMode.HALF_UP));
       } else if ("CASH".equals(r.getAccountType())
           && r.getMarketValue() != null

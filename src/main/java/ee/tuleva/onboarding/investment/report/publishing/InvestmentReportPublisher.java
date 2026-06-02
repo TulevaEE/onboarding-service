@@ -101,6 +101,13 @@ public class InvestmentReportPublisher {
       }
     }
 
+    // Do not send the "reports published" email if any PDF or WordPress step failed: the email
+    // attests that the reports are live, and a fund whose upload failed has no live report.
+    if (!errors.isEmpty()) {
+      log.warn("Errors during publish, skipping notification email: errors={}", errors);
+      return new InvestmentReportPublishingResult(wpUrls, false, errors);
+    }
+
     // Step 3: Send email with PDF attachments (only funds included in email)
     try {
       var message = new MandrillMessage();

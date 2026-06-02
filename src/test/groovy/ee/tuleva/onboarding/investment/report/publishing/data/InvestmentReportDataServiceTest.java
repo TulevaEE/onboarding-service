@@ -112,6 +112,26 @@ class InvestmentReportDataServiceTest {
   }
 
   @Test
+  void getReportDataTreatsNullSecurityMarketValueAsZero() {
+    var sec = navRow("SECURITY", "Fund A", "IE0009FT4LX4", new BigDecimal("100"), null, null);
+    var units = navRow("UNITS", "Total", null, null, null, new BigDecimal("12000"));
+
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", MARCH_2026.atDay(1), MARCH_2026.atEndOfMonth()))
+        .willReturn(NAV_DATE);
+    given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
+        .willReturn(List.of(sec, units));
+
+    var ctx = service.getReportData(TUK75, MARCH_2026);
+
+    var section = ctx.securitiesSections().getFirst();
+    assertThat(section.rows()).hasSize(1);
+    assertThat(section.rows().getFirst().marketValueTotal()).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(section.totalMarketValue()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
   void getReportDataIncludesReceivablesInCashSection() {
     var sec =
         navRow(

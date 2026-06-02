@@ -1,0 +1,9 @@
+package ee.tuleva.onboarding.aml.alert;
+
+public enum AmlAlertType {
+  III_PILLAR_DEPOSIT_EMPLOYER,
+  III_PILLAR_DEPOSIT_PERSON,
+  III_PILLAR_DEPOSIT_TRANSFER,
+  III_PILLAR_DEPOSIT_INSURANCE,
+  III_PILLAR_WITHDRAWAL
+}

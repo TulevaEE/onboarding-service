@@ -21,7 +21,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.event.RunOverdueSettlementRequested;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.InstrumentType;
@@ -177,9 +176,197 @@ class SettlementCheckJobTest {
     given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
     given(unmatchedFinder.collectUnmatched(report)).willReturn(List.of());
 
-    job().onOverdueSettlementRequested(new RunOverdueSettlementRequested());
+    job().onOverdueSettlementRequested();
 
     verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void run_noReport_disablesInferenceAndWarns() {
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.empty());
+
+    TransactionOrder sentEtf =
+        order(1L, ETF, SENT, dateOnly(2026, 5, 11), TulevaFund.TUK75, "IE000F60HVH9", SENT_UUID);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of(sentEtf));
+    given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
+
+    job().run();
+
+    ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+    verify(notificationService).sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("raport puudub või on aegunud")
+        .contains("[SAADETUD, täitmist pole] Order 1");
+    // No fresh report => neither the extractor nor the unmatched finder is consulted.
+    verifyNoInteractions(extractor, unmatchedFinder);
+  }
+
+  @Test
+  void run_sentOrdersWithMissingDeadlineInputs_areNotOverdue() {
+    given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
+    InvestmentReport report = report(TODAY);
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.of(report));
+    given(extractor.extract(report)).willReturn(List.of());
+
+    TransactionOrder noTimestamp =
+        order(1L, ETF, SENT, null, TulevaFund.TUK75, "IE000F60HVH9", SENT_UUID);
+    TransactionOrder noInstrumentType =
+        order(2L, null, SENT, dateOnly(2026, 5, 4), TUV100, "EE3600109443", PRESENT_UUID);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of(noTimestamp, noInstrumentType));
+    given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
+    given(unmatchedFinder.collectUnmatched(report)).willReturn(List.of());
+
+    job().run();
+
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void run_executedOrderWithoutExecution_fallsBackToSentDeadline() {
+    given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
+    InvestmentReport report = report(TODAY);
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.of(report));
+    // Order is still present in the fresh report (clientRef match) => not yet settled.
+    given(extractor.extract(report)).willReturn(List.of(rowWithClientRef(PRESENT_UUID)));
+    TransactionOrder executed =
+        order(2L, FUND, EXECUTED, dateOnly(2026, 5, 4), TUV100, "EE3600109443", PRESENT_UUID);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of(executed));
+    // No execution row => the SENT-based deadline is used as the fallback.
+    given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
+    given(unmatchedFinder.collectUnmatched(report)).willReturn(List.of());
+
+    job().run();
+
+    ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+    verify(notificationService).sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue()).contains("[TÄIDETUD, arveldus hilinenud] Order 2");
+  }
+
+  @Test
+  void run_executedNotYetOverdue_isExcluded() {
+    given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
+    InvestmentReport report = report(TODAY);
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.of(report));
+    given(extractor.extract(report)).willReturn(List.of());
+    TransactionOrder executed =
+        order(2L, FUND, EXECUTED, dateOnly(2026, 5, 4), TUV100, "EE3600109443", PRESENT_UUID);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of(executed));
+    given(executionRepository.findByOrderIdIn(any()))
+        .willReturn(List.of(execution(2L, LocalDate.of(2026, 5, 20), "REF2")));
+    given(unmatchedFinder.collectUnmatched(report)).willReturn(List.of());
+
+    job().run();
+
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void run_executedPresentViaOurRef_isReportedOverdue() {
+    given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
+    InvestmentReport report = report(TODAY);
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.of(report));
+    // Order has no client ref; presence in the report is detected via the execution's Our ref.
+    given(extractor.extract(report)).willReturn(List.of(rowWithOurRefOnly("REF2")));
+    TransactionOrder executed =
+        order(2L, FUND, EXECUTED, dateOnly(2026, 5, 4), TUV100, "EE3600109443", null);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of(executed));
+    given(executionRepository.findByOrderIdIn(any()))
+        .willReturn(List.of(execution(2L, LocalDate.of(2026, 5, 13), "REF2")));
+    given(unmatchedFinder.collectUnmatched(report)).willReturn(List.of());
+
+    job().run();
+
+    ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+    verify(notificationService).sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue()).contains("[TÄIDETUD, arveldus hilinenud] Order 2");
+  }
+
+  @Test
+  void run_unmatchedRowWithUnresolvedFund_appearsUnderUnknownBlock() {
+    given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
+    InvestmentReport report = report(TODAY);
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.of(report));
+    given(extractor.extract(report)).willReturn(List.of());
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of());
+    given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
+    given(unmatchedFinder.collectUnmatched(report))
+        .willReturn(List.of(unmatchedRowNoTradeDate("Mystery Bank Fund")));
+    given(fundResolver.resolve("Mystery Bank Fund")).willReturn(Optional.empty());
+
+    job().run();
+
+    ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+    verify(notificationService).sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("Tundmatu fond / lahendamata")
+        .contains("Matchimata tehingud (1)")
+        .contains("kauplemiskuupäev: null");
+  }
+
+  @Test
+  void run_overdueExecutedWithNullTimestamp_rendersQuestionMark() {
+    given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
+    InvestmentReport report = report(TODAY);
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.of(report));
+    // Order is still present in the fresh report (clientRef match) => reported as overdue.
+    given(extractor.extract(report)).willReturn(List.of(rowWithClientRef(PRESENT_UUID)));
+    TransactionOrder executed =
+        order(2L, FUND, EXECUTED, null, TUV100, "EE3600109443", PRESENT_UUID);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of(executed));
+    given(executionRepository.findByOrderIdIn(any()))
+        .willReturn(List.of(execution(2L, LocalDate.of(2026, 5, 13), "REF2")));
+    given(unmatchedFinder.collectUnmatched(report)).willReturn(List.of());
+
+    job().run();
+
+    ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+    verify(notificationService).sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("[TÄIDETUD, arveldus hilinenud] Order 2")
+        .contains("saadetud: ?");
+  }
+
+  private static SebPendingTransactionRow rowWithOurRefOnly(String ourRef) {
+    return new SebPendingTransactionRow(
+        null,
+        ourRef,
+        "EE3600109443",
+        new BigDecimal("100"),
+        BigDecimal.ONE,
+        BigDecimal.TEN,
+        BigDecimal.ZERO,
+        BigDecimal.TEN,
+        BUY,
+        Instant.parse("2026-05-04T10:00:00Z"),
+        LocalDate.of(2026, 5, 6),
+        "Tuleva Maailma Aktsiate Pensionifond",
+        "VP1",
+        "Some fund");
+  }
+
+  private static SebPendingTransactionRow unmatchedRowNoTradeDate(String clientName) {
+    return new SebPendingTransactionRow(
+        UUID.randomUUID(),
+        "DLA0799512",
+        "IE000F60HVH9",
+        new BigDecimal("15007"),
+        new BigDecimal("4.7255"),
+        new BigDecimal("70915.58"),
+        BigDecimal.ZERO,
+        new BigDecimal("70915.58"),
+        BUY,
+        null,
+        LocalDate.of(2026, 5, 13),
+        clientName,
+        "VP68168",
+        "ICAV Amundi MSCI USA Screened UCITS ETF");
   }
 
   private static InvestmentReport report(LocalDate reportDate) {

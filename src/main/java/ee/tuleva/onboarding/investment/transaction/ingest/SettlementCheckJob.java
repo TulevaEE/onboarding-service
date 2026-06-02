@@ -91,12 +91,25 @@ class SettlementCheckJob {
             .filter(Objects::nonNull)
             .collect(toSet());
 
-    List<OverdueLine> overdue = collectOverdue(today, fresh, reportClientRefs, reportOurRefs);
+    Instant since = today.minusDays(scanLookbackDays).atStartOfDay(TALLINN).toInstant();
+    List<TransactionOrder> registryOrders =
+        orderRepository.findByOrderStatusInAndOrderTimestampSince(List.of(SENT, EXECUTED), since);
+
+    List<OverdueLine> overdue =
+        collectOverdue(today, fresh, reportClientRefs, reportOurRefs, registryOrders);
     List<SebPendingTransactionRow> unmatched =
         fresh ? unmatchedFinder.collectUnmatched(latestReport.get()) : List.of();
 
-    if (overdue.isEmpty() && unmatched.isEmpty() && fresh) {
-      log.info("Settlement check clean: today={}", today);
+    // TODO: remove the registryOrders.isEmpty() guard once the transaction registry holds real
+    // orders. It exists only to silence the stale/missing-report warning during the empty-registry
+    // bootstrap; left in place it would also hide a genuinely broken pipeline if the table is ever
+    // wiped to empty.
+    if (overdue.isEmpty() && unmatched.isEmpty() && (fresh || registryOrders.isEmpty())) {
+      log.info(
+          "Settlement check clean: today={}, fresh={}, registryEmpty={}",
+          today,
+          fresh,
+          registryOrders.isEmpty());
       return;
     }
 
@@ -116,11 +129,11 @@ class SettlementCheckJob {
   }
 
   private List<OverdueLine> collectOverdue(
-      LocalDate today, boolean fresh, Set<UUID> reportClientRefs, Set<String> reportOurRefs) {
-    Instant since = today.minusDays(scanLookbackDays).atStartOfDay(TALLINN).toInstant();
-    List<TransactionOrder> candidates =
-        orderRepository.findByOrderStatusInAndOrderTimestampSince(List.of(SENT, EXECUTED), since);
-
+      LocalDate today,
+      boolean fresh,
+      Set<UUID> reportClientRefs,
+      Set<String> reportOurRefs,
+      List<TransactionOrder> candidates) {
     Map<Long, TransactionExecution> executionsByOrderId =
         executionRepository
             .findByOrderIdIn(candidates.stream().map(TransactionOrder::getId).toList())

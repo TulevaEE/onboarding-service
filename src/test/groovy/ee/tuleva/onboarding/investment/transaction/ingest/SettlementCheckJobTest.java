@@ -166,6 +166,34 @@ class SettlementCheckJobTest {
   }
 
   @Test
+  void run_staleReport_emptyRegistry_sendsNothing() {
+    given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
+    // Stale report, but nothing in the transaction registry to settle => no alert.
+    InvestmentReport stale = report(LocalDate.of(2026, 5, 11));
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.of(stale));
+    given(extractor.extract(stale)).willReturn(List.of());
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of());
+    given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
+
+    job().run();
+
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void run_noReport_emptyRegistry_sendsNothing() {
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.empty());
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of());
+    given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
+
+    job().run();
+
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
   void onOverdueSettlementRequested_triggersRun() {
     given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
     InvestmentReport report = report(TODAY);

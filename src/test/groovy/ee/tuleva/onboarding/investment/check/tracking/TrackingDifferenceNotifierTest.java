@@ -264,7 +264,7 @@ class TrackingDifferenceNotifierTest {
 
   @Test
   void noEscalationWhenNetSumBelowThreshold() {
-    // 3 consecutive days but net sum below the 0.002 threshold
+    // 3 consecutive days but net sum below the 0.005 threshold
     var result = result(true, 3, new BigDecimal("0.001"));
 
     notifier.notify(List.of(result));
@@ -292,13 +292,27 @@ class TrackingDifferenceNotifierTest {
     given(calculator.escalationNetTdThreshold(any(LocalDate.class)))
         .willThrow(new IllegalStateException("No parameter"));
 
-    var result = result(true, 3, new BigDecimal("0.003"));
+    var result = result(true, 3, new BigDecimal("0.006"));
 
     notifier.notify(List.of(result));
 
     var captor = org.mockito.ArgumentCaptor.forClass(String.class);
     then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
     assertThat(captor.getValue()).contains("TD ESCALATION");
+  }
+
+  @Test
+  void escalationFallbackNetTdThresholdMatchesSeededValue() {
+    given(calculator.escalationThresholdDays(any(LocalDate.class)))
+        .willThrow(new IllegalStateException("No parameter"));
+    given(calculator.escalationNetTdThreshold(any(LocalDate.class)))
+        .willThrow(new IllegalStateException("No parameter"));
+
+    var result = result(true, 4, new BigDecimal("0.003"));
+
+    notifier.notify(List.of(result));
+
+    then(notificationService).should().sendMessage(contains("TD BREACH DETECTED"), eq(INVESTMENT));
   }
 
   @Test

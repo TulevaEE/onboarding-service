@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 class TrackingDifferenceNotifier {
 
   private static final int ESCALATION_THRESHOLD_FALLBACK = 3;
-  private static final BigDecimal ESCALATION_NET_TD_THRESHOLD_FALLBACK = new BigDecimal("0.002");
+  private static final BigDecimal ESCALATION_NET_TD_THRESHOLD_FALLBACK = new BigDecimal("0.005");
   private static final BigDecimal HUNDRED = new BigDecimal("100");
 
   private final OperationsNotificationService notificationService;

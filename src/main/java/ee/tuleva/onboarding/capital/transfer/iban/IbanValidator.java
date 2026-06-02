@@ -113,10 +113,14 @@ public class IbanValidator implements ConstraintValidator<ValidIban, String> {
     return IbanValidator.isValid(iban);
   }
 
+  public static String canonicalize(String iban) {
+    return iban.trim().toUpperCase().replaceAll("\\s+", "");
+  }
+
   public static boolean isValid(String iban) {
     if (iban == null) return false;
 
-    String s = iban.trim().toUpperCase().replaceAll("\\s+", "");
+    String s = canonicalize(iban);
     int len = s.length();
     if (len < IBAN_MIN_LENGTH || len > IBAN_MAX_LENGTH) return false;
     if (!IBAN_PATTERN.matcher(s).matches()) return false;

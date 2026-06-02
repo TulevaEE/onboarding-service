@@ -9,6 +9,8 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -27,8 +29,11 @@ import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.ChildIsNotAMinorException;
 import ee.tuleva.onboarding.party.ParentChildLinkRegistrationService;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.party.RepresentationType;
 import ee.tuleva.onboarding.savings.fund.CompanyAlreadyHasOnboardingStatusException;
+import ee.tuleva.onboarding.savings.fund.IbanWhitelistEntry;
+import ee.tuleva.onboarding.savings.fund.IbanWhitelistService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
@@ -70,6 +75,7 @@ class AdminControllerTest {
   @MockitoBean private RedemptionBatchJob redemptionBatchJob;
   @MockitoBean private SavingsFundOnboardingService savingsFundOnboardingService;
   @MockitoBean private ParentChildLinkRegistrationService parentChildLinkRegistrationService;
+  @MockitoBean private IbanWhitelistService ibanWhitelistService;
   @MockitoBean private Clock clock;
 
   private static final String VALID_LINK_BODY =
@@ -660,6 +666,160 @@ class AdminControllerTest {
         .andExpect(status().isBadRequest());
 
     verify(savingsFundOnboardingService, never()).whitelistLegalEntity(any(), anyBoolean());
+  }
+
+  @Test
+  void whitelistIban_withOpsToken_delegatesToService() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/whitelist-iban")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("partyType", "PERSON")
+                .param("partyCode", "39901019992")
+                .param("iban", "EE471000001020145685")
+                .param("comment", "verified via bank statement"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("EE471000001020145685")));
+
+    verify(ibanWhitelistService)
+        .add(
+            new PartyId(PartyId.Type.PERSON, "39901019992"),
+            "EE471000001020145685",
+            "verified via bank statement");
+  }
+
+  @Test
+  void whitelistIban_withInvalidToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/whitelist-iban")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .param("partyType", "PERSON")
+                .param("partyCode", "39901019992")
+                .param("iban", "EE471000001020145685"))
+        .andExpect(status().isUnauthorized());
+
+    verify(ibanWhitelistService, never()).add(any(), any(), any());
+  }
+
+  @Test
+  void whitelistIban_withMissingPartyType_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/whitelist-iban")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("partyCode", "39901019992")
+                .param("iban", "EE471000001020145685"))
+        .andExpect(status().isBadRequest());
+
+    verify(ibanWhitelistService, never()).add(any(), any(), any());
+  }
+
+  @Test
+  void listWhitelistedIbans_withOpsToken_returnsEntriesForParty() throws Exception {
+    var entry =
+        new IbanWhitelistEntry(
+            new PartyId(PartyId.Type.PERSON, "39901019992"),
+            "EE471000001020145685",
+            "verified",
+            Instant.parse("2026-05-29T10:00:00Z"));
+    given(ibanWhitelistService.list(new PartyId(PartyId.Type.PERSON, "39901019992")))
+        .willReturn(List.of(entry));
+
+    mockMvc
+        .perform(
+            get("/admin/whitelist-iban")
+                .header("X-Admin-Token", "ops-token")
+                .param("partyType", "PERSON")
+                .param("partyCode", "39901019992"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].iban").value("EE471000001020145685"))
+        .andExpect(jsonPath("$[0].comment").value("verified"));
+  }
+
+  @Test
+  void whitelistIban_withInvalidIban_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/whitelist-iban")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("partyType", "PERSON")
+                .param("partyCode", "39901019992")
+                .param("iban", "not-an-iban"))
+        .andExpect(status().isBadRequest());
+
+    verify(ibanWhitelistService, never()).add(any(), any(), any());
+  }
+
+  @Test
+  void listWhitelistedIbans_withNoFilter_returnsAll() throws Exception {
+    given(ibanWhitelistService.list(null)).willReturn(List.of());
+
+    mockMvc
+        .perform(get("/admin/whitelist-iban").header("X-Admin-Token", "ops-token"))
+        .andExpect(status().isOk());
+
+    verify(ibanWhitelistService).list(null);
+  }
+
+  @Test
+  void listWhitelistedIbans_withOnlyPartyType_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            get("/admin/whitelist-iban")
+                .header("X-Admin-Token", "ops-token")
+                .param("partyType", "PERSON"))
+        .andExpect(status().isBadRequest());
+
+    verify(ibanWhitelistService, never()).list(any());
+  }
+
+  @Test
+  void listWhitelistedIbans_withOnlyPartyCode_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            get("/admin/whitelist-iban")
+                .header("X-Admin-Token", "ops-token")
+                .param("partyCode", "39901019992"))
+        .andExpect(status().isBadRequest());
+
+    verify(ibanWhitelistService, never()).list(any());
+  }
+
+  @Test
+  void removeWhitelistedIban_withOpsToken_delegatesToService() throws Exception {
+    mockMvc
+        .perform(
+            delete("/admin/whitelist-iban")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("partyType", "PERSON")
+                .param("partyCode", "39901019992")
+                .param("iban", "EE471000001020145685"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("EE471000001020145685")));
+
+    verify(ibanWhitelistService)
+        .remove(new PartyId(PartyId.Type.PERSON, "39901019992"), "EE471000001020145685");
+  }
+
+  @Test
+  void removeWhitelistedIban_withInvalidToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            delete("/admin/whitelist-iban")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .param("partyType", "PERSON")
+                .param("partyCode", "39901019992")
+                .param("iban", "EE471000001020145685"))
+        .andExpect(status().isUnauthorized());
+
+    verify(ibanWhitelistService, never()).remove(any(), any());
   }
 
   @Test

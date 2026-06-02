@@ -132,6 +132,69 @@ class KybSurveyServiceTest {
   }
 
   @Test
+  void initialValidation_namesRelatedPersonsWithIncompleteKyc() {
+    var relationships =
+        List.of(
+            new CompanyRelationship(
+                "F",
+                "JUHL",
+                "Juhatuse liige",
+                "Jaan",
+                "Tamm",
+                PERSONAL_CODE,
+                null,
+                null,
+                null,
+                new BigDecimal("34.00"),
+                null,
+                "EST"),
+            new CompanyRelationship(
+                "F",
+                "OSANIK",
+                "Osanik",
+                "Mari",
+                "Maasikas",
+                "38501010003",
+                null,
+                null,
+                null,
+                new BigDecimal("33.00"),
+                null,
+                "EST"),
+            new CompanyRelationship(
+                "F",
+                "OSANIK",
+                "Osanik",
+                "Peeter",
+                "Kask",
+                "38501010004",
+                null,
+                null,
+                null,
+                new BigDecimal("33.00"),
+                null,
+                "EST"));
+    stubInitialValidation(
+        relationships,
+        sampleDetail(),
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(
+                RELATED_PERSONS_KYC,
+                false,
+                Map.of(
+                    "incompletePersons",
+                    List.of(
+                        Map.of("personalCode", "38501010003", "kycStatus", "PENDING"),
+                        Map.of("personalCode", "38501010004", "kycStatus", "UNKNOWN"))))));
+
+    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
+
+    assertThat(result.relatedPersons().errors())
+        .containsExactly("Isikusamasuse tuvastamine on lõpetamata: Mari Maasikas, Peeter Kask");
+  }
+
+  @Test
   void initialValidation_returnsAddressErrorWhenNotRegisteredInEstonia() {
     stubInitialValidation(
         sampleRelationships(),

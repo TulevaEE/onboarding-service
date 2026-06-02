@@ -20,6 +20,11 @@ class FundTickerTest {
   }
 
   @Test
+  void getEodhdTickersExcludesFundsNotListedOnEodhd() {
+    assertThat(getEodhdTickers()).contains("USAS.PA.EODHD").doesNotContain("GAGH.PA.EODHD");
+  }
+
+  @Test
   void allEodhdTickersAreDifferentFromYahooTickers() {
     var yahooTickers = getYahooTickers();
     var eodhdTickers = getEodhdTickers();

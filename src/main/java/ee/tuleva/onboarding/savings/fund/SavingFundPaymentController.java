@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -25,6 +26,7 @@ public class SavingFundPaymentController {
 
   private final UserService userService;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
+  private final IbanWhitelistService ibanWhitelistService;
   private final SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final LegalEntitySavingsFundOnboardingService legalEntitySavingsFundOnboardingService;
@@ -73,7 +75,12 @@ public class SavingFundPaymentController {
   @GetMapping("/bank-accounts")
   public List<String> getBankAccounts(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    return savingFundPaymentRepository.findWithdrawableIbans(
-        PartyId.from(authenticatedPerson.getRole()));
+    PartyId partyId = PartyId.from(authenticatedPerson.getRole());
+    return Stream.concat(
+            savingFundPaymentRepository.findWithdrawableIbans(partyId).stream(),
+            ibanWhitelistService.findWhitelistedIbans(partyId).stream())
+        .distinct()
+        .sorted()
+        .toList();
   }
 }

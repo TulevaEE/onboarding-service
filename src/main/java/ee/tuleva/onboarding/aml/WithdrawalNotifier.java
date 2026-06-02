@@ -18,8 +18,12 @@ public class WithdrawalNotifier {
   public void notifyWithdrawalBatchCreated(
       int age, Set<Pillar> pillars, Set<MandateType> withdrawalTypes, Long mandateBatchId) {
     notificationService.sendMessage(
-        "Withdrawal mandate batch created: age=%s, pillars=%s, withdrawalTypes=%s, mandateBatchId=%s"
-            .formatted(age, pillars, withdrawalTypes, mandateBatchId),
-        WITHDRAWALS);
+        formatMessage(age, pillars, withdrawalTypes, mandateBatchId), WITHDRAWALS);
+  }
+
+  String formatMessage(
+      int age, Set<Pillar> pillars, Set<MandateType> withdrawalTypes, Long mandateBatchId) {
+    return "Withdrawal mandate batch created: age=%s, pillars=%s, withdrawalTypes=%s, mandateBatchId=%s"
+        .formatted(age, pillars, withdrawalTypes, mandateBatchId);
   }
 }

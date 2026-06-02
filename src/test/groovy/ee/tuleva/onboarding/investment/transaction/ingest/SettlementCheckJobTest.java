@@ -38,6 +38,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -162,6 +163,33 @@ class SettlementCheckJobTest {
         .contains("raport puudub või on aegunud")
         .contains("[TÄIDETUD, arveldus hilinenud] Order 2");
     // Stale report => unmatched finder is not consulted.
+    verifyNoInteractions(unmatchedFinder);
+  }
+
+  @Test
+  void run_freshButCorruptReport_disablesSettledInference_reportsExecutedOverdueWithWarning() {
+    given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
+    // Fresh report date but no parsed header block (no asOfDate) => truncated/corrupt, not usable.
+    InvestmentReport corrupt = report(TODAY, null);
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS))
+        .willReturn(Optional.of(corrupt));
+
+    TransactionOrder executed =
+        order(2L, FUND, EXECUTED, dateOnly(2026, 5, 4), TUV100, "EE3600109443", PRESENT_UUID);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of(executed));
+    given(executionRepository.findByOrderIdIn(any()))
+        .willReturn(List.of(execution(2L, LocalDate.of(2026, 5, 13), "REF2")));
+
+    job().run();
+
+    ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+    verify(notificationService).sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("raport puudub või on aegunud")
+        .contains("[TÄIDETUD, arveldus hilinenud] Order 2");
+    // Corrupt report => the executed order is NOT inferred settled, and unmatched finder is
+    // skipped.
     verifyNoInteractions(unmatchedFinder);
   }
 
@@ -398,11 +426,16 @@ class SettlementCheckJobTest {
   }
 
   private static InvestmentReport report(LocalDate reportDate) {
+    return report(reportDate, reportDate.toString());
+  }
+
+  private static InvestmentReport report(LocalDate reportDate, String asOfDate) {
     return InvestmentReport.builder()
         .provider(SEB)
         .reportType(PENDING_TRANSACTIONS)
         .reportDate(reportDate)
         .rawData(List.of())
+        .metadata(asOfDate == null ? Map.of() : Map.of("asOfDate", asOfDate))
         .build();
   }
 

@@ -11,6 +11,7 @@ import static java.util.stream.Collectors.toSet;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.event.RunOverdueSettlementRequested;
+import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
@@ -72,12 +73,7 @@ class SettlementCheckJob {
     LocalDate today = LocalDate.now(clock);
 
     var latestReport = reportService.getLatestReport(SEB, PENDING_TRANSACTIONS);
-    boolean fresh =
-        latestReport
-            .map(
-                report ->
-                    !report.getReportDate().isBefore(publicHolidays.previousWorkingDay(today)))
-            .orElse(false);
+    boolean fresh = latestReport.map(report -> isUsable(report, today)).orElse(false);
 
     List<SebPendingTransactionRow> rows = latestReport.map(extractor::extract).orElseGet(List::of);
     Set<UUID> reportClientRefs =
@@ -126,6 +122,22 @@ class SettlementCheckJob {
   @EventListener(classes = RunOverdueSettlementRequested.class)
   void onOverdueSettlementRequested() {
     run();
+  }
+
+  // Only trust the "absent from report => settled" inference for a genuine, parsed SEB report.
+  // A legitimately empty report (all transactions settled) still carries its header/metadata block
+  // — captured as the "As of:" date — whereas a truncated, zero-byte or otherwise corrupt file does
+  // not. Without that proof we treat the report as unusable: warn and list every overdue order,
+  // rather than silently marking them all settled. Row count alone cannot distinguish the two,
+  // since an all-settled report and a broken one both yield zero data rows.
+  private boolean isUsable(InvestmentReport report, LocalDate today) {
+    boolean recent = !report.getReportDate().isBefore(publicHolidays.previousWorkingDay(today));
+    return recent && hasParsedHeader(report);
+  }
+
+  private static boolean hasParsedHeader(InvestmentReport report) {
+    Object asOfDate = report.getMetadata().get("asOfDate");
+    return asOfDate != null && !asOfDate.toString().isBlank();
   }
 
   private List<OverdueLine> collectOverdue(

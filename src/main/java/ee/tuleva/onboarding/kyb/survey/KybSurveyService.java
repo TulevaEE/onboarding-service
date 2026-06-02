@@ -8,10 +8,12 @@ import static ee.tuleva.onboarding.kyb.survey.BlockedReason.NO_WHITELIST_AFTER_C
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.WHITELISTED;
+import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
@@ -47,15 +49,14 @@ class KybSurveyService {
 
   private record FieldError(String field, String message) {}
 
-  private static FieldError fieldErrorFor(KybCheckType type) {
-    return switch (type) {
+  private static FieldError fieldErrorFor(KybCheck check, List<RelatedPersonData> relatedPersons) {
+    return switch (check.type()) {
       case COMPANY_ACTIVE -> new FieldError("status", "Ettevõte ei ole aktiivne");
       case HIGH_RISK_NACE -> new FieldError("naceCode", "See tegevusala ei ole toetatud");
       case COMPANY_SANCTION -> new FieldError("name", "Ettevõtet ei ole võimalik teenindada");
       case COMPANY_PEP -> new FieldError("name", "Ettevõtet ei ole võimalik teenindada");
       case RELATED_PERSONS_KYC ->
-          new FieldError(
-              "relatedPersons", "Seotud isikute isikusamasuse tuvastamine on lõpetamata");
+          new FieldError("relatedPersons", relatedPersonsKycMessage(check, relatedPersons));
       case COMPANY_LEGAL_FORM -> new FieldError("legalForm", "Ainult OÜ on toetatud");
       case COMPANY_REGISTERED_IN_ESTONIA ->
           new FieldError("address", "Ettevõte ei ole registreeritud Eestis");
@@ -66,6 +67,21 @@ class KybSurveyService {
           new FieldError("relatedPersons", "Ettevõtte omandistruktuur ei ole toetatud");
       case DATA_CHANGED, SELF_CERTIFICATION -> null;
     };
+  }
+
+  private static String relatedPersonsKycMessage(
+      KybCheck check, List<RelatedPersonData> relatedPersons) {
+    var baseMessage = "Isikusamasuse tuvastamine on lõpetamata";
+    var namesByPersonalCode =
+        relatedPersons.stream()
+            .filter(person -> person.personalCode() != null && person.name() != null)
+            .collect(toMap(RelatedPersonData::personalCode, RelatedPersonData::name, (a, b) -> a));
+    var names =
+        RelatedPersonsKycMetadata.incompletePersonalCodes(check).stream()
+            .map(personalCode -> namesByPersonalCode.getOrDefault(personalCode, personalCode))
+            .distinct()
+            .collect(joining(", "));
+    return names.isBlank() ? baseMessage : baseMessage + ": " + names;
   }
 
   private static String blockedReasonMessage(BlockedReason reason) {
@@ -234,7 +250,9 @@ class KybSurveyService {
       List<KybCheck> checks,
       Optional<String> onboardingError) {
 
-    var errorsByField = collectErrorsByField(checks);
+    var relatedPersons = dedupedByPersonalCode(relationships);
+
+    var errorsByField = collectErrorsByField(checks, relatedPersons);
 
     var nameErrors = new ArrayList<>(errorsByField.getOrDefault("name", List.of()));
     onboardingError.ifPresent(nameErrors::add);
@@ -245,15 +263,6 @@ class KybSurveyService {
             .map(CompanyStatus::valueOf)
             .map(LegalEntityStatus::fromCompanyStatus)
             .orElse(null);
-
-    var relatedPersons =
-        relationships.stream()
-            .map(r -> new RelatedPersonData(r.personalCode(), formatName(r)))
-            .collect(groupingBy(RelatedPersonData::personalCode))
-            .values()
-            .stream()
-            .map(List::getFirst)
-            .toList();
 
     return new LegalEntityData(
         validatedField(detail.getName(), nameErrors),
@@ -271,10 +280,22 @@ class KybSurveyService {
         validatedField(relatedPersons, errorsByField.getOrDefault("relatedPersons", List.of())));
   }
 
-  private static Map<String, List<String>> collectErrorsByField(List<KybCheck> checks) {
+  private static List<RelatedPersonData> dedupedByPersonalCode(
+      List<CompanyRelationship> relationships) {
+    return relationships.stream()
+        .map(r -> new RelatedPersonData(r.personalCode(), formatName(r)))
+        .collect(
+            toMap(RelatedPersonData::personalCode, identity(), (a, b) -> a, LinkedHashMap::new))
+        .values()
+        .stream()
+        .toList();
+  }
+
+  private static Map<String, List<String>> collectErrorsByField(
+      List<KybCheck> checks, List<RelatedPersonData> relatedPersons) {
     return checks.stream()
         .filter(check -> !check.success())
-        .map(check -> fieldErrorFor(check.type()))
+        .map(check -> fieldErrorFor(check, relatedPersons))
         .filter(Objects::nonNull)
         .collect(groupingBy(FieldError::field, mapping(FieldError::message, toList())));
   }

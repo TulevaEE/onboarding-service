@@ -124,6 +124,7 @@ public class InstrumentReferenceService {
   public List<String> getEodhdTickers() {
     return byIsin.values().stream()
         .filter(InstrumentReference::isActive)
+        .filter(InstrumentReference::isListedOnEodhd)
         .map(InstrumentReference::getEodhdTicker)
         .toList();
   }

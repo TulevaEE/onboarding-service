@@ -111,14 +111,20 @@ class InstrumentReferenceServiceIntSpec extends Specification {
     }
   }
 
-  def "benchmark proxy resolution works for all categories"() {
+  def "benchmark proxy resolution mirrors TrackingDifferenceService.resolveBenchmarkKey"() {
     expect:
-    service.resolveBenchmarkProxy("EQUITY_DM", true).isPresent()
-    service.resolveBenchmarkProxy("EQUITY_DM", false).isPresent()
-    service.resolveBenchmarkProxy("EQUITY_EM", true).isPresent()
-    service.resolveBenchmarkProxy("EQUITY_EM", false).isPresent()
-    service.resolveBenchmarkProxy("BOND_EURO", true).isPresent()
-    service.resolveBenchmarkProxy("BOND_GLOBAL", true).isPresent()
+    service.resolveBenchmarkProxy("EQUITY_DM", true) == Optional.of("IE00B4L5Y983.XETR")
+    service.resolveBenchmarkProxy("EQUITY_DM", false) == Optional.of("MSCI_WORLD")
+    service.resolveBenchmarkProxy("EQUITY_EM", true) == Optional.of("IE00B4L5YC18.XETR")
+    service.resolveBenchmarkProxy("EQUITY_EM", false) == Optional.of("MSCI_EM")
+
+    and:
+    service.resolveBenchmarkProxy("BOND_EURO", true) == Optional.of("IE00B3DKXQ41.XETR")
+    service.resolveBenchmarkProxy("BOND_EURO", false) == Optional.of("IE00B3DKXQ41.XETR")
+    service.resolveBenchmarkProxy("BOND_GLOBAL", true) == Optional.of("IE00BDBRDM35.XETR")
+    service.resolveBenchmarkProxy("BOND_GLOBAL", false) == Optional.of("IE00BDBRDM35.XETR")
+
+    and:
     !service.resolveBenchmarkProxy("NONEXISTENT", true).isPresent()
     !service.resolveBenchmarkProxy(null, true).isPresent()
   }

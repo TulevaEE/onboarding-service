@@ -33,6 +33,7 @@ public class InstrumentReference {
   private String morningstarId;
   private String blackrockProductId;
   private String benchmarkCategory;
+  private Boolean eodhdListed;
   private boolean active;
   private Instant createdAt;
   private Instant updatedAt;
@@ -40,7 +41,12 @@ public class InstrumentReference {
   protected InstrumentReference() {}
 
   public boolean isExchangeTraded() {
-    return eodhdTicker != null && !eodhdTicker.endsWith(".EUFUND");
+    return eodhdTicker != null
+        && (eodhdTicker.endsWith(".XETRA") || eodhdTicker.endsWith(".PA.EODHD"));
+  }
+
+  public boolean isListedOnEodhd() {
+    return !Boolean.FALSE.equals(eodhdListed);
   }
 
   public Optional<String> getXetraStorageKey() {

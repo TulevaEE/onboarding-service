@@ -227,16 +227,10 @@ public class InstrumentDataValidator {
     int count = 0;
     var date = today;
     for (int i = 0; i < 10 && count < MIN_PRICE_DAYS; i++) {
-      date = publicHolidays.previousWorkingDay(date.equals(today) ? date : date);
-      if (date.equals(today) && i == 0) {
-        date = publicHolidays.previousWorkingDay(date);
-      }
-
-      var hasPrice = hasAnyPrice(instrument, date);
-      if (hasPrice) {
+      date = publicHolidays.previousWorkingDay(date);
+      if (hasAnyPrice(instrument, date)) {
         count++;
       }
-      date = date.minusDays(1);
     }
     return count;
   }

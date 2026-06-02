@@ -19,6 +19,7 @@ CREATE TABLE instrument_reference (
     morningstar_id       text,
     blackrock_product_id text,
     benchmark_category   varchar(20),
+    eodhd_listed         boolean      NOT NULL DEFAULT true,
     active               boolean      NOT NULL DEFAULT true,
     created_at           timestamptz  NOT NULL DEFAULT now(),
     updated_at           timestamptz  NOT NULL DEFAULT now(),
@@ -37,7 +38,7 @@ INSERT INTO instrument_reference (isin, display_name, fund_manager, country, ins
 ('IE00BFNM3G45', 'iShares MSCI USA Screened UCITS ETF',                            'BlackRock Asset Management Ireland Ltd', 'IE', 'ETF',  'equity', 'SGAS.DE',       'SGAS.XETRA',          'SGAS',     'SGAS.DE', NULL,         NULL,     'EQUITY_DM'),
 ('IE00BFNM3D14', 'iShares MSCI Europe Screened UCITS ETF',                         'BlackRock Asset Management Ireland Ltd', 'IE', 'ETF',  'equity', 'SLMC.DE',       'SLMC.XETRA',          'SLMC',     'SLMC.DE', NULL,         NULL,     'EQUITY_DM'),
 ('IE00BFNM3L97', 'iShares MSCI Japan Screened UCITS ETF',                          'BlackRock Asset Management Ireland Ltd', 'IE', 'ETF',  'equity', 'SGAJ.DE',       'SGAJ.XETRA',          'SGAJ',     'SGAJ.DE', NULL,         NULL,     'EQUITY_DM'),
-('IE00BKPTWY98', 'iShares Emerging Market Screened Equity Index Fund (IE)',         'BlackRock Asset Management Ireland Ltd', 'IE', 'FUND', 'equity', '0P0001MGOG.F',  'IE00BKPTWY98.EUFUND', 'BEMEFLE',  NULL,      '0P0001MGOG', '316651', 'EQUITY_EM');
+('IE00BKPTWY98', 'iShares Emerging Market Screened Equity Index Fund',             'BlackRock Asset Management Ireland Ltd', 'IE', 'FUND', 'equity', '0P0001MGOG.F',  'IE00BKPTWY98.EUFUND', 'BEMEFLE',  NULL,      '0P0001MGOG', '316651', 'EQUITY_EM');
 
 -- =============================================================================
 -- Seed: portfolio instruments (TUK00 bonds)
@@ -86,6 +87,11 @@ INSERT INTO instrument_reference (isin, display_name, instrument_type, asset_cla
 ('IE00BDBRDM35', 'iShares Core Global Aggregate Bond UCITS ETF EUR Hedged',        'ETF', 'bond',   'EUNA.DE',  'EUNA.XETRA',   'EUNA',  'EUNA.DE',  NULL),
 ('LU1708330318', 'Amundi Core Global Aggregate Bond UCITS ETF EUR Hedged',         'ETF', 'bond',   'GAGH.PA',  'GAGH.PA.EODHD','GAGH',  'GAGH.PA',  NULL);
 
+-- LU1708330318 (Amundi Core Global Aggregate Bond) is not listed on EODHD under any symbol on any
+-- exchange, so requesting it only ever returns empty. It is covered by Euronext Paris (.XPAR) and
+-- Yahoo. Mirrors FundTicker.NOT_LISTED_ON_EODHD so getEodhdTickers() excludes it.
+UPDATE instrument_reference SET eodhd_listed = false WHERE isin = 'LU1708330318';
+
 -- =============================================================================
 -- benchmark_category_proxy: maps categories to proxy ETF storage keys
 -- Replaces TrackingDifferenceService.resolveBenchmarkKey() switch statement.
@@ -101,8 +107,14 @@ CREATE TABLE benchmark_category_proxy (
     CONSTRAINT benchmark_category_proxy_category_uq UNIQUE (benchmark_category)
 );
 
+-- Mirrors TrackingDifferenceService.resolveBenchmarkKey():
+--   - EQUITY_*: ETF positions use the XETRA proxy ETF; index funds use the MSCI index series.
+--   - BOND_*: both ETF and index fund positions use the XETRA proxy ETF (no separate index series),
+--     so etf_proxy_storage_key and index_proxy_key are identical.
+-- BOND_GLOBAL stays on EUNA (IE00BDBRDM35) until GAGH (LU1708330318) has price history; only then
+-- switch both keys to LU1708330318.XPAR (see FundTicker ISHARES_GLOBAL_AGG_BOND_ETF comment).
 INSERT INTO benchmark_category_proxy (benchmark_category, etf_proxy_storage_key, index_proxy_key) VALUES
 ('EQUITY_DM',   'IE00B4L5Y983.XETR', 'MSCI_WORLD'),
 ('EQUITY_EM',   'IE00B4L5YC18.XETR', 'MSCI_EM'),
-('BOND_EURO',   'IE00B3DKXQ41.XETR', NULL),
-('BOND_GLOBAL', 'LU1708330318.XPAR', NULL);
+('BOND_EURO',   'IE00B3DKXQ41.XETR', 'IE00B3DKXQ41.XETR'),
+('BOND_GLOBAL', 'IE00BDBRDM35.XETR', 'IE00BDBRDM35.XETR');

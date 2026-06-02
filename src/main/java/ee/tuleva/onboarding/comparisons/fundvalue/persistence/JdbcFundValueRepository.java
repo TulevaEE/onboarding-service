@@ -87,6 +87,13 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
       ) v ORDER BY v.date ASC
       """;
 
+  private static final String FIND_LATEST_DATE_FOR_PROVIDER_QUERY =
+      """
+      SELECT MAX(date) AS latest_date
+      FROM index_values
+      WHERE provider = :provider
+      """;
+
   private static final String FIND_EARLIEST_DATES_QUERY =
       """
       SELECT key, MIN(date) AS earliest_date
@@ -204,6 +211,19 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
   @Override
   public List<FundValue> saveAll(List<FundValue> fundValues) {
     return fundValues.stream().map(this::save).flatMap(Optional::stream).toList();
+  }
+
+  @Override
+  public Optional<LocalDate> findLatestDateForProvider(String provider) {
+    List<LocalDate> result =
+        jdbcTemplate.query(
+            FIND_LATEST_DATE_FOR_PROVIDER_QUERY,
+            Map.of("provider", provider),
+            (rs, rowNum) -> {
+              var latestDate = rs.getDate("latest_date");
+              return latestDate != null ? latestDate.toLocalDate() : null;
+            });
+    return result.isEmpty() ? Optional.empty() : Optional.ofNullable(result.getFirst());
   }
 
   @Override

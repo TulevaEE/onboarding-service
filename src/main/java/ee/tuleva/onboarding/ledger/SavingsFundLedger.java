@@ -598,6 +598,32 @@ public class SavingsFundLedger {
   }
 
   @Transactional
+  public LedgerTransaction recordManagementFeeRebate(
+      BigDecimal amount,
+      UUID externalReference,
+      SystemAccount clearingAccount,
+      LocalDate bookingDate,
+      String description) {
+    LedgerAccount rebateIncomeAccount = getSystemAccount(SystemAccount.MANAGEMENT_FEE_REBATE);
+    LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount);
+
+    Map<String, Object> metadata =
+        Map.of(
+            OPERATION_TYPE.key,
+            TransactionType.MANAGEMENT_FEE_REBATE.name(),
+            DESCRIPTION.key,
+            description);
+
+    return ledgerTransactionService.createTransaction(
+        TransactionType.MANAGEMENT_FEE_REBATE,
+        transactionDate(bookingDate),
+        externalReference,
+        metadata,
+        entry(clearingLedgerAccount, amount),
+        entry(rebateIncomeAccount, amount.negate()));
+  }
+
+  @Transactional
   public LedgerTransaction recordBankAdjustment(
       BigDecimal amount, UUID externalReference, SystemAccount clearingAccount) {
     return recordBankAdjustment(amount, externalReference, clearingAccount, LocalDate.now(clock));

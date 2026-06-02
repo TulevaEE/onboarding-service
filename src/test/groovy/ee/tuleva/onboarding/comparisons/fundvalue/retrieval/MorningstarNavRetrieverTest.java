@@ -43,6 +43,11 @@ class MorningstarNavRetrieverTest {
   }
 
   @Test
+  void tracksLatestStoredDateByProvider() {
+    assertThat(retriever.trackingProvider()).contains("MORNINGSTAR");
+  }
+
+  @Test
   void parsesNavFromMorningstarApiResponse() {
     mockAllFunds(morningstarResponse("33.99", "2026-02-17"));
 

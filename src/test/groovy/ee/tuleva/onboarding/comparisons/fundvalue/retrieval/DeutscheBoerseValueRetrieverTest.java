@@ -43,6 +43,11 @@ class DeutscheBoerseValueRetrieverTest {
   }
 
   @Test
+  void tracksLatestStoredDateByProvider() {
+    assertThat(retriever.trackingProvider()).contains("DEUTSCHE_BOERSE");
+  }
+
+  @Test
   void retrievesFundValuesFromDeutscheBoerseApi() {
     FundTicker.getXetraIsins()
         .forEach(

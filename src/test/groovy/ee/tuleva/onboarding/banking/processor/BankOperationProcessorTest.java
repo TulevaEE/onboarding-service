@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.banking.processor;
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.INTEREST_RECEIVED;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.MANAGEMENT_FEE_REBATE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static org.mockito.ArgumentMatchers.any;
@@ -120,6 +121,44 @@ class BankOperationProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(LocalDate.of(2025, 10, 1)));
+  }
+
+  @Test
+  void processBankOperation_recordsManagementFeeRebateForBookKickback() {
+    var amount = new BigDecimal("4370.58");
+    var entry = createBankOperationEntry("BOOK", amount, "Management fee kickback VP68168 02/2026");
+
+    processor.processBankOperation(entry, "EE123456789012345678", FUND_INVESTMENT_EUR);
+
+    verify(savingsFundLedger)
+        .recordManagementFeeRebate(
+            eq(amount),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)),
+            eq("Management fee kickback VP68168 02/2026"));
+  }
+
+  @Test
+  void processBankOperation_doesNotRecordBookTransferWithoutKickback() {
+    var entry = createBankOperationEntry("BOOK", new BigDecimal("100.00"), "Internal transfer");
+
+    processor.processBankOperation(entry, "EE123456789012345678", FUND_INVESTMENT_EUR);
+
+    verifyNoInteractions(savingsFundLedger);
+  }
+
+  @Test
+  void processBankOperation_skipsAlreadyRecordedManagementFeeRebate() {
+    var entry =
+        createBankOperationEntry(
+            "BOOK", new BigDecimal("4370.58"), "Management fee kickback VP68168 02/2026");
+    when(savingsFundLedger.hasLedgerEntry(any(UUID.class), eq(MANAGEMENT_FEE_REBATE)))
+        .thenReturn(true);
+
+    processor.processBankOperation(entry, "EE123456789012345678", FUND_INVESTMENT_EUR);
+
+    verify(savingsFundLedger, never()).recordManagementFeeRebate(any(), any(), any(), any(), any());
   }
 
   @Test

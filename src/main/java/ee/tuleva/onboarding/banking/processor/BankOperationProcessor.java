@@ -29,6 +29,7 @@ public class BankOperationProcessor {
   private static final String OTHR = "OTHR";
   private static final String TRAD = "TRAD";
   private static final String SUBS = "SUBS";
+  private static final String BOOK = "BOOK";
 
   private final SavingsFundLedger savingsFundLedger;
   private final TradeSettlementParser tradeSettlementParser;
@@ -54,7 +55,8 @@ public class BankOperationProcessor {
     var amount = normalizeAmount(entry.amount());
     var clearingAccount = accountType.getLedgerAccount();
 
-    TransactionType transactionType = mapSubFamilyCode(subFamilyCode);
+    TransactionType transactionType =
+        mapSubFamilyCode(subFamilyCode, entry.remittanceInformation());
     if (transactionType == null) {
       log.error(
           "Unknown bank operation SubFmlyCd: subFamilyCode={}, externalId={}, amount={}, account={}, iban={}",
@@ -136,18 +138,34 @@ public class BankOperationProcessor {
             ticker.getDisplayName(),
             bookingDate);
       }
+      case BOOK -> {
+        log.info(
+            "Management fee rebate received: amount={}, externalRef={}, account={}, description={}",
+            amount,
+            externalReference,
+            accountType,
+            entry.remittanceInformation());
+        savingsFundLedger.recordManagementFeeRebate(
+            amount, externalReference, clearingAccount, bookingDate, entry.remittanceInformation());
+      }
       default -> throw new IllegalStateException("Unexpected value: " + subFamilyCode);
     }
   }
 
-  private TransactionType mapSubFamilyCode(String subFamilyCode) {
+  private TransactionType mapSubFamilyCode(String subFamilyCode, String remittanceInformation) {
     return switch (subFamilyCode) {
       case INTR -> INTEREST_RECEIVED;
       case FEES, COMM -> BANK_FEE;
       case ADJT, OTHR -> BANK_ADJUSTMENT;
       case TRAD, SUBS -> TRADE_SETTLEMENT;
+      case BOOK -> isManagementFeeRebate(remittanceInformation) ? MANAGEMENT_FEE_REBATE : null;
       default -> null;
     };
+  }
+
+  private static boolean isManagementFeeRebate(String remittanceInformation) {
+    return remittanceInformation != null
+        && remittanceInformation.toLowerCase().contains("kickback");
   }
 
   private static LocalDate bookingDate(BankStatementEntry entry) {

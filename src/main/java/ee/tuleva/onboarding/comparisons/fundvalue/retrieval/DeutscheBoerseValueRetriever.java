@@ -13,6 +13,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Optional;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -41,6 +42,11 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
   @Override
   public String getKey() {
     return KEY;
+  }
+
+  @Override
+  public Optional<String> trackingProvider() {
+    return Optional.of(PROVIDER);
   }
 
   @Override

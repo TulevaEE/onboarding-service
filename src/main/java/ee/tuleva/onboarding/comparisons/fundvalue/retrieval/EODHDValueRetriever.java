@@ -15,6 +15,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -55,6 +56,11 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
   @Override
   public boolean requiresWorkingDay() {
     return true;
+  }
+
+  @Override
+  public Optional<String> trackingProvider() {
+    return Optional.of(PROVIDER);
   }
 
   @Override

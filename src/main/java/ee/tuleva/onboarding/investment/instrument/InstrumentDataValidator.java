@@ -238,16 +238,16 @@ public class InstrumentDataValidator {
   private boolean hasAnyPrice(InstrumentReference instrument, LocalDate date) {
     return instrument
             .getXetraStorageKey()
-            .flatMap(k -> fundValueProvider.getLatestValue(k, date))
+            .flatMap(k -> fundValueProvider.getValueForDate(k, date))
             .isPresent()
         || instrument
             .getEuronextParisStorageKey()
-            .flatMap(k -> fundValueProvider.getLatestValue(k, date))
+            .flatMap(k -> fundValueProvider.getValueForDate(k, date))
             .isPresent()
         || (instrument.getEodhdTicker() != null
-            && fundValueProvider.getLatestValue(instrument.getEodhdTicker(), date).isPresent())
+            && fundValueProvider.getValueForDate(instrument.getEodhdTicker(), date).isPresent())
         || (instrument.getYahooTicker() != null
-            && fundValueProvider.getLatestValue(instrument.getYahooTicker(), date).isPresent());
+            && fundValueProvider.getValueForDate(instrument.getYahooTicker(), date).isPresent());
   }
 
   public record ValidationFinding(Severity severity, String message) {}

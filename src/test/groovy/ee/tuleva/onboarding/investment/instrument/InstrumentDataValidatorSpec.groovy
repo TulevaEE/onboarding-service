@@ -240,12 +240,33 @@ class InstrumentDataValidatorSpec extends Specification {
     positionLimitRepository.findLatestByFundAsOf(TUK75, futureDate) >> [positionLimit(isin1)]
     instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of("proxy")
     publicHolidays.previousWorkingDay(_) >> { LocalDate d -> d.minusDays(1) }
-    fundValueProvider.getLatestValue(_, _) >> Optional.empty()
+    fundValueProvider.getValueForDate(_, _) >> Optional.empty()
 
     when:
     def findings = validator.validate(TUK75, futureDate)
 
     then:
+    findings.any { it.severity() == FAIL && it.message().contains("business days of prices") }
+  }
+
+  def "FAIL when only a single stale price exists, not enough distinct days"() {
+    given:
+    def futureDate = LocalDate.of(2026, 6, 1)
+    allocationRepository.findByFundAndEffectiveDate(TUK75, futureDate) >> [allocation(isin1, 1.0)]
+    instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(active: true, eodhdTicker: "EUNL.XETRA"))
+    positionLimitRepository.findLatestByFundAsOf(TUK75, futureDate) >> [positionLimit(isin1)]
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of("proxy")
+    publicHolidays.previousWorkingDay(_) >> { LocalDate d -> d.minusDays(1) }
+    // a price exists on exactly one business day; every other day has none
+    fundValueProvider.getValueForDate("EUNL.XETRA", LocalDate.of(2026, 5, 31)) >> Optional.of(Mock(FundValue))
+    fundValueProvider.getValueForDate(_ as String, _ as LocalDate) >> Optional.empty()
+
+    when:
+    def findings = validator.validate(TUK75, futureDate)
+
+    then:
+    // must use exact-date lookup, never the on-or-before getLatestValue (which a single stale price would satisfy)
+    0 * fundValueProvider.getLatestValue(_, _)
     findings.any { it.severity() == FAIL && it.message().contains("business days of prices") }
   }
 
@@ -260,7 +281,7 @@ class InstrumentDataValidatorSpec extends Specification {
     def findings = validator.validate(TUK75, effectiveDate)
 
     then:
-    0 * fundValueProvider.getLatestValue(_, _)
+    0 * fundValueProvider.getValueForDate(_, _)
     findings.every { !it.message().contains("business days of prices") }
   }
 
@@ -272,7 +293,7 @@ class InstrumentDataValidatorSpec extends Specification {
     positionLimitRepository.findLatestByFundAsOf(TUK75, futureDate) >> [positionLimit(isin1)]
     instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of("proxy")
     publicHolidays.previousWorkingDay(_) >> { LocalDate d -> d.minusDays(1) }
-    fundValueProvider.getLatestValue(_ as String, _ as LocalDate) >> Optional.of(Mock(FundValue))
+    fundValueProvider.getValueForDate(_ as String, _ as LocalDate) >> Optional.of(Mock(FundValue))
 
     when:
     def findings = validator.validate(TUK75, futureDate)

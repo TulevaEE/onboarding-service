@@ -77,7 +77,40 @@ class InstrumentFeeRepositoryTest {
     assertThat(result.get().source()).isNull();
   }
 
-  // findAllValidRates uses DISTINCT ON (PostgreSQL-only), tested in PostgreSQL profile
+  @Test
+  void findAllValidRatesReturnsLatestVersionPerIsin() {
+    insertFee(
+        "IE00BFNM3G45", "iShares USA", "0.0007", "0.0000", "0.0007", "2025-01-01", "2025-12-31");
+    insertFee("IE00BFNM3G45", "iShares USA", "0.0005", "0.0001", "0.0004", "2026-01-01", null);
+    insertFee("IE00BFNM3D14", "iShares Europe", "0.0009", "0.0002", "0.0007", "2025-06-01", null);
+
+    var result = repository.findAllValidRates(LocalDate.of(2026, 4, 30));
+
+    assertThat(result).hasSize(2);
+    assertThat(result)
+        .filteredOn(fee -> fee.isin().equals("IE00BFNM3G45"))
+        .singleElement()
+        .satisfies(
+            fee -> {
+              assertThat(fee.netOcf()).isEqualByComparingTo("0.0004");
+              assertThat(fee.validFrom()).isEqualTo(LocalDate.of(2026, 1, 1));
+            });
+    assertThat(result)
+        .filteredOn(fee -> fee.isin().equals("IE00BFNM3D14"))
+        .singleElement()
+        .satisfies(fee -> assertThat(fee.netOcf()).isEqualByComparingTo("0.0007"));
+  }
+
+  @Test
+  void findAllValidRatesExcludesExpiredAndFutureRates() {
+    insertFee(
+        "IE00BFNM3G45", "iShares USA", "0.0007", "0.0000", "0.0007", "2025-01-01", "2025-06-30");
+    insertFee("IE00BFNM3D14", "iShares Europe", "0.0009", "0.0002", "0.0007", "2027-01-01", null);
+
+    var result = repository.findAllValidRates(LocalDate.of(2026, 4, 30));
+
+    assertThat(result).isEmpty();
+  }
 
   private void insertFee(
       String isin,

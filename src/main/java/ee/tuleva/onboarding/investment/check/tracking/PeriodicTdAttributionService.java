@@ -35,7 +35,8 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Component
@@ -53,21 +54,28 @@ public class PeriodicTdAttributionService {
   private final PeriodicTdAttributionRepository attributionRepository;
   private final TransactionExecutionRepository transactionExecutionRepository;
   private final InstrumentFeeRepository instrumentFeeRepository;
+  private final PlatformTransactionManager transactionManager;
 
   private final TdAttributionCalculator calculator = new TdAttributionCalculator();
 
-  @Transactional
   public TdAttributionResult computeAttribution(
       TulevaFund fund, LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
 
-    attributionRepository.deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
-        fund, periodStart, periodEnd, periodType);
-
+    // Compute before touching the database: a failure here leaves the prior period's row intact.
     var input = buildInput(fund, periodStart, periodEnd, periodType);
     var result = calculator.calculate(input);
-
     var entity = toEntity(result);
-    attributionRepository.save(entity);
+
+    // Replace the existing row atomically. A TransactionTemplate (not @Transactional) is used so
+    // the delete+save run in one transaction even on the self-invoked batch/backfill paths, where
+    // a @Transactional proxy would be bypassed and the delete could commit without the save.
+    new TransactionTemplate(transactionManager)
+        .executeWithoutResult(
+            status -> {
+              attributionRepository.deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
+                  fund, periodStart, periodEnd, periodType);
+              attributionRepository.save(entity);
+            });
 
     log.info(
         "TD attribution computed: fund={}, period={}-{}, td={}bps, residual={}bps",

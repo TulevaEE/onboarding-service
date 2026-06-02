@@ -43,6 +43,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.transaction.PlatformTransactionManager;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -63,6 +64,7 @@ class PeriodicTdAttributionServiceTest {
   @Mock PeriodicTdAttributionRepository attributionRepository;
   @Mock TransactionExecutionRepository transactionExecutionRepository;
   @Mock InstrumentFeeRepository instrumentFeeRepository;
+  @Mock PlatformTransactionManager transactionManager;
 
   private PeriodicTdAttributionService service;
 
@@ -78,7 +80,8 @@ class PeriodicTdAttributionServiceTest {
             modelPortfolioAllocationRepository,
             attributionRepository,
             transactionExecutionRepository,
-            instrumentFeeRepository);
+            instrumentFeeRepository,
+            transactionManager);
 
     // Default lenient stubs for Phase 3 data sources (overridden in specific tests)
     given(transactionExecutionRepository.sumCommissionsForFundAndPeriod(anyString(), any(), any()))

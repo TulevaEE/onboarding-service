@@ -34,10 +34,13 @@ public class InstrumentFeeRepository {
     return jdbcClient
         .sql(
             """
-            SELECT DISTINCT ON (isin) * FROM investment_instrument_fee
-            WHERE valid_from <= :date
-              AND (valid_to IS NULL OR valid_to >= :date)
-            ORDER BY isin, valid_from DESC
+            SELECT * FROM (
+              SELECT *, ROW_NUMBER() OVER (PARTITION BY isin ORDER BY valid_from DESC) AS rn
+              FROM investment_instrument_fee
+              WHERE valid_from <= :date
+                AND (valid_to IS NULL OR valid_to >= :date)
+            ) ranked
+            WHERE rn = 1
             """)
         .param("date", date)
         .query(InstrumentFee::fromResultSet)

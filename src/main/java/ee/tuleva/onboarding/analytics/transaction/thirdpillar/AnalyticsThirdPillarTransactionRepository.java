@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.analytics.transaction.thirdpillar;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -12,6 +13,9 @@ public interface AnalyticsThirdPillarTransactionRepository
 
   @Query("SELECT MAX(t.reportingDate) FROM AnalyticsThirdPillarTransaction t")
   Optional<LocalDate> findLatestReportingDate();
+
+  List<AnalyticsThirdPillarTransaction> findByReportingDateGreaterThanEqual(
+      LocalDate reportingDate);
 
   @Modifying
   @Query(

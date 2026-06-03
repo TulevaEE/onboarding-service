@@ -73,6 +73,90 @@ class TdAttributionCalculatorTest {
   }
 
   @Test
+  void linkingFactorStaysBoundedWhenArithmeticTdNearlyCancels() {
+    // Daily TDs alternate +20bps / -20bps, so the arithmetic TD sum is ~0 while the
+    // geometric TD is small but non-zero. The old single-scalar scale = tdGeo/tdArith
+    // blew up here; the Cariño period link multiplier stays ~1.
+    var days = new ArrayList<DailyRecord>();
+    for (int i = 0; i < 20; i++) {
+      var fund = i % 2 == 0 ? "0.0030" : "0.0010";
+      var model = i % 2 == 0 ? "0.0010" : "0.0030";
+      days.add(
+          dailyRecord(PERIOD_START.plusDays(i), fund, model, "1000000", "10000", "0", List.of()));
+    }
+    var input = inputWith(days, new BigDecimal("-0.00022"), new BigDecimal("-0.00002"));
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.scalingFactor()).isCloseTo(BigDecimal.ONE, within(new BigDecimal("0.05")));
+    var componentSum =
+        result
+            .mgmtFeeDrag()
+            .add(result.depotFeeDrag())
+            .add(result.cashDrag())
+            .add(result.nonSecurityDrag())
+            .add(result.weightDeviation())
+            .add(result.transactionCosts())
+            .add(result.residual());
+    assertThat(componentSum).isCloseTo(result.tdGeometric(), within(new BigDecimal("0.00000001")));
+  }
+
+  @Test
+  void carinoLinkingIsExactForVolatileMultiDayReturns() {
+    // Two securities with day-varying weights and returns; components must still sum
+    // exactly to the geometric TD after Cariño linking.
+    var days = new ArrayList<DailyRecord>();
+    for (int i = 0; i < 15; i++) {
+      var r1 = i % 3 == 0 ? "0.02" : "-0.01";
+      var r2 = i % 2 == 0 ? "-0.015" : "0.018";
+      var sec1 =
+          SecurityDailyData.builder()
+              .isin("IE001")
+              .instrumentName("Sec One")
+              .modelWeight(new BigDecimal("0.50"))
+              .actualWeight(new BigDecimal("0.55"))
+              .normalizedWeightDiff(new BigDecimal("0.05"))
+              .securityReturn(new BigDecimal(r1))
+              .build();
+      var sec2 =
+          SecurityDailyData.builder()
+              .isin("IE002")
+              .instrumentName("Sec Two")
+              .modelWeight(new BigDecimal("0.50"))
+              .actualWeight(new BigDecimal("0.45"))
+              .normalizedWeightDiff(new BigDecimal("-0.05"))
+              .securityReturn(new BigDecimal(r2))
+              .build();
+      var fund = i % 2 == 0 ? "0.004" : "-0.002";
+      var model = i % 2 == 0 ? "0.003" : "-0.001";
+      days.add(
+          dailyRecord(
+              PERIOD_START.plusDays(i), fund, model, "1000000", "5000", "0", List.of(sec1, sec2)));
+    }
+    var input = inputWith(days, new BigDecimal("-0.00022"), ZERO);
+
+    var result = calculator.calculate(input);
+
+    var componentSum =
+        result
+            .mgmtFeeDrag()
+            .add(result.depotFeeDrag())
+            .add(result.cashDrag())
+            .add(result.nonSecurityDrag())
+            .add(result.weightDeviation())
+            .add(result.transactionCosts())
+            .add(result.residual());
+    assertThat(componentSum).isCloseTo(result.tdGeometric(), within(new BigDecimal("0.00000001")));
+    // Per-instrument linked contributions reconcile to the aggregate weight deviation.
+    var instrumentSum =
+        result.instrumentDetails().stream()
+            .map(d -> d.weightDevContribution())
+            .reduce(ZERO, BigDecimal::add);
+    assertThat(instrumentSum)
+        .isCloseTo(result.weightDeviation(), within(new BigDecimal("0.0000001")));
+  }
+
+  @Test
   void cashDragIsNegativeWhenModelReturnPositive() {
     var days =
         List.of(dailyRecord(PERIOD_START, "0.0008", "0.001", "1000000", "20000", "0", List.of()));

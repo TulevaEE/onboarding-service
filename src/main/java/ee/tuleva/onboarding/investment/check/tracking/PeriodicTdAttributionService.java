@@ -351,6 +351,7 @@ public class PeriodicTdAttributionService {
       securityDataList.add(
           SecurityDailyData.builder()
               .isin(isin)
+              .instrumentName(position != null ? position.getAccountName() : null)
               .modelWeight(modelWeight)
               .actualWeight(normalizedActualWeight)
               .normalizedWeightDiff(normalizedWeightDiff)

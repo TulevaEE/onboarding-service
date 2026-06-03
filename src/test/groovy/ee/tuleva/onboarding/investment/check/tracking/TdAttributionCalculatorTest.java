@@ -192,6 +192,83 @@ class TdAttributionCalculatorTest {
   }
 
   @Test
+  void instrumentDetailsCarryInstrumentName() {
+    var sec =
+        SecurityDailyData.builder()
+            .isin("IE00BFG1TM61")
+            .instrumentName("iShares Developed World Screened Index Fund")
+            .modelWeight(new BigDecimal("0.295"))
+            .actualWeight(new BigDecimal("0.291"))
+            .normalizedWeightDiff(new BigDecimal("-0.004"))
+            .securityReturn(new BigDecimal("0.003"))
+            .build();
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "0.001", "0.0012", "1000000", "10000", "0", List.of(sec)));
+    var input = inputWith(days, ZERO, ZERO);
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.instrumentDetails().getFirst().instrumentName())
+        .isEqualTo("iShares Developed World Screened Index Fund");
+  }
+
+  @Test
+  void instrumentNameFallsBackToIsinWhenMissing() {
+    var sec =
+        SecurityDailyData.builder()
+            .isin("IE00BFG1TM61")
+            .modelWeight(new BigDecimal("0.295"))
+            .actualWeight(new BigDecimal("0.291"))
+            .normalizedWeightDiff(new BigDecimal("-0.004"))
+            .securityReturn(new BigDecimal("0.003"))
+            .build();
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "0.001", "0.0012", "1000000", "10000", "0", List.of(sec)));
+    var input = inputWith(days, ZERO, ZERO);
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.instrumentDetails().getFirst().instrumentName()).isEqualTo("IE00BFG1TM61");
+  }
+
+  @Test
+  void securityReturnCompoundsGeometricallyAcrossDays() {
+    // Same security on two days: +1% then +2%. Geometric = 1.01*1.02-1 = 0.0302,
+    // which differs from the arithmetic sum 0.03 by the cross term 0.0002.
+    var day1Sec =
+        SecurityDailyData.builder()
+            .isin("IE001")
+            .instrumentName("Sec One")
+            .modelWeight(new BigDecimal("1.0"))
+            .actualWeight(new BigDecimal("1.0"))
+            .normalizedWeightDiff(ZERO)
+            .securityReturn(new BigDecimal("0.01"))
+            .build();
+    var day2Sec =
+        SecurityDailyData.builder()
+            .isin("IE001")
+            .instrumentName("Sec One")
+            .modelWeight(new BigDecimal("1.0"))
+            .actualWeight(new BigDecimal("1.0"))
+            .normalizedWeightDiff(ZERO)
+            .securityReturn(new BigDecimal("0.02"))
+            .build();
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "0.001", "0.001", "1000000", "0", "0", List.of(day1Sec)),
+            dailyRecord(
+                PERIOD_START.plusDays(1), "0.001", "0.001", "1000000", "0", "0", List.of(day2Sec)));
+    var input = inputWith(days, ZERO, ZERO);
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.instrumentDetails().getFirst().securityReturn())
+        .isEqualByComparingTo(new BigDecimal("0.0302"));
+  }
+
+  @Test
   void feeXcheckDetectsDivergence() {
     var days = buildConstantDays(30, "0.0005", "0.0007");
     var mgmtFee = new BigDecimal("-0.00050");

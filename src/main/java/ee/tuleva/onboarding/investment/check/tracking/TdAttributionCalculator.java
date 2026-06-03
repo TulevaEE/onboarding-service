@@ -259,6 +259,7 @@ class TdAttributionCalculator {
   @Builder
   record SecurityDailyData(
       String isin,
+      String instrumentName,
       BigDecimal modelWeight,
       BigDecimal actualWeight,
       BigDecimal normalizedWeightDiff,
@@ -267,10 +268,11 @@ class TdAttributionCalculator {
   private static class InstrumentAccumulator {
 
     final String isin;
+    String instrumentName;
     BigDecimal totalModelWeight = ZERO;
     BigDecimal totalActualWeight = ZERO;
     BigDecimal totalContribution = ZERO;
-    BigDecimal totalReturn = ZERO;
+    BigDecimal compoundReturn = ONE;
     int days = 0;
 
     InstrumentAccumulator(String isin) {
@@ -278,10 +280,13 @@ class TdAttributionCalculator {
     }
 
     void add(SecurityDailyData sec, BigDecimal contribution) {
+      if (instrumentName == null && sec.instrumentName() != null) {
+        instrumentName = sec.instrumentName();
+      }
       totalModelWeight = totalModelWeight.add(sec.modelWeight());
       totalActualWeight = totalActualWeight.add(sec.actualWeight());
       totalContribution = totalContribution.add(contribution);
-      totalReturn = totalReturn.add(sec.securityReturn());
+      compoundReturn = compoundReturn.multiply(ONE.add(sec.securityReturn()));
       days++;
     }
 
@@ -292,10 +297,11 @@ class TdAttributionCalculator {
           days > 0 ? totalActualWeight.divide(BigDecimal.valueOf(days), 6, HALF_UP) : ZERO;
       return TdAttributionResult.InstrumentAttribution.builder()
           .isin(isin)
+          .instrumentName(instrumentName != null ? instrumentName : isin)
           .modelWeight(avgModel)
           .avgActualWeight(avgActual)
           .weightDevContribution(totalContribution.multiply(scale).setScale(8, HALF_UP))
-          .securityReturn(totalReturn.setScale(8, HALF_UP))
+          .securityReturn(compoundReturn.subtract(ONE).setScale(8, HALF_UP))
           .build();
     }
   }

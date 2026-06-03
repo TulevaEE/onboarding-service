@@ -29,15 +29,17 @@ public class TkfVolumeEvaluator {
 
   public List<TkfVolumeAlert> evaluate(TkfVolumeAggregate aggregate) {
     var alerts = new ArrayList<TkfVolumeAlert>();
-    boolean monthlyReviewed =
-        reviewedAfter(aggregate.lastManualReview(), aggregate.lastFlowThisMonth());
+    boolean depositReviewed =
+        reviewedAfter(aggregate.lastManualReview(), aggregate.lastDepositThisMonth());
+    boolean redemptionReviewed =
+        reviewedAfter(aggregate.lastManualReview(), aggregate.lastRedemptionThisMonth());
     boolean yearlyReviewed =
         reviewedAfter(aggregate.lastManualReview(), aggregate.lastDepositThisYear());
 
     if (aggregate.presentInCrm()
         && !aggregate.existingClient()
         && atLeast(aggregate.depositsThisMonth(), NEW_CLIENT_MONTHLY_THRESHOLD)
-        && !monthlyReviewed) {
+        && !depositReviewed) {
       alerts.add(
           new TkfVolumeAlert(
               TKF_VOLUME_15K_NEW_CLIENT, IN, aggregate.depositsThisMonth(), aggregate.monthKey()));
@@ -45,7 +47,7 @@ public class TkfVolumeEvaluator {
     if (aggregate.presentInCrm()
         && aggregate.existingClient()
         && atLeast(aggregate.depositsThisMonth(), EXISTING_CLIENT_MONTHLY_THRESHOLD)
-        && !monthlyReviewed) {
+        && !depositReviewed) {
       alerts.add(
           new TkfVolumeAlert(
               TKF_VOLUME_30K_EXISTING_CLIENT,
@@ -56,7 +58,7 @@ public class TkfVolumeEvaluator {
     if (aggregate.presentInCrm()
         && aggregate.existingClient()
         && atLeast(aggregate.redemptionsThisMonth(), EXISTING_CLIENT_MONTHLY_THRESHOLD)
-        && !monthlyReviewed) {
+        && !redemptionReviewed) {
       alerts.add(
           new TkfVolumeAlert(
               TKF_VOLUME_30K_EXISTING_CLIENT,

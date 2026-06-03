@@ -20,7 +20,8 @@ class TkfVolumeEvaluatorSpec extends Specification {
         "38001010000",
         args.depMonth as BigDecimal,
         args.redMonth as BigDecimal,
-        FLOW,
+        args.containsKey('lastDeposit') ? args.lastDeposit as Instant : FLOW,
+        args.containsKey('lastRedemption') ? args.lastRedemption as Instant : FLOW,
         "2026-06",
         args.depYear as BigDecimal,
         YEAR_FLOW,
@@ -85,7 +86,7 @@ class TkfVolumeEvaluatorSpec extends Specification {
   }
 
   @Unroll
-  def "suppresses an alert already manually reviewed after the breaching activity (review=#review -> #alertCount alerts)"() {
+  def "suppresses a monthly alert reviewed after the breaching deposit (review=#review -> #alertCount alerts)"() {
     given:
     def agg = aggregate(depMonth: 31000.00, redMonth: 0.00, depYear: 0.00, existing: true, review: review)
 
@@ -95,14 +96,37 @@ class TkfVolumeEvaluatorSpec extends Specification {
     where:
     review                                || alertCount
     null                                  || 1     // never reviewed -> alert
-    Instant.parse("2026-06-09T00:00:00Z") || 1     // reviewed before the breaching flow -> alert
-    Instant.parse("2026-06-11T00:00:00Z") || 0     // reviewed after the breaching flow -> suppress
+    Instant.parse("2026-06-09T00:00:00Z") || 1     // reviewed before the breaching deposit -> alert
+    Instant.parse("2026-06-11T00:00:00Z") || 0     // reviewed after the breaching deposit -> suppress
+  }
+
+  @Unroll
+  def "compares the manual review against the matching flow direction: depositReviewed=#dr redemptionReviewed=#rr -> #expected"() {
+    given:
+    def review = Instant.parse("2026-06-15T00:00:00Z")
+    def beforeReview = Instant.parse("2026-06-10T00:00:00Z")
+    def afterReview = Instant.parse("2026-06-20T00:00:00Z")
+    def agg = aggregate(
+        depMonth: 31000.00, redMonth: 31000.00, existing: true, depYear: 0.00,
+        lastDeposit: dr ? beforeReview : afterReview,
+        lastRedemption: rr ? beforeReview : afterReview,
+        review: review)
+
+    expect:
+    (evaluator.evaluate(agg).collect { it.direction() } as Set) == (expected as Set)
+
+    where:
+    dr    | rr    || expected
+    false | false || [IN, OUT]
+    true  | false || [OUT]
+    false | true  || [IN]
+    true  | true  || []
   }
 
   def "alerts a 49k yearly breach with no current-month flow when not reviewed"() {
     given:
     def agg = new TkfVolumeAggregate(
-        "38001010000", 0.00, 0.00, null, "2026-06", 50000.00, YEAR_FLOW, "2026", true, true, null)
+        "38001010000", 0.00, 0.00, null, null, "2026-06", 50000.00, YEAR_FLOW, "2026", true, true, null)
 
     expect:
     evaluator.evaluate(agg).collect { it.type() } == [TKF_VOLUME_49K_YEARLY]
@@ -111,7 +135,7 @@ class TkfVolumeEvaluatorSpec extends Specification {
   def "suppresses a 49k yearly breach reviewed after the last deposit (no current-month flow)"() {
     given:
     def agg = new TkfVolumeAggregate(
-        "38001010000", 0.00, 0.00, null, "2026-06", 50000.00, YEAR_FLOW, "2026", true, true,
+        "38001010000", 0.00, 0.00, null, null, "2026-06", 50000.00, YEAR_FLOW, "2026", true, true,
         Instant.parse("2026-12-01T00:00:00Z"))
 
     expect:

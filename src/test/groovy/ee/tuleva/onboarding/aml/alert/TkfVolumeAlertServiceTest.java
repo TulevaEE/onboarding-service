@@ -47,6 +47,7 @@ class TkfVolumeAlertServiceTest {
         new BigDecimal("15000.00"),
         BigDecimal.ZERO,
         Instant.parse("2026-06-10T00:00:00Z"),
+        null,
         "2026-06",
         new BigDecimal("15000.00"),
         Instant.parse("2026-06-10T00:00:00Z"),

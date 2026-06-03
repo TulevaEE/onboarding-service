@@ -32,19 +32,22 @@ class ThirdPillarAlertIntegrationTest {
 
   @MockitoBean private OperationsNotificationService notificationService;
 
+  private AnalyticsThirdPillarTransaction qualifyingDeposit() {
+    return exampleTransactionBuilder()
+        .reportingDate(LocalDate.now())
+        .personalId("38001010000")
+        .accountNo("EE100200300")
+        .transactionSource("Osakute väljalase isikult laekumiste alusel")
+        .transactionType("irrelevant")
+        .transactionValue(new BigDecimal("6001.00"))
+        .build();
+  }
+
   @Test
   @DisplayName(
-      "alerts a qualifying III pillar transaction exactly once to the AML channel and persists idempotency")
-  void endToEnd_qualifyingTransaction_alertsOnceAndIsIdempotent() {
-    AnalyticsThirdPillarTransaction qualifying =
-        transactionRepository.save(
-            exampleTransactionBuilder()
-                .reportingDate(LocalDate.now())
-                .personalId("38001010000")
-                .transactionSource("Osakute väljalase isikult laekumiste alusel")
-                .transactionType("irrelevant")
-                .transactionValue(new BigDecimal("6001.00"))
-                .build());
+      "alerts a qualifying III pillar transaction exactly once, is idempotent, and survives a re-sync that regenerates the row id")
+  void endToEnd_qualifyingTransaction_alertsOnceAndSurvivesResync() {
+    AnalyticsThirdPillarTransaction qualifying = transactionRepository.save(qualifyingDeposit());
 
     AnalyticsThirdPillarTransaction nonQualifying =
         transactionRepository.save(
@@ -60,22 +63,35 @@ class ThirdPillarAlertIntegrationTest {
 
     verify(notificationService, times(1))
         .sendMessage(
-            argThat(
-                message ->
-                    message.startsWith("AML alert: III_PILLAR_DEPOSIT_PERSON")
-                        && message.contains("ref=" + qualifying.getId())),
+            argThat(message -> message.startsWith("AML alert: III_PILLAR_DEPOSIT_PERSON")),
             eq(AML));
     verify(notificationService, never())
         .sendMessage(argThat(message -> message.contains("ref=" + nonQualifying.getId())), eq(AML));
 
     assertThat(
-            alertRepository.existsByTransactionIdAndAlertType(
-                qualifying.getId(), III_PILLAR_DEPOSIT_PERSON))
+            alertRepository.existsByTransactionFingerprintAndAlertType(
+                ThirdPillarTransactionFingerprint.of(qualifying), III_PILLAR_DEPOSIT_PERSON))
         .isTrue();
+
+    // Idempotent on an unchanged re-run.
+    thirdPillarAlertService.checkAndAlert();
+    verify(notificationService, times(1))
+        .sendMessage(
+            argThat(message -> message.startsWith("AML alert: III_PILLAR_DEPOSIT_PERSON")),
+            eq(AML));
+
+    // Re-sync: the analytics sync deletes and re-inserts the reporting-date range, so the same
+    // EPIS transaction comes back with a NEW auto-generated id. Dedup must survive that.
+    transactionRepository.delete(qualifying);
+    AnalyticsThirdPillarTransaction resynced = transactionRepository.save(qualifyingDeposit());
+    assertThat(resynced.getId()).isNotEqualTo(qualifying.getId());
 
     thirdPillarAlertService.checkAndAlert();
 
+    // Still exactly one alert overall — the regenerated id did NOT cause a duplicate.
     verify(notificationService, times(1))
-        .sendMessage(argThat(message -> message.contains("ref=" + qualifying.getId())), eq(AML));
+        .sendMessage(
+            argThat(message -> message.startsWith("AML alert: III_PILLAR_DEPOSIT_PERSON")),
+            eq(AML));
   }
 }

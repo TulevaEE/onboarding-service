@@ -33,7 +33,8 @@ public class ThirdPillarAlertService {
   }
 
   private void alertOnce(AnalyticsThirdPillarTransaction transaction, AmlAlertType alertType) {
-    if (alertRepository.existsByTransactionIdAndAlertType(transaction.getId(), alertType)) {
+    String fingerprint = ThirdPillarTransactionFingerprint.of(transaction);
+    if (alertRepository.existsByTransactionFingerprintAndAlertType(fingerprint, alertType)) {
       return;
     }
     try {
@@ -46,7 +47,7 @@ public class ThirdPillarAlertService {
               String.valueOf(transaction.getId())));
       alertRepository.save(
           AmlThirdPillarAlert.builder()
-              .transactionId(transaction.getId())
+              .transactionFingerprint(fingerprint)
               .alertType(alertType)
               .alertedAt(clock.instant())
               .build());

@@ -27,7 +27,7 @@ public class AmlThirdPillarAlert {
   private Long id;
 
   @Column(nullable = false)
-  private Long transactionId;
+  private String transactionFingerprint;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)

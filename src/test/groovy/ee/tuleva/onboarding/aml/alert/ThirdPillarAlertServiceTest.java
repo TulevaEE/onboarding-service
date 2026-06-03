@@ -69,10 +69,12 @@ class ThirdPillarAlertServiceTest {
   @DisplayName("publishes an alert event and persists a tracking row for a qualifying transaction")
   void checkAndAlert_qualifying_publishesEventAndTracks() {
     var transaction = qualifyingTransaction();
+    var fingerprint = ThirdPillarTransactionFingerprint.of(transaction);
     when(transactionRepository.findByReportingDateGreaterThanEqual(any()))
         .thenReturn(List.of(transaction));
     when(evaluator.evaluate(transaction)).thenReturn(List.of(III_PILLAR_DEPOSIT_PERSON));
-    when(alertRepository.existsByTransactionIdAndAlertType(7L, III_PILLAR_DEPOSIT_PERSON))
+    when(alertRepository.existsByTransactionFingerprintAndAlertType(
+            fingerprint, III_PILLAR_DEPOSIT_PERSON))
         .thenReturn(false);
 
     service.checkAndAlert();
@@ -90,7 +92,7 @@ class ThirdPillarAlertServiceTest {
         ArgumentCaptor.forClass(AmlThirdPillarAlert.class);
     verify(alertRepository).save(alertCaptor.capture());
     AmlThirdPillarAlert saved = alertCaptor.getValue();
-    assertThat(saved.getTransactionId()).isEqualTo(7L);
+    assertThat(saved.getTransactionFingerprint()).isEqualTo(fingerprint);
     assertThat(saved.getAlertType()).isEqualTo(III_PILLAR_DEPOSIT_PERSON);
     assertThat(saved.getAlertedAt()).isEqualTo(clock.instant());
   }
@@ -99,10 +101,12 @@ class ThirdPillarAlertServiceTest {
   @DisplayName("does not re-alert a transaction that was already alerted")
   void checkAndAlert_alreadyAlerted_skips() {
     var transaction = qualifyingTransaction();
+    var fingerprint = ThirdPillarTransactionFingerprint.of(transaction);
     when(transactionRepository.findByReportingDateGreaterThanEqual(any()))
         .thenReturn(List.of(transaction));
     when(evaluator.evaluate(transaction)).thenReturn(List.of(III_PILLAR_DEPOSIT_PERSON));
-    when(alertRepository.existsByTransactionIdAndAlertType(7L, III_PILLAR_DEPOSIT_PERSON))
+    when(alertRepository.existsByTransactionFingerprintAndAlertType(
+            fingerprint, III_PILLAR_DEPOSIT_PERSON))
         .thenReturn(true);
 
     service.checkAndAlert();
@@ -118,7 +122,7 @@ class ThirdPillarAlertServiceTest {
     when(transactionRepository.findByReportingDateGreaterThanEqual(any()))
         .thenReturn(List.of(transaction));
     when(evaluator.evaluate(transaction)).thenReturn(List.of(III_PILLAR_DEPOSIT_PERSON));
-    when(alertRepository.existsByTransactionIdAndAlertType(7L, III_PILLAR_DEPOSIT_PERSON))
+    when(alertRepository.existsByTransactionFingerprintAndAlertType(any(), any()))
         .thenReturn(false);
     org.mockito.Mockito.doThrow(new IllegalStateException("Slack down"))
         .when(eventPublisher)
@@ -143,6 +147,6 @@ class ThirdPillarAlertServiceTest {
     verify(eventPublisher, never()).publishEvent(any());
     verify(alertRepository, never()).save(any());
     verify(alertRepository, never())
-        .existsByTransactionIdAndAlertType(any(), eq(III_PILLAR_DEPOSIT_PERSON));
+        .existsByTransactionFingerprintAndAlertType(any(), eq(III_PILLAR_DEPOSIT_PERSON));
   }
 }

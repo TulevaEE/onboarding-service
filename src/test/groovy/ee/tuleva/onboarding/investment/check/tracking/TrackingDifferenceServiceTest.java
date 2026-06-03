@@ -138,6 +138,92 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
+  void multiSecurityActualWeightsSumToOneAndDeviationsToZeroOnSecuritiesOnlyBasis() {
+    // Two securities (60/40) that match the model on the securities sleeve, plus cash. On the
+    // securities-only basis the actual weights must sum to 1 and the weight deviations to ~0,
+    // so the per-instrument contributions are ~0 and cash is attributed once, via cashDrag —
+    // proving the no-double-count property holds with multiple holdings.
+    skipOtherFunds(TUK75);
+
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+
+    var isinA = "IE00AAA";
+    var isinB = "IE00BBB";
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
+        .willReturn(
+            List.of(
+                ModelPortfolioAllocation.builder()
+                    .fund(TUK75)
+                    .isin(isinA)
+                    .weight(new BigDecimal("0.60"))
+                    .effectiveDate(LocalDate.of(2026, 1, 1))
+                    .build(),
+                ModelPortfolioAllocation.builder()
+                    .fund(TUK75)
+                    .isin(isinB)
+                    .weight(new BigDecimal("0.40"))
+                    .effectiveDate(LocalDate.of(2026, 1, 1))
+                    .build()));
+
+    given(positionPriceResolver.resolve(eq(isinA), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("102.00")));
+    given(positionPriceResolver.resolve(eq(isinA), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+    given(positionPriceResolver.resolve(eq(isinB), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("51.00")));
+    given(positionPriceResolver.resolve(eq(isinB), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("50.00")));
+
+    // 600k + 400k securities = 1,000,000 sleeve; 50k cash → 1,050,000 total NAV
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUK75)
+                    .navDate(CHECK_DATE)
+                    .accountType(SECURITY)
+                    .accountId(isinA)
+                    .marketValue(new BigDecimal("600000"))
+                    .build(),
+                FundPosition.builder()
+                    .fund(TUK75)
+                    .navDate(CHECK_DATE)
+                    .accountType(SECURITY)
+                    .accountId(isinB)
+                    .marketValue(new BigDecimal("400000"))
+                    .build()));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1050000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(CASH)))
+        .willReturn(new BigDecimal("50000"));
+    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
+        .willReturn(Optional.empty());
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+        .willReturn(List.of());
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    var attrs = model.securityAttributions();
+    assertThat(attrs).hasSize(2);
+
+    var weightSum = attrs.stream().map(a -> a.actualWeight()).reduce(ZERO, BigDecimal::add);
+    var diffSum = attrs.stream().map(a -> a.weightDifference()).reduce(ZERO, BigDecimal::add);
+    var contribSum = attrs.stream().map(a -> a.contribution()).reduce(ZERO, BigDecimal::add);
+    assertThat(weightSum).isEqualByComparingTo(BigDecimal.ONE);
+    assertThat(diffSum.abs()).isLessThan(new BigDecimal("0.000001"));
+    assertThat(contribSum.abs()).isLessThan(new BigDecimal("0.000001"));
+  }
+
+  @Test
   void calculatesBenchmarkTrackingDifference() {
     setupFundData(TUK75);
     setupBenchmarkData("MSCI_ACWI");

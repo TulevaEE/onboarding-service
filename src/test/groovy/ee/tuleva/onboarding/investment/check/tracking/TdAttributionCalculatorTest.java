@@ -102,6 +102,50 @@ class TdAttributionCalculatorTest {
   }
 
   @Test
+  void carinoLinkedWeightDeviationMatchesIndependentReference() {
+    // Pins the daily-linking math itself, NOT the residual plug: weightDeviation must equal an
+    // independently computed Σ(k_t · weightDiff_t · return_t) / k. Distinct daily fund/model
+    // returns make k_1 ≠ k_2, so a wrong coefficient or wrong divisor would fail here even though
+    // the residual would still close.
+    var sec1 =
+        SecurityDailyData.builder()
+            .isin("IE001")
+            .instrumentName("Sec")
+            .modelWeight(new BigDecimal("0.50"))
+            .actualWeight(new BigDecimal("0.55"))
+            .normalizedWeightDiff(new BigDecimal("0.05"))
+            .securityReturn(new BigDecimal("0.02"))
+            .build();
+    var sec2 =
+        SecurityDailyData.builder()
+            .isin("IE001")
+            .instrumentName("Sec")
+            .modelWeight(new BigDecimal("0.50"))
+            .actualWeight(new BigDecimal("0.47"))
+            .normalizedWeightDiff(new BigDecimal("-0.03"))
+            .securityReturn(new BigDecimal("-0.01"))
+            .build();
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "0.010", "0.012", "1000000", "0", "0", List.of(sec1)),
+            dailyRecord(
+                PERIOD_START.plusDays(1), "-0.005", "-0.003", "1000000", "0", "0", List.of(sec2)));
+    var input = inputWith(days, ZERO, ZERO);
+
+    var result = calculator.calculate(input);
+
+    var k1 = referenceCarino(0.010, 0.012);
+    var k2 = referenceCarino(-0.005, -0.003);
+    var fundCum = 1.010 * 0.995 - 1.0;
+    var modelCum = 1.012 * 0.997 - 1.0;
+    var k = referenceCarino(fundCum, modelCum);
+    var num = k1 * (0.05 * 0.02) + k2 * (-0.03 * -0.01);
+    var expected = BigDecimal.valueOf(num / k);
+
+    assertThat(result.weightDeviation()).isCloseTo(expected, within(new BigDecimal("0.00000001")));
+  }
+
+  @Test
   void carinoLinkingIsExactForVolatileMultiDayReturns() {
     // Two securities with day-varying weights and returns; components must still sum
     // exactly to the geometric TD after Cariño linking.
@@ -154,6 +198,22 @@ class TdAttributionCalculatorTest {
             .reduce(ZERO, BigDecimal::add);
     assertThat(instrumentSum)
         .isCloseTo(result.weightDeviation(), within(new BigDecimal("0.0000001")));
+  }
+
+  @Test
+  void returnAtOrBelowMinusOneDoesNotThrow() {
+    // ln(1+x) is undefined for x <= -1; a -100% day must not crash the calculator.
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "-1.0", "0.001", "1000000", "10000", "0", List.of()),
+            dailyRecord(
+                PERIOD_START.plusDays(1), "0.001", "0.001", "1000000", "10000", "0", List.of()));
+    var input = inputWith(days, ZERO, ZERO);
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.tdGeometric()).isNotNull();
+    assertThat(result.scalingFactor()).isNotNull();
   }
 
   @Test
@@ -447,6 +507,15 @@ class TdAttributionCalculatorTest {
   }
 
   // --- helpers ---
+
+  // Independent reference implementation of the Cariño coefficient for cross-checking the
+  // production carinoCoefficient()/linkDaily() math in tests.
+  private static double referenceCarino(double r, double b) {
+    if (Math.abs(r - b) < 1e-12) {
+      return 1.0 / (1.0 + r);
+    }
+    return (Math.log1p(r) - Math.log1p(b)) / (r - b);
+  }
 
   private List<DailyRecord> buildConstantDays(
       int count, String fundReturnStr, String modelReturnStr) {

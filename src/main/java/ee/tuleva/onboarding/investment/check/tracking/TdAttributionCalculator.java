@@ -112,10 +112,13 @@ class TdAttributionCalculator {
             .map(acc -> acc.toAttribution(periodCoefficient))
             .toList();
 
-    // View 2: model-vs-benchmark layer, linked with the same bounded period multiplier
-    var etfOcfDrag = orZero(input.etfOcfDragPeriod()).multiply(periodLink).setScale(8, HALF_UP);
-    var etfTrackingResidual =
-        orZero(input.etfTrackingResidualArithmetic()).multiply(periodLink).setScale(8, HALF_UP);
+    // View 2: model-vs-benchmark overlay on the geometric fund-vs-model TD. Kept arithmetic (no
+    // linking multiplier): the fund-vs-model periodLink is the wrong coefficient for a
+    // model-vs-benchmark layer, and we have no daily benchmark series here to build the correct
+    // one. A proper per-layer Cariño coefficient (needs daily model+benchmark returns plumbed in)
+    // is future work; for now tdVsBenchmark is an honest geometric-TD + arithmetic-overlay sum.
+    var etfOcfDrag = orZero(input.etfOcfDragPeriod()).setScale(8, HALF_UP);
+    var etfTrackingResidual = orZero(input.etfTrackingResidualArithmetic()).setScale(8, HALF_UP);
     var tdVsBenchmark =
         tdGeometricRounded.add(etfOcfDrag).add(etfTrackingResidual).setScale(8, HALF_UP);
 
@@ -150,6 +153,15 @@ class TdAttributionCalculator {
   // return onto the geometric layer. Finite as benchmarkReturn -> portfolioReturn (limit
   // 1/(1+portfolioReturn)), so it never blows up the way tdGeometric/tdArithmetic did.
   private BigDecimal carinoCoefficient(BigDecimal portfolioReturn, BigDecimal benchmarkReturn) {
+    // ln(1+x) is only defined for x > -1. A daily return ≤ -100% is impossible for a fund NAV and
+    // is anomaly-capped for instruments, but guard defensively: fall back to an arithmetic
+    // coefficient of 1 (residual still closes) rather than emit NaN/∞ into BigDecimal.valueOf.
+    if (ONE.add(portfolioReturn).signum() <= 0 || ONE.add(benchmarkReturn).signum() <= 0) {
+      log.warn(
+          "Cariño coefficient input <= -100%, using 1.0: portfolioReturn={}, benchmarkReturn={}",
+          portfolioReturn, benchmarkReturn);
+      return ONE;
+    }
     var diff = portfolioReturn.subtract(benchmarkReturn);
     double r = portfolioReturn.doubleValue();
     if (diff.abs().compareTo(CARINO_NEAR_EQUAL) < 0) {
@@ -168,9 +180,12 @@ class TdAttributionCalculator {
     return numerator.divide(periodCoefficient, SCALE, HALF_UP).setScale(8, HALF_UP);
   }
 
-  // Period-level effects (fees, transaction costs, ETF OCF) have no daily profile here, so we
-  // spread them uniformly across linked days and link them: (sum_t k_t / N) / k. This stays
-  // close to 1 and never diverges, replacing the old tdGeometric/tdArithmetic scale factor.
+  // Period-level effects (mgmt/depot fees, transaction costs) arrive as period totals with no
+  // daily profile here, so we spread them uniformly across the N linked days and link them:
+  // (sum_t k_t / N) / k. This is a bounded uniform-allocation assumption — the multiplier stays
+  // ≈ 1 and never diverges (unlike the old tdGeometric/tdArithmetic factor), and the per-day
+  // timing error it introduces is sub-basis-point because fees accrue smoothly. Fully rigorous
+  // per-day linking would require daily fee accruals / execution-dated costs (future work).
   private BigDecimal periodLinkMultiplier(
       BigDecimal coefficientSum,
       BigDecimal periodCoefficient,

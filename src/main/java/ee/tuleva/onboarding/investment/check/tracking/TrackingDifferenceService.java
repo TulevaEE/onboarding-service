@@ -179,6 +179,16 @@ class TrackingDifferenceService {
     var cashWeight =
         totalNav.signum() != 0 ? cashTotal.divide(totalNav, 6, RoundingMode.HALF_UP) : ZERO;
 
+    // Security weights are normalized to the securities sleeve (not total NAV) so that the
+    // weight-deviation contributions sum to ~zero and the cash dilution is attributed once,
+    // via cashDrag — not double-counted into per-instrument deviations. Matches the periodic
+    // PeriodicTdAttributionService basis.
+    var totalSecurities =
+        positions.stream()
+            .map(FundPosition::getMarketValue)
+            .filter(Objects::nonNull)
+            .reduce(ZERO, BigDecimal::add);
+
     var annualFeeRate =
         feeRateRepository
             .findValidRate(fund, FeeType.MANAGEMENT, checkDate)
@@ -187,7 +197,13 @@ class TrackingDifferenceService {
 
     var securities =
         buildSecurityData(
-            fund, allocations, previousAllocations, positions, totalNav, checkDate, previousDate);
+            fund,
+            allocations,
+            previousAllocations,
+            positions,
+            totalSecurities,
+            checkDate,
+            previousDate);
 
     var missingPrices =
         securities.stream()
@@ -450,7 +466,7 @@ class TrackingDifferenceService {
       List<ModelPortfolioAllocation> allocations,
       List<ModelPortfolioAllocation> previousAllocations,
       List<FundPosition> todayPositions,
-      BigDecimal totalNav,
+      BigDecimal totalSecurities,
       LocalDate checkDate,
       LocalDate previousDate) {
 
@@ -478,7 +494,7 @@ class TrackingDifferenceService {
                             a.getIsin(),
                             a.getWeight(),
                             todayByIsin,
-                            totalNav,
+                            totalSecurities,
                             checkDate,
                             previousDate,
                             todayCutoff,
@@ -495,7 +511,7 @@ class TrackingDifferenceService {
                     a.getIsin(),
                     ZERO,
                     todayByIsin,
-                    totalNav,
+                    totalSecurities,
                     checkDate,
                     previousDate,
                     todayCutoff,
@@ -585,7 +601,7 @@ class TrackingDifferenceService {
       String isin,
       BigDecimal modelWeight,
       Map<String, FundPosition> todayByIsin,
-      BigDecimal totalNav,
+      BigDecimal totalSecurities,
       LocalDate checkDate,
       LocalDate previousDate,
       Instant todayCutoff,
@@ -605,7 +621,9 @@ class TrackingDifferenceService {
     var todayPos = todayByIsin.get(isin);
     var actualMarketValue = todayPos != null ? todayPos.getMarketValue() : ZERO;
     var actualWeight =
-        totalNav.signum() != 0 ? actualMarketValue.divide(totalNav, 6, RoundingMode.HALF_UP) : ZERO;
+        totalSecurities.signum() != 0
+            ? actualMarketValue.divide(totalSecurities, 6, RoundingMode.HALF_UP)
+            : ZERO;
 
     var today =
         new PriceSnapshot(

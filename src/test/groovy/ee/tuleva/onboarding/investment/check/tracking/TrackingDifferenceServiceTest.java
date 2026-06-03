@@ -118,6 +118,26 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
+  void modelPortfolioWeightDeviationUsesSecuritiesOnlyBasisSoCashIsNotDoubleCounted() {
+    // 950k single security (100% of the securities sleeve), 50k cash, model weight 1.0.
+    // The security tracks the model perfectly, so the weight-deviation contribution must be 0
+    // even though cash dilutes the holding to 95% of total NAV. The cash effect is attributed
+    // once, via cashDrag — not embedded again in the per-instrument deviation.
+    setupFundData(TUK75);
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    var attr = model.securityAttributions().getFirst();
+    assertThat(attr.actualWeight()).isEqualByComparingTo(BigDecimal.ONE);
+    assertThat(attr.weightDifference()).isEqualByComparingTo(ZERO);
+    assertThat(attr.contribution()).isEqualByComparingTo(ZERO);
+    // cashDrag = -cashWeight * modelReturn = -0.05 * 0.02
+    assertThat(model.cashDrag()).isEqualByComparingTo(new BigDecimal("-0.001"));
+  }
+
+  @Test
   void calculatesBenchmarkTrackingDifference() {
     setupFundData(TUK75);
     setupBenchmarkData("MSCI_ACWI");
@@ -214,7 +234,8 @@ class TrackingDifferenceServiceTest {
     var attr = attributions.getFirst();
     assertThat(attr.isin()).isEqualTo(etfIsin);
     assertThat(attr.modelWeight()).isNull();
-    assertThat(attr.actualWeight()).isEqualByComparingTo(new BigDecimal("0.95"));
+    // securities-only basis: the single holding is 100% of the securities sleeve
+    assertThat(attr.actualWeight()).isEqualByComparingTo(BigDecimal.ONE);
     assertThat(attr.securityReturn()).isEqualByComparingTo(new BigDecimal("0.02"));
     assertThat(attr.benchmarkReturn()).isEqualByComparingTo(new BigDecimal("0.02"));
     assertThat(attr.contribution().abs()).isLessThan(new BigDecimal("0.001"));
@@ -1432,14 +1453,16 @@ class TrackingDifferenceServiceTest {
             .filter(a -> a.isin().equals("IE00NEW"))
             .findFirst()
             .orElseThrow();
-    assertThat(newAttr.modelWeight()).isEqualByComparingTo(new BigDecimal("0.2"));
+    // transition ISIN: modelWeight is blended to actualWeight, now securities-only
+    // (200000 / 980000 securities sleeve = 0.204082, was 0.2 on total-NAV basis)
+    assertThat(newAttr.modelWeight()).isEqualByComparingTo(new BigDecimal("0.204082"));
 
     var oldAttr =
         modelResult.get().securityAttributions().stream()
             .filter(a -> a.isin().equals("IE00OLD"))
             .findFirst()
             .orElseThrow();
-    assertThat(oldAttr.modelWeight()).isEqualByComparingTo(new BigDecimal("0.2"));
+    assertThat(oldAttr.modelWeight()).isEqualByComparingTo(new BigDecimal("0.204082"));
   }
 
   @Test

@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.investment.instrument;
 
 import jakarta.annotation.PostConstruct;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -18,13 +19,10 @@ public class InstrumentReferenceService {
   private final InstrumentReferenceRepository instrumentReferenceRepository;
   private final BenchmarkCategoryProxyRepository benchmarkCategoryProxyRepository;
 
-  private final ConcurrentHashMap<String, InstrumentReference> byIsin = new ConcurrentHashMap<>();
-  private final ConcurrentHashMap<String, InstrumentReference> byBloombergTicker =
-      new ConcurrentHashMap<>();
-  private final ConcurrentHashMap<String, InstrumentReference> byShortTicker =
-      new ConcurrentHashMap<>();
-  private final ConcurrentHashMap<String, BenchmarkCategoryProxy> proxyByCategory =
-      new ConcurrentHashMap<>();
+  private volatile Map<String, InstrumentReference> byIsin = Map.of();
+  private volatile Map<String, InstrumentReference> byBloombergTicker = Map.of();
+  private volatile Map<String, InstrumentReference> byShortTicker = Map.of();
+  private volatile Map<String, BenchmarkCategoryProxy> proxyByCategory = Map.of();
 
   @PostConstruct
   void init() {
@@ -45,9 +43,9 @@ public class InstrumentReferenceService {
       var instruments = instrumentReferenceRepository.findAll();
       var proxies = benchmarkCategoryProxyRepository.findAll();
 
-      var newByIsin = new ConcurrentHashMap<String, InstrumentReference>();
-      var newByBloomberg = new ConcurrentHashMap<String, InstrumentReference>();
-      var newByShortTicker = new ConcurrentHashMap<String, InstrumentReference>();
+      var newByIsin = new HashMap<String, InstrumentReference>();
+      var newByBloomberg = new HashMap<String, InstrumentReference>();
+      var newByShortTicker = new HashMap<String, InstrumentReference>();
 
       for (var instrument : instruments) {
         newByIsin.put(instrument.getIsin(), instrument);
@@ -62,19 +60,15 @@ public class InstrumentReferenceService {
         }
       }
 
-      var newProxyByCategory = new ConcurrentHashMap<String, BenchmarkCategoryProxy>();
+      var newProxyByCategory = new HashMap<String, BenchmarkCategoryProxy>();
       for (var proxy : proxies) {
         newProxyByCategory.put(proxy.benchmarkCategory(), proxy);
       }
 
-      byIsin.clear();
-      byIsin.putAll(newByIsin);
-      byBloombergTicker.clear();
-      byBloombergTicker.putAll(newByBloomberg);
-      byShortTicker.clear();
-      byShortTicker.putAll(newByShortTicker);
-      proxyByCategory.clear();
-      proxyByCategory.putAll(newProxyByCategory);
+      byIsin = Map.copyOf(newByIsin);
+      byBloombergTicker = Map.copyOf(newByBloomberg);
+      byShortTicker = Map.copyOf(newByShortTicker);
+      proxyByCategory = Map.copyOf(newProxyByCategory);
 
       log.info(
           "Instrument reference cache refreshed: instruments={}, proxies={}",

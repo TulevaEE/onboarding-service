@@ -36,7 +36,18 @@ class InstrumentReferenceServiceIntSpec extends Specification {
           "BlackRock ID mismatch for ${ticker.isin}: expected=${ticker.blackrockProductId}, actual=${instrument.blackrockProductId}"
       assert instrument.morningstarId == ticker.morningstarId:
           "Morningstar ID mismatch for ${ticker.isin}: expected=${ticker.morningstarId}, actual=${instrument.morningstarId}"
+      assert instrument.displayName == ticker.displayName:
+          "Display name mismatch for ${ticker.isin}: expected=${ticker.displayName}, actual=${instrument.displayName}"
     }
+  }
+
+  def "getYahooTickers matches FundTicker"() {
+    when:
+    def serviceTickers = service.getYahooTickers().toSorted()
+    def enumTickers = FundTicker.getYahooTickers().toSorted()
+
+    then:
+    serviceTickers == enumTickers
   }
 
   def "getXetraIsins matches FundTicker"() {

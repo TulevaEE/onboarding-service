@@ -343,6 +343,30 @@ class SettlementCheckJobTest {
   }
 
   @Test
+  void run_executedNullUuid_ourRefAbsentFromFreshReport_isInferredSettled() {
+    // Locks the load-bearing assumption: with a fresh, parsed report, an EXECUTED order whose only
+    // identifier is the execution's Our ref is inferred settled when that ref is absent from the
+    // report. This relies on SEB keeping Our ref stable across daily pending reports (the
+    // documented
+    // match key). If that invariant ever breaks, this order would be falsely dropped.
+    given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
+    InvestmentReport report = report(TODAY);
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.of(report));
+    given(extractor.extract(report)).willReturn(List.of(rowWithOurRefOnly("OTHER_REF")));
+    TransactionOrder executed =
+        order(2L, FUND, EXECUTED, dateOnly(2026, 5, 4), TUV100, "EE3600109443", null);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of(executed));
+    given(executionRepository.findByOrderIdIn(any()))
+        .willReturn(List.of(execution(2L, LocalDate.of(2026, 5, 13), "REF2")));
+    given(unmatchedFinder.collectUnmatched(report)).willReturn(List.of());
+
+    job().run();
+
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
   void run_unmatchedRowWithUnresolvedFund_appearsUnderUnknownBlock() {
     given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
     InvestmentReport report = report(TODAY);

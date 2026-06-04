@@ -25,6 +25,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -239,13 +241,15 @@ class SettlementCheckJob {
       List<SebPendingTransactionRow> unmatched) {
     Map<TulevaFund, List<OverdueLine>> overdueByFund =
         overdue.stream().collect(Collectors.groupingBy(line -> line.order().getFund()));
-    Map<TulevaFund, List<SebPendingTransactionRow>> unmatchedByFund =
-        unmatched.stream()
-            .filter(row -> fundResolver.resolve(row.clientName()).isPresent())
-            .collect(
-                Collectors.groupingBy(row -> fundResolver.resolve(row.clientName()).orElseThrow()));
-    List<SebPendingTransactionRow> unresolved =
-        unmatched.stream().filter(row -> fundResolver.resolve(row.clientName()).isEmpty()).toList();
+    Map<TulevaFund, List<SebPendingTransactionRow>> unmatchedByFund = new LinkedHashMap<>();
+    List<SebPendingTransactionRow> unresolved = new ArrayList<>();
+    for (SebPendingTransactionRow row : unmatched) {
+      fundResolver
+          .resolve(row.clientName())
+          .ifPresentOrElse(
+              fund -> unmatchedByFund.computeIfAbsent(fund, k -> new ArrayList<>()).add(row),
+              () -> unresolved.add(row));
+    }
 
     StringBuilder message = new StringBuilder();
     message.append("⚠️ SEB arveldus- ja tehingukontroll – ").append(today);
@@ -256,7 +260,10 @@ class SettlementCheckJob {
               + " on allpool loetletud.");
     }
 
-    for (TulevaFund fund : FUND_ORDER) {
+    Set<TulevaFund> fundsToReport = new LinkedHashSet<>(FUND_ORDER);
+    fundsToReport.addAll(overdueByFund.keySet());
+    fundsToReport.addAll(unmatchedByFund.keySet());
+    for (TulevaFund fund : fundsToReport) {
       appendFundBlock(
           message,
           fund.getCode(),

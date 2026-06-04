@@ -99,6 +99,49 @@ class KybSurveyControllerTest {
   }
 
   @Test
+  void submit_acceptsOptionInvestmentGoal_returns200() throws Exception {
+    submitSurveyWithGoal("{ \"type\": \"OPTION\", \"value\": \"LONG_TERM\" }")
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  void submit_acceptsAssetManagementInvestmentGoal_returns200() throws Exception {
+    submitSurveyWithGoal("{ \"type\": \"OPTION\", \"value\": \"ASSET_MANAGEMENT\" }")
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  void submit_acceptsFreeTextInvestmentGoal_returns200() throws Exception {
+    submitSurveyWithGoal("{ \"type\": \"TEXT\", \"value\": \"Soovin investeerida kinnisvarasse\" }")
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  void submit_rejectsBlankFreeTextInvestmentGoal() throws Exception {
+    submitSurveyWithGoal("{ \"type\": \"TEXT\", \"value\": \"\" }")
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void submit_rejectsWhitespaceFreeTextInvestmentGoal() throws Exception {
+    submitSurveyWithGoal("{ \"type\": \"TEXT\", \"value\": \"   \" }")
+        .andExpect(status().isBadRequest());
+  }
+
+  private org.springframework.test.web.servlet.ResultActions submitSurveyWithGoal(
+      String goalValueJson) throws Exception {
+    var body =
+        "{ \"answers\": [ { \"type\": \"INVESTMENT_GOALS\", \"value\": " + goalValueJson + " } ] }";
+    return mvc.perform(
+        post("/v1/kyb/surveys")
+            .param("registry-code", REGISTRY_CODE)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(body)
+            .with(csrf())
+            .with(authentication(personAuth())));
+  }
+
+  @Test
   void initialValidation_returns501OnUnexpectedError() throws Exception {
     when(kybSurveyService.initialValidation(REGISTRY_CODE, PERSONAL_CODE))
         .thenThrow(new RuntimeException("Ariregister timeout"));

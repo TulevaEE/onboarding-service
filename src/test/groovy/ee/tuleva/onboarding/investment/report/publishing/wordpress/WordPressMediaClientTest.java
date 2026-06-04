@@ -104,6 +104,22 @@ class WordPressMediaClientTest {
   }
 
   @Test
+  void updateAcfReportFieldThrowsWhenSlugAmbiguous() throws Exception {
+    var pagesResponse =
+        objectMapper.writeValueAsString(
+            List.of(
+                Map.of("id", 123, "slug", "test-page"), Map.of("id", 124, "slug", "test-page")));
+
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages?slug=test-page"))
+        .andRespond(withSuccess(pagesResponse, MediaType.APPLICATION_JSON));
+
+    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Ambiguous WordPress slug");
+  }
+
+  @Test
   void updateAcfReportFieldThrowsWhenPageNotFound() throws Exception {
     var emptyResponse = objectMapper.writeValueAsString(List.of());
 

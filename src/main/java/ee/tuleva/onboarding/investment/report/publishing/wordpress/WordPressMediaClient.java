@@ -83,6 +83,13 @@ public class WordPressMediaClient {
     if (pages == null || pages.isEmpty()) {
       throw new IllegalStateException("No WordPress page found with slug: " + slug);
     }
+    if (pages.size() > 1) {
+      throw new IllegalStateException(
+          "Ambiguous WordPress slug matched multiple pages: slug="
+              + slug
+              + ", count="
+              + pages.size());
+    }
 
     return (Integer) pages.getFirst().get("id");
   }

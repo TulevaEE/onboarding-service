@@ -94,6 +94,9 @@ public enum FundReportMapping {
   }
 
   public static String estonianMonth(int month) {
+    if (month < 1 || month > 12) {
+      throw new IllegalArgumentException("Month must be between 1 and 12: " + month);
+    }
     return ESTONIAN_MONTHS[month - 1];
   }
 

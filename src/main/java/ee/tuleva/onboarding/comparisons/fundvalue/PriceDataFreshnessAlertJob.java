@@ -30,7 +30,7 @@ public class PriceDataFreshnessAlertJob {
   private final PublicHolidays publicHolidays;
   private final Clock clock;
 
-  private final AtomicReference<LocalDate> lastAlertDate = new AtomicReference<>();
+  private final AtomicReference<LocalDate> lastAlertSentDate = new AtomicReference<>();
 
   record ProviderKey(String provider, String storageKey) {}
 
@@ -44,23 +44,9 @@ public class PriceDataFreshnessAlertJob {
     if (now.getHour() < EARLIEST_ALERT_HOUR) {
       return;
     }
-    LocalDate previous = lastAlertDate.get();
-    if (today.equals(previous)) {
-      return;
-    }
-    if (!lastAlertDate.compareAndSet(previous, today)) {
-      return;
-    }
 
-    // Guard is process-local (AtomicReference) — a restart on the same day may re-trigger.
-    // Multi-node is handled by @SchedulerLock on the parent FundValueIndexingJob.
     log.info("Running price data freshness check: today={}", today);
-    try {
-      runFreshnessCheck(today);
-    } catch (Exception e) {
-      lastAlertDate.compareAndSet(today, previous);
-      throw e;
-    }
+    runFreshnessCheck(today);
   }
 
   void runFreshnessCheck(LocalDate today) {
@@ -96,9 +82,14 @@ public class PriceDataFreshnessAlertJob {
       return;
     }
 
+    if (today.equals(lastAlertSentDate.get())) {
+      return;
+    }
+
     String message = formatAlertMessage(expectedDate, staleByProvider, anyProviderHasExpectedDate);
     log.warn("{}", message);
     notificationService.sendMessage(message, INVESTMENT);
+    lastAlertSentDate.set(today);
   }
 
   static List<FundTicker> getEtfTickers() {

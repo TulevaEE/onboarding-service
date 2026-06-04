@@ -751,6 +751,9 @@ class TrackingDifferenceService {
     var merged = new java.util.LinkedHashMap<>(prior);
     if (todayAttrs != null) {
       for (var attr : todayAttrs) {
+        if (attr.isin() == null || attr.isin().isBlank()) {
+          continue;
+        }
         merged.merge(attr.isin(), attr.contribution(), BigDecimal::add);
       }
     }

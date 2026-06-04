@@ -200,6 +200,24 @@ class PriceDataFreshnessAlertJobTest {
   }
 
   @Test
+  void staleAppearingLaterInDay_alertsOnLaterRun() {
+    var job = jobOn(WED_0800_UTC);
+    LocalDate tuesday = LocalDate.of(2026, 1, 13);
+    LocalDate friday = LocalDate.of(2026, 1, 9);
+    Map<String, LocalDate> stale = buildAllFreshDates(tuesday);
+    makeEodhdStale(stale, friday);
+    when(fundValueRepository.findLatestDateByKeys(any()))
+        .thenReturn(buildAllFreshDates(tuesday))
+        .thenReturn(stale);
+
+    job.checkAfterIndexing();
+    verifyNoInteractions(notificationService);
+
+    job.checkAfterIndexing();
+    verify(notificationService).sendMessage(any(), eq(INVESTMENT));
+  }
+
+  @Test
   void retriesAfterFailure() {
     var job = jobOn(WED_0800_UTC);
     when(fundValueRepository.findLatestDateByKeys(any()))

@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.statistics;
 
-import java.util.OptionalLong;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -18,25 +17,9 @@ public class InvestorStatisticsRepository {
             SELECT COALESCE(SUM(total_active_investors), 0)
             FROM analytics.mv_kpi_new
             WHERE reporting_date = (SELECT MAX(reporting_date) FROM analytics.mv_kpi_new)
+            HAVING COALESCE(SUM(total_active_investors), 0) BETWEEN 50000 AND 500000
             """)
         .query(Long.class)
         .single();
-  }
-
-  public OptionalLong getPreviousActiveInvestorCount() {
-    return jdbcClient
-        .sql(
-            """
-            SELECT SUM(total_active_investors)
-            FROM analytics.mv_kpi_new
-            WHERE reporting_date = (
-              SELECT MAX(reporting_date) FROM analytics.mv_kpi_new
-              WHERE reporting_date < (SELECT MAX(reporting_date) FROM analytics.mv_kpi_new)
-            )
-            """)
-        .query(Long.class)
-        .optional()
-        .map(OptionalLong::of)
-        .orElseGet(OptionalLong::empty);
   }
 }

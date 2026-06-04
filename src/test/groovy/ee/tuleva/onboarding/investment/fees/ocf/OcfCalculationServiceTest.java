@@ -144,14 +144,15 @@ class OcfCalculationServiceTest {
 
   @Test
   void depotFeeUsesRateTableFirst() {
-    var rate = service.getDepotFeeRate(TUK75, MONTH_END);
-
     given(feeRateRepository.findValidRate(TUK75, DEPOT, MONTH_END))
         .willReturn(
-            Optional.of(new FeeRate(1L, TUK75, DEPOT, ZERO, MONTH_END.minusYears(1), null)));
+            Optional.of(
+                new FeeRate(
+                    1L, TUK75, DEPOT, new BigDecimal("0.0009"), MONTH_END.minusYears(1), null)));
 
-    rate = service.getDepotFeeRate(TUK75, MONTH_END);
-    assertThat(rate).isEqualByComparingTo(ZERO);
+    var rate = service.getDepotFeeRate(TUK75, MONTH_END);
+
+    assertThat(rate).isEqualByComparingTo(new BigDecimal("0.0009"));
   }
 
   @Test
@@ -272,6 +273,27 @@ class OcfCalculationServiceTest {
     var cost = service.getTransactionCostRate(TUK75, MONTH_END);
 
     assertThat(cost).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void transactionCostWindowStartsAtEarliestAvailableNavDate() {
+    var firstNavDate = MONTH_END.minusMonths(3);
+    given(fundPositionRepository.findDistinctNavDatesByFund(TUK75))
+        .willReturn(List.of(MONTH_END, firstNavDate));
+    given(
+            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+                eq(TUK75.getCode()), eq(firstNavDate), eq(MONTH_END)))
+        .willReturn(new BigDecimal("1000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                eq(TUK75), any(), eq(List.of(SECURITY))))
+        .willReturn(new BigDecimal("100000000"));
+
+    var cost = service.getTransactionCostRate(TUK75, MONTH_END);
+
+    assertThat(cost.signum()).isGreaterThan(0);
+    verify(transactionExecutionRepository)
+        .sumCommissionsForFundAndPeriod(TUK75.getCode(), firstNavDate, MONTH_END);
   }
 
   @Test

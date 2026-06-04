@@ -18,6 +18,8 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -128,7 +130,7 @@ public class OcfCalculationService {
   }
 
   private BigDecimal computeFromModelPortfolio(
-      TulevaFund fund, LocalDate asOf, java.util.Map<String, BigDecimal> rateByIsin) {
+      TulevaFund fund, LocalDate asOf, Map<String, BigDecimal> rateByIsin) {
     var allocations = modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, asOf);
     if (allocations.isEmpty()) {
       return ZERO;
@@ -139,7 +141,7 @@ public class OcfCalculationService {
   }
 
   private BigDecimal computeFromPositions(
-      TulevaFund fund, LocalDate asOf, java.util.Map<String, BigDecimal> rateByIsin) {
+      TulevaFund fund, LocalDate asOf, Map<String, BigDecimal> rateByIsin) {
     var latestNavDate =
         fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, asOf).orElse(null);
     if (latestNavDate == null) {
@@ -165,33 +167,38 @@ public class OcfCalculationService {
 
   BigDecimal getTransactionCostRate(TulevaFund fund, LocalDate monthEnd) {
     var periodStart = monthEnd.minusYears(1).plusDays(1);
+    var navDates =
+        fundPositionRepository.findDistinctNavDatesByFund(fund).stream()
+            .filter(d -> !d.isBefore(periodStart) && !d.isAfter(monthEnd))
+            .sorted()
+            .toList();
+
+    var effectivePeriodStart = navDates.isEmpty() ? periodStart : navDates.getFirst();
     var txnCosts =
         transactionExecutionRepository.sumCommissionsForFundAndPeriod(
-            fund.getCode(), periodStart, monthEnd);
+            fund.getCode(), effectivePeriodStart, monthEnd);
     if (txnCosts.signum() == 0) {
       return ZERO;
     }
 
-    var avgAum = computeAverageSecurityAum(fund, periodStart, monthEnd);
+    var avgAum = averageSecurityAum(fund, navDates);
     if (avgAum.signum() <= 0) {
       return ZERO;
     }
     return txnCosts.divide(avgAum, SCALE, HALF_UP);
   }
 
-  private BigDecimal computeAverageSecurityAum(TulevaFund fund, LocalDate from, LocalDate to) {
-    var navDates = fundPositionRepository.findDistinctNavDatesByFund(fund);
-    var datesInRange = navDates.stream().filter(d -> !d.isBefore(from) && !d.isAfter(to)).toList();
-    if (datesInRange.isEmpty()) {
+  private BigDecimal averageSecurityAum(TulevaFund fund, List<LocalDate> navDates) {
+    if (navDates.isEmpty()) {
       return ZERO;
     }
     var total = ZERO;
-    for (var date : datesInRange) {
+    for (var date : navDates) {
       total =
           total.add(
               fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-                  fund, date, java.util.List.of(SECURITY)));
+                  fund, date, List.of(SECURITY)));
     }
-    return total.divide(BigDecimal.valueOf(datesInRange.size()), 2, HALF_UP);
+    return total.divide(BigDecimal.valueOf(navDates.size()), 2, HALF_UP);
   }
 }

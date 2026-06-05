@@ -196,11 +196,16 @@ public class InvestmentReportDataService {
   }
 
   private BigDecimal findFundNav(List<NavReportView> rows) {
-    return rows.stream()
-        .filter(r -> "UNITS".equals(r.getAccountType()))
-        .map(NavReportView::getMarketValue)
-        .findFirst()
-        .orElseThrow(() -> new IllegalStateException("No UNITS row in NAV report"));
+    var fundNav =
+        rows.stream()
+            .filter(r -> "UNITS".equals(r.getAccountType()))
+            .map(NavReportView::getMarketValue)
+            .findFirst()
+            .orElseThrow(() -> new IllegalStateException("No UNITS row in NAV report"));
+    if (fundNav == null || fundNav.signum() <= 0) {
+      throw new IllegalStateException("Fund NAV must be positive: " + fundNav);
+    }
+    return fundNav;
   }
 
   private Map<String, InstrumentReference> loadInstrumentMap(List<NavReportView> securities) {

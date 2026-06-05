@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.report.publishing.wordpress;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,12 +24,21 @@ public class WordPressMediaClient {
 
   public UploadResult upload(String filename, byte[] pdfBytes) {
     var sanitizedFilename = sanitizeFilename(filename);
+
+    var existing = findExistingMedia(sanitizedFilename);
+    if (existing.isPresent()) {
+      log.info(
+          "Reusing existing WordPress media instead of re-uploading: filename={}, attachmentId={}",
+          sanitizedFilename,
+          existing.get().attachmentId());
+      return existing.get();
+    }
+
     log.info(
         "Uploading PDF to WordPress: filename={}, size={}bytes",
         sanitizedFilename,
         pdfBytes.length);
 
-    @SuppressWarnings("unchecked")
     var response =
         restClient
             .post()
@@ -52,6 +62,33 @@ public class WordPressMediaClient {
 
     log.info("WordPress upload successful: attachmentId={}, sourceUrl={}", attachmentId, sourceUrl);
     return new UploadResult(attachmentId, sourceUrl);
+  }
+
+  private Optional<UploadResult> findExistingMedia(String sanitizedFilename) {
+    var media =
+        restClient
+            .get()
+            .uri(
+                uriBuilder ->
+                    uriBuilder.path("/media").queryParam("search", sanitizedFilename).build())
+            .retrieve()
+            .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+
+    if (media == null) {
+      return Optional.empty();
+    }
+
+    return media.stream()
+        .filter(
+            item -> item.get("source_url") instanceof String && item.get("id") instanceof Integer)
+        .filter(
+            item -> {
+              var sourceUrl = (String) item.get("source_url");
+              return VALID_WP_PDF_URL.matcher(sourceUrl).matches()
+                  && sourceUrl.endsWith("/" + sanitizedFilename);
+            })
+        .map(item -> new UploadResult((Integer) item.get("id"), (String) item.get("source_url")))
+        .findFirst();
   }
 
   public void updateAcfReportField(String pageSlug, int attachmentId) {

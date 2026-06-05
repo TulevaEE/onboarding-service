@@ -38,6 +38,9 @@ class WordPressMediaClientTest {
                 "https://tuleva.ee/wp-content/uploads/2026/04/test-report.pdf"));
 
     server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media?search=test.pdf"))
+        .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+    server
         .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media"))
         .andExpect(method(org.springframework.http.HttpMethod.POST))
         .andExpect(content().contentType(MediaType.APPLICATION_PDF))
@@ -59,6 +62,9 @@ class WordPressMediaClientTest {
             Map.of("id", 42, "source_url", "https://evil.com/malicious.pdf"));
 
     server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media?search=test.pdf"))
+        .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+    server
         .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media"))
         .andRespond(withSuccess(responseBody, MediaType.APPLICATION_JSON));
 
@@ -74,12 +80,38 @@ class WordPressMediaClientTest {
             Map.of("source_url", "https://tuleva.ee/wp-content/uploads/2026/04/test.pdf"));
 
     server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media?search=test.pdf"))
+        .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+    server
         .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media"))
         .andRespond(withSuccess(responseBody, MediaType.APPLICATION_JSON));
 
     assertThatThrownBy(() -> client.upload("test.pdf", new byte[] {1}))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("no attachment id");
+  }
+
+  @Test
+  void uploadReusesExistingMediaInsteadOfCreatingDuplicate() throws Exception {
+    var existing =
+        objectMapper.writeValueAsString(
+            List.of(
+                Map.of(
+                    "id",
+                    42,
+                    "source_url",
+                    "https://tuleva.ee/wp-content/uploads/2026/04/test.pdf")));
+
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media?search=test.pdf"))
+        .andRespond(withSuccess(existing, MediaType.APPLICATION_JSON));
+
+    var result = client.upload("test.pdf", new byte[] {0x25, 0x50, 0x44, 0x46});
+
+    assertThat(result.attachmentId()).isEqualTo(42);
+    assertThat(result.sourceUrl())
+        .isEqualTo("https://tuleva.ee/wp-content/uploads/2026/04/test.pdf");
+    server.verify();
   }
 
   @Test

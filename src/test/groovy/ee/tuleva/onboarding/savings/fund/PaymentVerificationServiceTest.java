@@ -12,6 +12,7 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.company.Company;
 import ee.tuleva.onboarding.company.CompanyRepository;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.party.PartyResolver;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
@@ -36,6 +37,7 @@ class PaymentVerificationServiceTest {
   SavingsFundLedger savingsFundLedger = mock(SavingsFundLedger.class);
   ApplicationEventPublisher applicationEventPublisher = mock(ApplicationEventPublisher.class);
   PartyResolver partyResolver = new PartyResolver(userRepository, companyRepository);
+  ParentChildLinkService parentChildLinkService = mock(ParentChildLinkService.class);
 
   PaymentVerificationService service =
       new PaymentVerificationService(
@@ -45,7 +47,8 @@ class PaymentVerificationServiceTest {
           savingsFundLedger,
           applicationEventPublisher,
           new NameMatcher(),
-          partyResolver);
+          partyResolver,
+          parentChildLinkService);
 
   @Test
   void process_returnsPaymentWhenNoCodeAnywhere() {
@@ -660,6 +663,55 @@ class PaymentVerificationServiceTest {
             argThat(
                 (SavingsPaymentFailedEvent e) ->
                     e.getUser().equals(user) && e.getLocale().equals(Locale.of("et"))));
+  }
+
+  @Test
+  void process_parentRepresentingChild_activeLink_paymentVerifiedForChild() {
+    var parentCode = "38812121215";
+    var childCode = "61506150006";
+    var payment = createPayment(parentCode, "for child " + childCode);
+    var child =
+        User.builder()
+            .id(456L)
+            .personalCode(childCode)
+            .firstName("MARI")
+            .lastName("MAASIKAS")
+            .build();
+    when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
+    when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(PERSON, childCode)))
+        .thenReturn(true);
+    when(parentChildLinkService.represents(parentCode, childCode)).thenReturn(true);
+
+    service.process(payment);
+
+    verify(savingsFundLedger)
+        .recordPaymentReceived(
+            new PartyId(PERSON, childCode),
+            payment.getAmount(),
+            payment.getId(),
+            LocalDate.of(2025, 10, 1));
+    var inOrder = inOrder(savingFundPaymentRepository);
+    inOrder
+        .verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new PartyId(PERSON, childCode));
+    inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  @Test
+  void process_parentRepresentingChild_noActiveLink_bouncesAsCodeMismatch() {
+    var parentCode = "38812121215";
+    var childCode = "61506150006";
+    var payment = createPayment(parentCode, "for child " + childCode);
+    when(parentChildLinkService.represents(parentCode, childCode)).thenReturn(false);
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
+    verify(savingFundPaymentRepository)
+        .addReturnReason(payment.getId(), "selgituses olev isikukood ei klapi maksja isikukoodiga");
+    verify(savingFundPaymentRepository, never()).attachParty(any(), any());
+    verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
   private SavingFundPayment createPayment(String remitterIdCode, String description) {

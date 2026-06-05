@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIE
 
 import ee.tuleva.onboarding.kyb.RegistryCodeValidator;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.party.PartyResolver;
@@ -44,6 +45,7 @@ public class PaymentVerificationService {
   private final ApplicationEventPublisher applicationEventPublisher;
   private final NameMatcher nameMatcher;
   private final PartyResolver partyResolver;
+  private final ParentChildLinkService parentChildLinkService;
 
   record VerificationMessages(
       String codeMismatch, String notClient, String nameMismatch, String notOnboarded) {
@@ -81,7 +83,9 @@ public class PaymentVerificationService {
     var messages = VerificationMessages.forType(partyId.type());
 
     var remitterPartyId = parsePartyId(payment.getRemitterIdCode());
-    if (remitterPartyId.isPresent() && !remitterPartyId.get().equals(partyId)) {
+    if (remitterPartyId.isPresent()
+        && !remitterPartyId.get().equals(partyId)
+        && !isAuthorizedRemitter(remitterPartyId.get(), partyId)) {
       identityCheckFailure(payment, messages.codeMismatch());
       return;
     }
@@ -149,6 +153,12 @@ public class PaymentVerificationService {
     log.info(
         "Payment {} has no code in description, falling back to remitter id code", payment.getId());
     return parsePartyId(payment.getRemitterIdCode());
+  }
+
+  private boolean isAuthorizedRemitter(PartyId remitter, PartyId party) {
+    return remitter.type() == PERSON
+        && party.type() == PERSON
+        && parentChildLinkService.represents(remitter.code(), party.code());
   }
 
   Optional<PartyId> extractPartyIdFromDescription(String text) {

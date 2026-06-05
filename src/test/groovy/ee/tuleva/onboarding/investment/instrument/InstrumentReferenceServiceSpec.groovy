@@ -6,6 +6,7 @@ class InstrumentReferenceServiceSpec extends Specification {
 
   InstrumentReferenceRepository instrumentReferenceRepository = Mock()
   BenchmarkCategoryProxyRepository benchmarkCategoryProxyRepository = Mock()
+  org.springframework.context.ApplicationEventPublisher eventPublisher = Mock()
 
   InstrumentReferenceService service
 
@@ -24,7 +25,7 @@ class InstrumentReferenceServiceSpec extends Specification {
         new BenchmarkCategoryProxy(3L, "BOND_EURO", "IE00B3DKXQ41.XETR", null),
     ]
 
-    service = new InstrumentReferenceService(instrumentReferenceRepository, benchmarkCategoryProxyRepository)
+    service = new InstrumentReferenceService(instrumentReferenceRepository, benchmarkCategoryProxyRepository, eventPublisher)
     service.init()
   }
 
@@ -98,14 +99,15 @@ class InstrumentReferenceServiceSpec extends Specification {
     !tickers.contains("EMIM.XETRA")
   }
 
-  def "getYahooTickers returns tickers for active instruments including nulls"() {
+  def "getYahooTickers returns tickers for active instruments excluding nulls"() {
     when:
     def tickers = service.getYahooTickers()
 
     then:
     tickers.contains("EUNL.DE")
     tickers.contains("SGAS.DE")
-    tickers.size() == 5
+    !tickers.contains(null)
+    tickers.size() == 4
   }
 
   def "getBlackrockFunds returns only active instruments with blackrockProductId"() {
@@ -164,7 +166,7 @@ class InstrumentReferenceServiceSpec extends Specification {
         [instrument("IE00NEW", "NEW.DE", "NEW.XETRA", "NEW", null, null, null, true)]
     ]
     proxyRepo.findAll() >> []
-    def svc = new InstrumentReferenceService(repo, proxyRepo)
+    def svc = new InstrumentReferenceService(repo, proxyRepo, eventPublisher)
     svc.init()
 
     when:
@@ -185,7 +187,7 @@ class InstrumentReferenceServiceSpec extends Specification {
         { throw new RuntimeException("DB down") }
     ]
     proxyRepo.findAll() >> []
-    def svc = new InstrumentReferenceService(repo, proxyRepo)
+    def svc = new InstrumentReferenceService(repo, proxyRepo, eventPublisher)
     svc.init()
 
     when:

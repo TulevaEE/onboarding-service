@@ -8,6 +8,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +19,7 @@ public class InstrumentReferenceService {
 
   private final InstrumentReferenceRepository instrumentReferenceRepository;
   private final BenchmarkCategoryProxyRepository benchmarkCategoryProxyRepository;
+  private final ApplicationEventPublisher eventPublisher;
 
   private volatile Map<String, InstrumentReference> byIsin = Map.of();
   private volatile Map<String, InstrumentReference> byBloombergTicker = Map.of();
@@ -74,6 +76,8 @@ public class InstrumentReferenceService {
           "Instrument reference cache refreshed: instruments={}, proxies={}",
           instruments.size(),
           proxies.size());
+
+      eventPublisher.publishEvent(new InstrumentCacheRefreshedEvent(instruments.size()));
     } catch (Exception e) {
       log.error("Failed to refresh instrument reference cache", e);
     }
@@ -126,6 +130,7 @@ public class InstrumentReferenceService {
   public List<String> getYahooTickers() {
     return byIsin.values().stream()
         .filter(InstrumentReference::isActive)
+        .filter(i -> i.getYahooTicker() != null)
         .map(InstrumentReference::getYahooTicker)
         .toList();
   }

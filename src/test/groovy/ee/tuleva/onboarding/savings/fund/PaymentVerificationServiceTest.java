@@ -11,6 +11,8 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.company.Company;
 import ee.tuleva.onboarding.company.CompanyRepository;
+import ee.tuleva.onboarding.event.TrackableEventType;
+import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.PartyId;
@@ -23,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
@@ -696,6 +699,19 @@ class PaymentVerificationServiceTest {
         .attachParty(payment.getId(), new PartyId(PERSON, childCode));
     inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
+    verify(applicationEventPublisher)
+        .publishEvent(
+            new TrackableSystemEvent(
+                TrackableEventType.MINOR_DEPOSIT_VERIFIED,
+                Map.of(
+                    "parentPersonalCode",
+                    parentCode,
+                    "childPersonalCode",
+                    childCode,
+                    "paymentId",
+                    payment.getId(),
+                    "amount",
+                    payment.getAmount())));
   }
 
   @Test

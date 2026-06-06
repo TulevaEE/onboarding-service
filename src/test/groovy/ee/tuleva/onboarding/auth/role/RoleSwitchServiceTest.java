@@ -7,6 +7,8 @@ import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.auth.AuthenticationTokens;
@@ -16,17 +18,21 @@ import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import ee.tuleva.onboarding.company.CompanyPartyRepository;
 import ee.tuleva.onboarding.company.CompanyRepository;
+import ee.tuleva.onboarding.event.TrackableEvent;
+import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class RoleSwitchServiceTest {
@@ -37,6 +43,7 @@ class RoleSwitchServiceTest {
   @Mock private TokenService tokenService;
   @Mock private ParentChildLinkService parentChildLinkService;
   @Mock private UserService userService;
+  @Mock private ApplicationEventPublisher applicationEventPublisher;
 
   @InjectMocks private RoleSwitchService roleSwitchService;
 
@@ -206,6 +213,48 @@ class RoleSwitchServiceTest {
         roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, CHILD_CODE));
 
     assertThat(tokens.accessToken()).isEqualTo("access");
+  }
+
+  @Test
+  void switchToRepresentedChildPublishesAuditEvent() {
+    when(parentChildLinkService.represents(person.getPersonalCode(), CHILD_CODE)).thenReturn(true);
+    when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
+    when(principalService.withRole(any(), any())).thenReturn(person);
+    when(tokenService.generateTokens(any()))
+        .thenReturn(new AuthenticationTokens("access", "refresh"));
+
+    roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, CHILD_CODE));
+
+    verify(applicationEventPublisher)
+        .publishEvent(
+            new TrackableEvent(
+                person,
+                TrackableEventType.REPRESENT_MINOR_ROLE_SWITCH,
+                Map.of("childPersonalCode", CHILD_CODE)));
+  }
+
+  @Test
+  void switchToRepresentedChildPublishesNoAuditEventWhenTokenGenerationFails() {
+    when(parentChildLinkService.represents(person.getPersonalCode(), CHILD_CODE)).thenReturn(true);
+    when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
+    when(principalService.withRole(any(), any())).thenReturn(person);
+    when(tokenService.generateTokens(any()))
+        .thenThrow(new RuntimeException("token signing failed"));
+
+    assertThatThrownBy(
+            () -> roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, CHILD_CODE)))
+        .isInstanceOf(RuntimeException.class);
+    verifyNoInteractions(applicationEventPublisher);
+  }
+
+  @Test
+  void switchToChildWithoutActiveLinkPublishesNoAuditEvent() {
+    when(parentChildLinkService.represents(person.getPersonalCode(), CHILD_CODE)).thenReturn(false);
+
+    assertThatThrownBy(
+            () -> roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, CHILD_CODE)))
+        .isInstanceOf(RoleSwitchAccessDeniedException.class);
+    verifyNoInteractions(applicationEventPublisher);
   }
 
   @Test

@@ -25,6 +25,28 @@ class TrackingControllerSpec extends BaseControllerSpec {
         .andExpect(status().isOk())
   }
 
+  def "POST /t rejects server-only event types"() {
+    given:
+    def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, trackingController)
+    0 * eventPublisher.publishEvent(_)
+    expect:
+    mvc.perform(post("/v1/t")
+        .content("""{"type": "REPRESENT_MINOR_ROLE_SWITCH", "data": {"childPersonalCode": "61506150006"}}""")
+        .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isBadRequest())
+  }
+
+  def "POST /t rejects missing event type with 400"() {
+    given:
+    def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, trackingController)
+    0 * eventPublisher.publishEvent(_)
+    expect:
+    mvc.perform(post("/v1/t")
+        .content("""{"data": {"1": 2}}""")
+        .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isBadRequest())
+  }
+
   AuthenticatedPerson sampleAuthenticatedPerson = AuthenticatedPerson.builder()
       .firstName("Jordan")
       .lastName("Valdma")

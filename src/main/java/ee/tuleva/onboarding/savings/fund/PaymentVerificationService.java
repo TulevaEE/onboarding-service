@@ -5,6 +5,8 @@ import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
 
+import ee.tuleva.onboarding.event.TrackableEventType;
+import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.kyb.RegistryCodeValidator;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
@@ -83,9 +85,14 @@ public class PaymentVerificationService {
     var messages = VerificationMessages.forType(partyId.type());
 
     var remitterPartyId = parsePartyId(payment.getRemitterIdCode());
+    boolean representingChild =
+        remitterPartyId
+            .filter(r -> !r.equals(partyId))
+            .map(r -> isAuthorizedRemitter(r, partyId))
+            .orElse(false);
     if (remitterPartyId.isPresent()
         && !remitterPartyId.get().equals(partyId)
-        && !isAuthorizedRemitter(remitterPartyId.get(), partyId)) {
+        && !representingChild) {
       identityCheckFailure(payment, messages.codeMismatch());
       return;
     }
@@ -119,6 +126,17 @@ public class PaymentVerificationService {
     savingFundPaymentRepository.changeStatus(payment.getId(), VERIFIED);
     savingsFundLedger.recordPaymentReceived(
         partyId, payment.getAmount(), payment.getId(), bookingDate(payment));
+
+    if (representingChild) {
+      applicationEventPublisher.publishEvent(
+          new TrackableSystemEvent(
+              TrackableEventType.MINOR_DEPOSIT_VERIFIED,
+              Map.of(
+                  "parentPersonalCode", remitterPartyId.get().code(),
+                  "childPersonalCode", partyId.code(),
+                  "paymentId", payment.getId(),
+                  "amount", payment.getAmount())));
+    }
   }
 
   private void identityCheckFailure(SavingFundPayment payment, String reason) {

@@ -74,6 +74,39 @@ class KybSurveyControllerTest {
   }
 
   @Test
+  void initialValidation_serializesErrorsAsCodeMessagePairs() throws Exception {
+    var data =
+        new LegalEntityData(
+            ValidatedField.valid("Test OÜ"),
+            ValidatedField.valid(REGISTRY_CODE),
+            ValidatedField.valid("OÜ"),
+            ValidatedField.valid(LocalDate.of(2020, 1, 15)),
+            ValidatedField.valid(LegalEntityStatus.REGISTERED),
+            ValidatedField.valid(
+                new LegalEntityAddress(
+                    "Pärnu mnt 123, 11313 Tallinn", "Pärnu mnt 123", "Tallinn", "11313", "EST")),
+            ValidatedField.valid("Fondide valitsemine"),
+            ValidatedField.valid("6630"),
+            ValidatedField.withErrors(
+                List.of(),
+                List.of(
+                    new ValidationError(
+                        "USER_KYC", "Sinu isikusamasuse tuvastamine on lõpetamata"))));
+    when(kybSurveyService.initialValidation(REGISTRY_CODE, PERSONAL_CODE)).thenReturn(data);
+
+    mvc.perform(
+            get("/v1/kyb/surveys/initial-validation")
+                .param("registry-code", REGISTRY_CODE)
+                .with(authentication(personAuth())))
+        .andExpect(status().isOk())
+        .andExpect(
+            content()
+                .json(
+                    "{\"relatedPersons\":{\"errors\":[{\"code\":\"USER_KYC\","
+                        + "\"message\":\"Sinu isikusamasuse tuvastamine on lõpetamata\"}]}}"));
+  }
+
+  @Test
   void initialValidation_returns403WhenNotBoardMember() throws Exception {
     when(kybSurveyService.initialValidation(REGISTRY_CODE, PERSONAL_CODE))
         .thenThrow(new NotBoardMemberException(REGISTRY_CODE, PERSONAL_CODE));

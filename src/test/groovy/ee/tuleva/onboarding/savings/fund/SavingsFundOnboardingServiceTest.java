@@ -93,6 +93,27 @@ class SavingsFundOnboardingServiceTest {
   }
 
   @Test
+  void seedPersonOnboardingIfAbsent_whenNoRow_savesPending() {
+    given(savingsFundOnboardingRepository.findStatus("60001019906", PERSON))
+        .willReturn(Optional.empty());
+
+    savingsFundOnboardingService.seedPersonOnboardingIfAbsent("60001019906");
+
+    verify(savingsFundOnboardingRepository).saveOnboardingStatus("60001019906", PERSON, PENDING);
+  }
+
+  @Test
+  void seedPersonOnboardingIfAbsent_whenRowExists_doesNotOverwrite() {
+    given(savingsFundOnboardingRepository.findStatus("60001019906", PERSON))
+        .willReturn(Optional.of(COMPLETED));
+
+    savingsFundOnboardingService.seedPersonOnboardingIfAbsent("60001019906");
+
+    verify(savingsFundOnboardingRepository, never()).saveOnboardingStatus(any(), any(), any());
+    verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  @Test
   void whitelistLegalEntity_withNoExistingStatus_savesWhitelistedAndPublishesEvent() {
     given(savingsFundOnboardingRepository.findStatus("12345678", LEGAL_ENTITY))
         .willReturn(Optional.empty());

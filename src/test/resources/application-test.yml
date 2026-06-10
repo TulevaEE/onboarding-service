@@ -12,7 +12,12 @@ spring:
     type: NONE
   datasource:
     hikari:
+      # Single-fork (-DmaxParallelForks=1) loads ~100 Spring contexts in one JVM. With min-idle
+      # defaulting to max-pool-size, every cached context pinned idle connections and exhausted
+      # Postgres max_connections. Keep idle footprint at zero and release connections quickly.
       maximum-pool-size: 2
+      minimum-idle: 0
+      idle-timeout: 10000
   jpa:
     hibernate:
       ddl-auto: none

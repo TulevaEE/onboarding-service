@@ -9,7 +9,6 @@ import java.time.Clock;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,7 +20,6 @@ public class ParentChildLinkRegistrationService {
   private final ParentChildLinkRepository parentChildLinkRepository;
   private final UserService userService;
   private final Clock clock;
-  private final ApplicationEventPublisher eventPublisher;
 
   @Transactional
   public ParentChildLink register(
@@ -40,29 +38,24 @@ public class ParentChildLinkRegistrationService {
 
     upsertChild(childPersonalCode, childFirstName, childLastName);
 
-    ParentChildLink link =
-        parentChildLinkRepository
-            .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
-                parentPersonalCode, childPersonalCode, relationshipType)
-            .orElseGet(
-                () -> {
-                  log.info(
-                      "Creating parent-child link: parentCode={}, childCode={}, validUntil={}",
-                      parentPersonalCode,
-                      childPersonalCode,
-                      eighteenthBirthday);
-                  return parentChildLinkRepository.save(
-                      ParentChildLink.builder()
-                          .parentPersonalCode(parentPersonalCode)
-                          .childPersonalCode(childPersonalCode)
-                          .relationshipType(relationshipType)
-                          .validUntil(eighteenthBirthday)
-                          .build());
-                });
-
-    eventPublisher.publishEvent(new ParentChildLinkRegisteredEvent(childPersonalCode));
-
-    return link;
+    return parentChildLinkRepository
+        .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
+            parentPersonalCode, childPersonalCode, relationshipType)
+        .orElseGet(
+            () -> {
+              log.info(
+                  "Creating parent-child link: parentCode={}, childCode={}, validUntil={}",
+                  parentPersonalCode,
+                  childPersonalCode,
+                  eighteenthBirthday);
+              return parentChildLinkRepository.save(
+                  ParentChildLink.builder()
+                      .parentPersonalCode(parentPersonalCode)
+                      .childPersonalCode(childPersonalCode)
+                      .relationshipType(relationshipType)
+                      .validUntil(eighteenthBirthday)
+                      .build());
+            });
   }
 
   private void upsertChild(String childPersonalCode, String firstName, String lastName) {

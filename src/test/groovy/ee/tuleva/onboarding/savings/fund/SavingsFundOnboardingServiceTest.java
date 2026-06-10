@@ -93,24 +93,11 @@ class SavingsFundOnboardingServiceTest {
   }
 
   @Test
-  void seedPersonOnboardingIfAbsent_whenNoRow_savesPending() {
-    given(savingsFundOnboardingRepository.findStatus("60001019906", PERSON))
-        .willReturn(Optional.empty());
-
+  void seedPersonOnboardingIfAbsent_insertsPendingIfAbsent() {
     savingsFundOnboardingService.seedPersonOnboardingIfAbsent("60001019906");
 
-    verify(savingsFundOnboardingRepository).saveOnboardingStatus("60001019906", PERSON, PENDING);
-  }
-
-  @Test
-  void seedPersonOnboardingIfAbsent_whenRowExists_doesNotOverwrite() {
-    given(savingsFundOnboardingRepository.findStatus("60001019906", PERSON))
-        .willReturn(Optional.of(COMPLETED));
-
-    savingsFundOnboardingService.seedPersonOnboardingIfAbsent("60001019906");
-
-    verify(savingsFundOnboardingRepository, never()).saveOnboardingStatus(any(), any(), any());
-    verify(eventPublisher, never()).publishEvent(any());
+    verify(savingsFundOnboardingRepository)
+        .insertOnboardingStatusIfAbsent("60001019906", PERSON, PENDING);
   }
 
   @Test

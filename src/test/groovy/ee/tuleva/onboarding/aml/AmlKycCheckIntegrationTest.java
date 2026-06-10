@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.KYC_CHECK;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.*;
+import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.IDENTITY_ONLY;
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.PERSONAL_ONBOARDING;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -94,6 +95,26 @@ class AmlKycCheckIntegrationTest {
               assertThat(check.getType()).isEqualTo(KYC_CHECK);
               assertThat(check.isSuccess()).isFalse();
               assertThat(check.getMetadata()).isEqualTo(Map.of("score", 50, "riskLevel", "MEDIUM"));
+            });
+  }
+
+  @Test
+  @DisplayName("identity-only KycCheckPerformedEvent persists the AmlCheck identically")
+  void onKycCheckPerformed_identityOnlyPurpose_createsCheckIdentically() {
+    var event =
+        new KycCheckPerformedEvent(
+            this, PERSONAL_CODE, new KycCheck(LOW, Map.of("riskLevel", "LOW")), IDENTITY_ONLY);
+
+    eventPublisher.publishEvent(event);
+
+    var checks =
+        amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(PERSONAL_CODE, aYearAgo());
+    assertThat(checks)
+        .singleElement()
+        .satisfies(
+            check -> {
+              assertThat(check.getType()).isEqualTo(KYC_CHECK);
+              assertThat(check.isSuccess()).isTrue();
             });
   }
 

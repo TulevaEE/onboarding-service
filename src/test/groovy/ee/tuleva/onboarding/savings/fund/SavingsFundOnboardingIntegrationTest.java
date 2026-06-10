@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
 import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.*;
+import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.IDENTITY_ONLY;
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.PERSONAL_ONBOARDING;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.*;
@@ -104,6 +105,54 @@ class SavingsFundOnboardingIntegrationTest {
     var event =
         new KycCheckPerformedEvent(
             this, user.getPersonalCode(), new KycCheck(LOW, Map.of()), PERSONAL_ONBOARDING);
+
+    eventPublisher.publishEvent(event);
+
+    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).contains(COMPLETED);
+  }
+
+  @Test
+  void onKycCheckPerformed_identityOnly_createsNoRecord() {
+    var event =
+        new KycCheckPerformedEvent(
+            this, user.getPersonalCode(), new KycCheck(LOW, Map.of()), IDENTITY_ONLY);
+
+    eventPublisher.publishEvent(event);
+
+    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).isEmpty();
+    assertThat(applicationEvents.stream(TrackableEvent.class)).isEmpty();
+  }
+
+  @Test
+  void onKycCheckPerformed_identityOnly_leavesExistingPendingUnchanged() {
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, PENDING);
+    var event =
+        new KycCheckPerformedEvent(
+            this, user.getPersonalCode(), new KycCheck(LOW, Map.of()), IDENTITY_ONLY);
+
+    eventPublisher.publishEvent(event);
+
+    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).contains(PENDING);
+  }
+
+  @Test
+  void onKycCheckPerformed_identityOnly_leavesExistingRejectedUnchanged() {
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, REJECTED);
+    var event =
+        new KycCheckPerformedEvent(
+            this, user.getPersonalCode(), new KycCheck(LOW, Map.of()), IDENTITY_ONLY);
+
+    eventPublisher.publishEvent(event);
+
+    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).contains(REJECTED);
+  }
+
+  @Test
+  void onKycCheckPerformed_identityOnly_leavesExistingCompletedUnchanged() {
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, COMPLETED);
+    var event =
+        new KycCheckPerformedEvent(
+            this, user.getPersonalCode(), new KycCheck(HIGH, Map.of()), IDENTITY_ONLY);
 
     eventPublisher.publishEvent(event);
 

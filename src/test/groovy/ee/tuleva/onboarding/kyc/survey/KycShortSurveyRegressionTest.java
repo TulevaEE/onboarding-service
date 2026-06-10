@@ -38,10 +38,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Locks the assumption the TKF company-onboarding (#67) frontend-only approach depends on: a KYC
- * survey that omits the profile items (INVESTMENT_GOALS, INVESTABLE_ASSETS, SOURCE_OF_INCOME) and
- * the personal TERMS item is accepted and drives PERSON onboarding to the same COMPLETED outcome as
- * the full survey.
+ * Locks the contract between KYC survey submission and PERSON savings-fund onboarding completion
+ * (TKF-VPII2026#92): completion is driven by the explicit submission {@code purpose}, not by the
+ * payload shape. A survey without {@code purpose} (legacy clients) defaults to PERSONAL_ONBOARDING
+ * and completes onboarding even when the profile items (INVESTMENT_GOALS, INVESTABLE_ASSETS,
+ * SOURCE_OF_INCOME) are omitted. An IDENTITY_ONLY survey (company-first flow) runs the same KYC
+ * screening and persists the KYC_CHECK aml_check that KYB's RELATED_PERSONS_KYC reads, but leaves
+ * PERSON onboarding untouched.
  *
  * <p>Note: the risk level itself is produced by the external SQL function {@code
  * kyc_ob_assess_user_risk} (deployed from the database-administration repo, not present in this
@@ -182,16 +185,23 @@ class KycShortSurveyRegressionTest {
   }
 
   @Test
-  void identityOnlySurvey_carriesPurposeOnEvent_andListenerCurrentlyStillCompletesPersonOnboarding()
-      throws Exception {
+  void identityOnlySurvey_runsKycScreening_withoutCompletingPersonOnboarding() throws Exception {
     submitSurvey(IDENTITY_ONLY_SURVEY);
 
     assertThat(applicationEvents.stream(KycCheckPerformedEvent.class).toList())
         .singleElement()
         .satisfies(event -> assertThat(event.getPurpose()).isEqualTo(IDENTITY_ONLY));
     assertThat(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
-        .contains(COMPLETED);
+        .isEmpty();
     assertThatKycCheckAmlCheckIsPersisted();
+    assertThatKybRelatedPersonsKycRequirementIsSatisfied();
+  }
+
+  private void assertThatKybRelatedPersonsKycRequirementIsSatisfied() {
+    assertThat(
+            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
+                user.getPersonalCode(), KYC_CHECK, true, aYearAgo()))
+        .isTrue();
   }
 
   private void assertThatKycCheckAmlCheckIsPersisted() {

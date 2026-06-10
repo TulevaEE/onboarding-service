@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.PERSONAL_ONBOARDING;
+
 import ee.tuleva.onboarding.kyc.KycCheckPerformedEvent;
 import ee.tuleva.onboarding.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,9 @@ public class SavingsFundKycCheckEventListener {
   @EventListener
   @Transactional
   public void onKycCheckPerformed(KycCheckPerformedEvent event) {
+    if (event.getPurpose() != PERSONAL_ONBOARDING) {
+      return;
+    }
     userService
         .findByPersonalCode(event.getPersonalCode())
         .ifPresent(

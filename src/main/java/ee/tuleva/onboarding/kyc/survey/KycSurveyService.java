@@ -21,7 +21,7 @@ public class KycSurveyService {
     KycSurvey saved = kycSurveyRepository.save(survey);
 
     var country = extractCountry(surveyResponse);
-    kycCheckService.check(person, country);
+    kycCheckService.check(person, country, surveyResponse.purpose());
 
     return saved;
   }

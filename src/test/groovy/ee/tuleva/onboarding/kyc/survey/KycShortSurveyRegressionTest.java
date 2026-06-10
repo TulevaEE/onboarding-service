@@ -1,16 +1,21 @@
 package ee.tuleva.onboarding.kyc.survey;
 
+import static ee.tuleva.onboarding.aml.AmlCheckType.KYC_CHECK;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
+import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.IDENTITY_ONLY;
+import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.PERSONAL_ONBOARDING;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.kyc.KycCheckPerformedEvent;
 import ee.tuleva.onboarding.kyc.TestKycCheckerConfiguration;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
@@ -57,6 +62,7 @@ class KycShortSurveyRegressionTest {
   @Autowired private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private ApplicationEvents applicationEvents;
+  @Autowired private AmlCheckRepository amlCheckRepository;
 
   private User user;
   private Authentication authentication;
@@ -113,6 +119,31 @@ class KycShortSurveyRegressionTest {
       }
       """;
 
+  private static final String IDENTITY_ONLY_SURVEY =
+      """
+      {
+        "answers": [
+          { "type": "CITIZENSHIP", "value": { "type": "COUNTRIES", "value": ["EE"] } },
+          {
+            "type": "ADDRESS",
+            "value": {
+              "type": "ADDRESS",
+              "value": {
+                "street": "123 Main St",
+                "city": "Tallinn",
+                "postalCode": "10115",
+                "countryCode": "EE"
+              }
+            }
+          },
+          { "type": "EMAIL", "value": { "type": "TEXT", "value": "test@example.com" } },
+          { "type": "PHONE_NUMBER", "value": { "type": "TEXT", "value": "+37255555555" } },
+          { "type": "PEP_SELF_DECLARATION", "value": { "type": "OPTION", "value": "IS_NOT_PEP" } }
+        ],
+        "purpose": "IDENTITY_ONLY"
+      }
+      """;
+
   @BeforeEach
   void setUp() {
     user = userRepository.save(sampleUserNonMember().id(null).personalCode("48805051231").build());
@@ -130,18 +161,46 @@ class KycShortSurveyRegressionTest {
     assertThat(surveys).hasSize(1);
     assertThat(surveys.getFirst().getSurvey().answers()).hasSize(5);
 
-    assertThat(applicationEvents.stream(KycCheckPerformedEvent.class).toList()).hasSize(1);
+    assertThat(applicationEvents.stream(KycCheckPerformedEvent.class).toList())
+        .singleElement()
+        .satisfies(event -> assertThat(event.getPurpose()).isEqualTo(PERSONAL_ONBOARDING));
     assertThat(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
         .contains(COMPLETED);
+    assertThatKycCheckAmlCheckIsPersisted();
   }
 
   @Test
   void fullSurvey_completesPersonOnboarding_identicallyToShortSurvey() throws Exception {
     submitSurvey(FULL_SURVEY);
 
-    assertThat(applicationEvents.stream(KycCheckPerformedEvent.class).toList()).hasSize(1);
+    assertThat(applicationEvents.stream(KycCheckPerformedEvent.class).toList())
+        .singleElement()
+        .satisfies(event -> assertThat(event.getPurpose()).isEqualTo(PERSONAL_ONBOARDING));
     assertThat(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
         .contains(COMPLETED);
+    assertThatKycCheckAmlCheckIsPersisted();
+  }
+
+  @Test
+  void identityOnlySurvey_carriesPurposeOnEvent_andListenerCurrentlyStillCompletesPersonOnboarding()
+      throws Exception {
+    submitSurvey(IDENTITY_ONLY_SURVEY);
+
+    assertThat(applicationEvents.stream(KycCheckPerformedEvent.class).toList())
+        .singleElement()
+        .satisfies(event -> assertThat(event.getPurpose()).isEqualTo(IDENTITY_ONLY));
+    assertThat(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
+        .contains(COMPLETED);
+    assertThatKycCheckAmlCheckIsPersisted();
+  }
+
+  private void assertThatKycCheckAmlCheckIsPersisted() {
+    assertThat(
+            amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
+                user.getPersonalCode(), aYearAgo()))
+        .filteredOn(check -> check.getType() == KYC_CHECK)
+        .singleElement()
+        .satisfies(check -> assertThat(check.isSuccess()).isTrue());
   }
 
   private void submitSurvey(String body) throws Exception {

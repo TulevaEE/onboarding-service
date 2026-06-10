@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
 import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.*;
+import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.PERSONAL_ONBOARDING;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,7 +44,8 @@ class SavingsFundOnboardingIntegrationTest {
   @Test
   void onKycCheckPerformed_mapsNoneRiskToCompleted() {
     var event =
-        new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(NONE, Map.of()));
+        new KycCheckPerformedEvent(
+            this, user.getPersonalCode(), new KycCheck(NONE, Map.of()), PERSONAL_ONBOARDING);
 
     eventPublisher.publishEvent(event);
 
@@ -53,7 +55,8 @@ class SavingsFundOnboardingIntegrationTest {
   @Test
   void onKycCheckPerformed_mapsLowRiskToCompleted() {
     var event =
-        new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(LOW, Map.of()));
+        new KycCheckPerformedEvent(
+            this, user.getPersonalCode(), new KycCheck(LOW, Map.of()), PERSONAL_ONBOARDING);
 
     eventPublisher.publishEvent(event);
 
@@ -63,7 +66,8 @@ class SavingsFundOnboardingIntegrationTest {
   @Test
   void onKycCheckPerformed_mapsMediumRiskToPending() {
     var event =
-        new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(MEDIUM, Map.of()));
+        new KycCheckPerformedEvent(
+            this, user.getPersonalCode(), new KycCheck(MEDIUM, Map.of()), PERSONAL_ONBOARDING);
 
     eventPublisher.publishEvent(event);
 
@@ -73,7 +77,8 @@ class SavingsFundOnboardingIntegrationTest {
   @Test
   void onKycCheckPerformed_mapsHighRiskToRejected() {
     var event =
-        new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(HIGH, Map.of()));
+        new KycCheckPerformedEvent(
+            this, user.getPersonalCode(), new KycCheck(HIGH, Map.of()), PERSONAL_ONBOARDING);
 
     eventPublisher.publishEvent(event);
 
@@ -84,7 +89,8 @@ class SavingsFundOnboardingIntegrationTest {
   void onKycCheckPerformed_doesNotUpdateIfAlreadyCompleted() {
     repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, COMPLETED);
     var event =
-        new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(HIGH, Map.of()));
+        new KycCheckPerformedEvent(
+            this, user.getPersonalCode(), new KycCheck(HIGH, Map.of()), PERSONAL_ONBOARDING);
 
     eventPublisher.publishEvent(event);
 
@@ -96,7 +102,8 @@ class SavingsFundOnboardingIntegrationTest {
     assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).isEqualTo(Optional.empty());
 
     var event =
-        new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(LOW, Map.of()));
+        new KycCheckPerformedEvent(
+            this, user.getPersonalCode(), new KycCheck(LOW, Map.of()), PERSONAL_ONBOARDING);
 
     eventPublisher.publishEvent(event);
 
@@ -106,7 +113,8 @@ class SavingsFundOnboardingIntegrationTest {
   @Test
   void onKycCheckPerformed_publishesTrackableEventOnStatusChange() {
     var event =
-        new KycCheckPerformedEvent(this, user.getPersonalCode(), new KycCheck(LOW, Map.of()));
+        new KycCheckPerformedEvent(
+            this, user.getPersonalCode(), new KycCheck(LOW, Map.of()), PERSONAL_ONBOARDING);
 
     eventPublisher.publishEvent(event);
 

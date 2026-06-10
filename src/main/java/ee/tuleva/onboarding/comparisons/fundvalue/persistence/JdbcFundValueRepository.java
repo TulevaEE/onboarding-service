@@ -87,11 +87,15 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
       ) v ORDER BY v.date ASC
       """;
 
-  private static final String FIND_LATEST_DATE_FOR_PROVIDER_QUERY =
+  private static final String FIND_COMMON_LATEST_DATE_FOR_PROVIDER_QUERY =
       """
-      SELECT MAX(date) AS latest_date
-      FROM index_values
-      WHERE provider = :provider
+      SELECT MIN(latest_date_per_key) AS latest_date
+      FROM (
+          SELECT MAX(date) AS latest_date_per_key
+          FROM index_values
+          WHERE provider = :provider
+          GROUP BY key
+      ) latest_dates
       """;
 
   private static final String FIND_EARLIEST_DATES_QUERY =
@@ -214,10 +218,10 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
   }
 
   @Override
-  public Optional<LocalDate> findLatestDateForProvider(String provider) {
+  public Optional<LocalDate> findCommonLatestDateForProvider(String provider) {
     List<LocalDate> result =
         jdbcTemplate.query(
-            FIND_LATEST_DATE_FOR_PROVIDER_QUERY,
+            FIND_COMMON_LATEST_DATE_FOR_PROVIDER_QUERY,
             Map.of("provider", provider),
             (rs, rowNum) -> {
               var latestDate = rs.getDate("latest_date");

@@ -319,7 +319,7 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
     result.isPresent()
   }
 
-  def "it finds the latest date across all keys for a provider"() {
+  def "it finds the latest date of the provider's least up-to-date key, so lagging tickers are never skipped"() {
     given:
     def provider = "PROVIDER_TEST_" + UUID.randomUUID()
     List<FundValue> values = [
@@ -331,16 +331,16 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
     fundValueRepository.saveAll(values)
 
     when:
-    Optional<LocalDate> latestDate = fundValueRepository.findLatestDateForProvider(provider)
+    Optional<LocalDate> latestDate = fundValueRepository.findCommonLatestDateForProvider(provider)
 
     then:
     latestDate.isPresent()
-    latestDate.get() == parse("2026-05-25")
+    latestDate.get() == parse("2026-05-24")
   }
 
   def "it returns empty when no values exist for a provider"() {
     when:
-    Optional<LocalDate> latestDate = fundValueRepository.findLatestDateForProvider("MISSING_PROVIDER_" + UUID.randomUUID())
+    Optional<LocalDate> latestDate = fundValueRepository.findCommonLatestDateForProvider("MISSING_PROVIDER_" + UUID.randomUUID())
 
     then:
     !latestDate.isPresent()

@@ -18,8 +18,9 @@ public interface ComparisonIndexRetriever {
   // Retrievers that store one value series per getKey() track incremental progress by key
   // (default).
   // Retrievers that fan out to many per-ticker storage keys under a single provider must override
-  // this to return that provider, so the indexing job tracks the latest stored date by provider
-  // instead of by the (never-stored) getKey().
+  // this to return that provider, so the indexing job resumes from the provider's least up-to-date
+  // key. Resuming from the provider-wide maximum would permanently skip tickers whose sources
+  // publish values a few days late (e.g. mutual fund NAVs vs exchange-traded closing prices).
   default Optional<String> trackingProvider() {
     return Optional.empty();
   }

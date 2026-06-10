@@ -188,6 +188,87 @@ class FundValueIntegrityCheckerSpec extends Specification {
     !result.hasIssues()
   }
 
+  // Source freshness checks — a provider whose latest stored value stops advancing
+
+  def "reports stale sources when a provider's latest value stops advancing"() {
+    given:
+    def ticker = FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED
+    LocalDate endDate = LocalDate.of(2026, 6, 9)
+    LocalDate frozenDate = LocalDate.of(2026, 5, 26)
+    def blackrockKey = ticker.isin + ".BLACKROCK"
+    def morningstarKey = ticker.isin + ".MORNINGSTAR"
+
+    fundValueRepository.findLastValueForFund(ticker.eodhdTicker) >> Optional.of(aFundValue(ticker.eodhdTicker, frozenDate, 100.0))
+    fundValueRepository.findLastValueForFund(blackrockKey) >> Optional.of(aFundValue(blackrockKey, frozenDate, 100.0))
+    fundValueRepository.findLastValueForFund(morningstarKey) >> Optional.of(aFundValue(morningstarKey, LocalDate.of(2026, 6, 8), 100.0))
+    fundValueRepository.findLastValueForFund(ticker.yahooTicker) >> Optional.of(aFundValue(ticker.yahooTicker, LocalDate.of(2026, 6, 5), 100.0))
+
+    when:
+    def staleSources = checker.checkSourceFreshness(ticker, endDate)
+
+    then:
+    staleSources == [
+        new IntegrityCheckResult.StaleSource(ticker.displayName, "EODHD", ticker.eodhdTicker, frozenDate, 10),
+        new IntegrityCheckResult.StaleSource(ticker.displayName, "BlackRock", blackrockKey, frozenDate, 10),
+    ]
+  }
+
+  def "does not report stale sources at exactly the allowed publication lag of 3 working days"() {
+    given:
+    def ticker = FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED
+    LocalDate endDate = LocalDate.of(2026, 6, 9)
+    fundValueRepository.findLastValueForFund(_) >> { String key -> Optional.of(aFundValue(key, LocalDate.of(2026, 6, 4), 100.0)) }
+
+    when:
+    def staleSources = checker.checkSourceFreshness(ticker, endDate)
+
+    then:
+    staleSources.isEmpty()
+  }
+
+  def "reports stale sources one working day past the allowed publication lag"() {
+    given:
+    def ticker = FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED
+    LocalDate endDate = LocalDate.of(2026, 6, 9)
+    fundValueRepository.findLastValueForFund(_) >> { String key -> Optional.of(aFundValue(key, LocalDate.of(2026, 6, 3), 100.0)) }
+
+    when:
+    def staleSources = checker.checkSourceFreshness(ticker, endDate)
+
+    then:
+    staleSources.size() == 4
+    staleSources.every { it.workingDaysBehind() == 4 }
+  }
+
+  def "does not report sources that have never had any data"() {
+    given:
+    def ticker = FundTicker.AMUNDI_GLOBAL_AGG_BOND_HEDGED
+    LocalDate endDate = LocalDate.of(2026, 6, 9)
+    fundValueRepository.findLastValueForFund(_) >> Optional.empty()
+
+    when:
+    def staleSources = checker.checkSourceFreshness(ticker, endDate)
+
+    then:
+    staleSources.isEmpty()
+  }
+
+  def "includes stale sources in the integrity summary"() {
+    given:
+    LocalDate endDate = LocalDate.of(2026, 6, 9)
+    def blackrockKey = "IE00BFG1TM61.BLACKROCK"
+    fundValueRepository.findLastValueForFund(blackrockKey) >> Optional.of(aFundValue(blackrockKey, LocalDate.of(2026, 5, 26), 100.0))
+    fundValueRepository.findLastValueForFund(_) >> Optional.empty()
+
+    when:
+    String summary = checker.runIntegrityCheck(endDate)
+
+    then:
+    summary.contains("Stale price sources")
+    summary.contains("IE00BFG1TM61.BLACKROCK")
+    summary.contains("workingDaysBehind=10")
+  }
+
   // Cross-provider integrity tests with Exchange/EODHD as anchor
 
   def "should report CRITICAL when Exchange and EODHD values differ by more than 0.001%"() {

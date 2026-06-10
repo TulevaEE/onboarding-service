@@ -128,7 +128,7 @@ public class FundValueIndexingJob {
   private Optional<LocalDate> findLatestStoredDate(ComparisonIndexRetriever retriever) {
     Optional<String> provider = retriever.trackingProvider();
     if (provider.isPresent()) {
-      return fundValueRepository.findLatestDateForProvider(provider.get());
+      return fundValueRepository.findCommonLatestDateForProvider(provider.get());
     }
     return fundValueRepository.findLastValueForFund(retriever.getKey()).map(FundValue::date);
   }

@@ -39,6 +39,14 @@ public class SavingsFundOnboardingService {
     return savingsFundOnboardingRepository.findStatus(partyId.code(), partyId.type()).orElse(null);
   }
 
+  public void seedPersonOnboardingIfAbsent(String personalCode) {
+    if (savingsFundOnboardingRepository.findStatus(personalCode, PERSON).isPresent()) {
+      return;
+    }
+    log.info("Seeding savings fund onboarding: personalCode={}, status={}", personalCode, PENDING);
+    savingsFundOnboardingRepository.saveOnboardingStatus(personalCode, PERSON, PENDING);
+  }
+
   public void updateOnboardingStatusIfNeeded(User user, KycCheck kycCheck) {
     SavingsFundOnboardingStatus oldStatus =
         savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON).orElse(null);

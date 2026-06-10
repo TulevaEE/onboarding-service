@@ -37,7 +37,7 @@ public class SavingsFundOnboardingRepository {
                 """
                 INSERT INTO savings_fund_onboarding (code, type, status)
                 VALUES (:code, :type, :status)
-                ON CONFLICT (code, type) DO NOTHING
+                ON CONFLICT DO NOTHING
                 """)
             .param("code", code)
             .param("type", type.name())

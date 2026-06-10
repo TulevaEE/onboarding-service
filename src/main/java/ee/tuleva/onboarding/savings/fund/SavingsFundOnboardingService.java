@@ -40,11 +40,12 @@ public class SavingsFundOnboardingService {
   }
 
   public void seedPersonOnboardingIfAbsent(String personalCode) {
-    if (savingsFundOnboardingRepository.findStatus(personalCode, PERSON).isPresent()) {
-      return;
+    boolean inserted =
+        savingsFundOnboardingRepository.insertOnboardingStatusIfAbsent(
+            personalCode, PERSON, PENDING);
+    if (inserted) {
+      log.info("Seeded savings fund onboarding: personalCode={}, status={}", personalCode, PENDING);
     }
-    log.info("Seeding savings fund onboarding: personalCode={}, status={}", personalCode, PENDING);
-    savingsFundOnboardingRepository.saveOnboardingStatus(personalCode, PERSON, PENDING);
   }
 
   public void updateOnboardingStatusIfNeeded(User user, KycCheck kycCheck) {

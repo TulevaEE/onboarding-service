@@ -363,6 +363,7 @@ public class AdminController {
         request.childFirstName(),
         request.childLastName(),
         request.relationshipType());
+    savingsFundOnboardingService.seedPersonOnboardingIfAbsent(request.childCode());
 
     return "Created parent-child link: parentCode="
         + request.parentCode()

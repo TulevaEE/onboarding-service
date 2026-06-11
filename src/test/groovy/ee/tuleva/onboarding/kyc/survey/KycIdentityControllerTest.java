@@ -10,8 +10,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.PepStatus;
+import ee.tuleva.onboarding.time.ClockHolder;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -34,6 +39,16 @@ class KycIdentityControllerTest {
   private final Authentication authentication =
       new UsernamePasswordAuthenticationToken(
           authPerson, null, List.of(new SimpleGrantedAuthority(USER)));
+
+  @BeforeEach
+  void setUp() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-06-11T12:00:00Z"), ZoneOffset.UTC));
+  }
+
+  @AfterEach
+  void tearDown() {
+    ClockHolder.setDefaultClock();
+  }
 
   @Test
   void getIdentity_returnsCompleteIdentity() throws Exception {

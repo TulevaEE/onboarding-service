@@ -6,11 +6,17 @@ import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyc.KycCheckService;
+import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -20,6 +26,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class KycSurveyServiceTest {
 
+  private static final Instant NOW = Instant.parse("2026-06-11T12:00:00Z");
+
   @Mock private KycSurveyRepository kycSurveyRepository;
   @Mock private KycCheckService kycCheckService;
   @Mock private UserService userService;
@@ -28,6 +36,16 @@ class KycSurveyServiceTest {
 
   private final User user =
       User.builder().email("test@example.com").phoneNumber("+37255555555").build();
+
+  @BeforeEach
+  void setUp() {
+    ClockHolder.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
+  }
+
+  @AfterEach
+  void tearDown() {
+    ClockHolder.setDefaultClock();
+  }
 
   @Test
   void getCountry_returnsCountryFromAddressAnswer() {
@@ -170,6 +188,35 @@ class KycSurveyServiceTest {
                 new KycIdentityResponse.Address("Street 1", "Tallinn", "12345", "EE"),
                 null,
                 null,
+                PepStatus.IS_NOT_PEP,
+                createdTime));
+    assertThat(identity.isComplete()).isFalse();
+  }
+
+  @Test
+  void getIdentity_returnsSurveyOlderThanAYearForPrefillButIncomplete() {
+    Long userId = 1L;
+    var createdTime = NOW.minus(Duration.ofDays(366));
+    var survey =
+        identitySurvey(
+            new Citizenship(new CountriesValue("COUNTRIES", List.of("EE"))),
+            new Address(
+                new AddressValue(
+                    "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))),
+            new PepSelfDeclaration(new OptionValue<>("OPTION", PepStatus.IS_NOT_PEP)));
+    given(userService.getByIdOrThrow(userId)).willReturn(user);
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(userId))
+        .willReturn(Optional.of(kycSurvey(userId, survey, createdTime)));
+
+    var identity = kycSurveyService.getIdentity(userId);
+
+    assertThat(identity)
+        .isEqualTo(
+            new KycIdentityResponse(
+                List.of("EE"),
+                new KycIdentityResponse.Address("Street 1", "Tallinn", "12345", "EE"),
+                "test@example.com",
+                "+37255555555",
                 PepStatus.IS_NOT_PEP,
                 createdTime));
     assertThat(identity.isComplete()).isFalse();

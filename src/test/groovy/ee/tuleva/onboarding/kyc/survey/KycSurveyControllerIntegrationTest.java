@@ -16,7 +16,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import ee.tuleva.onboarding.kyc.*;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
+import jakarta.persistence.EntityManager;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +49,7 @@ class KycSurveyControllerIntegrationTest {
   @Autowired private KycSurveyRepository kycSurveyRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private JdbcTemplate jdbcTemplate;
+  @Autowired private EntityManager entityManager;
   @Autowired private ApplicationEvents applicationEvents;
   @Autowired private TestKycChecker testKycChecker;
 
@@ -333,8 +336,55 @@ class KycSurveyControllerIntegrationTest {
   }
 
   private void backdateExistingSurveys() {
+    backdateExistingSurveys(Duration.ofHours(1));
+  }
+
+  // The JDBC update bypasses JPA: flush so the pending insert is visible to it,
+  // and clear so later reads hydrate the backdated timestamp instead of serving
+  // the cached entity.
+  private void backdateExistingSurveys(Duration age) {
+    entityManager.flush();
     jdbcTemplate.update(
-        "UPDATE kyc_survey SET created_time = ?", Timestamp.from(Instant.now().minusSeconds(3600)));
+        "UPDATE kyc_survey SET created_time = ?", Timestamp.from(Instant.now().minus(age)));
+    entityManager.clear();
+  }
+
+  @Test
+  void getIdentity_returnsSurveyOlderThanAYearForPrefillButIncomplete() throws Exception {
+    String survey =
+        """
+        {
+          "answers": [
+            { "type": "CITIZENSHIP", "value": { "type": "COUNTRIES", "value": ["EE"] } },
+            {
+              "type": "ADDRESS",
+              "value": {
+                "type": "ADDRESS",
+                "value": {
+                  "street": "123 Main St",
+                  "city": "Tallinn",
+                  "postalCode": "10115",
+                  "countryCode": "EE"
+                }
+              }
+            },
+            { "type": "EMAIL", "value": { "type": "TEXT", "value": "test@example.com" } },
+            { "type": "PEP_SELF_DECLARATION", "value": { "type": "OPTION", "value": "IS_NOT_PEP" } }
+          ],
+          "purpose": "IDENTITY_ONLY"
+        }
+        """;
+    submitSurvey(survey);
+    backdateExistingSurveys(Duration.ofDays(366));
+
+    mockMvc
+        .perform(get("/v1/kyc/identity").with(authentication(authentication)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.citizenship[0]").value("EE"))
+        .andExpect(jsonPath("$.address.street").value("123 Main St"))
+        .andExpect(jsonPath("$.pepSelfDeclaration").value("IS_NOT_PEP"))
+        .andExpect(jsonPath("$.complete").value(false))
+        .andExpect(jsonPath("$.updatedAt").isNotEmpty());
   }
 
   @Test

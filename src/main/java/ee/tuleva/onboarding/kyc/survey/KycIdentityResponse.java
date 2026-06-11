@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.kyc.survey;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
+import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.AddressDetails;
@@ -26,7 +27,12 @@ public record KycIdentityResponse(
         && !citizenship.isEmpty()
         && address != null
         && pepSelfDeclaration != null
-        && email != null;
+        && email != null
+        && isFresh();
+  }
+
+  private boolean isFresh() {
+    return updatedAt != null && updatedAt.isAfter(aYearAgo());
   }
 
   public record Address(String street, String city, String postalCode, String countryCode) {

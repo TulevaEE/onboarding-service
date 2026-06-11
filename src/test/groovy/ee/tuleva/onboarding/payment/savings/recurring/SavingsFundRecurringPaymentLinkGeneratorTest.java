@@ -34,6 +34,7 @@ import org.springframework.context.i18n.LocaleContextHolder;
 class SavingsFundRecurringPaymentLinkGeneratorTest {
 
   private static final String PERSONAL_CODE = "38812121215";
+  private static final String REGISTRY_CODE = "12345678";
   private static final String RECIPIENT_NAME = "Tuleva Täiendav Kogumisfond";
   private static final String RECIPIENT_IBAN = "EE711010220306707220";
   private static final LocalDate FIRST_PAYMENT = LocalDate.of(2026, 5, 10);
@@ -112,11 +113,11 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
   }
 
   @Test
-  void buildsSwedbankUrl() {
+  void buildsSwedbankPrivateUrlForPerson() {
     var link = prefilledLink(SWEDBANK);
 
     assertThat(link.url())
-        .startsWith("https://www.swedbank.ee/private/d2d/payments2/standing_order/new?")
+        .startsWith("https://www.swedbank.ee/private/d2d/payments2/standing_order/new_foreign?")
         .contains("standingOrder.beneficiaryAccountNumber=EE711010220306707220")
         .contains("standingOrder.beneficiaryName=Tuleva%20T%C3%A4iendav%20Kogumisfond")
         .contains("standingOrder.amount=50")
@@ -124,6 +125,27 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
         .contains("standingOrder.firstPaymentDate=10.05.2026")
         .contains("frequency=K");
     assertCommonRecipientFields(link);
+  }
+
+  @Test
+  void buildsSwedbankBusinessLandingUrlForLegalEntity() {
+    var paymentData =
+        PaymentData.builder()
+            .amount(new BigDecimal("50"))
+            .currency(EUR)
+            .type(SAVINGS_RECURRING)
+            .paymentChannel(SWEDBANK)
+            .recipientPersonalCode(REGISTRY_CODE)
+            .build();
+
+    var link = (PrefilledLink) generator.getPaymentLink(paymentData, person());
+
+    assertThat(link.url())
+        .isEqualTo("https://www.swedbank.ee/business/d2d/payments/standing_order?language=EST");
+    assertThat(link.recipientName()).isEqualTo(RECIPIENT_NAME);
+    assertThat(link.recipientIban()).isEqualTo(RECIPIENT_IBAN);
+    assertThat(link.description()).isEqualTo(REGISTRY_CODE);
+    assertThat(link.amount()).isEqualTo("50");
   }
 
   @Test

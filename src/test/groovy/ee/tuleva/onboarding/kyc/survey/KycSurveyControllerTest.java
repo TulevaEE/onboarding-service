@@ -225,6 +225,37 @@ class KycSurveyControllerTest {
   }
 
   @Test
+  @DisplayName("POST /v1/kyc/surveys with null answer value returns 400")
+  void submit_withNullAnswerValue_returnsBadRequest() throws Exception {
+    String requestBody =
+        """
+        {
+          "answers": [
+            {
+              "type": "CITIZENSHIP",
+              "value": null
+            },
+            {
+              "type": "ADDRESS",
+              "value": {
+                "type": "ADDRESS",
+                "value": null
+              }
+            }
+          ]
+        }
+        """;
+
+    mvc.perform(
+            post("/v1/kyc/surveys")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody)
+                .with(csrf())
+                .with(authentication(authentication)))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
   @DisplayName("POST /v1/kyc/surveys with malformed JSON returns 400")
   void submit_withMalformedJson_returnsBadRequest() throws Exception {
     String requestBody = "{ invalid json }";

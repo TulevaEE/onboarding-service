@@ -1,8 +1,11 @@
 package ee.tuleva.onboarding.kyc.survey;
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyc.KycCheckService;
@@ -45,6 +48,23 @@ class KycSurveyServiceTest {
   @AfterEach
   void tearDown() {
     ClockHolder.setDefaultClock();
+  }
+
+  @Test
+  void submit_flushesTheSurveySoTheSameTransactionRiskQueryCanSeeIt() {
+    var person = sampleAuthenticatedPersonNonMember().build();
+    var survey =
+        identitySurvey(
+            new Address(
+                new AddressValue(
+                    "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))));
+    given(kycSurveyRepository.saveAndFlush(any(KycSurvey.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+
+    var saved = kycSurveyService.submit(person, survey);
+
+    assertThat(saved.getSurvey()).isEqualTo(survey);
+    verify(kycCheckService).check(person, new Country("EE"), survey.purpose());
   }
 
   @Test

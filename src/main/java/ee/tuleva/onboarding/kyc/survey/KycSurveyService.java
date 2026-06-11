@@ -21,7 +21,10 @@ public class KycSurveyService {
   public KycSurvey submit(AuthenticatedPerson person, KycSurveyResponse surveyResponse) {
     KycSurvey survey =
         KycSurvey.builder().userId(person.getUserId()).survey(surveyResponse).build();
-    KycSurvey saved = kycSurveyRepository.save(survey);
+    // The risk assessment reads kyc_survey with plain JDBC inside this same
+    // transaction, which does not trigger Hibernate's auto-flush — without an
+    // explicit flush a first-time submitter's survey is invisible to it.
+    KycSurvey saved = kycSurveyRepository.saveAndFlush(survey);
 
     var country = extractCountry(surveyResponse);
     kycCheckService.check(person, country, surveyResponse.purpose());

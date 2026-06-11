@@ -28,11 +28,11 @@ public class CompanyOnboardingEventListener {
   @EventListener
   @Transactional
   public void onKybCheckPerformed(KybCheckPerformedEvent event) {
+    var company =
+        companyRepository
+            .findByRegistryCode(event.getCompany().registryCode().value())
+            .orElseGet(() -> createCompany(event));
     if (noNonDataChangedCheckFailed(event)) {
-      var company =
-          companyRepository
-              .findByRegistryCode(event.getCompany().registryCode().value())
-              .orElseGet(() -> createCompany(event));
       replaceParties(company, event);
     }
   }

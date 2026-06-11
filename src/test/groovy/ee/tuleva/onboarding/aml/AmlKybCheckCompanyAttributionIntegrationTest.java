@@ -60,7 +60,13 @@ public class AmlKybCheckCompanyAttributionIntegrationTest {
     var personalCode = "38812121215";
     assertThat(companyRepository.findByRegistryCode(registryCode)).isEmpty();
 
-    eventPublisher.publishEvent(firstPassingScreening(registryCode, personalCode));
+    eventPublisher.publishEvent(
+        screening(
+            registryCode,
+            personalCode,
+            List.of(
+                new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+                new KybCheck(COMPANY_STRUCTURE, true, Map.of()))));
 
     UUID companyId =
         companyRepository.findByRegistryCode(registryCode).map(Company::getId).orElseThrow();
@@ -71,7 +77,32 @@ public class AmlKybCheckCompanyAttributionIntegrationTest {
     assertThat(checks).extracting(AmlCheck::getCompanyId).containsOnly(companyId);
   }
 
-  private KybCheckPerformedEvent firstPassingScreening(String registryCode, String personalCode) {
+  @Test
+  @Transactional
+  void failingScreeningStillCreatesCompanyAndAttributesItsIdToKybChecks() {
+    var registryCode = "90000002";
+    var personalCode = "38812121215";
+    assertThat(companyRepository.findByRegistryCode(registryCode)).isEmpty();
+
+    eventPublisher.publishEvent(
+        screening(
+            registryCode,
+            personalCode,
+            List.of(
+                new KybCheck(COMPANY_ACTIVE, false, Map.of()),
+                new KybCheck(COMPANY_STRUCTURE, true, Map.of()))));
+
+    UUID companyId =
+        companyRepository.findByRegistryCode(registryCode).map(Company::getId).orElseThrow();
+    var checks =
+        amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
+            personalCode, Instant.now().minusSeconds(3600));
+    assertThat(checks).isNotEmpty();
+    assertThat(checks).extracting(AmlCheck::getCompanyId).containsOnly(companyId);
+  }
+
+  private KybCheckPerformedEvent screening(
+      String registryCode, String personalCode, List<KybCheck> checks) {
     var company = new CompanyDto(new RegistryCode(registryCode), "Test OÜ", "62011", LegalForm.OÜ);
     var relatedPersons =
         List.of(
@@ -82,10 +113,6 @@ public class AmlKybCheckCompanyAttributionIntegrationTest {
                 true,
                 BigDecimal.valueOf(100),
                 KybKycStatus.COMPLETED));
-    var checks =
-        List.of(
-            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
-            new KybCheck(COMPANY_STRUCTURE, true, Map.of()));
     return new KybCheckPerformedEvent(
         this, company, new PersonalCode(personalCode), relatedPersons, checks);
   }

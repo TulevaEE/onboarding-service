@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.aml;
 
+import static ee.tuleva.onboarding.kyb.KybCheckPerformedEventOrder.ATTRIBUTE_AML_CHECKS;
 import static java.util.Map.entry;
 
 import ee.tuleva.onboarding.company.Company;
@@ -13,6 +14,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +44,7 @@ public class AmlKybCheckEventListener {
   private final AmlService amlService;
   private final CompanyRepository companyRepository;
 
+  @Order(ATTRIBUTE_AML_CHECKS)
   @EventListener
   @Transactional
   public void onKybCheckPerformed(KybCheckPerformedEvent event) {

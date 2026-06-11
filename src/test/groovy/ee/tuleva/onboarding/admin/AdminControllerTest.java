@@ -841,6 +841,7 @@ class AdminControllerTest {
             "Mari",
             "Maasikas",
             RepresentationType.LEGAL_REPRESENTATIVE);
+    verify(savingsFundOnboardingService).seedPersonOnboardingIfAbsent("61506150006");
   }
 
   @Test
@@ -861,6 +862,7 @@ class AdminControllerTest {
             "Mari",
             "Maasikas",
             RepresentationType.LEGAL_REPRESENTATIVE);
+    verify(savingsFundOnboardingService).seedPersonOnboardingIfAbsent("61506150006");
   }
 
   @Test
@@ -875,6 +877,7 @@ class AdminControllerTest {
         .andExpect(status().isUnauthorized());
 
     verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any(), any());
+    verify(savingsFundOnboardingService, never()).seedPersonOnboardingIfAbsent(any());
   }
 
   @Test
@@ -891,6 +894,8 @@ class AdminControllerTest {
                 .contentType(APPLICATION_JSON)
                 .content(VALID_LINK_BODY))
         .andExpect(status().isBadRequest());
+
+    verify(savingsFundOnboardingService, never()).seedPersonOnboardingIfAbsent(any());
   }
 
   @Test

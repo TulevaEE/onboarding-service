@@ -682,7 +682,7 @@ class TrackingDifferenceService {
     try {
       lookback = calculator.escalationLookbackDays(checkDate);
     } catch (IllegalStateException e) {
-      log.error("Invalid escalation parameter configuration: {}", e.getMessage());
+      log.warn("Escalation parameters not configured, using fallback: {}", e.getMessage());
       lookback = ESCALATION_LOOKBACK_FALLBACK;
     } catch (Exception e) {
       log.warn("Escalation lookback parameter lookup failed, using fallback: {}", e.getMessage());

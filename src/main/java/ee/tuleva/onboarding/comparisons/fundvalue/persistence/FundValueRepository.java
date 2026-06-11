@@ -14,7 +14,7 @@ public interface FundValueRepository {
 
   Optional<FundValue> findLastValueForFund(String fund);
 
-  Optional<LocalDate> findLatestDateForProvider(String provider);
+  Optional<LocalDate> findCommonLatestDateForProvider(String provider);
 
   List<FundValue> getGlobalStockValues();
 

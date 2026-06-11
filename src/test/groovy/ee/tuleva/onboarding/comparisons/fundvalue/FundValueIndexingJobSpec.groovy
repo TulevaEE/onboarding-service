@@ -116,7 +116,7 @@ class FundValueIndexingJobSpec extends Specification {
         eodhd.trackingProvider() >> Optional.of(EODHDValueRetriever.PROVIDER)
         eodhd.stalenessThreshold() >> Duration.ofDays(7)
         def lastDate = LocalDate.parse("2026-03-01")
-        fundValueRepository.findLatestDateForProvider(EODHDValueRetriever.PROVIDER) >> Optional.of(lastDate)
+        fundValueRepository.findCommonLatestDateForProvider(EODHDValueRetriever.PROVIDER) >> Optional.of(lastDate)
 
         def job = new FundValueIndexingJob(
             fundValueRepository, [eodhd], Mock(Environment), fundNavRetrieverFactory, CLOCK, publicHolidays,
@@ -135,7 +135,7 @@ class FundValueIndexingJobSpec extends Specification {
         def eodhd = Mock(ComparisonIndexRetriever)
         eodhd.getKey() >> EODHDValueRetriever.KEY
         eodhd.trackingProvider() >> Optional.of(EODHDValueRetriever.PROVIDER)
-        fundValueRepository.findLatestDateForProvider(EODHDValueRetriever.PROVIDER) >> Optional.empty()
+        fundValueRepository.findCommonLatestDateForProvider(EODHDValueRetriever.PROVIDER) >> Optional.empty()
 
         def job = new FundValueIndexingJob(
             fundValueRepository, [eodhd], Mock(Environment), fundNavRetrieverFactory, CLOCK, publicHolidays,

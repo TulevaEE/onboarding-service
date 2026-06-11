@@ -1,8 +1,8 @@
 version: 2.1
 orbs:
-  aws-ecr: circleci/aws-ecr@9.5.1
-  aws-cli: circleci/aws-cli@5.3.2
-  codecov: codecov/codecov@5.3.0
+  aws-ecr: circleci/aws-ecr@9.8.1
+  aws-cli: circleci/aws-cli@5.4.1
+  codecov: codecov/codecov@6.0.0
   snyk: snyk/snyk@2.3.0
 
 executors:
@@ -16,6 +16,64 @@ executors:
     docker:
       - image: cimg/node:lts
     resource_class: small
+
+commands:
+  deploy-ecs-service:
+    parameters:
+      service:
+        type: string
+    steps:
+      - run:
+          name: Deploy << parameters.service >> and verify rollout
+          no_output_timeout: 35m
+          command: |
+            echo "🚀 Forcing ECS << parameters.service >> service update..."
+
+            DEPLOYMENT_ID=$(aws ecs update-service \
+              --cluster onboarding-service-cluster \
+              --service << parameters.service >> \
+              --force-new-deployment \
+              --region eu-central-1 \
+              --query "service.deployments[?status=='PRIMARY'] | [0].id" \
+              --output text)
+
+            if [ -z "$DEPLOYMENT_ID" ] || [ "$DEPLOYMENT_ID" = "None" ]; then
+              echo "❌ Could not determine the new deployment id from the update-service response"
+              exit 1
+            fi
+
+            echo "⏳ Waiting for deployment $DEPLOYMENT_ID to complete..."
+
+            for i in $(seq 1 120); do
+              sleep 15
+              STATE=$(aws ecs describe-services \
+                --cluster onboarding-service-cluster \
+                --services << parameters.service >> \
+                --region eu-central-1 \
+                --query "services[0].deployments[?id=='$DEPLOYMENT_ID'] | [0].rolloutState" \
+                --output text)
+              echo "Deployment state: $STATE (check $i/120)"
+
+              if [ "$STATE" = "COMPLETED" ]; then
+                echo "✅ ECS << parameters.service >> deployment completed successfully"
+                exit 0
+              fi
+
+              if [ "$STATE" = "FAILED" ] || [ "$STATE" = "None" ] || [ -z "$STATE" ]; then
+                echo "❌ Deployment $DEPLOYMENT_ID failed — ECS rolled back to the previous version."
+                echo "Recent service events:"
+                aws ecs describe-services \
+                  --cluster onboarding-service-cluster \
+                  --services << parameters.service >> \
+                  --region eu-central-1 \
+                  --query 'services[0].events[:10].message' \
+                  --output text
+                exit 1
+              fi
+            done
+
+            echo "❌ Timed out waiting for deployment $DEPLOYMENT_ID to complete"
+            exit 1
 
 jobs:
   build:
@@ -145,38 +203,12 @@ jobs:
                 echo "No files requiring additional review changed in monitored paths on master branch (or no applicable changes found)."
             fi
 
-  deploy-ecs-staging:
+  retag-ecs-image:
     docker:
       - image: cimg/aws:2025.01
     steps:
       - run:
-          name: Deploy to ECS staging
-          no_output_timeout: 15m
-          command: |
-            echo "🚀 Forcing ECS staging service update..."
-
-            aws ecs update-service \
-              --cluster onboarding-service-cluster \
-              --service onboarding-service-staging \
-              --force-new-deployment \
-              --region eu-central-1
-
-            echo "⏳ Waiting for staging deployment to stabilize..."
-
-            aws ecs wait services-stable \
-              --cluster onboarding-service-cluster \
-              --services onboarding-service-staging \
-              --region eu-central-1
-
-            echo "✅ ECS staging deployment completed successfully"
-
-  deploy-ecs-production:
-    docker:
-      - image: cimg/aws:2025.01
-    steps:
-      - run:
-          name: Retag latest as ecs-latest and deploy to ECS production
-          no_output_timeout: 15m
+          name: Retag latest as ecs-latest
           command: |
             echo "🏷️  Retagging :latest as :ecs-latest for ECS..."
 
@@ -196,23 +228,20 @@ jobs:
               --region eu-central-1
 
             echo "✅ Image retagged as :ecs-latest"
-            echo "🚀 Forcing ECS production service update..."
 
-            # Force production ECS update
-            aws ecs update-service \
-              --cluster onboarding-service-cluster \
-              --service onboarding-service-production \
-              --force-new-deployment \
-              --region eu-central-1
+  deploy-ecs-staging:
+    docker:
+      - image: cimg/aws:2025.01
+    steps:
+      - deploy-ecs-service:
+          service: onboarding-service-staging
 
-            echo "⏳ Waiting for production deployment to stabilize..."
-
-            aws ecs wait services-stable \
-              --cluster onboarding-service-cluster \
-              --services onboarding-service-production \
-              --region eu-central-1
-
-            echo "✅ ECS production deployment completed successfully"
+  deploy-ecs-production:
+    docker:
+      - image: cimg/aws:2025.01
+    steps:
+      - deploy-ecs-service:
+          service: onboarding-service-production
 
   notify-sentry-deploy:
     docker:
@@ -323,15 +352,22 @@ workflows:
             branches:
               only: master
 
-      - deploy-ecs-staging:
+      - retag-ecs-image:
           requires: [ build_and_push_image ]
           context: aws
           filters:
             branches:
               only: master
 
+      - deploy-ecs-staging:
+          requires: [ retag-ecs-image ]
+          context: aws
+          filters:
+            branches:
+              only: master
+
       - deploy-ecs-production:
-          requires: [ build_and_push_image ]
+          requires: [ retag-ecs-image ]
           context: aws
           filters:
             branches:

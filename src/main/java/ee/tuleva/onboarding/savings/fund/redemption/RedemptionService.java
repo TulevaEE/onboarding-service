@@ -11,6 +11,8 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.capital.transfer.iban.IbanValidator;
 import ee.tuleva.onboarding.company.BoardMembershipService;
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.event.TrackableEvent;
+import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.ledger.LedgerParty;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -26,6 +28,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -107,6 +110,17 @@ public class RedemptionService {
     applicationEventPublisher.publishEvent(
         new RedemptionRequestedEvent(
             saved.getId(), authenticatedPerson.getUserId(), partyId, amount, fundUnits));
+
+    if (!authenticatedPerson.isActingAsSelf() && partyId.type() == PartyId.Type.PERSON) {
+      applicationEventPublisher.publishEvent(
+          new TrackableEvent(
+              authenticatedPerson,
+              TrackableEventType.MINOR_REDEMPTION,
+              Map.of(
+                  "childPersonalCode", partyId.code(),
+                  "redemptionRequestId", saved.getId(),
+                  "amount", amount)));
+    }
 
     return saved;
   }

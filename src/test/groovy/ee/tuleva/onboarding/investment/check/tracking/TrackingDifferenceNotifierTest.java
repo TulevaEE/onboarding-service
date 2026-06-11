@@ -172,7 +172,7 @@ class TrackingDifferenceNotifierTest {
     assertThat(message).contains("TD ESCALATION");
     assertThat(message).contains("4 consecutive days");
     assertThat(message).contains("Compounded: fund=");
-    assertThat(message).contains("Multi-day attribution (summed daily):");
+    assertThat(message).contains("Multi-day attribution (arithmetic sum of daily contributions):");
     assertThat(message).contains("IE00BFG1TM61");
     assertThat(message).contains("Cash drag:");
     assertThat(message).contains("Fee drag:");
@@ -410,7 +410,7 @@ class TrackingDifferenceNotifierTest {
     var captor = org.mockito.ArgumentCaptor.forClass(String.class);
     then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
     var message = captor.getValue();
-    assertThat(message).contains("Multi-day attribution (summed daily):");
+    assertThat(message).contains("Multi-day attribution (arithmetic sum of daily contributions):");
     assertThat(message).contains("IE00BFG1TM61");
     assertThat(message).doesNotContain("Cash drag:");
     assertThat(message).doesNotContain("Fee drag:");
@@ -447,7 +447,8 @@ class TrackingDifferenceNotifierTest {
 
     var captor = org.mockito.ArgumentCaptor.forClass(String.class);
     then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
-    assertThat(captor.getValue()).contains("Multi-day attribution (summed daily):");
+    assertThat(captor.getValue())
+        .contains("Multi-day attribution (arithmetic sum of daily contributions):");
     assertThat(captor.getValue()).doesNotContain("Cash drag:");
   }
 

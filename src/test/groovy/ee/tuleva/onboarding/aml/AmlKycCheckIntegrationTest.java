@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.KYC_CHECK;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.*;
+import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.IDENTITY_ONLY;
+import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.PERSONAL_ONBOARDING;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -29,7 +31,10 @@ class AmlKycCheckIntegrationTest {
   void onKycCheckPerformed_noneRisk_createsSuccessfulCheck() {
     var event =
         new KycCheckPerformedEvent(
-            this, PERSONAL_CODE, new KycCheck(NONE, Map.of("riskLevel", "NONE")));
+            this,
+            PERSONAL_CODE,
+            new KycCheck(NONE, Map.of("riskLevel", "NONE")),
+            PERSONAL_ONBOARDING);
 
     eventPublisher.publishEvent(event);
 
@@ -50,7 +55,10 @@ class AmlKycCheckIntegrationTest {
   void onKycCheckPerformed_lowRisk_createsSuccessfulCheck() {
     var event =
         new KycCheckPerformedEvent(
-            this, PERSONAL_CODE, new KycCheck(LOW, Map.of("score", 10, "riskLevel", "LOW")));
+            this,
+            PERSONAL_CODE,
+            new KycCheck(LOW, Map.of("score", 10, "riskLevel", "LOW")),
+            PERSONAL_ONBOARDING);
 
     eventPublisher.publishEvent(event);
 
@@ -71,7 +79,10 @@ class AmlKycCheckIntegrationTest {
   void onKycCheckPerformed_mediumRisk_createsFailedCheck() {
     var event =
         new KycCheckPerformedEvent(
-            this, PERSONAL_CODE, new KycCheck(MEDIUM, Map.of("score", 50, "riskLevel", "MEDIUM")));
+            this,
+            PERSONAL_CODE,
+            new KycCheck(MEDIUM, Map.of("score", 50, "riskLevel", "MEDIUM")),
+            PERSONAL_ONBOARDING);
 
     eventPublisher.publishEvent(event);
 
@@ -88,11 +99,34 @@ class AmlKycCheckIntegrationTest {
   }
 
   @Test
+  @DisplayName("identity-only KycCheckPerformedEvent persists the AmlCheck identically")
+  void onKycCheckPerformed_identityOnlyPurpose_createsCheckIdentically() {
+    var event =
+        new KycCheckPerformedEvent(
+            this, PERSONAL_CODE, new KycCheck(LOW, Map.of("riskLevel", "LOW")), IDENTITY_ONLY);
+
+    eventPublisher.publishEvent(event);
+
+    var checks =
+        amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(PERSONAL_CODE, aYearAgo());
+    assertThat(checks)
+        .singleElement()
+        .satisfies(
+            check -> {
+              assertThat(check.getType()).isEqualTo(KYC_CHECK);
+              assertThat(check.isSuccess()).isTrue();
+            });
+  }
+
+  @Test
   @DisplayName("KycCheckPerformedEvent with HIGH risk creates failed AmlCheck")
   void onKycCheckPerformed_highRisk_createsFailedCheck() {
     var event =
         new KycCheckPerformedEvent(
-            this, PERSONAL_CODE, new KycCheck(HIGH, Map.of("score", 99, "riskLevel", "HIGH")));
+            this,
+            PERSONAL_CODE,
+            new KycCheck(HIGH, Map.of("score", 99, "riskLevel", "HIGH")),
+            PERSONAL_ONBOARDING);
 
     eventPublisher.publishEvent(event);
 

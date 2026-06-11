@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResul
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.MissingData;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.OrphanedData;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Severity;
+import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.StaleSource;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -35,6 +36,7 @@ public class FundValueIntegrityChecker {
   private static final BigDecimal SAME_PROVIDER_THRESHOLD_PERCENT = new BigDecimal("0.0001");
   private static final BigDecimal CROSS_PROVIDER_THRESHOLD_PERCENT = new BigDecimal("0.001");
   private static final BigDecimal NAV_ROUNDING_THRESHOLD_PERCENT = new BigDecimal("0.1");
+  static final int MAX_SOURCE_LAG_WORKING_DAYS = 3;
   private static final int MORNINGSTAR_SCALE = 2;
   private static final LocalDate CROSS_PROVIDER_CHECK_START_DATE = LocalDate.of(2026, 2, 11);
   private static final int FUND_NAME_WIDTH = 49;
@@ -58,6 +60,7 @@ public class FundValueIntegrityChecker {
       boolean blackrockOk,
       boolean morningstarOk,
       boolean yahooOk,
+      List<StaleSource> staleSources,
       List<Discrepancy> crossProviderDiscrepancies) {
 
     boolean hasYahooVsDbIssues() {
@@ -68,8 +71,13 @@ public class FundValueIntegrityChecker {
       return !crossProviderDiscrepancies.isEmpty();
     }
 
+    boolean isSourceStale(String source) {
+      return staleSources.stream().anyMatch(staleSource -> staleSource.source().equals(source));
+    }
+
     boolean hasCriticalIssues() {
-      return crossProviderDiscrepancies.stream().anyMatch(d -> d.severity() == CRITICAL);
+      return !staleSources.isEmpty()
+          || crossProviderDiscrepancies.stream().anyMatch(d -> d.severity() == CRITICAL);
     }
   }
 
@@ -111,6 +119,7 @@ public class FundValueIntegrityChecker {
                   crossProviderResult.blackrockOk(),
                   crossProviderResult.morningstarOk(),
                   crossProviderResult.yahooOk(),
+                  checkSourceFreshness(ticker, endDate),
                   crossProviderResult.discrepancies());
             })
         .toList();
@@ -228,6 +237,48 @@ public class FundValueIntegrityChecker {
         eodhdOk, exchangeOk, blackrockOk, morningstarOk, yahooOk, discrepancies);
   }
 
+  private record SourceKey(String source, String storageKey) {}
+
+  private List<SourceKey> sourceKeys(FundTicker ticker) {
+    List<SourceKey> sourceKeys = new ArrayList<>();
+    sourceKeys.add(new SourceKey("EODHD", ticker.getEodhdTicker()));
+    ticker.getXetraStorageKey().ifPresent(key -> sourceKeys.add(new SourceKey("Exchange", key)));
+    ticker
+        .getEuronextParisStorageKey()
+        .ifPresent(key -> sourceKeys.add(new SourceKey("Exchange", key)));
+    ticker
+        .getBlackrockStorageKey()
+        .ifPresent(key -> sourceKeys.add(new SourceKey("BlackRock", key)));
+    ticker
+        .getMorningstarStorageKey()
+        .ifPresent(key -> sourceKeys.add(new SourceKey("Morningstar", key)));
+    sourceKeys.add(new SourceKey("Yahoo", ticker.getYahooTicker()));
+    return List.copyOf(sourceKeys);
+  }
+
+  List<StaleSource> checkSourceFreshness(FundTicker ticker, LocalDate endDate) {
+    return sourceKeys(ticker).stream()
+        .map(sourceKey -> staleSourceFor(ticker, sourceKey, endDate))
+        .flatMap(Optional::stream)
+        .toList();
+  }
+
+  private Optional<StaleSource> staleSourceFor(
+      FundTicker ticker, SourceKey sourceKey, LocalDate endDate) {
+    return fundValueRepository
+        .findLastValueForFund(sourceKey.storageKey())
+        .map(FundValue::date)
+        .map(
+            lastDate ->
+                new StaleSource(
+                    ticker.getDisplayName(),
+                    sourceKey.source(),
+                    sourceKey.storageKey(),
+                    lastDate,
+                    publicHolidays.countWorkingDaysBehind(lastDate, endDate)))
+        .filter(staleSource -> staleSource.workingDaysBehind() > MAX_SOURCE_LAG_WORKING_DAYS);
+  }
+
   IntegrityCheckResult verifyFundDataIntegrity(
       String fundTicker, LocalDate startDate, LocalDate endDate) {
     try {
@@ -341,6 +392,7 @@ public class FundValueIntegrityChecker {
         String.format("Fund Value Integrity Check Summary (%s to %s):%n%n", startDate, endDate));
 
     summary.append(buildLatestDaySummary(endDate, results));
+    summary.append(buildStaleSourcesSummary(results));
     summary.append("\n");
     summary.append(buildCrossProviderSummaryTable(startDate, endDate, results));
 
@@ -382,6 +434,30 @@ public class FundValueIntegrityChecker {
     } else {
       log.info("{}", summary);
     }
+  }
+
+  private String buildStaleSourcesSummary(List<TickerCheckResult> results) {
+    List<StaleSource> staleSources =
+        results.stream().flatMap(result -> result.staleSources().stream()).toList();
+    if (staleSources.isEmpty()) {
+      return "";
+    }
+    StringBuilder summary = new StringBuilder();
+    summary.append(
+        String.format(
+            "%n%s Stale price sources - latest value not advancing (%d):%n",
+            CROSS_MARK, staleSources.size()));
+    staleSources.forEach(
+        staleSource ->
+            summary.append(
+                String.format(
+                    "  • %s [%s %s]: lastDate=%s, workingDaysBehind=%d%n",
+                    staleSource.fundName(),
+                    staleSource.source(),
+                    staleSource.storageKey(),
+                    staleSource.lastDate(),
+                    staleSource.workingDaysBehind())));
+    return summary.toString();
   }
 
   private String buildLatestDaySummary(LocalDate latestDate, List<TickerCheckResult> results) {
@@ -470,7 +546,8 @@ public class FundValueIntegrityChecker {
     table.append(formatCrossProviderSeparator());
 
     for (TickerCheckResult result : results) {
-      String eodhdStatus = result.eodhdOk() ? CHECK_MARK : CROSS_MARK;
+      String eodhdStatus =
+          result.eodhdOk() && !result.isSourceStale("EODHD") ? CHECK_MARK : CROSS_MARK;
 
       boolean hasExchangeDiscrepancyOnEndDate =
           result.crossProviderDiscrepancies().stream()
@@ -483,7 +560,10 @@ public class FundValueIntegrityChecker {
       String exchangeStatus;
       if (result.ticker().getXetraStorageKey().isPresent()
           || result.ticker().getEuronextParisStorageKey().isPresent()) {
-        exchangeStatus = hasExchangeDiscrepancyOnEndDate ? CROSS_MARK : CHECK_MARK;
+        exchangeStatus =
+            hasExchangeDiscrepancyOnEndDate || result.isSourceStale("Exchange")
+                ? CROSS_MARK
+                : CHECK_MARK;
       } else {
         exchangeStatus = NOT_APPLICABLE;
       }
@@ -498,14 +578,20 @@ public class FundValueIntegrityChecker {
 
       String blackrockStatus;
       if (result.ticker().getBlackrockStorageKey().isPresent()) {
-        blackrockStatus = hasBlackrockDiscrepancyOnEndDate ? CROSS_MARK : CHECK_MARK;
+        blackrockStatus =
+            hasBlackrockDiscrepancyOnEndDate || result.isSourceStale("BlackRock")
+                ? CROSS_MARK
+                : CHECK_MARK;
       } else {
         blackrockStatus = NOT_APPLICABLE;
       }
 
       String morningstarStatus;
       if (result.ticker().getMorningstarStorageKey().isPresent()) {
-        morningstarStatus = hasBlackrockDiscrepancyOnEndDate ? CROSS_MARK : CHECK_MARK;
+        morningstarStatus =
+            hasBlackrockDiscrepancyOnEndDate || result.isSourceStale("Morningstar")
+                ? CROSS_MARK
+                : CHECK_MARK;
       } else {
         morningstarStatus = NOT_APPLICABLE;
       }
@@ -518,7 +604,9 @@ public class FundValueIntegrityChecker {
                           && d.comparisonDescription().contains("EODHD vs Yahoo"));
 
       String yahooStatus =
-          !result.yahooOk() ? CROSS_MARK : hasYahooDiscrepancyOnEndDate ? WARNING_MARK : CHECK_MARK;
+          !result.yahooOk() || result.isSourceStale("Yahoo")
+              ? CROSS_MARK
+              : hasYahooDiscrepancyOnEndDate ? WARNING_MARK : CHECK_MARK;
 
       String lastPriceStatus = formatLastPrice(result.ticker(), endDate);
 

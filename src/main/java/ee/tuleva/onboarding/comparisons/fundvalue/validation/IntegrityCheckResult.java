@@ -75,4 +75,11 @@ public class IntegrityCheckResult {
       this(fundTicker, date, Severity.WARNING);
     }
   }
+
+  public record StaleSource(
+      String fundName,
+      String source,
+      String storageKey,
+      LocalDate lastDate,
+      long workingDaysBehind) {}
 }

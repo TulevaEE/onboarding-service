@@ -9,10 +9,13 @@ public class KycCheckPerformedEvent extends ApplicationEvent {
 
   private final String personalCode;
   private final KycCheck kycCheck;
+  private final KycSurveyPurpose purpose;
 
-  public KycCheckPerformedEvent(Object source, String personalCode, KycCheck kycCheck) {
+  public KycCheckPerformedEvent(
+      Object source, String personalCode, KycCheck kycCheck, KycSurveyPurpose purpose) {
     super(source);
     this.personalCode = Objects.requireNonNull(personalCode);
     this.kycCheck = Objects.requireNonNull(kycCheck);
+    this.purpose = Objects.requireNonNull(purpose);
   }
 }

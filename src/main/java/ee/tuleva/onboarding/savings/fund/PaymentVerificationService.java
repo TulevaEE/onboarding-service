@@ -5,8 +5,11 @@ import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
 
+import ee.tuleva.onboarding.event.TrackableEventType;
+import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.kyb.RegistryCodeValidator;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.party.PartyResolver;
@@ -44,6 +47,7 @@ public class PaymentVerificationService {
   private final ApplicationEventPublisher applicationEventPublisher;
   private final NameMatcher nameMatcher;
   private final PartyResolver partyResolver;
+  private final ParentChildLinkService parentChildLinkService;
 
   record VerificationMessages(
       String codeMismatch, String notClient, String nameMismatch, String notOnboarded) {
@@ -81,7 +85,14 @@ public class PaymentVerificationService {
     var messages = VerificationMessages.forType(partyId.type());
 
     var remitterPartyId = parsePartyId(payment.getRemitterIdCode());
-    if (remitterPartyId.isPresent() && !remitterPartyId.get().equals(partyId)) {
+    boolean representingChild =
+        remitterPartyId
+            .filter(r -> !r.equals(partyId))
+            .map(r -> isAuthorizedRemitter(r, partyId))
+            .orElse(false);
+    if (remitterPartyId.isPresent()
+        && !remitterPartyId.get().equals(partyId)
+        && !representingChild) {
       identityCheckFailure(payment, messages.codeMismatch());
       return;
     }
@@ -115,6 +126,17 @@ public class PaymentVerificationService {
     savingFundPaymentRepository.changeStatus(payment.getId(), VERIFIED);
     savingsFundLedger.recordPaymentReceived(
         partyId, payment.getAmount(), payment.getId(), bookingDate(payment));
+
+    if (representingChild) {
+      applicationEventPublisher.publishEvent(
+          new TrackableSystemEvent(
+              TrackableEventType.MINOR_DEPOSIT_VERIFIED,
+              Map.of(
+                  "parentPersonalCode", remitterPartyId.get().code(),
+                  "childPersonalCode", partyId.code(),
+                  "paymentId", payment.getId(),
+                  "amount", payment.getAmount())));
+    }
   }
 
   private void identityCheckFailure(SavingFundPayment payment, String reason) {
@@ -149,6 +171,12 @@ public class PaymentVerificationService {
     log.info(
         "Payment {} has no code in description, falling back to remitter id code", payment.getId());
     return parsePartyId(payment.getRemitterIdCode());
+  }
+
+  private boolean isAuthorizedRemitter(PartyId remitter, PartyId party) {
+    return remitter.type() == PERSON
+        && party.type() == PERSON
+        && parentChildLinkService.represents(remitter.code(), party.code());
   }
 
   Optional<PartyId> extractPartyIdFromDescription(String text) {

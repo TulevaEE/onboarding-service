@@ -142,7 +142,7 @@ class TrackingDifferenceNotifier {
       }
 
       if (result.escalationAttributions() != null && !result.escalationAttributions().isEmpty()) {
-        sb.append("\n  Multi-day attribution (summed daily):");
+        sb.append("\n  Multi-day attribution (arithmetic sum of daily contributions):");
         result.escalationAttributions().entrySet().stream()
             .sorted(
                 java.util.Comparator.comparing(
@@ -174,7 +174,7 @@ class TrackingDifferenceNotifier {
       threshold = calculator.escalationThresholdDays(result.checkDate());
       netTdThreshold = calculator.escalationNetTdThreshold(result.checkDate());
     } catch (IllegalStateException e) {
-      log.error("Invalid escalation parameter configuration: {}", e.getMessage());
+      log.warn("Escalation parameters not configured, using fallback: {}", e.getMessage());
       threshold = ESCALATION_THRESHOLD_FALLBACK;
       netTdThreshold = ESCALATION_NET_TD_THRESHOLD_FALLBACK;
     } catch (Exception e) {

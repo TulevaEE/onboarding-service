@@ -21,22 +21,24 @@ buildscript {
     }
 }
 
-val springCloudVersion = "2025.1.1"
 val springModulithVersion = "2.0.6"
+
+// Security patch ahead of the Spring Boot BOM — remove once Boot manages this version
+extra["opentelemetry.version"] = "1.62.0"
 
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "4.0.6"
+    id("org.springframework.boot") version "4.0.7"
     id("io.spring.dependency-management") version "1.1.7"
-    id("com.gorylenko.gradle-git-properties") version "2.5.7"
-    id("com.diffplug.spotless") version "8.4.0"
-    id("io.freefair.lombok") version "9.4.0"
+    id("com.gorylenko.gradle-git-properties") version "4.0.1"
+    id("com.diffplug.spotless") version "8.6.0"
+    id("io.freefair.lombok") version "9.5.0"
     jacoco
 }
 
 lombok {
-    version = "1.18.42"
+    version = "1.18.46"
 }
 
 spotless {
@@ -75,6 +77,12 @@ repositories {
 }
 
 dependencies {
+    constraints {
+        // Transitive security patches: httpclient via lutung, beanutils via mockserver
+        implementation("org.apache.httpcomponents:httpclient:4.5.14")
+        testImplementation("commons-beanutils:commons-beanutils:1.11.0")
+    }
+
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-restclient")
     implementation("org.springframework.boot:spring-boot-starter-security")
@@ -89,7 +97,7 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:10.9")
+    implementation("com.nimbusds:nimbus-jose-jwt:10.9.1")
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
     implementation("org.springdoc:springdoc-openapi-starter-common:3.0.3")
@@ -114,11 +122,11 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web-services")
     testImplementation("org.springframework.ws:spring-ws-test")
 
-    xjc("org.glassfish.jaxb:jaxb-xjc:4.0.7")
-    xjc("org.glassfish.jaxb:jaxb-runtime:4.0.7")
-    xjc("org.glassfish.jaxb:jaxb-core:4.0.7")
-    xjc("org.glassfish.jaxb:codemodel:4.0.7")
-    xjc("org.glassfish.jaxb:xsom:4.0.7")
+    xjc("org.glassfish.jaxb:jaxb-xjc:4.0.9")
+    xjc("org.glassfish.jaxb:jaxb-runtime:4.0.9")
+    xjc("org.glassfish.jaxb:jaxb-core:4.0.9")
+    xjc("org.glassfish.jaxb:codemodel:4.0.9")
+    xjc("org.glassfish.jaxb:xsom:4.0.9")
     xjc("io.github.threeten-jaxb:threeten-jaxb-core:2.2.0")
 
     implementation("io.github.threeten-jaxb:threeten-jaxb-core:2.2.0")
@@ -129,7 +137,7 @@ dependencies {
     implementation("ee.sk.mid:mid-rest-java-client:1.7") {
         exclude(group = "org.bouncycastle")
     }
-    implementation("eu.webeid.security:authtoken-validation:3.2.0")
+    implementation("eu.webeid.security:authtoken-validation:3.2.1")
 
     implementation("org.digidoc4j:digidoc4j:6.1.1") {
         exclude(group = "commons-logging", module = "commons-logging")
@@ -139,8 +147,8 @@ dependencies {
     implementation("org.bouncycastle:bcutil-jdk18on:1.84")
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-4:8.40.0")
-    implementation("io.sentry:sentry-logback:8.40.0")
+    implementation("io.sentry:sentry-spring-boot-4:8.43.1")
+    implementation("io.sentry:sentry-logback:8.43.1")
 
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
@@ -150,7 +158,7 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("software.amazon.awssdk:s3:2.43.1")
+    implementation("software.amazon.awssdk:s3:2.46.5")
     implementation("commons-io:commons-io:2.22.0")
     implementation("org.apache.commons:commons-csv:1.14.1")
     implementation("org.apache.poi:poi-ooxml:5.5.1")
@@ -178,15 +186,15 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.4-groovy-5.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy:5.0.5")
-    testImplementation("org.apache.groovy:groovy-json:5.0.5")
+    testImplementation("org.apache.groovy:groovy:5.0.6")
+    testImplementation("org.apache.groovy:groovy-json:5.0.6")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:postgresql:1.21.4")
     testImplementation("org.testcontainers:jdbc:1.21.4")
 
     // TODO: migrate to WireMock
-    testImplementation("org.mock-server:mockserver-netty:5.15.0")
-    testImplementation("org.mock-server:mockserver-spring-test-listener:5.15.0")
+    testImplementation("org.mock-server:mockserver-netty:7.0.0")
+    testImplementation("org.mock-server:mockserver-spring-test-listener:7.0.0")
 
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
     testImplementation("org.springframework.security:spring-security-test")
@@ -198,7 +206,6 @@ dependencies {
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.cloud:spring-cloud-dependencies:$springCloudVersion")
         mavenBom("org.springframework.modulith:spring-modulith-bom:$springModulithVersion")
     }
 }

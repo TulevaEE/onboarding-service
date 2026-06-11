@@ -10,6 +10,7 @@ class KybCheckTypeTest {
   @Test
   void riskSignalChecksDoNotGateOnboarding() {
     assertThat(COMPANY_AGE.isOnboardingGate()).isFalse();
+    assertThat(OWNER_CHANGED.isOnboardingGate()).isFalse();
     assertThat(DATA_CHANGED.isOnboardingGate()).isFalse();
   }
 

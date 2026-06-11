@@ -108,7 +108,8 @@ public final class KybTestFixtures {
         selfCertification,
         "EE",
         "Harju maakond, Tallinn, Pärnu mnt 1",
-        null);
+        null,
+        false);
   }
 
   // =====================================================================

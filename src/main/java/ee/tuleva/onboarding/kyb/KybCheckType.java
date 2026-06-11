@@ -14,6 +14,7 @@ public enum KybCheckType {
   COMPANY_LEGAL_FORM,
   COMPANY_REGISTERED_IN_ESTONIA,
   SELF_CERTIFICATION,
+  OWNER_CHANGED(false),
   DATA_CHANGED(false);
 
   private final boolean onboardingGate;

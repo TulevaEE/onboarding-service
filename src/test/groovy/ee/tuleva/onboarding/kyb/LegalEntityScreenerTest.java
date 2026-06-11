@@ -40,6 +40,7 @@ class LegalEntityScreenerTest {
           kybCompanyDataMapper,
           kybScreeningService,
           latestKybSurveyInputs,
+          new OwnershipChangeDetector(),
           FIXED_CLOCK);
 
   @Test
@@ -71,8 +72,11 @@ class LegalEntityScreenerTest {
             SELF_CERT,
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
-    given(kybCompanyDataMapper.toKybCompanyData(detail, PERSONAL_CODE, relationships, SELF_CERT))
+            null,
+            false);
+    given(
+            kybCompanyDataMapper.toKybCompanyData(
+                detail, PERSONAL_CODE, relationships, SELF_CERT, false))
         .willReturn(companyData);
     var checks = List.of(new KybCheck(KybCheckType.COMPANY_ACTIVE, true, Map.of()));
     given(kybScreeningService.screen(companyData)).willReturn(checks);
@@ -97,8 +101,9 @@ class LegalEntityScreenerTest {
             null,
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
-    given(kybCompanyDataMapper.toKybCompanyData(detail, PERSONAL_CODE, relationships, null))
+            null,
+            false);
+    given(kybCompanyDataMapper.toKybCompanyData(detail, PERSONAL_CODE, relationships, null, false))
         .willReturn(companyData);
     var checks = List.of(new KybCheck(KybCheckType.COMPANY_ACTIVE, true, Map.of()));
     given(kybScreeningService.validate(companyData)).willReturn(checks);
@@ -130,10 +135,11 @@ class LegalEntityScreenerTest {
             SELF_CERT,
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            false);
     given(
             kybCompanyDataMapper.toKybCompanyData(
-                detail, PERSONAL_CODE, List.of(boardMember), SELF_CERT))
+                detail, PERSONAL_CODE, List.of(boardMember), SELF_CERT, false))
         .willReturn(companyData);
     var checks = List.of(new KybCheck(KybCheckType.COMPANY_ACTIVE, true, Map.of()));
     given(kybScreeningService.screen(companyData)).willReturn(checks);

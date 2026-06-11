@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.ariregister;
 
 import jakarta.annotation.Nullable;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import lombok.Value;
 
@@ -16,6 +17,7 @@ public class CompanyDetail {
   @Nullable CompanyAddress address;
   @Nullable String mainActivity;
   @Nullable String naceCode;
+  List<RepresentationRight> representationRights;
 
   public Optional<String> getStatus() {
     return Optional.ofNullable(status);

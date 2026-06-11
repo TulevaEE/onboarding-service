@@ -115,6 +115,6 @@ class LegalEntityOnboardingEventListenerTest {
 
   private KybCheckPerformedEvent eventWith(List<KybCheck> checks) {
     return new KybCheckPerformedEvent(
-        this, company, new PersonalCode("38501010001"), relatedPersons, checks);
+        this, company, new PersonalCode("38501010001"), relatedPersons, checks, List.of());
   }
 }

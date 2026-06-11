@@ -114,6 +114,6 @@ public class AmlKybCheckCompanyAttributionIntegrationTest {
                 BigDecimal.valueOf(100),
                 KybKycStatus.COMPLETED));
     return new KybCheckPerformedEvent(
-        this, company, new PersonalCode(personalCode), relatedPersons, checks);
+        this, company, new PersonalCode(personalCode), relatedPersons, checks, List.of());
   }
 }

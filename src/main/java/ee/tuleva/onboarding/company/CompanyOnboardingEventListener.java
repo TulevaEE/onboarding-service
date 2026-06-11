@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.company.RelationshipType.*;
 import static ee.tuleva.onboarding.kyb.KybCheckPerformedEventOrder.ONBOARD_COMPANY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 
+import ee.tuleva.onboarding.ariregister.RepresentationRight;
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCheckPerformedEvent;
 import ee.tuleva.onboarding.kyb.KybRelatedPerson;
@@ -22,6 +23,7 @@ public class CompanyOnboardingEventListener {
 
   private final CompanyRepository companyRepository;
   private final CompanyPartyRepository companyPartyRepository;
+  private final CompanyRepresentationRightRepository companyRepresentationRightRepository;
 
   @Order(ONBOARD_COMPANY)
   @EventListener
@@ -33,6 +35,7 @@ public class CompanyOnboardingEventListener {
             .orElseGet(() -> createCompany(event));
     if (allGateChecksPassed(event)) {
       replaceParties(company, event);
+      replaceRepresentationRights(company, event);
     }
   }
 
@@ -41,6 +44,26 @@ public class CompanyOnboardingEventListener {
     event.getRelatedPersons().stream()
         .flatMap(person -> toCompanyParties(person, company.getId()).stream())
         .forEach(companyPartyRepository::save);
+  }
+
+  private void replaceRepresentationRights(Company company, KybCheckPerformedEvent event) {
+    companyRepresentationRightRepository.deleteByCompanyId(company.getId());
+    event.getRepresentationRights().stream()
+        .map(right -> toCompanyRepresentationRight(right, company.getId()))
+        .forEach(companyRepresentationRightRepository::save);
+  }
+
+  private CompanyRepresentationRight toCompanyRepresentationRight(
+      RepresentationRight right, UUID companyId) {
+    return CompanyRepresentationRight.builder()
+        .companyId(companyId)
+        .entryId(right.entryId())
+        .representationType(right.type())
+        .representationTypeText(right.typeText())
+        .content(right.content())
+        .startDate(right.startDate())
+        .endDate(right.endDate())
+        .build();
   }
 
   private List<CompanyParty> toCompanyParties(KybRelatedPerson person, UUID companyId) {

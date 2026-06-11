@@ -56,12 +56,24 @@ class IsinMatchChecker {
         }
       }
       if (position.getQuantity() == null || position.getQuantity().compareTo(ZERO) == 0) {
-        findings.add(
-            new HealthCheckFinding(
-                fund,
-                ISIN_MATCH,
-                FAIL,
-                "%s: quantity is %s for ISIN %s".formatted(fund, position.getQuantity(), isin)));
+        boolean previouslyHeld = isin != null && previousIsins.contains(isin);
+        if (previouslyHeld) {
+          findings.add(
+              new HealthCheckFinding(
+                  fund,
+                  ISIN_MATCH,
+                  FAIL,
+                  "%s: quantity is %s for ISIN %s (previously held — position emptied?)"
+                      .formatted(fund, position.getQuantity(), isin)));
+        } else {
+          findings.add(
+              new HealthCheckFinding(
+                  fund,
+                  ISIN_MATCH,
+                  WARNING,
+                  "%s: quantity is %s for ISIN %s (newly added / not yet bought?)"
+                      .formatted(fund, position.getQuantity(), isin)));
+        }
       }
     }
 

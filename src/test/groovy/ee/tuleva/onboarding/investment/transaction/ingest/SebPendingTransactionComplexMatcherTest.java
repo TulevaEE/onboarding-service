@@ -296,6 +296,49 @@ class SebPendingTransactionComplexMatcherTest {
     assertThat(matcher().findNearMiss(row)).isEmpty();
   }
 
+  @Test
+  void hasNearMissCandidate_withinFiveX_returnsTrue() {
+    TransactionOrder order = orderOf(91L, TUK75, "IE00BFNM3G45", BUY, ETF, 13288L, null, SENT);
+    givenCandidates("IE00BFNM3G45", List.of(order));
+
+    SebPendingTransactionRow row =
+        row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288.0003", null);
+
+    assertThat(matcher().hasNearMissCandidate(row)).isTrue();
+  }
+
+  @Test
+  void hasNearMissCandidate_outsideFiveX_returnsFalse() {
+    TransactionOrder order = orderOf(92L, TUK75, "IE00BFNM3G45", BUY, ETF, 13288L, null, SENT);
+    givenCandidates("IE00BFNM3G45", List.of(order));
+
+    SebPendingTransactionRow row =
+        row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13289", null);
+
+    assertThat(matcher().hasNearMissCandidate(row)).isFalse();
+  }
+
+  @Test
+  void hasNearMissCandidate_ambiguousMultipleCandidates_returnsTrueEvenThoughFindNearMissIsEmpty() {
+    TransactionOrder a = orderOf(93L, TUK75, "IE00BFNM3G45", BUY, ETF, 13288L, null, SENT);
+    TransactionOrder b = orderOf(94L, TUK75, "IE00BFNM3G45", BUY, ETF, 13288L, null, SENT);
+    givenCandidates("IE00BFNM3G45", List.of(a, b));
+
+    SebPendingTransactionRow row =
+        row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288.0003", null);
+
+    assertThat(matcher().hasNearMissCandidate(row)).isTrue();
+    assertThat(matcher().findNearMiss(row)).isEmpty();
+  }
+
+  @Test
+  void hasNearMissCandidate_unknownClientName_returnsFalse() {
+    SebPendingTransactionRow row =
+        row("Some Other Bank Fund", "IE00BFNM3G45", "Buy", "13288.0003", null);
+
+    assertThat(matcher().hasNearMissCandidate(row)).isFalse();
+  }
+
   private void givenCandidates(String isin, List<TransactionOrder> orders) {
     given(orderRepository.findByInstrumentIsin(isin)).willReturn(orders);
   }

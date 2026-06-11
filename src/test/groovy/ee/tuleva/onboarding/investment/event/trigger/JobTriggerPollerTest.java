@@ -8,6 +8,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.investment.event.RunLimitCheckRequested;
+import ee.tuleva.onboarding.investment.event.RunOverdueSettlementRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
 import java.util.List;
@@ -48,6 +49,22 @@ class JobTriggerPollerTest {
     var captor = ArgumentCaptor.forClass(Object.class);
     then(eventPublisher).should().publishEvent(captor.capture());
     assertThat(captor.getValue()).isInstanceOf(RunLimitCheckRequested.class);
+  }
+
+  @Test
+  void settlementCheckJobAndItsOverdueSettlementAliasPublishTheSameEvent() {
+    var current = JobTrigger.builder().jobName("SettlementCheckJob").status("PENDING").build();
+    var alias = JobTrigger.builder().jobName("OverdueSettlementJob").status("PENDING").build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING"))
+        .willReturn(List.of(current, alias));
+
+    poller.poll();
+
+    then(eventPublisher)
+        .should(org.mockito.Mockito.times(2))
+        .publishEvent(any(RunOverdueSettlementRequested.class));
+    assertThat(current.getStatus()).isEqualTo("COMPLETED");
+    assertThat(alias.getStatus()).isEqualTo("COMPLETED");
   }
 
   @Test

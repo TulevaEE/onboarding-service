@@ -48,6 +48,17 @@ public interface TransactionOrderRepository extends JpaRepository<TransactionOrd
       """)
   List<TransactionOrder> findByOrderStatusIn(Collection<OrderStatus> statuses);
 
+  // Bounded by orderTimestamp so the settlement check does not scan the whole
+  // historical EXECUTED backlog (orders never transition to SETTLED today).
+  @Query(
+      """
+      SELECT o FROM TransactionOrder o
+      WHERE o.orderStatus IN (:statuses)
+        AND o.orderTimestamp >= :since
+      """)
+  List<TransactionOrder> findByOrderStatusInAndOrderTimestampSince(
+      Collection<OrderStatus> statuses, Instant since);
+
   default List<TransactionOrder> findOverdueOrders(OrderStatus... statuses) {
     return findByOrderStatusIn(Arrays.asList(statuses));
   }

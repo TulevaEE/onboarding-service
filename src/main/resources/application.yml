@@ -191,6 +191,10 @@ transaction-registry:
       - funds@tuleva.ee
     cc:
       - taavi.pertman@tuleva.ee
+  settlement-check:
+    # How far back the daily settlement check scans SENT/EXECUTED orders. Bounds the
+    # scan because orders never transition to SETTLED, so the EXECUTED backlog grows.
+    scan-lookback-days: 60
 
 payment-provider:
   url: https://sandbox-stargate.montonio.com/api

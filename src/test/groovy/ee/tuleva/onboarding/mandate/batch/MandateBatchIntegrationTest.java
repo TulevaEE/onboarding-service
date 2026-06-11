@@ -5,8 +5,13 @@ import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDet
 import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.WITHDRAWALS;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
@@ -16,6 +21,7 @@ import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.mandate.MandateFixture;
 import ee.tuleva.onboarding.mandate.MandateRepository;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityDto;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
 import java.util.List;
@@ -43,6 +49,7 @@ class MandateBatchIntegrationTest {
   @MockitoBean private EpisService episService;
   @MockitoBean private AmlAutoChecker amlAutoChecker;
   @MockitoBean private WithdrawalEligibilityService withdrawalEligibilityService;
+  @MockitoBean private OperationsNotificationService notificationService;
 
   @AfterEach
   void cleanup() {
@@ -134,6 +141,56 @@ class MandateBatchIntegrationTest {
 
     assertCorrectResponse(responseBody);
     assertCanReadMandateBatch();
+  }
+
+  @Test
+  void withdrawalBatchCreationSendsExactlyOneSlackNotificationInUnifiedFormat() {
+    var headers = getHeaders();
+
+    var aDto =
+        MandateBatchDto.builder()
+            .mandates(
+                List.of(
+                    MandateDto.builder()
+                        .details(MandateFixture.aFundPensionOpeningMandateDetails)
+                        .build(),
+                    MandateDto.builder()
+                        .details(MandateFixture.aPartialWithdrawalMandateDetails)
+                        .build()))
+            .build();
+
+    var aWithdrawalEligibility =
+        WithdrawalEligibilityDto.builder()
+            .hasReachedEarlyRetirementAge(true)
+            .canWithdrawThirdPillarWithReducedTax(true)
+            .age(65)
+            .recommendedDurationYears(20)
+            .arrestsOrBankruptciesPresent(false)
+            .build();
+
+    when(withdrawalEligibilityService.getWithdrawalEligibility(any()))
+        .thenReturn(aWithdrawalEligibility);
+    when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
+    when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
+
+    restTestClient
+        .post()
+        .uri("/v1/mandate-batches")
+        .headers(h -> h.addAll(headers))
+        .body(aDto)
+        .exchange()
+        .expectStatus()
+        .isOk();
+
+    verify(notificationService, times(1))
+        .sendMessage(
+            argThat(
+                message ->
+                    message.startsWith("Withdrawal mandate batch created: age=")
+                        && message.contains("pillars=")
+                        && message.contains("withdrawalTypes=")
+                        && message.contains("mandateBatchId=")),
+            eq(WITHDRAWALS));
   }
 
   @Test

@@ -30,7 +30,7 @@ sealed interface KybSurveyResponseItem extends Serializable {
 
   record CompanyAddress(@Valid AddressValue value) implements KybSurveyResponseItem {}
 
-  record InvestmentGoals(OptionValue<InvestmentGoal> value) implements KybSurveyResponseItem {}
+  record InvestmentGoals(@Valid InvestmentGoalsValue value) implements KybSurveyResponseItem {}
 
   record InvestableAssets(OptionValue<AssetRange> value) implements KybSurveyResponseItem {}
 
@@ -52,6 +52,18 @@ sealed interface KybSurveyResponseItem extends Serializable {
       @NotBlank String postalCode)
       implements Serializable {}
 
+  // Union type for the investment goal: predefined option or free text ("Muu"). Mirrors KYC.
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = InvestmentGoalsValue.Option.class, name = "OPTION"),
+    @JsonSubTypes.Type(value = InvestmentGoalsValue.Text.class, name = "TEXT"),
+  })
+  sealed interface InvestmentGoalsValue extends Serializable {
+    record Option(InvestmentGoal value) implements InvestmentGoalsValue {}
+
+    record Text(@NotBlank String value) implements InvestmentGoalsValue {}
+  }
+
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes({
     @JsonSubTypes.Type(value = CompanyIncomeSourceItem.Option.class, name = "OPTION"),
@@ -63,6 +75,7 @@ sealed interface KybSurveyResponseItem extends Serializable {
   // Enums
   enum InvestmentGoal {
     LONG_TERM,
+    ASSET_MANAGEMENT,
     SPECIFIC_GOAL,
     CHILD,
     TRADING

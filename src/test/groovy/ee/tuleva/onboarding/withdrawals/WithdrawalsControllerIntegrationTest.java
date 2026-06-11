@@ -17,10 +17,12 @@ import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto.FundPensionDto;
+import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.withdrawals.FundPensionStatus.FundPension;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
@@ -38,6 +40,14 @@ class WithdrawalsControllerIntegrationTest {
   @MockitoBean private EpisService episService;
 
   @Autowired private JsonMapper mapper;
+
+  @Autowired private UserRepository userRepository;
+
+  @AfterEach
+  void deleteUsersCommittedByAuthOnTheServerThread() {
+    List.of(samplePerson.getPersonalCode(), sampleRetirementAgePerson.getPersonalCode())
+        .forEach(code -> userRepository.findByPersonalCode(code).ifPresent(userRepository::delete));
+  }
 
   @Test
   void testWithdrawalEligibility() {

@@ -50,4 +50,20 @@ class SavingsFundOnboardingRepositoryTest {
     assertThat(repository.isOnboardingCompleted("14118923", LEGAL_ENTITY)).isTrue();
     assertThat(repository.isOnboardingCompleted("14118923", PERSON)).isFalse();
   }
+
+  @Test
+  void insertOnboardingStatusIfAbsent_insertsNewRecord() {
+    repository.insertOnboardingStatusIfAbsent("60001019906", PERSON, PENDING);
+
+    assertThat(repository.findStatus("60001019906", PERSON)).contains(PENDING);
+  }
+
+  @Test
+  void insertOnboardingStatusIfAbsent_doesNotOverwriteExistingRecord() {
+    repository.saveOnboardingStatus("60001019906", PERSON, COMPLETED);
+
+    repository.insertOnboardingStatusIfAbsent("60001019906", PERSON, PENDING);
+
+    assertThat(repository.findStatus("60001019906", PERSON)).contains(COMPLETED);
+  }
 }

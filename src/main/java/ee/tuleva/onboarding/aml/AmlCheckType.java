@@ -22,6 +22,10 @@ public enum AmlCheckType {
   TKF_RISK_LEVEL,
   TKF_RISK_LEVEL_OVERRIDE,
   INTERNAL_ESCALATION,
+  // Specialist-logged off-system AML event (manual EDD / phone call / external document check),
+  // created via the Metabase dashboard action "Lisa käsitsi AML-sündmus". No automated producer;
+  // rows carry metadata.source = "manual". Not consumed by risk views or the mandate gate.
+  MANUAL_EVENT,
   KYC_CHECK,
   KYB_COMPANY_STRUCTURE,
   KYB_SOLE_MEMBER_OWNERSHIP,

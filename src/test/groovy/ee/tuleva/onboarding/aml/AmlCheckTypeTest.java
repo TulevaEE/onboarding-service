@@ -15,6 +15,17 @@ class AmlCheckTypeTest {
   }
 
   @Test
+  void hasManualEventType() {
+    assertThat(AmlCheckType.valueOf("MANUAL_EVENT")).isNotNull();
+  }
+
+  @Test
+  void manualEventIsNotClientManual() {
+    // MANUAL_EVENT is specialist-created (Metabase action), not a client-self-addable check
+    assertThat(AmlCheckType.MANUAL_EVENT.isManual()).isFalse();
+  }
+
+  @Test
   void kybCheckTypesAreNotManual() {
     assertThat(AmlCheckType.KYB_SOLE_MEMBER_OWNERSHIP.isManual()).isFalse();
     assertThat(AmlCheckType.KYB_DUAL_MEMBER_OWNERSHIP.isManual()).isFalse();

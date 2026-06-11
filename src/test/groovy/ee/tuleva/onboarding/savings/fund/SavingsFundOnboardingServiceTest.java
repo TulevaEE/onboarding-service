@@ -93,6 +93,14 @@ class SavingsFundOnboardingServiceTest {
   }
 
   @Test
+  void seedPersonOnboardingIfAbsent_insertsPendingIfAbsent() {
+    savingsFundOnboardingService.seedPersonOnboardingIfAbsent("60001019906");
+
+    verify(savingsFundOnboardingRepository)
+        .insertOnboardingStatusIfAbsent("60001019906", PERSON, PENDING);
+  }
+
+  @Test
   void whitelistLegalEntity_withNoExistingStatus_savesWhitelistedAndPublishesEvent() {
     given(savingsFundOnboardingRepository.findStatus("12345678", LEGAL_ENTITY))
         .willReturn(Optional.empty());

@@ -30,6 +30,23 @@ public class SavingsFundOnboardingRepository {
   }
 
   @Transactional
+  public boolean insertOnboardingStatusIfAbsent(
+      String code, PartyId.Type type, SavingsFundOnboardingStatus status) {
+    return jdbcClient
+            .sql(
+                """
+                INSERT INTO savings_fund_onboarding (code, type, status)
+                VALUES (:code, :type, :status)
+                ON CONFLICT DO NOTHING
+                """)
+            .param("code", code)
+            .param("type", type.name())
+            .param("status", status.name())
+            .update()
+        > 0;
+  }
+
+  @Transactional
   public void saveOnboardingStatus(
       String code, PartyId.Type type, SavingsFundOnboardingStatus status) {
     jdbcClient

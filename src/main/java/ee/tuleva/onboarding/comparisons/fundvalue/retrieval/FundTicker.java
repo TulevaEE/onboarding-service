@@ -1,10 +1,8 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import lombok.Getter;
 
 @Getter
@@ -303,17 +301,8 @@ public enum FundTicker {
     return Arrays.stream(values()).map(FundTicker::getYahooTicker).toList();
   }
 
-  // EODHD does not list LU1708330318 (Amundi Core Global Aggregate Bond) under any symbol on any
-  // exchange, so requesting it only ever returns empty. It is covered by Euronext (.XPAR) and
-  // Yahoo.
-  private static final Set<FundTicker> NOT_LISTED_ON_EODHD =
-      EnumSet.of(AMUNDI_GLOBAL_AGG_BOND_HEDGED);
-
   public static List<String> getEodhdTickers() {
-    return Arrays.stream(values())
-        .filter(ticker -> !NOT_LISTED_ON_EODHD.contains(ticker))
-        .map(FundTicker::getEodhdTicker)
-        .toList();
+    return Arrays.stream(values()).map(FundTicker::getEodhdTicker).toList();
   }
 
   public static Optional<FundTicker> findByIsin(String isin) {

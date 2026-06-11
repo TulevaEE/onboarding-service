@@ -6,11 +6,15 @@ import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.util.Locale.US;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelTrackingDifference;
+import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceQueryService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult.SecurityDetail;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -25,10 +29,13 @@ class NavNotifier {
 
   private final OperationsNotificationService notificationService;
   private final PublicHolidays publicHolidays;
+  private final FundNavQueryService fundNavQueryService;
+  private final TrackingDifferenceQueryService trackingDifferenceQueryService;
 
   void notify(NavCalculationResult result) {
     try {
-      var message = formatMessage(result);
+      var message =
+          formatMessage(result, dayChangeRatio(result), benchmarkModelTrackingDifference(result));
       log.info(message);
       notificationService.sendMessage(message, SAVINGS);
     } catch (Exception e) {
@@ -40,7 +47,10 @@ class NavNotifier {
     }
   }
 
-  String formatMessage(NavCalculationResult result) {
+  String formatMessage(
+      NavCalculationResult result,
+      Optional<BigDecimal> dayChangeRatio,
+      Optional<BenchmarkModelTrackingDifference> trackingDifference) {
     var message = new StringBuilder();
 
     message.append("NAV Calculation — %s\n\n".formatted(result.fund().getCode()));
@@ -71,11 +81,70 @@ class NavNotifier {
     message.append(
         "  Units Outstanding: %s\n"
             .formatted(result.unitsOutstanding().stripTrailingZeros().toPlainString()));
-    message.append("  *NAV/Unit: %s*\n".formatted(result.navPerUnit().toPlainString()));
+    message.append(
+        "  *NAV/Unit: %s%s*\n"
+            .formatted(
+                result.navPerUnit().toPlainString(),
+                dayChangeRatio.map(ratio -> " (" + formatSignedPercent(ratio) + ")").orElse("")));
+    appendTrackingDifference(message, trackingDifference);
 
     appendSecuritiesDetail(message, result);
 
     return message.toString();
+  }
+
+  private Optional<BigDecimal> dayChangeRatio(NavCalculationResult result) {
+    try {
+      var previousNavDate = publicHolidays.previousWorkingDay(result.positionReportDate());
+      return fundNavQueryService
+          .findNavPerUnit(result.fund().getCode(), previousNavDate)
+          .filter(previous -> previous.signum() != 0)
+          .map(
+              previous ->
+                  result.navPerUnit().subtract(previous).divide(previous, 6, RoundingMode.HALF_UP));
+    } catch (Exception e) {
+      log.warn(
+          "Failed to compute NAV day change: fund={}, date={}",
+          result.fund(),
+          result.positionReportDate(),
+          e);
+      return Optional.empty();
+    }
+  }
+
+  private Optional<BenchmarkModelTrackingDifference> benchmarkModelTrackingDifference(
+      NavCalculationResult result) {
+    try {
+      return trackingDifferenceQueryService.findLatestBenchmarkModel(
+          result.fund(), result.positionReportDate());
+    } catch (Exception e) {
+      log.warn(
+          "Failed to fetch tracking difference: fund={}, date={}",
+          result.fund(),
+          result.positionReportDate(),
+          e);
+      return Optional.empty();
+    }
+  }
+
+  private void appendTrackingDifference(
+      StringBuilder message, Optional<BenchmarkModelTrackingDifference> trackingDifference) {
+    var value =
+        trackingDifference
+            .map(
+                difference ->
+                    "%s %s"
+                        .formatted(
+                            formatSignedPercent(difference.trackingDifference()),
+                            difference.breachesLimit() ? "🔴" : "✅"))
+            .orElse("n/a");
+    message.append("  Tracking Difference (BENCHMARK_MODEL): %s\n".formatted(value));
+  }
+
+  private String formatSignedPercent(BigDecimal ratio) {
+    var percent = ratio.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP);
+    var sign = percent.signum() >= 0 ? "+" : "";
+    return sign + percent.toPlainString() + "%";
   }
 
   private void appendAmount(StringBuilder message, String label, BigDecimal value) {

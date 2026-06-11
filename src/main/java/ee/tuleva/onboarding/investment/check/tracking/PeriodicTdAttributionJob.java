@@ -28,7 +28,7 @@ public class PeriodicTdAttributionJob {
   private final PublicHolidays publicHolidays;
   private final Clock clock;
 
-  @Scheduled(cron = "0 0 8 3-10 * *", zone = TIMEZONE)
+  @Scheduled(cron = "0 0 8 1-14 * *", zone = TIMEZONE)
   @SchedulerLock(
       name = "PeriodicTdAttributionJob",
       lockAtMostFor = "PT30M",

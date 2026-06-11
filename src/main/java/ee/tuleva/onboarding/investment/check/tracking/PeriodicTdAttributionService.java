@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -44,6 +45,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class PeriodicTdAttributionService {
 
   private static final int SCALE = TdAttributionCalculator.SCALE;
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final TrackingDifferenceEventRepository tdEventRepository;
   private final FeeAccrualRepository feeAccrualRepository;
@@ -146,7 +148,9 @@ public class PeriodicTdAttributionService {
 
     var txnCosts =
         transactionExecutionRepository.sumCommissionsForFundAndPeriod(
-            fund.getCode(), periodStart, periodEnd);
+            fund.getCode(),
+            periodStart.atStartOfDay(ESTONIAN_ZONE).toInstant(),
+            periodEnd.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant());
     var txnCostReturn =
         avgAum.signum() > 0 ? txnCosts.negate().divide(avgAum, SCALE, HALF_UP) : ZERO;
 

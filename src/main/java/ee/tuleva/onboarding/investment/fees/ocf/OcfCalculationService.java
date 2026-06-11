@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -31,6 +32,7 @@ import org.springframework.stereotype.Service;
 public class OcfCalculationService {
 
   private static final int SCALE = 8;
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final FeeRateRepository feeRateRepository;
   private final DepotFeeTierRepository depotFeeTierRepository;
@@ -176,7 +178,9 @@ public class OcfCalculationService {
     var effectivePeriodStart = navDates.isEmpty() ? periodStart : navDates.getFirst();
     var txnCosts =
         transactionExecutionRepository.sumCommissionsForFundAndPeriod(
-            fund.getCode(), effectivePeriodStart, monthEnd);
+            fund.getCode(),
+            effectivePeriodStart.atStartOfDay(ESTONIAN_ZONE).toInstant(),
+            monthEnd.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant());
     if (txnCosts.signum() == 0) {
       return ZERO;
     }

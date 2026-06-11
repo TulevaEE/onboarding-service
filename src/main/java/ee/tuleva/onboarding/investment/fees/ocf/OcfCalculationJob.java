@@ -25,7 +25,7 @@ public class OcfCalculationJob {
   private final PublicHolidays publicHolidays;
   private final Clock clock;
 
-  @Scheduled(cron = "0 0 9 3-10 * *", zone = TIMEZONE)
+  @Scheduled(cron = "0 0 9 1-14 * *", zone = TIMEZONE)
   @SchedulerLock(name = "OcfCalculationJob", lockAtMostFor = "PT30M", lockAtLeastFor = "PT5M")
   void computeMonthlyIfReady() {
     var today = LocalDate.now(clock);

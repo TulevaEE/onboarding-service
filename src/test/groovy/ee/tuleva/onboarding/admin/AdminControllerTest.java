@@ -988,6 +988,78 @@ class AdminControllerTest {
         .andExpect(content().string(containsString("3 months")));
   }
 
+  @Test
+  void computeTdAttribution_forSingleFund_returnsOk() throws Exception {
+    var result =
+        ee.tuleva.onboarding.investment.check.tracking.TdAttributionResult.builder()
+            .fund(TulevaFund.TUK75)
+            .tdGeometric(new BigDecimal("0.0005"))
+            .build();
+    given(
+            tdAttributionService.computeAttribution(
+                eq(TulevaFund.TUK75),
+                eq(LocalDate.of(2026, 4, 1)),
+                eq(LocalDate.of(2026, 4, 30)),
+                eq(ee.tuleva.onboarding.investment.check.tracking.PeriodType.MONTHLY)))
+        .willReturn(result);
+
+    mockMvc
+        .perform(
+            post("/admin/td-attribution")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK75")
+                .param("from", "2026-04-01")
+                .param("to", "2026-04-30"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("TUK75")));
+  }
+
+  @Test
+  void computeTdAttribution_forAllFunds_returnsOk() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/td-attribution")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("from", "2026-04-01")
+                .param("to", "2026-04-30"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("all funds")));
+
+    verify(tdAttributionService)
+        .computeForAllFunds(
+            LocalDate.of(2026, 4, 1),
+            LocalDate.of(2026, 4, 30),
+            ee.tuleva.onboarding.investment.check.tracking.PeriodType.MONTHLY);
+  }
+
+  @Test
+  void computeTdAttribution_withInvalidToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/td-attribution")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .param("from", "2026-04-01")
+                .param("to", "2026-04-30"))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void backfillTdAttribution_returnsOk() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/td-attribution-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("monthsBack", "3"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("3 months")));
+
+    verify(tdAttributionService).backfillMonths(eq(3), any());
+  }
+
   private NavCalculationResult sampleNavResult(LocalDate date) {
     return NavCalculationResult.builder()
         .fund(TulevaFund.fromCode("TKF100"))

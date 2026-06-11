@@ -89,7 +89,7 @@ class OcfCalculationServiceTest {
 
     given(
             transactionExecutionRepository.sumCommissionsForFundAndPeriod(
-                eq(fund.getCode()), any(), eq(MONTH_END)))
+                eq(fund.getCode()), any(), any()))
         .willReturn(new BigDecimal("50000"));
     given(fundPositionRepository.findDistinctNavDatesByFund(fund))
         .willReturn(List.of(MONTH_END.minusDays(30), MONTH_END));
@@ -267,7 +267,7 @@ class OcfCalculationServiceTest {
   void transactionCostReturnsZeroWhenNoTransactions() {
     given(
             transactionExecutionRepository.sumCommissionsForFundAndPeriod(
-                eq(TUK75.getCode()), any(), eq(MONTH_END)))
+                eq(TUK75.getCode()), any(), any()))
         .willReturn(ZERO);
 
     var cost = service.getTransactionCostRate(TUK75, MONTH_END);
@@ -282,7 +282,7 @@ class OcfCalculationServiceTest {
         .willReturn(List.of(MONTH_END, firstNavDate));
     given(
             transactionExecutionRepository.sumCommissionsForFundAndPeriod(
-                eq(TUK75.getCode()), eq(firstNavDate), eq(MONTH_END)))
+                eq(TUK75.getCode()), any(), any()))
         .willReturn(new BigDecimal("1000"));
     given(
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
@@ -292,15 +292,19 @@ class OcfCalculationServiceTest {
     var cost = service.getTransactionCostRate(TUK75, MONTH_END);
 
     assertThat(cost.signum()).isGreaterThan(0);
+    var zone = ZoneId.of("Europe/Tallinn");
     verify(transactionExecutionRepository)
-        .sumCommissionsForFundAndPeriod(TUK75.getCode(), firstNavDate, MONTH_END);
+        .sumCommissionsForFundAndPeriod(
+            TUK75.getCode(),
+            firstNavDate.atStartOfDay(zone).toInstant(),
+            MONTH_END.plusDays(1).atStartOfDay(zone).toInstant());
   }
 
   @Test
   void transactionCostReturnsZeroWhenZeroAum() {
     given(
             transactionExecutionRepository.sumCommissionsForFundAndPeriod(
-                eq(TUK75.getCode()), any(), eq(MONTH_END)))
+                eq(TUK75.getCode()), any(), any()))
         .willReturn(new BigDecimal("1000"));
     given(fundPositionRepository.findDistinctNavDatesByFund(TUK75)).willReturn(List.of());
 
@@ -405,7 +409,7 @@ class OcfCalculationServiceTest {
   private void setupNoTransactionCosts(TulevaFund fund) {
     given(
             transactionExecutionRepository.sumCommissionsForFundAndPeriod(
-                eq(fund.getCode()), any(), eq(MONTH_END)))
+                eq(fund.getCode()), any(), any()))
         .willReturn(ZERO);
   }
 }

@@ -203,7 +203,8 @@ class KybEndToEndTest {
             VALID_CERT,
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            List.of());
 
     var results = kybScreeningService.screen(data);
 

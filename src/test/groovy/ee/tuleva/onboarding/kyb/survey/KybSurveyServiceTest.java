@@ -80,7 +80,8 @@ class KybSurveyServiceTest {
         null,
         new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
         "Fondide valitsemine",
-        "6630");
+        "6630",
+        List.of());
   }
 
   private void stubInitialValidation(
@@ -102,7 +103,8 @@ class KybSurveyServiceTest {
             java.time.LocalDate.of(2020, 1, 15),
             new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
             "Fondide valitsemine",
-            "6630");
+            "6630",
+            List.of());
     var relationships = sampleRelationships();
     stubInitialValidation(
         relationships,

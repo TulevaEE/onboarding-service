@@ -37,7 +37,8 @@ class DualMemberOwnershipScreenerTest {
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            List.of());
 
     var result = screener.screen(data);
 
@@ -63,7 +64,8 @@ class DualMemberOwnershipScreenerTest {
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            List.of());
 
     var result = screener.screen(data);
 
@@ -89,7 +91,8 @@ class DualMemberOwnershipScreenerTest {
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            List.of());
 
     var result = screener.screen(data);
 
@@ -115,7 +118,8 @@ class DualMemberOwnershipScreenerTest {
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            List.of());
 
     var result = screener.screen(data);
 
@@ -136,7 +140,8 @@ class DualMemberOwnershipScreenerTest {
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            List.of());
 
     var result = screener.screen(data);
 

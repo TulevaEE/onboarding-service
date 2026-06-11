@@ -67,7 +67,7 @@ public class AriregisterClient {
         DETAILANDMED_FACTORY.createDetailandmedV6QueryAriregisterParool(properties.password()));
     query.setAriregistriKood(new BigInteger(registryCode));
     query.setYandmed(true);
-    query.setIandmed(false);
+    query.setIandmed(true);
     query.setKandmed(false);
     query.setDandmed(false);
     query.setMaarused(false);

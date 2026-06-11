@@ -108,6 +108,7 @@ class AmlKybCheckEventListenerTest {
         company,
         new PersonalCode(personalCode),
         relatedPersons,
-        checks);
+        checks,
+        List.of());
   }
 }

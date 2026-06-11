@@ -33,7 +33,8 @@ public class KybScreeningService {
             companyData.company(),
             companyData.personalCode(),
             companyData.relatedPersons(),
-            results));
+            results,
+            companyData.representationRights()));
 
     return results;
   }

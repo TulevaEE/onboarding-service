@@ -57,7 +57,8 @@ class KybScreeningIntegrationTest {
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            List.of());
 
     var results = kybScreeningService.screen(data);
 
@@ -96,7 +97,8 @@ class KybScreeningIntegrationTest {
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            List.of());
 
     var results = kybScreeningService.screen(data);
 
@@ -125,7 +127,8 @@ class KybScreeningIntegrationTest {
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            List.of());
 
     kybScreeningService.screen(data);
 
@@ -138,7 +141,8 @@ class KybScreeningIntegrationTest {
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            List.of());
 
     var secondResults = kybScreeningService.screen(changedData);
 
@@ -165,7 +169,8 @@ class KybScreeningIntegrationTest {
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            List.of());
 
     var results = kybScreeningService.screen(data);
 
@@ -196,7 +201,8 @@ class KybScreeningIntegrationTest {
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            LocalDate.now(clock).minusMonths(1));
+            LocalDate.now(clock).minusMonths(1),
+            List.of());
 
     kybScreeningService.screen(data);
 

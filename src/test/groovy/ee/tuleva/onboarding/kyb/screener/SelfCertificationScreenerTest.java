@@ -67,7 +67,8 @@ class SelfCertificationScreenerTest {
             null,
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            false);
 
     var results = screener.screen(data);
 
@@ -102,6 +103,7 @@ class SelfCertificationScreenerTest {
         cert,
         "EE",
         "Harju maakond, Tallinn, Pärnu mnt 1",
-        null);
+        null,
+        false);
   }
 }

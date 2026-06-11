@@ -20,6 +20,7 @@ public class LegalEntityScreener {
   private final KybCompanyDataMapper kybCompanyDataMapper;
   private final KybScreeningService kybScreeningService;
   private final LatestKybSurveyInputs latestKybSurveyInputs;
+  private final OwnershipChangeDetector ownershipChangeDetector;
   private final Clock clock;
 
   public List<CompanyRelationship> fetchActiveRelationships(String registryCode) {
@@ -38,7 +39,11 @@ public class LegalEntityScreener {
     var detail = fetchCompanyDetail(registryCode);
     var data =
         kybCompanyDataMapper.toKybCompanyData(
-            detail, personalCode, relationships, selfCertification);
+            detail,
+            personalCode,
+            relationships,
+            selfCertification,
+            ownerChangedBeforeOnboarding(registryCode));
     return kybScreeningService.screen(data);
   }
 
@@ -57,8 +62,17 @@ public class LegalEntityScreener {
     var detail = fetchCompanyDetail(registryCode);
     var data =
         kybCompanyDataMapper.toKybCompanyData(
-            detail, personalCode, relationships, selfCertification);
+            detail,
+            personalCode,
+            relationships,
+            selfCertification,
+            ownerChangedBeforeOnboarding(registryCode));
     return new ValidationResult(detail, kybScreeningService.validate(data));
+  }
+
+  private boolean ownerChangedBeforeOnboarding(String registryCode) {
+    return ownershipChangeDetector.ownerChangedBeforeOnboarding(
+        ariregisterClient.getCompanyRelationships(registryCode));
   }
 
   public record ValidationResult(CompanyDetail detail, List<KybCheck> checks) {}

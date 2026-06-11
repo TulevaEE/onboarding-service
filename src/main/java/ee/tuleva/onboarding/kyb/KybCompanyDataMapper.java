@@ -29,6 +29,15 @@ class KybCompanyDataMapper {
       PersonalCode personalCode,
       List<CompanyRelationship> relationships,
       SelfCertification selfCertification) {
+    return toKybCompanyData(detail, personalCode, relationships, selfCertification, false);
+  }
+
+  KybCompanyData toKybCompanyData(
+      CompanyDetail detail,
+      PersonalCode personalCode,
+      List<CompanyRelationship> relationships,
+      SelfCertification selfCertification,
+      boolean ownerChangedBeforeOnboarding) {
 
     var status = detail.getStatus().map(CompanyStatus::valueOf).orElse(null);
     var legalForm = detail.getLegalForm().map(LegalForm::fromString).orElse(null);
@@ -69,7 +78,8 @@ class KybCompanyDataMapper {
         selfCertification,
         countryCode,
         fullAddress,
-        foundingDate);
+        foundingDate,
+        ownerChangedBeforeOnboarding);
   }
 
   private KybRelatedPerson toRelatedPerson(PersonalCode code, List<CompanyRelationship> roles) {

@@ -57,11 +57,12 @@ class KybScreeningIntegrationTest {
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            false);
 
     var results = kybScreeningService.screen(data);
 
-    assertThat(results).hasSize(11).allMatch(KybCheck::success);
+    assertThat(results).hasSize(12).allMatch(KybCheck::success);
 
     var amlChecks =
         amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
@@ -79,6 +80,7 @@ class KybScreeningIntegrationTest {
             KYB_COMPANY_LEGAL_FORM,
             KYB_COMPANY_REGISTERED_IN_ESTONIA,
             KYB_SELF_CERTIFICATION,
+            KYB_OWNER_CHANGED,
             KYB_DATA_CHANGED);
     assertThat(amlChecks).allMatch(AmlCheck::isSuccess);
   }
@@ -96,7 +98,8 @@ class KybScreeningIntegrationTest {
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            false);
 
     var results = kybScreeningService.screen(data);
 
@@ -125,7 +128,8 @@ class KybScreeningIntegrationTest {
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            false);
 
     kybScreeningService.screen(data);
 
@@ -138,7 +142,8 @@ class KybScreeningIntegrationTest {
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            false);
 
     var secondResults = kybScreeningService.screen(changedData);
 
@@ -165,7 +170,8 @@ class KybScreeningIntegrationTest {
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            false);
 
     var results = kybScreeningService.screen(data);
 
@@ -196,7 +202,8 @@ class KybScreeningIntegrationTest {
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            LocalDate.now(clock).minusMonths(1));
+            LocalDate.now(clock).minusMonths(1),
+            false);
 
     kybScreeningService.screen(data);
 
@@ -206,5 +213,32 @@ class KybScreeningIntegrationTest {
     var ageCheck = amlChecks.stream().filter(c -> c.getType() == KYB_COMPANY_AGE).findFirst();
     assertThat(ageCheck).as("KYB_COMPANY_AGE AmlCheck should be persisted").isPresent();
     assertThat(ageCheck.get().isSuccess()).isFalse();
+  }
+
+  @Test
+  void companyThatChangedOwnerBeforeOnboardingCreatesFailingOwnerChangeCheck() {
+    var person =
+        new KybRelatedPerson(PERSONAL_CODE, true, true, true, BigDecimal.valueOf(100), COMPLETED);
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
+            PERSONAL_CODE,
+            R,
+            List.of(person),
+            new SelfCertification(true, true, true),
+            "EE",
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null,
+            true);
+
+    kybScreeningService.screen(data);
+
+    var amlChecks =
+        amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
+            PERSONAL_CODE.value(), aYearAgo());
+    var ownerChangedCheck =
+        amlChecks.stream().filter(c -> c.getType() == KYB_OWNER_CHANGED).findFirst();
+    assertThat(ownerChangedCheck).as("KYB_OWNER_CHANGED AmlCheck should be persisted").isPresent();
+    assertThat(ownerChangedCheck.get().isSuccess()).isFalse();
   }
 }

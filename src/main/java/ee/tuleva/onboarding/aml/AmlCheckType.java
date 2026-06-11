@@ -40,6 +40,7 @@ public enum AmlCheckType {
   KYB_COMPANY_LEGAL_FORM,
   KYB_COMPANY_REGISTERED_IN_ESTONIA,
   KYB_SELF_CERTIFICATION,
+  KYB_OWNER_CHANGED,
   KYB_DATA_CHANGED;
 
   @Getter final boolean manual;

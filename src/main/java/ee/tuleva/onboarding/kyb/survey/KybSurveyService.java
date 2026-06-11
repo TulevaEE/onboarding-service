@@ -84,7 +84,7 @@ class KybSurveyService {
                   "relatedPersons",
                   "COMPANY_STRUCTURE",
                   "Ettevõtte omandistruktuur ei ole toetatud"));
-      case DATA_CHANGED, SELF_CERTIFICATION, COMPANY_AGE -> Stream.of();
+      case DATA_CHANGED, SELF_CERTIFICATION, COMPANY_AGE, OWNER_CHANGED -> Stream.of();
     };
   }
 

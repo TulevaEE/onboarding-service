@@ -12,4 +12,5 @@ public record KybCompanyData(
     SelfCertification selfCertification,
     @Nullable String countryCode,
     @Nullable String fullAddress,
-    @Nullable LocalDate foundingDate) {}
+    @Nullable LocalDate foundingDate,
+    boolean ownerChangedBeforeOnboarding) {}

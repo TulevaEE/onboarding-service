@@ -31,6 +31,7 @@ class CompanyDetailMapperTest {
                 "Pärnu mnt 1", new AddressDetails("Pärnu mnt 1", "Tallinn", "11313", "EE")));
     assertThat(result.getMainActivity()).contains("Fondide valitsemine");
     assertThat(result.getNaceCode()).contains("6630");
+    assertThat(result.getRepresentationRights()).isEmpty();
   }
 
   @Test
@@ -47,6 +48,35 @@ class CompanyDetailMapperTest {
     assertThat(result.getAddress()).isEmpty();
     assertThat(result.getMainActivity()).isEmpty();
     assertThat(result.getNaceCode()).isEmpty();
+    assertThat(result.getRepresentationRights()).isEmpty();
+  }
+
+  @Test
+  void mapsRepresentationRights() {
+    var ettevotja = ettevotjaWith(null);
+    ettevotja.setIsikuandmed(
+        isikuandmedWith(
+            eritingimus(
+                "AINUESINDUS",
+                "Juhatuse liige esindab äriühingut ainuisikuliselt",
+                "Tehingute tegemiseks on nõutav nõukogu nõusolek",
+                LocalDate.of(2023, 1, 15),
+                null,
+                12345),
+            eritingimus("YHISESINDUS", "Ühine esindusõigus", null, null, null, 67890)));
+
+    var result = CompanyDetailMapper.fromEttevotja(ettevotja);
+
+    assertThat(result.getRepresentationRights())
+        .containsExactly(
+            new RepresentationRight(
+                "AINUESINDUS",
+                "Juhatuse liige esindab äriühingut ainuisikuliselt",
+                "Tehingute tegemiseks on nõutav nõukogu nõusolek",
+                LocalDate.of(2023, 1, 15),
+                null,
+                12345L),
+            new RepresentationRight("YHISESINDUS", "Ühine esindusõigus", null, null, null, 67890L));
   }
 
   @Test
@@ -137,5 +167,33 @@ class CompanyDetailMapperTest {
     tegevusala.setOnPohitegevusala(main);
     tegevusalad.getItem().add(tegevusala);
     return tegevusalad;
+  }
+
+  private static DetailandmedV6Isikuandmed isikuandmedWith(
+      DetailandmedV6EsindusoiguseEritingimus... eritingimused) {
+    var container = new DetailandmedV6EsindusoiguseEritingimused();
+    for (var eritingimus : eritingimused) {
+      container.getItem().add(eritingimus);
+    }
+    var isikuandmed = new DetailandmedV6Isikuandmed();
+    isikuandmed.setEsindusoiguseEritingimused(container);
+    return isikuandmed;
+  }
+
+  private static DetailandmedV6EsindusoiguseEritingimus eritingimus(
+      String type,
+      String typeText,
+      String content,
+      LocalDate startDate,
+      LocalDate endDate,
+      int id) {
+    var eritingimus = new DetailandmedV6EsindusoiguseEritingimus();
+    eritingimus.setEsinduseTyyp(type);
+    eritingimus.setEsinduseTyypTekstina(typeText);
+    eritingimus.setEsinduseSisu(content);
+    eritingimus.setAlgusKpv(startDate);
+    eritingimus.setLoppKpv(endDate);
+    eritingimus.setKirjeId(BigInteger.valueOf(id));
+    return eritingimus;
   }
 }

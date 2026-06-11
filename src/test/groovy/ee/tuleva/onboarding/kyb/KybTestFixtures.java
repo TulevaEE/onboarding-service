@@ -224,7 +224,8 @@ public final class KybTestFixtures {
         selfCertification,
         "EE",
         "Harju maakond, Tallinn, Pärnu mnt 1",
-        null);
+        null,
+        List.of());
   }
 
   // A standard active OÜ with the given related persons (defaults for the fields screeners ignore).
@@ -255,7 +256,8 @@ public final class KybTestFixtures {
           LocalDate.of(2020, 1, 15),
           null,
           "Programmeerimine",
-          "62011");
+          "62011",
+          List.of());
 
   static List<CompanyRelationship> rule31PassRelationships() {
     return List.of(
@@ -423,7 +425,8 @@ public final class KybTestFixtures {
         LocalDate.of(2020, 1, 15),
         null,
         "Programmeerimine",
-        "62011");
+        "62011",
+        List.of());
   }
 
   static KybCompanyData rule34Pass() {
@@ -491,7 +494,8 @@ public final class KybTestFixtures {
         LocalDate.of(2020, 1, 15),
         null,
         "Krüptovarade teenused",
-        "64321");
+        "64321",
+        List.of());
   }
 
   static KybCompanyData rule41Pass() {
@@ -546,7 +550,8 @@ public final class KybTestFixtures {
         LocalDate.of(2020, 1, 15),
         null,
         "Programmeerimine",
-        "62011");
+        "62011",
+        List.of());
   }
 
   static KybCompanyData rule50Pass() {

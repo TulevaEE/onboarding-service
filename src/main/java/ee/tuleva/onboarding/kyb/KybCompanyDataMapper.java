@@ -41,6 +41,7 @@ class KybCompanyDataMapper {
         address.map(CompanyAddress::addressDetails).map(AddressDetails::countryCode).orElse(null);
     var fullAddress = address.map(CompanyAddress::fullAddress).orElse(null);
     var foundingDate = detail.getFoundingDate().orElse(null);
+    var representationRights = detail.getRepresentationRights();
 
     var companyDto =
         new CompanyDto(
@@ -72,7 +73,8 @@ class KybCompanyDataMapper {
         selfCertification,
         countryCode,
         fullAddress,
-        foundingDate);
+        foundingDate,
+        representationRights);
   }
 
   private KybRelatedPerson toRelatedPerson(

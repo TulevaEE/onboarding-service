@@ -21,13 +21,15 @@ buildscript {
     }
 }
 
-val springCloudVersion = "2025.1.1"
 val springModulithVersion = "2.0.6"
+
+// Security patch ahead of the Spring Boot BOM — remove once Boot manages this version
+extra["opentelemetry.version"] = "1.62.0"
 
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "4.0.6"
+    id("org.springframework.boot") version "4.0.7"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "4.0.1"
     id("com.diffplug.spotless") version "8.4.0"
@@ -75,6 +77,12 @@ repositories {
 }
 
 dependencies {
+    constraints {
+        // Transitive security patches: httpclient via lutung, beanutils via mockserver
+        implementation("org.apache.httpcomponents:httpclient:4.5.14")
+        testImplementation("commons-beanutils:commons-beanutils:1.11.0")
+    }
+
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-restclient")
     implementation("org.springframework.boot:spring-boot-starter-security")
@@ -198,7 +206,6 @@ dependencies {
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.cloud:spring-cloud-dependencies:$springCloudVersion")
         mavenBom("org.springframework.modulith:spring-modulith-bom:$springModulithVersion")
     }
 }

@@ -43,6 +43,7 @@ public class FundValueIndexingJob {
   private final FundNavRetrieverFactory fundNavRetrieverFactory;
   private final Clock clock;
   private final PublicHolidays publicHolidays;
+  private final PriceDataFreshnessAlertJob priceDataFreshnessAlertJob;
   private List<ComparisonIndexRetriever> dynamicRetrievers = emptyList();
 
   static final LocalDate EARLIEST_DATE = LocalDate.parse("2003-01-07");
@@ -63,6 +64,11 @@ public class FundValueIndexingJob {
       lockAtLeastFor = "5m")
   public void runIndexingJob() {
     refreshAll();
+    try {
+      priceDataFreshnessAlertJob.checkAfterIndexing();
+    } catch (Exception e) {
+      log.error("Price data freshness check failed", e);
+    }
   }
 
   public void refreshAll() {

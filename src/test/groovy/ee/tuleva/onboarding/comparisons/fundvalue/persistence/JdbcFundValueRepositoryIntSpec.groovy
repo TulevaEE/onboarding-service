@@ -307,6 +307,37 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
     result.isPresent()
   }
 
+  def "it finds latest dates by keys"() {
+    given:
+    def key1 = "LATEST_DATE_TEST_" + UUID.randomUUID()
+    def key2 = "LATEST_DATE_TEST_" + UUID.randomUUID()
+    def key3 = "LATEST_DATE_TEST_" + UUID.randomUUID()
+    fundValueRepository.saveAll([
+        aFundValue(key1, parse("2020-01-01"), 100.0),
+        aFundValue(key1, parse("2020-01-10"), 101.0),
+        aFundValue(key1, parse("2020-01-05"), 100.5),
+        aFundValue(key2, parse("2020-03-01"), 200.0),
+        aFundValue(key2, parse("2020-02-01"), 199.0),
+    ])
+
+    when:
+    def result = fundValueRepository.findLatestDateByKeys(Set.of(key1, key2, key3))
+
+    then:
+    result.size() == 2
+    result[key1] == parse("2020-01-10")
+    result[key2] == parse("2020-03-01")
+    !result.containsKey(key3)
+  }
+
+  def "findLatestDateByKeys returns empty map for empty keys"() {
+    when:
+    def result = fundValueRepository.findLatestDateByKeys(Set.of())
+
+    then:
+    result.isEmpty()
+  }
+
   def "save allows historical backfill of older dates"() {
     given:
     def key = "BACKFILL_TEST_" + UUID.randomUUID()

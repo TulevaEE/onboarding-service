@@ -21,14 +21,18 @@ import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeRate;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
+import ee.tuleva.onboarding.investment.fees.InstrumentFeeRepository;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,6 +43,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.transaction.PlatformTransactionManager;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -57,6 +62,9 @@ class PeriodicTdAttributionServiceTest {
   @Mock FundNavQueryService fundNavQueryService;
   @Mock ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   @Mock PeriodicTdAttributionRepository attributionRepository;
+  @Mock TransactionExecutionRepository transactionExecutionRepository;
+  @Mock InstrumentFeeRepository instrumentFeeRepository;
+  @Mock PlatformTransactionManager transactionManager;
 
   private PeriodicTdAttributionService service;
 
@@ -70,7 +78,19 @@ class PeriodicTdAttributionServiceTest {
             fundPositionRepository,
             fundNavQueryService,
             modelPortfolioAllocationRepository,
-            attributionRepository);
+            attributionRepository,
+            transactionExecutionRepository,
+            instrumentFeeRepository,
+            transactionManager);
+
+    // Default lenient stubs for Phase 3 data sources (overridden in specific tests)
+    given(transactionExecutionRepository.sumCommissionsForFundAndPeriod(anyString(), any(), any()))
+        .willReturn(ZERO);
+    given(
+            tdEventRepository.findDeduplicatedEventsForPeriod(
+                any(), eq(TrackingCheckType.BENCHMARK_MODEL), any(), any()))
+        .willReturn(List.of());
+    given(instrumentFeeRepository.findAllValidRates(any())).willReturn(List.of());
   }
 
   @Test
@@ -331,6 +351,94 @@ class PeriodicTdAttributionServiceTest {
     assertThat(PeriodicTdAttributionService.toBigDecimal("0.00123"))
         .isEqualByComparingTo(new BigDecimal("0.00123"));
     assertThat(PeriodicTdAttributionService.toBigDecimal(null)).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void backfillMonthsComputesMultipleMonths() {
+    var clock =
+        Clock.fixed(
+            LocalDate.of(2026, 6, 15).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant(),
+            ZoneId.of("Europe/Tallinn"));
+
+    for (var fund : TulevaFund.values()) {
+      given(tdEventRepository.findDeduplicatedEventsForPeriod(eq(fund), any(), any(), any()))
+          .willReturn(List.of());
+      given(feeAccrualRepository.findByFundAndDateRange(eq(fund), any(), any()))
+          .willReturn(List.of());
+      given(feeRateRepository.findValidRate(eq(fund), any(), any())).willReturn(Optional.empty());
+      given(
+              modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
+                  eq(fund), any(), any()))
+          .willReturn(List.of());
+    }
+
+    service.backfillMonths(3, clock);
+
+    // 3 months * 4 funds = 12 attribution saves
+    verify(attributionRepository, times(3 * TulevaFund.values().length))
+        .save(any(PeriodicTdAttribution.class));
+  }
+
+  @Test
+  void computeQuarterlyDelegatesToComputeAttribution() {
+    for (var fund : TulevaFund.values()) {
+      given(tdEventRepository.findDeduplicatedEventsForPeriod(eq(fund), any(), any(), any()))
+          .willReturn(List.of());
+      given(feeAccrualRepository.findByFundAndDateRange(eq(fund), any(), any()))
+          .willReturn(List.of());
+      given(feeRateRepository.findValidRate(eq(fund), any(), any())).willReturn(Optional.empty());
+      given(
+              modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
+                  eq(fund), any(), any()))
+          .willReturn(List.of());
+    }
+
+    service.computeQuarterly(TUK75, 2026, 2);
+
+    verify(attributionRepository)
+        .deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
+            TUK75, LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30), PeriodType.QUARTERLY);
+  }
+
+  @Test
+  void computeAnnualDelegatesToComputeAttribution() {
+    for (var fund : TulevaFund.values()) {
+      given(tdEventRepository.findDeduplicatedEventsForPeriod(eq(fund), any(), any(), any()))
+          .willReturn(List.of());
+      given(feeAccrualRepository.findByFundAndDateRange(eq(fund), any(), any()))
+          .willReturn(List.of());
+      given(feeRateRepository.findValidRate(eq(fund), any(), any())).willReturn(Optional.empty());
+      given(
+              modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
+                  eq(fund), any(), any()))
+          .willReturn(List.of());
+    }
+
+    service.computeAnnual(TUK75, 2026);
+
+    verify(attributionRepository)
+        .deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
+            TUK75, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), PeriodType.ANNUAL);
+  }
+
+  @Test
+  void computeWeightedOcfUsesInstrumentFeeRates() {
+    setupStandardMocks();
+
+    var instrumentFee =
+        ee.tuleva.onboarding.investment.fees.InstrumentFee.builder()
+            .isin(ISIN_DW)
+            .instrumentName("iShares DW")
+            .netOcf(new BigDecimal("0.0012"))
+            .publishedOcf(new BigDecimal("0.0015"))
+            .rebateRate(new BigDecimal("0.0003"))
+            .validFrom(LocalDate.of(2025, 1, 1))
+            .build();
+    given(instrumentFeeRepository.findAllValidRates(PERIOD_END)).willReturn(List.of(instrumentFee));
+
+    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    assertThat(result.etfOcfDrag()).isNegative();
   }
 
   // --- shared setup ---

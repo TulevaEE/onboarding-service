@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -24,4 +25,23 @@ public interface TransactionExecutionRepository extends JpaRepository<Transactio
       """)
   List<TransactionExecution> findByOrderIdInAndExecutionTimestampInRange(
       Collection<Long> orderIds, Instant fromInclusive, Instant toExclusive);
+
+  // Trade-date cost attribution: a trade's commission and settlement fee count in the
+  // period it executes. Half-open [fromInclusive, toExclusive) on the execution timestamp
+  // so last-day intraday trades are included rather than dropped at a date boundary.
+  @Query(
+      value =
+          """
+          SELECT COALESCE(SUM(
+              COALESCE(e.commission_amount, 0) + COALESCE(e.settlement_fee_amount, 0)
+          ), 0)
+          FROM investment_transaction_execution e
+          JOIN investment_transaction_order o ON e.order_id = o.id
+          WHERE o.fund_code = :fundCode
+            AND e.execution_timestamp >= :fromInclusive
+            AND e.execution_timestamp < :toExclusive
+          """,
+      nativeQuery = true)
+  BigDecimal sumCommissionsForFundAndPeriod(
+      String fundCode, Instant fromInclusive, Instant toExclusive);
 }

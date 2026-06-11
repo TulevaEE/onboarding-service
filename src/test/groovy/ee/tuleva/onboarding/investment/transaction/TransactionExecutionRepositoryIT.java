@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.fund.TulevaFund;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -156,6 +158,62 @@ class TransactionExecutionRepositoryIT {
         .isEmpty();
   }
 
+  @Test
+  void sumCommissionsForFundAndPeriod_sumsFeesForFundTradesWithinHalfOpenWindow() {
+    TransactionOrder fundOrder1 = persistOrder(TUK75);
+    TransactionOrder fundOrder2 = persistOrder(TUK75);
+    TransactionOrder fundOrderBefore = persistOrder(TUK75);
+    TransactionOrder fundOrderAtUpperBound = persistOrder(TUK75);
+    TransactionOrder otherFundOrder = persistOrder(TUV100);
+
+    Instant fromInclusive = Instant.parse("2026-05-01T00:00:00Z");
+    Instant toExclusive = Instant.parse("2026-06-01T00:00:00Z");
+    Instant inside = Instant.parse("2026-05-11T10:00:00Z");
+
+    executionRepository.save(
+        executionWithFees(fundOrder1.getId(), "DLA_F1", inside, "10.00", "2.50"));
+    // settlement fee null exercises the COALESCE in the sum
+    executionRepository.save(executionWithFees(fundOrder2.getId(), "DLA_F2", inside, "5.00", null));
+    executionRepository.save(
+        executionWithFees(
+            fundOrderBefore.getId(),
+            "DLA_BEFORE",
+            fromInclusive.minusSeconds(1),
+            "99.00",
+            "99.00"));
+    executionRepository.save(
+        executionWithFees(
+            fundOrderAtUpperBound.getId(), "DLA_BOUND", toExclusive, "99.00", "99.00"));
+    executionRepository.save(
+        executionWithFees(otherFundOrder.getId(), "DLA_OTHER", inside, "77.00", "77.00"));
+
+    entityManager.flush();
+    entityManager.clear();
+
+    BigDecimal sum =
+        executionRepository.sumCommissionsForFundAndPeriod(
+            TUK75.getCode(), fromInclusive, toExclusive);
+
+    assertThat(sum).isEqualByComparingTo("17.50");
+  }
+
+  @Test
+  void sumCommissionsForFundAndPeriod_returnsZeroWhenNoTradesInWindow() {
+    TransactionOrder order = persistOrder(TUK75);
+    executionRepository.save(
+        executionWithFees(
+            order.getId(), "DLA_OUT", Instant.parse("2026-01-15T10:00:00Z"), "10.00", "10.00"));
+    entityManager.flush();
+
+    BigDecimal sum =
+        executionRepository.sumCommissionsForFundAndPeriod(
+            TUK75.getCode(),
+            Instant.parse("2026-05-01T00:00:00Z"),
+            Instant.parse("2026-06-01T00:00:00Z"));
+
+    assertThat(sum).isEqualByComparingTo("0");
+  }
+
   private TransactionExecution execution(Long orderId, String brokerTxId, Instant timestamp) {
     return TransactionExecution.builder()
         .orderId(orderId)
@@ -165,13 +223,29 @@ class TransactionExecutionRepositoryIT {
         .build();
   }
 
+  private TransactionExecution executionWithFees(
+      Long orderId, String brokerTxId, Instant timestamp, String commission, String settlementFee) {
+    return TransactionExecution.builder()
+        .orderId(orderId)
+        .brokerTransactionId(brokerTxId)
+        .executionTimestamp(timestamp)
+        .commissionAmount(new BigDecimal(commission))
+        .settlementFeeAmount(settlementFee == null ? null : new BigDecimal(settlementFee))
+        .source("SEB_OOTEL")
+        .build();
+  }
+
   private TransactionOrder persistOrder() {
+    return persistOrder(TUK75);
+  }
+
+  private TransactionOrder persistOrder(TulevaFund fund) {
     TransactionBatch batch =
-        batchRepository.save(TransactionBatch.builder().fund(TUK75).createdBy("test-user").build());
+        batchRepository.save(TransactionBatch.builder().fund(fund).createdBy("test-user").build());
     return orderRepository.save(
         TransactionOrder.builder()
             .batch(batch)
-            .fund(TUK75)
+            .fund(fund)
             .instrumentIsin("IE000F60HVH9")
             .transactionType(BUY)
             .instrumentType(ETF)

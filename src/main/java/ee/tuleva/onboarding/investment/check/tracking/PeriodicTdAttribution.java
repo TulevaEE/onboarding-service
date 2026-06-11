@@ -67,6 +67,10 @@ class PeriodicTdAttribution {
   private BigDecimal transactionCosts;
   private BigDecimal residual;
 
+  private BigDecimal etfOcfDrag;
+  private BigDecimal etfTrackingResidual;
+  private BigDecimal tdVsBenchmark;
+
   private Integer businessDays;
   private BigDecimal avgAum;
   private BigDecimal avgCashPct;

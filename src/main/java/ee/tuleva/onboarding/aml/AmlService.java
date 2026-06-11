@@ -220,7 +220,10 @@ public class AmlService {
             .success(kycCheck.riskLevel() == LOW || kycCheck.riskLevel() == NONE)
             .metadata(kycCheck.metadata())
             .build();
-    return addCheckIfMissing(check);
+    if (check.isSuccess() && hasSuccessfulCheck(personalCode, KYC_CHECK)) {
+      return Optional.empty();
+    }
+    return Optional.of(addCheck(check));
   }
 
   private boolean personDataMatches(Person person1, Person person2) {
@@ -255,6 +258,11 @@ public class AmlService {
   private boolean hasCheck(String personalCode, AmlCheckType checkType) {
     return amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
         personalCode, checkType, aYearAgo());
+  }
+
+  private boolean hasSuccessfulCheck(String personalCode, AmlCheckType checkType) {
+    return amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
+        personalCode, checkType, true, aYearAgo());
   }
 
   public List<AmlCheck> getChecks(Person person) {

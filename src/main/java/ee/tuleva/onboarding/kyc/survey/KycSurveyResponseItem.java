@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import ee.tuleva.onboarding.country.ValidIso2CountryCode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.util.List;
 
@@ -28,24 +29,26 @@ import java.util.List;
 })
 public sealed interface KycSurveyResponseItem extends Serializable {
 
-  record Citizenship(@Valid CountriesValue value) implements KycSurveyResponseItem {}
+  record Citizenship(@NotNull @Valid CountriesValue value) implements KycSurveyResponseItem {}
 
-  record Address(@Valid AddressValue value) implements KycSurveyResponseItem {}
+  record Address(@NotNull @Valid AddressValue value) implements KycSurveyResponseItem {}
 
-  record Email(@Valid EmailValue value) implements KycSurveyResponseItem {}
+  record Email(@NotNull @Valid EmailValue value) implements KycSurveyResponseItem {}
 
-  record PhoneNumber(TextValue value) implements KycSurveyResponseItem {}
+  record PhoneNumber(@NotNull TextValue value) implements KycSurveyResponseItem {}
 
-  record PepSelfDeclaration(OptionValue<PepStatus> value) implements KycSurveyResponseItem {}
-
-  record InvestmentGoals(InvestmentGoalsValue value) implements KycSurveyResponseItem {}
-
-  record InvestableAssets(OptionValue<AssetRange> value) implements KycSurveyResponseItem {}
-
-  record SourceOfIncome(List<@Valid SourceOfIncomeValueItem> value)
+  record PepSelfDeclaration(@NotNull OptionValue<PepStatus> value)
       implements KycSurveyResponseItem {}
 
-  record Terms(OptionValue<TermsAccepted> value) implements KycSurveyResponseItem {}
+  record InvestmentGoals(@NotNull InvestmentGoalsValue value) implements KycSurveyResponseItem {}
+
+  record InvestableAssets(@NotNull OptionValue<AssetRange> value)
+      implements KycSurveyResponseItem {}
+
+  record SourceOfIncome(@NotNull List<@Valid SourceOfIncomeValueItem> value)
+      implements KycSurveyResponseItem {}
+
+  record Terms(@NotNull OptionValue<TermsAccepted> value) implements KycSurveyResponseItem {}
 
   // Value types
   record TextValue(String type, String value) implements Serializable {}
@@ -60,7 +63,7 @@ public sealed interface KycSurveyResponseItem extends Serializable {
   record EmailValue(String type, @NotBlank @jakarta.validation.constraints.Email String value)
       implements Serializable {}
 
-  record AddressValue(String type, @Valid AddressDetails value) implements Serializable {}
+  record AddressValue(String type, @NotNull @Valid AddressDetails value) implements Serializable {}
 
   record AddressDetails(
       @NotBlank String street,

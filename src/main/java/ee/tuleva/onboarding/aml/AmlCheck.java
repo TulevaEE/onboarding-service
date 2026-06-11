@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.springframework.data.annotation.CreatedDate;
@@ -26,6 +27,8 @@ public class AmlCheck {
   private Long id;
 
   @ValidPersonalCode private String personalCode;
+
+  private UUID companyId;
 
   @Enumerated(value = EnumType.STRING)
   @NotNull

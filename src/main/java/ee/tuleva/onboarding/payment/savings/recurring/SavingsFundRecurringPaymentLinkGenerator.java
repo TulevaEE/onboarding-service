@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
 import ee.tuleva.onboarding.payment.PaymentUrlEncoder;
 import ee.tuleva.onboarding.payment.PrefilledLink;
 import ee.tuleva.onboarding.payment.savings.SavingsFundRecipientConfiguration;
+import ee.tuleva.onboarding.user.personalcode.PersonalCodeValidator;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,12 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
   private static final String COOP_STANDING_ORDER_URL =
       "https://i.cooppank.ee/i/standing-orders/new";
   private static final String COOP_MONTHLY_FREQ = "2";
+  private static final String SWEDBANK_PRIVATE_STANDING_ORDER_URL =
+      "https://www.swedbank.ee/private/d2d/payments2/standing_order/new_foreign?";
+  private static final String SWEDBANK_BUSINESS_STANDING_ORDER_URL =
+      "https://www.swedbank.ee/business/d2d/payments/standing_order?language=EST";
+
+  private static final PersonalCodeValidator personalCodeValidator = new PersonalCodeValidator();
 
   private final SavingsFundRecipientConfiguration recipientConfiguration;
   private final PaymentDateProvider paymentDateProvider;
@@ -98,6 +105,9 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
 
   private String buildSwedbankUrl(
       String description, @Nullable String amount, LocalDate firstPaymentDate) {
+    if (isLegalEntity(description)) {
+      return SWEDBANK_BUSINESS_STANDING_ORDER_URL;
+    }
     var params = new LinkedHashMap<String, String>();
     params.put("standingOrder.beneficiaryAccountNumber", recipientConfiguration.getRecipientIban());
     params.put("standingOrder.beneficiaryName", recipientConfiguration.getRecipientName());
@@ -107,7 +117,10 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
     params.put("standingOrder.details", description);
     params.put("standingOrder.firstPaymentDate", format(firstPaymentDate));
     params.put("frequency", "K");
-    return "https://www.swedbank.ee/private/d2d/payments2/standing_order/new?"
-        + PaymentUrlEncoder.encode(params);
+    return SWEDBANK_PRIVATE_STANDING_ORDER_URL + PaymentUrlEncoder.encode(params);
+  }
+
+  private static boolean isLegalEntity(String recipientCode) {
+    return !personalCodeValidator.isValid(recipientCode);
   }
 }

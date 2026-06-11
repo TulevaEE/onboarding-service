@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.company;
 
 import static ee.tuleva.onboarding.company.RelationshipType.*;
+import static ee.tuleva.onboarding.kyb.KybCheckPerformedEventOrder.ONBOARD_COMPANY;
 import static ee.tuleva.onboarding.kyb.KybCheckType.DATA_CHANGED;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 
@@ -12,6 +13,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,14 +24,15 @@ public class CompanyOnboardingEventListener {
   private final CompanyRepository companyRepository;
   private final CompanyPartyRepository companyPartyRepository;
 
+  @Order(ONBOARD_COMPANY)
   @EventListener
   @Transactional
   public void onKybCheckPerformed(KybCheckPerformedEvent event) {
+    var company =
+        companyRepository
+            .findByRegistryCode(event.getCompany().registryCode().value())
+            .orElseGet(() -> createCompany(event));
     if (noNonDataChangedCheckFailed(event)) {
-      var company =
-          companyRepository
-              .findByRegistryCode(event.getCompany().registryCode().value())
-              .orElseGet(() -> createCompany(event));
       replaceParties(company, event);
     }
   }

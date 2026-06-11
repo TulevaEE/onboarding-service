@@ -86,7 +86,8 @@ class LegalEntityScreenerTest {
             SELF_CERT,
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            List.of());
     given(kybCompanyDataMapper.toKybCompanyData(detail, PERSONAL_CODE, relationships, SELF_CERT))
         .willReturn(companyData);
     var checks = List.of(new KybCheck(KybCheckType.COMPANY_ACTIVE, true, Map.of()));
@@ -112,7 +113,8 @@ class LegalEntityScreenerTest {
             null,
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            List.of());
     given(kybCompanyDataMapper.toKybCompanyData(detail, PERSONAL_CODE, relationships, null))
         .willReturn(companyData);
     var checks = List.of(new KybCheck(KybCheckType.COMPANY_ACTIVE, true, Map.of()));
@@ -145,7 +147,8 @@ class LegalEntityScreenerTest {
             SELF_CERT,
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+            null,
+            List.of());
     given(
             kybCompanyDataMapper.toKybCompanyData(
                 detail, PERSONAL_CODE, List.of(boardMember), SELF_CERT))
@@ -193,6 +196,7 @@ class LegalEntityScreenerTest {
   }
 
   private static CompanyDetail sampleDetail() {
-    return new CompanyDetail("Test OÜ", REGISTRY_CODE, "R", "OÜ", null, null, null, null);
+    return new CompanyDetail(
+        "Test OÜ", REGISTRY_CODE, "R", "OÜ", null, null, null, null, List.of());
   }
 }

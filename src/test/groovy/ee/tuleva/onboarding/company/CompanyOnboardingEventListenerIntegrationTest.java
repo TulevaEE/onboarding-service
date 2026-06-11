@@ -28,12 +28,15 @@ class CompanyOnboardingEventListenerIntegrationTest {
 
   @Autowired private CompanyRepository companyRepository;
   @Autowired private CompanyPartyRepository companyPartyRepository;
+  @Autowired private CompanyRepresentationRightRepository companyRepresentationRightRepository;
 
   private CompanyOnboardingEventListener listener;
 
   @BeforeEach
   void setUp() {
-    listener = new CompanyOnboardingEventListener(companyRepository, companyPartyRepository);
+    listener =
+        new CompanyOnboardingEventListener(
+            companyRepository, companyPartyRepository, companyRepresentationRightRepository);
   }
 
   @Test
@@ -65,6 +68,7 @@ class CompanyOnboardingEventListenerIntegrationTest {
             new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "62011", LegalForm.OÜ),
             new PersonalCode(PERSONAL_CODE),
             List.of(boardMember),
-            List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of()))));
+            List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())),
+            List.of()));
   }
 }

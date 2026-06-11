@@ -104,6 +104,6 @@ public class AmlKybCheckCompanyAttributionIntegrationTest {
     var company = new CompanyDto(new RegistryCode(registryCode), "Test OÜ", "62011", LegalForm.OÜ);
     var relatedPersons = List.of(boardMemberOwner(personalCode, 100.0).build());
     return new KybCheckPerformedEvent(
-        this, company, new PersonalCode(personalCode), relatedPersons, checks);
+        this, company, new PersonalCode(personalCode), relatedPersons, checks, List.of());
   }
 }

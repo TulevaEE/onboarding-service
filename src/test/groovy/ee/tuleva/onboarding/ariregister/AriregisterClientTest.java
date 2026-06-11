@@ -127,7 +127,7 @@ class AriregisterClientTest {
         .andExpect(xpath("//ar:ariregister_kasutajanimi", NS).evaluatesTo("testuser"))
         .andExpect(xpath("//ar:ariregister_parool", NS).evaluatesTo("testpass"))
         .andExpect(xpath("//ar:yandmed", NS).evaluatesTo("true"))
-        .andExpect(xpath("//ar:iandmed", NS).evaluatesTo("false"))
+        .andExpect(xpath("//ar:iandmed", NS).evaluatesTo("true"))
         .andRespond(withPayload(detailandmedResponsePayload()));
 
     var result = client.getCompanyDetails("99000001");
@@ -144,6 +144,15 @@ class AriregisterClientTest {
                 "Pärnu mnt 123, 11313 Tallinn",
                 new AddressDetails("Pärnu mnt 123", "Tallinn", "11313", "EE")));
     assertThat(detail.getMainActivity()).contains("Fondide valitsemine");
+    assertThat(detail.getRepresentationRights())
+        .containsExactly(
+            new RepresentationRight(
+                "AINUESINDUS",
+                "Juhatuse liige esindab äriühingut ainuisikuliselt",
+                "Tehingute tegemiseks on nõutav nõukogu nõusolek",
+                LocalDate.of(2024, 9, 1),
+                LocalDate.of(2030, 12, 31),
+                12345L));
 
     mockServer.verify();
   }

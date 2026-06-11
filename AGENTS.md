@@ -73,8 +73,6 @@ Scheduled jobs: `SebPendingTransactionReconciliationJob` (daily 09:00 EET, 7-day
 
 NAV cross-check: SEB execution `unit_price` vs `nav_report.market_price` for same ISIN+date, ETF-only, T+0, `1.0%` tolerance. Alerts (unmatched rows, price mismatches, overdue settlements) go through `EmailService.sendSystemEmail` (Mandrill).
 
-See `tmp/transaction-registry/implementation-plan.md` for the full milestone-by-milestone history.
-
 ## Database
 
 ### Migrations

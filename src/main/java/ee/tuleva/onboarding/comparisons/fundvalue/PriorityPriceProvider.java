@@ -19,7 +19,7 @@ public class PriorityPriceProvider {
   private static final int MAX_LOOKBACK_DAYS = 14;
 
   private static final List<String> PROVIDER_PRIORITY =
-      List.of("BLACKROCK", "MORNINGSTAR", "EODHD", "YAHOO");
+      List.of("BLACKROCK", "MORNINGSTAR", "DEUTSCHE_BOERSE", "EURONEXT", "EODHD", "YAHOO");
 
   private final FundValueProvider fundValueProvider;
 
@@ -67,6 +67,8 @@ public class PriorityPriceProvider {
     return List.of(
         FundTicker::getBlackrockStorageKey,
         FundTicker::getMorningstarStorageKey,
+        FundTicker::getXetraStorageKey,
+        FundTicker::getEuronextParisStorageKey,
         ticker -> Optional.of(ticker.getEodhdTicker()),
         ticker -> Optional.of(ticker.getYahooTicker()));
   }

@@ -68,10 +68,12 @@ class PriorityPriceProviderTest {
   @Test
   void resolve_blackrockOlderDate_eodhdCurrentDate_returnsEodhd() {
     FundTicker ticker = FundTicker.findByIsin(ETF_ISIN).orElseThrow();
+    String xetraKey = ticker.getXetraStorageKey().orElseThrow();
     String eodhdTicker = ticker.getEodhdTicker();
     FundValue eodhdValue =
         new FundValue(eodhdTicker, DATE, new BigDecimal("100.00"), "EODHD", null);
 
+    when(fundValueProvider.getLatestValue(xetraKey, DATE)).thenReturn(Optional.empty());
     when(fundValueProvider.getLatestValue(eodhdTicker, DATE)).thenReturn(Optional.of(eodhdValue));
 
     Optional<FundValue> result = provider.resolve(ETF_ISIN, DATE);
@@ -114,9 +116,13 @@ class PriorityPriceProviderTest {
   @Test
   void resolve_allProvidersReturnZero_returnsEmpty() {
     FundTicker ticker = FundTicker.findByIsin(ETF_ISIN).orElseThrow();
+    String xetraKey = ticker.getXetraStorageKey().orElseThrow();
     String eodhdTicker = ticker.getEodhdTicker();
     String yahooTicker = ticker.getYahooTicker();
 
+    when(fundValueProvider.getLatestValue(xetraKey, DATE))
+        .thenReturn(
+            Optional.of(new FundValue(xetraKey, DATE, BigDecimal.ZERO, "DEUTSCHE_BOERSE", null)));
     when(fundValueProvider.getLatestValue(eodhdTicker, DATE))
         .thenReturn(Optional.of(new FundValue(eodhdTicker, DATE, BigDecimal.ZERO, "EODHD", null)));
     when(fundValueProvider.getLatestValue(yahooTicker, DATE))
@@ -130,9 +136,15 @@ class PriorityPriceProviderTest {
   @Test
   void resolve_allPricesOlderThan14Days_returnsEmpty() {
     FundTicker ticker = FundTicker.findByIsin(ETF_ISIN).orElseThrow();
+    String xetraKey = ticker.getXetraStorageKey().orElseThrow();
     String eodhdTicker = ticker.getEodhdTicker();
     String yahooTicker = ticker.getYahooTicker();
 
+    when(fundValueProvider.getLatestValue(xetraKey, DATE))
+        .thenReturn(
+            Optional.of(
+                new FundValue(
+                    xetraKey, STALE_DATE, new BigDecimal("100.00"), "DEUTSCHE_BOERSE", null)));
     when(fundValueProvider.getLatestValue(eodhdTicker, DATE))
         .thenReturn(
             Optional.of(
@@ -157,10 +169,13 @@ class PriorityPriceProviderTest {
   @Test
   void resolve_withUpdatedBeforeCutoff_passesThrough() {
     FundTicker ticker = FundTicker.findByIsin(ETF_ISIN).orElseThrow();
+    String xetraKey = ticker.getXetraStorageKey().orElseThrow();
     String eodhdTicker = ticker.getEodhdTicker();
     FundValue eodhdValue =
         new FundValue(eodhdTicker, DATE, new BigDecimal("100.00"), "EODHD", null);
 
+    when(fundValueProvider.getLatestValue(xetraKey, DATE, UPDATED_BEFORE))
+        .thenReturn(Optional.empty());
     when(fundValueProvider.getLatestValue(eodhdTicker, DATE, UPDATED_BEFORE))
         .thenReturn(Optional.of(eodhdValue));
 
@@ -176,9 +191,11 @@ class PriorityPriceProviderTest {
     assertThat(ticker.getBlackrockStorageKey()).isEmpty();
     assertThat(ticker.getMorningstarStorageKey()).isEmpty();
 
+    String xetraKey = ticker.getXetraStorageKey().orElseThrow();
     String yahooTicker = ticker.getYahooTicker();
     String eodhdTicker = ticker.getEodhdTicker();
 
+    when(fundValueProvider.getLatestValue(xetraKey, DATE)).thenReturn(Optional.empty());
     when(fundValueProvider.getLatestValue(eodhdTicker, DATE)).thenReturn(Optional.empty());
     when(fundValueProvider.getLatestValue(yahooTicker, DATE))
         .thenReturn(
@@ -188,5 +205,50 @@ class PriorityPriceProviderTest {
 
     assertThat(result).isPresent();
     assertThat(result.get().provider()).isEqualTo("YAHOO");
+  }
+
+  @Test
+  void resolve_xetraSameDateAsEodhd_prefersXetra() {
+    FundTicker ticker = FundTicker.findByIsin(ETF_ISIN).orElseThrow();
+    String xetraKey = ticker.getXetraStorageKey().orElseThrow();
+    String eodhdTicker = ticker.getEodhdTicker();
+
+    when(fundValueProvider.getLatestValue(xetraKey, DATE))
+        .thenReturn(
+            Optional.of(
+                new FundValue(xetraKey, DATE, new BigDecimal("100.50"), "DEUTSCHE_BOERSE", null)));
+    when(fundValueProvider.getLatestValue(eodhdTicker, DATE))
+        .thenReturn(
+            Optional.of(new FundValue(eodhdTicker, DATE, new BigDecimal("100.40"), "EODHD", null)));
+
+    Optional<FundValue> result = provider.resolve(ETF_ISIN, DATE);
+
+    assertThat(result).isPresent();
+    assertThat(result.get().provider()).isEqualTo("DEUTSCHE_BOERSE");
+  }
+
+  @Test
+  void resolve_euronextParisForGagh() {
+    String gaghIsin = "LU1708330318";
+    FundTicker ticker = FundTicker.findByIsin(gaghIsin).orElseThrow();
+    assertThat(ticker.getXetraStorageKey()).isEmpty();
+
+    String euronextKey = ticker.getEuronextParisStorageKey().orElseThrow();
+    String eodhdTicker = ticker.getEodhdTicker();
+    String yahooTicker = ticker.getYahooTicker();
+
+    when(fundValueProvider.getLatestValue(euronextKey, DATE))
+        .thenReturn(
+            Optional.of(
+                new FundValue(euronextKey, DATE, new BigDecimal("50.25"), "EURONEXT", null)));
+    when(fundValueProvider.getLatestValue(eodhdTicker, DATE)).thenReturn(Optional.empty());
+    when(fundValueProvider.getLatestValue(yahooTicker, DATE))
+        .thenReturn(
+            Optional.of(new FundValue(yahooTicker, DATE, new BigDecimal("50.20"), "YAHOO", null)));
+
+    Optional<FundValue> result = provider.resolve(gaghIsin, DATE);
+
+    assertThat(result).isPresent();
+    assertThat(result.get().provider()).isEqualTo("EURONEXT");
   }
 }

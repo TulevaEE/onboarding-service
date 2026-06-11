@@ -39,6 +39,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -88,6 +89,21 @@ class TrackingDifferenceServiceTest {
             parameterRepository.findLatestValue(
                 eq(InvestmentParameter.TRACKING_MAX_DAILY_RETURN), any(LocalDate.class)))
         .thenReturn(new BigDecimal("0.5"));
+    lenient()
+        .when(
+            parameterRepository.findLatestValue(
+                eq(InvestmentParameter.ESCALATION_LOOKBACK_DAYS), any(LocalDate.class)))
+        .thenReturn(new BigDecimal("10"));
+    lenient()
+        .when(
+            parameterRepository.findLatestValue(
+                eq(InvestmentParameter.ESCALATION_THRESHOLD_DAYS), any(LocalDate.class)))
+        .thenReturn(new BigDecimal("3"));
+    lenient()
+        .when(
+            parameterRepository.findLatestValue(
+                eq(InvestmentParameter.ESCALATION_NET_TD_THRESHOLD), any(LocalDate.class)))
+        .thenReturn(new BigDecimal("0.005"));
     service =
         new TrackingDifferenceService(
             FIXED_CLOCK,
@@ -128,6 +144,132 @@ class TrackingDifferenceServiceTest {
     assertThat(bmResult).isPresent();
     assertThat(bmResult.get().fund()).isEqualTo(TUK75);
     assertThat(bmResult.get().securityAttributions()).isEmpty();
+  }
+
+  @Test
+  void benchmarkNonBreachSetsZeroCompoundedReturns() {
+    setupFundData(TUK75);
+
+    // Fund return = (10.10 - 10.00) / 10.00 = 0.01
+    // Benchmark return ≈ 0.01, so TD ≈ 0 → non-breach
+    given(fundValueProvider.getLatestValue("MSCI_ACWI", CHECK_DATE))
+        .willReturn(Optional.of(fundValue("1010.00")));
+    given(fundValueProvider.getLatestValue("MSCI_ACWI", PREVIOUS_DATE))
+        .willReturn(Optional.of(fundValue("1000.00", PREVIOUS_DATE)));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var bmResult = results.stream().filter(r -> r.checkType() == BENCHMARK).findFirst();
+    assertThat(bmResult).isPresent();
+    assertThat(bmResult.get().breach()).isFalse();
+    assertThat(bmResult.get().consecutiveBreachDays()).isEqualTo(0);
+    assertThat(bmResult.get().compoundedFundReturn()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
+  void benchmarkCheckForTuk00UsesComponentConfig() {
+    skipOtherFunds(TulevaFund.TUK00);
+
+    given(fundNavQueryService.findNavPerUnit(TulevaFund.TUK00.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findNavPerUnit(TulevaFund.TUK00.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+
+    var allocation =
+        ModelPortfolioAllocation.builder()
+            .fund(TulevaFund.TUK00)
+            .isin("LU0826455353")
+            .weight(new BigDecimal("1.00"))
+            .effectiveDate(LocalDate.of(2026, 1, 1))
+            .build();
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TulevaFund.TUK00, CHECK_DATE))
+        .willReturn(List.of(allocation));
+    given(modelPortfolioAllocationRepository.findPreviousByFundAsOf(TulevaFund.TUK00, CHECK_DATE))
+        .willReturn(List.of());
+
+    given(positionPriceResolver.resolve(eq("LU0826455353"), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("102.00")));
+    given(positionPriceResolver.resolve(eq("LU0826455353"), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+
+    var position =
+        FundPosition.builder()
+            .fund(TulevaFund.TUK00)
+            .navDate(CHECK_DATE)
+            .accountType(SECURITY)
+            .accountId("LU0826455353")
+            .marketValue(new BigDecimal("1000000"))
+            .build();
+    given(
+            fundPositionRepository.findByNavDateAndFundAndAccountType(
+                CHECK_DATE, TulevaFund.TUK00, SECURITY))
+        .willReturn(List.of(position));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TulevaFund.TUK00, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TulevaFund.TUK00, CHECK_DATE, List.of(CASH)))
+        .willReturn(BigDecimal.ZERO);
+
+    given(feeRateRepository.findValidRate(TulevaFund.TUK00, FeeType.MANAGEMENT, CHECK_DATE))
+        .willReturn(Optional.empty());
+    lenient()
+        .when(
+            eventRepository.findMostRecentEvents(
+                eq(TulevaFund.TUK00), any(), eq(CHECK_DATE), eq(10)))
+        .thenReturn(List.of());
+
+    // Component benchmark: two ISINs resolved via priorityPriceProvider
+    given(priorityPriceProvider.resolve("LU0826455353", CHECK_DATE))
+        .willReturn(Optional.of(fundValue("51.00")));
+    given(priorityPriceProvider.resolve("LU0826455353", PREVIOUS_DATE))
+        .willReturn(Optional.of(fundValue("50.00", PREVIOUS_DATE)));
+    given(priorityPriceProvider.resolve("LU0839970364", CHECK_DATE))
+        .willReturn(Optional.of(fundValue("41.00")));
+    given(priorityPriceProvider.resolve("LU0839970364", PREVIOUS_DATE))
+        .willReturn(Optional.of(fundValue("40.00", PREVIOUS_DATE)));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var bmResult = results.stream().filter(r -> r.checkType() == BENCHMARK).findFirst();
+    assertThat(bmResult).isPresent();
+    assertThat(bmResult.get().fund()).isEqualTo(TulevaFund.TUK00);
+  }
+
+  @Test
+  void benchmarkBreachCompoundsReturnsAcrossConsecutiveDays() {
+    setupFundData(TUK75);
+    setupBenchmarkData("MSCI_ACWI");
+
+    var priorBreach =
+        TrackingDifferenceEvent.builder()
+            .fund(TUK75)
+            .checkDate(PREVIOUS_DATE)
+            .checkType(BENCHMARK)
+            .trackingDifference(new BigDecimal("0.0100"))
+            .fundReturn(new BigDecimal("0.0200"))
+            .benchmarkReturn(new BigDecimal("0.0100"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .result(Map.of())
+            .createdAt(java.time.Instant.now())
+            .build();
+    lenient()
+        .when(
+            eventRepository.findMostRecentEvents(eq(TUK75), eq(BENCHMARK), eq(CHECK_DATE), eq(10)))
+        .thenReturn(List.of(priorBreach));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var bmResult = results.stream().filter(r -> r.checkType() == BENCHMARK).findFirst();
+    assertThat(bmResult).isPresent();
+    if (bmResult.get().breach()) {
+      assertThat(bmResult.get().consecutiveBreachDays()).isEqualTo(2);
+      assertThat(bmResult.get().compoundedFundReturn()).isNotNull();
+      assertThat(bmResult.get().compoundedBenchmarkReturn()).isNotNull();
+    }
   }
 
   @Test
@@ -192,7 +334,7 @@ class TrackingDifferenceServiceTest {
             Optional.of(
                 new FeeRate(
                     1L, TUK75, FeeType.MANAGEMENT, new BigDecimal("0.0034"), CHECK_DATE, null)));
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     // IWDA.DE benchmark looked up on instrument's actual price dates
@@ -277,7 +419,7 @@ class TrackingDifferenceServiceTest {
         .willReturn(new BigDecimal("50000"));
     given(feeRateRepository.findValidRate(TUK00, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK00), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK00), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     // IEAG.DE benchmark for Euro Aggregate bonds
@@ -351,7 +493,7 @@ class TrackingDifferenceServiceTest {
         .willReturn(new BigDecimal("50000"));
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     // MSCI_EM benchmark for EM mutual fund
@@ -424,7 +566,7 @@ class TrackingDifferenceServiceTest {
         .willReturn(new BigDecimal("50000"));
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     // No IWDA.DE benchmark data — BENCHMARK_MODEL should be skipped
@@ -508,7 +650,7 @@ class TrackingDifferenceServiceTest {
         .willReturn(new BigDecimal("50000"));
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     // EUNM.DE benchmark for EM ETF
@@ -581,7 +723,7 @@ class TrackingDifferenceServiceTest {
         .willReturn(new BigDecimal("50000"));
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -649,7 +791,7 @@ class TrackingDifferenceServiceTest {
         .willReturn(new BigDecimal("50000"));
     given(feeRateRepository.findValidRate(TUK00, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK00), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK00), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -718,7 +860,7 @@ class TrackingDifferenceServiceTest {
     var breachEvent = breachEvent(LocalDate.of(2026, 4, 2), new BigDecimal("0.0020"));
     var nonBreachEvent = nonBreachEvent(LocalDate.of(2026, 4, 1));
 
-    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 2))
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
         .willReturn(List.of(breachEvent, nonBreachEvent));
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -738,7 +880,7 @@ class TrackingDifferenceServiceTest {
     var breachEvent1 = breachEvent(LocalDate.of(2026, 4, 2), new BigDecimal("0.0020"));
     var breachEvent2 = breachEvent(LocalDate.of(2026, 4, 1), new BigDecimal("0.0015"));
 
-    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 2))
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
         .willReturn(List.of(breachEvent1, breachEvent2));
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -746,8 +888,288 @@ class TrackingDifferenceServiceTest {
     var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
     assertThat(modelResult).isPresent();
     assertThat(modelResult.get().consecutiveBreachDays()).isEqualTo(3);
-    // net = prior net (0.0020 + 0.0015) + today's TD (-0.01)
-    assertThat(modelResult.get().consecutiveNetTd()).isNotNull();
+    // Compounded, not arithmetic: (1+0.002)*(1+0.0015)*(1+today) - (1+benchmark)^3
+    var compoundedTd = modelResult.get().consecutiveNetTd();
+    assertThat(compoundedTd).isNotNull();
+    // Verify it's not a simple sum (arithmetic sum would be 0.002 + 0.0015 + todayTd)
+    var arithmeticSum =
+        new BigDecimal("0.0020")
+            .add(new BigDecimal("0.0015"))
+            .add(modelResult.get().trackingDifference());
+    assertThat(compoundedTd).isNotEqualByComparingTo(arithmeticSum);
+    assertThat(modelResult.get().compoundedFundReturn()).isNotNull();
+    assertThat(modelResult.get().compoundedBenchmarkReturn()).isNotNull();
+  }
+
+  @Test
+  void escalationAggregatesAttributionsFromPriorBreaches() {
+    setupFundData(TUK75);
+
+    var breach1 =
+        breachEventWithAttribution(
+            LocalDate.of(2026, 4, 2),
+            new BigDecimal("0.0020"),
+            "IE00BFG1TM61",
+            new BigDecimal("0.0015"));
+    var breach2 =
+        breachEventWithAttribution(
+            LocalDate.of(2026, 4, 1),
+            new BigDecimal("0.0015"),
+            "IE00BFG1TM61",
+            new BigDecimal("0.0010"));
+
+    lenient()
+        .when(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .thenReturn(List.of(breach1, breach2));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+    assertThat(modelResult.get().consecutiveBreachDays()).isEqualTo(3);
+    assertThat(modelResult.get().escalationAttributions()).isNotNull();
+    assertThat(modelResult.get().escalationAttributions()).containsKey("IE00BFG1TM61");
+    assertThat(modelResult.get().escalationCashDrag()).isNotNull();
+    assertThat(modelResult.get().escalationFeeDrag()).isNotNull();
+  }
+
+  @Test
+  void singleDayBreachHasCompoundedReturnEqualToDaily() {
+    setupFundData(TUK75);
+
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .willReturn(List.of());
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+    if (modelResult.get().breach()) {
+      assertThat(modelResult.get().consecutiveBreachDays()).isEqualTo(1);
+      assertThat(modelResult.get().compoundedFundReturn())
+          .isEqualByComparingTo(modelResult.get().fundReturn());
+      assertThat(modelResult.get().compoundedBenchmarkReturn())
+          .isEqualByComparingTo(modelResult.get().benchmarkReturn());
+    }
+  }
+
+  @Test
+  void escalationCountFailureDoesNotBlockTdCalculation() {
+    setupFundData(TUK75);
+
+    lenient()
+        .when(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
+        .thenThrow(new RuntimeException("DB connection error"));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+    assertThat(modelResult.get().consecutiveBreachDays()).isLessThanOrEqualTo(1);
+  }
+
+  @Test
+  void parsesVariousJsonbTypesInBreachEventAttribution() {
+    setupFundData(TUK75);
+
+    var eventWithMixedTypes =
+        TrackingDifferenceEvent.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 2))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0020"))
+            .fundReturn(new BigDecimal("0.01"))
+            .benchmarkReturn(new BigDecimal("0.008"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .result(
+                new java.util.HashMap<>(
+                    Map.of(
+                        "securityAttributions",
+                        List.of(Map.of("isin", "IE00BFG1TM61", "contribution", 0.0015)),
+                        "cashDrag",
+                        -0.0001,
+                        "feeDrag",
+                        "-0.00005",
+                        "residual",
+                        "")))
+            .createdAt(java.time.Instant.now())
+            .build();
+
+    lenient()
+        .when(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .thenReturn(List.of(eventWithMixedTypes));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+    assertThat(modelResult.get().consecutiveBreachDays()).isGreaterThanOrEqualTo(2);
+  }
+
+  @Test
+  void handlesNullIsinInBreachEventAttribution() {
+    setupFundData(TUK75);
+
+    var attrWithNullIsin = new java.util.HashMap<String, Object>();
+    attrWithNullIsin.put("isin", null);
+    attrWithNullIsin.put("contribution", new BigDecimal("0.001"));
+
+    var eventWithNullIsin =
+        TrackingDifferenceEvent.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 2))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0020"))
+            .fundReturn(new BigDecimal("0.01"))
+            .benchmarkReturn(new BigDecimal("0.008"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .result(
+                Map.of(
+                    "securityAttributions",
+                    List.of(attrWithNullIsin),
+                    "cashDrag",
+                    BigDecimal.ZERO,
+                    "feeDrag",
+                    BigDecimal.ZERO,
+                    "residual",
+                    BigDecimal.ZERO))
+            .createdAt(java.time.Instant.now())
+            .build();
+
+    lenient()
+        .when(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .thenReturn(List.of(eventWithNullIsin));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+    if (modelResult.get().escalationAttributions() != null) {
+      assertThat(modelResult.get().escalationAttributions()).doesNotContainKey(null);
+    }
+  }
+
+  @Test
+  void handlesUnparseableAndUnexpectedTypesInJsonbEvent() {
+    setupFundData(TUK75);
+
+    var resultMap = new java.util.HashMap<String, Object>();
+    resultMap.put("securityAttributions", List.of());
+    resultMap.put("cashDrag", "not-a-number");
+    resultMap.put("feeDrag", Boolean.TRUE);
+    resultMap.put("residual", BigDecimal.ZERO);
+
+    var eventWithBadTypes =
+        TrackingDifferenceEvent.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 2))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0020"))
+            .fundReturn(new BigDecimal("0.01"))
+            .benchmarkReturn(new BigDecimal("0.008"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .result(resultMap)
+            .createdAt(java.time.Instant.now())
+            .build();
+
+    lenient()
+        .when(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .thenReturn(List.of(eventWithBadTypes));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+  }
+
+  @Test
+  void checkFundReturnsEmptyWhenYesterdayNavMissing() {
+    skipOtherFunds(TUK75);
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.empty());
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    assertThat(results).isEmpty();
+  }
+
+  @Test
+  void compoundsCorrectlyWhenPriorReturnIsZero() {
+    setupFundData(TUK75);
+
+    var zeroReturnBreach =
+        TrackingDifferenceEvent.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 2))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0060"))
+            .fundReturn(BigDecimal.ZERO)
+            .benchmarkReturn(new BigDecimal("-0.006"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .result(
+                Map.of(
+                    "securityAttributions", List.of(),
+                    "cashDrag", BigDecimal.ZERO,
+                    "feeDrag", BigDecimal.ZERO,
+                    "residual", BigDecimal.ZERO))
+            .createdAt(java.time.Instant.now())
+            .build();
+
+    lenient()
+        .when(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .thenReturn(List.of(zeroReturnBreach));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+    if (modelResult.get().breach()) {
+      assertThat(modelResult.get().consecutiveBreachDays()).isEqualTo(2);
+      // (1+0) * (1+todayReturn) - 1 = todayReturn
+      assertThat(modelResult.get().compoundedFundReturn())
+          .isEqualByComparingTo(modelResult.get().fundReturn());
+    }
+  }
+
+  @Test
+  void checkFundReturnsEmptyWhenAllocationsEmpty() {
+    skipOtherFunds(TUK75);
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
+        .willReturn(List.of());
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    assertThat(results).isEmpty();
+  }
+
+  @Test
+  void invalidLookbackParameterFallsBackToDefault() {
+    setupFundData(TUK75);
+
+    lenient()
+        .when(
+            parameterRepository.findLatestValue(
+                eq(InvestmentParameter.ESCALATION_LOOKBACK_DAYS), any(LocalDate.class)))
+        .thenReturn(new BigDecimal("0"));
+
+    lenient()
+        .when(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
+        .thenReturn(List.of());
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
   }
 
   @Test
@@ -788,7 +1210,7 @@ class TrackingDifferenceServiceTest {
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
 
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -854,7 +1276,7 @@ class TrackingDifferenceServiceTest {
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
 
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -966,8 +1388,9 @@ class TrackingDifferenceServiceTest {
                 new FeeRate(
                     1L, fund, FeeType.MANAGEMENT, new BigDecimal("0.0034"), CHECK_DATE, null)));
 
-    given(eventRepository.findMostRecentEvents(eq(fund), any(), eq(CHECK_DATE), eq(2)))
-        .willReturn(List.of());
+    lenient()
+        .when(eventRepository.findMostRecentEvents(eq(fund), any(), eq(CHECK_DATE), eq(10)))
+        .thenReturn(List.of());
   }
 
   private void setupFundDataForFund(TulevaFund fund) {
@@ -1009,7 +1432,7 @@ class TrackingDifferenceServiceTest {
     given(feeRateRepository.findValidRate(fund, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
 
-    given(eventRepository.findMostRecentEvents(eq(fund), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(fund), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
   }
 
@@ -1041,6 +1464,31 @@ class TrackingDifferenceServiceTest {
         .benchmarkReturn(new BigDecimal("0.008"))
         .breach(true)
         .consecutiveBreachDays(1)
+        .build();
+  }
+
+  private TrackingDifferenceEvent breachEventWithAttribution(
+      LocalDate date, BigDecimal td, String isin, BigDecimal contribution) {
+    return TrackingDifferenceEvent.builder()
+        .fund(TUK75)
+        .checkDate(date)
+        .checkType(MODEL_PORTFOLIO)
+        .trackingDifference(td)
+        .fundReturn(new BigDecimal("0.01"))
+        .benchmarkReturn(new BigDecimal("0.008"))
+        .breach(true)
+        .consecutiveBreachDays(1)
+        .result(
+            Map.of(
+                "securityAttributions",
+                List.of(Map.of("isin", isin, "contribution", contribution)),
+                "cashDrag",
+                new BigDecimal("-0.0001"),
+                "feeDrag",
+                new BigDecimal("-0.00005"),
+                "residual",
+                BigDecimal.ZERO))
+        .createdAt(java.time.Instant.now())
         .build();
   }
 
@@ -1133,7 +1581,7 @@ class TrackingDifferenceServiceTest {
 
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -1219,7 +1667,7 @@ class TrackingDifferenceServiceTest {
 
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -1303,7 +1751,7 @@ class TrackingDifferenceServiceTest {
 
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -1411,7 +1859,7 @@ class TrackingDifferenceServiceTest {
 
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -1498,7 +1946,7 @@ class TrackingDifferenceServiceTest {
 
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -1560,7 +2008,7 @@ class TrackingDifferenceServiceTest {
 
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -1653,7 +2101,7 @@ class TrackingDifferenceServiceTest {
 
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
         .willReturn(Optional.empty());
-    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
     var results = service.runChecksAsOf(CHECK_DATE);

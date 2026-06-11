@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import lombok.Builder;
 
 @Builder(toBuilder = true)
@@ -17,6 +18,12 @@ record TrackingDifferenceResult(
     boolean breach,
     int consecutiveBreachDays,
     BigDecimal consecutiveNetTd,
+    BigDecimal compoundedFundReturn,
+    BigDecimal compoundedBenchmarkReturn,
+    Map<String, BigDecimal> escalationAttributions,
+    BigDecimal escalationCashDrag,
+    BigDecimal escalationFeeDrag,
+    BigDecimal escalationResidual,
     List<SecurityAttribution> securityAttributions,
     BigDecimal cashDrag,
     BigDecimal feeDrag,

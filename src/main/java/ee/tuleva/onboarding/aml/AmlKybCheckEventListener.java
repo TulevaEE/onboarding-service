@@ -30,6 +30,7 @@ public class AmlKybCheckEventListener {
           entry(
               KybCheckType.SOLE_BOARD_MEMBER_IS_OWNER, AmlCheckType.KYB_SOLE_BOARD_MEMBER_IS_OWNER),
           entry(KybCheckType.COMPANY_ACTIVE, AmlCheckType.KYB_COMPANY_ACTIVE),
+          entry(KybCheckType.COMPANY_AGE, AmlCheckType.KYB_COMPANY_AGE),
           entry(KybCheckType.RELATED_PERSONS_KYC, AmlCheckType.KYB_RELATED_PERSONS_KYC),
           entry(KybCheckType.COMPANY_SANCTION, AmlCheckType.KYB_COMPANY_SANCTION),
           entry(KybCheckType.COMPANY_PEP, AmlCheckType.KYB_COMPANY_PEP),

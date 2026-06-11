@@ -389,6 +389,20 @@ class KybSurveyServiceTest {
   }
 
   @Test
+  void initialValidation_doesNotPublishAuditEventWhenOnlyRiskSignalCheckFails() {
+    stubInitialValidation(
+        sampleRelationships(),
+        sampleDetail(),
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(COMPANY_AGE, false, Map.of("foundingDate", "2026-03-01"))));
+
+    service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
+
+    verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  @Test
   void initialValidation_publishesAuditEventWhenNotBoardMember() {
     var relationships =
         List.of(

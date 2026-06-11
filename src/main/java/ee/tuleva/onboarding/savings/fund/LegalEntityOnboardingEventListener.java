@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.kyb.KybCheckType.DATA_CHANGED;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
@@ -29,7 +28,7 @@ class LegalEntityOnboardingEventListener {
     var personalCode = event.getPersonalCode().value();
     var oldStatus =
         savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY).orElse(null);
-    var newStatus = allChecksPassed(event) ? COMPLETED : REJECTED;
+    var newStatus = allGateChecksPassed(event) ? COMPLETED : REJECTED;
 
     if (newStatus == oldStatus) {
       return;
@@ -53,15 +52,15 @@ class LegalEntityOnboardingEventListener {
     }
   }
 
-  private boolean allChecksPassed(KybCheckPerformedEvent event) {
+  private boolean allGateChecksPassed(KybCheckPerformedEvent event) {
     return event.getChecks().stream()
-        .filter(check -> check.type() != DATA_CHANGED)
+        .filter(check -> check.type().isOnboardingGate())
         .allMatch(KybCheck::success);
   }
 
   private static String formatFailedChecks(List<KybCheck> checks) {
     return checks.stream()
-        .filter(check -> check.type() != DATA_CHANGED && !check.success())
+        .filter(check -> check.type().isOnboardingGate() && !check.success())
         .map(check -> check.type().name())
         .collect(joining(","));
   }

@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.company;
 
 import static ee.tuleva.onboarding.company.RelationshipType.*;
 import static ee.tuleva.onboarding.kyb.KybCheckPerformedEventOrder.ONBOARD_COMPANY;
-import static ee.tuleva.onboarding.kyb.KybCheckType.DATA_CHANGED;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 
 import ee.tuleva.onboarding.kyb.KybCheck;
@@ -32,7 +31,7 @@ public class CompanyOnboardingEventListener {
         companyRepository
             .findByRegistryCode(event.getCompany().registryCode().value())
             .orElseGet(() -> createCompany(event));
-    if (noNonDataChangedCheckFailed(event)) {
+    if (allGateChecksPassed(event)) {
       replaceParties(company, event);
     }
   }
@@ -68,9 +67,9 @@ public class CompanyOnboardingEventListener {
         .build();
   }
 
-  private boolean noNonDataChangedCheckFailed(KybCheckPerformedEvent event) {
+  private boolean allGateChecksPassed(KybCheckPerformedEvent event) {
     return event.getChecks().stream()
-        .filter(check -> check.type() != DATA_CHANGED)
+        .filter(check -> check.type().isOnboardingGate())
         .allMatch(KybCheck::success);
   }
 

@@ -36,7 +36,8 @@ class SoleBoardMemberIsOwnerScreenerTest {
             List.of(boardMember, otherPerson),
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var result = screener.screen(data);
 
@@ -61,7 +62,8 @@ class SoleBoardMemberIsOwnerScreenerTest {
             List.of(boardMember, owner),
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var result = screener.screen(data);
 
@@ -86,7 +88,8 @@ class SoleBoardMemberIsOwnerScreenerTest {
             List.of(boardMember, otherPerson),
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var result = screener.screen(data);
 
@@ -111,7 +114,8 @@ class SoleBoardMemberIsOwnerScreenerTest {
             List.of(person1, person2),
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var result = screener.screen(data);
 
@@ -131,7 +135,8 @@ class SoleBoardMemberIsOwnerScreenerTest {
             List.of(person),
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var result = screener.screen(data);
 

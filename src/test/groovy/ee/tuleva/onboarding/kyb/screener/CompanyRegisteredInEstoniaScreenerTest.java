@@ -75,6 +75,7 @@ class CompanyRegisteredInEstoniaScreenerTest {
         List.of(person),
         new SelfCertification(true, true, true),
         countryCode,
-        fullAddress);
+        fullAddress,
+        null);
   }
 }

@@ -265,7 +265,7 @@ class KybSurveyService {
 
   private void auditValidationFailures(
       String registryCode, String personalCode, List<KybCheck> checks) {
-    if (checks.stream().allMatch(c -> c.type() == DATA_CHANGED || c.success())) {
+    if (checks.stream().allMatch(c -> !c.type().isOnboardingGate() || c.success())) {
       return;
     }
 
@@ -274,7 +274,7 @@ class KybSurveyService {
         registryCode,
         personalCode,
         checks.stream()
-            .filter(c -> c.type() != DATA_CHANGED && !c.success())
+            .filter(c -> c.type().isOnboardingGate() && !c.success())
             .map(c -> c.type().name())
             .collect(joining(",")));
 

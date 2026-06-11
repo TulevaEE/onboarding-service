@@ -70,7 +70,8 @@ class LegalEntityScreenerTest {
             List.of(),
             SELF_CERT,
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
     given(kybCompanyDataMapper.toKybCompanyData(detail, PERSONAL_CODE, relationships, SELF_CERT))
         .willReturn(companyData);
     var checks = List.of(new KybCheck(KybCheckType.COMPANY_ACTIVE, true, Map.of()));
@@ -95,7 +96,8 @@ class LegalEntityScreenerTest {
             List.of(),
             null,
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
     given(kybCompanyDataMapper.toKybCompanyData(detail, PERSONAL_CODE, relationships, null))
         .willReturn(companyData);
     var checks = List.of(new KybCheck(KybCheckType.COMPANY_ACTIVE, true, Map.of()));
@@ -127,7 +129,8 @@ class LegalEntityScreenerTest {
             List.of(),
             SELF_CERT,
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
     given(
             kybCompanyDataMapper.toKybCompanyData(
                 detail, PERSONAL_CODE, List.of(boardMember), SELF_CERT))

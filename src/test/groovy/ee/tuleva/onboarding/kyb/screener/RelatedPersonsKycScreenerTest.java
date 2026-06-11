@@ -51,7 +51,8 @@ class RelatedPersonsKycScreenerTest {
             persons,
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var result = screener.screen(data);
 
@@ -87,7 +88,8 @@ class RelatedPersonsKycScreenerTest {
             List.of(completed, rejected),
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var result = screener.screen(data);
 
@@ -117,7 +119,8 @@ class RelatedPersonsKycScreenerTest {
             List.of(withCode, withoutCode),
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var result = screener.screen(data);
 
@@ -142,7 +145,8 @@ class RelatedPersonsKycScreenerTest {
             List.of(person),
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var result = screener.screen(data);
 

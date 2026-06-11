@@ -66,7 +66,8 @@ class SelfCertificationScreenerTest {
             List.of(person),
             null,
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var results = screener.screen(data);
 
@@ -100,6 +101,7 @@ class SelfCertificationScreenerTest {
         List.of(person),
         cert,
         "EE",
-        "Harju maakond, Tallinn, Pärnu mnt 1");
+        "Harju maakond, Tallinn, Pärnu mnt 1",
+        null);
   }
 }

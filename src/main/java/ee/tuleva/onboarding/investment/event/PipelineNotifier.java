@@ -151,6 +151,7 @@ public class PipelineNotifier {
           "NavCalculationJob";
       case PipelineStep.LIMIT_CHECK -> "LimitCheckJob";
       case PipelineStep.HEALTH_CHECK -> "FundPositionImportJob";
+      case PipelineStep.EXECUTION_MATCHING -> "SebPendingTransactionReconciliationJob";
       case PipelineStep.TRACKING_DIFFERENCE -> "TrackingDifferenceJob";
       default -> stepName;
     };

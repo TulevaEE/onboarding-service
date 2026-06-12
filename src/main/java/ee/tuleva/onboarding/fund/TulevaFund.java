@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
@@ -126,5 +127,13 @@ public enum TulevaFund {
         .filter(fund -> fund.code.equals(code))
         .findFirst()
         .orElseThrow(() -> new IllegalArgumentException("Unknown fund code: " + code));
+  }
+
+  public static Optional<TulevaFund> findByIsin(String isin) {
+    return Arrays.stream(values()).filter(fund -> fund.isin.equals(isin)).findFirst();
+  }
+
+  public static Optional<TulevaFund> findByDisplayName(String name) {
+    return Arrays.stream(values()).filter(fund -> fund.displayName.equals(name)).findFirst();
   }
 }

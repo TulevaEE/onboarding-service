@@ -49,6 +49,8 @@ public class TransactionExecution {
 
   private BigDecimal totalConsideration;
 
+  private BigDecimal settlementAmount;
+
   private BigDecimal commissionAmount;
 
   private BigDecimal settlementFeeAmount;

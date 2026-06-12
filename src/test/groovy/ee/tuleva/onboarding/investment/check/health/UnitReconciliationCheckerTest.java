@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.UNIT_RECONCILIATION;
 import static ee.tuleva.onboarding.investment.position.AccountType.UNITS;
@@ -54,7 +53,7 @@ class UnitReconciliationCheckerTest {
   }
 
   @Test
-  void failWhenDifferenceExceedsFailThreshold() {
+  void warnsEvenWhenDifferenceExceedsOldFailThreshold() {
     var positions = List.of(unitsPosition(TKF100, new BigDecimal("100000.00000")));
     var authoritative = new BigDecimal("100005.00000");
     var threshold = threshold(TKF100, "0.02", "0.5");
@@ -66,7 +65,7 @@ class UnitReconciliationCheckerTest {
         .satisfies(
             f -> {
               assertThat(f.checkType()).isEqualTo(UNIT_RECONCILIATION);
-              assertThat(f.severity()).isEqualTo(FAIL);
+              assertThat(f.severity()).isEqualTo(WARNING);
             });
   }
 
@@ -78,7 +77,9 @@ class UnitReconciliationCheckerTest {
 
     var findings = checker.check(TKF100, NAV_DATE, positions, authoritative, threshold);
 
-    assertThat(findings).singleElement().satisfies(f -> assertThat(f.severity()).isEqualTo(FAIL));
+    assertThat(findings)
+        .singleElement()
+        .satisfies(f -> assertThat(f.severity()).isEqualTo(WARNING));
   }
 
   @Test

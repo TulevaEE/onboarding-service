@@ -57,7 +57,7 @@ public class TransactionOrder {
 
   private BigDecimal orderAmount;
 
-  private Long orderQuantity;
+  private BigDecimal orderQuantity;
 
   @NotNull
   @Enumerated(STRING)
@@ -77,6 +77,8 @@ public class TransactionOrder {
   private Instant orderTimestamp;
 
   private LocalDate expectedSettlementDate;
+
+  private String comment;
 
   private Instant createdAt;
 

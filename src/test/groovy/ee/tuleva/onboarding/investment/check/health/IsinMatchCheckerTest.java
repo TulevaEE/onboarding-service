@@ -66,21 +66,36 @@ class IsinMatchCheckerTest {
   }
 
   @Test
-  void failsWhenQuantityIsNull() {
+  void warnsWhenQuantityIsNull() {
     var positions = List.of(securityPosition("IE00BFG1TM61", null));
     var allocations = List.of(allocation("IE00BFG1TM61"));
 
     var findings = checker.check(TUK75, positions, allocations, List.of());
 
-    assertThat(findings).singleElement().satisfies(f -> assertThat(f.severity()).isEqualTo(FAIL));
+    assertThat(findings)
+        .singleElement()
+        .satisfies(f -> assertThat(f.severity()).isEqualTo(WARNING));
   }
 
   @Test
-  void failsWhenQuantityIsZero() {
+  void warnsWhenQuantityIsZero() {
     var positions = List.of(securityPosition("IE00BFG1TM61", BigDecimal.ZERO));
     var allocations = List.of(allocation("IE00BFG1TM61"));
 
     var findings = checker.check(TUK75, positions, allocations, List.of());
+
+    assertThat(findings)
+        .singleElement()
+        .satisfies(f -> assertThat(f.severity()).isEqualTo(WARNING));
+  }
+
+  @Test
+  void failsWhenPreviouslyHeldPositionDropsToZero() {
+    var positions = List.of(securityPosition("IE00BFG1TM61", BigDecimal.ZERO));
+    var allocations = List.of(allocation("IE00BFG1TM61"));
+    var previousAllocations = List.of(allocation("IE00BFG1TM61"));
+
+    var findings = checker.check(TUK75, positions, allocations, previousAllocations);
 
     assertThat(findings).singleElement().satisfies(f -> assertThat(f.severity()).isEqualTo(FAIL));
   }

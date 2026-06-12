@@ -62,7 +62,7 @@ class SebPendingTransactionComplexMatchIT {
                 .instrumentIsin(ETF_ISIN)
                 .transactionType(BUY)
                 .instrumentType(ETF)
-                .orderQuantity(13288L)
+                .orderQuantity(new BigDecimal("13288"))
                 .orderVenue(OrderVenue.SEB)
                 .orderUuid(UUID.randomUUID())
                 .orderStatus(SENT)

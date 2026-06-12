@@ -140,6 +140,44 @@ class ModelPortfolioAllocationRepositoryTest {
   }
 
   @Test
+  void findFirstByIsin_returnsLatestAllocationWithProvider() {
+    entityManager.persist(
+        ModelPortfolioAllocation.builder()
+            .effectiveDate(LocalDate.of(2025, 3, 1))
+            .fund(TUK75)
+            .isin("IE00BJZ2DC62")
+            .weight(new BigDecimal("0.30"))
+            .provider(ISHARES)
+            .build());
+    entityManager.persist(
+        ModelPortfolioAllocation.builder()
+            .effectiveDate(LocalDate.of(2025, 12, 1))
+            .fund(TUK75)
+            .isin("IE00BJZ2DC62")
+            .weight(new BigDecimal("0.174"))
+            .provider(XTRACKERS)
+            .build());
+    entityManager.persist(
+        ModelPortfolioAllocation.builder()
+            .effectiveDate(LocalDate.of(2026, 3, 1))
+            .fund(TUK75)
+            .isin("IE00BJZ2DC62")
+            .weight(new BigDecimal("0.20"))
+            .build());
+    entityManager.flush();
+
+    var latestWithProvider =
+        repository.findFirstByIsinAndProviderIsNotNullOrderByEffectiveDateDesc("IE00BJZ2DC62");
+    var unknownIsin =
+        repository.findFirstByIsinAndProviderIsNotNullOrderByEffectiveDateDesc("XX0000000000");
+
+    assertThat(latestWithProvider.orElseThrow().getProvider()).isEqualTo(XTRACKERS);
+    assertThat(latestWithProvider.orElseThrow().getEffectiveDate())
+        .isEqualTo(LocalDate.of(2025, 12, 1));
+    assertThat(unknownIsin).isEmpty();
+  }
+
+  @Test
   void findPreviousByFundAsOf_returnsSecondToLatestAsOf() {
     var oldestDate = LocalDate.of(2025, 3, 1);
     var middleDate = LocalDate.of(2025, 6, 30);

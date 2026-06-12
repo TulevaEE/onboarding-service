@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.investment.transaction.TradeCalculation;
 import ee.tuleva.onboarding.investment.transaction.TransactionMode;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -61,7 +62,123 @@ public class TradeCalculationEngine {
       scores = fallbackBuyScores(input.positions(), weightMap, netInvestable);
     }
 
-    return distributeAmountWithThreshold(scores, input.freeCash(), input.minTransactionThreshold());
+    List<BigDecimal> effectiveScores = excludeScoresWithoutHeadroom(input, scores);
+
+    List<BigDecimal> allocations =
+        distributeAmountWithThreshold(
+            effectiveScores, input.freeCash(), input.minTransactionThreshold());
+
+    return redistributeHardLimitExcess(input, effectiveScores, allocations);
+  }
+
+  private List<BigDecimal> redistributeHardLimitExcess(
+      FundTransactionInput input, List<BigDecimal> scores, List<BigDecimal> allocations) {
+    int size = allocations.size();
+    BigDecimal threshold = input.minTransactionThreshold();
+    BigDecimal[] capped = new BigDecimal[size];
+    BigDecimal totalExcess = ZERO;
+
+    for (int i = 0; i < size; i++) {
+      BigDecimal headroom = hardLimitHeadroom(input, input.positions().get(i));
+      if (headroom != null && allocations.get(i).compareTo(headroom) > 0) {
+        totalExcess = totalExcess.add(allocations.get(i).subtract(headroom));
+        capped[i] = headroom.setScale(SCALE, HALF_UP);
+      } else {
+        capped[i] = allocations.get(i);
+      }
+    }
+
+    if (totalExcess.compareTo(new BigDecimal("0.01")) <= 0) {
+      return List.of(capped);
+    }
+
+    List<BigDecimal> runnerScores = new ArrayList<>();
+    for (int i = 0; i < size; i++) {
+      BigDecimal headroom = hardLimitHeadroom(input, input.positions().get(i));
+      BigDecimal remaining = headroom == null ? null : headroom.subtract(capped[i]).max(ZERO);
+      boolean eligible =
+          scores.get(i).compareTo(ZERO) > 0
+              && (remaining == null || remaining.compareTo(threshold) >= 0);
+      runnerScores.add(eligible ? scores.get(i) : ZERO);
+    }
+
+    List<BigDecimal> subAllocations =
+        distributeAmountWithThreshold(runnerScores, totalExcess, threshold);
+    BigDecimal subTotal = subAllocations.stream().reduce(ZERO, BigDecimal::add);
+
+    if (subTotal.compareTo(new BigDecimal("0.01")) > 0) {
+      for (int i = 0; i < size; i++) {
+        capped[i] = capped[i].add(subAllocations.get(i));
+      }
+      return List.of(capped);
+    }
+
+    if (input.freeCash().compareTo(threshold) >= 0) {
+      topUpBestRunnerToThreshold(capped, runnerScores, totalExcess, threshold);
+    }
+    return List.of(capped);
+  }
+
+  private void topUpBestRunnerToThreshold(
+      BigDecimal[] capped, List<BigDecimal> runnerScores, BigDecimal excess, BigDecimal threshold) {
+    int runnerIndex = -1;
+    BigDecimal runnerScore = ZERO;
+    for (int i = 0; i < runnerScores.size(); i++) {
+      if (runnerScores.get(i).compareTo(runnerScore) > 0) {
+        runnerScore = runnerScores.get(i);
+        runnerIndex = i;
+      }
+    }
+    if (runnerIndex < 0) {
+      return;
+    }
+
+    BigDecimal totalForRunner = capped[runnerIndex].add(excess);
+    if (totalForRunner.compareTo(threshold) >= 0) {
+      capped[runnerIndex] = totalForRunner;
+      return;
+    }
+
+    BigDecimal additionalNeeded = threshold.subtract(totalForRunner);
+    int donorIndex = -1;
+    BigDecimal donorAllocation = ZERO;
+    for (int i = 0; i < capped.length; i++) {
+      if (i != runnerIndex && capped[i].compareTo(donorAllocation) > 0) {
+        donorAllocation = capped[i];
+        donorIndex = i;
+      }
+    }
+    boolean donorStaysAboveThreshold =
+        donorIndex >= 0
+            && donorAllocation.compareTo(additionalNeeded) >= 0
+            && donorAllocation.subtract(additionalNeeded).compareTo(threshold) >= 0;
+    if (donorStaysAboveThreshold) {
+      capped[donorIndex] = donorAllocation.subtract(additionalNeeded);
+      capped[runnerIndex] = threshold;
+    }
+  }
+
+  private List<BigDecimal> excludeScoresWithoutHeadroom(
+      FundTransactionInput input, List<BigDecimal> scores) {
+    return IntStream.range(0, scores.size())
+        .mapToObj(
+            i -> {
+              BigDecimal headroom = hardLimitHeadroom(input, input.positions().get(i));
+              return headroom == null || headroom.compareTo(input.minTransactionThreshold()) >= 0
+                  ? scores.get(i)
+                  : ZERO;
+            })
+        .toList();
+  }
+
+  private BigDecimal hardLimitHeadroom(FundTransactionInput input, PositionSnapshot position) {
+    var limits = input.positionLimits().get(position.isin());
+    if (limits == null) {
+      return null;
+    }
+    BigDecimal maxAllowedMarketValue =
+        input.grossPortfolioValue().multiply(limits.hardLimit().subtract(new BigDecimal("0.0001")));
+    return maxAllowedMarketValue.subtract(position.marketValue()).max(ZERO);
   }
 
   private List<BigDecimal> calculateSell(FundTransactionInput input) {
@@ -125,6 +242,7 @@ public class TradeCalculationEngine {
     BigDecimal targetAmount = input.freeCash().abs();
     Set<String> fastIsins = input.fastSellIsins();
     BigDecimal[] results = new BigDecimal[size];
+    List<BigDecimal> targetValues = normalizedTargetValues(input);
 
     BigDecimal totalFastValue = ZERO;
     List<Integer> fastIndices = new ArrayList<>();
@@ -150,34 +268,93 @@ public class TradeCalculationEngine {
         }
       } else {
         amountFromFast = targetAmount;
-        for (int i : fastIndices) {
-          BigDecimal share =
-              input.positions().get(i).marketValue().divide(totalFastValue, 10, HALF_UP);
-          results[i] = amountFromFast.multiply(share).setScale(SCALE, HALF_UP).negate();
-        }
+        distributeSellByOverweight(input, fastIndices, targetValues, amountFromFast, results);
       }
     }
 
     BigDecimal remainingNeed = targetAmount.subtract(amountFromFast);
     if (remainingNeed.compareTo(new BigDecimal("0.01")) > 0 && !slowIndices.isEmpty()) {
-      BigDecimal totalSlowValue = ZERO;
-      for (int i : slowIndices) {
-        totalSlowValue = totalSlowValue.add(input.positions().get(i).marketValue());
-      }
-      for (int i : slowIndices) {
-        BigDecimal share =
-            input.positions().get(i).marketValue().divide(totalSlowValue, 10, HALF_UP);
-        BigDecimal sellAmount =
-            input
-                .positions()
-                .get(i)
-                .marketValue()
-                .min(remainingNeed.multiply(share).setScale(SCALE, HALF_UP));
-        results[i] = sellAmount.negate();
-      }
+      distributeSellByOverweight(input, slowIndices, targetValues, remainingNeed, results);
     }
 
     return List.of(results);
+  }
+
+  private void distributeSellByOverweight(
+      FundTransactionInput input,
+      List<Integer> bucketIndices,
+      List<BigDecimal> targetValues,
+      BigDecimal amount,
+      BigDecimal[] results) {
+    BigDecimal threshold = input.minTransactionThreshold();
+    BigDecimal thresholdTolerance = threshold.subtract(new BigDecimal("0.01"));
+    List<Integer> active = new ArrayList<>(bucketIndices);
+
+    for (int iteration = 0; iteration < MAX_ITERATIONS && !active.isEmpty(); iteration++) {
+      Map<Integer, BigDecimal> scores = new HashMap<>();
+      BigDecimal totalScore = ZERO;
+      for (int i : active) {
+        BigDecimal overweight =
+            input.positions().get(i).marketValue().subtract(targetValues.get(i)).max(ZERO);
+        scores.put(i, overweight);
+        totalScore = totalScore.add(overweight);
+      }
+
+      if (totalScore.compareTo(new BigDecimal("0.01")) < 0) {
+        totalScore = ZERO;
+        for (int i : active) {
+          BigDecimal marketValue = input.positions().get(i).marketValue();
+          scores.put(i, marketValue);
+          totalScore = totalScore.add(marketValue);
+        }
+      }
+      if (totalScore.compareTo(ZERO) == 0) {
+        return;
+      }
+
+      Map<Integer, BigDecimal> allocations = new HashMap<>();
+      BigDecimal minAllocation = null;
+      int minIndex = -1;
+      for (int i : active) {
+        BigDecimal allocation =
+            scores
+                .get(i)
+                .multiply(amount)
+                .divide(totalScore, SCALE, HALF_UP)
+                .min(input.positions().get(i).marketValue());
+        allocations.put(i, allocation);
+        if (minAllocation == null || allocation.compareTo(minAllocation) < 0) {
+          minAllocation = allocation;
+          minIndex = i;
+        }
+      }
+
+      if (minAllocation != null && minAllocation.compareTo(thresholdTolerance) >= 0) {
+        for (int i : active) {
+          results[i] = allocations.get(i).negate();
+        }
+        return;
+      }
+      active.remove(Integer.valueOf(minIndex));
+    }
+  }
+
+  private List<BigDecimal> normalizedTargetValues(FundTransactionInput input) {
+    BigDecimal netInvestable = netInvestable(input);
+    Map<String, BigDecimal> weightMap = buildWeightMap(input.modelWeights());
+
+    BigDecimal totalModelWeight =
+        input.modelWeights().stream().map(ModelWeight::weight).reduce(ZERO, BigDecimal::add);
+    BigDecimal normalizer =
+        totalModelWeight.compareTo(ZERO) == 0 ? BigDecimal.ONE : totalModelWeight;
+
+    return input.positions().stream()
+        .map(
+            position -> {
+              BigDecimal rawWeight = weightMap.getOrDefault(position.isin(), ZERO);
+              return rawWeight.divide(normalizer, 10, HALF_UP).multiply(netInvestable);
+            })
+        .toList();
   }
 
   private List<BigDecimal> calculateRebalance(FundTransactionInput input) {
@@ -185,25 +362,38 @@ public class TradeCalculationEngine {
       return List.of();
     }
 
-    BigDecimal netInvestable = netInvestable(input);
-    Map<String, BigDecimal> weightMap = buildWeightMap(input.modelWeights());
+    List<BigDecimal> targetValues = normalizedTargetValues(input);
+    List<BigDecimal> rawTrades =
+        IntStream.range(0, input.positions().size())
+            .mapToObj(
+                i ->
+                    targetValues
+                        .get(i)
+                        .subtract(input.positions().get(i).marketValue())
+                        .setScale(SCALE, HALF_UP))
+            .toList();
 
-    BigDecimal totalModelWeight =
-        input.modelWeights().stream().map(ModelWeight::weight).reduce(ZERO, BigDecimal::add);
-    if (totalModelWeight.compareTo(ZERO) == 0) {
-      totalModelWeight = BigDecimal.ONE;
-    }
+    List<BigDecimal> buyScores = rawTrades.stream().map(trade -> trade.max(ZERO)).toList();
+    List<BigDecimal> sellScores =
+        rawTrades.stream().map(trade -> trade.negate().max(ZERO)).toList();
 
-    BigDecimal finalTotalModelWeight = totalModelWeight;
-    return input.positions().stream()
-        .map(
-            position -> {
-              BigDecimal rawWeight = weightMap.getOrDefault(position.isin(), ZERO);
-              BigDecimal normalizedWeight = rawWeight.divide(finalTotalModelWeight, 10, HALF_UP);
-              BigDecimal targetValue = normalizedWeight.multiply(netInvestable);
-              return targetValue.subtract(position.marketValue()).setScale(SCALE, HALF_UP);
-            })
+    List<BigDecimal> buyAllocations =
+        distributeBucketWithThreshold(buyScores, input.minTransactionThreshold());
+    List<BigDecimal> sellAllocations =
+        distributeBucketWithThreshold(sellScores, input.minTransactionThreshold());
+
+    return IntStream.range(0, rawTrades.size())
+        .mapToObj(i -> buyAllocations.get(i).subtract(sellAllocations.get(i)))
         .toList();
+  }
+
+  private List<BigDecimal> distributeBucketWithThreshold(
+      List<BigDecimal> scores, BigDecimal threshold) {
+    BigDecimal total = scores.stream().reduce(ZERO, BigDecimal::add);
+    if (total.compareTo(new BigDecimal("0.01")) <= 0) {
+      return scores.stream().map(score -> ZERO).toList();
+    }
+    return distributeAmountWithThreshold(scores, total, threshold);
   }
 
   private List<TradeCalculation> applyLimits(

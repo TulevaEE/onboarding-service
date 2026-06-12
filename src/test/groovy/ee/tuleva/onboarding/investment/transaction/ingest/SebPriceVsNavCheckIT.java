@@ -39,8 +39,12 @@ import org.springframework.transaction.annotation.Transactional;
 class SebPriceVsNavCheckIT {
 
   private static final String ISIN = "IE000F60HVH9";
+  // AMUNDI_USA_SCREENED EODHD storage key (PositionPriceResolver resolves ISIN -> ticker).
+  private static final String STORAGE_KEY = "USAS.PA.EODHD";
+  private static final String PROVIDER = "EODHD";
   private static final LocalDate TRADE_DATE = LocalDate.of(2026, 5, 11);
   private static final Instant TRADE_INSTANT = Instant.parse("2026-05-11T10:26:04Z");
+  private static final Instant PRICE_UPDATED_AT = Instant.parse("2026-05-11T18:00:00Z");
 
   @Autowired private SebPriceVsNavCheckService service;
   @Autowired private TransactionBatchRepository batchRepository;
@@ -56,7 +60,7 @@ class SebPriceVsNavCheckIT {
   @BeforeEach
   void seed() {
     recorder.events.clear();
-    deleteNavRows();
+    deletePriceRows();
     TransactionBatch batch =
         batchRepository.save(TransactionBatch.builder().fund(TKF100).createdBy("test").build());
     order =
@@ -67,7 +71,7 @@ class SebPriceVsNavCheckIT {
                 .instrumentIsin(ISIN)
                 .transactionType(BUY)
                 .instrumentType(ETF)
-                .orderQuantity(15007L)
+                .orderQuantity(new BigDecimal("15007"))
                 .orderVenue(OrderVenue.SEB)
                 .orderUuid(UUID.randomUUID())
                 .orderStatus(SENT)
@@ -87,13 +91,13 @@ class SebPriceVsNavCheckIT {
   }
 
   @AfterEach
-  void cleanNav() {
-    deleteNavRows();
+  void cleanPrices() {
+    deletePriceRows();
   }
 
   @Test
   void etfWithinTolerance_noEvent() {
-    insertNavRow(ISIN, TRADE_DATE, new BigDecimal("4.7255"));
+    insertMarketPrice(TRADE_DATE, new BigDecimal("4.7255"));
 
     service.check(execution, order);
 
@@ -102,7 +106,7 @@ class SebPriceVsNavCheckIT {
 
   @Test
   void etfOutsideTolerance_emitsExecutionMismatchEvent() {
-    insertNavRow(ISIN, TRADE_DATE, new BigDecimal("4.7800"));
+    insertMarketPrice(TRADE_DATE, new BigDecimal("4.7800"));
 
     service.check(execution, order);
 
@@ -116,11 +120,11 @@ class SebPriceVsNavCheckIT {
   }
 
   @Test
-  void fundInstrument_noEventEvenWhenNavMismatches() {
+  void fundInstrument_noEventEvenWhenPriceMismatches() {
     order.setInstrumentType(FUND);
     orderRepository.save(order);
     entityManager.flush();
-    insertNavRow(ISIN, TRADE_DATE, new BigDecimal("5.0000"));
+    insertMarketPrice(TRADE_DATE, new BigDecimal("5.0000"));
 
     service.check(execution, order);
 
@@ -128,7 +132,7 @@ class SebPriceVsNavCheckIT {
   }
 
   @Test
-  void etfWithNoNavRow_emitsNavMissingEvent() {
+  void etfWithNoMarketPrice_emitsNavMissingEvent() {
     service.check(execution, order);
 
     assertThat(recorder.events).hasSize(1).first().isInstanceOf(NavMissingEvent.class);
@@ -138,27 +142,32 @@ class SebPriceVsNavCheckIT {
     assertThat(ev.tradeDate()).isEqualTo(TRADE_DATE);
   }
 
-  private void insertNavRow(String isin, LocalDate navDate, BigDecimal marketPrice) {
+  @Test
+  void etfWithPriceOnlyForEarlierDate_emitsNavMissingEvent() {
+    insertMarketPrice(TRADE_DATE.minusDays(3), new BigDecimal("4.7255"));
+
+    service.check(execution, order);
+
+    assertThat(recorder.events).hasSize(1).first().isInstanceOf(NavMissingEvent.class);
+  }
+
+  private void insertMarketPrice(LocalDate date, BigDecimal price) {
     jdbcClient
         .sql(
             """
-            INSERT INTO nav_report
-              (nav_date, fund_code, account_type, account_name, account_id, market_price,
-               currency, calculation_id, published_at)
-            VALUES (:navDate, :fundCode, 'SECURITY', :name, :isin, :marketPrice,
-               'EUR', :calcId, now())
+            INSERT INTO index_values (key, date, value, provider, updated_at)
+            VALUES (:key, :date, :value, :provider, :updatedAt)
             """)
-        .param("navDate", navDate)
-        .param("fundCode", "TKF100")
-        .param("name", isin)
-        .param("isin", isin)
-        .param("marketPrice", marketPrice)
-        .param("calcId", UUID.randomUUID())
+        .param("key", STORAGE_KEY)
+        .param("date", date)
+        .param("value", price)
+        .param("provider", PROVIDER)
+        .param("updatedAt", PRICE_UPDATED_AT)
         .update();
   }
 
-  private void deleteNavRows() {
-    jdbcClient.sql("DELETE FROM nav_report WHERE account_id = :isin").param("isin", ISIN).update();
+  private void deletePriceRows() {
+    jdbcClient.sql("DELETE FROM index_values WHERE key = :key").param("key", STORAGE_KEY).update();
   }
 
   public static class TestEventRecorder {

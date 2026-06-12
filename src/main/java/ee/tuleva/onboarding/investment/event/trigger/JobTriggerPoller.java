@@ -39,7 +39,12 @@ class JobTriggerPoller {
           Map.entry("PortfolioCostBasisJob", RunPortfolioCostBasisRequested::new),
           Map.entry("PortfolioCostBasisSelfHealJob", RunPortfolioCostBasisSelfHealRequested::new),
           Map.entry("PortfolioReconciliationJob", RunPortfolioReconciliationRequested::new),
+          Map.entry("SettlementCheckJob", RunOverdueSettlementRequested::new),
+          // Alias kept so existing manual triggers keep working after the rename.
           Map.entry("OverdueSettlementJob", RunOverdueSettlementRequested::new),
+          Map.entry("PevaRavaPhaseUpdateJob", RunPevaRavaPhaseUpdateRequested::new),
+          Map.entry("PevaRavaFlowRecalcJob", RunPevaRavaFlowRecalcRequested::new),
+          Map.entry("R16FlowRecalcJob", RunR16FlowRecalcRequested::new),
           Map.entry("TdAttributionJob", RunTdAttributionMonthlyRequested::new),
           Map.entry("TdAttributionBackfillJob", () -> new RunTdAttributionBackfillRequested(6)),
           Map.entry("OcfCalculationJob", RunOcfCalculationRequested::new));

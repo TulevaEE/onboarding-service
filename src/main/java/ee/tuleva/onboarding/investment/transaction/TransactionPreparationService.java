@@ -3,12 +3,16 @@ package ee.tuleva.onboarding.investment.transaction;
 import static java.math.BigDecimal.ZERO;
 import static java.util.stream.Collectors.toMap;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
+import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.transaction.calculation.TradeCalculationEngine;
 import ee.tuleva.onboarding.investment.transaction.export.GoogleDriveProperties;
 import ee.tuleva.onboarding.investment.transaction.export.TransactionExportService;
 import ee.tuleva.onboarding.investment.transaction.export.TransactionExportUploader;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -20,8 +24,8 @@ import java.util.Map;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +43,7 @@ public class TransactionPreparationService {
   private final SettlementDateCalculator settlementDateCalculator;
   private final TransactionExportService exportService;
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
+  private final PositionPriceResolver positionPriceResolver;
   private final ApplicationEventPublisher eventPublisher;
   private final GoogleDriveProperties driveProperties;
   @Nullable private final TransactionExportUploader exportUploader;
@@ -69,7 +74,8 @@ public class TransactionPreparationService {
               .build();
       batchRepository.save(batch);
 
-      List<TransactionOrder> orders = createOrders(batch, result, Instant.now(clock));
+      List<TransactionOrder> orders =
+          createOrders(batch, result, command.getAsOfDate(), Instant.now(clock));
       orderRepository.saveAll(orders);
 
       auditEventRepository.save(
@@ -125,7 +131,7 @@ public class TransactionPreparationService {
           order.setOrderTimestamp(now);
           order.setExpectedSettlementDate(
               settlementDateCalculator.calculateSettlementDate(
-                  tradeDate, order.getInstrumentType()));
+                  tradeDate, order.getInstrumentType(), order.getInstrumentIsin()));
           order.setOrderStatus(OrderStatus.SENT);
         });
     orderRepository.saveAll(orders);
@@ -180,28 +186,65 @@ public class TransactionPreparationService {
   }
 
   private List<TransactionOrder> createOrders(
-      TransactionBatch batch, FundCalculationResult result, Instant createdAt) {
+      TransactionBatch batch, FundCalculationResult result, LocalDate asOfDate, Instant createdAt) {
     var input = result.input();
 
     return result.trades().stream()
         .filter(trade -> trade.tradeAmount().compareTo(ZERO) != 0)
         .map(
-            trade ->
-                TransactionOrder.builder()
-                    .batch(batch)
-                    .fund(result.fund())
-                    .instrumentIsin(trade.isin())
-                    .transactionType(
-                        trade.tradeAmount().compareTo(ZERO) > 0
-                            ? TransactionType.BUY
-                            : TransactionType.SELL)
-                    .instrumentType(
-                        input.instrumentTypes().getOrDefault(trade.isin(), InstrumentType.ETF))
-                    .orderAmount(trade.tradeAmount().abs())
-                    .orderVenue(input.orderVenues().getOrDefault(trade.isin(), OrderVenue.SEB))
-                    .createdAt(createdAt)
-                    .build())
+            trade -> {
+              var instrumentType =
+                  input.instrumentTypes().getOrDefault(trade.isin(), InstrumentType.ETF);
+              var transactionType =
+                  trade.tradeAmount().compareTo(ZERO) > 0
+                      ? TransactionType.BUY
+                      : TransactionType.SELL;
+              var orderAmount = trade.tradeAmount().abs();
+              return TransactionOrder.builder()
+                  .batch(batch)
+                  .fund(result.fund())
+                  .instrumentIsin(trade.isin())
+                  .transactionType(transactionType)
+                  .instrumentType(instrumentType)
+                  .orderAmount(orderAmount)
+                  .orderQuantity(
+                      calculateOrderQuantity(
+                          instrumentType, transactionType, trade.isin(), orderAmount, asOfDate))
+                  .orderVenue(input.orderVenues().getOrDefault(trade.isin(), OrderVenue.SEB))
+                  .createdAt(createdAt)
+                  .build();
+            })
         .toList();
+  }
+
+  @Nullable
+  private BigDecimal calculateOrderQuantity(
+      InstrumentType instrumentType,
+      TransactionType transactionType,
+      String isin,
+      BigDecimal orderAmount,
+      LocalDate asOfDate) {
+    if (isAmountBasedOrder(instrumentType, transactionType)) {
+      return null;
+    }
+    return positionPriceResolver
+        .resolve(isin, asOfDate)
+        .map(ResolvedPrice::usedPrice)
+        .map(price -> orderAmount.divide(price, 6, RoundingMode.HALF_UP))
+        .orElseGet(
+            () -> {
+              log.warn(
+                  "No price found for order quantity: isin={}, instrumentType={}, asOfDate={}",
+                  isin,
+                  instrumentType,
+                  asOfDate);
+              return null;
+            });
+  }
+
+  private boolean isAmountBasedOrder(
+      InstrumentType instrumentType, TransactionType transactionType) {
+    return instrumentType == InstrumentType.FUND && transactionType == TransactionType.BUY;
   }
 
   static Map<String, Object> serializeInput(FundTransactionInput input) {

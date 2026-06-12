@@ -42,6 +42,7 @@ class TransactionExecutionMapperTest {
     assertThat(execution.getExecutedQuantity()).isEqualByComparingTo("15007");
     assertThat(execution.getUnitPrice()).isEqualByComparingTo("4.7255");
     assertThat(execution.getTotalConsideration()).isEqualByComparingTo("70915.58");
+    assertThat(execution.getSettlementAmount()).isEqualByComparingTo("70915.58");
     assertThat(execution.getCommissionAmount()).isEqualByComparingTo("0.00");
     assertThat(execution.getActualSettlementDate()).isEqualTo(LocalDate.of(2026, 5, 13));
     assertThat(execution.getExecutionTimestamp()).isEqualTo(Instant.parse("2026-05-11T10:26:04Z"));

@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,43 +16,59 @@ class QuantityAmountMismatchAlertListener {
 
   private final AlertMandrillMessageFactory messageFactory;
   private final EmailService emailService;
+  private final OperationsNotificationService notificationService;
 
   @EventListener
   public void onQuantityAmountMismatch(QuantityAmountMismatchEvent event) {
+    notificationService.sendMessage(buildSlackMessage(event), INVESTMENT);
+
     var subject = "[HOIATUS] Tehingute koguse/summa lahknevused – " + event.reportDate();
     var body = buildBody(event);
 
     boolean sent = emailService.sendSystemEmail(messageFactory.create(subject, body));
     if (sent) {
       log.info(
-          "Sent quantity/amount mismatch alert: reportDate={}, isin={}, nearMissOrderId={},"
-              + " kind={}",
+          "Sent quantity/amount mismatch alert: reportDate={}, isin={}, orderId={}, kind={}",
           event.reportDate(),
           event.row().isin(),
-          event.nearMissOrder().getId(),
+          event.order().getId(),
           event.kind());
     } else {
       log.error(
-          "Failed to send quantity/amount mismatch alert: reportDate={}, isin={},"
-              + " nearMissOrderId={}, kind={}",
+          "Failed to send quantity/amount mismatch alert: reportDate={}, isin={}, orderId={},"
+              + " kind={}",
           event.reportDate(),
           event.row().isin(),
-          event.nearMissOrder().getId(),
+          event.order().getId(),
           event.kind());
     }
+  }
+
+  private static String buildSlackMessage(QuantityAmountMismatchEvent event) {
+    return """
+        ⚠️ SEB tehingu koguse/summa lahknevus – %s
+        Order %s, ISIN: %s, liik: %s
+        Expected: %s, actual: %s, delta: %s"""
+        .formatted(
+            event.reportDate(),
+            event.order().getId(),
+            nullSafe(event.row().isin()),
+            event.kind(),
+            nullSafe(event.expected()),
+            nullSafe(event.actual()),
+            nullSafe(event.delta()));
   }
 
   private static String buildBody(QuantityAmountMismatchEvent event) {
     var row = event.row();
     return """
-        SEB pending transactions raportis on rida, mille kogus/summa on
-        lubatud lähedusest väljas, kuid ühe konkreetse tellimusega (near-miss)
-        siiski lähedal. Tellimus jäi automaatselt sidumata; vajab käsitsi uurimist.
+        SEB pending transactions raportis on rida, mille kogus/summa erineb
+        tellimuse omast rohkem kui lubatud lähedus. Vajab käsitsi uurimist.
 
         Tolerance kind: %s
 
         Raporti kuupäev: %s
-        Near-miss order id: %s
+        Order id: %s
 
         Expected: %s
         Actual: %s
@@ -68,7 +87,7 @@ class QuantityAmountMismatchAlertListener {
         .formatted(
             event.kind(),
             event.reportDate(),
-            event.nearMissOrder().getId(),
+            event.order().getId(),
             nullSafe(event.expected()),
             nullSafe(event.actual()),
             nullSafe(event.delta()),

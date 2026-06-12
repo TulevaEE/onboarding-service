@@ -9,8 +9,11 @@ import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
+import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.transaction.calculation.TradeCalculationEngine;
@@ -25,6 +28,7 @@ import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -48,6 +52,7 @@ class TransactionPreparationServiceTest {
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private GoogleDriveProperties driveProperties;
   @Mock private TransactionExportUploader exportUploader;
+  @Mock private PositionPriceResolver positionPriceResolver;
   @Mock private Clock clock;
 
   @InjectMocks private TransactionPreparationService service;
@@ -229,7 +234,7 @@ class TransactionPreparationServiceTest {
             .build();
 
     when(orderRepository.findByBatchId(batch.getId())).thenReturn(List.of(order));
-    when(settlementDateCalculator.calculateSettlementDate(any(), eq(InstrumentType.ETF)))
+    when(settlementDateCalculator.calculateSettlementDate(any(), eq(InstrumentType.ETF), any()))
         .thenReturn(LocalDate.of(2026, 1, 19));
     when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, LocalDate.of(2026, 1, 15)))
         .thenReturn(List.of(allocation));
@@ -333,6 +338,265 @@ class TransactionPreparationServiceTest {
   }
 
   @Test
+  void processCommand_setsEtfOrderQuantityFromLatestPriceAndLeavesFundOrderQuantityNull() {
+    var command =
+        TransactionCommand.builder()
+            .id(4L)
+            .fund(TUV100)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .status(PROCESSING)
+            .build();
+
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00ETF", new BigDecimal("300000")),
+                    new PositionSnapshot("IE00ETF2", new BigDecimal("100000")),
+                    new PositionSnapshot("LU00FUND", new BigDecimal("200000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00ETF", new BigDecimal("0.50")),
+                    new ModelWeight("IE00ETF2", new BigDecimal("0.10")),
+                    new ModelWeight("LU00FUND", new BigDecimal("0.40"))))
+            .grossPortfolioValue(new BigDecimal("600000"))
+            .cashBuffer(new BigDecimal("10000"))
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("90000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .instrumentTypes(
+                Map.of(
+                    "IE00ETF", InstrumentType.ETF,
+                    "IE00ETF2", InstrumentType.ETF,
+                    "LU00FUND", InstrumentType.FUND))
+            .orderVenues(Map.of())
+            .build();
+
+    var trades =
+        List.of(
+            new TradeCalculation(
+                "IE00ETF", new BigDecimal("50000"), new BigDecimal("0.55"), LimitStatus.OK),
+            new TradeCalculation(
+                "IE00ETF2", new BigDecimal("-30000"), new BigDecimal("0.08"), LimitStatus.OK),
+            new TradeCalculation(
+                "LU00FUND", new BigDecimal("40000"), new BigDecimal("0.40"), LimitStatus.OK));
+
+    var calculationResult = new FundCalculationResult(TUV100, BUY, input, trades);
+
+    when(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).thenReturn(input);
+    when(calculationEngine.calculate(input, BUY)).thenReturn(calculationResult);
+    when(batchRepository.save(any(TransactionBatch.class)))
+        .thenAnswer(
+            invocation -> {
+              TransactionBatch batch = invocation.getArgument(0);
+              batch.setId(1L);
+              return batch;
+            });
+    when(positionPriceResolver.resolve("IE00ETF", LocalDate.of(2026, 1, 15)))
+        .thenReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("3")).build()));
+    when(positionPriceResolver.resolve("IE00ETF2", LocalDate.of(2026, 1, 15)))
+        .thenReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("8")).build()));
+
+    var result = service.processCommand(command);
+
+    var etfBuyOrder = orderByIsin(result, "IE00ETF");
+    assertThat(etfBuyOrder.getOrderQuantity()).isEqualTo(new BigDecimal("16666.666667"));
+
+    var etfSellOrder = orderByIsin(result, "IE00ETF2");
+    assertThat(etfSellOrder.getOrderQuantity()).isEqualTo(new BigDecimal("3750.000000"));
+
+    var fundOrder = orderByIsin(result, "LU00FUND");
+    assertThat(fundOrder.getOrderQuantity()).isNull();
+  }
+
+  @Test
+  void processCommand_leavesEtfOrderQuantityNullWhenNoPriceAvailable() {
+    var command =
+        TransactionCommand.builder()
+            .id(5L)
+            .fund(TUV100)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .status(PROCESSING)
+            .build();
+
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00ETF", new BigDecimal("300000"))))
+            .modelWeights(List.of(new ModelWeight("IE00ETF", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("600000"))
+            .cashBuffer(new BigDecimal("10000"))
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("90000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .instrumentTypes(Map.of("IE00ETF", InstrumentType.ETF))
+            .orderVenues(Map.of())
+            .build();
+
+    var trades =
+        List.of(
+            new TradeCalculation(
+                "IE00ETF", new BigDecimal("50000"), new BigDecimal("0.55"), LimitStatus.OK));
+
+    var calculationResult = new FundCalculationResult(TUV100, BUY, input, trades);
+
+    when(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).thenReturn(input);
+    when(calculationEngine.calculate(input, BUY)).thenReturn(calculationResult);
+    when(batchRepository.save(any(TransactionBatch.class)))
+        .thenAnswer(
+            invocation -> {
+              TransactionBatch batch = invocation.getArgument(0);
+              batch.setId(1L);
+              return batch;
+            });
+    when(positionPriceResolver.resolve("IE00ETF", LocalDate.of(2026, 1, 15)))
+        .thenReturn(Optional.empty());
+
+    var result = service.processCommand(command);
+
+    var etfOrder = orderByIsin(result, "IE00ETF");
+    assertThat(etfOrder.getOrderQuantity()).isNull();
+  }
+
+  @Test
+  void processCommand_setsFundSellOrderQuantityFromLatestPriceAndLeavesFundBuyQuantityNull() {
+    var command =
+        TransactionCommand.builder()
+            .id(6L)
+            .fund(TUV100)
+            .mode(SELL)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .status(PROCESSING)
+            .build();
+
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("LU00FUND", new BigDecimal("300000")),
+                    new PositionSnapshot("LU00FUND2", new BigDecimal("100000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("LU00FUND", new BigDecimal("0.60")),
+                    new ModelWeight("LU00FUND2", new BigDecimal("0.40"))))
+            .grossPortfolioValue(new BigDecimal("600000"))
+            .cashBuffer(new BigDecimal("10000"))
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("-50000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .instrumentTypes(
+                Map.of(
+                    "LU00FUND", InstrumentType.FUND,
+                    "LU00FUND2", InstrumentType.FUND))
+            .orderVenues(Map.of())
+            .build();
+
+    var trades =
+        List.of(
+            new TradeCalculation(
+                "LU00FUND", new BigDecimal("-50000"), new BigDecimal("0.55"), LimitStatus.OK),
+            new TradeCalculation(
+                "LU00FUND2", new BigDecimal("40000"), new BigDecimal("0.42"), LimitStatus.OK));
+
+    var calculationResult = new FundCalculationResult(TUV100, SELL, input, trades);
+
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).willReturn(input);
+    given(calculationEngine.calculate(input, SELL)).willReturn(calculationResult);
+    given(batchRepository.save(any(TransactionBatch.class)))
+        .willAnswer(
+            invocation -> {
+              TransactionBatch batch = invocation.getArgument(0);
+              batch.setId(1L);
+              return batch;
+            });
+    given(positionPriceResolver.resolve("LU00FUND", LocalDate.of(2026, 1, 15)))
+        .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("12.5")).build()));
+
+    var result = service.processCommand(command);
+
+    var fundSellOrder = orderByIsin(result, "LU00FUND");
+    assertThat(fundSellOrder.getTransactionType()).isEqualTo(TransactionType.SELL);
+    assertThat(fundSellOrder.getOrderQuantity()).isEqualTo(new BigDecimal("4000.000000"));
+
+    var fundBuyOrder = orderByIsin(result, "LU00FUND2");
+    assertThat(fundBuyOrder.getTransactionType()).isEqualTo(TransactionType.BUY);
+    assertThat(fundBuyOrder.getOrderQuantity()).isNull();
+  }
+
+  @Test
+  void processCommand_leavesFundSellOrderQuantityNullWhenNoPriceAvailable() {
+    var command =
+        TransactionCommand.builder()
+            .id(7L)
+            .fund(TUV100)
+            .mode(SELL)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .status(PROCESSING)
+            .build();
+
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("LU00FUND", new BigDecimal("300000"))))
+            .modelWeights(List.of(new ModelWeight("LU00FUND", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("600000"))
+            .cashBuffer(new BigDecimal("10000"))
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("-50000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .instrumentTypes(Map.of("LU00FUND", InstrumentType.FUND))
+            .orderVenues(Map.of())
+            .build();
+
+    var trades =
+        List.of(
+            new TradeCalculation(
+                "LU00FUND", new BigDecimal("-50000"), new BigDecimal("0.55"), LimitStatus.OK));
+
+    var calculationResult = new FundCalculationResult(TUV100, SELL, input, trades);
+
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).willReturn(input);
+    given(calculationEngine.calculate(input, SELL)).willReturn(calculationResult);
+    given(batchRepository.save(any(TransactionBatch.class)))
+        .willAnswer(
+            invocation -> {
+              TransactionBatch batch = invocation.getArgument(0);
+              batch.setId(1L);
+              return batch;
+            });
+    given(positionPriceResolver.resolve("LU00FUND", LocalDate.of(2026, 1, 15)))
+        .willReturn(Optional.empty());
+
+    var result = service.processCommand(command);
+
+    var fundSellOrder = orderByIsin(result, "LU00FUND");
+    assertThat(fundSellOrder.getOrderQuantity()).isNull();
+  }
+
+  private static TransactionOrder orderByIsin(ProcessCommandResult result, String isin) {
+    return result.orders().stream()
+        .filter(order -> order.getInstrumentIsin().equals(isin))
+        .findFirst()
+        .orElseThrow();
+  }
+
+  @Test
   void processCommand_withNegativeTradeAmount_createsSellOrder() {
     var command =
         TransactionCommand.builder()
@@ -413,7 +677,7 @@ class TransactionPreparationServiceTest {
             .build();
 
     when(orderRepository.findByBatchId(batch.getId())).thenReturn(List.of(order));
-    when(settlementDateCalculator.calculateSettlementDate(any(), any()))
+    when(settlementDateCalculator.calculateSettlementDate(any(), any(), any()))
         .thenReturn(LocalDate.of(2026, 1, 19));
     when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, LocalDate.of(2026, 1, 15)))
         .thenReturn(List.of());

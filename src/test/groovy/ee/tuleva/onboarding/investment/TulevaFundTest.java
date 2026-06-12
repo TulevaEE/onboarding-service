@@ -62,6 +62,28 @@ class TulevaFundTest {
   }
 
   @Test
+  void findByIsin_returnsFundForKnownIsin() {
+    assertThat(findByIsin("EE3600109435")).contains(TUK75);
+    assertThat(findByIsin("EE0000003283")).contains(TKF100);
+  }
+
+  @Test
+  void findByIsin_returnsEmptyForUnknownIsin() {
+    assertThat(findByIsin("EE0000000000")).isEmpty();
+  }
+
+  @Test
+  void findByDisplayName_returnsFundForKnownDisplayName() {
+    assertThat(findByDisplayName("Tuleva Maailma Aktsiate Pensionifond")).contains(TUK75);
+    assertThat(findByDisplayName("Tuleva Täiendav Kogumisfond")).contains(TKF100);
+  }
+
+  @Test
+  void findByDisplayName_returnsEmptyForUnknownDisplayName() {
+    assertThat(findByDisplayName("Some Other Fund")).isEmpty();
+  }
+
+  @Test
   void navCronExpression() {
     assertThat(TUK75.navCronExpression()).isEqualTo("0 0 11 * * MON-FRI");
     assertThat(TUV100.navCronExpression()).isEqualTo("0 20 15 * * MON-FRI");

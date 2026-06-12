@@ -75,6 +75,19 @@ class LegalEntityOnboardingEventListenerTest {
   }
 
   @Test
+  void setsStatusCompletedWhenOnlyRiskSignalCheckFails() {
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(COMPANY_STRUCTURE, true, Map.of()),
+            new KybCheck(COMPANY_AGE, false, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED);
+  }
+
+  @Test
   void setsStatusRejectedEvenIfPreviouslyCompleted() {
     when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
     var checks =

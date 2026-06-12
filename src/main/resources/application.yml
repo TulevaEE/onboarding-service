@@ -273,18 +273,6 @@ spring:
         - staging
 ---
 spring:
-  flyway:
-    # db/dev seed migrations are retro-numbered below already-applied versions
-    # (e.g. V1_173.1 was added after V1_174 had been applied), which fails strict
-    # ordering validation against staging's persistent database on every deploy.
-    # Production is unaffected: it only loads db/migration.
-    out-of-order: true
-  config:
-    activate:
-      on-profile:
-        - staging
----
-spring:
   config:
     activate:
       on-profile:

@@ -13,6 +13,8 @@ import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +34,7 @@ class KybScreeningIntegrationTest {
   @Autowired private KybScreeningService kybScreeningService;
   @Autowired private AmlCheckRepository amlCheckRepository;
   @Autowired private JsonMapper objectMapper;
+  @Autowired private Clock clock;
   @MockitoBean private PepAndSanctionCheckService sanctionCheckService;
 
   @BeforeEach
@@ -53,7 +56,8 @@ class KybScreeningIntegrationTest {
             List.of(person),
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var results = kybScreeningService.screen(data);
 
@@ -91,7 +95,8 @@ class KybScreeningIntegrationTest {
             List.of(person),
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var results = kybScreeningService.screen(data);
 
@@ -119,7 +124,8 @@ class KybScreeningIntegrationTest {
             List.of(person),
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     kybScreeningService.screen(data);
 
@@ -131,7 +137,8 @@ class KybScreeningIntegrationTest {
             List.of(person),
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var secondResults = kybScreeningService.screen(changedData);
 
@@ -157,7 +164,8 @@ class KybScreeningIntegrationTest {
             List.of(person),
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var results = kybScreeningService.screen(data);
 
@@ -173,5 +181,30 @@ class KybScreeningIntegrationTest {
         amlChecks.stream().filter(c -> c.getType() == KYB_RELATED_PERSONS_KYC).findFirst();
     assertThat(kycAmlCheck).isPresent();
     assertThat(kycAmlCheck.get().isSuccess()).isFalse();
+  }
+
+  @Test
+  void companyFoundedLessThanAYearAgoCreatesFailingCompanyAgeCheck() {
+    var person =
+        new KybRelatedPerson(PERSONAL_CODE, true, true, true, BigDecimal.valueOf(100), COMPLETED);
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
+            PERSONAL_CODE,
+            R,
+            List.of(person),
+            new SelfCertification(true, true, true),
+            "EE",
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            LocalDate.now(clock).minusMonths(1));
+
+    kybScreeningService.screen(data);
+
+    var amlChecks =
+        amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
+            PERSONAL_CODE.value(), aYearAgo());
+    var ageCheck = amlChecks.stream().filter(c -> c.getType() == KYB_COMPANY_AGE).findFirst();
+    assertThat(ageCheck).as("KYB_COMPANY_AGE AmlCheck should be persisted").isPresent();
+    assertThat(ageCheck.get().isSuccess()).isFalse();
   }
 }

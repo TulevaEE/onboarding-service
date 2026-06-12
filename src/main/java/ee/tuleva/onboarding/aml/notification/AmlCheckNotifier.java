@@ -24,7 +24,8 @@ public class AmlCheckNotifier {
                 POLITICALLY_EXPOSED_PERSON_AUTO,
                 SANCTION,
                 RISK_LEVEL,
-                TKF_RISK_LEVEL)
+                TKF_RISK_LEVEL,
+                KYC_CHECK)
             .contains(event.getAmlCheckType())
         && event.isFailed()) {
       notificationService.sendMessage(

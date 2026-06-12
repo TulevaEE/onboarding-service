@@ -74,7 +74,8 @@ class KybScreeningServiceTest {
             List.of(person),
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var results = kybScreeningService.screen(data);
 
@@ -109,7 +110,8 @@ class KybScreeningServiceTest {
             List.of(person1, person2),
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var results = kybScreeningService.screen(data);
 
@@ -144,7 +146,8 @@ class KybScreeningServiceTest {
             List.of(person1, person2),
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var results = kybScreeningService.screen(data);
 
@@ -182,7 +185,8 @@ class KybScreeningServiceTest {
             List.of(person1, person2, person3),
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var results = kybScreeningService.screen(data);
 
@@ -202,7 +206,8 @@ class KybScreeningServiceTest {
             List.of(person),
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var results = kybScreeningService.screen(data);
 
@@ -228,7 +233,8 @@ class KybScreeningServiceTest {
             List.of(person),
             new SelfCertification(true, true, true),
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
 
     var results = kybScreeningService.validate(data);
 

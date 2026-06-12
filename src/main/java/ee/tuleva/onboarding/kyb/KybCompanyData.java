@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.kyb;
 
 import jakarta.annotation.Nullable;
+import java.time.LocalDate;
 import java.util.List;
 
 public record KybCompanyData(
@@ -10,4 +11,5 @@ public record KybCompanyData(
     List<KybRelatedPerson> relatedPersons,
     SelfCertification selfCertification,
     @Nullable String countryCode,
-    @Nullable String fullAddress) {}
+    @Nullable String fullAddress,
+    @Nullable LocalDate foundingDate) {}

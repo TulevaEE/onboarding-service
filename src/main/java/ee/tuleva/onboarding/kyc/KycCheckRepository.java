@@ -22,12 +22,18 @@ public class KycCheckRepository implements KycChecker {
         .sql("SELECT risk_level, metadata::text FROM kyc_ob_assess_user_risk(:userId::integer)")
         .param("userId", userId)
         .query(
-            (rs, rowNum) -> {
-              var riskLevel = KycCheck.RiskLevel.valueOf(rs.getString("risk_level"));
-              var metadata = parseJsonb(rs.getString("metadata"));
-              return new KycCheck(riskLevel, metadata);
-            })
+            (rs, rowNum) ->
+                toKycCheck(rs.getString("risk_level"), rs.getString("metadata"), userId))
         .single();
+  }
+
+  KycCheck toKycCheck(String riskLevel, String metadata, Long userId) {
+    if (riskLevel == null) {
+      // The assessment function returns a composite NULL when it finds no
+      // kyc_survey for the user — surface that clearly instead of an NPE.
+      throw new IllegalStateException("KYC risk assessment returned no result: userId=" + userId);
+    }
+    return new KycCheck(KycCheck.RiskLevel.valueOf(riskLevel), parseJsonb(metadata));
   }
 
   private Map<String, Object> parseJsonb(String json) {

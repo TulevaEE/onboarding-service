@@ -184,7 +184,26 @@ class CompanyOnboardingEventListenerTest {
   }
 
   @Test
-  void doesNothingWhenNonDataChangedCheckFails() {
+  void createsCompanyWhenOnlyRiskSignalCheckFailsAndCompanyDoesNotExist() {
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(COMPANY_AGE, false, Map.of()));
+    var event =
+        new KybCheckPerformedEvent(
+            this, company, new PersonalCode("38501010001"), List.of(person1), checks);
+    given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.empty());
+    given(companyRepository.save(any(Company.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+
+    listener.onKybCheckPerformed(event);
+
+    verify(companyRepository).save(any(Company.class));
+    verify(companyPartyRepository, times(3)).save(any(CompanyParty.class));
+  }
+
+  @Test
+  void createsCompanyButLeavesPartiesUntouchedWhenNonDataChangedCheckFailsForNewCompany() {
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
@@ -193,15 +212,25 @@ class CompanyOnboardingEventListenerTest {
     var event =
         new KybCheckPerformedEvent(
             this, company, new PersonalCode("38501010001"), List.of(person1), checks);
+    given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.empty());
+    given(companyRepository.save(any(Company.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
 
     listener.onKybCheckPerformed(event);
 
-    verifyNoInteractions(companyRepository);
-    verifyNoInteractions(companyPartyRepository);
+    verify(companyRepository).save(any(Company.class));
+    verify(companyPartyRepository, never()).save(any());
+    verify(companyPartyRepository, never()).deleteByCompanyId(any());
   }
 
   @Test
-  void doesNothingWhenNonDataChangedCheckFailsAndDataUnchanged() {
+  void reusesCompanyButLeavesPartiesUntouchedWhenNonDataChangedCheckFailsForExistingCompany() {
+    var existing =
+        Company.builder()
+            .id(java.util.UUID.randomUUID())
+            .registryCode("12345678")
+            .name("Test OÜ")
+            .build();
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
@@ -209,10 +238,12 @@ class CompanyOnboardingEventListenerTest {
     var event =
         new KybCheckPerformedEvent(
             this, company, new PersonalCode("38501010001"), List.of(person1), checks);
+    given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.of(existing));
 
     listener.onKybCheckPerformed(event);
 
-    verifyNoInteractions(companyRepository);
-    verifyNoInteractions(companyPartyRepository);
+    verify(companyRepository, never()).save(any());
+    verify(companyPartyRepository, never()).save(any());
+    verify(companyPartyRepository, never()).deleteByCompanyId(any());
   }
 }

@@ -184,6 +184,26 @@ class KybCompanyDataMapperTest {
   }
 
   @Test
+  void mapsFoundingDate() {
+    var detail =
+        new CompanyDetail(
+            "Test OÜ", "12345678", "R", "OÜ", LocalDate.of(2020, 1, 15), null, null, null);
+
+    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), SELF_CERT);
+
+    assertThat(result.foundingDate()).isEqualTo(LocalDate.of(2020, 1, 15));
+  }
+
+  @Test
+  void mapsNullFoundingDateWhenAriregisterHasNone() {
+    var detail = new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null);
+
+    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), SELF_CERT);
+
+    assertThat(result.foundingDate()).isNull();
+  }
+
+  @Test
   void handlesRelationshipsWithNullPersonalCode() {
     var withCode =
         new CompanyRelationship(

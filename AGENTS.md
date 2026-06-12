@@ -78,6 +78,7 @@ NAV cross-check: SEB execution `unit_price` vs `nav_report.market_price` for sam
 ### Migrations
 Flyway in `src/main/resources/db/migration/`. H2 compat migrations: `V1_{n-1}_1__.sql`.
 
+- **Strict version ordering everywhere — never enable `out-of-order`.** A migration numbered below an already-deployed version fails validation and blocks all deploys (ECS rolls back silently while CI stays green). Before merging, renumber your migrations above the current master max — and re-check after every merge to master, since a racing PR may have claimed your numbers (this happened with V1_198–V1_202: the PR that renumbered *to* V1_202 deployed first and stranded V1_198–V1_201).
 - **Explicit constraint names always** — H2 and PostgreSQL generate different auto-names
 - **Recreate tables** for complex schema changes (create new → migrate → drop old → rename)
 - **Standard SQL only** — must work on both H2 and PostgreSQL:

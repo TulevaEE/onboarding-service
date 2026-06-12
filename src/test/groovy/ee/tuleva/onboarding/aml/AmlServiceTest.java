@@ -2,12 +2,15 @@ package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.*;
+import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.HIGH;
+import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static java.util.Arrays.stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 import static org.mockito.quality.Strictness.LENIENT;
 
@@ -24,6 +27,7 @@ import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
+import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
@@ -116,6 +120,75 @@ class AmlServiceTest {
   @AfterEach
   void tearDown() {
     ClockHolder.setDefaultClock();
+  }
+
+  @Test
+  void addKycCheck_persistsFreshPassingCheckWhenOnlyFailedCheckExists() {
+    given(
+            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
+                "38501010002", KYC_CHECK, true, aYearAgoFromTestClock))
+        .willReturn(false);
+
+    var result =
+        amlService.addKycCheck("38501010002", new KycCheck(LOW, Map.of("riskLevel", "LOW")));
+
+    assertThat(result)
+        .hasValueSatisfying(
+            check -> {
+              assertThat(check.getType()).isEqualTo(KYC_CHECK);
+              assertThat(check.isSuccess()).isTrue();
+              assertThat(check.getMetadata()).isEqualTo(Map.of("riskLevel", "LOW"));
+            });
+  }
+
+  @Test
+  void addKycCheck_persistsStillFailingRecheckWhenNoSuccessfulCheckExists() {
+    given(
+            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
+                "38501010002", KYC_CHECK, true, aYearAgoFromTestClock))
+        .willReturn(false);
+
+    var result =
+        amlService.addKycCheck("38501010002", new KycCheck(HIGH, Map.of("riskLevel", "HIGH")));
+
+    assertThat(result)
+        .hasValueSatisfying(
+            check -> {
+              assertThat(check.getType()).isEqualTo(KYC_CHECK);
+              assertThat(check.isSuccess()).isFalse();
+            });
+  }
+
+  @Test
+  void addKycCheck_skipsPassingRecheckWhenRecentSuccessfulCheckExists() {
+    given(
+            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
+                "38501010002", KYC_CHECK, true, aYearAgoFromTestClock))
+        .willReturn(true);
+
+    var result =
+        amlService.addKycCheck("38501010002", new KycCheck(LOW, Map.of("riskLevel", "LOW")));
+
+    assertThat(result).isEmpty();
+    verify(amlCheckRepository, never()).save(any(AmlCheck.class));
+  }
+
+  @Test
+  void addKycCheck_persistsAdverseRecheckEvenWhenRecentSuccessfulCheckExists() {
+    given(
+            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
+                "38501010002", KYC_CHECK, true, aYearAgoFromTestClock))
+        .willReturn(true);
+
+    var result =
+        amlService.addKycCheck("38501010002", new KycCheck(HIGH, Map.of("riskLevel", "HIGH")));
+
+    assertThat(result)
+        .hasValueSatisfying(
+            check -> {
+              assertThat(check.getType()).isEqualTo(KYC_CHECK);
+              assertThat(check.isSuccess()).isFalse();
+            });
   }
 
   @Test

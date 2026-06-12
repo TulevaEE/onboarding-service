@@ -136,6 +136,39 @@ class SavingFundPaymentControllerTest {
   }
 
   @Test
+  void getPersonOnboardingStatus_returnsTheNaturalPersonsStatusWhenActingAsLegalEntity()
+      throws Exception {
+    var person = sampleAuthenticatedPersonLegalEntity().build();
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
+
+    when(savingsFundOnboardingService.getOnboardingStatus(
+            new PartyId(PartyId.Type.PERSON, person.getPersonalCode())))
+        .thenReturn(COMPLETED);
+
+    mvc.perform(get("/v1/savings/onboarding/status/person").with(authentication(auth)))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"status\":\"COMPLETED\"}"));
+  }
+
+  @Test
+  void getPersonOnboardingStatus_returnsNullWhenThePersonHasNotOnboarded() throws Exception {
+    var person = sampleAuthenticatedPersonAndMember().build();
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
+
+    when(savingsFundOnboardingService.getOnboardingStatus(
+            new PartyId(PartyId.Type.PERSON, person.getPersonalCode())))
+        .thenReturn(null);
+
+    mvc.perform(get("/v1/savings/onboarding/status/person").with(authentication(auth)))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"status\":null}"));
+  }
+
+  @Test
   void getLegalEntityOnboardingStatus_shouldReturnCompleted() throws Exception {
     var person = sampleAuthenticatedPersonAndMember().build();
     var auth =

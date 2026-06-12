@@ -27,14 +27,18 @@ class UnmatchedPendingTransactionFinderTest {
   @Mock private SebPendingTransactionExtractor extractor;
   @Mock private SebPendingTransactionMatcher matcher;
   @Mock private SebPendingTransactionComplexMatcher complexMatcher;
+  @Mock private TransactionMatchingPolicy matchingPolicy;
   @Mock private TransactionOrderRepository orderRepository;
   @Mock private TransactionExecutionRepository executionRepository;
 
   private final InvestmentReport report = InvestmentReport.builder().build();
+  private final TransactionMatchingProperties properties =
+      new TransactionMatchingProperties(null, null, null, null);
 
   private UnmatchedPendingTransactionFinder finder() {
+    given(matchingPolicy.current()).willReturn(properties);
     return new UnmatchedPendingTransactionFinder(
-        extractor, matcher, complexMatcher, orderRepository, executionRepository);
+        extractor, matcher, complexMatcher, matchingPolicy, orderRepository, executionRepository);
   }
 
   @Test
@@ -43,8 +47,8 @@ class UnmatchedPendingTransactionFinderTest {
     given(extractor.extract(report)).willReturn(List.of(row));
     given(executionRepository.findByBrokerTransactionId("R1")).willReturn(Optional.empty());
     given(matcher.match(row)).willReturn(Optional.empty());
-    given(complexMatcher.match(row)).willReturn(Optional.empty());
-    given(complexMatcher.hasNearMissCandidate(row)).willReturn(false);
+    given(complexMatcher.match(row, properties)).willReturn(Optional.empty());
+    given(complexMatcher.hasNearMissCandidate(row, properties)).willReturn(false);
 
     assertThat(finder().collectUnmatched(report)).containsExactly(row);
   }
@@ -75,8 +79,8 @@ class UnmatchedPendingTransactionFinderTest {
     given(extractor.extract(report)).willReturn(List.of(row));
     given(executionRepository.findByBrokerTransactionId("R1")).willReturn(Optional.empty());
     given(matcher.match(row)).willReturn(Optional.empty());
-    given(complexMatcher.match(row)).willReturn(Optional.empty());
-    given(complexMatcher.hasNearMissCandidate(row)).willReturn(true);
+    given(complexMatcher.match(row, properties)).willReturn(Optional.empty());
+    given(complexMatcher.hasNearMissCandidate(row, properties)).willReturn(true);
 
     assertThat(finder().collectUnmatched(report)).isEmpty();
   }
@@ -86,8 +90,8 @@ class UnmatchedPendingTransactionFinderTest {
     SebPendingTransactionRow row = row(null);
     given(extractor.extract(report)).willReturn(List.of(row));
     given(matcher.match(row)).willReturn(Optional.empty());
-    given(complexMatcher.match(row)).willReturn(Optional.empty());
-    given(complexMatcher.hasNearMissCandidate(row)).willReturn(false);
+    given(complexMatcher.match(row, properties)).willReturn(Optional.empty());
+    given(complexMatcher.hasNearMissCandidate(row, properties)).willReturn(false);
 
     assertThat(finder().collectUnmatched(report)).containsExactly(row);
     org.mockito.Mockito.verify(executionRepository, org.mockito.Mockito.never())
@@ -116,8 +120,8 @@ class UnmatchedPendingTransactionFinderTest {
     given(executionRepository.findByBrokerTransactionId("R1")).willReturn(Optional.empty());
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.empty());
     given(matcher.match(row)).willReturn(Optional.empty());
-    given(complexMatcher.match(row)).willReturn(Optional.empty());
-    given(complexMatcher.hasNearMissCandidate(row)).willReturn(false);
+    given(complexMatcher.match(row, properties)).willReturn(Optional.empty());
+    given(complexMatcher.hasNearMissCandidate(row, properties)).willReturn(false);
 
     assertThat(finder().collectUnmatched(report)).containsExactly(row);
   }

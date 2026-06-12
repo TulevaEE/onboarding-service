@@ -31,6 +31,7 @@ public class SebPendingTransactionReconciliationService {
   private final SebPendingTransactionMatcher matcher;
   private final SebPendingTransactionComplexMatcher complexMatcher;
   private final QuantityAmountValidator quantityAmountValidator;
+  private final TransactionMatchingPolicy matchingPolicy;
   private final TransactionExecutionMapper executionMapper;
   private final TransactionExecutionRepository executionRepository;
   private final TransactionOrderRepository orderRepository;
@@ -43,6 +44,7 @@ public class SebPendingTransactionReconciliationService {
   public void reconcile(InvestmentReport report) {
     var rows = extractor.extract(report);
     LocalDate reportDate = report.getReportDate();
+    TransactionMatchingProperties matchingProperties = matchingPolicy.current();
     log.info(
         "Reconciling SEB pending transactions: reportDate={}, rowCount={}",
         reportDate,
@@ -58,10 +60,11 @@ public class SebPendingTransactionReconciliationService {
         orderOpt = matchByBrokerRef(row);
       }
       if (orderOpt.isEmpty()) {
-        orderOpt = complexMatcher.match(row);
+        orderOpt = complexMatcher.match(row, matchingProperties);
       }
       if (orderOpt.isEmpty()) {
-        Optional<QuantityAmountMismatchEvent> nearMiss = complexMatcher.findNearMiss(row);
+        Optional<QuantityAmountMismatchEvent> nearMiss =
+            complexMatcher.findNearMiss(row, matchingProperties);
         if (nearMiss.isPresent()) {
           reportMismatch(nearMiss.get().withReportDate(reportDate), row);
           unmatched++;
@@ -89,7 +92,7 @@ public class SebPendingTransactionReconciliationService {
         continue;
       }
       quantityAmountValidator
-          .validate(order, row)
+          .validate(order, row, matchingProperties)
           .ifPresent(mismatch -> reportMismatch(mismatch.withReportDate(reportDate), row));
       if (upsert(row, order, reportDate)) {
         matched++;

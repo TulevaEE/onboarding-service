@@ -7,57 +7,74 @@ import ee.tuleva.onboarding.investment.transaction.ingest.QuantityAmountMismatch
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.util.Optional;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 class QuantityAmountValidator {
 
-  private final TransactionMatchingProperties matchingProperties;
-
   Optional<QuantityAmountMismatchEvent> validate(
-      TransactionOrder order, SebPendingTransactionRow row) {
+      TransactionOrder order,
+      SebPendingTransactionRow row,
+      TransactionMatchingProperties properties) {
     if (expected(order) == null || actual(order, row) == null) {
       return Optional.empty();
     }
-    if (withinTolerance(order, row)) {
+    if (withinTolerance(order, row, properties)) {
       return Optional.empty();
     }
-    return Optional.of(buildMismatchEvent(order, row));
+    return Optional.of(buildMismatchEvent(order, row, properties));
   }
 
-  boolean withinTolerance(TransactionOrder order, SebPendingTransactionRow row) {
-    return withinTolerance(order, row, BigDecimal.ONE);
+  boolean withinTolerance(
+      TransactionOrder order,
+      SebPendingTransactionRow row,
+      TransactionMatchingProperties properties) {
+    return withinTolerance(order, row, properties, BigDecimal.ONE);
   }
 
-  boolean withinNearMiss(TransactionOrder order, SebPendingTransactionRow row) {
-    return withinTolerance(order, row, matchingProperties.nearMissMultiplier());
+  boolean withinNearMiss(
+      TransactionOrder order,
+      SebPendingTransactionRow row,
+      TransactionMatchingProperties properties) {
+    return withinTolerance(order, row, properties, properties.nearMissMultiplier());
   }
 
   QuantityAmountMismatchEvent buildMismatchEvent(
-      TransactionOrder order, SebPendingTransactionRow row) {
+      TransactionOrder order,
+      SebPendingTransactionRow row,
+      TransactionMatchingProperties properties) {
     BigDecimal expected = expected(order);
     BigDecimal actual = actual(order, row);
     return new QuantityAmountMismatchEvent(
-        row, order, kind(order), expected, actual, actual.subtract(expected).abs(), null);
+        row,
+        order,
+        kind(order),
+        expected,
+        actual,
+        actual.subtract(expected).abs(),
+        tolerance(kind(order), properties),
+        properties.nearMissMultiplier(),
+        null);
   }
 
   private boolean withinTolerance(
-      TransactionOrder order, SebPendingTransactionRow row, BigDecimal multiplier) {
+      TransactionOrder order,
+      SebPendingTransactionRow row,
+      TransactionMatchingProperties properties,
+      BigDecimal multiplier) {
     MismatchKind kind = kind(order);
-    BigDecimal tolerance = tolerance(kind).multiply(multiplier);
+    BigDecimal tolerance = tolerance(kind, properties).multiply(multiplier);
     if (kind == MismatchKind.FUND_BUY_AMOUNT) {
       return amountWithinRelativeTolerance(expected(order), actual(order, row), tolerance);
     }
     return quantityWithinTolerance(expected(order), actual(order, row), tolerance);
   }
 
-  private BigDecimal tolerance(MismatchKind kind) {
+  private static BigDecimal tolerance(MismatchKind kind, TransactionMatchingProperties properties) {
     return switch (kind) {
-      case ETF_QUANTITY -> matchingProperties.etfQuantityTolerance();
-      case FUND_BUY_AMOUNT -> matchingProperties.fundBuyAmountTolerance();
-      case FUND_SELL_QUANTITY -> matchingProperties.fundSellQuantityTolerance();
+      case ETF_QUANTITY -> properties.etfQuantityTolerance();
+      case FUND_BUY_AMOUNT -> properties.fundBuyAmountTolerance();
+      case FUND_SELL_QUANTITY -> properties.fundSellQuantityTolerance();
     };
   }
 

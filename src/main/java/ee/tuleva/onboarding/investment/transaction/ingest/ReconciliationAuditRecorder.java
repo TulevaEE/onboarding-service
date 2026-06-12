@@ -53,6 +53,8 @@ class ReconciliationAuditRecorder {
     putIfNotNull(payload, "expected", mismatch.expected());
     putIfNotNull(payload, "actual", mismatch.actual());
     putIfNotNull(payload, "delta", mismatch.delta());
+    putIfNotNull(payload, "tolerance", mismatch.tolerance());
+    putIfNotNull(payload, "nearMissMultiplier", mismatch.nearMissMultiplier());
     save(QUANTITY_AMOUNT_MISMATCH, order, payload);
   }
 

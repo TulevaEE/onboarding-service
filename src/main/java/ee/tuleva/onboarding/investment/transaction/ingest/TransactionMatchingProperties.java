@@ -1,9 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import java.math.BigDecimal;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@ConfigurationProperties("transaction-matching")
 record TransactionMatchingProperties(
     BigDecimal etfQuantityTolerance,
     BigDecimal fundBuyAmountTolerance,

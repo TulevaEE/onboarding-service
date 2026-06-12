@@ -136,6 +136,8 @@ class QuantityAmountMismatchAlertListenerTest {
         new BigDecimal("15007"),
         new BigDecimal("15007.0003"),
         new BigDecimal("0.0003"),
+        new BigDecimal("0.0001"),
+        new BigDecimal("5"),
         reportDate);
   }
 }

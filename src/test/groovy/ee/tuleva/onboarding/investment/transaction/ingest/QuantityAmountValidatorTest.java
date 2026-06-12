@@ -15,8 +15,10 @@ import org.junit.jupiter.api.Test;
 
 class QuantityAmountValidatorTest {
 
-  private final QuantityAmountValidator validator =
-      new QuantityAmountValidator(new TransactionMatchingProperties(null, null, null, null));
+  private static final TransactionMatchingProperties PROPERTIES =
+      new TransactionMatchingProperties(null, null, null, null);
+
+  private final QuantityAmountValidator validator = new QuantityAmountValidator();
 
   @Test
   void validate_fundBuyDeltaExactlyTwoPercentOfOrderedAmount_returnsMismatch() {
@@ -24,7 +26,7 @@ class QuantityAmountValidatorTest {
     TransactionOrder order = fundBuyOrder(new BigDecimal("100000.00"));
     SebPendingTransactionRow row = fundBuyRow(new BigDecimal("102000.00"));
 
-    Optional<QuantityAmountMismatchEvent> mismatch = validator.validate(order, row);
+    Optional<QuantityAmountMismatchEvent> mismatch = validator.validate(order, row, PROPERTIES);
 
     assertThat(mismatch).isPresent();
     QuantityAmountMismatchEvent event = mismatch.get();
@@ -32,6 +34,8 @@ class QuantityAmountValidatorTest {
     assertThat(event.expected()).isEqualByComparingTo("100000.00");
     assertThat(event.actual()).isEqualByComparingTo("102000.00");
     assertThat(event.delta()).isEqualByComparingTo("2000.00");
+    assertThat(event.tolerance()).isEqualByComparingTo("0.02");
+    assertThat(event.nearMissMultiplier()).isEqualByComparingTo("5");
   }
 
   @Test
@@ -40,15 +44,18 @@ class QuantityAmountValidatorTest {
     TransactionOrder order = fundBuyOrder(new BigDecimal("100000.00"));
     SebPendingTransactionRow row = fundBuyRow(new BigDecimal("98030.00"));
 
-    assertThat(validator.validate(order, row)).isEmpty();
+    assertThat(validator.validate(order, row, PROPERTIES)).isEmpty();
   }
 
   @Test
   void withinTolerance_fundBuyUsesOrderedAmountAsDenominator() {
     TransactionOrder order = fundBuyOrder(new BigDecimal("100000.00"));
 
-    assertThat(validator.withinTolerance(order, fundBuyRow(new BigDecimal("102000.00")))).isFalse();
-    assertThat(validator.withinTolerance(order, fundBuyRow(new BigDecimal("98030.00")))).isTrue();
+    assertThat(
+            validator.withinTolerance(order, fundBuyRow(new BigDecimal("102000.00")), PROPERTIES))
+        .isFalse();
+    assertThat(validator.withinTolerance(order, fundBuyRow(new BigDecimal("98030.00")), PROPERTIES))
+        .isTrue();
   }
 
   @Test
@@ -57,8 +64,10 @@ class QuantityAmountValidatorTest {
     TransactionOrder order = fundBuyOrder(new BigDecimal("100000.00"));
 
     // delta 10000.00: /ordered = 10.000% (>= 10% → outside), /executed = 9.091% (would pass)
-    assertThat(validator.withinNearMiss(order, fundBuyRow(new BigDecimal("110000.00")))).isFalse();
-    assertThat(validator.withinNearMiss(order, fundBuyRow(new BigDecimal("109000.00")))).isTrue();
+    assertThat(validator.withinNearMiss(order, fundBuyRow(new BigDecimal("110000.00")), PROPERTIES))
+        .isFalse();
+    assertThat(validator.withinNearMiss(order, fundBuyRow(new BigDecimal("109000.00")), PROPERTIES))
+        .isTrue();
   }
 
   @Test
@@ -66,7 +75,7 @@ class QuantityAmountValidatorTest {
     TransactionOrder order = fundBuyOrder(null);
     SebPendingTransactionRow row = fundBuyRow(new BigDecimal("102000.00"));
 
-    assertThat(validator.validate(order, row)).isEmpty();
+    assertThat(validator.validate(order, row, PROPERTIES)).isEmpty();
   }
 
   @Test
@@ -74,8 +83,8 @@ class QuantityAmountValidatorTest {
     TransactionOrder order = fundBuyOrder(null);
     SebPendingTransactionRow row = fundBuyRow(new BigDecimal("102000.00"));
 
-    assertThat(validator.withinTolerance(order, row)).isFalse();
-    assertThat(validator.withinNearMiss(order, row)).isFalse();
+    assertThat(validator.withinTolerance(order, row, PROPERTIES)).isFalse();
+    assertThat(validator.withinNearMiss(order, row, PROPERTIES)).isFalse();
   }
 
   @Test
@@ -83,8 +92,8 @@ class QuantityAmountValidatorTest {
     TransactionOrder order = fundBuyOrder(new BigDecimal("0.00"));
     SebPendingTransactionRow row = fundBuyRow(new BigDecimal("102000.00"));
 
-    assertThat(validator.withinTolerance(order, row)).isFalse();
-    assertThat(validator.withinNearMiss(order, row)).isFalse();
+    assertThat(validator.withinTolerance(order, row, PROPERTIES)).isFalse();
+    assertThat(validator.withinNearMiss(order, row, PROPERTIES)).isFalse();
   }
 
   @Test
@@ -92,7 +101,7 @@ class QuantityAmountValidatorTest {
     TransactionOrder order = fundBuyOrder(new BigDecimal("0.00"));
     SebPendingTransactionRow row = fundBuyRow(new BigDecimal("102000.00"));
 
-    Optional<QuantityAmountMismatchEvent> mismatch = validator.validate(order, row);
+    Optional<QuantityAmountMismatchEvent> mismatch = validator.validate(order, row, PROPERTIES);
 
     assertThat(mismatch).isPresent();
     assertThat(mismatch.get().expected()).isEqualByComparingTo("0.00");
@@ -104,8 +113,8 @@ class QuantityAmountValidatorTest {
     TransactionOrder order = fundBuyOrder(new BigDecimal("100000.00"));
     SebPendingTransactionRow row = fundBuyRow(null);
 
-    assertThat(validator.validate(order, row)).isEmpty();
-    assertThat(validator.withinTolerance(order, row)).isFalse();
+    assertThat(validator.validate(order, row, PROPERTIES)).isEmpty();
+    assertThat(validator.withinTolerance(order, row, PROPERTIES)).isFalse();
   }
 
   private static TransactionOrder fundBuyOrder(BigDecimal orderAmount) {

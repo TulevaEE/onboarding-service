@@ -11,6 +11,8 @@ record QuantityAmountMismatchEvent(
     BigDecimal expected,
     BigDecimal actual,
     BigDecimal delta,
+    BigDecimal tolerance,
+    BigDecimal nearMissMultiplier,
     LocalDate reportDate) {
 
   enum MismatchKind {
@@ -21,6 +23,6 @@ record QuantityAmountMismatchEvent(
 
   QuantityAmountMismatchEvent withReportDate(LocalDate newReportDate) {
     return new QuantityAmountMismatchEvent(
-        row, order, kind, expected, actual, delta, newReportDate);
+        row, order, kind, expected, actual, delta, tolerance, nearMissMultiplier, newReportDate);
   }
 }

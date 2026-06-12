@@ -54,6 +54,7 @@ class SebPendingTransactionReconciliationServiceTest {
   @Mock private TransactionAuditEventRepository auditEventRepository;
   @Mock private TransactionSettlementRepository settlementRepository;
   @Mock private ApplicationEventPublisher eventPublisher;
+  @Mock private TransactionMatchingPolicy matchingPolicy;
 
   // Real collaborators so we exercise the actual extraction + mapping pipeline
   private final SebPendingTransactionExtractor extractor = new SebPendingTransactionExtractor();
@@ -63,15 +64,17 @@ class SebPendingTransactionReconciliationServiceTest {
   private SebPendingTransactionReconciliationService service;
 
   private SebPendingTransactionReconciliationService newService() {
+    given(matchingPolicy.current())
+        .willReturn(new TransactionMatchingProperties(null, null, null, null));
     SebClientNameToFundResolver resolver = new SebClientNameToFundResolver();
-    QuantityAmountValidator validator =
-        new QuantityAmountValidator(new TransactionMatchingProperties(null, null, null, null));
+    QuantityAmountValidator validator = new QuantityAmountValidator();
     return new SebPendingTransactionReconciliationService(
         extractor,
         new SebPendingTransactionMatcher(orderRepository),
         new SebPendingTransactionComplexMatcher(
             orderRepository, executionRepository, resolver, validator),
         validator,
+        matchingPolicy,
         mapper,
         executionRepository,
         orderRepository,

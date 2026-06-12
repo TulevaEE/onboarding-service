@@ -41,16 +41,15 @@ class SebPendingTransactionComplexMatcherTest {
   @Mock private TransactionOrderRepository orderRepository;
   @Mock private TransactionExecutionRepository executionRepository;
 
-  private SebPendingTransactionComplexMatcher matcher() {
-    return matcher(new TransactionMatchingProperties(null, null, null, null));
-  }
+  private static final TransactionMatchingProperties PROPERTIES =
+      new TransactionMatchingProperties(null, null, null, null);
 
-  private SebPendingTransactionComplexMatcher matcher(TransactionMatchingProperties properties) {
+  private SebPendingTransactionComplexMatcher matcher() {
     return new SebPendingTransactionComplexMatcher(
         orderRepository,
         executionRepository,
         new SebClientNameToFundResolver(),
-        new QuantityAmountValidator(properties));
+        new QuantityAmountValidator());
   }
 
   @Test
@@ -61,7 +60,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288", null);
 
-    assertThat(matcher().match(row)).contains(order);
+    assertThat(matcher().match(row, PROPERTIES)).contains(order);
   }
 
   @Test
@@ -72,7 +71,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13289", null);
 
-    assertThat(matcher().match(row)).isEmpty();
+    assertThat(matcher().match(row, PROPERTIES)).isEmpty();
   }
 
   @Test
@@ -85,7 +84,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Täiendav Kogumisfond", "IE00BFG1TM61", "Buy", "2669.9", "91782.00");
 
-    assertThat(matcher().match(row)).contains(order);
+    assertThat(matcher().match(row, PROPERTIES)).contains(order);
   }
 
   @Test
@@ -97,7 +96,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Täiendav Kogumisfond", "IE00BFG1TM61", "Buy", "2669.9", "91782.00");
 
-    assertThat(matcher().match(row)).isEmpty();
+    assertThat(matcher().match(row, PROPERTIES)).isEmpty();
   }
 
   @Test
@@ -110,7 +109,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Täiendav Kogumisfond", "IE00BFG1TM61", "Buy", "2900", "102000.00");
 
-    assertThat(matcher().match(row)).isEmpty();
+    assertThat(matcher().match(row, PROPERTIES)).isEmpty();
   }
 
   @Test
@@ -123,7 +122,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Täiendav Kogumisfond", "IE00BFG1TM61", "Buy", "2850", "98030.00");
 
-    assertThat(matcher().match(row)).contains(order);
+    assertThat(matcher().match(row, PROPERTIES)).contains(order);
   }
 
   @Test
@@ -134,7 +133,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Täiendav Kogumisfond", "IE00BFG1TM61", "Sell", "2670", "91782.00");
 
-    assertThat(matcher().match(row)).contains(order);
+    assertThat(matcher().match(row, PROPERTIES)).contains(order);
   }
 
   @Test
@@ -146,7 +145,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288", null);
 
-    assertThat(matcher().match(row)).isEmpty();
+    assertThat(matcher().match(row, PROPERTIES)).isEmpty();
   }
 
   @Test
@@ -160,7 +159,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288", null);
 
-    assertThat(matcher().match(row)).isEmpty();
+    assertThat(matcher().match(row, PROPERTIES)).isEmpty();
   }
 
   @Test
@@ -168,7 +167,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Some Other Bank Fund", "IE00BFNM3G45", "Buy", "13288", null);
 
-    assertThat(matcher().match(row)).isEmpty();
+    assertThat(matcher().match(row, PROPERTIES)).isEmpty();
   }
 
   @Test
@@ -180,7 +179,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE000F60HVH9", "Buy", "15000", null);
 
-    assertThat(matcher().match(row)).isEmpty();
+    assertThat(matcher().match(row, PROPERTIES)).isEmpty();
   }
 
   @Test
@@ -191,7 +190,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Sell", "13288", null);
 
-    assertThat(matcher().match(row)).isEmpty();
+    assertThat(matcher().match(row, PROPERTIES)).isEmpty();
   }
 
   @Test
@@ -203,7 +202,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288", null);
 
-    assertThat(matcher().match(row)).isEmpty();
+    assertThat(matcher().match(row, PROPERTIES)).isEmpty();
   }
 
   @Test
@@ -217,7 +216,7 @@ class SebPendingTransactionComplexMatcherTest {
     TransactionMatchingProperties widerTolerance =
         new TransactionMatchingProperties(new BigDecimal("2"), null, null, null);
 
-    assertThat(matcher(widerTolerance).match(row)).contains(order);
+    assertThat(matcher().match(row, widerTolerance)).contains(order);
   }
 
   @Test
@@ -232,7 +231,7 @@ class SebPendingTransactionComplexMatcherTest {
     TransactionMatchingProperties widerTolerance =
         new TransactionMatchingProperties(null, new BigDecimal("0.15"), null, null);
 
-    assertThat(matcher(widerTolerance).match(row)).contains(order);
+    assertThat(matcher().match(row, widerTolerance)).contains(order);
   }
 
   @Test
@@ -246,8 +245,8 @@ class SebPendingTransactionComplexMatcherTest {
     TransactionMatchingProperties widerMultiplier =
         new TransactionMatchingProperties(null, null, null, new BigDecimal("10"));
 
-    assertThat(matcher().findNearMiss(row)).isEmpty();
-    assertThat(matcher(widerMultiplier).findNearMiss(row)).isPresent();
+    assertThat(matcher().findNearMiss(row, PROPERTIES)).isEmpty();
+    assertThat(matcher().findNearMiss(row, widerMultiplier)).isPresent();
   }
 
   @Test
@@ -258,7 +257,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288", null);
 
-    assertThat(matcher().findNearMiss(row)).isEmpty();
+    assertThat(matcher().findNearMiss(row, PROPERTIES)).isEmpty();
   }
 
   @Test
@@ -270,7 +269,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288.0003", null);
 
-    Optional<QuantityAmountMismatchEvent> nearMiss = matcher().findNearMiss(row);
+    Optional<QuantityAmountMismatchEvent> nearMiss = matcher().findNearMiss(row, PROPERTIES);
     assertThat(nearMiss).isPresent();
     QuantityAmountMismatchEvent event = nearMiss.get();
     assertThat(event.kind()).isEqualTo(ETF_QUANTITY);
@@ -290,7 +289,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13289", null);
 
-    assertThat(matcher().findNearMiss(row)).isEmpty();
+    assertThat(matcher().findNearMiss(row, PROPERTIES)).isEmpty();
   }
 
   @Test
@@ -302,7 +301,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288.0003", null);
 
-    assertThat(matcher().findNearMiss(row)).isEmpty();
+    assertThat(matcher().findNearMiss(row, PROPERTIES)).isEmpty();
   }
 
   @Test
@@ -315,7 +314,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Täiendav Kogumisfond", "IE00BFG1TM61", "Buy", "2700", "98000.00");
 
-    Optional<QuantityAmountMismatchEvent> nearMiss = matcher().findNearMiss(row);
+    Optional<QuantityAmountMismatchEvent> nearMiss = matcher().findNearMiss(row, PROPERTIES);
     assertThat(nearMiss).isPresent();
     QuantityAmountMismatchEvent event = nearMiss.get();
     assertThat(event.kind()).isEqualTo(FUND_BUY_AMOUNT);
@@ -334,7 +333,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Täiendav Kogumisfond", "IE00BFG1TM61", "Buy", "2700", "99000.00");
 
-    assertThat(matcher().findNearMiss(row)).isEmpty();
+    assertThat(matcher().findNearMiss(row, PROPERTIES)).isEmpty();
   }
 
   @Test
@@ -345,7 +344,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Täiendav Kogumisfond", "IE00BFG1TM61", "Sell", "2670.0003", "91782.00");
 
-    Optional<QuantityAmountMismatchEvent> nearMiss = matcher().findNearMiss(row);
+    Optional<QuantityAmountMismatchEvent> nearMiss = matcher().findNearMiss(row, PROPERTIES);
     assertThat(nearMiss).isPresent();
     QuantityAmountMismatchEvent event = nearMiss.get();
     assertThat(event.kind()).isEqualTo(FUND_SELL_QUANTITY);
@@ -361,7 +360,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288.0003", null);
 
-    assertThat(matcher().findNearMiss(row)).isEmpty();
+    assertThat(matcher().findNearMiss(row, PROPERTIES)).isEmpty();
   }
 
   @Test
@@ -375,7 +374,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288.0003", null);
 
-    assertThat(matcher().findNearMiss(row)).isEmpty();
+    assertThat(matcher().findNearMiss(row, PROPERTIES)).isEmpty();
   }
 
   @Test
@@ -383,7 +382,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Some Other Bank Fund", "IE00BFNM3G45", "Buy", "13288.0003", null);
 
-    assertThat(matcher().findNearMiss(row)).isEmpty();
+    assertThat(matcher().findNearMiss(row, PROPERTIES)).isEmpty();
   }
 
   @Test
@@ -394,7 +393,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288.0003", null);
 
-    assertThat(matcher().hasNearMissCandidate(row)).isTrue();
+    assertThat(matcher().hasNearMissCandidate(row, PROPERTIES)).isTrue();
   }
 
   @Test
@@ -405,7 +404,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13289", null);
 
-    assertThat(matcher().hasNearMissCandidate(row)).isFalse();
+    assertThat(matcher().hasNearMissCandidate(row, PROPERTIES)).isFalse();
   }
 
   @Test
@@ -417,8 +416,8 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288.0003", null);
 
-    assertThat(matcher().hasNearMissCandidate(row)).isTrue();
-    assertThat(matcher().findNearMiss(row)).isEmpty();
+    assertThat(matcher().hasNearMissCandidate(row, PROPERTIES)).isTrue();
+    assertThat(matcher().findNearMiss(row, PROPERTIES)).isEmpty();
   }
 
   @Test
@@ -426,7 +425,7 @@ class SebPendingTransactionComplexMatcherTest {
     SebPendingTransactionRow row =
         row("Some Other Bank Fund", "IE00BFNM3G45", "Buy", "13288.0003", null);
 
-    assertThat(matcher().hasNearMissCandidate(row)).isFalse();
+    assertThat(matcher().hasNearMissCandidate(row, PROPERTIES)).isFalse();
   }
 
   private void givenCandidates(String isin, List<TransactionOrder> orders) {

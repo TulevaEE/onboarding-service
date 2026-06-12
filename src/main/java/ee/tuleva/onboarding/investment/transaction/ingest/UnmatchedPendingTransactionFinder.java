@@ -14,15 +14,17 @@ class UnmatchedPendingTransactionFinder {
   private final SebPendingTransactionExtractor extractor;
   private final SebPendingTransactionMatcher matcher;
   private final SebPendingTransactionComplexMatcher complexMatcher;
+  private final TransactionMatchingPolicy matchingPolicy;
   private final TransactionOrderRepository orderRepository;
   private final TransactionExecutionRepository executionRepository;
 
   List<SebPendingTransactionRow> collectUnmatched(InvestmentReport report) {
+    TransactionMatchingProperties matchingProperties = matchingPolicy.current();
     return extractor.extract(report).stream()
         .filter(row -> !isAlreadyLinkedToExecution(row))
         .filter(row -> matcher.match(row).isEmpty())
-        .filter(row -> complexMatcher.match(row).isEmpty())
-        .filter(row -> !complexMatcher.hasNearMissCandidate(row))
+        .filter(row -> complexMatcher.match(row, matchingProperties).isEmpty())
+        .filter(row -> !complexMatcher.hasNearMissCandidate(row, matchingProperties))
         .toList();
   }
 

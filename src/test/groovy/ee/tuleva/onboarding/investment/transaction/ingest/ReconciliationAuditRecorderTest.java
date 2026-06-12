@@ -110,6 +110,8 @@ class ReconciliationAuditRecorderTest {
                         && "ETF_QUANTITY".equals(event.getPayload().get("kind"))
                         && new BigDecimal("15007").equals(event.getPayload().get("expected"))
                         && new BigDecimal("15007.0003").equals(event.getPayload().get("actual"))
+                        && new BigDecimal("0.0001").equals(event.getPayload().get("tolerance"))
+                        && new BigDecimal("5").equals(event.getPayload().get("nearMissMultiplier"))
                         && REPORT_DATE.toString().equals(event.getPayload().get("reportDate"))));
   }
 
@@ -224,6 +226,8 @@ class ReconciliationAuditRecorderTest {
         new BigDecimal("15007"),
         new BigDecimal("15007.0003"),
         new BigDecimal("0.0003"),
+        new BigDecimal("0.0001"),
+        new BigDecimal("5"),
         REPORT_DATE);
   }
 }

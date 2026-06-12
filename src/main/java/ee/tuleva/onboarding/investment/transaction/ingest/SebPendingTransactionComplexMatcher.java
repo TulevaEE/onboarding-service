@@ -21,13 +21,16 @@ class SebPendingTransactionComplexMatcher {
   private final SebClientNameToFundResolver fundResolver;
   private final QuantityAmountValidator quantityAmountValidator;
 
-  Optional<TransactionOrder> match(SebPendingTransactionRow row) {
+  Optional<TransactionOrder> match(
+      SebPendingTransactionRow row, TransactionMatchingProperties properties) {
     List<TransactionOrder> candidates = sameFundIsinSideCandidates(row);
     if (candidates == null) {
       return Optional.empty();
     }
     List<TransactionOrder> inTolerance =
-        candidates.stream().filter(o -> quantityAmountValidator.withinTolerance(o, row)).toList();
+        candidates.stream()
+            .filter(o -> quantityAmountValidator.withinTolerance(o, row, properties))
+            .toList();
 
     if (inTolerance.isEmpty()) {
       return Optional.empty();
@@ -48,16 +51,18 @@ class SebPendingTransactionComplexMatcher {
   // True if the row has any same-fund+ISIN+side order within the near-miss band — including the
   // ambiguous case where findNearMiss returns empty because there is more than one candidate. The
   // settlement digest uses this so a near-miss row is treated as a mismatch, not as "unmatched".
-  boolean hasNearMissCandidate(SebPendingTransactionRow row) {
+  boolean hasNearMissCandidate(
+      SebPendingTransactionRow row, TransactionMatchingProperties properties) {
     List<TransactionOrder> candidates = sameFundIsinSideCandidates(row);
     if (candidates == null) {
       return false;
     }
     return candidates.stream()
-        .anyMatch(candidate -> quantityAmountValidator.withinNearMiss(candidate, row));
+        .anyMatch(candidate -> quantityAmountValidator.withinNearMiss(candidate, row, properties));
   }
 
-  Optional<QuantityAmountMismatchEvent> findNearMiss(SebPendingTransactionRow row) {
+  Optional<QuantityAmountMismatchEvent> findNearMiss(
+      SebPendingTransactionRow row, TransactionMatchingProperties properties) {
     List<TransactionOrder> candidates = sameFundIsinSideCandidates(row);
     if (candidates == null) {
       return Optional.empty();
@@ -66,15 +71,15 @@ class SebPendingTransactionComplexMatcher {
     // a clean match would have been picked up by match() and is not a near miss.
     List<TransactionOrder> nearMissCandidates =
         candidates.stream()
-            .filter(o -> !quantityAmountValidator.withinTolerance(o, row))
-            .filter(o -> quantityAmountValidator.withinNearMiss(o, row))
+            .filter(o -> !quantityAmountValidator.withinTolerance(o, row, properties))
+            .filter(o -> quantityAmountValidator.withinNearMiss(o, row, properties))
             .toList();
 
     if (nearMissCandidates.size() != 1) {
       return Optional.empty();
     }
     TransactionOrder order = nearMissCandidates.get(0);
-    return Optional.of(quantityAmountValidator.buildMismatchEvent(order, row));
+    return Optional.of(quantityAmountValidator.buildMismatchEvent(order, row, properties));
   }
 
   private List<TransactionOrder> sameFundIsinSideCandidates(SebPendingTransactionRow row) {

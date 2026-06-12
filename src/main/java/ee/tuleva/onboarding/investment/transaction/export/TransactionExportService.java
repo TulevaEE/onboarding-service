@@ -147,7 +147,7 @@ public class TransactionExportService {
         row.createCell(3).setCellValue(ricByIsin.getOrDefault(order.getInstrumentIsin(), ""));
         row.createCell(4).setCellValue("MOC");
         if (order.getOrderQuantity() != null) {
-          row.createCell(6).setCellValue(order.getOrderQuantity());
+          row.createCell(6).setCellValue(order.getOrderQuantity().doubleValue());
         }
         row.createCell(7).setCellValue(order.getTransactionType().name());
       }
@@ -184,11 +184,14 @@ public class TransactionExportService {
         row.createCell(1).setCellValue(bbgByIsin.getOrDefault(aggregation.isin, ""));
         row.createCell(2).setCellValue(aggregation.isin);
         row.createCell(3).setCellValue(aggregation.transactionType.name());
-        row.createCell(4).setCellValue(aggregation.totalQuantity);
+        row.createCell(4).setCellValue(aggregation.totalQuantity.doubleValue());
         row.createCell(5).setCellValue(aggregation.totalAmount.doubleValue());
-        row.createCell(6).setCellValue(aggregation.quantityByFund.getOrDefault(TKF100, 0L));
-        row.createCell(7).setCellValue(aggregation.quantityByFund.getOrDefault(TUK75, 0L));
-        row.createCell(8).setCellValue(aggregation.quantityByFund.getOrDefault(TUV100, 0L));
+        row.createCell(6)
+            .setCellValue(aggregation.quantityByFund.getOrDefault(TKF100, ZERO).doubleValue());
+        row.createCell(7)
+            .setCellValue(aggregation.quantityByFund.getOrDefault(TUK75, ZERO).doubleValue());
+        row.createCell(8)
+            .setCellValue(aggregation.quantityByFund.getOrDefault(TUV100, ZERO).doubleValue());
         grandTotal = grandTotal.add(aggregation.totalAmount);
       }
 
@@ -231,7 +234,7 @@ public class TransactionExportService {
     }
 
     if (order.getOrderQuantity() != null) {
-      row.createCell(6).setCellValue(order.getOrderQuantity());
+      row.createCell(6).setCellValue(order.getOrderQuantity().toPlainString());
     }
 
     if (order.getExpectedSettlementDate() != null) {
@@ -267,9 +270,9 @@ public class TransactionExportService {
   private static class AggregatedFtOrder {
     final String isin;
     final TransactionType transactionType;
-    long totalQuantity;
+    BigDecimal totalQuantity = ZERO;
     BigDecimal totalAmount = ZERO;
-    final Map<TulevaFund, Long> quantityByFund = new LinkedHashMap<>();
+    final Map<TulevaFund, BigDecimal> quantityByFund = new LinkedHashMap<>();
 
     AggregatedFtOrder(String isin, TransactionType transactionType) {
       this.isin = isin;
@@ -278,8 +281,8 @@ public class TransactionExportService {
 
     void add(TransactionOrder order) {
       if (order.getOrderQuantity() != null) {
-        totalQuantity += order.getOrderQuantity();
-        quantityByFund.merge(order.getFund(), order.getOrderQuantity(), Long::sum);
+        totalQuantity = totalQuantity.add(order.getOrderQuantity());
+        quantityByFund.merge(order.getFund(), order.getOrderQuantity(), BigDecimal::add);
       }
       if (order.getOrderAmount() != null) {
         totalAmount = totalAmount.add(order.getOrderAmount());

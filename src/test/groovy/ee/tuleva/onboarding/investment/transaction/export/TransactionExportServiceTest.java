@@ -55,7 +55,7 @@ class TransactionExportServiceTest {
       assertThat(dataRow1.getCell(1).getStringCellValue()).isEqualTo("IE00A");
       assertThat(dataRow1.getCell(2).getStringCellValue()).isEqualTo("BUY");
       assertThat(dataRow1.getCell(5).getStringCellValue()).isEqualTo("100000");
-      assertThat((long) dataRow1.getCell(6).getNumericCellValue()).isEqualTo(500L);
+      assertThat(dataRow1.getCell(6).getStringCellValue()).isEqualTo("500");
 
       assertThat(sheet.getPhysicalNumberOfRows()).isEqualTo(4);
     }
@@ -279,7 +279,7 @@ class TransactionExportServiceTest {
         .instrumentType(instrumentType)
         .orderVenue(venue)
         .orderAmount(amount)
-        .orderQuantity(quantity)
+        .orderQuantity(quantity == null ? null : BigDecimal.valueOf(quantity))
         .orderTimestamp(now)
         .expectedSettlementDate(LocalDate.of(2026, 1, 20))
         .createdAt(now)

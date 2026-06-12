@@ -71,7 +71,7 @@ class SebPriceVsNavCheckIT {
                 .instrumentIsin(ISIN)
                 .transactionType(BUY)
                 .instrumentType(ETF)
-                .orderQuantity(15007L)
+                .orderQuantity(new BigDecimal("15007"))
                 .orderVenue(OrderVenue.SEB)
                 .orderUuid(UUID.randomUUID())
                 .orderStatus(SENT)

@@ -1,0 +1,111 @@
+package ee.tuleva.onboarding.investment.epis.parser;
+
+import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findDate;
+import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findValue;
+import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.parseNumber;
+
+import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.epis.R17Result;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
+import org.springframework.stereotype.Component;
+
+@Component
+@RequiredArgsConstructor
+public class R17ReportParser {
+
+  private static final String HEADER_MARKER = "Väärtpaber";
+  private static final BigDecimal MAX_REASONABLE_UNITS = new BigDecimal("100000000");
+
+  private final EpisCsvParser csvParser;
+
+  public Map<String, R17Result> parse(String csv, LocalDate lockDate, LocalDate execDate) {
+    EpisCsv parsed = csvParser.parse(csv, HEADER_MARKER);
+    validateSeisugaDate(parsed.preHeaderLines(), lockDate, execDate);
+
+    Map<String, UnitAccumulator> accumulators = new LinkedHashMap<>();
+    for (Map<String, String> row : parsed.rows()) {
+      String fundRaw = trimmed(findValue(row, "väärtpaber", "vaartpaber"));
+      String toiming = lowerCase(findValue(row, "toiming"));
+      String pfType = lowerCase(findValue(row, "pf valitseja", "pfvalitseja"));
+      BigDecimal units = unitsOrZero(row).abs();
+
+      if (fundRaw.isEmpty() || toiming.isEmpty() || units.signum() == 0) {
+        continue;
+      }
+      if (units.compareTo(MAX_REASONABLE_UNITS) > 0) {
+        throw new IllegalArgumentException("R17 row units exceed sanity limit: units=" + units);
+      }
+
+      Optional<TulevaFund> fund = FundResolver.resolve(fundRaw);
+      if (fund.isEmpty()) {
+        continue;
+      }
+      UnitAccumulator accumulator =
+          accumulators.computeIfAbsent(fund.get().getCode(), code -> new UnitAccumulator());
+
+      boolean isTagasivott = toiming.contains("tagasivõtt") || toiming.contains("tagasivott");
+      boolean isValjalase = toiming.contains("väljalase") || toiming.contains("valjalase");
+      boolean isPik = pfType.contains("pik");
+
+      if (isTagasivott && isPik) {
+        accumulator.pikUnits = accumulator.pikUnits.add(units);
+      } else if (isValjalase) {
+        accumulator.netUnits = accumulator.netUnits.add(units);
+      } else if (isTagasivott) {
+        accumulator.netUnits = accumulator.netUnits.subtract(units);
+      }
+    }
+
+    Map<String, R17Result> results = new LinkedHashMap<>();
+    accumulators.forEach(
+        (fundCode, accumulator) ->
+            results.put(fundCode, new R17Result(accumulator.pikUnits, accumulator.netUnits)));
+    return results;
+  }
+
+  private static void validateSeisugaDate(
+      List<String> preHeaderLines, LocalDate lockDate, LocalDate execDate) {
+    for (String line : preHeaderLines) {
+      LocalDate seisuga = findDate(line);
+      if (seisuga == null) {
+        continue;
+      }
+      if (seisuga.isBefore(lockDate) || seisuga.isAfter(execDate)) {
+        throw new IllegalArgumentException(
+            "R17 Seisuga date outside active cycle window: seisuga="
+                + seisuga
+                + ", lockDate="
+                + lockDate
+                + ", execDate="
+                + execDate);
+      }
+      return;
+    }
+  }
+
+  private static BigDecimal unitsOrZero(Map<String, String> row) {
+    BigDecimal units = parseNumber(findValue(row, "osakud (teenustasuga)", "osakuid"));
+    return units == null ? BigDecimal.ZERO : units;
+  }
+
+  private static String trimmed(@Nullable String value) {
+    return value == null ? "" : value.trim();
+  }
+
+  private static String lowerCase(@Nullable String value) {
+    return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+  }
+
+  private static final class UnitAccumulator {
+    private BigDecimal pikUnits = BigDecimal.ZERO;
+    private BigDecimal netUnits = BigDecimal.ZERO;
+  }
+}

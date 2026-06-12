@@ -196,6 +196,12 @@ transaction-registry:
     # scan because orders never transition to SETTLED, so the EXECUTED backlog grows.
     scan-lookback-days: 60
 
+transaction-matching:
+  etf-quantity-tolerance: 0.0001
+  fund-buy-amount-tolerance: 0.02
+  fund-sell-quantity-tolerance: 0.0001
+  near-miss-multiplier: 5
+
 payment-provider:
   url: https://sandbox-stargate.montonio.com/api
   use-fake-notification-url: true

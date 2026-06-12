@@ -40,6 +40,7 @@ class TransactionExecutionRepositoryIT {
             .executedQuantity(new BigDecimal("15007.0000"))
             .unitPrice(new BigDecimal("4.72550000"))
             .totalConsideration(new BigDecimal("70915.58"))
+            .settlementAmount(new BigDecimal("70915.58"))
             .commissionAmount(new BigDecimal("0.00"))
             .settlementFeeAmount(new BigDecimal("0.00"))
             .settlementPenalty(new BigDecimal("0.00"))
@@ -67,6 +68,7 @@ class TransactionExecutionRepositoryIT {
     assertThat(loaded.getExecutedQuantity()).isEqualByComparingTo("15007.0000");
     assertThat(loaded.getUnitPrice()).isEqualByComparingTo("4.72550000");
     assertThat(loaded.getTotalConsideration()).isEqualByComparingTo("70915.58");
+    assertThat(loaded.getSettlementAmount()).isEqualByComparingTo("70915.58");
     assertThat(loaded.getCommissionAmount()).isEqualByComparingTo("0.00");
     assertThat(loaded.getSettlementFeeAmount()).isEqualByComparingTo("0.00");
     assertThat(loaded.getSettlementPenalty()).isEqualByComparingTo("0.00");
@@ -249,7 +251,7 @@ class TransactionExecutionRepositoryIT {
             .instrumentIsin("IE000F60HVH9")
             .transactionType(BUY)
             .instrumentType(ETF)
-            .orderQuantity(15007L)
+            .orderQuantity(new BigDecimal("15007"))
             .orderVenue(SEB)
             .orderUuid(UUID.randomUUID())
             .build());

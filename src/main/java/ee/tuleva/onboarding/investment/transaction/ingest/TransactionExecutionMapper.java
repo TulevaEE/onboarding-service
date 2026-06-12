@@ -22,6 +22,7 @@ class TransactionExecutionMapper {
     execution.setExecutedQuantity(row.quantity());
     execution.setUnitPrice(row.price());
     execution.setTotalConsideration(row.total());
+    execution.setSettlementAmount(row.settlementAmount());
     execution.setCommissionAmount(row.brokerFee());
     execution.setActualSettlementDate(row.settlementDate());
     execution.setSource(SOURCE_SEB_OOTEL);

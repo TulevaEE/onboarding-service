@@ -6,7 +6,7 @@ import java.time.LocalDate;
 
 record QuantityAmountMismatchEvent(
     SebPendingTransactionRow row,
-    TransactionOrder nearMissOrder,
+    TransactionOrder order,
     MismatchKind kind,
     BigDecimal expected,
     BigDecimal actual,
@@ -21,6 +21,6 @@ record QuantityAmountMismatchEvent(
 
   QuantityAmountMismatchEvent withReportDate(LocalDate newReportDate) {
     return new QuantityAmountMismatchEvent(
-        row, nearMissOrder, kind, expected, actual, delta, newReportDate);
+        row, order, kind, expected, actual, delta, newReportDate);
   }
 }

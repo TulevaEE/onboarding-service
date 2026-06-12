@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,9 +16,12 @@ class ExecutionMismatchAlertListener {
 
   private final AlertMandrillMessageFactory messageFactory;
   private final EmailService emailService;
+  private final OperationsNotificationService notificationService;
 
   @EventListener
   public void onExecutionMismatch(ExecutionMismatchEvent event) {
+    notificationService.sendMessage(buildSlackMessage(event), INVESTMENT);
+
     var subject = "[HOIATUS] SEB hind erineb NAV-hinnast – " + event.tradeDate();
     var body = buildBody(event);
 
@@ -32,6 +38,20 @@ class ExecutionMismatchAlertListener {
           event.executionId(),
           event.isin());
     }
+  }
+
+  private static String buildSlackMessage(ExecutionMismatchEvent event) {
+    return """
+        ⚠️ SEB hind erineb NAV-hinnast – %s
+        Execution %s, ISIN: %s
+        Exec hind: %s, NAV hind: %s, delta %%: %s"""
+        .formatted(
+            event.tradeDate(),
+            event.executionId(),
+            event.isin(),
+            event.execPrice(),
+            event.navPrice(),
+            event.deltaPercent());
   }
 
   private static String buildBody(ExecutionMismatchEvent event) {

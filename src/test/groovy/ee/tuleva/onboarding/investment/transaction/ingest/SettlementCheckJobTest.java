@@ -21,6 +21,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.InstrumentType;
@@ -69,9 +70,14 @@ class SettlementCheckJobTest {
   private final Clock clock = Clock.fixed(TODAY.atStartOfDay(TALLINN).toInstant(), TALLINN);
 
   private SettlementCheckJob job() {
+    return job(clock);
+  }
+
+  private SettlementCheckJob job(Clock clock) {
     return new SettlementCheckJob(
         clock,
         publicHolidays,
+        new Target2Calendar(),
         orderRepository,
         executionRepository,
         reportService,
@@ -219,6 +225,76 @@ class SettlementCheckJobTest {
     job().run();
 
     verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void run_overdueMeasuredFromReportDate_notWallClock() {
+    given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
+    // Friday's report imported Monday: deadlines that pass over the weekend by wall-clock are
+    // not yet overdue as of the report date.
+    InvestmentReport report = report(LAST_WORKING_DAY);
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.of(report));
+    given(extractor.extract(report)).willReturn(List.of(rowWithClientRef(PRESENT_UUID)));
+
+    // SENT ETF on Tuesday 12th -> deadline Friday 15th: overdue by wall-clock (18th), not by
+    // report date (15th).
+    TransactionOrder sentEtf =
+        order(1L, ETF, SENT, dateOnly(2026, 5, 12), TulevaFund.TUK75, "IE000F60HVH9", SENT_UUID);
+    // EXECUTED, still in the report, settling on the report date.
+    TransactionOrder executed =
+        order(2L, FUND, EXECUTED, dateOnly(2026, 5, 4), TUV100, "EE3600109443", PRESENT_UUID);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of(sentEtf, executed));
+    given(executionRepository.findByOrderIdIn(any()))
+        .willReturn(List.of(execution(2L, LAST_WORKING_DAY, "REF2")));
+    given(unmatchedFinder.collectUnmatched(report)).willReturn(List.of());
+
+    job().run();
+
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void run_deadlineSkipsTarget2EasterClosingDays() {
+    // Easter 2026: Good Friday 2026-04-03, Easter Monday 2026-04-06. SENT ETF on Wed 2026-04-01
+    // has a 3-business-day deadline of Wed 2026-04-08 on the TARGET2 calendar (Apr 2, 7, 8) —
+    // not yet overdue as of Apr 8. Weekend-only arithmetic would flag it (deadline Apr 6).
+    LocalDate easterWednesday = LocalDate.of(2026, 4, 8);
+    Clock easterClock = Clock.fixed(easterWednesday.atStartOfDay(TALLINN).toInstant(), TALLINN);
+    given(publicHolidays.previousWorkingDay(easterWednesday)).willReturn(LocalDate.of(2026, 4, 7));
+    InvestmentReport report = report(easterWednesday);
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.of(report));
+    given(extractor.extract(report)).willReturn(List.of());
+
+    TransactionOrder sentEtf =
+        order(1L, ETF, SENT, dateOnly(2026, 4, 1), TulevaFund.TUK75, "IE000F60HVH9", SENT_UUID);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of(sentEtf));
+    given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
+    given(unmatchedFinder.collectUnmatched(report)).willReturn(List.of());
+
+    job(easterClock).run();
+
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void run_noReport_fallsBackToWallClockForOverdueCheck() {
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.empty());
+
+    // Deadline Friday 15th is not overdue by report date semantics, but with no report the job
+    // falls back to wall-clock (Monday 18th) and flags it.
+    TransactionOrder sentEtf =
+        order(1L, ETF, SENT, dateOnly(2026, 5, 12), TulevaFund.TUK75, "IE000F60HVH9", SENT_UUID);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of(sentEtf));
+    given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
+
+    job().run();
+
+    ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+    verify(notificationService).sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue()).contains("[SAADETUD, täitmist pole] Order 1");
   }
 
   @Test

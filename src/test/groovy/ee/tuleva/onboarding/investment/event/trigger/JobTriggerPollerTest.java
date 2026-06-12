@@ -9,6 +9,9 @@ import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.investment.event.RunLimitCheckRequested;
 import ee.tuleva.onboarding.investment.event.RunOverdueSettlementRequested;
+import ee.tuleva.onboarding.investment.event.RunPevaRavaFlowRecalcRequested;
+import ee.tuleva.onboarding.investment.event.RunPevaRavaPhaseUpdateRequested;
+import ee.tuleva.onboarding.investment.event.RunR16FlowRecalcRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
 import java.util.List;
@@ -113,6 +116,26 @@ class JobTriggerPollerTest {
     var captor = ArgumentCaptor.forClass(Object.class);
     then(eventPublisher).should().publishEvent(captor.capture());
     assertThat(captor.getValue()).isInstanceOf(RunTrackingDifferenceBackfillRequested.class);
+  }
+
+  @Test
+  void publishesEpisReportJobEvents() {
+    var phaseUpdate =
+        JobTrigger.builder().jobName("PevaRavaPhaseUpdateJob").status("PENDING").build();
+    var pevaRavaRecalc =
+        JobTrigger.builder().jobName("PevaRavaFlowRecalcJob").status("PENDING").build();
+    var r16Recalc = JobTrigger.builder().jobName("R16FlowRecalcJob").status("PENDING").build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING"))
+        .willReturn(List.of(phaseUpdate, pevaRavaRecalc, r16Recalc));
+
+    poller.poll();
+
+    then(eventPublisher).should().publishEvent(any(RunPevaRavaPhaseUpdateRequested.class));
+    then(eventPublisher).should().publishEvent(any(RunPevaRavaFlowRecalcRequested.class));
+    then(eventPublisher).should().publishEvent(any(RunR16FlowRecalcRequested.class));
+    assertThat(phaseUpdate.getStatus()).isEqualTo("COMPLETED");
+    assertThat(pevaRavaRecalc.getStatus()).isEqualTo("COMPLETED");
+    assertThat(r16Recalc.getStatus()).isEqualTo("COMPLETED");
   }
 
   @Test

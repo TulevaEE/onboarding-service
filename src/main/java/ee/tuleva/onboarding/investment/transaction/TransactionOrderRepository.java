@@ -21,12 +21,16 @@ public interface TransactionOrderRepository extends JpaRepository<TransactionOrd
 
   List<TransactionOrder> findByFund(TulevaFund fund);
 
+  // EXECUTED orders keep their cash impact until the expected settlement date has passed —
+  // reconciliation flips SENT -> EXECUTED before cash actually settles (no settlement data yet).
   @Query(
       """
       SELECT o FROM TransactionOrder o
       WHERE o.fund = :fund
-        AND o.orderStatus = ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT
-        AND o.expectedSettlementDate > :asOfDate
+        AND (o.orderStatus = ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT
+             AND o.expectedSettlementDate > :asOfDate
+          OR o.orderStatus = ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED
+             AND o.expectedSettlementDate >= :asOfDate)
       """)
   List<TransactionOrder> findUnsettledOrders(TulevaFund fund, LocalDate asOfDate);
 
@@ -34,8 +38,10 @@ public interface TransactionOrderRepository extends JpaRepository<TransactionOrd
       """
       SELECT o FROM TransactionOrder o
       WHERE o.fund = :fund
-        AND o.orderStatus = ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT
-        AND o.expectedSettlementDate > :asOfDate
+        AND (o.orderStatus = ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT
+             AND o.expectedSettlementDate > :asOfDate
+          OR o.orderStatus = ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED
+             AND o.expectedSettlementDate >= :asOfDate)
         AND o.createdAt < :createdBefore
       """)
   List<TransactionOrder> findUnsettledOrdersAsOf(

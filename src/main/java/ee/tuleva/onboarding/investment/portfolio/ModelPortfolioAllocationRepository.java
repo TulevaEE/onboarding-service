@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.portfolio;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -11,6 +12,9 @@ public interface ModelPortfolioAllocationRepository
 
   List<ModelPortfolioAllocation> findByFundAndEffectiveDate(
       TulevaFund fund, LocalDate effectiveDate);
+
+  Optional<ModelPortfolioAllocation> findFirstByIsinAndProviderIsNotNullOrderByEffectiveDateDesc(
+      String isin);
 
   // Snapshot semantics: a model portfolio is versioned as a whole, so all allocations on a given
   // effective date form one indivisible version. Returns every row from the single newest

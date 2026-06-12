@@ -1,13 +1,31 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_BUFFER_PERCENT;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_ROUNDING_STEP;
+import static ee.tuleva.onboarding.investment.epis.PevaRavaPhase.DONE;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
+import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
+import static java.math.RoundingMode.CEILING;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
+import ee.tuleva.onboarding.investment.epis.FundCycleTimeline;
+import ee.tuleva.onboarding.investment.epis.PevaRavaFlowService;
+import ee.tuleva.onboarding.investment.epis.PevaRavaFlows;
+import ee.tuleva.onboarding.investment.epis.PevaRavaPeriodService;
+import ee.tuleva.onboarding.investment.epis.R16FlowCalculationService;
+import ee.tuleva.onboarding.investment.epis.R16FundFlow;
+import ee.tuleva.onboarding.investment.epis.R16PhaseCalculator;
+import ee.tuleva.onboarding.investment.epis.R45ReportService;
+import ee.tuleva.onboarding.investment.epis.R45Result;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.FundLimit;
@@ -31,12 +49,17 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@NullMarked
 public class TransactionInputService {
+
+  private static final Set<TulevaFund> PEVA_RAVA_FUNDS = Set.of(TUK75, TUK00);
+  private static final Set<TulevaFund> R16_FUNDS = Set.of(TUK75, TUK00, TUV100);
 
   private final FundPositionRepository fundPositionRepository;
   private final FeeAccrualRepository feeAccrualRepository;
@@ -46,6 +69,12 @@ public class TransactionInputService {
   private final NavLedgerRepository navLedgerRepository;
   private final FundValueRepository fundValueRepository;
   private final TransactionOrderRepository orderRepository;
+  private final PevaRavaPeriodService pevaRavaPeriodService;
+  private final PevaRavaFlowService pevaRavaFlowService;
+  private final R45ReportService r45ReportService;
+  private final R16FlowCalculationService r16FlowCalculationService;
+  private final R16PhaseCalculator r16PhaseCalculator;
+  private final InvestmentParameterRepository investmentParameterRepository;
 
   public FundTransactionInput gatherInput(
       TulevaFund fund, LocalDate asOfDate, Map<String, Object> manualAdjustments) {
@@ -97,6 +126,13 @@ public class TransactionInputService {
       liabilities = liabilities.add(unreconciledBankReceipts).add(fundUnitsReservedValue);
       receivables = navLedgerRepository.getSystemAccountBalance("INCOMING_PAYMENTS_CLEARING");
     }
+
+    liabilities = liabilities.add(getPevaRavaLiquidity(fund, asOfDate));
+    liabilities = liabilities.add(getR16Outflow(fund, asOfDate));
+
+    BigDecimal r45Net = getR45Net(fund);
+    liabilities = liabilities.add(ZERO.max(r45Net.negate()));
+    receivables = receivables.add(ZERO.max(r45Net));
 
     liabilities = liabilities.add(getAdjustment(manualAdjustments, "additionalLiabilities"));
     receivables = receivables.add(getAdjustment(manualAdjustments, "additionalReceivables"));
@@ -236,6 +272,62 @@ public class TransactionInputService {
             .map(FundValue::value)
             .orElse(ZERO);
     return units.multiply(nav);
+  }
+
+  private BigDecimal getPevaRavaLiquidity(TulevaFund fund, LocalDate asOfDate) {
+    if (!PEVA_RAVA_FUNDS.contains(fund)) {
+      return ZERO;
+    }
+    return pevaRavaPeriodService
+        .getCurrentPeriod(asOfDate)
+        .filter(period -> period.phase() != DONE)
+        .map(period -> period.timelineFor(fund))
+        .filter(FundCycleTimeline::dActive)
+        .map(timeline -> getPevaRavaLiquidity(fund, asOfDate, timeline))
+        .orElse(ZERO);
+  }
+
+  private BigDecimal getPevaRavaLiquidity(
+      TulevaFund fund, LocalDate asOfDate, FundCycleTimeline timeline) {
+    PevaRavaFlows flows = pevaRavaFlowService.calculateFlows(asOfDate).get(fund);
+    if (flows == null) {
+      return ZERO;
+    }
+    return timeline.sellByReached() ? flows.tradeBufferedLiquidity() : flows.liquidityRequired();
+  }
+
+  private BigDecimal getR16Outflow(TulevaFund fund, LocalDate asOfDate) {
+    if (!R16_FUNDS.contains(fund)) {
+      return ZERO;
+    }
+    return r16FlowCalculationService
+        .calculateFlows(fund, asOfDate)
+        .map(flow -> getR16Outflow(flow, asOfDate))
+        .orElse(ZERO);
+  }
+
+  private BigDecimal getR16Outflow(R16FundFlow flow, LocalDate asOfDate) {
+    return switch (r16PhaseCalculator.phaseFor(flow, asOfDate)) {
+      case ACTIVE -> flow.totalOutflowEur().abs();
+      case BUFFERED -> bufferedR16Outflow(flow.totalOutflowEur(), asOfDate);
+      case IGNORE, VISIBLE -> ZERO;
+    };
+  }
+
+  private BigDecimal bufferedR16Outflow(BigDecimal totalOutflowEur, LocalDate asOfDate) {
+    BigDecimal bufferPercent =
+        investmentParameterRepository.findLatestValue(R16_BUFFER_PERCENT, asOfDate);
+    BigDecimal step = investmentParameterRepository.findLatestValue(R16_ROUNDING_STEP, asOfDate);
+    return totalOutflowEur
+        .abs()
+        .multiply(ONE.add(bufferPercent))
+        .divide(step, 0, CEILING)
+        .multiply(step);
+  }
+
+  private BigDecimal getR45Net(TulevaFund fund) {
+    R45Result result = r45ReportService.getLatestFlows().get(fund);
+    return result == null ? ZERO : result.netEur();
   }
 
   private BigDecimal getAdjustment(Map<String, Object> adjustments, String key) {

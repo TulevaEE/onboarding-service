@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.event.PipelineStep.EXECUTION_MATCHING;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static org.mockito.BDDMockito.given;
@@ -8,6 +9,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.event.PipelineNotifier;
+import ee.tuleva.onboarding.investment.event.PipelineRun;
+import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationRequested;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
@@ -34,6 +38,8 @@ class SebPendingTransactionReconciliationJobTest {
   @Mock private PublicHolidays publicHolidays;
   @Mock private InvestmentReportService reportService;
   @Mock private SebPendingTransactionReconciliationService reconciliationService;
+  @Mock private PipelineTracker pipelineTracker;
+  @Mock private PipelineNotifier pipelineNotifier;
 
   @InjectMocks private SebPendingTransactionReconciliationJob job;
 
@@ -46,7 +52,54 @@ class SebPendingTransactionReconciliationJobTest {
 
     job.run();
 
-    verifyNoInteractions(reportService, reconciliationService);
+    verifyNoInteractions(reportService, reconciliationService, pipelineTracker, pipelineNotifier);
+  }
+
+  @Test
+  void run_tracksExecutionMatchingPipelineStep() {
+    given(publicHolidays.isWorkingDay(TODAY)).willReturn(true);
+    PipelineRun pipelineRun =
+        new PipelineRun(PipelineRun.PipelineType.IMPORT, "Execution Matching");
+    given(pipelineTracker.current()).willReturn(pipelineRun);
+    for (int i = 0; i <= 7; i++) {
+      given(reportService.getReport(SEB, PENDING_TRANSACTIONS, TODAY.minusDays(i)))
+          .willReturn(Optional.empty());
+    }
+
+    job.run();
+
+    verify(pipelineTracker).start(PipelineRun.PipelineType.IMPORT, "Execution Matching");
+    verify(pipelineTracker).stepStarted(EXECUTION_MATCHING);
+    verify(pipelineTracker).stepCompleted(EXECUTION_MATCHING);
+    verify(pipelineTracker, never())
+        .stepFailed(
+            org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
+    verify(pipelineNotifier).sendCompleted(pipelineRun);
+    verify(pipelineTracker).clear();
+  }
+
+  @Test
+  void run_marksStepFailedWhenReconciliationThrows() {
+    given(publicHolidays.isWorkingDay(TODAY)).willReturn(true);
+    PipelineRun pipelineRun =
+        new PipelineRun(PipelineRun.PipelineType.IMPORT, "Execution Matching");
+    given(pipelineTracker.current()).willReturn(pipelineRun);
+    InvestmentReport today = report(TODAY);
+    for (int i = 0; i <= 7; i++) {
+      given(reportService.getReport(SEB, PENDING_TRANSACTIONS, TODAY.minusDays(i)))
+          .willReturn(i == 0 ? Optional.of(today) : Optional.empty());
+    }
+    org.mockito.BDDMockito.willThrow(new RuntimeException("boom"))
+        .given(reconciliationService)
+        .reconcile(today);
+
+    job.run();
+
+    verify(pipelineTracker).stepStarted(EXECUTION_MATCHING);
+    verify(pipelineTracker).stepFailed(EXECUTION_MATCHING, "boom");
+    verify(pipelineTracker, never()).stepCompleted(EXECUTION_MATCHING);
+    verify(pipelineNotifier).sendCompleted(pipelineRun);
+    verify(pipelineTracker).clear();
   }
 
   @Test

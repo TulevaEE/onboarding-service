@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_BUFFER_PERCENT;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_ROUNDING_STEP;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static java.math.BigDecimal.ZERO;
@@ -9,11 +11,26 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
+import ee.tuleva.onboarding.investment.epis.FundCycleTimeline;
+import ee.tuleva.onboarding.investment.epis.PevaRavaCycle;
+import ee.tuleva.onboarding.investment.epis.PevaRavaFlowService;
+import ee.tuleva.onboarding.investment.epis.PevaRavaFlows;
+import ee.tuleva.onboarding.investment.epis.PevaRavaPeriod;
+import ee.tuleva.onboarding.investment.epis.PevaRavaPeriodService;
+import ee.tuleva.onboarding.investment.epis.PevaRavaPhase;
+import ee.tuleva.onboarding.investment.epis.R16FlowCalculationService;
+import ee.tuleva.onboarding.investment.epis.R16FundFlow;
+import ee.tuleva.onboarding.investment.epis.R16Phase;
+import ee.tuleva.onboarding.investment.epis.R16PhaseCalculator;
+import ee.tuleva.onboarding.investment.epis.R45ReportService;
+import ee.tuleva.onboarding.investment.epis.R45Result;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.*;
@@ -44,6 +61,12 @@ class TransactionInputServiceTest {
   @Mock private NavLedgerRepository navLedgerRepository;
   @Mock private FundValueRepository fundValueRepository;
   @Mock private TransactionOrderRepository orderRepository;
+  @Mock private PevaRavaPeriodService pevaRavaPeriodService;
+  @Mock private PevaRavaFlowService pevaRavaFlowService;
+  @Mock private R45ReportService r45ReportService;
+  @Mock private R16FlowCalculationService r16FlowCalculationService;
+  @Mock private R16PhaseCalculator r16PhaseCalculator;
+  @Mock private InvestmentParameterRepository investmentParameterRepository;
 
   @InjectMocks private TransactionInputService service;
 
@@ -712,5 +735,335 @@ class TransactionInputServiceTest {
     // freeCash = cash(100000) - cashBuffer(0) - liabilities(0) + receivables(0)
     //            - pendingBuys(30000) + pendingSells(10000) = 80000
     assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("80000"));
+  }
+
+  @Test
+  void gatherInput_withExecutedButUnsettledBuyOrder_subtractsItsAmountFromFreeCash() {
+    var positionDate = AS_OF_DATE;
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(List.of());
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(CASH)
+                    .marketValue(new BigDecimal("100000"))
+                    .build()));
+    given(
+            feeAccrualRepository.getAccruedFeesForMonth(
+                eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+        .willReturn(ZERO);
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+
+    var executedUnsettledBuy =
+        TransactionOrder.builder()
+            .fund(TUV100)
+            .instrumentIsin("IE00A")
+            .transactionType(TransactionType.BUY)
+            .instrumentType(InstrumentType.ETF)
+            .orderAmount(new BigDecimal("25000"))
+            .orderVenue(OrderVenue.SEB)
+            .orderStatus(OrderStatus.EXECUTED)
+            .expectedSettlementDate(AS_OF_DATE.plusDays(1))
+            .build();
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(List.of(executedUnsettledBuy));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    // freeCash = cash(100000) - pendingBuys(25000) = 75000
+    assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("75000"));
+  }
+
+  @Test
+  void gatherInput_pevaRavaActiveBeforeSellBy_addsRawLiquidityToLiabilities() {
+    stubEmptyBaseline(TulevaFund.TUK75);
+    given(pevaRavaPeriodService.getCurrentPeriod(AS_OF_DATE))
+        .willReturn(
+            Optional.of(
+                pevaRavaPeriod(PevaRavaPhase.ACTIVE, timeline(true, false), timeline(true, true))));
+    given(pevaRavaFlowService.calculateFlows(AS_OF_DATE))
+        .willReturn(
+            Map.of(
+                TulevaFund.TUK75, pevaRavaFlows(new BigDecimal("10000"), new BigDecimal("11000"))));
+
+    var result = service.gatherInput(TulevaFund.TUK75, AS_OF_DATE, Map.of());
+
+    assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("10000"));
+    assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("-10000"));
+  }
+
+  @Test
+  void gatherInput_pevaRavaActiveAfterSellBy_addsBufferedLiquidityToLiabilities() {
+    stubEmptyBaseline(TulevaFund.TUK00);
+    given(pevaRavaPeriodService.getCurrentPeriod(AS_OF_DATE))
+        .willReturn(
+            Optional.of(
+                pevaRavaPeriod(
+                    PevaRavaPhase.TUK00_ACTIVE, timeline(false, false), timeline(true, true))));
+    given(pevaRavaFlowService.calculateFlows(AS_OF_DATE))
+        .willReturn(
+            Map.of(
+                TulevaFund.TUK00, pevaRavaFlows(new BigDecimal("10000"), new BigDecimal("11000"))));
+
+    var result = service.gatherInput(TulevaFund.TUK00, AS_OF_DATE, Map.of());
+
+    assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("11000"));
+  }
+
+  @Test
+  void gatherInput_pevaRavaFundNotYetActive_addsNothing() {
+    stubEmptyBaseline(TulevaFund.TUK75);
+    given(pevaRavaPeriodService.getCurrentPeriod(AS_OF_DATE))
+        .willReturn(
+            Optional.of(
+                pevaRavaPeriod(
+                    PevaRavaPhase.TUK00_ACTIVE, timeline(false, false), timeline(true, false))));
+
+    var result = service.gatherInput(TulevaFund.TUK75, AS_OF_DATE, Map.of());
+
+    assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
+    org.mockito.Mockito.verifyNoInteractions(pevaRavaFlowService);
+  }
+
+  @Test
+  void gatherInput_pevaRavaDonePhase_addsNothing() {
+    stubEmptyBaseline(TulevaFund.TUK75);
+    given(pevaRavaPeriodService.getCurrentPeriod(AS_OF_DATE))
+        .willReturn(
+            Optional.of(
+                pevaRavaPeriod(PevaRavaPhase.DONE, timeline(true, true), timeline(true, true))));
+
+    var result = service.gatherInput(TulevaFund.TUK75, AS_OF_DATE, Map.of());
+
+    assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
+    org.mockito.Mockito.verifyNoInteractions(pevaRavaFlowService);
+  }
+
+  @Test
+  void gatherInput_pevaRavaFlowsMissingForFund_addsNothing() {
+    stubEmptyBaseline(TulevaFund.TUK75);
+    given(pevaRavaPeriodService.getCurrentPeriod(AS_OF_DATE))
+        .willReturn(
+            Optional.of(
+                pevaRavaPeriod(PevaRavaPhase.ACTIVE, timeline(true, false), timeline(true, true))));
+    given(pevaRavaFlowService.calculateFlows(AS_OF_DATE)).willReturn(Map.of());
+
+    var result = service.gatherInput(TulevaFund.TUK75, AS_OF_DATE, Map.of());
+
+    assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void gatherInput_forNonPevaRavaFund_doesNotQueryPevaRavaServices() {
+    stubEmptyBaseline(TUV100);
+
+    service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    org.mockito.Mockito.verifyNoInteractions(pevaRavaPeriodService, pevaRavaFlowService);
+  }
+
+  @Test
+  void gatherInput_r45NetOutflow_addsAbsoluteNetToLiabilities() {
+    stubEmptyBaseline(TUV100);
+    given(r45ReportService.getLatestFlows())
+        .willReturn(
+            Map.of(
+                TUV100,
+                new R45Result(
+                    new BigDecimal("1000"), new BigDecimal("5000"), new BigDecimal("-4000"))));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("4000"));
+    assertThat(result.receivables()).isEqualByComparingTo(ZERO);
+    assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("-4000"));
+  }
+
+  @Test
+  void gatherInput_r45NetInflow_addsNetToReceivables() {
+    stubEmptyBaseline(TUV100);
+    given(r45ReportService.getLatestFlows())
+        .willReturn(
+            Map.of(
+                TUV100,
+                new R45Result(
+                    new BigDecimal("5000"), new BigDecimal("1000"), new BigDecimal("4000"))));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
+    assertThat(result.receivables()).isEqualByComparingTo(new BigDecimal("4000"));
+    assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("4000"));
+  }
+
+  @Test
+  void gatherInput_r45DataMissingForFund_addsNothing() {
+    stubEmptyBaseline(TUV100);
+    given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
+    assertThat(result.receivables()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void gatherInput_r45NetOutflowCombinesWithManualAdjustments() {
+    stubEmptyBaseline(TUV100);
+    given(r45ReportService.getLatestFlows())
+        .willReturn(
+            Map.of(
+                TUV100,
+                new R45Result(
+                    new BigDecimal("1000"), new BigDecimal("5000"), new BigDecimal("-4000"))));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of("additionalLiabilities", 2000));
+
+    assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("6000"));
+  }
+
+  @Test
+  void gatherInput_r16ActivePhase_addsTotalOutflowToLiabilities() {
+    stubEmptyBaseline(TUV100);
+    var flow = r16Flow(TUV100, new BigDecimal("10500"));
+    given(r16FlowCalculationService.calculateFlows(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(flow));
+    given(r16PhaseCalculator.phaseFor(flow, AS_OF_DATE)).willReturn(R16Phase.ACTIVE);
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("10500"));
+    assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("-10500"));
+  }
+
+  @Test
+  void gatherInput_r16BufferedPhase_addsBufferedRoundedOutflowToLiabilities() {
+    stubEmptyBaseline(TUV100);
+    var flow = r16Flow(TUV100, new BigDecimal("10500"));
+    given(r16FlowCalculationService.calculateFlows(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(flow));
+    given(r16PhaseCalculator.phaseFor(flow, AS_OF_DATE)).willReturn(R16Phase.BUFFERED);
+    given(investmentParameterRepository.findLatestValue(R16_BUFFER_PERCENT, AS_OF_DATE))
+        .willReturn(new BigDecimal("0.02"));
+    given(investmentParameterRepository.findLatestValue(R16_ROUNDING_STEP, AS_OF_DATE))
+        .willReturn(new BigDecimal("1000"));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    // 10500 * 1.02 = 10710 -> rounded up to step 1000 -> 11000
+    assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("11000"));
+  }
+
+  @Test
+  void gatherInput_r16VisiblePhase_addsNothing() {
+    stubEmptyBaseline(TUV100);
+    var flow = r16Flow(TUV100, new BigDecimal("10500"));
+    given(r16FlowCalculationService.calculateFlows(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(flow));
+    given(r16PhaseCalculator.phaseFor(flow, AS_OF_DATE)).willReturn(R16Phase.VISIBLE);
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
+    org.mockito.Mockito.verifyNoInteractions(investmentParameterRepository);
+  }
+
+  @Test
+  void gatherInput_r16IgnorePhase_addsNothing() {
+    stubEmptyBaseline(TUV100);
+    var flow = r16Flow(TUV100, new BigDecimal("10500"));
+    given(r16FlowCalculationService.calculateFlows(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(flow));
+    given(r16PhaseCalculator.phaseFor(flow, AS_OF_DATE)).willReturn(R16Phase.IGNORE);
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void gatherInput_r16DataMissing_addsNothingAndSkipsPhaseCalculation() {
+    stubEmptyBaseline(TUV100);
+    given(r16FlowCalculationService.calculateFlows(TUV100, AS_OF_DATE))
+        .willReturn(Optional.empty());
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
+    org.mockito.Mockito.verifyNoInteractions(r16PhaseCalculator);
+  }
+
+  @Test
+  void gatherInput_forNonR16Fund_doesNotQueryR16Services() {
+    stubEmptyBaseline(TKF100);
+    given(navLedgerRepository.getSystemAccountBalance("UNRECONCILED_BANK_RECEIPTS"))
+        .willReturn(ZERO);
+    given(navLedgerRepository.getSystemAccountBalance("INCOMING_PAYMENTS_CLEARING"))
+        .willReturn(ZERO);
+    given(navLedgerRepository.getFundUnitsBalance("FUND_UNITS_RESERVED")).willReturn(ZERO);
+
+    service.gatherInput(TKF100, AS_OF_DATE, Map.of());
+
+    org.mockito.Mockito.verifyNoInteractions(r16FlowCalculationService, r16PhaseCalculator);
+  }
+
+  private static R16FundFlow r16Flow(TulevaFund fund, BigDecimal totalOutflowEur) {
+    return new R16FundFlow(
+        fund,
+        new BigDecimal("10000"),
+        new BigDecimal("500"),
+        totalOutflowEur,
+        LocalDate.of(2026, 1, 1),
+        LocalDate.of(2026, 1, 15),
+        LocalDate.of(2026, 1, 8));
+  }
+
+  private void stubEmptyBaseline(TulevaFund fund) {
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, AS_OF_DATE))
+        .willReturn(Optional.of(AS_OF_DATE));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF_DATE, fund, SECURITY))
+        .willReturn(List.of());
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF_DATE, fund, CASH))
+        .willReturn(List.of());
+    given(
+            feeAccrualRepository.getAccruedFeesForMonth(
+                eq(fund), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+        .willReturn(ZERO);
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(fund, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(fund)));
+    given(positionLimitRepository.findLatestByFundAsOf(fund, AS_OF_DATE)).willReturn(List.of());
+  }
+
+  private static PevaRavaPeriod pevaRavaPeriod(
+      PevaRavaPhase phase, FundCycleTimeline tuk75, FundCycleTimeline tuk00) {
+    var cycle = new PevaRavaCycle(LocalDate.of(2025, 11, 30), LocalDate.of(2026, 1, 2));
+    return new PevaRavaPeriod(phase, cycle, tuk75, tuk00);
+  }
+
+  private static FundCycleTimeline timeline(boolean dActive, boolean sellByReached) {
+    return new FundCycleTimeline(
+        LocalDate.of(2025, 12, 22), LocalDate.of(2025, 12, 29), dActive, sellByReached);
+  }
+
+  private static PevaRavaFlows pevaRavaFlows(
+      BigDecimal liquidityRequired, BigDecimal tradeBufferedLiquidity) {
+    return new PevaRavaFlows(
+        liquidityRequired,
+        ZERO,
+        ZERO,
+        liquidityRequired,
+        liquidityRequired,
+        tradeBufferedLiquidity,
+        tradeBufferedLiquidity);
   }
 }

@@ -10,6 +10,7 @@ import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.event.RunOverdueSettlementRequested;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
@@ -20,7 +21,6 @@ import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.Clock;
-import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -61,6 +61,7 @@ class SettlementCheckJob {
 
   private final Clock clock;
   private final PublicHolidays publicHolidays;
+  private final Target2Calendar target2Calendar;
   private final TransactionOrderRepository orderRepository;
   private final TransactionExecutionRepository executionRepository;
   private final InvestmentReportService reportService;
@@ -76,6 +77,10 @@ class SettlementCheckJob {
 
     var latestReport = reportService.getLatestReport(SEB, PENDING_TRANSACTIONS);
     boolean fresh = latestReport.map(report -> isUsable(report, today)).orElse(false);
+    LocalDate referenceDate = fresh ? latestReport.get().getReportDate() : today;
+    if (!fresh) {
+      log.warn("Falling back to wall-clock for overdue check: today={}", today);
+    }
 
     List<SebPendingTransactionRow> rows = latestReport.map(extractor::extract).orElseGet(List::of);
     Set<UUID> reportClientRefs =
@@ -94,7 +99,7 @@ class SettlementCheckJob {
         orderRepository.findByOrderStatusInAndOrderTimestampSince(List.of(SENT, EXECUTED), since);
 
     List<OverdueLine> overdue =
-        collectOverdue(today, fresh, reportClientRefs, reportOurRefs, registryOrders);
+        collectOverdue(referenceDate, fresh, reportClientRefs, reportOurRefs, registryOrders);
     List<SebPendingTransactionRow> unmatched =
         fresh ? unmatchedFinder.collectUnmatched(latestReport.get()) : List.of();
 
@@ -143,7 +148,7 @@ class SettlementCheckJob {
   }
 
   private List<OverdueLine> collectOverdue(
-      LocalDate today,
+      LocalDate referenceDate,
       boolean fresh,
       Set<UUID> reportClientRefs,
       Set<String> reportOurRefs,
@@ -160,13 +165,13 @@ class SettlementCheckJob {
     for (TransactionOrder order : candidates) {
       if (order.getOrderStatus() == SENT) {
         LocalDate deadline = sentDeadline(order);
-        if (deadline != null && deadline.isBefore(today)) {
+        if (deadline != null && deadline.isBefore(referenceDate)) {
           overdue.add(new OverdueLine(order, SENT, deadline));
         }
       } else if (order.getOrderStatus() == EXECUTED) {
         TransactionExecution execution = executionsByOrderId.get(order.getId());
         LocalDate deadline = executedDeadline(order, execution);
-        if (deadline == null || !deadline.isBefore(today)) {
+        if (deadline == null || !deadline.isBefore(referenceDate)) {
           continue;
         }
         // When the latest report is fresh, an EXECUTED order absent from it has settled -> skip.
@@ -183,7 +188,8 @@ class SettlementCheckJob {
     if (order.getOrderTimestamp() == null || order.getInstrumentType() == null) {
       return null;
     }
-    return addBusinessDays(orderDate(order), thresholdFor(order.getInstrumentType()));
+    return target2Calendar.addBusinessDays(
+        orderDate(order), thresholdFor(order.getInstrumentType()));
   }
 
   private @Nullable LocalDate executedDeadline(
@@ -215,23 +221,6 @@ class SettlementCheckJob {
 
   private static LocalDate orderDate(TransactionOrder order) {
     return order.getOrderTimestamp().atZone(TALLINN).toLocalDate();
-  }
-
-  private static LocalDate addBusinessDays(LocalDate from, int businessDays) {
-    LocalDate date = from;
-    int count = 0;
-    while (count < businessDays) {
-      date = date.plusDays(1);
-      if (isBusinessDay(date)) {
-        count++;
-      }
-    }
-    return date;
-  }
-
-  private static boolean isBusinessDay(LocalDate date) {
-    DayOfWeek day = date.getDayOfWeek();
-    return day != DayOfWeek.SATURDAY && day != DayOfWeek.SUNDAY;
   }
 
   private String buildMessage(

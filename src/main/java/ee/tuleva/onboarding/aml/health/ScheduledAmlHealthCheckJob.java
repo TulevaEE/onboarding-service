@@ -32,6 +32,7 @@ public class ScheduledAmlHealthCheckJob {
           AmlCheckType.KYB_DUAL_MEMBER_OWNERSHIP,
           AmlCheckType.KYB_SOLE_BOARD_MEMBER_IS_OWNER,
           AmlCheckType.KYB_COMPANY_ACTIVE,
+          AmlCheckType.KYB_COMPANY_AGE,
           AmlCheckType.KYB_RELATED_PERSONS_KYC,
           AmlCheckType.KYB_COMPANY_SANCTION,
           AmlCheckType.KYB_COMPANY_PEP,

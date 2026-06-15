@@ -288,18 +288,6 @@ public class AdminController {
     return "Retried redemption payout for " + id;
   }
 
-  @PostMapping("/whitelist-company")
-  public String whitelistCompany(
-      @RequestHeader("X-Admin-Token") String token,
-      @RequestParam String registryCode,
-      @RequestParam(defaultValue = "false") boolean override) {
-
-    validateTokenWithOpsAccess(token);
-    savingsFundOnboardingService.whitelistLegalEntity(registryCode, override);
-
-    return "Whitelisted company: registryCode=" + registryCode;
-  }
-
   @PostMapping("/whitelist-iban")
   public String whitelistIban(
       @RequestHeader("X-Admin-Token") String token,

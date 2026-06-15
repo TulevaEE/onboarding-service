@@ -4,10 +4,8 @@ import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARD
 import static ee.tuleva.onboarding.kyb.KybCheckType.DATA_CHANGED;
 import static ee.tuleva.onboarding.kyb.survey.BlockedReason.ALREADY_ONBOARDED;
 import static ee.tuleva.onboarding.kyb.survey.BlockedReason.NOT_BOARD_MEMBER;
-import static ee.tuleva.onboarding.kyb.survey.BlockedReason.NO_WHITELIST_AFTER_CUTOFF;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.WHITELISTED;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.joining;
@@ -20,8 +18,6 @@ import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.kyb.*;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
-import java.time.Clock;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,14 +34,11 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 class KybSurveyService {
 
-  private static final Instant WHITELIST_CUTOFF = Instant.parse("2026-03-27T15:00:00Z");
-
   private final LegalEntityScreener legalEntityScreener;
   private final KybSurveyResponseMapper kybSurveyResponseMapper;
   private final KybSurveyRepository kybSurveyRepository;
   private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   private final ApplicationEventPublisher eventPublisher;
-  private final Clock clock;
 
   private record FieldError(String field, ValidationError error) {}
 
@@ -137,7 +130,6 @@ class KybSurveyService {
   private static String blockedReasonMessage(BlockedReason reason) {
     return switch (reason) {
       case ALREADY_ONBOARDED -> "Ettevõte on juba liitunud";
-      case NO_WHITELIST_AFTER_CUTOFF -> "Ettevõttel ei ole eelheakskiitu";
       case NOT_BOARD_MEMBER -> "Isik ei ole ettevõtte juhatuse liige";
     };
   }
@@ -223,12 +215,8 @@ class KybSurveyService {
 
   private Optional<BlockedReason> getBlockedReason(String registryCode) {
     var status = savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY);
-    if (status.filter(s -> s != WHITELISTED && s != REJECTED).isPresent()) {
+    if (status.filter(s -> s != REJECTED).isPresent()) {
       return Optional.of(ALREADY_ONBOARDED);
-    }
-    if (!Instant.now(clock).isBefore(WHITELIST_CUTOFF)
-        && status.filter(s -> s == WHITELISTED).isEmpty()) {
-      return Optional.of(NO_WHITELIST_AFTER_CUTOFF);
     }
     return Optional.empty();
   }

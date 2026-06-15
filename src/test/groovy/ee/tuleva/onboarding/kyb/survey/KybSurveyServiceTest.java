@@ -4,11 +4,9 @@ import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARD
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
 import static ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSource.*;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.WHITELISTED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -29,9 +27,6 @@ import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanySourceOfInco
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus;
 import java.math.BigDecimal;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,7 +34,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -55,8 +49,6 @@ class KybSurveyServiceTest {
   @Mock private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Mock private ApplicationEventPublisher eventPublisher;
 
-  @Spy private Clock clock = Clock.fixed(Instant.parse("2026-03-25T10:00:00Z"), ZoneId.of("UTC"));
-
   private KybSurveyService service;
 
   @BeforeEach
@@ -67,8 +59,7 @@ class KybSurveyServiceTest {
             kybSurveyResponseMapper,
             kybSurveyRepository,
             savingsFundOnboardingRepository,
-            eventPublisher,
-            clock);
+            eventPublisher);
   }
 
   private CompanyDetail sampleDetail() {
@@ -559,55 +550,6 @@ class KybSurveyServiceTest {
   }
 
   @Test
-  void initialValidation_returnsNameErrorWhenNotWhitelistedAfterCutoff() {
-    doReturn(Instant.parse("2026-03-28T10:00:00Z")).when(clock).instant();
-    stubInitialValidation(
-        sampleRelationships(),
-        sampleDetail(),
-        List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
-    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .thenReturn(Optional.empty());
-
-    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
-
-    assertThat(result.name().errors())
-        .containsExactly(
-            new ValidationError("NO_WHITELIST_AFTER_CUTOFF", "Ettevõttel ei ole eelheakskiitu"));
-  }
-
-  @Test
-  void initialValidation_returnsNoWhitelistErrorWhenWhitelisted() {
-    doReturn(Instant.parse("2026-03-28T10:00:00Z")).when(clock).instant();
-    stubInitialValidation(
-        sampleRelationships(),
-        sampleDetail(),
-        List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
-    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .thenReturn(Optional.of(WHITELISTED));
-
-    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
-
-    assertThat(result.name().errors())
-        .doesNotContain(
-            new ValidationError("NO_WHITELIST_AFTER_CUTOFF", "Ettevõttel ei ole eelheakskiitu"));
-  }
-
-  @Test
-  void submit_throwsWhenNotWhitelistedAfterCutoff() {
-    doReturn(Instant.parse("2026-03-28T10:00:00Z")).when(clock).instant();
-    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
-        .thenReturn(sampleRelationships());
-    when(kybSurveyRepository.save(any(KybSurvey.class)))
-        .thenAnswer(invocation -> invocation.getArgument(0));
-    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .thenReturn(Optional.empty());
-
-    assertThatThrownBy(
-            () -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, sampleSurveyResponse()))
-        .isInstanceOf(OnboardingNotAllowedException.class);
-  }
-
-  @Test
   void submit_throwsWhenAlreadyOnboarded() {
     when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
         .thenReturn(sampleRelationships());
@@ -667,27 +609,6 @@ class KybSurveyServiceTest {
         .publishEvent(
             new TrackableSystemEvent(
                 SAVINGS_FUND_ONBOARDING_STATUS_CHANGE, blockedAuditData("ALREADY_ONBOARDED")));
-  }
-
-  @Test
-  void submit_publishesAuditEventWhenNotWhitelistedAfterCutoff() {
-    doReturn(Instant.parse("2026-03-28T10:00:00Z")).when(clock).instant();
-    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
-        .thenReturn(sampleRelationships());
-    when(kybSurveyRepository.save(any(KybSurvey.class)))
-        .thenAnswer(invocation -> invocation.getArgument(0));
-    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .thenReturn(Optional.empty());
-
-    assertThatThrownBy(
-            () -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, sampleSurveyResponse()))
-        .isInstanceOf(OnboardingNotAllowedException.class);
-
-    verify(eventPublisher)
-        .publishEvent(
-            new TrackableSystemEvent(
-                SAVINGS_FUND_ONBOARDING_STATUS_CHANGE,
-                blockedAuditData("NO_WHITELIST_AFTER_CUTOFF")));
   }
 
   @Test

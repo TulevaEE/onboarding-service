@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.banking.processor;
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_CANCELLED;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNATTRIBUTED_PAYMENT_RECONCILED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import static java.math.BigDecimal.ZERO;
 
@@ -110,6 +111,15 @@ public class DeferredReturnMatcher {
 
     if (savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK)
         || savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)) {
+      return;
+    }
+
+    if (savingsFundLedger.hasLedgerEntry(originalPaymentId, UNATTRIBUTED_PAYMENT_RECONCILED)) {
+      log.error(
+          "Deferred return matching: outbound return matched a manually attributed (reconciled) payment; "
+              + "skipping auto-reversal, manual investigation required as funds may be both attributed and returned: paymentId={}, amount={}",
+          originalPaymentId,
+          originalPayment.getAmount());
       return;
     }
 

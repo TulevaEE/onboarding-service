@@ -17,8 +17,6 @@ import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.savings.fund.notification.UnattributedPaymentEvent;
 import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.user.personalcode.PersonalCodeValidator;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -35,7 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentVerificationService {
   private static final PersonalCodeValidator personalCodeValidator = new PersonalCodeValidator();
   private static final RegistryCodeValidator registryCodeValidator = new RegistryCodeValidator();
-  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final UserRepository userRepository;
@@ -117,7 +114,7 @@ public class PaymentVerificationService {
         "Verification completed for payment {}, attaching to party {}", payment.getId(), partyId);
     savingFundPaymentRepository.changeStatus(payment.getId(), VERIFIED);
     savingsFundLedger.recordPaymentReceived(
-        partyId, payment.getAmount(), payment.getId(), bookingDate(payment));
+        partyId, payment.getAmount(), payment.getId(), payment.bookingDate());
 
     if (representingChild) {
       applicationEventPublisher.publishEvent(
@@ -137,7 +134,7 @@ public class PaymentVerificationService {
     savingFundPaymentRepository.addReturnReason(payment.getId(), reason);
 
     savingsFundLedger.recordUnattributedPayment(
-        payment.getAmount(), payment.getId(), bookingDate(payment));
+        payment.getAmount(), payment.getId(), payment.bookingDate());
 
     applicationEventPublisher.publishEvent(
         new UnattributedPaymentEvent(payment.getId(), payment.getAmount(), reason));
@@ -149,10 +146,6 @@ public class PaymentVerificationService {
             user ->
                 applicationEventPublisher.publishEvent(
                     new SavingsPaymentFailedEvent(this, user, Locale.of("et"))));
-  }
-
-  private static LocalDate bookingDate(SavingFundPayment payment) {
-    return payment.getReceivedBefore().atZone(ESTONIAN_ZONE).toLocalDate();
   }
 
   private Optional<PartyId> extractPartyId(SavingFundPayment payment) {

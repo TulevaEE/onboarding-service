@@ -32,7 +32,9 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.party.RepresentationType;
 import ee.tuleva.onboarding.savings.fund.IbanWhitelistEntry;
 import ee.tuleva.onboarding.savings.fund.IbanWhitelistService;
+import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
+import ee.tuleva.onboarding.savings.fund.UnattributedPaymentAttributionService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
@@ -82,6 +84,7 @@ class AdminControllerTest {
   private ee.tuleva.onboarding.investment.fees.ocf.OcfCalculationService ocfCalculationService;
 
   @MockitoBean private IbanWhitelistService ibanWhitelistService;
+  @MockitoBean private UnattributedPaymentAttributionService unattributedPaymentAttributionService;
   @MockitoBean private Clock clock;
 
   private static final String VALID_LINK_BODY =
@@ -94,6 +97,50 @@ class AdminControllerTest {
         "relationshipType": "LEGAL_REPRESENTATIVE"
       }
       """;
+
+  @Test
+  void attributeUnattributedPayment_withValidOpsToken_returnsOk() throws Exception {
+    var paymentId = UUID.randomUUID();
+    var payment =
+        SavingFundPayment.builder()
+            .id(paymentId)
+            .amount(new BigDecimal("1000.00"))
+            .status(SavingFundPayment.Status.VERIFIED)
+            .build();
+    given(
+            unattributedPaymentAttributionService.attribute(
+                paymentId, new PartyId(PartyId.Type.PERSON, "48806046007"), true))
+        .willReturn(payment);
+
+    mockMvc
+        .perform(
+            post("/admin/savings-fund/payments/{paymentId}/attribute", paymentId)
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("partyType", "PERSON")
+                .param("partyCode", "48806046007")
+                .param("returnCancelled", "true"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paymentId").value(paymentId.toString()))
+        .andExpect(jsonPath("$.status").value("VERIFIED"))
+        .andExpect(jsonPath("$.partyCode").value("48806046007"));
+  }
+
+  @Test
+  void attributeUnattributedPayment_withInvalidToken_returnsUnauthorized() throws Exception {
+    var paymentId = UUID.randomUUID();
+
+    mockMvc
+        .perform(
+            post("/admin/savings-fund/payments/{paymentId}/attribute", paymentId)
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .param("partyType", "PERSON")
+                .param("partyCode", "48806046007"))
+        .andExpect(status().isUnauthorized());
+
+    verifyNoInteractions(unattributedPaymentAttributionService);
+  }
 
   @Test
   void fetchSebHistory_withValidToken_returnsOk() throws Exception {

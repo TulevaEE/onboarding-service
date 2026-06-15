@@ -84,6 +84,41 @@ class DeferredReturnMatcherTest {
   }
 
   @Test
+  void skipsAndAlertsWhenPaymentManuallyReconciled() {
+    User user = sampleUser().build();
+    var originalPaymentId = UUID.randomUUID();
+    var endToEndId = originalPaymentId.toString().replace("-", "");
+    var originalPayment =
+        aPayment()
+            .id(originalPaymentId)
+            .partyId(new PartyId(PERSON, user.getPersonalCode()))
+            .amount(new BigDecimal("50.00"))
+            .status(VERIFIED)
+            .build();
+    var returnPayment =
+        aPayment()
+            .amount(new BigDecimal("-50.00"))
+            .beneficiaryIban("EE112233445566778899")
+            .endToEndId(endToEndId)
+            .build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(returnPayment));
+    when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
+        .thenReturn(Optional.of(originalPayment));
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
+        .thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, UNATTRIBUTED_PAYMENT_RECONCILED))
+        .thenReturn(true);
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
+    verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
+    verify(savingFundPaymentRepository, never()).changeStatus(any(), any());
+  }
+
+  @Test
   void matchesUnattributedBounceBack() {
     var originalPaymentId = UUID.randomUUID();
     var endToEndId = originalPaymentId.toString().replace("-", "");

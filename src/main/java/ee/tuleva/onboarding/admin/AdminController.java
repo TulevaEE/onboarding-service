@@ -24,6 +24,7 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.IbanWhitelistEntry;
 import ee.tuleva.onboarding.savings.fund.IbanWhitelistService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
+import ee.tuleva.onboarding.savings.fund.UnattributedPaymentAttributionService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
@@ -73,6 +74,7 @@ public class AdminController {
   private final ee.tuleva.onboarding.investment.fees.ocf.OcfCalculationService
       ocfCalculationService;
   private final IbanWhitelistService ibanWhitelistService;
+  private final UnattributedPaymentAttributionService unattributedPaymentAttributionService;
   private final Clock clock;
 
   @Value("${admin.api-token:}")
@@ -450,6 +452,34 @@ public class AdminController {
     validateToken(token);
     ocfCalculationService.backfillMonths(monthsBack, clock);
     return "OCF backfilled for last %d months".formatted(monthsBack);
+  }
+
+  @PostMapping("/savings-fund/payments/{paymentId}/attribute")
+  public Map<String, String> attributeUnattributedPayment(
+      @RequestHeader("X-Admin-Token") String token,
+      @PathVariable UUID paymentId,
+      @RequestParam PartyId.Type partyType,
+      @RequestParam String partyCode,
+      @RequestParam(defaultValue = "false") boolean returnCancelled) {
+
+    validateTokenWithOpsAccess(token);
+
+    log.info(
+        "Admin triggered manual payment attribution: paymentId={}, partyType={}, partyCode={}, returnCancelled={}",
+        paymentId,
+        partyType,
+        partyCode,
+        returnCancelled);
+
+    var payment =
+        unattributedPaymentAttributionService.attribute(
+            paymentId, new PartyId(partyType, partyCode), returnCancelled);
+
+    return Map.of(
+        "paymentId", payment.getId().toString(),
+        "status", payment.getStatus().name(),
+        "partyType", partyType.name(),
+        "partyCode", partyCode);
   }
 
   private void validateTokenWithOpsAccess(String token) {

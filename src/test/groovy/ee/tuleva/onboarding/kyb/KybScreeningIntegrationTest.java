@@ -184,6 +184,42 @@ class KybScreeningIntegrationTest {
   }
 
   @Test
+  void companyWithUnidentifiedRelatedPersonIsBlockedWithoutCrashing() {
+    var unidentified =
+        new KybRelatedPerson(null, true, true, true, BigDecimal.valueOf(100), UNKNOWN);
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
+            PERSONAL_CODE,
+            R,
+            List.of(unidentified),
+            new SelfCertification(true, true, true),
+            "EE",
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
+
+    var results = kybScreeningService.screen(data);
+
+    var structureCheck =
+        results.stream().filter(c -> c.type() == KybCheckType.COMPANY_STRUCTURE).findFirst();
+    assertThat(structureCheck).isPresent();
+    assertThat(structureCheck.get().success()).isFalse();
+
+    var kycCheck =
+        results.stream().filter(c -> c.type() == KybCheckType.RELATED_PERSONS_KYC).findFirst();
+    assertThat(kycCheck).isPresent();
+    assertThat(kycCheck.get().success()).isFalse();
+
+    var amlChecks =
+        amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
+            PERSONAL_CODE.value(), aYearAgo());
+    var structureAmlCheck =
+        amlChecks.stream().filter(c -> c.getType() == KYB_COMPANY_STRUCTURE).findFirst();
+    assertThat(structureAmlCheck).isPresent();
+    assertThat(structureAmlCheck.get().isSuccess()).isFalse();
+  }
+
+  @Test
   void companyFoundedLessThanAYearAgoCreatesFailingCompanyAgeCheck() {
     var person =
         new KybRelatedPerson(PERSONAL_CODE, true, true, true, BigDecimal.valueOf(100), COMPLETED);

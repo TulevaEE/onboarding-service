@@ -18,7 +18,6 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -102,8 +101,6 @@ class RelatedPersonsKycScreenerTest {
         .containsExactly(Map.of("personalCode", "38501010002", "kycStatus", "REJECTED"));
   }
 
-  // TODO: entities without personal code are not supported at the moment
-  @Disabled
   @Test
   @SuppressWarnings("unchecked")
   void handlesNullPersonalCodeInMetadata() {
@@ -129,7 +126,10 @@ class RelatedPersonsKycScreenerTest {
 
     var incompletePersons =
         (List<Map<String, String>>) result.getFirst().metadata().get("incompletePersons");
-    assertThat(incompletePersons).hasSize(2);
+    assertThat(incompletePersons)
+        .containsExactlyInAnyOrder(
+            Map.of("personalCode", "38501010001", "kycStatus", "UNKNOWN"),
+            Map.of("kycStatus", "UNKNOWN"));
   }
 
   @Test

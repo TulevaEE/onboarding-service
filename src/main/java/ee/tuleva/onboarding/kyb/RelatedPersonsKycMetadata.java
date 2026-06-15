@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.kyb;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -16,15 +17,18 @@ public final class RelatedPersonsKycMetadata {
     if (incomplete.isEmpty()) {
       return Map.of();
     }
-    var persons =
-        incomplete.stream()
-            .map(
-                person ->
-                    Map.of(
-                        PERSONAL_CODE, person.personalCode().toString(),
-                        KYC_STATUS, person.kycStatus().name()))
-            .toList();
+    var persons = incomplete.stream().map(RelatedPersonsKycMetadata::personMetadata).toList();
     return Map.of(INCOMPLETE_PERSONS, persons);
+  }
+
+  private static Map<String, Object> personMetadata(KybRelatedPerson person) {
+    var metadata = new HashMap<String, Object>();
+    var personalCode = person.personalCode();
+    if (personalCode != null) {
+      metadata.put(PERSONAL_CODE, personalCode.toString());
+    }
+    metadata.put(KYC_STATUS, person.kycStatus().name());
+    return Map.copyOf(metadata);
   }
 
   @SuppressWarnings("unchecked")

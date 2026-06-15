@@ -33,9 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @RequiredArgsConstructor
 public class PaymentVerificationService {
-  // Pre-go-live: remove this constant and the LEGAL_ENTITY guard in process() at TKF go-live.
-  private static final String TULEVA_FONDID_AS_REGISTRY_CODE = "14118923";
-
   private static final PersonalCodeValidator personalCodeValidator = new PersonalCodeValidator();
   private static final RegistryCodeValidator registryCodeValidator = new RegistryCodeValidator();
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
@@ -111,11 +108,6 @@ public class PaymentVerificationService {
 
     if (!savingsFundOnboardingService.isOnboardingCompleted(partyId)) {
       identityCheckFailure(payment, messages.notOnboarded());
-      return;
-    }
-
-    if (partyId.type() == LEGAL_ENTITY && !partyId.code().equals(TULEVA_FONDID_AS_REGISTRY_CODE)) {
-      identityCheckFailure(payment, "pre-go-live: only Tuleva Fondid AS can receive TKF payments");
       return;
     }
 

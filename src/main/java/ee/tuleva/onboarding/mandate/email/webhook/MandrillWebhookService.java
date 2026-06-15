@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.event.EventLogRepository;
 import ee.tuleva.onboarding.mandate.email.persistence.Email;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailRepository;
+import ee.tuleva.onboarding.notification.email.EmailDeliveryFailedEvent;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.HashMap;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +30,7 @@ public class MandrillWebhookService {
   private final EventLogRepository eventLogRepository;
   private final MandrillSignatureVerifier signatureVerifier;
   private final JsonMapper objectMapper;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Transactional
   public void handleWebhook(String mandrillEvents, String signature, HttpServletRequest request) {
@@ -43,17 +46,67 @@ public class MandrillWebhookService {
     log.info("Processing {} Mandrill webhook events", events.size());
 
     for (MandrillWebhookEvent event : events) {
-      if (!event.isSupported()) {
-        log.debug("Ignoring unsupported event type: {}", event.event());
-        continue;
-      }
-
       try {
-        processWebhookEvent(event);
+        if (event.isDeliveryFailure()) {
+          publishDeliveryFailure(event);
+        } else if (event.isEngagementEvent()) {
+          processWebhookEvent(event);
+        } else {
+          log.debug("Ignoring unsupported event type: {}", event.event());
+        }
       } catch (Exception e) {
         log.error("Error processing Mandrill webhook event: {}", event.event(), e);
       }
     }
+  }
+
+  private void publishDeliveryFailure(MandrillWebhookEvent event) {
+    if (event.msg() == null || event.msg().email() == null) {
+      log.warn(
+          "Received Mandrill delivery-failure event without recipient, ignoring: event={}",
+          event.event());
+      return;
+    }
+
+    var msg = event.msg();
+    var failedEvent =
+        new EmailDeliveryFailedEvent(
+            msg.email(),
+            msg.subject(),
+            event.event(),
+            failureReason(msg),
+            msg.id(),
+            Instant.ofEpochSecond(event.ts()));
+
+    log.warn(
+        "Email delivery failed: recipient={}, event={}, subject={}, mandrillMessageId={}",
+        msg.email(),
+        event.event(),
+        msg.subject(),
+        msg.id());
+
+    eventPublisher.publishEvent(failedEvent);
+  }
+
+  private String failureReason(MandrillWebhookEvent.MandrillMessage msg) {
+    if (msg.bounceDescription() != null && !msg.bounceDescription().isBlank()) {
+      return msg.bounceDescription();
+    }
+    if (msg.diag() != null && !msg.diag().isBlank()) {
+      return msg.diag();
+    }
+    var smtpDiag = latestSmtpDiag(msg);
+    if (smtpDiag != null && !smtpDiag.isBlank()) {
+      return smtpDiag;
+    }
+    return msg.state();
+  }
+
+  private String latestSmtpDiag(MandrillWebhookEvent.MandrillMessage msg) {
+    if (msg.smtpEvents() == null || msg.smtpEvents().isEmpty()) {
+      return null;
+    }
+    return msg.smtpEvents().getLast().diag();
   }
 
   private List<MandrillWebhookEvent> parseEvents(String mandrillEvents) {
@@ -84,7 +137,7 @@ public class MandrillWebhookService {
   }
 
   private void saveEventLog(MandrillWebhookEvent event, Email email) {
-    if (!event.isSupported()) {
+    if (!event.isEngagementEvent()) {
       log.debug("Ignoring unsupported Mandrill event type: {}", event.event());
       return;
     }

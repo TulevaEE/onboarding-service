@@ -5,7 +5,9 @@ import ee.tuleva.onboarding.event.EventLog
 import ee.tuleva.onboarding.event.EventLogRepository
 import ee.tuleva.onboarding.mandate.email.persistence.Email
 import ee.tuleva.onboarding.mandate.email.persistence.EmailRepository
+import ee.tuleva.onboarding.notification.email.EmailDeliveryFailedEvent
 import jakarta.servlet.http.HttpServletRequest
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.web.server.ResponseStatusException
 import spock.lang.Specification
 
@@ -21,7 +23,8 @@ class MandrillWebhookServiceSpec extends Specification {
   EventLogRepository eventLogRepository = Mock()
   MandrillSignatureVerifier signatureVerifier = Mock()
   JsonMapper objectMapper = JsonMapper.builder().build()
-  MandrillWebhookService service = new MandrillWebhookService(emailRepository, eventLogRepository, signatureVerifier, objectMapper)
+  ApplicationEventPublisher eventPublisher = Mock()
+  MandrillWebhookService service = new MandrillWebhookService(emailRepository, eventLogRepository, signatureVerifier, objectMapper, eventPublisher)
   HttpServletRequest request = Mock()
 
   String mandrillMessageId = "mandrill_msg_123"
@@ -173,6 +176,52 @@ class MandrillWebhookServiceSpec extends Specification {
     service.processWebhookEvents([event])
 
     then:
+    0 * eventLogRepository.save(_)
+  }
+
+  def "publishes EmailDeliveryFailedEvent with the latest SMTP diagnostic for deferrals"() {
+    given:
+    def eventsJson = """[{"event":"deferral","_id":"event123","ts":$eventTimestamp,"msg":{"_id":"$mandrillMessageId","email":"trustee@seb.ee","subject":"TKF100 NAV arvutamine 12.06.2026","state":"deferred","smtp_events":[{"ts":1,"type":"deferred","diag":"450 4.7.25 earlier attempt"},{"ts":2,"type":"deferred","diag":"450 4.7.25 Client host rejected: cannot find your hostname"}]}}]"""
+
+    signatureVerifier.verify(request, "valid_signature") >> true
+
+    when:
+    service.handleWebhook(eventsJson, "valid_signature", request)
+
+    then:
+    1 * eventPublisher.publishEvent({ EmailDeliveryFailedEvent e ->
+      e.recipient() == "trustee@seb.ee" &&
+          e.eventType() == "deferral" &&
+          e.subject() == "TKF100 NAV arvutamine 12.06.2026" &&
+          e.reason() == "450 4.7.25 Client host rejected: cannot find your hostname" &&
+          e.mandrillMessageId() == mandrillMessageId &&
+          e.timestamp() == Instant.ofEpochSecond(eventTimestamp)
+    })
+    0 * eventLogRepository.save(_)
+  }
+
+  def "prefers bounce description over diag as the failure reason"() {
+    given:
+    def event = MandrillWebhookEvent.builder()
+        .event("hard_bounce")
+        .id("event_123")
+        .ts(eventTimestamp)
+        .msg(MandrillMessage.builder()
+            .id(mandrillMessageId)
+            .email("trustee@seb.ee")
+            .subject("Subject")
+            .bounceDescription("bad_mailbox")
+            .diag("550 user unknown")
+            .build())
+        .build()
+
+    when:
+    service.processWebhookEvents([event])
+
+    then:
+    1 * eventPublisher.publishEvent({ EmailDeliveryFailedEvent e ->
+      e.eventType() == "hard_bounce" && e.reason() == "bad_mailbox"
+    })
     0 * eventLogRepository.save(_)
   }
 

@@ -59,6 +59,28 @@ class SoleMemberOwnershipScreenerTest {
   }
 
   @Test
+  void handlesNullPersonalCode() {
+    var person = new KybRelatedPerson(null, true, true, true, BigDecimal.valueOf(100), UNKNOWN);
+    var data =
+        new KybCompanyData(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
+            new PersonalCode("38501010001"),
+            R,
+            List.of(person),
+            new SelfCertification(true, true, true),
+            "EE",
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null);
+
+    var result = screener.screen(data);
+
+    assertThat(result).hasSize(1);
+    assertThat(result.getFirst().type()).isEqualTo(SOLE_MEMBER_OWNERSHIP);
+    assertThat(result.getFirst().success()).isTrue();
+    assertThat(result.getFirst().metadata()).doesNotContainKey("personalCode");
+  }
+
+  @Test
   void doesNotApplyWhenMultipleRelatedPersons() {
     var person1 =
         new KybRelatedPerson(

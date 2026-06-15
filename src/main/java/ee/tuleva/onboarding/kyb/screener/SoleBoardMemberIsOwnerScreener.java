@@ -27,10 +27,13 @@ public class SoleBoardMemberIsOwnerScreener implements KybScreener {
     var boardMember = boardMembers.getFirst();
     boolean success = boardMember.shareholder() && boardMember.beneficialOwner();
 
-    return List.of(
-        new KybCheck(
-            SOLE_BOARD_MEMBER_IS_OWNER,
-            success,
-            Map.of("boardMemberPersonalCode", boardMember.personalCode().toString())));
+    return List.of(new KybCheck(SOLE_BOARD_MEMBER_IS_OWNER, success, buildMetadata(boardMember)));
+  }
+
+  private Map<String, Object> buildMetadata(KybRelatedPerson boardMember) {
+    var personalCode = boardMember.personalCode();
+    return personalCode == null
+        ? Map.of()
+        : Map.of("boardMemberPersonalCode", personalCode.toString());
   }
 }

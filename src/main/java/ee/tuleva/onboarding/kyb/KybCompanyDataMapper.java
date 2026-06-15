@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -72,7 +73,8 @@ class KybCompanyDataMapper {
         foundingDate);
   }
 
-  private KybRelatedPerson toRelatedPerson(PersonalCode code, List<CompanyRelationship> roles) {
+  private KybRelatedPerson toRelatedPerson(
+      @Nullable PersonalCode code, List<CompanyRelationship> roles) {
     var boardMember = roles.stream().anyMatch(r -> BOARD_MEMBER_ROLE.equals(r.roleCode()));
     var shareholder = roles.stream().anyMatch(r -> SHAREHOLDER_ROLE.equals(r.roleCode()));
     var beneficialOwner = roles.stream().anyMatch(r -> r.controlMethod() != null);

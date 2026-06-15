@@ -208,8 +208,8 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
     then:
     staleSources == [
-        new IntegrityCheckResult.StaleSource(ticker.displayName, "EODHD", ticker.eodhdTicker, frozenDate, 10),
         new IntegrityCheckResult.StaleSource(ticker.displayName, "BlackRock", blackrockKey, frozenDate, 10),
+        new IntegrityCheckResult.StaleSource(ticker.displayName, "EODHD", ticker.eodhdTicker, frozenDate, 10),
     ]
   }
 
@@ -269,9 +269,9 @@ class FundValueIntegrityCheckerSpec extends Specification {
     summary.contains("workingDaysBehind=10")
   }
 
-  // Cross-provider integrity tests with Exchange/EODHD as anchor
+  // Cross-provider integrity tests — anchor is the highest-priority source with data
 
-  def "should report CRITICAL when Exchange and EODHD values differ by more than 0.001%"() {
+  def "should report CRITICAL when EODHD and Exchange values differ by more than 0.001%"() {
     given:
     def ticker = FundTicker.ISHARES_USA_ESG_SCREENED
     LocalDate date = LocalDate.of(2024, 1, 15)
@@ -293,7 +293,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
     criticalDiscrepancies.size() == 1
     criticalDiscrepancies[0].date() == date
     criticalDiscrepancies[0].percentageDifference() > 0.001
-    criticalDiscrepancies[0].comparisonDescription() == "Exchange vs EODHD"
+    criticalDiscrepancies[0].comparisonDescription() == "EODHD vs Exchange"
   }
 
   def "should report INFO when EODHD and Yahoo values differ by more than 0.001%"() {
@@ -362,7 +362,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
     discrepancies.isEmpty()
   }
 
-  def "should check Deutsche Börse as anchor for Xetra-traded ETFs"() {
+  def "should label Deutsche Börse in discrepancies for Xetra-traded ETFs"() {
     given:
     def ticker = FundTicker.ISHARES_USA_ESG_SCREENED
     LocalDate date = LocalDate.of(2024, 1, 15)
@@ -386,7 +386,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
     criticalDiscrepancies[0].date() == date
   }
 
-  def "should check Euronext as anchor for Paris-traded ETFs"() {
+  def "should label Euronext in discrepancies for Paris-traded ETFs"() {
     given:
     def ticker = FundTicker.AMUNDI_USA_SCREENED
     LocalDate date = LocalDate.of(2024, 1, 15)
@@ -455,6 +455,90 @@ class FundValueIntegrityCheckerSpec extends Specification {
     then:
     def criticalDiscrepancies = discrepancies.findAll { it.severity() == Severity.CRITICAL }
     criticalDiscrepancies.isEmpty()
+  }
+
+  def "should report CRITICAL when BlackRock and EODHD fund NAVs differ beyond rounding"() {
+    given:
+    def ticker = FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED
+    LocalDate date = LocalDate.of(2026, 6, 10)
+    def blackrockKey = ticker.isin + ".BLACKROCK"
+    def morningstarKey = ticker.isin + ".MORNINGSTAR"
+
+    fundValueRepository.findValuesBetweenDates(blackrockKey, date, date) >> [aFundValue(blackrockKey, date, 14.75275)]
+    fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> [aFundValue(ticker.eodhdTicker, date, 14.99000)]
+    fundValueRepository.findValuesBetweenDates(morningstarKey, date, date) >> []
+    fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> []
+
+    when:
+    def discrepancies = checker.checkCrossProviderIntegrity(ticker, date, date)
+
+    then:
+    def criticalDiscrepancies = discrepancies.findAll { it.severity() == Severity.CRITICAL }
+    criticalDiscrepancies.size() == 1
+    criticalDiscrepancies[0].comparisonDescription() == "BlackRock vs EODHD"
+  }
+
+  def "should not report discrepancy when EODHD fund NAV matches BlackRock rounded to 3 decimals"() {
+    given:
+    def ticker = FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED
+    LocalDate date = LocalDate.of(2026, 6, 10)
+    def blackrockKey = ticker.isin + ".BLACKROCK"
+    def morningstarKey = ticker.isin + ".MORNINGSTAR"
+
+    fundValueRepository.findValuesBetweenDates(blackrockKey, date, date) >> [aFundValue(blackrockKey, date, 14.75275)]
+    fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> [aFundValue(ticker.eodhdTicker, date, 14.75300)]
+    fundValueRepository.findValuesBetweenDates(morningstarKey, date, date) >> []
+    fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> []
+
+    when:
+    def discrepancies = checker.checkCrossProviderIntegrity(ticker, date, date)
+
+    then:
+    discrepancies.isEmpty()
+  }
+
+  def "should fall back to Morningstar as anchor when BlackRock has no data"() {
+    given:
+    def ticker = FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED
+    LocalDate date = LocalDate.of(2026, 6, 10)
+    def blackrockKey = ticker.isin + ".BLACKROCK"
+    def morningstarKey = ticker.isin + ".MORNINGSTAR"
+
+    fundValueRepository.findValuesBetweenDates(blackrockKey, date, date) >> []
+    fundValueRepository.findValuesBetweenDates(morningstarKey, date, date) >> [aFundValue(morningstarKey, date, 14.75)]
+    fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> [aFundValue(ticker.eodhdTicker, date, 14.99000)]
+    fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> []
+
+    when:
+    def discrepancies = checker.checkCrossProviderIntegrity(ticker, date, date)
+
+    then:
+    def criticalDiscrepancies = discrepancies.findAll { it.severity() == Severity.CRITICAL }
+    criticalDiscrepancies.size() == 1
+    criticalDiscrepancies[0].comparisonDescription() == "Morningstar vs EODHD"
+  }
+
+  def "should detect a discrepancy on a date where the highest-priority source has no value"() {
+    given:
+    def ticker = FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED
+    LocalDate earlier = LocalDate.of(2026, 6, 9)
+    LocalDate latest = LocalDate.of(2026, 6, 10)
+    def blackrockKey = ticker.isin + ".BLACKROCK"
+    def morningstarKey = ticker.isin + ".MORNINGSTAR"
+
+    fundValueRepository.findValuesBetweenDates(blackrockKey, earlier, latest) >> [aFundValue(blackrockKey, earlier, 14.75)]
+    fundValueRepository.findValuesBetweenDates(morningstarKey, earlier, latest) >> [aFundValue(morningstarKey, latest, 14.75)]
+    fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, earlier, latest) >> [aFundValue(ticker.eodhdTicker, latest, 14.99000)]
+    fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, earlier, latest) >> []
+
+    when:
+    def discrepancies = checker.checkCrossProviderIntegrity(ticker, earlier, latest)
+
+    then:
+    def criticalDiscrepancies = discrepancies.findAll { it.severity() == Severity.CRITICAL }
+    criticalDiscrepancies.size() == 1
+    criticalDiscrepancies[0].date() == latest
+    criticalDiscrepancies[0].comparisonDescription() == "Morningstar vs EODHD"
   }
 
   def "should not check Xetra for non-Xetra ETFs"() {

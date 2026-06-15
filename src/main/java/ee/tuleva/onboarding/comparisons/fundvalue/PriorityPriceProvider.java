@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.comparisons.fundvalue;
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.PriceSource.*;
+import static ee.tuleva.onboarding.comparisons.fundvalue.PriceSource.BLACKROCK;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
@@ -18,8 +20,20 @@ public class PriorityPriceProvider {
 
   private static final int MAX_LOOKBACK_DAYS = 14;
 
-  private static final List<String> PROVIDER_PRIORITY =
-      List.of("BLACKROCK", "MORNINGSTAR", "DEUTSCHE_BOERSE", "EURONEXT", "EODHD", "YAHOO");
+  public record PriceFeed(PriceSource source, Function<FundTicker, Optional<String>> storageKey) {}
+
+  private static final List<PriceFeed> PRICE_FEEDS =
+      List.of(
+          new PriceFeed(BLACKROCK, FundTicker::getBlackrockStorageKey),
+          new PriceFeed(MORNINGSTAR, FundTicker::getMorningstarStorageKey),
+          new PriceFeed(EODHD, ticker -> Optional.of(ticker.getEodhdTicker())),
+          new PriceFeed(DEUTSCHE_BOERSE, FundTicker::getXetraStorageKey),
+          new PriceFeed(EURONEXT, FundTicker::getEuronextParisStorageKey),
+          new PriceFeed(YAHOO, ticker -> Optional.of(ticker.getYahooTicker())));
+
+  public static List<PriceFeed> priceFeeds() {
+    return PRICE_FEEDS;
+  }
 
   private final FundValueProvider fundValueProvider;
 
@@ -36,8 +50,8 @@ public class PriorityPriceProvider {
       FundTicker ticker, LocalDate date, Instant updatedBefore) {
     LocalDate earliestAllowed = date.minusDays(MAX_LOOKBACK_DAYS);
 
-    return storageKeyResolvers().stream()
-        .map(resolver -> resolver.apply(ticker))
+    return PRICE_FEEDS.stream()
+        .map(feed -> feed.storageKey().apply(ticker))
         .filter(Optional::isPresent)
         .map(Optional::get)
         .map(storageKey -> fetchLatestValue(storageKey, date, updatedBefore))
@@ -59,17 +73,8 @@ public class PriorityPriceProvider {
   }
 
   private int providerPriority(String provider) {
-    int index = PROVIDER_PRIORITY.indexOf(provider);
-    return index >= 0 ? PROVIDER_PRIORITY.size() - index : -1;
-  }
-
-  private List<Function<FundTicker, Optional<String>>> storageKeyResolvers() {
-    return List.of(
-        FundTicker::getBlackrockStorageKey,
-        FundTicker::getMorningstarStorageKey,
-        FundTicker::getXetraStorageKey,
-        FundTicker::getEuronextParisStorageKey,
-        ticker -> Optional.of(ticker.getEodhdTicker()),
-        ticker -> Optional.of(ticker.getYahooTicker()));
+    List<String> providerNames = PRICE_FEEDS.stream().map(feed -> feed.source().name()).toList();
+    int index = providerNames.indexOf(provider);
+    return index >= 0 ? providerNames.size() - index : -1;
   }
 }

@@ -208,7 +208,7 @@ class PriorityPriceProviderTest {
   }
 
   @Test
-  void resolve_xetraSameDateAsEodhd_prefersXetra() {
+  void resolve_eodhdSameDateAsXetra_prefersEodhd() {
     FundTicker ticker = FundTicker.findByIsin(ETF_ISIN).orElseThrow();
     String xetraKey = ticker.getXetraStorageKey().orElseThrow();
     String eodhdTicker = ticker.getEodhdTicker();
@@ -224,7 +224,46 @@ class PriorityPriceProviderTest {
     Optional<FundValue> result = provider.resolve(ETF_ISIN, DATE);
 
     assertThat(result).isPresent();
+    assertThat(result.get().provider()).isEqualTo("EODHD");
+  }
+
+  @Test
+  void resolve_eodhdMissing_fallsBackToXetra() {
+    FundTicker ticker = FundTicker.findByIsin(ETF_ISIN).orElseThrow();
+    String xetraKey = ticker.getXetraStorageKey().orElseThrow();
+    String eodhdTicker = ticker.getEodhdTicker();
+
+    when(fundValueProvider.getLatestValue(xetraKey, DATE))
+        .thenReturn(
+            Optional.of(
+                new FundValue(xetraKey, DATE, new BigDecimal("100.50"), "DEUTSCHE_BOERSE", null)));
+    when(fundValueProvider.getLatestValue(eodhdTicker, DATE)).thenReturn(Optional.empty());
+
+    Optional<FundValue> result = provider.resolve(ETF_ISIN, DATE);
+
+    assertThat(result).isPresent();
     assertThat(result.get().provider()).isEqualTo("DEUTSCHE_BOERSE");
+  }
+
+  @Test
+  void resolve_eodhdSameDateAsEuronext_prefersEodhd() {
+    String gaghIsin = "LU1708330318";
+    FundTicker ticker = FundTicker.findByIsin(gaghIsin).orElseThrow();
+    String euronextKey = ticker.getEuronextParisStorageKey().orElseThrow();
+    String eodhdTicker = ticker.getEodhdTicker();
+
+    when(fundValueProvider.getLatestValue(euronextKey, DATE))
+        .thenReturn(
+            Optional.of(
+                new FundValue(euronextKey, DATE, new BigDecimal("50.25"), "EURONEXT", null)));
+    when(fundValueProvider.getLatestValue(eodhdTicker, DATE))
+        .thenReturn(
+            Optional.of(new FundValue(eodhdTicker, DATE, new BigDecimal("50.24"), "EODHD", null)));
+
+    Optional<FundValue> result = provider.resolve(gaghIsin, DATE);
+
+    assertThat(result).isPresent();
+    assertThat(result.get().provider()).isEqualTo("EODHD");
   }
 
   @Test

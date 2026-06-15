@@ -4,9 +4,12 @@ import static ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityChe
 import static ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Severity.INFO;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
+import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.comparisons.fundvalue.PriceSource;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
@@ -38,6 +41,7 @@ public class FundValueIntegrityChecker {
   private static final BigDecimal NAV_ROUNDING_THRESHOLD_PERCENT = new BigDecimal("0.1");
   static final int MAX_SOURCE_LAG_WORKING_DAYS = 3;
   private static final int MORNINGSTAR_SCALE = 2;
+  private static final int EUFUND_SCALE = 3;
   private static final LocalDate CROSS_PROVIDER_CHECK_START_DATE = LocalDate.of(2026, 2, 11);
   private static final int FUND_NAME_WIDTH = 49;
   private static final String CHECK_MARK = "✅";
@@ -55,11 +59,8 @@ public class FundValueIntegrityChecker {
   record TickerCheckResult(
       FundTicker ticker,
       IntegrityCheckResult yahooVsDbResult,
-      boolean eodhdOk,
-      boolean exchangeOk,
-      boolean blackrockOk,
-      boolean morningstarOk,
-      boolean yahooOk,
+      Set<String> configuredSources,
+      Set<String> sourcesWithData,
       List<StaleSource> staleSources,
       List<Discrepancy> crossProviderDiscrepancies) {
 
@@ -108,172 +109,148 @@ public class FundValueIntegrityChecker {
             ticker -> {
               IntegrityCheckResult yahooVsDbResult =
                   verifyFundDataIntegrity(ticker.getYahooTicker(), startDate, endDate);
-              CrossProviderCheckResult crossProviderResult =
-                  checkCrossProviderIntegrityInternal(ticker, startDate, endDate);
+              List<SourceValues> sources = loadSources(ticker, startDate, endDate);
 
               return new TickerCheckResult(
                   ticker,
                   yahooVsDbResult,
-                  crossProviderResult.eodhdOk(),
-                  crossProviderResult.exchangeOk(),
-                  crossProviderResult.blackrockOk(),
-                  crossProviderResult.morningstarOk(),
-                  crossProviderResult.yahooOk(),
+                  tickerSources(ticker).stream().map(TickerSource::name).collect(toSet()),
+                  sources.stream().map(values -> values.source().name()).collect(toSet()),
                   checkSourceFreshness(ticker, endDate),
-                  crossProviderResult.discrepancies());
+                  crossProviderDiscrepancies(ticker, sources));
             })
         .toList();
   }
 
-  private record CrossProviderCheckResult(
-      boolean eodhdOk,
-      boolean exchangeOk,
-      boolean blackrockOk,
-      boolean morningstarOk,
-      boolean yahooOk,
-      List<Discrepancy> discrepancies) {}
-
-  void checkYahooVsDatabaseIntegrity(String fundTicker, LocalDate startDate, LocalDate endDate) {
-    verifyFundDataIntegrity(fundTicker, startDate, endDate);
-  }
-
   List<Discrepancy> checkCrossProviderIntegrity(
       FundTicker ticker, LocalDate startDate, LocalDate endDate) {
-    return findCrossProviderDiscrepancies(ticker, startDate, endDate);
+    return crossProviderDiscrepancies(ticker, loadSources(ticker, startDate, endDate));
   }
 
-  private CrossProviderCheckResult checkCrossProviderIntegrityInternal(
+  private record TickerSource(String name, String displayName, String storageKey, int scale) {}
+
+  private record SourceValues(TickerSource source, Map<LocalDate, BigDecimal> valuesByDate) {}
+
+  private List<TickerSource> tickerSources(FundTicker ticker) {
+    return PriorityPriceProvider.priceFeeds().stream()
+        .flatMap(
+            feed ->
+                feed.storageKey().apply(ticker).stream()
+                    .map(storageKey -> tickerSource(feed.source(), storageKey)))
+        .toList();
+  }
+
+  private TickerSource tickerSource(PriceSource source, String storageKey) {
+    return switch (source) {
+      case BLACKROCK -> new TickerSource("BlackRock", "BlackRock", storageKey, DATABASE_SCALE);
+      case MORNINGSTAR ->
+          new TickerSource("Morningstar", "Morningstar", storageKey, MORNINGSTAR_SCALE);
+      case EODHD ->
+          new TickerSource(
+              "EODHD",
+              "EODHD",
+              storageKey,
+              storageKey.endsWith(".EUFUND") ? EUFUND_SCALE : DATABASE_SCALE);
+      case DEUTSCHE_BOERSE ->
+          new TickerSource("Exchange", "Deutsche Börse", storageKey, DATABASE_SCALE);
+      case EURONEXT -> new TickerSource("Exchange", "Euronext", storageKey, DATABASE_SCALE);
+      case YAHOO -> new TickerSource("Yahoo", "Yahoo", storageKey, DATABASE_SCALE);
+    };
+  }
+
+  private List<SourceValues> loadSources(
       FundTicker ticker, LocalDate startDate, LocalDate endDate) {
-    Map<LocalDate, BigDecimal> eodhdByDate =
-        convertToDateValueMap(
-            fundValueRepository.findValuesBetweenDates(
-                ticker.getEodhdTicker(), startDate, endDate));
-    Map<LocalDate, BigDecimal> yahooByDate =
-        convertToDateValueMap(
-            fundValueRepository.findValuesBetweenDates(
-                ticker.getYahooTicker(), startDate, endDate));
-
-    List<Discrepancy> discrepancies = new ArrayList<>();
-
-    boolean exchangeOk = true;
-    Optional<String> xetraKey = ticker.getXetraStorageKey();
-    Optional<String> euronextKey = ticker.getEuronextParisStorageKey();
-
-    if (xetraKey.isPresent()) {
-      Map<LocalDate, BigDecimal> xetraByDate =
-          convertToDateValueMap(
-              fundValueRepository.findValuesBetweenDates(xetraKey.get(), startDate, endDate));
-      List<Discrepancy> exchangeVsEodhdDiscrepancies =
-          compareProviders(
-              ticker.getDisplayName(),
-              "Deutsche Börse",
-              xetraByDate,
-              "EODHD",
-              eodhdByDate,
-              CRITICAL,
-              "Exchange vs EODHD");
-      discrepancies.addAll(exchangeVsEodhdDiscrepancies);
-      exchangeOk = exchangeVsEodhdDiscrepancies.isEmpty() && !xetraByDate.isEmpty();
-    } else if (euronextKey.isPresent()) {
-      Map<LocalDate, BigDecimal> euronextByDate =
-          convertToDateValueMap(
-              fundValueRepository.findValuesBetweenDates(euronextKey.get(), startDate, endDate));
-      List<Discrepancy> exchangeVsEodhdDiscrepancies =
-          compareProviders(
-              ticker.getDisplayName(),
-              "Euronext",
-              euronextByDate,
-              "EODHD",
-              eodhdByDate,
-              CRITICAL,
-              "Exchange vs EODHD");
-      discrepancies.addAll(exchangeVsEodhdDiscrepancies);
-      exchangeOk = exchangeVsEodhdDiscrepancies.isEmpty() && !euronextByDate.isEmpty();
-    }
-
-    boolean blackrockOk = true;
-    boolean morningstarOk = true;
-    Optional<String> blackrockKey = ticker.getBlackrockStorageKey();
-    Optional<String> morningstarKey = ticker.getMorningstarStorageKey();
-
-    if (blackrockKey.isPresent() && morningstarKey.isPresent()) {
-      Map<LocalDate, BigDecimal> blackrockByDate =
-          convertToDateValueMap(
-              fundValueRepository.findValuesBetweenDates(blackrockKey.get(), startDate, endDate));
-      Map<LocalDate, BigDecimal> morningstarByDate =
-          convertToDateValueMap(
-              fundValueRepository.findValuesBetweenDates(morningstarKey.get(), startDate, endDate));
-      List<Discrepancy> blackrockVsMorningstarDiscrepancies =
-          compareProviders(
-              ticker.getDisplayName(),
-              "BlackRock",
-              blackrockByDate,
-              "Morningstar",
-              morningstarByDate,
-              CRITICAL,
-              "BlackRock vs Morningstar",
-              MORNINGSTAR_SCALE,
-              NAV_ROUNDING_THRESHOLD_PERCENT);
-      discrepancies.addAll(blackrockVsMorningstarDiscrepancies);
-      blackrockOk = blackrockVsMorningstarDiscrepancies.isEmpty() && !blackrockByDate.isEmpty();
-      morningstarOk = blackrockVsMorningstarDiscrepancies.isEmpty() && !morningstarByDate.isEmpty();
-    }
-
-    List<Discrepancy> eodhdVsYahooDiscrepancies =
-        compareProviders(
-            ticker.getDisplayName(),
-            "EODHD",
-            eodhdByDate,
-            "Yahoo",
-            yahooByDate,
-            INFO,
-            "EODHD vs Yahoo");
-    discrepancies.addAll(eodhdVsYahooDiscrepancies);
-
-    boolean eodhdOk = !eodhdByDate.isEmpty();
-    boolean yahooOk = !yahooByDate.isEmpty();
-
-    return new CrossProviderCheckResult(
-        eodhdOk, exchangeOk, blackrockOk, morningstarOk, yahooOk, discrepancies);
+    return tickerSources(ticker).stream()
+        .map(
+            source ->
+                new SourceValues(
+                    source,
+                    convertToDateValueMap(
+                        fundValueRepository.findValuesBetweenDates(
+                            source.storageKey(), startDate, endDate))))
+        .filter(sourceValues -> !sourceValues.valuesByDate().isEmpty())
+        .toList();
   }
 
-  private record SourceKey(String source, String storageKey) {}
+  private List<Discrepancy> crossProviderDiscrepancies(
+      FundTicker ticker, List<SourceValues> sources) {
+    if (sources.size() < 2) {
+      return List.of();
+    }
+    return allDates(sources).stream()
+        .flatMap(date -> discrepanciesOnDate(ticker, sources, date).stream())
+        .toList();
+  }
 
-  private List<SourceKey> sourceKeys(FundTicker ticker) {
-    List<SourceKey> sourceKeys = new ArrayList<>();
-    sourceKeys.add(new SourceKey("EODHD", ticker.getEodhdTicker()));
-    ticker.getXetraStorageKey().ifPresent(key -> sourceKeys.add(new SourceKey("Exchange", key)));
-    ticker
-        .getEuronextParisStorageKey()
-        .ifPresent(key -> sourceKeys.add(new SourceKey("Exchange", key)));
-    ticker
-        .getBlackrockStorageKey()
-        .ifPresent(key -> sourceKeys.add(new SourceKey("BlackRock", key)));
-    ticker
-        .getMorningstarStorageKey()
-        .ifPresent(key -> sourceKeys.add(new SourceKey("Morningstar", key)));
-    sourceKeys.add(new SourceKey("Yahoo", ticker.getYahooTicker()));
-    return List.copyOf(sourceKeys);
+  private SortedSet<LocalDate> allDates(List<SourceValues> sources) {
+    return sources.stream()
+        .flatMap(source -> source.valuesByDate().keySet().stream())
+        .collect(toCollection(TreeSet::new));
+  }
+
+  private List<Discrepancy> discrepanciesOnDate(
+      FundTicker ticker, List<SourceValues> sources, LocalDate date) {
+    List<SourceValues> present =
+        sources.stream().filter(source -> source.valuesByDate().containsKey(date)).toList();
+    if (present.size() < 2) {
+      return List.of();
+    }
+    SourceValues anchor = present.getFirst();
+    return present.stream()
+        .skip(1)
+        .map(compared -> compareOnDate(ticker, date, anchor, compared))
+        .flatMap(Optional::stream)
+        .toList();
+  }
+
+  private Optional<Discrepancy> compareOnDate(
+      FundTicker ticker, LocalDate date, SourceValues anchor, SourceValues compared) {
+    int scale = Math.min(anchor.source().scale(), compared.source().scale());
+    BigDecimal thresholdPercent =
+        scale < DATABASE_SCALE ? NAV_ROUNDING_THRESHOLD_PERCENT : CROSS_PROVIDER_THRESHOLD_PERCENT;
+    BigDecimal anchorValue = anchor.valuesByDate().get(date).setScale(scale, HALF_UP);
+    BigDecimal comparedValue = compared.valuesByDate().get(date).setScale(scale, HALF_UP);
+    BigDecimal percentageDiff = calculatePercentageDifference(anchorValue, comparedValue);
+    if (percentageDiff.compareTo(thresholdPercent) <= 0) {
+      return Optional.empty();
+    }
+    Severity severity = compared.source().name().equals("Yahoo") ? INFO : CRITICAL;
+    BigDecimal difference = anchorValue.subtract(comparedValue).abs();
+    return Optional.of(
+        new Discrepancy(
+            ticker.getDisplayName()
+                + " ("
+                + anchor.source().displayName()
+                + " vs "
+                + compared.source().displayName()
+                + ")",
+            date,
+            anchorValue,
+            comparedValue,
+            difference,
+            percentageDiff,
+            severity,
+            anchor.source().name() + " vs " + compared.source().name()));
   }
 
   List<StaleSource> checkSourceFreshness(FundTicker ticker, LocalDate endDate) {
-    return sourceKeys(ticker).stream()
-        .map(sourceKey -> staleSourceFor(ticker, sourceKey, endDate))
+    return tickerSources(ticker).stream()
+        .map(source -> staleSourceFor(ticker, source, endDate))
         .flatMap(Optional::stream)
         .toList();
   }
 
   private Optional<StaleSource> staleSourceFor(
-      FundTicker ticker, SourceKey sourceKey, LocalDate endDate) {
+      FundTicker ticker, TickerSource source, LocalDate endDate) {
     return fundValueRepository
-        .findLastValueForFund(sourceKey.storageKey())
+        .findLastValueForFund(source.storageKey())
         .map(FundValue::date)
         .map(
             lastDate ->
                 new StaleSource(
                     ticker.getDisplayName(),
-                    sourceKey.source(),
-                    sourceKey.storageKey(),
+                    source.name(),
+                    source.storageKey(),
                     lastDate,
                     publicHolidays.countWorkingDaysBehind(lastDate, endDate)))
         .filter(staleSource -> staleSource.workingDaysBehind() > MAX_SOURCE_LAG_WORKING_DAYS);
@@ -510,26 +487,41 @@ public class FundValueIntegrityChecker {
     return summary.toString();
   }
 
-  private String getAnchorName(String comparisonDescription) {
-    if (comparisonDescription.contains("Exchange vs EODHD")) {
-      return "Exchange";
-    } else if (comparisonDescription.contains("BlackRock vs Morningstar")) {
-      return "BlackRock";
-    } else if (comparisonDescription.contains("EODHD vs Yahoo")) {
-      return "EODHD";
+  private String sourceStatus(TickerCheckResult result, String sourceName, LocalDate endDate) {
+    if (!result.configuredSources().contains(sourceName)) {
+      return NOT_APPLICABLE;
     }
-    return "Anchor";
+    if (!result.sourcesWithData().contains(sourceName) || result.isSourceStale(sourceName)) {
+      return CROSS_MARK;
+    }
+    if (sourceName.equals("Yahoo")) {
+      return hasDiscrepancyOn(result, endDate, sourceName) ? WARNING_MARK : CHECK_MARK;
+    }
+    return hasCriticalDiscrepancyOn(result, endDate, sourceName) ? CROSS_MARK : CHECK_MARK;
+  }
+
+  private boolean hasDiscrepancyOn(TickerCheckResult result, LocalDate date, String sourceName) {
+    return result.crossProviderDiscrepancies().stream()
+        .anyMatch(d -> d.date().equals(date) && involves(d, sourceName));
+  }
+
+  private boolean hasCriticalDiscrepancyOn(
+      TickerCheckResult result, LocalDate date, String sourceName) {
+    return result.crossProviderDiscrepancies().stream()
+        .anyMatch(
+            d -> d.date().equals(date) && d.severity() == CRITICAL && involves(d, sourceName));
+  }
+
+  private boolean involves(Discrepancy discrepancy, String sourceName) {
+    return Arrays.asList(discrepancy.comparisonDescription().split(" vs ")).contains(sourceName);
+  }
+
+  private String getAnchorName(String comparisonDescription) {
+    return comparisonDescription.split(" vs ")[0];
   }
 
   private String getComparedName(String comparisonDescription) {
-    if (comparisonDescription.contains("Exchange vs EODHD")) {
-      return "EODHD";
-    } else if (comparisonDescription.contains("BlackRock vs Morningstar")) {
-      return "Morningstar";
-    } else if (comparisonDescription.contains("EODHD vs Yahoo")) {
-      return "Yahoo";
-    }
-    return "Compared";
+    return comparisonDescription.split(" vs ")[1];
   }
 
   private String buildCrossProviderSummaryTable(
@@ -538,87 +530,21 @@ public class FundValueIntegrityChecker {
     table.append(String.format("Cross-Provider Comparison (%s):%n", endDate));
     table.append(
         String.format(
-            "  Anchor hierarchy: Exchange (Xetra/Euronext) → EODHD → Yahoo | BlackRock vs Morningstar%n"));
-    table.append(
-        String.format(
-            "  Exchange vs EODHD: CRITICAL | BlackRock vs Morningstar: CRITICAL | EODHD vs Yahoo: INFO%n%n"));
+            "  Each source is compared against the highest-priority source with data"
+                + " — mismatch severity: vs Yahoo → INFO, all others → CRITICAL%n%n"));
     table.append(formatCrossProviderHeader());
     table.append(formatCrossProviderSeparator());
 
     for (TickerCheckResult result : results) {
-      String eodhdStatus =
-          result.eodhdOk() && !result.isSourceStale("EODHD") ? CHECK_MARK : CROSS_MARK;
-
-      boolean hasExchangeDiscrepancyOnEndDate =
-          result.crossProviderDiscrepancies().stream()
-              .anyMatch(
-                  d ->
-                      d.date().equals(endDate)
-                          && d.severity() == CRITICAL
-                          && d.comparisonDescription().contains("Exchange vs EODHD"));
-
-      String exchangeStatus;
-      if (result.ticker().getXetraStorageKey().isPresent()
-          || result.ticker().getEuronextParisStorageKey().isPresent()) {
-        exchangeStatus =
-            hasExchangeDiscrepancyOnEndDate || result.isSourceStale("Exchange")
-                ? CROSS_MARK
-                : CHECK_MARK;
-      } else {
-        exchangeStatus = NOT_APPLICABLE;
-      }
-
-      boolean hasBlackrockDiscrepancyOnEndDate =
-          result.crossProviderDiscrepancies().stream()
-              .anyMatch(
-                  d ->
-                      d.date().equals(endDate)
-                          && d.severity() == CRITICAL
-                          && d.comparisonDescription().contains("BlackRock vs Morningstar"));
-
-      String blackrockStatus;
-      if (result.ticker().getBlackrockStorageKey().isPresent()) {
-        blackrockStatus =
-            hasBlackrockDiscrepancyOnEndDate || result.isSourceStale("BlackRock")
-                ? CROSS_MARK
-                : CHECK_MARK;
-      } else {
-        blackrockStatus = NOT_APPLICABLE;
-      }
-
-      String morningstarStatus;
-      if (result.ticker().getMorningstarStorageKey().isPresent()) {
-        morningstarStatus =
-            hasBlackrockDiscrepancyOnEndDate || result.isSourceStale("Morningstar")
-                ? CROSS_MARK
-                : CHECK_MARK;
-      } else {
-        morningstarStatus = NOT_APPLICABLE;
-      }
-
-      boolean hasYahooDiscrepancyOnEndDate =
-          result.crossProviderDiscrepancies().stream()
-              .anyMatch(
-                  d ->
-                      d.date().equals(endDate)
-                          && d.comparisonDescription().contains("EODHD vs Yahoo"));
-
-      String yahooStatus =
-          !result.yahooOk() || result.isSourceStale("Yahoo")
-              ? CROSS_MARK
-              : hasYahooDiscrepancyOnEndDate ? WARNING_MARK : CHECK_MARK;
-
-      String lastPriceStatus = formatLastPrice(result.ticker(), endDate);
-
       table.append(
           formatCrossProviderRow(
               truncateFundName(result.ticker().getDisplayName()),
-              eodhdStatus,
-              exchangeStatus,
-              blackrockStatus,
-              morningstarStatus,
-              yahooStatus,
-              lastPriceStatus));
+              sourceStatus(result, "EODHD", endDate),
+              sourceStatus(result, "Exchange", endDate),
+              sourceStatus(result, "BlackRock", endDate),
+              sourceStatus(result, "Morningstar", endDate),
+              sourceStatus(result, "Yahoo", endDate),
+              formatLastPrice(result.ticker(), endDate)));
     }
     table.append(formatCrossProviderFooter());
 
@@ -775,168 +701,5 @@ public class FundValueIntegrityChecker {
         .abs()
         .multiply(new BigDecimal("100"))
         .divide(anchorValue.abs(), 4, HALF_UP);
-  }
-
-  private List<Discrepancy> findCrossProviderDiscrepancies(
-      FundTicker ticker, LocalDate startDate, LocalDate endDate) {
-    List<Discrepancy> discrepancies = new ArrayList<>();
-
-    Map<LocalDate, BigDecimal> eodhdByDate =
-        convertToDateValueMap(
-            fundValueRepository.findValuesBetweenDates(
-                ticker.getEodhdTicker(), startDate, endDate));
-    Map<LocalDate, BigDecimal> yahooByDate =
-        convertToDateValueMap(
-            fundValueRepository.findValuesBetweenDates(
-                ticker.getYahooTicker(), startDate, endDate));
-
-    ticker
-        .getXetraStorageKey()
-        .ifPresent(
-            xetraKey -> {
-              Map<LocalDate, BigDecimal> xetraByDate =
-                  convertToDateValueMap(
-                      fundValueRepository.findValuesBetweenDates(xetraKey, startDate, endDate));
-              discrepancies.addAll(
-                  compareProviders(
-                      ticker.getDisplayName(),
-                      "Deutsche Börse",
-                      xetraByDate,
-                      "EODHD",
-                      eodhdByDate,
-                      CRITICAL,
-                      "Exchange vs EODHD"));
-            });
-
-    ticker
-        .getEuronextParisStorageKey()
-        .ifPresent(
-            euronextKey -> {
-              Map<LocalDate, BigDecimal> euronextByDate =
-                  convertToDateValueMap(
-                      fundValueRepository.findValuesBetweenDates(euronextKey, startDate, endDate));
-              discrepancies.addAll(
-                  compareProviders(
-                      ticker.getDisplayName(),
-                      "Euronext",
-                      euronextByDate,
-                      "EODHD",
-                      eodhdByDate,
-                      CRITICAL,
-                      "Exchange vs EODHD"));
-            });
-
-    Optional<String> blackrockKey = ticker.getBlackrockStorageKey();
-    Optional<String> morningstarKey = ticker.getMorningstarStorageKey();
-
-    if (blackrockKey.isPresent() && morningstarKey.isPresent()) {
-      Map<LocalDate, BigDecimal> blackrockByDate =
-          convertToDateValueMap(
-              fundValueRepository.findValuesBetweenDates(blackrockKey.get(), startDate, endDate));
-      Map<LocalDate, BigDecimal> morningstarByDate =
-          convertToDateValueMap(
-              fundValueRepository.findValuesBetweenDates(morningstarKey.get(), startDate, endDate));
-      discrepancies.addAll(
-          compareProviders(
-              ticker.getDisplayName(),
-              "BlackRock",
-              blackrockByDate,
-              "Morningstar",
-              morningstarByDate,
-              CRITICAL,
-              "BlackRock vs Morningstar",
-              MORNINGSTAR_SCALE));
-    }
-
-    discrepancies.addAll(
-        compareProviders(
-            ticker.getDisplayName(),
-            "EODHD",
-            eodhdByDate,
-            "Yahoo",
-            yahooByDate,
-            INFO,
-            "EODHD vs Yahoo"));
-
-    return discrepancies;
-  }
-
-  private List<Discrepancy> compareProviders(
-      String tickerName,
-      String anchorProviderName,
-      Map<LocalDate, BigDecimal> anchorByDate,
-      String comparedProviderName,
-      Map<LocalDate, BigDecimal> comparedByDate,
-      Severity severity,
-      String comparisonDescription) {
-    return compareProviders(
-        tickerName,
-        anchorProviderName,
-        anchorByDate,
-        comparedProviderName,
-        comparedByDate,
-        severity,
-        comparisonDescription,
-        DATABASE_SCALE);
-  }
-
-  private List<Discrepancy> compareProviders(
-      String tickerName,
-      String anchorProviderName,
-      Map<LocalDate, BigDecimal> anchorByDate,
-      String comparedProviderName,
-      Map<LocalDate, BigDecimal> comparedByDate,
-      Severity severity,
-      String comparisonDescription,
-      int comparisonScale) {
-    return compareProviders(
-        tickerName,
-        anchorProviderName,
-        anchorByDate,
-        comparedProviderName,
-        comparedByDate,
-        severity,
-        comparisonDescription,
-        comparisonScale,
-        CROSS_PROVIDER_THRESHOLD_PERCENT);
-  }
-
-  private List<Discrepancy> compareProviders(
-      String tickerName,
-      String anchorProviderName,
-      Map<LocalDate, BigDecimal> anchorByDate,
-      String comparedProviderName,
-      Map<LocalDate, BigDecimal> comparedByDate,
-      Severity severity,
-      String comparisonDescription,
-      int comparisonScale,
-      BigDecimal thresholdPercent) {
-
-    return anchorByDate.entrySet().stream()
-        .filter(entry -> comparedByDate.containsKey(entry.getKey()))
-        .map(
-            entry -> {
-              LocalDate date = entry.getKey();
-              BigDecimal anchorValue = entry.getValue().setScale(comparisonScale, HALF_UP);
-              BigDecimal comparedValue =
-                  comparedByDate.get(date).setScale(comparisonScale, HALF_UP);
-
-              BigDecimal percentageDiff = calculatePercentageDifference(anchorValue, comparedValue);
-              if (percentageDiff.compareTo(thresholdPercent) > 0) {
-                BigDecimal difference = anchorValue.subtract(comparedValue).abs();
-                return new Discrepancy(
-                    tickerName + " (" + anchorProviderName + " vs " + comparedProviderName + ")",
-                    date,
-                    anchorValue,
-                    comparedValue,
-                    difference,
-                    percentageDiff,
-                    severity,
-                    comparisonDescription);
-              }
-              return null;
-            })
-        .filter(Objects::nonNull)
-        .toList();
   }
 }

@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.nav
 
+import ee.tuleva.onboarding.event.EventLog
+import ee.tuleva.onboarding.event.EventLogRepository
 import ee.tuleva.onboarding.notification.OperationsNotificationService
 import ee.tuleva.onboarding.notification.email.EmailDeliveryFailedEvent
 import spock.lang.Specification
@@ -11,22 +13,25 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 class TrusteeEmailFailureAlerterSpec extends Specification {
 
   OperationsNotificationService notificationService = Mock()
-  TrusteeEmailFailureAlerter alerter = new TrusteeEmailFailureAlerter(notificationService)
+  EventLogRepository eventLogRepository = Mock()
+  TrusteeEmailFailureAlerter alerter = new TrusteeEmailFailureAlerter(notificationService, eventLogRepository)
 
-  def "alerts the savings channel when a trustee email delivery fails"() {
+  Instant t0 = Instant.parse("2026-06-15T15:20:00Z")
+
+  def "alerts and records the failure when it has not been alerted before"() {
     given:
-    def event = new EmailDeliveryFailedEvent(
-        "trustee@seb.ee",
-        "TKF100 NAV arvutamine 12.06.2026",
-        "deferral",
-        "450 4.7.25 Client host rejected: cannot find your hostname",
-        "mandrill_msg_123",
-        Instant.ofEpochSecond(1699900000L))
+    eventLogRepository.existsByTypeAndPrincipal("DEFERRAL", "msg_1") >> false
 
     when:
-    alerter.onEmailDeliveryFailed(event)
+    alerter.onEmailDeliveryFailed(deferralEvent("msg_1"))
 
     then:
+    1 * eventLogRepository.save({ EventLog it ->
+      it.type == "DEFERRAL" &&
+          it.principal == "msg_1" &&
+          it.timestamp == t0 &&
+          it.data.recipient == "trustee@seb.ee"
+    })
     1 * notificationService.sendMessage({ String message ->
       message.contains("trustee@seb.ee") &&
           message.contains("deferral") &&
@@ -35,20 +40,39 @@ class TrusteeEmailFailureAlerterSpec extends Specification {
     }, SAVINGS)
   }
 
+  def "suppresses the alert when the same failure was already recorded"() {
+    given:
+    eventLogRepository.existsByTypeAndPrincipal("DEFERRAL", "msg_1") >> true
+
+    when:
+    alerter.onEmailDeliveryFailed(deferralEvent("msg_1"))
+
+    then:
+    0 * eventLogRepository.save(_)
+    0 * notificationService.sendMessage(_, _)
+  }
+
   def "ignores delivery failures for non-trustee recipients"() {
     given:
     def event = new EmailDeliveryFailedEvent(
-        "saver@example.com",
-        "Some subject",
-        "hard_bounce",
-        "550 mailbox unavailable",
-        "mandrill_msg_456",
-        Instant.ofEpochSecond(1699900000L))
+        "saver@example.com", "Some subject", "hard_bounce", "550 mailbox unavailable", "msg_2", t0)
 
     when:
     alerter.onEmailDeliveryFailed(event)
 
     then:
+    0 * eventLogRepository.existsByTypeAndPrincipal(_, _)
+    0 * eventLogRepository.save(_)
     0 * notificationService.sendMessage(_, _)
+  }
+
+  private EmailDeliveryFailedEvent deferralEvent(String messageId) {
+    new EmailDeliveryFailedEvent(
+        "trustee@seb.ee",
+        "TKF100 NAV arvutamine 12.06.2026",
+        "deferral",
+        "450 4.7.25 Client host rejected: cannot find your hostname",
+        messageId,
+        t0)
   }
 }

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.epis;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.PEVA_RAVA_PHASE_UPDATE;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
+import static ee.tuleva.onboarding.investment.epis.PevaRavaPhase.DONE;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
 import ee.tuleva.onboarding.investment.event.RunPevaRavaPhaseUpdateRequested;
@@ -59,7 +60,7 @@ class PevaRavaPhaseUpdateJob {
           "PEVA/RAVA phase unchanged: phase={}, execDate={}", period.phase(), cycle.execDate());
       return;
     }
-    if (period.phase() == PevaRavaPhase.DONE) {
+    if (period.phase() == DONE) {
       log.info(
           "PEVA/RAVA cycle done, no notification: from={}, execDate={}",
           storedPhase,

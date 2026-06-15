@@ -59,6 +59,13 @@ class PevaRavaPhaseUpdateJob {
           "PEVA/RAVA phase unchanged: phase={}, execDate={}", period.phase(), cycle.execDate());
       return;
     }
+    if (period.phase() == PevaRavaPhase.DONE) {
+      log.info(
+          "PEVA/RAVA cycle done, no notification: from={}, execDate={}",
+          storedPhase,
+          cycle.execDate());
+      return;
+    }
     log.info(
         "PEVA/RAVA phase transition: from={}, to={}, execDate={}",
         storedPhase,

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.epis;
 
 import static ee.tuleva.onboarding.investment.epis.PevaRavaPhase.ACTIVE;
 import static ee.tuleva.onboarding.investment.epis.PevaRavaPhase.DATA_VALID;
+import static ee.tuleva.onboarding.investment.epis.PevaRavaPhase.DONE;
 import static ee.tuleva.onboarding.investment.epis.PevaRavaPhase.TUK00_ACTIVE;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static org.mockito.BDDMockito.given;
@@ -79,6 +80,34 @@ class PevaRavaPhaseUpdateJobTest {
                 + "TUK75: D-aktiivne 2026-04-22, müügi tähtaeg 2026-04-27\n"
                 + "TUK00: D-aktiivne 2026-04-14, müügi tähtaeg 2026-04-23",
             INVESTMENT);
+  }
+
+  @Test
+  void persistsDonePhaseWithoutNotification() {
+    given(periodService.getCurrentPeriod(TODAY)).willReturn(Optional.of(period(DONE)));
+    given(cycleRepository.findByExecDate(EXEC_DATE)).willReturn(Optional.of(entity(ACTIVE)));
+
+    job.run();
+
+    verify(cycleRepository).save(entity(DONE));
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void persistsDonePhaseWithoutNotificationOnFirstSight() {
+    given(periodService.getCurrentPeriod(TODAY)).willReturn(Optional.of(period(DONE)));
+    given(cycleRepository.findByExecDate(EXEC_DATE)).willReturn(Optional.empty());
+
+    job.run();
+
+    verify(cycleRepository)
+        .save(
+            PevaRavaCycleEntity.builder()
+                .lockDate(LOCK_DATE)
+                .execDate(EXEC_DATE)
+                .phase(DONE)
+                .build());
+    verifyNoInteractions(notificationService);
   }
 
   @Test

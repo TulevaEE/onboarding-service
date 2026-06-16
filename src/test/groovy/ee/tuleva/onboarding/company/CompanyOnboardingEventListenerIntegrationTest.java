@@ -3,15 +3,14 @@ package ee.tuleva.onboarding.company;
 import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_ACTIVE;
 import static ee.tuleva.onboarding.kyb.KybKycStatus.COMPLETED;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.kybPerson;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
-import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
 import ee.tuleva.onboarding.kyb.CompanyDto;
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCheckPerformedEvent;
-import ee.tuleva.onboarding.kyb.KybRelatedPerson;
 import ee.tuleva.onboarding.kyb.LegalForm;
 import ee.tuleva.onboarding.kyb.PersonalCode;
 import ee.tuleva.onboarding.kyb.RegistryCode;
@@ -61,7 +60,11 @@ class CompanyOnboardingEventListenerIntegrationTest {
 
   private void onboard() {
     var boardMember =
-        new KybRelatedPerson(new PersonalCode(PERSONAL_CODE), true, false, false, ZERO, COMPLETED);
+        kybPerson()
+            .personalCode(new PersonalCode(PERSONAL_CODE))
+            .boardMember(true)
+            .kycStatus(COMPLETED)
+            .build();
     listener.onKybCheckPerformed(
         new KybCheckPerformedEvent(
             this,

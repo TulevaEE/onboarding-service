@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.kyb;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
+import static ee.tuleva.onboarding.aml.AmlCheckType.KYC_CHECK;
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
+import static ee.tuleva.onboarding.kyb.KybKycStatus.COMPLETED;
+import static ee.tuleva.onboarding.kyb.KybKycStatus.REJECTED;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.*;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -178,22 +181,20 @@ class KybEndToEndTest {
     amlCheckRepository.save(
         AmlCheck.builder()
             .personalCode(JAAN.value())
-            .type(AmlCheckType.KYC_CHECK)
+            .type(KYC_CHECK)
             .success(true)
             .metadata(Map.of())
             .build());
     amlCheckRepository.save(
         AmlCheck.builder()
             .personalCode(MARI.value())
-            .type(AmlCheckType.KYC_CHECK)
+            .type(KYC_CHECK)
             .success(false)
             .metadata(Map.of())
             .build());
 
-    var person1 =
-        person(JAAN, true, true, true, java.math.BigDecimal.valueOf(50), KybKycStatus.COMPLETED);
-    var person2 =
-        person(MARI, true, true, true, java.math.BigDecimal.valueOf(50), KybKycStatus.REJECTED);
+    var person1 = boardMemberOwner(JAAN, 50.0).kycStatus(COMPLETED).build();
+    var person2 = boardMemberOwner(MARI, 50.0).kycStatus(REJECTED).build();
     var data =
         new KybCompanyData(
             VALID_COMPANY,

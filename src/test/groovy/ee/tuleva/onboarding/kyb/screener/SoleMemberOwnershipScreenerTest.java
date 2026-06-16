@@ -5,7 +5,9 @@ import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyWith;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.kybPerson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
+import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.PersonalCode;
 import java.math.BigDecimal;
 import java.util.stream.Stream;
@@ -54,9 +56,9 @@ class SoleMemberOwnershipScreenerTest {
 
     var result = screener.screen(data);
 
-    assertThat(result).hasSize(1);
-    assertThat(result.getFirst().type()).isEqualTo(SOLE_MEMBER_OWNERSHIP);
-    assertThat(result.getFirst().success()).isTrue();
+    assertThat(result)
+        .extracting(KybCheck::type, KybCheck::success)
+        .containsExactly(tuple(SOLE_MEMBER_OWNERSHIP, true));
     assertThat(result.getFirst().metadata()).doesNotContainKey("personalCode");
   }
 

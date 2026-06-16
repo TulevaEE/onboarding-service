@@ -2,8 +2,7 @@ package ee.tuleva.onboarding.company;
 
 import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_ACTIVE;
-import static ee.tuleva.onboarding.kyb.KybKycStatus.COMPLETED;
-import static ee.tuleva.onboarding.kyb.KybTestFixtures.kybPerson;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOnly;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
@@ -59,12 +58,7 @@ class CompanyOnboardingEventListenerIntegrationTest {
   }
 
   private void onboard() {
-    var boardMember =
-        kybPerson()
-            .personalCode(new PersonalCode(PERSONAL_CODE))
-            .boardMember(true)
-            .kycStatus(COMPLETED)
-            .build();
+    var boardMember = boardMemberOnly(PERSONAL_CODE).build();
     listener.onKybCheckPerformed(
         new KybCheckPerformedEvent(
             this,

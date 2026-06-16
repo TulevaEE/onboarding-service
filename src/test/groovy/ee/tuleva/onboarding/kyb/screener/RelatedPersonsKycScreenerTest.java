@@ -50,7 +50,7 @@ class RelatedPersonsKycScreenerTest {
   @Test
   @SuppressWarnings("unchecked")
   void failureMetadataContainsIncompletePersons() {
-    var completed = boardMemberOwner("38501010001", 50.0).kycStatus(COMPLETED).build();
+    var completed = boardMemberOwner("38501010001", 50.0).build();
     var rejected = boardMemberOwner("38501010002", 50.0).kycStatus(REJECTED).build();
     var data = companyWith(completed, rejected);
 
@@ -68,7 +68,7 @@ class RelatedPersonsKycScreenerTest {
   @Test
   @SuppressWarnings("unchecked")
   void handlesNullPersonalCodeInMetadata() {
-    var withCode = boardMemberOwner("38501010001", 100.0).build();
+    var withCode = boardMemberOwner("38501010001", 100.0).kycStatus(UNKNOWN).build();
     var withoutCode = kybPerson().personalCode(null).build();
     var data = companyWith(withCode, withoutCode);
 
@@ -87,7 +87,7 @@ class RelatedPersonsKycScreenerTest {
 
   @Test
   void successMetadataHasNoIncompletePersons() {
-    var person = boardMemberOwner("38501010001", 100.0).kycStatus(COMPLETED).build();
+    var person = boardMemberOwner("38501010001", 100.0).build();
     var data = companyWith(person);
 
     var result = screener.screen(data);

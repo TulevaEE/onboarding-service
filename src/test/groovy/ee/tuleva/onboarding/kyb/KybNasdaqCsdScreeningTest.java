@@ -10,7 +10,6 @@ import static org.mockito.Mockito.mock;
 
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.ariregister.AriregisterClient;
-import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.kyb.screener.CompanyStructureScreener;
 import ee.tuleva.onboarding.kyb.screener.DualMemberOwnershipScreener;
@@ -97,7 +96,7 @@ class KybNasdaqCsdScreeningTest {
                 REGISTRY_CODE, LocalDate.now(FIXED_CLOCK)))
         .willReturn(relationships);
     given(ariregisterClient.getCompanyDetails(REGISTRY_CODE))
-        .willReturn(Optional.of(companyDetail()));
+        .willReturn(Optional.of(VALID_COMPANY_DETAIL));
   }
 
   private List<KybCheck> screenActive(PersonalCode owner) {
@@ -107,9 +106,5 @@ class KybNasdaqCsdScreeningTest {
 
   private static boolean success(List<KybCheck> checks, KybCheckType type) {
     return checks.stream().filter(c -> c.type() == type).findFirst().orElseThrow().success();
-  }
-
-  private static CompanyDetail companyDetail() {
-    return new CompanyDetail("Test OÜ", REGISTRY_CODE, "R", "OÜ", null, null, null, null);
   }
 }

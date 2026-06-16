@@ -2,9 +2,9 @@ package ee.tuleva.onboarding.company;
 
 import static ee.tuleva.onboarding.company.RelationshipType.*;
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
-import static ee.tuleva.onboarding.kyb.KybKycStatus.COMPLETED;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOnly;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
-import static ee.tuleva.onboarding.kyb.KybTestFixtures.kybPerson;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.shareholderOwner;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -12,7 +12,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.kyb.*;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -30,21 +29,13 @@ class CompanyOnboardingEventListenerTest {
       new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ);
 
   // board member + shareholder + beneficial owner
-  private final KybRelatedPerson person1 =
-      boardMemberOwner("38501010001", 50.0).kycStatus(COMPLETED).build();
+  private final KybRelatedPerson person1 = boardMemberOwner("38501010001", 50.0).build();
 
   // board member only
-  private final KybRelatedPerson person2 =
-      kybPerson("38501010002").boardMember(true).kycStatus(COMPLETED).build();
+  private final KybRelatedPerson person2 = boardMemberOnly("38501010002").build();
 
   // shareholder + beneficial owner, not a board member
-  private final KybRelatedPerson person3 =
-      kybPerson("38501010003")
-          .shareholder(true)
-          .beneficialOwner(true)
-          .ownershipPercent(BigDecimal.valueOf(50))
-          .kycStatus(COMPLETED)
-          .build();
+  private final KybRelatedPerson person3 = shareholderOwner("38501010003", 50.0).build();
 
   @Test
   void createsCompanyAndAllPartyRelationshipsWhenAllChecksPass() {

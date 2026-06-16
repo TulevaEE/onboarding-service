@@ -1,13 +1,12 @@
 package ee.tuleva.onboarding.kyb.screener;
 
-import static ee.tuleva.onboarding.kyb.CompanyStatus.R;
 import static ee.tuleva.onboarding.kyb.KybCheckType.SELF_CERTIFICATION;
-import static ee.tuleva.onboarding.kyb.KybKycStatus.COMPLETED;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyWith;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import ee.tuleva.onboarding.kyb.*;
-import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class SelfCertificationScreenerTest {
@@ -20,9 +19,9 @@ class SelfCertificationScreenerTest {
 
     var results = screener.screen(data);
 
-    assertThat(results).hasSize(1);
-    assertThat(results.getFirst().type()).isEqualTo(SELF_CERTIFICATION);
-    assertThat(results.getFirst().success()).isTrue();
+    assertThat(results)
+        .extracting(KybCheck::type, KybCheck::success)
+        .containsExactly(tuple(SELF_CERTIFICATION, true));
   }
 
   @Test
@@ -54,18 +53,8 @@ class SelfCertificationScreenerTest {
 
   @Test
   void nullCertificationFails() {
-    var company = new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ);
-    var person = boardMemberOwner("38501010001", 100.0).kycStatus(COMPLETED).build();
     var data =
-        new KybCompanyData(
-            company,
-            new PersonalCode("38501010001"),
-            R,
-            List.of(person),
-            null,
-            "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+        companyWith((SelfCertification) null, boardMemberOwner("38501010001", 100.0).build());
 
     var results = screener.screen(data);
 
@@ -87,17 +76,8 @@ class SelfCertificationScreenerTest {
 
   private KybCompanyData companyWithCertification(
       boolean operatesInEstonia, boolean notSanctioned, boolean noHighRiskActivity) {
-    var company = new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ);
-    var person = boardMemberOwner("38501010001", 100.0).kycStatus(COMPLETED).build();
-    var cert = new SelfCertification(operatesInEstonia, notSanctioned, noHighRiskActivity);
-    return new KybCompanyData(
-        company,
-        new PersonalCode("38501010001"),
-        R,
-        List.of(person),
-        cert,
-        "EE",
-        "Harju maakond, Tallinn, Pärnu mnt 1",
-        null);
+    return companyWith(
+        new SelfCertification(operatesInEstonia, notSanctioned, noHighRiskActivity),
+        boardMemberOwner("38501010001", 100.0).build());
   }
 }

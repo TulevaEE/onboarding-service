@@ -1,12 +1,14 @@
 package ee.tuleva.onboarding.kyb.screener;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.DUAL_MEMBER_OWNERSHIP;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOnly;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyWith;
-import static ee.tuleva.onboarding.kyb.KybTestFixtures.kybPerson;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.shareholderOwner;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
-import java.math.BigDecimal;
+import ee.tuleva.onboarding.kyb.KybCheck;
 import org.junit.jupiter.api.Test;
 
 class DualMemberOwnershipScreenerTest {
@@ -21,9 +23,9 @@ class DualMemberOwnershipScreenerTest {
 
     var result = screener.screen(data);
 
-    assertThat(result).hasSize(1);
-    assertThat(result.getFirst().type()).isEqualTo(DUAL_MEMBER_OWNERSHIP);
-    assertThat(result.getFirst().success()).isTrue();
+    assertThat(result)
+        .extracting(KybCheck::type, KybCheck::success)
+        .containsExactly(tuple(DUAL_MEMBER_OWNERSHIP, true));
   }
 
   @Test
@@ -34,33 +36,28 @@ class DualMemberOwnershipScreenerTest {
 
     var result = screener.screen(data);
 
-    assertThat(result).hasSize(1);
-    assertThat(result.getFirst().type()).isEqualTo(DUAL_MEMBER_OWNERSHIP);
-    assertThat(result.getFirst().success()).isFalse();
+    assertThat(result)
+        .extracting(KybCheck::type, KybCheck::success)
+        .containsExactly(tuple(DUAL_MEMBER_OWNERSHIP, false));
   }
 
   @Test
   void twoBoardMembersWhereOneIsNotShareholderFails() {
     var person1 = boardMemberOwner("38501010001", 100.0).build();
-    var person2 = kybPerson("38501010002").boardMember(true).build();
+    var person2 = boardMemberOnly("38501010002").build();
     var data = companyWith(person1, person2);
 
     var result = screener.screen(data);
 
-    assertThat(result).hasSize(1);
-    assertThat(result.getFirst().type()).isEqualTo(DUAL_MEMBER_OWNERSHIP);
-    assertThat(result.getFirst().success()).isFalse();
+    assertThat(result)
+        .extracting(KybCheck::type, KybCheck::success)
+        .containsExactly(tuple(DUAL_MEMBER_OWNERSHIP, false));
   }
 
   @Test
   void doesNotApplyWhenOnlyOneBoardMemberOutOfTwoPersons() {
     var person1 = boardMemberOwner("38501010001", 50.0).build();
-    var person2 =
-        kybPerson("38501010002")
-            .shareholder(true)
-            .beneficialOwner(true)
-            .ownershipPercent(BigDecimal.valueOf(50))
-            .build();
+    var person2 = shareholderOwner("38501010002", 50.0).build();
     var data = companyWith(person1, person2);
 
     var result = screener.screen(data);

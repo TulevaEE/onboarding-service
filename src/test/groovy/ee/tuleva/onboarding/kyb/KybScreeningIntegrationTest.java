@@ -49,7 +49,7 @@ class KybScreeningIntegrationTest {
 
   @Test
   void singlePersonCompanyWithValidOwnershipAndCompletedKycCreatesSuccessfulChecks() {
-    var person = boardMemberOwner(PERSONAL_CODE, 100.0).kycStatus(COMPLETED).build();
+    var person = boardMemberOwner(PERSONAL_CODE, 100.0).build();
     var data = companyWith(person);
 
     var results = kybScreeningService.screen(data);
@@ -104,7 +104,7 @@ class KybScreeningIntegrationTest {
   @Test
   @SuppressWarnings("unchecked")
   void dataChangedCheckDetectsChangesOnRerun() {
-    var person = boardMemberOwner(PERSONAL_CODE, 100.0).kycStatus(COMPLETED).build();
+    var person = boardMemberOwner(PERSONAL_CODE, 100.0).build();
     var data = companyWith(person);
 
     kybScreeningService.screen(data);
@@ -155,7 +155,7 @@ class KybScreeningIntegrationTest {
 
   @Test
   void companyWithUnidentifiedRelatedPersonIsBlockedWithoutCrashing() {
-    var unidentified = boardMemberOwner((PersonalCode) null, 100.0).build();
+    var unidentified = boardMemberOwner((PersonalCode) null, 100.0).kycStatus(UNKNOWN).build();
     var data = companyWith(unidentified);
 
     var results = kybScreeningService.screen(data);
@@ -181,7 +181,7 @@ class KybScreeningIntegrationTest {
 
   @Test
   void companyFoundedLessThanAYearAgoCreatesFailingCompanyAgeCheck() {
-    var person = boardMemberOwner(PERSONAL_CODE, 100.0).kycStatus(COMPLETED).build();
+    var person = boardMemberOwner(PERSONAL_CODE, 100.0).build();
     var data =
         new KybCompanyData(
             new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),

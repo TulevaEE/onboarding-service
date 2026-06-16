@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
-import static ee.tuleva.onboarding.kyb.KybKycStatus.COMPLETED;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
@@ -95,9 +94,7 @@ class AmlKybCheckEventListenerTest {
   private static KybCheckPerformedEvent event(
       String registryCode, String personalCode, List<KybCheck> checks) {
     var company = new CompanyDto(new RegistryCode(registryCode), "Test OÜ", "62011", LegalForm.OÜ);
-    var relatedPersons =
-        List.of(
-            boardMemberOwner(new PersonalCode(personalCode), 100.0).kycStatus(COMPLETED).build());
+    var relatedPersons = List.of(boardMemberOwner(new PersonalCode(personalCode), 100.0).build());
     return new KybCheckPerformedEvent(
         AmlKybCheckEventListenerTest.class,
         company,

@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.kyb.screener;
 import static ee.tuleva.onboarding.kyb.CompanyStatus.R;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_PEP;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_SANCTION;
-import static ee.tuleva.onboarding.kyb.KybKycStatus.COMPLETED;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -106,7 +105,7 @@ class CompanySanctionScreenerTest {
   }
 
   private KybCompanyData companyData() {
-    var person = boardMemberOwner("38501010001", 100.0).kycStatus(COMPLETED).build();
+    var person = boardMemberOwner("38501010001", 100.0).build();
     return new KybCompanyData(
         COMPANY,
         new PersonalCode("38501010001"),

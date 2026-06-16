@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_STRUCTURE;
 import static ee.tuleva.onboarding.kyb.KybKycStatus.COMPLETED;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import ee.tuleva.onboarding.kyb.*;
 import java.math.BigDecimal;
@@ -19,17 +20,14 @@ class CompanyStructureScreenerTest {
 
     var result = screener.screen(data);
 
-    assertThat(result).hasSize(1);
-    assertThat(result.getFirst().type()).isEqualTo(COMPANY_STRUCTURE);
-    assertThat(result.getFirst().success()).isTrue();
+    assertThat(result)
+        .extracting(KybCheck::type, KybCheck::success)
+        .containsExactly(tuple(COMPANY_STRUCTURE, true));
   }
 
   @Test
   void twoPersonsWithPersonalCodesPasses() {
-    var data =
-        companyWith(
-            identifiedPerson(new PersonalCode("38501010002")),
-            identifiedPerson(new PersonalCode("49001010001")));
+    var data = companyWith(identifiedPerson("38501010002"), identifiedPerson("49001010001"));
 
     var result = screener.screen(data);
 
@@ -40,9 +38,9 @@ class CompanyStructureScreenerTest {
   void threePersonsFails() {
     var data =
         companyWith(
-            identifiedPerson(new PersonalCode("38501010002")),
-            identifiedPerson(new PersonalCode("49001010001")),
-            identifiedPerson(new PersonalCode("37801010009")));
+            identifiedPerson("38501010002"),
+            identifiedPerson("49001010001"),
+            identifiedPerson("37801010009"));
 
     var result = screener.screen(data);
 
@@ -96,20 +94,8 @@ class CompanyStructureScreenerTest {
 
   @Test
   void twoRelatedPersonsWithNoBoardMemberFails() {
-    var owner1 =
-        kybPerson("38501010002")
-            .shareholder(true)
-            .beneficialOwner(true)
-            .ownershipPercent(BigDecimal.valueOf(50))
-            .kycStatus(COMPLETED)
-            .build();
-    var owner2 =
-        kybPerson("49001010001")
-            .shareholder(true)
-            .beneficialOwner(true)
-            .ownershipPercent(BigDecimal.valueOf(50))
-            .kycStatus(COMPLETED)
-            .build();
+    var owner1 = shareholderOwner("38501010002", 50.0).build();
+    var owner2 = shareholderOwner("49001010001", 50.0).build();
     var data = companyWith(owner1, owner2);
 
     var result = screener.screen(data);
@@ -118,10 +104,10 @@ class CompanyStructureScreenerTest {
   }
 
   private KybRelatedPerson identifiedPerson() {
-    return identifiedPerson(new PersonalCode("38501010002"));
+    return identifiedPerson("38501010002");
   }
 
-  private KybRelatedPerson identifiedPerson(PersonalCode code) {
-    return boardMemberOwner(code, 100.0).kycStatus(COMPLETED).build();
+  private KybRelatedPerson identifiedPerson(String code) {
+    return boardMemberOwner(code, 100.0).build();
   }
 }

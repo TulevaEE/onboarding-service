@@ -47,6 +47,14 @@ public enum FundTicker {
       "XRSM",
       null,
       BenchmarkCategory.EQUITY_DM),
+  XTRACKERS_WORLD_SCREENED(
+      "XWSC.DE",
+      "XWSC.XETRA",
+      "IE000I9HGDZ3",
+      "Xtrackers MSCI World Screened UCITS ETF 1C",
+      "XWSC",
+      null,
+      BenchmarkCategory.EQUITY_DM),
   XTRACKERS_CANADA_ESG_SCREENED(
       "D5BH.DE",
       "D5BH.XETRA",

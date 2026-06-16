@@ -54,6 +54,7 @@ class FundTickerTest {
             "IE00BFNM3L97",
             "IE00BMDBMY19",
             "IE00BJZ2DC62",
+            "IE000I9HGDZ3",
             "LU0476289540",
             "IE000O58J820",
             "LU1291099718",

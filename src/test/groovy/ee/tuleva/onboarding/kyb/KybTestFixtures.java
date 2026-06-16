@@ -151,7 +151,7 @@ public final class KybTestFixtures {
   static List<KybCheck> rule31PassExpectedChecks() {
     return List.of(
         check(COMPANY_STRUCTURE, true),
-        check(SOLE_MEMBER_OWNERSHIP, true),
+        check(SHAREHOLDER_ELIGIBILITY, true),
         check(COMPANY_ACTIVE, true),
         check(RELATED_PERSONS_KYC, true),
         check(COMPANY_SANCTION, true),
@@ -165,7 +165,7 @@ public final class KybTestFixtures {
   static List<KybCheck> rule31FailExpectedChecks() {
     return List.of(
         check(COMPANY_STRUCTURE, true),
-        check(SOLE_MEMBER_OWNERSHIP, false),
+        check(SHAREHOLDER_ELIGIBILITY, false),
         check(COMPANY_ACTIVE, true),
         check(RELATED_PERSONS_KYC, true),
         check(COMPANY_SANCTION, true),
@@ -211,7 +211,7 @@ public final class KybTestFixtures {
   static List<KybCheck> rule32PassExpectedChecks() {
     return List.of(
         check(COMPANY_STRUCTURE, true),
-        check(DUAL_MEMBER_OWNERSHIP, true),
+        check(SHAREHOLDER_ELIGIBILITY, true),
         check(COMPANY_ACTIVE, true),
         check(RELATED_PERSONS_KYC, true),
         check(COMPANY_SANCTION, true),
@@ -254,7 +254,7 @@ public final class KybTestFixtures {
   static List<KybCheck> rule33PassExpectedChecks() {
     return List.of(
         check(COMPANY_STRUCTURE, true),
-        check(SOLE_BOARD_MEMBER_IS_OWNER, true),
+        check(SHAREHOLDER_ELIGIBILITY, true),
         check(COMPANY_ACTIVE, true),
         check(RELATED_PERSONS_KYC, true),
         check(COMPANY_SANCTION, true),
@@ -451,6 +451,7 @@ public final class KybTestFixtures {
   static List<KybCheck> threePersonsExpectedChecks() {
     return List.of(
         check(COMPANY_STRUCTURE, false),
+        check(SHAREHOLDER_ELIGIBILITY, false),
         check(COMPANY_ACTIVE, true),
         check(RELATED_PERSONS_KYC, true),
         check(COMPANY_SANCTION, true),

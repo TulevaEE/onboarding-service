@@ -30,6 +30,7 @@ class ScheduledAmlHealthCheckJobTest {
           AmlCheckType.KYB_SOLE_MEMBER_OWNERSHIP,
           AmlCheckType.KYB_DUAL_MEMBER_OWNERSHIP,
           AmlCheckType.KYB_SOLE_BOARD_MEMBER_IS_OWNER,
+          AmlCheckType.KYB_SHAREHOLDER_ELIGIBILITY,
           AmlCheckType.KYB_COMPANY_ACTIVE,
           AmlCheckType.KYB_COMPANY_AGE,
           AmlCheckType.KYB_RELATED_PERSONS_KYC,

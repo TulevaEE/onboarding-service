@@ -126,6 +126,23 @@ class KybSurveyServiceTest {
   }
 
   @Test
+  void initialValidation_dedupesIdenticalStructureAndShareholderEligibilityErrors() {
+    stubInitialValidation(
+        sampleRelationships(),
+        sampleDetail(),
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(COMPANY_STRUCTURE, false, Map.of()),
+            new KybCheck(SHAREHOLDER_ELIGIBILITY, false, Map.of())));
+
+    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
+
+    assertThat(result.relatedPersons().errors())
+        .containsExactly(
+            new ValidationError("COMPANY_STRUCTURE", "Ettevõtte omandistruktuur ei ole toetatud"));
+  }
+
+  @Test
   void initialValidation_codesOtherRelatedPersonsKycAndNamesThem() {
     stubInitialValidation(
         boardMemberWithTwoOwners(),

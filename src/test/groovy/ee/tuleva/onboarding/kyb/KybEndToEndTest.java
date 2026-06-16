@@ -46,15 +46,15 @@ class KybEndToEndTest {
     var results = kybScreeningService.screen(rule31Pass());
 
     assertThat(results).hasSize(11).allMatch(KybCheck::success);
-    assertCheckPersisted(JAAN, KYB_SOLE_MEMBER_OWNERSHIP, true);
+    assertCheckPersisted(JAAN, KYB_SHAREHOLDER_ELIGIBILITY, true);
   }
 
   @Test
   void rule31_notBeneficialOwner_ownershipCheckFails() {
     var results = kybScreeningService.screen(rule31Fail_notBeneficialOwner());
 
-    assertCheckResult(results, SOLE_MEMBER_OWNERSHIP, false);
-    assertCheckPersisted(JAAN, KYB_SOLE_MEMBER_OWNERSHIP, false);
+    assertCheckResult(results, SHAREHOLDER_ELIGIBILITY, false);
+    assertCheckPersisted(JAAN, KYB_SHAREHOLDER_ELIGIBILITY, false);
   }
 
   // --- Rule 32: Two person OÜ ownership (both board members) ---
@@ -63,16 +63,16 @@ class KybEndToEndTest {
   void rule32_twoBoardMembersFullOwnership_passes() {
     var results = kybScreeningService.screen(rule32Pass());
 
-    assertCheckResult(results, DUAL_MEMBER_OWNERSHIP, true);
-    assertCheckPersisted(JAAN, KYB_DUAL_MEMBER_OWNERSHIP, true);
+    assertCheckResult(results, SHAREHOLDER_ELIGIBILITY, true);
+    assertCheckPersisted(JAAN, KYB_SHAREHOLDER_ELIGIBILITY, true);
   }
 
   @Test
   void rule32_twoBoardMembersIncompleteOwnership_fails() {
     var results = kybScreeningService.screen(rule32Fail_incompleteOwnership());
 
-    assertCheckResult(results, DUAL_MEMBER_OWNERSHIP, false);
-    assertCheckPersisted(JAAN, KYB_DUAL_MEMBER_OWNERSHIP, false);
+    assertCheckResult(results, SHAREHOLDER_ELIGIBILITY, false);
+    assertCheckPersisted(JAAN, KYB_SHAREHOLDER_ELIGIBILITY, false);
   }
 
   // --- Rule 33: Sole board member is owner ---
@@ -81,16 +81,16 @@ class KybEndToEndTest {
   void rule33_soleBoardMemberIsOwner_passes() {
     var results = kybScreeningService.screen(rule33Pass());
 
-    assertCheckResult(results, SOLE_BOARD_MEMBER_IS_OWNER, true);
-    assertCheckPersisted(JAAN, KYB_SOLE_BOARD_MEMBER_IS_OWNER, true);
+    assertCheckResult(results, SHAREHOLDER_ELIGIBILITY, true);
+    assertCheckPersisted(JAAN, KYB_SHAREHOLDER_ELIGIBILITY, true);
   }
 
   @Test
   void rule33_soleBoardMemberIsNotOwner_fails() {
     var results = kybScreeningService.screen(rule33Fail_boardMemberNotOwner());
 
-    assertCheckResult(results, SOLE_BOARD_MEMBER_IS_OWNER, false);
-    assertCheckPersisted(JAAN, KYB_SOLE_BOARD_MEMBER_IS_OWNER, false);
+    assertCheckResult(results, SHAREHOLDER_ELIGIBILITY, false);
+    assertCheckPersisted(JAAN, KYB_SHAREHOLDER_ELIGIBILITY, false);
   }
 
   // --- Rule 34: Company active ---
@@ -323,9 +323,7 @@ class KybEndToEndTest {
     var results = kybScreeningService.screen(threeRelatedPersons());
 
     assertCheckResult(results, COMPANY_STRUCTURE, false);
-    var types = results.stream().map(KybCheck::type).toList();
-    assertThat(types)
-        .doesNotContain(SOLE_MEMBER_OWNERSHIP, DUAL_MEMBER_OWNERSHIP, SOLE_BOARD_MEMBER_IS_OWNER);
+    assertCheckResult(results, SHAREHOLDER_ELIGIBILITY, false);
     assertCheckPersisted(JAAN, KYB_COMPANY_STRUCTURE, false);
   }
 
@@ -341,7 +339,7 @@ class KybEndToEndTest {
         .extracting(AmlCheck::getType)
         .containsExactlyInAnyOrder(
             KYB_COMPANY_STRUCTURE,
-            KYB_SOLE_MEMBER_OWNERSHIP,
+            KYB_SHAREHOLDER_ELIGIBILITY,
             KYB_COMPANY_ACTIVE,
             KYB_RELATED_PERSONS_KYC,
             KYB_COMPANY_SANCTION,

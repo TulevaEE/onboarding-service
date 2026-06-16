@@ -71,7 +71,7 @@ class KybScreeningIntegrationTest {
         .containsExactlyInAnyOrder(
             KYB_COMPANY_STRUCTURE,
             KYB_COMPANY_ACTIVE,
-            KYB_SOLE_MEMBER_OWNERSHIP,
+            KYB_SHAREHOLDER_ELIGIBILITY,
             KYB_RELATED_PERSONS_KYC,
             KYB_COMPANY_SANCTION,
             KYB_COMPANY_PEP,
@@ -106,7 +106,7 @@ class KybScreeningIntegrationTest {
         amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
             PERSONAL_CODE.value(), aYearAgo());
     var failedCheck =
-        amlChecks.stream().filter(c -> c.getType() == KYB_SOLE_MEMBER_OWNERSHIP).findFirst();
+        amlChecks.stream().filter(c -> c.getType() == KYB_SHAREHOLDER_ELIGIBILITY).findFirst();
     assertThat(failedCheck).isPresent();
     assertThat(failedCheck.get().isSuccess()).isFalse();
   }

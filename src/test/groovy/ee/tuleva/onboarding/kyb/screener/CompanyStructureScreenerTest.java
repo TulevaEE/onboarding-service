@@ -40,6 +40,7 @@ class CompanyStructureScreenerTest {
 
   @Test
   void threePersonsFails() {
+    // Max 2 related persons (≤2 board members and ≤2 shareholders); a third person is rejected.
     var data =
         companyWith(
             List.of(

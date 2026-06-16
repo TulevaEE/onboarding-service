@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.kyb.survey.BlockedReason.NOT_BOARD_MEMBER;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
 import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.collectingAndThen;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.mapping;
@@ -71,7 +72,8 @@ class KybSurveyService {
       case COMPANY_STRUCTURE,
           SOLE_MEMBER_OWNERSHIP,
           DUAL_MEMBER_OWNERSHIP,
-          SOLE_BOARD_MEMBER_IS_OWNER ->
+          SOLE_BOARD_MEMBER_IS_OWNER,
+          SHAREHOLDER_ELIGIBILITY ->
           Stream.of(
               fieldError(
                   "relatedPersons",
@@ -339,7 +341,12 @@ class KybSurveyService {
     return checks.stream()
         .filter(check -> !check.success())
         .flatMap(check -> fieldErrorsFor(check, userPersonalCode, relatedPersons))
-        .collect(groupingBy(FieldError::field, mapping(FieldError::error, toList())));
+        .collect(
+            groupingBy(
+                FieldError::field,
+                collectingAndThen(
+                    mapping(FieldError::error, toList()),
+                    errors -> errors.stream().distinct().toList())));
   }
 
   private static <T> ValidatedField<T> validatedField(T value, List<ValidationError> errors) {

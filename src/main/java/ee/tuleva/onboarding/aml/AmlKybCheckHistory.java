@@ -20,10 +20,11 @@ public class AmlKybCheckHistory implements KybCheckHistory {
   private static final Map<AmlCheckType, KybCheckType> REVERSE_TYPE_MAPPING =
       Map.ofEntries(
           entry(AmlCheckType.KYB_COMPANY_STRUCTURE, KybCheckType.COMPANY_STRUCTURE),
-          entry(AmlCheckType.KYB_SOLE_MEMBER_OWNERSHIP, KybCheckType.SOLE_MEMBER_OWNERSHIP),
-          entry(AmlCheckType.KYB_DUAL_MEMBER_OWNERSHIP, KybCheckType.DUAL_MEMBER_OWNERSHIP),
-          entry(
-              AmlCheckType.KYB_SOLE_BOARD_MEMBER_IS_OWNER, KybCheckType.SOLE_BOARD_MEMBER_IS_OWNER),
+          // Legacy ownership check types (KYB_SOLE_MEMBER_OWNERSHIP, KYB_DUAL_MEMBER_OWNERSHIP,
+          // KYB_SOLE_BOARD_MEMBER_IS_OWNER) are intentionally NOT reconstructed here: they were
+          // replaced by SHAREHOLDER_ELIGIBILITY and must not resurface as "removed" checks in
+          // KybDataChangeDetector for companies last screened under the old screeners.
+          entry(AmlCheckType.KYB_SHAREHOLDER_ELIGIBILITY, KybCheckType.SHAREHOLDER_ELIGIBILITY),
           entry(AmlCheckType.KYB_COMPANY_ACTIVE, KybCheckType.COMPANY_ACTIVE),
           entry(AmlCheckType.KYB_RELATED_PERSONS_KYC, KybCheckType.RELATED_PERSONS_KYC),
           entry(AmlCheckType.KYB_COMPANY_SANCTION, KybCheckType.COMPANY_SANCTION),

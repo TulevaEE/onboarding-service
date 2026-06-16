@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static java.text.Normalizer.Form.NFKD;
 import static java.util.stream.Collectors.joining;
 
 import java.text.Normalizer;
@@ -9,20 +10,32 @@ import org.springframework.stereotype.Component;
 @Component
 public class NameMatcher {
 
+  private static final String FIE = "FIE";
+  private static final String OSAUHING = "OSAUHING";
+  private static final String OSAUHING_ABBREVIATION = "OU";
+
   public boolean isSameName(String name1, String name2) {
     if (name1 == null || name2 == null) return false;
-    return normalize(stripFie(name1)).equals(normalize(stripFie(name2)));
+    var normalized1 = normalize(name1);
+    var normalized2 = normalize(name2);
+    if (isMissingDistinguishingName(normalized1) || isMissingDistinguishingName(normalized2)) {
+      return false;
+    }
+    return normalized1.equals(normalized2);
   }
 
-  private String stripFie(String name) {
-    return name.replaceAll("(?i)\\bFIE\\b", "").strip();
+  private boolean isMissingDistinguishingName(String normalizedName) {
+    return normalizedName.isEmpty() || normalizedName.equals(OSAUHING_ABBREVIATION);
   }
 
   private String normalize(String name) {
     return Arrays.stream(name.replaceAll("\\p{Punct}", " ").split("\\s+"))
         .map(String::strip)
+        .filter(token -> !token.isEmpty())
         .map(String::toUpperCase)
-        .map(s -> Normalizer.normalize(s, Normalizer.Form.NFKD).replaceAll("\\p{M}", ""))
+        .map(token -> Normalizer.normalize(token, NFKD).replaceAll("\\p{M}", ""))
+        .filter(token -> !token.equals(FIE))
+        .map(token -> token.equals(OSAUHING) ? OSAUHING_ABBREVIATION : token)
         .sorted()
         .collect(joining(" "));
   }

@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
+import static ee.tuleva.onboarding.kyb.KybKycStatus.COMPLETED;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -10,7 +12,6 @@ import static org.mockito.Mockito.verify;
 import ee.tuleva.onboarding.company.Company;
 import ee.tuleva.onboarding.company.CompanyRepository;
 import ee.tuleva.onboarding.kyb.*;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -96,13 +97,7 @@ class AmlKybCheckEventListenerTest {
     var company = new CompanyDto(new RegistryCode(registryCode), "Test OÜ", "62011", LegalForm.OÜ);
     var relatedPersons =
         List.of(
-            new KybRelatedPerson(
-                new PersonalCode(personalCode),
-                true,
-                true,
-                true,
-                BigDecimal.valueOf(100),
-                KybKycStatus.COMPLETED));
+            boardMemberOwner(new PersonalCode(personalCode), 100.0).kycStatus(COMPLETED).build());
     return new KybCheckPerformedEvent(
         AmlKybCheckEventListenerTest.class,
         company,

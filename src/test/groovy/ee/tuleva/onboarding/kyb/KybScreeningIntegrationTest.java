@@ -3,6 +3,9 @@ package ee.tuleva.onboarding.kyb;
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.kyb.CompanyStatus.R;
 import static ee.tuleva.onboarding.kyb.KybKycStatus.*;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyWith;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.kybPerson;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -46,18 +49,8 @@ class KybScreeningIntegrationTest {
 
   @Test
   void singlePersonCompanyWithValidOwnershipAndCompletedKycCreatesSuccessfulChecks() {
-    var person =
-        new KybRelatedPerson(PERSONAL_CODE, true, true, true, BigDecimal.valueOf(100), COMPLETED);
-    var data =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
-            PERSONAL_CODE,
-            R,
-            List.of(person),
-            new SelfCertification(true, true, true),
-            "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+    var person = boardMemberOwner(PERSONAL_CODE, 100.0).kycStatus(COMPLETED).build();
+    var data = companyWith(person);
 
     var results = kybScreeningService.screen(data);
 
@@ -86,17 +79,14 @@ class KybScreeningIntegrationTest {
   @Test
   void singlePersonCompanyWithInvalidOwnershipCreatesFailedCheck() {
     var person =
-        new KybRelatedPerson(PERSONAL_CODE, true, true, false, BigDecimal.valueOf(100), COMPLETED);
-    var data =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
-            PERSONAL_CODE,
-            R,
-            List.of(person),
-            new SelfCertification(true, true, true),
-            "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+        kybPerson()
+            .personalCode(PERSONAL_CODE)
+            .boardMember(true)
+            .shareholder(true)
+            .ownershipPercent(BigDecimal.valueOf(100))
+            .kycStatus(COMPLETED)
+            .build();
+    var data = companyWith(person);
 
     var results = kybScreeningService.screen(data);
 
@@ -114,18 +104,8 @@ class KybScreeningIntegrationTest {
   @Test
   @SuppressWarnings("unchecked")
   void dataChangedCheckDetectsChangesOnRerun() {
-    var person =
-        new KybRelatedPerson(PERSONAL_CODE, true, true, true, BigDecimal.valueOf(100), COMPLETED);
-    var data =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
-            PERSONAL_CODE,
-            R,
-            List.of(person),
-            new SelfCertification(true, true, true),
-            "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+    var person = boardMemberOwner(PERSONAL_CODE, 100.0).kycStatus(COMPLETED).build();
+    var data = companyWith(person);
 
     kybScreeningService.screen(data);
 
@@ -154,18 +134,8 @@ class KybScreeningIntegrationTest {
 
   @Test
   void relatedPersonWithRejectedKycCreatesFailedKycCheck() {
-    var person =
-        new KybRelatedPerson(PERSONAL_CODE, true, true, true, BigDecimal.valueOf(100), REJECTED);
-    var data =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
-            PERSONAL_CODE,
-            R,
-            List.of(person),
-            new SelfCertification(true, true, true),
-            "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+    var person = boardMemberOwner(PERSONAL_CODE, 100.0).kycStatus(REJECTED).build();
+    var data = companyWith(person);
 
     var results = kybScreeningService.screen(data);
 
@@ -185,18 +155,8 @@ class KybScreeningIntegrationTest {
 
   @Test
   void companyWithUnidentifiedRelatedPersonIsBlockedWithoutCrashing() {
-    var unidentified =
-        new KybRelatedPerson(null, true, true, true, BigDecimal.valueOf(100), UNKNOWN);
-    var data =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
-            PERSONAL_CODE,
-            R,
-            List.of(unidentified),
-            new SelfCertification(true, true, true),
-            "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1",
-            null);
+    var unidentified = boardMemberOwner((PersonalCode) null, 100.0).build();
+    var data = companyWith(unidentified);
 
     var results = kybScreeningService.screen(data);
 
@@ -221,8 +181,7 @@ class KybScreeningIntegrationTest {
 
   @Test
   void companyFoundedLessThanAYearAgoCreatesFailingCompanyAgeCheck() {
-    var person =
-        new KybRelatedPerson(PERSONAL_CODE, true, true, true, BigDecimal.valueOf(100), COMPLETED);
+    var person = boardMemberOwner(PERSONAL_CODE, 100.0).kycStatus(COMPLETED).build();
     var data =
         new KybCompanyData(
             new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),

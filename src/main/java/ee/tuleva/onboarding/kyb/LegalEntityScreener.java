@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.kyb;
 
+import static ee.tuleva.onboarding.kyb.KybRelationshipRoles.RELATED_PERSON_ROLES;
+
 import ee.tuleva.onboarding.ariregister.AriregisterClient;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
@@ -14,8 +16,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class LegalEntityScreener {
 
-  private static final String FOUNDER_ROLE = "A";
-
   private final AriregisterClient ariregisterClient;
   private final KybCompanyDataMapper kybCompanyDataMapper;
   private final KybScreeningService kybScreeningService;
@@ -26,7 +26,7 @@ public class LegalEntityScreener {
     return ariregisterClient
         .getActiveCompanyRelationships(registryCode, LocalDate.now(clock))
         .stream()
-        .filter(r -> !FOUNDER_ROLE.equals(r.roleCode()))
+        .filter(relationship -> RELATED_PERSON_ROLES.contains(relationship.roleCode()))
         .toList();
   }
 

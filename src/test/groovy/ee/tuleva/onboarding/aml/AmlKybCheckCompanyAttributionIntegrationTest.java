@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_ACTIVE;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_STRUCTURE;
+import static ee.tuleva.onboarding.kyb.KybKycStatus.COMPLETED;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
@@ -12,12 +14,9 @@ import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.kyb.CompanyDto;
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCheckPerformedEvent;
-import ee.tuleva.onboarding.kyb.KybKycStatus;
-import ee.tuleva.onboarding.kyb.KybRelatedPerson;
 import ee.tuleva.onboarding.kyb.LegalForm;
 import ee.tuleva.onboarding.kyb.PersonalCode;
 import ee.tuleva.onboarding.kyb.RegistryCode;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -106,13 +105,7 @@ public class AmlKybCheckCompanyAttributionIntegrationTest {
     var company = new CompanyDto(new RegistryCode(registryCode), "Test OÜ", "62011", LegalForm.OÜ);
     var relatedPersons =
         List.of(
-            new KybRelatedPerson(
-                new PersonalCode(personalCode),
-                true,
-                true,
-                true,
-                BigDecimal.valueOf(100),
-                KybKycStatus.COMPLETED));
+            boardMemberOwner(new PersonalCode(personalCode), 100.0).kycStatus(COMPLETED).build());
     return new KybCheckPerformedEvent(
         this, company, new PersonalCode(personalCode), relatedPersons, checks);
   }

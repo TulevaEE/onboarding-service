@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.kyb.CompanyStatus.R;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_PEP;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_SANCTION;
 import static ee.tuleva.onboarding.kyb.KybKycStatus.COMPLETED;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -12,7 +13,6 @@ import static org.mockito.Mockito.when;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.kyb.*;
-import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
@@ -106,9 +106,7 @@ class CompanySanctionScreenerTest {
   }
 
   private KybCompanyData companyData() {
-    var person =
-        new KybRelatedPerson(
-            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(100), COMPLETED);
+    var person = boardMemberOwner("38501010001", 100.0).kycStatus(COMPLETED).build();
     return new KybCompanyData(
         COMPANY,
         new PersonalCode("38501010001"),

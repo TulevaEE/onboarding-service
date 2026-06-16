@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.kyb;
 
 import static ee.tuleva.onboarding.kyb.CompanyStatus.R;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
@@ -69,8 +70,13 @@ class KybCompanyDataMapperTest {
     assertThat(result.selfCertification()).isEqualTo(SELF_CERT);
     assertThat(result.relatedPersons())
         .containsExactly(
-            new KybRelatedPerson(
-                PERSONAL_CODE, true, true, true, new BigDecimal("100.00"), KybKycStatus.UNKNOWN));
+            kybPerson()
+                .personalCode(PERSONAL_CODE)
+                .boardMember(true)
+                .shareholder(true)
+                .beneficialOwner(true)
+                .ownershipPercent(new BigDecimal("100.00"))
+                .build());
   }
 
   @Test
@@ -112,15 +118,11 @@ class KybCompanyDataMapperTest {
     assertThat(result.relatedPersons()).hasSize(2);
     assertThat(result.relatedPersons())
         .containsExactlyInAnyOrder(
-            new KybRelatedPerson(
-                PERSONAL_CODE, true, false, false, BigDecimal.ZERO, KybKycStatus.UNKNOWN),
-            new KybRelatedPerson(
-                new PersonalCode("49901010003"),
-                false,
-                true,
-                false,
-                new BigDecimal("50.00"),
-                KybKycStatus.UNKNOWN));
+            kybPerson().personalCode(PERSONAL_CODE).boardMember(true).build(),
+            kybPerson("49901010003")
+                .shareholder(true)
+                .ownershipPercent(new BigDecimal("50.00"))
+                .build());
   }
 
   @Test
@@ -146,8 +148,12 @@ class KybCompanyDataMapperTest {
 
     assertThat(result.relatedPersons())
         .containsExactly(
-            new KybRelatedPerson(
-                PERSONAL_CODE, false, true, true, new BigDecimal("75.00"), KybKycStatus.UNKNOWN));
+            kybPerson()
+                .personalCode(PERSONAL_CODE)
+                .shareholder(true)
+                .beneficialOwner(true)
+                .ownershipPercent(new BigDecimal("75.00"))
+                .build());
   }
 
   @Test
@@ -219,32 +225,32 @@ class KybCompanyDataMapperTest {
             null,
             null,
             "EST");
-    var withoutCode =
+    var foreignBoardMember =
         new CompanyRelationship(
-            "J",
-            "ARP",
-            "Aktsiaraamatu pidaja",
-            null,
-            "Nasdaq CSD SE",
-            null,
-            null,
+            "F",
+            "JUHL",
+            "Juhatuse liige",
+            "John",
+            "Smith",
             null,
             null,
             null,
             null,
-            null);
+            null,
+            null,
+            "GBR");
 
     var detail = new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null);
 
     var result =
-        mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(withCode, withoutCode), SELF_CERT);
+        mapper.toKybCompanyData(
+            detail, PERSONAL_CODE, List.of(withCode, foreignBoardMember), SELF_CERT);
 
     assertThat(result.relatedPersons()).hasSize(2);
     assertThat(result.relatedPersons())
         .containsExactlyInAnyOrder(
-            new KybRelatedPerson(
-                PERSONAL_CODE, true, false, false, BigDecimal.ZERO, KybKycStatus.UNKNOWN),
-            new KybRelatedPerson(null, false, false, false, BigDecimal.ZERO, KybKycStatus.UNKNOWN));
+            kybPerson().personalCode(PERSONAL_CODE).boardMember(true).build(),
+            kybPerson().personalCode(null).boardMember(true).build());
   }
 
   @Test
@@ -345,6 +351,40 @@ class KybCompanyDataMapperTest {
     var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(relationship), SELF_CERT);
 
     assertThat(result.relatedPersons().getFirst().kycStatus()).isEqualTo(KybKycStatus.UNKNOWN);
+  }
+
+  @Test
+  void mapsNasdaqCsdShareholderRoleToShareholder() {
+    var shareholder = nasdaqCsdShareholder("38501010002", "Jaan", "Tamm", new BigDecimal("100.00"));
+    var detail = new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null);
+
+    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(shareholder), SELF_CERT);
+
+    assertThat(result.relatedPersons())
+        .containsExactly(
+            kybPerson()
+                .personalCode(PERSONAL_CODE)
+                .shareholder(true)
+                .ownershipPercent(new BigDecimal("100.00"))
+                .build());
+  }
+
+  @Test
+  void mapsLegalEntityOwnerAsNonNaturalPerson() {
+    var legalEntityOwner =
+        legalEntityShareholder("90000002", "Holding OÜ", new BigDecimal("100.00"));
+    var detail = new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null);
+
+    var result =
+        mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(legalEntityOwner), SELF_CERT);
+
+    assertThat(result.relatedPersons())
+        .containsExactly(
+            kybPerson("90000002")
+                .naturalPerson(false)
+                .shareholder(true)
+                .ownershipPercent(new BigDecimal("100.00"))
+                .build());
   }
 
   private CompanyRelationship boardMemberRelationship(String personalCode) {

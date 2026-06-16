@@ -2,6 +2,9 @@ package ee.tuleva.onboarding.company;
 
 import static ee.tuleva.onboarding.company.RelationshipType.*;
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
+import static ee.tuleva.onboarding.kyb.KybKycStatus.COMPLETED;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.kybPerson;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -28,33 +31,20 @@ class CompanyOnboardingEventListenerTest {
 
   // board member + shareholder + beneficial owner
   private final KybRelatedPerson person1 =
-      new KybRelatedPerson(
-          new PersonalCode("38501010001"),
-          true,
-          true,
-          true,
-          BigDecimal.valueOf(50),
-          KybKycStatus.COMPLETED);
+      boardMemberOwner("38501010001", 50.0).kycStatus(COMPLETED).build();
 
   // board member only
   private final KybRelatedPerson person2 =
-      new KybRelatedPerson(
-          new PersonalCode("38501010002"),
-          true,
-          false,
-          false,
-          BigDecimal.ZERO,
-          KybKycStatus.COMPLETED);
+      kybPerson("38501010002").boardMember(true).kycStatus(COMPLETED).build();
 
   // shareholder + beneficial owner, not a board member
   private final KybRelatedPerson person3 =
-      new KybRelatedPerson(
-          new PersonalCode("38501010003"),
-          false,
-          true,
-          true,
-          BigDecimal.valueOf(50),
-          KybKycStatus.COMPLETED);
+      kybPerson("38501010003")
+          .shareholder(true)
+          .beneficialOwner(true)
+          .ownershipPercent(BigDecimal.valueOf(50))
+          .kycStatus(COMPLETED)
+          .build();
 
   @Test
   void createsCompanyAndAllPartyRelationshipsWhenAllChecksPass() {

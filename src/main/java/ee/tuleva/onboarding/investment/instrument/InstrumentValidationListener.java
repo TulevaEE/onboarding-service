@@ -28,8 +28,8 @@ class InstrumentValidationListener {
   private final EmailService emailService;
   private final Clock clock;
 
-  @EventListener
-  public void onCacheRefreshed(InstrumentCacheRefreshedEvent event) {
+  @EventListener(InstrumentCacheRefreshedEvent.class)
+  public void onCacheRefreshed() {
     var today = LocalDate.now(clock);
     var allFindings = new ArrayList<FundFindings>();
 

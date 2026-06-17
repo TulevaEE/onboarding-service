@@ -38,7 +38,7 @@ class InstrumentValidationListenerSpec extends Specification {
     ]
 
     when:
-    listener.onCacheRefreshed(new InstrumentCacheRefreshedEvent(10))
+    listener.onCacheRefreshed()
 
     then:
     (1.._) * emailService.sendSystemEmail(_ as MandrillMessage) >> true
@@ -52,7 +52,7 @@ class InstrumentValidationListenerSpec extends Specification {
     ]
 
     when:
-    listener.onCacheRefreshed(new InstrumentCacheRefreshedEvent(10))
+    listener.onCacheRefreshed()
 
     then:
     0 * emailService.sendSystemEmail(_)
@@ -64,7 +64,7 @@ class InstrumentValidationListenerSpec extends Specification {
     validator.validate(_ as TulevaFund, _) >> []
 
     when:
-    listener.onCacheRefreshed(new InstrumentCacheRefreshedEvent(10))
+    listener.onCacheRefreshed()
 
     then:
     0 * emailService.sendSystemEmail(_)
@@ -75,7 +75,7 @@ class InstrumentValidationListenerSpec extends Specification {
     allocationRepository.findLatestByFundAsOf(_ as TulevaFund, today) >> []
 
     when:
-    listener.onCacheRefreshed(new InstrumentCacheRefreshedEvent(10))
+    listener.onCacheRefreshed()
 
     then:
     0 * validator.validate(_, _)
@@ -91,7 +91,7 @@ class InstrumentValidationListenerSpec extends Specification {
     ]
 
     when:
-    listener.onCacheRefreshed(new InstrumentCacheRefreshedEvent(10))
+    listener.onCacheRefreshed()
 
     then:
     1 * emailService.sendSystemEmail({ MandrillMessage msg ->
@@ -112,7 +112,7 @@ class InstrumentValidationListenerSpec extends Specification {
     emailService.sendSystemEmail(_) >> false
 
     when:
-    listener.onCacheRefreshed(new InstrumentCacheRefreshedEvent(10))
+    listener.onCacheRefreshed()
 
     then:
     noExceptionThrown()

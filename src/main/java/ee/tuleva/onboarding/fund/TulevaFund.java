@@ -29,6 +29,7 @@ public enum TulevaFund {
           "IE00BFNM3G45",
           "IE00BFNM3D14",
           "IE00BFNM3L97",
+          "IE000I9HGDZ3",
           "IE00BKPTWY98")),
   TUK00(
       "TUK00",
@@ -59,6 +60,7 @@ public enum TulevaFund {
           "IE00BFNM3G45",
           "IE00BFNM3D14",
           "IE00BFNM3L97",
+          "IE000I9HGDZ3",
           "IE00BKPTWY98")),
   TKF100(
       "TKF100",

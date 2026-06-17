@@ -1,10 +1,8 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import lombok.Getter;
 
 @Getter
@@ -47,6 +45,14 @@ public enum FundTicker {
       "IE00BJZ2DC62",
       "Xtrackers MSCI USA Screened UCITS ETF",
       "XRSM",
+      null,
+      BenchmarkCategory.EQUITY_DM),
+  XTRACKERS_WORLD_SCREENED(
+      "XWSC.DE",
+      "XWSC.XETRA",
+      "IE000I9HGDZ3",
+      "Xtrackers MSCI World Screened UCITS ETF 1C",
+      "XWSC",
       null,
       BenchmarkCategory.EQUITY_DM),
   XTRACKERS_CANADA_ESG_SCREENED(
@@ -95,6 +101,14 @@ public enum FundTicker {
       "IE000F60HVH9",
       "ICAV Amundi MSCI USA Screened UCITS ETF",
       "USAS",
+      null,
+      BenchmarkCategory.EQUITY_DM),
+  AMUNDI_WORLD_SCREENED(
+      "WLSC.PA",
+      "WLSC.PA.EODHD",
+      "IE000QWCYQT0",
+      "Amundi MSCI World Screened UCITS ETF",
+      "WLSC",
       null,
       BenchmarkCategory.EQUITY_DM),
   AMUNDI_WORLD_EX_USA_SCREENED(
@@ -303,17 +317,8 @@ public enum FundTicker {
     return Arrays.stream(values()).map(FundTicker::getYahooTicker).toList();
   }
 
-  // EODHD does not list LU1708330318 (Amundi Core Global Aggregate Bond) under any symbol on any
-  // exchange, so requesting it only ever returns empty. It is covered by Euronext (.XPAR) and
-  // Yahoo.
-  private static final Set<FundTicker> NOT_LISTED_ON_EODHD =
-      EnumSet.of(AMUNDI_GLOBAL_AGG_BOND_HEDGED);
-
   public static List<String> getEodhdTickers() {
-    return Arrays.stream(values())
-        .filter(ticker -> !NOT_LISTED_ON_EODHD.contains(ticker))
-        .map(FundTicker::getEodhdTicker)
-        .toList();
+    return Arrays.stream(values()).map(FundTicker::getEodhdTicker).toList();
   }
 
   public static Optional<FundTicker> findByIsin(String isin) {

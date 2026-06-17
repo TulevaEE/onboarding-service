@@ -20,11 +20,6 @@ class FundTickerTest {
   }
 
   @Test
-  void getEodhdTickersExcludesFundsNotListedOnEodhd() {
-    assertThat(getEodhdTickers()).contains("USAS.PA.EODHD").doesNotContain("GAGH.PA.EODHD");
-  }
-
-  @Test
   void allEodhdTickersAreDifferentFromYahooTickers() {
     var yahooTickers = getYahooTickers();
     var eodhdTickers = getEodhdTickers();
@@ -59,6 +54,7 @@ class FundTickerTest {
             "IE00BFNM3L97",
             "IE00BMDBMY19",
             "IE00BJZ2DC62",
+            "IE000I9HGDZ3",
             "LU0476289540",
             "IE000O58J820",
             "LU1291099718",
@@ -77,7 +73,8 @@ class FundTickerTest {
 
   @Test
   void getEuronextParisIsinsReturnsOnlyParisTradedEtfs() {
-    assertThat(getEuronextParisIsins()).containsExactlyInAnyOrder("IE000F60HVH9", "LU1708330318");
+    assertThat(getEuronextParisIsins())
+        .containsExactlyInAnyOrder("IE000F60HVH9", "IE000QWCYQT0", "LU1708330318");
   }
 
   @Test

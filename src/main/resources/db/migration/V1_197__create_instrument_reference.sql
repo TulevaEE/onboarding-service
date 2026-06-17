@@ -69,8 +69,10 @@ INSERT INTO instrument_reference (isin, display_name, fund_manager, country, ins
 -- =============================================================================
 
 INSERT INTO instrument_reference (isin, display_name, fund_manager, country, instrument_type, asset_class, yahoo_ticker, eodhd_ticker, bloomberg_ticker, ric, benchmark_category) VALUES
-('FR0013209921', 'Amundi MSCI World Ex USA Screened UCITS ETF',                     'Amundi Asset Management SAS',             'FR', 'ETF', 'equity', 'WLXU.DE',  'WLXU.XETRA',  'WLXU',  'WLXU.DE',  'EQUITY_DM'),
-('IE00BFNM3P36', 'iShares MSCI EM IMI Screened UCITS ETF',                         'BlackRock Asset Management Ireland Ltd',  'IE', 'ETF', 'equity', 'AYEM.DE',  'AYEM.XETRA',  'AYEM',  'AYEM.DE',  'EQUITY_EM'),
+('FR0013209921', 'Amundi MSCI World Ex USA Screened UCITS ETF',                     'Amundi Asset Management SAS',             'FR', 'ETF', 'equity', 'WLXU.DE',  'WLXU.XETRA',   'WLXU',  'WLXU.DE',  'EQUITY_DM'),
+('IE000I9HGDZ3', 'Xtrackers MSCI World Screened UCITS ETF 1C',                      'DWS Investment S.A.',                     'IE', 'ETF', 'equity', 'XWSC.DE',  'XWSC.XETRA',   'XWSC',  'XWSC.DE',  'EQUITY_DM'),
+('IE000QWCYQT0', 'Amundi MSCI World Screened UCITS ETF',                            'Amundi Ireland Limited',                  'IE', 'ETF', 'equity', 'WLSC.PA',  'WLSC.PA.EODHD','WLSC',  'WLSC.PA',  'EQUITY_DM'),
+('IE00BFNM3P36', 'iShares MSCI EM IMI Screened UCITS ETF',                         'BlackRock Asset Management Ireland Ltd',  'IE', 'ETF', 'equity', 'AYEM.DE',  'AYEM.XETRA',   'AYEM',  'AYEM.DE',  'EQUITY_EM'),
 ('IE00BH04GL39', 'Vanguard EUR Eurozone Government Bond UCITS ETF',                'Vanguard Group (Ireland) Limited',        'IE', 'ETF', 'bond',   'VGEA.DE',  'VGEA.XETRA',  'VGEA',  'VGEA.DE',  'BOND_EURO'),
 ('LU0478205379', 'Xtrackers II EUR Corporate Bond UCITS ETF',                      'DWS Investment S.A.',                     'LU', 'ETF', 'bond',   'D5BG.DE',  'D5BG.XETRA',  'XBLC',  'D5BG.DE',  'BOND_EURO'),
 ('IE000AQ7A2X6', 'SPDR Bloomberg Global Aggregate Bond UCITS ETF EUR Hedged',      'State Street Global Advisors Europe Ltd', 'IE', 'ETF', 'bond',   'SPFF.DE',  'SPFF.XETRA',  'SPFF',  'SPFF.DE',  'BOND_GLOBAL');
@@ -87,10 +89,9 @@ INSERT INTO instrument_reference (isin, display_name, instrument_type, asset_cla
 ('IE00BDBRDM35', 'iShares Core Global Aggregate Bond UCITS ETF EUR Hedged',        'ETF', 'bond',   'EUNA.DE',  'EUNA.XETRA',   'EUNA',  'EUNA.DE',  NULL),
 ('LU1708330318', 'Amundi Core Global Aggregate Bond UCITS ETF EUR Hedged',         'ETF', 'bond',   'GAGH.PA',  'GAGH.PA.EODHD','GAGH',  'GAGH.PA',  NULL);
 
--- LU1708330318 (Amundi Core Global Aggregate Bond) is not listed on EODHD under any symbol on any
--- exchange, so requesting it only ever returns empty. It is covered by Euronext Paris (.XPAR) and
--- Yahoo. Mirrors FundTicker.NOT_LISTED_ON_EODHD so getEodhdTickers() excludes it.
-UPDATE instrument_reference SET eodhd_listed = false WHERE isin = 'LU1708330318';
+-- LU1708330318 (Amundi Core Global Aggregate Bond) is now listed on EODHD under GAGH.PA and is
+-- queried like every other instrument, so eodhd_listed stays at its default of true (matches
+-- FundTicker, which resumed querying EODHD for GAGH).
 
 -- =============================================================================
 -- benchmark_category_proxy: maps categories to proxy ETF storage keys

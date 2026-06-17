@@ -111,7 +111,6 @@ public class PriceDataFreshnessAlertJob {
           .getEuronextParisStorageKey()
           .ifPresent(key -> map.put(key, new ProviderKey("EURONEXT", key)));
       map.put(ticker.getEodhdTicker(), new ProviderKey("EODHD", ticker.getEodhdTicker()));
-      map.put(ticker.getYahooTicker(), new ProviderKey("YAHOO", ticker.getYahooTicker()));
     }
     return map;
   }

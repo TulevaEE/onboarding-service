@@ -43,8 +43,12 @@ class MorningstarNavRetrieverTest {
   }
 
   @Test
-  void tracksLatestStoredDateByProvider() {
-    assertThat(retriever.trackingProvider()).contains("MORNINGSTAR");
+  void exposesMorningstarStorageKeysAsExpectedStorageKeys() {
+    assertThat(retriever.expectedStorageKeys())
+        .containsExactlyInAnyOrderElementsOf(
+            FundTicker.getMorningstarFunds().stream()
+                .map(fund -> fund.getMorningstarStorageKey().orElseThrow())
+                .toList());
   }
 
   @Test

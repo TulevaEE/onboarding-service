@@ -45,8 +45,10 @@ class EODHDValueRetrieverTest {
   }
 
   @Test
-  void tracksLatestStoredDateByProvider() {
-    assertThat(retriever.trackingProvider()).contains("EODHD");
+  void exposesAllEodhdTickersAndForexAsExpectedStorageKeys() {
+    assertThat(retriever.expectedStorageKeys())
+        .containsAll(FundTicker.getEodhdTickers())
+        .contains("EURUSD.FOREX");
   }
 
   @Test

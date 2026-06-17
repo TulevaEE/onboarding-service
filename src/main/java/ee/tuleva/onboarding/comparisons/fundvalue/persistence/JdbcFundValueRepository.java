@@ -96,17 +96,6 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
       GROUP BY key
       """;
 
-  private static final String FIND_COMMON_LATEST_DATE_FOR_PROVIDER_QUERY =
-      """
-      SELECT MIN(latest_date_per_key) AS latest_date
-      FROM (
-          SELECT MAX(date) AS latest_date_per_key
-          FROM index_values
-          WHERE provider = :provider
-          GROUP BY key
-      ) latest_dates
-      """;
-
   private static final String FIND_EARLIEST_DATES_QUERY =
       """
       SELECT key, MIN(date) AS earliest_date
@@ -243,19 +232,6 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
   @Override
   public List<FundValue> saveAll(List<FundValue> fundValues) {
     return fundValues.stream().map(this::save).flatMap(Optional::stream).toList();
-  }
-
-  @Override
-  public Optional<LocalDate> findCommonLatestDateForProvider(String provider) {
-    List<LocalDate> result =
-        jdbcTemplate.query(
-            FIND_COMMON_LATEST_DATE_FOR_PROVIDER_QUERY,
-            Map.of("provider", provider),
-            (rs, rowNum) -> {
-              var latestDate = rs.getDate("latest_date");
-              return latestDate != null ? latestDate.toLocalDate() : null;
-            });
-    return result.isEmpty() ? Optional.empty() : Optional.ofNullable(result.getFirst());
   }
 
   @Override

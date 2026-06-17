@@ -52,7 +52,6 @@ class FundValueIndexingJobSpec extends Specification {
     ListAppender<ILoggingEvent> logAppender = new ListAppender<>()
 
     def setup() {
-        fundValueRetriever.trackingProvider() >> Optional.empty()
         logAppender.start()
         jobLogger.addAppender(logAppender)
     }
@@ -71,7 +70,8 @@ class FundValueIndexingJobSpec extends Specification {
         given:
         List<FundValue> fundValues = fakeFundValues()
         fundValueRetriever.getKey() >> UnionStockIndexRetriever.KEY
-        fundValueRepository.findLastValueForFund(UnionStockIndexRetriever.KEY) >> Optional.empty()
+        fundValueRetriever.expectedStorageKeys() >> Set.of(UnionStockIndexRetriever.KEY)
+        fundValueRepository.findLatestDateByKeys(_) >> [:]
         fundValueRepository.save(_ as FundValue) >> { FundValue fv -> Optional.of(fv) }
         when:
         fundValueIndexingJob.runIndexingJob()
@@ -85,10 +85,11 @@ class FundValueIndexingJobSpec extends Specification {
         given:
         List<FundValue> fundValues = fakeFundValues()
         fundValueRetriever.getKey() >> UnionStockIndexRetriever.KEY
+        fundValueRetriever.expectedStorageKeys() >> Set.of(UnionStockIndexRetriever.KEY)
         fundValueRetriever.stalenessThreshold() >> Duration.ofDays(7)
         def lastFundValueTime = LocalDate.parse("2018-05-01")
         def dayFromLastFundValueTime = LocalDate.parse("2018-05-02")
-        fundValueRepository.findLastValueForFund(UnionStockIndexRetriever.KEY) >> Optional.of(aFundValue(UnionStockIndexRetriever.KEY, lastFundValueTime, 120.0))
+        fundValueRepository.findLatestDateByKeys(_) >> [(UnionStockIndexRetriever.KEY): lastFundValueTime]
         fundValueRepository.save(_ as FundValue) >> { FundValue fv -> Optional.of(fv) }
         when:
         fundValueIndexingJob.runIndexingJob()
@@ -101,7 +102,8 @@ class FundValueIndexingJobSpec extends Specification {
     def "if last saved fund value was found today, does nothing"() {
         given:
         fundValueRetriever.getKey() >> UnionStockIndexRetriever.KEY
-        fundValueRepository.findLastValueForFund(UnionStockIndexRetriever.KEY) >> Optional.of(aFundValue(UnionStockIndexRetriever.KEY, TODAY, 120.0))
+        fundValueRetriever.expectedStorageKeys() >> Set.of(UnionStockIndexRetriever.KEY)
+        fundValueRepository.findLatestDateByKeys(_) >> [(UnionStockIndexRetriever.KEY): TODAY]
         when:
         fundValueIndexingJob.runIndexingJob()
         then:
@@ -109,14 +111,16 @@ class FundValueIndexingJobSpec extends Specification {
         0 * fundValueRepository.saveAll(_ as List<FundValue>)
     }
 
-    def "tracks last date by provider for retrievers that declare a tracking provider"() {
+    def "resumes a fan-out retriever from its least up-to-date storage key"() {
         given:
         def eodhd = Mock(ComparisonIndexRetriever)
         eodhd.getKey() >> EODHDValueRetriever.KEY
-        eodhd.trackingProvider() >> Optional.of(EODHDValueRetriever.PROVIDER)
+        eodhd.expectedStorageKeys() >> Set.of("USAS.PA.EODHD", "GAGH.PA.EODHD")
         eodhd.stalenessThreshold() >> Duration.ofDays(7)
-        def lastDate = LocalDate.parse("2026-03-01")
-        fundValueRepository.findCommonLatestDateForProvider(EODHDValueRetriever.PROVIDER) >> Optional.of(lastDate)
+        fundValueRepository.findLatestDateByKeys(_) >> [
+            "USAS.PA.EODHD": LocalDate.parse("2026-03-03"),
+            "GAGH.PA.EODHD": LocalDate.parse("2026-03-01"),
+        ]
 
         def job = new FundValueIndexingJob(
             fundValueRepository, [eodhd], Mock(Environment), fundNavRetrieverFactory, CLOCK, publicHolidays,
@@ -127,15 +131,14 @@ class FundValueIndexingJobSpec extends Specification {
 
         then:
         1 * eodhd.retrieveValuesForRange(LocalDate.parse("2026-03-02"), TODAY) >> []
-        0 * fundValueRepository.findLastValueForFund(_)
     }
 
-    def "downloads full history when a provider-tracked retriever has no stored values"() {
+    def "backfills full history when a fan-out retriever has no stored values at all"() {
         given:
         def eodhd = Mock(ComparisonIndexRetriever)
         eodhd.getKey() >> EODHDValueRetriever.KEY
-        eodhd.trackingProvider() >> Optional.of(EODHDValueRetriever.PROVIDER)
-        fundValueRepository.findCommonLatestDateForProvider(EODHDValueRetriever.PROVIDER) >> Optional.empty()
+        eodhd.expectedStorageKeys() >> Set.of("USAS.PA.EODHD", "GAGH.PA.EODHD")
+        fundValueRepository.findLatestDateByKeys(_) >> [:]
 
         def job = new FundValueIndexingJob(
             fundValueRepository, [eodhd], Mock(Environment), fundNavRetrieverFactory, CLOCK, publicHolidays,
@@ -148,13 +151,56 @@ class FundValueIndexingJobSpec extends Specification {
         1 * eodhd.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
     }
 
+    def "backfills full history when a fan-out retriever has a newly added key with no data yet"() {
+        given:
+        def eodhd = Mock(ComparisonIndexRetriever)
+        eodhd.getKey() >> EODHDValueRetriever.KEY
+        eodhd.expectedStorageKeys() >> Set.of("USAS.PA.EODHD", "GAGH.PA.EODHD", "WLSC.PA.EODHD")
+        eodhd.stalenessThreshold() >> Duration.ofDays(7)
+        fundValueRepository.findLatestDateByKeys(_) >> [
+            "USAS.PA.EODHD": LocalDate.parse("2026-03-05"),
+            "GAGH.PA.EODHD": LocalDate.parse("2026-03-05"),
+        ]
+
+        def job = new FundValueIndexingJob(
+            fundValueRepository, [eodhd], Mock(Environment), fundNavRetrieverFactory, CLOCK, publicHolidays,
+            priceDataFreshnessAlertJob)
+
+        when:
+        job.refreshAll()
+
+        then:
+        1 * eodhd.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
+    }
+
+    def "still reports staleness of present keys when another key has no data yet"() {
+        given:
+        def eodhd = Mock(ComparisonIndexRetriever)
+        eodhd.getKey() >> EODHDValueRetriever.KEY
+        eodhd.expectedStorageKeys() >> Set.of("USAS.PA.EODHD", "WLSC.PA.EODHD")
+        eodhd.stalenessThreshold() >> Duration.ofDays(7)
+        def staleDate = TODAY.minusDays(10)
+        fundValueRepository.findLatestDateByKeys(_) >> ["USAS.PA.EODHD": staleDate]
+
+        def job = new FundValueIndexingJob(
+            fundValueRepository, [eodhd], Mock(Environment), fundNavRetrieverFactory, CLOCK, publicHolidays,
+            priceDataFreshnessAlertJob)
+
+        when:
+        job.refreshAll()
+
+        then:
+        1 * eodhd.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
+        !errorEventsContaining(EODHDValueRetriever.KEY).isEmpty()
+    }
+
     def "logs ERROR when a daily index is past its 7-day staleness threshold"() {
         given:
         fundValueRetriever.getKey() >> UnionStockIndexRetriever.KEY
+        fundValueRetriever.expectedStorageKeys() >> Set.of(UnionStockIndexRetriever.KEY)
         fundValueRetriever.stalenessThreshold() >> Duration.ofDays(7)
         def staleDate = TODAY.minusDays(8)
-        fundValueRepository.findLastValueForFund(UnionStockIndexRetriever.KEY) >>
-            Optional.of(aFundValue(UnionStockIndexRetriever.KEY, staleDate, 100.0))
+        fundValueRepository.findLatestDateByKeys(_) >> [(UnionStockIndexRetriever.KEY): staleDate]
         fundValueRetriever.retrieveValuesForRange(_, _) >> []
 
         when:
@@ -169,10 +215,10 @@ class FundValueIndexingJobSpec extends Specification {
     def "logs ERROR when CPI is past its 45-day staleness threshold"() {
         given:
         fundValueRetriever.getKey() >> "CPI_ECOICOP2"
+        fundValueRetriever.expectedStorageKeys() >> Set.of("CPI_ECOICOP2")
         fundValueRetriever.stalenessThreshold() >> Duration.ofDays(45)
         def staleDate = TODAY.minusDays(50)
-        fundValueRepository.findLastValueForFund("CPI_ECOICOP2") >>
-            Optional.of(aFundValue("CPI_ECOICOP2", staleDate, 100.0))
+        fundValueRepository.findLatestDateByKeys(_) >> ["CPI_ECOICOP2": staleDate]
         fundValueRetriever.retrieveValuesForRange(_, _) >> []
 
         when:
@@ -185,10 +231,10 @@ class FundValueIndexingJobSpec extends Specification {
     def "does NOT log ERROR when last update is within the staleness threshold"() {
         given:
         fundValueRetriever.getKey() >> "CPI_ECOICOP2"
+        fundValueRetriever.expectedStorageKeys() >> Set.of("CPI_ECOICOP2")
         fundValueRetriever.stalenessThreshold() >> Duration.ofDays(45)
         def freshDate = TODAY.minusDays(30)
-        fundValueRepository.findLastValueForFund("CPI_ECOICOP2") >>
-            Optional.of(aFundValue("CPI_ECOICOP2", freshDate, 100.0))
+        fundValueRepository.findLatestDateByKeys(_) >> ["CPI_ECOICOP2": freshDate]
         fundValueRetriever.retrieveValuesForRange(_, _) >> []
 
         when:
@@ -201,10 +247,10 @@ class FundValueIndexingJobSpec extends Specification {
     def "logs ERROR when fetch returns 0 rows for a series past threshold"() {
         given:
         fundValueRetriever.getKey() >> "CPI_ECOICOP2"
+        fundValueRetriever.expectedStorageKeys() >> Set.of("CPI_ECOICOP2")
         fundValueRetriever.stalenessThreshold() >> Duration.ofDays(45)
         def staleDate = TODAY.minusDays(50)
-        fundValueRepository.findLastValueForFund("CPI_ECOICOP2") >>
-            Optional.of(aFundValue("CPI_ECOICOP2", staleDate, 100.0))
+        fundValueRepository.findLatestDateByKeys(_) >> ["CPI_ECOICOP2": staleDate]
         fundValueRetriever.retrieveValuesForRange(_, _) >> []
 
         when:
@@ -220,9 +266,9 @@ class FundValueIndexingJobSpec extends Specification {
         def retriever2 = Mock(ComparisonIndexRetriever)
         retriever1.getKey() >> "FUND_A"
         retriever2.getKey() >> "FUND_B"
-        retriever1.trackingProvider() >> Optional.empty()
-        retriever2.trackingProvider() >> Optional.empty()
-        fundValueRepository.findLastValueForFund(_) >> Optional.empty()
+        retriever1.expectedStorageKeys() >> Set.of("FUND_A")
+        retriever2.expectedStorageKeys() >> Set.of("FUND_B")
+        fundValueRepository.findLatestDateByKeys(_) >> [:]
 
         def job = new FundValueIndexingJob(
             fundValueRepository,
@@ -247,9 +293,9 @@ class FundValueIndexingJobSpec extends Specification {
         def successRetriever = Mock(ComparisonIndexRetriever)
         failingRetriever.getKey() >> "FAILING_FUND"
         successRetriever.getKey() >> "SUCCESS_FUND"
-        failingRetriever.trackingProvider() >> Optional.empty()
-        successRetriever.trackingProvider() >> Optional.empty()
-        fundValueRepository.findLastValueForFund(_) >> Optional.empty()
+        failingRetriever.expectedStorageKeys() >> Set.of("FAILING_FUND")
+        successRetriever.expectedStorageKeys() >> Set.of("SUCCESS_FUND")
+        fundValueRepository.findLatestDateByKeys(_) >> [:]
 
         def job = new FundValueIndexingJob(
             fundValueRepository,
@@ -272,11 +318,12 @@ class FundValueIndexingJobSpec extends Specification {
         given:
         def dynamicRetriever = Mock(ComparisonIndexRetriever)
         dynamicRetriever.getKey() >> "DYNAMIC_FUND"
-        dynamicRetriever.trackingProvider() >> Optional.empty()
+        dynamicRetriever.expectedStorageKeys() >> Set.of("DYNAMIC_FUND")
         fundNavRetrieverFactory.createAll() >> [dynamicRetriever]
 
         fundValueRetriever.getKey() >> UnionStockIndexRetriever.KEY
-        fundValueRepository.findLastValueForFund(_) >> Optional.empty()
+        fundValueRetriever.expectedStorageKeys() >> Set.of(UnionStockIndexRetriever.KEY)
+        fundValueRepository.findLatestDateByKeys(_) >> [:]
 
         when:
         fundValueIndexingJob.initDynamicRetrievers()
@@ -327,10 +374,10 @@ class FundValueIndexingJobSpec extends Specification {
         dynamicEePensionFund.getKey() >> "EE3600109435"
 
         [blackrock, morningstar, eodhd, xetra, euronext, yahoo].each {
-            it.trackingProvider() >> Optional.empty()
+            it.expectedStorageKeys() >> Set.of(it.getKey())
         }
 
-        fundValueRepository.findLastValueForFund(_) >> Optional.empty()
+        fundValueRepository.findLatestDateByKeys(_) >> [:]
         fundNavRetrieverFactory.createAll() >> [dynamicEePensionFund]
 
         def job = new FundValueIndexingJob(
@@ -369,8 +416,8 @@ class FundValueIndexingJobSpec extends Specification {
         def anyDayRetriever = Mock(ComparisonIndexRetriever)
         anyDayRetriever.getKey() >> "CPI_INDEX"
         anyDayRetriever.requiresWorkingDay() >> false
-        anyDayRetriever.trackingProvider() >> Optional.empty()
-        fundValueRepository.findLastValueForFund("CPI_INDEX") >> Optional.empty()
+        anyDayRetriever.expectedStorageKeys() >> Set.of("CPI_INDEX")
+        fundValueRepository.findLatestDateByKeys(_) >> [:]
 
         def job = new FundValueIndexingJob(
             fundValueRepository,

@@ -41,8 +41,12 @@ class BlackRockFundValueRetrieverTest {
   }
 
   @Test
-  void tracksLatestStoredDateByProvider() {
-    assertThat(retriever.trackingProvider()).contains("BLACKROCK");
+  void exposesBlackrockStorageKeysAsExpectedStorageKeys() {
+    assertThat(retriever.expectedStorageKeys())
+        .containsExactlyInAnyOrderElementsOf(
+            FundTicker.getBlackrockFunds().stream()
+                .map(fund -> fund.getBlackrockStorageKey().orElseThrow())
+                .toList());
   }
 
   @Test

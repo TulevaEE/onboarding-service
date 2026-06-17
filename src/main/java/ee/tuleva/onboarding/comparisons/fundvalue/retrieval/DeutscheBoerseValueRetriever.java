@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import static java.math.BigDecimal.ZERO;
 import static java.util.Comparator.comparing;
+import static java.util.stream.Collectors.toSet;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
@@ -13,7 +14,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -45,8 +46,10 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
   }
 
   @Override
-  public Optional<String> trackingProvider() {
-    return Optional.of(PROVIDER);
+  public Set<String> expectedStorageKeys() {
+    return FundTicker.getXetraIsins().stream()
+        .map(isin -> isin + "." + XETRA_MARKET_IDENTIFIER_CODE)
+        .collect(toSet());
   }
 
   @Override

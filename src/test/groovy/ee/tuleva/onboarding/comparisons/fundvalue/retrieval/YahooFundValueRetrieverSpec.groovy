@@ -43,9 +43,9 @@ class YahooFundValueRetrieverSpec extends Specification {
     retrievalFund == YahooFundValueRetriever.KEY
   }
 
-  def "it tracks its latest stored date by provider"() {
+  def "it exposes all yahoo tickers as expected storage keys"() {
     expect:
-    retriever.trackingProvider() == Optional.of(YahooFundValueRetriever.PROVIDER)
+    retriever.expectedStorageKeys() == Set.copyOf(FundTicker.getYahooTickers())
   }
 
   def "it successfully fetches quotes for all funds"() {

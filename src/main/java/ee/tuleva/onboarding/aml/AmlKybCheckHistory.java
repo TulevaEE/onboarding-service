@@ -23,7 +23,7 @@ public class AmlKybCheckHistory implements KybCheckHistory {
           entry(AmlCheckType.KYB_SOLE_MEMBER_OWNERSHIP, KybCheckType.SOLE_MEMBER_OWNERSHIP),
           entry(AmlCheckType.KYB_DUAL_MEMBER_OWNERSHIP, KybCheckType.DUAL_MEMBER_OWNERSHIP),
           entry(
-              AmlCheckType.KYB_SOLE_BOARD_MEMBER_IS_OWNER,
+              AmlCheckType.KYB_SINGLE_BOARD_MEMBER_OWNERSHIP,
               KybCheckType.SINGLE_BOARD_MEMBER_OWNERSHIP),
           entry(AmlCheckType.KYB_COMPANY_ACTIVE, KybCheckType.COMPANY_ACTIVE),
           entry(AmlCheckType.KYB_RELATED_PERSONS_KYC, KybCheckType.RELATED_PERSONS_KYC),

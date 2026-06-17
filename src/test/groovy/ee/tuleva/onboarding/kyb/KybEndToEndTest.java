@@ -85,7 +85,7 @@ class KybEndToEndTest {
     var results = kybScreeningService.screen(rule33Pass());
 
     assertCheckResult(results, SINGLE_BOARD_MEMBER_OWNERSHIP, true);
-    assertCheckPersisted(JAAN, KYB_SOLE_BOARD_MEMBER_IS_OWNER, true);
+    assertCheckPersisted(JAAN, KYB_SINGLE_BOARD_MEMBER_OWNERSHIP, true);
   }
 
   @Test
@@ -93,7 +93,7 @@ class KybEndToEndTest {
     var results = kybScreeningService.screen(rule33Pass_boardMemberIsDirector());
 
     assertCheckResult(results, SINGLE_BOARD_MEMBER_OWNERSHIP, true);
-    assertCheckPersisted(JAAN, KYB_SOLE_BOARD_MEMBER_IS_OWNER, true);
+    assertCheckPersisted(JAAN, KYB_SINGLE_BOARD_MEMBER_OWNERSHIP, true);
   }
 
   @Test
@@ -101,7 +101,7 @@ class KybEndToEndTest {
     var results = kybScreeningService.screen(rule33Fail_incompleteOwnership());
 
     assertCheckResult(results, SINGLE_BOARD_MEMBER_OWNERSHIP, false);
-    assertCheckPersisted(JAAN, KYB_SOLE_BOARD_MEMBER_IS_OWNER, false);
+    assertCheckPersisted(JAAN, KYB_SINGLE_BOARD_MEMBER_OWNERSHIP, false);
   }
 
   // --- Rule 34: Company active ---

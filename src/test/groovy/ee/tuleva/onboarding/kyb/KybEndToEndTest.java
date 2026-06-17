@@ -78,13 +78,13 @@ class KybEndToEndTest {
     assertCheckPersisted(JAAN, KYB_DUAL_MEMBER_OWNERSHIP, false);
   }
 
-  // --- Rule 33: Sole board member is owner ---
+  // --- Rule 33: Two-person OÜ, single board member ---
 
   @Test
   void rule33_soleBoardMemberIsOwner_passes() {
     var results = kybScreeningService.screen(rule33Pass());
 
-    assertCheckResult(results, SOLE_BOARD_MEMBER_IS_OWNER, true);
+    assertCheckResult(results, SINGLE_BOARD_MEMBER_OWNERSHIP, true);
     assertCheckPersisted(JAAN, KYB_SOLE_BOARD_MEMBER_IS_OWNER, true);
   }
 
@@ -92,7 +92,7 @@ class KybEndToEndTest {
   void rule33_boardMemberIsDirectorWithSeparateOwner_passes() {
     var results = kybScreeningService.screen(rule33Pass_boardMemberIsDirector());
 
-    assertCheckResult(results, SOLE_BOARD_MEMBER_IS_OWNER, true);
+    assertCheckResult(results, SINGLE_BOARD_MEMBER_OWNERSHIP, true);
     assertCheckPersisted(JAAN, KYB_SOLE_BOARD_MEMBER_IS_OWNER, true);
   }
 
@@ -100,7 +100,7 @@ class KybEndToEndTest {
   void rule33_incompleteOwnership_fails() {
     var results = kybScreeningService.screen(rule33Fail_incompleteOwnership());
 
-    assertCheckResult(results, SOLE_BOARD_MEMBER_IS_OWNER, false);
+    assertCheckResult(results, SINGLE_BOARD_MEMBER_OWNERSHIP, false);
     assertCheckPersisted(JAAN, KYB_SOLE_BOARD_MEMBER_IS_OWNER, false);
   }
 
@@ -334,7 +334,8 @@ class KybEndToEndTest {
     assertCheckResult(results, COMPANY_STRUCTURE, false);
     var types = results.stream().map(KybCheck::type).toList();
     assertThat(types)
-        .doesNotContain(SOLE_MEMBER_OWNERSHIP, DUAL_MEMBER_OWNERSHIP, SOLE_BOARD_MEMBER_IS_OWNER);
+        .doesNotContain(
+            SOLE_MEMBER_OWNERSHIP, DUAL_MEMBER_OWNERSHIP, SINGLE_BOARD_MEMBER_OWNERSHIP);
     assertCheckPersisted(JAAN, KYB_COMPANY_STRUCTURE, false);
   }
 

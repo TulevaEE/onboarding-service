@@ -13,7 +13,7 @@ import ee.tuleva.onboarding.ariregister.AriregisterClient;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.kyb.screener.CompanyStructureScreener;
 import ee.tuleva.onboarding.kyb.screener.DualMemberOwnershipScreener;
-import ee.tuleva.onboarding.kyb.screener.SoleBoardMemberIsOwnerScreener;
+import ee.tuleva.onboarding.kyb.screener.SingleBoardMemberOwnershipScreener;
 import ee.tuleva.onboarding.kyb.screener.SoleMemberOwnershipScreener;
 import ee.tuleva.onboarding.kyb.survey.LatestKybSurveyInputs;
 import java.math.BigDecimal;
@@ -43,7 +43,7 @@ class KybNasdaqCsdScreeningTest {
               new CompanyStructureScreener(),
               new SoleMemberOwnershipScreener(),
               new DualMemberOwnershipScreener(),
-              new SoleBoardMemberIsOwnerScreener()),
+              new SingleBoardMemberOwnershipScreener()),
           mock(KybDataChangeDetector.class),
           mock(ApplicationEventPublisher.class));
   private final LegalEntityScreener screener =

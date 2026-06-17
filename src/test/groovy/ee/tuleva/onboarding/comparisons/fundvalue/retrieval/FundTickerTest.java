@@ -73,7 +73,8 @@ class FundTickerTest {
 
   @Test
   void getEuronextParisIsinsReturnsOnlyParisTradedEtfs() {
-    assertThat(getEuronextParisIsins()).containsExactlyInAnyOrder("IE000F60HVH9", "LU1708330318");
+    assertThat(getEuronextParisIsins())
+        .containsExactlyInAnyOrder("IE000F60HVH9", "IE000QWCYQT0", "LU1708330318");
   }
 
   @Test

@@ -383,9 +383,15 @@ public final class KybTestFixtures {
     return companyData(VALID_COMPANY, JAAN, R, List.of(boardMember, otherOwner), VALID_CERT);
   }
 
-  static KybCompanyData rule33Fail_boardMemberNotOwner() {
+  static KybCompanyData rule33Pass_boardMemberIsDirector() {
     var boardMember = boardMemberOnly(JAAN).build();
     var owner = shareholderOwner(MARI, 100.0).build();
+    return companyData(VALID_COMPANY, JAAN, R, List.of(boardMember, owner), VALID_CERT);
+  }
+
+  static KybCompanyData rule33Fail_incompleteOwnership() {
+    var boardMember = boardMemberOwner(JAAN, 50.0).build();
+    var owner = shareholderOwner(MARI, 30.0).build();
     return companyData(VALID_COMPANY, JAAN, R, List.of(boardMember, owner), VALID_CERT);
   }
 

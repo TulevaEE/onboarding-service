@@ -25,7 +25,9 @@ public class DualMemberOwnershipScreener implements KybScreener {
       return List.of();
     }
 
-    boolean allBeneficialOwnersAreShareholders =
+    boolean hasBeneficialOwner = persons.stream().anyMatch(KybRelatedPerson::beneficialOwner);
+
+    boolean everyBeneficialOwnerIsAShareholder =
         persons.stream().allMatch(p -> !p.beneficialOwner() || p.shareholder());
 
     BigDecimal totalOwnership =
@@ -34,7 +36,8 @@ public class DualMemberOwnershipScreener implements KybScreener {
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
     boolean success =
-        allBeneficialOwnersAreShareholders
+        hasBeneficialOwner
+            && everyBeneficialOwnerIsAShareholder
             && totalOwnership.compareTo(BigDecimal.valueOf(100)) == 0;
 
     return List.of(

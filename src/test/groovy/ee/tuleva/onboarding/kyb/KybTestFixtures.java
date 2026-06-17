@@ -361,7 +361,7 @@ public final class KybTestFixtures {
   }
 
   // =====================================================================
-  // Rule 33: Two person OÜ — sole board member is one of two owners
+  // Rule 33: Two person OÜ — single board member (board member and owner may differ)
   // =====================================================================
 
   static List<CompanyRelationship> rule33PassRelationships() {
@@ -398,7 +398,7 @@ public final class KybTestFixtures {
   static List<KybCheck> rule33PassExpectedChecks() {
     return List.of(
         check(COMPANY_STRUCTURE, true),
-        check(SOLE_BOARD_MEMBER_IS_OWNER, true),
+        check(SINGLE_BOARD_MEMBER_OWNERSHIP, true),
         check(COMPANY_ACTIVE, true),
         check(RELATED_PERSONS_KYC, true),
         check(COMPANY_SANCTION, true),

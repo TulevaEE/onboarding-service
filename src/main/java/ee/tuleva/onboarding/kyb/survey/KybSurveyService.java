@@ -71,7 +71,7 @@ class KybSurveyService {
       case COMPANY_STRUCTURE,
           SOLE_MEMBER_OWNERSHIP,
           DUAL_MEMBER_OWNERSHIP,
-          SOLE_BOARD_MEMBER_IS_OWNER ->
+          SINGLE_BOARD_MEMBER_OWNERSHIP ->
           Stream.of(
               fieldError(
                   "relatedPersons",

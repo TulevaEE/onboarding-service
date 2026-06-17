@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.kyb.screener;
 
-import static ee.tuleva.onboarding.kyb.KybCheckType.SOLE_BOARD_MEMBER_IS_OWNER;
+import static ee.tuleva.onboarding.kyb.KybCheckType.SINGLE_BOARD_MEMBER_OWNERSHIP;
 
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCompanyData;
@@ -11,7 +11,7 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 @Component
-public class SoleBoardMemberIsOwnerScreener implements KybScreener {
+public class SingleBoardMemberOwnershipScreener implements KybScreener {
 
   @Override
   public List<KybCheck> screen(KybCompanyData companyData) {
@@ -42,7 +42,8 @@ public class SoleBoardMemberIsOwnerScreener implements KybScreener {
             && everyBeneficialOwnerIsAShareholder
             && totalOwnership.compareTo(BigDecimal.valueOf(100)) == 0;
 
-    return List.of(new KybCheck(SOLE_BOARD_MEMBER_IS_OWNER, success, buildMetadata(boardMember)));
+    return List.of(
+        new KybCheck(SINGLE_BOARD_MEMBER_OWNERSHIP, success, buildMetadata(boardMember)));
   }
 
   private Map<String, Object> buildMetadata(KybRelatedPerson boardMember) {

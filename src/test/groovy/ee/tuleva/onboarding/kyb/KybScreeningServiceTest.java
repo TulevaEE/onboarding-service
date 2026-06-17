@@ -22,7 +22,7 @@ import ee.tuleva.onboarding.kyb.screener.CompanyStructureScreener;
 import ee.tuleva.onboarding.kyb.screener.DualMemberOwnershipScreener;
 import ee.tuleva.onboarding.kyb.screener.RelatedPersonsKycScreener;
 import ee.tuleva.onboarding.kyb.screener.SelfCertificationScreener;
-import ee.tuleva.onboarding.kyb.screener.SoleBoardMemberIsOwnerScreener;
+import ee.tuleva.onboarding.kyb.screener.SingleBoardMemberOwnershipScreener;
 import ee.tuleva.onboarding.kyb.screener.SoleMemberOwnershipScreener;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -45,7 +45,7 @@ class KybScreeningServiceTest {
               new CompanyActiveScreener(),
               new SoleMemberOwnershipScreener(),
               new DualMemberOwnershipScreener(),
-              new SoleBoardMemberIsOwnerScreener(),
+              new SingleBoardMemberOwnershipScreener(),
               new RelatedPersonsKycScreener(),
               new CompanySanctionScreener(sanctionCheckService),
               new CompanyNaceScreener(),
@@ -118,7 +118,7 @@ class KybScreeningServiceTest {
     assertThat(types)
         .containsExactlyInAnyOrder(
             COMPANY_STRUCTURE,
-            SOLE_BOARD_MEMBER_IS_OWNER,
+            SINGLE_BOARD_MEMBER_OWNERSHIP,
             COMPANY_ACTIVE,
             RELATED_PERSONS_KYC,
             COMPANY_SANCTION,

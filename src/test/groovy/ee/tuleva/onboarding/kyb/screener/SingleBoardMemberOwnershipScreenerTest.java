@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.kyb.screener;
 
-import static ee.tuleva.onboarding.kyb.KybCheckType.SOLE_BOARD_MEMBER_IS_OWNER;
+import static ee.tuleva.onboarding.kyb.KybCheckType.SINGLE_BOARD_MEMBER_OWNERSHIP;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOnly;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyWith;
@@ -14,9 +14,10 @@ import ee.tuleva.onboarding.kyb.PersonalCode;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 
-class SoleBoardMemberIsOwnerScreenerTest {
+class SingleBoardMemberOwnershipScreenerTest {
 
-  private final SoleBoardMemberIsOwnerScreener screener = new SoleBoardMemberIsOwnerScreener();
+  private final SingleBoardMemberOwnershipScreener screener =
+      new SingleBoardMemberOwnershipScreener();
 
   @Test
   void soleBoardMemberWhoIsShareholderAndBeneficialOwnerPasses() {
@@ -28,7 +29,7 @@ class SoleBoardMemberIsOwnerScreenerTest {
 
     assertThat(result)
         .extracting(KybCheck::type, KybCheck::success)
-        .containsExactly(tuple(SOLE_BOARD_MEMBER_IS_OWNER, true));
+        .containsExactly(tuple(SINGLE_BOARD_MEMBER_OWNERSHIP, true));
   }
 
   @Test
@@ -42,7 +43,7 @@ class SoleBoardMemberIsOwnerScreenerTest {
 
     assertThat(result)
         .extracting(KybCheck::type, KybCheck::success)
-        .containsExactly(tuple(SOLE_BOARD_MEMBER_IS_OWNER, true));
+        .containsExactly(tuple(SINGLE_BOARD_MEMBER_OWNERSHIP, true));
   }
 
   @Test
@@ -60,7 +61,7 @@ class SoleBoardMemberIsOwnerScreenerTest {
 
     assertThat(result)
         .extracting(KybCheck::type, KybCheck::success)
-        .containsExactly(tuple(SOLE_BOARD_MEMBER_IS_OWNER, true));
+        .containsExactly(tuple(SINGLE_BOARD_MEMBER_OWNERSHIP, true));
   }
 
   @Test
@@ -79,7 +80,7 @@ class SoleBoardMemberIsOwnerScreenerTest {
 
     assertThat(result)
         .extracting(KybCheck::type, KybCheck::success)
-        .containsExactly(tuple(SOLE_BOARD_MEMBER_IS_OWNER, false));
+        .containsExactly(tuple(SINGLE_BOARD_MEMBER_OWNERSHIP, false));
   }
 
   @Test
@@ -96,7 +97,7 @@ class SoleBoardMemberIsOwnerScreenerTest {
 
     assertThat(result)
         .extracting(KybCheck::type, KybCheck::success)
-        .containsExactly(tuple(SOLE_BOARD_MEMBER_IS_OWNER, false));
+        .containsExactly(tuple(SINGLE_BOARD_MEMBER_OWNERSHIP, false));
   }
 
   @Test
@@ -109,7 +110,7 @@ class SoleBoardMemberIsOwnerScreenerTest {
 
     assertThat(result)
         .extracting(KybCheck::type, KybCheck::success)
-        .containsExactly(tuple(SOLE_BOARD_MEMBER_IS_OWNER, false));
+        .containsExactly(tuple(SINGLE_BOARD_MEMBER_OWNERSHIP, false));
   }
 
   @Test
@@ -122,7 +123,7 @@ class SoleBoardMemberIsOwnerScreenerTest {
 
     assertThat(result)
         .extracting(KybCheck::type, KybCheck::success)
-        .containsExactly(tuple(SOLE_BOARD_MEMBER_IS_OWNER, true));
+        .containsExactly(tuple(SINGLE_BOARD_MEMBER_OWNERSHIP, true));
     assertThat(result.getFirst().metadata()).doesNotContainKey("boardMemberPersonalCode");
   }
 

@@ -32,10 +32,48 @@ class SoleBoardMemberIsOwnerScreenerTest {
   }
 
   @Test
-  void soleBoardMemberWhoIsNotShareholderFails() {
+  void boardMemberIsADirectorAndTheOtherPersonIsTheBeneficialOwnerPasses() {
+    // The board member and the beneficial owner do not have to be the same person.
     var boardMember = boardMemberOnly("38501010001").build();
     var owner = shareholderOwner("38501010002", 100.0).build();
     var data = companyWith(boardMember, owner);
+
+    var result = screener.screen(data);
+
+    assertThat(result)
+        .extracting(KybCheck::type, KybCheck::success)
+        .containsExactly(tuple(SOLE_BOARD_MEMBER_IS_OWNER, true));
+  }
+
+  @Test
+  void boardMemberIsAShareholderAndTheOtherPersonIsTheBeneficialOwnerPasses() {
+    var boardMember =
+        kybPerson("38501010001")
+            .boardMember(true)
+            .shareholder(true)
+            .ownershipPercent(BigDecimal.valueOf(50))
+            .build();
+    var otherPerson = shareholderOwner("38501010002", 50.0).build();
+    var data = companyWith(boardMember, otherPerson);
+
+    var result = screener.screen(data);
+
+    assertThat(result)
+        .extracting(KybCheck::type, KybCheck::success)
+        .containsExactly(tuple(SOLE_BOARD_MEMBER_IS_OWNER, true));
+  }
+
+  @Test
+  void failsWhenNeitherPersonIsABeneficialOwner() {
+    var boardMember =
+        kybPerson("38501010001")
+            .boardMember(true)
+            .shareholder(true)
+            .ownershipPercent(BigDecimal.valueOf(50))
+            .build();
+    var otherPerson =
+        kybPerson("38501010002").shareholder(true).ownershipPercent(BigDecimal.valueOf(50)).build();
+    var data = companyWith(boardMember, otherPerson);
 
     var result = screener.screen(data);
 
@@ -45,14 +83,26 @@ class SoleBoardMemberIsOwnerScreenerTest {
   }
 
   @Test
-  void soleBoardMemberWhoIsShareholderButNotBeneficialOwnerFails() {
-    var boardMember =
-        kybPerson("38501010001")
-            .boardMember(true)
-            .shareholder(true)
-            .ownershipPercent(BigDecimal.valueOf(50))
+  void failsWhenABeneficialOwnerIsNotAShareholder() {
+    var boardMember = boardMemberOwner("38501010001", 100.0).build();
+    var otherPerson =
+        kybPerson("38501010002")
+            .beneficialOwner(true)
+            .ownershipPercent(BigDecimal.valueOf(0))
             .build();
-    var otherPerson = shareholderOwner("38501010002", 50.0).build();
+    var data = companyWith(boardMember, otherPerson);
+
+    var result = screener.screen(data);
+
+    assertThat(result)
+        .extracting(KybCheck::type, KybCheck::success)
+        .containsExactly(tuple(SOLE_BOARD_MEMBER_IS_OWNER, false));
+  }
+
+  @Test
+  void failsWhenOwnershipDoesNotTotal100() {
+    var boardMember = boardMemberOwner("38501010001", 50.0).build();
+    var otherPerson = shareholderOwner("38501010002", 30.0).build();
     var data = companyWith(boardMember, otherPerson);
 
     var result = screener.screen(data);

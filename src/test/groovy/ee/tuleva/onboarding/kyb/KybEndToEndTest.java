@@ -89,8 +89,16 @@ class KybEndToEndTest {
   }
 
   @Test
-  void rule33_soleBoardMemberIsNotOwner_fails() {
-    var results = kybScreeningService.screen(rule33Fail_boardMemberNotOwner());
+  void rule33_boardMemberIsDirectorWithSeparateOwner_passes() {
+    var results = kybScreeningService.screen(rule33Pass_boardMemberIsDirector());
+
+    assertCheckResult(results, SOLE_BOARD_MEMBER_IS_OWNER, true);
+    assertCheckPersisted(JAAN, KYB_SOLE_BOARD_MEMBER_IS_OWNER, true);
+  }
+
+  @Test
+  void rule33_incompleteOwnership_fails() {
+    var results = kybScreeningService.screen(rule33Fail_incompleteOwnership());
 
     assertCheckResult(results, SOLE_BOARD_MEMBER_IS_OWNER, false);
     assertCheckPersisted(JAAN, KYB_SOLE_BOARD_MEMBER_IS_OWNER, false);

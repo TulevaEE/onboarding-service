@@ -77,6 +77,32 @@ class DualMemberOwnershipScreenerTest {
   }
 
   @Test
+  void twoBoardMembersWhereNeitherIsABeneficialOwnerFails() {
+    // The rule requires at least one person to be a shareholder, board member and beneficial owner.
+    var person1 =
+        kybPerson("38501010001")
+            .boardMember(true)
+            .shareholder(true)
+            .beneficialOwner(false)
+            .ownershipPercent(BigDecimal.valueOf(50.0))
+            .build();
+    var person2 =
+        kybPerson("38501010002")
+            .boardMember(true)
+            .shareholder(true)
+            .beneficialOwner(false)
+            .ownershipPercent(BigDecimal.valueOf(50.0))
+            .build();
+    var data = companyWith(person1, person2);
+
+    var result = screener.screen(data);
+
+    assertThat(result)
+        .extracting(KybCheck::type, KybCheck::success)
+        .containsExactly(tuple(DUAL_MEMBER_OWNERSHIP, false));
+  }
+
+  @Test
   void twoBoardMembersWhereABeneficialOwnerIsNotAShareholderFails() {
     var person1 = boardMemberOwner("38501010001", 60.0).build();
     var person2 =

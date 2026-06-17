@@ -174,14 +174,14 @@ class PriceDataFreshnessAlertJobTest {
 
     Map<String, LocalDate> latestDates = buildAllFreshDates(tuesday);
     makeEodhdStale(latestDates, friday);
-    makeYahooStale(latestDates, friday);
+    makeXetraStale(latestDates, friday);
     when(fundValueRepository.findLatestDateByKeys(any())).thenReturn(latestDates);
 
     job.checkAfterIndexing();
 
     verify(notificationService)
         .sendMessage(
-            argThat((String msg) -> msg.contains("EODHD") && msg.contains("YAHOO")),
+            argThat((String msg) -> msg.contains("EODHD") && msg.contains("DEUTSCHE_BOERSE")),
             eq(INVESTMENT));
   }
 
@@ -257,8 +257,18 @@ class PriceDataFreshnessAlertJobTest {
     Set<String> providers = new HashSet<>();
     map.values().forEach(pk -> providers.add(pk.provider()));
 
-    assertThat(providers)
-        .containsExactlyInAnyOrder("DEUTSCHE_BOERSE", "EURONEXT", "EODHD", "YAHOO");
+    assertThat(providers).containsExactlyInAnyOrder("DEUTSCHE_BOERSE", "EURONEXT", "EODHD");
+  }
+
+  @Test
+  void buildKeyToProviderMap_excludesYahoo() {
+    List<FundTicker> etfTickers = PriceDataFreshnessAlertJob.getEtfTickers();
+    Map<String, PriceDataFreshnessAlertJob.ProviderKey> map =
+        PriceDataFreshnessAlertJob.buildKeyToProviderMap(etfTickers);
+
+    assertThat(map.values()).noneMatch(pk -> pk.provider().equals("YAHOO"));
+    assertThat(map.keySet())
+        .doesNotContainAnyElementsOf(etfTickers.stream().map(FundTicker::getYahooTicker).toList());
   }
 
   private void stubAllKeysWithDate(LocalDate date) {
@@ -281,10 +291,10 @@ class PriceDataFreshnessAlertJobTest {
     }
   }
 
-  private void makeYahooStale(Map<String, LocalDate> latestDates, LocalDate staleDate) {
+  private void makeXetraStale(Map<String, LocalDate> latestDates, LocalDate staleDate) {
     List<FundTicker> etfTickers = PriceDataFreshnessAlertJob.getEtfTickers();
     for (FundTicker ticker : etfTickers) {
-      latestDates.put(ticker.getYahooTicker(), staleDate);
+      ticker.getXetraStorageKey().ifPresent(key -> latestDates.put(key, staleDate));
     }
   }
 

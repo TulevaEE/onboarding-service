@@ -103,6 +103,14 @@ public enum FundTicker {
       "USAS",
       null,
       BenchmarkCategory.EQUITY_DM),
+  AMUNDI_WORLD_SCREENED(
+      "WLSC.PA",
+      "WLSC.PA.EODHD",
+      "IE000QWCYQT0",
+      "Amundi MSCI World Screened UCITS ETF",
+      "WLSC",
+      null,
+      BenchmarkCategory.EQUITY_DM),
   AMUNDI_WORLD_EX_USA_SCREENED(
       "WLXU.DE",
       "WLXU.XETRA",

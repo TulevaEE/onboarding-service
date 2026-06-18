@@ -33,6 +33,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 @Slf4j
 @Service
@@ -44,6 +45,7 @@ public class AmlService {
   private final PepAndSanctionCheckService pepAndSanctionCheckService;
   private final AnalyticsRecentThirdPillarRepository analyticsRecentThirdPillarRepository;
   private final UserConversionService userConversionService;
+  private final JsonMapper jsonMapper;
 
   public void checkUserBeforeLogin(User user, Person person, Boolean isResident) {
     addDocumentCheck(user);
@@ -139,16 +141,16 @@ public class AmlService {
     List<AmlCheck> successOverrides =
         amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
             person.getPersonalCode(), overrideType, true);
-    return successOverrides.stream()
-        .anyMatch(
-            check -> {
-              @SuppressWarnings("unchecked")
-              var foundResults = (Iterable<Map<String, String>>) check.getMetadata().get("results");
-              if (foundResults == null) {
-                return true;
-              }
-              return stream(foundResults).anyMatch(result -> ids.contains(result.get("id")));
-            });
+    return successOverrides.stream().anyMatch(override -> overrideApplies(override, ids));
+  }
+
+  private boolean overrideApplies(AmlCheck override, List<String> matchedIds) {
+    Object overrideResults = override.getMetadata().get("results");
+    if (!(overrideResults instanceof Iterable<?> results)) {
+      return true;
+    }
+    return stream(results)
+        .anyMatch(result -> result instanceof Map<?, ?> map && matchedIds.contains(map.get("id")));
   }
 
   public void runAmlChecksOnThirdPillarCustomers() {
@@ -169,7 +171,9 @@ public class AmlService {
   }
 
   private Map<String, Object> metadata(JsonNode results, JsonNode query) {
-    return Map.of("results", results, "query", query);
+    return Map.of(
+        "results", jsonMapper.convertValue(results, Object.class),
+        "query", jsonMapper.convertValue(query, Object.class));
   }
 
   private boolean hasMatch(Iterable<JsonNode> results, String topicNameStartsWith) {

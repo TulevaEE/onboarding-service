@@ -50,6 +50,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.springframework.context.ApplicationEventPublisher;
@@ -68,6 +69,7 @@ class AmlServiceTest {
   @Mock private PepAndSanctionCheckService pepAndSanctionCheckService;
   @Mock private AnalyticsRecentThirdPillarRepository analyticsRecentThirdPillarRepository;
   @Mock private UserConversionService userConversionService;
+  @Spy private JsonMapper jsonMapper = JsonMapper.builder().build();
 
   @InjectMocks private AmlService amlService;
 
@@ -717,6 +719,94 @@ class AmlServiceTest {
             .orElseThrow();
 
     assertThat(pepAutoCheck.isSuccess()).isTrue();
+  }
+
+  @Test
+  void overrideWithObjectShapedResultsMetadata_doesNotCrashAndAppliesOverride() {
+    User user = createUser("123", "First", "Last", 1L);
+    Country country = new Country("EE");
+
+    ArrayNode resultsArray = objectMapper.createArrayNode();
+    ObjectNode resultNode = JsonNodeFactory.instance.objectNode();
+    resultNode.put("id", "matchId123");
+    resultNode.put("match", true);
+    ObjectNode propertiesNode = JsonNodeFactory.instance.objectNode();
+    propertiesNode.set("topics", JsonNodeFactory.instance.arrayNode().add("role.pep"));
+    resultNode.set("properties", propertiesNode);
+    resultsArray.add(resultNode);
+    MatchResponse matchResponse =
+        new MatchResponse(resultsArray, JsonNodeFactory.instance.objectNode());
+
+    when(pepAndSanctionCheckService.match(user, country)).thenReturn(matchResponse);
+    when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+            anyString(), any(AmlCheckType.class), any(Instant.class)))
+        .thenReturn(false);
+
+    AmlCheck corruptOverride =
+        AmlCheck.builder()
+            .type(POLITICALLY_EXPOSED_PERSON_OVERRIDE)
+            .success(true)
+            .metadata(Map.of("results", Map.of("nodeType", "ARRAY", "array", true)))
+            .build();
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
+            user.getPersonalCode(), POLITICALLY_EXPOSED_PERSON_OVERRIDE, true))
+        .thenReturn(List.of(corruptOverride));
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
+            user.getPersonalCode(), SANCTION_OVERRIDE, true))
+        .thenReturn(List.of());
+
+    List<AmlCheck> addedChecks = amlService.addSanctionAndPepCheckIfMissing(user, country);
+
+    AmlCheck pepAutoCheck =
+        addedChecks.stream()
+            .filter(check -> check.getType() == POLITICALLY_EXPOSED_PERSON_AUTO)
+            .findFirst()
+            .orElseThrow();
+    assertThat(pepAutoCheck.isSuccess()).isTrue();
+  }
+
+  @Test
+  void overrideWithNonMatchingResults_doesNotApplyAndCheckFails() {
+    User user = createUser("123", "First", "Last", 1L);
+    Country country = new Country("EE");
+
+    ArrayNode resultsArray = objectMapper.createArrayNode();
+    ObjectNode resultNode = JsonNodeFactory.instance.objectNode();
+    resultNode.put("id", "currentMatch");
+    resultNode.put("match", true);
+    ObjectNode propertiesNode = JsonNodeFactory.instance.objectNode();
+    propertiesNode.set("topics", JsonNodeFactory.instance.arrayNode().add("role.pep"));
+    resultNode.set("properties", propertiesNode);
+    resultsArray.add(resultNode);
+    MatchResponse matchResponse =
+        new MatchResponse(resultsArray, JsonNodeFactory.instance.objectNode());
+
+    when(pepAndSanctionCheckService.match(user, country)).thenReturn(matchResponse);
+    when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+            anyString(), any(AmlCheckType.class), any(Instant.class)))
+        .thenReturn(false);
+
+    AmlCheck nonMatchingOverride =
+        AmlCheck.builder()
+            .type(POLITICALLY_EXPOSED_PERSON_OVERRIDE)
+            .success(true)
+            .metadata(Map.of("results", List.of("not-a-map", Map.of("id", "otherMatch"))))
+            .build();
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
+            user.getPersonalCode(), POLITICALLY_EXPOSED_PERSON_OVERRIDE, true))
+        .thenReturn(List.of(nonMatchingOverride));
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
+            user.getPersonalCode(), SANCTION_OVERRIDE, true))
+        .thenReturn(List.of());
+
+    List<AmlCheck> addedChecks = amlService.addSanctionAndPepCheckIfMissing(user, country);
+
+    AmlCheck pepAutoCheck =
+        addedChecks.stream()
+            .filter(check -> check.getType() == POLITICALLY_EXPOSED_PERSON_AUTO)
+            .findFirst()
+            .orElseThrow();
+    assertThat(pepAutoCheck.isSuccess()).isFalse();
   }
 
   @Test

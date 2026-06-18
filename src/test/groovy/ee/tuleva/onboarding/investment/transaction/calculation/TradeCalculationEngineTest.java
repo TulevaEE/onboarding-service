@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.transaction.LimitStatus.*;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.*;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.investment.transaction.*;
 import java.math.BigDecimal;
@@ -765,6 +766,141 @@ class TradeCalculationEngineTest {
         result.trades().stream().map(TradeCalculation::tradeAmount).reduce(ZERO, BigDecimal::add);
     assertThat(totalBuy)
         .isCloseTo(new BigDecimal("12000"), org.assertj.core.data.Offset.offset(BigDecimal.ONE));
+  }
+
+  @Test
+  void buy_includesReceivablesInTargetBaseForScoring() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00A", new BigDecimal("90000")),
+                    new PositionSnapshot("IE00B", new BigDecimal("80000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00A", new BigDecimal("0.50")),
+                    new ModelWeight("IE00B", new BigDecimal("0.50"))))
+            .grossPortfolioValue(new BigDecimal("170000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .receivables(new BigDecimal("60000"))
+            .freeCash(new BigDecimal("20000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, BUY);
+
+    var tradeA =
+        result.trades().stream().filter(t -> t.isin().equals("IE00A")).findFirst().orElseThrow();
+    var tradeB =
+        result.trades().stream().filter(t -> t.isin().equals("IE00B")).findFirst().orElseThrow();
+
+    assertThat(tradeA.tradeAmount()).isGreaterThan(ZERO);
+    assertThat(tradeB.tradeAmount()).isGreaterThan(tradeA.tradeAmount());
+
+    BigDecimal totalBuy =
+        result.trades().stream().map(TradeCalculation::tradeAmount).reduce(ZERO, BigDecimal::add);
+    assertThat(totalBuy)
+        .isCloseTo(new BigDecimal("20000"), org.assertj.core.data.Offset.offset(BigDecimal.ONE));
+  }
+
+  @Test
+  void sellFast_redistributesMarketValueCapShortfallWithinFastBucket() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00SMALL", new BigDecimal("10000")),
+                    new PositionSnapshot("IE00BIG", new BigDecimal("100000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00SMALL", ZERO),
+                    new ModelWeight("IE00BIG", new BigDecimal("0.50"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("-15000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of("IE00SMALL", "IE00BIG"))
+            .build();
+
+    var result = engine.calculate(input, SELL_FAST);
+
+    var smallTrade =
+        result.trades().stream()
+            .filter(t -> t.isin().equals("IE00SMALL"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(smallTrade.tradeAmount()).isGreaterThanOrEqualTo(new BigDecimal("-10000"));
+
+    BigDecimal totalSold =
+        result.trades().stream().map(TradeCalculation::tradeAmount).reduce(ZERO, BigDecimal::add);
+    assertThat(totalSold).isEqualByComparingTo(new BigDecimal("-15000"));
+  }
+
+  @Test
+  void sell_neverSellsAnyPositionBeyondItsMarketValue() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00OVER", new BigDecimal("40000")),
+                    new PositionSnapshot("IE00ATTARGET", new BigDecimal("100000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00OVER", ZERO),
+                    new ModelWeight("IE00ATTARGET", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("-44000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, SELL);
+
+    var overTrade =
+        result.trades().stream().filter(t -> t.isin().equals("IE00OVER")).findFirst().orElseThrow();
+    assertThat(overTrade.tradeAmount()).isGreaterThanOrEqualTo(new BigDecimal("-40000"));
+
+    BigDecimal totalSold =
+        result.trades().stream().map(TradeCalculation::tradeAmount).reduce(ZERO, BigDecimal::add);
+    assertThat(totalSold).isEqualByComparingTo(new BigDecimal("-44000"));
+  }
+
+  @Test
+  void sell_failsWhenTotalSellNeedExceedsSellableMarketValue() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00A", new BigDecimal("40000")),
+                    new PositionSnapshot("IE00B", new BigDecimal("30000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00A", new BigDecimal("0.50")),
+                    new ModelWeight("IE00B", new BigDecimal("0.50"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("-90000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    assertThatThrownBy(() -> engine.calculate(input, SELL))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Insufficient liquidity");
   }
 
   @Test

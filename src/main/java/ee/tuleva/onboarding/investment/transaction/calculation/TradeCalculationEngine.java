@@ -220,12 +220,95 @@ public class TradeCalculationEngine {
 
     boolean anyOverSoftLimit = filteredScores.stream().anyMatch(score -> score.compareTo(ZERO) > 0);
     List<BigDecimal> finalScores = anyOverSoftLimit ? filteredScores : standardScores;
-    List<BigDecimal> distributed =
-        distributeAmountWithThreshold(
-            finalScores, targetSellAmount, input.minTransactionThreshold());
+
+    List<BigDecimal> distributed = distributeSellWithCap(input, finalScores, targetSellAmount);
 
     return distributed.stream()
         .map(value -> value.compareTo(ZERO) == 0 ? ZERO : value.negate())
+        .toList();
+  }
+
+  private List<BigDecimal> distributeSellWithCap(
+      FundTransactionInput input, List<BigDecimal> initialScores, BigDecimal targetSellAmount) {
+    int size = input.positions().size();
+    BigDecimal threshold = input.minTransactionThreshold();
+
+    BigDecimal totalSellableMarketValue =
+        input.positions().stream().map(PositionSnapshot::marketValue).reduce(ZERO, BigDecimal::add);
+    if (targetSellAmount.subtract(totalSellableMarketValue).compareTo(new BigDecimal("0.01")) > 0) {
+      throw new IllegalStateException(
+          "Insufficient liquidity to satisfy sell: fund="
+              + input.fund()
+              + ", targetSellAmount="
+              + targetSellAmount
+              + ", sellableMarketValue="
+              + totalSellableMarketValue);
+    }
+
+    BigDecimal[] allocations = new BigDecimal[size];
+    boolean[] capped = new boolean[size];
+    for (int i = 0; i < size; i++) {
+      allocations[i] = ZERO;
+    }
+
+    List<BigDecimal> scores = new ArrayList<>(initialScores);
+    BigDecimal remainingNeed = targetSellAmount;
+
+    for (int iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+      if (remainingNeed.compareTo(new BigDecimal("0.01")) <= 0) {
+        break;
+      }
+
+      List<BigDecimal> roundScores =
+          IntStream.range(0, size).mapToObj(i -> capped[i] ? ZERO : scores.get(i)).toList();
+      BigDecimal roundThreshold = threshold;
+      if (roundScores.stream().allMatch(s -> s.compareTo(ZERO) == 0)) {
+        roundScores = remainingMarketValueScores(input, allocations, capped);
+        roundThreshold = ZERO;
+        if (roundScores.stream().allMatch(s -> s.compareTo(ZERO) == 0)) {
+          break;
+        }
+      }
+
+      List<BigDecimal> round =
+          distributeAmountWithThreshold(roundScores, remainingNeed, roundThreshold);
+
+      boolean newlyCapped = false;
+      for (int i = 0; i < size; i++) {
+        if (capped[i]) {
+          continue;
+        }
+        BigDecimal proposed = allocations[i].add(round.get(i));
+        BigDecimal marketValue = input.positions().get(i).marketValue();
+        if (proposed.compareTo(marketValue) >= 0) {
+          allocations[i] = marketValue;
+          capped[i] = true;
+          newlyCapped = true;
+        } else {
+          allocations[i] = proposed;
+        }
+      }
+
+      BigDecimal allocated =
+          IntStream.range(0, size).mapToObj(i -> allocations[i]).reduce(ZERO, BigDecimal::add);
+      remainingNeed = targetSellAmount.subtract(allocated);
+
+      if (!newlyCapped) {
+        break;
+      }
+    }
+
+    return List.of(allocations);
+  }
+
+  private List<BigDecimal> remainingMarketValueScores(
+      FundTransactionInput input, BigDecimal[] allocations, boolean[] capped) {
+    return IntStream.range(0, input.positions().size())
+        .mapToObj(
+            i ->
+                capped[i]
+                    ? ZERO
+                    : input.positions().get(i).marketValue().subtract(allocations[i]).max(ZERO))
         .toList();
   }
 
@@ -289,8 +372,14 @@ public class TradeCalculationEngine {
     BigDecimal threshold = input.minTransactionThreshold();
     BigDecimal thresholdTolerance = threshold.subtract(new BigDecimal("0.01"));
     List<Integer> active = new ArrayList<>(bucketIndices);
+    Map<Integer, BigDecimal> filled = new HashMap<>();
+    BigDecimal remaining = amount;
 
     for (int iteration = 0; iteration < MAX_ITERATIONS && !active.isEmpty(); iteration++) {
+      if (remaining.compareTo(new BigDecimal("0.01")) <= 0) {
+        break;
+      }
+
       Map<Integer, BigDecimal> scores = new HashMap<>();
       BigDecimal totalScore = ZERO;
       for (int i : active) {
@@ -303,40 +392,67 @@ public class TradeCalculationEngine {
       if (totalScore.compareTo(new BigDecimal("0.01")) < 0) {
         totalScore = ZERO;
         for (int i : active) {
-          BigDecimal marketValue = input.positions().get(i).marketValue();
-          scores.put(i, marketValue);
-          totalScore = totalScore.add(marketValue);
+          BigDecimal headroom = headroom(input, filled, i);
+          scores.put(i, headroom);
+          totalScore = totalScore.add(headroom);
         }
       }
       if (totalScore.compareTo(ZERO) == 0) {
-        return;
+        break;
       }
 
       Map<Integer, BigDecimal> allocations = new HashMap<>();
+      List<Integer> cappedIndices = new ArrayList<>();
+      for (int i : active) {
+        BigDecimal headroom = headroom(input, filled, i);
+        BigDecimal allocation =
+            scores.get(i).multiply(remaining).divide(totalScore, SCALE, HALF_UP);
+        if (allocation.compareTo(headroom) >= 0) {
+          allocation = headroom;
+          cappedIndices.add(i);
+        }
+        allocations.put(i, allocation);
+      }
+
+      if (!cappedIndices.isEmpty()) {
+        for (int i : cappedIndices) {
+          filled.merge(i, allocations.get(i), BigDecimal::add);
+          remaining = remaining.subtract(allocations.get(i));
+          active.remove(Integer.valueOf(i));
+        }
+        continue;
+      }
+
       BigDecimal minAllocation = null;
       int minIndex = -1;
       for (int i : active) {
-        BigDecimal allocation =
-            scores
-                .get(i)
-                .multiply(amount)
-                .divide(totalScore, SCALE, HALF_UP)
-                .min(input.positions().get(i).marketValue());
-        allocations.put(i, allocation);
-        if (minAllocation == null || allocation.compareTo(minAllocation) < 0) {
-          minAllocation = allocation;
+        BigDecimal total = filled.getOrDefault(i, ZERO).add(allocations.get(i));
+        if (minAllocation == null || total.compareTo(minAllocation) < 0) {
+          minAllocation = total;
           minIndex = i;
         }
       }
 
       if (minAllocation != null && minAllocation.compareTo(thresholdTolerance) >= 0) {
         for (int i : active) {
-          results[i] = allocations.get(i).negate();
+          filled.merge(i, allocations.get(i), BigDecimal::add);
         }
-        return;
+        break;
       }
       active.remove(Integer.valueOf(minIndex));
     }
+
+    filled.forEach((i, value) -> results[i] = value.negate());
+  }
+
+  private BigDecimal headroom(
+      FundTransactionInput input, Map<Integer, BigDecimal> filled, int index) {
+    return input
+        .positions()
+        .get(index)
+        .marketValue()
+        .subtract(filled.getOrDefault(index, ZERO))
+        .max(ZERO);
   }
 
   private List<BigDecimal> normalizedTargetValues(FundTransactionInput input) {
@@ -541,7 +657,8 @@ public class TradeCalculationEngine {
     return input
         .grossPortfolioValue()
         .subtract(input.cashBuffer())
-        .subtract(input.liabilities().abs());
+        .subtract(input.liabilities())
+        .add(input.receivables());
   }
 
   private Map<String, BigDecimal> buildWeightMap(List<ModelWeight> modelWeights) {

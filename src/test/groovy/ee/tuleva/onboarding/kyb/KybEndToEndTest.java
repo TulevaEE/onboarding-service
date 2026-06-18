@@ -89,11 +89,11 @@ class KybEndToEndTest {
   }
 
   @Test
-  void rule33_boardMemberIsDirectorWithSeparateOwner_passes() {
-    var results = kybScreeningService.screen(rule33Pass_boardMemberIsDirector());
+  void rule33_boardMemberOwnsNoShares_fails() {
+    var results = kybScreeningService.screen(rule33Fail_boardMemberOwnsNoShares());
 
-    assertCheckResult(results, SINGLE_BOARD_MEMBER_OWNERSHIP, true);
-    assertCheckPersisted(JAAN, KYB_SINGLE_BOARD_MEMBER_OWNERSHIP, true);
+    assertCheckResult(results, SINGLE_BOARD_MEMBER_OWNERSHIP, false);
+    assertCheckPersisted(JAAN, KYB_SINGLE_BOARD_MEMBER_OWNERSHIP, false);
   }
 
   @Test

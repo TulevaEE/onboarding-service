@@ -5,10 +5,15 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.EPIS;
 import static ee.tuleva.onboarding.investment.report.ReportType.R45;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -16,6 +21,7 @@ import ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser;
 import ee.tuleva.onboarding.investment.epis.parser.R45ReportParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -34,6 +40,8 @@ class R45ReportServiceTest {
   private final EpisReportSummaryRepository summaryRepository =
       mock(EpisReportSummaryRepository.class);
   private final FundNavQueryService fundNavQueryService = mock(FundNavQueryService.class);
+  private final OperationsNotificationService notificationService =
+      mock(OperationsNotificationService.class);
 
   private final R45ReportService service =
       new R45ReportService(
@@ -41,7 +49,8 @@ class R45ReportServiceTest {
           summaryRepository,
           new OwnFundNavProvider(fundNavQueryService),
           new R45ReportParser(new EpisCsvParser()),
-          new EpisCsvParser());
+          new EpisCsvParser(),
+          notificationService);
 
   @Test
   void processAndStoreReplacesSummariesWithFlowsAndRedRowSettlementDates() {
@@ -95,6 +104,36 @@ class R45ReportServiceTest {
                         new BigDecimal("-400.00"),
                         "redRowSettlementDates",
                         List.of("2026-08-18", "2026-08-25")))));
+    verify(notificationService, never()).sendMessage(any(), any());
+  }
+
+  @Test
+  void marksSummaryIncompleteAndAlertsWhenRowHasNoNav() {
+    String csv =
+        """
+        Tehtud: 14.08.2026;;;;;
+        Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
+        RED;EE3600109435;0;1000,000;0;18.08.2026
+        """;
+    givenStoredReport(csv);
+
+    service.processAndStore(REPORT_ID);
+
+    verify(summaryRepository)
+        .saveAll(
+            List.of(
+                incompleteSummary(
+                    TUK75,
+                    Map.of(
+                        "inflowEur",
+                        BigDecimal.ZERO,
+                        "outflowEur",
+                        BigDecimal.ZERO,
+                        "netEur",
+                        BigDecimal.ZERO,
+                        "redRowSettlementDates",
+                        List.of("2026-08-18")))));
+    verify(notificationService).sendMessage(contains("EE3600109435"), eq(INVESTMENT));
   }
 
   @Test
@@ -207,5 +246,11 @@ class R45ReportServiceTest {
         .fundIsin(fund.getIsin())
         .data(data)
         .build();
+  }
+
+  private EpisReportSummary incompleteSummary(TulevaFund fund, Map<String, Object> data) {
+    EpisReportSummary summary = summary(fund, data);
+    summary.setComplete(false);
+    return summary;
   }
 }

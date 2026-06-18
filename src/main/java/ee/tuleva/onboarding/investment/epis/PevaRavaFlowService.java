@@ -5,15 +5,12 @@ import static ee.tuleva.onboarding.investment.config.InvestmentParameter.PEVA_RA
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.PEVA_RAVA_TRADE_BUFFER_PERCENT;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.PEVA_RAVA_TRADE_ROUNDING_STEP;
 import static ee.tuleva.onboarding.investment.epis.SummaryData.number;
-import static ee.tuleva.onboarding.investment.report.ReportType.R17_PEVA;
-import static ee.tuleva.onboarding.investment.report.ReportType.R21_RAVA;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.CEILING;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
-import ee.tuleva.onboarding.investment.report.ReportType;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -22,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -35,6 +33,8 @@ public class PevaRavaFlowService {
   private final EpisReportSummaryRepository summaryRepository;
   private final OwnFundNavProvider ownFundNavProvider;
   private final InvestmentParameterRepository parameterRepository;
+  private final PevaRavaCycleRepository cycleRepository;
+  private final PevaRavaPeriodService periodService;
   private final Clock clock;
 
   public Map<TulevaFund, PevaRavaFlows> calculateFlows() {
@@ -50,8 +50,12 @@ public class PevaRavaFlowService {
   }
 
   private Optional<PevaRavaFlows> calculateFlows(TulevaFund fund, LocalDate asOfDate) {
-    Optional<EpisReportSummary> r17 = latestSummary(R17_PEVA, fund);
-    Optional<EpisReportSummary> r21 = latestSummary(R21_RAVA, fund);
+    Optional<PevaRavaCycleEntity> activeCycle = activeCycle(asOfDate);
+    if (activeCycle.isEmpty()) {
+      return Optional.empty();
+    }
+    Optional<EpisReportSummary> r17 = summaryForReport(activeCycle.get().getR17ReportId(), fund);
+    Optional<EpisReportSummary> r21 = summaryForReport(activeCycle.get().getR21ReportId(), fund);
     if (r17.isEmpty() && r21.isEmpty()) {
       return Optional.empty();
     }
@@ -117,8 +121,16 @@ public class PevaRavaFlowService {
     }
   }
 
-  private Optional<EpisReportSummary> latestSummary(ReportType reportType, TulevaFund fund) {
-    return summaryRepository.findTopByReportTypeAndFundOrderByReportDateDescIdDesc(
-        reportType, fund);
+  private Optional<PevaRavaCycleEntity> activeCycle(LocalDate asOfDate) {
+    return periodService
+        .getCurrentPeriod(asOfDate)
+        .flatMap(period -> cycleRepository.findByExecDate(period.cycle().execDate()));
+  }
+
+  private Optional<EpisReportSummary> summaryForReport(@Nullable Long reportId, TulevaFund fund) {
+    if (reportId == null) {
+      return Optional.empty();
+    }
+    return summaryRepository.findByReportIdAndFund(reportId, fund);
   }
 }

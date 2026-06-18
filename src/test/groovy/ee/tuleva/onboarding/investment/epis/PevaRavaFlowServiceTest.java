@@ -15,6 +15,7 @@ import static org.mockito.Mockito.mock;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
+import ee.tuleva.onboarding.investment.report.ReportType;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -29,12 +30,18 @@ class PevaRavaFlowServiceTest {
 
   private static final LocalDate AS_OF_DATE = LocalDate.of(2026, 8, 14);
   private static final LocalDate NAV_DATE = LocalDate.of(2026, 8, 13);
+  private static final LocalDate LOCK_DATE = LocalDate.of(2026, 7, 31);
+  private static final LocalDate EXEC_DATE = LocalDate.of(2026, 9, 1);
+  private static final long R17_REPORT_ID = 17L;
+  private static final long R21_REPORT_ID = 21L;
 
   private final EpisReportSummaryRepository summaryRepository =
       mock(EpisReportSummaryRepository.class);
   private final FundNavQueryService fundNavQueryService = mock(FundNavQueryService.class);
   private final InvestmentParameterRepository parameterRepository =
       mock(InvestmentParameterRepository.class);
+  private final PevaRavaCycleRepository cycleRepository = mock(PevaRavaCycleRepository.class);
+  private final PevaRavaPeriodService periodService = mock(PevaRavaPeriodService.class);
   private final Clock clock =
       Clock.fixed(Instant.parse("2026-08-14T10:00:00Z"), ZoneId.of("Europe/Tallinn"));
 
@@ -43,10 +50,13 @@ class PevaRavaFlowServiceTest {
           summaryRepository,
           new OwnFundNavProvider(fundNavQueryService),
           parameterRepository,
+          cycleRepository,
+          periodService,
           clock);
 
   @Test
   void calculatesFlowsFromUnitsAndLatestNav() {
+    givenActiveCycle(R17_REPORT_ID, R21_REPORT_ID);
     givenSummaries(TUK75, Map.of("pikUnits", 10000, "switchingNetUnits", -5000), 20000);
     givenNav(TUK75, "0.80");
     givenParameters(TUK75, "500000");
@@ -70,6 +80,7 @@ class PevaRavaFlowServiceTest {
 
   @Test
   void switchingSurplusReducesLiquidityButNotBelowPik() {
+    givenActiveCycle(R17_REPORT_ID, R21_REPORT_ID);
     givenSummaries(TUK00, Map.of("pikUnits", 1000, "switchingNetUnits", 3000), 2000);
     givenNav(TUK00, "0.70");
     givenParameters(TUK00, "200000");
@@ -92,9 +103,15 @@ class PevaRavaFlowServiceTest {
 
   @Test
   void missingR21IsTreatedAsZeroRava() {
-    given(summaryRepository.findTopByReportTypeAndFundOrderByReportDateDescIdDesc(R17_PEVA, TUK75))
+    givenActiveCycle(R17_REPORT_ID, null);
+    given(summaryRepository.findByReportIdAndFund(R17_REPORT_ID, TUK75))
         .willReturn(
-            Optional.of(summary(TUK75, Map.of("pikUnits", 10000, "switchingNetUnits", -5000))));
+            Optional.of(
+                summary(
+                    R17_PEVA,
+                    R17_REPORT_ID,
+                    TUK75,
+                    Map.of("pikUnits", 10000, "switchingNetUnits", -5000))));
     givenNav(TUK75, "0.80");
     givenParameters(TUK75, "500000");
 
@@ -115,12 +132,44 @@ class PevaRavaFlowServiceTest {
   }
 
   @Test
-  void omitsFundWithoutAnySummaries() {
+  void usesActiveCycleR21NotNewerCrossCycleSummary() {
+    givenActiveCycle(R17_REPORT_ID, R21_REPORT_ID);
+    given(summaryRepository.findByReportIdAndFund(R17_REPORT_ID, TUK75))
+        .willReturn(
+            Optional.of(
+                summary(
+                    R17_PEVA,
+                    R17_REPORT_ID,
+                    TUK75,
+                    Map.of("pikUnits", 10000, "switchingNetUnits", -5000))));
+    given(summaryRepository.findByReportIdAndFund(R21_REPORT_ID, TUK75))
+        .willReturn(
+            Optional.of(summary(R21_RAVA, R21_REPORT_ID, TUK75, Map.of("ravaUnits", 20000))));
+    givenNav(TUK75, "0.80");
+    givenParameters(TUK75, "500000");
+
+    Map<TulevaFund, PevaRavaFlows> flows = service.calculateFlows();
+
+    assertThat(flows.get(TUK75).ravaEur()).isEqualByComparingTo("16000");
+  }
+
+  @Test
+  void omitsFundWhenNoActiveCycleExists() {
+    given(periodService.getCurrentPeriod(AS_OF_DATE)).willReturn(Optional.empty());
+
+    assertThat(service.calculateFlows()).isEmpty();
+  }
+
+  @Test
+  void omitsFundWhenCycleHasNoLinkedReports() {
+    givenActiveCycle(null, null);
+
     assertThat(service.calculateFlows()).isEmpty();
   }
 
   @Test
   void throwsWhenNavMissing() {
+    givenActiveCycle(R17_REPORT_ID, R21_REPORT_ID);
     givenSummaries(TUK75, Map.of("pikUnits", 10000, "switchingNetUnits", 0), 0);
 
     assertThatThrownBy(service::calculateFlows).isInstanceOf(IllegalStateException.class);
@@ -128,6 +177,7 @@ class PevaRavaFlowServiceTest {
 
   @Test
   void throwsWhenNavOutOfReasonableRange() {
+    givenActiveCycle(R17_REPORT_ID, R21_REPORT_ID);
     givenSummaries(TUK75, Map.of("pikUnits", 10000, "switchingNetUnits", 0), 0);
     givenNav(TUK75, "12.00");
 
@@ -136,17 +186,33 @@ class PevaRavaFlowServiceTest {
 
   @Test
   void throwsWhenEurAmountsAreImplausiblyLarge() {
+    givenActiveCycle(R17_REPORT_ID, R21_REPORT_ID);
     givenSummaries(TUK75, Map.of("pikUnits", 900000000, "switchingNetUnits", 0), 0);
     givenNav(TUK75, "0.80");
 
     assertThatThrownBy(service::calculateFlows).isInstanceOf(IllegalStateException.class);
   }
 
+  private void givenActiveCycle(Long r17ReportId, Long r21ReportId) {
+    PevaRavaCycle cycle = new PevaRavaCycle(LOCK_DATE, EXEC_DATE);
+    given(periodService.getCurrentPeriod(AS_OF_DATE))
+        .willReturn(Optional.of(new PevaRavaPeriod(PevaRavaPhase.ACTIVE, cycle, null, null)));
+    PevaRavaCycleEntity entity =
+        PevaRavaCycleEntity.builder()
+            .lockDate(LOCK_DATE)
+            .execDate(EXEC_DATE)
+            .r17ReportId(r17ReportId)
+            .r21ReportId(r21ReportId)
+            .build();
+    given(cycleRepository.findByExecDate(EXEC_DATE)).willReturn(Optional.of(entity));
+  }
+
   private void givenSummaries(TulevaFund fund, Map<String, Object> r17Data, int ravaUnits) {
-    given(summaryRepository.findTopByReportTypeAndFundOrderByReportDateDescIdDesc(R17_PEVA, fund))
-        .willReturn(Optional.of(summary(fund, r17Data)));
-    given(summaryRepository.findTopByReportTypeAndFundOrderByReportDateDescIdDesc(R21_RAVA, fund))
-        .willReturn(Optional.of(summary(fund, Map.of("ravaUnits", ravaUnits))));
+    given(summaryRepository.findByReportIdAndFund(R17_REPORT_ID, fund))
+        .willReturn(Optional.of(summary(R17_PEVA, R17_REPORT_ID, fund, r17Data)));
+    given(summaryRepository.findByReportIdAndFund(R21_REPORT_ID, fund))
+        .willReturn(
+            Optional.of(summary(R21_RAVA, R21_REPORT_ID, fund, Map.of("ravaUnits", ravaUnits))));
   }
 
   private void givenNav(TulevaFund fund, String nav) {
@@ -167,10 +233,11 @@ class PevaRavaFlowServiceTest {
         .willReturn(new BigDecimal("1000"));
   }
 
-  private EpisReportSummary summary(TulevaFund fund, Map<String, Object> data) {
+  private EpisReportSummary summary(
+      ReportType reportType, Long reportId, TulevaFund fund, Map<String, Object> data) {
     return EpisReportSummary.builder()
-        .reportId(1L)
-        .reportType(R17_PEVA)
+        .reportId(reportId)
+        .reportType(reportType)
         .reportDate(AS_OF_DATE)
         .fund(fund)
         .fundIsin(fund.getIsin())

@@ -15,6 +15,8 @@ public interface EpisReportSummaryRepository extends JpaRepository<EpisReportSum
   Optional<EpisReportSummary> findTopByReportTypeAndFundOrderByReportDateDescIdDesc(
       ReportType reportType, TulevaFund fund);
 
+  Optional<EpisReportSummary> findByReportIdAndFund(Long reportId, TulevaFund fund);
+
   List<EpisReportSummary> findByReportId(Long reportId);
 
   @Modifying(flushAutomatically = true, clearAutomatically = true)

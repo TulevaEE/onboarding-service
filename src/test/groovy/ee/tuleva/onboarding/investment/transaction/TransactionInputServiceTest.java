@@ -916,6 +916,16 @@ class TransactionInputServiceTest {
   }
 
   @Test
+  void gatherInput_r45SummaryIncomplete_throwsToBlockTradeSizing() {
+    stubEmptyBaseline(TUV100);
+    given(r45ReportService.getIncompleteFunds()).willReturn(List.of(TUV100));
+
+    assertThatThrownBy(() -> service.gatherInput(TUV100, AS_OF_DATE, Map.of()))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("R45 summary incomplete");
+  }
+
+  @Test
   void gatherInput_r45NetOutflowCombinesWithManualAdjustments() {
     stubEmptyBaseline(TUV100);
     given(r45ReportService.getLatestFlows())

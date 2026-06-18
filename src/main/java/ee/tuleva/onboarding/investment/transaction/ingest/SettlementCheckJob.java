@@ -10,11 +10,11 @@ import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.event.RunOverdueSettlementRequested;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.InstrumentType;
+import ee.tuleva.onboarding.investment.transaction.SettlementDateCalculator;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
@@ -61,7 +61,7 @@ class SettlementCheckJob {
 
   private final Clock clock;
   private final PublicHolidays publicHolidays;
-  private final Target2Calendar target2Calendar;
+  private final SettlementDateCalculator settlementDateCalculator;
   private final TransactionOrderRepository orderRepository;
   private final TransactionExecutionRepository executionRepository;
   private final InvestmentReportService reportService;
@@ -188,8 +188,9 @@ class SettlementCheckJob {
     if (order.getOrderTimestamp() == null || order.getInstrumentType() == null) {
       return null;
     }
-    return target2Calendar.addBusinessDays(
-        orderDate(order), thresholdFor(order.getInstrumentType()));
+    InstrumentType instrumentType = order.getInstrumentType();
+    return settlementDateCalculator.addBusinessDays(
+        orderDate(order), instrumentType, order.getInstrumentIsin(), thresholdFor(instrumentType));
   }
 
   private @Nullable LocalDate executedDeadline(

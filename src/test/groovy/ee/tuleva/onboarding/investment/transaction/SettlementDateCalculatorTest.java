@@ -6,6 +6,8 @@ import static ee.tuleva.onboarding.investment.portfolio.Provider.ISHARES;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.investment.calendar.DomicileCalendar;
@@ -99,18 +101,39 @@ class SettlementDateCalculatorTest {
 
   @Test
   void fund_unresolvableIsinFallsBackToTarget2() {
-    given(
-            allocationRepository.findFirstByIsinAndProviderIsNotNullOrderByEffectiveDateDesc(
-                UNKNOWN_ISIN))
-        .willReturn(Optional.empty());
     LocalDate beforeStPatricksDay = LocalDate.of(2026, 3, 12);
+    given(
+            allocationRepository
+                .findFirstByIsinAndProviderIsNotNullAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
+                    UNKNOWN_ISIN, beforeStPatricksDay))
+        .willReturn(Optional.empty());
 
     assertThat(calculator().calculateSettlementDate(beforeStPatricksDay, FUND, UNKNOWN_ISIN))
         .isEqualTo(LocalDate.of(2026, 3, 19));
   }
 
+  @Test
+  void fund_futureDatedAllocationDoesNotAffectEarlierTradeDate() {
+    LocalDate tradeDate = LocalDate.of(2026, 3, 12);
+    // A future-dated allocation (effectiveDate after the trade date) must not be resolved as the
+    // provider for this trade. The as-of-bounded finder returns empty, so we fall back to TARGET2.
+    given(
+            allocationRepository
+                .findFirstByIsinAndProviderIsNotNullAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
+                    IRISH_FUND_ISIN, tradeDate))
+        .willReturn(Optional.empty());
+
+    // If the future allocation leaked in, the Irish calendar would skip St Patrick's Day and push
+    // settlement to 2026-03-20; with TARGET2 fallback it settles 2026-03-19.
+    assertThat(calculator().calculateSettlementDate(tradeDate, FUND, IRISH_FUND_ISIN))
+        .isEqualTo(LocalDate.of(2026, 3, 19));
+  }
+
   private void givenProvider(String isin, Provider provider) {
-    given(allocationRepository.findFirstByIsinAndProviderIsNotNullOrderByEffectiveDateDesc(isin))
+    given(
+            allocationRepository
+                .findFirstByIsinAndProviderIsNotNullAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
+                    eq(isin), any()))
         .willReturn(
             Optional.of(ModelPortfolioAllocation.builder().isin(isin).provider(provider).build()));
   }

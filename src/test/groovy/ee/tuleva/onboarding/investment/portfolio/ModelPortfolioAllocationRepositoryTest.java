@@ -140,7 +140,7 @@ class ModelPortfolioAllocationRepositoryTest {
   }
 
   @Test
-  void findFirstByIsin_returnsLatestAllocationWithProvider() {
+  void findFirstByIsinAsOf_returnsLatestAllocationWithProviderOnOrBeforeDate() {
     entityManager.persist(
         ModelPortfolioAllocation.builder()
             .effectiveDate(LocalDate.of(2025, 3, 1))
@@ -157,23 +157,42 @@ class ModelPortfolioAllocationRepositoryTest {
             .weight(new BigDecimal("0.174"))
             .provider(XTRACKERS)
             .build());
+    // Future-dated allocation that must NOT affect resolution for an earlier as-of date.
     entityManager.persist(
         ModelPortfolioAllocation.builder()
             .effectiveDate(LocalDate.of(2026, 3, 1))
             .fund(TUK75)
             .isin("IE00BJZ2DC62")
             .weight(new BigDecimal("0.20"))
+            .provider(ISHARES)
             .build());
     entityManager.flush();
 
-    var latestWithProvider =
-        repository.findFirstByIsinAndProviderIsNotNullOrderByEffectiveDateDesc("IE00BJZ2DC62");
+    var asOfMidPeriod =
+        repository
+            .findFirstByIsinAndProviderIsNotNullAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
+                "IE00BJZ2DC62", LocalDate.of(2026, 1, 15));
+    var asOfAfterFuture =
+        repository
+            .findFirstByIsinAndProviderIsNotNullAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
+                "IE00BJZ2DC62", LocalDate.of(2026, 6, 1));
+    var asOfBeforeAny =
+        repository
+            .findFirstByIsinAndProviderIsNotNullAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
+                "IE00BJZ2DC62", LocalDate.of(2025, 1, 1));
     var unknownIsin =
-        repository.findFirstByIsinAndProviderIsNotNullOrderByEffectiveDateDesc("XX0000000000");
+        repository
+            .findFirstByIsinAndProviderIsNotNullAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
+                "XX0000000000", LocalDate.of(2026, 1, 15));
 
-    assertThat(latestWithProvider.orElseThrow().getProvider()).isEqualTo(XTRACKERS);
-    assertThat(latestWithProvider.orElseThrow().getEffectiveDate())
-        .isEqualTo(LocalDate.of(2025, 12, 1));
+    // As of 2026-01-15 the future 2026-03-01 allocation is excluded; latest effective is
+    // 2025-12-01.
+    assertThat(asOfMidPeriod.orElseThrow().getProvider()).isEqualTo(XTRACKERS);
+    assertThat(asOfMidPeriod.orElseThrow().getEffectiveDate()).isEqualTo(LocalDate.of(2025, 12, 1));
+    // As of 2026-06-01 the future allocation is now in scope and wins.
+    assertThat(asOfAfterFuture.orElseThrow().getEffectiveDate())
+        .isEqualTo(LocalDate.of(2026, 3, 1));
+    assertThat(asOfBeforeAny).isEmpty();
     assertThat(unknownIsin).isEmpty();
   }
 

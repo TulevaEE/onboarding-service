@@ -114,4 +114,30 @@ class KybDataChangeDetectorTest {
     var changes = (List<Map<String, Object>>) result.metadata().get("changes");
     assertThat(changes).hasSize(2);
   }
+
+  @Test
+  void volatileSanctionMetadataAloneDoesNotCountAsChange() {
+    var previousChecks =
+        List.of(new KybCheck(COMPANY_SANCTION, true, Map.of("results", "[{id=Q1, score=0.31}]")));
+    var currentChecks =
+        List.of(new KybCheck(COMPANY_SANCTION, true, Map.of("results", "[{id=Q2, score=0.62}]")));
+    when(checkHistory.getLatestChecks(PERSONAL_CODE)).thenReturn(previousChecks);
+
+    var result = detector.detect(PERSONAL_CODE, currentChecks);
+
+    assertThat(result.success()).isTrue();
+    assertThat((List<?>) result.metadata().get("changes")).isEmpty();
+  }
+
+  @Test
+  void sanctionSuccessFlipStillCountsAsChange() {
+    var previousChecks = List.of(new KybCheck(COMPANY_SANCTION, true, Map.of("results", "[]")));
+    var currentChecks =
+        List.of(new KybCheck(COMPANY_SANCTION, false, Map.of("results", "[{match=true}]")));
+    when(checkHistory.getLatestChecks(PERSONAL_CODE)).thenReturn(previousChecks);
+
+    var result = detector.detect(PERSONAL_CODE, currentChecks);
+
+    assertThat(result.success()).isFalse();
+  }
 }

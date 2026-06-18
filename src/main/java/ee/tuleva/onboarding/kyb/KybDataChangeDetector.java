@@ -1,10 +1,13 @@
 package ee.tuleva.onboarding.kyb;
 
+import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_PEP;
+import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_SANCTION;
 import static ee.tuleva.onboarding.kyb.KybCheckType.DATA_CHANGED;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +16,9 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class KybDataChangeDetector {
+
+  private static final Set<KybCheckType> AUDIT_ONLY_METADATA =
+      Set.of(COMPANY_SANCTION, COMPANY_PEP);
 
   private final KybCheckHistory checkHistory;
 
@@ -41,8 +47,7 @@ public class KybDataChangeDetector {
                 "check", current.type().name(),
                 "previousSuccess", "N/A",
                 "currentSuccess", current.success()));
-      } else if (previous.success() != current.success()
-          || !previous.metadata().equals(current.metadata())) {
+      } else if (changed(previous, current)) {
         changes.add(
             Map.of(
                 "check", current.type().name(),
@@ -62,5 +67,13 @@ public class KybDataChangeDetector {
     }
 
     return new KybCheck(DATA_CHANGED, changes.isEmpty(), Map.of("changes", changes));
+  }
+
+  private boolean changed(KybCheck previous, KybCheck current) {
+    if (previous.success() != current.success()) {
+      return true;
+    }
+    return !AUDIT_ONLY_METADATA.contains(current.type())
+        && !previous.metadata().equals(current.metadata());
   }
 }

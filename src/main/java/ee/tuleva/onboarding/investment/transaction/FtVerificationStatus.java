@@ -9,5 +9,6 @@ public enum FtVerificationStatus {
   PENDING_EXECUTION,
   PENDING_NAV,
   CANCELLED,
-  AMBIGUOUS
+  AMBIGUOUS,
+  IGNORED
 }

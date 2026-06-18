@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.AMBIGUOUS;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.CANCELLED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ERROR;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.IGNORED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.OK;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_EXECUTION;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_NAV;
@@ -22,6 +23,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.LinkedHashMap;
@@ -57,6 +59,11 @@ public class FtConfirmationVerificationService {
   private BigDecimal priceTolerance = DEFAULT_PRICE_TOLERANCE;
 
   public Optional<FtConfirmationResult> verify(FtConfirmation confirmation) {
+    Optional<FtConfirmationResult> ignored = ignoredResult(confirmation);
+    if (ignored.isPresent()) {
+      return ignored;
+    }
+
     List<TransactionOrder> candidates = candidateOrders(confirmation);
     if (candidates.isEmpty()) {
       log.warn(
@@ -85,6 +92,31 @@ public class FtConfirmationVerificationService {
     FtVerificationStatus quantityStatus = checkQuantity(confirmation, order, details);
     FtVerificationStatus priceStatus = checkPrice(confirmation, details);
     return result(confirmation, order, quantityStatus, priceStatus, details);
+  }
+
+  private Optional<FtConfirmationResult> ignoredResult(FtConfirmation confirmation) {
+    if (confirmation.suppressed()) {
+      return ignored(confirmation, "manually suppressed false positive");
+    }
+    if (isWeekend(confirmation.tradeDate())) {
+      return ignored(confirmation, "weekend trade date: " + confirmation.tradeDate());
+    }
+    return Optional.empty();
+  }
+
+  private Optional<FtConfirmationResult> ignored(FtConfirmation confirmation, String reason) {
+    log.info(
+        "FT confirmation ignored: fund={}, isin={}, tradeDate={}, reason={}",
+        confirmation.fund(),
+        confirmation.isin(),
+        confirmation.tradeDate(),
+        reason);
+    return Optional.of(new FtConfirmationResult(IGNORED, IGNORED, Map.of("ignoreReason", reason)));
+  }
+
+  private static boolean isWeekend(LocalDate date) {
+    DayOfWeek day = date.getDayOfWeek();
+    return day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY;
   }
 
   private Optional<FtConfirmationResult> cancel(

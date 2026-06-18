@@ -53,6 +53,16 @@ public class TransactionBatch {
 
   private Instant createdAt;
 
+  private String confirmedBy;
+
+  private Instant confirmedAt;
+
+  private String cancellationReason;
+
+  private String cancelledBy;
+
+  private Instant cancelledAt;
+
   @PrePersist
   protected void onCreate() {
     if (createdAt == null) {

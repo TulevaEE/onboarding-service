@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willAnswer;
 
@@ -47,6 +48,7 @@ class TransactionAdminServiceTest {
   @Mock private TransactionCommandRepository commandRepository;
   @Mock private TransactionBatchRepository batchRepository;
   @Mock private TransactionOrderRepository orderRepository;
+  @Mock private TransactionAuditEventRepository auditEventRepository;
   @Mock private TransactionPreparationService preparationService;
 
   @InjectMocks private TransactionAdminService service;
@@ -246,10 +248,12 @@ class TransactionAdminServiceTest {
         .finalizeConfirmedBatch(batch);
     given(orderRepository.findByBatchId(10L)).willReturn(List.of());
 
-    TransactionBatchResponse response = service.confirmAndFinalize(10L);
+    TransactionBatchResponse response = service.confirmAndFinalize(10L, "operator-7");
 
     then(preparationService).should().finalizeConfirmedBatch(batch);
     assertThat(response.status()).isEqualTo(BatchStatus.SENT);
+    assertThat(batch.getConfirmedBy()).isEqualTo("operator-7");
+    assertThat(batch.getConfirmedAt()).isEqualTo(Instant.parse("2026-06-11T09:00:00Z"));
   }
 
   @Test
@@ -266,7 +270,7 @@ class TransactionAdminServiceTest {
         .finalizeConfirmedBatch(batch);
     given(orderRepository.findByBatchId(10L)).willReturn(List.of());
 
-    service.confirmAndFinalize(10L);
+    service.confirmAndFinalize(10L, "admin");
 
     then(preparationService).should().finalizeConfirmedBatch(batch);
   }
@@ -275,7 +279,7 @@ class TransactionAdminServiceTest {
   void confirmAndFinalize_unknownBatch_throwsNotFound() {
     given(batchRepository.findById(999L)).willReturn(Optional.empty());
 
-    assertThatThrownBy(() -> service.confirmAndFinalize(999L))
+    assertThatThrownBy(() -> service.confirmAndFinalize(999L, "admin"))
         .isInstanceOf(ResponseStatusException.class)
         .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
         .isEqualTo(404);
@@ -285,11 +289,78 @@ class TransactionAdminServiceTest {
   void confirmAndFinalize_alreadySentBatch_throwsConflict() {
     given(batchRepository.findById(10L)).willReturn(Optional.of(batch(10L, BatchStatus.SENT)));
 
-    assertThatThrownBy(() -> service.confirmAndFinalize(10L))
+    assertThatThrownBy(() -> service.confirmAndFinalize(10L, "admin"))
         .isInstanceOf(ResponseStatusException.class)
         .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
         .isEqualTo(409);
     then(preparationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void cancelBatch_cancelsBatchAndNotYetExecutedOrdersAndWritesAudit() {
+    TransactionBatch batch = batch(10L, AWAITING_CONFIRMATION);
+    TransactionOrder pendingOrder = order(100L, batch);
+    pendingOrder.setOrderStatus(OrderStatus.PENDING);
+    TransactionOrder sentOrder = order(101L, batch);
+    sentOrder.setOrderStatus(OrderStatus.SENT);
+    given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
+    given(orderRepository.findByBatchId(10L)).willReturn(List.of(pendingOrder, sentOrder));
+
+    TransactionBatchResponse response = service.cancelBatch(10L, "duplicate batch", "operator-7");
+
+    assertThat(response.status()).isEqualTo(BatchStatus.CANCELLED);
+    assertThat(batch.getStatus()).isEqualTo(BatchStatus.CANCELLED);
+    assertThat(batch.getCancellationReason()).isEqualTo("duplicate batch");
+    assertThat(batch.getCancelledBy()).isEqualTo("operator-7");
+    assertThat(batch.getCancelledAt()).isEqualTo(Instant.parse("2026-06-11T09:00:00Z"));
+    assertThat(pendingOrder.getOrderStatus()).isEqualTo(OrderStatus.CANCELLED);
+    assertThat(sentOrder.getOrderStatus()).isEqualTo(OrderStatus.CANCELLED);
+
+    then(batchRepository).should().save(batch);
+    then(orderRepository).should().saveAll(List.of(pendingOrder, sentOrder));
+    then(batchRepository).should(never()).delete(any());
+    then(orderRepository).should(never()).deleteAll(any());
+    then(auditEventRepository)
+        .should()
+        .save(
+            TransactionAuditEvent.builder()
+                .batch(batch)
+                .eventType("BATCH_CANCELLED")
+                .actor("operator-7")
+                .createdAt(Instant.parse("2026-06-11T09:00:00Z"))
+                .payload(
+                    Map.of("reason", "duplicate batch", "actor", "operator-7", "orderCount", 2))
+                .build());
+  }
+
+  @Test
+  void cancelBatch_withExecutedOrder_throwsConflictAndMutatesNothing() {
+    TransactionBatch batch = batch(10L, BatchStatus.SENT);
+    TransactionOrder executedOrder = order(100L, batch);
+    executedOrder.setOrderStatus(OrderStatus.EXECUTED);
+    given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
+    given(orderRepository.findByBatchId(10L)).willReturn(List.of(executedOrder));
+
+    assertThatThrownBy(() -> service.cancelBatch(10L, "duplicate batch", "operator-7"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(409);
+
+    assertThat(batch.getStatus()).isEqualTo(BatchStatus.SENT);
+    assertThat(executedOrder.getOrderStatus()).isEqualTo(OrderStatus.EXECUTED);
+    then(batchRepository).should(never()).save(any());
+    then(orderRepository).should(never()).saveAll(any());
+    then(auditEventRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void cancelBatch_unknownBatch_throwsNotFound() {
+    given(batchRepository.findById(999L)).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.cancelBatch(999L, "duplicate batch", "admin"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(404);
   }
 
   @Test

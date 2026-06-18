@@ -99,13 +99,33 @@ public class TransactionCommandController {
 
   @PostMapping("/transaction-batches/{id}/confirm")
   public TransactionBatchResponse confirmBatch(
-      @RequestHeader("X-Admin-Token") String token, @PathVariable Long id) {
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestHeader(name = "X-Admin-Actor", required = false, defaultValue = "admin") String actor,
+      @PathVariable Long id) {
 
     validateToken(token);
 
-    log.info("Admin triggered transaction batch confirmation: id={}", id);
+    log.info("Admin triggered transaction batch confirmation: id={}, actor={}", id, actor);
 
-    return adminService.confirmAndFinalize(id);
+    return adminService.confirmAndFinalize(id, actor);
+  }
+
+  @PostMapping("/transaction-batches/{id}/cancel")
+  public TransactionBatchResponse cancelBatch(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestHeader(name = "X-Admin-Actor", required = false, defaultValue = "admin") String actor,
+      @PathVariable Long id,
+      @Valid @RequestBody CancelTransactionBatchRequest request) {
+
+    validateToken(token);
+
+    log.info(
+        "Admin triggered transaction batch cancellation: id={}, actor={}, reason={}",
+        id,
+        actor,
+        request.reason());
+
+    return adminService.cancelBatch(id, request.reason(), actor);
   }
 
   @GetMapping("/transaction-batches/{id}/exports/{type}")

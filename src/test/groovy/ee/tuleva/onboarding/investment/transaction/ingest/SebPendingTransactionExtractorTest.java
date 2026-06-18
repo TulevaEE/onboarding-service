@@ -78,6 +78,62 @@ class SebPendingTransactionExtractorTest {
   }
 
   @Test
+  void extractWithDiagnostics_countsMalformedContentRowsAndReportsIncomplete() {
+    Map<String, Object> valid =
+        Map.of(
+            "ISIN", "IE000F60HVH9",
+            "Our ref", "DLA0799512",
+            "Buy/Sell", "Buy",
+            "Quantity", new BigDecimal("15007"),
+            "Client ref", "bd83f551-8c79-4193-b92b-18e1dfd0bd29",
+            "Trade date", "2026-05-11T10:26:04Z");
+    Map<String, Object> malformed = new java.util.HashMap<>();
+    malformed.put("ISIN", "IE000F60HVH9");
+    malformed.put("Client ref", "not-a-uuid");
+    malformed.put("Our ref", "DLA9999999");
+
+    InvestmentReport report =
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(PENDING_TRANSACTIONS)
+            .reportDate(LocalDate.of(2026, 5, 13))
+            .rawData(List.of(valid, malformed))
+            .build();
+
+    SebPendingTransactionExtractor.ExtractionResult result =
+        extractor.extractWithDiagnostics(report);
+
+    assertThat(result.rows()).hasSize(1);
+    assertThat(result.malformedCount()).isEqualTo(1);
+    assertThat(result.isComplete()).isFalse();
+  }
+
+  @Test
+  void extractWithDiagnostics_allRowsValid_reportsComplete() {
+    Map<String, Object> valid =
+        Map.of(
+            "ISIN", "IE000F60HVH9",
+            "Our ref", "DLA0799512",
+            "Buy/Sell", "Buy",
+            "Quantity", new BigDecimal("15007"),
+            "Client ref", "bd83f551-8c79-4193-b92b-18e1dfd0bd29",
+            "Trade date", "2026-05-11T10:26:04Z");
+    InvestmentReport report =
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(PENDING_TRANSACTIONS)
+            .reportDate(LocalDate.of(2026, 5, 13))
+            .rawData(List.of(valid))
+            .build();
+
+    SebPendingTransactionExtractor.ExtractionResult result =
+        extractor.extractWithDiagnostics(report);
+
+    assertThat(result.malformedCount()).isZero();
+    assertThat(result.isComplete()).isTrue();
+  }
+
+  @Test
   void extract_emptyRawData_returnsEmptyList() {
     InvestmentReport report =
         InvestmentReport.builder()

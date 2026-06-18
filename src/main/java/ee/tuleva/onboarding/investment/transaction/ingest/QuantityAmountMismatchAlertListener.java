@@ -6,8 +6,9 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Slf4j
 @Component
@@ -18,9 +19,19 @@ class QuantityAmountMismatchAlertListener {
   private final EmailService emailService;
   private final OperationsNotificationService notificationService;
 
-  @EventListener
+  // Fire after the reconcile transaction commits so a Slack/email failure can never roll back
+  // persisted reconciliation state; fallbackExecution lets it still run outside a transaction.
+  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
   public void onQuantityAmountMismatch(QuantityAmountMismatchEvent event) {
-    notificationService.sendMessage(buildSlackMessage(event), INVESTMENT);
+    try {
+      notificationService.sendMessage(buildSlackMessage(event), INVESTMENT);
+    } catch (RuntimeException e) {
+      log.error(
+          "Failed to send quantity/amount mismatch Slack alert: reportDate={}, orderId={}",
+          event.reportDate(),
+          event.order().getId(),
+          e);
+    }
 
     var subject = "[HOIATUS] Tehingute koguse/summa lahknevused – " + event.reportDate();
     var body = buildBody(event);

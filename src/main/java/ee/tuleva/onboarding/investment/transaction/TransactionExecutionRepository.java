@@ -14,6 +14,8 @@ public interface TransactionExecutionRepository extends JpaRepository<Transactio
 
   Optional<TransactionExecution> findByBrokerTransactionId(String brokerTransactionId);
 
+  List<TransactionExecution> findAllByBrokerTransactionId(String brokerTransactionId);
+
   List<TransactionExecution> findByOrderIdIn(Collection<Long> orderIds);
 
   // Half-open range [fromInclusive, toExclusive) so a trade-date window

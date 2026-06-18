@@ -153,7 +153,7 @@ class SebPendingTransactionReconciliationIT {
   }
 
   @Test
-  void reconcile_matchedFundBuyWithDivergentAmount_persistsMismatchAuditAndStillExecutes() {
+  void reconcile_matchedFundBuyWithDivergentAmount_persistsMismatchAuditAndQuarantines() {
     order.setOrderAmount(new BigDecimal("50000.00"));
     orderRepository.save(order);
     entityManager.flush();
@@ -167,9 +167,10 @@ class SebPendingTransactionReconciliationIT {
     assertThat(mismatches).hasSize(1);
     assertThat(mismatches.get(0).getPayload().get("kind")).isEqualTo("FUND_BUY_AMOUNT");
 
-    assertThat(executionRepository.findByOrderId(order.getId())).isPresent();
+    // Quarantine: a divergent fill is flagged but not absorbed — no execution, order stays SENT.
+    assertThat(executionRepository.findByOrderId(order.getId())).isEmpty();
     TransactionOrder reloaded = orderRepository.findById(order.getId()).orElseThrow();
-    assertThat(reloaded.getOrderStatus()).isEqualTo(EXECUTED);
+    assertThat(reloaded.getOrderStatus()).isEqualTo(SENT);
   }
 
   @Test

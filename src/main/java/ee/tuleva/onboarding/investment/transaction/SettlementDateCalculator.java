@@ -25,15 +25,31 @@ public class SettlementDateCalculator {
 
   public LocalDate calculateSettlementDate(
       LocalDate tradeDate, InstrumentType instrumentType, String isin) {
+    int businessDays =
+        switch (instrumentType) {
+          case ETF -> ETF_SETTLEMENT_BUSINESS_DAYS;
+          case FUND -> FUND_SETTLEMENT_BUSINESS_DAYS;
+        };
+    return addBusinessDays(tradeDate, instrumentType, isin, businessDays);
+  }
+
+  public LocalDate addBusinessDays(
+      LocalDate tradeDate, InstrumentType instrumentType, String isin, int businessDays) {
+    return calendarFor(instrumentType, isin, tradeDate).addBusinessDays(tradeDate, businessDays);
+  }
+
+  private TradingCalendar calendarFor(
+      InstrumentType instrumentType, String isin, LocalDate tradeDate) {
     return switch (instrumentType) {
-      case ETF -> target2Calendar.addBusinessDays(tradeDate, ETF_SETTLEMENT_BUSINESS_DAYS);
-      case FUND -> fundCalendar(isin).addBusinessDays(tradeDate, FUND_SETTLEMENT_BUSINESS_DAYS);
+      case ETF -> target2Calendar;
+      case FUND -> fundCalendar(isin, tradeDate);
     };
   }
 
-  private TradingCalendar fundCalendar(String isin) {
+  private TradingCalendar fundCalendar(String isin, LocalDate tradeDate) {
     return allocationRepository
-        .findFirstByIsinAndProviderIsNotNullOrderByEffectiveDateDesc(isin)
+        .findFirstByIsinAndProviderIsNotNullAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
+            isin, tradeDate)
         .map(ModelPortfolioAllocation::getProvider)
         .map(Provider::getDomicile)
         .map(domicileCalendar::forDomicile)

@@ -21,12 +21,17 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.calendar.DomicileCalendar;
 import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
+import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
+import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
+import ee.tuleva.onboarding.investment.portfolio.Provider;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
+import ee.tuleva.onboarding.investment.transaction.SettlementDateCalculator;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
@@ -66,8 +71,15 @@ class SettlementCheckJobTest {
   @Mock private UnmatchedPendingTransactionFinder unmatchedFinder;
   @Mock private SebClientNameToFundResolver fundResolver;
   @Mock private OperationsNotificationService notificationService;
+  @Mock private ModelPortfolioAllocationRepository allocationRepository;
 
   private final Clock clock = Clock.fixed(TODAY.atStartOfDay(TALLINN).toInstant(), TALLINN);
+
+  private SettlementDateCalculator settlementDateCalculator() {
+    Target2Calendar target2Calendar = new Target2Calendar();
+    return new SettlementDateCalculator(
+        target2Calendar, new DomicileCalendar(target2Calendar), allocationRepository);
+  }
 
   private SettlementCheckJob job() {
     return job(clock);
@@ -77,7 +89,7 @@ class SettlementCheckJobTest {
     return new SettlementCheckJob(
         clock,
         publicHolidays,
-        new Target2Calendar(),
+        settlementDateCalculator(),
         orderRepository,
         executionRepository,
         reportService,
@@ -85,6 +97,15 @@ class SettlementCheckJobTest {
         unmatchedFinder,
         fundResolver,
         notificationService);
+  }
+
+  private void givenProvider(String isin, Provider provider) {
+    given(
+            allocationRepository
+                .findFirstByIsinAndProviderIsNotNullAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
+                    eq(isin), any()))
+        .willReturn(
+            Optional.of(ModelPortfolioAllocation.builder().isin(isin).provider(provider).build()));
   }
 
   @Test
@@ -276,6 +297,57 @@ class SettlementCheckJobTest {
     job(easterClock).run();
 
     verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void run_fundDeadlineUsesDomicileCalendar_irishHolidayDefersOverdue() {
+    // FUND order on Tue 2026-03-10, 5-business-day threshold. On TARGET2 the deadline is
+    // 2026-03-17, but the Irish domicile calendar skips St Patrick's Day (Mar 17), deferring the
+    // deadline to 2026-03-18. As of 2026-03-18 the order is therefore NOT yet overdue.
+    LocalDate stPatricksWeek = LocalDate.of(2026, 3, 18); // Wednesday
+    Clock irishClock = Clock.fixed(stPatricksWeek.atStartOfDay(TALLINN).toInstant(), TALLINN);
+    given(publicHolidays.previousWorkingDay(stPatricksWeek)).willReturn(LocalDate.of(2026, 3, 17));
+    InvestmentReport report = report(stPatricksWeek);
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.of(report));
+    given(extractor.extract(report)).willReturn(List.of());
+
+    givenProvider("IE00BFG1TM61", Provider.ISHARES);
+    TransactionOrder sentFund =
+        order(1L, FUND, SENT, dateOnly(2026, 3, 10), TUV100, "IE00BFG1TM61", SENT_UUID);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of(sentFund));
+    given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
+    given(unmatchedFinder.collectUnmatched(report)).willReturn(List.of());
+
+    job(irishClock).run();
+
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void run_fundDeadlineOnTarget2WithoutProvider_isOverdueOnStPatricksDay() {
+    // Same FUND order as above, but with no resolvable provider the calculator falls back to
+    // TARGET2, whose deadline is 2026-03-17 (St Patrick's Day is a regular TARGET2 business day).
+    // As of 2026-03-18 the order is overdue, confirming the domicile calendar is what defers it.
+    LocalDate stPatricksWeek = LocalDate.of(2026, 3, 18); // Wednesday
+    Clock irishClock = Clock.fixed(stPatricksWeek.atStartOfDay(TALLINN).toInstant(), TALLINN);
+    given(publicHolidays.previousWorkingDay(stPatricksWeek)).willReturn(LocalDate.of(2026, 3, 17));
+    InvestmentReport report = report(stPatricksWeek);
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.of(report));
+    given(extractor.extract(report)).willReturn(List.of());
+
+    TransactionOrder sentFund =
+        order(1L, FUND, SENT, dateOnly(2026, 3, 10), TUV100, "EE3600109443", SENT_UUID);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of(sentFund));
+    given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
+    given(unmatchedFinder.collectUnmatched(report)).willReturn(List.of());
+
+    job(irishClock).run();
+
+    ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+    verify(notificationService).sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue()).contains("[SAADETUD, täitmist pole] Order 1");
   }
 
   @Test

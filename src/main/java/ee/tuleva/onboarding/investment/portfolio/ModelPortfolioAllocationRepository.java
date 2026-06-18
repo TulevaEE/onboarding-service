@@ -13,8 +13,9 @@ public interface ModelPortfolioAllocationRepository
   List<ModelPortfolioAllocation> findByFundAndEffectiveDate(
       TulevaFund fund, LocalDate effectiveDate);
 
-  Optional<ModelPortfolioAllocation> findFirstByIsinAndProviderIsNotNullOrderByEffectiveDateDesc(
-      String isin);
+  Optional<ModelPortfolioAllocation>
+      findFirstByIsinAndProviderIsNotNullAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
+          String isin, LocalDate effectiveDate);
 
   // Snapshot semantics: a model portfolio is versioned as a whole, so all allocations on a given
   // effective date form one indivisible version. Returns every row from the single newest

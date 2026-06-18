@@ -107,6 +107,40 @@ class TransactionRegistryViewsIT {
   }
 
   @Test
+  void settlementDelays_exposesExpectedAndActualDatesAndOnTimeFlag() {
+    TransactionOrder onTime = persistOrder(EXECUTED, LocalDate.now().minusDays(5), "100");
+    persistExecution(onTime, "100.0000");
+    persistSettlement(onTime, LocalDate.now().minusDays(5));
+    TransactionOrder late = persistOrder(EXECUTED, LocalDate.now().minusDays(5), "200");
+    persistExecution(late, "200.0000");
+    persistSettlement(late, LocalDate.now().minusDays(2));
+    TransactionOrder unsettled = persistOrder(EXECUTED, LocalDate.now().minusDays(3), "300");
+    persistExecution(unsettled, "300.0000");
+    entityManager.flush();
+
+    Map<String, Object> onTimeRow = settlementDelayRow(onTime);
+    assertThat(onTimeRow.get("order_uuid")).isEqualTo(onTime.getOrderUuid());
+    assertThat(onTimeRow.get("fund_code")).isEqualTo("TUK75");
+    assertThat(((java.sql.Date) onTimeRow.get("expected_settlement_date")).toLocalDate())
+        .isEqualTo(LocalDate.now().minusDays(5));
+    assertThat(((java.sql.Date) onTimeRow.get("actual_settlement_date")).toLocalDate())
+        .isEqualTo(LocalDate.now().minusDays(5));
+    assertThat(onTimeRow.get("settled_on_time")).isEqualTo(true);
+
+    Map<String, Object> lateRow = settlementDelayRow(late);
+    assertThat(((java.sql.Date) lateRow.get("actual_settlement_date")).toLocalDate())
+        .isEqualTo(LocalDate.now().minusDays(2));
+    assertThat(lateRow.get("settled_on_time")).isEqualTo(false);
+
+    List<Map<String, Object>> rows =
+        jdbcClient.sql("select order_id from v_settlement_delays").query().listOfRows();
+    assertThat(rows)
+        .extracting(row -> row.get("order_id"))
+        .contains(onTime.getId(), late.getId())
+        .doesNotContain(unsettled.getId());
+  }
+
+  @Test
   void overdueOrders_includesSentOrdersPastExpectedSettlementWithoutExecution() {
     TransactionOrder overdue = persistOrder(SENT, LocalDate.now().minusDays(2), "100");
     TransactionOrder sentButExecuted = persistOrder(SENT, LocalDate.now().minusDays(2), "100");
@@ -230,6 +264,17 @@ class TransactionRegistryViewsIT {
         .singleRow();
   }
 
+  private Map<String, Object> settlementDelayRow(TransactionOrder order) {
+    return jdbcClient
+        .sql(
+            "select order_id, order_uuid, fund_code, expected_settlement_date,"
+                + " actual_settlement_date, settled_on_time from v_settlement_delays"
+                + " where order_id = ?")
+        .param(order.getId())
+        .query()
+        .singleRow();
+  }
+
   private Map<String, Object> reconciliationRow(TransactionOrder order) {
     return jdbcClient
         .sql(
@@ -281,11 +326,15 @@ class TransactionRegistryViewsIT {
   }
 
   private TransactionSettlement persistSettlement(TransactionOrder order) {
+    return persistSettlement(order, LocalDate.now().minusDays(1));
+  }
+
+  private TransactionSettlement persistSettlement(TransactionOrder order, LocalDate reportDate) {
     return settlementRepository.save(
         TransactionSettlement.builder()
             .orderId(order.getId())
-            .settledAt(Instant.parse("2026-05-13T07:00:00Z"))
-            .reportDate(LocalDate.now().minusDays(1))
+            .settledAt(reportDate.atStartOfDay(java.time.ZoneOffset.UTC).toInstant())
+            .reportDate(reportDate)
             .build());
   }
 }

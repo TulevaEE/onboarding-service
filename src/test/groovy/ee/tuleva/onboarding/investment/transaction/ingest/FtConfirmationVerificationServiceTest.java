@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.transaction.FtConfirmationType.CAN
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.AMBIGUOUS;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.CANCELLED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ERROR;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.IGNORED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.OK;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_EXECUTION;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_NAV;
@@ -328,6 +329,45 @@ class FtConfirmationVerificationServiceTest {
     assertThat(result.quantityStatus()).isEqualTo(AMBIGUOUS);
     assertThat(result.priceStatus()).isEqualTo(AMBIGUOUS);
     assertThat(result.details()).containsEntry("ambiguousOrderCount", "2");
+  }
+
+  @Test
+  void weekendTradeDate_returnsIgnored_noMismatch() {
+    LocalDate saturday = LocalDate.of(2026, 6, 6); // Saturday
+    FtConfirmation weekendConfirmation =
+        new FtConfirmation(TUK75, ISIN, saturday, new BigDecimal("40434"), new BigDecimal("10.09"));
+
+    FtConfirmationResult result =
+        service(DAY_AFTER_TRADE).verify(weekendConfirmation).orElseThrow();
+
+    assertThat(result.quantityStatus()).isEqualTo(IGNORED);
+    assertThat(result.priceStatus()).isEqualTo(IGNORED);
+    assertThat(result.details()).containsEntry("ignoreReason", "weekend trade date: " + saturday);
+    verifyNoInteractions(orderRepository, executionRepository, positionPriceResolver);
+    verifyNoInteractions(auditRecorder);
+  }
+
+  @Test
+  void suppressedConfirmation_returnsIgnored_noMismatch() {
+    FtConfirmation suppressed =
+        new FtConfirmation(
+            TUK75,
+            ISIN,
+            TRADE_DATE,
+            new BigDecimal("40434"),
+            new BigDecimal("10.09"),
+            ee.tuleva.onboarding.investment.transaction.FtConfirmationType.NORMAL,
+            null,
+            true);
+
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(suppressed).orElseThrow();
+
+    assertThat(result.quantityStatus()).isEqualTo(IGNORED);
+    assertThat(result.priceStatus()).isEqualTo(IGNORED);
+    assertThat(result.details())
+        .containsEntry("ignoreReason", "manually suppressed false positive");
+    verifyNoInteractions(orderRepository, executionRepository, positionPriceResolver);
+    verifyNoInteractions(auditRecorder);
   }
 
   private FtConfirmation confirmation() {

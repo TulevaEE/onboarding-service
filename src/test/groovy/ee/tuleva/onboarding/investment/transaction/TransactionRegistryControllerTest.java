@@ -173,6 +173,48 @@ class TransactionRegistryControllerTest {
   }
 
   @Test
+  void ftConfirmation_cancellation_passesTypeAndAccount() throws Exception {
+    given(
+            ftConfirmationVerificationService.verify(
+                new FtConfirmation(
+                    TUK75,
+                    "IE000F60HVH9",
+                    LocalDate.parse("2026-06-08"),
+                    new BigDecimal("40434"),
+                    new BigDecimal("10.09"),
+                    FtConfirmationType.CANCELLATION,
+                    "FT-ACC")))
+        .willReturn(
+            Optional.of(
+                new FtConfirmationResult(
+                    FtVerificationStatus.CANCELLED,
+                    FtVerificationStatus.CANCELLED,
+                    Map.of("cancellationSignature", "sig"))));
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-registry/ft-confirmation")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType("application/json")
+                .content(
+                    """
+                    {
+                      "fund": "TUK75",
+                      "isin": "IE000F60HVH9",
+                      "tradeDate": "2026-06-08",
+                      "quantity": 40434,
+                      "grossPrice": 10.09,
+                      "type": "CANCELLATION",
+                      "account": "FT-ACC"
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.quantityStatus").value("CANCELLED"))
+        .andExpect(jsonPath("$.priceStatus").value("CANCELLED"));
+  }
+
+  @Test
   void ftConfirmation_orderNotFound_returnsNotFound() throws Exception {
     given(ftConfirmationVerificationService.verify(any())).willReturn(Optional.empty());
 

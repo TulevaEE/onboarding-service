@@ -1,10 +1,13 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.AMBIGUOUS;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.CANCELLED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ERROR;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.OK;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_EXECUTION;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_NAV;
 import static java.util.Comparator.comparing;
+import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
@@ -22,6 +25,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -53,8 +57,8 @@ public class FtConfirmationVerificationService {
   private BigDecimal priceTolerance = DEFAULT_PRICE_TOLERANCE;
 
   public Optional<FtConfirmationResult> verify(FtConfirmation confirmation) {
-    Optional<TransactionOrder> orderOpt = findOrder(confirmation);
-    if (orderOpt.isEmpty()) {
+    List<TransactionOrder> candidates = candidateOrders(confirmation);
+    if (candidates.isEmpty()) {
       log.warn(
           "No order found for FT confirmation: fund={}, isin={}, tradeDate={}",
           confirmation.fund(),
@@ -62,33 +66,85 @@ public class FtConfirmationVerificationService {
           confirmation.tradeDate());
       return Optional.empty();
     }
-    TransactionOrder order = orderOpt.get();
+
+    OrderSelection selection = selectOrder(confirmation, candidates);
+    TransactionOrder order = selection.order();
 
     Map<String, String> details = new LinkedHashMap<>();
     details.put("orderUuid", order.getOrderUuid().toString());
 
+    if (confirmation.isCancellation()) {
+      return cancel(confirmation, order, details);
+    }
+
+    if (selection.ambiguous()) {
+      details.put("ambiguousOrderCount", String.valueOf(selection.matchCount()));
+      return result(confirmation, order, AMBIGUOUS, AMBIGUOUS, details);
+    }
+
     FtVerificationStatus quantityStatus = checkQuantity(confirmation, order, details);
     FtVerificationStatus priceStatus = checkPrice(confirmation, details);
+    return result(confirmation, order, quantityStatus, priceStatus, details);
+  }
 
+  private Optional<FtConfirmationResult> cancel(
+      FtConfirmation confirmation, TransactionOrder order, Map<String, String> details) {
+    details.put("cancellationSignature", confirmation.cancellationSignature());
+    return result(confirmation, order, CANCELLED, CANCELLED, details);
+  }
+
+  private Optional<FtConfirmationResult> result(
+      FtConfirmation confirmation,
+      TransactionOrder order,
+      FtVerificationStatus quantityStatus,
+      FtVerificationStatus priceStatus,
+      Map<String, String> details) {
     FtConfirmationResult result =
         new FtConfirmationResult(quantityStatus, priceStatus, Map.copyOf(details));
     auditRecorder.recordVerified(order, confirmation, result);
     log.info(
-        "FT confirmation verified: orderUuid={}, isin={}, tradeDate={}, quantityStatus={}, priceStatus={}",
+        "FT confirmation verified: orderUuid={}, isin={}, tradeDate={}, type={}, quantityStatus={}, priceStatus={}",
         order.getOrderUuid(),
         confirmation.isin(),
         confirmation.tradeDate(),
+        confirmation.type(),
         quantityStatus,
         priceStatus);
     return Optional.of(result);
   }
 
-  private Optional<TransactionOrder> findOrder(FtConfirmation confirmation) {
+  private List<TransactionOrder> candidateOrders(FtConfirmation confirmation) {
     return orderRepository.findByInstrumentIsin(confirmation.isin()).stream()
         .filter(order -> order.getFund() == confirmation.fund())
         .filter(order -> hasTradeDate(order, confirmation.tradeDate()))
-        .min(comparing(TransactionOrder::getId));
+        .collect(toList());
   }
+
+  private OrderSelection selectOrder(
+      FtConfirmation confirmation, List<TransactionOrder> candidates) {
+    if (candidates.size() == 1) {
+      return new OrderSelection(candidates.get(0), false, 1);
+    }
+    List<TransactionOrder> quantityMatches =
+        candidates.stream()
+            .filter(order -> order.getOrderQuantity() != null)
+            .filter(
+                order -> withinQuantityTolerance(confirmation.quantity(), order.getOrderQuantity()))
+            .collect(toList());
+    if (quantityMatches.size() == 1) {
+      return new OrderSelection(quantityMatches.get(0), false, 1);
+    }
+    if (quantityMatches.size() > 1) {
+      return new OrderSelection(oldest(quantityMatches), true, quantityMatches.size());
+    }
+    return new OrderSelection(oldest(candidates), false, candidates.size());
+  }
+
+  private static TransactionOrder oldest(List<TransactionOrder> orders) {
+    return orders.stream().min(comparing(TransactionOrder::getId)).orElseThrow();
+  }
+
+  private record OrderSelection(TransactionOrder order, boolean ambiguous, int matchCount) {}
 
   private static boolean hasTradeDate(TransactionOrder order, LocalDate tradeDate) {
     return order.getOrderTimestamp() != null

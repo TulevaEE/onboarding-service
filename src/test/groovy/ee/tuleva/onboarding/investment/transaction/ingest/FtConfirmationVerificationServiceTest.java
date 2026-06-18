@@ -2,6 +2,9 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.investment.transaction.FtConfirmationType.CANCELLATION;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.AMBIGUOUS;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.CANCELLED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ERROR;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.OK;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_EXECUTION;
@@ -262,12 +265,88 @@ class FtConfirmationVerificationServiceTest {
     verify(auditRecorder).recordVerified(order, confirmation, result);
   }
 
+  @Test
+  void cancellationConfirmation_marksMatchingTradeCancelled_noMismatchError() {
+    TransactionOrder order = order(new BigDecimal("40434"));
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
+
+    FtConfirmationResult result =
+        service(DAY_AFTER_TRADE).verify(cancellationConfirmation()).orElseThrow();
+
+    assertThat(result.quantityStatus()).isEqualTo(CANCELLED);
+    assertThat(result.priceStatus()).isEqualTo(CANCELLED);
+    assertThat(result.details())
+        .containsEntry("orderUuid", ORDER_UUID.toString())
+        .containsEntry("cancellationSignature", ISIN + "|FT-ACC|" + TRADE_DATE + "|10.09");
+  }
+
+  @Test
+  void cancellationConfirmation_recordsAuditEvent() {
+    TransactionOrder order = order(new BigDecimal("40434"));
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
+    FtConfirmation confirmation = cancellationConfirmation();
+
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation).orElseThrow();
+
+    verify(auditRecorder).recordVerified(order, confirmation, result);
+  }
+
+  @Test
+  void cancellationConfirmation_orderNotFound_returnsEmpty() {
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of());
+
+    Optional<FtConfirmationResult> result =
+        service(DAY_AFTER_TRADE).verify(cancellationConfirmation());
+
+    assertThat(result).isEmpty();
+    verifyNoInteractions(auditRecorder);
+  }
+
+  @Test
+  void normalConfirmation_picksOrderMatchingQuantityNotOldest() {
+    TransactionOrder oldest = order(10L, new BigDecimal("99999"));
+    TransactionOrder matching = order(42L, new BigDecimal("40434"));
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(oldest, matching));
+    given(executionRepository.findByOrderId(42L))
+        .willReturn(Optional.of(execution(new BigDecimal("40434"))));
+    givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
+
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation()).orElseThrow();
+
+    assertThat(result.quantityStatus()).isEqualTo(OK);
+    assertThat(result.details()).containsEntry("orderUuid", ORDER_UUID.toString());
+  }
+
+  @Test
+  void normalConfirmation_multipleOrdersMatchQuantity_returnsAmbiguous() {
+    TransactionOrder first = order(10L, new BigDecimal("40434"));
+    TransactionOrder second = order(42L, new BigDecimal("40434"));
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(first, second));
+
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation()).orElseThrow();
+
+    assertThat(result.quantityStatus()).isEqualTo(AMBIGUOUS);
+    assertThat(result.priceStatus()).isEqualTo(AMBIGUOUS);
+    assertThat(result.details()).containsEntry("ambiguousOrderCount", "2");
+  }
+
   private FtConfirmation confirmation() {
     return confirmation(new BigDecimal("40434"), new BigDecimal("10.09"));
   }
 
   private FtConfirmation confirmation(BigDecimal quantity, BigDecimal grossPrice) {
     return new FtConfirmation(TUK75, ISIN, TRADE_DATE, quantity, grossPrice);
+  }
+
+  private FtConfirmation cancellationConfirmation() {
+    return new FtConfirmation(
+        TUK75,
+        ISIN,
+        TRADE_DATE,
+        new BigDecimal("40434"),
+        new BigDecimal("10.09"),
+        CANCELLATION,
+        "FT-ACC");
   }
 
   private TransactionOrder givenOrderAndExecution(
@@ -292,15 +371,19 @@ class FtConfirmationVerificationServiceTest {
   }
 
   private TransactionOrder order(BigDecimal orderQuantity) {
+    return order(42L, orderQuantity);
+  }
+
+  private TransactionOrder order(long id, BigDecimal orderQuantity) {
     return TransactionOrder.builder()
-        .id(42L)
+        .id(id)
         .fund(TUK75)
         .instrumentIsin(ISIN)
         .transactionType(BUY)
         .instrumentType(ETF)
         .orderQuantity(orderQuantity)
         .orderVenue(OrderVenue.FT)
-        .orderUuid(ORDER_UUID)
+        .orderUuid(id == 42L ? ORDER_UUID : new UUID(0, id))
         .orderStatus(EXECUTED)
         .orderTimestamp(Instant.parse("2026-06-08T09:30:00Z"))
         .build();

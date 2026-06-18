@@ -32,6 +32,10 @@ class FtConfirmationAuditRecorder {
     payload.put("tradeDate", confirmation.tradeDate().toString());
     payload.put("quantity", confirmation.quantity().toPlainString());
     payload.put("grossPrice", confirmation.grossPrice().toPlainString());
+    payload.put("type", confirmation.type().name());
+    if (confirmation.account() != null) {
+      payload.put("account", confirmation.account());
+    }
     payload.put("quantityStatus", result.quantityStatus().name());
     payload.put("priceStatus", result.priceStatus().name());
     payload.put("details", result.details());

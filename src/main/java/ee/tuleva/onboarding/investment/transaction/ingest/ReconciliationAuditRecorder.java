@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 class ReconciliationAuditRecorder {
 
   static final String EXECUTION_MATCHED = "EXECUTION_MATCHED";
+  static final String EXECUTION_UPDATED = "EXECUTION_UPDATED";
   static final String UNMATCHED_SEB_TRANSACTION = "UNMATCHED_SEB_TRANSACTION";
   static final String QUANTITY_AMOUNT_MISMATCH = "QUANTITY_AMOUNT_MISMATCH";
   static final String SETTLEMENT_DETECTED = "SETTLEMENT_DETECTED";
@@ -30,6 +31,18 @@ class ReconciliationAuditRecorder {
   void recordExecutionMatched(
       TransactionOrder order, SebPendingTransactionRow row, LocalDate reportDate) {
     save(EXECUTION_MATCHED, order, rowPayload(row, reportDate));
+  }
+
+  void recordExecutionUpdated(
+      TransactionOrder order,
+      SebPendingTransactionRow row,
+      LocalDate reportDate,
+      Map<String, Object> before,
+      Map<String, Object> after) {
+    Map<String, Object> payload = rowPayload(row, reportDate);
+    payload.put("before", before);
+    payload.put("after", after);
+    save(EXECUTION_UPDATED, order, payload);
   }
 
   void recordUnmatched(SebPendingTransactionRow row, LocalDate reportDate) {

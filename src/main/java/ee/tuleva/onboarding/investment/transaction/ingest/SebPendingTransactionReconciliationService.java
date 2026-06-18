@@ -1,6 +1,10 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
+import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
+
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
+import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
@@ -14,6 +18,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -39,16 +44,20 @@ public class SebPendingTransactionReconciliationService {
   private final ReconciliationAuditRecorder auditRecorder;
   private final TransactionSettlementRepository settlementRepository;
   private final TransactionSettlementService settlementService;
+  private final InvestmentReportService reportService;
 
   @Transactional
   public void reconcile(InvestmentReport report) {
-    var rows = extractor.extract(report);
+    SebPendingTransactionExtractor.ExtractionResult extraction =
+        extractor.extractWithDiagnostics(report);
+    List<SebPendingTransactionRow> rows = extraction.rows();
     LocalDate reportDate = report.getReportDate();
     TransactionMatchingProperties matchingProperties = matchingPolicy.current();
     log.info(
-        "Reconciling SEB pending transactions: reportDate={}, rowCount={}",
+        "Reconciling SEB pending transactions: reportDate={}, rowCount={}, malformedCount={}",
         reportDate,
-        rows.size());
+        rows.size(),
+        extraction.malformedCount());
 
     int matched = 0;
     int unmatched = 0;
@@ -91,9 +100,16 @@ public class SebPendingTransactionReconciliationService {
         handleSettledOrderReappearance(order, settlement.get(), row, reportDate);
         continue;
       }
-      quantityAmountValidator
-          .validate(order, row, matchingProperties)
-          .ifPresent(mismatch -> reportMismatch(mismatch.withReportDate(reportDate), row));
+      Optional<QuantityAmountMismatchEvent> mismatch =
+          quantityAmountValidator.validate(order, row, matchingProperties);
+      if (mismatch.isPresent()) {
+        // Quarantine: a divergent fill (partial fill, price/qty error) must not be silently
+        // absorbed as EXECUTED. Flag it for manual handling and leave the order in its
+        // pre-execution status; it still counts as present so it is not settled by absence.
+        reportMismatch(mismatch.get().withReportDate(reportDate), row);
+        matched++;
+        continue;
+      }
       if (upsert(row, order, reportDate)) {
         matched++;
       }
@@ -105,7 +121,8 @@ public class SebPendingTransactionReconciliationService {
         matched,
         unmatched);
 
-    detectSettlementsByAbsence(reportDate, rows.size(), matched, presentOrderIds);
+    detectSettlementsByAbsence(
+        reportDate, rows.size(), matched, presentOrderIds, extraction.isComplete());
   }
 
   private void reportMismatch(QuantityAmountMismatchEvent event, SebPendingTransactionRow row) {
@@ -127,10 +144,24 @@ public class SebPendingTransactionReconciliationService {
     if (row.ourRef() == null) {
       return Optional.empty();
     }
-    return executionRepository
-        .findByBrokerTransactionId(row.ourRef())
+    return uniqueExecutionByBrokerRef(row.ourRef())
         .map(TransactionExecution::getOrderId)
         .flatMap(orderRepository::findById);
+  }
+
+  // The broker_transaction_id index is not unique (H2/PG-portable schema), so a duplicate broker
+  // ref must be refused rather than resolved to an arbitrary execution (would silently mislink).
+  private Optional<TransactionExecution> uniqueExecutionByBrokerRef(String brokerRef) {
+    List<TransactionExecution> matches =
+        executionRepository.findAllByBrokerTransactionId(brokerRef);
+    if (matches.size() > 1) {
+      log.error(
+          "Refusing ambiguous broker-ref match: brokerTransactionId={}, executionCount={}",
+          brokerRef,
+          matches.size());
+      return Optional.empty();
+    }
+    return matches.stream().findFirst();
   }
 
   private boolean upsert(
@@ -139,16 +170,17 @@ public class SebPendingTransactionReconciliationService {
       return false;
     }
     Optional<TransactionExecution> existing = executionRepository.findByOrderId(order.getId());
-    TransactionExecution execution =
-        existing
-            .map(
-                e -> {
-                  executionMapper.applyTo(e, row, order);
-                  return e;
-                })
-            .orElseGet(() -> executionMapper.toExecution(row, order));
-    executionRepository.save(execution);
-    if (existing.isEmpty()) {
+    if (existing.isPresent()) {
+      TransactionExecution execution = existing.get();
+      Map<String, Object> before = executionMapper.snapshot(execution);
+      executionMapper.applyTo(execution, row, order);
+      executionRepository.save(execution);
+      Map<String, Object> after = executionMapper.snapshot(execution);
+      if (!before.equals(after)) {
+        auditRecorder.recordExecutionUpdated(order, row, reportDate, before, after);
+      }
+    } else {
+      executionRepository.save(executionMapper.toExecution(row, order));
       auditRecorder.recordExecutionMatched(order, row, reportDate);
     }
 
@@ -177,7 +209,11 @@ public class SebPendingTransactionReconciliationService {
   }
 
   private void detectSettlementsByAbsence(
-      LocalDate reportDate, int rowCount, int matched, Set<Long> presentOrderIds) {
+      LocalDate reportDate,
+      int rowCount,
+      int matched,
+      Set<Long> presentOrderIds,
+      boolean reportComplete) {
     if (rowCount == 0) {
       log.info("Skipping settlement detection on empty report: reportDate={}", reportDate);
       return;
@@ -190,12 +226,32 @@ public class SebPendingTransactionReconciliationService {
           rowCount);
       return;
     }
+    if (!reportComplete) {
+      // A dropped malformed row could make a still-pending order look absent → false settlement.
+      log.warn(
+          "Skipping settlement detection, report had malformed rows: reportDate={}", reportDate);
+      return;
+    }
+    if (!isLatestReport(reportDate)) {
+      // A lookback/backfill replay of an older report must not flip an order SETTLED out of order:
+      // a newer report may still show it pending.
+      log.info("Skipping settlement detection on non-latest report: reportDate={}", reportDate);
+      return;
+    }
     orderRepository.findByOrderStatusIn(List.of(OrderStatus.EXECUTED)).stream()
         .filter(order -> order.getOrderVenue() == OrderVenue.SEB)
         .filter(order -> !presentOrderIds.contains(order.getId()))
         .filter(order -> !settlementRepository.existsByOrderId(order.getId()))
         .filter(order -> executedBefore(order, reportDate))
         .forEach(order -> settleByAbsence(order, reportDate));
+  }
+
+  private boolean isLatestReport(LocalDate reportDate) {
+    return reportService
+        .getLatestReport(SEB, PENDING_TRANSACTIONS)
+        .map(InvestmentReport::getReportDate)
+        .map(latest -> !reportDate.isBefore(latest))
+        .orElse(true);
   }
 
   private boolean executedBefore(TransactionOrder order, LocalDate reportDate) {
@@ -218,8 +274,7 @@ public class SebPendingTransactionReconciliationService {
   private Set<Long> referencedOrderIds(SebPendingTransactionRow row) {
     Set<Long> orderIds = new HashSet<>();
     if (row.ourRef() != null) {
-      executionRepository
-          .findByBrokerTransactionId(row.ourRef())
+      uniqueExecutionByBrokerRef(row.ourRef())
           .map(TransactionExecution::getOrderId)
           .ifPresent(orderIds::add);
     }
@@ -237,8 +292,7 @@ public class SebPendingTransactionReconciliationService {
     if (row.ourRef() == null) {
       return false;
     }
-    Optional<TransactionExecution> byBrokerId =
-        executionRepository.findByBrokerTransactionId(row.ourRef());
+    Optional<TransactionExecution> byBrokerId = uniqueExecutionByBrokerRef(row.ourRef());
     if (byBrokerId.isEmpty()) {
       return false;
     }

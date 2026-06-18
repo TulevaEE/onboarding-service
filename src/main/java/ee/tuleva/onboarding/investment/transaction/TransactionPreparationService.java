@@ -28,6 +28,8 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 @Service
@@ -159,12 +161,6 @@ public class TransactionPreparationService {
     updatedMetadata.put("sebFundXlsx", encodeExport(sebFundXlsx));
     updatedMetadata.put("sebEtfXlsx", encodeExport(sebEtfXlsx));
     updatedMetadata.put("ftEtfXlsx", encodeExport(ftEtfXlsx));
-
-    Map<String, String> driveFileUrls =
-        uploadExportsToDrive(batch, now, sebFundXlsx, sebEtfXlsx, ftEtfXlsx);
-    if (!driveFileUrls.isEmpty()) {
-      updatedMetadata.put("driveFileUrls", driveFileUrls);
-    }
     batch.setMetadata(updatedMetadata);
 
     batch.setStatus(BatchStatus.SENT);
@@ -179,10 +175,50 @@ public class TransactionPreparationService {
             .payload(Map.of("tradeDate", tradeDate.toString(), "orderCount", orders.size()))
             .build());
 
-    eventPublisher.publishEvent(
-        new BatchFinalizedEvent(batch.getId(), orders.size(), tradeDate.toString(), driveFileUrls));
+    runAfterCommit(
+        () ->
+            publishExportsToDrive(
+                batch, now, tradeDate, orders.size(), sebFundXlsx, sebEtfXlsx, ftEtfXlsx));
 
     log.info("Batch finalized: id={}, orderCount={}", batch.getId(), orders.size());
+  }
+
+  private void publishExportsToDrive(
+      TransactionBatch batch,
+      Instant timestamp,
+      LocalDate tradeDate,
+      int orderCount,
+      byte[] sebFundXlsx,
+      byte[] sebEtfXlsx,
+      byte[] ftEtfXlsx) {
+    Map<String, String> driveFileUrls =
+        uploadExportsToDrive(batch, timestamp, sebFundXlsx, sebEtfXlsx, ftEtfXlsx);
+    if (!driveFileUrls.isEmpty()) {
+      persistDriveFileUrls(batch, driveFileUrls);
+    }
+    eventPublisher.publishEvent(
+        new BatchFinalizedEvent(batch.getId(), orderCount, tradeDate.toString(), driveFileUrls));
+  }
+
+  void persistDriveFileUrls(TransactionBatch batch, Map<String, String> driveFileUrls) {
+    Map<String, Object> updatedMetadata = new HashMap<>(batch.getMetadata());
+    updatedMetadata.put("driveFileUrls", driveFileUrls);
+    batch.setMetadata(updatedMetadata);
+    batchRepository.save(batch);
+  }
+
+  private void runAfterCommit(Runnable action) {
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              action.run();
+            }
+          });
+    } else {
+      action.run();
+    }
   }
 
   private List<TransactionOrder> createOrders(

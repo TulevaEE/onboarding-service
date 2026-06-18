@@ -133,6 +133,23 @@ class TransactionExportServiceTest {
   }
 
   @Test
+  void generateSebFundExport_redpRowCarriesQuantityNotTransactionSum() throws Exception {
+    var batch = buildBatch();
+    var sellOrder =
+        buildOrder(batch, TUV100, "LU00FUND", SELL, FUND, SEB, new BigDecimal("30000"), 2400L);
+
+    byte[] xlsx =
+        service.generateSebFundExport(List.of(sellOrder), Map.of("LU00FUND", "SEB Fund X"));
+
+    try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(xlsx))) {
+      var dataRow = workbook.getSheetAt(0).getRow(3);
+      assertThat(dataRow.getCell(9).getStringCellValue()).isEqualTo("REDP");
+      assertThat(dataRow.getCell(14).getNumericCellValue()).isEqualTo(2400.0);
+      assertThat(dataRow.getCell(16)).isNull();
+    }
+  }
+
+  @Test
   void generateSebEtfExport_filtersSebEtfOrdersAndFormatsCorrectly() throws Exception {
     var batch = buildBatch();
 

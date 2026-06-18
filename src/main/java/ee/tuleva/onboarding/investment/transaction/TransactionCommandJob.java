@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.investment.transaction;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.*;
 
 import ee.tuleva.onboarding.investment.event.RunTransactionCommandRequested;
+import java.time.Clock;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -22,6 +24,7 @@ public class TransactionCommandJob {
   private final TransactionBatchRepository batchRepository;
   private final TransactionPreparationService preparationService;
   private final ApplicationEventPublisher eventPublisher;
+  private final Clock clock;
 
   @Scheduled(cron = TRANSACTION_COMMAND, zone = TIMEZONE)
   @SchedulerLock(name = "TransactionCommandJob", lockAtMostFor = "5m", lockAtLeastFor = "30s")
@@ -50,6 +53,10 @@ public class TransactionCommandJob {
         preparationService.processCommand(command);
       } catch (Exception e) {
         log.error("Unexpected error processing command: id={}", command.getId(), e);
+        command.setStatus(CommandStatus.FAILED);
+        command.setErrorMessage(e.getMessage());
+        command.setProcessedAt(Instant.now(clock));
+        commandRepository.save(command);
       }
     }
   }

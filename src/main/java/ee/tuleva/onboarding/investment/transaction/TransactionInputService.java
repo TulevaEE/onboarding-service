@@ -326,6 +326,12 @@ public class TransactionInputService {
   }
 
   private BigDecimal getR45Net(TulevaFund fund) {
+    if (r45ReportService.getIncompleteFunds().contains(fund)) {
+      throw new IllegalStateException(
+          "R45 summary incomplete: fund="
+              + fund
+              + ", reason=unvalued R45 rows missing NAV, action=supply NAV and reprocess R45");
+    }
     R45Result result = r45ReportService.getLatestFlows().get(fund);
     return result == null ? ZERO : result.netEur();
   }

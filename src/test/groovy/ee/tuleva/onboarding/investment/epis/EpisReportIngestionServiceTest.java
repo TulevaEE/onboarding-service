@@ -73,6 +73,9 @@ class EpisReportIngestionServiceTest {
 
   @MockitoBean private FundNavQueryService fundNavQueryService;
 
+  @MockitoBean
+  private ee.tuleva.onboarding.notification.OperationsNotificationService notificationService;
+
   private static final String R17_CSV =
       """
       Seisuga: 01.08.2026;;;;;;;

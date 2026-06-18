@@ -5,13 +5,16 @@ import static ee.tuleva.onboarding.investment.epis.SummaryData.number;
 import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findDate;
 import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findValue;
 import static ee.tuleva.onboarding.investment.report.ReportType.R45;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser;
 import ee.tuleva.onboarding.investment.epis.parser.R45ParseResult;
 import ee.tuleva.onboarding.investment.epis.parser.R45ReportParser;
+import ee.tuleva.onboarding.investment.epis.parser.R45UnvaluedRow;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -21,6 +24,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -40,6 +45,7 @@ public class R45ReportService {
   private final OwnFundNavProvider ownFundNavProvider;
   private final R45ReportParser r45ReportParser;
   private final EpisCsvParser csvParser;
+  private final OperationsNotificationService notificationService;
 
   @Transactional
   public Map<TulevaFund, R45Result> processAndStore(Long reportId) {
@@ -56,11 +62,16 @@ public class R45ReportService {
     String csv = rawCsv(report);
     LocalDate reportDate = report.getReportDate();
     R45ParseResult parsed = r45ReportParser.parse(csv, reportDate, fallbackNavsByIsin(reportDate));
+    Set<String> incompleteFundCodes =
+        parsed.unvaluedRows().stream()
+            .map(R45UnvaluedRow::fundCode)
+            .collect(Collectors.toUnmodifiableSet());
     if (!parsed.unvaluedRows().isEmpty()) {
       log.warn(
           "R45 rows without NAV could not be valued: reportId={}, unvaluedRows={}",
           reportId,
           parsed.unvaluedRows());
+      notificationService.sendMessage(unvaluedAlertMessage(reportId, parsed), INVESTMENT);
     }
     Map<String, List<LocalDate>> redRowDates = redRowSettlementDatesByFundCode(csv);
 
@@ -72,7 +83,14 @@ public class R45ReportService {
     summaryRepository.deleteByReportId(reportId);
     summaryRepository.saveAll(
         results.entrySet().stream()
-            .map(entry -> toSummary(report, entry.getKey(), entry.getValue(), redRowDates))
+            .map(
+                entry ->
+                    toSummary(
+                        report,
+                        entry.getKey(),
+                        entry.getValue(),
+                        redRowDates,
+                        !incompleteFundCodes.contains(entry.getKey().getCode())))
             .toList());
     return results;
   }
@@ -93,6 +111,12 @@ public class R45ReportService {
     return flows;
   }
 
+  public List<TulevaFund> getIncompleteFunds() {
+    return Arrays.stream(TulevaFund.values())
+        .filter(fund -> latestSummary(fund).map(summary -> !summary.getComplete()).orElse(false))
+        .toList();
+  }
+
   public List<LocalDate> getLatestRedRowSettlementDates(TulevaFund fund) {
     return latestSummary(fund)
         .map(summary -> dates(summary.getData(), "redRowSettlementDates"))
@@ -107,13 +131,15 @@ public class R45ReportService {
       InvestmentReport report,
       TulevaFund fund,
       R45Result result,
-      Map<String, List<LocalDate>> redRowDates) {
+      Map<String, List<LocalDate>> redRowDates,
+      boolean complete) {
     return EpisReportSummary.builder()
         .reportId(report.getId())
         .reportType(R45)
         .reportDate(report.getReportDate())
         .fund(fund)
         .fundIsin(fund.getIsin())
+        .complete(complete)
         .data(
             Map.of(
                 "inflowEur", result.inflowEur(),
@@ -124,6 +150,19 @@ public class R45ReportService {
                         .map(LocalDate::toString)
                         .toList()))
         .build();
+  }
+
+  private static String unvaluedAlertMessage(Long reportId, R45ParseResult parsed) {
+    StringBuilder message =
+        new StringBuilder(
+            "⚠️ R45 ridu ilma NAV-ita ei saanud hinnata (vooge blokeeritud kuni NAV lisatakse): reportId=%s"
+                .formatted(reportId));
+    for (R45UnvaluedRow row : parsed.unvaluedRows()) {
+      message.append(
+          "\n%s %s: %s osakut, ISIN %s"
+              .formatted(row.fundCode(), row.transactionType(), row.units(), row.isin()));
+    }
+    return message.toString();
   }
 
   private Map<String, List<LocalDate>> redRowSettlementDatesByFundCode(String csv) {

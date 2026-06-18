@@ -58,6 +58,11 @@ public class EpisReportSummary {
   @JdbcTypeCode(JSON)
   private Map<String, Object> data = Map.of();
 
+  @NotNull
+  @Builder.Default
+  @Column(name = "complete")
+  private Boolean complete = true;
+
   private Instant createdAt;
 
   @PrePersist

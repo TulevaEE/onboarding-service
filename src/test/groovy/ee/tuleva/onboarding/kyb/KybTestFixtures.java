@@ -361,7 +361,8 @@ public final class KybTestFixtures {
   }
 
   // =====================================================================
-  // Rule 33: Two person OÜ — single board member (board member and owner may differ)
+  // Rule 33: Two person OÜ — single board member (who must be a shareholder, but need not be the
+  // beneficial owner)
   // =====================================================================
 
   static List<CompanyRelationship> rule33PassRelationships() {
@@ -383,7 +384,7 @@ public final class KybTestFixtures {
     return companyData(VALID_COMPANY, JAAN, R, List.of(boardMember, otherOwner), VALID_CERT);
   }
 
-  static KybCompanyData rule33Pass_boardMemberIsDirector() {
+  static KybCompanyData rule33Fail_boardMemberOwnsNoShares() {
     var boardMember = boardMemberOnly(JAAN).build();
     var owner = shareholderOwner(MARI, 100.0).build();
     return companyData(VALID_COMPANY, JAAN, R, List.of(boardMember, owner), VALID_CERT);

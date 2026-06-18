@@ -33,8 +33,9 @@ class SingleBoardMemberOwnershipScreenerTest {
   }
 
   @Test
-  void boardMemberIsADirectorAndTheOtherPersonIsTheBeneficialOwnerPasses() {
-    // The board member and the beneficial owner do not have to be the same person.
+  void failsWhenTheSoleBoardMemberOwnsNoShares() {
+    // The board member must also be a shareholder. A pure director with no stake fails,
+    // even though the other person is the beneficial owner.
     var boardMember = boardMemberOnly("38501010001").build();
     var owner = shareholderOwner("38501010002", 100.0).build();
     var data = companyWith(boardMember, owner);
@@ -43,11 +44,12 @@ class SingleBoardMemberOwnershipScreenerTest {
 
     assertThat(result)
         .extracting(KybCheck::type, KybCheck::success)
-        .containsExactly(tuple(SINGLE_BOARD_MEMBER_OWNERSHIP, true));
+        .containsExactly(tuple(SINGLE_BOARD_MEMBER_OWNERSHIP, false));
   }
 
   @Test
-  void boardMemberIsAShareholderAndTheOtherPersonIsTheBeneficialOwnerPasses() {
+  void boardMemberIsAShareholderButNotTheBeneficialOwnerPasses() {
+    // The board member need not be the beneficial owner, only a shareholder.
     var boardMember =
         kybPerson("38501010001")
             .boardMember(true)

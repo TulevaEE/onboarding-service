@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.transaction.calculation.TradeCalculationEngine;
+import ee.tuleva.onboarding.investment.transaction.export.CustodianOrderEmailSender;
 import ee.tuleva.onboarding.investment.transaction.export.GoogleDriveProperties;
 import ee.tuleva.onboarding.investment.transaction.export.TransactionExportService;
 import ee.tuleva.onboarding.investment.transaction.export.TransactionExportUploader;
@@ -49,6 +50,7 @@ public class TransactionPreparationService {
   private final ApplicationEventPublisher eventPublisher;
   private final GoogleDriveProperties driveProperties;
   @Nullable private final TransactionExportUploader exportUploader;
+  private final CustodianOrderEmailSender custodianOrderEmailSender;
   private final Clock clock;
 
   @Transactional
@@ -88,7 +90,7 @@ public class TransactionPreparationService {
               .createdAt(Instant.now(clock))
               .payload(
                   Map.of(
-                      "input", serializeInput(input),
+                      "input", serializeInput(input, command.getManualAdjustments()),
                       "output", serializeTrades(result.trades()),
                       "summary",
                           Map.of(
@@ -191,11 +193,13 @@ public class TransactionPreparationService {
       byte[] sebFundXlsx,
       byte[] sebEtfXlsx,
       byte[] ftEtfXlsx) {
-    Map<String, String> driveFileUrls =
-        uploadExportsToDrive(batch, timestamp, sebFundXlsx, sebEtfXlsx, ftEtfXlsx);
+    var exports =
+        Map.of("sebFundXlsx", sebFundXlsx, "sebEtfXlsx", sebEtfXlsx, "ftEtfXlsx", ftEtfXlsx);
+    Map<String, String> driveFileUrls = uploadExportsToDrive(batch, timestamp, exports);
     if (!driveFileUrls.isEmpty()) {
       persistDriveFileUrls(batch, driveFileUrls);
     }
+    custodianOrderEmailSender.send(batch.getFund(), timestamp, exports);
     eventPublisher.publishEvent(
         new BatchFinalizedEvent(batch.getId(), orderCount, tradeDate.toString(), driveFileUrls));
   }
@@ -283,7 +287,8 @@ public class TransactionPreparationService {
     return instrumentType == InstrumentType.FUND && transactionType == TransactionType.BUY;
   }
 
-  static Map<String, Object> serializeInput(FundTransactionInput input) {
+  static Map<String, Object> serializeInput(
+      FundTransactionInput input, Map<String, Object> manualAdjustments) {
     return Map.ofEntries(
         Map.entry(
             "positions",
@@ -317,7 +322,8 @@ public class TransactionPreparationService {
                             Map.of(
                                 "softLimit", entry.getValue().softLimit().toPlainString(),
                                 "hardLimit", entry.getValue().hardLimit().toPlainString())))),
-        Map.entry("fastSellIsins", List.copyOf(input.fastSellIsins())));
+        Map.entry("fastSellIsins", List.copyOf(input.fastSellIsins())),
+        Map.entry("manualAdjustments", Map.copyOf(manualAdjustments)));
   }
 
   static List<Map<String, Object>> serializeTrades(List<TradeCalculation> trades) {
@@ -342,17 +348,11 @@ public class TransactionPreparationService {
   }
 
   private Map<String, String> uploadExportsToDrive(
-      TransactionBatch batch,
-      Instant timestamp,
-      byte[] sebFundXlsx,
-      byte[] sebEtfXlsx,
-      byte[] ftEtfXlsx) {
+      TransactionBatch batch, Instant timestamp, Map<String, byte[]> exports) {
     if (!driveProperties.enabled() || exportUploader == null) {
       return Map.of();
     }
     try {
-      var exports =
-          Map.of("sebFundXlsx", sebFundXlsx, "sebEtfXlsx", sebEtfXlsx, "ftEtfXlsx", ftEtfXlsx);
       return exportUploader.uploadExports(
           driveProperties.rootFolderId(), batch.getFund(), timestamp, exports);
     } catch (Exception e) {

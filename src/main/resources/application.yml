@@ -191,6 +191,12 @@ transaction-registry:
       - funds@tuleva.ee
     cc:
       - taavi.pertman@tuleva.ee
+  # Outbound order notification to the custodian (SEB trustee). Inert by default:
+  # disabled and with no recipients, so nothing is sent until explicitly configured.
+  custodian-order-email:
+    enabled: ${TRANSACTION_REGISTRY_CUSTODIAN_ORDER_EMAIL_ENABLED:false}
+    to: ${TRANSACTION_REGISTRY_CUSTODIAN_ORDER_EMAIL_TO:}
+    cc: ${TRANSACTION_REGISTRY_CUSTODIAN_ORDER_EMAIL_CC:}
   settlement-check:
     # How far back the daily settlement check scans SENT/EXECUTED orders. Bounds the
     # scan because orders never transition to SETTLED, so the EXECUTED backlog grows.

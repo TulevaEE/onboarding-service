@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.transaction.calculation.TradeCalculationEngine;
+import ee.tuleva.onboarding.investment.transaction.export.CustodianOrderEmailSender;
 import ee.tuleva.onboarding.investment.transaction.export.GoogleDriveProperties;
 import ee.tuleva.onboarding.investment.transaction.export.TransactionExportService;
 import ee.tuleva.onboarding.investment.transaction.export.TransactionExportUploader;
@@ -55,6 +56,7 @@ class TransactionPreparationServiceTest {
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private GoogleDriveProperties driveProperties;
   @Mock private TransactionExportUploader exportUploader;
+  @Mock private CustodianOrderEmailSender custodianOrderEmailSender;
   @Mock private PositionPriceResolver positionPriceResolver;
   @Mock private Clock clock;
 
@@ -128,6 +130,76 @@ class TransactionPreparationServiceTest {
   }
 
   @Test
+  void processCommand_persistsManualAdjustmentsInCalculationSnapshot() {
+    var manualAdjustments = Map.<String, Object>of("IE00A", "25000");
+    var command =
+        TransactionCommand.builder()
+            .id(8L)
+            .fund(TUV100)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(manualAdjustments)
+            .status(PROCESSING)
+            .build();
+
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("500000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(new BigDecimal("50000"))
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var trades =
+        List.of(
+            new TradeCalculation(
+                "IE00A", new BigDecimal("100000"), new BigDecimal("0.60"), LimitStatus.OK));
+
+    var calculationResult = new FundCalculationResult(TUV100, BUY, input, trades);
+
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), manualAdjustments))
+        .willReturn(input);
+    given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
+    given(batchRepository.save(any(TransactionBatch.class)))
+        .willAnswer(
+            invocation -> {
+              TransactionBatch batch = invocation.getArgument(0);
+              batch.setId(1L);
+              return batch;
+            });
+
+    service.processCommand(command);
+
+    var expectedEvent =
+        TransactionAuditEvent.builder()
+            .eventType("CALCULATION_COMPLETED")
+            .actor("system")
+            .createdAt(Instant.now(clock))
+            .payload(
+                Map.of(
+                    "input", TransactionPreparationService.serializeInput(input, manualAdjustments),
+                    "output", TransactionPreparationService.serializeTrades(trades),
+                    "summary",
+                        Map.of(
+                            "fund", TUV100.name(),
+                            "mode", BUY.name(),
+                            "tradeCount", 1)))
+            .build();
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                event ->
+                    "CALCULATION_COMPLETED".equals(event.getEventType())
+                        && event.getPayload().equals(expectedEvent.getPayload())));
+  }
+
+  @Test
   void serializeInput_serializesAllFieldsToPlainStrings() {
     var input =
         FundTransactionInput.builder()
@@ -147,7 +219,9 @@ class TransactionPreparationServiceTest {
             .fastSellIsins(Set.of("IE00A"))
             .build();
 
-    var result = TransactionPreparationService.serializeInput(input);
+    var manualAdjustments = Map.<String, Object>of("IE00A", "10000");
+
+    var result = TransactionPreparationService.serializeInput(input, manualAdjustments);
 
     assertThat(result).containsEntry("grossPortfolioValue", "1000000");
     assertThat(result).containsEntry("freeCash", "100000");
@@ -159,6 +233,7 @@ class TransactionPreparationServiceTest {
     assertThat(result).containsKey("modelWeights");
     assertThat(result).containsKey("positionLimits");
     assertThat(result).containsKey("fastSellIsins");
+    assertThat(result).containsEntry("manualAdjustments", manualAdjustments);
   }
 
   @Test
@@ -753,6 +828,7 @@ class TransactionPreparationServiceTest {
     service.finalizeConfirmedBatch(batch);
 
     verifyNoInteractions(exportUploader);
+    verifyNoInteractions(custodianOrderEmailSender);
     verify(eventPublisher, never()).publishEvent(any(BatchFinalizedEvent.class));
 
     var synchronizations = TransactionSynchronizationManager.getSynchronizations();
@@ -761,6 +837,7 @@ class TransactionPreparationServiceTest {
 
     verify(exportUploader).uploadExports(eq("root-folder-id"), eq(TUV100), any(), any());
     assertThat(batch.getMetadata()).containsKey("driveFileUrls");
+    verify(custodianOrderEmailSender).send(eq(TUV100), any(), any());
     verify(eventPublisher).publishEvent(any(BatchFinalizedEvent.class));
   }
 }

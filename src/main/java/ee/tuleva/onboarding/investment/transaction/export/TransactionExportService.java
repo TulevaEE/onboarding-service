@@ -114,8 +114,14 @@ public class TransactionExportService {
         row.createCell(9).setCellValue(order.getTransactionType() == BUY ? "SUBS" : "REDP");
         row.createCell(12).setCellValue(labelsByIsin.getOrDefault(order.getInstrumentIsin(), ""));
         row.createCell(13).setCellValue(order.getInstrumentIsin());
-        if (order.getOrderAmount() != null) {
-          row.createCell(16).setCellValue(order.getOrderAmount().doubleValue());
+        if (order.getTransactionType() == BUY) {
+          if (order.getOrderAmount() != null) {
+            row.createCell(16).setCellValue(order.getOrderAmount().doubleValue());
+          }
+        } else {
+          if (order.getOrderQuantity() != null) {
+            row.createCell(14).setCellValue(order.getOrderQuantity().doubleValue());
+          }
         }
       }
 

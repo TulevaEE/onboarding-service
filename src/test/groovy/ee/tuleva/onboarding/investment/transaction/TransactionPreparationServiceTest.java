@@ -30,12 +30,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @ExtendWith(MockitoExtension.class)
 class TransactionPreparationServiceTest {
@@ -56,6 +59,13 @@ class TransactionPreparationServiceTest {
   @Mock private Clock clock;
 
   @InjectMocks private TransactionPreparationService service;
+
+  @AfterEach
+  void clearSynchronization() {
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.clearSynchronization();
+    }
+  }
 
   @Test
   void processCommand_createsBatchAndOrders() {
@@ -694,5 +704,63 @@ class TransactionPreparationServiceTest {
 
     assertThat(batch.getMetadata()).containsKey("driveFileUrls");
     verify(exportUploader).uploadExports(eq("root-folder-id"), eq(TUV100), any(), any());
+  }
+
+  @Test
+  void finalizeConfirmedBatch_uploadsToDriveOnlyAfterCommit() {
+    when(clock.instant()).thenReturn(Instant.parse("2026-01-15T10:00:00Z"));
+    when(clock.getZone()).thenReturn(ZoneId.of("Europe/Tallinn"));
+
+    var batch =
+        TransactionBatch.builder()
+            .id(1L)
+            .fund(TUV100)
+            .status(CONFIRMED)
+            .createdBy("system")
+            .metadata(new HashMap<>(Map.of("commandId", 1L)))
+            .build();
+
+    var order =
+        TransactionOrder.builder()
+            .batch(batch)
+            .fund(TUV100)
+            .instrumentIsin("IE00A")
+            .transactionType(TransactionType.BUY)
+            .instrumentType(InstrumentType.ETF)
+            .orderAmount(new BigDecimal("100000"))
+            .orderVenue(OrderVenue.SEB)
+            .orderStatus(OrderStatus.PENDING)
+            .build();
+
+    given(orderRepository.findByBatchId(batch.getId())).willReturn(List.of(order));
+    given(settlementDateCalculator.calculateSettlementDate(any(), any(), any()))
+        .willReturn(LocalDate.of(2026, 1, 19));
+    given(
+            modelPortfolioAllocationRepository.findLatestByFundAsOf(
+                TUV100, LocalDate.of(2026, 1, 15)))
+        .willReturn(List.of());
+    given(exportService.generateOrdersExport(any())).willReturn(new byte[] {1});
+    given(exportService.generateSebFundExport(any(), any())).willReturn(new byte[] {2});
+    given(exportService.generateSebEtfExport(any(), any())).willReturn(new byte[] {3});
+    given(exportService.generateFtEtfExport(any(), any(), any())).willReturn(new byte[] {4});
+    given(driveProperties.enabled()).willReturn(true);
+    given(driveProperties.rootFolderId()).willReturn("root-folder-id");
+    given(exportUploader.uploadExports(any(), any(), any(), any()))
+        .willReturn(Map.of("sebFundXlsx", "https://drive.google.com/file1"));
+
+    TransactionSynchronizationManager.initSynchronization();
+
+    service.finalizeConfirmedBatch(batch);
+
+    verifyNoInteractions(exportUploader);
+    verify(eventPublisher, never()).publishEvent(any(BatchFinalizedEvent.class));
+
+    var synchronizations = TransactionSynchronizationManager.getSynchronizations();
+    assertThat(synchronizations).hasSize(1);
+    synchronizations.forEach(TransactionSynchronization::afterCommit);
+
+    verify(exportUploader).uploadExports(eq("root-folder-id"), eq(TUV100), any(), any());
+    assertThat(batch.getMetadata()).containsKey("driveFileUrls");
+    verify(eventPublisher).publishEvent(any(BatchFinalizedEvent.class));
   }
 }

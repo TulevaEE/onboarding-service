@@ -1,0 +1,12 @@
+[
+  {
+    "isikukood": "48503150000",
+    "eesnimi": "MARI",
+    "perekonnanimi": "MAASIKAS",
+    "synniKuupaev": "1985-03-15",
+    "isikuStaatus": { "kood": "ISIKU_STAATUS", "elemendiKood": "E", "nimetus": "ELUS" },
+    "pohiKodakondsus": {
+      "riik": { "kood": "RIIK", "elemendiKood": "233", "nimetus": "EESTI VABARIIK" }
+    }
+  }
+]

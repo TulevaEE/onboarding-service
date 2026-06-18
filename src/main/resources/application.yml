@@ -84,6 +84,10 @@ ariregister:
   username: ${ARIREGISTER_USERNAME:}
   password: ${ARIREGISTER_PASSWORD:}
 
+population-register:
+  url: ${POPULATION_REGISTER_URL:http://localhost:9000}
+  client-id: ${POPULATION_REGISTER_CLIENT_ID:EE/COM/00000000/non-production}
+
 seb-gateway:
   enabled: false
   keystore:
@@ -451,3 +455,7 @@ spring:
 
 sentry:
   environment: production
+
+population-register:
+  url: ${POPULATION_REGISTER_URL:https://xroad-consumer.tuleva.ee/r1/EE/GOV/70008440/rr/domesticDataExchange/v1}
+  client-id: ${POPULATION_REGISTER_CLIENT_ID:EE/COM/14118923/tuleva-fund-management}

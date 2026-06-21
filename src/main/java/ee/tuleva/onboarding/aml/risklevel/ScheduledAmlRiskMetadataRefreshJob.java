@@ -15,6 +15,7 @@ public class ScheduledAmlRiskMetadataRefreshJob {
 
   private final AmlRiskReader amlRiskReader;
   private final TkfRiskReader tkfRiskReader;
+  private final CompanyRiskReader companyRiskReader;
 
   @Scheduled(cron = "0 0 9,13,16 * * ?", zone = "Europe/Tallinn")
   @SchedulerLock(
@@ -32,6 +33,11 @@ public class ScheduledAmlRiskMetadataRefreshJob {
       tkfRiskReader.refreshMaterializedView();
     } catch (Exception e) {
       log.error("TKF risk metadata view refresh failed", e);
+    }
+    try {
+      companyRiskReader.refreshMaterializedView();
+    } catch (Exception e) {
+      log.error("Company risk metadata view refresh failed", e);
     }
     log.info("Finished scheduled risk metadata view refresh");
   }

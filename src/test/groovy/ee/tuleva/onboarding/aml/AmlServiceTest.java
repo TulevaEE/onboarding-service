@@ -841,20 +841,18 @@ class AmlServiceTest {
     // when
     List<AmlCheck> result = amlService.addSanctionAndPepCheckIfMissing(user, country);
 
-    // then: the failure increments a metric
+    // then
     assertTrue(result.isEmpty(), "Should return an empty list on exception");
     assertEquals(
         1.0,
         meterRegistry.counter("aml.screening.failure", "phase", "match").count(),
         "Screening failure should increment the aml.screening.failure metric");
-
-    // ...and this single-record path does not send a per-call alert (the batch aggregates instead)
     verify(notificationService, never()).sendMessage(anyString(), any());
   }
 
   @Test
   void runAmlChecksOnThirdPillarCustomers_sendsSingleAggregatedAlertOnScreeningFailures() {
-    // given: three customers, two of whom fail screening
+    // given
     AnalyticsRecentThirdPillar ok = thirdPillarRecord("ok", "EE");
     AnalyticsRecentThirdPillar fail1 = thirdPillarRecord("fail1", "EE");
     AnalyticsRecentThirdPillar fail2 = thirdPillarRecord("fail2", "EE");
@@ -875,13 +873,11 @@ class AmlServiceTest {
     // when
     amlService.runAmlChecksOnThirdPillarCustomers();
 
-    // then: exactly ONE aggregated Slack summary is sent and it carries the failure count
-    ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
+    // then
     verify(notificationService, times(1))
-        .sendMessage(messageCaptor.capture(), eq(OperationsNotificationService.Channel.AML));
-    assertThat(messageCaptor.getValue()).contains("2 of 3");
-
-    // and the healthy customer was still screened (its checks persisted)
+        .sendMessage(
+            "AML batch: sanction/PEP screening failed for 2 of 3 third-pillar customers this run",
+            OperationsNotificationService.Channel.AML);
     verify(amlCheckRepository, times(2)).save(any(AmlCheck.class));
     assertEquals(
         2.0,
@@ -891,7 +887,7 @@ class AmlServiceTest {
 
   @Test
   void runAmlChecksOnThirdPillarCustomers_slackFailureDoesNotAbortBatch() {
-    // given: every customer fails screening AND the aggregated Slack send itself throws
+    // given
     AnalyticsRecentThirdPillar c1 = thirdPillarRecord("c1", "EE");
     AnalyticsRecentThirdPillar c2 = thirdPillarRecord("c2", "EE");
     when(analyticsRecentThirdPillarRepository.findAll()).thenReturn(List.of(c1, c2));
@@ -901,10 +897,9 @@ class AmlServiceTest {
         .when(notificationService)
         .sendMessage(anyString(), any());
 
-    // when / then: a notification exception must not propagate out of the batch
+    // when / then
     assertDoesNotThrow(() -> amlService.runAmlChecksOnThirdPillarCustomers());
 
-    // both customers were processed despite the screening + Slack failures
     assertEquals(
         2.0,
         meterRegistry.counter("aml.screening.failure", "phase", "match").count(),

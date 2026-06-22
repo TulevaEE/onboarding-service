@@ -95,7 +95,6 @@ public class AmlService {
     return screenForSanctionAndPep(person, country).checks();
   }
 
-  /** Outcome of a single sanction/PEP screening: the checks added, and whether screening failed. */
   private record ScreeningResult(List<AmlCheck> checks, boolean failed) {}
 
   private ScreeningResult screenForSanctionAndPep(Person person, Country country) {
@@ -103,8 +102,6 @@ public class AmlService {
     try {
       response = pepAndSanctionCheckService.match(person, country);
     } catch (RuntimeException e) {
-      // Record the failure (log + metric) without rethrowing, so processing continues; the
-      // batch aggregates these into a single alert (see runAmlChecksOnThirdPillarCustomers).
       handleScreeningFailure(person, "match", e);
       return new ScreeningResult(List.of(), true);
     }
@@ -117,8 +114,6 @@ public class AmlService {
   }
 
   private void handleScreeningFailure(Person person, String phase, RuntimeException e) {
-    // Per-failure observability: an error log (with personal code) and a metric increment.
-    // The aggregated alert is sent once per run (see runAmlChecksOnThirdPillarCustomers).
     log.error(
         "Sanction/PEP screening failed for personalCode={} during phase={}",
         person.getPersonalCode(),
@@ -186,21 +181,17 @@ public class AmlService {
 
     int failureCount = 0;
     for (AnalyticsRecentThirdPillar record : records) {
-      // Track failures locally per record and send a single aggregated alert below.
       try {
         if (screenForSanctionAndPep(record, new Country(record.getCountry())).failed()) {
           failureCount++;
         }
       } catch (RuntimeException e) {
-        // Defensive: an unexpected error for one record must not abort the rest of the run.
         handleScreeningFailure(record, "batch", e);
         failureCount++;
       }
     }
 
     if (failureCount > 0) {
-      // Single aggregated alert per run; per-record detail lives in logs/metrics. Wrapped in its
-      // own try/catch so a notification error cannot affect processing.
       try {
         notificationService.sendMessage(
             "AML batch: sanction/PEP screening failed for %d of %d third-pillar customers this run"
@@ -232,8 +223,6 @@ public class AmlService {
                             .anyMatch(topic -> topic.asText().startsWith(topicNameStartsWith))
                         && result.get("match").asBoolean())
             .toList();
-    // Observational only: the match decision is unchanged — it comes solely from the
-    // OpenSanctions "match" flag above; no local threshold or score filtering is applied here.
     hits.forEach(
         hit ->
             log.info(

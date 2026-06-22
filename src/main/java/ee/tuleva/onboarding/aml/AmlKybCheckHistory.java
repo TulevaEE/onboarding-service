@@ -26,6 +26,8 @@ public class AmlKybCheckHistory implements KybCheckHistory {
               AmlCheckType.KYB_SINGLE_BOARD_MEMBER_OWNERSHIP,
               KybCheckType.SINGLE_BOARD_MEMBER_OWNERSHIP),
           entry(AmlCheckType.KYB_COMPANY_ACTIVE, KybCheckType.COMPANY_ACTIVE),
+          entry(AmlCheckType.KYB_COMPANY_AGE, KybCheckType.COMPANY_AGE),
+          entry(AmlCheckType.KYB_COMPANY_LEGAL_FORM, KybCheckType.COMPANY_LEGAL_FORM),
           entry(AmlCheckType.KYB_RELATED_PERSONS_KYC, KybCheckType.RELATED_PERSONS_KYC),
           entry(AmlCheckType.KYB_COMPANY_SANCTION, KybCheckType.COMPANY_SANCTION),
           entry(AmlCheckType.KYB_COMPANY_PEP, KybCheckType.COMPANY_PEP),

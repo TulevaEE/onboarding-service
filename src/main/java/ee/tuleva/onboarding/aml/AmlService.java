@@ -21,7 +21,9 @@ import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.user.User;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -46,6 +48,8 @@ public class AmlService {
   private final AnalyticsRecentThirdPillarRepository analyticsRecentThirdPillarRepository;
   private final UserConversionService userConversionService;
   private final JsonMapper jsonMapper;
+  private final MeterRegistry meterRegistry;
+  private final OperationsNotificationService notificationService;
 
   public void checkUserBeforeLogin(User user, Person person, Boolean isResident) {
     addDocumentCheck(user);
@@ -88,18 +92,34 @@ public class AmlService {
   }
 
   public List<AmlCheck> addSanctionAndPepCheckIfMissing(Person person, Country country) {
+    return screenForSanctionAndPep(person, country).checks();
+  }
+
+  private record ScreeningResult(List<AmlCheck> checks, boolean failed) {}
+
+  private ScreeningResult screenForSanctionAndPep(Person person, Country country) {
     MatchResponse response;
     try {
       response = pepAndSanctionCheckService.match(person, country);
     } catch (RuntimeException e) {
-      log.error("Error calling matching service", e);
-      return List.of();
+      handleScreeningFailure(person, "match", e);
+      return new ScreeningResult(List.of(), true);
     }
 
     Optional<AmlCheck> pepCheck = addPepCheckIfMissing(person, response);
     Optional<AmlCheck> sanctionCheck = addSanctionCheckIfMissing(person, response);
 
-    return Stream.of(pepCheck, sanctionCheck).flatMap(Optional::stream).toList();
+    List<AmlCheck> checks = Stream.of(pepCheck, sanctionCheck).flatMap(Optional::stream).toList();
+    return new ScreeningResult(checks, false);
+  }
+
+  private void handleScreeningFailure(Person person, String phase, RuntimeException e) {
+    log.error(
+        "Sanction/PEP screening failed for personalCode={} during phase={}",
+        person.getPersonalCode(),
+        phase,
+        e);
+    meterRegistry.counter("aml.screening.failure", "phase", phase).increment();
   }
 
   private Optional<AmlCheck> addSanctionCheckIfMissing(Person person, MatchResponse response) {
@@ -159,15 +179,33 @@ public class AmlService {
     log.info("Running III pillar AML checks on {} records", records.size());
     eventPublisher.publishEvent(new AmlChecksRunEvent(this, records));
 
-    records.forEach(
-        record -> {
-          MatchResponse response =
-              pepAndSanctionCheckService.match(record, new Country(record.getCountry()));
-          addPepCheckIfMissing(record, response);
-          addSanctionCheckIfMissing(record, response);
-        });
+    int failureCount = 0;
+    for (AnalyticsRecentThirdPillar record : records) {
+      try {
+        if (screenForSanctionAndPep(record, new Country(record.getCountry())).failed()) {
+          failureCount++;
+        }
+      } catch (RuntimeException e) {
+        handleScreeningFailure(record, "batch", e);
+        failureCount++;
+      }
+    }
 
-    log.info("Successfully ran III pillar AML checks on {} records", records.size());
+    if (failureCount > 0) {
+      try {
+        notificationService.sendMessage(
+            "AML batch: sanction/PEP screening failed for %d of %d third-pillar customers this run"
+                .formatted(failureCount, records.size()),
+            OperationsNotificationService.Channel.AML);
+      } catch (RuntimeException e) {
+        log.error("Failed to send aggregated AML batch screening-failure alert", e);
+      }
+    }
+
+    log.info(
+        "Successfully ran III pillar AML checks on {} records ({} screening failures)",
+        records.size(),
+        failureCount);
   }
 
   private Map<String, Object> metadata(JsonNode results, JsonNode query) {
@@ -177,12 +215,23 @@ public class AmlService {
   }
 
   private boolean hasMatch(Iterable<JsonNode> results, String topicNameStartsWith) {
-    return stream(results)
-        .anyMatch(
-            result ->
-                stream(result.get("properties").get("topics"))
-                        .anyMatch(topic -> topic.asText().startsWith(topicNameStartsWith))
-                    && result.get("match").asBoolean());
+    List<JsonNode> hits =
+        stream(results)
+            .filter(
+                result ->
+                    stream(result.get("properties").get("topics"))
+                            .anyMatch(topic -> topic.asText().startsWith(topicNameStartsWith))
+                        && result.get("match").asBoolean())
+            .toList();
+    hits.forEach(
+        hit ->
+            log.info(
+                "AML screening hit: topic={}, caption={}, score={}, id={}",
+                topicNameStartsWith,
+                hit.path("caption").asText(null),
+                hit.path("score").isMissingNode() ? null : hit.path("score").asDouble(),
+                hit.path("id").asText(null)));
+    return !hits.isEmpty();
   }
 
   private <T> Stream<T> stream(Iterable<T> iterable) {

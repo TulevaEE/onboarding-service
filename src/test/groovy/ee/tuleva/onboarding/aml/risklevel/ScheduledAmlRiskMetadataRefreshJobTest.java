@@ -16,18 +16,21 @@ class ScheduledAmlRiskMetadataRefreshJobTest {
 
   @Mock private TkfRiskReader tkfRiskReader;
 
+  @Mock private CompanyRiskReader companyRiskReader;
+
   @InjectMocks private ScheduledAmlRiskMetadataRefreshJob scheduledAmlRiskMetadataRefreshJob;
 
   @Test
-  void refreshesAmlAndTkfViews() {
+  void refreshesAmlTkfAndCompanyViews() {
     scheduledAmlRiskMetadataRefreshJob.refreshAmlRiskMetadata();
 
     verify(amlRiskReader).refreshAmlRiskMetadataView();
     verify(tkfRiskReader).refreshMaterializedView();
+    verify(companyRiskReader).refreshMaterializedView();
   }
 
   @Test
-  void tkfRefreshStillRunsWhenAmlRefreshFails() {
+  void tkfAndCompanyRefreshStillRunWhenAmlRefreshFails() {
     willThrow(new RuntimeException("AML refresh failure"))
         .given(amlRiskReader)
         .refreshAmlRiskMetadataView();
@@ -35,10 +38,11 @@ class ScheduledAmlRiskMetadataRefreshJobTest {
     scheduledAmlRiskMetadataRefreshJob.refreshAmlRiskMetadata();
 
     verify(tkfRiskReader).refreshMaterializedView();
+    verify(companyRiskReader).refreshMaterializedView();
   }
 
   @Test
-  void amlRefreshStillRunsWhenTkfRefreshFails() {
+  void amlAndCompanyRefreshStillRunWhenTkfRefreshFails() {
     willThrow(new RuntimeException("TKF refresh failure"))
         .given(tkfRiskReader)
         .refreshMaterializedView();
@@ -46,5 +50,18 @@ class ScheduledAmlRiskMetadataRefreshJobTest {
     scheduledAmlRiskMetadataRefreshJob.refreshAmlRiskMetadata();
 
     verify(amlRiskReader).refreshAmlRiskMetadataView();
+    verify(companyRiskReader).refreshMaterializedView();
+  }
+
+  @Test
+  void amlAndTkfRefreshStillRunWhenCompanyRefreshFails() {
+    willThrow(new RuntimeException("Company refresh failure"))
+        .given(companyRiskReader)
+        .refreshMaterializedView();
+
+    scheduledAmlRiskMetadataRefreshJob.refreshAmlRiskMetadata();
+
+    verify(amlRiskReader).refreshAmlRiskMetadataView();
+    verify(tkfRiskReader).refreshMaterializedView();
   }
 }

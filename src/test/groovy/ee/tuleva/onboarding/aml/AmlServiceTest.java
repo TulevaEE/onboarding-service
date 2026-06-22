@@ -29,8 +29,11 @@ import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -70,6 +73,8 @@ class AmlServiceTest {
   @Mock private AnalyticsRecentThirdPillarRepository analyticsRecentThirdPillarRepository;
   @Mock private UserConversionService userConversionService;
   @Spy private JsonMapper jsonMapper = JsonMapper.builder().build();
+  @Spy private MeterRegistry meterRegistry = new SimpleMeterRegistry();
+  @Mock private OperationsNotificationService notificationService;
 
   @InjectMocks private AmlService amlService;
 
@@ -823,6 +828,96 @@ class AmlServiceTest {
     // then
     assertTrue(result.isEmpty(), "Should return an empty list on exception");
     verify(amlCheckRepository, never()).save(any());
+  }
+
+  @Test
+  void addSanctionAndPepCheckIfMissing_screeningFailureIsObservable() {
+    // given
+    User user = createUser("38001010000", "First", "Last", 1L);
+    Country country = new Country("EE");
+    when(pepAndSanctionCheckService.match(user, country))
+        .thenThrow(new RuntimeException("Match service error"));
+
+    // when
+    List<AmlCheck> result = amlService.addSanctionAndPepCheckIfMissing(user, country);
+
+    // then: the failure increments a metric
+    assertTrue(result.isEmpty(), "Should return an empty list on exception");
+    assertEquals(
+        1.0,
+        meterRegistry.counter("aml.screening.failure", "phase", "match").count(),
+        "Screening failure should increment the aml.screening.failure metric");
+
+    // ...and this single-record path does not send a per-call alert (the batch aggregates instead)
+    verify(notificationService, never()).sendMessage(anyString(), any());
+  }
+
+  @Test
+  void runAmlChecksOnThirdPillarCustomers_sendsSingleAggregatedAlertOnScreeningFailures() {
+    // given: three customers, two of whom fail screening
+    AnalyticsRecentThirdPillar ok = thirdPillarRecord("ok", "EE");
+    AnalyticsRecentThirdPillar fail1 = thirdPillarRecord("fail1", "EE");
+    AnalyticsRecentThirdPillar fail2 = thirdPillarRecord("fail2", "EE");
+    when(analyticsRecentThirdPillarRepository.findAll()).thenReturn(List.of(fail1, ok, fail2));
+
+    MatchResponse emptyMatchResponse =
+        new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
+    when(pepAndSanctionCheckService.match(eq(ok), any(Country.class)))
+        .thenReturn(emptyMatchResponse);
+    when(pepAndSanctionCheckService.match(eq(fail1), any(Country.class)))
+        .thenThrow(new RuntimeException("Match service error"));
+    when(pepAndSanctionCheckService.match(eq(fail2), any(Country.class)))
+        .thenThrow(new RuntimeException("Match service error"));
+    when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+            anyString(), any(AmlCheckType.class), any(Instant.class)))
+        .thenReturn(false);
+
+    // when
+    amlService.runAmlChecksOnThirdPillarCustomers();
+
+    // then: exactly ONE aggregated Slack summary is sent and it carries the failure count
+    ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
+    verify(notificationService, times(1))
+        .sendMessage(messageCaptor.capture(), eq(OperationsNotificationService.Channel.AML));
+    assertThat(messageCaptor.getValue()).contains("2 of 3");
+
+    // and the healthy customer was still screened (its checks persisted)
+    verify(amlCheckRepository, times(2)).save(any(AmlCheck.class));
+    assertEquals(
+        2.0,
+        meterRegistry.counter("aml.screening.failure", "phase", "match").count(),
+        "Both screening failures should increment the metric");
+  }
+
+  @Test
+  void runAmlChecksOnThirdPillarCustomers_slackFailureDoesNotAbortBatch() {
+    // given: every customer fails screening AND the aggregated Slack send itself throws
+    AnalyticsRecentThirdPillar c1 = thirdPillarRecord("c1", "EE");
+    AnalyticsRecentThirdPillar c2 = thirdPillarRecord("c2", "EE");
+    when(analyticsRecentThirdPillarRepository.findAll()).thenReturn(List.of(c1, c2));
+    when(pepAndSanctionCheckService.match(any(Person.class), any(Country.class)))
+        .thenThrow(new RuntimeException("Match service error"));
+    doThrow(new RuntimeException("Slack is down"))
+        .when(notificationService)
+        .sendMessage(anyString(), any());
+
+    // when / then: a notification exception must not propagate out of the batch
+    assertDoesNotThrow(() -> amlService.runAmlChecksOnThirdPillarCustomers());
+
+    // both customers were processed despite the screening + Slack failures
+    assertEquals(
+        2.0,
+        meterRegistry.counter("aml.screening.failure", "phase", "match").count(),
+        "Both customers should have been screened");
+  }
+
+  private AnalyticsRecentThirdPillar thirdPillarRecord(String personalCode, String country) {
+    AnalyticsRecentThirdPillar record = mock(AnalyticsRecentThirdPillar.class);
+    when(record.getPersonalCode()).thenReturn(personalCode);
+    when(record.getCountry()).thenReturn(country);
+    when(record.getFirstName()).thenReturn("First");
+    when(record.getLastName()).thenReturn("Last");
+    return record;
   }
 
   @Test

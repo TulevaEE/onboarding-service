@@ -41,13 +41,16 @@ public class KybDataChangeDetector {
 
     for (var current : currentChecks) {
       var previous = previousByType.get(current.type());
+      // A newly introduced check TYPE (the screener gained a check, e.g. COMPANY_AGE) is not a
+      // change in the company's data — baseline it silently. Otherwise DATA_CHANGED false-fires for
+      // every company on the first screening after a screener expansion (AML #78). The new check's
+      // own risk is scored on its own aml_check row, independent of DATA_CHANGED. A genuine
+      // structural change (a conditional check swapping in, e.g. sole- -> dual-member) is still
+      // caught below, because the previously applicable check disappears (removed-check loop).
       if (previous == null) {
-        changes.add(
-            Map.of(
-                "check", current.type().name(),
-                "previousSuccess", "N/A",
-                "currentSuccess", current.success()));
-      } else if (changed(previous, current)) {
+        continue;
+      }
+      if (changed(previous, current)) {
         changes.add(
             Map.of(
                 "check", current.type().name(),

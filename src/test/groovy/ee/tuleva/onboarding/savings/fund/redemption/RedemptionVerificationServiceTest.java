@@ -62,7 +62,7 @@ class RedemptionVerificationServiceTest {
             .success(true)
             .build();
 
-    given(userService.getByIdOrThrow(userId)).willReturn(user);
+    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
     given(kycSurveyService.getCountry(userId)).willReturn(Optional.of(country));
     given(amlService.addSanctionAndPepCheckIfMissing(user, country)).willReturn(List.of(passing));
 
@@ -85,7 +85,7 @@ class RedemptionVerificationServiceTest {
     var user = sampleUser().id(userId).build();
     var country = new Country("EE");
 
-    given(userService.getByIdOrThrow(userId)).willReturn(user);
+    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
     given(kycSurveyService.getCountry(userId)).willReturn(Optional.of(country));
     given(amlService.addSanctionAndPepCheckIfMissing(user, country)).willReturn(List.of());
 
@@ -113,7 +113,7 @@ class RedemptionVerificationServiceTest {
             .success(false)
             .build();
 
-    given(userService.getByIdOrThrow(userId)).willReturn(user);
+    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
     given(kycSurveyService.getCountry(userId)).willReturn(Optional.of(country));
     given(amlService.addSanctionAndPepCheckIfMissing(user, country)).willReturn(List.of(failing));
 
@@ -121,6 +121,35 @@ class RedemptionVerificationServiceTest {
 
     verify(redemptionStatusService).changeStatus(requestId, IN_REVIEW);
     verify(redemptionStatusService, never()).changeStatus(requestId, VERIFIED);
+  }
+
+  @Test
+  void process_personRequest_screensThePartyNotTheActor() {
+    var actorUserId = 1L;
+    var childCode = "61506150006";
+    var requestId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .userId(actorUserId)
+            .partyId(new PartyId(PERSON, childCode))
+            .build();
+    var child = sampleUser().id(2L).personalCode(childCode).build();
+    var country = new Country("EE");
+    var passing =
+        AmlCheck.builder()
+            .personalCode(childCode)
+            .type(AmlCheckType.SANCTION)
+            .success(true)
+            .build();
+
+    given(userService.findByPersonalCode(childCode)).willReturn(Optional.of(child));
+    given(kycSurveyService.getCountry(child.getId())).willReturn(Optional.of(country));
+    given(amlService.addSanctionAndPepCheckIfMissing(child, country)).willReturn(List.of(passing));
+
+    service.process(request);
+
+    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
   }
 
   @Test
@@ -133,8 +162,18 @@ class RedemptionVerificationServiceTest {
             .build();
     var user = sampleUser().id(userId).build();
 
-    given(userService.getByIdOrThrow(userId)).willReturn(user);
+    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
     given(kycSurveyService.getCountry(userId)).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.process(request)).isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void process_personRequest_throwsWhenPartyUserNotFound() {
+    var request =
+        redemptionRequestFixture().userId(1L).partyId(new PartyId(PERSON, "61506150006")).build();
+
+    given(userService.findByPersonalCode("61506150006")).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.process(request)).isInstanceOf(IllegalStateException.class);
   }

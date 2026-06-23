@@ -3,10 +3,13 @@ package ee.tuleva.onboarding.kyc.survey;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.auth.role.Role;
+import ee.tuleva.onboarding.auth.role.RoleType;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyc.KycCheckService;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -51,20 +54,45 @@ class KycSurveyServiceTest {
   }
 
   @Test
-  void submit_flushesTheSurveySoTheSameTransactionRiskQueryCanSeeIt() {
-    var person = sampleAuthenticatedPersonNonMember().build();
+  void submit_storesSurveyUnderActiveRoleSubjectAndRunsCheckOnSubject() {
+    var childCode = "61506150006";
+    var person =
+        sampleAuthenticatedPersonNonMember()
+            .role(new Role(RoleType.PERSON, childCode, "Child Person"))
+            .build();
+    var subject = User.builder().id(7L).personalCode(childCode).build();
     var survey =
         identitySurvey(
             new Address(
                 new AddressValue(
                     "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))));
+    given(userService.findByPersonalCode(childCode)).willReturn(Optional.of(subject));
     given(kycSurveyRepository.saveAndFlush(any(KycSurvey.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
     var saved = kycSurveyService.submit(person, survey);
 
     assertThat(saved.getSurvey()).isEqualTo(survey);
-    verify(kycCheckService).check(person, new Country("EE"), survey.purpose());
+    assertThat(saved.getUserId()).isEqualTo(subject.getId());
+    verify(kycCheckService).check(subject, new Country("EE"), survey.purpose());
+  }
+
+  @Test
+  void submit_throwsWhenActiveRoleSubjectNotFound() {
+    var childCode = "61506150006";
+    var person =
+        sampleAuthenticatedPersonNonMember()
+            .role(new Role(RoleType.PERSON, childCode, "Child Person"))
+            .build();
+    var survey =
+        identitySurvey(
+            new Address(
+                new AddressValue(
+                    "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))));
+    given(userService.findByPersonalCode(childCode)).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> kycSurveyService.submit(person, survey))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test

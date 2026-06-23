@@ -52,7 +52,7 @@ class KycIdentityControllerTest {
 
   @Test
   void getIdentity_returnsCompleteIdentity() throws Exception {
-    given(kycSurveyService.getIdentity(authPerson.getUserId()))
+    given(kycSurveyService.getIdentity(authPerson))
         .willReturn(
             new KycIdentityResponse(
                 List.of("EE", "FI"),
@@ -79,7 +79,7 @@ class KycIdentityControllerTest {
 
   @Test
   void getIdentity_returnsEmptyIncompleteIdentityForFreshUser() throws Exception {
-    given(kycSurveyService.getIdentity(authPerson.getUserId()))
+    given(kycSurveyService.getIdentity(authPerson))
         .willReturn(new KycIdentityResponse(null, null, null, null, null, null));
 
     mvc.perform(get("/v1/kyc/identity").with(authentication(authentication)))

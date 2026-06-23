@@ -56,7 +56,13 @@ public class RedemptionVerificationService {
   }
 
   private boolean runPersonChecks(RedemptionRequest request) {
-    User user = userService.getByIdOrThrow(request.getUserId());
+    User user =
+        userService
+            .findByPersonalCode(request.getPartyId().code())
+            .orElseThrow(
+                () ->
+                    new IllegalStateException(
+                        "Redemption party user not found: party=" + request.getPartyId()));
     Country country =
         kycSurveyService
             .getCountry(user.getId())

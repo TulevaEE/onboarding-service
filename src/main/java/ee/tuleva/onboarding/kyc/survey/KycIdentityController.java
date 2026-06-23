@@ -19,6 +19,6 @@ class KycIdentityController {
   @Operation(summary = "Get the latest KYC identity of the authenticated person")
   public KycIdentityResponse getIdentity(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    return kycSurveyService.getIdentity(authenticatedPerson.getUserId());
+    return kycSurveyService.getIdentity(authenticatedPerson);
   }
 }

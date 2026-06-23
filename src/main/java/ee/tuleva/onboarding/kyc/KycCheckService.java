@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.kyc;
 
-import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.country.Country;
+import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -13,10 +13,10 @@ public class KycCheckService {
   private final ApplicationEventPublisher eventPublisher;
   private final KycChecker kycChecker;
 
-  public void check(AuthenticatedPerson person, Country country, KycSurveyPurpose purpose) {
-    eventPublisher.publishEvent(new BeforeKycCheckedEvent(person, country));
-    var kycCheck = kycChecker.check(person.getUserId());
+  public void check(User subject, Country country, KycSurveyPurpose purpose) {
+    eventPublisher.publishEvent(new BeforeKycCheckedEvent(subject, country));
+    var kycCheck = kycChecker.check(subject.getId());
     eventPublisher.publishEvent(
-        new KycCheckPerformedEvent(this, person.getPersonalCode(), kycCheck, purpose));
+        new KycCheckPerformedEvent(this, subject.getPersonalCode(), kycCheck, purpose));
   }
 }

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.kyc.survey;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyc.KycCheckService;
+import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -19,17 +20,21 @@ public class KycSurveyService {
 
   @Transactional
   public KycSurvey submit(AuthenticatedPerson person, KycSurveyResponse surveyResponse) {
-    KycSurvey survey =
-        KycSurvey.builder().userId(person.getUserId()).survey(surveyResponse).build();
+    User subject = resolveSubject(person);
+    KycSurvey survey = KycSurvey.builder().userId(subject.getId()).survey(surveyResponse).build();
     // The risk assessment reads kyc_survey with plain JDBC inside this same
     // transaction, which does not trigger Hibernate's auto-flush — without an
     // explicit flush a first-time submitter's survey is invisible to it.
     KycSurvey saved = kycSurveyRepository.saveAndFlush(survey);
 
     var country = extractCountry(surveyResponse);
-    kycCheckService.check(person, country, surveyResponse.purpose());
+    kycCheckService.check(subject, country, surveyResponse.purpose());
 
     return saved;
+  }
+
+  public KycIdentityResponse getIdentity(AuthenticatedPerson person) {
+    return getIdentity(resolveSubject(person).getId());
   }
 
   public KycIdentityResponse getIdentity(Long userId) {
@@ -45,6 +50,15 @@ public class KycSurveyService {
         .findFirstByUserIdOrderByCreatedTimeDesc(userId)
         .flatMap(survey -> survey.getSurvey().address())
         .map(address -> new Country(address.countryCode()));
+  }
+
+  private User resolveSubject(AuthenticatedPerson person) {
+    return userService
+        .findByPersonalCode(person.getRoleCode())
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "KYC subject user not found: roleCode=" + person.getRoleCode()));
   }
 
   private Country extractCountry(KycSurveyResponse surveyResponse) {

@@ -56,8 +56,8 @@ class IsinMatchChecker {
         }
       }
       if (position.getQuantity() == null || position.getQuantity().compareTo(ZERO) == 0) {
-        boolean inCurrent = isin != null && currentIsins.contains(isin);
-        boolean inPrevious = isin != null && previousIsins.contains(isin);
+        boolean inCurrent = currentIsins.contains(isin);
+        boolean inPrevious = previousIsins.contains(isin);
         if (inCurrent && inPrevious) {
           findings.add(
               new HealthCheckFinding(

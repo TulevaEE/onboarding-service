@@ -603,7 +603,7 @@ class PaymentVerificationServiceTest {
     when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
     when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(PERSON, childCode)))
         .thenReturn(true);
-    when(parentChildLinkService.represents(parentCode, childCode)).thenReturn(true);
+    when(parentChildLinkService.isActiveRepresentation(parentCode, childCode)).thenReturn(true);
 
     service.process(payment);
 
@@ -639,7 +639,7 @@ class PaymentVerificationServiceTest {
     var parentCode = "38812121215";
     var childCode = "61506150006";
     var payment = createPayment(parentCode, "for child " + childCode);
-    when(parentChildLinkService.represents(parentCode, childCode)).thenReturn(false);
+    when(parentChildLinkService.isActiveRepresentation(parentCode, childCode)).thenReturn(false);
 
     service.process(payment);
 

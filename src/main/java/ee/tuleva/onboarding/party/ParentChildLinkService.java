@@ -15,15 +15,15 @@ public class ParentChildLinkService {
 
   public List<String> findActivelyRepresentedChildCodes(String parentPersonalCode) {
     return parentChildLinkRepository
-        .findByParentPersonalCodeAndValidUntilAfter(parentPersonalCode, today())
+        .findByParentPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(parentPersonalCode, today())
         .stream()
         .map(ParentChildLink::getChildPersonalCode)
         .toList();
   }
 
-  public boolean represents(String parentPersonalCode, String childPersonalCode) {
+  public boolean isActiveRepresentation(String parentPersonalCode, String childPersonalCode) {
     return parentChildLinkRepository
-        .existsByParentPersonalCodeAndChildPersonalCodeAndValidUntilAfter(
+        .existsByParentPersonalCodeAndChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
             parentPersonalCode, childPersonalCode, today());
   }
 

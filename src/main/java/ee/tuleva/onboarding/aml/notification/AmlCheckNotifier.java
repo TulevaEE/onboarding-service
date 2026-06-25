@@ -25,7 +25,8 @@ public class AmlCheckNotifier {
                 SANCTION,
                 RISK_LEVEL,
                 TKF_RISK_LEVEL,
-                KYC_CHECK)
+                KYC_CHECK,
+                CUSTODY_RIGHT)
             .contains(event.getAmlCheckType())
         && event.isFailed()) {
       notificationService.sendMessage(

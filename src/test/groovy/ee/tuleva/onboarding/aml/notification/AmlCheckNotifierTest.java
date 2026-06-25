@@ -36,6 +36,19 @@ class AmlCheckNotifierTest {
   }
 
   @Test
+  void onAmlCheckCreated_custodyRightFailed_sendsSlackMessage() {
+    AmlCheckCreatedEvent event = mock(AmlCheckCreatedEvent.class);
+    given(event.getAmlCheckType()).willReturn(CUSTODY_RIGHT);
+    given(event.isFailed()).willReturn(true);
+    given(event.getCheckId()).willReturn(789L);
+
+    notifier.onAmlCheckCreated(event);
+
+    verify(notificationService)
+        .sendMessage("AML check failed: checkId=789, type=CUSTODY_RIGHT", AML);
+  }
+
+  @Test
   @DisplayName("Should send Slack message when an AML check of a specific type has failed")
   void onAmlCheckCreated_inListAndFailed_sendsSlackMessage() {
     AmlCheckCreatedEvent event = mock(AmlCheckCreatedEvent.class);

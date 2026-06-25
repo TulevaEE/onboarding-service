@@ -203,7 +203,8 @@ class RoleSwitchServiceTest {
 
   @Test
   void switchToActivelyRepresentedChildGeneratesTokens() {
-    when(parentChildLinkService.represents(person.getPersonalCode(), CHILD_CODE)).thenReturn(true);
+    when(parentChildLinkService.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
+        .thenReturn(true);
     when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
     when(principalService.withRole(any(), any())).thenReturn(person);
     when(tokenService.generateTokens(any()))
@@ -217,7 +218,8 @@ class RoleSwitchServiceTest {
 
   @Test
   void switchToRepresentedChildPublishesAuditEvent() {
-    when(parentChildLinkService.represents(person.getPersonalCode(), CHILD_CODE)).thenReturn(true);
+    when(parentChildLinkService.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
+        .thenReturn(true);
     when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
     when(principalService.withRole(any(), any())).thenReturn(person);
     when(tokenService.generateTokens(any()))
@@ -235,7 +237,8 @@ class RoleSwitchServiceTest {
 
   @Test
   void switchToRepresentedChildPublishesNoAuditEventWhenTokenGenerationFails() {
-    when(parentChildLinkService.represents(person.getPersonalCode(), CHILD_CODE)).thenReturn(true);
+    when(parentChildLinkService.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
+        .thenReturn(true);
     when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
     when(principalService.withRole(any(), any())).thenReturn(person);
     when(tokenService.generateTokens(any()))
@@ -249,7 +252,8 @@ class RoleSwitchServiceTest {
 
   @Test
   void switchToChildWithoutActiveLinkPublishesNoAuditEvent() {
-    when(parentChildLinkService.represents(person.getPersonalCode(), CHILD_CODE)).thenReturn(false);
+    when(parentChildLinkService.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
+        .thenReturn(false);
 
     assertThatThrownBy(
             () -> roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, CHILD_CODE)))
@@ -259,7 +263,8 @@ class RoleSwitchServiceTest {
 
   @Test
   void switchToChildWithoutActiveLinkThrows() {
-    when(parentChildLinkService.represents(person.getPersonalCode(), CHILD_CODE)).thenReturn(false);
+    when(parentChildLinkService.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
+        .thenReturn(false);
 
     assertThatThrownBy(
             () -> roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, CHILD_CODE)))

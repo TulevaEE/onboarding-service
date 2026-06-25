@@ -101,12 +101,7 @@ public class NavPublisher {
       NavCalculationResult result, List<NavReportRow> reportRows, UUID calculationId) {
     Optional<String> gateFailure = checkGates(result);
     if (gateFailure.isPresent()) {
-      log.error(
-          "NAV report blocked by gate, rows remain unpublished: fund={}, date={}, reason={}",
-          result.fund(),
-          result.positionReportDate(),
-          gateFailure.get());
-      notificationService.sendMessage("NAV report blocked: " + gateFailure.get(), SAVINGS);
+      routeToInternalReview(result, reportRows, calculationId, gateFailure.get());
       return;
     }
 
@@ -127,6 +122,48 @@ public class NavPublisher {
               + result.positionReportDate(),
           SAVINGS);
     }
+  }
+
+  private void routeToInternalReview(
+      NavCalculationResult result,
+      List<NavReportRow> reportRows,
+      UUID calculationId,
+      String reason) {
+    log.error(
+        "NAV report held by TD gate, routing to internal review (NOT sent to SEB): fund={}, date={}, reason={}",
+        result.fund(),
+        result.positionReportDate(),
+        reason);
+    pipelineTracker.stepStarted(REPORT_EMAIL);
+    if (navReportEmailSender.sendForReview(reportRows, result)) {
+      navReportRepository.markAsPublished(calculationId);
+      pipelineTracker.stepCompleted(REPORT_EMAIL);
+      notificationService.sendMessage(reviewActionMessage(result, reason), SAVINGS);
+    } else {
+      pipelineTracker.stepFailed(REPORT_EMAIL, "internal review email failed");
+      log.error(
+          "NAV review email failed, rows remain unpublished: fund={}, date={}",
+          result.fund(),
+          result.positionReportDate());
+      notificationService.sendMessage(
+          "NAV review email FAILED (rows unpublished): fund=%s, date=%s — %s"
+              .formatted(result.fund().getCode(), result.positionReportDate(), reason),
+          SAVINGS);
+    }
+  }
+
+  private String reviewActionMessage(NavCalculationResult result, String reason) {
+    return """
+        🔴 NAV report HELD for review — NOT sent to SEB.
+        %s
+        The CSV report was emailed to funds@tuleva.ee.
+
+        What to do now:
+        1. Verify the NAV in the "%s NAV arvutamine ..." email (funds@tuleva.ee) reconciles with the SEB custodian report.
+        2. If correct, forward that email to trustee@seb.ee.
+        3. Optional (needs compliance sign-off) — widen the TD gate going forward:
+           INSERT INTO investment_parameter (parameter_name, fund_code, effective_date, numeric_value) VALUES ('TRACKING_BREACH_THRESHOLD', NULL, CURRENT_DATE, 0.005);"""
+        .formatted(reason, result.fund().getCode());
   }
 
   private boolean sendEmail(List<NavReportRow> reportRows, NavCalculationResult result) {

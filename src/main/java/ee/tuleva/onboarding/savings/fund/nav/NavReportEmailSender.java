@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.notification.email.EmailService;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.List;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -29,6 +30,15 @@ class NavReportEmailSender {
   private final EmailService emailService;
 
   boolean send(List<NavReportRow> rows, NavCalculationResult result) {
+    return sendTo(rows, result, depositaryRecipients());
+  }
+
+  boolean sendForReview(List<NavReportRow> rows, NavCalculationResult result) {
+    return sendTo(rows, result, reviewers());
+  }
+
+  private boolean sendTo(
+      List<NavReportRow> rows, NavCalculationResult result, List<Recipient> recipients) {
     var csvBytes = navReportCsvGenerator.generate(rows);
 
     var fundCode = result.fund().getCode();
@@ -47,28 +57,7 @@ class NavReportEmailSender {
         <p>Parimat,<br>Tuleva robot</p>
         """
             .formatted(fundCode));
-
-    var trustee = new Recipient();
-    trustee.setEmail("trustee@seb.ee");
-    trustee.setType(TO);
-
-    var fundsRecipient = new Recipient();
-    fundsRecipient.setEmail("funds@tuleva.ee");
-    fundsRecipient.setType(CC);
-
-    var taavi = new Recipient();
-    taavi.setEmail("taavi.pertman@tuleva.ee");
-    taavi.setType(CC);
-
-    var compliance = new Recipient();
-    compliance.setEmail("compliance@tuleva.ee");
-    compliance.setType(CC);
-
-    var erko = new Recipient();
-    erko.setEmail("erko.risthein@tuleva.ee");
-    erko.setType(BCC);
-
-    message.setTo(List.of(trustee, fundsRecipient, taavi, compliance, erko));
+    message.setTo(recipients);
 
     var attachment = new MessageContent();
     attachment.setName(
@@ -86,5 +75,24 @@ class NavReportEmailSender {
     }
 
     return sent;
+  }
+
+  private List<Recipient> reviewers() {
+    return List.of(
+        recipient("funds@tuleva.ee", TO),
+        recipient("taavi.pertman@tuleva.ee", CC),
+        recipient("compliance@tuleva.ee", CC),
+        recipient("erko.risthein@tuleva.ee", BCC));
+  }
+
+  private List<Recipient> depositaryRecipients() {
+    return Stream.concat(Stream.of(recipient("trustee@seb.ee", TO)), reviewers().stream()).toList();
+  }
+
+  private Recipient recipient(String email, Recipient.Type type) {
+    var recipient = new Recipient();
+    recipient.setEmail(email);
+    recipient.setType(type);
+    return recipient;
   }
 }

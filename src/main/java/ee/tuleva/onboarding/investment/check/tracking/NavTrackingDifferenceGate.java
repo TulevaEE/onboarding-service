@@ -25,32 +25,48 @@ public class NavTrackingDifferenceGate {
     pipelineTracker.stepStarted(TRACKING_DIFFERENCE);
     try {
       var results = trackingDifferenceService.checkFund(fund, navDate);
-      trackingDifferenceNotifier.notify(results);
+      if (results.isEmpty()) {
+        // No NAV pair or no model data — the check could not run. Surface it (the report is going
+        // out unvalidated) but do not block.
+        trackingDifferenceNotifier.notifyCheckCouldNotRun(fund, navDate);
+      } else {
+        trackingDifferenceNotifier.notify(results);
+      }
       pipelineTracker.stepCompleted(TRACKING_DIFFERENCE);
 
+      // Block only on the NAV-correctness residual, not on the informational fund-vs-model TD.
+      // On a MOC trade / model-switch day the fund-vs-model TD breaches but navResidual stays ~0
+      // (the fund earned its begin-of-day portfolio's return), so the NAV report is not blocked.
       var breaches =
           results.stream()
               .filter(r -> r.checkType() == MODEL_PORTFOLIO)
-              .filter(TrackingDifferenceResult::breach)
+              .filter(TrackingDifferenceResult::navResidualBreach)
               .toList();
       if (!breaches.isEmpty()) {
         var details =
             breaches.stream()
                 .map(
                     r ->
-                        "%s TD=%s (fund=%s, benchmark=%s)"
+                        "%s navResidual=%s (fund=%s, implied=%s, TD=%s)"
                             .formatted(
                                 r.checkType(),
-                                r.trackingDifference().toPlainString(),
+                                r.navResidual().toPlainString(),
                                 r.fundReturn().toPlainString(),
-                                r.benchmarkReturn().toPlainString()))
+                                r.impliedFundReturn().toPlainString(),
+                                r.trackingDifference().toPlainString()))
                 .collect(joining("; "));
         return Optional.of(
             "TD breach: fund=%s, date=%s, %s".formatted(fund.getCode(), navDate, details));
       }
       return Optional.empty();
     } catch (TrackingDifferenceService.IncompletePriceDataException e) {
-      trackingDifferenceNotifier.notify(e.completedResults());
+      if (e.completedResults().isEmpty()) {
+        // The check could not run (missing security prices) — surface it explicitly instead of the
+        // misleading empty "within limits".
+        trackingDifferenceNotifier.notifyCheckCouldNotRun(fund, navDate);
+      } else {
+        trackingDifferenceNotifier.notify(e.completedResults());
+      }
       pipelineTracker.stepFailed(TRACKING_DIFFERENCE, e.getMessage());
       log.warn("TD gate incomplete price data, proceeding: fund={}, date={}", fund, navDate);
       return Optional.empty();

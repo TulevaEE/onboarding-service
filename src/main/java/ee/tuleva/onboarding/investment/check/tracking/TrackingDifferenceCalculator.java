@@ -140,6 +140,43 @@ class TrackingDifferenceCalculator {
 
     var residual = trackingDifference.subtract(attributedSum).setScale(SCALE, HALF_UP);
 
+    // NAV-correctness view: compare the realised fund NAV return against the return implied by the
+    // holdings the fund actually held entering the day (begin-of-day / yesterday's EOD snapshot).
+    // On a MOC trade day the fund earns its begin-of-day portfolio's return intraday, so this
+    // residual collapses to ~0 even though the fund-vs-model TD does not — that is what the NAV
+    // gate
+    // keys on. A genuine price error on a held (untraded) instrument still surfaces here. When the
+    // begin-of-day snapshot is unavailable (null fraction / empty holdings) navResidual is not
+    // computable, so we fail soft: report ZERO and do NOT raise navResidualBreach (the gate must
+    // not
+    // block on data we could not validate, nor manufacture a residual from zero weights).
+    BigDecimal impliedFundReturn = null;
+    var navResidual = ZERO;
+    var navResidualBreach = false;
+    if (input.bodSecuritiesFraction() != null
+        && input.bodHoldings() != null
+        && !input.bodHoldings().isEmpty()) {
+      var impliedSleeveReturn =
+          input.bodHoldings().stream()
+              .filter(b -> b.today().price() != null && b.previous().price() != null)
+              .filter(b -> b.previous().price().signum() != 0)
+              .map(
+                  b ->
+                      b.weight()
+                          .multiply(
+                              safeDailyReturn(
+                                  b.today().price(), b.previous().price(), maxDailyReturn)))
+              .reduce(ZERO, BigDecimal::add);
+      impliedFundReturn =
+          input
+              .bodSecuritiesFraction()
+              .multiply(impliedSleeveReturn)
+              .add(feeDrag)
+              .setScale(SCALE, HALF_UP);
+      navResidual = fundReturn.subtract(impliedFundReturn).setScale(SCALE, HALF_UP);
+      navResidualBreach = navResidual.abs().compareTo(breachThreshold) >= 0;
+    }
+
     return Optional.of(
         TrackingDifferenceResult.builder()
             .fund(input.fund())
@@ -154,6 +191,9 @@ class TrackingDifferenceCalculator {
             .cashDrag(cashDrag)
             .feeDrag(feeDrag)
             .residual(residual)
+            .impliedFundReturn(impliedFundReturn)
+            .navResidual(navResidual)
+            .navResidualBreach(navResidualBreach)
             .build());
   }
 
@@ -176,7 +216,12 @@ class TrackingDifferenceCalculator {
       List<SecurityData> securities,
       BigDecimal cashWeight,
       BigDecimal annualFeeRate,
-      int consecutiveBreachDays) {}
+      int consecutiveBreachDays,
+      // Begin-of-day holdings (yesterday's EOD security snapshot) and their share of total NAV,
+      // used for the NAV-correctness residual. Null/empty when not supplied (non-MODEL_PORTFOLIO
+      // callers and unit fixtures) — navResidual then degenerates to fund return minus fee drag.
+      @Nullable List<BodHolding> bodHoldings,
+      @Nullable BigDecimal bodSecuritiesFraction) {}
 
   record PriceSnapshot(@Nullable BigDecimal price, @Nullable LocalDate date) {}
 
@@ -186,4 +231,7 @@ class TrackingDifferenceCalculator {
       BigDecimal actualWeight,
       PriceSnapshot today,
       PriceSnapshot previous) {}
+
+  // A security the fund held entering the day, weighted within the begin-of-day securities sleeve.
+  record BodHolding(String isin, BigDecimal weight, PriceSnapshot today, PriceSnapshot previous) {}
 }

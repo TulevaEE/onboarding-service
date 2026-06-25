@@ -14,6 +14,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
@@ -237,6 +238,163 @@ class TrackingDifferenceServiceTest {
     assertThat(weightSum).isEqualByComparingTo(BigDecimal.ONE);
     assertThat(diffSum.abs()).isLessThan(new BigDecimal("0.000001"));
     assertThat(contribSum.abs()).isLessThan(new BigDecimal("0.000001"));
+  }
+
+  @Test
+  void modelSwitchTradeDayBreachesTdButNavResidualWithinLimits() {
+    // Reproduces the TUK75 2026-06-22 incident: the model already counts a freshly bought
+    // instrument (+0.81%) while the fund still held its begin-of-day portfolio (+0.23%) intraday
+    // and traded MOC. The fund-vs-model TD breaches, but the realised NAV matches the begin-of-day
+    // holdings, so navResidual ~0 and the NAV gate must not block.
+    setupTradeDayScenario();
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    assertThat(model.trackingDifference()).isEqualByComparingTo(new BigDecimal("-0.0058"));
+    assertThat(model.breach()).isTrue();
+    assertThat(model.navResidual()).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(model.navResidualBreach()).isFalse();
+    // Begin-of-day holdings are anchored on the previous FUND NAV date (previousWorkingDay), never
+    // a
+    // later custodian/instrument date.
+    verify(fundPositionRepository)
+        .findByNavDateAndFundAndAccountType(PREVIOUS_DATE, TUK75, SECURITY);
+  }
+
+  @Test
+  void navResidualSkippedWhenBeginningOfDayHoldingsUnavailable() {
+    setupTradeDayScenario();
+    // No begin-of-day snapshot for the previous fund NAV date.
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(PREVIOUS_DATE, TUK75, SECURITY))
+        .willReturn(List.of());
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, PREVIOUS_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(ZERO);
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    assertThat(model.breach()).isTrue(); // fund-vs-model TD still computed
+    assertThat(model.navResidualBreach()).isFalse(); // fail soft: gate not blocked
+  }
+
+  @Test
+  void beginningOfDayHoldingsAnchorOnPreviousWorkingDayAcrossWeekend() {
+    // checkDate is a Monday; the previous fund NAV date is the Friday before. Begin-of-day
+    // holdings,
+    // NAV and prices must anchor on that Friday — never the intervening weekend (which a custodian
+    // "latest snapshot" lookup could wrongly pick up).
+    var monday = LocalDate.of(2026, 4, 13);
+    var friday = LocalDate.of(2026, 4, 10);
+    var saturday = LocalDate.of(2026, 4, 11);
+    var sunday = LocalDate.of(2026, 4, 12);
+    var isin = "IE00HELD";
+
+    given(fundNavQueryService.findLatestNavDateOnOrBefore(TUK75.getCode(), monday))
+        .willReturn(Optional.of(monday));
+    for (var f : TulevaFund.values()) {
+      if (f != TUK75) {
+        given(fundNavQueryService.findLatestNavDateOnOrBefore(f.getCode(), monday))
+            .willReturn(Optional.empty());
+      }
+    }
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), monday))
+        .willReturn(Optional.of(new BigDecimal("10.02")));
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), friday))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, monday))
+        .willReturn(
+            List.of(
+                ModelPortfolioAllocation.builder()
+                    .fund(TUK75)
+                    .isin(isin)
+                    .weight(new BigDecimal("1.00"))
+                    .effectiveDate(LocalDate.of(2026, 1, 1))
+                    .build()));
+    given(positionPriceResolver.resolve(eq(isin), eq(monday), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.20")));
+    given(positionPriceResolver.resolve(eq(isin), eq(friday), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(monday, TUK75, SECURITY))
+        .willReturn(List.of(positionFor(isin, monday)));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(friday, TUK75, SECURITY))
+        .willReturn(List.of(positionFor(isin, friday)));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, monday, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(fundPositionRepository.sumMarketValueByFundAndAccountTypes(TUK75, monday, List.of(CASH)))
+        .willReturn(ZERO);
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, friday, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, monday))
+        .willReturn(Optional.empty());
+    lenient()
+        .when(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(monday), eq(10)))
+        .thenReturn(List.of());
+
+    var results = service.runChecksAsOf(monday);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    assertThat(model.impliedFundReturn()).isEqualByComparingTo(new BigDecimal("0.002"));
+    assertThat(model.navResidualBreach()).isFalse();
+    // Anchored on Friday, never the weekend.
+    verify(fundPositionRepository).findByNavDateAndFundAndAccountType(friday, TUK75, SECURITY);
+    verify(fundPositionRepository, never())
+        .findByNavDateAndFundAndAccountType(saturday, TUK75, SECURITY);
+    verify(fundPositionRepository, never())
+        .findByNavDateAndFundAndAccountType(sunday, TUK75, SECURITY);
+  }
+
+  @Test
+  void navResidualSkippedWhenABeginningOfDayPriceIsMissing() {
+    setupTradeDayScenario();
+    // Begin-of-day snapshot is present, but a held instrument has no price on checkDate -> the
+    // residual must not be computed on partial data; the gate is skipped.
+    given(positionPriceResolver.resolve(eq("IE000OLD"), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.empty());
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    assertThat(model.breach()).isTrue();
+    assertThat(model.navResidualBreach()).isFalse();
+    assertThat(model.impliedFundReturn()).isNull();
+  }
+
+  @Test
+  void navResidualSkippedWhenBeginningOfDayPositionHasNoIsin() {
+    setupTradeDayScenario();
+    // Malformed snapshot: a non-zero securities position with no ISIN cannot be priced, so the
+    // sleeve weights would not sum to 1 — the gate must be skipped, not computed on partial data.
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(PREVIOUS_DATE, TUK75, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUK75)
+                    .navDate(PREVIOUS_DATE)
+                    .accountType(SECURITY)
+                    .accountId(null)
+                    .marketValue(new BigDecimal("1000000"))
+                    .build()));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    assertThat(model.breach()).isTrue();
+    assertThat(model.navResidualBreach()).isFalse();
+    assertThat(model.impliedFundReturn()).isNull();
   }
 
   @Test
@@ -1541,6 +1699,93 @@ class TrackingDifferenceServiceTest {
 
     given(eventRepository.findMostRecentEvents(eq(fund), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
+  }
+
+  private FundPosition positionFor(String isin, LocalDate navDate) {
+    return FundPosition.builder()
+        .fund(TUK75)
+        .navDate(navDate)
+        .accountType(SECURITY)
+        .accountId(isin)
+        .marketValue(new BigDecimal("1000000"))
+        .build();
+  }
+
+  private void setupTradeDayScenario() {
+    skipOtherFunds(TUK75);
+
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.023")));
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+
+    var newIsin = "IE000NEW";
+    var oldIsin = "IE000OLD";
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
+        .willReturn(
+            List.of(
+                ModelPortfolioAllocation.builder()
+                    .fund(TUK75)
+                    .isin(newIsin)
+                    .weight(new BigDecimal("1.00"))
+                    .effectiveDate(LocalDate.of(2026, 1, 1))
+                    .build()));
+
+    // Model (newly bought) instrument moved +0.81%; the fund earned 0 on it intraday (bought MOC).
+    given(positionPriceResolver.resolve(eq(newIsin), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.81")));
+    given(positionPriceResolver.resolve(eq(newIsin), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+    // Begin-of-day (held, then sold at close) instrument moved +0.23%, matching the realised NAV.
+    // Lenient: the begin-of-day-unavailable test skips the BOD build, so these go unused there.
+    lenient()
+        .when(positionPriceResolver.resolve(eq(oldIsin), eq(CHECK_DATE), any(Instant.class)))
+        .thenReturn(Optional.of(resolvedPrice("100.23")));
+    lenient()
+        .when(positionPriceResolver.resolve(eq(oldIsin), eq(PREVIOUS_DATE), any(Instant.class)))
+        .thenReturn(Optional.of(resolvedPrice("100.00")));
+
+    // End-of-day (post-trade) positions on checkDate: the new instrument.
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUK75)
+                    .navDate(CHECK_DATE)
+                    .accountType(SECURITY)
+                    .accountId(newIsin)
+                    .marketValue(new BigDecimal("1000000"))
+                    .build()));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(CASH)))
+        .willReturn(ZERO);
+
+    // Begin-of-day (pre-trade) positions on the previous fund NAV date: the old instrument.
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(PREVIOUS_DATE, TUK75, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUK75)
+                    .navDate(PREVIOUS_DATE)
+                    .accountType(SECURITY)
+                    .accountId(oldIsin)
+                    .marketValue(new BigDecimal("1000000"))
+                    .build()));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, PREVIOUS_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+
+    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
+        .willReturn(Optional.empty());
+    lenient()
+        .when(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
+        .thenReturn(List.of());
   }
 
   private void setupBenchmarkData(String key) {

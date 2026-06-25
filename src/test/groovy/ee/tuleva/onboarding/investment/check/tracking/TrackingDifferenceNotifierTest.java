@@ -180,6 +180,176 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
+  void showsNavResidualAsNonBlockingWhenModelTdBreachIsExplained() {
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("-0.0021"))
+            .fundReturn(new BigDecimal("0.0023"))
+            .benchmarkReturn(new BigDecimal("0.0044"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .consecutiveNetTd(new BigDecimal("-0.0021"))
+            .securityAttributions(List.of())
+            .cashDrag(BigDecimal.ZERO)
+            .feeDrag(BigDecimal.ZERO)
+            .residual(BigDecimal.ZERO)
+            .impliedFundReturn(new BigDecimal("0.0023"))
+            .navResidual(new BigDecimal("0.00001"))
+            .navResidualBreach(false)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    var message = captor.getValue();
+    assertThat(message).contains("NAV residual").contains("non-blocking");
+  }
+
+  @Test
+  void withinLimitsDisclosesWhenNavResidualNotEvaluated() {
+    // No breach, but the begin-of-day gate was skipped (impliedFundReturn null) — "within limits"
+    // must say so rather than imply the NAV residual was validated clean.
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0005"))
+            .fundReturn(new BigDecimal("0.0100"))
+            .benchmarkReturn(new BigDecimal("0.0095"))
+            .breach(false)
+            .consecutiveBreachDays(0)
+            .consecutiveNetTd(BigDecimal.ZERO)
+            .securityAttributions(List.of())
+            .cashDrag(BigDecimal.ZERO)
+            .feeDrag(BigDecimal.ZERO)
+            .residual(BigDecimal.ZERO)
+            .impliedFundReturn(null)
+            .navResidual(BigDecimal.ZERO)
+            .navResidualBreach(false)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    var message = captor.getValue();
+    assertThat(message).contains("within limits").contains("NAV residual NOT evaluated");
+  }
+
+  @Test
+  void withinLimitsHasNoDisclosureWhenNavResidualEvaluated() {
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0005"))
+            .fundReturn(new BigDecimal("0.0100"))
+            .benchmarkReturn(new BigDecimal("0.0095"))
+            .breach(false)
+            .consecutiveBreachDays(0)
+            .consecutiveNetTd(BigDecimal.ZERO)
+            .securityAttributions(List.of())
+            .cashDrag(BigDecimal.ZERO)
+            .feeDrag(BigDecimal.ZERO)
+            .residual(BigDecimal.ZERO)
+            .impliedFundReturn(new BigDecimal("0.0100"))
+            .navResidual(BigDecimal.ZERO)
+            .navResidualBreach(false)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    var message = captor.getValue();
+    assertThat(message).contains("within limits");
+    assertThat(message).doesNotContain("NAV residual NOT evaluated");
+  }
+
+  @Test
+  void notifyCheckCouldNotRunSendsExplicitMessage() {
+    notifier.notifyCheckCouldNotRun(TUK75, LocalDate.of(2026, 6, 25));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    var message = captor.getValue();
+    assertThat(message).contains("TD CHECK DID NOT RUN").contains("TUK75").contains("2026-06-25");
+    assertThat(message).doesNotContain("within limits");
+  }
+
+  @Test
+  void alertsWhenNavResidualBreachesEvenIfModelTdWithinLimits() {
+    // NAV error whose effect offsets the model deviation: fund-vs-model TD is below threshold but
+    // the navResidual breaches and blocks the NAV report — must not be reported as within limits.
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0005"))
+            .fundReturn(new BigDecimal("0.0100"))
+            .benchmarkReturn(new BigDecimal("0.0095"))
+            .breach(false)
+            .consecutiveBreachDays(0)
+            .consecutiveNetTd(BigDecimal.ZERO)
+            .securityAttributions(List.of())
+            .cashDrag(BigDecimal.ZERO)
+            .feeDrag(BigDecimal.ZERO)
+            .residual(BigDecimal.ZERO)
+            .impliedFundReturn(new BigDecimal("0.0009"))
+            .navResidual(new BigDecimal("0.0091"))
+            .navResidualBreach(true)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    var message = captor.getValue();
+    assertThat(message).contains("TD BREACH DETECTED").contains("BLOCKS NAV");
+    assertThat(message).doesNotContain("within limits");
+  }
+
+  @Test
+  void showsNavResidualNotEvaluatedWhenBeginningOfDayHoldingsUnavailable() {
+    // Fail-soft: impliedFundReturn null means the navResidual gate was skipped; must not read as
+    // "validated clean".
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0015"))
+            .fundReturn(new BigDecimal("0.0100"))
+            .benchmarkReturn(new BigDecimal("0.0085"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .consecutiveNetTd(new BigDecimal("0.0015"))
+            .securityAttributions(List.of())
+            .cashDrag(BigDecimal.ZERO)
+            .feeDrag(BigDecimal.ZERO)
+            .residual(BigDecimal.ZERO)
+            .impliedFundReturn(null)
+            .navResidual(BigDecimal.ZERO)
+            .navResidualBreach(false)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    var message = captor.getValue();
+    assertThat(message).contains("NAV residual: not evaluated");
+    assertThat(message).doesNotContain("non-blocking");
+  }
+
+  @Test
   void includesActionHintForModelPortfolio() {
     var result = result(true, 1, new BigDecimal("0.0015"));
 

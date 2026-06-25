@@ -83,7 +83,7 @@ public class RoleSwitchService {
 
   private AuthenticationTokens switchToRepresentedChild(
       AuthenticatedPerson person, SwitchRoleCommand command) {
-    if (!parentChildLinkService.represents(person.getPersonalCode(), command.code())) {
+    if (!parentChildLinkService.isActiveRepresentation(person.getPersonalCode(), command.code())) {
       throw new RoleSwitchAccessDeniedException(person.getPersonalCode(), command.code());
     }
     User child =

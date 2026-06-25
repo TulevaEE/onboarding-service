@@ -149,6 +149,18 @@ class AmlServiceTest {
   }
 
   @Test
+  void addCustodyRightCheck_persistsCheckWithMetadata() {
+    var metadata = Map.<String, Object>of("custodyType", "PROPERTY", "childAlive", true);
+
+    AmlCheck result = amlService.addCustodyRightCheck("61506150006", true, metadata);
+
+    assertThat(result.getPersonalCode()).isEqualTo("61506150006");
+    assertThat(result.getType()).isEqualTo(CUSTODY_RIGHT);
+    assertThat(result.isSuccess()).isTrue();
+    assertThat(result.getMetadata()).isEqualTo(metadata);
+  }
+
+  @Test
   void addKycCheck_persistsStillFailingRecheckWhenNoSuccessfulCheckExists() {
     given(
             amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(

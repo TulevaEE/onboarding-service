@@ -59,6 +59,7 @@ class ParentChildLinkRegistrationServiceTest {
     assertThat(result.getChildPersonalCode()).isEqualTo(CHILD);
     assertThat(result.getRelationshipType()).isEqualTo(LEGAL_REPRESENTATIVE);
     assertThat(result.getValidUntil()).isEqualTo(CHILD_EIGHTEENTH_BIRTHDAY);
+    assertThat(result.isSuspended()).isFalse();
 
     verify(userService)
         .createNewUser(

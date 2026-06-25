@@ -8,10 +8,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ParentChildLinkRepository extends JpaRepository<ParentChildLink, UUID> {
 
-  List<ParentChildLink> findByParentPersonalCodeAndValidUntilAfter(
+  List<ParentChildLink> findByParentPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
       String parentPersonalCode, LocalDate date);
 
-  boolean existsByParentPersonalCodeAndChildPersonalCodeAndValidUntilAfter(
+  boolean existsByParentPersonalCodeAndChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
       String parentPersonalCode, String childPersonalCode, LocalDate date);
 
   Optional<ParentChildLink> findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(

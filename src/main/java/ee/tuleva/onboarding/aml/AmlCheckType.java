@@ -27,6 +27,7 @@ public enum AmlCheckType {
   // rows carry metadata.source = "manual". Not consumed by risk views or the mandate gate.
   MANUAL_EVENT,
   KYC_CHECK,
+  CUSTODY_RIGHT,
   KYB_COMPANY_STRUCTURE,
   KYB_SOLE_MEMBER_OWNERSHIP,
   KYB_DUAL_MEMBER_OWNERSHIP,

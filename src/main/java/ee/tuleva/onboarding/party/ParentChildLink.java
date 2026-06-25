@@ -41,6 +41,8 @@ public class ParentChildLink {
   @Column(nullable = false)
   private LocalDate validUntil;
 
+  private Instant suspendedAt;
+
   @Column(nullable = false, updatable = false)
   private Instant createdDate;
 
@@ -49,5 +51,9 @@ public class ParentChildLink {
     if (createdDate == null) {
       createdDate = clock().instant();
     }
+  }
+
+  public boolean isSuspended() {
+    return suspendedAt != null;
   }
 }

@@ -279,6 +279,17 @@ public class AmlService {
     return Optional.of(addCheck(check));
   }
 
+  public AmlCheck addCustodyRightCheck(
+      String personalCode, boolean success, Map<String, Object> metadata) {
+    return addCheck(
+        AmlCheck.builder()
+            .personalCode(personalCode)
+            .type(CUSTODY_RIGHT)
+            .success(success)
+            .metadata(metadata)
+            .build());
+  }
+
   private boolean personDataMatches(Person person1, Person person2) {
     if (!StringUtils.equalsIgnoreCase(person1.getFirstName(), person2.getFirstName())) {
       return false;

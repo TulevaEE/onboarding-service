@@ -42,25 +42,27 @@ class ParentChildLinkServiceTest {
             .relationshipType(LEGAL_REPRESENTATIVE)
             .validUntil(LocalDate.of(2030, 1, 1))
             .build();
-    given(parentChildLinkRepository.findByParentPersonalCodeAndValidUntilAfter(PARENT, TODAY))
+    given(
+            parentChildLinkRepository
+                .findByParentPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(PARENT, TODAY))
         .willReturn(List.of(link));
 
     assertThat(service.findActivelyRepresentedChildCodes(PARENT)).containsExactly(CHILD);
   }
 
   @Test
-  void representsChildWhenActiveLinkExistsAsOfToday() {
+  void isActiveRepresentationWhenActiveLinkExistsAsOfToday() {
     given(
             parentChildLinkRepository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndValidUntilAfter(
+                .existsByParentPersonalCodeAndChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
                     PARENT, CHILD, TODAY))
         .willReturn(true);
 
-    assertThat(service.represents(PARENT, CHILD)).isTrue();
+    assertThat(service.isActiveRepresentation(PARENT, CHILD)).isTrue();
   }
 
   @Test
-  void doesNotRepresentChildWhenNoActiveLink() {
-    assertThat(service.represents(PARENT, CHILD)).isFalse();
+  void isNotActiveRepresentationWhenNoActiveLink() {
+    assertThat(service.isActiveRepresentation(PARENT, CHILD)).isFalse();
   }
 }

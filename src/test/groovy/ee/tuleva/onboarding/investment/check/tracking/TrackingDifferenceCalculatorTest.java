@@ -249,6 +249,137 @@ class TrackingDifferenceCalculatorTest {
   }
 
   @Test
+  void navResidualIsZeroWhenFundNavMatchesBeginningOfDayHoldings() {
+    var input =
+        TrackingInput.builder()
+            .fund(TUK75)
+            .checkDate(CHECK_DATE)
+            .checkType(MODEL_PORTFOLIO)
+            .todayNav(new BigDecimal("10.20"))
+            .yesterdayNav(new BigDecimal("10.00"))
+            .securities(
+                List.of(
+                    security(
+                        "IE00A", new BigDecimal("1.00"), new BigDecimal("1.00"), "102", "100")))
+            .cashWeight(BigDecimal.ZERO)
+            .annualFeeRate(BigDecimal.ZERO)
+            .bodHoldings(List.of(bodHolding("IE00A", new BigDecimal("1.00"), "102", "100")))
+            .bodSecuritiesFraction(new BigDecimal("1.00"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    // fund return 0.02 == implied (1.0 sleeve fraction * 1.0 weight * 0.02 return)
+    assertThat(result.get().impliedFundReturn()).isEqualByComparingTo(new BigDecimal("0.02"));
+    assertThat(result.get().navResidual()).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(result.get().navResidualBreach()).isFalse();
+  }
+
+  @Test
+  void navResidualReDilutesBySecuritiesFractionAndAppliesFeeDrag() {
+    // 95% securities sleeve (5% cash) and a management fee. impliedFundReturn must re-dilute the
+    // sleeve return by the securities fraction and subtract the fee drag.
+    var input =
+        TrackingInput.builder()
+            .fund(TUK75)
+            .checkDate(CHECK_DATE)
+            .checkType(MODEL_PORTFOLIO)
+            .todayNav(new BigDecimal("10.189"))
+            .yesterdayNav(new BigDecimal("10.00"))
+            .securities(
+                List.of(
+                    security(
+                        "IE00A", new BigDecimal("1.00"), new BigDecimal("1.00"), "102", "100")))
+            .cashWeight(new BigDecimal("0.05"))
+            .annualFeeRate(new BigDecimal("0.0365"))
+            .bodHoldings(List.of(bodHolding("IE00A", new BigDecimal("1.00"), "102", "100")))
+            .bodSecuritiesFraction(new BigDecimal("0.95"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    // 0.95 * (1.0 * 0.02) + (-0.0365/365) = 0.019 - 0.0001 = 0.0189
+    assertThat(result.get().impliedFundReturn()).isEqualByComparingTo(new BigDecimal("0.0189"));
+    // fund return = 10.189/10.00 - 1 = 0.0189 -> navResidual 0
+    assertThat(result.get().navResidual()).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(result.get().navResidualBreach()).isFalse();
+  }
+
+  @Test
+  void navResidualBreachesWhenFundNavDivergesFromHeldHoldings() {
+    var input =
+        TrackingInput.builder()
+            .fund(TUK75)
+            .checkDate(CHECK_DATE)
+            .checkType(MODEL_PORTFOLIO)
+            .todayNav(new BigDecimal("10.30"))
+            .yesterdayNav(new BigDecimal("10.00"))
+            .securities(
+                List.of(
+                    security(
+                        "IE00A", new BigDecimal("1.00"), new BigDecimal("1.00"), "102", "100")))
+            .cashWeight(BigDecimal.ZERO)
+            .annualFeeRate(BigDecimal.ZERO)
+            .bodHoldings(List.of(bodHolding("IE00A", new BigDecimal("1.00"), "102", "100")))
+            .bodSecuritiesFraction(new BigDecimal("1.00"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    // fund return 0.03 vs implied 0.02 -> navResidual 0.01 > 0.005 threshold
+    assertThat(result.get().navResidual()).isEqualByComparingTo(new BigDecimal("0.01"));
+    assertThat(result.get().navResidualBreach()).isTrue();
+  }
+
+  @Test
+  void modelTdBreachesButNavResidualDoesNotOnTradeDay() {
+    // Model already swapped to the freshly bought instrument (+0.81%); the fund still held its
+    // begin-of-day portfolio (+0.23%) intraday. Fund-vs-model TD breaches, navResidual ~0.
+    var input =
+        TrackingInput.builder()
+            .fund(TUK75)
+            .checkDate(CHECK_DATE)
+            .checkType(MODEL_PORTFOLIO)
+            .todayNav(new BigDecimal("10.023"))
+            .yesterdayNav(new BigDecimal("10.00"))
+            .securities(
+                List.of(
+                    security(
+                        "IE000NEW",
+                        new BigDecimal("1.00"),
+                        new BigDecimal("1.00"),
+                        "100.81",
+                        "100")))
+            .cashWeight(BigDecimal.ZERO)
+            .annualFeeRate(BigDecimal.ZERO)
+            .bodHoldings(List.of(bodHolding("IE00OLD", new BigDecimal("1.00"), "100.23", "100")))
+            .bodSecuritiesFraction(new BigDecimal("1.00"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    assertThat(result.get().breach()).isTrue();
+    assertThat(result.get().navResidualBreach()).isFalse();
+    assertThat(result.get().navResidual()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
+  void navResidualNotComputedWhenBeginningOfDayHoldingsAbsent() {
+    var input = inputWithNav(new BigDecimal("10.30"), new BigDecimal("10.00"));
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    assertThat(result.get().navResidualBreach()).isFalse();
+    assertThat(result.get().navResidual()).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(result.get().impliedFundReturn()).isNull();
+  }
+
+  @Test
   void returnsEmptyWhenYesterdayNavIsZero() {
     var input = inputWithNav(new BigDecimal("10.50"), BigDecimal.ZERO);
 
@@ -417,6 +548,15 @@ class TrackingDifferenceCalculatorTest {
         isin,
         modelWeight,
         actualWeight,
+        new PriceSnapshot(new BigDecimal(todayPrice), null),
+        new PriceSnapshot(new BigDecimal(yesterdayPrice), null));
+  }
+
+  private TrackingDifferenceCalculator.BodHolding bodHolding(
+      String isin, BigDecimal weight, String todayPrice, String yesterdayPrice) {
+    return new TrackingDifferenceCalculator.BodHolding(
+        isin,
+        weight,
         new PriceSnapshot(new BigDecimal(todayPrice), null),
         new PriceSnapshot(new BigDecimal(yesterdayPrice), null));
   }

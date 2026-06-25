@@ -27,4 +27,10 @@ record TrackingDifferenceResult(
     List<SecurityAttribution> securityAttributions,
     BigDecimal cashDrag,
     BigDecimal feeDrag,
-    BigDecimal residual) {}
+    BigDecimal residual,
+    // NAV-correctness view: fund NAV return vs the return implied by the holdings the fund actually
+    // held entering the day (begin-of-day / yesterday's EOD snapshot). Neutralises MOC trade-day
+    // timing so the NAV gate keys on navResidualBreach, not on the informational fund-vs-model TD.
+    BigDecimal impliedFundReturn,
+    BigDecimal navResidual,
+    boolean navResidualBreach) {}

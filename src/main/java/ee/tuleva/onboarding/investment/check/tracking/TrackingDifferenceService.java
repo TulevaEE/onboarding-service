@@ -42,6 +42,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -220,6 +221,40 @@ class TrackingDifferenceService {
     var blendedSecurities =
         blendTransitionWeights(securities, allocations, previousAllocations, positions, fund);
 
+    // NAV-correctness basis: holdings the fund actually held entering checkDate (the previous fund
+    // NAV date's EOD snapshot), used to neutralise MOC trade-day timing in navResidual. Fails soft:
+    // when the begin-of-day snapshot or any of its prices are unavailable we skip the navResidual
+    // gate (warn, leave it null) rather than block the NAV report or manufacture a residual from
+    // zero weights. Established funds always have a previous-day snapshot, so this is an edge case.
+    var bodPositions =
+        fundPositionRepository.findByNavDateAndFundAndAccountType(previousDate, fund, SECURITY);
+    var bodTotalSecurities =
+        bodPositions.stream()
+            .map(FundPosition::getMarketValue)
+            .filter(Objects::nonNull)
+            .reduce(ZERO, BigDecimal::add);
+    var bodTotalNav =
+        fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+            fund, previousDate, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY));
+
+    List<TrackingDifferenceCalculator.BodHolding> bodHoldings = null;
+    BigDecimal bodSecuritiesFraction = null;
+    if (bodTotalNav != null && bodTotalNav.signum() > 0 && bodTotalSecurities.signum() > 0) {
+      bodHoldings =
+          buildBodHoldings(fund, checkDate, previousDate, bodPositions, bodTotalSecurities);
+      if (bodHoldings != null) {
+        bodSecuritiesFraction = bodTotalSecurities.divide(bodTotalNav, SCALE, RoundingMode.HALF_UP);
+      }
+    } else {
+      log.warn(
+          "Begin-of-day holdings unavailable for NAV residual, skipping gate: fund={}, checkDate={}, anchorDate={}, bodTotalNav={}, bodTotalSecurities={}",
+          fund,
+          checkDate,
+          previousDate,
+          bodTotalNav,
+          bodTotalSecurities);
+    }
+
     var priorBreaches = countConsecutiveBreaches(fund, MODEL_PORTFOLIO, checkDate);
 
     var modelInput =
@@ -233,6 +268,8 @@ class TrackingDifferenceService {
             .cashWeight(cashWeight)
             .annualFeeRate(annualFeeRate)
             .consecutiveBreachDays(priorBreaches.count())
+            .bodHoldings(bodHoldings)
+            .bodSecuritiesFraction(bodSecuritiesFraction)
             .build();
 
     calculator
@@ -644,16 +681,8 @@ class TrackingDifferenceService {
       Instant todayCutoff,
       Instant yesterdayCutoff) {
 
-    var todayResolved =
-        positionPriceResolver
-            .resolve(isin, checkDate, todayCutoff)
-            .filter(rp -> rp.validationStatus() == ValidationStatus.OK)
-            .orElse(null);
-    var yesterdayResolved =
-        positionPriceResolver
-            .resolve(isin, previousDate, yesterdayCutoff)
-            .filter(rp -> rp.validationStatus() == ValidationStatus.OK)
-            .orElse(null);
+    var today = resolvePriceSnapshot(isin, checkDate, todayCutoff);
+    var previous = resolvePriceSnapshot(isin, previousDate, yesterdayCutoff);
 
     var todayPos = todayByIsin.get(isin);
     var actualMarketValue = todayPos != null ? todayPos.getMarketValue() : ZERO;
@@ -662,16 +691,77 @@ class TrackingDifferenceService {
             ? actualMarketValue.divide(totalSecurities, 6, RoundingMode.HALF_UP)
             : ZERO;
 
-    var today =
-        new PriceSnapshot(
-            todayResolved != null ? todayResolved.usedPrice() : null,
-            todayResolved != null ? todayResolved.priceDate() : null);
-    var previous =
-        new PriceSnapshot(
-            yesterdayResolved != null ? yesterdayResolved.usedPrice() : null,
-            yesterdayResolved != null ? yesterdayResolved.priceDate() : null);
-
     return new SecurityData(isin, modelWeight, actualWeight, today, previous);
+  }
+
+  private PriceSnapshot resolvePriceSnapshot(String isin, LocalDate date, Instant cutoff) {
+    var resolved =
+        positionPriceResolver
+            .resolve(isin, date, cutoff)
+            .filter(rp -> rp.validationStatus() == ValidationStatus.OK)
+            .orElse(null);
+    return new PriceSnapshot(
+        resolved != null ? resolved.usedPrice() : null,
+        resolved != null ? resolved.priceDate() : null);
+  }
+
+  // Begin-of-day holdings = the SECURITY positions the fund actually held entering checkDate, i.e.
+  // the previous fund NAV date's (anchor) end-of-day snapshot. Anchored on the FUND NAV date
+  // (previousDate), never on a per-instrument or custodian "latest" date — on a model-switch / MOC
+  // trade day the instruments themselves may have later prices, but the fund earned its
+  // begin-of-day portfolio's return intraday, valued at price(checkDate)/price(anchorDate). Returns
+  // null (caller skips the navResidual gate) when any held instrument is missing a price, so the
+  // residual is never computed on partial data.
+  @Nullable
+  private List<TrackingDifferenceCalculator.BodHolding> buildBodHoldings(
+      TulevaFund fund,
+      LocalDate checkDate,
+      LocalDate previousDate,
+      List<FundPosition> bodPositions,
+      BigDecimal bodTotalSecurities) {
+    var todayCutoff = computePriceCutoff(fund, checkDate);
+    var anchorCutoff = computePriceCutoff(fund, previousDate);
+
+    var holdings = new ArrayList<TrackingDifferenceCalculator.BodHolding>();
+    var missingPrices = new ArrayList<String>();
+    for (var pos : bodPositions) {
+      var marketValue = pos.getMarketValue();
+      if (marketValue == null || marketValue.signum() == 0) {
+        continue;
+      }
+      var isin = pos.getAccountId();
+      if (isin == null) {
+        // A non-zero securities position with no ISIN counts toward bodTotalSecurities but cannot
+        // be
+        // priced — the sleeve weights would no longer sum to ~1. Treat as a malformed snapshot and
+        // skip the gate rather than compute the residual on partial data.
+        log.warn(
+            "Begin-of-day securities position with value but no ISIN, skipping NAV residual gate: fund={}, checkDate={}, anchorDate={}, marketValue={}",
+            fund,
+            checkDate,
+            previousDate,
+            marketValue);
+        return null;
+      }
+      var weight = marketValue.divide(bodTotalSecurities, SCALE, RoundingMode.HALF_UP);
+      var today = resolvePriceSnapshot(isin, checkDate, todayCutoff);
+      var previous = resolvePriceSnapshot(isin, previousDate, anchorCutoff);
+      if (today.price() == null || previous.price() == null || previous.price().signum() == 0) {
+        missingPrices.add(isin);
+      }
+      holdings.add(new TrackingDifferenceCalculator.BodHolding(isin, weight, today, previous));
+    }
+
+    if (!missingPrices.isEmpty()) {
+      log.warn(
+          "Missing begin-of-day prices for NAV residual, skipping gate: fund={}, checkDate={}, anchorDate={}, missingIsins={}",
+          fund,
+          checkDate,
+          previousDate,
+          missingPrices);
+      return null;
+    }
+    return holdings;
   }
 
   private Instant computePriceCutoff(TulevaFund fund, LocalDate navDate) {
@@ -884,7 +974,17 @@ class TrackingDifferenceService {
         "feeDrag",
         Objects.requireNonNullElse(result.feeDrag(), ZERO),
         "residual",
-        Objects.requireNonNullElse(result.residual(), ZERO));
+        Objects.requireNonNullElse(result.residual(), ZERO),
+        "impliedFundReturn",
+        Objects.requireNonNullElse(result.impliedFundReturn(), ZERO),
+        "navResidual",
+        Objects.requireNonNullElse(result.navResidual(), ZERO),
+        "navResidualBreach",
+        result.navResidualBreach(),
+        // Preserve the not-evaluated sentinel in history: a persisted impliedFundReturn of 0 with
+        // navResidualEvaluated=false means the begin-of-day gate was skipped, not a real zero.
+        "navResidualEvaluated",
+        result.impliedFundReturn() != null);
   }
 
   record BenchmarkConfig(String singleKey, List<BenchmarkComponent> components) {

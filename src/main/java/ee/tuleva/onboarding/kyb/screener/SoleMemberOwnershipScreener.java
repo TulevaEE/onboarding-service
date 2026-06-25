@@ -37,7 +37,7 @@ public class SoleMemberOwnershipScreener implements KybScreener {
     if (personalCode != null) {
       metadata.put("personalCode", personalCode.toString());
     }
-    metadata.put("ownershipPercent", person.ownershipPercent());
+    metadata.put("ownershipPercent", person.ownershipPercent().toPlainString());
     return Map.copyOf(metadata);
   }
 }

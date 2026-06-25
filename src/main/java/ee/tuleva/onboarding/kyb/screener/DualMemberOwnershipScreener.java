@@ -45,6 +45,9 @@ public class DualMemberOwnershipScreener implements KybScreener {
             && totalOwnership.compareTo(BigDecimal.valueOf(100)) == 0;
 
     return List.of(
-        new KybCheck(DUAL_MEMBER_OWNERSHIP, success, Map.of("totalOwnership", totalOwnership)));
+        new KybCheck(
+            DUAL_MEMBER_OWNERSHIP,
+            success,
+            Map.of("totalOwnership", totalOwnership.toPlainString())));
   }
 }

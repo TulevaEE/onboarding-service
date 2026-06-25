@@ -26,6 +26,7 @@ public enum TulevaFund {
       List.of(
           "IE00BFG1TM61",
           "IE0009FT4LX4",
+          "IE000QWCYQT0",
           "IE00BFNM3G45",
           "IE00BFNM3D14",
           "IE00BFNM3L97",
@@ -57,6 +58,7 @@ public enum TulevaFund {
       List.of(
           "IE00BFG1TM61",
           "IE0009FT4LX4",
+          "IE000QWCYQT0",
           "IE00BFNM3G45",
           "IE00BFNM3D14",
           "IE00BFNM3L97",

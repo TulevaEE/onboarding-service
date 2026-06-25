@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.tuple;
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.PersonalCode;
 import java.math.BigDecimal;
+import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -60,6 +61,20 @@ class SoleMemberOwnershipScreenerTest {
         .extracting(KybCheck::type, KybCheck::success)
         .containsExactly(tuple(SOLE_MEMBER_OWNERSHIP, true));
     assertThat(result.getFirst().metadata()).doesNotContainKey("personalCode");
+  }
+
+  @Test
+  void ownershipPercentIsStoredAsCanonicalStringForStableJsonRoundTrip() {
+    // ownershipPercent must be a String, not a BigDecimal. The AmlCheck.metadata jsonb column
+    // deserializes JSON numbers as Double/Integer, so a BigDecimal value never equals its reloaded
+    // form and KybDataChangeDetector raises a spurious DATA_CHANGED every screening (AML #78).
+    var person = boardMemberOwner("38501010001", 100.0).build();
+    var data = companyWith(person);
+
+    var result = screener.screen(data);
+
+    assertThat(result.getFirst().metadata())
+        .isEqualTo(Map.of("personalCode", "38501010001", "ownershipPercent", "100.0"));
   }
 
   @Test

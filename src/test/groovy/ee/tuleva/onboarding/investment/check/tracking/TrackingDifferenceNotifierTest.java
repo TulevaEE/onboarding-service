@@ -318,6 +318,61 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
+  void swallowsExceptionWhenCheckCouldNotRunNotificationFails() {
+    org.mockito.BDDMockito.willThrow(new RuntimeException("Slack down"))
+        .given(notificationService)
+        .sendMessage(any(String.class), eq(INVESTMENT));
+
+    notifier.notifyCheckCouldNotRun(TUK75, LocalDate.of(2026, 6, 25));
+
+    then(notificationService).should().sendMessage(any(String.class), eq(INVESTMENT));
+  }
+
+  @Test
+  void withinLimitsAcrossMultipleFundsSeparatesEachOnItsOwnLine() {
+    var tuk75 = withinLimitsResult(TUK75);
+    var tuv100 = withinLimitsResult(ee.tuleva.onboarding.fund.TulevaFund.TUV100);
+
+    notifier.notify(List.of(tuk75, tuv100));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    var message = captor.getValue();
+    assertThat(message)
+        .contains("TUK75 TD check completed: within limits")
+        .contains("TUV100 TD check completed: within limits");
+    assertThat(message.lines().filter(l -> l.contains("within limits")).count()).isEqualTo(2);
+  }
+
+  @Test
+  void withinLimitsForNonModelPortfolioCheckOmitsNavResidual() {
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkType(BENCHMARK_MODEL)
+            .trackingDifference(new BigDecimal("0.0005"))
+            .fundReturn(new BigDecimal("0.0100"))
+            .benchmarkReturn(new BigDecimal("0.0095"))
+            .breach(false)
+            .consecutiveBreachDays(0)
+            .consecutiveNetTd(BigDecimal.ZERO)
+            .securityAttributions(List.of())
+            .cashDrag(BigDecimal.ZERO)
+            .feeDrag(BigDecimal.ZERO)
+            .residual(BigDecimal.ZERO)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    var message = captor.getValue();
+    assertThat(message).contains("within limits").contains("BENCHMARK_MODEL");
+    assertThat(message).doesNotContain("navResidual");
+  }
+
+  @Test
   void alertsWhenNavResidualBreachesEvenIfModelTdWithinLimits() {
     // NAV error whose effect offsets the model deviation: fund-vs-model TD is below threshold but
     // the navResidual breaches and blocks the NAV report — must not be reported as within limits.
@@ -654,6 +709,27 @@ class TrackingDifferenceNotifierTest {
     assertThat(captor.getValue())
         .contains("Multi-day attribution (arithmetic sum of daily contributions):");
     assertThat(captor.getValue()).doesNotContain("Cash drag:");
+  }
+
+  private TrackingDifferenceResult withinLimitsResult(ee.tuleva.onboarding.fund.TulevaFund fund) {
+    return TrackingDifferenceResult.builder()
+        .fund(fund)
+        .checkDate(LocalDate.of(2026, 4, 3))
+        .checkType(MODEL_PORTFOLIO)
+        .trackingDifference(new BigDecimal("0.0005"))
+        .fundReturn(new BigDecimal("0.0100"))
+        .benchmarkReturn(new BigDecimal("0.0095"))
+        .breach(false)
+        .consecutiveBreachDays(0)
+        .consecutiveNetTd(BigDecimal.ZERO)
+        .securityAttributions(List.of())
+        .cashDrag(BigDecimal.ZERO)
+        .feeDrag(BigDecimal.ZERO)
+        .residual(BigDecimal.ZERO)
+        .impliedFundReturn(new BigDecimal("0.0100"))
+        .navResidual(BigDecimal.ZERO)
+        .navResidualBreach(false)
+        .build();
   }
 
   private TrackingDifferenceResult result(

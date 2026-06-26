@@ -158,6 +158,43 @@ class PeriodicTdAttributionServiceTest {
   }
 
   @Test
+  void computesAttributionWhenDailyTdSeriesHasAGap() {
+    // Events on Tue 2026-04-14 and Thu 2026-04-16 skip the working day Wed 2026-04-15, so the
+    // daily series has a gap; the period attribution still computes (gap is surfaced, not fatal).
+    var date1 = LocalDate.of(2026, 4, 14);
+    var date2 = LocalDate.of(2026, 4, 16);
+
+    given(
+            tdEventRepository.findDeduplicatedEventsForPeriod(
+                TUK75, MODEL_PORTFOLIO, PERIOD_START, PERIOD_END))
+        .willReturn(List.of(tdEvent(date1, "0.0008", "0.001"), tdEvent(date2, "0.0005", "0.0007")));
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, PERIOD_START, PERIOD_END))
+        .willReturn(List.of());
+    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, PERIOD_END))
+        .willReturn(Optional.empty());
+    given(
+            modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
+                TUK75, PERIOD_START, PERIOD_END))
+        .willReturn(
+            List.of(
+                modelAllocation(ISIN_DW, "0.70", date1), modelAllocation(ISIN_EM, "0.30", date1)));
+    given(fundNavQueryService.findAum(anyString(), any())).willReturn(new BigDecimal("100000000"));
+    given(fundNavQueryService.findCashValue(anyString(), any()))
+        .willReturn(new BigDecimal("1500000"));
+    given(fundNavQueryService.findSecuritiesTotalValue(anyString(), any()))
+        .willReturn(new BigDecimal("98000000"));
+    given(fundNavQueryService.findFeeAccrualLiabilities(anyString(), any()))
+        .willReturn(new BigDecimal("-50000"));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(any(), eq(TUK75), eq(SECURITY)))
+        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EM, "29400000")));
+
+    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    assertThat(result.businessDays()).isEqualTo(2);
+    verify(attributionRepository).save(any(PeriodicTdAttribution.class));
+  }
+
+  @Test
   void computeForAllFundsIsolatesErrors() {
     setupStandardMocks();
 

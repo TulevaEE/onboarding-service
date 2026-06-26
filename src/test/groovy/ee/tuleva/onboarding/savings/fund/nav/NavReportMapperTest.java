@@ -253,6 +253,54 @@ class NavReportMapperTest {
   }
 
   @Test
+  void excludesDeinvestedSecuritiesWithZeroQuantityAndZeroValue() {
+    var navDate = LocalDate.of(2026, 6, 25);
+
+    var result =
+        NavCalculationResult.builder()
+            .fund(TKF100)
+            .calculationDate(LocalDate.of(2026, 6, 26))
+            .positionReportDate(navDate)
+            .priceDate(navDate)
+            .calculatedAt(Instant.parse("2026-06-26T13:20:00Z"))
+            .securitiesDetail(
+                List.of(
+                    new SecurityDetail(
+                        "IE00BMDBMY19",
+                        "EMXC",
+                        new BigDecimal("15543.00"),
+                        new BigDecimal("41.8050"),
+                        new BigDecimal("649775.12"),
+                        navDate),
+                    new SecurityDetail(
+                        "IE00BFNM3G45", "SGAS", ZERO, new BigDecimal("13.466"), ZERO, navDate),
+                    new SecurityDetail(
+                        "IE00BFNM3D14", "SLMC", ZERO, new BigDecimal("10.930"), ZERO, navDate)))
+            .cashPosition(new BigDecimal("370794.18"))
+            .receivables(ZERO)
+            .payables(ZERO)
+            .pendingSubscriptions(ZERO)
+            .pendingRedemptions(ZERO)
+            .managementFeeAccrual(ZERO)
+            .depotFeeAccrual(ZERO)
+            .blackrockAdjustment(ZERO)
+            .unitsOutstanding(new BigDecimal("7050814.517"))
+            .navPerUnit(new BigDecimal("0.9792"))
+            .aum(new BigDecimal("6903990.38"))
+            .build();
+
+    var rows = navReportMapper.map(result);
+
+    var securityRows =
+        rows.stream().filter(row -> row.getAccountType().equals("SECURITY")).toList();
+    assertThat(securityRows).hasSize(1);
+    assertThat(securityRows.get(0).getAccountId()).isEqualTo("IE00BMDBMY19");
+    assertThat(rows)
+        .noneSatisfy(row -> assertThat(row.getAccountId()).isEqualTo("IE00BFNM3G45"))
+        .noneSatisfy(row -> assertThat(row.getAccountId()).isEqualTo("IE00BFNM3D14"));
+  }
+
+  @Test
   void everyRowNavDateMatchesWhatGuardsQueryViaExpectedPositionReportDate() {
     // Coupling contract: mapper writer and guard reader must agree on nav_date via
     // NavCalculationService.expectedPositionReportDate. Protects against future drift.

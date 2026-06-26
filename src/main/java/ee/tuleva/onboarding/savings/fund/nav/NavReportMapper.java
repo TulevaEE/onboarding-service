@@ -25,7 +25,8 @@ class NavReportMapper {
     var fundCode = fund.getCode();
     var accountId = fund.getIsin();
 
-    sortedSecurities(fund, result.securitiesDetail())
+    sortedSecurities(fund, result.securitiesDetail()).stream()
+        .filter(detail -> !isFullyDeinvested(detail))
         .forEach(detail -> rows.add(securityRow(navDate, fundCode, detail)));
 
     rows.add(cashRow(navDate, fundCode, accountId, result.cashPosition()));
@@ -88,6 +89,10 @@ class NavReportMapper {
     rows.add(navRow(navDate, fundCode, result));
 
     return rows;
+  }
+
+  private boolean isFullyDeinvested(SecurityDetail detail) {
+    return detail.units().signum() == 0 && detail.marketValue().signum() == 0;
   }
 
   private List<SecurityDetail> sortedSecurities(TulevaFund fund, List<SecurityDetail> securities) {

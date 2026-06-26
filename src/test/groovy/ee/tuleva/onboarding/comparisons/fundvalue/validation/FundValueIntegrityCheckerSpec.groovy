@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepositor
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.YahooFundValueRetriever
 import ee.tuleva.onboarding.deadline.PublicHolidays
+import ee.tuleva.onboarding.notification.OperationsNotificationService
 import spock.lang.Specification
 
 import java.time.Clock
@@ -23,13 +24,15 @@ class FundValueIntegrityCheckerSpec extends Specification {
   PriorityPriceProvider priorityPriceProvider = Stub()
   PublicHolidays publicHolidays = new PublicHolidays()
   Clock clock = Clock.fixed(Instant.parse("2026-02-12T12:00:00Z"), ZoneId.of("Europe/Tallinn"))
+  OperationsNotificationService notificationService = Mock()
 
   FundValueIntegrityChecker checker = new FundValueIntegrityChecker(
       yahooFundValueRetriever,
       fundValueRepository,
       priorityPriceProvider,
       publicHolidays,
-      clock
+      clock,
+      notificationService
   )
 
   def "should not report discrepancy when values differ only after 5 decimal places"() {
@@ -689,5 +692,55 @@ class FundValueIntegrityCheckerSpec extends Specification {
     summary.contains("❌ 2026-03-02 BLACKROCK")
     summary.contains("❌ no data")
     !summary.contains("30-Day Trend Summary")
+  }
+
+  def "sends a Slack alert to the INVESTMENT channel listing stale sources when critical"() {
+    given:
+    def staleSource = new IntegrityCheckResult.StaleSource(
+        "World ETF", "EODHD", "IWDA.XETRA", LocalDate.of(2026, 2, 9), 3L)
+    def result = new FundValueIntegrityChecker.TickerCheckResult(
+        FundTicker.values()[0], IntegrityCheckResult.empty(), [] as Set, [] as Set, [staleSource], [])
+
+    when:
+    checker.notifyIfCritical([result])
+
+    then:
+    1 * notificationService.sendMessage({ String message ->
+      message.contains("SUSPICIOUS PRICE DATA") &&
+          message.contains("World ETF") &&
+          message.contains("EODHD")
+    }, OperationsNotificationService.Channel.INVESTMENT)
+  }
+
+  def "Slack alert lists the specific instrument, sources and percentage for a critical discrepancy"() {
+    given:
+    def discrepancy = new IntegrityCheckResult.Discrepancy(
+        "IWDA", LocalDate.of(2026, 2, 11), 100.00, 80.00, 20.00, 20.0000, Severity.CRITICAL, "EODHD vs BLACKROCK")
+    def result = new FundValueIntegrityChecker.TickerCheckResult(
+        FundTicker.values()[0], IntegrityCheckResult.empty(), [] as Set, [] as Set, [], [discrepancy])
+
+    when:
+    checker.notifyIfCritical([result])
+
+    then:
+    1 * notificationService.sendMessage({ String message ->
+      message.contains("PRICE DISCREPANCY") &&
+          message.contains("IWDA") &&
+          message.contains("EODHD vs BLACKROCK") &&
+          message.contains("100") &&
+          message.contains("80")
+    }, OperationsNotificationService.Channel.INVESTMENT)
+  }
+
+  def "does not send a Slack alert when there are no critical issues"() {
+    given:
+    def clean = new FundValueIntegrityChecker.TickerCheckResult(
+        FundTicker.values()[0], IntegrityCheckResult.empty(), [] as Set, [] as Set, [], [])
+
+    when:
+    checker.notifyIfCritical([clean])
+
+    then:
+    0 * notificationService.sendMessage(_, _)
   }
 }

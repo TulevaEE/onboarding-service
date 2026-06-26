@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue.validation;
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Severity.CRITICAL;
 import static ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Severity.INFO;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.stream.Collectors.toCollection;
@@ -20,6 +21,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResul
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Severity;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.StaleSource;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -55,6 +57,7 @@ public class FundValueIntegrityChecker {
   private final PriorityPriceProvider priorityPriceProvider;
   private final PublicHolidays publicHolidays;
   private final Clock clock;
+  private final OperationsNotificationService notificationService;
 
   record TickerCheckResult(
       FundTicker ticker,
@@ -100,6 +103,7 @@ public class FundValueIntegrityChecker {
     List<TickerCheckResult> results = collectAllResults(crossProviderStartDate, endDate);
     String summary = buildSummary(crossProviderStartDate, endDate, results);
     logSummary(summary, results);
+    notifyIfCritical(results);
     return summary;
   }
 
@@ -402,6 +406,48 @@ public class FundValueIntegrityChecker {
     }
 
     return summary.toString();
+  }
+
+  void notifyIfCritical(List<TickerCheckResult> results) {
+    boolean hasCriticalIssues = results.stream().anyMatch(TickerCheckResult::hasCriticalIssues);
+    if (!hasCriticalIssues) {
+      return;
+    }
+    try {
+      notificationService.sendMessage(buildCriticalAlert(results), INVESTMENT);
+    } catch (Exception e) {
+      log.error("Failed to send fund value integrity critical alert", e);
+    }
+  }
+
+  private String buildCriticalAlert(List<TickerCheckResult> results) {
+    StringBuilder sb =
+        new StringBuilder(
+            "SUSPICIOUS PRICE DATA — verify instruments/sources before NAV calculation at 11:00\n");
+    results.stream()
+        .flatMap(result -> result.staleSources().stream())
+        .forEach(
+            stale ->
+                sb.append(
+                    String.format(
+                        "  STALE: %s %s last=%s (%d working days behind)%n",
+                        stale.fundName(),
+                        stale.source(),
+                        stale.lastDate(),
+                        stale.workingDaysBehind())));
+    collectCriticalIssues(results)
+        .forEach(
+            d ->
+                sb.append(
+                    String.format(
+                        "  PRICE DISCREPANCY: %s [%s] %s anchor=%s vs compared=%s (%s%%)%n",
+                        d.fundTicker(),
+                        d.date(),
+                        d.comparisonDescription(),
+                        d.anchorValue().toPlainString(),
+                        d.comparedValue().toPlainString(),
+                        d.percentageDifference().toPlainString())));
+    return sb.toString().stripTrailing();
   }
 
   private void logSummary(String summary, List<TickerCheckResult> results) {

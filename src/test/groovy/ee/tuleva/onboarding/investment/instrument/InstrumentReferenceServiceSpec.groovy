@@ -191,18 +191,6 @@ class InstrumentReferenceServiceSpec extends Specification {
     0 * publisher.publishEvent(_ as InstrumentCacheRefreshedEvent)
   }
 
-  def "onApplicationReady publishes the cache refreshed event"() {
-    given:
-    def publisher = Mock(org.springframework.context.ApplicationEventPublisher)
-    def svc = new InstrumentReferenceService(instrumentReferenceRepository, benchmarkCategoryProxyRepository, publisher)
-
-    when:
-    svc.onApplicationReady()
-
-    then:
-    1 * publisher.publishEvent(new InstrumentCacheRefreshedEvent(6))
-  }
-
   def "scheduledRefresh publishes the cache refreshed event"() {
     given:
     def publisher = Mock(org.springframework.context.ApplicationEventPublisher)

@@ -65,7 +65,7 @@ class TrackingDifferenceNotifier {
         // unavailable) so "within limits" is not read as "NAV residual validated clean".
         var notEvaluated =
             alertableResults.stream()
-                .filter(r -> r.checkType() == MODEL_PORTFOLIO && r.impliedFundReturn() == null)
+                .filter(r -> r.checkType() == MODEL_PORTFOLIO && r.navResidual() == null)
                 .map(r -> r.fund().getCode())
                 .distinct()
                 .sorted()
@@ -125,15 +125,16 @@ class TrackingDifferenceNotifier {
 
     // NAV-correctness signal: the gate blocks on navResidual, not on the fund-vs-model TD above.
     // Surfacing it tells the desk whether this breach actually blocked the NAV report or was an
-    // expected trade-day deviation (navResidual ~0) that passed. impliedFundReturn is the
-    // "evaluated" sentinel — null means the begin-of-day snapshot was unavailable and the
-    // navResidual gate was skipped, which must NOT read as "validated clean".
+    // expected trade-day deviation (navResidual ~0) that passed. A null navResidual is the
+    // "not evaluated" sentinel — the begin-of-day snapshot was unavailable and the navResidual
+    // gate was skipped, which must NOT read as "validated clean".
     if (result.checkType() == MODEL_PORTFOLIO) {
-      if (result.impliedFundReturn() != null) {
+      var navResidual = result.navResidual();
+      if (navResidual != null) {
         sb.append(
             "\n  NAV residual: %s%% (%s)"
                 .formatted(
-                    formatPercent(result.navResidual()),
+                    formatPercent(navResidual),
                     result.navResidualBreach()
                         ? "BLOCKS NAV — investigate pricing / NAV calc"
                         : "non-blocking — fund-vs-model TD explained by trade timing"));

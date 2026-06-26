@@ -375,7 +375,7 @@ class TrackingDifferenceCalculatorTest {
 
     assertThat(result).isPresent();
     assertThat(result.get().navResidualBreach()).isFalse();
-    assertThat(result.get().navResidual()).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(result.get().navResidual()).isNull();
     assertThat(result.get().impliedFundReturn()).isNull();
   }
 

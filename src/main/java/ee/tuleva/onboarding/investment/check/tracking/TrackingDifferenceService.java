@@ -981,10 +981,10 @@ class TrackingDifferenceService {
         Objects.requireNonNullElse(result.navResidual(), ZERO),
         "navResidualBreach",
         result.navResidualBreach(),
-        // Preserve the not-evaluated sentinel in history: a persisted impliedFundReturn of 0 with
+        // Preserve the not-evaluated sentinel in history: a persisted navResidual of 0 with
         // navResidualEvaluated=false means the begin-of-day gate was skipped, not a real zero.
         "navResidualEvaluated",
-        result.impliedFundReturn() != null);
+        result.navResidual() != null);
   }
 
   record BenchmarkConfig(String singleKey, List<BenchmarkComponent> components) {

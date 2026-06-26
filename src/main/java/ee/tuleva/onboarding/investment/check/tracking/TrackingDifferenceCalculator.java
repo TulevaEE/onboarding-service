@@ -147,11 +147,11 @@ class TrackingDifferenceCalculator {
     // gate
     // keys on. A genuine price error on a held (untraded) instrument still surfaces here. When the
     // begin-of-day snapshot is unavailable (null fraction / empty holdings) navResidual is not
-    // computable, so we fail soft: report ZERO and do NOT raise navResidualBreach (the gate must
-    // not
-    // block on data we could not validate, nor manufacture a residual from zero weights).
+    // computable, so we fail soft: leave navResidual null (not evaluated, distinct from an
+    // evaluated 0) and do NOT raise navResidualBreach (the gate must not block on data we could
+    // not validate, nor manufacture a residual from zero weights).
     BigDecimal impliedFundReturn = null;
-    var navResidual = ZERO;
+    BigDecimal navResidual = null;
     var navResidualBreach = false;
     if (input.bodSecuritiesFraction() != null
         && input.bodHoldings() != null

@@ -75,8 +75,6 @@ class TrackingDifferenceCalculator {
     }
 
     BigDecimal breachThreshold = breachThreshold(input.checkDate());
-    BigDecimal maxDailyReturn =
-        parameterRepository.findLatestValue(TRACKING_MAX_DAILY_RETURN, input.checkDate());
 
     var fundReturn =
         input
@@ -90,12 +88,15 @@ class TrackingDifferenceCalculator {
             .filter(s -> s.previous().price().signum() != 0)
             .toList();
 
+    // Raw per-instrument returns (no max-move cap): the fund NAV was valued with these prices, so
+    // the model TD and its attribution must reconcile against them. Implausible price values are
+    // caught upstream by FundValueIntegrityChecker, not masked here. The persisted benchmarkReturn
+    // and securityReturn feed the periodic attribution, which compounds them over the period.
     var benchmarkReturn =
         validSecurities.stream()
             .map(
                 s -> {
-                  var secReturn =
-                      safeDailyReturn(s.today().price(), s.previous().price(), maxDailyReturn);
+                  var secReturn = dailyReturn(s.today().price(), s.previous().price());
                   return s.modelWeight().multiply(secReturn);
                 })
             .reduce(ZERO, BigDecimal::add)
@@ -108,8 +109,7 @@ class TrackingDifferenceCalculator {
         validSecurities.stream()
             .map(
                 s -> {
-                  var secReturn =
-                      safeDailyReturn(s.today().price(), s.previous().price(), maxDailyReturn);
+                  var secReturn = dailyReturn(s.today().price(), s.previous().price());
                   var weightDiff =
                       s.actualWeight().subtract(s.modelWeight()).setScale(SCALE, HALF_UP);
                   var contribution = weightDiff.multiply(secReturn).setScale(SCALE, HALF_UP);

@@ -420,7 +420,10 @@ class TrackingDifferenceCalculatorTest {
   }
 
   @Test
-  void clampsAnomalousSecurityReturnToZero() {
+  void usesRawSecurityReturnForModelTdEvenAboveMaxDailyCap() {
+    // The fund NAV was valued with this price, so the model TD must reconcile against the raw
+    // return. No cap is applied (price-value sanity lives upstream in FundValueIntegrityChecker);
+    // the persisted benchmarkReturn/securityReturn feed the periodic attribution's compounding.
     var securities =
         List.of(security("IE00A", new BigDecimal("1.00"), new BigDecimal("1.00"), "200", "100"));
 
@@ -429,8 +432,10 @@ class TrackingDifferenceCalculatorTest {
     var result = calculator.calculate(input);
 
     assertThat(result).isPresent();
-    // 100% return > 50% threshold, clamped to 0
-    assertThat(result.get().benchmarkReturn()).isEqualByComparingTo(BigDecimal.ZERO);
+    // 100% raw return, model weight 1.0 -> benchmarkReturn 1.0 (not clamped to 0)
+    assertThat(result.get().benchmarkReturn()).isEqualByComparingTo(BigDecimal.ONE);
+    assertThat(result.get().securityAttributions().getFirst().securityReturn())
+        .isEqualByComparingTo(BigDecimal.ONE);
   }
 
   @Test

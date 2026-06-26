@@ -238,7 +238,10 @@ class TrackingDifferenceNotifierTest {
     var captor = org.mockito.ArgumentCaptor.forClass(String.class);
     then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
     var message = captor.getValue();
-    assertThat(message).contains("within limits").contains("NAV residual NOT evaluated");
+    assertThat(message)
+        .contains("within limits")
+        .contains("TD=+0.05%")
+        .contains("navResidual not evaluated");
   }
 
   @Test
@@ -269,7 +272,8 @@ class TrackingDifferenceNotifierTest {
     then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
     var message = captor.getValue();
     assertThat(message).contains("within limits");
-    assertThat(message).doesNotContain("NAV residual NOT evaluated");
+    assertThat(message).contains("TD=+0.05%").contains("navResidual 0.00%");
+    assertThat(message).doesNotContain("not evaluated");
   }
 
   @Test

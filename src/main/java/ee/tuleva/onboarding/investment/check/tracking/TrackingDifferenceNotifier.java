@@ -12,6 +12,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,28 +55,36 @@ class TrackingDifferenceNotifier {
           alertableResults.stream().anyMatch(r -> r.breach() || r.navResidualBreach());
 
       if (!hasAnyBreaches) {
-        var fundCodes =
+        // Always surface the actual TD numbers, even within limits, so the clean-day Slack log is
+        // informative. Per-MODEL_PORTFOLIO line also discloses the NAV residual (or that it could
+        // not be evaluated) so "within limits" is never read as "NAV residual validated clean".
+        var byFund =
             alertableResults.stream()
-                .map(r -> r.fund().getCode())
-                .distinct()
-                .sorted()
-                .collect(Collectors.joining(", "));
-        var message = "%s TD check completed: within limits".formatted(fundCodes);
-        // Disclose when the NAV-correctness residual could not be evaluated (begin-of-day holdings
-        // unavailable) so "within limits" is not read as "NAV residual validated clean".
-        var notEvaluated =
-            alertableResults.stream()
-                .filter(r -> r.checkType() == MODEL_PORTFOLIO && r.navResidual() == null)
-                .map(r -> r.fund().getCode())
-                .distinct()
-                .sorted()
-                .collect(Collectors.joining(", "));
-        if (!notEvaluated.isEmpty()) {
-          message +=
-              " (NAV residual NOT evaluated for %s — begin-of-day holdings unavailable)"
-                  .formatted(notEvaluated);
+                .collect(
+                    Collectors.groupingBy(
+                        r -> r.fund().getCode(), TreeMap::new, Collectors.toList()));
+        var message = new StringBuilder();
+        if (byFund.isEmpty()) {
+          // Only non-alertable (BENCHMARK) results — nothing to detail, but still confirm clean.
+          var fundCodes =
+              results.stream()
+                  .map(r -> r.fund().getCode())
+                  .distinct()
+                  .sorted()
+                  .collect(Collectors.joining(", "));
+          message.append("%s TD check completed: within limits".formatted(fundCodes));
         }
-        notificationService.sendMessage(message, INVESTMENT);
+        byFund.forEach(
+            (fundCode, fundResults) -> {
+              if (message.length() > 0) {
+                message.append("\n");
+              }
+              message.append("%s TD check completed: within limits".formatted(fundCode));
+              fundResults.stream()
+                  .sorted(Comparator.comparing(r -> r.checkType().name()))
+                  .forEach(r -> message.append(formatWithinLimits(r)));
+            });
+        notificationService.sendMessage(message.toString(), INVESTMENT);
         return;
       }
 
@@ -103,6 +112,26 @@ class TrackingDifferenceNotifier {
     } catch (Exception e) {
       log.error("Failed to send tracking difference notification", e);
     }
+  }
+
+  private String formatWithinLimits(TrackingDifferenceResult result) {
+    var sb = new StringBuilder();
+    sb.append(
+        "\n  %s TD=%s%% (fund=%s%%, benchmark=%s%%)"
+            .formatted(
+                result.checkType(),
+                formatPercent(result.trackingDifference()),
+                formatPercent(result.fundReturn()),
+                formatPercent(result.benchmarkReturn())));
+    if (result.checkType() == MODEL_PORTFOLIO) {
+      var navResidual = result.navResidual();
+      if (navResidual != null) {
+        sb.append(", navResidual %s%%".formatted(formatPercent(navResidual)));
+      } else {
+        sb.append(", navResidual not evaluated (begin-of-day holdings unavailable)");
+      }
+    }
+    return sb.toString();
   }
 
   private String formatBreach(TrackingDifferenceResult result, boolean escalation) {

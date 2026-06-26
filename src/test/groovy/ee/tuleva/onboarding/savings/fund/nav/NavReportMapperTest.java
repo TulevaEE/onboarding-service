@@ -301,6 +301,49 @@ class NavReportMapperTest {
   }
 
   @Test
+  void keepsZeroQuantitySecurityThatStillCarriesResidualValue() {
+    var navDate = LocalDate.of(2026, 6, 25);
+
+    var result =
+        NavCalculationResult.builder()
+            .fund(TKF100)
+            .calculationDate(LocalDate.of(2026, 6, 26))
+            .positionReportDate(navDate)
+            .priceDate(navDate)
+            .calculatedAt(Instant.parse("2026-06-26T13:20:00Z"))
+            .securitiesDetail(
+                List.of(
+                    new SecurityDetail(
+                        "IE00BMDBMY19",
+                        "EMXC",
+                        ZERO,
+                        new BigDecimal("41.8050"),
+                        new BigDecimal("123.45"),
+                        navDate)))
+            .cashPosition(new BigDecimal("1000.00"))
+            .receivables(ZERO)
+            .payables(ZERO)
+            .pendingSubscriptions(ZERO)
+            .pendingRedemptions(ZERO)
+            .managementFeeAccrual(ZERO)
+            .depotFeeAccrual(ZERO)
+            .blackrockAdjustment(ZERO)
+            .unitsOutstanding(new BigDecimal("1000.000"))
+            .navPerUnit(new BigDecimal("1.1234"))
+            .aum(new BigDecimal("1123.45"))
+            .build();
+
+    var rows = navReportMapper.map(result);
+
+    var securityRows =
+        rows.stream().filter(row -> row.getAccountType().equals("SECURITY")).toList();
+    assertThat(securityRows).hasSize(1);
+    assertThat(securityRows.get(0).getAccountId()).isEqualTo("IE00BMDBMY19");
+    assertThat(securityRows.get(0).getQuantity()).isEqualTo(new BigDecimal("0.000"));
+    assertThat(securityRows.get(0).getMarketValue()).isEqualTo(new BigDecimal("123.45"));
+  }
+
+  @Test
   void everyRowNavDateMatchesWhatGuardsQueryViaExpectedPositionReportDate() {
     // Coupling contract: mapper writer and guard reader must agree on nav_date via
     // NavCalculationService.expectedPositionReportDate. Protects against future drift.

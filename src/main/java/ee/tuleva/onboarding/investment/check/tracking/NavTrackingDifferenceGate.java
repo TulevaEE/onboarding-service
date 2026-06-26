@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.event.PipelineStep.TRACKING_DIFFERENCE;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -46,14 +47,18 @@ public class NavTrackingDifferenceGate {
         var details =
             breaches.stream()
                 .map(
-                    r ->
-                        "%s navResidual=%s (fund=%s, implied=%s, TD=%s)"
-                            .formatted(
-                                r.checkType(),
-                                r.navResidual().toPlainString(),
-                                r.fundReturn().toPlainString(),
-                                r.impliedFundReturn().toPlainString(),
-                                r.trackingDifference().toPlainString()))
+                    r -> {
+                      // navResidualBreach implies the residual was evaluated, so both are non-null.
+                      var navResidual = requireNonNull(r.navResidual());
+                      var implied = requireNonNull(r.impliedFundReturn());
+                      return "%s navResidual=%s (fund=%s, implied=%s, TD=%s)"
+                          .formatted(
+                              r.checkType(),
+                              navResidual.toPlainString(),
+                              r.fundReturn().toPlainString(),
+                              implied.toPlainString(),
+                              r.trackingDifference().toPlainString());
+                    })
                 .collect(joining("; "));
         return Optional.of(
             "TD breach: fund=%s, date=%s, %s".formatted(fund.getCode(), navDate, details));

@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 
 @Builder(toBuilder = true)
 record TrackingDifferenceResult(
@@ -31,6 +32,6 @@ record TrackingDifferenceResult(
     // NAV-correctness view: fund NAV return vs the return implied by the holdings the fund actually
     // held entering the day (begin-of-day / yesterday's EOD snapshot). Neutralises MOC trade-day
     // timing so the NAV gate keys on navResidualBreach, not on the informational fund-vs-model TD.
-    BigDecimal impliedFundReturn,
-    BigDecimal navResidual,
+    @Nullable BigDecimal impliedFundReturn,
+    @Nullable BigDecimal navResidual,
     boolean navResidualBreach) {}

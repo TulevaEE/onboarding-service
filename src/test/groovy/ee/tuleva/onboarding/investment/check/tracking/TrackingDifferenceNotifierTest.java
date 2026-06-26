@@ -229,7 +229,7 @@ class TrackingDifferenceNotifierTest {
             .feeDrag(BigDecimal.ZERO)
             .residual(BigDecimal.ZERO)
             .impliedFundReturn(null)
-            .navResidual(BigDecimal.ZERO)
+            .navResidual(null)
             .navResidualBreach(false)
             .build();
 
@@ -336,7 +336,7 @@ class TrackingDifferenceNotifierTest {
             .feeDrag(BigDecimal.ZERO)
             .residual(BigDecimal.ZERO)
             .impliedFundReturn(null)
-            .navResidual(BigDecimal.ZERO)
+            .navResidual(null)
             .navResidualBreach(false)
             .build();
 

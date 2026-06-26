@@ -8,7 +8,9 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -28,6 +30,14 @@ public class InstrumentReferenceService {
 
   @PostConstruct
   void init() {
+    loadCache();
+  }
+
+  // Publishing the cache-refreshed event during @PostConstruct triggers eager creation of the
+  // validation listener, whose dependency chain leads back to this still-in-creation bean
+  // (BeanCurrentlyInCreationException). Defer the first event until the context is fully built.
+  @EventListener(ApplicationReadyEvent.class)
+  void onApplicationReady() {
     refresh();
   }
 
@@ -41,6 +51,12 @@ public class InstrumentReferenceService {
   }
 
   private void refresh() {
+    if (loadCache()) {
+      eventPublisher.publishEvent(new InstrumentCacheRefreshedEvent(byIsin.size()));
+    }
+  }
+
+  private boolean loadCache() {
     try {
       var instruments = instrumentReferenceRepository.findAll();
       var proxies = benchmarkCategoryProxyRepository.findAll();
@@ -77,9 +93,10 @@ public class InstrumentReferenceService {
           instruments.size(),
           proxies.size());
 
-      eventPublisher.publishEvent(new InstrumentCacheRefreshedEvent(instruments.size()));
+      return true;
     } catch (Exception e) {
       log.error("Failed to refresh instrument reference cache", e);
+      return false;
     }
   }
 

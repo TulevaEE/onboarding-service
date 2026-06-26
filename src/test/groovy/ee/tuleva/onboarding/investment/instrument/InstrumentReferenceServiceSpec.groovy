@@ -178,6 +178,43 @@ class InstrumentReferenceServiceSpec extends Specification {
     svc.findByIsin("IE00OLD").isEmpty()
   }
 
+  def "init populates cache without publishing the cache refreshed event"() {
+    given:
+    def publisher = Mock(org.springframework.context.ApplicationEventPublisher)
+    def svc = new InstrumentReferenceService(instrumentReferenceRepository, benchmarkCategoryProxyRepository, publisher)
+
+    when:
+    svc.init()
+
+    then:
+    svc.findAll().size() == 6
+    0 * publisher.publishEvent(_ as InstrumentCacheRefreshedEvent)
+  }
+
+  def "onApplicationReady publishes the cache refreshed event"() {
+    given:
+    def publisher = Mock(org.springframework.context.ApplicationEventPublisher)
+    def svc = new InstrumentReferenceService(instrumentReferenceRepository, benchmarkCategoryProxyRepository, publisher)
+
+    when:
+    svc.onApplicationReady()
+
+    then:
+    1 * publisher.publishEvent(new InstrumentCacheRefreshedEvent(6))
+  }
+
+  def "scheduledRefresh publishes the cache refreshed event"() {
+    given:
+    def publisher = Mock(org.springframework.context.ApplicationEventPublisher)
+    def svc = new InstrumentReferenceService(instrumentReferenceRepository, benchmarkCategoryProxyRepository, publisher)
+
+    when:
+    svc.scheduledRefresh()
+
+    then:
+    1 * publisher.publishEvent(new InstrumentCacheRefreshedEvent(6))
+  }
+
   def "refresh handles exceptions gracefully"() {
     given:
     def repo = Mock(InstrumentReferenceRepository)

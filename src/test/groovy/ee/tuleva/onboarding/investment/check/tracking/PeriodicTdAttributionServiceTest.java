@@ -81,7 +81,8 @@ class PeriodicTdAttributionServiceTest {
             attributionRepository,
             transactionExecutionRepository,
             instrumentFeeRepository,
-            transactionManager);
+            transactionManager,
+            new ee.tuleva.onboarding.deadline.PublicHolidays());
 
     // Default lenient stubs for Phase 3 data sources (overridden in specific tests)
     given(transactionExecutionRepository.sumCommissionsForFundAndPeriod(anyString(), any(), any()))
@@ -752,5 +753,32 @@ class PeriodicTdAttributionServiceTest {
                 ZERO))
         .createdAt(Instant.now())
         .build();
+  }
+
+  @Test
+  void countSeriesGapsIgnoresWeekendsButCountsMissingWorkingDays() {
+    var holidays = new ee.tuleva.onboarding.deadline.PublicHolidays();
+
+    // Mon, Tue, Wed — unbroken chain.
+    assertThat(
+            PeriodicTdAttributionService.countSeriesGaps(
+                List.of(
+                    LocalDate.of(2026, 6, 15),
+                    LocalDate.of(2026, 6, 16),
+                    LocalDate.of(2026, 6, 17)),
+                holidays))
+        .isZero();
+
+    // Fri -> Mon spans a weekend, which is not a gap.
+    assertThat(
+            PeriodicTdAttributionService.countSeriesGaps(
+                List.of(LocalDate.of(2026, 6, 12), LocalDate.of(2026, 6, 15)), holidays))
+        .isZero();
+
+    // Mon -> Wed skips Tue (a working day) — one gap that breaks geometric telescoping.
+    assertThat(
+            PeriodicTdAttributionService.countSeriesGaps(
+                List.of(LocalDate.of(2026, 6, 15), LocalDate.of(2026, 6, 17)), holidays))
+        .isEqualTo(1);
   }
 }

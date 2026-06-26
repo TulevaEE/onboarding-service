@@ -439,6 +439,25 @@ class TdAttributionCalculatorTest {
   }
 
   @Test
+  void surfacesSeriesGapDaysInChecks() {
+    var days = buildConstantDays(5, "0.0005", "0.0005");
+    var input =
+        TdAttributionInput.builder()
+            .fund(TUK75)
+            .periodStart(PERIOD_START)
+            .periodEnd(PERIOD_END)
+            .periodType(MONTHLY)
+            .calendarDays(30)
+            .seriesGapDays(2)
+            .dailyRecords(days)
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.checks()).containsEntry("seriesGapDays", 2);
+  }
+
+  @Test
   void modelPortfolioVersionChangeMidPeriod() {
     // Day 1: model has sec1=60%, sec2=40%
     // Day 2: model changes to sec1=50%, sec3=50% (sec2 removed, sec3 added)

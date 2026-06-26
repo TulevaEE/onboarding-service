@@ -411,6 +411,108 @@ class TrackingDifferenceCalculatorTest {
   }
 
   @Test
+  void navResidualNotComputedWhenBodHoldingsNullDespiteSecuritiesFraction() {
+    var input =
+        TrackingInput.builder()
+            .fund(TUK75)
+            .checkDate(CHECK_DATE)
+            .checkType(MODEL_PORTFOLIO)
+            .todayNav(new BigDecimal("10.30"))
+            .yesterdayNav(new BigDecimal("10.00"))
+            .securities(
+                List.of(
+                    security(
+                        "IE00A", new BigDecimal("1.00"), new BigDecimal("1.00"), "102", "100")))
+            .cashWeight(BigDecimal.ZERO)
+            .annualFeeRate(BigDecimal.ZERO)
+            .bodHoldings(null)
+            .bodSecuritiesFraction(new BigDecimal("1.00"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    assertThat(result.get().impliedFundReturn()).isNull();
+    assertThat(result.get().navResidual()).isNull();
+    assertThat(result.get().navResidualBreach()).isFalse();
+  }
+
+  @Test
+  void navResidualNotComputedWhenBodHoldingsEmpty() {
+    var input =
+        TrackingInput.builder()
+            .fund(TUK75)
+            .checkDate(CHECK_DATE)
+            .checkType(MODEL_PORTFOLIO)
+            .todayNav(new BigDecimal("10.30"))
+            .yesterdayNav(new BigDecimal("10.00"))
+            .securities(
+                List.of(
+                    security(
+                        "IE00A", new BigDecimal("1.00"), new BigDecimal("1.00"), "102", "100")))
+            .cashWeight(BigDecimal.ZERO)
+            .annualFeeRate(BigDecimal.ZERO)
+            .bodHoldings(List.of())
+            .bodSecuritiesFraction(new BigDecimal("1.00"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    assertThat(result.get().impliedFundReturn()).isNull();
+    assertThat(result.get().navResidual()).isNull();
+    assertThat(result.get().navResidualBreach()).isFalse();
+  }
+
+  @Test
+  void navResidualSkipsBeginningOfDayHoldingsWithMissingOrZeroPrices() {
+    // A held instrument with a missing today price, and one with a zero anchor price, cannot be
+    // priced into the implied return — both are skipped, only the priceable holding contributes.
+    var input =
+        TrackingInput.builder()
+            .fund(TUK75)
+            .checkDate(CHECK_DATE)
+            .checkType(MODEL_PORTFOLIO)
+            .todayNav(new BigDecimal("10.20"))
+            .yesterdayNav(new BigDecimal("10.00"))
+            .securities(
+                List.of(
+                    security(
+                        "IE00A", new BigDecimal("1.00"), new BigDecimal("1.00"), "102", "100")))
+            .cashWeight(BigDecimal.ZERO)
+            .annualFeeRate(BigDecimal.ZERO)
+            .bodHoldings(
+                List.of(
+                    bodHolding("IE00A", new BigDecimal("1.00"), "102", "100"),
+                    new TrackingDifferenceCalculator.BodHolding(
+                        "IE00B",
+                        new BigDecimal("0.50"),
+                        new PriceSnapshot(null, null),
+                        new PriceSnapshot(new BigDecimal("100"), null)),
+                    new TrackingDifferenceCalculator.BodHolding(
+                        "IE00C",
+                        new BigDecimal("0.50"),
+                        new PriceSnapshot(new BigDecimal("100"), null),
+                        new PriceSnapshot(BigDecimal.ZERO, null)),
+                    new TrackingDifferenceCalculator.BodHolding(
+                        "IE00D",
+                        new BigDecimal("0.50"),
+                        new PriceSnapshot(new BigDecimal("100"), null),
+                        new PriceSnapshot(null, null))))
+            .bodSecuritiesFraction(new BigDecimal("1.00"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    // Only IE00A is priceable: 1.0 sleeve fraction * 1.0 weight * 0.02 return = 0.02 == fund
+    // return.
+    assertThat(result.get().impliedFundReturn()).isEqualByComparingTo(new BigDecimal("0.02"));
+    assertThat(result.get().navResidual()).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(result.get().navResidualBreach()).isFalse();
+  }
+
+  @Test
   void returnsEmptyWhenYesterdayNavIsZero() {
     var input = inputWithNav(new BigDecimal("10.50"), BigDecimal.ZERO);
 

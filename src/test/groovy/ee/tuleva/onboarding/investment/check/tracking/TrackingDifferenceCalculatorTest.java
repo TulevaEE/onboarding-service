@@ -335,6 +335,37 @@ class TrackingDifferenceCalculatorTest {
   }
 
   @Test
+  void navResidualUsesRawReturnSoLargeMovesAboveCapStillReconcile() {
+    // A held instrument legitimately moves +60% (above the 50% maxDailyReturn cap). The NAV used
+    // this price, so the residual must reconcile against the raw return (no cap) -> navResidual 0.
+    // With a cap the implied return would be zeroed, manufacturing a spurious full-size breach.
+    var input =
+        TrackingInput.builder()
+            .fund(TUK75)
+            .checkDate(CHECK_DATE)
+            .checkType(MODEL_PORTFOLIO)
+            .todayNav(new BigDecimal("16.00"))
+            .yesterdayNav(new BigDecimal("10.00"))
+            .securities(
+                List.of(
+                    security(
+                        "IE00A", new BigDecimal("1.00"), new BigDecimal("1.00"), "160", "100")))
+            .cashWeight(BigDecimal.ZERO)
+            .annualFeeRate(BigDecimal.ZERO)
+            .bodHoldings(List.of(bodHolding("IE00A", new BigDecimal("1.00"), "160", "100")))
+            .bodSecuritiesFraction(new BigDecimal("1.00"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    // raw implied = 1.0 * 0.60 = 0.60; fund return = 16/10 - 1 = 0.60 -> navResidual 0
+    assertThat(result.get().impliedFundReturn()).isEqualByComparingTo(new BigDecimal("0.60"));
+    assertThat(result.get().navResidual()).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(result.get().navResidualBreach()).isFalse();
+  }
+
+  @Test
   void modelTdBreachesButNavResidualDoesNotOnTradeDay() {
     // Model already swapped to the freshly bought instrument (+0.81%); the fund still held its
     // begin-of-day portfolio (+0.23%) intraday. Fund-vs-model TD breaches, navResidual ~0.

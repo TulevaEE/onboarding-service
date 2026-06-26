@@ -102,6 +102,9 @@ class TdAttributionCalculator {
     var avgCashPct =
         aumDays > 0 ? totalCashPct.divide(BigDecimal.valueOf(aumDays), SCALE, HALF_UP) : ZERO;
 
+    // Number of daily NAV events in the period. Equals the working-day count only when the series
+    // is unbroken; a missing day breaks geometric telescoping, so the gap count is surfaced in
+    // checks.seriesGapDays for visibility.
     int businessDays = dailyRecords.size();
 
     var checks =
@@ -240,7 +243,8 @@ class TdAttributionCalculator {
         "sumCheck", sumCheck.setScale(8, HALF_UP),
         "feeXcheck", feeXcheck.setScale(8, HALF_UP),
         "scalingFactor", periodLink.setScale(8, HALF_UP),
-        "residualBps", residualBps.setScale(2, HALF_UP));
+        "residualBps", residualBps.setScale(2, HALF_UP),
+        "seriesGapDays", input.seriesGapDays());
   }
 
   private TdAttributionResult emptyResult(TdAttributionInput input) {
@@ -288,6 +292,7 @@ class TdAttributionCalculator {
       BigDecimal etfOcfDragPeriod,
       BigDecimal etfTrackingResidualArithmetic,
       BigDecimal expectedAnnualFeeRate,
+      int seriesGapDays,
       List<DailyRecord> dailyRecords) {}
 
   @Builder

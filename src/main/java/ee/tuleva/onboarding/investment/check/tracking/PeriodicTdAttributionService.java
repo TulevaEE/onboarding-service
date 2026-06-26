@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.check.tracking.TdAttributionCalculator.DailyRecord;
 import ee.tuleva.onboarding.investment.check.tracking.TdAttributionCalculator.SecurityDailyData;
@@ -57,6 +58,7 @@ public class PeriodicTdAttributionService {
   private final TransactionExecutionRepository transactionExecutionRepository;
   private final InstrumentFeeRepository instrumentFeeRepository;
   private final PlatformTransactionManager transactionManager;
+  private final PublicHolidays publicHolidays;
 
   private final TdAttributionCalculator calculator = new TdAttributionCalculator();
 
@@ -128,6 +130,21 @@ public class PeriodicTdAttributionService {
         modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
             fund, periodStart, periodEnd);
 
+    // Geometric compounding telescopes only if the daily event series is unbroken (each event's
+    // return spans to the prior event's date). A missing working day breaks the chain, so detect
+    // and surface gaps rather than silently producing a distorted period return.
+    var seriesGapDays =
+        countSeriesGaps(
+            tdEvents.stream().map(TrackingDifferenceEvent::getCheckDate).toList(), publicHolidays);
+    if (seriesGapDays > 0) {
+      log.warn(
+          "Gaps in daily TD series may distort geometric compounding: fund={}, period={}-{}, gapDays={}",
+          fund,
+          periodStart,
+          periodEnd,
+          seriesGapDays);
+    }
+
     var dailyRecords = buildDailyRecords(fund, tdEvents, modelAllocations);
 
     var mgmtFeeDragTotal = computeFeeDragPeriod(feeAccruals, FeeType.MANAGEMENT);
@@ -181,8 +198,24 @@ public class PeriodicTdAttributionService {
         .etfOcfDragPeriod(etfOcfDrag)
         .etfTrackingResidualArithmetic(etfTrackingArithmetic)
         .expectedAnnualFeeRate(expectedAnnualFeeRate)
+        .seriesGapDays(seriesGapDays)
         .dailyRecords(dailyRecords)
         .build();
+  }
+
+  // Counts adjacency breaks in the daily event series: a gap exists when an event's immediately
+  // preceding working day is not the prior event's date, meaning a working day's return is missing
+  // from the chain and the geometric product no longer telescopes cleanly over the period.
+  static int countSeriesGaps(List<LocalDate> sortedEventDates, PublicHolidays publicHolidays) {
+    int gaps = 0;
+    for (int i = 1; i < sortedEventDates.size(); i++) {
+      var previousEventDate = sortedEventDates.get(i - 1);
+      var currentEventDate = sortedEventDates.get(i);
+      if (!publicHolidays.previousWorkingDay(currentEventDate).equals(previousEventDate)) {
+        gaps++;
+      }
+    }
+    return gaps;
   }
 
   public void computeQuarterly(TulevaFund fund, int year, int quarter) {

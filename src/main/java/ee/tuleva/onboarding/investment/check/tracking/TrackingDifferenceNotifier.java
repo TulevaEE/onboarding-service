@@ -267,9 +267,14 @@ class TrackingDifferenceNotifier {
       threshold = ESCALATION_THRESHOLD_FALLBACK;
       netTdThreshold = ESCALATION_NET_TD_THRESHOLD_FALLBACK;
     }
+    // Escalate after enough consecutive breach days when the cumulative effect is material: either
+    // the compounded fund-vs-model TD clears the net-TD threshold, or the streak included a
+    // NAV-correctness residual breach (each navResidual breach already exceeds the daily threshold,
+    // so a persistent run is material even if the model-TD nets out small).
     return result.consecutiveBreachDays() >= threshold
-        && result.consecutiveNetTd() != null
-        && result.consecutiveNetTd().abs().compareTo(netTdThreshold) >= 0;
+        && ((result.consecutiveNetTd() != null
+                && result.consecutiveNetTd().abs().compareTo(netTdThreshold) >= 0)
+            || result.escalationNavResidualBreach());
   }
 
   private String formatPercent(BigDecimal value) {

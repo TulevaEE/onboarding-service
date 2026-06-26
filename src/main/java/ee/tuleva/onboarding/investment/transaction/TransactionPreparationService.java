@@ -3,12 +3,17 @@ package ee.tuleva.onboarding.investment.transaction;
 import static java.math.BigDecimal.ZERO;
 import static java.util.stream.Collectors.toMap;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
+import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.transaction.calculation.TradeCalculationEngine;
+import ee.tuleva.onboarding.investment.transaction.export.CustodianOrderEmailSender;
 import ee.tuleva.onboarding.investment.transaction.export.GoogleDriveProperties;
 import ee.tuleva.onboarding.investment.transaction.export.TransactionExportService;
 import ee.tuleva.onboarding.investment.transaction.export.TransactionExportUploader;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -20,10 +25,12 @@ import java.util.Map;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 @Service
@@ -39,9 +46,11 @@ public class TransactionPreparationService {
   private final SettlementDateCalculator settlementDateCalculator;
   private final TransactionExportService exportService;
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
+  private final PositionPriceResolver positionPriceResolver;
   private final ApplicationEventPublisher eventPublisher;
   private final GoogleDriveProperties driveProperties;
   @Nullable private final TransactionExportUploader exportUploader;
+  private final CustodianOrderEmailSender custodianOrderEmailSender;
   private final Clock clock;
 
   @Transactional
@@ -69,7 +78,8 @@ public class TransactionPreparationService {
               .build();
       batchRepository.save(batch);
 
-      List<TransactionOrder> orders = createOrders(batch, result, Instant.now(clock));
+      List<TransactionOrder> orders =
+          createOrders(batch, result, command.getAsOfDate(), Instant.now(clock));
       orderRepository.saveAll(orders);
 
       auditEventRepository.save(
@@ -80,7 +90,7 @@ public class TransactionPreparationService {
               .createdAt(Instant.now(clock))
               .payload(
                   Map.of(
-                      "input", serializeInput(input),
+                      "input", serializeInput(input, command.getManualAdjustments()),
                       "output", serializeTrades(result.trades()),
                       "summary",
                           Map.of(
@@ -125,7 +135,7 @@ public class TransactionPreparationService {
           order.setOrderTimestamp(now);
           order.setExpectedSettlementDate(
               settlementDateCalculator.calculateSettlementDate(
-                  tradeDate, order.getInstrumentType()));
+                  tradeDate, order.getInstrumentType(), order.getInstrumentIsin()));
           order.setOrderStatus(OrderStatus.SENT);
         });
     orderRepository.saveAll(orders);
@@ -153,12 +163,6 @@ public class TransactionPreparationService {
     updatedMetadata.put("sebFundXlsx", encodeExport(sebFundXlsx));
     updatedMetadata.put("sebEtfXlsx", encodeExport(sebEtfXlsx));
     updatedMetadata.put("ftEtfXlsx", encodeExport(ftEtfXlsx));
-
-    Map<String, String> driveFileUrls =
-        uploadExportsToDrive(batch, now, sebFundXlsx, sebEtfXlsx, ftEtfXlsx);
-    if (!driveFileUrls.isEmpty()) {
-      updatedMetadata.put("driveFileUrls", driveFileUrls);
-    }
     batch.setMetadata(updatedMetadata);
 
     batch.setStatus(BatchStatus.SENT);
@@ -173,38 +177,118 @@ public class TransactionPreparationService {
             .payload(Map.of("tradeDate", tradeDate.toString(), "orderCount", orders.size()))
             .build());
 
-    eventPublisher.publishEvent(
-        new BatchFinalizedEvent(batch.getId(), orders.size(), tradeDate.toString(), driveFileUrls));
+    runAfterCommit(
+        () ->
+            publishExportsToDrive(
+                batch, now, tradeDate, orders.size(), sebFundXlsx, sebEtfXlsx, ftEtfXlsx));
 
     log.info("Batch finalized: id={}, orderCount={}", batch.getId(), orders.size());
   }
 
+  private void publishExportsToDrive(
+      TransactionBatch batch,
+      Instant timestamp,
+      LocalDate tradeDate,
+      int orderCount,
+      byte[] sebFundXlsx,
+      byte[] sebEtfXlsx,
+      byte[] ftEtfXlsx) {
+    var exports =
+        Map.of("sebFundXlsx", sebFundXlsx, "sebEtfXlsx", sebEtfXlsx, "ftEtfXlsx", ftEtfXlsx);
+    Map<String, String> driveFileUrls = uploadExportsToDrive(batch, timestamp, exports);
+    if (!driveFileUrls.isEmpty()) {
+      persistDriveFileUrls(batch, driveFileUrls);
+    }
+    custodianOrderEmailSender.send(batch.getFund(), timestamp, exports);
+    eventPublisher.publishEvent(
+        new BatchFinalizedEvent(batch.getId(), orderCount, tradeDate.toString(), driveFileUrls));
+  }
+
+  void persistDriveFileUrls(TransactionBatch batch, Map<String, String> driveFileUrls) {
+    Map<String, Object> updatedMetadata = new HashMap<>(batch.getMetadata());
+    updatedMetadata.put("driveFileUrls", driveFileUrls);
+    batch.setMetadata(updatedMetadata);
+    batchRepository.save(batch);
+  }
+
+  private void runAfterCommit(Runnable action) {
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              action.run();
+            }
+          });
+    } else {
+      action.run();
+    }
+  }
+
   private List<TransactionOrder> createOrders(
-      TransactionBatch batch, FundCalculationResult result, Instant createdAt) {
+      TransactionBatch batch, FundCalculationResult result, LocalDate asOfDate, Instant createdAt) {
     var input = result.input();
 
     return result.trades().stream()
         .filter(trade -> trade.tradeAmount().compareTo(ZERO) != 0)
         .map(
-            trade ->
-                TransactionOrder.builder()
-                    .batch(batch)
-                    .fund(result.fund())
-                    .instrumentIsin(trade.isin())
-                    .transactionType(
-                        trade.tradeAmount().compareTo(ZERO) > 0
-                            ? TransactionType.BUY
-                            : TransactionType.SELL)
-                    .instrumentType(
-                        input.instrumentTypes().getOrDefault(trade.isin(), InstrumentType.ETF))
-                    .orderAmount(trade.tradeAmount().abs())
-                    .orderVenue(input.orderVenues().getOrDefault(trade.isin(), OrderVenue.SEB))
-                    .createdAt(createdAt)
-                    .build())
+            trade -> {
+              var instrumentType =
+                  input.instrumentTypes().getOrDefault(trade.isin(), InstrumentType.ETF);
+              var transactionType =
+                  trade.tradeAmount().compareTo(ZERO) > 0
+                      ? TransactionType.BUY
+                      : TransactionType.SELL;
+              var orderAmount = trade.tradeAmount().abs();
+              return TransactionOrder.builder()
+                  .batch(batch)
+                  .fund(result.fund())
+                  .instrumentIsin(trade.isin())
+                  .transactionType(transactionType)
+                  .instrumentType(instrumentType)
+                  .orderAmount(orderAmount)
+                  .orderQuantity(
+                      calculateOrderQuantity(
+                          instrumentType, transactionType, trade.isin(), orderAmount, asOfDate))
+                  .orderVenue(input.orderVenues().getOrDefault(trade.isin(), OrderVenue.SEB))
+                  .createdAt(createdAt)
+                  .build();
+            })
         .toList();
   }
 
-  static Map<String, Object> serializeInput(FundTransactionInput input) {
+  @Nullable
+  private BigDecimal calculateOrderQuantity(
+      InstrumentType instrumentType,
+      TransactionType transactionType,
+      String isin,
+      BigDecimal orderAmount,
+      LocalDate asOfDate) {
+    if (isAmountBasedOrder(instrumentType, transactionType)) {
+      return null;
+    }
+    return positionPriceResolver
+        .resolve(isin, asOfDate)
+        .map(ResolvedPrice::usedPrice)
+        .map(price -> orderAmount.divide(price, 6, RoundingMode.HALF_UP))
+        .orElseGet(
+            () -> {
+              log.warn(
+                  "No price found for order quantity: isin={}, instrumentType={}, asOfDate={}",
+                  isin,
+                  instrumentType,
+                  asOfDate);
+              return null;
+            });
+  }
+
+  private boolean isAmountBasedOrder(
+      InstrumentType instrumentType, TransactionType transactionType) {
+    return instrumentType == InstrumentType.FUND && transactionType == TransactionType.BUY;
+  }
+
+  static Map<String, Object> serializeInput(
+      FundTransactionInput input, Map<String, Object> manualAdjustments) {
     return Map.ofEntries(
         Map.entry(
             "positions",
@@ -238,7 +322,8 @@ public class TransactionPreparationService {
                             Map.of(
                                 "softLimit", entry.getValue().softLimit().toPlainString(),
                                 "hardLimit", entry.getValue().hardLimit().toPlainString())))),
-        Map.entry("fastSellIsins", List.copyOf(input.fastSellIsins())));
+        Map.entry("fastSellIsins", List.copyOf(input.fastSellIsins())),
+        Map.entry("manualAdjustments", Map.copyOf(manualAdjustments)));
   }
 
   static List<Map<String, Object>> serializeTrades(List<TradeCalculation> trades) {
@@ -263,17 +348,11 @@ public class TransactionPreparationService {
   }
 
   private Map<String, String> uploadExportsToDrive(
-      TransactionBatch batch,
-      Instant timestamp,
-      byte[] sebFundXlsx,
-      byte[] sebEtfXlsx,
-      byte[] ftEtfXlsx) {
+      TransactionBatch batch, Instant timestamp, Map<String, byte[]> exports) {
     if (!driveProperties.enabled() || exportUploader == null) {
       return Map.of();
     }
     try {
-      var exports =
-          Map.of("sebFundXlsx", sebFundXlsx, "sebEtfXlsx", sebEtfXlsx, "ftEtfXlsx", ftEtfXlsx);
       return exportUploader.uploadExports(
           driveProperties.rootFolderId(), batch.getFund(), timestamp, exports);
     } catch (Exception e) {

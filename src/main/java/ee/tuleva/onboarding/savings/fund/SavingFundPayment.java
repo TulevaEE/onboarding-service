@@ -8,6 +8,8 @@ import ee.tuleva.onboarding.party.PartyId;
 import jakarta.annotation.Nullable;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.UUID;
 import lombok.Builder;
 import lombok.Value;
@@ -41,6 +43,13 @@ public class SavingFundPayment {
   Instant cancelledAt;
 
   @Nullable String returnReason;
+
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+
+  @Nullable
+  public LocalDate bookingDate() {
+    return receivedBefore == null ? null : receivedBefore.atZone(ESTONIAN_ZONE).toLocalDate();
+  }
 
   public enum Status {
     CREATED,

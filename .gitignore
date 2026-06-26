@@ -1,7 +1,13 @@
 .gradle
 /build/
 /temp/
+/tmp/
 !gradle/wrapper/gradle-wrapper.jar
+
+# devloop: live-review tooling (Node, isolated from the Gradle build)
+/.claude/skills/devloop/scripts/node_modules/
+/.claude/skills/devloop/scripts/package-lock.json
+/.claude/skills/devloop/scripts/.env
 
 ### STS ###
 .apt_generated

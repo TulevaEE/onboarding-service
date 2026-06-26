@@ -145,8 +145,11 @@ public class SavingsFundLedger {
     boolean unattributedPaymentExists =
         ledgerTransactionService.existsByExternalReferenceAndTransactionType(
             externalReference, UNATTRIBUTED_PAYMENT);
+    boolean reconciledToParty =
+        ledgerTransactionService.existsByExternalReferenceAndTransactionType(
+            externalReference, UNATTRIBUTED_PAYMENT_RECONCILED);
 
-    if (unattributedPaymentExists) {
+    if (unattributedPaymentExists && !reconciledToParty) {
       return bounceBackUnattributedPayment(amount, externalReference);
     }
 
@@ -324,6 +327,47 @@ public class SavingsFundLedger {
     if (!alreadyRecorded) {
       recordUnattributedPayment(amount, externalReference);
     }
+  }
+
+  @Transactional
+  public LedgerTransaction reconcileUnattributedPayment(
+      PartyId party, BigDecimal amount, UUID externalReference) {
+    return reconcileUnattributedPayment(party, amount, externalReference, LocalDate.now(clock));
+  }
+
+  @Transactional
+  public LedgerTransaction reconcileUnattributedPayment(
+      PartyId party, BigDecimal amount, UUID externalReference, LocalDate bookingDate) {
+    var existing =
+        ledgerTransactionService.findByExternalReferenceAndTransactionType(
+            externalReference, UNATTRIBUTED_PAYMENT_RECONCILED);
+    if (existing.isPresent()) {
+      log.error(
+          "Duplicate UNATTRIBUTED_PAYMENT_RECONCILED prevented: externalReference={}",
+          externalReference,
+          new Exception("Duplicate caller stacktrace"));
+      return existing.get();
+    }
+
+    ensureUnattributedPaymentRecorded(amount, externalReference);
+
+    LedgerAccount unreconciledAccount = getUnreconciledBankReceiptsAccount();
+    LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
+
+    Map<String, Object> metadata = partyMetadata(party, UNATTRIBUTED_PAYMENT_RECONCILED);
+
+    var reconciliation =
+        ledgerTransactionService.createTransaction(
+            UNATTRIBUTED_PAYMENT_RECONCILED,
+            transactionDate(bookingDate),
+            externalReference,
+            metadata,
+            entry(unreconciledAccount, amount),
+            entry(incomingPaymentsAccount, amount.negate()));
+
+    recordPaymentReceived(party, amount, externalReference, bookingDate);
+
+    return reconciliation;
   }
 
   @Transactional

@@ -29,11 +29,26 @@ class NavUnitImpactChecker {
       return List.of();
     }
 
+    // A material unit break we cannot quantify as a NAV impact (missing/zero AUM, or non-positive
+    // unit counts) must still FAIL — otherwise the only remaining signal is the WARNING from
+    // UnitReconciliationChecker, silently downgrading a potentially price-moving discrepancy.
     if (aum == null
         || aum.signum() <= 0
         || reportedUnits.signum() <= 0
         || authoritativeUnits.signum() <= 0) {
-      return List.of();
+      return List.of(
+          new HealthCheckFinding(
+              fund,
+              NAV_UNIT_IMPACT,
+              FAIL,
+              ("Unit difference %s exceeds threshold %s but NAV impact is indeterminate"
+                      + " (aum=%s, reported=%s, authoritative=%s) — manual check required")
+                  .formatted(
+                      difference.toPlainString(),
+                      UNIT_DIFFERENCE_THRESHOLD.toPlainString(),
+                      aum == null ? "null" : aum.toPlainString(),
+                      reportedUnits.toPlainString(),
+                      authoritativeUnits.toPlainString())));
     }
 
     var navScale = fund.getNavScale();

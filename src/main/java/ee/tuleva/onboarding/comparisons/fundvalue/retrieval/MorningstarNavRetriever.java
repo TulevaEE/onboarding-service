@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import static java.math.BigDecimal.ZERO;
+import static java.util.stream.Collectors.toSet;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
@@ -10,7 +11,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
@@ -41,8 +42,10 @@ public class MorningstarNavRetriever implements ComparisonIndexRetriever {
   }
 
   @Override
-  public Optional<String> trackingProvider() {
-    return Optional.of(PROVIDER);
+  public Set<String> expectedStorageKeys() {
+    return FundTicker.getMorningstarFunds().stream()
+        .map(fund -> fund.getMorningstarStorageKey().orElseThrow())
+        .collect(toSet());
   }
 
   @Override

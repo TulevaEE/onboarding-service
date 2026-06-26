@@ -50,6 +50,18 @@
             </ns1:item>
           </ns1:teatatud_tegevusalad>
         </ns1:yldandmed>
+        <ns1:isikuandmed>
+          <ns1:esindusoiguse_eritingimused>
+            <ns1:item>
+              <ns1:kirje_id>12345</ns1:kirje_id>
+              <ns1:esinduse_tyyp>AINUESINDUS</ns1:esinduse_tyyp>
+              <ns1:esinduse_tyyp_tekstina>Juhatuse liige esindab äriühingut ainuisikuliselt</ns1:esinduse_tyyp_tekstina>
+              <ns1:esinduse_sisu>Tehingute tegemiseks on nõutav nõukogu nõusolek</ns1:esinduse_sisu>
+              <ns1:algus_kpv>2024-09-01</ns1:algus_kpv>
+              <ns1:lopp_kpv>2030-12-31</ns1:lopp_kpv>
+            </ns1:item>
+          </ns1:esindusoiguse_eritingimused>
+        </ns1:isikuandmed>
       </ns1:item>
     </ns1:ettevotjad>
     <ns1:leitud_ettevotjate_arv>1</ns1:leitud_ettevotjate_arv>

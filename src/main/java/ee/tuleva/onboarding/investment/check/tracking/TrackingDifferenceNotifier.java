@@ -20,7 +20,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class TrackingDifferenceNotifier {
 
-  private static final int ESCALATION_THRESHOLD = 3;
+  private static final int ESCALATION_THRESHOLD_FALLBACK = 3;
+  private static final BigDecimal ESCALATION_NET_TD_THRESHOLD_FALLBACK = new BigDecimal("0.005");
   private static final BigDecimal HUNDRED = new BigDecimal("100");
 
   private final OperationsNotificationService notificationService;
@@ -51,16 +52,16 @@ class TrackingDifferenceNotifier {
           continue;
         }
 
-        if (isEscalation(result)) {
+        var escalation = isEscalation(result);
+        if (escalation) {
           hasEscalation = true;
         }
 
-        message.append(formatBreach(result));
+        message.append(formatBreach(result, escalation));
       }
 
       if (hasEscalation) {
-        message.insert(
-            0, "TD ESCALATION — %d+ CONSECUTIVE BREACH DAYS\n".formatted(ESCALATION_THRESHOLD));
+        message.insert(0, "TD ESCALATION — CONSECUTIVE BREACH DAYS\n");
       }
 
       notificationService.sendMessage(message.toString(), INVESTMENT);
@@ -69,7 +70,7 @@ class TrackingDifferenceNotifier {
     }
   }
 
-  private String formatBreach(TrackingDifferenceResult result) {
+  private String formatBreach(TrackingDifferenceResult result, boolean escalation) {
     var sb = new StringBuilder();
     sb.append(
         "\n[%s] %s %s: TD=%s%% (fund=%s%%, benchmark=%s%%)"
@@ -128,18 +129,62 @@ class TrackingDifferenceNotifier {
       }
     }
 
-    if (isEscalation(result)) {
-      sb.append(" [%d consecutive days]".formatted(result.consecutiveBreachDays()));
+    if (escalation) {
+      sb.append(
+          "\n  [%d consecutive days, compounded TD=%s%%]"
+              .formatted(result.consecutiveBreachDays(), formatPercent(result.consecutiveNetTd())));
+      if (result.compoundedFundReturn() != null && result.compoundedBenchmarkReturn() != null) {
+        sb.append(
+            "\n  Compounded: fund=%s%%, benchmark=%s%%"
+                .formatted(
+                    formatPercent(result.compoundedFundReturn()),
+                    formatPercent(result.compoundedBenchmarkReturn())));
+      }
+
+      if (result.escalationAttributions() != null && !result.escalationAttributions().isEmpty()) {
+        sb.append("\n  Multi-day attribution (arithmetic sum of daily contributions):");
+        result.escalationAttributions().entrySet().stream()
+            .sorted(
+                java.util.Comparator.comparing(
+                    (java.util.Map.Entry<String, BigDecimal> e) -> e.getValue().abs(),
+                    java.util.Comparator.reverseOrder()))
+            .forEach(
+                e ->
+                    sb.append("\n    %s: %s%%".formatted(e.getKey(), formatPercent(e.getValue()))));
+      }
+
+      if (result.escalationCashDrag() != null && result.escalationCashDrag().signum() != 0) {
+        sb.append("\n    Cash drag: %s%%".formatted(formatPercent(result.escalationCashDrag())));
+      }
+      if (result.escalationFeeDrag() != null && result.escalationFeeDrag().signum() != 0) {
+        sb.append("\n    Fee drag: %s%%".formatted(formatPercent(result.escalationFeeDrag())));
+      }
+      if (result.escalationResidual() != null && result.escalationResidual().signum() != 0) {
+        sb.append("\n    Residual: %s%%".formatted(formatPercent(result.escalationResidual())));
+      }
     }
 
     return sb.toString();
   }
 
   private boolean isEscalation(TrackingDifferenceResult result) {
-    return result.consecutiveBreachDays() >= ESCALATION_THRESHOLD
+    int threshold;
+    BigDecimal netTdThreshold;
+    try {
+      threshold = calculator.escalationThresholdDays(result.checkDate());
+      netTdThreshold = calculator.escalationNetTdThreshold(result.checkDate());
+    } catch (IllegalStateException e) {
+      log.warn("Escalation parameters not configured, using fallback: {}", e.getMessage());
+      threshold = ESCALATION_THRESHOLD_FALLBACK;
+      netTdThreshold = ESCALATION_NET_TD_THRESHOLD_FALLBACK;
+    } catch (Exception e) {
+      log.warn("Escalation parameter lookup failed, using fallback: {}", e.getMessage());
+      threshold = ESCALATION_THRESHOLD_FALLBACK;
+      netTdThreshold = ESCALATION_NET_TD_THRESHOLD_FALLBACK;
+    }
+    return result.consecutiveBreachDays() >= threshold
         && result.consecutiveNetTd() != null
-        && result.consecutiveNetTd().abs().compareTo(calculator.breachThreshold(result.checkDate()))
-            >= 0;
+        && result.consecutiveNetTd().abs().compareTo(netTdThreshold) >= 0;
   }
 
   private String formatPercent(BigDecimal value) {

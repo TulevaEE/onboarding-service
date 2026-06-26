@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.aml.notification;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -20,6 +21,18 @@ class AmlCheckNotifierTest {
   void setUp() {
     notificationService = Mockito.mock(OperationsNotificationService.class);
     notifier = new AmlCheckNotifier(notificationService);
+  }
+
+  @Test
+  void onAmlCheckCreated_kycCheckFailed_sendsSlackMessage() {
+    AmlCheckCreatedEvent event = mock(AmlCheckCreatedEvent.class);
+    given(event.getAmlCheckType()).willReturn(KYC_CHECK);
+    given(event.isFailed()).willReturn(true);
+    given(event.getCheckId()).willReturn(123L);
+
+    notifier.onAmlCheckCreated(event);
+
+    verify(notificationService).sendMessage("AML check failed: checkId=123, type=KYC_CHECK", AML);
   }
 
   @Test

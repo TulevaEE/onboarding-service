@@ -16,8 +16,11 @@ import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.user.User;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +55,7 @@ public class AmlServiceIntegrationTest {
   @Autowired private AmlCheckRepository amlCheckRepository;
   @Autowired private PepAndSanctionCheckService checkService;
   @Autowired private UserConversionService userConversionService;
+  @PersistenceContext private EntityManager entityManager;
 
   @BeforeEach
   void setUp() {
@@ -121,6 +125,56 @@ public class AmlServiceIntegrationTest {
     assertThat(checks).hasSize(2);
     assertThat(checks).anyMatch(check -> check.getType() == POLITICALLY_EXPOSED_PERSON_AUTO);
     assertThat(checks).anyMatch(check -> check.getType() == SANCTION);
+  }
+
+  @Test
+  @Transactional
+  void pepMatchResultsArePersistedAsArrayNotBeanSerializedBlob() {
+    User user = sampleUser().build();
+    Country country = new Country("EE");
+
+    JsonMapper objectMapper = JsonMapper.builder().build();
+    ArrayNode results = objectMapper.createArrayNode();
+    ObjectNode result = objectMapper.createObjectNode();
+    result.put("id", "match-1");
+    result.put("match", false);
+    ObjectNode properties = objectMapper.createObjectNode();
+    properties.set("topics", objectMapper.createArrayNode().add("role.pep"));
+    result.set("properties", properties);
+    results.add(result);
+    ObjectNode query = objectMapper.createObjectNode();
+    query.put("schema", "Person");
+
+    MatchResponse matchResponse = mock(MatchResponse.class);
+    when(matchResponse.results()).thenReturn(results);
+    when(matchResponse.query()).thenReturn(query);
+    when(checkService.match(any(), any())).thenReturn(matchResponse);
+
+    amlService.addSanctionAndPepCheckIfMissing(user, country);
+    entityManager.flush();
+    entityManager.clear();
+
+    AmlCheck persisted =
+        amlCheckRepository
+            .findAllByPersonalCodeAndCreatedTimeAfter(
+                user.getPersonalCode(), Instant.now().minusSeconds(3600))
+            .stream()
+            .filter(check -> check.getType() == POLITICALLY_EXPOSED_PERSON_AUTO)
+            .findFirst()
+            .orElseThrow();
+
+    Object persistedResults = persisted.getMetadata().get("results");
+    assertThat(persistedResults).isInstanceOf(List.class);
+    assertThat((List<?>) persistedResults).hasSize(1);
+    assertThat((Map<String, Object>) ((List<?>) persistedResults).getFirst())
+        .containsEntry("id", "match-1")
+        .doesNotContainKey("nodeType");
+
+    Object persistedQuery = persisted.getMetadata().get("query");
+    assertThat(persistedQuery).isInstanceOf(Map.class);
+    assertThat((Map<String, Object>) persistedQuery)
+        .containsEntry("schema", "Person")
+        .doesNotContainKey("nodeType");
   }
 
   @Test

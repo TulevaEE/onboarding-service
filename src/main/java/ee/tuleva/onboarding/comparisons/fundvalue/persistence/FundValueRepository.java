@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 public interface FundValueRepository {
   List<FundValue> saveAll(List<FundValue> fundValues);
@@ -13,13 +14,13 @@ public interface FundValueRepository {
 
   Optional<FundValue> findLastValueForFund(String fund);
 
-  Optional<LocalDate> findLatestDateForProvider(String provider);
-
   List<FundValue> getGlobalStockValues();
 
   Optional<LocalDate> findEarliestDateForKey(String key);
 
   Map<String, LocalDate> findEarliestDates();
+
+  Map<String, LocalDate> findLatestDateByKeys(Set<String> keys);
 
   Optional<FundValue> getLatestValue(String key, LocalDate date);
 

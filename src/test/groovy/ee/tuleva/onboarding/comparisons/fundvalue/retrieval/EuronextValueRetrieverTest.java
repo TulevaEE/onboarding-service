@@ -43,8 +43,10 @@ class EuronextValueRetrieverTest {
   }
 
   @Test
-  void tracksLatestStoredDateByProvider() {
-    assertThat(retriever.trackingProvider()).contains("EURONEXT");
+  void exposesEuronextParisStorageKeysAsExpectedStorageKeys() {
+    assertThat(retriever.expectedStorageKeys())
+        .containsExactlyInAnyOrderElementsOf(
+            FundTicker.getEuronextParisIsins().stream().map(isin -> isin + ".XPAR").toList());
   }
 
   @Test

@@ -1,17 +1,14 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.kyb.*;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,14 +25,7 @@ class LegalEntityOnboardingEventListenerTest {
       new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ);
 
   private final List<KybRelatedPerson> relatedPersons =
-      List.of(
-          new KybRelatedPerson(
-              new PersonalCode("38501010001"),
-              true,
-              true,
-              true,
-              BigDecimal.valueOf(100),
-              KybKycStatus.COMPLETED));
+      List.of(boardMemberOwner("38501010001", 100.0).kycStatus(KybKycStatus.COMPLETED).build());
 
   @Test
   void setsStatusCompletedWhenAllChecksPass() {
@@ -75,6 +65,19 @@ class LegalEntityOnboardingEventListenerTest {
   }
 
   @Test
+  void setsStatusCompletedWhenOnlyRiskSignalCheckFails() {
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(COMPANY_STRUCTURE, true, Map.of()),
+            new KybCheck(COMPANY_AGE, false, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED);
+  }
+
+  @Test
   void setsStatusRejectedEvenIfPreviouslyCompleted() {
     when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
     var checks =
@@ -102,6 +105,6 @@ class LegalEntityOnboardingEventListenerTest {
 
   private KybCheckPerformedEvent eventWith(List<KybCheck> checks) {
     return new KybCheckPerformedEvent(
-        this, company, new PersonalCode("38501010001"), relatedPersons, checks);
+        this, company, new PersonalCode("38501010001"), relatedPersons, checks, List.of());
   }
 }

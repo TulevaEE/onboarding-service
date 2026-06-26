@@ -13,10 +13,10 @@ public class KycCheckService {
   private final ApplicationEventPublisher eventPublisher;
   private final KycChecker kycChecker;
 
-  public void check(AuthenticatedPerson person, Country country) {
+  public void check(AuthenticatedPerson person, Country country, KycSurveyPurpose purpose) {
     eventPublisher.publishEvent(new BeforeKycCheckedEvent(person, country));
     var kycCheck = kycChecker.check(person.getUserId());
     eventPublisher.publishEvent(
-        new KycCheckPerformedEvent(this, person.getPersonalCode(), kycCheck));
+        new KycCheckPerformedEvent(this, person.getPersonalCode(), kycCheck, purpose));
   }
 }

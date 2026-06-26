@@ -43,8 +43,10 @@ class DeutscheBoerseValueRetrieverTest {
   }
 
   @Test
-  void tracksLatestStoredDateByProvider() {
-    assertThat(retriever.trackingProvider()).contains("DEUTSCHE_BOERSE");
+  void exposesXetraStorageKeysAsExpectedStorageKeys() {
+    assertThat(retriever.expectedStorageKeys())
+        .containsExactlyInAnyOrderElementsOf(
+            FundTicker.getXetraIsins().stream().map(isin -> isin + ".XETR").toList());
   }
 
   @Test

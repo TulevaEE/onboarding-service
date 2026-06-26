@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import static java.math.BigDecimal.ZERO;
 import static java.util.Comparator.comparing;
+import static java.util.stream.Collectors.toSet;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -15,7 +16,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -59,8 +60,9 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
   }
 
   @Override
-  public Optional<String> trackingProvider() {
-    return Optional.of(PROVIDER);
+  public Set<String> expectedStorageKeys() {
+    return Stream.concat(FundTicker.getEodhdTickers().stream(), FOREX_TICKERS.stream())
+        .collect(toSet());
   }
 
   @Override

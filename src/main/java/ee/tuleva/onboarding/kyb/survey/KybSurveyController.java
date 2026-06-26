@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.kyb.survey;
 
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.NOT_IMPLEMENTED;
 
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -52,6 +54,15 @@ class KybSurveyController {
     return new ResponseEntity<>(
         Map.of("error", "ONBOARDING_NOT_ALLOWED", "error_description", exception.getMessage()),
         FORBIDDEN);
+  }
+
+  @ExceptionHandler(MethodArgumentNotValidException.class)
+  ResponseEntity<Map<String, String>> handleValidationError(
+      MethodArgumentNotValidException exception) {
+    log.info("Invalid KYB survey submission: message={}", exception.getMessage());
+    return new ResponseEntity<>(
+        Map.of("error", "VALIDATION_FAILED", "error_description", exception.getMessage()),
+        BAD_REQUEST);
   }
 
   @ExceptionHandler(Exception.class)

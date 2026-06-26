@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.kyb.KybCheckType.*;
 import static ee.tuleva.onboarding.kyb.KybKycStatus.*;
 import static ee.tuleva.onboarding.kyb.LegalForm.AS;
 import static ee.tuleva.onboarding.kyb.LegalForm.OÜ;
+import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
@@ -29,15 +30,55 @@ public final class KybTestFixtures {
 
   static final SelfCertification VALID_CERT = new SelfCertification(true, true, true);
 
-  static KybRelatedPerson person(
-      PersonalCode code,
-      boolean boardMember,
-      boolean shareholder,
-      boolean beneficialOwner,
-      BigDecimal ownership,
-      KybKycStatus kycStatus) {
-    return new KybRelatedPerson(
-        code, boardMember, shareholder, beneficialOwner, ownership, kycStatus);
+  public static KybRelatedPerson.KybRelatedPersonBuilder kybPerson() {
+    return KybRelatedPerson.builder().naturalPerson(true).ownershipPercent(ZERO).kycStatus(UNKNOWN);
+  }
+
+  public static KybRelatedPerson.KybRelatedPersonBuilder kybPerson(String personalCode) {
+    return kybPerson().personalCode(new PersonalCode(personalCode));
+  }
+
+  // A board member who is also a shareholder and beneficial owner (the typical owner shape).
+  public static KybRelatedPerson.KybRelatedPersonBuilder boardMemberOwner(
+      String personalCode, double ownershipPercent) {
+    return boardMemberOwner(new PersonalCode(personalCode), ownershipPercent);
+  }
+
+  public static KybRelatedPerson.KybRelatedPersonBuilder boardMemberOwner(
+      PersonalCode personalCode, double ownershipPercent) {
+    return kybPerson()
+        .personalCode(personalCode)
+        .boardMember(true)
+        .shareholder(true)
+        .beneficialOwner(true)
+        .ownershipPercent(BigDecimal.valueOf(ownershipPercent))
+        .kycStatus(COMPLETED);
+  }
+
+  // A shareholder and beneficial owner who is not a board member.
+  public static KybRelatedPerson.KybRelatedPersonBuilder shareholderOwner(
+      String personalCode, double ownershipPercent) {
+    return shareholderOwner(new PersonalCode(personalCode), ownershipPercent);
+  }
+
+  public static KybRelatedPerson.KybRelatedPersonBuilder shareholderOwner(
+      PersonalCode personalCode, double ownershipPercent) {
+    return kybPerson()
+        .personalCode(personalCode)
+        .shareholder(true)
+        .beneficialOwner(true)
+        .ownershipPercent(BigDecimal.valueOf(ownershipPercent))
+        .kycStatus(COMPLETED);
+  }
+
+  // A board member who is neither a shareholder nor a beneficial owner.
+  public static KybRelatedPerson.KybRelatedPersonBuilder boardMemberOnly(String personalCode) {
+    return boardMemberOnly(new PersonalCode(personalCode));
+  }
+
+  public static KybRelatedPerson.KybRelatedPersonBuilder boardMemberOnly(
+      PersonalCode personalCode) {
+    return kybPerson().personalCode(personalCode).boardMember(true).kycStatus(COMPLETED);
   }
 
   static CompanyRelationship boardMember(String personalCode, String firstName, String lastName) {
@@ -90,6 +131,81 @@ public final class KybTestFixtures {
         "EST");
   }
 
+  static CompanyRelationship nasdaqCsdShareholder(
+      String personalCode, String firstName, String lastName, BigDecimal ownership) {
+    return new CompanyRelationship(
+        "F",
+        "O", // osanik (shares held in Nasdaq CSD as an "Omanikukonto")
+        "Osanik",
+        firstName,
+        lastName,
+        personalCode,
+        null,
+        LocalDate.of(2020, 6, 1),
+        null,
+        ownership,
+        null,
+        "EST");
+  }
+
+  static CompanyRelationship nasdaqBeneficialOwner(
+      String personalCode, String firstName, String lastName) {
+    return new CompanyRelationship(
+        "F",
+        "W", // tegelik kasusaaja (beneficial owner)
+        "Tegelik kasusaaja",
+        firstName,
+        lastName,
+        personalCode,
+        null,
+        LocalDate.of(2020, 6, 1),
+        null,
+        null,
+        "Otsene osalus",
+        "EST");
+  }
+
+  static CompanyRelationship shareRegistrar() {
+    return new CompanyRelationship(
+        "J", // juriidiline isik (legal entity)
+        "ORP", // osade registripidaja (Nasdaq CSD share registrar — not an owner)
+        "Osade registripidaja",
+        null,
+        "Nasdaq CSD SE",
+        null,
+        null,
+        LocalDate.of(2020, 6, 1),
+        null,
+        null,
+        null,
+        null);
+  }
+
+  static CompanyRelationship legalEntityShareholder(
+      String registryCode, String name, BigDecimal ownership) {
+    return new CompanyRelationship(
+        "J", // juriidiline isik (legal entity) — carries a registry code in the personal-code field
+        "OSAN",
+        "Osanik",
+        null,
+        name,
+        registryCode,
+        null,
+        LocalDate.of(2020, 6, 1),
+        null,
+        ownership,
+        null,
+        "EST");
+  }
+
+  static List<CompanyRelationship> nasdaqCsdSoleOwnerRelationships(String personalCode) {
+    return List.of(
+        boardMember(personalCode, "Jaan", "Tamm"),
+        nasdaqCsdShareholder(personalCode, "Jaan", "Tamm", new BigDecimal("100.00")),
+        nasdaqBeneficialOwner(personalCode, "Jaan", "Tamm"),
+        shareRegistrar());
+  }
+
   static KybCheck check(KybCheckType type, boolean success) {
     return new KybCheck(type, success, Map.of());
   }
@@ -107,7 +223,24 @@ public final class KybTestFixtures {
         relatedPersons,
         selfCertification,
         "EE",
-        "Harju maakond, Tallinn, Pärnu mnt 1");
+        "Harju maakond, Tallinn, Pärnu mnt 1",
+        null,
+        List.of());
+  }
+
+  // A standard active OÜ with the given related persons (defaults for the fields screeners ignore).
+  public static KybCompanyData companyWith(KybRelatedPerson... relatedPersons) {
+    return companyWith(List.of(relatedPersons));
+  }
+
+  public static KybCompanyData companyWith(List<KybRelatedPerson> relatedPersons) {
+    return companyData(VALID_COMPANY, JAAN, R, relatedPersons, VALID_CERT);
+  }
+
+  // A standard active OÜ with a specific self-certification.
+  public static KybCompanyData companyWith(
+      SelfCertification selfCertification, KybRelatedPerson... relatedPersons) {
+    return companyData(VALID_COMPANY, JAAN, R, List.of(relatedPersons), selfCertification);
   }
 
   // =====================================================================
@@ -123,7 +256,8 @@ public final class KybTestFixtures {
           LocalDate.of(2020, 1, 15),
           null,
           "Programmeerimine",
-          "62011");
+          "62011",
+          List.of());
 
   static List<CompanyRelationship> rule31PassRelationships() {
     return List.of(
@@ -138,12 +272,19 @@ public final class KybTestFixtures {
   }
 
   static KybCompanyData rule31Pass() {
-    var owner = person(JAAN, true, true, true, BigDecimal.valueOf(100), COMPLETED);
+    var owner = boardMemberOwner(JAAN, 100.0).build();
     return companyData(VALID_COMPANY, JAAN, R, List.of(owner), VALID_CERT);
   }
 
   static KybCompanyData rule31Fail_notBeneficialOwner() {
-    var owner = person(JAAN, true, true, false, BigDecimal.valueOf(100), COMPLETED);
+    var owner =
+        kybPerson()
+            .personalCode(JAAN)
+            .boardMember(true)
+            .shareholder(true)
+            .ownershipPercent(BigDecimal.valueOf(100))
+            .kycStatus(COMPLETED)
+            .build();
     return companyData(VALID_COMPANY, JAAN, R, List.of(owner), VALID_CERT);
   }
 
@@ -196,14 +337,14 @@ public final class KybTestFixtures {
   }
 
   static KybCompanyData rule32Pass() {
-    var person1 = person(JAAN, true, true, true, BigDecimal.valueOf(50), COMPLETED);
-    var person2 = person(MARI, true, true, true, BigDecimal.valueOf(50), COMPLETED);
+    var person1 = boardMemberOwner(JAAN, 50.0).build();
+    var person2 = boardMemberOwner(MARI, 50.0).build();
     return companyData(VALID_COMPANY, JAAN, R, List.of(person1, person2), VALID_CERT);
   }
 
   static KybCompanyData rule32Fail_incompleteOwnership() {
-    var person1 = person(JAAN, true, true, true, BigDecimal.valueOf(30), COMPLETED);
-    var person2 = person(MARI, true, true, true, BigDecimal.valueOf(30), COMPLETED);
+    var person1 = boardMemberOwner(JAAN, 30.0).build();
+    var person2 = boardMemberOwner(MARI, 30.0).build();
     return companyData(VALID_COMPANY, JAAN, R, List.of(person1, person2), VALID_CERT);
   }
 
@@ -222,7 +363,8 @@ public final class KybTestFixtures {
   }
 
   // =====================================================================
-  // Rule 33: Two person OÜ — sole board member is one of two owners
+  // Rule 33: Two person OÜ — single board member (who must be a shareholder, but need not be the
+  // beneficial owner)
   // =====================================================================
 
   static List<CompanyRelationship> rule33PassRelationships() {
@@ -239,21 +381,27 @@ public final class KybTestFixtures {
   }
 
   static KybCompanyData rule33Pass() {
-    var boardMember = person(JAAN, true, true, true, BigDecimal.valueOf(50), COMPLETED);
-    var otherOwner = person(MARI, false, true, true, BigDecimal.valueOf(50), COMPLETED);
+    var boardMember = boardMemberOwner(JAAN, 50.0).build();
+    var otherOwner = shareholderOwner(MARI, 50.0).build();
     return companyData(VALID_COMPANY, JAAN, R, List.of(boardMember, otherOwner), VALID_CERT);
   }
 
-  static KybCompanyData rule33Fail_boardMemberNotOwner() {
-    var boardMember = person(JAAN, true, false, false, BigDecimal.ZERO, COMPLETED);
-    var owner = person(MARI, false, true, true, BigDecimal.valueOf(100), COMPLETED);
+  static KybCompanyData rule33Fail_boardMemberOwnsNoShares() {
+    var boardMember = boardMemberOnly(JAAN).build();
+    var owner = shareholderOwner(MARI, 100.0).build();
+    return companyData(VALID_COMPANY, JAAN, R, List.of(boardMember, owner), VALID_CERT);
+  }
+
+  static KybCompanyData rule33Fail_incompleteOwnership() {
+    var boardMember = boardMemberOwner(JAAN, 50.0).build();
+    var owner = shareholderOwner(MARI, 30.0).build();
     return companyData(VALID_COMPANY, JAAN, R, List.of(boardMember, owner), VALID_CERT);
   }
 
   static List<KybCheck> rule33PassExpectedChecks() {
     return List.of(
         check(COMPANY_STRUCTURE, true),
-        check(SOLE_BOARD_MEMBER_IS_OWNER, true),
+        check(SINGLE_BOARD_MEMBER_OWNERSHIP, true),
         check(COMPANY_ACTIVE, true),
         check(RELATED_PERSONS_KYC, true),
         check(COMPANY_SANCTION, true),
@@ -277,7 +425,8 @@ public final class KybTestFixtures {
         LocalDate.of(2020, 1, 15),
         null,
         "Programmeerimine",
-        "62011");
+        "62011",
+        List.of());
   }
 
   static KybCompanyData rule34Pass() {
@@ -285,7 +434,7 @@ public final class KybTestFixtures {
   }
 
   static KybCompanyData rule34Fail_companyInLiquidation() {
-    var owner = person(JAAN, true, true, true, BigDecimal.valueOf(100), COMPLETED);
+    var owner = boardMemberOwner(JAAN, 100.0).build();
     return companyData(VALID_COMPANY, JAAN, L, List.of(owner), VALID_CERT);
   }
 
@@ -305,26 +454,26 @@ public final class KybTestFixtures {
   // =====================================================================
 
   static KybCompanyData rule36Fail_relatedPersonNotCitizen() {
-    var passedKyc = person(JAAN, true, true, true, BigDecimal.valueOf(50), COMPLETED);
-    var notCitizen = person(MARI, true, true, true, BigDecimal.valueOf(50), REJECTED);
+    var passedKyc = boardMemberOwner(JAAN, 50.0).build();
+    var notCitizen = boardMemberOwner(MARI, 50.0).kycStatus(REJECTED).build();
     return companyData(VALID_COMPANY, JAAN, R, List.of(passedKyc, notCitizen), VALID_CERT);
   }
 
   static KybCompanyData rule37Fail_relatedPersonHighRiskCountry() {
-    var passedKyc = person(JAAN, true, true, true, BigDecimal.valueOf(50), COMPLETED);
-    var highRisk = person(MARI, true, true, true, BigDecimal.valueOf(50), REJECTED);
+    var passedKyc = boardMemberOwner(JAAN, 50.0).build();
+    var highRisk = boardMemberOwner(MARI, 50.0).kycStatus(REJECTED).build();
     return companyData(VALID_COMPANY, JAAN, R, List.of(passedKyc, highRisk), VALID_CERT);
   }
 
   static KybCompanyData rule39Fail_relatedPersonSanctioned() {
-    var passedKyc = person(JAAN, true, true, true, BigDecimal.valueOf(50), COMPLETED);
-    var sanctioned = person(MARI, true, true, true, BigDecimal.valueOf(50), REJECTED);
+    var passedKyc = boardMemberOwner(JAAN, 50.0).build();
+    var sanctioned = boardMemberOwner(MARI, 50.0).kycStatus(REJECTED).build();
     return companyData(VALID_COMPANY, JAAN, R, List.of(passedKyc, sanctioned), VALID_CERT);
   }
 
   static KybCompanyData rule40Fail_relatedPersonNotCitizenButResident() {
-    var passedKyc = person(JAAN, true, true, true, BigDecimal.valueOf(50), COMPLETED);
-    var nonCitizenResident = person(MARI, true, true, true, BigDecimal.valueOf(50), UNKNOWN);
+    var passedKyc = boardMemberOwner(JAAN, 50.0).build();
+    var nonCitizenResident = boardMemberOwner(MARI, 50.0).kycStatus(UNKNOWN).build();
     return companyData(VALID_COMPANY, JAAN, R, List.of(passedKyc, nonCitizenResident), VALID_CERT);
   }
 
@@ -345,7 +494,8 @@ public final class KybTestFixtures {
         LocalDate.of(2020, 1, 15),
         null,
         "Krüptovarade teenused",
-        "64321");
+        "64321",
+        List.of());
   }
 
   static KybCompanyData rule41Pass() {
@@ -354,7 +504,7 @@ public final class KybTestFixtures {
 
   static KybCompanyData rule41Fail_highRiskNace() {
     var company = new CompanyDto(new RegistryCode("12345678"), "Crypto OÜ", "64321", OÜ);
-    var owner = person(JAAN, true, true, true, BigDecimal.valueOf(100), COMPLETED);
+    var owner = boardMemberOwner(JAAN, 100.0).build();
     return companyData(company, JAAN, R, List.of(owner), VALID_CERT);
   }
 
@@ -400,7 +550,8 @@ public final class KybTestFixtures {
         LocalDate.of(2020, 1, 15),
         null,
         "Programmeerimine",
-        "62011");
+        "62011",
+        List.of());
   }
 
   static KybCompanyData rule50Pass() {
@@ -409,7 +560,7 @@ public final class KybTestFixtures {
 
   static KybCompanyData rule50Fail_notOÜ() {
     var company = new CompanyDto(new RegistryCode("12345678"), "Test AS", "62011", AS);
-    var owner = person(JAAN, true, true, true, BigDecimal.valueOf(100), COMPLETED);
+    var owner = boardMemberOwner(JAAN, 100.0).build();
     return companyData(company, JAAN, R, List.of(owner), VALID_CERT);
   }
 
@@ -422,7 +573,7 @@ public final class KybTestFixtures {
   }
 
   static KybCompanyData selfCertificationFail() {
-    var owner = person(JAAN, true, true, true, BigDecimal.valueOf(100), COMPLETED);
+    var owner = boardMemberOwner(JAAN, 100.0).build();
     var badCert = new SelfCertification(true, false, true);
     return companyData(VALID_COMPANY, JAAN, R, List.of(owner), badCert);
   }
@@ -441,9 +592,9 @@ public final class KybTestFixtures {
   }
 
   static KybCompanyData threeRelatedPersons() {
-    var person1 = person(JAAN, true, true, true, BigDecimal.valueOf(34), COMPLETED);
-    var person2 = person(MARI, true, true, true, BigDecimal.valueOf(33), COMPLETED);
-    var person3 = person(PEETER, false, true, true, BigDecimal.valueOf(33), COMPLETED);
+    var person1 = boardMemberOwner(JAAN, 34.0).build();
+    var person2 = boardMemberOwner(MARI, 33.0).build();
+    var person3 = shareholderOwner(PEETER, 33.0).build();
     return companyData(VALID_COMPANY, JAAN, R, List.of(person1, person2, person3), VALID_CERT);
   }
 

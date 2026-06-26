@@ -4,5 +4,4 @@ public enum SavingsFundOnboardingStatus {
   PENDING,
   REJECTED,
   COMPLETED,
-  WHITELISTED,
 }

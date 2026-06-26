@@ -9,6 +9,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
@@ -87,11 +88,12 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
       ) v ORDER BY v.date ASC
       """;
 
-  private static final String FIND_LATEST_DATE_FOR_PROVIDER_QUERY =
+  private static final String FIND_LATEST_DATE_BY_KEYS_QUERY =
       """
-      SELECT MAX(date) AS latest_date
+      SELECT key, MAX(date) AS latest_date
       FROM index_values
-      WHERE provider = :provider
+      WHERE key IN (:keys)
+      GROUP BY key
       """;
 
   private static final String FIND_EARLIEST_DATES_QUERY =
@@ -128,6 +130,25 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
           while (resultSet.next()) {
             String key = resultSet.getString("key");
             LocalDate date = resultSet.getDate("earliest_date").toLocalDate();
+            resultMap.put(key, date);
+          }
+          return resultMap;
+        });
+  }
+
+  @Override
+  public Map<String, LocalDate> findLatestDateByKeys(Set<String> keys) {
+    if (keys.isEmpty()) {
+      return Map.of();
+    }
+    return jdbcTemplate.query(
+        FIND_LATEST_DATE_BY_KEYS_QUERY,
+        Map.of("keys", keys),
+        resultSet -> {
+          Map<String, LocalDate> resultMap = new HashMap<>();
+          while (resultSet.next()) {
+            String key = resultSet.getString("key");
+            LocalDate date = resultSet.getDate("latest_date").toLocalDate();
             resultMap.put(key, date);
           }
           return resultMap;
@@ -211,19 +232,6 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
   @Override
   public List<FundValue> saveAll(List<FundValue> fundValues) {
     return fundValues.stream().map(this::save).flatMap(Optional::stream).toList();
-  }
-
-  @Override
-  public Optional<LocalDate> findLatestDateForProvider(String provider) {
-    List<LocalDate> result =
-        jdbcTemplate.query(
-            FIND_LATEST_DATE_FOR_PROVIDER_QUERY,
-            Map.of("provider", provider),
-            (rs, rowNum) -> {
-              var latestDate = rs.getDate("latest_date");
-              return latestDate != null ? latestDate.toLocalDate() : null;
-            });
-    return result.isEmpty() ? Optional.empty() : Optional.ofNullable(result.getFirst());
   }
 
   @Override

@@ -73,13 +73,12 @@ Scheduled jobs: `SebPendingTransactionReconciliationJob` (daily 09:00 EET, 7-day
 
 NAV cross-check: SEB execution `unit_price` vs `nav_report.market_price` for same ISIN+date, ETF-only, T+0, `1.0%` tolerance. Alerts (unmatched rows, price mismatches, overdue settlements) go through `EmailService.sendSystemEmail` (Mandrill).
 
-See `tmp/transaction-registry/implementation-plan.md` for the full milestone-by-milestone history.
-
 ## Database
 
 ### Migrations
 Flyway in `src/main/resources/db/migration/`. H2 compat migrations: `V1_{n-1}_1__.sql`.
 
+- **Strict version ordering everywhere — never enable `out-of-order`.** A migration numbered below an already-deployed version fails validation and blocks all deploys (ECS rolls back silently while CI stays green). Before merging, renumber your migrations above the current master max — and re-check after every merge to master, since a racing PR may have claimed your numbers (this happened with V1_198–V1_202: the PR that renumbered *to* V1_202 deployed first and stranded V1_198–V1_201).
 - **Explicit constraint names always** — H2 and PostgreSQL generate different auto-names
 - **Recreate tables** for complex schema changes (create new → migrate → drop old → rename)
 - **Standard SQL only** — must work on both H2 and PostgreSQL:
@@ -129,5 +128,6 @@ Prefer: `text` over `varchar` unless the length is a domain invariant (e.g., `va
 - **Streams** over for-loops. Method references over lambdas when clearer
 - **Method overloading** instead of passing null
 - **Null safety**: opt in per package with `@NullMarked` in `package-info.java` (jspecify). NullAway runs at `ERROR` on every `@NullMarked` package and blocks the build. In a marked package, every reference is `@NonNull` by default — annotate genuinely-nullable fields/params/returns with `org.jspecify.annotations.@Nullable`. New packages should be `@NullMarked` from the start; when touching an unmarked file, mark its package (or just the class) and fix the resulting NullAway errors in the same change rather than leaving the lie. Tests bypass NullAway, but specs/tests in `src/test/groovy/` go through `compileTestGroovy` which is out of scope anyway.
+- **Never substitute empty strings (or sentinels) for missing data**: never return `""` (or `0` / `-1` / other sentinels) in place of an absent value. Fail fast — throw on a missing required field, or model the absence with `@Nullable`. Empty-string defaults create silent failures that propagate through the system instead of surfacing at the source; a NullPointerException or an explicit exception is preferable to a phantom empty value.
 - **Law of Demeter**: push behavior to where the data lives (`account.isUserAccount()` not `entry.getAccount().getPurpose() == USER_ACCOUNT`)
 - **Retries on external calls**: use Spring Framework 7 native resilience (`org.springframework.core.retry.RetryTemplate` + `RetryPolicy.builder()` with `includes`/`excludes`), NOT the legacy `spring-retry` lib. Wrap the integration-boundary call and pair with a deterministic idempotency key. Reference: `SebGatewayClient.submitPaymentFile` + `SebGatewayConfiguration.sebGatewayRetryTemplate` + `SebGatewayClientRetryTest`.

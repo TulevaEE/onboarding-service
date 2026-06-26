@@ -13,15 +13,19 @@ import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import ee.tuleva.onboarding.company.CompanyParty;
 import ee.tuleva.onboarding.company.CompanyPartyRepository;
 import ee.tuleva.onboarding.company.CompanyRepository;
+import ee.tuleva.onboarding.event.TrackableEvent;
+import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -35,6 +39,7 @@ public class RoleSwitchService {
   private final TokenService tokenService;
   private final ParentChildLinkService parentChildLinkService;
   private final UserService userService;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
   public AuthenticationTokens switchRole(AuthenticatedPerson person, SwitchRoleCommand command) {
     return switch (command.type()) {
@@ -91,7 +96,14 @@ public class RoleSwitchService {
         "Role switch to represented child: personalCode={}, childCode={}",
         person.getPersonalCode(),
         command.code());
-    return generateTokens(person, new Role(PERSON, command.code(), child.getFullName()));
+    AuthenticationTokens tokens =
+        generateTokens(person, new Role(PERSON, command.code(), child.getFullName()));
+    applicationEventPublisher.publishEvent(
+        new TrackableEvent(
+            person,
+            TrackableEventType.REPRESENT_MINOR_ROLE_SWITCH,
+            Map.of("childPersonalCode", command.code())));
+    return tokens;
   }
 
   private AuthenticationTokens switchToCompany(

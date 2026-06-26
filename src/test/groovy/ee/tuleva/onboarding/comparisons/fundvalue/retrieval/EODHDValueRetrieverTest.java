@@ -45,8 +45,10 @@ class EODHDValueRetrieverTest {
   }
 
   @Test
-  void tracksLatestStoredDateByProvider() {
-    assertThat(retriever.trackingProvider()).contains("EODHD");
+  void exposesAllEodhdTickersAndForexAsExpectedStorageKeys() {
+    assertThat(retriever.expectedStorageKeys())
+        .containsAll(FundTicker.getEodhdTickers())
+        .contains("EURUSD.FOREX");
   }
 
   @Test
@@ -162,7 +164,7 @@ class EODHDValueRetrieverTest {
 
     List<FundValue> result = retriever.retrieveValuesForRange(startDate, endDate);
 
-    assertThat(result).hasSize(FundTicker.getEodhdTickers().size() * 3);
+    assertThat(result).hasSize(FundTicker.values().length * 3);
     assertThat(result).allSatisfy(fv -> assertThat(fv.provider()).isEqualTo("EODHD"));
     assertThat(result).allSatisfy(fv -> assertThat(fv.updatedAt()).isNotNull());
   }
@@ -200,7 +202,7 @@ class EODHDValueRetrieverTest {
 
     List<FundValue> result = retriever.retrieveValuesForRange(startDate, endDate);
 
-    assertThat(result).hasSize(FundTicker.getEodhdTickers().size() * 2);
+    assertThat(result).hasSize(FundTicker.values().length * 2);
     assertThat(result).allSatisfy(fv -> assertThat(fv.value()).isNotEqualTo(ZERO));
   }
 

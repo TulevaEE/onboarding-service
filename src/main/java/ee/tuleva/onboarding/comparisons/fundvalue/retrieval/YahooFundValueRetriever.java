@@ -16,7 +16,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 import java.util.stream.IntStream;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -51,8 +51,8 @@ public class YahooFundValueRetriever implements ComparisonIndexRetriever {
   }
 
   @Override
-  public Optional<String> trackingProvider() {
-    return Optional.of(PROVIDER);
+  public Set<String> expectedStorageKeys() {
+    return Set.copyOf(FUND_TICKERS);
   }
 
   @Override
@@ -92,6 +92,14 @@ public class YahooFundValueRetriever implements ComparisonIndexRetriever {
             .body(YahooFinanceResponse.class);
 
     Result result = response.chart().result().getFirst();
+    if (result.timestamp() == null) {
+      log.error(
+          "Expected Yahoo data but response has no timestamps: ticker={}, startDate={}, endDate={}",
+          fundName,
+          startDate,
+          endDate);
+      return List.of();
+    }
     List<LocalDate> timestamps = parseTimestamps(result.timestamp());
     List<BigDecimal> fundValues = result.indicators().adjclose().getFirst().adjclose();
 

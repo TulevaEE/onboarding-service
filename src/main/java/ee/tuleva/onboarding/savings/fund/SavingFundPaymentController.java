@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
+
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.party.PartyId;
@@ -57,6 +59,16 @@ public class SavingFundPaymentController {
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     SavingsFundOnboardingStatus status =
         savingsFundOnboardingService.getOnboardingStatus(authenticatedPerson.toPartyId());
+    return Map.of("status", Optional.ofNullable(status));
+  }
+
+  @Operation(summary = "Get the natural person's savings fund onboarding status, ignoring role")
+  @GetMapping("/onboarding/status/person")
+  public Map<String, Optional<SavingsFundOnboardingStatus>> getPersonOnboardingStatus(
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    SavingsFundOnboardingStatus status =
+        savingsFundOnboardingService.getOnboardingStatus(
+            new PartyId(PERSON, authenticatedPerson.getPersonalCode()));
     return Map.of("status", Optional.ofNullable(status));
   }
 

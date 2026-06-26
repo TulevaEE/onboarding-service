@@ -2,18 +2,22 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.CONFIRMED;
+import static ee.tuleva.onboarding.investment.transaction.CommandStatus.FAILED;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.PENDING;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.PROCESSING;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
@@ -26,7 +30,17 @@ class TransactionCommandJobTest {
   @Mock private TransactionPreparationService preparationService;
   @Mock private ApplicationEventPublisher eventPublisher;
 
-  @InjectMocks private TransactionCommandJob job;
+  private final Clock clock =
+      Clock.fixed(Instant.parse("2026-01-15T10:00:00Z"), ZoneId.of("Europe/Tallinn"));
+
+  private TransactionCommandJob job;
+
+  @BeforeEach
+  void setUp() {
+    job =
+        new TransactionCommandJob(
+            commandRepository, batchRepository, preparationService, eventPublisher, clock);
+  }
 
   @Test
   void processCommands_picksPendingCommandsAndProcesses() {
@@ -107,6 +121,28 @@ class TransactionCommandJobTest {
 
     verify(preparationService).processCommand(command1);
     verify(preparationService).processCommand(command2);
+  }
+
+  @Test
+  void processCommands_onUnexpectedException_marksCommandFailed() {
+    var command =
+        TransactionCommand.builder()
+            .id(1L)
+            .fund(TUV100)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .status(PENDING)
+            .build();
+
+    when(commandRepository.findByStatus(PENDING)).thenReturn(List.of(command));
+    doThrow(new RuntimeException("Boom")).when(preparationService).processCommand(command);
+
+    job.processCommands();
+
+    assertThat(command.getStatus()).isEqualTo(FAILED);
+    assertThat(command.getErrorMessage()).isEqualTo("Boom");
+    assertThat(command.getProcessedAt()).isEqualTo(Instant.parse("2026-01-15T10:00:00Z"));
   }
 
   @Test

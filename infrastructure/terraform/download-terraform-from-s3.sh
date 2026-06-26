@@ -23,6 +23,10 @@ if ls "${SCRIPT_DIR}"/*.tf &>/dev/null || ls "${SCRIPT_DIR}"/*.tfvars &>/dev/nul
     cp "${SCRIPT_DIR}"/*.tf "${BACKUP_DIR}/" 2>/dev/null || true
     cp "${SCRIPT_DIR}"/*.tfvars "${BACKUP_DIR}/" 2>/dev/null || true
     cp "${SCRIPT_DIR}"/*.md "${BACKUP_DIR}/" 2>/dev/null || true
+    # Back up state too (defense in depth): a newer local apply not yet uploaded
+    # would otherwise be silently overwritten by the pull below — recover from here.
+    cp "${SCRIPT_DIR}"/*.tfstate* "${BACKUP_DIR}/" 2>/dev/null || true
+    cp -r "${SCRIPT_DIR}"/terraform.tfstate.d "${BACKUP_DIR}/" 2>/dev/null || true
     echo "   Backup saved to: ${BACKUP_DIR}"
     echo ""
 fi
@@ -30,8 +34,13 @@ fi
 # Download all files from S3 (including state files and lock file for team collaboration)
 # --delete flag ensures files deleted from S3 are also deleted locally
 echo "📥 Downloading files..."
+# --exclude "backup-*/*" so --delete never wipes the local backup created above
+# (the upload script also excludes it, so it is never in S3 to sync back). State
+# itself round-trips via S3 (terraform.tfstate.d/ workspaces), so --delete here
+# restores state rather than losing it — unlike a state-excluded stack.
 aws s3 sync "s3://${BUCKET_NAME}/${S3_PREFIX}/" "${SCRIPT_DIR}/" \
     --exclude ".terraform/*" \
+    --exclude "backup-*/*" \
     --delete \
     --region ${REGION} \
     --profile ${AWS_PROFILE}

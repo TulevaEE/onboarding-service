@@ -1,24 +1,17 @@
 package ee.tuleva.onboarding.kyb.screener;
 
-import static ee.tuleva.onboarding.kyb.CompanyStatus.R;
 import static ee.tuleva.onboarding.kyb.KybCheckType.RELATED_PERSONS_KYC;
 import static ee.tuleva.onboarding.kyb.KybKycStatus.*;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyWith;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.kybPerson;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ee.tuleva.onboarding.kyb.CompanyDto;
 import ee.tuleva.onboarding.kyb.KybCheck;
-import ee.tuleva.onboarding.kyb.KybCompanyData;
 import ee.tuleva.onboarding.kyb.KybKycStatus;
-import ee.tuleva.onboarding.kyb.KybRelatedPerson;
-import ee.tuleva.onboarding.kyb.LegalForm;
-import ee.tuleva.onboarding.kyb.PersonalCode;
-import ee.tuleva.onboarding.kyb.RegistryCode;
-import ee.tuleva.onboarding.kyb.SelfCertification;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -33,25 +26,9 @@ class RelatedPersonsKycScreenerTest {
   void checksAllRelatedPersonsKycStatus(List<KybKycStatus> statuses, boolean expectedSuccess) {
     var persons =
         statuses.stream()
-            .map(
-                status ->
-                    new KybRelatedPerson(
-                        new PersonalCode("38501010001"),
-                        true,
-                        true,
-                        true,
-                        BigDecimal.valueOf(100),
-                        status))
+            .map(status -> boardMemberOwner("38501010001", 100.0).kycStatus(status).build())
             .toList();
-    var data =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
-            new PersonalCode("38501010001"),
-            R,
-            persons,
-            new SelfCertification(true, true, true),
-            "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+    var data = companyWith(persons);
 
     var result = screener.screen(data);
 
@@ -73,21 +50,9 @@ class RelatedPersonsKycScreenerTest {
   @Test
   @SuppressWarnings("unchecked")
   void failureMetadataContainsIncompletePersons() {
-    var completed =
-        new KybRelatedPerson(
-            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(50), COMPLETED);
-    var rejected =
-        new KybRelatedPerson(
-            new PersonalCode("38501010002"), true, true, true, BigDecimal.valueOf(50), REJECTED);
-    var data =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
-            new PersonalCode("38501010001"),
-            R,
-            List.of(completed, rejected),
-            new SelfCertification(true, true, true),
-            "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+    var completed = boardMemberOwner("38501010001", 50.0).build();
+    var rejected = boardMemberOwner("38501010002", 50.0).kycStatus(REJECTED).build();
+    var data = companyWith(completed, rejected);
 
     var result = screener.screen(data);
 
@@ -100,24 +65,12 @@ class RelatedPersonsKycScreenerTest {
         .containsExactly(Map.of("personalCode", "38501010002", "kycStatus", "REJECTED"));
   }
 
-  // TODO: entities without personal code are not supported at the moment
-  @Disabled
   @Test
   @SuppressWarnings("unchecked")
   void handlesNullPersonalCodeInMetadata() {
-    var withCode =
-        new KybRelatedPerson(
-            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(100), UNKNOWN);
-    var withoutCode = new KybRelatedPerson(null, false, false, false, BigDecimal.ZERO, UNKNOWN);
-    var data =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
-            new PersonalCode("38501010001"),
-            R,
-            List.of(withCode, withoutCode),
-            new SelfCertification(true, true, true),
-            "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+    var withCode = boardMemberOwner("38501010001", 100.0).kycStatus(UNKNOWN).build();
+    var withoutCode = kybPerson().personalCode(null).build();
+    var data = companyWith(withCode, withoutCode);
 
     var result = screener.screen(data);
 
@@ -126,23 +79,16 @@ class RelatedPersonsKycScreenerTest {
 
     var incompletePersons =
         (List<Map<String, String>>) result.getFirst().metadata().get("incompletePersons");
-    assertThat(incompletePersons).hasSize(2);
+    assertThat(incompletePersons)
+        .containsExactlyInAnyOrder(
+            Map.of("personalCode", "38501010001", "kycStatus", "UNKNOWN"),
+            Map.of("kycStatus", "UNKNOWN"));
   }
 
   @Test
   void successMetadataHasNoIncompletePersons() {
-    var person =
-        new KybRelatedPerson(
-            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(100), COMPLETED);
-    var data =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
-            new PersonalCode("38501010001"),
-            R,
-            List.of(person),
-            new SelfCertification(true, true, true),
-            "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+    var person = boardMemberOwner("38501010001", 100.0).build();
+    var data = companyWith(person);
 
     var result = screener.screen(data);
 

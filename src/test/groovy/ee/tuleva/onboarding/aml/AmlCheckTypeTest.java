@@ -10,15 +10,26 @@ class AmlCheckTypeTest {
   void hasKybCheckTypes() {
     assertThat(AmlCheckType.valueOf("KYB_SOLE_MEMBER_OWNERSHIP")).isNotNull();
     assertThat(AmlCheckType.valueOf("KYB_DUAL_MEMBER_OWNERSHIP")).isNotNull();
-    assertThat(AmlCheckType.valueOf("KYB_SOLE_BOARD_MEMBER_IS_OWNER")).isNotNull();
+    assertThat(AmlCheckType.valueOf("KYB_SINGLE_BOARD_MEMBER_OWNERSHIP")).isNotNull();
     assertThat(AmlCheckType.valueOf("KYB_COMPANY_ACTIVE")).isNotNull();
+  }
+
+  @Test
+  void hasManualEventType() {
+    assertThat(AmlCheckType.valueOf("MANUAL_EVENT")).isNotNull();
+  }
+
+  @Test
+  void manualEventIsNotClientManual() {
+    // MANUAL_EVENT is specialist-created (Metabase action), not a client-self-addable check
+    assertThat(AmlCheckType.MANUAL_EVENT.isManual()).isFalse();
   }
 
   @Test
   void kybCheckTypesAreNotManual() {
     assertThat(AmlCheckType.KYB_SOLE_MEMBER_OWNERSHIP.isManual()).isFalse();
     assertThat(AmlCheckType.KYB_DUAL_MEMBER_OWNERSHIP.isManual()).isFalse();
-    assertThat(AmlCheckType.KYB_SOLE_BOARD_MEMBER_IS_OWNER.isManual()).isFalse();
+    assertThat(AmlCheckType.KYB_SINGLE_BOARD_MEMBER_OWNERSHIP.isManual()).isFalse();
     assertThat(AmlCheckType.KYB_COMPANY_ACTIVE.isManual()).isFalse();
   }
 }

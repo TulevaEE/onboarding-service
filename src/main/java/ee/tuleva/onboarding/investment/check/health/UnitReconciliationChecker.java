@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.check.health;
 
-import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.UNIT_RECONCILIATION;
 
@@ -43,38 +42,21 @@ class UnitReconciliationChecker {
 
     var reported = unitsPositions.getFirst().getQuantity();
     var difference = reported.subtract(authoritativeUnits).abs();
-    var severity = severityFor(difference, threshold);
-    if (severity == null) {
+    if (difference.compareTo(threshold.getWarningUnits()) <= 0) {
       return List.of();
     }
     return List.of(
         finding(
             fund,
-            severity,
-            "Unit reconciliation %s: fund=%s, navDate=%s, reported=%s, authoritative=%s, diff=%s, warning=%s, fail=%s"
+            WARNING,
+            "Unit reconciliation WARNING: fund=%s, navDate=%s, reported=%s, authoritative=%s, diff=%s, warning=%s"
                 .formatted(
-                    severity,
                     fund,
                     navDate,
                     reported.toPlainString(),
                     authoritativeUnits.toPlainString(),
                     difference.toPlainString(),
-                    threshold.getWarningUnits().toPlainString(),
-                    threshold.getFailUnits() == null
-                        ? "none"
-                        : threshold.getFailUnits().toPlainString())));
-  }
-
-  private @Nullable HealthCheckSeverity severityFor(
-      BigDecimal difference, UnitReconciliationThreshold threshold) {
-    var failUnits = threshold.getFailUnits();
-    if (failUnits != null && difference.compareTo(failUnits) > 0) {
-      return FAIL;
-    }
-    if (difference.compareTo(threshold.getWarningUnits()) > 0) {
-      return WARNING;
-    }
-    return null;
+                    threshold.getWarningUnits().toPlainString())));
   }
 
   private HealthCheckFinding finding(TulevaFund fund, HealthCheckSeverity severity, String msg) {

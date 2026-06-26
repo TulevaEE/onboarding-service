@@ -82,17 +82,64 @@ class KybDataChangeDetectorTest {
   }
 
   @Test
-  void newCheckTypeDetected() {
+  void newPassingCheckTypeDoesNotCountAsChange() {
+    // Screener gained a check (e.g. COMPANY_AGE). For an existing company this is a screener
+    // expansion, not a data change — it must not raise DATA_CHANGED (AML #78 false positive that
+    // flagged ~96% of companies after COMPANY_AGE / COMPANY_LEGAL_FORM were added).
     var previousChecks = List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of("status", "R")));
     var currentChecks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of("status", "R")),
+            new KybCheck(COMPANY_AGE, true, Map.of()));
+    when(checkHistory.getLatestChecks(PERSONAL_CODE)).thenReturn(previousChecks);
+
+    var result = detector.detect(PERSONAL_CODE, currentChecks);
+
+    assertThat(result.success()).isTrue();
+    assertThat((List<?>) result.metadata().get("changes")).isEmpty();
+  }
+
+  @Test
+  void newFailingCheckTypeDoesNotCountAsChange() {
+    // Even a newly introduced FAILING check is the new check's own risk (scored on its own
+    // aml_check row), not a change in existing data — DATA_CHANGED stays clear.
+    var previousChecks = List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of("status", "R")));
+    var currentChecks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of("status", "R")),
+            new KybCheck(COMPANY_AGE, false, Map.of()));
+    when(checkHistory.getLatestChecks(PERSONAL_CODE)).thenReturn(previousChecks);
+
+    var result = detector.detect(PERSONAL_CODE, currentChecks);
+
+    assertThat(result.success()).isTrue();
+    assertThat((List<?>) result.metadata().get("changes")).isEmpty();
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void structuralCheckSwapStillCountsAsChange() {
+    // A genuine structural change (sole- -> dual-member) swaps one conditional check for another.
+    // The disappearing check still raises DATA_CHANGED via the removed-check path, so real changes
+    // are NOT lost by baselining newly introduced check types.
+    var previousChecks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of("status", "R")),
             new KybCheck(SOLE_MEMBER_OWNERSHIP, true, Map.of()));
+    var currentChecks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of("status", "R")),
+            new KybCheck(DUAL_MEMBER_OWNERSHIP, true, Map.of()));
     when(checkHistory.getLatestChecks(PERSONAL_CODE)).thenReturn(previousChecks);
 
     var result = detector.detect(PERSONAL_CODE, currentChecks);
 
     assertThat(result.success()).isFalse();
+    var changes = (List<Map<String, Object>>) result.metadata().get("changes");
+    assertThat(changes).hasSize(1);
+    assertThat(changes.getFirst())
+        .containsEntry("check", "SOLE_MEMBER_OWNERSHIP")
+        .containsEntry("currentSuccess", "N/A");
   }
 
   @Test
@@ -113,5 +160,31 @@ class KybDataChangeDetectorTest {
     assertThat(result.success()).isFalse();
     var changes = (List<Map<String, Object>>) result.metadata().get("changes");
     assertThat(changes).hasSize(2);
+  }
+
+  @Test
+  void volatileSanctionMetadataAloneDoesNotCountAsChange() {
+    var previousChecks =
+        List.of(new KybCheck(COMPANY_SANCTION, true, Map.of("results", "[{id=Q1, score=0.31}]")));
+    var currentChecks =
+        List.of(new KybCheck(COMPANY_SANCTION, true, Map.of("results", "[{id=Q2, score=0.62}]")));
+    when(checkHistory.getLatestChecks(PERSONAL_CODE)).thenReturn(previousChecks);
+
+    var result = detector.detect(PERSONAL_CODE, currentChecks);
+
+    assertThat(result.success()).isTrue();
+    assertThat((List<?>) result.metadata().get("changes")).isEmpty();
+  }
+
+  @Test
+  void sanctionSuccessFlipStillCountsAsChange() {
+    var previousChecks = List.of(new KybCheck(COMPANY_SANCTION, true, Map.of("results", "[]")));
+    var currentChecks =
+        List.of(new KybCheck(COMPANY_SANCTION, false, Map.of("results", "[{match=true}]")));
+    when(checkHistory.getLatestChecks(PERSONAL_CODE)).thenReturn(previousChecks);
+
+    var result = detector.detect(PERSONAL_CODE, currentChecks);
+
+    assertThat(result.success()).isFalse();
   }
 }

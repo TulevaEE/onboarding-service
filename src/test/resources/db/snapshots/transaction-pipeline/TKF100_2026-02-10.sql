@@ -31,7 +31,7 @@ INSERT INTO investment_model_portfolio_allocation (effective_date, fund_code, is
 VALUES
   (DATE '2025-12-01', 'TKF100', 'IE000F60HVH9', 0.18500000, 'ETF', 'FT', 'USAS.PA', 'USAS FP', 'ICAV Amundi MSCI USA Screened UCITS ETF', true, CURRENT_TIMESTAMP),
   (DATE '2025-12-01', 'TKF100', 'IE000O58J820', 0.15400000, 'ETF', 'FT', 'V3YA.DE', 'V3YA GY', 'Vanguard ESG North America All Cap UCITS ETF', true, CURRENT_TIMESTAMP),
-  (DATE '2025-12-01', 'TKF100', 'IE00BFG1TM61', 0.19000000, 'FUND', 'SEB', '0P0001N0Z0.F', 'BDWTEIA', 'iShares Developed World Screened Index Fund (IE)', false, CURRENT_TIMESTAMP),
+  (DATE '2025-12-01', 'TKF100', 'IE00BFG1TM61', 0.19000000, 'FUND', 'SEB', '0P000152G5.F', 'BDWTEIA', 'iShares Developed World Screened Index Fund (IE)', false, CURRENT_TIMESTAMP),
   (DATE '2025-12-01', 'TKF100', 'IE00BJZ2DC62', 0.17400000, 'ETF', 'FT', 'XRSM.DE', 'XRSM GY', 'Xtrackers MSCI USA Screened UCITS ETF', true, CURRENT_TIMESTAMP),
   (DATE '2025-12-01', 'TKF100', 'IE00BMDBMY19', 0.10000000, 'ETF', 'SEB', 'ESGM.DE', 'ESGM GY', 'Invesco MSCI Emerging Markets Universal Screened UCITS ETF Acc', false, CURRENT_TIMESTAMP),
   (DATE '2025-12-01', 'TKF100', 'LU0476289540', 0.01600000, 'ETF', 'FT', 'D5BH.DE', 'D5BH GY', 'Xtrackers MSCI Canada Screened UCITS ETF', false, CURRENT_TIMESTAMP),

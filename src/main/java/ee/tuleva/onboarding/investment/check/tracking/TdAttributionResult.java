@@ -8,7 +8,7 @@ import java.util.Map;
 import lombok.Builder;
 
 @Builder
-record TdAttributionResult(
+public record TdAttributionResult(
     TulevaFund fund,
     LocalDate periodStart,
     LocalDate periodEnd,
@@ -24,6 +24,9 @@ record TdAttributionResult(
     BigDecimal weightDeviation,
     BigDecimal transactionCosts,
     BigDecimal residual,
+    BigDecimal etfOcfDrag,
+    BigDecimal etfTrackingResidual,
+    BigDecimal tdVsBenchmark,
     int businessDays,
     BigDecimal avgAum,
     BigDecimal avgCashPct,

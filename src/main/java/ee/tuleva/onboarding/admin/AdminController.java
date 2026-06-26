@@ -24,6 +24,7 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.IbanWhitelistEntry;
 import ee.tuleva.onboarding.savings.fund.IbanWhitelistService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
+import ee.tuleva.onboarding.savings.fund.UnattributedPaymentAttributionService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
@@ -42,6 +43,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Profile;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -50,6 +52,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/admin")
 @RequiredArgsConstructor
+@Profile("!staging")
 public class AdminController {
 
   private final ApplicationEventPublisher eventPublisher;
@@ -66,7 +69,12 @@ public class AdminController {
   private final RedemptionBatchJob redemptionBatchJob;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final ParentChildLinkRegistrationService parentChildLinkRegistrationService;
+  private final ee.tuleva.onboarding.investment.check.tracking.PeriodicTdAttributionService
+      tdAttributionService;
+  private final ee.tuleva.onboarding.investment.fees.ocf.OcfCalculationService
+      ocfCalculationService;
   private final IbanWhitelistService ibanWhitelistService;
+  private final UnattributedPaymentAttributionService unattributedPaymentAttributionService;
   private final Clock clock;
 
   @Value("${admin.api-token:}")
@@ -282,18 +290,6 @@ public class AdminController {
     return "Retried redemption payout for " + id;
   }
 
-  @PostMapping("/whitelist-company")
-  public String whitelistCompany(
-      @RequestHeader("X-Admin-Token") String token,
-      @RequestParam String registryCode,
-      @RequestParam(defaultValue = "false") boolean override) {
-
-    validateTokenWithOpsAccess(token);
-    savingsFundOnboardingService.whitelistLegalEntity(registryCode, override);
-
-    return "Whitelisted company: registryCode=" + registryCode;
-  }
-
   @PostMapping("/whitelist-iban")
   public String whitelistIban(
       @RequestHeader("X-Admin-Token") String token,
@@ -363,6 +359,7 @@ public class AdminController {
         request.childFirstName(),
         request.childLastName(),
         request.relationshipType());
+    savingsFundOnboardingService.seedPersonOnboardingIfAbsent(request.childCode());
 
     return "Created parent-child link: parentCode="
         + request.parentCode()
@@ -388,6 +385,101 @@ public class AdminController {
         roundedAmount);
 
     return navFeeAccrualLedger.recordBlackrockAdjustment(fund, date, roundedAmount);
+  }
+
+  @PostMapping("/td-attribution")
+  public String computeTdAttribution(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam(required = false) String fundCode,
+      @RequestParam @DateTimeFormat(iso = DATE) LocalDate from,
+      @RequestParam @DateTimeFormat(iso = DATE) LocalDate to,
+      @RequestParam(defaultValue = "MONTHLY") String periodType) {
+
+    validateToken(token);
+
+    var type = ee.tuleva.onboarding.investment.check.tracking.PeriodType.valueOf(periodType);
+
+    if (fundCode != null) {
+      var fund = TulevaFund.valueOf(fundCode);
+      var result = tdAttributionService.computeAttribution(fund, from, to, type);
+      return "TD attribution: %s %s to %s = %.1f bps"
+          .formatted(fundCode, from, to, result.tdGeometric().multiply(BigDecimal.valueOf(10000)));
+    }
+
+    tdAttributionService.computeForAllFunds(from, to, type);
+    return "TD attribution computed for all funds: %s to %s".formatted(from, to);
+  }
+
+  @PostMapping("/td-attribution-backfill")
+  public String backfillTdAttribution(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam(defaultValue = "6") int monthsBack) {
+
+    validateToken(token);
+    tdAttributionService.backfillMonths(monthsBack, clock);
+    return "TD attribution backfilled for last %d months".formatted(monthsBack);
+  }
+
+  @PostMapping("/ocf")
+  public String calculateOcf(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam(required = false) String fundCode,
+      @RequestParam(required = false) String month) {
+
+    validateToken(token);
+
+    var yearMonth =
+        month != null
+            ? java.time.YearMonth.parse(month)
+            : java.time.YearMonth.now(clock).minusMonths(1);
+
+    if (fundCode != null) {
+      var fund = TulevaFund.valueOf(fundCode);
+      var result = ocfCalculationService.calculateOcf(fund, yearMonth);
+      return "OCF calculated: %s %s = %.2f%%"
+          .formatted(fundCode, yearMonth, result.totalOcf().multiply(BigDecimal.valueOf(100)));
+    }
+
+    ocfCalculationService.calculateForAllFunds(yearMonth);
+    return "OCF calculated for all funds: %s".formatted(yearMonth);
+  }
+
+  @PostMapping("/ocf-backfill")
+  public String backfillOcf(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam(defaultValue = "6") int monthsBack) {
+
+    validateToken(token);
+    ocfCalculationService.backfillMonths(monthsBack, clock);
+    return "OCF backfilled for last %d months".formatted(monthsBack);
+  }
+
+  @PostMapping("/savings-fund/payments/{paymentId}/attribute")
+  public Map<String, String> attributeUnattributedPayment(
+      @RequestHeader("X-Admin-Token") String token,
+      @PathVariable UUID paymentId,
+      @RequestParam PartyId.Type partyType,
+      @RequestParam String partyCode,
+      @RequestParam(defaultValue = "false") boolean returnCancelled) {
+
+    validateTokenWithOpsAccess(token);
+
+    log.info(
+        "Admin triggered manual payment attribution: paymentId={}, partyType={}, partyCode={}, returnCancelled={}",
+        paymentId,
+        partyType,
+        partyCode,
+        returnCancelled);
+
+    var payment =
+        unattributedPaymentAttributionService.attribute(
+            paymentId, new PartyId(partyType, partyCode), returnCancelled);
+
+    return Map.of(
+        "paymentId", payment.getId().toString(),
+        "status", payment.getStatus().name(),
+        "partyType", partyType.name(),
+        "partyCode", partyCode);
   }
 
   private void validateTokenWithOpsAccess(String token) {

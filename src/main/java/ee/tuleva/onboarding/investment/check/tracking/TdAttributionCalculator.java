@@ -12,12 +12,13 @@ import java.util.List;
 import java.util.Map;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 
 @Slf4j
 class TdAttributionCalculator {
 
   static final int SCALE = 10;
-  private static final BigDecimal NEAR_ZERO = new BigDecimal("0.0000001");
+  private static final BigDecimal CARINO_NEAR_EQUAL = new BigDecimal("0.0000000001");
   private static final BigDecimal EXTREME_SCALE = new BigDecimal("2.0");
 
   TdAttributionResult calculate(TdAttributionInput input) {
@@ -32,12 +33,12 @@ class TdAttributionCalculator {
         geometricReturn(dailyRecords.stream().map(DailyRecord::modelReturn).toList());
     var tdGeometric = fundCumulative.subtract(modelCumulative);
 
-    var mgmtFeeDragArithmetic = ZERO;
-    var depotFeeDragArithmetic = ZERO;
-    var cashDragArithmetic = ZERO;
-    var nonSecDragArithmetic = ZERO;
-    var weightDevArithmetic = ZERO;
-    var tdArithmetic = ZERO;
+    var periodCoefficient = carinoCoefficient(fundCumulative, modelCumulative);
+
+    var cashDragNumerator = ZERO;
+    var nonSecDragNumerator = ZERO;
+    var weightDevNumerator = ZERO;
+    var coefficientSum = ZERO;
 
     var totalAum = ZERO;
     var totalCashPct = ZERO;
@@ -46,9 +47,6 @@ class TdAttributionCalculator {
     var instrumentContributions = new LinkedHashMap<String, InstrumentAccumulator>();
 
     for (var day : dailyRecords) {
-      var dailyTd = day.fundReturn().subtract(day.modelReturn());
-      tdArithmetic = tdArithmetic.add(dailyTd);
-
       var aum = day.aum();
       if (aum.signum() <= 0) {
         log.warn("Skipping zero-AUM day: fund={}, date={}", input.fund(), day.date());
@@ -58,41 +56,47 @@ class TdAttributionCalculator {
       totalAum = totalAum.add(aum);
       aumDays++;
 
+      var dailyCoefficient = carinoCoefficient(day.fundReturn(), day.modelReturn());
+      coefficientSum = coefficientSum.add(dailyCoefficient);
+
       var cashPct = day.cashValue().divide(aum, SCALE, HALF_UP);
       totalCashPct = totalCashPct.add(cashPct);
-
-      cashDragArithmetic = cashDragArithmetic.add(cashPct.negate().multiply(day.modelReturn()));
+      var cashEffect = cashPct.negate().multiply(day.modelReturn());
+      cashDragNumerator = cashDragNumerator.add(dailyCoefficient.multiply(cashEffect));
 
       var nonSecPct = day.nonSecurityValue().divide(aum, SCALE, HALF_UP);
-      nonSecDragArithmetic =
-          nonSecDragArithmetic.add(nonSecPct.negate().multiply(day.modelReturn()));
+      var nonSecEffect = nonSecPct.negate().multiply(day.modelReturn());
+      nonSecDragNumerator = nonSecDragNumerator.add(dailyCoefficient.multiply(nonSecEffect));
 
       for (var sec : day.securities()) {
         var contrib = sec.normalizedWeightDiff().multiply(sec.securityReturn());
-        weightDevArithmetic = weightDevArithmetic.add(contrib);
+        weightDevNumerator = weightDevNumerator.add(dailyCoefficient.multiply(contrib));
 
         instrumentContributions
             .computeIfAbsent(sec.isin(), k -> new InstrumentAccumulator(sec.isin()))
-            .add(sec, contrib);
+            .add(sec, contrib, dailyCoefficient);
       }
     }
 
-    mgmtFeeDragArithmetic = input.mgmtFeeDragPeriod();
-    depotFeeDragArithmetic = input.depotFeeDragPeriod();
+    var cashDrag = linkDaily(cashDragNumerator, periodCoefficient);
+    var nonSecurityDrag = linkDaily(nonSecDragNumerator, periodCoefficient);
+    var weightDeviation = linkDaily(weightDevNumerator, periodCoefficient);
 
-    var componentsArithmetic =
-        mgmtFeeDragArithmetic
-            .add(depotFeeDragArithmetic)
-            .add(cashDragArithmetic)
-            .add(nonSecDragArithmetic)
-            .add(weightDevArithmetic);
+    var periodLink = periodLinkMultiplier(coefficientSum, periodCoefficient, aumDays, input);
+    var mgmtFeeDrag = orZero(input.mgmtFeeDragPeriod()).multiply(periodLink).setScale(8, HALF_UP);
+    var depotFeeDrag = orZero(input.depotFeeDragPeriod()).multiply(periodLink).setScale(8, HALF_UP);
+    var transactionCosts =
+        orZero(input.transactionCostsPeriod()).multiply(periodLink).setScale(8, HALF_UP);
 
-    var residualArithmetic = tdArithmetic.subtract(componentsArithmetic);
-
-    var allArithmetic =
-        componentsArithmetic.add(residualArithmetic); // == tdArithmetic by construction
-
-    var scale = computeScalingFactor(tdGeometric, allArithmetic, input);
+    var tdGeometricRounded = tdGeometric.setScale(8, HALF_UP);
+    var explained =
+        mgmtFeeDrag
+            .add(depotFeeDrag)
+            .add(cashDrag)
+            .add(nonSecurityDrag)
+            .add(weightDeviation)
+            .add(transactionCosts);
+    var residual = tdGeometricRounded.subtract(explained);
 
     var avgAum = aumDays > 0 ? totalAum.divide(BigDecimal.valueOf(aumDays), 2, HALF_UP) : ZERO;
     var avgCashPct =
@@ -100,10 +104,23 @@ class TdAttributionCalculator {
 
     int businessDays = dailyRecords.size();
 
-    var checks = buildChecks(tdGeometric, componentsArithmetic, residualArithmetic, scale, input);
+    var checks =
+        buildChecks(tdGeometricRounded, explained.add(residual), residual, periodLink, input);
 
     var instrumentDetails =
-        instrumentContributions.values().stream().map(acc -> acc.toAttribution(scale)).toList();
+        instrumentContributions.values().stream()
+            .map(acc -> acc.toAttribution(periodCoefficient))
+            .toList();
+
+    // View 2: model-vs-benchmark overlay on the geometric fund-vs-model TD. Kept arithmetic (no
+    // linking multiplier): the fund-vs-model periodLink is the wrong coefficient for a
+    // model-vs-benchmark layer, and we have no daily benchmark series here to build the correct
+    // one. A proper per-layer Cariño coefficient (needs daily model+benchmark returns plumbed in)
+    // is future work; for now tdVsBenchmark is an honest geometric-TD + arithmetic-overlay sum.
+    var etfOcfDrag = orZero(input.etfOcfDragPeriod()).setScale(8, HALF_UP);
+    var etfTrackingResidual = orZero(input.etfTrackingResidualArithmetic()).setScale(8, HALF_UP);
+    var tdVsBenchmark =
+        tdGeometricRounded.add(etfOcfDrag).add(etfTrackingResidual).setScale(8, HALF_UP);
 
     return TdAttributionResult.builder()
         .fund(input.fund())
@@ -112,15 +129,18 @@ class TdAttributionCalculator {
         .periodType(input.periodType())
         .fundReturn(fundCumulative.setScale(8, HALF_UP))
         .modelReturn(modelCumulative.setScale(8, HALF_UP))
-        .tdGeometric(tdGeometric.setScale(8, HALF_UP))
-        .scalingFactor(scale.setScale(8, HALF_UP))
-        .mgmtFeeDrag(mgmtFeeDragArithmetic.multiply(scale).setScale(8, HALF_UP))
-        .depotFeeDrag(depotFeeDragArithmetic.multiply(scale).setScale(8, HALF_UP))
-        .cashDrag(cashDragArithmetic.multiply(scale).setScale(8, HALF_UP))
-        .nonSecurityDrag(nonSecDragArithmetic.multiply(scale).setScale(8, HALF_UP))
-        .weightDeviation(weightDevArithmetic.multiply(scale).setScale(8, HALF_UP))
-        .transactionCosts(ZERO)
-        .residual(residualArithmetic.multiply(scale).setScale(8, HALF_UP))
+        .tdGeometric(tdGeometricRounded)
+        .scalingFactor(periodLink.setScale(8, HALF_UP))
+        .mgmtFeeDrag(mgmtFeeDrag)
+        .depotFeeDrag(depotFeeDrag)
+        .cashDrag(cashDrag)
+        .nonSecurityDrag(nonSecurityDrag)
+        .weightDeviation(weightDeviation)
+        .transactionCosts(transactionCosts)
+        .residual(residual)
+        .etfOcfDrag(etfOcfDrag)
+        .etfTrackingResidual(etfTrackingResidual)
+        .tdVsBenchmark(tdVsBenchmark)
         .businessDays(businessDays)
         .avgAum(avgAum)
         .avgCashPct(avgCashPct.setScale(6, HALF_UP))
@@ -129,26 +149,63 @@ class TdAttributionCalculator {
         .build();
   }
 
-  private BigDecimal computeScalingFactor(
-      BigDecimal tdGeometric, BigDecimal tdArithmetic, TdAttributionInput input) {
-    if (tdArithmetic.abs().compareTo(NEAR_ZERO) < 0) {
-      log.info(
-          "Near-zero arithmetic TD, using scale=1: fund={}, period={}-{}",
-          input.fund(),
-          input.periodStart(),
-          input.periodEnd());
+  // Cariño (1999) logarithmic linking coefficient: maps a single-period arithmetic excess
+  // return onto the geometric layer. Finite as benchmarkReturn -> portfolioReturn (limit
+  // 1/(1+portfolioReturn)), so it never blows up the way tdGeometric/tdArithmetic did.
+  private BigDecimal carinoCoefficient(BigDecimal portfolioReturn, BigDecimal benchmarkReturn) {
+    // ln(1+x) is only defined for x > -1. A daily return ≤ -100% is impossible for a fund NAV and
+    // is anomaly-capped for instruments, but guard defensively: fall back to an arithmetic
+    // coefficient of 1 (residual still closes) rather than emit NaN/∞ into BigDecimal.valueOf.
+    if (ONE.add(portfolioReturn).signum() <= 0 || ONE.add(benchmarkReturn).signum() <= 0) {
+      log.warn(
+          "Cariño coefficient input <= -100%, using 1.0: portfolioReturn={}, benchmarkReturn={}",
+          portfolioReturn, benchmarkReturn);
       return ONE;
     }
-    var scale = tdGeometric.divide(tdArithmetic, SCALE, HALF_UP);
-    if (scale.abs().compareTo(EXTREME_SCALE) > 0) {
+    var diff = portfolioReturn.subtract(benchmarkReturn);
+    double r = portfolioReturn.doubleValue();
+    if (diff.abs().compareTo(CARINO_NEAR_EQUAL) < 0) {
+      return BigDecimal.valueOf(1.0 / (1.0 + r));
+    }
+    double coefficient =
+        (Math.log1p(r) - Math.log1p(benchmarkReturn.doubleValue())) / diff.doubleValue();
+    return BigDecimal.valueOf(coefficient);
+  }
+
+  // Daily-attributed effect linked to the geometric layer: sum_t(k_t * effect_t) / k.
+  private BigDecimal linkDaily(BigDecimal numerator, BigDecimal periodCoefficient) {
+    if (periodCoefficient.signum() == 0) {
+      return numerator.setScale(8, HALF_UP);
+    }
+    return numerator.divide(periodCoefficient, SCALE, HALF_UP).setScale(8, HALF_UP);
+  }
+
+  // Period-level effects (mgmt/depot fees, transaction costs) arrive as period totals with no
+  // daily profile here, so we spread them uniformly across the N linked days and link them:
+  // (sum_t k_t / N) / k. This is a bounded uniform-allocation assumption — the multiplier stays
+  // ≈ 1 and never diverges (unlike the old tdGeometric/tdArithmetic factor), and the per-day
+  // timing error it introduces is sub-basis-point because fees accrue smoothly. Fully rigorous
+  // per-day linking would require daily fee accruals / execution-dated costs (future work).
+  private BigDecimal periodLinkMultiplier(
+      BigDecimal coefficientSum,
+      BigDecimal periodCoefficient,
+      int linkedDays,
+      TdAttributionInput input) {
+    if (linkedDays == 0 || periodCoefficient.signum() == 0) {
+      return ONE;
+    }
+    var multiplier =
+        coefficientSum.divide(
+            periodCoefficient.multiply(BigDecimal.valueOf(linkedDays)), SCALE, HALF_UP);
+    if (multiplier.abs().compareTo(EXTREME_SCALE) > 0) {
       log.warn(
-          "Extreme scaling factor: fund={}, period={}-{}, scale={}",
+          "Extreme period link multiplier: fund={}, period={}-{}, multiplier={}",
           input.fund(),
           input.periodStart(),
           input.periodEnd(),
-          scale);
+          multiplier);
     }
-    return scale;
+    return multiplier;
   }
 
   private BigDecimal geometricReturn(List<BigDecimal> dailyReturns) {
@@ -161,14 +218,12 @@ class TdAttributionCalculator {
 
   private Map<String, Object> buildChecks(
       BigDecimal tdGeometric,
-      BigDecimal componentsArithmetic,
-      BigDecimal residualArithmetic,
-      BigDecimal scale,
+      BigDecimal linkedComponentSum,
+      BigDecimal residual,
+      BigDecimal periodLink,
       TdAttributionInput input) {
-    var scaledComponents =
-        componentsArithmetic.add(residualArithmetic).multiply(scale).setScale(8, HALF_UP);
-    var sumCheck = tdGeometric.subtract(scaledComponents).abs();
-    var residualBps = residualArithmetic.multiply(scale).multiply(BigDecimal.valueOf(10000));
+    var sumCheck = tdGeometric.subtract(linkedComponentSum).abs();
+    var residualBps = residual.multiply(BigDecimal.valueOf(10000));
 
     var feeXcheck = ZERO;
     if (input.expectedAnnualFeeRate() != null && input.expectedAnnualFeeRate().signum() > 0) {
@@ -178,13 +233,13 @@ class TdAttributionCalculator {
               .negate()
               .multiply(BigDecimal.valueOf(input.calendarDays()))
               .divide(BigDecimal.valueOf(365), SCALE, HALF_UP);
-      feeXcheck = input.mgmtFeeDragPeriod().subtract(expectedFeeDrag).abs();
+      feeXcheck = orZero(input.mgmtFeeDragPeriod()).subtract(expectedFeeDrag).abs();
     }
 
     return Map.of(
         "sumCheck", sumCheck.setScale(8, HALF_UP),
         "feeXcheck", feeXcheck.setScale(8, HALF_UP),
-        "scalingFactor", scale.setScale(8, HALF_UP),
+        "scalingFactor", periodLink.setScale(8, HALF_UP),
         "residualBps", residualBps.setScale(2, HALF_UP));
   }
 
@@ -205,12 +260,19 @@ class TdAttributionCalculator {
         .weightDeviation(ZERO)
         .transactionCosts(ZERO)
         .residual(ZERO)
+        .etfOcfDrag(ZERO)
+        .etfTrackingResidual(ZERO)
+        .tdVsBenchmark(ZERO)
         .businessDays(0)
         .avgAum(ZERO)
         .avgCashPct(ZERO)
         .instrumentDetails(List.of())
         .checks(Map.of())
         .build();
+  }
+
+  private static BigDecimal orZero(BigDecimal value) {
+    return value != null ? value : ZERO;
   }
 
   @Builder
@@ -222,6 +284,9 @@ class TdAttributionCalculator {
       int calendarDays,
       BigDecimal mgmtFeeDragPeriod,
       BigDecimal depotFeeDragPeriod,
+      BigDecimal transactionCostsPeriod,
+      BigDecimal etfOcfDragPeriod,
+      BigDecimal etfTrackingResidualArithmetic,
       BigDecimal expectedAnnualFeeRate,
       List<DailyRecord> dailyRecords) {}
 
@@ -238,6 +303,7 @@ class TdAttributionCalculator {
   @Builder
   record SecurityDailyData(
       String isin,
+      @Nullable String instrumentName,
       BigDecimal modelWeight,
       BigDecimal actualWeight,
       BigDecimal normalizedWeightDiff,
@@ -246,35 +312,46 @@ class TdAttributionCalculator {
   private static class InstrumentAccumulator {
 
     final String isin;
+    @Nullable String instrumentName;
     BigDecimal totalModelWeight = ZERO;
     BigDecimal totalActualWeight = ZERO;
-    BigDecimal totalContribution = ZERO;
-    BigDecimal totalReturn = ZERO;
+    BigDecimal contributionNumerator = ZERO;
+    BigDecimal compoundReturn = ONE;
     int days = 0;
 
     InstrumentAccumulator(String isin) {
       this.isin = isin;
     }
 
-    void add(SecurityDailyData sec, BigDecimal contribution) {
+    void add(SecurityDailyData sec, BigDecimal contribution, BigDecimal dailyCoefficient) {
+      if (instrumentName == null && sec.instrumentName() != null) {
+        instrumentName = sec.instrumentName();
+      }
       totalModelWeight = totalModelWeight.add(sec.modelWeight());
       totalActualWeight = totalActualWeight.add(sec.actualWeight());
-      totalContribution = totalContribution.add(contribution);
-      totalReturn = totalReturn.add(sec.securityReturn());
+      contributionNumerator = contributionNumerator.add(dailyCoefficient.multiply(contribution));
+      compoundReturn = compoundReturn.multiply(ONE.add(sec.securityReturn()));
       days++;
     }
 
-    TdAttributionResult.InstrumentAttribution toAttribution(BigDecimal scale) {
+    TdAttributionResult.InstrumentAttribution toAttribution(BigDecimal periodCoefficient) {
       var avgModel =
           days > 0 ? totalModelWeight.divide(BigDecimal.valueOf(days), 6, HALF_UP) : ZERO;
       var avgActual =
           days > 0 ? totalActualWeight.divide(BigDecimal.valueOf(days), 6, HALF_UP) : ZERO;
+      var linkedContribution =
+          periodCoefficient.signum() == 0
+              ? contributionNumerator.setScale(8, HALF_UP)
+              : contributionNumerator
+                  .divide(periodCoefficient, SCALE, HALF_UP)
+                  .setScale(8, HALF_UP);
       return TdAttributionResult.InstrumentAttribution.builder()
           .isin(isin)
+          .instrumentName(instrumentName != null ? instrumentName : isin)
           .modelWeight(avgModel)
           .avgActualWeight(avgActual)
-          .weightDevContribution(totalContribution.multiply(scale).setScale(8, HALF_UP))
-          .securityReturn(totalReturn.setScale(8, HALF_UP))
+          .weightDevContribution(linkedContribution)
+          .securityReturn(compoundReturn.subtract(ONE).setScale(8, HALF_UP))
           .build();
     }
   }

@@ -4,6 +4,8 @@ import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.*;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_CANCELLED;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
@@ -23,6 +25,7 @@ import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerParty;
 import ee.tuleva.onboarding.ledger.LedgerService;
+import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.issuing.FundAccountPaymentJob;
 import ee.tuleva.onboarding.savings.fund.issuing.IssuingJob;
@@ -63,6 +66,8 @@ class SavingsFundPaymentIntegrationTest {
   @Autowired private FundValueRepository fundValueRepository;
   @Autowired private SavingsFundConfiguration savingsFundConfiguration;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private SavingsFundLedger savingsFundLedger;
+  @Autowired private UnattributedPaymentAttributionService attributionService;
 
   // Monday 2025-09-29 17:00 EET (15:00 UTC) - after 16:00 cutoff
   private static final Instant NOW = Instant.parse("2025-09-29T15:00:00Z");
@@ -226,6 +231,71 @@ class SavingsFundPaymentIntegrationTest {
     assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getFundInvestmentCashClearingAccount().getBalance())
         .isEqualByComparingTo(paymentAmount);
+  }
+
+  @Test
+  @DisplayName(
+      "Manual attribution of an unattributed payment -> RESERVED -> ISSUED with a balanced ledger")
+  void manualAttribution_endToEnd_issuesUnitsAndBalancesLedger() {
+    var amount = new BigDecimal("100.50");
+    var party = new PartyId(PERSON, testUser.getPersonalCode());
+    var bookingDate = LocalDate.of(2025, 9, 24);
+
+    // Given: an unattributed RETURNED payment (no identifiable code) parked as unreconciled,
+    // received before the cutoff so the reservation/issuing jobs will process it
+    var paymentId =
+        paymentRepository.savePaymentData(
+            SavingFundPayment.builder()
+                .amount(amount)
+                .description("Wise transfer, no isikukood")
+                .remitterName("Wise")
+                .remitterIdCode("")
+                .remitterIban("BE48967056780227")
+                .beneficiaryName("TULEVA TÄIENDAV KOGUMISFOND")
+                .beneficiaryIdCode("14118923")
+                .beneficiaryIban("EE442200221092874625")
+                .externalId("attr-e2e-1")
+                .receivedBefore(
+                    bookingDate.atTime(9, 0).atZone(ZoneId.of("Europe/Tallinn")).toInstant())
+                .build());
+    paymentRepository.changeStatus(paymentId, RECEIVED);
+    paymentRepository.changeStatus(paymentId, TO_BE_RETURNED);
+    paymentRepository.changeStatus(paymentId, RETURNED);
+    savingsFundLedger.recordUnattributedPayment(amount, paymentId, bookingDate);
+
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance())
+        .isEqualByComparingTo(amount.negate());
+
+    // When: ops attributes it to the member (outbound return cancelled in the bank)
+    attributionService.attribute(paymentId, party, true);
+
+    // Then: it looks like a freshly verified payment
+    var payment = paymentRepository.findById(paymentId).orElseThrow();
+    assertThat(payment.getStatus()).isEqualTo(VERIFIED);
+    assertThat(payment.getPartyId()).isEqualTo(party);
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(amount.negate());
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
+
+    // Reservation job -> RESERVED
+    savingsFundReservationJob.runJob();
+    payment = paymentRepository.findById(paymentId).orElseThrow();
+    assertThat(payment.getStatus()).isEqualTo(RESERVED);
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(amount.negate());
+
+    // Issuing job -> ISSUED, units issued at NAV 1.0
+    issuingJob.runJob();
+    payment = paymentRepository.findById(paymentId).orElseThrow();
+    assertThat(payment.getStatus()).isEqualTo(ISSUED);
+
+    var fundUnits = new BigDecimal("100.50000");
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(fundUnits.negate());
+    assertThat(getUserSubscriptionsAccount().getBalance()).isEqualByComparingTo(amount.negate());
+    assertThat(getFundUnitsOutstandingAccount().getBalance()).isEqualByComparingTo(fundUnits);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
   }
 
   // XML template with a single CREDIT transaction from 3 working days ago (Wed 2025-09-24)
@@ -409,6 +479,49 @@ class SavingsFundPaymentIntegrationTest {
     // The DeferredReturnMatcher should fire and create PAYMENT_BOUNCE_BACK
     assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  @DisplayName(
+      "DeferredReturnMatcher skips a manually attributed payment instead of clawing it back")
+  void deferredReturnMatcher_skipsManuallyAttributedPayment() {
+    var party = new PartyId(PERSON, testUser.getPersonalCode());
+
+    // Step 1: incoming payment that fails automatic identification
+    persistXmlMessage(createUnverifiablePaymentXml(), NOW);
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+    var paymentId = paymentRepository.findAll().getFirst().getId();
+
+    // Step 2: verification parks it as unattributed and flags it for return
+    paymentVerificationJob.runJob();
+    assertThat(paymentRepository.findById(paymentId).orElseThrow().getStatus())
+        .isEqualTo(TO_BE_RETURNED);
+
+    // Step 3: ops manually attributes it to the member (outbound return cancelled in the bank)
+    attributionService.attribute(paymentId, party, true);
+
+    var paymentAmount = new BigDecimal("50.00");
+    var payment = paymentRepository.findById(paymentId).orElseThrow();
+    assertThat(payment.getStatus()).isEqualTo(VERIFIED);
+    assertThat(payment.getPartyId()).isEqualTo(party);
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(paymentAmount.negate());
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance())
+        .isEqualByComparingTo(paymentAmount);
+
+    // Step 4: the outbound return executes anyway and is matched in a later batch
+    persistXmlMessage(createReturnPaymentXml(paymentId), NOW);
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    // Then: the matcher skips it -- no bounce-back, no clawback, the member's credit is intact
+    payment = paymentRepository.findById(paymentId).orElseThrow();
+    assertThat(payment.getStatus()).isEqualTo(VERIFIED);
+    assertThat(savingsFundLedger.hasLedgerEntry(paymentId, PAYMENT_BOUNCE_BACK)).isFalse();
+    assertThat(savingsFundLedger.hasLedgerEntry(paymentId, PAYMENT_CANCELLED)).isFalse();
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(paymentAmount.negate());
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance())
+        .isEqualByComparingTo(paymentAmount);
   }
 
   @Test

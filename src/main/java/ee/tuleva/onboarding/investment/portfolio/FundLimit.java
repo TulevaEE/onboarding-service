@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.portfolio;
 
+import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.EnumType.STRING;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -52,6 +53,8 @@ public class FundLimit {
 
   @PrePersist
   protected void onCreate() {
-    createdAt = Instant.now();
+    if (createdAt == null) {
+      createdAt = clock().instant();
+    }
   }
 }

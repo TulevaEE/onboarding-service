@@ -43,9 +43,9 @@ class YahooFundValueRetrieverSpec extends Specification {
     retrievalFund == YahooFundValueRetriever.KEY
   }
 
-  def "it tracks its latest stored date by provider"() {
+  def "it exposes all yahoo tickers as expected storage keys"() {
     expect:
-    retriever.trackingProvider() == Optional.of(YahooFundValueRetriever.PROVIDER)
+    retriever.expectedStorageKeys() == Set.copyOf(FundTicker.getYahooTickers())
   }
 
   def "it successfully fetches quotes for all funds"() {
@@ -240,6 +240,65 @@ class YahooFundValueRetrieverSpec extends Specification {
     noExceptionThrown()
     result.findAll { it.key() == failingTicker }.isEmpty()
     (tickers - failingTicker).each { ticker ->
+      assert result.findAll { it.key() == ticker }.size() == 1
+    }
+  }
+
+  def "skips a ticker with no data for the range and continues with the rest"() {
+    given:
+    def validResponse = """
+      {
+        "chart": {
+          "result": [
+            {
+              "timestamp": [1514876400],
+              "indicators": {
+                "adjclose": [
+                  { "adjclose": [10.0] }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    """
+    def noDataResponse = """
+      {
+        "chart": {
+          "result": [
+            {
+              "meta": { "currency": "EUR", "symbol": "0P000152G5.F" },
+              "indicators": {
+                "quote": [ {} ],
+                "adjclose": [ {} ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    """
+
+    def tickers = YahooFundValueRetriever.FUND_TICKERS
+    def noDataTicker = tickers[0]
+    tickers.each { fund ->
+      def url = String.format(
+          "https://query1.finance.yahoo.com/v8/finance/chart/%s?interval=1d&events=history&includeAdjustedClose=true&period1=1514764800&period2=1514937600",
+          fund)
+      server.expect(requestTo(url))
+          .andRespond(withSuccess(fund == noDataTicker ? noDataResponse : validResponse, MediaType.APPLICATION_JSON))
+    }
+
+    when:
+    LocalDate startDate = LocalDate.of(2018, 1, 2)
+    LocalDate endDate = LocalDate.of(2018, 1, 2)
+    def result = retriever.retrieveValuesForRange(startDate, endDate)
+
+    then:
+    noExceptionThrown()
+    result.findAll { it.key() == noDataTicker }.isEmpty()
+    (tickers - noDataTicker).each { ticker ->
       assert result.findAll { it.key() == ticker }.size() == 1
     }
   }

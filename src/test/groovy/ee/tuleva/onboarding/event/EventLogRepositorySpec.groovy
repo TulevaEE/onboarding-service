@@ -39,4 +39,31 @@ class EventLogRepositorySpec extends Specification {
     events == [event]
   }
 
+  def "existsByTypeAndPrincipal is true for a recorded type and principal"() {
+    given:
+    repository.save(EventLog.builder()
+        .type("DEFERRAL")
+        .principal("mandrill_msg_1")
+        .timestamp(Instant.parse("2026-06-15T15:20:00Z"))
+        .data([recipient: "trustee@seb.ee"])
+        .build())
+
+    expect:
+    repository.existsByTypeAndPrincipal("DEFERRAL", "mandrill_msg_1")
+  }
+
+  def "existsByTypeAndPrincipal is false for a different type or principal"() {
+    given:
+    repository.save(EventLog.builder()
+        .type("DEFERRAL")
+        .principal("mandrill_msg_1")
+        .timestamp(Instant.parse("2026-06-15T15:20:00Z"))
+        .data([recipient: "trustee@seb.ee"])
+        .build())
+
+    expect:
+    !repository.existsByTypeAndPrincipal("HARD_BOUNCE", "mandrill_msg_1")
+    !repository.existsByTypeAndPrincipal("DEFERRAL", "mandrill_msg_2")
+  }
+
 }

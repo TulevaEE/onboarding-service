@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
@@ -83,6 +84,74 @@ class SavingsFundLedgerTest {
         .isEqualByComparingTo(amount.negate());
     assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
     verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void reconcileUnattributedPayment_creditsPartyAndClearsParking() {
+    var amount = new BigDecimal("1000.00");
+    var externalReference = randomUUID();
+    savingsFundLedger.recordUnattributedPayment(amount, externalReference);
+
+    var transaction =
+        savingsFundLedger.reconcileUnattributedPayment(testParty, amount, externalReference);
+
+    assertThat(transaction.getMetadata().get("operationType"))
+        .isEqualTo("UNATTRIBUTED_PAYMENT_RECONCILED");
+    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
+    assertThat(transaction.getMetadata().get("partyCode")).isEqualTo(testParty.code());
+    assertThat(transaction.getMetadata().get("partyType")).isEqualTo("PERSON");
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(amount.negate());
+    assertThat(savingsFundLedger.hasLedgerEntry(externalReference, PAYMENT_RECEIVED)).isTrue();
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void reconcileUnattributedPayment_isIdempotent() {
+    var amount = new BigDecimal("1000.00");
+    var externalReference = randomUUID();
+    savingsFundLedger.recordUnattributedPayment(amount, externalReference);
+
+    var first =
+        savingsFundLedger.reconcileUnattributedPayment(testParty, amount, externalReference);
+    var second =
+        savingsFundLedger.reconcileUnattributedPayment(testParty, amount, externalReference);
+
+    assertThat(second).isEqualTo(first);
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(amount.negate());
+  }
+
+  @Test
+  void reconcileUnattributedPayment_withBookingDate_usesBookingDate() {
+    var amount = new BigDecimal("1000.00");
+    var externalReference = randomUUID();
+    var bookingDate = LocalDate.of(2026, 6, 12);
+    savingsFundLedger.recordUnattributedPayment(amount, externalReference, bookingDate);
+
+    var transaction =
+        savingsFundLedger.reconcileUnattributedPayment(
+            testParty, amount, externalReference, bookingDate);
+
+    assertThat(transaction.getTransactionDate().atZone(ZoneId.of("Europe/Tallinn")).toLocalDate())
+        .isEqualTo(bookingDate);
+  }
+
+  @Test
+  void recordPaymentCancelled_afterReconciliation_doesNotBounceBack() {
+    var amount = new BigDecimal("1000.00");
+    var externalReference = randomUUID();
+    savingsFundLedger.recordUnattributedPayment(amount, externalReference);
+    savingsFundLedger.reconcileUnattributedPayment(testParty, amount, externalReference);
+
+    savingsFundLedger.recordPaymentCancelled(testParty, amount, externalReference);
+
+    assertThat(savingsFundLedger.hasLedgerEntry(externalReference, PAYMENT_BOUNCE_BACK)).isFalse();
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
   }
 
   @Test

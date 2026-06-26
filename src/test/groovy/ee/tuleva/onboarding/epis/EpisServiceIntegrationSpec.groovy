@@ -176,7 +176,7 @@ class EpisServiceIntegrationSpec extends Specification {
   def "can send mandates"() {
     given:
     def fundsTransferExchange =
-        new MandateDto.MandateFundsTransferExchangeDTO("transferProcessId", 1.0, "EE123", "EE234", null)
+        new MandateDto.MandateFundsTransferExchangeDTO("transferProcessId", 0.5, "EE123", "EE234", null)
     def address = countryFixture().build()
     def mandate = MandateDto.builder()
         .id(111L)

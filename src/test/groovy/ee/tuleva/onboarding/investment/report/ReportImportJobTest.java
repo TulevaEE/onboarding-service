@@ -44,7 +44,8 @@ class ReportImportJobTest {
 
   @BeforeEach
   void setUp() {
-    reportService = new InvestmentReportService(reportRepository, new CsvToJsonConverter());
+    reportService =
+        new InvestmentReportService(reportRepository, new CsvToJsonConverter(), FIXED_CLOCK);
     job =
         new ReportImportJob(
             List.of(source),

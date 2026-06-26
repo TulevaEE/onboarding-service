@@ -5,8 +5,11 @@ import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
 
+import ee.tuleva.onboarding.event.TrackableEventType;
+import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.kyb.RegistryCodeValidator;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.party.PartyResolver;
@@ -14,8 +17,6 @@ import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.savings.fund.notification.UnattributedPaymentEvent;
 import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.user.personalcode.PersonalCodeValidator;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -30,12 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @RequiredArgsConstructor
 public class PaymentVerificationService {
-  // Pre-go-live: remove this constant and the LEGAL_ENTITY guard in process() at TKF go-live.
-  private static final String TULEVA_FONDID_AS_REGISTRY_CODE = "14118923";
-
   private static final PersonalCodeValidator personalCodeValidator = new PersonalCodeValidator();
   private static final RegistryCodeValidator registryCodeValidator = new RegistryCodeValidator();
-  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final UserRepository userRepository;
@@ -44,6 +41,7 @@ public class PaymentVerificationService {
   private final ApplicationEventPublisher applicationEventPublisher;
   private final NameMatcher nameMatcher;
   private final PartyResolver partyResolver;
+  private final ParentChildLinkService parentChildLinkService;
 
   record VerificationMessages(
       String codeMismatch, String notClient, String nameMismatch, String notOnboarded) {
@@ -81,7 +79,14 @@ public class PaymentVerificationService {
     var messages = VerificationMessages.forType(partyId.type());
 
     var remitterPartyId = parsePartyId(payment.getRemitterIdCode());
-    if (remitterPartyId.isPresent() && !remitterPartyId.get().equals(partyId)) {
+    boolean representingChild =
+        remitterPartyId
+            .filter(r -> !r.equals(partyId))
+            .map(r -> isAuthorizedRemitter(r, partyId))
+            .orElse(false);
+    if (remitterPartyId.isPresent()
+        && !remitterPartyId.get().equals(partyId)
+        && !representingChild) {
       identityCheckFailure(payment, messages.codeMismatch());
       return;
     }
@@ -103,18 +108,24 @@ public class PaymentVerificationService {
       return;
     }
 
-    if (partyId.type() == LEGAL_ENTITY && !partyId.code().equals(TULEVA_FONDID_AS_REGISTRY_CODE)) {
-      identityCheckFailure(payment, "pre-go-live: only Tuleva Fondid AS can receive TKF payments");
-      return;
-    }
-
     savingFundPaymentRepository.attachParty(payment.getId(), partyId);
 
     log.info(
         "Verification completed for payment {}, attaching to party {}", payment.getId(), partyId);
     savingFundPaymentRepository.changeStatus(payment.getId(), VERIFIED);
     savingsFundLedger.recordPaymentReceived(
-        partyId, payment.getAmount(), payment.getId(), bookingDate(payment));
+        partyId, payment.getAmount(), payment.getId(), payment.bookingDate());
+
+    if (representingChild) {
+      applicationEventPublisher.publishEvent(
+          new TrackableSystemEvent(
+              TrackableEventType.MINOR_DEPOSIT_VERIFIED,
+              Map.of(
+                  "parentPersonalCode", remitterPartyId.get().code(),
+                  "childPersonalCode", partyId.code(),
+                  "paymentId", payment.getId(),
+                  "amount", payment.getAmount())));
+    }
   }
 
   private void identityCheckFailure(SavingFundPayment payment, String reason) {
@@ -123,7 +134,7 @@ public class PaymentVerificationService {
     savingFundPaymentRepository.addReturnReason(payment.getId(), reason);
 
     savingsFundLedger.recordUnattributedPayment(
-        payment.getAmount(), payment.getId(), bookingDate(payment));
+        payment.getAmount(), payment.getId(), payment.bookingDate());
 
     applicationEventPublisher.publishEvent(
         new UnattributedPaymentEvent(payment.getId(), payment.getAmount(), reason));
@@ -137,10 +148,6 @@ public class PaymentVerificationService {
                     new SavingsPaymentFailedEvent(this, user, Locale.of("et"))));
   }
 
-  private static LocalDate bookingDate(SavingFundPayment payment) {
-    return payment.getReceivedBefore().atZone(ESTONIAN_ZONE).toLocalDate();
-  }
-
   private Optional<PartyId> extractPartyId(SavingFundPayment payment) {
     var partyIdFromDescription = extractPartyIdFromDescription(payment.getDescription());
     if (partyIdFromDescription.isPresent()) {
@@ -149,6 +156,12 @@ public class PaymentVerificationService {
     log.info(
         "Payment {} has no code in description, falling back to remitter id code", payment.getId());
     return parsePartyId(payment.getRemitterIdCode());
+  }
+
+  private boolean isAuthorizedRemitter(PartyId remitter, PartyId party) {
+    return remitter.type() == PERSON
+        && party.type() == PERSON
+        && parentChildLinkService.represents(remitter.code(), party.code());
   }
 
   Optional<PartyId> extractPartyIdFromDescription(String text) {

@@ -4,10 +4,8 @@ import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARD
 import static ee.tuleva.onboarding.kyb.KybCheckType.DATA_CHANGED;
 import static ee.tuleva.onboarding.kyb.survey.BlockedReason.ALREADY_ONBOARDED;
 import static ee.tuleva.onboarding.kyb.survey.BlockedReason.NOT_BOARD_MEMBER;
-import static ee.tuleva.onboarding.kyb.survey.BlockedReason.NO_WHITELIST_AFTER_CUTOFF;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.WHITELISTED;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.joining;
@@ -20,14 +18,12 @@ import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.kyb.*;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
-import java.time.Clock;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -38,56 +34,102 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 class KybSurveyService {
 
-  private static final Instant WHITELIST_CUTOFF = Instant.parse("2026-03-27T15:00:00Z");
-
   private final LegalEntityScreener legalEntityScreener;
   private final KybSurveyResponseMapper kybSurveyResponseMapper;
   private final KybSurveyRepository kybSurveyRepository;
   private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   private final ApplicationEventPublisher eventPublisher;
-  private final Clock clock;
 
-  private record FieldError(String field, String message) {}
+  private record FieldError(String field, ValidationError error) {}
 
-  private static FieldError fieldErrorFor(KybCheck check, List<RelatedPersonData> relatedPersons) {
+  private static final String KYC_MESSAGE = "Isikusamasuse tuvastamine on lõpetamata";
+  private static final String USER_KYC_MESSAGE = "Sinu isikusamasuse tuvastamine on lõpetamata";
+
+  // Projects a failed check to its client-facing field error(s). Each arm assigns a curated,
+  // client-safe code; the internal KybCheckType never reaches the wire. SANCTION and PEP collapse
+  // to one opaque code+message so a sanctions hit cannot be told apart from a PEP flag.
+  // RELATED_PERSONS_KYC needs runtime context (which persons are incomplete, and whether one is the
+  // onboarding user) and can yield two codes, so it is delegated to its own method.
+  private static Stream<FieldError> fieldErrorsFor(
+      KybCheck check, String userPersonalCode, List<RelatedPersonData> relatedPersons) {
     return switch (check.type()) {
-      case COMPANY_ACTIVE -> new FieldError("status", "Ettevõte ei ole aktiivne");
-      case HIGH_RISK_NACE -> new FieldError("naceCode", "See tegevusala ei ole toetatud");
-      case COMPANY_SANCTION -> new FieldError("name", "Ettevõtet ei ole võimalik teenindada");
-      case COMPANY_PEP -> new FieldError("name", "Ettevõtet ei ole võimalik teenindada");
-      case RELATED_PERSONS_KYC ->
-          new FieldError("relatedPersons", relatedPersonsKycMessage(check, relatedPersons));
-      case COMPANY_LEGAL_FORM -> new FieldError("legalForm", "Ainult OÜ on toetatud");
+      case COMPANY_ACTIVE ->
+          Stream.of(fieldError("status", "COMPANY_ACTIVE", "Ettevõte ei ole aktiivne"));
+      case HIGH_RISK_NACE ->
+          Stream.of(fieldError("naceCode", "UNSUPPORTED_NACE", "See tegevusala ei ole toetatud"));
+      case COMPANY_SANCTION, COMPANY_PEP ->
+          Stream.of(fieldError("name", "UNSERVICEABLE", "Ettevõtet ei ole võimalik teenindada"));
+      case RELATED_PERSONS_KYC -> relatedPersonsKycErrors(check, userPersonalCode, relatedPersons);
+      case COMPANY_LEGAL_FORM ->
+          Stream.of(fieldError("legalForm", "COMPANY_LEGAL_FORM", "Ainult OÜ on toetatud"));
       case COMPANY_REGISTERED_IN_ESTONIA ->
-          new FieldError("address", "Ettevõte ei ole registreeritud Eestis");
+          Stream.of(
+              fieldError(
+                  "address",
+                  "COMPANY_REGISTERED_IN_ESTONIA",
+                  "Ettevõte ei ole registreeritud Eestis"));
       case COMPANY_STRUCTURE,
           SOLE_MEMBER_OWNERSHIP,
           DUAL_MEMBER_OWNERSHIP,
-          SOLE_BOARD_MEMBER_IS_OWNER ->
-          new FieldError("relatedPersons", "Ettevõtte omandistruktuur ei ole toetatud");
-      case DATA_CHANGED, SELF_CERTIFICATION -> null;
+          SINGLE_BOARD_MEMBER_OWNERSHIP ->
+          Stream.of(
+              fieldError(
+                  "relatedPersons",
+                  "COMPANY_STRUCTURE",
+                  "Ettevõtte omandistruktuur ei ole toetatud"));
+      case DATA_CHANGED, SELF_CERTIFICATION, COMPANY_AGE -> Stream.of();
     };
   }
 
-  private static String relatedPersonsKycMessage(
-      KybCheck check, List<RelatedPersonData> relatedPersons) {
-    var baseMessage = "Isikusamasuse tuvastamine on lõpetamata";
+  private static FieldError fieldError(String field, String code, String message) {
+    return new FieldError(field, new ValidationError(code, message));
+  }
+
+  private static Stream<FieldError> relatedPersonsKycErrors(
+      KybCheck check, String userPersonalCode, List<RelatedPersonData> relatedPersons) {
+    var incompletePersonalCodes = RelatedPersonsKycMetadata.incompletePersonalCodes(check);
+    var userIncomplete = incompletePersonalCodes.contains(userPersonalCode);
+    var otherPersonalCodes =
+        incompletePersonalCodes.stream().filter(code -> !code.equals(userPersonalCode)).toList();
+
+    var errors = new ArrayList<FieldError>();
+    if (userIncomplete) {
+      errors.add(fieldError("relatedPersons", "USER_KYC", USER_KYC_MESSAGE));
+    }
+    if (!otherPersonalCodes.isEmpty()) {
+      errors.add(
+          fieldError(
+              "relatedPersons",
+              "OTHER_RELATED_PERSONS_KYC",
+              kycMessageWithNames(otherPersonalCodes, relatedPersons)));
+    }
+    if (errors.isEmpty()) {
+      errors.add(fieldError("relatedPersons", "OTHER_RELATED_PERSONS_KYC", KYC_MESSAGE));
+    }
+    return errors.stream();
+  }
+
+  private static String kycMessageWithNames(
+      List<String> personalCodes, List<RelatedPersonData> relatedPersons) {
     var namesByPersonalCode =
         relatedPersons.stream()
             .filter(person -> person.personalCode() != null && person.name() != null)
             .collect(toMap(RelatedPersonData::personalCode, RelatedPersonData::name, (a, b) -> a));
     var names =
-        RelatedPersonsKycMetadata.incompletePersonalCodes(check).stream()
+        personalCodes.stream()
             .map(personalCode -> namesByPersonalCode.getOrDefault(personalCode, personalCode))
             .distinct()
             .collect(joining(", "));
-    return names.isBlank() ? baseMessage : baseMessage + ": " + names;
+    return names.isBlank() ? KYC_MESSAGE : KYC_MESSAGE + ": " + names;
+  }
+
+  private static ValidationError blockedReasonError(BlockedReason reason) {
+    return new ValidationError(reason.name(), blockedReasonMessage(reason));
   }
 
   private static String blockedReasonMessage(BlockedReason reason) {
     return switch (reason) {
       case ALREADY_ONBOARDED -> "Ettevõte on juba liitunud";
-      case NO_WHITELIST_AFTER_CUTOFF -> "Ettevõttel ei ole eelheakskiitu";
       case NOT_BOARD_MEMBER -> "Isik ei ole ettevõtte juhatuse liige";
     };
   }
@@ -115,7 +157,11 @@ class KybSurveyService {
     auditValidationFailures(registryCode, personalCode, result.checks());
 
     return buildLegalEntityData(
-        result.detail(), relationships, result.checks(), getOnboardingError(registryCode));
+        result.detail(),
+        relationships,
+        result.checks(),
+        personalCode,
+        getOnboardingError(registryCode));
   }
 
   void submit(
@@ -169,18 +215,14 @@ class KybSurveyService {
 
   private Optional<BlockedReason> getBlockedReason(String registryCode) {
     var status = savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY);
-    if (status.filter(s -> s != WHITELISTED && s != REJECTED).isPresent()) {
+    if (status.filter(s -> s != REJECTED).isPresent()) {
       return Optional.of(ALREADY_ONBOARDED);
-    }
-    if (!Instant.now(clock).isBefore(WHITELIST_CUTOFF)
-        && status.filter(s -> s == WHITELISTED).isEmpty()) {
-      return Optional.of(NO_WHITELIST_AFTER_CUTOFF);
     }
     return Optional.empty();
   }
 
-  private Optional<String> getOnboardingError(String registryCode) {
-    return getBlockedReason(registryCode).map(KybSurveyService::blockedReasonMessage);
+  private Optional<ValidationError> getOnboardingError(String registryCode) {
+    return getBlockedReason(registryCode).map(KybSurveyService::blockedReasonError);
   }
 
   private void verifyOnboardingAllowed(String registryCode) {
@@ -211,7 +253,7 @@ class KybSurveyService {
 
   private void auditValidationFailures(
       String registryCode, String personalCode, List<KybCheck> checks) {
-    if (checks.stream().allMatch(c -> c.type() == DATA_CHANGED || c.success())) {
+    if (checks.stream().allMatch(c -> !c.type().isOnboardingGate() || c.success())) {
       return;
     }
 
@@ -220,7 +262,7 @@ class KybSurveyService {
         registryCode,
         personalCode,
         checks.stream()
-            .filter(c -> c.type() != DATA_CHANGED && !c.success())
+            .filter(c -> c.type().isOnboardingGate() && !c.success())
             .map(c -> c.type().name())
             .collect(joining(",")));
 
@@ -248,11 +290,12 @@ class KybSurveyService {
       CompanyDetail detail,
       List<CompanyRelationship> relationships,
       List<KybCheck> checks,
-      Optional<String> onboardingError) {
+      String userPersonalCode,
+      Optional<ValidationError> onboardingError) {
 
     var relatedPersons = dedupedByPersonalCode(relationships);
 
-    var errorsByField = collectErrorsByField(checks, relatedPersons);
+    var errorsByField = collectErrorsByField(checks, userPersonalCode, relatedPersons);
 
     var nameErrors = new ArrayList<>(errorsByField.getOrDefault("name", List.of()));
     onboardingError.ifPresent(nameErrors::add);
@@ -291,16 +334,15 @@ class KybSurveyService {
         .toList();
   }
 
-  private static Map<String, List<String>> collectErrorsByField(
-      List<KybCheck> checks, List<RelatedPersonData> relatedPersons) {
+  private static Map<String, List<ValidationError>> collectErrorsByField(
+      List<KybCheck> checks, String userPersonalCode, List<RelatedPersonData> relatedPersons) {
     return checks.stream()
         .filter(check -> !check.success())
-        .map(check -> fieldErrorFor(check, relatedPersons))
-        .filter(Objects::nonNull)
-        .collect(groupingBy(FieldError::field, mapping(FieldError::message, toList())));
+        .flatMap(check -> fieldErrorsFor(check, userPersonalCode, relatedPersons))
+        .collect(groupingBy(FieldError::field, mapping(FieldError::error, toList())));
   }
 
-  private static <T> ValidatedField<T> validatedField(T value, List<String> errors) {
+  private static <T> ValidatedField<T> validatedField(T value, List<ValidationError> errors) {
     return errors.isEmpty()
         ? ValidatedField.valid(value)
         : ValidatedField.withErrors(value, errors);

@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.kyb;
 
-import static ee.tuleva.onboarding.kyb.CompanyStatus.R;
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
-import static ee.tuleva.onboarding.kyb.KybKycStatus.COMPLETED;
-import static ee.tuleva.onboarding.kyb.KybKycStatus.UNKNOWN;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.JAAN;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyWith;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.shareholderOwner;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -21,9 +22,8 @@ import ee.tuleva.onboarding.kyb.screener.CompanyStructureScreener;
 import ee.tuleva.onboarding.kyb.screener.DualMemberOwnershipScreener;
 import ee.tuleva.onboarding.kyb.screener.RelatedPersonsKycScreener;
 import ee.tuleva.onboarding.kyb.screener.SelfCertificationScreener;
-import ee.tuleva.onboarding.kyb.screener.SoleBoardMemberIsOwnerScreener;
+import ee.tuleva.onboarding.kyb.screener.SingleBoardMemberOwnershipScreener;
 import ee.tuleva.onboarding.kyb.screener.SoleMemberOwnershipScreener;
-import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -45,7 +45,7 @@ class KybScreeningServiceTest {
               new CompanyActiveScreener(),
               new SoleMemberOwnershipScreener(),
               new DualMemberOwnershipScreener(),
-              new SoleBoardMemberIsOwnerScreener(),
+              new SingleBoardMemberOwnershipScreener(),
               new RelatedPersonsKycScreener(),
               new CompanySanctionScreener(sanctionCheckService),
               new CompanyNaceScreener(),
@@ -63,18 +63,8 @@ class KybScreeningServiceTest {
 
   @Test
   void singlePersonCompanyRunsRules31And34() {
-    var person =
-        new KybRelatedPerson(
-            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(100), UNKNOWN);
-    var data =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
-            new PersonalCode("38501010001"),
-            R,
-            List.of(person),
-            new SelfCertification(true, true, true),
-            "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+    var person = boardMemberOwner("38501010001", 100.0).build();
+    var data = companyWith(person);
 
     var results = kybScreeningService.screen(data);
 
@@ -95,21 +85,9 @@ class KybScreeningServiceTest {
 
   @Test
   void twoPersonCompanyWithTwoBoardMembersRunsRules32And34() {
-    var person1 =
-        new KybRelatedPerson(
-            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(50), UNKNOWN);
-    var person2 =
-        new KybRelatedPerson(
-            new PersonalCode("38501010002"), true, true, true, BigDecimal.valueOf(50), UNKNOWN);
-    var data =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
-            new PersonalCode("38501010001"),
-            R,
-            List.of(person1, person2),
-            new SelfCertification(true, true, true),
-            "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+    var person1 = boardMemberOwner("38501010001", 50.0).build();
+    var person2 = boardMemberOwner("38501010002", 50.0).build();
+    var data = companyWith(person1, person2);
 
     var results = kybScreeningService.screen(data);
 
@@ -130,21 +108,9 @@ class KybScreeningServiceTest {
 
   @Test
   void twoPersonCompanyWithOneBoardMemberRunsRules33And34() {
-    var person1 =
-        new KybRelatedPerson(
-            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(50), UNKNOWN);
-    var person2 =
-        new KybRelatedPerson(
-            new PersonalCode("38501010002"), false, true, true, BigDecimal.valueOf(50), UNKNOWN);
-    var data =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
-            new PersonalCode("38501010001"),
-            R,
-            List.of(person1, person2),
-            new SelfCertification(true, true, true),
-            "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+    var person1 = boardMemberOwner("38501010001", 50.0).build();
+    var person2 = shareholderOwner("38501010002", 50.0).build();
+    var data = companyWith(person1, person2);
 
     var results = kybScreeningService.screen(data);
 
@@ -152,7 +118,7 @@ class KybScreeningServiceTest {
     assertThat(types)
         .containsExactlyInAnyOrder(
             COMPANY_STRUCTURE,
-            SOLE_BOARD_MEMBER_IS_OWNER,
+            SINGLE_BOARD_MEMBER_OWNERSHIP,
             COMPANY_ACTIVE,
             RELATED_PERSONS_KYC,
             COMPANY_SANCTION,
@@ -165,24 +131,10 @@ class KybScreeningServiceTest {
 
   @Test
   void threePersonCompanyHasAtLeastOneFailingCheck() {
-    var person1 =
-        new KybRelatedPerson(
-            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(40), COMPLETED);
-    var person2 =
-        new KybRelatedPerson(
-            new PersonalCode("38501010002"), true, true, true, BigDecimal.valueOf(30), COMPLETED);
-    var person3 =
-        new KybRelatedPerson(
-            new PersonalCode("38501010003"), true, true, true, BigDecimal.valueOf(30), COMPLETED);
-    var data =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
-            new PersonalCode("38501010001"),
-            R,
-            List.of(person1, person2, person3),
-            new SelfCertification(true, true, true),
-            "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+    var person1 = boardMemberOwner("38501010001", 40.0).build();
+    var person2 = boardMemberOwner("38501010002", 30.0).build();
+    var person3 = boardMemberOwner("38501010003", 30.0).build();
+    var data = companyWith(person1, person2, person3);
 
     var results = kybScreeningService.screen(data);
 
@@ -191,18 +143,8 @@ class KybScreeningServiceTest {
 
   @Test
   void publishesKybCheckPerformedEvent() {
-    var person =
-        new KybRelatedPerson(
-            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(100), UNKNOWN);
-    var data =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
-            new PersonalCode("38501010001"),
-            R,
-            List.of(person),
-            new SelfCertification(true, true, true),
-            "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+    var person = boardMemberOwner(JAAN, 100.0).build();
+    var data = companyWith(person);
 
     var results = kybScreeningService.screen(data);
 
@@ -210,25 +152,15 @@ class KybScreeningServiceTest {
     verify(eventPublisher).publishEvent(captor.capture());
     var event = captor.getValue();
     assertThat(event.getCompany()).isEqualTo(data.company());
-    assertThat(event.getPersonalCode()).isEqualTo(new PersonalCode("38501010001"));
+    assertThat(event.getPersonalCode()).isEqualTo(JAAN);
     assertThat(event.getRelatedPersons()).isEqualTo(data.relatedPersons());
     assertThat(event.getChecks()).isEqualTo(results);
   }
 
   @Test
   void validateReturnsScreenerResultsWithoutPublishingEvent() {
-    var person =
-        new KybRelatedPerson(
-            new PersonalCode("38501010001"), true, true, true, BigDecimal.valueOf(100), UNKNOWN);
-    var data =
-        new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
-            new PersonalCode("38501010001"),
-            R,
-            List.of(person),
-            new SelfCertification(true, true, true),
-            "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+    var person = boardMemberOwner("38501010001", 100.0).build();
+    var data = companyWith(person);
 
     var results = kybScreeningService.validate(data);
 

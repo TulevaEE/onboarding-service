@@ -1139,6 +1139,26 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
+  void consecutiveBreachCountingIncludesNavResidualOnlyBreachDays() {
+    setupFundData(TUK75);
+
+    // Prior day breached only on the NAV-correctness residual (fund-vs-model TD within limits).
+    var navResidualDay = navResidualBreachEvent(LocalDate.of(2026, 4, 2));
+    var nonBreachEvent = nonBreachEvent(LocalDate.of(2026, 4, 1));
+
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .willReturn(List.of(navResidualDay, nonBreachEvent));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+    // The navResidual-only day counts toward the streak (1), + today (1) = 2; without it the
+    // navResidual day would have stopped the count, leaving only today (1).
+    assertThat(modelResult.get().consecutiveBreachDays()).isEqualTo(2);
+  }
+
+  @Test
   void consecutiveNetTdSumsOverBreachDays() {
     setupFundData(TUK75);
 
@@ -1854,6 +1874,20 @@ class TrackingDifferenceServiceTest {
         .benchmarkReturn(new BigDecimal("0.0095"))
         .breach(false)
         .consecutiveBreachDays(0)
+        .build();
+  }
+
+  private TrackingDifferenceEvent navResidualBreachEvent(LocalDate date) {
+    return TrackingDifferenceEvent.builder()
+        .fund(TUK75)
+        .checkDate(date)
+        .checkType(MODEL_PORTFOLIO)
+        .trackingDifference(new BigDecimal("0.0005"))
+        .fundReturn(new BigDecimal("0.01"))
+        .benchmarkReturn(new BigDecimal("0.0095"))
+        .breach(false)
+        .consecutiveBreachDays(0)
+        .result(java.util.Map.<String, Object>of("navResidualBreach", Boolean.TRUE))
         .build();
   }
 

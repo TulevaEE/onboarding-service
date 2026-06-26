@@ -136,6 +136,36 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
+  void escalatesOnConsecutiveNavResidualBreachesEvenWhenModelTdBelowThreshold() {
+    // navResidual breached for 3 consecutive days; the compounded fund-vs-model TD nets out small
+    // (below the 0.005 threshold) but the persistent NAV-correctness breach must still escalate.
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0001"))
+            .fundReturn(new BigDecimal("0.0100"))
+            .benchmarkReturn(new BigDecimal("0.0099"))
+            .breach(false)
+            .consecutiveBreachDays(3)
+            .consecutiveNetTd(new BigDecimal("0.0001"))
+            .securityAttributions(List.of())
+            .cashDrag(BigDecimal.ZERO)
+            .feeDrag(BigDecimal.ZERO)
+            .residual(BigDecimal.ZERO)
+            .impliedFundReturn(new BigDecimal("0.0070"))
+            .navResidual(new BigDecimal("0.0030"))
+            .navResidualBreach(true)
+            .escalationNavResidualBreach(true)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    then(notificationService).should().sendMessage(contains("TD ESCALATION"), eq(INVESTMENT));
+  }
+
+  @Test
   void escalationShowsCompoundedReturnsAndMultiDayAttribution() {
     var attrs =
         java.util.Map.of(

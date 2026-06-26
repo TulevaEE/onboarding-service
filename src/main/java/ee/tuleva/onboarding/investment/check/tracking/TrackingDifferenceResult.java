@@ -34,4 +34,8 @@ record TrackingDifferenceResult(
     // timing so the NAV gate keys on navResidualBreach, not on the informational fund-vs-model TD.
     @Nullable BigDecimal impliedFundReturn,
     @Nullable BigDecimal navResidual,
-    boolean navResidualBreach) {}
+    boolean navResidualBreach,
+    // True when any day in the current consecutive-breach streak (including today) tripped the
+    // NAV-correctness residual, so escalation fires on a navResidual-only run even when the
+    // compounded fund-vs-model TD stays below the net-TD threshold.
+    boolean escalationNavResidualBreach) {}

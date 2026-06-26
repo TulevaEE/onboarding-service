@@ -780,7 +780,7 @@ class TrackingDifferenceService {
           fund,
           checkType,
           e.getMessage());
-      return new ConsecutiveBreachInfo(0, ZERO, ZERO, ZERO, Map.of(), ZERO, ZERO, ZERO);
+      return new ConsecutiveBreachInfo(0, ZERO, ZERO, ZERO, Map.of(), ZERO, ZERO, ZERO, false);
     }
   }
 
@@ -803,13 +803,19 @@ class TrackingDifferenceService {
     var cashDragSum = ZERO;
     var feeDragSum = ZERO;
     var residualSum = ZERO;
+    var hadNavResidualBreach = false;
     var contributionByIsin = new java.util.LinkedHashMap<String, BigDecimal>();
 
     for (var event : recent) {
-      if (!event.isBreach()) {
+      // A day breaks the streak only when neither alarm fired. The fund-vs-model TD and the
+      // NAV-correctness residual are both ways the fund's realised return diverged materially, so
+      // either one extends the consecutive-breach run for escalation purposes.
+      var navResidualBreach = Boolean.TRUE.equals(event.getResult().get("navResidualBreach"));
+      if (!event.isBreach() && !navResidualBreach) {
         break;
       }
       count++;
+      hadNavResidualBreach = hadNavResidualBreach || navResidualBreach;
       compoundedFund = compoundedFund.multiply(BigDecimal.ONE.add(event.getFundReturn()));
       compoundedBenchmark =
           compoundedBenchmark.multiply(BigDecimal.ONE.add(event.getBenchmarkReturn()));
@@ -851,7 +857,8 @@ class TrackingDifferenceService {
         contributionByIsin,
         cashDragSum,
         feeDragSum,
-        residualSum);
+        residualSum,
+        hadNavResidualBreach);
   }
 
   private static Map<String, BigDecimal> mergeAttributions(
@@ -888,10 +895,12 @@ class TrackingDifferenceService {
 
   private TrackingDifferenceResult updateConsecutiveCount(
       TrackingDifferenceResult result, ConsecutiveBreachInfo priorBreaches) {
-    if (!result.breach()) {
+    if (!result.breach() && !result.navResidualBreach()) {
       return result.toBuilder().consecutiveBreachDays(0).consecutiveNetTd(ZERO).build();
     }
     int days = priorBreaches.count() + 1;
+    var streakHadNavResidualBreach =
+        priorBreaches.hadNavResidualBreach() || result.navResidualBreach();
 
     var compoundedFund =
         BigDecimal.ONE
@@ -908,6 +917,7 @@ class TrackingDifferenceService {
     return result.toBuilder()
         .consecutiveBreachDays(days)
         .consecutiveNetTd(compoundedTd)
+        .escalationNavResidualBreach(streakHadNavResidualBreach)
         .compoundedFundReturn(compoundedFund)
         .compoundedBenchmarkReturn(compoundedBenchmark)
         .escalationAttributions(
@@ -929,7 +939,8 @@ class TrackingDifferenceService {
       Map<String, BigDecimal> contributionByIsin,
       BigDecimal cashDragSum,
       BigDecimal feeDragSum,
-      BigDecimal residualSum) {}
+      BigDecimal residualSum,
+      boolean hadNavResidualBreach) {}
 
   private void saveEvent(TrackingDifferenceResult result) {
     var event =

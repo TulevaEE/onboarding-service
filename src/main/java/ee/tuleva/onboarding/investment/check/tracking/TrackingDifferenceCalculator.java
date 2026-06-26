@@ -145,7 +145,9 @@ class TrackingDifferenceCalculator {
     // On a MOC trade day the fund earns its begin-of-day portfolio's return intraday, so this
     // residual collapses to ~0 even though the fund-vs-model TD does not — that is what the NAV
     // gate
-    // keys on. A genuine price error on a held (untraded) instrument still surfaces here. When the
+    // keys on. It uses raw per-instrument returns (no max-move cap) so it reconciles exactly
+    // against the prices the NAV used; implausible price values are caught upstream by
+    // FundValueIntegrityChecker, not masked or manufactured here. When the
     // begin-of-day snapshot is unavailable (null fraction / empty holdings) navResidual is not
     // computable, so we fail soft: leave navResidual null (not evaluated, distinct from an
     // evaluated 0) and do NOT raise navResidualBreach (the gate must not block on data we could
@@ -160,12 +162,7 @@ class TrackingDifferenceCalculator {
           input.bodHoldings().stream()
               .filter(b -> b.today().price() != null && b.previous().price() != null)
               .filter(b -> b.previous().price().signum() != 0)
-              .map(
-                  b ->
-                      b.weight()
-                          .multiply(
-                              safeDailyReturn(
-                                  b.today().price(), b.previous().price(), maxDailyReturn)))
+              .map(b -> b.weight().multiply(dailyReturn(b.today().price(), b.previous().price())))
               .reduce(ZERO, BigDecimal::add);
       impliedFundReturn =
           input
@@ -201,8 +198,12 @@ class TrackingDifferenceCalculator {
     return parameterRepository.findLatestValue(TRACKING_MAX_DAILY_RETURN, asOf);
   }
 
+  BigDecimal dailyReturn(BigDecimal today, BigDecimal yesterday) {
+    return today.subtract(yesterday).divide(yesterday, SCALE, HALF_UP);
+  }
+
   BigDecimal safeDailyReturn(BigDecimal today, BigDecimal yesterday, BigDecimal maxDailyReturn) {
-    var ret = today.subtract(yesterday).divide(yesterday, SCALE, HALF_UP);
+    var ret = dailyReturn(today, yesterday);
     return ret.abs().compareTo(maxDailyReturn) > 0 ? ZERO : ret;
   }
 

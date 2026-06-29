@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.aml.alert;
 
+import static ee.tuleva.onboarding.aml.alert.AlertPartyType.PERSON;
+
 import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransaction;
 import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionRepository;
 import java.time.Clock;
@@ -44,7 +46,8 @@ public class ThirdPillarAlertService {
               alertType,
               transaction.getPersonalId(),
               transaction.getTransactionValue(),
-              String.valueOf(transaction.getId())));
+              String.valueOf(transaction.getId()),
+              PERSON));
       alertRepository.save(
           AmlThirdPillarAlert.builder()
               .transactionFingerprint(fingerprint)

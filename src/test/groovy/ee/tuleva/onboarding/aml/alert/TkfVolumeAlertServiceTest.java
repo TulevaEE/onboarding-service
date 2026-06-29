@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.aml.alert;
 
+import static ee.tuleva.onboarding.aml.alert.AlertPartyType.LEGAL_ENTITY;
+import static ee.tuleva.onboarding.aml.alert.AlertPartyType.PERSON;
 import static ee.tuleva.onboarding.aml.alert.AmlAlertType.TKF_VOLUME_15K_NEW_CLIENT;
 import static ee.tuleva.onboarding.aml.alert.TkfFlowDirection.IN;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -54,7 +56,25 @@ class TkfVolumeAlertServiceTest {
         "2026",
         true,
         false,
-        null);
+        null,
+        PERSON);
+  }
+
+  private TkfVolumeAggregate legalEntityAggregate() {
+    return new TkfVolumeAggregate(
+        "12345678",
+        new BigDecimal("100000.00"),
+        BigDecimal.ZERO,
+        Instant.parse("2026-06-10T00:00:00Z"),
+        null,
+        "2026-06",
+        new BigDecimal("100000.00"),
+        Instant.parse("2026-06-10T00:00:00Z"),
+        "2026",
+        true,
+        false,
+        null,
+        LEGAL_ENTITY);
   }
 
   private final TkfVolumeAlert alert =
@@ -90,6 +110,25 @@ class TkfVolumeAlertServiceTest {
     assertThat(saved.getDirection()).isEqualTo(IN);
     assertThat(saved.getWindowKey()).isEqualTo("2026-06");
     assertThat(saved.getAlertedAt()).isEqualTo(clock.instant());
+  }
+
+  @Test
+  void checkAndAlert_legalEntity_publishesLegalEntityEvent() {
+    var aggregate = legalEntityAggregate();
+    when(reader.readVolumeAggregates()).thenReturn(List.of(aggregate));
+    when(evaluator.evaluate(aggregate)).thenReturn(List.of(alert));
+    when(alertRepository.existsByPersonalIdAndAlertTypeAndDirectionAndWindowKey(
+            any(), any(), any(), any()))
+        .thenReturn(false);
+
+    service.checkAndAlert();
+
+    ArgumentCaptor<AmlThresholdAlertEvent> eventCaptor =
+        ArgumentCaptor.forClass(AmlThresholdAlertEvent.class);
+    verify(eventPublisher).publishEvent(eventCaptor.capture());
+    AmlThresholdAlertEvent event = eventCaptor.getValue();
+    assertThat(event.getPartyType()).isEqualTo(LEGAL_ENTITY);
+    assertThat(event.getPersonalId()).isEqualTo("12345678");
   }
 
   @Test

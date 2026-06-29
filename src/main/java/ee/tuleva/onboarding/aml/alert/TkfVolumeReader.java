@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.aml.alert;
 
+import static ee.tuleva.onboarding.aml.alert.AlertPartyType.LEGAL_ENTITY;
+
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Clock;
@@ -14,13 +16,15 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
 /**
- * Reads per-person TKF volume aggregates, mirroring the volume CTEs of T1_ulevaatamist_vajavad.sql:
- * deposits from saving_fund_payment (PERSON, EUR, effected statuses) and redemptions from ledger
- * REDEMPTIONS entries whose transaction touches a TKF100 system account. Emits one aggregate per
- * (person, calendar month) for the current AND previous month (15k/30k) and one per (person,
- * calendar year) for the current AND previous year (49k), so a breach that ages across a boundary
- * is still caught up after a scheduler outage. Window boundaries come from the injected Clock zone,
- * not the database clock. The TkfVolumeEvaluator applies the thresholds and the override.
+ * Reads per-party TKF volume aggregates (persons and legal entities), mirroring the volume CTEs of
+ * T1_ulevaatamist_vajavad.sql: deposits from saving_fund_payment (EUR, effected statuses) and
+ * redemptions from ledger REDEMPTIONS entries whose transaction touches a TKF100 system account.
+ * Emits one aggregate per (party, calendar month) for the current AND previous month (15k/30k) and
+ * one per (party, calendar year) for the current AND previous year (49k), so a breach that ages
+ * across a boundary is still caught up after a scheduler outage. Legal entities are classified as
+ * present, new clients (so the 15k/49k rules apply; the 30k existing-client rule never does), as
+ * the person-keyed mv_crm has no rows for them. Window boundaries come from the injected Clock
+ * zone, not the database clock. The TkfVolumeEvaluator applies the thresholds and the override.
  */
 @Service
 @RequiredArgsConstructor
@@ -32,6 +36,7 @@ public class TkfVolumeReader {
       """
       SELECT
         f.party_code AS personal_id,
+        f.party_type AS party_type,
         f.period AS period,
         SUM(CASE WHEN f.direction = 'IN' THEN f.amount ELSE 0 END) AS deposits_month,
         SUM(CASE WHEN f.direction = 'OUT' THEN f.amount ELSE 0 END) AS redemptions_month,
@@ -43,21 +48,21 @@ public class TkfVolumeReader {
           OR COALESCE(crm.balance_in_tuk00, false)) AS existing_client,
         ov.manual_date AS last_manual_review
       FROM (
-        SELECT party_code, amount, created_at, 'IN' AS direction,
-               date_trunc('month', created_at) AS period
+        SELECT party_code, CAST(party_type AS varchar) AS party_type, amount, created_at,
+               'IN' AS direction, date_trunc('month', created_at) AS period
         FROM saving_fund_payment
-        WHERE party_type = 'PERSON'
+        WHERE party_type IN ('PERSON', 'LEGAL_ENTITY')
           AND currency = 'EUR'
           AND status IN ('RECEIVED', 'VERIFIED', 'RESERVED', 'ISSUED', 'PROCESSED')
           AND created_at >= :monthFloor
         UNION ALL
-        SELECT p.owner_id AS party_code, ABS(e.amount) AS amount, e.created_at, 'OUT' AS direction,
+        SELECT p.owner_id AS party_code, CAST(p.party_type AS varchar) AS party_type,
+               ABS(e.amount) AS amount, e.created_at, 'OUT' AS direction,
                date_trunc('month', e.created_at) AS period
         FROM ledger.entry e
         JOIN ledger.account a ON a.id = e.account_id
         JOIN ledger.party p ON p.id = a.owner_party_id
-        WHERE p.party_type = 'PERSON'
-          AND a.purpose = 'USER_ACCOUNT'
+        WHERE a.purpose = 'USER_ACCOUNT'
           AND a.name = 'REDEMPTIONS'
           AND a.account_type = 'EXPENSE'
           AND a.asset_type = 'EUR'
@@ -74,7 +79,7 @@ public class TkfVolumeReader {
         SELECT personal_code, MAX(created_time) AS manual_date
         FROM aml_check WHERE type = 'TKF_RISK_LEVEL_OVERRIDE' GROUP BY personal_code
       ) ov ON ov.personal_code = f.party_code
-      GROUP BY f.party_code, f.period, crm.personal_id, crm.balance_in_third_pillar,
+      GROUP BY f.party_code, f.party_type, f.period, crm.personal_id, crm.balance_in_third_pillar,
                crm.balance_in_tuk75, crm.balance_in_tuk00, ov.manual_date
       """;
 
@@ -82,6 +87,7 @@ public class TkfVolumeReader {
       """
       SELECT
         f.party_code AS personal_id,
+        f.party_type AS party_type,
         f.period AS period,
         SUM(f.amount) AS deposits_year,
         MAX(f.created_at) AS last_deposit_year,
@@ -91,9 +97,9 @@ public class TkfVolumeReader {
           OR COALESCE(crm.balance_in_tuk00, false)) AS existing_client,
         ov.manual_date AS last_manual_review
       FROM (
-        SELECT party_code, amount, created_at, date_trunc('year', created_at) AS period
+        SELECT party_code, party_type, amount, created_at, date_trunc('year', created_at) AS period
         FROM saving_fund_payment
-        WHERE party_type = 'PERSON'
+        WHERE party_type IN ('PERSON', 'LEGAL_ENTITY')
           AND currency = 'EUR'
           AND status IN ('RECEIVED', 'VERIFIED', 'RESERVED', 'ISSUED', 'PROCESSED')
           AND created_at >= :yearFloor
@@ -103,7 +109,7 @@ public class TkfVolumeReader {
         SELECT personal_code, MAX(created_time) AS manual_date
         FROM aml_check WHERE type = 'TKF_RISK_LEVEL_OVERRIDE' GROUP BY personal_code
       ) ov ON ov.personal_code = f.party_code
-      GROUP BY f.party_code, f.period, crm.personal_id, crm.balance_in_third_pillar,
+      GROUP BY f.party_code, f.party_type, f.period, crm.personal_id, crm.balance_in_third_pillar,
                crm.balance_in_tuk75, crm.balance_in_tuk00, ov.manual_date
       """;
 
@@ -135,6 +141,7 @@ public class TkfVolumeReader {
   private TkfVolumeAggregate monthlyAggregate(java.sql.ResultSet rs, ZoneId zone)
       throws java.sql.SQLException {
     Instant period = rs.getTimestamp("period").toInstant();
+    AlertPartyType partyType = partyType(rs);
     return new TkfVolumeAggregate(
         rs.getString("personal_id"),
         rs.getBigDecimal("deposits_month"),
@@ -145,14 +152,16 @@ public class TkfVolumeReader {
         BigDecimal.ZERO,
         null,
         "",
-        rs.getBoolean("present_in_crm"),
-        rs.getBoolean("existing_client"),
-        toInstant(rs.getTimestamp("last_manual_review")));
+        presentInCrm(rs, partyType),
+        existingClient(rs, partyType),
+        toInstant(rs.getTimestamp("last_manual_review")),
+        partyType);
   }
 
   private TkfVolumeAggregate yearlyAggregate(java.sql.ResultSet rs, ZoneId zone)
       throws java.sql.SQLException {
     Instant period = rs.getTimestamp("period").toInstant();
+    AlertPartyType partyType = partyType(rs);
     return new TkfVolumeAggregate(
         rs.getString("personal_id"),
         BigDecimal.ZERO,
@@ -163,9 +172,24 @@ public class TkfVolumeReader {
         rs.getBigDecimal("deposits_year"),
         toInstant(rs.getTimestamp("last_deposit_year")),
         String.valueOf(LocalDate.ofInstant(period, zone).getYear()),
-        rs.getBoolean("present_in_crm"),
-        rs.getBoolean("existing_client"),
-        toInstant(rs.getTimestamp("last_manual_review")));
+        presentInCrm(rs, partyType),
+        existingClient(rs, partyType),
+        toInstant(rs.getTimestamp("last_manual_review")),
+        partyType);
+  }
+
+  private static AlertPartyType partyType(java.sql.ResultSet rs) throws java.sql.SQLException {
+    return AlertPartyType.valueOf(rs.getString("party_type"));
+  }
+
+  private static boolean presentInCrm(java.sql.ResultSet rs, AlertPartyType partyType)
+      throws java.sql.SQLException {
+    return partyType == LEGAL_ENTITY || rs.getBoolean("present_in_crm");
+  }
+
+  private static boolean existingClient(java.sql.ResultSet rs, AlertPartyType partyType)
+      throws java.sql.SQLException {
+    return partyType != LEGAL_ENTITY && rs.getBoolean("existing_client");
   }
 
   private static Instant toInstant(Timestamp timestamp) {

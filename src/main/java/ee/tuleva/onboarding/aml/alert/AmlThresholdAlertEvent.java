@@ -11,13 +11,20 @@ public class AmlThresholdAlertEvent extends ApplicationEvent {
   private final String personalId;
   private final BigDecimal amount;
   private final String reference;
+  private final AlertPartyType partyType;
 
   public AmlThresholdAlertEvent(
-      Object source, AmlAlertType type, String personalId, BigDecimal amount, String reference) {
+      Object source,
+      AmlAlertType type,
+      String personalId,
+      BigDecimal amount,
+      String reference,
+      AlertPartyType partyType) {
     super(source);
     this.type = type;
     this.personalId = personalId;
     this.amount = amount;
     this.reference = reference;
+    this.partyType = partyType;
   }
 }

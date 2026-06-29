@@ -5,6 +5,7 @@ import spock.lang.Unroll
 
 import java.time.Instant
 
+import static ee.tuleva.onboarding.aml.alert.AlertPartyType.*
 import static ee.tuleva.onboarding.aml.alert.AmlAlertType.*
 import static ee.tuleva.onboarding.aml.alert.TkfFlowDirection.*
 
@@ -28,7 +29,8 @@ class TkfVolumeEvaluatorSpec extends Specification {
         "2026",
         args.containsKey('inCrm') ? args.inCrm as boolean : true,
         args.existing as boolean,
-        args.review as Instant)
+        args.review as Instant,
+        PERSON)
   }
 
   @Unroll
@@ -126,7 +128,7 @@ class TkfVolumeEvaluatorSpec extends Specification {
   def "alerts a 49k yearly breach with no current-month flow when not reviewed"() {
     given:
     def agg = new TkfVolumeAggregate(
-        "38001010000", 0.00, 0.00, null, null, "2026-06", 50000.00, YEAR_FLOW, "2026", true, true, null)
+        "38001010000", 0.00, 0.00, null, null, "2026-06", 50000.00, YEAR_FLOW, "2026", true, true, null, PERSON)
 
     expect:
     evaluator.evaluate(agg).collect { it.type() } == [TKF_VOLUME_49K_YEARLY]
@@ -136,7 +138,7 @@ class TkfVolumeEvaluatorSpec extends Specification {
     given:
     def agg = new TkfVolumeAggregate(
         "38001010000", 0.00, 0.00, null, null, "2026-06", 50000.00, YEAR_FLOW, "2026", true, true,
-        Instant.parse("2026-12-01T00:00:00Z"))
+        Instant.parse("2026-12-01T00:00:00Z"), PERSON)
 
     expect:
     evaluator.evaluate(agg).isEmpty()

@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -32,7 +33,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -153,13 +153,11 @@ class SettlementCheckJob {
       Set<UUID> reportClientRefs,
       Set<String> reportOurRefs,
       List<TransactionOrder> candidates) {
-    Map<Long, TransactionExecution> executionsByOrderId =
+    Map<Long, List<TransactionExecution>> executionsByOrderId =
         executionRepository
             .findByOrderIdIn(candidates.stream().map(TransactionOrder::getId).toList())
             .stream()
-            .collect(
-                Collectors.toMap(
-                    TransactionExecution::getOrderId, Function.identity(), (a, b) -> a));
+            .collect(Collectors.groupingBy(TransactionExecution::getOrderId));
 
     List<OverdueLine> overdue = new ArrayList<>();
     for (TransactionOrder order : candidates) {
@@ -169,13 +167,14 @@ class SettlementCheckJob {
           overdue.add(new OverdueLine(order, SENT, deadline));
         }
       } else if (order.getOrderStatus() == EXECUTED) {
-        TransactionExecution execution = executionsByOrderId.get(order.getId());
-        LocalDate deadline = executedDeadline(order, execution);
+        List<TransactionExecution> executions =
+            executionsByOrderId.getOrDefault(order.getId(), List.of());
+        LocalDate deadline = executedDeadline(order, executions);
         if (deadline == null || !deadline.isBefore(referenceDate)) {
           continue;
         }
         // When the latest report is fresh, an EXECUTED order absent from it has settled -> skip.
-        if (fresh && !isPresentInReport(order, execution, reportClientRefs, reportOurRefs)) {
+        if (fresh && !isPresentInReport(order, executions, reportClientRefs, reportOurRefs)) {
           continue;
         }
         overdue.add(new OverdueLine(order, EXECUTED, deadline));
@@ -193,25 +192,33 @@ class SettlementCheckJob {
         orderDate(order), instrumentType, order.getInstrumentIsin(), thresholdFor(instrumentType));
   }
 
+  // An order settles in full only when its last piece settles, so the overdue deadline is the
+  // latest piece's settlement date (mirrors MAX(actual_settlement_date) in
+  // v_depositary_reconciliation);
+  // fall back to the expected deadline until any piece has settled.
   private @Nullable LocalDate executedDeadline(
-      TransactionOrder order, @Nullable TransactionExecution execution) {
-    if (execution != null && execution.getActualSettlementDate() != null) {
-      return execution.getActualSettlementDate();
-    }
-    return sentDeadline(order);
+      TransactionOrder order, List<TransactionExecution> executions) {
+    var latestSettlement =
+        executions.stream()
+            .map(TransactionExecution::getActualSettlementDate)
+            .filter(Objects::nonNull)
+            .max(Comparator.naturalOrder());
+    return latestSettlement.isPresent() ? latestSettlement.get() : sentDeadline(order);
   }
 
+  // The order is still settling if any of its pieces lingers in the report.
   private static boolean isPresentInReport(
       TransactionOrder order,
-      @Nullable TransactionExecution execution,
+      List<TransactionExecution> executions,
       Set<UUID> reportClientRefs,
       Set<String> reportOurRefs) {
     if (order.getOrderUuid() != null && reportClientRefs.contains(order.getOrderUuid())) {
       return true;
     }
-    return execution != null
-        && execution.getBrokerTransactionId() != null
-        && reportOurRefs.contains(execution.getBrokerTransactionId());
+    return executions.stream()
+        .map(TransactionExecution::getBrokerTransactionId)
+        .filter(Objects::nonNull)
+        .anyMatch(reportOurRefs::contains);
   }
 
   private static int thresholdFor(InstrumentType instrumentType) {

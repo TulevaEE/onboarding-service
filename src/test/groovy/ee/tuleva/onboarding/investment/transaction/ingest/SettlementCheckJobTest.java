@@ -515,6 +515,60 @@ class SettlementCheckJobTest {
   }
 
   @Test
+  void run_partiallyFilledOrder_isPresentWhenAnyPieceLingersInReport() {
+    // An order filled in several SEB pieces: the first piece (REF_A) has settled and is gone from
+    // the report, the second (REF_B) still lingers. Presence must be detected from ANY piece, so
+    // the
+    // order is still reported overdue — not inferred settled from one arbitrary piece.
+    given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
+    InvestmentReport report = report(TODAY);
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.of(report));
+    given(extractor.extract(report)).willReturn(List.of(rowWithOurRefOnly("REF_B")));
+    TransactionOrder executed =
+        order(2L, FUND, EXECUTED, dateOnly(2026, 5, 4), TUV100, "EE3600109443", null);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of(executed));
+    given(executionRepository.findByOrderIdIn(any()))
+        .willReturn(
+            List.of(
+                execution(2L, LocalDate.of(2026, 5, 13), "REF_A"),
+                execution(2L, LocalDate.of(2026, 5, 13), "REF_B")));
+    given(unmatchedFinder.collectUnmatched(report)).willReturn(List.of());
+
+    job().run();
+
+    ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+    verify(notificationService).sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue()).contains("[TÄIDETUD, arveldus hilinenud] Order 2");
+  }
+
+  @Test
+  void run_partiallyFilledOrder_deadlineIsTheLatestPieceSettlement() {
+    // Pieces settle on different dates; the order is fully settled only when the last piece
+    // settles,
+    // so the deadline is the latest piece's date (2026-05-18), not an arbitrary earlier one
+    // (2026-05-13). As of the report date 2026-05-18 the order is therefore not yet overdue.
+    given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
+    InvestmentReport report = report(TODAY);
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.of(report));
+    given(extractor.extract(report)).willReturn(List.of(rowWithClientRef(PRESENT_UUID)));
+    TransactionOrder executed =
+        order(2L, FUND, EXECUTED, dateOnly(2026, 5, 4), TUV100, "EE3600109443", PRESENT_UUID);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of(executed));
+    given(executionRepository.findByOrderIdIn(any()))
+        .willReturn(
+            List.of(
+                execution(2L, LocalDate.of(2026, 5, 13), "REF_A"),
+                execution(2L, LocalDate.of(2026, 5, 18), "REF_B")));
+    given(unmatchedFinder.collectUnmatched(report)).willReturn(List.of());
+
+    job().run();
+
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
   void run_unmatchedRowWithUnresolvedFund_appearsUnderUnknownBlock() {
     given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
     InvestmentReport report = report(TODAY);

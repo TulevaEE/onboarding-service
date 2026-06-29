@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface TransactionExecutionRepository extends JpaRepository<TransactionExecution, Long> {
 
+  List<TransactionExecution> findAllByOrderId(Long orderId);
+
   Optional<TransactionExecution> findByOrderId(Long orderId);
 
   Optional<TransactionExecution> findByBrokerTransactionId(String brokerTransactionId);

@@ -86,7 +86,7 @@ class SebPendingTransactionComplexMatchIT {
     entityManager.flush();
     entityManager.clear();
 
-    TransactionExecution execution = executionRepository.findByOrderId(order.getId()).orElseThrow();
+    TransactionExecution execution = executionRepository.findAllByOrderId(order.getId()).getFirst();
     assertThat(execution.getExecutedQuantity()).isEqualByComparingTo("13288");
     assertThat(execution.getSource()).isEqualTo("SEB_OOTEL");
 

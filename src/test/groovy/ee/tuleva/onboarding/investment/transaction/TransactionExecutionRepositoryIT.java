@@ -57,7 +57,7 @@ class TransactionExecutionRepositoryIT {
     entityManager.flush();
     entityManager.clear();
 
-    TransactionExecution loaded = executionRepository.findByOrderId(order.getId()).orElseThrow();
+    TransactionExecution loaded = executionRepository.findAllByOrderId(order.getId()).getFirst();
 
     assertThat(loaded.getId()).isEqualTo(saved.getId());
     assertThat(loaded.getOrderId()).isEqualTo(order.getId());
@@ -108,8 +108,8 @@ class TransactionExecutionRepositoryIT {
   }
 
   @Test
-  void findByOrderId_returnsEmptyWhenMissing() {
-    assertThat(executionRepository.findByOrderId(999_999L)).isEmpty();
+  void findAllByOrderId_returnsEmptyWhenMissing() {
+    assertThat(executionRepository.findAllByOrderId(999_999L)).isEmpty();
   }
 
   @Test

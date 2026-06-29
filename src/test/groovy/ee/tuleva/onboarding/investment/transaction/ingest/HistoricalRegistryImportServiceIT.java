@@ -82,7 +82,7 @@ class HistoricalRegistryImportServiceIT {
     assertThat(batch.getMetadata()).containsEntry("source", "HISTORICAL_IMPORT");
 
     TransactionExecution execution =
-        executionRepository.findByOrderId(settledOrder.getId()).orElseThrow();
+        executionRepository.findAllByOrderId(settledOrder.getId()).getFirst();
     assertThat(execution.getBrokerTransactionId()).isEqualTo("BR-1001");
     assertThat(execution.getExecutionTimestamp()).isEqualTo(Instant.parse("2025-03-10T14:30:00Z"));
     assertThat(execution.getExecutedQuantity()).isEqualByComparingTo("250.000000");
@@ -105,7 +105,7 @@ class HistoricalRegistryImportServiceIT {
     TransactionOrder sentOrder = orderRepository.findByInstrumentIsin("LU0826455353").getFirst();
     assertThat(sentOrder.getOrderStatus()).isEqualTo(OrderStatus.SENT);
     assertThat(sentOrder.getOrderQuantity()).isNull();
-    assertThat(executionRepository.findByOrderId(sentOrder.getId())).isEmpty();
+    assertThat(executionRepository.findAllByOrderId(sentOrder.getId())).isEmpty();
     assertThat(sentOrder.getBatch().getId()).isNotEqualTo(batch.getId());
   }
 

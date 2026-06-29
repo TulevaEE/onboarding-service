@@ -194,8 +194,8 @@ public class FtConfirmationVerificationService {
     }
 
     Optional<BigDecimal> executedQuantity =
-        executionRepository
-            .findByOrderId(order.getId())
+        executionRepository.findAllByOrderId(order.getId()).stream()
+            .findFirst()
             .map(TransactionExecution::getExecutedQuantity)
             .filter(quantity -> quantity.signum() > 0);
 

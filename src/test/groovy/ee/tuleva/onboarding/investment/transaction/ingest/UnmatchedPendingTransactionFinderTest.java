@@ -106,8 +106,7 @@ class UnmatchedPendingTransactionFinderTest {
     given(extractor.extract(report)).willReturn(List.of(row));
     given(executionRepository.findByBrokerTransactionId("R1")).willReturn(Optional.empty());
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
-    given(executionRepository.findByOrderId(7L))
-        .willReturn(Optional.of(new TransactionExecution()));
+    given(executionRepository.findAllByOrderId(7L)).willReturn(List.of(new TransactionExecution()));
 
     assertThat(finder().collectUnmatched(report)).isEmpty();
   }

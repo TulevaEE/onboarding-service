@@ -6,7 +6,8 @@ record TransactionMatchingProperties(
     BigDecimal etfQuantityTolerance,
     BigDecimal fundBuyAmountTolerance,
     BigDecimal fundSellQuantityTolerance,
-    BigDecimal nearMissMultiplier) {
+    BigDecimal nearMissMultiplier,
+    BigDecimal executionPriceConsistencyTolerance) {
 
   TransactionMatchingProperties {
     etfQuantityTolerance =
@@ -16,5 +17,9 @@ record TransactionMatchingProperties(
     fundSellQuantityTolerance =
         fundSellQuantityTolerance == null ? new BigDecimal("0.0001") : fundSellQuantityTolerance;
     nearMissMultiplier = nearMissMultiplier == null ? new BigDecimal("5") : nearMissMultiplier;
+    executionPriceConsistencyTolerance =
+        executionPriceConsistencyTolerance == null
+            ? new BigDecimal("0.01")
+            : executionPriceConsistencyTolerance;
   }
 }

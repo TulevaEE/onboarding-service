@@ -42,7 +42,7 @@ class SebPendingTransactionComplexMatcherTest {
   @Mock private TransactionExecutionRepository executionRepository;
 
   private static final TransactionMatchingProperties PROPERTIES =
-      new TransactionMatchingProperties(null, null, null, null);
+      new TransactionMatchingProperties(null, null, null, null, null);
 
   private SebPendingTransactionComplexMatcher matcher() {
     return new SebPendingTransactionComplexMatcher(
@@ -214,7 +214,7 @@ class SebPendingTransactionComplexMatcherTest {
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13289", null);
 
     TransactionMatchingProperties widerTolerance =
-        new TransactionMatchingProperties(new BigDecimal("2"), null, null, null);
+        new TransactionMatchingProperties(new BigDecimal("2"), null, null, null, null);
 
     assertThat(matcher().match(row, widerTolerance)).contains(order);
   }
@@ -229,7 +229,7 @@ class SebPendingTransactionComplexMatcherTest {
         row("Tuleva Täiendav Kogumisfond", "IE00BFG1TM61", "Buy", "2669.9", "91782.00");
 
     TransactionMatchingProperties widerTolerance =
-        new TransactionMatchingProperties(null, new BigDecimal("0.15"), null, null);
+        new TransactionMatchingProperties(null, new BigDecimal("0.15"), null, null, null);
 
     assertThat(matcher().match(row, widerTolerance)).contains(order);
   }
@@ -243,7 +243,7 @@ class SebPendingTransactionComplexMatcherTest {
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288.0008", null);
 
     TransactionMatchingProperties widerMultiplier =
-        new TransactionMatchingProperties(null, null, null, new BigDecimal("10"));
+        new TransactionMatchingProperties(null, null, null, new BigDecimal("10"), null);
 
     assertThat(matcher().findNearMiss(row, PROPERTIES)).isEmpty();
     assertThat(matcher().findNearMiss(row, widerMultiplier)).isPresent();

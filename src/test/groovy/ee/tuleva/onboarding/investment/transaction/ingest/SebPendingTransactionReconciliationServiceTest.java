@@ -67,7 +67,7 @@ class SebPendingTransactionReconciliationServiceTest {
 
   private SebPendingTransactionReconciliationService newService() {
     given(matchingPolicy.current())
-        .willReturn(new TransactionMatchingProperties(null, null, null, null));
+        .willReturn(new TransactionMatchingProperties(null, null, null, null, null));
     SebClientNameToFundResolver resolver = new SebClientNameToFundResolver();
     QuantityAmountValidator validator = new QuantityAmountValidator();
     return new SebPendingTransactionReconciliationService(
@@ -76,6 +76,7 @@ class SebPendingTransactionReconciliationServiceTest {
         new SebPendingTransactionComplexMatcher(
             orderRepository, executionRepository, resolver, validator),
         validator,
+        new ExecutionPriceConsistencyChecker(),
         matchingPolicy,
         mapper,
         executionRepository,
@@ -587,6 +588,68 @@ class SebPendingTransactionReconciliationServiceTest {
                     "QUANTITY_AMOUNT_MISMATCH".equals(event.getEventType())
                         && event.getOrderId().equals(123L)
                         && "ETF_QUANTITY".equals(event.getPayload().get("kind"))));
+  }
+
+  @Test
+  void reconcile_matchedRowWithMismatchedSide_isQuarantinedNotExecuted() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    // Client ref matches a SELL order, but the report row is a Buy → reused/mis-assigned ref,
+    // cannot be a safe piece of this order. Quarantine: no execution, order left untouched.
+    TransactionOrder order = orderWith(clientRef, ETF, SELL, new BigDecimal("15007"), null);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+
+    service.reconcile(reportWithSingleRow(clientRef));
+
+    verify(executionRepository, never()).save(any());
+    assertThat(order.getOrderStatus()).isEqualTo(SENT);
+  }
+
+  @Test
+  void reconcile_matchedRowWithoutOurRef_isQuarantinedNotExecuted() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+
+    // A row with no Our ref cannot be recorded as a broker piece → quarantined.
+    Map<String, Object> raw = validRawRow(clientRef);
+    raw.remove("Our ref");
+
+    service.reconcile(reportOf(raw));
+
+    verify(executionRepository, never()).save(any());
+    assertThat(order.getOrderStatus()).isEqualTo(SENT);
+  }
+
+  @Test
+  void reconcile_absentExecutedOrderShortFilled_isNotSettled() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder matchedOrder = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+
+    // Absent EXECUTED order (target 100) executed before the report date, but only 60 filled so
+    // far — a split order momentarily absent must not be settled while still short.
+    TransactionOrder absentOrder = executedOrder(456L);
+    given(orderRepository.findByOrderStatusIn(anyCollection())).willReturn(List.of(absentOrder));
+    given(executionRepository.findAllByOrderId(456L))
+        .willReturn(
+            List.of(
+                TransactionExecution.builder()
+                    .id(1456L)
+                    .orderId(456L)
+                    .source("SEB_OOTEL")
+                    .brokerTransactionId("DLA456")
+                    .executedQuantity(new BigDecimal("60"))
+                    .executionTimestamp(Instant.parse("2026-05-11T10:00:00Z"))
+                    .build()));
+
+    service.reconcile(reportWithSingleRow(clientRef));
+
+    verify(settlementRepository, never()).save(any());
+    assertThat(absentOrder.getOrderStatus()).isEqualTo(EXECUTED);
   }
 
   @Test

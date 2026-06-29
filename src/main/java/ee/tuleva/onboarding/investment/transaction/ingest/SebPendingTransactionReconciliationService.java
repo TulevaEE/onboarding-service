@@ -16,9 +16,11 @@ import ee.tuleva.onboarding.investment.transaction.TransactionSettlementReposito
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementService;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,7 @@ public class SebPendingTransactionReconciliationService {
   private final SebPendingTransactionMatcher matcher;
   private final SebPendingTransactionComplexMatcher complexMatcher;
   private final QuantityAmountValidator quantityAmountValidator;
+  private final ExecutionPriceConsistencyChecker priceConsistencyChecker;
   private final TransactionMatchingPolicy matchingPolicy;
   private final TransactionExecutionMapper executionMapper;
   private final TransactionExecutionRepository executionRepository;
@@ -118,6 +121,7 @@ public class SebPendingTransactionReconciliationService {
       }
       if (upsert(row, order, reportDate)) {
         matched++;
+        checkPriceConsistency(order, reportDate, matchingProperties);
       }
     }
 
@@ -129,6 +133,27 @@ public class SebPendingTransactionReconciliationService {
 
     detectSettlementsByAbsence(
         reportDate, rows.size(), matched, presentOrderIds, extraction.isComplete());
+  }
+
+  private void checkPriceConsistency(
+      TransactionOrder order, LocalDate reportDate, TransactionMatchingProperties properties) {
+    List<TransactionExecution> executions = executionRepository.findAllByOrderId(order.getId());
+    priceConsistencyChecker
+        .check(order, executions, properties.executionPriceConsistencyTolerance())
+        .ifPresent(
+            event -> {
+              log.error(
+                  "Cross-piece price divergence: orderId={}, isin={}, min={}, max={}, spread={},"
+                      + " tolerance={}, reportDate={}",
+                  order.getId(),
+                  order.getInstrumentIsin(),
+                  event.minUnitPrice(),
+                  event.maxUnitPrice(),
+                  event.relativeSpread(),
+                  event.tolerance(),
+                  reportDate);
+              eventPublisher.publishEvent(event.withReportDate(reportDate));
+            });
   }
 
   private void reportMismatch(QuantityAmountMismatchEvent event, SebPendingTransactionRow row) {
@@ -290,9 +315,12 @@ public class SebPendingTransactionReconciliationService {
   }
 
   private boolean executedBefore(TransactionOrder order, LocalDate reportDate) {
+    // Use the latest piece's execution timestamp: repository ordering is not guaranteed and an
+    // order can now have several executions, so settlement-by-absence must key off the most recent.
     return executionRepository.findAllByOrderId(order.getId()).stream()
-        .findFirst()
         .map(TransactionExecution::getExecutionTimestamp)
+        .filter(Objects::nonNull)
+        .max(Comparator.naturalOrder())
         .map(timestamp -> timestamp.atZone(ZoneOffset.UTC).toLocalDate().isBefore(reportDate))
         .orElse(false);
   }

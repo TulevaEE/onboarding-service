@@ -33,7 +33,7 @@ class UnmatchedPendingTransactionFinderTest {
 
   private final InvestmentReport report = InvestmentReport.builder().build();
   private final TransactionMatchingProperties properties =
-      new TransactionMatchingProperties(null, null, null, null);
+      new TransactionMatchingProperties(null, null, null, null, null);
 
   private UnmatchedPendingTransactionFinder finder() {
     given(matchingPolicy.current()).willReturn(properties);

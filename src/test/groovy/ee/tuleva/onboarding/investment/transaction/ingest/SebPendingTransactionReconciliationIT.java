@@ -39,11 +39,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
+@RecordApplicationEvents
 class SebPendingTransactionReconciliationIT {
 
   private static final UUID FIXTURE_CLIENT_REF =
@@ -333,6 +336,64 @@ class SebPendingTransactionReconciliationIT {
             auditEventRepository.findByOrderIdAndEventType(
                 splitOrder.getId(), "QUANTITY_AMOUNT_MISMATCH"))
         .isEmpty();
+  }
+
+  @Test
+  void reconcile_splitOrderWithDivergentPiecePrices_publishesPriceConsistencyAlert(
+      ApplicationEvents events) {
+    TransactionBatch batch =
+        batchRepository.save(TransactionBatch.builder().fund(TKF100).createdBy("test").build());
+    UUID clientRef = UUID.fromString("5ffa4ff5-2081-48c2-98dc-d72730955b33");
+    TransactionOrder order =
+        orderRepository.save(
+            TransactionOrder.builder()
+                .batch(batch)
+                .fund(TKF100)
+                .instrumentIsin("IE000I9HGDZ3")
+                .transactionType(BUY)
+                .instrumentType(ETF)
+                .orderQuantity(new BigDecimal("200000"))
+                .orderVenue(OrderVenue.SEB)
+                .orderUuid(clientRef)
+                .orderStatus(SENT)
+                .build());
+
+    InvestmentReport report =
+        reportRepository.save(
+            InvestmentReport.builder()
+                .provider(SEB)
+                .reportType(PENDING_TRANSACTIONS)
+                .reportDate(LocalDate.of(2026, 6, 24))
+                .rawData(
+                    List.of(
+                        splitRowAtPrice(clientRef, "DLA1000001", "100000", "9.99"),
+                        splitRowAtPrice(clientRef, "DLA1000002", "100000", "10.40")))
+                .metadata(Map.of("source", "fixture"))
+                .createdAt(Instant.now())
+                .build());
+
+    reconciliationService.reconcile(report);
+
+    List<ExecutionPriceConsistencyEvent> alerts =
+        events.stream(ExecutionPriceConsistencyEvent.class).toList();
+    assertThat(alerts).hasSize(1);
+    ExecutionPriceConsistencyEvent alert = alerts.getFirst();
+    assertThat(alert.orderId()).isEqualTo(order.getId());
+    assertThat(alert.isin()).isEqualTo("IE000I9HGDZ3");
+    assertThat(alert.minUnitPrice()).isEqualByComparingTo("9.99");
+    assertThat(alert.maxUnitPrice()).isEqualByComparingTo("10.40");
+    assertThat(alert.reportDate()).isEqualTo(LocalDate.of(2026, 6, 24));
+  }
+
+  private static Map<String, Object> splitRowAtPrice(
+      UUID clientRef, String ourRef, String quantity, String price) {
+    Map<String, Object> raw = splitRow(clientRef, ourRef, quantity);
+    BigDecimal qty = new BigDecimal(quantity);
+    BigDecimal unitPrice = new BigDecimal(price);
+    raw.put("Price", unitPrice);
+    raw.put("Total", qty.multiply(unitPrice));
+    raw.put("Settlement amount", qty.multiply(unitPrice));
+    return raw;
   }
 
   private static Map<String, Object> splitRow(UUID clientRef, String ourRef, String quantity) {

@@ -33,6 +33,7 @@ class InstrumentValidationListenerSpec extends Specification {
     given:
     def allocation = allocation(effectiveDate)
     allocationRepository.findLatestByFundAsOf(_ as TulevaFund, today) >> [allocation]
+    allocationRepository.findFutureEffectiveDates(_ as TulevaFund, today) >> []
     validator.validate(_ as TulevaFund, effectiveDate) >> [
         new ValidationFinding(Severity.FAIL, "Missing instrument_reference for IE00TEST")
     ]
@@ -47,6 +48,7 @@ class InstrumentValidationListenerSpec extends Specification {
   def "does not send email when only WARNING findings"() {
     given:
     allocationRepository.findLatestByFundAsOf(_ as TulevaFund, today) >> [allocation(effectiveDate)]
+    allocationRepository.findFutureEffectiveDates(_ as TulevaFund, today) >> []
     validator.validate(_ as TulevaFund, effectiveDate) >> [
         new ValidationFinding(Severity.WARNING, "Ticker mismatch")
     ]
@@ -61,6 +63,7 @@ class InstrumentValidationListenerSpec extends Specification {
   def "does not send email when no findings"() {
     given:
     allocationRepository.findLatestByFundAsOf(_ as TulevaFund, today) >> [allocation(effectiveDate)]
+    allocationRepository.findFutureEffectiveDates(_ as TulevaFund, today) >> []
     validator.validate(_ as TulevaFund, _) >> []
 
     when:
@@ -73,6 +76,7 @@ class InstrumentValidationListenerSpec extends Specification {
   def "skips funds with no allocations"() {
     given:
     allocationRepository.findLatestByFundAsOf(_ as TulevaFund, today) >> []
+    allocationRepository.findFutureEffectiveDates(_ as TulevaFund, today) >> []
 
     when:
     listener.onCacheRefreshed()
@@ -86,6 +90,7 @@ class InstrumentValidationListenerSpec extends Specification {
     given:
     allocationRepository.findLatestByFundAsOf(TUK75, today) >> [allocation(effectiveDate)]
     allocationRepository.findLatestByFundAsOf(_ as TulevaFund, today) >> []
+    allocationRepository.findFutureEffectiveDates(_ as TulevaFund, today) >> []
     validator.validate(TUK75, effectiveDate) >> [
         new ValidationFinding(Severity.FAIL, "IE00TEST not in instrument_reference")
     ]
@@ -106,6 +111,7 @@ class InstrumentValidationListenerSpec extends Specification {
   def "logs error when email fails to send"() {
     given:
     allocationRepository.findLatestByFundAsOf(_ as TulevaFund, today) >> [allocation(effectiveDate)]
+    allocationRepository.findFutureEffectiveDates(_ as TulevaFund, today) >> []
     validator.validate(_ as TulevaFund, effectiveDate) >> [
         new ValidationFinding(Severity.FAIL, "test failure")
     ]
@@ -116,6 +122,28 @@ class InstrumentValidationListenerSpec extends Specification {
 
     then:
     noExceptionThrown()
+  }
+
+  def "validates upcoming model portfolio versions so price-history readiness is checked before go-live"() {
+    given:
+    def futureDate = LocalDate.of(2026, 6, 15)
+    allocationRepository.findLatestByFundAsOf(TUK75, today) >> [allocation(effectiveDate)]
+    allocationRepository.findLatestByFundAsOf(_ as TulevaFund, today) >> []
+    allocationRepository.findFutureEffectiveDates(TUK75, today) >> [futureDate]
+    allocationRepository.findFutureEffectiveDates(_ as TulevaFund, today) >> []
+    validator.validate(TUK75, effectiveDate) >> []
+    validator.validate(TUK75, futureDate) >> [
+        new ValidationFinding(Severity.FAIL, "ISIN IE00NEW has only 0 business days of prices (need 2) — not ready for model portfolio")
+    ]
+
+    when:
+    listener.onCacheRefreshed()
+
+    then:
+    1 * emailService.sendSystemEmail({ MandrillMessage msg ->
+      msg.text.contains("2026-06-15") &&
+          msg.text.contains("not ready for model portfolio")
+    }) >> true
   }
 
   private ModelPortfolioAllocation allocation(LocalDate date) {

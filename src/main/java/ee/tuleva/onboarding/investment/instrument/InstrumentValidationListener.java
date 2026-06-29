@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.notification.email.EmailService;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,16 +39,19 @@ class InstrumentValidationListener {
         continue;
       }
 
-      var allocations = allocationRepository.findLatestByFundAsOf(fund, today);
-      if (allocations.isEmpty()) {
-        continue;
-      }
+      // Validate the version in effect today plus any upcoming versions, so a scheduled model
+      // switch is checked for price-history readiness before it goes live.
+      var effectiveDates = new LinkedHashSet<LocalDate>();
+      allocationRepository.findLatestByFundAsOf(fund, today).stream()
+          .findFirst()
+          .ifPresent(allocation -> effectiveDates.add(allocation.getEffectiveDate()));
+      effectiveDates.addAll(allocationRepository.findFutureEffectiveDates(fund, today));
 
-      var effectiveDate = allocations.getFirst().getEffectiveDate();
-      var findings = validator.validate(fund, effectiveDate);
-
-      if (!findings.isEmpty()) {
-        allFindings.add(new FundFindings(fund, effectiveDate, findings));
+      for (var effectiveDate : effectiveDates) {
+        var findings = validator.validate(fund, effectiveDate);
+        if (!findings.isEmpty()) {
+          allFindings.add(new FundFindings(fund, effectiveDate, findings));
+        }
       }
     }
 

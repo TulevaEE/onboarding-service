@@ -238,4 +238,43 @@ class ModelPortfolioAllocationRepositoryTest {
     assertThat(asOfMiddle).extracting("effectiveDate").containsOnly(oldestDate);
     assertThat(asOfOldest).isEmpty();
   }
+
+  @Test
+  void findFutureEffectiveDates_returnsDistinctUpcomingVersionDatesInOrder() {
+    var asOf = LocalDate.of(2025, 6, 1);
+    var current = LocalDate.of(2025, 3, 1);
+    var nextSwitch = LocalDate.of(2025, 9, 1);
+    var laterSwitch = LocalDate.of(2025, 12, 1);
+
+    // Current version (on or before asOf) — must be excluded.
+    entityManager.persist(allocationOn(current, "IE00CURRENT"));
+    // Two ISINs share the first future version's date — date must appear once (DISTINCT).
+    entityManager.persist(allocationOn(nextSwitch, "IE00NEXT1"));
+    entityManager.persist(allocationOn(nextSwitch, "IE00NEXT2"));
+    entityManager.persist(allocationOn(laterSwitch, "IE00LATER"));
+    // A future version for another fund — must be excluded.
+    entityManager.persist(
+        ModelPortfolioAllocation.builder()
+            .effectiveDate(laterSwitch)
+            .fund(TUK00)
+            .isin("IE00OTHERFUND")
+            .weight(new BigDecimal("1.0"))
+            .provider(ISHARES)
+            .build());
+    entityManager.flush();
+
+    var future = repository.findFutureEffectiveDates(TUK75, asOf);
+
+    assertThat(future).containsExactly(nextSwitch, laterSwitch);
+  }
+
+  private ModelPortfolioAllocation allocationOn(LocalDate date, String isin) {
+    return ModelPortfolioAllocation.builder()
+        .effectiveDate(date)
+        .fund(TUK75)
+        .isin(isin)
+        .weight(new BigDecimal("1.0"))
+        .provider(ISHARES)
+        .build();
+  }
 }

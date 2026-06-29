@@ -65,7 +65,14 @@ public class InstrumentReferenceService {
 
         if (instrument.getYahooTicker() != null) {
           String shortTicker = extractShortTicker(instrument.getYahooTicker());
-          newByShortTicker.put(shortTicker, instrument);
+          var shadowed = newByShortTicker.put(shortTicker, instrument);
+          if (shadowed != null) {
+            log.warn(
+                "Short-ticker collision in instrument cache: shortTicker={}, isins=[{}, {}] — findByTicker resolves only the last",
+                shortTicker,
+                shadowed.getIsin(),
+                instrument.getIsin());
+          }
         }
       }
 

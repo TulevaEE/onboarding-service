@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.party;
 
-import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
-
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.event.TrackableEvent;
@@ -52,11 +50,7 @@ public class ChildOnboardingService {
 
     PopulationRegisterPerson child = verification.child();
     parentChildLinkRegistrationService.register(
-        parentPersonalCode,
-        childPersonalCode,
-        child.firstName(),
-        child.lastName(),
-        LEGAL_REPRESENTATIVE);
+        parentPersonalCode, childPersonalCode, child.firstName(), child.lastName());
     savingsFundOnboardingService.seedPersonOnboardingIfAbsent(childPersonalCode);
     amlService.addCustodyRightCheck(childPersonalCode, true, verification.evidence());
 

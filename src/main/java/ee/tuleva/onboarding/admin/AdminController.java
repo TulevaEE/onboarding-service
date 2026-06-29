@@ -371,14 +371,38 @@ public class AdminController {
         request.parentCode(),
         request.childCode(),
         request.childFirstName(),
-        request.childLastName(),
-        request.relationshipType());
+        request.childLastName());
     savingsFundOnboardingService.seedPersonOnboardingIfAbsent(request.childCode());
 
     return "Created parent-child link: parentCode="
         + request.parentCode()
         + ", childCode="
         + request.childCode();
+  }
+
+  @PostMapping("/guardian-link")
+  public String createGuardianLink(
+      @RequestHeader("X-Admin-Token") String token,
+      @Valid @RequestBody CreateGuardianLinkRequest request) {
+
+    validateTokenWithOpsAccess(token);
+    if (!request.validUntil().isAfter(LocalDate.now(clock))) {
+      throw new ResponseStatusException(
+          BAD_REQUEST,
+          "Guardian link validUntil must be in the future: validUntil=" + request.validUntil());
+    }
+    parentChildLinkRegistrationService.registerGuardian(
+        request.guardianCode(),
+        request.wardCode(),
+        request.wardFirstName(),
+        request.wardLastName(),
+        request.validUntil());
+    savingsFundOnboardingService.seedPersonOnboardingIfAbsent(request.wardCode());
+
+    return "Created guardian link: guardianCode="
+        + request.guardianCode()
+        + ", wardCode="
+        + request.wardCode();
   }
 
   @PostMapping("/blackrock-adjustment")

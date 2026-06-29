@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.party;
 
+import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
+import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
 
 import ee.tuleva.onboarding.user.User;
@@ -26,8 +28,7 @@ public class ParentChildLinkRegistrationService {
       String parentPersonalCode,
       String childPersonalCode,
       String childFirstName,
-      String childLastName,
-      RepresentationType relationshipType) {
+      String childLastName) {
 
     LocalDate dateOfBirth = PersonalCode.getDateOfBirth(childPersonalCode);
     LocalDate eighteenthBirthday = dateOfBirth.plusYears(18);
@@ -36,31 +37,52 @@ public class ParentChildLinkRegistrationService {
       throw new ChildIsNotAMinorException(childPersonalCode);
     }
 
-    upsertChild(childPersonalCode, childFirstName, childLastName);
+    upsertPerson(childPersonalCode, childFirstName, childLastName);
+    return findOrCreateLink(
+        parentPersonalCode, childPersonalCode, LEGAL_REPRESENTATIVE, eighteenthBirthday);
+  }
 
+  @Transactional
+  public ParentChildLink registerGuardian(
+      String guardianPersonalCode,
+      String wardPersonalCode,
+      String wardFirstName,
+      String wardLastName,
+      LocalDate validUntil) {
+
+    upsertPerson(wardPersonalCode, wardFirstName, wardLastName);
+    return findOrCreateLink(guardianPersonalCode, wardPersonalCode, GUARDIAN, validUntil);
+  }
+
+  private ParentChildLink findOrCreateLink(
+      String parentPersonalCode,
+      String childPersonalCode,
+      RepresentationType relationshipType,
+      LocalDate validUntil) {
     return parentChildLinkRepository
         .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
             parentPersonalCode, childPersonalCode, relationshipType)
         .orElseGet(
             () -> {
               log.info(
-                  "Creating parent-child link: parentCode={}, childCode={}, validUntil={}",
+                  "Creating parent-child link: parentCode={}, childCode={}, relationshipType={}, validUntil={}",
                   parentPersonalCode,
                   childPersonalCode,
-                  eighteenthBirthday);
+                  relationshipType,
+                  validUntil);
               return parentChildLinkRepository.save(
                   ParentChildLink.builder()
                       .parentPersonalCode(parentPersonalCode)
                       .childPersonalCode(childPersonalCode)
                       .relationshipType(relationshipType)
-                      .validUntil(eighteenthBirthday)
+                      .validUntil(validUntil)
                       .build());
             });
   }
 
-  private void upsertChild(String childPersonalCode, String firstName, String lastName) {
+  private void upsertPerson(String personalCode, String firstName, String lastName) {
     userService
-        .findByPersonalCode(childPersonalCode)
+        .findByPersonalCode(personalCode)
         .ifPresentOrElse(
             existing -> {
               existing.setFirstName(capitalizeFully(firstName, ' ', '-'));
@@ -70,7 +92,7 @@ public class ParentChildLinkRegistrationService {
             () ->
                 userService.createNewUser(
                     User.builder()
-                        .personalCode(childPersonalCode)
+                        .personalCode(personalCode)
                         .firstName(capitalizeFully(firstName, ' ', '-'))
                         .lastName(capitalizeFully(lastName, ' ', '-'))
                         .active(true)

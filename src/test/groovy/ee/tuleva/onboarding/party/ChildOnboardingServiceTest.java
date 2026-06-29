@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.party;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.NO_CUSTODY;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.OK;
-import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -58,8 +57,7 @@ class ChildOnboardingServiceTest {
     assertThat(result.firstName()).isEqualTo("MARI");
     assertThat(result.lastName()).isEqualTo("MAASIKAS");
     assertThat(result.dateOfBirth()).isEqualTo(LocalDate.of(2015, 6, 15));
-    verify(parentChildLinkRegistrationService)
-        .register(PARENT, CHILD, "MARI", "MAASIKAS", LEGAL_REPRESENTATIVE);
+    verify(parentChildLinkRegistrationService).register(PARENT, CHILD, "MARI", "MAASIKAS");
     verify(savingsFundOnboardingService).seedPersonOnboardingIfAbsent(CHILD);
     verify(amlService).addCustodyRightCheck(CHILD, true, evidence);
     verify(applicationEventPublisher)
@@ -80,7 +78,7 @@ class ChildOnboardingServiceTest {
     assertThat(result.verified()).isFalse();
     assertThat(result.firstName()).isNull();
     verify(amlService).addCustodyRightCheck(CHILD, false, Map.of("outcome", "NO_CUSTODY"));
-    verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any(), any());
+    verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any());
     verify(savingsFundOnboardingService, never()).seedPersonOnboardingIfAbsent(any());
     verify(applicationEventPublisher)
         .publishEvent(

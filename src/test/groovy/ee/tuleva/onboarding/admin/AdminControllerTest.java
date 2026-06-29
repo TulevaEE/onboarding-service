@@ -34,7 +34,6 @@ import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.ChildIsNotAMinorException;
 import ee.tuleva.onboarding.party.ParentChildLinkRegistrationService;
 import ee.tuleva.onboarding.party.PartyId;
-import ee.tuleva.onboarding.party.RepresentationType;
 import ee.tuleva.onboarding.savings.fund.IbanWhitelistEntry;
 import ee.tuleva.onboarding.savings.fund.IbanWhitelistService;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
@@ -50,6 +49,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -104,8 +104,18 @@ class AdminControllerTest {
         "parentCode": "38812121215",
         "childCode": "61506150006",
         "childFirstName": "Mari",
-        "childLastName": "Maasikas",
-        "relationshipType": "LEGAL_REPRESENTATIVE"
+        "childLastName": "Maasikas"
+      }
+      """;
+
+  private static final String GUARDIAN_LINK_BODY =
+      """
+      {
+        "guardianCode": "38812121215",
+        "wardCode": "48806046007",
+        "wardFirstName": "Ants",
+        "wardLastName": "Haldja",
+        "validUntil": "2099-12-31"
       }
       """;
 
@@ -928,12 +938,7 @@ class AdminControllerTest {
         .andExpect(content().string(containsString("61506150006")));
 
     verify(parentChildLinkRegistrationService)
-        .register(
-            "38812121215",
-            "61506150006",
-            "Mari",
-            "Maasikas",
-            RepresentationType.LEGAL_REPRESENTATIVE);
+        .register("38812121215", "61506150006", "Mari", "Maasikas");
     verify(savingsFundOnboardingService).seedPersonOnboardingIfAbsent("61506150006");
   }
 
@@ -949,13 +954,109 @@ class AdminControllerTest {
         .andExpect(status().isOk());
 
     verify(parentChildLinkRegistrationService)
-        .register(
-            "38812121215",
-            "61506150006",
-            "Mari",
-            "Maasikas",
-            RepresentationType.LEGAL_REPRESENTATIVE);
+        .register("38812121215", "61506150006", "Mari", "Maasikas");
     verify(savingsFundOnboardingService).seedPersonOnboardingIfAbsent("61506150006");
+  }
+
+  private void givenCurrentDate(LocalDate date) {
+    given(clock.instant()).willReturn(date.atStartOfDay(ZoneOffset.UTC).toInstant());
+    given(clock.getZone()).willReturn(ZoneOffset.UTC);
+  }
+
+  @Test
+  void createGuardianLink_delegatesToGuardianRegistration() throws Exception {
+    givenCurrentDate(LocalDate.of(2026, 5, 22));
+
+    mockMvc
+        .perform(
+            post("/admin/guardian-link")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .contentType(APPLICATION_JSON)
+                .content(GUARDIAN_LINK_BODY))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("48806046007")));
+
+    verify(parentChildLinkRegistrationService)
+        .registerGuardian(
+            "38812121215", "48806046007", "Ants", "Haldja", LocalDate.of(2099, 12, 31));
+    verify(savingsFundOnboardingService).seedPersonOnboardingIfAbsent("48806046007");
+    verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any());
+  }
+
+  @Test
+  void createGuardianLink_withoutValidUntil_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/guardian-link")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "guardianCode": "38812121215",
+                      "wardCode": "48806046007",
+                      "wardFirstName": "Ants",
+                      "wardLastName": "Haldja"
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verify(parentChildLinkRegistrationService, never())
+        .registerGuardian(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void createGuardianLink_withValidUntilInThePast_returnsBadRequest() throws Exception {
+    givenCurrentDate(LocalDate.of(2026, 5, 22));
+
+    mockMvc
+        .perform(
+            post("/admin/guardian-link")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "guardianCode": "38812121215",
+                      "wardCode": "48806046007",
+                      "wardFirstName": "Ants",
+                      "wardLastName": "Haldja",
+                      "validUntil": "2020-01-01"
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verify(parentChildLinkRegistrationService, never())
+        .registerGuardian(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void createGuardianLink_withValidUntilToday_returnsBadRequest() throws Exception {
+    givenCurrentDate(LocalDate.of(2026, 5, 22));
+
+    mockMvc
+        .perform(
+            post("/admin/guardian-link")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "guardianCode": "38812121215",
+                      "wardCode": "48806046007",
+                      "wardFirstName": "Ants",
+                      "wardLastName": "Haldja",
+                      "validUntil": "2026-05-22"
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verify(parentChildLinkRegistrationService, never())
+        .registerGuardian(any(), any(), any(), any(), any());
   }
 
   @Test
@@ -969,7 +1070,7 @@ class AdminControllerTest {
                 .content(VALID_LINK_BODY))
         .andExpect(status().isUnauthorized());
 
-    verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any(), any());
+    verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any());
     verify(savingsFundOnboardingService, never()).seedPersonOnboardingIfAbsent(any());
   }
 
@@ -977,7 +1078,7 @@ class AdminControllerTest {
   void createParentChildLink_whenChildNotAMinor_returnsBadRequest() throws Exception {
     doThrow(new ChildIsNotAMinorException("38812121215"))
         .when(parentChildLinkRegistrationService)
-        .register(any(), any(), any(), any(), any());
+        .register(any(), any(), any(), any());
 
     mockMvc
         .perform(
@@ -1005,13 +1106,12 @@ class AdminControllerTest {
                       "parentCode": "not-a-code",
                       "childCode": "61506150006",
                       "childFirstName": "Mari",
-                      "childLastName": "Maasikas",
-                      "relationshipType": "LEGAL_REPRESENTATIVE"
+                      "childLastName": "Maasikas"
                     }
                     """))
         .andExpect(status().isBadRequest());
 
-    verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any(), any());
+    verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any());
   }
 
   private static InvestmentReportContext sampleReportContext() {

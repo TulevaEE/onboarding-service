@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.party;
 
+import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -29,6 +30,10 @@ class ParentChildLinkRegistrationServiceTest {
   private static final String CHILD = "61506150006";
   private static final LocalDate CHILD_EIGHTEENTH_BIRTHDAY = LocalDate.of(2033, 6, 15);
 
+  private static final String GUARDIAN_CODE = "38812121215";
+  private static final String ADULT_WARD = "48806046007";
+  private static final LocalDate GUARDIANSHIP_VALID_UNTIL = LocalDate.of(2099, 12, 31);
+
   @Mock private ParentChildLinkRepository parentChildLinkRepository;
   @Mock private UserService userService;
 
@@ -52,8 +57,7 @@ class ParentChildLinkRegistrationServiceTest {
     given(parentChildLinkRepository.save(org.mockito.ArgumentMatchers.any()))
         .willAnswer(returnsFirstArg());
 
-    ParentChildLink result =
-        service.register(PARENT, CHILD, "mari", "maasikas", LEGAL_REPRESENTATIVE);
+    ParentChildLink result = service.register(PARENT, CHILD, "mari", "maasikas");
 
     assertThat(result.getParentPersonalCode()).isEqualTo(PARENT);
     assertThat(result.getChildPersonalCode()).isEqualTo(CHILD);
@@ -95,8 +99,7 @@ class ParentChildLinkRegistrationServiceTest {
                     PARENT, CHILD, LEGAL_REPRESENTATIVE))
         .willReturn(Optional.of(existingLink));
 
-    ParentChildLink result =
-        service.register(PARENT, CHILD, "mari", "maasikas", LEGAL_REPRESENTATIVE);
+    ParentChildLink result = service.register(PARENT, CHILD, "mari", "maasikas");
 
     assertThat(result).isSameAs(existingLink);
     verify(userService)
@@ -113,8 +116,7 @@ class ParentChildLinkRegistrationServiceTest {
 
   @Test
   void rejectsFutureDatedChild() {
-    assertThatThrownBy(
-            () -> service.register(PARENT, "59001010002", "Fu", "Ture", LEGAL_REPRESENTATIVE))
+    assertThatThrownBy(() -> service.register(PARENT, "59001010002", "Fu", "Ture"))
         .isInstanceOf(ChildIsNotAMinorException.class);
 
     verifyNoInteractions(userService);
@@ -123,11 +125,40 @@ class ParentChildLinkRegistrationServiceTest {
 
   @Test
   void rejectsAdultChild() {
-    assertThatThrownBy(
-            () -> service.register(PARENT, "38812121215", "Ad", "Ult", LEGAL_REPRESENTATIVE))
+    assertThatThrownBy(() -> service.register(PARENT, "38812121215", "Ad", "Ult"))
         .isInstanceOf(ChildIsNotAMinorException.class);
 
     verifyNoInteractions(userService);
     verify(parentChildLinkRepository, never()).save(org.mockito.ArgumentMatchers.any());
+  }
+
+  @Test
+  void registersGuardianLinkForAdultWard() {
+    given(userService.findByPersonalCode(ADULT_WARD)).willReturn(Optional.empty());
+    given(
+            parentChildLinkRepository
+                .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
+                    GUARDIAN_CODE, ADULT_WARD, GUARDIAN))
+        .willReturn(Optional.empty());
+    given(parentChildLinkRepository.save(org.mockito.ArgumentMatchers.any()))
+        .willAnswer(returnsFirstArg());
+
+    ParentChildLink result =
+        service.registerGuardian(
+            GUARDIAN_CODE, ADULT_WARD, "ants", "haldja", GUARDIANSHIP_VALID_UNTIL);
+
+    assertThat(result.getParentPersonalCode()).isEqualTo(GUARDIAN_CODE);
+    assertThat(result.getChildPersonalCode()).isEqualTo(ADULT_WARD);
+    assertThat(result.getRelationshipType()).isEqualTo(GUARDIAN);
+    assertThat(result.getValidUntil()).isEqualTo(GUARDIANSHIP_VALID_UNTIL);
+
+    verify(userService)
+        .createNewUser(
+            User.builder()
+                .personalCode(ADULT_WARD)
+                .firstName("Ants")
+                .lastName("Haldja")
+                .active(true)
+                .build());
   }
 }

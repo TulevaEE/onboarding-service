@@ -104,7 +104,7 @@ class BlackRockFundValueRetrieverTest {
                 server
                     .expect(
                         requestTo(
-                            "https://www.blackrock.com/nl/individual/products/"
+                            "https://www.blackrock.com/nl/particuliere-beleggers/produkten/"
                                 + fund.getBlackrockProductId()
                                 + "/"))
                     .andRespond(withServerError()));
@@ -186,7 +186,7 @@ class BlackRockFundValueRetrieverTest {
                 server
                     .expect(
                         requestTo(
-                            "https://www.blackrock.com/nl/individual/products/"
+                            "https://www.blackrock.com/nl/particuliere-beleggers/produkten/"
                                 + fund.getBlackrockProductId()
                                 + "/"))
                     .andRespond(withSuccess(responseBody, TEXT_HTML)));

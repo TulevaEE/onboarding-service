@@ -93,6 +93,12 @@ public class SebPendingTransactionReconciliationService {
       }
       TransactionOrder order = orderOpt.get();
       presentOrderIds.add(order.getId());
+      if (!isRowConsistentWithOrder(order, row, reportDate)) {
+        // A reused/mis-assigned Client ref or a row with no Our ref cannot be a safe piece of this
+        // order. Quarantine it; it still counts as present so the order is not settled by absence.
+        matched++;
+        continue;
+      }
       Optional<TransactionSettlement> settlement =
           settlementRepository.findByOrderId(order.getId());
       if (settlement.isPresent()) {
@@ -101,11 +107,11 @@ public class SebPendingTransactionReconciliationService {
         continue;
       }
       Optional<QuantityAmountMismatchEvent> mismatch =
-          quantityAmountValidator.validate(order, row, matchingProperties);
+          quantityAmountValidator.validateCumulative(
+              order, row, executionRepository.findAllByOrderId(order.getId()), matchingProperties);
       if (mismatch.isPresent()) {
-        // Quarantine: a divergent fill (partial fill, price/qty error) must not be silently
-        // absorbed as EXECUTED. Flag it for manual handling and leave the order in its
-        // pre-execution status; it still counts as present so it is not settled by absence.
+        // Quarantine: an over-fill (cumulative beyond the order target) must not be silently
+        // absorbed. An under-fill is an expected partial and is accepted.
         reportMismatch(mismatch.get().withReportDate(reportDate), row);
         matched++;
         continue;
@@ -164,12 +170,41 @@ public class SebPendingTransactionReconciliationService {
     return matches.stream().findFirst();
   }
 
+  private boolean isRowConsistentWithOrder(
+      TransactionOrder order, SebPendingTransactionRow row, LocalDate reportDate) {
+    if (row.ourRef() == null) {
+      log.error(
+          "Matched SEB row has no Our ref, cannot record as a piece: orderId={}, clientRef={},"
+              + " isin={}, reportDate={}",
+          order.getId(),
+          row.clientRef(),
+          row.isin(),
+          reportDate);
+      return false;
+    }
+    if (!row.isin().equals(order.getInstrumentIsin()) || row.side() != order.getTransactionType()) {
+      log.error(
+          "Matched SEB row instrument/side does not match order: orderId={}, orderIsin={},"
+              + " rowIsin={}, orderSide={}, rowSide={}, ourRef={}, reportDate={}",
+          order.getId(),
+          order.getInstrumentIsin(),
+          row.isin(),
+          order.getTransactionType(),
+          row.side(),
+          row.ourRef(),
+          reportDate);
+      return false;
+    }
+    return true;
+  }
+
   private boolean upsert(
       SebPendingTransactionRow row, TransactionOrder order, LocalDate reportDate) {
     if (wouldOrphanExistingExecution(row, order)) {
       return false;
     }
-    Optional<TransactionExecution> existing = executionRepository.findByOrderId(order.getId());
+    Optional<TransactionExecution> existing =
+        executionRepository.findByBrokerTransactionId(row.ourRef());
     if (existing.isPresent()) {
       TransactionExecution execution = existing.get();
       Map<String, Object> before = executionMapper.snapshot(execution);
@@ -255,14 +290,26 @@ public class SebPendingTransactionReconciliationService {
   }
 
   private boolean executedBefore(TransactionOrder order, LocalDate reportDate) {
-    return executionRepository
-        .findByOrderId(order.getId())
+    return executionRepository.findAllByOrderId(order.getId()).stream()
+        .findFirst()
         .map(TransactionExecution::getExecutionTimestamp)
         .map(timestamp -> timestamp.atZone(ZoneOffset.UTC).toLocalDate().isBefore(reportDate))
         .orElse(false);
   }
 
   private void settleByAbsence(TransactionOrder order, LocalDate reportDate) {
+    List<TransactionExecution> executions = executionRepository.findAllByOrderId(order.getId());
+    if (quantityAmountValidator.isShortFill(order, executions, matchingPolicy.current())) {
+      // A split order can be momentarily absent (a piece settled and left the report before the
+      // remaining pieces appeared). Do not settle a short order: leave it EXECUTED and alert.
+      log.error(
+          "Order absent from pending report but not fully filled, leaving EXECUTED: orderId={},"
+              + " reportDate={}, executionCount={}",
+          order.getId(),
+          reportDate,
+          executions.size());
+      return;
+    }
     log.info(
         "Settlement detected by absence from pending report: orderId={}, reportDate={}",
         order.getId(),

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
+import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
@@ -29,6 +30,7 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -99,7 +101,7 @@ class SebPendingTransactionReconciliationIT {
     entityManager.flush();
     entityManager.clear();
 
-    TransactionExecution execution = executionRepository.findByOrderId(order.getId()).orElseThrow();
+    TransactionExecution execution = executionRepository.findAllByOrderId(order.getId()).getFirst();
     assertThat(execution.getBrokerTransactionId()).isEqualTo("DLA0000000");
     assertThat(execution.getExecutedQuantity()).isEqualByComparingTo("2669.9");
     assertThat(execution.getUnitPrice()).isEqualByComparingTo("34.37656841");
@@ -116,12 +118,12 @@ class SebPendingTransactionReconciliationIT {
   void reconcile_rerun_isIdempotent() {
     reconciliationService.reconcile(report);
     entityManager.flush();
-    Long firstExecutionId = executionRepository.findByOrderId(order.getId()).orElseThrow().getId();
+    Long firstExecutionId = executionRepository.findAllByOrderId(order.getId()).getFirst().getId();
 
     reconciliationService.reconcile(report);
     entityManager.flush();
 
-    Long secondExecutionId = executionRepository.findByOrderId(order.getId()).orElseThrow().getId();
+    Long secondExecutionId = executionRepository.findAllByOrderId(order.getId()).getFirst().getId();
     assertThat(secondExecutionId).isEqualTo(firstExecutionId);
     assertThat(executionRepository.findAll())
         .filteredOn(e -> e.getOrderId().equals(order.getId()))
@@ -132,7 +134,7 @@ class SebPendingTransactionReconciliationIT {
   void reconcile_unknownClientRefButKnownOurRef_rematchesViaBrokerRefTier() {
     reconciliationService.reconcile(report);
     entityManager.flush();
-    Long firstExecutionId = executionRepository.findByOrderId(order.getId()).orElseThrow().getId();
+    Long firstExecutionId = executionRepository.findAllByOrderId(order.getId()).getFirst().getId();
 
     report.getRawData().get(0).put("Client ref", "");
     reportRepository.save(report);
@@ -142,7 +144,7 @@ class SebPendingTransactionReconciliationIT {
     entityManager.flush();
     entityManager.clear();
 
-    TransactionExecution execution = executionRepository.findByOrderId(order.getId()).orElseThrow();
+    TransactionExecution execution = executionRepository.findAllByOrderId(order.getId()).getFirst();
     assertThat(execution.getId()).isEqualTo(firstExecutionId);
     assertThat(executionRepository.findAll())
         .filteredOn(e -> e.getOrderId().equals(order.getId()))
@@ -168,7 +170,7 @@ class SebPendingTransactionReconciliationIT {
     assertThat(mismatches.get(0).getPayload().get("kind")).isEqualTo("FUND_BUY_AMOUNT");
 
     // Quarantine: a divergent fill is flagged but not absorbed — no execution, order stays SENT.
-    assertThat(executionRepository.findByOrderId(order.getId())).isEmpty();
+    assertThat(executionRepository.findAllByOrderId(order.getId())).isEmpty();
     TransactionOrder reloaded = orderRepository.findById(order.getId()).orElseThrow();
     assertThat(reloaded.getOrderStatus()).isEqualTo(SENT);
   }
@@ -182,7 +184,7 @@ class SebPendingTransactionReconciliationIT {
     reconciliationService.reconcile(report);
     entityManager.flush();
 
-    assertThat(executionRepository.findByOrderId(order.getId())).isEmpty();
+    assertThat(executionRepository.findAllByOrderId(order.getId())).isEmpty();
     TransactionOrder reloaded = orderRepository.findById(order.getId()).orElseThrow();
     assertThat(reloaded.getOrderStatus()).isEqualTo(SENT);
   }
@@ -269,6 +271,89 @@ class SebPendingTransactionReconciliationIT {
         .hasSize(1);
     TransactionOrder reloaded = orderRepository.findById(order.getId()).orElseThrow();
     assertThat(reloaded.getOrderStatus()).isEqualTo(SETTLED);
+  }
+
+  @Test
+  void reconcile_splitOrderAcrossFourPieces_writesFourExecutionsSummingToTargetAndDoesNotSettle() {
+    TransactionBatch batch =
+        batchRepository.save(TransactionBatch.builder().fund(TKF100).createdBy("test").build());
+    UUID splitClientRef = UUID.fromString("4ffa4ff5-2081-48c2-98dc-d72730955b33");
+    TransactionOrder splitOrder =
+        orderRepository.save(
+            TransactionOrder.builder()
+                .batch(batch)
+                .fund(TKF100)
+                .instrumentIsin("IE000I9HGDZ3")
+                .transactionType(BUY)
+                .instrumentType(ETF)
+                .orderQuantity(new BigDecimal("16508198"))
+                .orderVenue(OrderVenue.SEB)
+                .orderUuid(splitClientRef)
+                .orderStatus(SENT)
+                .build());
+
+    InvestmentReport splitReport =
+        reportRepository.save(
+            InvestmentReport.builder()
+                .provider(SEB)
+                .reportType(PENDING_TRANSACTIONS)
+                .reportDate(LocalDate.of(2026, 6, 24))
+                .rawData(
+                    List.of(
+                        splitRow(splitClientRef, "DLA0933862", "16031199"),
+                        splitRow(splitClientRef, "DLA0935620", "34985"),
+                        splitRow(splitClientRef, "DLA0936075", "377403"),
+                        splitRow(splitClientRef, "DLA0927877", "64611")))
+                .metadata(Map.of("source", "fixture"))
+                .createdAt(Instant.now())
+                .build());
+
+    reconciliationService.reconcile(splitReport);
+    entityManager.flush();
+    entityManager.clear();
+
+    List<TransactionExecution> executions =
+        executionRepository.findAllByOrderId(splitOrder.getId());
+    assertThat(executions).hasSize(4);
+    assertThat(executions)
+        .extracting(TransactionExecution::getBrokerTransactionId)
+        .containsExactlyInAnyOrder("DLA0933862", "DLA0935620", "DLA0936075", "DLA0927877");
+    assertThat(executions)
+        .allSatisfy(e -> assertThat(e.getAggregatedOrderId()).isEqualTo(splitClientRef));
+    assertThat(
+            executions.stream()
+                .map(TransactionExecution::getExecutedQuantity)
+                .reduce(BigDecimal.ZERO, BigDecimal::add))
+        .isEqualByComparingTo("16508198");
+
+    TransactionOrder reloaded = orderRepository.findById(splitOrder.getId()).orElseThrow();
+    assertThat(reloaded.getOrderStatus()).isEqualTo(EXECUTED);
+    assertThat(settlementRepository.findByOrderId(splitOrder.getId())).isEmpty();
+    assertThat(
+            auditEventRepository.findByOrderIdAndEventType(
+                splitOrder.getId(), "QUANTITY_AMOUNT_MISMATCH"))
+        .isEmpty();
+  }
+
+  private static Map<String, Object> splitRow(UUID clientRef, String ourRef, String quantity) {
+    BigDecimal qty = new BigDecimal(quantity);
+    BigDecimal amount = qty.multiply(new BigDecimal("9.999"));
+    Map<String, Object> raw = new HashMap<>();
+    raw.put("ISIN", "IE000I9HGDZ3");
+    raw.put("Price", new BigDecimal("9.999"));
+    raw.put("Total", amount);
+    raw.put("Account", "VP68959");
+    raw.put("Our ref", ourRef);
+    raw.put("Buy/Sell", "Buy");
+    raw.put("Quantity", qty);
+    raw.put("Broker fee", new BigDecimal("0.00"));
+    raw.put("Client ref", clientRef.toString());
+    raw.put("Trade date", "2026-06-22T10:00:00Z");
+    raw.put("Settlement date", "2026-06-24");
+    raw.put("Settlement amount", amount);
+    raw.put("Client name", "Tuleva III Samba Pensionifond");
+    raw.put("Instrument name", "Xtrackers MSCI World Screened UCITS ETF 1C");
+    return raw;
   }
 
   private TransactionOrder seedExecutedOrderAbsentFromReport() {

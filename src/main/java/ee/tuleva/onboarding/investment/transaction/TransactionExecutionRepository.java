@@ -12,8 +12,6 @@ public interface TransactionExecutionRepository extends JpaRepository<Transactio
 
   List<TransactionExecution> findAllByOrderId(Long orderId);
 
-  Optional<TransactionExecution> findByOrderId(Long orderId);
-
   Optional<TransactionExecution> findByBrokerTransactionId(String brokerTransactionId);
 
   List<TransactionExecution> findAllByBrokerTransactionId(String brokerTransactionId);

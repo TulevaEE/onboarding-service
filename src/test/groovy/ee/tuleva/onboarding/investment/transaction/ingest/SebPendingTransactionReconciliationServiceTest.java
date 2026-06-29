@@ -93,7 +93,7 @@ class SebPendingTransactionReconciliationServiceTest {
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
     TransactionOrder order = sampleOrder(clientRef);
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     service.reconcile(reportWithSingleRow(clientRef));
 
@@ -122,10 +122,12 @@ class SebPendingTransactionReconciliationServiceTest {
             .id(99L)
             .orderId(123L)
             .source("SEB_OOTEL")
-            .brokerTransactionId("OLD")
+            .brokerTransactionId("DLA0799512")
             .executedQuantity(new BigDecimal("1"))
             .build();
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.of(existing));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of(existing));
+    given(executionRepository.findByBrokerTransactionId("DLA0799512"))
+        .willReturn(Optional.of(existing));
 
     service.reconcile(reportWithSingleRow(clientRef));
 
@@ -152,7 +154,7 @@ class SebPendingTransactionReconciliationServiceTest {
     service = newService();
     TransactionOrder order = sampleComplexMatchOrder(UUID.randomUUID());
     given(orderRepository.findByInstrumentIsin("IE000F60HVH9")).willReturn(List.of(order));
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     InvestmentReport report = reportWithSingleRow(null);
     service.reconcile(report);
@@ -173,7 +175,7 @@ class SebPendingTransactionReconciliationServiceTest {
 
     TransactionOrder order = sampleComplexMatchOrder(UUID.randomUUID());
     given(orderRepository.findByInstrumentIsin("IE000F60HVH9")).willReturn(List.of(order));
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     service.reconcile(reportWithSingleRow(clientRef));
 
@@ -198,8 +200,10 @@ class SebPendingTransactionReconciliationServiceTest {
             .build();
     given(executionRepository.findAllByBrokerTransactionId("DLA0799512"))
         .willReturn(List.of(existing));
+    given(executionRepository.findByBrokerTransactionId("DLA0799512"))
+        .willReturn(Optional.of(existing));
     given(orderRepository.findById(123L)).willReturn(Optional.of(order));
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.of(existing));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of(existing));
 
     service.reconcile(reportWithSingleRow(clientRef));
 
@@ -262,7 +266,7 @@ class SebPendingTransactionReconciliationServiceTest {
             .orderStatus(SENT)
             .build();
     given(orderRepository.findByInstrumentIsin("IE000F60HVH9")).willReturn(List.of(order));
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     InvestmentReport report = reportWithSingleRowQuantity(clientRef, new BigDecimal("15007.0003"));
     service.reconcile(report);
@@ -314,7 +318,7 @@ class SebPendingTransactionReconciliationServiceTest {
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
     TransactionOrder order = sampleOrder(clientRef);
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     service.reconcile(reportWithSingleRow(clientRef));
 
@@ -328,7 +332,7 @@ class SebPendingTransactionReconciliationServiceTest {
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
     TransactionOrder order = orderWith(clientRef, ETF, BUY, new BigDecimal("15007"), null);
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     service.reconcile(reportWithSingleRow(clientRef));
 
@@ -391,7 +395,7 @@ class SebPendingTransactionReconciliationServiceTest {
     TransactionOrder order =
         orderWith(clientRef, InstrumentType.FUND, BUY, null, new BigDecimal("72340.00"));
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     service.reconcile(reportWithSingleRow(clientRef));
 
@@ -443,7 +447,7 @@ class SebPendingTransactionReconciliationServiceTest {
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
     TransactionOrder order = sampleOrder(clientRef);
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     Map<String, Object> malformed = new HashMap<>();
     malformed.put("ISIN", "IE000F60HVH9");
@@ -497,7 +501,7 @@ class SebPendingTransactionReconciliationServiceTest {
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
     TransactionOrder order = sampleOrder(clientRef);
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     service.reconcile(reportWithSingleRow(clientRef));
 
@@ -517,10 +521,16 @@ class SebPendingTransactionReconciliationServiceTest {
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
     TransactionOrder order = sampleOrder(clientRef);
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
-    given(executionRepository.findByOrderId(123L))
-        .willReturn(
-            Optional.of(
-                TransactionExecution.builder().id(99L).orderId(123L).source("SEB_OOTEL").build()));
+    TransactionExecution existing =
+        TransactionExecution.builder()
+            .id(99L)
+            .orderId(123L)
+            .source("SEB_OOTEL")
+            .brokerTransactionId("DLA0799512")
+            .build();
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of(existing));
+    given(executionRepository.findByBrokerTransactionId("DLA0799512"))
+        .willReturn(Optional.of(existing));
 
     service.reconcile(reportWithSingleRow(clientRef));
 
@@ -566,7 +576,7 @@ class SebPendingTransactionReconciliationServiceTest {
             .orderStatus(SENT)
             .build();
     given(orderRepository.findByInstrumentIsin("IE000F60HVH9")).willReturn(List.of(order));
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     service.reconcile(reportWithSingleRowQuantity(clientRef, new BigDecimal("15007.0003")));
 
@@ -585,12 +595,12 @@ class SebPendingTransactionReconciliationServiceTest {
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
     TransactionOrder matchedOrder = sampleOrder(clientRef);
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     TransactionOrder absentOrder = executedOrder(456L);
     given(orderRepository.findByOrderStatusIn(anyCollection())).willReturn(List.of(absentOrder));
-    given(executionRepository.findByOrderId(456L))
-        .willReturn(Optional.of(executionWithTradeInstant(456L, "2026-05-11T10:00:00Z")));
+    given(executionRepository.findAllByOrderId(456L))
+        .willReturn(List.of(executionWithTradeInstant(456L, "2026-05-11T10:00:00Z")));
     given(settlementRepository.save(any()))
         .willAnswer(invocation -> invocation.getArgument(0, TransactionSettlement.class));
 
@@ -690,11 +700,11 @@ class SebPendingTransactionReconciliationServiceTest {
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
     TransactionOrder matchedOrder = sampleOrder(clientRef);
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     TransactionOrder absentOrder = executedOrder(456L);
     given(orderRepository.findByOrderStatusIn(anyCollection())).willReturn(List.of(absentOrder));
-    given(executionRepository.findByOrderId(456L)).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(456L)).willReturn(List.of());
 
     service.reconcile(reportWithSingleRow(clientRef));
 
@@ -708,12 +718,12 @@ class SebPendingTransactionReconciliationServiceTest {
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
     TransactionOrder matchedOrder = sampleOrder(clientRef);
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     TransactionOrder absentOrder = executedOrder(456L);
     given(orderRepository.findByOrderStatusIn(anyCollection())).willReturn(List.of(absentOrder));
-    given(executionRepository.findByOrderId(456L))
-        .willReturn(Optional.of(executionWithTradeInstant(456L, "2026-05-13T10:00:00Z")));
+    given(executionRepository.findAllByOrderId(456L))
+        .willReturn(List.of(executionWithTradeInstant(456L, "2026-05-13T10:00:00Z")));
 
     service.reconcile(reportWithSingleRow(clientRef));
 
@@ -726,7 +736,7 @@ class SebPendingTransactionReconciliationServiceTest {
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
     TransactionOrder matchedOrder = sampleOrder(clientRef);
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     // Second row carries no client ref and matches nothing, but its Our ref points at order 456
     UUID secondClientRef = UUID.fromString("00000000-0000-0000-0000-000000000099");
@@ -762,7 +772,7 @@ class SebPendingTransactionReconciliationServiceTest {
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
     TransactionOrder matchedOrder = sampleOrder(clientRef);
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     // A newer pending report exists than the one being reconciled (lookback replay of an older one)
     given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS))
@@ -787,7 +797,7 @@ class SebPendingTransactionReconciliationServiceTest {
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
     TransactionOrder matchedOrder = sampleOrder(clientRef);
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     Map<String, Object> malformed = new HashMap<>();
     malformed.put("ISIN", "IE000F60HVH9");
@@ -820,10 +830,12 @@ class SebPendingTransactionReconciliationServiceTest {
             .id(99L)
             .orderId(123L)
             .source("SEB_OOTEL")
-            .brokerTransactionId("OLD")
+            .brokerTransactionId("DLA0799512")
             .executedQuantity(new BigDecimal("1"))
             .build();
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.of(existing));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of(existing));
+    given(executionRepository.findByBrokerTransactionId("DLA0799512"))
+        .willReturn(Optional.of(existing));
 
     service.reconcile(reportWithSingleRow(clientRef));
 
@@ -845,7 +857,9 @@ class SebPendingTransactionReconciliationServiceTest {
     TransactionExecution existing =
         mapper.toExecution(SebPendingTransactionRow.fromRawData(validRawRow(clientRef)), order);
     existing.setId(99L);
-    given(executionRepository.findByOrderId(123L)).willReturn(Optional.of(existing));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of(existing));
+    given(executionRepository.findByBrokerTransactionId("DLA0799512"))
+        .willReturn(Optional.of(existing));
 
     service.reconcile(reportWithSingleRow(clientRef));
 
@@ -891,6 +905,8 @@ class SebPendingTransactionReconciliationServiceTest {
         .id(orderId + 1000)
         .orderId(orderId)
         .source("SEB_OOTEL")
+        .brokerTransactionId("DLA" + orderId)
+        .executedQuantity(new BigDecimal("100"))
         .executionTimestamp(Instant.parse(instant))
         .build();
   }

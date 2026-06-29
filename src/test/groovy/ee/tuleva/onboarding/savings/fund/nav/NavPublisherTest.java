@@ -205,7 +205,7 @@ class NavPublisherTest {
   }
 
   @Test
-  void publish_skipsEmail_whenTdGateBlocksPublication() {
+  void publish_routesToInternalReviewAndMarksPublished_whenTdGateBlocks() {
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
     Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
@@ -216,12 +216,14 @@ class NavPublisherTest {
     when(navReportMapper.map(result)).thenReturn(List.of(reportRow));
     when(trackingDifferenceGate.check(TKF100, yesterday))
         .thenReturn(Optional.of("TD breach: fund=TKF100, MODEL_PORTFOLIO TD=0.015"));
+    when(navReportEmailSender.sendForReview(any(), eq(result))).thenReturn(true);
 
     navPublisher.publish(result);
 
-    verifyNoInteractions(navReportEmailSender);
-    verify(navReportRepository, never()).markAsPublished(any(UUID.class));
-    verify(notificationService).sendMessage(contains("TD breach"), eq(SAVINGS));
+    verify(navReportEmailSender).sendForReview(any(), eq(result));
+    verify(navReportEmailSender, never()).send(any(), any());
+    verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
+    verify(notificationService).sendMessage(contains("trustee@seb.ee"), eq(SAVINGS));
     verify(navNotifier).notify(result);
   }
 

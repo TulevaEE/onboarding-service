@@ -8,12 +8,16 @@ import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.capital.transfer.iban.IbanValidator;
 import ee.tuleva.onboarding.company.BoardMembershipService;
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.event.TrackableEvent;
+import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.ledger.LedgerParty;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.fund.IbanWhitelistService;
 import ee.tuleva.onboarding.savings.fund.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
@@ -24,6 +28,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +56,7 @@ public class RedemptionService {
   private final BoardMembershipService boardMembershipService;
   private final FundNavProvider navProvider;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
+  private final IbanWhitelistService ibanWhitelistService;
   private final SavingFundDeadlinesService deadlinesService;
   private final Clock clock;
   private final ApplicationEventPublisher applicationEventPublisher;
@@ -67,9 +73,10 @@ public class RedemptionService {
 
     validateAmountPrecision(amount);
 
+    String canonicalIban = IbanValidator.canonicalize(customerIban);
     PartyId partyId = authenticatedPerson.toPartyId();
     validateOnboarding(authenticatedPerson);
-    validateIbanBelongsToParty(customerIban, partyId);
+    validateIbanBelongsToParty(canonicalIban, partyId);
 
     BigDecimal nav = navProvider.getDisplayNav(TKF100);
     BigDecimal availableUnits = getEffectiveAvailableFundUnits(partyId);
@@ -83,7 +90,7 @@ public class RedemptionService {
             .partyId(partyId)
             .fundUnits(fundUnits)
             .requestedAmount(amount)
-            .customerIban(customerIban)
+            .customerIban(canonicalIban)
             .status(RESERVED)
             .build();
 
@@ -98,11 +105,22 @@ public class RedemptionService {
         amount,
         fundUnits,
         nav,
-        customerIban);
+        canonicalIban);
 
     applicationEventPublisher.publishEvent(
         new RedemptionRequestedEvent(
             saved.getId(), authenticatedPerson.getUserId(), partyId, amount, fundUnits));
+
+    if (!authenticatedPerson.isActingAsSelf() && partyId.type() == PartyId.Type.PERSON) {
+      applicationEventPublisher.publishEvent(
+          new TrackableEvent(
+              authenticatedPerson,
+              TrackableEventType.MINOR_REDEMPTION,
+              Map.of(
+                  "childPersonalCode", partyId.code(),
+                  "redemptionRequestId", saved.getId(),
+                  "amount", amount)));
+    }
 
     return saved;
   }
@@ -225,10 +243,11 @@ public class RedemptionService {
 
   private void validateIbanBelongsToParty(String iban, PartyId partyId) {
     List<String> ibans = savingFundPaymentRepository.findWithdrawableIbans(partyId);
-    if (!ibans.contains(iban)) {
-      throw new IllegalArgumentException(
-          "IBAN does not belong to party: iban=" + iban + ", party=" + partyId);
+    if (ibans.contains(iban) || ibanWhitelistService.isWhitelisted(partyId, iban)) {
+      return;
     }
+    throw new IllegalArgumentException(
+        "IBAN does not belong to party: iban=" + iban + ", party=" + partyId);
   }
 
   private void validateAmountPrecision(BigDecimal amount) {

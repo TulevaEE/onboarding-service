@@ -50,7 +50,7 @@ import org.springframework.stereotype.Component;
 class TrackingDifferenceService {
 
   private static final String MSCI_ACWI_KEY = "MSCI_ACWI";
-  private static final int ESCALATION_LOOKBACK = 2;
+  private static final int ESCALATION_LOOKBACK_FALLBACK = 10;
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
   private static final int SCALE = 6;
 
@@ -179,6 +179,16 @@ class TrackingDifferenceService {
     var cashWeight =
         totalNav.signum() != 0 ? cashTotal.divide(totalNav, 6, RoundingMode.HALF_UP) : ZERO;
 
+    // Security weights are normalized to the securities sleeve (not total NAV) so that the
+    // weight-deviation contributions sum to ~zero and the cash dilution is attributed once,
+    // via cashDrag — not double-counted into per-instrument deviations. Matches the periodic
+    // PeriodicTdAttributionService basis.
+    var totalSecurities =
+        positions.stream()
+            .map(FundPosition::getMarketValue)
+            .filter(Objects::nonNull)
+            .reduce(ZERO, BigDecimal::add);
+
     var annualFeeRate =
         feeRateRepository
             .findValidRate(fund, FeeType.MANAGEMENT, checkDate)
@@ -187,7 +197,13 @@ class TrackingDifferenceService {
 
     var securities =
         buildSecurityData(
-            fund, allocations, previousAllocations, positions, totalNav, checkDate, previousDate);
+            fund,
+            allocations,
+            previousAllocations,
+            positions,
+            totalSecurities,
+            checkDate,
+            previousDate);
 
     var missingPrices =
         securities.stream()
@@ -273,7 +289,22 @@ class TrackingDifferenceService {
 
     var priorBreaches = countConsecutiveBreaches(fund, BENCHMARK, checkDate);
     int days = breach ? priorBreaches.count() + 1 : 0;
-    var netTd = breach ? priorBreaches.netTd().add(td) : ZERO;
+    BigDecimal compFund = ZERO;
+    BigDecimal compBenchmark = ZERO;
+    BigDecimal compTd = ZERO;
+    if (breach) {
+      compFund =
+          BigDecimal.ONE
+              .add(priorBreaches.compoundedFundReturn())
+              .multiply(BigDecimal.ONE.add(fundReturn))
+              .subtract(BigDecimal.ONE);
+      compBenchmark =
+          BigDecimal.ONE
+              .add(priorBreaches.compoundedBenchmarkReturn())
+              .multiply(BigDecimal.ONE.add(benchmarkReturn.get()))
+              .subtract(BigDecimal.ONE);
+      compTd = compFund.subtract(compBenchmark);
+    }
 
     var result =
         TrackingDifferenceResult.builder()
@@ -285,7 +316,9 @@ class TrackingDifferenceService {
             .benchmarkReturn(benchmarkReturn.get())
             .breach(breach)
             .consecutiveBreachDays(days)
-            .consecutiveNetTd(netTd)
+            .consecutiveNetTd(compTd)
+            .compoundedFundReturn(compFund)
+            .compoundedBenchmarkReturn(compBenchmark)
             .securityAttributions(List.of())
             .cashDrag(ZERO)
             .feeDrag(ZERO)
@@ -391,7 +424,24 @@ class TrackingDifferenceService {
 
     var priorBreaches = countConsecutiveBreaches(fund, BENCHMARK_MODEL, checkDate);
     int days = breach ? priorBreaches.count() + 1 : 0;
-    var netTd = breach ? priorBreaches.netTd().add(td) : ZERO;
+    BigDecimal compFund = ZERO;
+    BigDecimal compBenchmark = ZERO;
+    BigDecimal compTd = ZERO;
+    Map<String, BigDecimal> escalationAttrs = null;
+    if (breach) {
+      compFund =
+          BigDecimal.ONE
+              .add(priorBreaches.compoundedFundReturn())
+              .multiply(BigDecimal.ONE.add(instrumentReturn))
+              .subtract(BigDecimal.ONE);
+      compBenchmark =
+          BigDecimal.ONE
+              .add(priorBreaches.compoundedBenchmarkReturn())
+              .multiply(BigDecimal.ONE.add(benchmarkReturn))
+              .subtract(BigDecimal.ONE);
+      compTd = compFund.subtract(compBenchmark);
+      escalationAttrs = mergeAttributions(priorBreaches.contributionByIsin(), attributions);
+    }
 
     return Optional.of(
         TrackingDifferenceResult.builder()
@@ -403,7 +453,10 @@ class TrackingDifferenceService {
             .benchmarkReturn(benchmarkReturn)
             .breach(breach)
             .consecutiveBreachDays(days)
-            .consecutiveNetTd(netTd)
+            .consecutiveNetTd(compTd)
+            .compoundedFundReturn(compFund)
+            .compoundedBenchmarkReturn(compBenchmark)
+            .escalationAttributions(escalationAttrs)
             .securityAttributions(List.copyOf(attributions))
             .cashDrag(ZERO)
             .feeDrag(ZERO)
@@ -450,7 +503,7 @@ class TrackingDifferenceService {
       List<ModelPortfolioAllocation> allocations,
       List<ModelPortfolioAllocation> previousAllocations,
       List<FundPosition> todayPositions,
-      BigDecimal totalNav,
+      BigDecimal totalSecurities,
       LocalDate checkDate,
       LocalDate previousDate) {
 
@@ -478,7 +531,7 @@ class TrackingDifferenceService {
                             a.getIsin(),
                             a.getWeight(),
                             todayByIsin,
-                            totalNav,
+                            totalSecurities,
                             checkDate,
                             previousDate,
                             todayCutoff,
@@ -495,7 +548,7 @@ class TrackingDifferenceService {
                     a.getIsin(),
                     ZERO,
                     todayByIsin,
-                    totalNav,
+                    totalSecurities,
                     checkDate,
                     previousDate,
                     todayCutoff,
@@ -585,7 +638,7 @@ class TrackingDifferenceService {
       String isin,
       BigDecimal modelWeight,
       Map<String, FundPosition> todayByIsin,
-      BigDecimal totalNav,
+      BigDecimal totalSecurities,
       LocalDate checkDate,
       LocalDate previousDate,
       Instant todayCutoff,
@@ -605,7 +658,9 @@ class TrackingDifferenceService {
     var todayPos = todayByIsin.get(isin);
     var actualMarketValue = todayPos != null ? todayPos.getMarketValue() : ZERO;
     var actualWeight =
-        totalNav.signum() != 0 ? actualMarketValue.divide(totalNav, 6, RoundingMode.HALF_UP) : ZERO;
+        totalSecurities.signum() != 0
+            ? actualMarketValue.divide(totalSecurities, 6, RoundingMode.HALF_UP)
+            : ZERO;
 
     var today =
         new PriceSnapshot(
@@ -627,18 +682,118 @@ class TrackingDifferenceService {
 
   private ConsecutiveBreachInfo countConsecutiveBreaches(
       TulevaFund fund, TrackingCheckType checkType, LocalDate checkDate) {
-    var recent =
-        eventRepository.findMostRecentEvents(fund, checkType, checkDate, ESCALATION_LOOKBACK);
+    try {
+      return doCountConsecutiveBreaches(fund, checkType, checkDate);
+    } catch (Exception e) {
+      log.warn(
+          "Escalation count failed, using empty: fund={}, checkType={}, error={}",
+          fund,
+          checkType,
+          e.getMessage());
+      return new ConsecutiveBreachInfo(0, ZERO, ZERO, ZERO, Map.of(), ZERO, ZERO, ZERO);
+    }
+  }
+
+  private ConsecutiveBreachInfo doCountConsecutiveBreaches(
+      TulevaFund fund, TrackingCheckType checkType, LocalDate checkDate) {
+    int lookback;
+    try {
+      lookback = calculator.escalationLookbackDays(checkDate);
+    } catch (IllegalStateException e) {
+      log.warn("Escalation parameters not configured, using fallback: {}", e.getMessage());
+      lookback = ESCALATION_LOOKBACK_FALLBACK;
+    } catch (Exception e) {
+      log.warn("Escalation lookback parameter lookup failed, using fallback: {}", e.getMessage());
+      lookback = ESCALATION_LOOKBACK_FALLBACK;
+    }
+    var recent = eventRepository.findMostRecentEvents(fund, checkType, checkDate, lookback);
     int count = 0;
-    var netTd = ZERO;
+    var compoundedFund = BigDecimal.ONE;
+    var compoundedBenchmark = BigDecimal.ONE;
+    var cashDragSum = ZERO;
+    var feeDragSum = ZERO;
+    var residualSum = ZERO;
+    var contributionByIsin = new java.util.LinkedHashMap<String, BigDecimal>();
+
     for (var event : recent) {
       if (!event.isBreach()) {
         break;
       }
       count++;
-      netTd = netTd.add(event.getTrackingDifference());
+      compoundedFund = compoundedFund.multiply(BigDecimal.ONE.add(event.getFundReturn()));
+      compoundedBenchmark =
+          compoundedBenchmark.multiply(BigDecimal.ONE.add(event.getBenchmarkReturn()));
+
+      try {
+        var result = event.getResult();
+        cashDragSum = cashDragSum.add(toBd(result.get("cashDrag")));
+        feeDragSum = feeDragSum.add(toBd(result.get("feeDrag")));
+        residualSum = residualSum.add(toBd(result.get("residual")));
+
+        @SuppressWarnings("unchecked")
+        var attrs =
+            (List<Map<String, Object>>) result.getOrDefault("securityAttributions", List.of());
+        for (var attr : attrs) {
+          var isin = (String) attr.get("isin");
+          if (isin == null || isin.isBlank()) {
+            continue;
+          }
+          var contribution = toBd(attr.get("contribution"));
+          contributionByIsin.merge(isin, contribution, BigDecimal::add);
+        }
+      } catch (Exception e) {
+        log.warn(
+            "Failed to parse attribution from event: checkDate={}, error={}",
+            event.getCheckDate(),
+            e.getMessage());
+      }
     }
-    return new ConsecutiveBreachInfo(count, netTd);
+
+    var compoundedFundReturn = compoundedFund.subtract(BigDecimal.ONE);
+    var compoundedBenchmarkReturn = compoundedBenchmark.subtract(BigDecimal.ONE);
+    var compoundedTd = compoundedFundReturn.subtract(compoundedBenchmarkReturn);
+
+    return new ConsecutiveBreachInfo(
+        count,
+        compoundedTd,
+        compoundedFundReturn,
+        compoundedBenchmarkReturn,
+        contributionByIsin,
+        cashDragSum,
+        feeDragSum,
+        residualSum);
+  }
+
+  private static Map<String, BigDecimal> mergeAttributions(
+      Map<String, BigDecimal> prior, List<SecurityAttribution> todayAttrs) {
+    var merged = new java.util.LinkedHashMap<>(prior);
+    if (todayAttrs != null) {
+      for (var attr : todayAttrs) {
+        if (attr.isin() == null || attr.isin().isBlank()) {
+          continue;
+        }
+        merged.merge(attr.isin(), attr.contribution(), BigDecimal::add);
+      }
+    }
+    return merged;
+  }
+
+  private static BigDecimal toBd(Object value) {
+    if (value == null) return ZERO;
+    if (value instanceof BigDecimal bd) return bd;
+    if (value instanceof Number n) return new BigDecimal(n.toString());
+    if (value instanceof String s && !s.isBlank()) {
+      try {
+        return new BigDecimal(s);
+      } catch (NumberFormatException e) {
+        log.warn("Unparseable BigDecimal in JSONB: value={}", s);
+        return ZERO;
+      }
+    }
+    if (!(value instanceof String)) {
+      log.warn("Unexpected type in JSONB numeric field: type={}", value.getClass().getSimpleName());
+    }
+    return ZERO;
   }
 
   private TrackingDifferenceResult updateConsecutiveCount(
@@ -647,11 +802,44 @@ class TrackingDifferenceService {
       return result.toBuilder().consecutiveBreachDays(0).consecutiveNetTd(ZERO).build();
     }
     int days = priorBreaches.count() + 1;
-    var netTd = priorBreaches.netTd().add(result.trackingDifference());
-    return result.toBuilder().consecutiveBreachDays(days).consecutiveNetTd(netTd).build();
+
+    var compoundedFund =
+        BigDecimal.ONE
+            .add(priorBreaches.compoundedFundReturn())
+            .multiply(BigDecimal.ONE.add(result.fundReturn()))
+            .subtract(BigDecimal.ONE);
+    var compoundedBenchmark =
+        BigDecimal.ONE
+            .add(priorBreaches.compoundedBenchmarkReturn())
+            .multiply(BigDecimal.ONE.add(result.benchmarkReturn()))
+            .subtract(BigDecimal.ONE);
+    var compoundedTd = compoundedFund.subtract(compoundedBenchmark);
+
+    return result.toBuilder()
+        .consecutiveBreachDays(days)
+        .consecutiveNetTd(compoundedTd)
+        .compoundedFundReturn(compoundedFund)
+        .compoundedBenchmarkReturn(compoundedBenchmark)
+        .escalationAttributions(
+            mergeAttributions(priorBreaches.contributionByIsin(), result.securityAttributions()))
+        .escalationCashDrag(
+            priorBreaches.cashDragSum().add(result.cashDrag() != null ? result.cashDrag() : ZERO))
+        .escalationFeeDrag(
+            priorBreaches.feeDragSum().add(result.feeDrag() != null ? result.feeDrag() : ZERO))
+        .escalationResidual(
+            priorBreaches.residualSum().add(result.residual() != null ? result.residual() : ZERO))
+        .build();
   }
 
-  record ConsecutiveBreachInfo(int count, BigDecimal netTd) {}
+  record ConsecutiveBreachInfo(
+      int count,
+      BigDecimal compoundedTd,
+      BigDecimal compoundedFundReturn,
+      BigDecimal compoundedBenchmarkReturn,
+      Map<String, BigDecimal> contributionByIsin,
+      BigDecimal cashDragSum,
+      BigDecimal feeDragSum,
+      BigDecimal residualSum) {}
 
   private void saveEvent(TrackingDifferenceResult result) {
     var event =

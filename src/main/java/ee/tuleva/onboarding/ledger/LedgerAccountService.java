@@ -8,7 +8,9 @@ import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -16,18 +18,31 @@ import org.springframework.stereotype.Service;
 class LedgerAccountService {
 
   private final LedgerAccountRepository ledgerAccountRepository;
+  private final JdbcClient jdbcClient;
 
   LedgerAccount createUserAccount(LedgerParty owner, UserAccount userAccount) {
-    var ledgerAccount =
-        LedgerAccount.builder()
-            .owner(owner)
-            .name(userAccount.name())
-            .purpose(USER_ACCOUNT)
-            .assetType(userAccount.getAssetType())
-            .accountType(userAccount.getAccountType())
-            .build();
+    insertUserAccountIfAbsent(owner, userAccount);
+    return findUserAccount(owner, userAccount).orElseThrow();
+  }
 
-    return ledgerAccountRepository.save(ledgerAccount);
+  void insertUserAccountIfAbsent(LedgerParty owner, UserAccount userAccount) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO ledger.account (id, owner_party_id, name, purpose, account_type, asset_type)
+            VALUES (:id, :ownerPartyId, :name,
+                    CAST(:purpose AS ledger.account_purpose),
+                    CAST(:accountType AS ledger.account_type),
+                    CAST(:assetType AS ledger.asset_type))
+            ON CONFLICT DO NOTHING
+            """)
+        .param("id", UUID.randomUUID())
+        .param("ownerPartyId", owner.getId())
+        .param("name", userAccount.name())
+        .param("purpose", USER_ACCOUNT.name())
+        .param("accountType", userAccount.getAccountType().name())
+        .param("assetType", userAccount.getAssetType().name())
+        .update();
   }
 
   public Optional<LedgerAccount> findUserAccount(LedgerParty owner, UserAccount userAccount) {

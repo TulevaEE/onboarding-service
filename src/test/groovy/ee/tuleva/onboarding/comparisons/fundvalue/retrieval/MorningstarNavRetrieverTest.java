@@ -43,6 +43,15 @@ class MorningstarNavRetrieverTest {
   }
 
   @Test
+  void exposesMorningstarStorageKeysAsExpectedStorageKeys() {
+    assertThat(retriever.expectedStorageKeys())
+        .containsExactlyInAnyOrderElementsOf(
+            FundTicker.getMorningstarFunds().stream()
+                .map(fund -> fund.getMorningstarStorageKey().orElseThrow())
+                .toList());
+  }
+
+  @Test
   void parsesNavFromMorningstarApiResponse() {
     mockAllFunds(morningstarResponse("33.99", "2026-02-17"));
 

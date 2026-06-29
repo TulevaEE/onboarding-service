@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.report;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -20,6 +21,7 @@ public class InvestmentReportService {
 
   private final InvestmentReportRepository repository;
   private final CsvToJsonConverter csvConverter;
+  private final Clock clock;
 
   @Transactional
   public InvestmentReport saveReport(
@@ -57,7 +59,7 @@ public class InvestmentReportService {
             .reportDate(reportDate)
             .rawData(rawData)
             .metadata(metadata)
-            .createdAt(Instant.now())
+            .createdAt(Instant.now(clock))
             .build();
 
     log.info(
@@ -73,6 +75,11 @@ public class InvestmentReportService {
   public Optional<InvestmentReport> getReport(
       ReportProvider provider, ReportType reportType, LocalDate reportDate) {
     return repository.findByProviderAndReportTypeAndReportDate(provider, reportType, reportDate);
+  }
+
+  public Optional<InvestmentReport> getLatestReport(
+      ReportProvider provider, ReportType reportType) {
+    return repository.findTopByProviderAndReportTypeOrderByReportDateDesc(provider, reportType);
   }
 
   private byte[] readAllBytes(InputStream stream) {

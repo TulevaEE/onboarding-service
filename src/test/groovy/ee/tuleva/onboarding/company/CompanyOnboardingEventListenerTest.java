@@ -2,14 +2,19 @@ package ee.tuleva.onboarding.company;
 
 import static ee.tuleva.onboarding.company.RelationshipType.*;
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOnly;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.shareholderOwner;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.ariregister.RepresentationRight;
 import ee.tuleva.onboarding.kyb.*;
-import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -20,41 +25,23 @@ class CompanyOnboardingEventListenerTest {
 
   private final CompanyRepository companyRepository = mock(CompanyRepository.class);
   private final CompanyPartyRepository companyPartyRepository = mock(CompanyPartyRepository.class);
+  private final CompanyRepresentationRightRepository companyRepresentationRightRepository =
+      mock(CompanyRepresentationRightRepository.class);
   private final CompanyOnboardingEventListener listener =
-      new CompanyOnboardingEventListener(companyRepository, companyPartyRepository);
+      new CompanyOnboardingEventListener(
+          companyRepository, companyPartyRepository, companyRepresentationRightRepository);
 
   private final CompanyDto company =
       new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ);
 
   // board member + shareholder + beneficial owner
-  private final KybRelatedPerson person1 =
-      new KybRelatedPerson(
-          new PersonalCode("38501010001"),
-          true,
-          true,
-          true,
-          BigDecimal.valueOf(50),
-          KybKycStatus.COMPLETED);
+  private final KybRelatedPerson person1 = boardMemberOwner("38501010001", 50.0).build();
 
   // board member only
-  private final KybRelatedPerson person2 =
-      new KybRelatedPerson(
-          new PersonalCode("38501010002"),
-          true,
-          false,
-          false,
-          BigDecimal.ZERO,
-          KybKycStatus.COMPLETED);
+  private final KybRelatedPerson person2 = boardMemberOnly("38501010002").build();
 
   // shareholder + beneficial owner, not a board member
-  private final KybRelatedPerson person3 =
-      new KybRelatedPerson(
-          new PersonalCode("38501010003"),
-          false,
-          true,
-          true,
-          BigDecimal.valueOf(50),
-          KybKycStatus.COMPLETED);
+  private final KybRelatedPerson person3 = shareholderOwner("38501010003", 50.0).build();
 
   @Test
   void createsCompanyAndAllPartyRelationshipsWhenAllChecksPass() {
@@ -68,7 +55,8 @@ class CompanyOnboardingEventListenerTest {
             company,
             new PersonalCode("38501010001"),
             List.of(person1, person2, person3),
-            checks);
+            checks,
+            List.of());
     given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.empty());
     given(companyRepository.save(any(Company.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
@@ -101,12 +89,59 @@ class CompanyOnboardingEventListenerTest {
   }
 
   @Test
+  void capturesRepresentationRightsWhenAllChecksPass() {
+    var existing =
+        Company.builder().id(java.util.UUID.randomUUID()).registryCode("12345678").build();
+    var checks = List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of()));
+    var rights =
+        List.of(
+            new RepresentationRight(
+                "AINUESINDUS",
+                "Juhatuse liige esindab äriühingut ainuisikuliselt",
+                "Nõukogu nõusolek nõutav",
+                LocalDate.of(2023, 1, 15),
+                null,
+                12345L),
+            new RepresentationRight("YHISESINDUS", "Ühine esindusõigus", null, null, null, 67890L));
+    var event =
+        new KybCheckPerformedEvent(
+            this, company, new PersonalCode("38501010001"), List.of(person2), checks, rights);
+    given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.of(existing));
+
+    listener.onKybCheckPerformed(event);
+
+    var captor = ArgumentCaptor.forClass(CompanyRepresentationRight.class);
+    verify(companyRepresentationRightRepository).deleteByCompanyId(existing.getId());
+    verify(companyRepresentationRightRepository, times(2)).save(captor.capture());
+
+    assertThat(captor.getAllValues())
+        .extracting(
+            CompanyRepresentationRight::getCompanyId,
+            CompanyRepresentationRight::getEntryId,
+            CompanyRepresentationRight::getRepresentationType,
+            CompanyRepresentationRight::getRepresentationTypeText,
+            CompanyRepresentationRight::getContent,
+            CompanyRepresentationRight::getStartDate,
+            CompanyRepresentationRight::getEndDate)
+        .containsExactly(
+            tuple(
+                existing.getId(),
+                12345L,
+                "AINUESINDUS",
+                "Juhatuse liige esindab äriühingut ainuisikuliselt",
+                "Nõukogu nõusolek nõutav",
+                LocalDate.of(2023, 1, 15),
+                null),
+            tuple(existing.getId(), 67890L, "YHISESINDUS", "Ühine esindusõigus", null, null, null));
+  }
+
+  @Test
   void usesExistingCompanyIfAlreadyExists() {
     var existing = Company.builder().registryCode("12345678").name("Test OÜ").build();
     var checks = List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of()));
     var event =
         new KybCheckPerformedEvent(
-            this, company, new PersonalCode("38501010001"), List.of(person2), checks);
+            this, company, new PersonalCode("38501010001"), List.of(person2), checks, List.of());
     given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.of(existing));
 
     listener.onKybCheckPerformed(event);
@@ -129,7 +164,7 @@ class CompanyOnboardingEventListenerTest {
             new KybCheck(DATA_CHANGED, true, Map.of()));
     var event =
         new KybCheckPerformedEvent(
-            this, company, new PersonalCode("38501010001"), List.of(person2), checks);
+            this, company, new PersonalCode("38501010001"), List.of(person2), checks, List.of());
     given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.of(existing));
 
     listener.onKybCheckPerformed(event);
@@ -154,7 +189,7 @@ class CompanyOnboardingEventListenerTest {
             new KybCheck(DATA_CHANGED, false, Map.of()));
     var event =
         new KybCheckPerformedEvent(
-            this, company, new PersonalCode("38501010001"), List.of(person1), checks);
+            this, company, new PersonalCode("38501010001"), List.of(person1), checks, List.of());
     given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.of(existing));
 
     listener.onKybCheckPerformed(event);
@@ -172,7 +207,7 @@ class CompanyOnboardingEventListenerTest {
             new KybCheck(DATA_CHANGED, false, Map.of()));
     var event =
         new KybCheckPerformedEvent(
-            this, company, new PersonalCode("38501010001"), List.of(person1), checks);
+            this, company, new PersonalCode("38501010001"), List.of(person1), checks, List.of());
     given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.empty());
     given(companyRepository.save(any(Company.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
@@ -184,7 +219,26 @@ class CompanyOnboardingEventListenerTest {
   }
 
   @Test
-  void doesNothingWhenNonDataChangedCheckFails() {
+  void createsCompanyWhenOnlyRiskSignalCheckFailsAndCompanyDoesNotExist() {
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(COMPANY_AGE, false, Map.of()));
+    var event =
+        new KybCheckPerformedEvent(
+            this, company, new PersonalCode("38501010001"), List.of(person1), checks, List.of());
+    given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.empty());
+    given(companyRepository.save(any(Company.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+
+    listener.onKybCheckPerformed(event);
+
+    verify(companyRepository).save(any(Company.class));
+    verify(companyPartyRepository, times(3)).save(any(CompanyParty.class));
+  }
+
+  @Test
+  void createsCompanyButLeavesPartiesUntouchedWhenNonDataChangedCheckFailsForNewCompany() {
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
@@ -192,27 +246,43 @@ class CompanyOnboardingEventListenerTest {
             new KybCheck(DATA_CHANGED, false, Map.of()));
     var event =
         new KybCheckPerformedEvent(
-            this, company, new PersonalCode("38501010001"), List.of(person1), checks);
+            this, company, new PersonalCode("38501010001"), List.of(person1), checks, List.of());
+    given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.empty());
+    given(companyRepository.save(any(Company.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
 
     listener.onKybCheckPerformed(event);
 
-    verifyNoInteractions(companyRepository);
-    verifyNoInteractions(companyPartyRepository);
+    verify(companyRepository).save(any(Company.class));
+    verify(companyPartyRepository, never()).save(any());
+    verify(companyPartyRepository, never()).deleteByCompanyId(any());
+    verify(companyRepresentationRightRepository, never()).save(any());
+    verify(companyRepresentationRightRepository, never()).deleteByCompanyId(any());
   }
 
   @Test
-  void doesNothingWhenNonDataChangedCheckFailsAndDataUnchanged() {
+  void reusesCompanyButLeavesPartiesUntouchedWhenNonDataChangedCheckFailsForExistingCompany() {
+    var existing =
+        Company.builder()
+            .id(java.util.UUID.randomUUID())
+            .registryCode("12345678")
+            .name("Test OÜ")
+            .build();
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(COMPANY_STRUCTURE, false, Map.of()));
     var event =
         new KybCheckPerformedEvent(
-            this, company, new PersonalCode("38501010001"), List.of(person1), checks);
+            this, company, new PersonalCode("38501010001"), List.of(person1), checks, List.of());
+    given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.of(existing));
 
     listener.onKybCheckPerformed(event);
 
-    verifyNoInteractions(companyRepository);
-    verifyNoInteractions(companyPartyRepository);
+    verify(companyRepository, never()).save(any());
+    verify(companyPartyRepository, never()).save(any());
+    verify(companyPartyRepository, never()).deleteByCompanyId(any());
+    verify(companyRepresentationRightRepository, never()).save(any());
+    verify(companyRepresentationRightRepository, never()).deleteByCompanyId(any());
   }
 }

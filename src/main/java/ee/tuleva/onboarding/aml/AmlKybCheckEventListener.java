@@ -1,14 +1,20 @@
 package ee.tuleva.onboarding.aml;
 
+import static ee.tuleva.onboarding.kyb.KybCheckPerformedEventOrder.ATTRIBUTE_AML_CHECKS;
 import static java.util.Map.entry;
 
+import ee.tuleva.onboarding.company.Company;
+import ee.tuleva.onboarding.company.CompanyRepository;
+import ee.tuleva.onboarding.kyb.CompanyDto;
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCheckPerformedEvent;
 import ee.tuleva.onboarding.kyb.KybCheckType;
 import ee.tuleva.onboarding.kyb.PersonalCode;
 import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,8 +28,10 @@ public class AmlKybCheckEventListener {
           entry(KybCheckType.SOLE_MEMBER_OWNERSHIP, AmlCheckType.KYB_SOLE_MEMBER_OWNERSHIP),
           entry(KybCheckType.DUAL_MEMBER_OWNERSHIP, AmlCheckType.KYB_DUAL_MEMBER_OWNERSHIP),
           entry(
-              KybCheckType.SOLE_BOARD_MEMBER_IS_OWNER, AmlCheckType.KYB_SOLE_BOARD_MEMBER_IS_OWNER),
+              KybCheckType.SINGLE_BOARD_MEMBER_OWNERSHIP,
+              AmlCheckType.KYB_SINGLE_BOARD_MEMBER_OWNERSHIP),
           entry(KybCheckType.COMPANY_ACTIVE, AmlCheckType.KYB_COMPANY_ACTIVE),
+          entry(KybCheckType.COMPANY_AGE, AmlCheckType.KYB_COMPANY_AGE),
           entry(KybCheckType.RELATED_PERSONS_KYC, AmlCheckType.KYB_RELATED_PERSONS_KYC),
           entry(KybCheckType.COMPANY_SANCTION, AmlCheckType.KYB_COMPANY_SANCTION),
           entry(KybCheckType.COMPANY_PEP, AmlCheckType.KYB_COMPANY_PEP),
@@ -36,18 +44,30 @@ public class AmlKybCheckEventListener {
           entry(KybCheckType.DATA_CHANGED, AmlCheckType.KYB_DATA_CHANGED));
 
   private final AmlService amlService;
+  private final CompanyRepository companyRepository;
 
+  @Order(ATTRIBUTE_AML_CHECKS)
   @EventListener
   @Transactional
   public void onKybCheckPerformed(KybCheckPerformedEvent event) {
+    UUID companyId = resolveCompanyId(event.getCompany());
     event
         .getChecks()
-        .forEach(check -> amlService.addCheck(toAmlCheck(event.getPersonalCode(), check)));
+        .forEach(
+            check -> amlService.addCheck(toAmlCheck(event.getPersonalCode(), companyId, check)));
   }
 
-  private AmlCheck toAmlCheck(PersonalCode personalCode, KybCheck kybCheck) {
+  private UUID resolveCompanyId(CompanyDto company) {
+    return companyRepository
+        .findByRegistryCode(company.registryCode().value())
+        .map(Company::getId)
+        .orElse(null);
+  }
+
+  private AmlCheck toAmlCheck(PersonalCode personalCode, UUID companyId, KybCheck kybCheck) {
     return AmlCheck.builder()
         .personalCode(personalCode.value())
+        .companyId(companyId)
         .type(TYPE_MAPPING.get(kybCheck.type()))
         .success(kybCheck.success())
         .metadata(kybCheck.metadata())

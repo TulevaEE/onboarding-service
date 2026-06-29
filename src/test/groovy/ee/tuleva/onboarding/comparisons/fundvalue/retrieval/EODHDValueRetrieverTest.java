@@ -45,6 +45,13 @@ class EODHDValueRetrieverTest {
   }
 
   @Test
+  void exposesAllEodhdTickersAndForexAsExpectedStorageKeys() {
+    assertThat(retriever.expectedStorageKeys())
+        .containsAll(FundTicker.getEodhdTickers())
+        .contains("EURUSD.FOREX");
+  }
+
+  @Test
   void stripsProviderSuffixFromApiCallButKeepsItInStoredKey() {
     var mockResponse =
         """

@@ -1,0 +1,12 @@
+{
+  "name": "tuleva-devloop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "login": "node tuleva-login.mjs",
+    "q": "node tuleva-q.mjs",
+    "drive": "node drive-live.mjs"
+  },
+  "dependencies": { "playwright": "^1.49.0" }
+}

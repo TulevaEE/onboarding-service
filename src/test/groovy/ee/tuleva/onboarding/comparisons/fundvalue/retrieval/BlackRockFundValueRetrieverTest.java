@@ -41,6 +41,15 @@ class BlackRockFundValueRetrieverTest {
   }
 
   @Test
+  void exposesBlackrockStorageKeysAsExpectedStorageKeys() {
+    assertThat(retriever.expectedStorageKeys())
+        .containsExactlyInAnyOrderElementsOf(
+            FundTicker.getBlackrockFunds().stream()
+                .map(fund -> fund.getBlackrockStorageKey().orElseThrow())
+                .toList());
+  }
+
+  @Test
   void parsesNavDataWithCorrectMonthOffset() {
     var fund = FundTicker.getBlackrockFunds().getFirst();
     var storageKey = fund.getBlackrockStorageKey().orElseThrow();

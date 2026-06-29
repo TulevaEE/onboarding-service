@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.kyb.screener;
 
-import static ee.tuleva.onboarding.kyb.CompanyStatus.R;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_STRUCTURE;
 import static ee.tuleva.onboarding.kyb.KybKycStatus.COMPLETED;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import ee.tuleva.onboarding.kyb.*;
 import java.math.BigDecimal;
-import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class CompanyStructureScreenerTest {
@@ -16,22 +16,18 @@ class CompanyStructureScreenerTest {
 
   @Test
   void singlePersonWithPersonalCodePasses() {
-    var data = companyWith(List.of(identifiedPerson()));
+    var data = companyWith(identifiedPerson());
 
     var result = screener.screen(data);
 
-    assertThat(result).hasSize(1);
-    assertThat(result.getFirst().type()).isEqualTo(COMPANY_STRUCTURE);
-    assertThat(result.getFirst().success()).isTrue();
+    assertThat(result)
+        .extracting(KybCheck::type, KybCheck::success)
+        .containsExactly(tuple(COMPANY_STRUCTURE, true));
   }
 
   @Test
   void twoPersonsWithPersonalCodesPasses() {
-    var data =
-        companyWith(
-            List.of(
-                identifiedPerson(new PersonalCode("38501010002")),
-                identifiedPerson(new PersonalCode("49001010001"))));
+    var data = companyWith(identifiedPerson("38501010002"), identifiedPerson("49001010001"));
 
     var result = screener.screen(data);
 
@@ -42,10 +38,9 @@ class CompanyStructureScreenerTest {
   void threePersonsFails() {
     var data =
         companyWith(
-            List.of(
-                identifiedPerson(new PersonalCode("38501010002")),
-                identifiedPerson(new PersonalCode("49001010001")),
-                identifiedPerson(new PersonalCode("37801010009"))));
+            identifiedPerson("38501010002"),
+            identifiedPerson("49001010001"),
+            identifiedPerson("37801010009"));
 
     var result = screener.screen(data);
 
@@ -55,8 +50,14 @@ class CompanyStructureScreenerTest {
   @Test
   void nullPersonalCodeFails() {
     var unidentified =
-        new KybRelatedPerson(null, false, true, true, BigDecimal.valueOf(50), COMPLETED);
-    var data = companyWith(List.of(identifiedPerson(), unidentified));
+        kybPerson()
+            .personalCode(null)
+            .shareholder(true)
+            .beneficialOwner(true)
+            .ownershipPercent(BigDecimal.valueOf(50))
+            .kycStatus(COMPLETED)
+            .build();
+    var data = companyWith(identifiedPerson(), unidentified);
 
     var result = screener.screen(data);
 
@@ -65,7 +66,7 @@ class CompanyStructureScreenerTest {
 
   @Test
   void metadataContainsRelatedPersonCount() {
-    var data = companyWith(List.of(identifiedPerson()));
+    var data = companyWith(identifiedPerson());
 
     var result = screener.screen(data);
 
@@ -74,22 +75,39 @@ class CompanyStructureScreenerTest {
         .containsEntry("allIdentified", true);
   }
 
+  @Test
+  void legalEntityRelatedPersonFails() {
+    var legalEntityOwner =
+        kybPerson("90000002")
+            .naturalPerson(false)
+            .shareholder(true)
+            .beneficialOwner(true)
+            .ownershipPercent(BigDecimal.valueOf(100))
+            .kycStatus(COMPLETED)
+            .build();
+    var data = companyWith(legalEntityOwner);
+
+    var result = screener.screen(data);
+
+    assertThat(result.getFirst().success()).isFalse();
+  }
+
+  @Test
+  void twoRelatedPersonsWithNoBoardMemberFails() {
+    var owner1 = shareholderOwner("38501010002", 50.0).build();
+    var owner2 = shareholderOwner("49001010001", 50.0).build();
+    var data = companyWith(owner1, owner2);
+
+    var result = screener.screen(data);
+
+    assertThat(result.getFirst().success()).isFalse();
+  }
+
   private KybRelatedPerson identifiedPerson() {
-    return identifiedPerson(new PersonalCode("38501010002"));
+    return identifiedPerson("38501010002");
   }
 
-  private KybRelatedPerson identifiedPerson(PersonalCode code) {
-    return new KybRelatedPerson(code, true, true, true, BigDecimal.valueOf(100), COMPLETED);
-  }
-
-  private KybCompanyData companyWith(List<KybRelatedPerson> persons) {
-    return new KybCompanyData(
-        new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
-        new PersonalCode("38501010002"),
-        R,
-        persons,
-        new SelfCertification(true, true, true),
-        "EE",
-        "Harju maakond, Tallinn, Pärnu mnt 1");
+  private KybRelatedPerson identifiedPerson(String code) {
+    return boardMemberOwner(code, 100.0).build();
   }
 }

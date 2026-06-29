@@ -73,6 +73,150 @@ class TdAttributionCalculatorTest {
   }
 
   @Test
+  void linkingFactorStaysBoundedWhenArithmeticTdNearlyCancels() {
+    // Daily TDs alternate +20bps / -20bps, so the arithmetic TD sum is ~0 while the
+    // geometric TD is small but non-zero. The old single-scalar scale = tdGeo/tdArith
+    // blew up here; the Cariño period link multiplier stays ~1.
+    var days = new ArrayList<DailyRecord>();
+    for (int i = 0; i < 20; i++) {
+      var fund = i % 2 == 0 ? "0.0030" : "0.0010";
+      var model = i % 2 == 0 ? "0.0010" : "0.0030";
+      days.add(
+          dailyRecord(PERIOD_START.plusDays(i), fund, model, "1000000", "10000", "0", List.of()));
+    }
+    var input = inputWith(days, new BigDecimal("-0.00022"), new BigDecimal("-0.00002"));
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.scalingFactor()).isCloseTo(BigDecimal.ONE, within(new BigDecimal("0.05")));
+    var componentSum =
+        result
+            .mgmtFeeDrag()
+            .add(result.depotFeeDrag())
+            .add(result.cashDrag())
+            .add(result.nonSecurityDrag())
+            .add(result.weightDeviation())
+            .add(result.transactionCosts())
+            .add(result.residual());
+    assertThat(componentSum).isCloseTo(result.tdGeometric(), within(new BigDecimal("0.00000001")));
+  }
+
+  @Test
+  void carinoLinkedWeightDeviationMatchesIndependentReference() {
+    // Pins the daily-linking math itself, NOT the residual plug: weightDeviation must equal an
+    // independently computed Σ(k_t · weightDiff_t · return_t) / k. Distinct daily fund/model
+    // returns make k_1 ≠ k_2, so a wrong coefficient or wrong divisor would fail here even though
+    // the residual would still close.
+    var sec1 =
+        SecurityDailyData.builder()
+            .isin("IE001")
+            .instrumentName("Sec")
+            .modelWeight(new BigDecimal("0.50"))
+            .actualWeight(new BigDecimal("0.55"))
+            .normalizedWeightDiff(new BigDecimal("0.05"))
+            .securityReturn(new BigDecimal("0.02"))
+            .build();
+    var sec2 =
+        SecurityDailyData.builder()
+            .isin("IE001")
+            .instrumentName("Sec")
+            .modelWeight(new BigDecimal("0.50"))
+            .actualWeight(new BigDecimal("0.47"))
+            .normalizedWeightDiff(new BigDecimal("-0.03"))
+            .securityReturn(new BigDecimal("-0.01"))
+            .build();
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "0.010", "0.012", "1000000", "0", "0", List.of(sec1)),
+            dailyRecord(
+                PERIOD_START.plusDays(1), "-0.005", "-0.003", "1000000", "0", "0", List.of(sec2)));
+    var input = inputWith(days, ZERO, ZERO);
+
+    var result = calculator.calculate(input);
+
+    var k1 = referenceCarino(0.010, 0.012);
+    var k2 = referenceCarino(-0.005, -0.003);
+    var fundCum = 1.010 * 0.995 - 1.0;
+    var modelCum = 1.012 * 0.997 - 1.0;
+    var k = referenceCarino(fundCum, modelCum);
+    var num = k1 * (0.05 * 0.02) + k2 * (-0.03 * -0.01);
+    var expected = BigDecimal.valueOf(num / k);
+
+    assertThat(result.weightDeviation()).isCloseTo(expected, within(new BigDecimal("0.00000001")));
+  }
+
+  @Test
+  void carinoLinkingIsExactForVolatileMultiDayReturns() {
+    // Two securities with day-varying weights and returns; components must still sum
+    // exactly to the geometric TD after Cariño linking.
+    var days = new ArrayList<DailyRecord>();
+    for (int i = 0; i < 15; i++) {
+      var r1 = i % 3 == 0 ? "0.02" : "-0.01";
+      var r2 = i % 2 == 0 ? "-0.015" : "0.018";
+      var sec1 =
+          SecurityDailyData.builder()
+              .isin("IE001")
+              .instrumentName("Sec One")
+              .modelWeight(new BigDecimal("0.50"))
+              .actualWeight(new BigDecimal("0.55"))
+              .normalizedWeightDiff(new BigDecimal("0.05"))
+              .securityReturn(new BigDecimal(r1))
+              .build();
+      var sec2 =
+          SecurityDailyData.builder()
+              .isin("IE002")
+              .instrumentName("Sec Two")
+              .modelWeight(new BigDecimal("0.50"))
+              .actualWeight(new BigDecimal("0.45"))
+              .normalizedWeightDiff(new BigDecimal("-0.05"))
+              .securityReturn(new BigDecimal(r2))
+              .build();
+      var fund = i % 2 == 0 ? "0.004" : "-0.002";
+      var model = i % 2 == 0 ? "0.003" : "-0.001";
+      days.add(
+          dailyRecord(
+              PERIOD_START.plusDays(i), fund, model, "1000000", "5000", "0", List.of(sec1, sec2)));
+    }
+    var input = inputWith(days, new BigDecimal("-0.00022"), ZERO);
+
+    var result = calculator.calculate(input);
+
+    var componentSum =
+        result
+            .mgmtFeeDrag()
+            .add(result.depotFeeDrag())
+            .add(result.cashDrag())
+            .add(result.nonSecurityDrag())
+            .add(result.weightDeviation())
+            .add(result.transactionCosts())
+            .add(result.residual());
+    assertThat(componentSum).isCloseTo(result.tdGeometric(), within(new BigDecimal("0.00000001")));
+    // Per-instrument linked contributions reconcile to the aggregate weight deviation.
+    var instrumentSum =
+        result.instrumentDetails().stream()
+            .map(d -> d.weightDevContribution())
+            .reduce(ZERO, BigDecimal::add);
+    assertThat(instrumentSum)
+        .isCloseTo(result.weightDeviation(), within(new BigDecimal("0.0000001")));
+  }
+
+  @Test
+  void returnAtOrBelowMinusOneDoesNotThrow() {
+    // ln(1+x) is undefined for x <= -1; a -100% day must not crash the calculator.
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "-1.0", "0.001", "1000000", "10000", "0", List.of()),
+            dailyRecord(
+                PERIOD_START.plusDays(1), "0.001", "0.001", "1000000", "10000", "0", List.of()));
+    var input = inputWith(days, ZERO, ZERO);
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.tdGeometric()).isNotNull();
+    assertThat(result.scalingFactor()).isNotNull();
+  }
+
+  @Test
   void cashDragIsNegativeWhenModelReturnPositive() {
     var days =
         List.of(dailyRecord(PERIOD_START, "0.0008", "0.001", "1000000", "20000", "0", List.of()));
@@ -192,6 +336,83 @@ class TdAttributionCalculatorTest {
   }
 
   @Test
+  void instrumentDetailsCarryInstrumentName() {
+    var sec =
+        SecurityDailyData.builder()
+            .isin("IE00BFG1TM61")
+            .instrumentName("iShares Developed World Screened Index Fund")
+            .modelWeight(new BigDecimal("0.295"))
+            .actualWeight(new BigDecimal("0.291"))
+            .normalizedWeightDiff(new BigDecimal("-0.004"))
+            .securityReturn(new BigDecimal("0.003"))
+            .build();
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "0.001", "0.0012", "1000000", "10000", "0", List.of(sec)));
+    var input = inputWith(days, ZERO, ZERO);
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.instrumentDetails().getFirst().instrumentName())
+        .isEqualTo("iShares Developed World Screened Index Fund");
+  }
+
+  @Test
+  void instrumentNameFallsBackToIsinWhenMissing() {
+    var sec =
+        SecurityDailyData.builder()
+            .isin("IE00BFG1TM61")
+            .modelWeight(new BigDecimal("0.295"))
+            .actualWeight(new BigDecimal("0.291"))
+            .normalizedWeightDiff(new BigDecimal("-0.004"))
+            .securityReturn(new BigDecimal("0.003"))
+            .build();
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "0.001", "0.0012", "1000000", "10000", "0", List.of(sec)));
+    var input = inputWith(days, ZERO, ZERO);
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.instrumentDetails().getFirst().instrumentName()).isEqualTo("IE00BFG1TM61");
+  }
+
+  @Test
+  void securityReturnCompoundsGeometricallyAcrossDays() {
+    // Same security on two days: +1% then +2%. Geometric = 1.01*1.02-1 = 0.0302,
+    // which differs from the arithmetic sum 0.03 by the cross term 0.0002.
+    var day1Sec =
+        SecurityDailyData.builder()
+            .isin("IE001")
+            .instrumentName("Sec One")
+            .modelWeight(new BigDecimal("1.0"))
+            .actualWeight(new BigDecimal("1.0"))
+            .normalizedWeightDiff(ZERO)
+            .securityReturn(new BigDecimal("0.01"))
+            .build();
+    var day2Sec =
+        SecurityDailyData.builder()
+            .isin("IE001")
+            .instrumentName("Sec One")
+            .modelWeight(new BigDecimal("1.0"))
+            .actualWeight(new BigDecimal("1.0"))
+            .normalizedWeightDiff(ZERO)
+            .securityReturn(new BigDecimal("0.02"))
+            .build();
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "0.001", "0.001", "1000000", "0", "0", List.of(day1Sec)),
+            dailyRecord(
+                PERIOD_START.plusDays(1), "0.001", "0.001", "1000000", "0", "0", List.of(day2Sec)));
+    var input = inputWith(days, ZERO, ZERO);
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.instrumentDetails().getFirst().securityReturn())
+        .isEqualByComparingTo(new BigDecimal("0.0302"));
+  }
+
+  @Test
   void feeXcheckDetectsDivergence() {
     var days = buildConstantDays(30, "0.0005", "0.0007");
     var mgmtFee = new BigDecimal("-0.00050");
@@ -286,6 +507,15 @@ class TdAttributionCalculatorTest {
   }
 
   // --- helpers ---
+
+  // Independent reference implementation of the Cariño coefficient for cross-checking the
+  // production carinoCoefficient()/linkDaily() math in tests.
+  private static double referenceCarino(double r, double b) {
+    if (Math.abs(r - b) < 1e-12) {
+      return 1.0 / (1.0 + r);
+    }
+    return (Math.log1p(r) - Math.log1p(b)) / (r - b);
+  }
 
   private List<DailyRecord> buildConstantDays(
       int count, String fundReturnStr, String modelReturnStr) {

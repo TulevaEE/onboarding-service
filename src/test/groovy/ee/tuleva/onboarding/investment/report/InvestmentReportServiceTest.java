@@ -1,14 +1,20 @@
 package ee.tuleva.onboarding.investment.report;
 
+import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
+import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -22,8 +28,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class InvestmentReportServiceTest {
 
+  private static final Instant NOW = Instant.parse("2026-01-15T09:00:00Z");
+
   @Mock private InvestmentReportRepository repository;
   @Spy private CsvToJsonConverter csvConverter = new CsvToJsonConverter();
+  @Spy private Clock clock = Clock.fixed(NOW, ZoneId.of("Europe/Tallinn"));
   @InjectMocks private InvestmentReportService service;
 
   @Test
@@ -57,7 +66,7 @@ class InvestmentReportServiceTest {
     assertThat(result.getRawData()).hasSize(1);
     assertThat(result.getRawData().getFirst().get("col1")).isEqualTo("val1");
     assertThat(result.getMetadata().get("filename")).isEqualTo("test.csv");
-    assertThat(result.getCreatedAt()).isNotNull();
+    assertThat(result.getCreatedAt()).isEqualTo(NOW);
   }
 
   @Test
@@ -93,5 +102,20 @@ class InvestmentReportServiceTest {
     assertThat(result.getRawData()).hasSize(1);
     assertThat(result.getRawData().getFirst().get("col1")).isEqualTo("newval");
     assertThat(result.getMetadata().get("updated")).isEqualTo("true");
+  }
+
+  @Test
+  void getLatestReport_returnsNewestReportForProviderAndType() {
+    InvestmentReport latest =
+        InvestmentReport.builder()
+            .id(9L)
+            .provider(SEB)
+            .reportType(PENDING_TRANSACTIONS)
+            .reportDate(LocalDate.of(2026, 5, 18))
+            .build();
+    given(repository.findTopByProviderAndReportTypeOrderByReportDateDesc(SEB, PENDING_TRANSACTIONS))
+        .willReturn(Optional.of(latest));
+
+    assertThat(service.getLatestReport(SEB, PENDING_TRANSACTIONS)).contains(latest);
   }
 }

@@ -113,7 +113,7 @@ class PortfolioCostBasisSelfHealIT {
                 .instrumentIsin(INSTRUMENT_ISIN)
                 .transactionType(BUY)
                 .instrumentType(ETF)
-                .orderQuantity(Long.parseLong(qty.split("\\.")[0]))
+                .orderQuantity(new BigDecimal(qty))
                 .orderVenue(SEB)
                 .orderTimestamp(date.atStartOfDay().toInstant(ZoneOffset.UTC))
                 .orderUuid(UUID.randomUUID())

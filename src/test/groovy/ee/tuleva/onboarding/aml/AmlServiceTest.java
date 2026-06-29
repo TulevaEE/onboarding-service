@@ -2,12 +2,15 @@ package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.*;
+import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.HIGH;
+import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static java.util.Arrays.stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 import static org.mockito.quality.Strictness.LENIENT;
 
@@ -24,9 +27,13 @@ import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
+import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -46,6 +53,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.springframework.context.ApplicationEventPublisher;
@@ -64,6 +72,9 @@ class AmlServiceTest {
   @Mock private PepAndSanctionCheckService pepAndSanctionCheckService;
   @Mock private AnalyticsRecentThirdPillarRepository analyticsRecentThirdPillarRepository;
   @Mock private UserConversionService userConversionService;
+  @Spy private JsonMapper jsonMapper = JsonMapper.builder().build();
+  @Spy private MeterRegistry meterRegistry = new SimpleMeterRegistry();
+  @Mock private OperationsNotificationService notificationService;
 
   @InjectMocks private AmlService amlService;
 
@@ -116,6 +127,75 @@ class AmlServiceTest {
   @AfterEach
   void tearDown() {
     ClockHolder.setDefaultClock();
+  }
+
+  @Test
+  void addKycCheck_persistsFreshPassingCheckWhenOnlyFailedCheckExists() {
+    given(
+            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
+                "38501010002", KYC_CHECK, true, aYearAgoFromTestClock))
+        .willReturn(false);
+
+    var result =
+        amlService.addKycCheck("38501010002", new KycCheck(LOW, Map.of("riskLevel", "LOW")));
+
+    assertThat(result)
+        .hasValueSatisfying(
+            check -> {
+              assertThat(check.getType()).isEqualTo(KYC_CHECK);
+              assertThat(check.isSuccess()).isTrue();
+              assertThat(check.getMetadata()).isEqualTo(Map.of("riskLevel", "LOW"));
+            });
+  }
+
+  @Test
+  void addKycCheck_persistsStillFailingRecheckWhenNoSuccessfulCheckExists() {
+    given(
+            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
+                "38501010002", KYC_CHECK, true, aYearAgoFromTestClock))
+        .willReturn(false);
+
+    var result =
+        amlService.addKycCheck("38501010002", new KycCheck(HIGH, Map.of("riskLevel", "HIGH")));
+
+    assertThat(result)
+        .hasValueSatisfying(
+            check -> {
+              assertThat(check.getType()).isEqualTo(KYC_CHECK);
+              assertThat(check.isSuccess()).isFalse();
+            });
+  }
+
+  @Test
+  void addKycCheck_skipsPassingRecheckWhenRecentSuccessfulCheckExists() {
+    given(
+            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
+                "38501010002", KYC_CHECK, true, aYearAgoFromTestClock))
+        .willReturn(true);
+
+    var result =
+        amlService.addKycCheck("38501010002", new KycCheck(LOW, Map.of("riskLevel", "LOW")));
+
+    assertThat(result).isEmpty();
+    verify(amlCheckRepository, never()).save(any(AmlCheck.class));
+  }
+
+  @Test
+  void addKycCheck_persistsAdverseRecheckEvenWhenRecentSuccessfulCheckExists() {
+    given(
+            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
+                "38501010002", KYC_CHECK, true, aYearAgoFromTestClock))
+        .willReturn(true);
+
+    var result =
+        amlService.addKycCheck("38501010002", new KycCheck(HIGH, Map.of("riskLevel", "HIGH")));
+
+    assertThat(result)
+        .hasValueSatisfying(
+            check -> {
+              assertThat(check.getType()).isEqualTo(KYC_CHECK);
+              assertThat(check.isSuccess()).isFalse();
+            });
   }
 
   @Test
@@ -647,6 +727,94 @@ class AmlServiceTest {
   }
 
   @Test
+  void overrideWithObjectShapedResultsMetadata_doesNotCrashAndAppliesOverride() {
+    User user = createUser("123", "First", "Last", 1L);
+    Country country = new Country("EE");
+
+    ArrayNode resultsArray = objectMapper.createArrayNode();
+    ObjectNode resultNode = JsonNodeFactory.instance.objectNode();
+    resultNode.put("id", "matchId123");
+    resultNode.put("match", true);
+    ObjectNode propertiesNode = JsonNodeFactory.instance.objectNode();
+    propertiesNode.set("topics", JsonNodeFactory.instance.arrayNode().add("role.pep"));
+    resultNode.set("properties", propertiesNode);
+    resultsArray.add(resultNode);
+    MatchResponse matchResponse =
+        new MatchResponse(resultsArray, JsonNodeFactory.instance.objectNode());
+
+    when(pepAndSanctionCheckService.match(user, country)).thenReturn(matchResponse);
+    when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+            anyString(), any(AmlCheckType.class), any(Instant.class)))
+        .thenReturn(false);
+
+    AmlCheck corruptOverride =
+        AmlCheck.builder()
+            .type(POLITICALLY_EXPOSED_PERSON_OVERRIDE)
+            .success(true)
+            .metadata(Map.of("results", Map.of("nodeType", "ARRAY", "array", true)))
+            .build();
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
+            user.getPersonalCode(), POLITICALLY_EXPOSED_PERSON_OVERRIDE, true))
+        .thenReturn(List.of(corruptOverride));
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
+            user.getPersonalCode(), SANCTION_OVERRIDE, true))
+        .thenReturn(List.of());
+
+    List<AmlCheck> addedChecks = amlService.addSanctionAndPepCheckIfMissing(user, country);
+
+    AmlCheck pepAutoCheck =
+        addedChecks.stream()
+            .filter(check -> check.getType() == POLITICALLY_EXPOSED_PERSON_AUTO)
+            .findFirst()
+            .orElseThrow();
+    assertThat(pepAutoCheck.isSuccess()).isTrue();
+  }
+
+  @Test
+  void overrideWithNonMatchingResults_doesNotApplyAndCheckFails() {
+    User user = createUser("123", "First", "Last", 1L);
+    Country country = new Country("EE");
+
+    ArrayNode resultsArray = objectMapper.createArrayNode();
+    ObjectNode resultNode = JsonNodeFactory.instance.objectNode();
+    resultNode.put("id", "currentMatch");
+    resultNode.put("match", true);
+    ObjectNode propertiesNode = JsonNodeFactory.instance.objectNode();
+    propertiesNode.set("topics", JsonNodeFactory.instance.arrayNode().add("role.pep"));
+    resultNode.set("properties", propertiesNode);
+    resultsArray.add(resultNode);
+    MatchResponse matchResponse =
+        new MatchResponse(resultsArray, JsonNodeFactory.instance.objectNode());
+
+    when(pepAndSanctionCheckService.match(user, country)).thenReturn(matchResponse);
+    when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+            anyString(), any(AmlCheckType.class), any(Instant.class)))
+        .thenReturn(false);
+
+    AmlCheck nonMatchingOverride =
+        AmlCheck.builder()
+            .type(POLITICALLY_EXPOSED_PERSON_OVERRIDE)
+            .success(true)
+            .metadata(Map.of("results", List.of("not-a-map", Map.of("id", "otherMatch"))))
+            .build();
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
+            user.getPersonalCode(), POLITICALLY_EXPOSED_PERSON_OVERRIDE, true))
+        .thenReturn(List.of(nonMatchingOverride));
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
+            user.getPersonalCode(), SANCTION_OVERRIDE, true))
+        .thenReturn(List.of());
+
+    List<AmlCheck> addedChecks = amlService.addSanctionAndPepCheckIfMissing(user, country);
+
+    AmlCheck pepAutoCheck =
+        addedChecks.stream()
+            .filter(check -> check.getType() == POLITICALLY_EXPOSED_PERSON_AUTO)
+            .findFirst()
+            .orElseThrow();
+    assertThat(pepAutoCheck.isSuccess()).isFalse();
+  }
+
+  @Test
   void addSanctionAndPepCheckIfMissing_handlesMatchServiceException() {
     // given
     User user = createUser("123", "First", "Last", 1L);
@@ -660,6 +828,91 @@ class AmlServiceTest {
     // then
     assertTrue(result.isEmpty(), "Should return an empty list on exception");
     verify(amlCheckRepository, never()).save(any());
+  }
+
+  @Test
+  void addSanctionAndPepCheckIfMissing_screeningFailureIsObservable() {
+    // given
+    User user = createUser("38001010000", "First", "Last", 1L);
+    Country country = new Country("EE");
+    when(pepAndSanctionCheckService.match(user, country))
+        .thenThrow(new RuntimeException("Match service error"));
+
+    // when
+    List<AmlCheck> result = amlService.addSanctionAndPepCheckIfMissing(user, country);
+
+    // then
+    assertTrue(result.isEmpty(), "Should return an empty list on exception");
+    assertEquals(
+        1.0,
+        meterRegistry.counter("aml.screening.failure", "phase", "match").count(),
+        "Screening failure should increment the aml.screening.failure metric");
+    verify(notificationService, never()).sendMessage(anyString(), any());
+  }
+
+  @Test
+  void runAmlChecksOnThirdPillarCustomers_sendsSingleAggregatedAlertOnScreeningFailures() {
+    // given
+    AnalyticsRecentThirdPillar ok = thirdPillarRecord("ok", "EE");
+    AnalyticsRecentThirdPillar fail1 = thirdPillarRecord("fail1", "EE");
+    AnalyticsRecentThirdPillar fail2 = thirdPillarRecord("fail2", "EE");
+    when(analyticsRecentThirdPillarRepository.findAll()).thenReturn(List.of(fail1, ok, fail2));
+
+    MatchResponse emptyMatchResponse =
+        new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
+    when(pepAndSanctionCheckService.match(eq(ok), any(Country.class)))
+        .thenReturn(emptyMatchResponse);
+    when(pepAndSanctionCheckService.match(eq(fail1), any(Country.class)))
+        .thenThrow(new RuntimeException("Match service error"));
+    when(pepAndSanctionCheckService.match(eq(fail2), any(Country.class)))
+        .thenThrow(new RuntimeException("Match service error"));
+    when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+            anyString(), any(AmlCheckType.class), any(Instant.class)))
+        .thenReturn(false);
+
+    // when
+    amlService.runAmlChecksOnThirdPillarCustomers();
+
+    // then
+    verify(notificationService, times(1))
+        .sendMessage(
+            "AML batch: sanction/PEP screening failed for 2 of 3 third-pillar customers this run",
+            OperationsNotificationService.Channel.AML);
+    verify(amlCheckRepository, times(2)).save(any(AmlCheck.class));
+    assertEquals(
+        2.0,
+        meterRegistry.counter("aml.screening.failure", "phase", "match").count(),
+        "Both screening failures should increment the metric");
+  }
+
+  @Test
+  void runAmlChecksOnThirdPillarCustomers_slackFailureDoesNotAbortBatch() {
+    // given
+    AnalyticsRecentThirdPillar c1 = thirdPillarRecord("c1", "EE");
+    AnalyticsRecentThirdPillar c2 = thirdPillarRecord("c2", "EE");
+    when(analyticsRecentThirdPillarRepository.findAll()).thenReturn(List.of(c1, c2));
+    when(pepAndSanctionCheckService.match(any(Person.class), any(Country.class)))
+        .thenThrow(new RuntimeException("Match service error"));
+    doThrow(new RuntimeException("Slack is down"))
+        .when(notificationService)
+        .sendMessage(anyString(), any());
+
+    // when / then
+    assertDoesNotThrow(() -> amlService.runAmlChecksOnThirdPillarCustomers());
+
+    assertEquals(
+        2.0,
+        meterRegistry.counter("aml.screening.failure", "phase", "match").count(),
+        "Both customers should have been screened");
+  }
+
+  private AnalyticsRecentThirdPillar thirdPillarRecord(String personalCode, String country) {
+    AnalyticsRecentThirdPillar record = mock(AnalyticsRecentThirdPillar.class);
+    when(record.getPersonalCode()).thenReturn(personalCode);
+    when(record.getCountry()).thenReturn(country);
+    when(record.getFirstName()).thenReturn("First");
+    when(record.getLastName()).thenReturn("Last");
+    return record;
   }
 
   @Test

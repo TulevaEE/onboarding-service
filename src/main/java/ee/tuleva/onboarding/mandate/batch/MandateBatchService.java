@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.mandate.batch;
 
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.WITHDRAWALS;
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
 import static ee.tuleva.onboarding.signature.response.SignatureStatus.OUTSTANDING_TRANSACTION;
 import static ee.tuleva.onboarding.signature.response.SignatureStatus.SIGNATURE;
 import static java.util.stream.Collectors.toList;
 
+import ee.tuleva.onboarding.aml.WithdrawalNotifier;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.error.response.ErrorResponse;
@@ -18,7 +18,6 @@ import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
-import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
 import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession;
@@ -51,7 +50,7 @@ public class MandateBatchService {
   private final MandateProcessorService mandateProcessor;
   private final EpisService episService;
   private final MandateBatchProcessingPoller mandateBatchProcessingPoller;
-  private final OperationsNotificationService notificationService;
+  private final WithdrawalNotifier withdrawalNotifier;
 
   public Optional<MandateBatch> getByIdAndUser(Long id, User user) {
     var batch =
@@ -114,10 +113,8 @@ public class MandateBatchService {
               .map(MandateDto::getMandateType)
               .collect(Collectors.toSet());
 
-      notificationService.sendMessage(
-          "Withdrawal mandate batch created: age=%s, pillars=%s, withdrawalTypes=%s, mandateBatchId=%s"
-              .formatted(age, pillars, withdrawalTypes, mandateBatch.getId()),
-          WITHDRAWALS);
+      withdrawalNotifier.notifyWithdrawalBatchCreated(
+          age, pillars, withdrawalTypes, mandateBatch.getId());
     } catch (Exception e) {
       log.error("Failed to send mandate batch slack message with exception", e);
     }

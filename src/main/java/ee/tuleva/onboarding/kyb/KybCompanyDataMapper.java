@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.kyb;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.KYC_CHECK;
+import static ee.tuleva.onboarding.kyb.KybKycStatus.*;
+import static ee.tuleva.onboarding.kyb.KybRelationshipRoles.*;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
@@ -13,14 +15,15 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
 class KybCompanyDataMapper {
 
-  private static final String BOARD_MEMBER_ROLE = "JUHL";
-  private static final String SHAREHOLDER_ROLE = "OSAN";
+  private static final String NATURAL_PERSON_TYPE = "F"; // füüsiline isik (natural person)
+  private static final String LEGAL_ENTITY_TYPE = "J"; // juriidiline isik (legal entity)
 
   private final AmlCheckRepository amlCheckRepository;
 
@@ -37,6 +40,8 @@ class KybCompanyDataMapper {
     var countryCode =
         address.map(CompanyAddress::addressDetails).map(AddressDetails::countryCode).orElse(null);
     var fullAddress = address.map(CompanyAddress::fullAddress).orElse(null);
+    var foundingDate = detail.getFoundingDate().orElse(null);
+    var representationRights = detail.getRepresentationRights();
 
     var companyDto =
         new CompanyDto(
@@ -67,12 +72,16 @@ class KybCompanyDataMapper {
         relatedPersons,
         selfCertification,
         countryCode,
-        fullAddress);
+        fullAddress,
+        foundingDate,
+        representationRights);
   }
 
-  private KybRelatedPerson toRelatedPerson(PersonalCode code, List<CompanyRelationship> roles) {
+  private KybRelatedPerson toRelatedPerson(
+      @Nullable PersonalCode code, List<CompanyRelationship> roles) {
+    var naturalPerson = roles.stream().allMatch(r -> NATURAL_PERSON_TYPE.equals(r.personType()));
     var boardMember = roles.stream().anyMatch(r -> BOARD_MEMBER_ROLE.equals(r.roleCode()));
-    var shareholder = roles.stream().anyMatch(r -> SHAREHOLDER_ROLE.equals(r.roleCode()));
+    var shareholder = roles.stream().anyMatch(r -> SHAREHOLDER_ROLES.contains(r.roleCode()));
     var beneficialOwner = roles.stream().anyMatch(r -> r.controlMethod() != null);
     var ownershipPercent =
         roles.stream()
@@ -82,22 +91,23 @@ class KybCompanyDataMapper {
             .orElse(BigDecimal.ZERO);
     return new KybRelatedPerson(
         code,
+        naturalPerson,
         boardMember,
         shareholder,
         beneficialOwner,
         ownershipPercent,
-        code != null ? resolveKycStatus(code.value()) : KybKycStatus.UNKNOWN);
+        code != null ? resolveKycStatus(code.value()) : UNKNOWN);
   }
 
   private KybKycStatus resolveKycStatus(String personalCode) {
     if (amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
         personalCode, KYC_CHECK, true, aYearAgo())) {
-      return KybKycStatus.COMPLETED;
+      return COMPLETED;
     }
     if (amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
         personalCode, KYC_CHECK, false, aYearAgo())) {
-      return KybKycStatus.REJECTED;
+      return REJECTED;
     }
-    return KybKycStatus.UNKNOWN;
+    return UNKNOWN;
   }
 }

@@ -43,18 +43,33 @@ class LegalEntityScreenerTest {
           FIXED_CLOCK);
 
   @Test
-  void fetchActiveRelationshipsExcludesFounders() {
+  void fetchActiveRelationshipsKeepsOnlyOwnershipAndControlRoles() {
     var boardMember = relationship("JUHL", "Jaan", "Tamm", "38501010002");
+    var registryShareholder = relationship("OSAN", "Peeter", "Osanik", "37601010003");
+    var nasdaqShareholder = relationship("O", "Mari", "Kask", "49001010001");
+    var beneficialOwner = relationship("W", "Jaan", "Tamm", "38501010002");
     var founder = relationship("A", "Mari", "Asutaja", "39901010001");
-    var shareholder = relationship("OSAN", "Peeter", "Osanik", "37601010003");
+    var shareRegistrar = relationship("ORP", "Nasdaq", "CSD", "90000003");
+    var stockRegistrar = relationship("ARP", "Nasdaq", "CSD", "90000004");
+    var prokurist = relationship("PROK", "Peeter", "Prokurist", "37601010003");
     given(
             ariregisterClient.getActiveCompanyRelationships(
                 REGISTRY_CODE, LocalDate.now(FIXED_CLOCK)))
-        .willReturn(List.of(boardMember, founder, shareholder));
+        .willReturn(
+            List.of(
+                boardMember,
+                registryShareholder,
+                nasdaqShareholder,
+                beneficialOwner,
+                founder,
+                shareRegistrar,
+                stockRegistrar,
+                prokurist));
 
     var result = screener.fetchActiveRelationships(REGISTRY_CODE);
 
-    assertThat(result).containsExactly(boardMember, shareholder);
+    assertThat(result)
+        .containsExactly(boardMember, registryShareholder, nasdaqShareholder, beneficialOwner);
   }
 
   @Test
@@ -70,7 +85,9 @@ class LegalEntityScreenerTest {
             List.of(),
             SELF_CERT,
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null,
+            List.of());
     given(kybCompanyDataMapper.toKybCompanyData(detail, PERSONAL_CODE, relationships, SELF_CERT))
         .willReturn(companyData);
     var checks = List.of(new KybCheck(KybCheckType.COMPANY_ACTIVE, true, Map.of()));
@@ -95,7 +112,9 @@ class LegalEntityScreenerTest {
             List.of(),
             null,
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null,
+            List.of());
     given(kybCompanyDataMapper.toKybCompanyData(detail, PERSONAL_CODE, relationships, null))
         .willReturn(companyData);
     var checks = List.of(new KybCheck(KybCheckType.COMPANY_ACTIVE, true, Map.of()));
@@ -127,7 +146,9 @@ class LegalEntityScreenerTest {
             List.of(),
             SELF_CERT,
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null,
+            List.of());
     given(
             kybCompanyDataMapper.toKybCompanyData(
                 detail, PERSONAL_CODE, List.of(boardMember), SELF_CERT))
@@ -175,6 +196,7 @@ class LegalEntityScreenerTest {
   }
 
   private static CompanyDetail sampleDetail() {
-    return new CompanyDetail("Test OÜ", REGISTRY_CODE, "R", "OÜ", null, null, null, null);
+    return new CompanyDetail(
+        "Test OÜ", REGISTRY_CODE, "R", "OÜ", null, null, null, null, List.of());
   }
 }

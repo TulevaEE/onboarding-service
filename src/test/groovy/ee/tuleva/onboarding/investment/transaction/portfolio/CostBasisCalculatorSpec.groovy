@@ -108,7 +108,7 @@ class CostBasisCalculatorSpec extends Specification {
         result.deltaQuantity.compareTo(new BigDecimal("-1000")) == 0
     }
 
-    def "SELL: over-sell clamps to zero with warning"() {
+    def "SELL: over-sell fails the control instead of clamping"() {
         given:
         def prior = Optional.of(new PriorPosition(new BigDecimal("100"), new BigDecimal("10.00")))
         def execs = [
@@ -116,11 +116,10 @@ class CostBasisCalculatorSpec extends Specification {
         ]
 
         when:
-        def result = calculator.calculate(prior, execs, FUND_ISIN, INSTRUMENT_ISIN, DATE)
+        calculator.calculate(prior, execs, FUND_ISIN, INSTRUMENT_ISIN, DATE)
 
         then:
-        result.quantity.compareTo(BigDecimal.ZERO) == 0
-        result.totalCost.compareTo(BigDecimal.ZERO) == 0
+        thrown(IllegalStateException)
     }
 
     def "new ISIN: no prior, first BUY sets initial state"() {

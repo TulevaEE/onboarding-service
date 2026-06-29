@@ -41,6 +41,7 @@ class SavingFundPaymentControllerTest {
 
   @MockitoBean private UserService userService;
   @MockitoBean private SavingFundPaymentRepository savingFundPaymentRepository;
+  @MockitoBean private IbanWhitelistService ibanWhitelistService;
   @MockitoBean private SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
   @MockitoBean private SavingsFundOnboardingService savingsFundOnboardingService;
 
@@ -135,6 +136,39 @@ class SavingFundPaymentControllerTest {
   }
 
   @Test
+  void getPersonOnboardingStatus_returnsTheNaturalPersonsStatusWhenActingAsLegalEntity()
+      throws Exception {
+    var person = sampleAuthenticatedPersonLegalEntity().build();
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
+
+    when(savingsFundOnboardingService.getOnboardingStatus(
+            new PartyId(PartyId.Type.PERSON, person.getPersonalCode())))
+        .thenReturn(COMPLETED);
+
+    mvc.perform(get("/v1/savings/onboarding/status/person").with(authentication(auth)))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"status\":\"COMPLETED\"}"));
+  }
+
+  @Test
+  void getPersonOnboardingStatus_returnsNullWhenThePersonHasNotOnboarded() throws Exception {
+    var person = sampleAuthenticatedPersonAndMember().build();
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
+
+    when(savingsFundOnboardingService.getOnboardingStatus(
+            new PartyId(PartyId.Type.PERSON, person.getPersonalCode())))
+        .thenReturn(null);
+
+    mvc.perform(get("/v1/savings/onboarding/status/person").with(authentication(auth)))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"status\":null}"));
+  }
+
+  @Test
   void getLegalEntityOnboardingStatus_shouldReturnCompleted() throws Exception {
     var person = sampleAuthenticatedPersonAndMember().build();
     var auth =
@@ -181,6 +215,23 @@ class SavingFundPaymentControllerTest {
 
     when(savingFundPaymentRepository.findWithdrawableIbans(PartyId.from(person.getRole())))
         .thenReturn(List.of("EE123456789012345678", "EE987654321098765432"));
+
+    mvc.perform(get("/v1/savings/bank-accounts").with(authentication(auth)))
+        .andExpect(status().isOk())
+        .andExpect(content().json("[\"EE123456789012345678\",\"EE987654321098765432\"]"));
+  }
+
+  @Test
+  void getBankAccounts_includesWhitelistedIbans() throws Exception {
+    var person = sampleAuthenticatedPersonAndMember().build();
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
+
+    when(savingFundPaymentRepository.findWithdrawableIbans(PartyId.from(person.getRole())))
+        .thenReturn(List.of("EE123456789012345678"));
+    when(ibanWhitelistService.findWhitelistedIbans(PartyId.from(person.getRole())))
+        .thenReturn(List.of("EE987654321098765432"));
 
     mvc.perform(get("/v1/savings/bank-accounts").with(authentication(auth)))
         .andExpect(status().isOk())

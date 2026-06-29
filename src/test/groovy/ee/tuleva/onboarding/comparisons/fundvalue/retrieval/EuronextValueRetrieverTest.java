@@ -43,6 +43,13 @@ class EuronextValueRetrieverTest {
   }
 
   @Test
+  void exposesEuronextParisStorageKeysAsExpectedStorageKeys() {
+    assertThat(retriever.expectedStorageKeys())
+        .containsExactlyInAnyOrderElementsOf(
+            FundTicker.getEuronextParisIsins().stream().map(isin -> isin + ".XPAR").toList());
+  }
+
+  @Test
   void retrievesFundValuesFromEuronextApi() {
     FundTicker.getEuronextParisIsins()
         .forEach(

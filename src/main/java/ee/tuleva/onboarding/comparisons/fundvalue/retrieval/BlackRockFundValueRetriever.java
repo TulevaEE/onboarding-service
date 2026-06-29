@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import static java.math.BigDecimal.ZERO;
 import static java.util.Comparator.comparing;
+import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.math.BigDecimal;
@@ -13,6 +14,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +47,13 @@ public class BlackRockFundValueRetriever implements ComparisonIndexRetriever {
   @Override
   public String getKey() {
     return KEY;
+  }
+
+  @Override
+  public Set<String> expectedStorageKeys() {
+    return FundTicker.getBlackrockFunds().stream()
+        .map(fund -> fund.getBlackrockStorageKey().orElseThrow())
+        .collect(toSet());
   }
 
   @Override

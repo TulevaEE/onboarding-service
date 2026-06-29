@@ -12,7 +12,12 @@ spring:
     type: NONE
   datasource:
     hikari:
+      # Single-fork (-DmaxParallelForks=1) loads ~100 Spring contexts in one JVM. With min-idle
+      # defaulting to max-pool-size, every cached context pinned idle connections and exhausted
+      # Postgres max_connections. Keep idle footprint at zero and release connections quickly.
       maximum-pool-size: 2
+      minimum-idle: 0
+      idle-timeout: 10000
   jpa:
     hibernate:
       ddl-auto: none
@@ -37,7 +42,10 @@ spring:
   datasource:
     username: sa
     password:
-    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;NON_KEYWORDS=KEY,VALUE
+    # DB_CLOSE_DELAY=-1 keeps the in-memory schema alive when the pool drops to zero connections
+    # (hikari min-idle=0 + idle-timeout=10s). Without it an idle gap drops the whole schema and
+    # Flyway never re-runs, so unrelated tests later fail with "this database is empty".
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;NON_KEYWORDS=KEY,VALUE;DB_CLOSE_DELAY=-1
   flyway:
     baseline-on-migrate: true
     locations: classpath:/db/migration, classpath:/db/dev, classpath:/db/h2

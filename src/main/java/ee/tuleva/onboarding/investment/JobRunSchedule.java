@@ -18,6 +18,11 @@ public final class JobRunSchedule {
   public static final String FEE_ACCRUAL_POSITION_BACKFILL = "0 25 12 12 3 *";
   public static final String LIMIT_CHECK_BACKFILL = "0 30 8 16 3 *";
 
+  // EPIS PEVA/RAVA + R16 jobs; flow recalcs run after the daily NAV is available
+  public static final String PEVA_RAVA_PHASE_UPDATE = "0 0 7 * * MON-FRI";
+  public static final String PEVA_RAVA_FLOW_RECALC = "0 30 17 * * MON-FRI";
+  public static final String R16_FLOW_RECALC = "0 30 17 * * MON-FRI";
+
   // Ad-hoc job trigger polling
   public static final String JOB_TRIGGER_POLL = "0 * * * * *";
 }

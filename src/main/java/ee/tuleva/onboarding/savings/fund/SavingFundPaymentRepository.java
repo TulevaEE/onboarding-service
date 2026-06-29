@@ -324,6 +324,31 @@ public class SavingFundPaymentRepository {
         Map.of("id", paymentId, "party_type", partyId.type().name(), "party_code", partyId.code()));
   }
 
+  public void attributeManually(UUID paymentId, PartyId partyId, boolean returnCancelled) {
+    var currentStatus = getAndLockCurrentStatus(paymentId);
+    if (!Set.of(TO_BE_RETURNED, RETURNED).contains(currentStatus))
+      throw new IllegalStateException(
+          "Manual attribution is not allowed when payment is " + currentStatus);
+    if (currentStatus == RETURNED && !returnCancelled)
+      throw new IllegalStateException(
+          "Outbound return may still be in flight for RETURNED payment; cancel the pending bank"
+              + " return first, then retry with returnCancelled=true: paymentId="
+              + paymentId);
+    log.info(
+        "SavingFundPayment {} manually attributed to party {} {}: {} -> VERIFIED",
+        paymentId,
+        partyId.type(),
+        partyId.code(),
+        currentStatus);
+    jdbcTemplate.update(
+        "UPDATE saving_fund_payment SET party_type=:party_type, party_code=:party_code, status=:status, status_changed_at=NOW() WHERE id=:id",
+        Map.of(
+            "id", paymentId,
+            "party_type", partyId.type().name(),
+            "party_code", partyId.code(),
+            "status", VERIFIED.name()));
+  }
+
   public void addReturnReason(UUID paymentId, String reason) {
     jdbcTemplate.update(
         "UPDATE saving_fund_payment SET return_reason=:reason WHERE id=:id",

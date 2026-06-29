@@ -41,6 +41,12 @@ class IbanValidatorTest {
     assertThat(validator.isValid("GB33 BUKB 2020 1555 5555 55", null)).isTrue();
   }
 
+  @Test
+  void canonicalize_uppercasesAndStripsWhitespace() {
+    assertThat(IbanValidator.canonicalize(" ee47 1000 0010 2014 5685 "))
+        .isEqualTo("EE471000001020145685");
+  }
+
   @ParameterizedTest
   @NullAndEmptySource
   @ValueSource(

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import static java.math.BigDecimal.ZERO;
 import static java.util.Comparator.comparing;
+import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.io.BufferedReader;
@@ -16,6 +17,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -46,6 +48,13 @@ public class EuronextValueRetriever implements ComparisonIndexRetriever {
   @Override
   public String getKey() {
     return KEY;
+  }
+
+  @Override
+  public Set<String> expectedStorageKeys() {
+    return FundTicker.getEuronextParisIsins().stream()
+        .map(isin -> isin + "." + EURONEXT_PARIS_MARKET_IDENTIFIER_CODE)
+        .collect(toSet());
   }
 
   @Override

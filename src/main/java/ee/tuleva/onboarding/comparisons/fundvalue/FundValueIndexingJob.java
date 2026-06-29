@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.comparisons.fundvalue;
 
 import static java.util.Collections.emptyList;
+import static java.util.Comparator.naturalOrder;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.BlackRockFundValueRetriever;
@@ -18,6 +19,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -43,6 +45,7 @@ public class FundValueIndexingJob {
   private final FundNavRetrieverFactory fundNavRetrieverFactory;
   private final Clock clock;
   private final PublicHolidays publicHolidays;
+  private final PriceDataFreshnessAlertJob priceDataFreshnessAlertJob;
   private List<ComparisonIndexRetriever> dynamicRetrievers = emptyList();
 
   static final LocalDate EARLIEST_DATE = LocalDate.parse("2003-01-07");
@@ -63,6 +66,11 @@ public class FundValueIndexingJob {
       lockAtLeastFor = "5m")
   public void runIndexingJob() {
     refreshAll();
+    try {
+      priceDataFreshnessAlertJob.checkAfterIndexing();
+    } catch (Exception e) {
+      log.error("Price data freshness check failed", e);
+    }
   }
 
   public void refreshAll() {
@@ -103,14 +111,26 @@ public class FundValueIndexingJob {
   private Optional<LocalDate> getStartDate(ComparisonIndexRetriever retriever) {
     String fund = retriever.getKey();
     LocalDate today = LocalDate.now(clock);
-    Optional<FundValue> fundValue = fundValueRepository.findLastValueForFund(fund);
+    Set<String> expectedKeys = retriever.expectedStorageKeys();
+    Map<String, LocalDate> latestByKey = fundValueRepository.findLatestDateByKeys(expectedKeys);
+    Optional<LocalDate> oldestStoredKey = latestByKey.values().stream().min(naturalOrder());
 
-    if (fundValue.isEmpty()) {
-      log.info("No info for comparison fund {} so downloading all data until today", fund);
+    // Report staleness of the keys we already have even when another key is missing, so a
+    // not-yet-populated key can never silence the stale-data alert for the present series.
+    oldestStoredKey
+        .filter(lastUpdate -> lastUpdate.isBefore(today))
+        .ifPresent(lastUpdate -> logIfStale(retriever, lastUpdate, today));
+
+    // Any expected key with no data yet (e.g. a newly added ticker) -> backfill from inception.
+    if (!latestByKey.keySet().containsAll(expectedKeys)) {
+      log.info(
+          "Backfilling comparison fund {} from {}: some keys have no data yet",
+          fund,
+          EARLIEST_DATE);
       return Optional.of(EARLIEST_DATE);
     }
 
-    LocalDate lastUpdate = fundValue.get().date();
+    LocalDate lastUpdate = oldestStoredKey.orElseThrow();
     if (lastUpdate.equals(today)) {
       log.info("Last update for comparison fund {}: {}. Not updating", fund, lastUpdate);
       return Optional.empty();
@@ -119,9 +139,6 @@ public class FundValueIndexingJob {
     LocalDate startDate = lastUpdate.plusDays(1);
     log.info(
         "Last update for comparison fund {}: {}. Updating from {}", fund, lastUpdate, startDate);
-
-    logIfStale(retriever, lastUpdate, today);
-
     return Optional.of(startDate);
   }
 

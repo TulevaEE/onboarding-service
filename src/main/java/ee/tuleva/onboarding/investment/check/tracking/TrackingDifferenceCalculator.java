@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_LOOKBACK_DAYS;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_NET_TD_THRESHOLD;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_THRESHOLD_DAYS;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_BREACH_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_MAX_DAILY_RETURN;
 import static java.math.BigDecimal.ZERO;
@@ -27,6 +30,43 @@ class TrackingDifferenceCalculator {
 
   BigDecimal breachThreshold(LocalDate asOf) {
     return parameterRepository.findLatestValue(TRACKING_BREACH_THRESHOLD, asOf);
+  }
+
+  int escalationLookbackDays(LocalDate asOf) {
+    BigDecimal raw = parameterRepository.findLatestValue(ESCALATION_LOOKBACK_DAYS, asOf);
+    int value;
+    try {
+      value = raw.intValueExact();
+    } catch (ArithmeticException e) {
+      throw new IllegalStateException("ESCALATION_LOOKBACK_DAYS must be a whole number: " + raw, e);
+    }
+    if (value < 1) {
+      throw new IllegalStateException("ESCALATION_LOOKBACK_DAYS must be positive: " + value);
+    }
+    return value;
+  }
+
+  int escalationThresholdDays(LocalDate asOf) {
+    BigDecimal raw = parameterRepository.findLatestValue(ESCALATION_THRESHOLD_DAYS, asOf);
+    int value;
+    try {
+      value = raw.intValueExact();
+    } catch (ArithmeticException e) {
+      throw new IllegalStateException(
+          "ESCALATION_THRESHOLD_DAYS must be a whole number: " + raw, e);
+    }
+    if (value < 1) {
+      throw new IllegalStateException("ESCALATION_THRESHOLD_DAYS must be positive: " + value);
+    }
+    return value;
+  }
+
+  BigDecimal escalationNetTdThreshold(LocalDate asOf) {
+    BigDecimal value = parameterRepository.findLatestValue(ESCALATION_NET_TD_THRESHOLD, asOf);
+    if (value.signum() <= 0) {
+      throw new IllegalStateException("ESCALATION_NET_TD_THRESHOLD must be positive: " + value);
+    }
+    return value;
   }
 
   Optional<TrackingDifferenceResult> calculate(TrackingInput input) {

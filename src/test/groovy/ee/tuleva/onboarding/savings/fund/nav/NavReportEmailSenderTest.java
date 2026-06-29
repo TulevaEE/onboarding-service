@@ -58,7 +58,7 @@ class NavReportEmailSenderTest {
     assertThat(message.getTo().get(0).getEmail()).isEqualTo("trustee@seb.ee");
     assertThat(message.getTo().get(0).getType()).isEqualTo(TO);
     assertThat(message.getTo().get(1).getEmail()).isEqualTo("funds@tuleva.ee");
-    assertThat(message.getTo().get(1).getType()).isEqualTo(CC);
+    assertThat(message.getTo().get(1).getType()).isEqualTo(TO);
     assertThat(message.getTo().get(2).getEmail()).isEqualTo("taavi.pertman@tuleva.ee");
     assertThat(message.getTo().get(2).getType()).isEqualTo(CC);
     assertThat(message.getTo().get(3).getEmail()).isEqualTo("compliance@tuleva.ee");
@@ -86,6 +86,38 @@ class NavReportEmailSenderTest {
     boolean sent = navReportEmailSender.send(rows, result);
 
     assertThat(sent).isFalse();
+  }
+
+  @Test
+  void sendForReview_sendsToInternalRecipientsOnly_excludingTrustee() {
+    var navDate = LocalDate.of(2026, 3, 13);
+    var result = buildResult(navDate);
+
+    var rows = List.of(NavReportRow.builder().navDate(navDate).fundCode("TKF100").build());
+    var csvBytes = "csv-content".getBytes(UTF_8);
+
+    when(navReportCsvGenerator.generate(rows)).thenReturn(csvBytes);
+    when(emailService.sendSystemEmail(any())).thenReturn(true);
+
+    boolean sent = navReportEmailSender.sendForReview(rows, result);
+
+    assertThat(sent).isTrue();
+
+    var messageCaptor = ArgumentCaptor.forClass(MandrillMessage.class);
+    verify(emailService).sendSystemEmail(messageCaptor.capture());
+
+    var message = messageCaptor.getValue();
+    assertThat(message.getTo()).hasSize(4);
+    assertThat(message.getTo().get(0).getEmail()).isEqualTo("funds@tuleva.ee");
+    assertThat(message.getTo().get(0).getType()).isEqualTo(TO);
+    assertThat(message.getTo().get(1).getEmail()).isEqualTo("taavi.pertman@tuleva.ee");
+    assertThat(message.getTo().get(1).getType()).isEqualTo(CC);
+    assertThat(message.getTo().get(2).getEmail()).isEqualTo("compliance@tuleva.ee");
+    assertThat(message.getTo().get(2).getType()).isEqualTo(CC);
+    assertThat(message.getTo().get(3).getEmail()).isEqualTo("erko.risthein@tuleva.ee");
+    assertThat(message.getTo().get(3).getType()).isEqualTo(BCC);
+    assertThat(message.getTo())
+        .noneMatch(recipient -> recipient.getEmail().equals("trustee@seb.ee"));
   }
 
   private NavCalculationResult buildResult(LocalDate navDate) {

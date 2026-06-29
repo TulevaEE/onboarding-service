@@ -38,6 +38,8 @@ public class SebReportSource extends AbstractReportSource {
         switch (reportType) {
           case POSITIONS -> "_positions.csv";
           case PENDING_TRANSACTIONS -> "_pending_transactions.csv";
+          default ->
+              throw new IllegalArgumentException("Unsupported SEB report type: type=" + reportType);
         };
     return "seb/" + date.format(DATE_FORMAT) + suffix;
   }

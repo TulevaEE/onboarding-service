@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.ledger;
 
 import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
-import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -18,27 +18,26 @@ class LedgerPartyService {
     return getParty(ownerId, partyType)
         .orElseGet(
             () -> {
-              acquirePartyLock(partyType, ownerId);
-              return getParty(ownerId, partyType).orElseGet(() -> createParty(ownerId, partyType));
+              insertPartyIfAbsent(ownerId, partyType);
+              return getParty(ownerId, partyType).orElseThrow();
             });
-  }
-
-  LedgerParty createParty(String ownerId, PartyType partyType) {
-    var ledgerParty =
-        LedgerParty.builder().partyType(partyType).ownerId(ownerId).details(Map.of()).build();
-
-    return ledgerPartyRepository.save(ledgerParty);
   }
 
   public Optional<LedgerParty> getParty(String ownerId, PartyType partyType) {
     return Optional.ofNullable(ledgerPartyRepository.findByOwnerIdAndPartyType(ownerId, partyType));
   }
 
-  private void acquirePartyLock(PartyType partyType, String ownerId) {
+  void insertPartyIfAbsent(String ownerId, PartyType partyType) {
     jdbcClient
-        .sql("SELECT pg_advisory_xact_lock(:key)")
-        .param("key", (long) (partyType.name() + ":" + ownerId).hashCode())
-        .query((rs, rowNum) -> 0)
-        .optional();
+        .sql(
+            """
+            INSERT INTO ledger.party (id, party_type, owner_id, details)
+            VALUES (:id, CAST(:partyType AS ledger.party_type), :ownerId, '{}')
+            ON CONFLICT DO NOTHING
+            """)
+        .param("id", UUID.randomUUID())
+        .param("partyType", partyType.name())
+        .param("ownerId", ownerId)
+        .update();
   }
 }

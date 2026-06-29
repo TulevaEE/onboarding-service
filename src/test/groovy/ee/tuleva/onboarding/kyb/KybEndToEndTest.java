@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.kyb;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
+import static ee.tuleva.onboarding.aml.AmlCheckType.KYC_CHECK;
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
+import static ee.tuleva.onboarding.kyb.KybKycStatus.COMPLETED;
+import static ee.tuleva.onboarding.kyb.KybKycStatus.REJECTED;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.*;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -75,22 +78,30 @@ class KybEndToEndTest {
     assertCheckPersisted(JAAN, KYB_DUAL_MEMBER_OWNERSHIP, false);
   }
 
-  // --- Rule 33: Sole board member is owner ---
+  // --- Rule 33: Two-person OÜ, single board member ---
 
   @Test
   void rule33_soleBoardMemberIsOwner_passes() {
     var results = kybScreeningService.screen(rule33Pass());
 
-    assertCheckResult(results, SOLE_BOARD_MEMBER_IS_OWNER, true);
-    assertCheckPersisted(JAAN, KYB_SOLE_BOARD_MEMBER_IS_OWNER, true);
+    assertCheckResult(results, SINGLE_BOARD_MEMBER_OWNERSHIP, true);
+    assertCheckPersisted(JAAN, KYB_SINGLE_BOARD_MEMBER_OWNERSHIP, true);
   }
 
   @Test
-  void rule33_soleBoardMemberIsNotOwner_fails() {
-    var results = kybScreeningService.screen(rule33Fail_boardMemberNotOwner());
+  void rule33_boardMemberOwnsNoShares_fails() {
+    var results = kybScreeningService.screen(rule33Fail_boardMemberOwnsNoShares());
 
-    assertCheckResult(results, SOLE_BOARD_MEMBER_IS_OWNER, false);
-    assertCheckPersisted(JAAN, KYB_SOLE_BOARD_MEMBER_IS_OWNER, false);
+    assertCheckResult(results, SINGLE_BOARD_MEMBER_OWNERSHIP, false);
+    assertCheckPersisted(JAAN, KYB_SINGLE_BOARD_MEMBER_OWNERSHIP, false);
+  }
+
+  @Test
+  void rule33_incompleteOwnership_fails() {
+    var results = kybScreeningService.screen(rule33Fail_incompleteOwnership());
+
+    assertCheckResult(results, SINGLE_BOARD_MEMBER_OWNERSHIP, false);
+    assertCheckPersisted(JAAN, KYB_SINGLE_BOARD_MEMBER_OWNERSHIP, false);
   }
 
   // --- Rule 34: Company active ---
@@ -178,22 +189,20 @@ class KybEndToEndTest {
     amlCheckRepository.save(
         AmlCheck.builder()
             .personalCode(JAAN.value())
-            .type(AmlCheckType.KYC_CHECK)
+            .type(KYC_CHECK)
             .success(true)
             .metadata(Map.of())
             .build());
     amlCheckRepository.save(
         AmlCheck.builder()
             .personalCode(MARI.value())
-            .type(AmlCheckType.KYC_CHECK)
+            .type(KYC_CHECK)
             .success(false)
             .metadata(Map.of())
             .build());
 
-    var person1 =
-        person(JAAN, true, true, true, java.math.BigDecimal.valueOf(50), KybKycStatus.COMPLETED);
-    var person2 =
-        person(MARI, true, true, true, java.math.BigDecimal.valueOf(50), KybKycStatus.REJECTED);
+    var person1 = boardMemberOwner(JAAN, 50.0).kycStatus(COMPLETED).build();
+    var person2 = boardMemberOwner(MARI, 50.0).kycStatus(REJECTED).build();
     var data =
         new KybCompanyData(
             VALID_COMPANY,
@@ -202,7 +211,9 @@ class KybEndToEndTest {
             List.of(person1, person2),
             VALID_CERT,
             "EE",
-            "Harju maakond, Tallinn, Pärnu mnt 1");
+            "Harju maakond, Tallinn, Pärnu mnt 1",
+            null,
+            List.of());
 
     var results = kybScreeningService.screen(data);
 
@@ -324,7 +335,8 @@ class KybEndToEndTest {
     assertCheckResult(results, COMPANY_STRUCTURE, false);
     var types = results.stream().map(KybCheck::type).toList();
     assertThat(types)
-        .doesNotContain(SOLE_MEMBER_OWNERSHIP, DUAL_MEMBER_OWNERSHIP, SOLE_BOARD_MEMBER_IS_OWNER);
+        .doesNotContain(
+            SOLE_MEMBER_OWNERSHIP, DUAL_MEMBER_OWNERSHIP, SINGLE_BOARD_MEMBER_OWNERSHIP);
     assertCheckPersisted(JAAN, KYB_COMPANY_STRUCTURE, false);
   }
 

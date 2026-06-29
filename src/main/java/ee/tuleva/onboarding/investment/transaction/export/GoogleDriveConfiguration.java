@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestClient;
 
 @Configuration
-@EnableConfigurationProperties(GoogleDriveProperties.class)
+@EnableConfigurationProperties({GoogleDriveProperties.class, CustodianOrderEmailProperties.class})
 class GoogleDriveConfiguration {
 
   @Bean

@@ -8,12 +8,18 @@ import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.kyc.*;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
+import jakarta.persistence.EntityManager;
+import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +29,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -41,6 +48,8 @@ class KycSurveyControllerIntegrationTest {
   @Autowired private MockMvc mockMvc;
   @Autowired private KycSurveyRepository kycSurveyRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private JdbcTemplate jdbcTemplate;
+  @Autowired private EntityManager entityManager;
   @Autowired private ApplicationEvents applicationEvents;
   @Autowired private TestKycChecker testKycChecker;
 
@@ -160,6 +169,232 @@ class KycSurveyControllerIntegrationTest {
     var event = events.getFirst();
     assertThat(event.getPersonalCode()).isEqualTo(user.getPersonalCode());
     assertThat(event.getKycCheck()).isEqualTo(new KycCheck(LOW, Map.of()));
+  }
+
+  @Test
+  void getIdentity_returnsSubmittedIdentityAfterIdentityOnlySurvey() throws Exception {
+    String requestBody =
+        """
+        {
+          "answers": [
+            {
+              "type": "CITIZENSHIP",
+              "value": {
+                "type": "COUNTRIES",
+                "value": ["EE", "FI"]
+              }
+            },
+            {
+              "type": "ADDRESS",
+              "value": {
+                "type": "ADDRESS",
+                "value": {
+                  "street": "123 Main St",
+                  "city": "Tallinn",
+                  "postalCode": "10115",
+                  "countryCode": "EE"
+                }
+              }
+            },
+            {
+              "type": "EMAIL",
+              "value": {
+                "type": "TEXT",
+                "value": "test@example.com"
+              }
+            },
+            {
+              "type": "PHONE_NUMBER",
+              "value": {
+                "type": "TEXT",
+                "value": "+37255555555"
+              }
+            },
+            {
+              "type": "PEP_SELF_DECLARATION",
+              "value": {
+                "type": "OPTION",
+                "value": "IS_NOT_PEP"
+              }
+            }
+          ],
+          "purpose": "IDENTITY_ONLY"
+        }
+        """;
+
+    mockMvc
+        .perform(
+            post("/v1/kyc/surveys")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody)
+                .with(csrf())
+                .with(authentication(authentication)))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(get("/v1/kyc/identity").with(authentication(authentication)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.citizenship[0]").value("EE"))
+        .andExpect(jsonPath("$.citizenship[1]").value("FI"))
+        .andExpect(jsonPath("$.address.street").value("123 Main St"))
+        .andExpect(jsonPath("$.address.city").value("Tallinn"))
+        .andExpect(jsonPath("$.address.postalCode").value("10115"))
+        .andExpect(jsonPath("$.address.countryCode").value("EE"))
+        .andExpect(jsonPath("$.email").value(user.getEmail()))
+        .andExpect(jsonPath("$.phoneNumber").value(user.getPhoneNumber()))
+        .andExpect(jsonPath("$.pepSelfDeclaration").value("IS_NOT_PEP"))
+        .andExpect(jsonPath("$.complete").value(true))
+        .andExpect(jsonPath("$.updatedAt").isNotEmpty());
+  }
+
+  @Test
+  void getIdentity_reflectsLatestSubmission() throws Exception {
+    String firstSurvey =
+        """
+        {
+          "answers": [
+            { "type": "CITIZENSHIP", "value": { "type": "COUNTRIES", "value": ["EE"] } },
+            {
+              "type": "ADDRESS",
+              "value": {
+                "type": "ADDRESS",
+                "value": {
+                  "street": "123 Main St",
+                  "city": "Tallinn",
+                  "postalCode": "10115",
+                  "countryCode": "EE"
+                }
+              }
+            },
+            { "type": "EMAIL", "value": { "type": "TEXT", "value": "test@example.com" } },
+            { "type": "PEP_SELF_DECLARATION", "value": { "type": "OPTION", "value": "IS_NOT_PEP" } }
+          ],
+          "purpose": "IDENTITY_ONLY"
+        }
+        """;
+    String secondSurvey =
+        """
+        {
+          "answers": [
+            { "type": "CITIZENSHIP", "value": { "type": "COUNTRIES", "value": ["FI"] } },
+            {
+              "type": "ADDRESS",
+              "value": {
+                "type": "ADDRESS",
+                "value": {
+                  "street": "456 Other St",
+                  "city": "Helsinki",
+                  "postalCode": "00100",
+                  "countryCode": "FI"
+                }
+              }
+            },
+            { "type": "EMAIL", "value": { "type": "TEXT", "value": "test@example.com" } },
+            { "type": "PEP_SELF_DECLARATION", "value": { "type": "OPTION", "value": "IS_PEP" } }
+          ],
+          "purpose": "IDENTITY_ONLY"
+        }
+        """;
+
+    submitSurvey(firstSurvey);
+
+    mockMvc
+        .perform(get("/v1/kyc/identity").with(authentication(authentication)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.citizenship[0]").value("EE"))
+        .andExpect(jsonPath("$.address.street").value("123 Main St"))
+        .andExpect(jsonPath("$.address.countryCode").value("EE"))
+        .andExpect(jsonPath("$.pepSelfDeclaration").value("IS_NOT_PEP"));
+
+    // Both submissions share one test transaction, so the database assigns them the same
+    // created_time (NOW() is fixed per transaction). Backdate the first one to get the
+    // distinct timestamps that separate production requests always have.
+    backdateExistingSurveys();
+
+    submitSurvey(secondSurvey);
+
+    mockMvc
+        .perform(get("/v1/kyc/identity").with(authentication(authentication)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.citizenship[0]").value("FI"))
+        .andExpect(jsonPath("$.address.street").value("456 Other St"))
+        .andExpect(jsonPath("$.address.city").value("Helsinki"))
+        .andExpect(jsonPath("$.address.postalCode").value("00100"))
+        .andExpect(jsonPath("$.address.countryCode").value("FI"))
+        .andExpect(jsonPath("$.pepSelfDeclaration").value("IS_PEP"));
+  }
+
+  private void submitSurvey(String body) throws Exception {
+    mockMvc
+        .perform(
+            post("/v1/kyc/surveys")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .with(csrf())
+                .with(authentication(authentication)))
+        .andExpect(status().isOk());
+  }
+
+  private void backdateExistingSurveys() {
+    backdateExistingSurveys(Duration.ofHours(1));
+  }
+
+  // The JDBC update bypasses JPA: flush so the pending insert is visible to it,
+  // and clear so later reads hydrate the backdated timestamp instead of serving
+  // the cached entity.
+  private void backdateExistingSurveys(Duration age) {
+    entityManager.flush();
+    jdbcTemplate.update(
+        "UPDATE kyc_survey SET created_time = ?", Timestamp.from(Instant.now().minus(age)));
+    entityManager.clear();
+  }
+
+  @Test
+  void getIdentity_returnsSurveyOlderThanAYearForPrefillButIncomplete() throws Exception {
+    String survey =
+        """
+        {
+          "answers": [
+            { "type": "CITIZENSHIP", "value": { "type": "COUNTRIES", "value": ["EE"] } },
+            {
+              "type": "ADDRESS",
+              "value": {
+                "type": "ADDRESS",
+                "value": {
+                  "street": "123 Main St",
+                  "city": "Tallinn",
+                  "postalCode": "10115",
+                  "countryCode": "EE"
+                }
+              }
+            },
+            { "type": "EMAIL", "value": { "type": "TEXT", "value": "test@example.com" } },
+            { "type": "PEP_SELF_DECLARATION", "value": { "type": "OPTION", "value": "IS_NOT_PEP" } }
+          ],
+          "purpose": "IDENTITY_ONLY"
+        }
+        """;
+    submitSurvey(survey);
+    backdateExistingSurveys(Duration.ofDays(366));
+
+    mockMvc
+        .perform(get("/v1/kyc/identity").with(authentication(authentication)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.citizenship[0]").value("EE"))
+        .andExpect(jsonPath("$.address.street").value("123 Main St"))
+        .andExpect(jsonPath("$.pepSelfDeclaration").value("IS_NOT_PEP"))
+        .andExpect(jsonPath("$.complete").value(false))
+        .andExpect(jsonPath("$.updatedAt").isNotEmpty());
+  }
+
+  @Test
+  void getIdentity_returnsIncompleteIdentityForFreshUser() throws Exception {
+    mockMvc
+        .perform(get("/v1/kyc/identity").with(authentication(authentication)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.citizenship").doesNotExist())
+        .andExpect(jsonPath("$.complete").value(false))
+        .andExpect(jsonPath("$.updatedAt").doesNotExist());
   }
 
   @Test

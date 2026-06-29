@@ -1,10 +1,14 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
+import static ee.tuleva.onboarding.investment.event.PipelineStep.EXECUTION_MATCHING;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.event.PipelineNotifier;
+import ee.tuleva.onboarding.investment.event.PipelineRun;
+import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationRequested;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
@@ -31,6 +35,8 @@ class SebPendingTransactionReconciliationJob {
   private final PublicHolidays publicHolidays;
   private final InvestmentReportService reportService;
   private final SebPendingTransactionReconciliationService reconciliationService;
+  private final PipelineTracker pipelineTracker;
+  private final PipelineNotifier pipelineNotifier;
 
   @Scheduled(cron = "0 0 9 * * MON-FRI", zone = TIMEZONE)
   @SchedulerLock(
@@ -48,6 +54,26 @@ class SebPendingTransactionReconciliationJob {
         "Running scheduled SEB pending transactions reconciliation: today={}, lookbackDays={}",
         today,
         LOOKBACK_DAYS);
+    pipelineTracker.start(PipelineRun.PipelineType.IMPORT, EXECUTION_MATCHING);
+    try {
+      pipelineTracker.stepStarted(EXECUTION_MATCHING);
+      Optional<String> firstError = reconcileLookback(today);
+      if (firstError.isPresent()) {
+        pipelineTracker.stepFailed(EXECUTION_MATCHING, firstError.get());
+      } else {
+        pipelineTracker.stepCompleted(EXECUTION_MATCHING);
+      }
+    } finally {
+      PipelineRun pipelineRun = pipelineTracker.current();
+      if (pipelineRun != null) {
+        pipelineNotifier.sendCompleted(pipelineRun);
+      }
+      pipelineTracker.clear();
+    }
+  }
+
+  private Optional<String> reconcileLookback(LocalDate today) {
+    String firstError = null;
     for (int i = 0; i <= LOOKBACK_DAYS; i++) {
       LocalDate date = today.minusDays(i);
       try {
@@ -60,8 +86,12 @@ class SebPendingTransactionReconciliationJob {
       } catch (Exception e) {
         log.error(
             "SEB pending transactions reconciliation failed, continuing: reportDate={}", date, e);
+        if (firstError == null) {
+          firstError = e.getMessage();
+        }
       }
     }
+    return Optional.ofNullable(firstError);
   }
 
   @EventListener

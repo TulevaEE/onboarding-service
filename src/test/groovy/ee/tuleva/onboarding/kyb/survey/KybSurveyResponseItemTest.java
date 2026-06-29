@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.AddressDetails;
+import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.InvestmentGoal;
+import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.InvestmentGoals;
+import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.InvestmentGoalsValue;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.Test;
@@ -52,13 +55,38 @@ class KybSurveyResponseItemTest {
     assertThat(address.value().value().postalCode()).isEqualTo("50104");
 
     var goals = (KybSurveyResponseItem.InvestmentGoals) response.answers().get(2);
-    assertThat(goals.value().value()).isEqualTo(KybSurveyResponseItem.InvestmentGoal.LONG_TERM);
+    assertThat(goals.value()).isEqualTo(new InvestmentGoalsValue.Option(InvestmentGoal.LONG_TERM));
 
     var assets = (KybSurveyResponseItem.InvestableAssets) response.answers().get(3);
     assertThat(assets.value().value()).isEqualTo(KybSurveyResponseItem.AssetRange.MORE_THAN_80K);
 
     var sourceOfIncome = (KybSurveyResponseItem.CompanySourceOfIncome) response.answers().get(4);
     assertThat(sourceOfIncome.value()).hasSize(2);
+  }
+
+  @Test
+  void deserializesAssetManagementInvestmentGoalAsOption() throws Exception {
+    var json =
+        "{ \"type\": \"INVESTMENT_GOALS\", \"value\": { \"type\": \"OPTION\", \"value\": \"ASSET_MANAGEMENT\" } }";
+
+    var item = objectMapper.readValue(json, KybSurveyResponseItem.class);
+
+    assertThat(item)
+        .isEqualTo(
+            new InvestmentGoals(new InvestmentGoalsValue.Option(InvestmentGoal.ASSET_MANAGEMENT)));
+  }
+
+  @Test
+  void deserializesFreeTextInvestmentGoalAsText() throws Exception {
+    var json =
+        "{ \"type\": \"INVESTMENT_GOALS\", \"value\": { \"type\": \"TEXT\", \"value\": \"Soovin investeerida kinnisvarasse\" } }";
+
+    var item = objectMapper.readValue(json, KybSurveyResponseItem.class);
+
+    assertThat(item)
+        .isEqualTo(
+            new InvestmentGoals(
+                new InvestmentGoalsValue.Text("Soovin investeerida kinnisvarasse")));
   }
 
   @Test

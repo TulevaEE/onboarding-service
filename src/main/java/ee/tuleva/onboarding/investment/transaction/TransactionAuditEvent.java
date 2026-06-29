@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static org.hibernate.type.SqlTypes.JSON;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -33,8 +34,11 @@ public class TransactionAuditEvent {
   private Long id;
 
   @ManyToOne
-  @JoinColumn(name = "batch_id", nullable = false)
+  @JoinColumn(name = "batch_id")
   private TransactionBatch batch;
+
+  @Column(name = "order_id")
+  private Long orderId;
 
   @NotNull private String eventType;
 

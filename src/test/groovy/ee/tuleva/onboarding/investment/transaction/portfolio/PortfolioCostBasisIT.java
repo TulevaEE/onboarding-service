@@ -130,7 +130,7 @@ class PortfolioCostBasisIT {
             .instrumentIsin(INSTRUMENT_ISIN)
             .transactionType(type)
             .instrumentType(ETF)
-            .orderQuantity(20000L)
+            .orderQuantity(new BigDecimal("20000"))
             .orderVenue(SEB)
             .orderTimestamp(TRADE_DATE.atStartOfDay().toInstant(ZoneOffset.UTC))
             .orderUuid(UUID.randomUUID())

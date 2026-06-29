@@ -57,6 +57,8 @@ class CompanyLegalFormScreenerTest {
         List.of(),
         new SelfCertification(true, true, true),
         "EE",
-        "Harju maakond, Tallinn, Pärnu mnt 1");
+        "Harju maakond, Tallinn, Pärnu mnt 1",
+        null,
+        List.of());
   }
 }

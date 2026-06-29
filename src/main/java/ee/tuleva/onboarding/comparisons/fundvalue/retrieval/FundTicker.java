@@ -47,6 +47,14 @@ public enum FundTicker {
       "XRSM",
       null,
       BenchmarkCategory.EQUITY_DM),
+  XTRACKERS_WORLD_SCREENED(
+      "XWSC.DE",
+      "XWSC.XETRA",
+      "IE000I9HGDZ3",
+      "Xtrackers MSCI World Screened UCITS ETF 1C",
+      "XWSC",
+      null,
+      BenchmarkCategory.EQUITY_DM),
   XTRACKERS_CANADA_ESG_SCREENED(
       "D5BH.DE",
       "D5BH.XETRA",
@@ -93,6 +101,14 @@ public enum FundTicker {
       "IE000F60HVH9",
       "ICAV Amundi MSCI USA Screened UCITS ETF",
       "USAS",
+      null,
+      BenchmarkCategory.EQUITY_DM),
+  AMUNDI_WORLD_SCREENED(
+      "WLSC.PA",
+      "WLSC.PA.EODHD",
+      "IE000QWCYQT0",
+      "Amundi MSCI World Screened UCITS ETF",
+      "WLSC",
       null,
       BenchmarkCategory.EQUITY_DM),
   AMUNDI_WORLD_EX_USA_SCREENED(

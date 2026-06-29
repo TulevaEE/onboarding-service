@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.admin;
 
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
@@ -9,6 +8,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -33,9 +33,13 @@ import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.ChildIsNotAMinorException;
 import ee.tuleva.onboarding.party.ParentChildLinkRegistrationService;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.party.RepresentationType;
-import ee.tuleva.onboarding.savings.fund.CompanyAlreadyHasOnboardingStatusException;
+import ee.tuleva.onboarding.savings.fund.IbanWhitelistEntry;
+import ee.tuleva.onboarding.savings.fund.IbanWhitelistService;
+import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
+import ee.tuleva.onboarding.savings.fund.UnattributedPaymentAttributionService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
@@ -79,6 +83,16 @@ class AdminControllerTest {
   @MockitoBean private RedemptionBatchJob redemptionBatchJob;
   @MockitoBean private SavingsFundOnboardingService savingsFundOnboardingService;
   @MockitoBean private ParentChildLinkRegistrationService parentChildLinkRegistrationService;
+
+  @MockitoBean
+  private ee.tuleva.onboarding.investment.check.tracking.PeriodicTdAttributionService
+      tdAttributionService;
+
+  @MockitoBean
+  private ee.tuleva.onboarding.investment.fees.ocf.OcfCalculationService ocfCalculationService;
+
+  @MockitoBean private IbanWhitelistService ibanWhitelistService;
+  @MockitoBean private UnattributedPaymentAttributionService unattributedPaymentAttributionService;
   @MockitoBean private Clock clock;
   @MockitoBean private InvestmentReportPublisher investmentReportPublisher;
   @MockitoBean private InvestmentReportDataService investmentReportDataService;
@@ -94,6 +108,50 @@ class AdminControllerTest {
         "relationshipType": "LEGAL_REPRESENTATIVE"
       }
       """;
+
+  @Test
+  void attributeUnattributedPayment_withValidOpsToken_returnsOk() throws Exception {
+    var paymentId = UUID.randomUUID();
+    var payment =
+        SavingFundPayment.builder()
+            .id(paymentId)
+            .amount(new BigDecimal("1000.00"))
+            .status(SavingFundPayment.Status.VERIFIED)
+            .build();
+    given(
+            unattributedPaymentAttributionService.attribute(
+                paymentId, new PartyId(PartyId.Type.PERSON, "48806046007"), true))
+        .willReturn(payment);
+
+    mockMvc
+        .perform(
+            post("/admin/savings-fund/payments/{paymentId}/attribute", paymentId)
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("partyType", "PERSON")
+                .param("partyCode", "48806046007")
+                .param("returnCancelled", "true"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paymentId").value(paymentId.toString()))
+        .andExpect(jsonPath("$.status").value("VERIFIED"))
+        .andExpect(jsonPath("$.partyCode").value("48806046007"));
+  }
+
+  @Test
+  void attributeUnattributedPayment_withInvalidToken_returnsUnauthorized() throws Exception {
+    var paymentId = UUID.randomUUID();
+
+    mockMvc
+        .perform(
+            post("/admin/savings-fund/payments/{paymentId}/attribute", paymentId)
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .param("partyType", "PERSON")
+                .param("partyCode", "48806046007"))
+        .andExpect(status().isUnauthorized());
+
+    verifyNoInteractions(unattributedPaymentAttributionService);
+  }
 
   @Test
   void fetchSebHistory_withValidToken_returnsOk() throws Exception {
@@ -586,92 +644,157 @@ class AdminControllerTest {
   }
 
   @Test
-  void whitelistCompany_withValidToken_delegatesToServiceWithoutOverride() throws Exception {
+  void whitelistIban_withOpsToken_delegatesToService() throws Exception {
     mockMvc
         .perform(
-            post("/admin/whitelist-company")
-                .with(csrf())
-                .header("X-Admin-Token", "valid-token")
-                .param("registryCode", "12345678"))
-        .andExpect(status().isOk())
-        .andExpect(content().string(containsString("12345678")));
-
-    verify(savingsFundOnboardingService).whitelistLegalEntity("12345678", false);
-  }
-
-  @Test
-  void whitelistCompany_withOpsToken_delegatesToService() throws Exception {
-    mockMvc
-        .perform(
-            post("/admin/whitelist-company")
+            post("/admin/whitelist-iban")
                 .with(csrf())
                 .header("X-Admin-Token", "ops-token")
-                .param("registryCode", "12345678"))
+                .param("partyType", "PERSON")
+                .param("partyCode", "39901019992")
+                .param("iban", "EE471000001020145685")
+                .param("comment", "verified via bank statement"))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("12345678")));
+        .andExpect(content().string(containsString("EE471000001020145685")));
 
-    verify(savingsFundOnboardingService).whitelistLegalEntity("12345678", false);
+    verify(ibanWhitelistService)
+        .add(
+            new PartyId(PartyId.Type.PERSON, "39901019992"),
+            "EE471000001020145685",
+            "verified via bank statement");
   }
 
   @Test
-  void whitelistCompany_withOverrideTrue_passesFlagToService() throws Exception {
+  void whitelistIban_withInvalidToken_returnsUnauthorized() throws Exception {
     mockMvc
         .perform(
-            post("/admin/whitelist-company")
-                .with(csrf())
-                .header("X-Admin-Token", "valid-token")
-                .param("registryCode", "12345678")
-                .param("override", "true"))
-        .andExpect(status().isOk());
-
-    verify(savingsFundOnboardingService).whitelistLegalEntity("12345678", true);
-  }
-
-  @Test
-  void whitelistCompany_whenServiceThrowsConflict_returnsConflict() throws Exception {
-    doThrow(new CompanyAlreadyHasOnboardingStatusException("12345678", REJECTED))
-        .when(savingsFundOnboardingService)
-        .whitelistLegalEntity("12345678", false);
-
-    mockMvc
-        .perform(
-            post("/admin/whitelist-company")
-                .with(csrf())
-                .header("X-Admin-Token", "valid-token")
-                .param("registryCode", "12345678"))
-        .andExpect(status().isConflict());
-  }
-
-  @Test
-  void whitelistCompany_withInvalidToken_returnsUnauthorized() throws Exception {
-    mockMvc
-        .perform(
-            post("/admin/whitelist-company")
+            post("/admin/whitelist-iban")
                 .with(csrf())
                 .header("X-Admin-Token", "wrong-token")
-                .param("registryCode", "12345678"))
+                .param("partyType", "PERSON")
+                .param("partyCode", "39901019992")
+                .param("iban", "EE471000001020145685"))
         .andExpect(status().isUnauthorized());
 
-    verify(savingsFundOnboardingService, never()).whitelistLegalEntity(any(), anyBoolean());
+    verify(ibanWhitelistService, never()).add(any(), any(), any());
   }
 
   @Test
-  void whitelistCompany_withMissingToken_returnsBadRequest() throws Exception {
-    mockMvc
-        .perform(post("/admin/whitelist-company").with(csrf()).param("registryCode", "12345678"))
-        .andExpect(status().isBadRequest());
-
-    verify(savingsFundOnboardingService, never()).whitelistLegalEntity(any(), anyBoolean());
-  }
-
-  @Test
-  void whitelistCompany_withMissingRegistryCode_returnsBadRequest() throws Exception {
+  void whitelistIban_withMissingPartyType_returnsBadRequest() throws Exception {
     mockMvc
         .perform(
-            post("/admin/whitelist-company").with(csrf()).header("X-Admin-Token", "valid-token"))
+            post("/admin/whitelist-iban")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("partyCode", "39901019992")
+                .param("iban", "EE471000001020145685"))
         .andExpect(status().isBadRequest());
 
-    verify(savingsFundOnboardingService, never()).whitelistLegalEntity(any(), anyBoolean());
+    verify(ibanWhitelistService, never()).add(any(), any(), any());
+  }
+
+  @Test
+  void listWhitelistedIbans_withOpsToken_returnsEntriesForParty() throws Exception {
+    var entry =
+        new IbanWhitelistEntry(
+            new PartyId(PartyId.Type.PERSON, "39901019992"),
+            "EE471000001020145685",
+            "verified",
+            Instant.parse("2026-05-29T10:00:00Z"));
+    given(ibanWhitelistService.list(new PartyId(PartyId.Type.PERSON, "39901019992")))
+        .willReturn(List.of(entry));
+
+    mockMvc
+        .perform(
+            get("/admin/whitelist-iban")
+                .header("X-Admin-Token", "ops-token")
+                .param("partyType", "PERSON")
+                .param("partyCode", "39901019992"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].iban").value("EE471000001020145685"))
+        .andExpect(jsonPath("$[0].comment").value("verified"));
+  }
+
+  @Test
+  void whitelistIban_withInvalidIban_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/whitelist-iban")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("partyType", "PERSON")
+                .param("partyCode", "39901019992")
+                .param("iban", "not-an-iban"))
+        .andExpect(status().isBadRequest());
+
+    verify(ibanWhitelistService, never()).add(any(), any(), any());
+  }
+
+  @Test
+  void listWhitelistedIbans_withNoFilter_returnsAll() throws Exception {
+    given(ibanWhitelistService.list(null)).willReturn(List.of());
+
+    mockMvc
+        .perform(get("/admin/whitelist-iban").header("X-Admin-Token", "ops-token"))
+        .andExpect(status().isOk());
+
+    verify(ibanWhitelistService).list(null);
+  }
+
+  @Test
+  void listWhitelistedIbans_withOnlyPartyType_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            get("/admin/whitelist-iban")
+                .header("X-Admin-Token", "ops-token")
+                .param("partyType", "PERSON"))
+        .andExpect(status().isBadRequest());
+
+    verify(ibanWhitelistService, never()).list(any());
+  }
+
+  @Test
+  void listWhitelistedIbans_withOnlyPartyCode_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            get("/admin/whitelist-iban")
+                .header("X-Admin-Token", "ops-token")
+                .param("partyCode", "39901019992"))
+        .andExpect(status().isBadRequest());
+
+    verify(ibanWhitelistService, never()).list(any());
+  }
+
+  @Test
+  void removeWhitelistedIban_withOpsToken_delegatesToService() throws Exception {
+    mockMvc
+        .perform(
+            delete("/admin/whitelist-iban")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("partyType", "PERSON")
+                .param("partyCode", "39901019992")
+                .param("iban", "EE471000001020145685"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("EE471000001020145685")));
+
+    verify(ibanWhitelistService)
+        .remove(new PartyId(PartyId.Type.PERSON, "39901019992"), "EE471000001020145685");
+  }
+
+  @Test
+  void removeWhitelistedIban_withInvalidToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            delete("/admin/whitelist-iban")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .param("partyType", "PERSON")
+                .param("partyCode", "39901019992")
+                .param("iban", "EE471000001020145685"))
+        .andExpect(status().isUnauthorized());
+
+    verify(ibanWhitelistService, never()).remove(any(), any());
   }
 
   @Test
@@ -811,6 +934,7 @@ class AdminControllerTest {
             "Mari",
             "Maasikas",
             RepresentationType.LEGAL_REPRESENTATIVE);
+    verify(savingsFundOnboardingService).seedPersonOnboardingIfAbsent("61506150006");
   }
 
   @Test
@@ -831,6 +955,7 @@ class AdminControllerTest {
             "Mari",
             "Maasikas",
             RepresentationType.LEGAL_REPRESENTATIVE);
+    verify(savingsFundOnboardingService).seedPersonOnboardingIfAbsent("61506150006");
   }
 
   @Test
@@ -845,6 +970,7 @@ class AdminControllerTest {
         .andExpect(status().isUnauthorized());
 
     verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any(), any());
+    verify(savingsFundOnboardingService, never()).seedPersonOnboardingIfAbsent(any());
   }
 
   @Test
@@ -861,6 +987,8 @@ class AdminControllerTest {
                 .contentType(APPLICATION_JSON)
                 .content(VALID_LINK_BODY))
         .andExpect(status().isBadRequest());
+
+    verify(savingsFundOnboardingService, never()).seedPersonOnboardingIfAbsent(any());
   }
 
   @Test
@@ -903,6 +1031,137 @@ class AdminControllerTest {
         null,
         new BigDecimal("0.998"),
         new BigDecimal("10000000"));
+  }
+
+  @Test
+  void calculateOcf_forSingleFund_returnsOk() throws Exception {
+    var snapshot =
+        new ee.tuleva.onboarding.investment.fees.ocf.OcfSnapshot(
+            1L,
+            "TUK75",
+            LocalDate.of(2026, 4, 1),
+            new BigDecimal("0.00340000"),
+            new BigDecimal("0.00100000"),
+            new BigDecimal("0.00070000"),
+            new BigDecimal("0.00020000"),
+            new BigDecimal("0.00530000"));
+    given(ocfCalculationService.calculateOcf(TulevaFund.TUK75, java.time.YearMonth.of(2026, 4)))
+        .willReturn(snapshot);
+
+    mockMvc
+        .perform(
+            post("/admin/ocf")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK75")
+                .param("month", "2026-04"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("TUK75")));
+  }
+
+  @Test
+  void calculateOcf_forAllFunds_returnsOk() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/ocf")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("month", "2026-04"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("all funds")));
+
+    verify(ocfCalculationService).calculateForAllFunds(java.time.YearMonth.of(2026, 4));
+  }
+
+  @Test
+  void calculateOcf_withInvalidToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(post("/admin/ocf").with(csrf()).header("X-Admin-Token", "wrong-token"))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void backfillOcf_returnsOk() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/ocf-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("monthsBack", "3"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("3 months")));
+  }
+
+  @Test
+  void computeTdAttribution_forSingleFund_returnsOk() throws Exception {
+    var result =
+        ee.tuleva.onboarding.investment.check.tracking.TdAttributionResult.builder()
+            .fund(TulevaFund.TUK75)
+            .tdGeometric(new BigDecimal("0.0005"))
+            .build();
+    given(
+            tdAttributionService.computeAttribution(
+                eq(TulevaFund.TUK75),
+                eq(LocalDate.of(2026, 4, 1)),
+                eq(LocalDate.of(2026, 4, 30)),
+                eq(ee.tuleva.onboarding.investment.check.tracking.PeriodType.MONTHLY)))
+        .willReturn(result);
+
+    mockMvc
+        .perform(
+            post("/admin/td-attribution")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK75")
+                .param("from", "2026-04-01")
+                .param("to", "2026-04-30"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("TUK75")));
+  }
+
+  @Test
+  void computeTdAttribution_forAllFunds_returnsOk() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/td-attribution")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("from", "2026-04-01")
+                .param("to", "2026-04-30"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("all funds")));
+
+    verify(tdAttributionService)
+        .computeForAllFunds(
+            LocalDate.of(2026, 4, 1),
+            LocalDate.of(2026, 4, 30),
+            ee.tuleva.onboarding.investment.check.tracking.PeriodType.MONTHLY);
+  }
+
+  @Test
+  void computeTdAttribution_withInvalidToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/td-attribution")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .param("from", "2026-04-01")
+                .param("to", "2026-04-30"))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void backfillTdAttribution_returnsOk() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/td-attribution-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("monthsBack", "3"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("3 months")));
+
+    verify(tdAttributionService).backfillMonths(eq(3), any());
   }
 
   private NavCalculationResult sampleNavResult(LocalDate date) {

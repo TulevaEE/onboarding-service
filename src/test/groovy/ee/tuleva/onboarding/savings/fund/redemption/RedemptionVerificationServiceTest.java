@@ -156,23 +156,6 @@ class RedemptionVerificationServiceTest {
   }
 
   @Test
-  void process_legalEntityRequest_routesToInReviewWhenStatusWhitelistedWithoutCompletedKyb() {
-    var registryCode = "16001234";
-    var requestId = UUID.randomUUID();
-    var request = legalEntityRequest(requestId, registryCode);
-
-    given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
-        .willReturn(false);
-    given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
-        .willReturn(Optional.of(SavingsFundOnboardingStatus.WHITELISTED));
-
-    service.process(request);
-
-    verify(redemptionStatusService).changeStatus(requestId, IN_REVIEW);
-    verify(legalEntityScreener, never()).screenLatest(registryCode);
-  }
-
-  @Test
   void process_legalEntityRequest_transitionsToInReviewWhenLatestKybRejected() {
     var registryCode = "16001234";
     var requestId = UUID.randomUUID();

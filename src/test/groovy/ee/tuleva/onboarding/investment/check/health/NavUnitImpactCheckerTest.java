@@ -61,16 +61,31 @@ class NavUnitImpactCheckerTest {
   }
 
   @Test
-  void noFindingWhenAumIsNull() {
+  void failsWhenUnitBreakExceedsThresholdButAumIsNull() {
     var findings = checker.check(TKF100, new BigDecimal("100000"), new BigDecimal("100001"), null);
 
-    assertThat(findings).isEmpty();
+    assertThat(findings)
+        .singleElement()
+        .satisfies(
+            f -> {
+              assertThat(f.checkType()).isEqualTo(NAV_UNIT_IMPACT);
+              assertThat(f.severity()).isEqualTo(FAIL);
+              assertThat(f.message()).contains("indeterminate");
+            });
   }
 
   @Test
-  void noFindingWhenAumIsZero() {
+  void failsWhenUnitBreakExceedsThresholdButAumIsZero() {
     var findings =
         checker.check(TKF100, new BigDecimal("100000"), new BigDecimal("100001"), BigDecimal.ZERO);
+
+    assertThat(findings).singleElement().satisfies(f -> assertThat(f.severity()).isEqualTo(FAIL));
+  }
+
+  @Test
+  void noFindingWhenAumIsNullButDifferenceBelowThreshold() {
+    var findings =
+        checker.check(TKF100, new BigDecimal("100000.30"), new BigDecimal("100000.00"), null);
 
     assertThat(findings).isEmpty();
   }

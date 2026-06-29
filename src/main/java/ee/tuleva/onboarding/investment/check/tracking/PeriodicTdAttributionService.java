@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static java.math.BigDecimal.ZERO;
@@ -13,13 +14,18 @@ import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
+import ee.tuleva.onboarding.investment.fees.InstrumentFeeRepository;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -30,14 +36,16 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-class PeriodicTdAttributionService {
+public class PeriodicTdAttributionService {
 
   private static final int SCALE = TdAttributionCalculator.SCALE;
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final TrackingDifferenceEventRepository tdEventRepository;
   private final FeeAccrualRepository feeAccrualRepository;
@@ -46,21 +54,30 @@ class PeriodicTdAttributionService {
   private final FundNavQueryService fundNavQueryService;
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   private final PeriodicTdAttributionRepository attributionRepository;
+  private final TransactionExecutionRepository transactionExecutionRepository;
+  private final InstrumentFeeRepository instrumentFeeRepository;
+  private final PlatformTransactionManager transactionManager;
 
   private final TdAttributionCalculator calculator = new TdAttributionCalculator();
 
-  @Transactional
   public TdAttributionResult computeAttribution(
       TulevaFund fund, LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
 
-    attributionRepository.deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
-        fund, periodStart, periodEnd, periodType);
-
+    // Compute before touching the database: a failure here leaves the prior period's row intact.
     var input = buildInput(fund, periodStart, periodEnd, periodType);
     var result = calculator.calculate(input);
-
     var entity = toEntity(result);
-    attributionRepository.save(entity);
+
+    // Replace the existing row atomically. A TransactionTemplate (not @Transactional) is used so
+    // the delete+save run in one transaction even on the self-invoked batch/backfill paths, where
+    // a @Transactional proxy would be bypassed and the delete could commit without the save.
+    new TransactionTemplate(transactionManager)
+        .executeWithoutResult(
+            status -> {
+              attributionRepository.deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
+                  fund, periodStart, periodEnd, periodType);
+              attributionRepository.save(entity);
+            });
 
     log.info(
         "TD attribution computed: fund={}, period={}-{}, td={}bps, residual={}bps",
@@ -73,7 +90,8 @@ class PeriodicTdAttributionService {
     return result;
   }
 
-  void computeForAllFunds(LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
+  public void computeForAllFunds(
+      LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
     for (var fund : TulevaFund.values()) {
       try {
         computeAttribution(fund, periodStart, periodEnd, periodType);
@@ -85,6 +103,15 @@ class PeriodicTdAttributionService {
             periodEnd,
             e);
       }
+    }
+  }
+
+  public void backfillMonths(int monthsBack, Clock clock) {
+    var today = LocalDate.now(clock);
+    for (int i = monthsBack; i >= 1; i--) {
+      var month = YearMonth.from(today).minusMonths(i);
+      log.info("Backfilling TD attribution: period={}", month);
+      computeForAllFunds(month.atDay(1), month.atEndOfMonth(), PeriodType.MONTHLY);
     }
   }
 
@@ -119,6 +146,29 @@ class PeriodicTdAttributionService {
             .map(r -> r.annualRate())
             .orElse(ZERO);
 
+    var txnCosts =
+        transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+            fund.getCode(),
+            periodStart.atStartOfDay(ESTONIAN_ZONE).toInstant(),
+            periodEnd.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant());
+    var txnCostReturn =
+        avgAum.signum() > 0 ? txnCosts.negate().divide(avgAum, SCALE, HALF_UP) : ZERO;
+
+    var bmModelEvents =
+        tdEventRepository.findDeduplicatedEventsForPeriod(
+            fund, BENCHMARK_MODEL, periodStart, periodEnd);
+    var etfTrackingArithmetic =
+        bmModelEvents.stream()
+            .map(TrackingDifferenceEvent::getTrackingDifference)
+            .reduce(ZERO, BigDecimal::add);
+
+    var weightedOcf = computeWeightedOcf(modelAllocations, periodEnd);
+    var etfOcfDrag =
+        weightedOcf
+            .negate()
+            .multiply(BigDecimal.valueOf(calendarDays))
+            .divide(BigDecimal.valueOf(365), SCALE, HALF_UP);
+
     return TdAttributionInput.builder()
         .fund(fund)
         .periodStart(periodStart)
@@ -127,14 +177,50 @@ class PeriodicTdAttributionService {
         .calendarDays(calendarDays)
         .mgmtFeeDragPeriod(mgmtFeeDragReturn)
         .depotFeeDragPeriod(depotFeeDragReturn)
+        .transactionCostsPeriod(txnCostReturn)
+        .etfOcfDragPeriod(etfOcfDrag)
+        .etfTrackingResidualArithmetic(etfTrackingArithmetic)
         .expectedAnnualFeeRate(expectedAnnualFeeRate)
         .dailyRecords(dailyRecords)
         .build();
   }
 
-  // DEPOT fee is billed VAT-inclusive: gross is what the fund actually pays out, so the NAV
-  // drag uses gross. MANAGEMENT fee has net == gross (no VAT applied), but we use net as the
-  // canonical figure for consistency with FeeCalculationService ledger postings.
+  public void computeQuarterly(TulevaFund fund, int year, int quarter) {
+    var start = LocalDate.of(year, (quarter - 1) * 3 + 1, 1);
+    var end = start.plusMonths(3).minusDays(1);
+    computeAttribution(fund, start, end, PeriodType.QUARTERLY);
+  }
+
+  public void computeAnnual(TulevaFund fund, int year) {
+    computeAttribution(
+        fund, LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31), PeriodType.ANNUAL);
+  }
+
+  private BigDecimal computeWeightedOcf(
+      List<ModelPortfolioAllocation> allocations, LocalDate asOf) {
+    var rates = instrumentFeeRepository.findAllValidRates(asOf);
+    if (rates.isEmpty()) {
+      return ZERO;
+    }
+    var rateByIsin =
+        rates.stream().collect(Collectors.toMap(r -> r.isin(), r -> r.netOcf(), (a, b) -> a));
+
+    var latestDate =
+        allocations.stream()
+            .map(ModelPortfolioAllocation::getEffectiveDate)
+            .filter(d -> !d.isAfter(asOf))
+            .max(LocalDate::compareTo)
+            .orElse(null);
+    if (latestDate == null) {
+      return ZERO;
+    }
+
+    return allocations.stream()
+        .filter(a -> a.getEffectiveDate().equals(latestDate))
+        .map(a -> a.getWeight().multiply(rateByIsin.getOrDefault(a.getIsin(), ZERO)))
+        .reduce(ZERO, BigDecimal::add);
+  }
+
   private BigDecimal computeFeeDragPeriod(List<FeeAccrual> accruals, FeeType feeType) {
     return accruals.stream()
         .filter(a -> a.feeType() == feeType)
@@ -269,6 +355,7 @@ class PeriodicTdAttributionService {
       securityDataList.add(
           SecurityDailyData.builder()
               .isin(isin)
+              .instrumentName(position != null ? position.getAccountName() : null)
               .modelWeight(modelWeight)
               .actualWeight(normalizedActualWeight)
               .normalizedWeightDiff(normalizedWeightDiff)
@@ -381,6 +468,9 @@ class PeriodicTdAttributionService {
             .weightDeviation(result.weightDeviation())
             .transactionCosts(result.transactionCosts())
             .residual(result.residual())
+            .etfOcfDrag(result.etfOcfDrag())
+            .etfTrackingResidual(result.etfTrackingResidual())
+            .tdVsBenchmark(result.tdVsBenchmark())
             .businessDays(result.businessDays())
             .avgAum(result.avgAum())
             .avgCashPct(result.avgCashPct())

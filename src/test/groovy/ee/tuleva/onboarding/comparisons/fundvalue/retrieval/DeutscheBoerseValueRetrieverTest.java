@@ -43,6 +43,13 @@ class DeutscheBoerseValueRetrieverTest {
   }
 
   @Test
+  void exposesXetraStorageKeysAsExpectedStorageKeys() {
+    assertThat(retriever.expectedStorageKeys())
+        .containsExactlyInAnyOrderElementsOf(
+            FundTicker.getXetraIsins().stream().map(isin -> isin + ".XETR").toList());
+  }
+
+  @Test
   void retrievesFundValuesFromDeutscheBoerseApi() {
     FundTicker.getXetraIsins()
         .forEach(

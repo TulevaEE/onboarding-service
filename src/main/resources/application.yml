@@ -84,6 +84,10 @@ ariregister:
   username: ${ARIREGISTER_USERNAME:}
   password: ${ARIREGISTER_PASSWORD:}
 
+population-register:
+  url: ${POPULATION_REGISTER_URL:http://localhost:9000}
+  client-id: ${POPULATION_REGISTER_CLIENT_ID:EE/COM/00000000/non-production}
+
 seb-gateway:
   enabled: false
   keystore:
@@ -191,6 +195,16 @@ transaction-registry:
       - funds@tuleva.ee
     cc:
       - taavi.pertman@tuleva.ee
+  # Outbound order notification to the custodian (SEB trustee). Inert by default:
+  # disabled and with no recipients, so nothing is sent until explicitly configured.
+  custodian-order-email:
+    enabled: ${TRANSACTION_REGISTRY_CUSTODIAN_ORDER_EMAIL_ENABLED:false}
+    to: ${TRANSACTION_REGISTRY_CUSTODIAN_ORDER_EMAIL_TO:}
+    cc: ${TRANSACTION_REGISTRY_CUSTODIAN_ORDER_EMAIL_CC:}
+  settlement-check:
+    # How far back the daily settlement check scans SENT/EXECUTED orders. Bounds the
+    # scan because orders never transition to SETTLED, so the EXECUTED backlog grows.
+    scan-lookback-days: 60
 
 payment-provider:
   url: https://sandbox-stargate.montonio.com/api
@@ -448,3 +462,7 @@ spring:
 
 sentry:
   environment: production
+
+population-register:
+  url: ${POPULATION_REGISTER_URL:https://xroad-consumer.tuleva.ee/r1/EE/GOV/70008440/rr/domesticDataExchange/v1}
+  client-id: ${POPULATION_REGISTER_CLIENT_ID:EE/COM/14118923/tuleva-fund-management}

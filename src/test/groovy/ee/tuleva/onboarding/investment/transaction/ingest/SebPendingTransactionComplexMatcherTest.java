@@ -152,9 +152,9 @@ class SebPendingTransactionComplexMatcherTest {
   void match_skipsOrdersAlreadyLinkedToExecution() {
     TransactionOrder order = orderOf(41L, TUK75, "IE00BFNM3G45", BUY, ETF, 13288L, null, SENT);
     givenCandidates("IE00BFNM3G45", List.of(order));
-    given(executionRepository.findByOrderId(41L))
+    given(executionRepository.findAllByOrderId(41L))
         .willReturn(
-            Optional.of(TransactionExecution.builder().id(99L).orderId(41L).source("X").build()));
+            List.of(TransactionExecution.builder().id(99L).orderId(41L).source("X").build()));
 
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288", null);
@@ -367,9 +367,9 @@ class SebPendingTransactionComplexMatcherTest {
   void findNearMiss_excludesOrdersAlreadyLinkedToExecution() {
     TransactionOrder order = orderOf(89L, TUK75, "IE00BFNM3G45", BUY, ETF, 13288L, null, SENT);
     givenCandidates("IE00BFNM3G45", List.of(order));
-    given(executionRepository.findByOrderId(89L))
+    given(executionRepository.findAllByOrderId(89L))
         .willReturn(
-            Optional.of(TransactionExecution.builder().id(99L).orderId(89L).source("X").build()));
+            List.of(TransactionExecution.builder().id(99L).orderId(89L).source("X").build()));
 
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288.0003", null);

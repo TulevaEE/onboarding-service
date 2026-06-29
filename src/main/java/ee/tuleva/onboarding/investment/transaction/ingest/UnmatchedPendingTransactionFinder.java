@@ -36,8 +36,8 @@ class UnmatchedPendingTransactionFinder {
     if (row.clientRef() != null) {
       return orderRepository
           .findByOrderUuid(row.clientRef())
-          .flatMap(order -> executionRepository.findByOrderId(order.getId()))
-          .isPresent();
+          .map(order -> !executionRepository.findAllByOrderId(order.getId()).isEmpty())
+          .orElse(false);
     }
     return false;
   }

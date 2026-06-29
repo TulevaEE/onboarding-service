@@ -84,13 +84,13 @@ class SebPendingTransactionReconciliationIdempotencyIT {
   void reconcile_runTwice_producesExactlyOneExecution() {
     reconciliationService.reconcile(report);
     entityManager.flush();
-    Long firstExecutionId = executionRepository.findByOrderId(order.getId()).orElseThrow().getId();
+    Long firstExecutionId = executionRepository.findAllByOrderId(order.getId()).getFirst().getId();
 
     reconciliationService.reconcile(report);
     entityManager.flush();
     entityManager.clear();
 
-    TransactionExecution after = executionRepository.findByOrderId(order.getId()).orElseThrow();
+    TransactionExecution after = executionRepository.findAllByOrderId(order.getId()).getFirst();
     assertThat(after.getId()).isEqualTo(firstExecutionId);
 
     List<TransactionExecution> allForOrder =

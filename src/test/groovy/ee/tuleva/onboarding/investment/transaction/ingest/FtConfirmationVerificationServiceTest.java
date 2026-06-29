@@ -160,7 +160,7 @@ class FtConfirmationVerificationServiceTest {
   void executionMissingWithinOneBusinessDay_returnsPendingExecution() {
     TransactionOrder order = order(new BigDecimal("40434"));
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
-    given(executionRepository.findByOrderId(order.getId())).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(order.getId())).willReturn(List.of());
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
 
     FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation()).orElseThrow();
@@ -173,7 +173,7 @@ class FtConfirmationVerificationServiceTest {
   void executionMissingAfterOneBusinessDay_returnsError() {
     TransactionOrder order = order(new BigDecimal("40434"));
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
-    given(executionRepository.findByOrderId(order.getId())).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(order.getId())).willReturn(List.of());
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
 
     FtConfirmationResult result =
@@ -186,7 +186,7 @@ class FtConfirmationVerificationServiceTest {
   void executionMissingAndOrderQuantityMismatch_returnsErrorEvenWithinPendingWindow() {
     TransactionOrder order = order(new BigDecimal("40432"));
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
-    given(executionRepository.findByOrderId(order.getId())).willReturn(Optional.empty());
+    given(executionRepository.findAllByOrderId(order.getId())).willReturn(List.of());
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
 
     FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation()).orElseThrow();
@@ -308,8 +308,8 @@ class FtConfirmationVerificationServiceTest {
     TransactionOrder oldest = order(10L, new BigDecimal("99999"));
     TransactionOrder matching = order(42L, new BigDecimal("40434"));
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(oldest, matching));
-    given(executionRepository.findByOrderId(42L))
-        .willReturn(Optional.of(execution(new BigDecimal("40434"))));
+    given(executionRepository.findAllByOrderId(42L))
+        .willReturn(List.of(execution(new BigDecimal("40434"))));
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
 
     FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation()).orElseThrow();
@@ -393,8 +393,8 @@ class FtConfirmationVerificationServiceTest {
       BigDecimal orderQuantity, BigDecimal executedQuantity) {
     TransactionOrder order = order(orderQuantity);
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
-    given(executionRepository.findByOrderId(order.getId()))
-        .willReturn(Optional.of(execution(executedQuantity)));
+    given(executionRepository.findAllByOrderId(order.getId()))
+        .willReturn(List.of(execution(executedQuantity)));
     return order;
   }
 

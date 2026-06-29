@@ -104,6 +104,6 @@ class SebPendingTransactionComplexMatcher {
   }
 
   private boolean isNotAlreadyLinkedToExecution(TransactionOrder order) {
-    return executionRepository.findByOrderId(order.getId()).isEmpty();
+    return executionRepository.findAllByOrderId(order.getId()).isEmpty();
   }
 }

@@ -21,6 +21,11 @@ public enum AmlCheckType {
   RISK_LEVEL_OVERRIDE_CONFIRMATION,
   TKF_RISK_LEVEL,
   TKF_RISK_LEVEL_OVERRIDE,
+  // Specialist override of a company's computed AML risk level, created via the Metabase dashboard
+  // action. A company's base risk level lives in the analytics matview (not aml_check), so this
+  // override is what the dashboard reads as the effective level. Carries metadata.level +
+  // registry_code; not consumed by the mandate gate.
+  COMPANY_RISK_LEVEL_OVERRIDE,
   INTERNAL_ESCALATION,
   // Specialist-logged off-system AML event (manual EDD / phone call / external document check),
   // created via the Metabase dashboard action "Lisa käsitsi AML-sündmus". No automated producer;

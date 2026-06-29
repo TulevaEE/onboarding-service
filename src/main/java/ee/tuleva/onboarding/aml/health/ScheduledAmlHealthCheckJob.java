@@ -24,6 +24,7 @@ public class ScheduledAmlHealthCheckJob {
           AmlCheckType.POLITICALLY_EXPOSED_PERSON_OVERRIDE,
           AmlCheckType.RISK_LEVEL_OVERRIDE,
           AmlCheckType.RISK_LEVEL_OVERRIDE_CONFIRMATION,
+          AmlCheckType.COMPANY_RISK_LEVEL_OVERRIDE,
           AmlCheckType.SANCTION_OVERRIDE,
           AmlCheckType.INTERNAL_ESCALATION,
           AmlCheckType.MANUAL_EVENT,

@@ -193,8 +193,8 @@ dependencies {
     testImplementation("org.testcontainers:jdbc:1.21.4")
 
     // TODO: migrate to WireMock
-    testImplementation("org.mock-server:mockserver-netty:7.0.0")
-    testImplementation("org.mock-server:mockserver-spring-test-listener:7.0.0")
+    testImplementation("org.mock-server:mockserver-netty:7.2.0")
+    testImplementation("org.mock-server:mockserver-spring-test-listener:7.2.0")
 
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
     testImplementation("org.springframework.security:spring-security-test")

@@ -19,6 +19,7 @@ class TransactionExecutionMapper {
   TransactionExecution applyTo(
       TransactionExecution execution, SebPendingTransactionRow row, TransactionOrder order) {
     execution.setOrderId(order.getId());
+    execution.setAggregatedOrderId(order.getOrderUuid());
     execution.setBrokerTransactionId(row.ourRef());
     execution.setExecutionTimestamp(row.tradeDate());
     execution.setExecutedQuantity(row.quantity());

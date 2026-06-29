@@ -1,11 +1,14 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import ee.tuleva.onboarding.investment.transaction.InstrumentType;
+import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import ee.tuleva.onboarding.investment.transaction.ingest.QuantityAmountMismatchEvent.MismatchKind;
 import java.math.BigDecimal;
 import java.math.MathContext;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 
@@ -55,6 +58,79 @@ class QuantityAmountValidator {
         tolerance(kind(order), properties),
         properties.nearMissMultiplier(),
         null);
+  }
+
+  // A split order fills in several pieces. Validate the running total (existing pieces, excluding a
+  // re-imported row, plus this row) against the order target: an under-fill is an expected partial,
+  // only an over-fill beyond tolerance is a real divergence.
+  Optional<QuantityAmountMismatchEvent> validateCumulative(
+      TransactionOrder order,
+      SebPendingTransactionRow row,
+      List<TransactionExecution> existingExecutions,
+      TransactionMatchingProperties properties) {
+    BigDecimal target = expected(order);
+    BigDecimal rowValue = actual(order, row);
+    if (target == null || rowValue == null) {
+      return Optional.empty();
+    }
+    MismatchKind kind = kind(order);
+    BigDecimal cumulative = sumExecutedValue(order, existingExecutions, row.ourRef()).add(rowValue);
+    BigDecimal tolerance = tolerance(kind, properties);
+    boolean overfill =
+        kind == MismatchKind.FUND_BUY_AMOUNT
+            ? relativeExcess(target, cumulative).compareTo(tolerance) > 0
+            : cumulative.subtract(target).compareTo(tolerance) > 0;
+    if (!overfill) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        new QuantityAmountMismatchEvent(
+            row,
+            order,
+            kind,
+            target,
+            cumulative,
+            cumulative.subtract(target).abs(),
+            tolerance,
+            properties.nearMissMultiplier(),
+            null));
+  }
+
+  // True only when the order's executions sum to provably LESS than the target (beyond tolerance).
+  // Used to block settling a split order that is still short; an unknown target cannot be proven
+  // short, so it does not block settlement.
+  boolean isShortFill(
+      TransactionOrder order,
+      List<TransactionExecution> executions,
+      TransactionMatchingProperties properties) {
+    BigDecimal target = expected(order);
+    if (target == null) {
+      return false;
+    }
+    BigDecimal sum = sumExecutedValue(order, executions, null);
+    BigDecimal tolerance = tolerance(kind(order), properties);
+    if (kind(order) == MismatchKind.FUND_BUY_AMOUNT) {
+      return target.signum() != 0 && relativeExcess(target, sum).negate().compareTo(tolerance) > 0;
+    }
+    return target.subtract(sum).compareTo(tolerance) > 0;
+  }
+
+  private static BigDecimal sumExecutedValue(
+      TransactionOrder order, List<TransactionExecution> executions, String excludeBrokerRef) {
+    boolean amount = kind(order) == MismatchKind.FUND_BUY_AMOUNT;
+    return executions.stream()
+        .filter(
+            e -> excludeBrokerRef == null || !excludeBrokerRef.equals(e.getBrokerTransactionId()))
+        .map(e -> amount ? e.getTotalConsideration() : e.getExecutedQuantity())
+        .filter(Objects::nonNull)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  private static BigDecimal relativeExcess(BigDecimal target, BigDecimal cumulative) {
+    if (target.signum() == 0) {
+      return BigDecimal.ZERO;
+    }
+    return cumulative.subtract(target).divide(target.abs(), MathContext.DECIMAL64);
   }
 
   private boolean withinTolerance(

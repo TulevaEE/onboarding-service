@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.auth.role.RoleType;
 import ee.tuleva.onboarding.country.Country;
@@ -33,6 +34,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class KycSurveyServiceTest {
 
   private static final Instant NOW = Instant.parse("2026-06-11T12:00:00Z");
+  private static final Long USER_ID = 1L;
 
   @Mock private KycSurveyRepository kycSurveyRepository;
   @Mock private KycCheckService kycCheckService;
@@ -41,7 +43,7 @@ class KycSurveyServiceTest {
   @InjectMocks private KycSurveyService kycSurveyService;
 
   private final User user =
-      User.builder().email("test@example.com").phoneNumber("+37255555555").build();
+      User.builder().id(USER_ID).email("test@example.com").phoneNumber("+37255555555").build();
 
   @BeforeEach
   void setUp() {
@@ -142,12 +144,11 @@ class KycSurveyServiceTest {
 
   @Test
   void getIdentity_returnsUserContactDetailsAndIncompleteWhenNoSurveyExists() {
-    Long userId = 1L;
-    given(userService.getByIdOrThrow(userId)).willReturn(user);
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(userId))
+    var person = personResolvingTo(user);
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(USER_ID))
         .willReturn(Optional.empty());
 
-    var identity = kycSurveyService.getIdentity(userId);
+    var identity = kycSurveyService.getIdentity(person);
 
     assertThat(identity)
         .isEqualTo(
@@ -157,7 +158,6 @@ class KycSurveyServiceTest {
 
   @Test
   void getIdentity_combinesLatestSurveyWithUserContactDetails() {
-    Long userId = 1L;
     var createdTime = Instant.parse("2026-06-01T10:00:00Z");
     var survey =
         identitySurvey(
@@ -166,11 +166,11 @@ class KycSurveyServiceTest {
                 new AddressValue(
                     "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))),
             new PepSelfDeclaration(new OptionValue<>("OPTION", PepStatus.IS_NOT_PEP)));
-    given(userService.getByIdOrThrow(userId)).willReturn(user);
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(userId))
-        .willReturn(Optional.of(kycSurvey(userId, survey, createdTime)));
+    var person = personResolvingTo(user);
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(USER_ID))
+        .willReturn(Optional.of(kycSurvey(USER_ID, survey, createdTime)));
 
-    var identity = kycSurveyService.getIdentity(userId);
+    var identity = kycSurveyService.getIdentity(person);
 
     assertThat(identity)
         .isEqualTo(
@@ -186,7 +186,6 @@ class KycSurveyServiceTest {
 
   @Test
   void getIdentity_withoutPepDeclaration_isIncomplete() {
-    Long userId = 1L;
     var createdTime = Instant.parse("2026-06-01T10:00:00Z");
     var survey =
         identitySurvey(
@@ -194,11 +193,11 @@ class KycSurveyServiceTest {
             new Address(
                 new AddressValue(
                     "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))));
-    given(userService.getByIdOrThrow(userId)).willReturn(user);
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(userId))
-        .willReturn(Optional.of(kycSurvey(userId, survey, createdTime)));
+    var person = personResolvingTo(user);
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(USER_ID))
+        .willReturn(Optional.of(kycSurvey(USER_ID, survey, createdTime)));
 
-    var identity = kycSurveyService.getIdentity(userId);
+    var identity = kycSurveyService.getIdentity(person);
 
     assertThat(identity)
         .isEqualTo(
@@ -214,7 +213,6 @@ class KycSurveyServiceTest {
 
   @Test
   void getIdentity_withoutUserEmail_isIncomplete() {
-    Long userId = 1L;
     var createdTime = Instant.parse("2026-06-01T10:00:00Z");
     var survey =
         identitySurvey(
@@ -223,11 +221,11 @@ class KycSurveyServiceTest {
                 new AddressValue(
                     "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))),
             new PepSelfDeclaration(new OptionValue<>("OPTION", PepStatus.IS_NOT_PEP)));
-    given(userService.getByIdOrThrow(userId)).willReturn(User.builder().build());
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(userId))
-        .willReturn(Optional.of(kycSurvey(userId, survey, createdTime)));
+    var person = personResolvingTo(User.builder().id(USER_ID).build());
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(USER_ID))
+        .willReturn(Optional.of(kycSurvey(USER_ID, survey, createdTime)));
 
-    var identity = kycSurveyService.getIdentity(userId);
+    var identity = kycSurveyService.getIdentity(person);
 
     assertThat(identity)
         .isEqualTo(
@@ -243,7 +241,6 @@ class KycSurveyServiceTest {
 
   @Test
   void getIdentity_returnsSurveyOlderThanAYearForPrefillButIncomplete() {
-    Long userId = 1L;
     var createdTime = NOW.minus(Duration.ofDays(366));
     var survey =
         identitySurvey(
@@ -252,11 +249,11 @@ class KycSurveyServiceTest {
                 new AddressValue(
                     "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))),
             new PepSelfDeclaration(new OptionValue<>("OPTION", PepStatus.IS_NOT_PEP)));
-    given(userService.getByIdOrThrow(userId)).willReturn(user);
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(userId))
-        .willReturn(Optional.of(kycSurvey(userId, survey, createdTime)));
+    var person = personResolvingTo(user);
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(USER_ID))
+        .willReturn(Optional.of(kycSurvey(USER_ID, survey, createdTime)));
 
-    var identity = kycSurveyService.getIdentity(userId);
+    var identity = kycSurveyService.getIdentity(person);
 
     assertThat(identity)
         .isEqualTo(
@@ -268,6 +265,12 @@ class KycSurveyServiceTest {
                 PepStatus.IS_NOT_PEP,
                 createdTime));
     assertThat(identity.isComplete()).isFalse();
+  }
+
+  private AuthenticatedPerson personResolvingTo(User subject) {
+    var person = sampleAuthenticatedPersonNonMember().build();
+    given(userService.findByPersonalCode(person.getRoleCode())).willReturn(Optional.of(subject));
+    return person;
   }
 
   private KycSurveyResponse identitySurvey(KycSurveyResponseItem... answers) {

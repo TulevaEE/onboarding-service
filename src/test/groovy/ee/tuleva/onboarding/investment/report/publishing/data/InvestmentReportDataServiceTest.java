@@ -5,12 +5,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
+import ee.tuleva.onboarding.investment.instrument.InstrumentReference;
+import ee.tuleva.onboarding.investment.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisSnapshot;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -21,7 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class InvestmentReportDataServiceTest {
 
   @Mock private NavReportViewRepository navReportRepository;
-  @Mock private InstrumentReferenceRepository instrumentReferenceRepository;
+  @Mock private InstrumentReferenceService instrumentReferenceService;
   @Mock private PortfolioCostBasisService costBasisService;
   @InjectMocks private InvestmentReportDataService service;
 
@@ -58,8 +61,8 @@ class InvestmentReportDataServiceTest {
 
     var ref1 = instrumentRef("IE0009FT4LX4", "CCF Developed World", "BlackRock", "IE");
     var ref2 = instrumentRef("IE00BFG1TM61", "BlackRock ISF DW Screened", "BlackRock", "IE");
-    given(instrumentReferenceRepository.findByIsinIn(List.of("IE0009FT4LX4", "IE00BFG1TM61")))
-        .willReturn(List.of(ref1, ref2));
+    given(instrumentReferenceService.findByIsin("IE0009FT4LX4")).willReturn(Optional.of(ref1));
+    given(instrumentReferenceService.findByIsin("IE00BFG1TM61")).willReturn(Optional.of(ref2));
     var cb1 =
         new PortfolioCostBasisSnapshot(
             "IE0009FT4LX4",
@@ -158,8 +161,6 @@ class InvestmentReportDataServiceTest {
         .willReturn(NAV_DATE);
     given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
         .willReturn(List.of(sec, rec, settledRec, units));
-    given(instrumentReferenceRepository.findByIsinIn(List.of("IE0009FT4LX4")))
-        .willReturn(List.of());
     given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE)).willReturn(List.of());
     given(
             navReportRepository.findLatestPublishedNavDate(
@@ -193,8 +194,6 @@ class InvestmentReportDataServiceTest {
         .willReturn(NAV_DATE);
     given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
         .willReturn(List.of(sec, units));
-    given(instrumentReferenceRepository.findByIsinIn(List.of("XX1234567890")))
-        .willReturn(List.of());
     given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE)).willReturn(List.of());
     given(
             navReportRepository.findLatestPublishedNavDate(
@@ -226,8 +225,6 @@ class InvestmentReportDataServiceTest {
         .willReturn(NAV_DATE);
     given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
         .willReturn(List.of(sec, units));
-    given(instrumentReferenceRepository.findByIsinIn(List.of("IE0009FT4LX4")))
-        .willReturn(List.of());
     given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE)).willReturn(List.of());
 
     // Previous month: security was 50% of NAV
@@ -309,8 +306,6 @@ class InvestmentReportDataServiceTest {
         .willReturn(NAV_DATE);
     given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
         .willReturn(List.of(sec, zeroRec, cash, units));
-    given(instrumentReferenceRepository.findByIsinIn(List.of("IE0009FT4LX4")))
-        .willReturn(List.of());
     given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE)).willReturn(List.of());
     given(
             navReportRepository.findLatestPublishedNavDate(
@@ -342,8 +337,6 @@ class InvestmentReportDataServiceTest {
         .willReturn(NAV_DATE);
     given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
         .willReturn(List.of(sec, units));
-    given(instrumentReferenceRepository.findByIsinIn(List.of("IE0009FT4LX4")))
-        .willReturn(List.of());
     given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE)).willReturn(List.of());
 
     // Previous month has a NAV date but empty rows
@@ -381,8 +374,6 @@ class InvestmentReportDataServiceTest {
         .willReturn(NAV_DATE);
     given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
         .willReturn(List.of(sec, cash, rec, units));
-    given(instrumentReferenceRepository.findByIsinIn(List.of("IE0009FT4LX4")))
-        .willReturn(List.of());
     given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE)).willReturn(List.of());
 
     // Previous month with cash and receivables

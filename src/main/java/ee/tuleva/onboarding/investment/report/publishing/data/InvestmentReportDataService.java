@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.investment.report.publishing.data;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.instrument.InstrumentReference;
+import ee.tuleva.onboarding.investment.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.report.publishing.FundReportMapping;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext.SecuritySection;
@@ -16,6 +18,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +33,7 @@ public class InvestmentReportDataService {
   private static final DateTimeFormatter ESTONIAN_DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
   private final NavReportViewRepository navReportRepository;
-  private final InstrumentReferenceRepository instrumentReferenceRepository;
+  private final InstrumentReferenceService instrumentReferenceService;
   private final PortfolioCostBasisService costBasisService;
 
   public Map<String, LocalDate> findNavDatesForAllFunds(YearMonth month) {
@@ -209,8 +212,11 @@ public class InvestmentReportDataService {
   }
 
   private Map<String, InstrumentReference> loadInstrumentMap(List<NavReportView> securities) {
-    var isins = securities.stream().map(NavReportView::getAccountId).distinct().toList();
-    return instrumentReferenceRepository.findByIsinIn(isins).stream()
+    return securities.stream()
+        .map(NavReportView::getAccountId)
+        .distinct()
+        .map(instrumentReferenceService::findByIsin)
+        .flatMap(Optional::stream)
         .collect(Collectors.toMap(InstrumentReference::getIsin, Function.identity()));
   }
 

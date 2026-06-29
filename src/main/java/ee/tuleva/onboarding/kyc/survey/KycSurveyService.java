@@ -34,15 +34,13 @@ public class KycSurveyService {
   }
 
   public KycIdentityResponse getIdentity(AuthenticatedPerson person) {
-    return getIdentity(resolveSubject(person).getId());
-  }
-
-  public KycIdentityResponse getIdentity(Long userId) {
-    var user = userService.getByIdOrThrow(userId);
+    User subject = resolveSubject(person);
     return kycSurveyRepository
-        .findFirstByUserIdOrderByCreatedTimeDesc(userId)
-        .map(survey -> KycIdentityResponse.from(survey.getSurvey(), survey.getCreatedTime(), user))
-        .orElseGet(() -> KycIdentityResponse.empty(user));
+        .findFirstByUserIdOrderByCreatedTimeDesc(subject.getId())
+        .map(
+            survey ->
+                KycIdentityResponse.from(survey.getSurvey(), survey.getCreatedTime(), subject))
+        .orElseGet(() -> KycIdentityResponse.empty(subject));
   }
 
   public Optional<Country> getCountry(Long userId) {

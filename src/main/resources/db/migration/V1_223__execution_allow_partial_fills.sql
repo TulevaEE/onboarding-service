@@ -26,7 +26,13 @@ ALTER TABLE investment_transaction_execution
 
 -- Depositary reconciliation must compare the ordered quantity to the SUM of the order's executions,
 -- otherwise every partial piece (executed_quantity < order_quantity) is flagged as a false mismatch.
-CREATE OR REPLACE VIEW v_depositary_reconciliation AS
+-- Drop and recreate rather than CREATE OR REPLACE: the aggregated columns change type (e.g.
+-- executed_quantity from numeric(19,4) to an unconstrained SUM), and PostgreSQL rejects a column
+-- type change via CREATE OR REPLACE VIEW ("cannot change data type of view column"). A view holds
+-- no data, so dropping it is non-destructive to the append-only transaction tables.
+DROP VIEW IF EXISTS v_depositary_reconciliation;
+
+CREATE VIEW v_depositary_reconciliation AS
 SELECT
     o.id AS order_id,
     o.order_uuid AS order_uuid,

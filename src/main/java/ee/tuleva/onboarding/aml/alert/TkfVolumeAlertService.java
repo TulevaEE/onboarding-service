@@ -20,12 +20,13 @@ public class TkfVolumeAlertService {
   public void checkAndAlert() {
     for (TkfVolumeAggregate aggregate : reader.readVolumeAggregates()) {
       for (TkfVolumeAlert alert : evaluator.evaluate(aggregate)) {
-        alertOnce(aggregate.personalId(), alert);
+        alertOnce(aggregate, alert);
       }
     }
   }
 
-  private void alertOnce(String personalId, TkfVolumeAlert alert) {
+  private void alertOnce(TkfVolumeAggregate aggregate, TkfVolumeAlert alert) {
+    String personalId = aggregate.personalId();
     if (alertRepository.existsByPersonalIdAndAlertTypeAndDirectionAndWindowKey(
         personalId, alert.type(), alert.direction(), alert.windowKey())) {
       return;
@@ -33,7 +34,8 @@ public class TkfVolumeAlertService {
     try {
       String reference = alert.direction() + "/" + alert.windowKey();
       eventPublisher.publishEvent(
-          new AmlThresholdAlertEvent(this, alert.type(), personalId, alert.amount(), reference));
+          new AmlThresholdAlertEvent(
+              this, alert.type(), personalId, alert.amount(), reference, aggregate.partyType()));
       alertRepository.save(
           AmlTkfVolumeAlert.builder()
               .personalId(personalId)

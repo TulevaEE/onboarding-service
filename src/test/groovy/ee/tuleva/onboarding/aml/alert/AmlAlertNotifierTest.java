@@ -1,12 +1,16 @@
 package ee.tuleva.onboarding.aml.alert;
 
+import static ee.tuleva.onboarding.aml.alert.AlertPartyType.LEGAL_ENTITY;
+import static ee.tuleva.onboarding.aml.alert.AlertPartyType.PERSON;
 import static ee.tuleva.onboarding.aml.alert.AmlAlertType.III_PILLAR_DEPOSIT_PERSON;
+import static ee.tuleva.onboarding.aml.alert.AmlAlertType.TKF_VOLUME_49K_YEARLY;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -40,7 +44,12 @@ class AmlAlertNotifierTest {
 
     notifier.onAmlThresholdAlert(
         new AmlThresholdAlertEvent(
-            this, III_PILLAR_DEPOSIT_PERSON, "38001010000", new BigDecimal("6001.00"), "7"));
+            this,
+            III_PILLAR_DEPOSIT_PERSON,
+            "38001010000",
+            new BigDecimal("6001.00"),
+            "7",
+            PERSON));
 
     verify(notificationService)
         .sendMessage(
@@ -56,11 +65,34 @@ class AmlAlertNotifierTest {
 
     notifier.onAmlThresholdAlert(
         new AmlThresholdAlertEvent(
-            this, III_PILLAR_DEPOSIT_PERSON, "38001010000", new BigDecimal("6001.00"), "7"));
+            this,
+            III_PILLAR_DEPOSIT_PERSON,
+            "38001010000",
+            new BigDecimal("6001.00"),
+            "7",
+            PERSON));
 
     verify(notificationService)
         .sendMessage(
             "AML alert: III_PILLAR_DEPOSIT_PERSON, userId=null, amount=6001.00, ref=7", AML);
+  }
+
+  @Test
+  void onAmlThresholdAlert_legalEntity_showsRegistryCode() {
+    notifier.onAmlThresholdAlert(
+        new AmlThresholdAlertEvent(
+            this,
+            TKF_VOLUME_49K_YEARLY,
+            "12345678",
+            new BigDecimal("100000.00"),
+            "COMBINED/2026",
+            LEGAL_ENTITY));
+
+    verify(notificationService)
+        .sendMessage(
+            "AML alert: TKF_VOLUME_49K_YEARLY, code=12345678, amount=100000.00, ref=COMBINED/2026",
+            AML);
+    verifyNoInteractions(userService);
   }
 
   @Test
@@ -79,7 +111,8 @@ class AmlAlertNotifierTest {
                         III_PILLAR_DEPOSIT_PERSON,
                         "38001010000",
                         new BigDecimal("6001.00"),
-                        "7")))
+                        "7",
+                        PERSON)))
         .isInstanceOf(IllegalStateException.class);
   }
 }

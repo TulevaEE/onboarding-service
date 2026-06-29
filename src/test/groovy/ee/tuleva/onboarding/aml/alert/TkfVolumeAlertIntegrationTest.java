@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.aml.alert;
 
 import static ee.tuleva.onboarding.aml.alert.AmlAlertType.TKF_VOLUME_15K_NEW_CLIENT;
+import static ee.tuleva.onboarding.aml.alert.AmlAlertType.TKF_VOLUME_49K_YEARLY;
+import static ee.tuleva.onboarding.aml.alert.TkfFlowDirection.COMBINED;
 import static ee.tuleva.onboarding.aml.alert.TkfFlowDirection.IN;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -8,6 +10,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
@@ -83,5 +86,67 @@ class TkfVolumeAlertIntegrationTest {
 
     verify(notificationService, times(1))
         .sendMessage(argThat(message -> message.contains("amount=15123.45")), eq(AML));
+  }
+
+  @Test
+  void legalEntityLargeDeposit_alertsByRegistryCodeAsNewClient_isIdempotent() {
+    String registryCode = "12345678";
+    BigDecimal amount = new BigDecimal("100000.99");
+    String monthKey = LocalDate.now(clock).format(DateTimeFormatter.ofPattern("yyyy-MM"));
+    String yearKey = String.valueOf(LocalDate.now(clock).getYear());
+
+    jdbcClient
+        .sql(
+            "INSERT INTO saving_fund_payment"
+                + " (id, external_id, amount, currency, status, party_type, party_code, created_at)"
+                + " VALUES (?, ?, ?, 'EUR', 'PROCESSED', 'LEGAL_ENTITY', ?, ?)")
+        .params(
+            UUID.randomUUID(),
+            "ext-" + UUID.randomUUID(),
+            amount,
+            registryCode,
+            Timestamp.from(clock.instant()))
+        .update();
+
+    tkfVolumeAlertService.checkAndAlert();
+    tkfVolumeAlertService.checkAndAlert();
+
+    verify(notificationService, times(1))
+        .sendMessage(
+            "AML alert: TKF_VOLUME_49K_YEARLY, code=12345678, amount=100000.99, ref=COMBINED/"
+                + yearKey,
+            AML);
+    verify(notificationService, times(1))
+        .sendMessage(
+            "AML alert: TKF_VOLUME_15K_NEW_CLIENT, code=12345678, amount=100000.99, ref=IN/"
+                + monthKey,
+            AML);
+    assertThat(
+            alertRepository.existsByPersonalIdAndAlertTypeAndDirectionAndWindowKey(
+                registryCode, TKF_VOLUME_49K_YEARLY, COMBINED, yearKey))
+        .isTrue();
+    assertThat(
+            alertRepository.existsByPersonalIdAndAlertTypeAndDirectionAndWindowKey(
+                registryCode, TKF_VOLUME_15K_NEW_CLIENT, IN, monthKey))
+        .isTrue();
+  }
+
+  @Test
+  void unattributedReceivedPayment_isIgnored_andDoesNotCrashTheRun() {
+    jdbcClient
+        .sql(
+            "INSERT INTO saving_fund_payment"
+                + " (id, external_id, amount, currency, status, party_type, party_code, created_at)"
+                + " VALUES (?, ?, ?, 'EUR', 'RECEIVED', NULL, NULL, ?)")
+        .params(
+            UUID.randomUUID(),
+            "ext-" + UUID.randomUUID(),
+            new BigDecimal("100000.99"),
+            Timestamp.from(clock.instant()))
+        .update();
+
+    tkfVolumeAlertService.checkAndAlert();
+
+    verifyNoInteractions(notificationService);
   }
 }

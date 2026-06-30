@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.party;
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.NO_CUSTODY;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.OK;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
@@ -11,6 +12,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.aml.AmlService;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.event.TrackableEvent;
+import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import java.time.LocalDate;
@@ -20,6 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class ChildOnboardingServiceTest {
@@ -31,8 +36,11 @@ class ChildOnboardingServiceTest {
   @Mock private ParentChildLinkRegistrationService parentChildLinkRegistrationService;
   @Mock private SavingsFundOnboardingService savingsFundOnboardingService;
   @Mock private AmlService amlService;
+  @Mock private ApplicationEventPublisher applicationEventPublisher;
 
   @InjectMocks private ChildOnboardingService service;
+
+  private final AuthenticatedPerson parent = sampleAuthenticatedPersonNonMember().build();
 
   private final PopulationRegisterPerson child =
       new PopulationRegisterPerson(
@@ -44,7 +52,7 @@ class ChildOnboardingServiceTest {
     given(custodyVerificationService.verify(PARENT, CHILD))
         .willReturn(new CustodyVerification(OK, child, evidence));
 
-    ChildOnboardingResult result = service.onboardChild(PARENT, CHILD);
+    ChildOnboardingResult result = service.onboardChild(parent, CHILD);
 
     assertThat(result.verified()).isTrue();
     assertThat(result.firstName()).isEqualTo("MARI");
@@ -54,6 +62,12 @@ class ChildOnboardingServiceTest {
         .register(PARENT, CHILD, "MARI", "MAASIKAS", LEGAL_REPRESENTATIVE);
     verify(savingsFundOnboardingService).seedPersonOnboardingIfAbsent(CHILD);
     verify(amlService).addCustodyRightCheck(CHILD, true, evidence);
+    verify(applicationEventPublisher)
+        .publishEvent(
+            new TrackableEvent(
+                parent,
+                TrackableEventType.MINOR_CUSTODY_VERIFICATION,
+                Map.of("childPersonalCode", CHILD, "outcome", "OK")));
   }
 
   @Test
@@ -61,12 +75,18 @@ class ChildOnboardingServiceTest {
     given(custodyVerificationService.verify(PARENT, CHILD))
         .willReturn(CustodyVerification.notVerified(NO_CUSTODY));
 
-    ChildOnboardingResult result = service.onboardChild(PARENT, CHILD);
+    ChildOnboardingResult result = service.onboardChild(parent, CHILD);
 
     assertThat(result.verified()).isFalse();
     assertThat(result.firstName()).isNull();
     verify(amlService).addCustodyRightCheck(CHILD, false, Map.of("outcome", "NO_CUSTODY"));
     verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any(), any());
     verify(savingsFundOnboardingService, never()).seedPersonOnboardingIfAbsent(any());
+    verify(applicationEventPublisher)
+        .publishEvent(
+            new TrackableEvent(
+                parent,
+                TrackableEventType.MINOR_CUSTODY_VERIFICATION,
+                Map.of("childPersonalCode", CHILD, "outcome", "NO_CUSTODY")));
   }
 }

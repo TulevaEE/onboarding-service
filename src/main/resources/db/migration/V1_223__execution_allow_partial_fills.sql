@@ -19,6 +19,12 @@ ALTER TABLE investment_transaction_execution
     ADD CONSTRAINT fk_investment_transaction_execution_order
         FOREIGN KEY (order_id) REFERENCES investment_transaction_order(id);
 
+-- Dropping the UNIQUE(order_id) constraint also drops its backing index; PostgreSQL does not create
+-- an index for the FK's referencing column, so add a non-unique one to keep order_id joins/lookups
+-- (e.g. findAllByOrderId, the reconciliation view) fast now that an order has many executions.
+CREATE INDEX ix_investment_transaction_execution_order_id
+    ON investment_transaction_execution (order_id);
+
 DROP INDEX ix_investment_transaction_execution_broker_tx;
 
 ALTER TABLE investment_transaction_execution

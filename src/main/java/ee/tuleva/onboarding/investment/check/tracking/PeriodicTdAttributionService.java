@@ -504,7 +504,7 @@ public class PeriodicTdAttributionService {
             .etfOcfDrag(result.etfOcfDrag())
             .etfTrackingResidual(result.etfTrackingResidual())
             .tdVsBenchmark(result.tdVsBenchmark())
-            .businessDays(result.businessDays())
+            .businessDays(result.navEventCount())
             .avgAum(result.avgAum())
             .avgCashPct(result.avgCashPct())
             .checks(result.checks())

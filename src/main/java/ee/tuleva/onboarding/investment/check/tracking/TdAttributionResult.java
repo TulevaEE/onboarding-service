@@ -27,7 +27,9 @@ public record TdAttributionResult(
     BigDecimal etfOcfDrag,
     BigDecimal etfTrackingResidual,
     BigDecimal tdVsBenchmark,
-    int businessDays,
+    // Count of daily NAV events in the period (not the working-day count — a missing working day
+    // both lowers this and shows up in checks.seriesGapDays).
+    int navEventCount,
     BigDecimal avgAum,
     BigDecimal avgCashPct,
     List<InstrumentAttribution> instrumentDetails,

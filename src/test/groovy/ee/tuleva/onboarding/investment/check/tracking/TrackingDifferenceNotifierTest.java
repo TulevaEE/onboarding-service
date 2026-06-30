@@ -12,6 +12,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -331,7 +332,7 @@ class TrackingDifferenceNotifierTest {
   @Test
   void withinLimitsAcrossMultipleFundsSeparatesEachOnItsOwnLine() {
     var tuk75 = withinLimitsResult(TUK75);
-    var tuv100 = withinLimitsResult(ee.tuleva.onboarding.fund.TulevaFund.TUV100);
+    var tuv100 = withinLimitsResult(TulevaFund.TUV100);
 
     notifier.notify(List.of(tuk75, tuv100));
 

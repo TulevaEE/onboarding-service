@@ -102,10 +102,7 @@ class TdAttributionCalculator {
     var avgCashPct =
         aumDays > 0 ? totalCashPct.divide(BigDecimal.valueOf(aumDays), SCALE, HALF_UP) : ZERO;
 
-    // Number of daily NAV events in the period. Equals the working-day count only when the series
-    // is unbroken; a missing day breaks geometric telescoping, so the gap count is surfaced in
-    // checks.seriesGapDays for visibility.
-    int businessDays = dailyRecords.size();
+    int navEventCount = dailyRecords.size();
 
     var checks =
         buildChecks(tdGeometricRounded, explained.add(residual), residual, periodLink, input);
@@ -144,7 +141,7 @@ class TdAttributionCalculator {
         .etfOcfDrag(etfOcfDrag)
         .etfTrackingResidual(etfTrackingResidual)
         .tdVsBenchmark(tdVsBenchmark)
-        .businessDays(businessDays)
+        .navEventCount(navEventCount)
         .avgAum(avgAum)
         .avgCashPct(avgCashPct.setScale(6, HALF_UP))
         .instrumentDetails(instrumentDetails)
@@ -267,7 +264,7 @@ class TdAttributionCalculator {
         .etfOcfDrag(ZERO)
         .etfTrackingResidual(ZERO)
         .tdVsBenchmark(ZERO)
-        .businessDays(0)
+        .navEventCount(0)
         .avgAum(ZERO)
         .avgCashPct(ZERO)
         .instrumentDetails(List.of())

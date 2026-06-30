@@ -1887,7 +1887,7 @@ class TrackingDifferenceServiceTest {
         .benchmarkReturn(new BigDecimal("0.0095"))
         .breach(false)
         .consecutiveBreachDays(0)
-        .result(java.util.Map.<String, Object>of("navResidualBreach", Boolean.TRUE))
+        .result(Map.<String, Object>of("navResidualBreach", Boolean.TRUE))
         .build();
   }
 

@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static java.util.Comparator.comparing;
+
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEvent;
@@ -7,9 +9,12 @@ import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventReposito
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import java.time.Clock;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @NullMarked
@@ -19,13 +24,63 @@ class FtConfirmationAuditRecorder {
 
   static final String FT_CONFIRMATION_VERIFIED = "FT_CONFIRMATION_VERIFIED";
 
-  private static final String ADMIN_ACTOR = "admin";
-
   private final TransactionAuditEventRepository auditEventRepository;
   private final Clock clock;
 
-  void recordVerified(
-      TransactionOrder order, FtConfirmation confirmation, FtConfirmationResult result) {
+  boolean recordOutcome(
+      @Nullable TransactionOrder order,
+      FtConfirmation confirmation,
+      FtConfirmationResult result,
+      String actor) {
+    if (statusUnchangedSinceLastRecord(confirmation, result)) {
+      return false;
+    }
+
+    auditEventRepository.save(
+        TransactionAuditEvent.builder()
+            .orderId(order == null ? null : order.getId())
+            .batch(order == null ? null : order.getBatch())
+            .eventType(FT_CONFIRMATION_VERIFIED)
+            .actor(actor)
+            .payload(payload(confirmation, result))
+            .createdAt(clock.instant())
+            .build());
+    return true;
+  }
+
+  private boolean statusUnchangedSinceLastRecord(
+      FtConfirmation confirmation, FtConfirmationResult result) {
+    return lastRecordedStatus(confirmation).filter(statusPair(result)::equals).isPresent();
+  }
+
+  private Optional<List<String>> lastRecordedStatus(FtConfirmation confirmation) {
+    return auditEventRepository.findByEventType(FT_CONFIRMATION_VERIFIED).stream()
+        .filter(event -> sameConfirmation(event.getPayload(), confirmation))
+        .max(comparing(TransactionAuditEvent::getCreatedAt))
+        .map(event -> statusPair(event.getPayload()));
+  }
+
+  private static boolean sameConfirmation(
+      Map<String, Object> payload, FtConfirmation confirmation) {
+    return confirmation.fund().name().equals(payload.get("fund"))
+        && confirmation.isin().equals(payload.get("isin"))
+        && confirmation.tradeDate().toString().equals(payload.get("tradeDate"))
+        && confirmation.quantity().toPlainString().equals(payload.get("quantity"))
+        && confirmation.grossPrice().toPlainString().equals(payload.get("grossPrice"))
+        && confirmation.type().name().equals(payload.get("type"));
+  }
+
+  private static List<String> statusPair(FtConfirmationResult result) {
+    return List.of(result.quantityStatus().name(), result.priceStatus().name());
+  }
+
+  private static List<String> statusPair(Map<String, Object> payload) {
+    return List.of(
+        String.valueOf(payload.get("quantityStatus")), String.valueOf(payload.get("priceStatus")));
+  }
+
+  private static Map<String, Object> payload(
+      FtConfirmation confirmation, FtConfirmationResult result) {
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("fund", confirmation.fund().name());
     payload.put("isin", confirmation.isin());
@@ -39,15 +94,6 @@ class FtConfirmationAuditRecorder {
     payload.put("quantityStatus", result.quantityStatus().name());
     payload.put("priceStatus", result.priceStatus().name());
     payload.put("details", result.details());
-
-    auditEventRepository.save(
-        TransactionAuditEvent.builder()
-            .orderId(order.getId())
-            .batch(order.getBatch())
-            .eventType(FT_CONFIRMATION_VERIFIED)
-            .actor(ADMIN_ACTOR)
-            .payload(payload)
-            .createdAt(clock.instant())
-            .build());
+    return payload;
   }
 }

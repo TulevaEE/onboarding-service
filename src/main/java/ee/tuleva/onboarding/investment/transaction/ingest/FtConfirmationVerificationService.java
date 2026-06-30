@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.C
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ERROR;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.IGNORED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.OK;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ORPHAN;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_EXECUTION;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_NAV;
 import static java.util.Comparator.comparing;
@@ -15,6 +16,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus;
 import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
+import ee.tuleva.onboarding.investment.transaction.FtConfirmationBatchResult;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
 import ee.tuleva.onboarding.investment.transaction.FtVerificationStatus;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
@@ -26,6 +28,7 @@ import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +37,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -47,6 +51,7 @@ public class FtConfirmationVerificationService {
   private static final BigDecimal DEFAULT_PRICE_TOLERANCE = new BigDecimal("0.001");
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final int EXECUTION_PENDING_BUSINESS_DAYS = 1;
+  private static final String ADMIN_ACTOR = "admin";
 
   private final TransactionOrderRepository orderRepository;
   private final TransactionExecutionRepository executionRepository;
@@ -54,15 +59,72 @@ public class FtConfirmationVerificationService {
   private final PriceValidator priceValidator;
   private final Target2Calendar target2Calendar;
   private final FtConfirmationAuditRecorder auditRecorder;
+  private final FtConfirmationDigest digest;
   private final Clock clock;
 
   @Value("${investment.transaction.ft-confirmation.price-tolerance:0.001}")
   private BigDecimal priceTolerance = DEFAULT_PRICE_TOLERANCE;
 
-  public Optional<FtConfirmationResult> verify(FtConfirmation confirmation) {
-    Optional<FtConfirmationResult> ignored = ignoredResult(confirmation);
-    if (ignored.isPresent()) {
-      return ignored;
+  public FtConfirmationResult verify(FtConfirmation confirmation) {
+    Verification verification = verifyAndRecord(confirmation, ADMIN_ACTOR);
+    return verification.result();
+  }
+
+  public List<FtConfirmationBatchResult> verifyAll(
+      List<FtConfirmation> confirmations, String actor) {
+    List<FtConfirmationBatchResult> results = new ArrayList<>();
+    List<FtConfirmationOutcome> changedOutcomes = new ArrayList<>();
+    for (int index = 0; index < confirmations.size(); index++) {
+      FtConfirmation confirmation = confirmations.get(index);
+      try {
+        Verification verification = verifyAndRecord(confirmation, actor);
+        results.add(
+            FtConfirmationBatchResult.verified(index, confirmation.isin(), verification.result()));
+        if (verification.statusChanged()) {
+          changedOutcomes.add(new FtConfirmationOutcome(confirmation, verification.result()));
+        }
+      } catch (RuntimeException e) {
+        log.error(
+            "FT confirmation row failed: index={}, isin={}, error={}",
+            index,
+            confirmation.isin(),
+            e.getMessage(),
+            e);
+        results.add(FtConfirmationBatchResult.failed(index, confirmation.isin(), e.getMessage()));
+      }
+    }
+    digest.publish(changedOutcomes);
+    return results;
+  }
+
+  private Verification verifyAndRecord(FtConfirmation confirmation, String actor) {
+    Computed computed = compute(confirmation);
+    boolean statusChanged = record(confirmation, computed, actor);
+    return new Verification(computed.result(), statusChanged);
+  }
+
+  private boolean record(FtConfirmation confirmation, Computed computed, String actor) {
+    if (computed.result().quantityStatus() == IGNORED) {
+      return false;
+    }
+    boolean recorded =
+        auditRecorder.recordOutcome(computed.order(), confirmation, computed.result(), actor);
+    if (recorded) {
+      log.info(
+          "FT confirmation verified: isin={}, tradeDate={}, type={}, quantityStatus={}, priceStatus={}",
+          confirmation.isin(),
+          confirmation.tradeDate(),
+          confirmation.type(),
+          computed.result().quantityStatus(),
+          computed.result().priceStatus());
+    }
+    return recorded;
+  }
+
+  private Computed compute(FtConfirmation confirmation) {
+    FtConfirmationResult ignored = ignoredResult(confirmation);
+    if (ignored != null) {
+      return new Computed(ignored, null);
     }
 
     List<TransactionOrder> candidates = candidateOrders(confirmation);
@@ -72,7 +134,7 @@ public class FtConfirmationVerificationService {
           confirmation.fund(),
           confirmation.isin(),
           confirmation.tradeDate());
-      return Optional.empty();
+      return new Computed(orphan(), null);
     }
 
     OrderSelection selection = selectOrder(confirmation, candidates);
@@ -82,68 +144,59 @@ public class FtConfirmationVerificationService {
     details.put("orderUuid", order.getOrderUuid().toString());
 
     if (confirmation.isCancellation()) {
-      return cancel(confirmation, order, details);
+      details.put("cancellationSignature", confirmation.cancellationSignature());
+      return new Computed(result(CANCELLED, CANCELLED, details), order);
     }
 
     if (selection.ambiguous()) {
       details.put("ambiguousOrderCount", String.valueOf(selection.matchCount()));
-      return result(confirmation, order, AMBIGUOUS, AMBIGUOUS, details);
+      return new Computed(result(AMBIGUOUS, AMBIGUOUS, details), order);
     }
 
     FtVerificationStatus quantityStatus = checkQuantity(confirmation, order, details);
     FtVerificationStatus priceStatus = checkPrice(confirmation, details);
-    return result(confirmation, order, quantityStatus, priceStatus, details);
+    return new Computed(result(quantityStatus, priceStatus, details), order);
   }
 
-  private Optional<FtConfirmationResult> ignoredResult(FtConfirmation confirmation) {
+  private record Verification(FtConfirmationResult result, boolean statusChanged) {}
+
+  private record Computed(FtConfirmationResult result, @Nullable TransactionOrder order) {}
+
+  private static FtConfirmationResult result(
+      FtVerificationStatus quantityStatus,
+      FtVerificationStatus priceStatus,
+      Map<String, String> details) {
+    return new FtConfirmationResult(quantityStatus, priceStatus, Map.copyOf(details));
+  }
+
+  private static FtConfirmationResult orphan() {
+    return new FtConfirmationResult(
+        ORPHAN, ORPHAN, Map.of("orphanReason", "no matching order in registry"));
+  }
+
+  private @Nullable FtConfirmationResult ignoredResult(FtConfirmation confirmation) {
     if (confirmation.suppressed()) {
       return ignored(confirmation, "manually suppressed false positive");
     }
     if (isWeekend(confirmation.tradeDate())) {
       return ignored(confirmation, "weekend trade date: " + confirmation.tradeDate());
     }
-    return Optional.empty();
+    return null;
   }
 
-  private Optional<FtConfirmationResult> ignored(FtConfirmation confirmation, String reason) {
+  private FtConfirmationResult ignored(FtConfirmation confirmation, String reason) {
     log.info(
         "FT confirmation ignored: fund={}, isin={}, tradeDate={}, reason={}",
         confirmation.fund(),
         confirmation.isin(),
         confirmation.tradeDate(),
         reason);
-    return Optional.of(new FtConfirmationResult(IGNORED, IGNORED, Map.of("ignoreReason", reason)));
+    return new FtConfirmationResult(IGNORED, IGNORED, Map.of("ignoreReason", reason));
   }
 
   private static boolean isWeekend(LocalDate date) {
     DayOfWeek day = date.getDayOfWeek();
     return day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY;
-  }
-
-  private Optional<FtConfirmationResult> cancel(
-      FtConfirmation confirmation, TransactionOrder order, Map<String, String> details) {
-    details.put("cancellationSignature", confirmation.cancellationSignature());
-    return result(confirmation, order, CANCELLED, CANCELLED, details);
-  }
-
-  private Optional<FtConfirmationResult> result(
-      FtConfirmation confirmation,
-      TransactionOrder order,
-      FtVerificationStatus quantityStatus,
-      FtVerificationStatus priceStatus,
-      Map<String, String> details) {
-    FtConfirmationResult result =
-        new FtConfirmationResult(quantityStatus, priceStatus, Map.copyOf(details));
-    auditRecorder.recordVerified(order, confirmation, result);
-    log.info(
-        "FT confirmation verified: orderUuid={}, isin={}, tradeDate={}, type={}, quantityStatus={}, priceStatus={}",
-        order.getOrderUuid(),
-        confirmation.isin(),
-        confirmation.tradeDate(),
-        confirmation.type(),
-        quantityStatus,
-        priceStatus);
-    return Optional.of(result);
   }
 
   private List<TransactionOrder> candidateOrders(FtConfirmation confirmation) {

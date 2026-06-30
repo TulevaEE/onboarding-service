@@ -8,12 +8,15 @@ import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.C
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ERROR;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.IGNORED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.OK;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ORPHAN;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_EXECUTION;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_NAV;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -24,6 +27,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus;
 import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
+import ee.tuleva.onboarding.investment.transaction.FtConfirmationBatchResult;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
@@ -56,6 +60,7 @@ class FtConfirmationVerificationServiceTest {
   @Mock private TransactionExecutionRepository executionRepository;
   @Mock private PositionPriceResolver positionPriceResolver;
   @Mock private FtConfirmationAuditRecorder auditRecorder;
+  @Mock private FtConfirmationDigest digest;
 
   private FtConfirmationVerificationService service(Instant now) {
     return new FtConfirmationVerificationService(
@@ -65,39 +70,42 @@ class FtConfirmationVerificationServiceTest {
         new PriceValidator(),
         new Target2Calendar(),
         auditRecorder,
+        digest,
         Clock.fixed(now, ZoneOffset.UTC));
   }
 
   @Test
-  void orderNotFound_returnsEmpty() {
+  void orderNotFound_returnsOrphan() {
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of());
+    FtConfirmation confirmation = confirmation();
 
-    Optional<FtConfirmationResult> result = service(DAY_AFTER_TRADE).verify(confirmation());
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation);
 
-    assertThat(result).isEmpty();
-    verifyNoInteractions(auditRecorder);
+    assertThat(result.quantityStatus()).isEqualTo(ORPHAN);
+    assertThat(result.priceStatus()).isEqualTo(ORPHAN);
+    verify(auditRecorder).recordOutcome(null, confirmation, result, "admin");
   }
 
   @Test
-  void orderForDifferentFund_returnsEmpty() {
+  void orderForDifferentFund_returnsOrphan() {
     TransactionOrder order = order(new BigDecimal("40434"));
     order.setFund(TUK00);
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
 
-    Optional<FtConfirmationResult> result = service(DAY_AFTER_TRADE).verify(confirmation());
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
-    assertThat(result).isEmpty();
+    assertThat(result.quantityStatus()).isEqualTo(ORPHAN);
   }
 
   @Test
-  void orderForDifferentTradeDate_returnsEmpty() {
+  void orderForDifferentTradeDate_returnsOrphan() {
     TransactionOrder order = order(new BigDecimal("40434"));
     order.setOrderTimestamp(Instant.parse("2026-06-05T09:30:00Z"));
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
 
-    Optional<FtConfirmationResult> result = service(DAY_AFTER_TRADE).verify(confirmation());
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
-    assertThat(result).isEmpty();
+    assertThat(result.quantityStatus()).isEqualTo(ORPHAN);
   }
 
   @Test
@@ -105,7 +113,7 @@ class FtConfirmationVerificationServiceTest {
     givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
 
-    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation()).orElseThrow();
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(OK);
     assertThat(result.priceStatus()).isEqualTo(OK);
@@ -121,7 +129,7 @@ class FtConfirmationVerificationServiceTest {
     givenOrderAndExecution(new BigDecimal("40433"), new BigDecimal("40435"));
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
 
-    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation()).orElseThrow();
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(OK);
   }
@@ -139,7 +147,7 @@ class FtConfirmationVerificationServiceTest {
                 executionPiece(8L, new BigDecimal("20217"))));
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
 
-    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation()).orElseThrow();
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(OK);
     assertThat(result.details()).containsEntry("executedQuantity", "40434");
@@ -150,7 +158,7 @@ class FtConfirmationVerificationServiceTest {
     givenOrderAndExecution(new BigDecimal("40432"), new BigDecimal("40434"));
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
 
-    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation()).orElseThrow();
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(ERROR);
   }
@@ -160,7 +168,7 @@ class FtConfirmationVerificationServiceTest {
     givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40436"));
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
 
-    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation()).orElseThrow();
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(ERROR);
   }
@@ -170,7 +178,7 @@ class FtConfirmationVerificationServiceTest {
     givenOrderAndExecution(null, new BigDecimal("40434"));
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
 
-    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation()).orElseThrow();
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(ERROR);
   }
@@ -182,7 +190,7 @@ class FtConfirmationVerificationServiceTest {
     given(executionRepository.findAllByOrderId(order.getId())).willReturn(List.of());
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
 
-    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation()).orElseThrow();
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(PENDING_EXECUTION);
     assertThat(result.details()).containsEntry("executionPendingUntil", "2026-06-09");
@@ -195,8 +203,7 @@ class FtConfirmationVerificationServiceTest {
     given(executionRepository.findAllByOrderId(order.getId())).willReturn(List.of());
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
 
-    FtConfirmationResult result =
-        service(TWO_DAYS_AFTER_TRADE).verify(confirmation()).orElseThrow();
+    FtConfirmationResult result = service(TWO_DAYS_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(ERROR);
   }
@@ -208,7 +215,7 @@ class FtConfirmationVerificationServiceTest {
     given(executionRepository.findAllByOrderId(order.getId())).willReturn(List.of());
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
 
-    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation()).orElseThrow();
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(ERROR);
   }
@@ -218,7 +225,7 @@ class FtConfirmationVerificationServiceTest {
     givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
     given(positionPriceResolver.resolve(ISIN, TRADE_DATE)).willReturn(Optional.empty());
 
-    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation()).orElseThrow();
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.priceStatus()).isEqualTo(PENDING_NAV);
   }
@@ -231,7 +238,7 @@ class FtConfirmationVerificationServiceTest {
             Optional.of(
                 ResolvedPrice.builder().validationStatus(ValidationStatus.NO_PRICE_DATA).build()));
 
-    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation()).orElseThrow();
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.priceStatus()).isEqualTo(PENDING_NAV);
   }
@@ -241,7 +248,7 @@ class FtConfirmationVerificationServiceTest {
     givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE.minusDays(1));
 
-    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation()).orElseThrow();
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.priceStatus()).isEqualTo(PENDING_NAV);
   }
@@ -253,8 +260,7 @@ class FtConfirmationVerificationServiceTest {
 
     FtConfirmationResult result =
         service(DAY_AFTER_TRADE)
-            .verify(confirmation(new BigDecimal("40434"), new BigDecimal("10.102")))
-            .orElseThrow();
+            .verify(confirmation(new BigDecimal("40434"), new BigDecimal("10.102")));
 
     assertThat(result.priceStatus()).isEqualTo(ERROR);
     assertThat(result.details()).containsKey("priceDeltaPercent");
@@ -267,8 +273,7 @@ class FtConfirmationVerificationServiceTest {
 
     FtConfirmationResult result =
         service(DAY_AFTER_TRADE)
-            .verify(confirmation(new BigDecimal("40434"), new BigDecimal("10.10009")))
-            .orElseThrow();
+            .verify(confirmation(new BigDecimal("40434"), new BigDecimal("10.10009")));
 
     assertThat(result.priceStatus()).isEqualTo(OK);
   }
@@ -280,9 +285,9 @@ class FtConfirmationVerificationServiceTest {
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
     FtConfirmation confirmation = confirmation();
 
-    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation).orElseThrow();
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation);
 
-    verify(auditRecorder).recordVerified(order, confirmation, result);
+    verify(auditRecorder).recordOutcome(order, confirmation, result, "admin");
   }
 
   @Test
@@ -290,8 +295,7 @@ class FtConfirmationVerificationServiceTest {
     TransactionOrder order = order(new BigDecimal("40434"));
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
 
-    FtConfirmationResult result =
-        service(DAY_AFTER_TRADE).verify(cancellationConfirmation()).orElseThrow();
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(cancellationConfirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(CANCELLED);
     assertThat(result.priceStatus()).isEqualTo(CANCELLED);
@@ -306,20 +310,19 @@ class FtConfirmationVerificationServiceTest {
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
     FtConfirmation confirmation = cancellationConfirmation();
 
-    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation).orElseThrow();
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation);
 
-    verify(auditRecorder).recordVerified(order, confirmation, result);
+    verify(auditRecorder).recordOutcome(order, confirmation, result, "admin");
   }
 
   @Test
-  void cancellationConfirmation_orderNotFound_returnsEmpty() {
+  void cancellationConfirmation_orderNotFound_returnsOrphan() {
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of());
 
-    Optional<FtConfirmationResult> result =
-        service(DAY_AFTER_TRADE).verify(cancellationConfirmation());
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(cancellationConfirmation());
 
-    assertThat(result).isEmpty();
-    verifyNoInteractions(auditRecorder);
+    assertThat(result.quantityStatus()).isEqualTo(ORPHAN);
+    assertThat(result.priceStatus()).isEqualTo(ORPHAN);
   }
 
   @Test
@@ -331,7 +334,7 @@ class FtConfirmationVerificationServiceTest {
         .willReturn(List.of(execution(new BigDecimal("40434"))));
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
 
-    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation()).orElseThrow();
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(OK);
     assertThat(result.details()).containsEntry("orderUuid", ORDER_UUID.toString());
@@ -343,7 +346,7 @@ class FtConfirmationVerificationServiceTest {
     TransactionOrder second = order(42L, new BigDecimal("40434"));
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(first, second));
 
-    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation()).orElseThrow();
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(AMBIGUOUS);
     assertThat(result.priceStatus()).isEqualTo(AMBIGUOUS);
@@ -356,8 +359,7 @@ class FtConfirmationVerificationServiceTest {
     FtConfirmation weekendConfirmation =
         new FtConfirmation(TUK75, ISIN, saturday, new BigDecimal("40434"), new BigDecimal("10.09"));
 
-    FtConfirmationResult result =
-        service(DAY_AFTER_TRADE).verify(weekendConfirmation).orElseThrow();
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(weekendConfirmation);
 
     assertThat(result.quantityStatus()).isEqualTo(IGNORED);
     assertThat(result.priceStatus()).isEqualTo(IGNORED);
@@ -379,7 +381,7 @@ class FtConfirmationVerificationServiceTest {
             null,
             true);
 
-    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(suppressed).orElseThrow();
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(suppressed);
 
     assertThat(result.quantityStatus()).isEqualTo(IGNORED);
     assertThat(result.priceStatus()).isEqualTo(IGNORED);
@@ -387,6 +389,77 @@ class FtConfirmationVerificationServiceTest {
         .containsEntry("ignoreReason", "manually suppressed false positive");
     verifyNoInteractions(orderRepository, executionRepository, positionPriceResolver);
     verifyNoInteractions(auditRecorder);
+  }
+
+  @Test
+  void verifyAll_returnsResultPerRowWithIndexAndIsin() {
+    givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
+    givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
+
+    List<FtConfirmationBatchResult> results =
+        service(DAY_AFTER_TRADE).verifyAll(List.of(confirmation()), "ops");
+
+    assertThat(results).hasSize(1);
+    FtConfirmationBatchResult row = results.get(0);
+    assertThat(row.index()).isZero();
+    assertThat(row.isin()).isEqualTo(ISIN);
+    assertThat(row.error()).isNull();
+    assertThat(row.result().quantityStatus()).isEqualTo(OK);
+  }
+
+  @Test
+  void verifyAll_passesActorToAuditRecorder() {
+    TransactionOrder order =
+        givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
+    givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
+    FtConfirmation confirmation = confirmation();
+
+    service(DAY_AFTER_TRADE).verifyAll(List.of(confirmation), "alice");
+
+    verify(auditRecorder).recordOutcome(eq(order), eq(confirmation), any(), eq("alice"));
+  }
+
+  @Test
+  void verifyAll_rowThatThrows_isIsolatedAsError() {
+    given(orderRepository.findByInstrumentIsin("BAD")).willThrow(new RuntimeException("boom"));
+    FtConfirmation bad =
+        new FtConfirmation(TUK75, "BAD", TRADE_DATE, new BigDecimal("1"), new BigDecimal("1"));
+
+    List<FtConfirmationBatchResult> results =
+        service(DAY_AFTER_TRADE).verifyAll(List.of(bad), "ops");
+
+    assertThat(results).hasSize(1);
+    assertThat(results.get(0).isin()).isEqualTo("BAD");
+    assertThat(results.get(0).result()).isNull();
+    assertThat(results.get(0).error()).isEqualTo("boom");
+  }
+
+  @Test
+  void verifyAll_changedActionableRows_arePublishedToDigest() {
+    TransactionOrder order = order(new BigDecimal("40432"));
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
+    given(executionRepository.findAllByOrderId(order.getId()))
+        .willReturn(List.of(execution(new BigDecimal("40432"))));
+    givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
+    given(auditRecorder.recordOutcome(any(), any(), any(), any())).willReturn(true);
+    FtConfirmation confirmation = confirmation();
+
+    List<FtConfirmationBatchResult> results =
+        service(DAY_AFTER_TRADE).verifyAll(List.of(confirmation), "ops");
+
+    FtConfirmationResult result = results.get(0).result();
+    assertThat(result.quantityStatus()).isEqualTo(ERROR);
+    verify(digest).publish(List.of(new FtConfirmationOutcome(confirmation, result)));
+  }
+
+  @Test
+  void verifyAll_unchangedRows_areNotPublishedToDigest() {
+    givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
+    givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
+
+    service(DAY_AFTER_TRADE).verifyAll(List.of(confirmation()), "ops");
+
+    verify(digest).publish(List.of());
   }
 
   private FtConfirmation confirmation() {

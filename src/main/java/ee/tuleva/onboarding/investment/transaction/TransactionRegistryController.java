@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.investment.transaction;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.springframework.http.HttpStatus.ACCEPTED;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 import static org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE;
@@ -100,12 +99,22 @@ public class TransactionRegistryController {
         confirmation.fund(),
         confirmation.isin(),
         confirmation.tradeDate());
-    return ftConfirmationVerificationService
-        .verify(confirmation)
-        .orElseThrow(
-            () ->
-                new ResponseStatusException(
-                    NOT_FOUND, "No matching order found for FT confirmation"));
+    return ftConfirmationVerificationService.verify(confirmation);
+  }
+
+  @PostMapping("/transaction-registry/ft-confirmations")
+  public List<FtConfirmationBatchResult> verifyFtConfirmations(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestHeader(name = "X-Admin-Actor", required = false, defaultValue = "admin") String actor,
+      @RequestBody List<FtConfirmation> confirmations) {
+
+    validateToken(token);
+
+    log.info(
+        "Admin submitted FT confirmations batch for verification: count={}, actor={}",
+        confirmations.size(),
+        actor);
+    return ftConfirmationVerificationService.verifyAll(confirmations, actor);
   }
 
   @PostMapping(value = "/transaction-registry/import-history", consumes = TEXT_PLAIN_VALUE)

@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.transaction.BatchStatus.AWAITING_C
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -40,7 +41,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -153,11 +153,10 @@ class TransactionRegistryControllerTest {
                     new BigDecimal("40434"),
                     new BigDecimal("10.09"))))
         .willReturn(
-            Optional.of(
-                new FtConfirmationResult(
-                    FtVerificationStatus.OK,
-                    FtVerificationStatus.PENDING_NAV,
-                    Map.of("orderQuantity", "40434"))));
+            new FtConfirmationResult(
+                FtVerificationStatus.OK,
+                FtVerificationStatus.PENDING_NAV,
+                Map.of("orderQuantity", "40434")));
 
     mockMvc
         .perform(
@@ -185,11 +184,10 @@ class TransactionRegistryControllerTest {
                     FtConfirmationType.CANCELLATION,
                     "FT-ACC")))
         .willReturn(
-            Optional.of(
-                new FtConfirmationResult(
-                    FtVerificationStatus.CANCELLED,
-                    FtVerificationStatus.CANCELLED,
-                    Map.of("cancellationSignature", "sig"))));
+            new FtConfirmationResult(
+                FtVerificationStatus.CANCELLED,
+                FtVerificationStatus.CANCELLED,
+                Map.of("cancellationSignature", "sig")));
 
     mockMvc
         .perform(
@@ -228,11 +226,10 @@ class TransactionRegistryControllerTest {
                     null,
                     true)))
         .willReturn(
-            Optional.of(
-                new FtConfirmationResult(
-                    FtVerificationStatus.IGNORED,
-                    FtVerificationStatus.IGNORED,
-                    Map.of("ignoreReason", "manually suppressed false positive"))));
+            new FtConfirmationResult(
+                FtVerificationStatus.IGNORED,
+                FtVerificationStatus.IGNORED,
+                Map.of("ignoreReason", "manually suppressed false positive")));
 
     mockMvc
         .perform(
@@ -257,8 +254,13 @@ class TransactionRegistryControllerTest {
   }
 
   @Test
-  void ftConfirmation_orderNotFound_returnsNotFound() throws Exception {
-    given(ftConfirmationVerificationService.verify(any())).willReturn(Optional.empty());
+  void ftConfirmation_orderNotFound_returnsOrphanResult() throws Exception {
+    given(ftConfirmationVerificationService.verify(any()))
+        .willReturn(
+            new FtConfirmationResult(
+                FtVerificationStatus.ORPHAN,
+                FtVerificationStatus.ORPHAN,
+                Map.of("orphanReason", "no matching order in registry")));
 
     mockMvc
         .perform(
@@ -267,7 +269,64 @@ class TransactionRegistryControllerTest {
                 .header("X-Admin-Token", "valid-token")
                 .contentType("application/json")
                 .content(FT_CONFIRMATION_JSON))
-        .andExpect(status().isNotFound());
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.quantityStatus").value("ORPHAN"))
+        .andExpect(jsonPath("$.priceStatus").value("ORPHAN"));
+  }
+
+  @Test
+  void ftConfirmations_batch_returnsResultPerRow() throws Exception {
+    given(ftConfirmationVerificationService.verifyAll(any(), eq("admin")))
+        .willReturn(
+            List.of(
+                FtConfirmationBatchResult.verified(
+                    0,
+                    "IE000F60HVH9",
+                    new FtConfirmationResult(
+                        FtVerificationStatus.OK, FtVerificationStatus.OK, Map.of())),
+                FtConfirmationBatchResult.failed(1, "BAD", "boom")));
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-registry/ft-confirmations")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType("application/json")
+                .content("[" + FT_CONFIRMATION_JSON + "]"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].index").value(0))
+        .andExpect(jsonPath("$[0].isin").value("IE000F60HVH9"))
+        .andExpect(jsonPath("$[0].result.quantityStatus").value("OK"))
+        .andExpect(jsonPath("$[1].error").value("boom"));
+  }
+
+  @Test
+  void ftConfirmations_passesAdminActorHeader() throws Exception {
+    given(ftConfirmationVerificationService.verifyAll(any(), eq("alice"))).willReturn(List.of());
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-registry/ft-confirmations")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .header("X-Admin-Actor", "alice")
+                .contentType("application/json")
+                .content("[]"))
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  void ftConfirmations_withInvalidToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-registry/ft-confirmations")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .contentType("application/json")
+                .content("[" + FT_CONFIRMATION_JSON + "]"))
+        .andExpect(status().isUnauthorized());
+
+    verifyNoInteractions(ftConfirmationVerificationService);
   }
 
   @Test

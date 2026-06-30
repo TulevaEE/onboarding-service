@@ -205,6 +205,11 @@ transaction-registry:
     # How far back the daily settlement check scans SENT/EXECUTED orders. Bounds the
     # scan because orders never transition to SETTLED, so the EXECUTED backlog grows.
     scan-lookback-days: 60
+  ft-confirmation:
+    # Whether onboarding-service is the authoritative order registry yet. While false
+    # (parallel run with GAS), orphan FT confirmations are recorded but not alerted,
+    # because the missing order may still live only in GAS. Flip to true at cutover.
+    registry-authoritative: ${TRANSACTION_REGISTRY_FT_CONFIRMATION_REGISTRY_AUTHORITATIVE:false}
 
 payment-provider:
   url: https://sandbox-stargate.montonio.com/api

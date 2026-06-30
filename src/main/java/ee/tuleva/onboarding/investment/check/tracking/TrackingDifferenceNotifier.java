@@ -30,10 +30,6 @@ class TrackingDifferenceNotifier {
   private final OperationsNotificationService notificationService;
   private final TrackingDifferenceCalculator calculator;
 
-  // The tracking-difference check produced no results for this fund/date (missing NAV pair or model
-  // data), so the NAV report is being published WITHOUT a tracking-difference validation. The gate
-  // does not block on this (fail-open), but it must be surfaced explicitly rather than reported as
-  // "within limits".
   void notifyCheckCouldNotRun(TulevaFund fund, LocalDate navDate) {
     try {
       notificationService.sendMessage(
@@ -48,16 +44,10 @@ class TrackingDifferenceNotifier {
   void notify(List<TrackingDifferenceResult> results) {
     try {
       var alertableResults = results.stream().filter(r -> r.checkType() != BENCHMARK).toList();
-      // A navResidualBreach blocks the NAV report even when the fund-vs-model TD is within limits
-      // (a NAV error whose effect happens to offset the model deviation), so it must alert too —
-      // otherwise the desk sees a block with an all-clear notification.
       var hasAnyBreaches =
           alertableResults.stream().anyMatch(r -> r.breach() || r.navResidualBreach());
 
       if (!hasAnyBreaches) {
-        // Always surface the actual TD numbers, even within limits, so the clean-day Slack log is
-        // informative. Per-MODEL_PORTFOLIO line also discloses the NAV residual (or that it could
-        // not be evaluated) so "within limits" is never read as "NAV residual validated clean".
         var byFund =
             alertableResults.stream()
                 .collect(
@@ -65,7 +55,6 @@ class TrackingDifferenceNotifier {
                         r -> r.fund().getCode(), TreeMap::new, Collectors.toList()));
         var message = new StringBuilder();
         if (byFund.isEmpty()) {
-          // Only non-alertable (BENCHMARK) results — nothing to detail, but still confirm clean.
           var fundCodes =
               results.stream()
                   .map(r -> r.fund().getCode())
@@ -152,11 +141,6 @@ class TrackingDifferenceNotifier {
       sb.append("\n  Action: review instrument prices and benchmark data for pricing errors");
     }
 
-    // NAV-correctness signal: the gate blocks on navResidual, not on the fund-vs-model TD above.
-    // Surfacing it tells the desk whether this breach actually blocked the NAV report or was an
-    // expected trade-day deviation (navResidual ~0) that passed. A null navResidual is the
-    // "not evaluated" sentinel — the begin-of-day snapshot was unavailable and the navResidual
-    // gate was skipped, which must NOT read as "validated clean".
     if (result.checkType() == MODEL_PORTFOLIO) {
       var navResidual = result.navResidual();
       if (navResidual != null) {
@@ -267,10 +251,6 @@ class TrackingDifferenceNotifier {
       threshold = ESCALATION_THRESHOLD_FALLBACK;
       netTdThreshold = ESCALATION_NET_TD_THRESHOLD_FALLBACK;
     }
-    // Escalate after enough consecutive breach days when the cumulative effect is material: either
-    // the compounded fund-vs-model TD clears the net-TD threshold, or the streak included a
-    // NAV-correctness residual breach (each navResidual breach already exceeds the daily threshold,
-    // so a persistent run is material even if the model-TD nets out small).
     return result.consecutiveBreachDays() >= threshold
         && ((result.consecutiveNetTd() != null
                 && result.consecutiveNetTd().abs().compareTo(netTdThreshold) >= 0)

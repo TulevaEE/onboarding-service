@@ -32,8 +32,6 @@ public class NavPublisher {
   private final NavTrackingDifferenceGate trackingDifferenceGate;
   private final PipelineTracker pipelineTracker;
 
-  // NAV/AUM go to the FundValue API (and navNotifier) regardless of trustee email outcome.
-  // The trustee email is the audit trail; the API serves members and internal systems.
   public void publish(NavCalculationResult result) {
     publishToFundValueApi(result);
 

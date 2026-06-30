@@ -134,11 +134,7 @@ public class InvestmentReportDataService {
             .collect(Collectors.toMap(PortfolioCostBasisSnapshot::instrumentIsin, s -> s));
 
     var securityRows = buildSecurityRows(securities, instrumentMap, costBasisMap, fundNav);
-    var secTotalCost =
-        securityRows.stream()
-            .map(InvestmentReportRow::avgCostTotal)
-            .filter(v -> v != null)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    var secTotalCost = securitiesTotalCostIfComplete(securityRows);
     var secTotalMarketValue =
         securityRows.stream()
             .map(InvestmentReportRow::marketValueTotal)
@@ -156,7 +152,7 @@ public class InvestmentReportDataService {
         new SecuritySection(
             mapping.sectionHeading(),
             securityRows,
-            secTotalCost.signum() != 0 ? secTotalCost : null,
+            secTotalCost,
             secTotalMarketValue,
             secTotalNavPercent,
             secTotalChange);
@@ -174,7 +170,7 @@ public class InvestmentReportDataService {
     var cashTotalChange = cashPrevTotal != null ? cashTotalNavPct.subtract(cashPrevTotal) : null;
 
     var totalAssetsMv = secTotalMarketValue.add(cashTotalMv);
-    var totalAssetsCost = secTotalCost.signum() != 0 ? secTotalCost.add(cashTotalMv) : null;
+    var totalAssetsCost = secTotalCost != null ? secTotalCost.add(cashTotalMv) : null;
     var totalAssetsNavPct =
         fundNav.signum() != 0
             ? totalAssetsMv.divide(fundNav, 6, RoundingMode.HALF_UP)
@@ -184,7 +180,7 @@ public class InvestmentReportDataService {
         fund.getDisplayName(),
         navDate.format(ESTONIAN_DATE),
         List.of(section),
-        secTotalCost.signum() != 0 ? secTotalCost : null,
+        secTotalCost,
         secTotalMarketValue,
         secTotalNavPercent,
         secTotalChange,
@@ -196,6 +192,19 @@ public class InvestmentReportDataService {
         totalAssetsCost,
         totalAssetsNavPct,
         fundNav);
+  }
+
+  private static BigDecimal securitiesTotalCostIfComplete(List<InvestmentReportRow> securityRows) {
+    // A partial sum (some holdings missing a cost-basis snapshot) would understate the total and
+    // inflate any market-vs-cost comparison, so the total cost is reported only when every holding
+    // has a cost basis; otherwise it stays blank.
+    if (securityRows.isEmpty()
+        || securityRows.stream().anyMatch(row -> row.avgCostTotal() == null)) {
+      return null;
+    }
+    return securityRows.stream()
+        .map(InvestmentReportRow::avgCostTotal)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
   private BigDecimal findFundNav(List<NavReportView> rows) {
@@ -232,8 +241,12 @@ public class InvestmentReportDataService {
               var displayName = ref != null ? ref.getDisplayName() : sec.getAccountName();
               var manager = ref != null ? ref.getFundManager() : null;
               var country = ref != null ? ref.getCountry() : null;
-              var marketValue =
-                  sec.getMarketValue() != null ? sec.getMarketValue() : BigDecimal.ZERO;
+              if (sec.getMarketValue() == null) {
+                throw new IllegalStateException(
+                    "SECURITY row has no market value, cannot build report: isin=%s, navAccount=%s"
+                        .formatted(sec.getAccountId(), sec.getAccountName()));
+              }
+              var marketValue = sec.getMarketValue();
               var navPct =
                   fundNav.signum() != 0
                       ? marketValue.divide(fundNav, 6, RoundingMode.HALF_UP)

@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.investment.report.publishing.wordpress;
 
+import java.text.Normalizer;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -131,8 +133,21 @@ public class WordPressMediaClient {
     return (Integer) pages.getFirst().get("id");
   }
 
+  // Produce the exact slug WordPress would derive from this filename (lowercase ASCII, diacritics
+  // folded, every run of non-alphanumerics collapsed to a single hyphen). Sending an
+  // already-canonical slug means WordPress stores it unchanged, so the source_url ends with this
+  // string and findExistingMedia can recognise an earlier upload instead of duplicating it.
   static String sanitizeFilename(String filename) {
-    return filename.replaceAll("[\\\\\"\\r\\n]", "_");
+    var dotIndex = filename.lastIndexOf('.');
+    var base = dotIndex > 0 ? filename.substring(0, dotIndex) : filename;
+    var extension = dotIndex > 0 ? filename.substring(dotIndex + 1) : "pdf";
+    var slug =
+        Normalizer.normalize(base, Normalizer.Form.NFD)
+            .replaceAll("\\p{M}+", "")
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("[^a-z0-9]+", "-")
+            .replaceAll("(^-+)|(-+$)", "");
+    return slug + "." + extension.toLowerCase(Locale.ROOT);
   }
 
   private static String truncate(String s, int maxLen) {

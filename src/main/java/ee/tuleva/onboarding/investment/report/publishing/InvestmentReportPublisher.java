@@ -83,28 +83,56 @@ public class InvestmentReportPublisher {
       return new InvestmentReportPublishingResult(Map.of(), false, allocationErrors);
     }
 
-    // Step 2: Upload PDFs to WordPress and update ACF fields on fund pages
+    // If any fund's report could not be produced, publish nothing: updating only some fund pages
+    // would leave the site showing a new report for some funds and last month's for others.
+    if (!errors.isEmpty()) {
+      log.warn("PDF generation failed, aborting before any upload: errors={}", errors);
+      return new InvestmentReportPublishingResult(Map.of(), false, errors);
+    }
+
+    // Step 2a: Upload every PDF first. No fund page is repointed until all uploads succeed, so an
+    // upload failure cannot leave the live website half-updated.
+    var uploads = new LinkedHashMap<FundReportMapping, WordPressMediaClient.UploadResult>();
     for (var entry : pdfs.entrySet()) {
       var mapping = entry.getKey();
       try {
-        var filename = mapping.buildPdfFilename(month);
-        var result = wordPressClient.upload(filename, entry.getValue());
-        wpUrls.put(mapping.fund().getCode(), result.sourceUrl());
-
-        wordPressClient.updateAcfReportField(mapping.pageSlug(), result.attachmentId());
+        uploads.put(
+            mapping, wordPressClient.upload(mapping.buildPdfFilename(month), entry.getValue()));
       } catch (Exception e) {
         var msg =
-            "WordPress publish failed for %s: %s"
+            "WordPress upload failed for %s: %s"
                 .formatted(mapping.fund().getCode(), e.getMessage());
         log.error(msg, e);
         errors.add(msg);
       }
     }
-
-    // Do not send the "reports published" email if any PDF or WordPress step failed: the email
-    // attests that the reports are live, and a fund whose upload failed has no live report.
     if (!errors.isEmpty()) {
-      log.warn("Errors during publish, skipping notification email: errors={}", errors);
+      log.warn("Upload errors, no fund pages updated, website unchanged: errors={}", errors);
+      return new InvestmentReportPublishingResult(Map.of(), false, errors);
+    }
+
+    // Step 2b: Point each fund page at its uploaded report. All uploads succeeded, so a failure
+    // here is a genuine partial publish that needs manual attention.
+    for (var entry : uploads.entrySet()) {
+      var mapping = entry.getKey();
+      var upload = entry.getValue();
+      try {
+        wordPressClient.updateAcfReportField(mapping.pageSlug(), upload.attachmentId());
+        wpUrls.put(mapping.fund().getCode(), upload.sourceUrl());
+      } catch (Exception e) {
+        var msg =
+            "WordPress page update failed for %s: %s"
+                .formatted(mapping.fund().getCode(), e.getMessage());
+        log.error(msg, e);
+        errors.add(msg);
+      }
+    }
+    if (!errors.isEmpty()) {
+      log.error(
+          "Partial publish: some fund pages updated, some not: updated={}, errors={}",
+          wpUrls.keySet(),
+          errors);
+      alertPartialPublish(month, wpUrls.keySet(), errors);
       return new InvestmentReportPublishingResult(wpUrls, false, errors);
     }
 
@@ -151,6 +179,28 @@ public class InvestmentReportPublisher {
         emailSent,
         errors.size());
     return result;
+  }
+
+  private void alertPartialPublish(
+      YearMonth month, Set<String> publishedFunds, List<String> errors) {
+    try {
+      var message = new MandrillMessage();
+      message.setFromEmail("funds@tuleva.ee");
+      message.setFromName("Tuleva");
+      message.setSubject("Investeeringute aruannete avaldamine jäi pooleli: " + month);
+      message.setText(
+          ("Investment report publish for %s left the website in a partial state.%n"
+                  + "Fund pages updated: %s%nErrors: %s%n"
+                  + "Manual attention needed to make all fund pages consistent.")
+              .formatted(month, publishedFunds, errors));
+      var recipient = new Recipient();
+      recipient.setEmail("funds@tuleva.ee");
+      recipient.setType(TO);
+      message.setTo(List.of(recipient));
+      emailService.sendSystemEmail(message);
+    } catch (Exception e) {
+      log.error("Failed to send partial-publish alert: {}", e.getMessage(), e);
+    }
   }
 
   private List<String> validateNavDates(YearMonth month) {

@@ -100,7 +100,7 @@ class InvestmentReportPublisherTest {
   }
 
   @Test
-  void publishUploadsSucceedingFundsButSkipsEmailWhenAFundFails() {
+  void publishAbortsWithoutTouchingAnyPageWhenAFundReportCannotBeProduced() {
     given(dataService.findNavDatesForAllFunds(MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
     var context = sampleContext("Test Fund");
     var pdfBytes = new byte[] {0x25, 0x50, 0x44, 0x46};
@@ -114,15 +114,45 @@ class InvestmentReportPublisherTest {
     given(dataService.getReportData(FundReportMapping.TKF100.fund(), MARCH_2026))
         .willReturn(context);
     given(pdfGenerator.generatePdf(context)).willReturn(pdfBytes);
-    given(wordPressClient.upload(any(), any())).willReturn(SAMPLE_UPLOAD);
 
     var result = publisher.publish(MARCH_2026);
 
-    assertThat(result.wordPressUrls()).hasSize(3);
+    // One fund failing means no fund page is repointed: the site stays fully on last month's
+    // reports
+    assertThat(result.wordPressUrls()).isEmpty();
     assertThat(result.errors()).hasSize(1);
     assertThat(result.errors().getFirst()).contains("TUK00");
     assertThat(result.emailSent()).isFalse();
+    verify(wordPressClient, never()).upload(any(), any());
+    verify(wordPressClient, never()).updateAcfReportField(any(), anyInt());
     verify(emailService, never()).sendSystemEmail(any());
+  }
+
+  @Test
+  void publishAlertsAndSkipsEmailWhenAPageUpdateFailsAfterAllUploads() {
+    given(dataService.findNavDatesForAllFunds(MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
+    var context = sampleContext("Test Fund", new BigDecimal("0.998000"));
+    var pdfBytes = new byte[] {0x25, 0x50, 0x44, 0x46};
+
+    given(dataService.getReportData(any(), eq(MARCH_2026))).willReturn(context);
+    given(pdfGenerator.generatePdf(context)).willReturn(pdfBytes);
+    given(wordPressClient.upload(any(), any())).willReturn(SAMPLE_UPLOAD);
+    lenient()
+        .doThrow(new RuntimeException("ACF down"))
+        .when(wordPressClient)
+        .updateAcfReportField(eq(FundReportMapping.TUK00.pageSlug()), anyInt());
+
+    var result = publisher.publish(MARCH_2026);
+
+    // All four PDFs uploaded, but one page update failed: that fund is left off, the rest are live,
+    // the report email is suppressed and a partial-publish alert goes out.
+    verify(wordPressClient, times(4)).upload(any(), any());
+    assertThat(result.errors()).hasSize(1);
+    assertThat(result.errors().getFirst()).contains("TUK00");
+    assertThat(result.wordPressUrls()).hasSize(3).doesNotContainKey("TUK00");
+    assertThat(result.emailSent()).isFalse();
+    verify(emailService)
+        .sendSystemEmail(argThat(message -> message.getSubject().contains("pooleli")));
   }
 
   @Test

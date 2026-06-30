@@ -115,7 +115,7 @@ class InvestmentReportDataServiceTest {
   }
 
   @Test
-  void getReportDataTreatsNullSecurityMarketValueAsZero() {
+  void getReportDataThrowsWhenSecurityMarketValueMissing() {
     var sec = navRow("SECURITY", "Fund A", "IE0009FT4LX4", new BigDecimal("100"), null, null);
     var units = navRow("UNITS", "Total", null, null, null, new BigDecimal("12000"));
 
@@ -126,12 +126,57 @@ class InvestmentReportDataServiceTest {
     given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
         .willReturn(List.of(sec, units));
 
+    assertThatThrownBy(() -> service.getReportData(TUK75, MARCH_2026))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("no market value");
+  }
+
+  @Test
+  void getReportDataLeavesSecuritiesTotalCostBlankWhenAnyCostBasisMissing() {
+    var withCost =
+        navRow(
+            "SECURITY",
+            "Fund A",
+            "IE0009FT4LX4",
+            new BigDecimal("100"),
+            new BigDecimal("50.00"),
+            new BigDecimal("5000"));
+    var withoutCost =
+        navRow(
+            "SECURITY",
+            "Fund B",
+            "IE00BFG1TM61",
+            new BigDecimal("200"),
+            new BigDecimal("30.00"),
+            new BigDecimal("6000"));
+    var units = navRow("UNITS", "Total", null, null, null, new BigDecimal("12000"));
+
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", MARCH_2026.atDay(1), MARCH_2026.atEndOfMonth()))
+        .willReturn(NAV_DATE);
+    given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
+        .willReturn(List.of(withCost, withoutCost, units));
+    // only IE0009FT4LX4 has a cost-basis snapshot; IE00BFG1TM61 has none
+    var cb =
+        new PortfolioCostBasisSnapshot(
+            "IE0009FT4LX4",
+            new BigDecimal("100"),
+            new BigDecimal("48.00"),
+            new BigDecimal("4800"),
+            NAV_DATE);
+    given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE)).willReturn(List.of(cb));
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 2, 28)))
+        .willReturn(null);
+
     var ctx = service.getReportData(TUK75, MARCH_2026);
 
     var section = ctx.securitiesSections().getFirst();
-    assertThat(section.rows()).hasSize(1);
-    assertThat(section.rows().getFirst().marketValueTotal()).isEqualByComparingTo(BigDecimal.ZERO);
-    assertThat(section.totalMarketValue()).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(section.totalMarketValue()).isEqualByComparingTo(new BigDecimal("11000"));
+    assertThat(section.totalCost()).isNull();
+    assertThat(ctx.totalAssetsCost()).isNull();
   }
 
   @Test

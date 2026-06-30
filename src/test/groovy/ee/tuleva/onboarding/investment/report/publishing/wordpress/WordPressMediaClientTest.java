@@ -165,11 +165,21 @@ class WordPressMediaClientTest {
   }
 
   @Test
-  void sanitizeFilenameRemovesDangerousCharacters() {
+  void sanitizeFilenameProducesWordPressSlug() {
     assertThat(WordPressMediaClient.sanitizeFilename("normal.pdf")).isEqualTo("normal.pdf");
-    assertThat(WordPressMediaClient.sanitizeFilename("file\"name.pdf")).isEqualTo("file_name.pdf");
-    assertThat(WordPressMediaClient.sanitizeFilename("file\\name.pdf")).isEqualTo("file_name.pdf");
-    assertThat(WordPressMediaClient.sanitizeFilename("file\rname.pdf")).isEqualTo("file_name.pdf");
-    assertThat(WordPressMediaClient.sanitizeFilename("file\nname.pdf")).isEqualTo("file_name.pdf");
+    // dangerous and whitespace characters collapse to single hyphens, matching WordPress slugging
+    assertThat(WordPressMediaClient.sanitizeFilename("file\"name.pdf")).isEqualTo("file-name.pdf");
+    assertThat(WordPressMediaClient.sanitizeFilename("file\\name.pdf")).isEqualTo("file-name.pdf");
+    assertThat(WordPressMediaClient.sanitizeFilename("Report 2026-03.pdf"))
+        .isEqualTo("report-2026-03.pdf");
+    // the real report filename — spaces and capitals slugged exactly as WordPress would store it,
+    // so the reuse check finds it on the next run instead of uploading a duplicate
+    assertThat(
+            WordPressMediaClient.sanitizeFilename(
+                "Tuleva Maailma Aktsiate Pensionifondi investeeringute aruanne 2026-03.pdf"))
+        .isEqualTo("tuleva-maailma-aktsiate-pensionifondi-investeeringute-aruanne-2026-03.pdf");
+    // diacritics are folded to ASCII so the slug is stable
+    assertThat(WordPressMediaClient.sanitizeFilename("Võlakirjade fond.pdf"))
+        .isEqualTo("volakirjade-fond.pdf");
   }
 }

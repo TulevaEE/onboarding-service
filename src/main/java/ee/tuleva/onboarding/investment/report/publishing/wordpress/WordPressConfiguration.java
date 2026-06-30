@@ -1,10 +1,14 @@
 package ee.tuleva.onboarding.investment.report.publishing.wordpress;
 
+import static java.time.Duration.ofSeconds;
+
+import java.net.http.HttpClient;
 import java.util.Base64;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 @Configuration
@@ -17,9 +21,15 @@ class WordPressConfiguration {
     var credentials = properties.username() + ":" + properties.appPassword();
     var basicAuth = Base64.getEncoder().encodeToString(credentials.getBytes());
 
+    var requestFactory =
+        new JdkClientHttpRequestFactory(
+            HttpClient.newBuilder().connectTimeout(ofSeconds(5)).build());
+    requestFactory.setReadTimeout(ofSeconds(30));
+
     var restClient =
         RestClient.builder()
             .baseUrl(properties.apiBase())
+            .requestFactory(requestFactory)
             .requestInterceptor(
                 (request, body, execution) -> {
                   request.getHeaders().set("Authorization", "Basic " + basicAuth);

@@ -54,6 +54,7 @@ Follow **Uncle Bob** (Clean Code, SOLID), **Kent Beck** (TDD, simple design), **
 ### Git
 - Always `git add` new files immediately
 - NEVER commit or push without user approval
+- **NEVER commit PII — this repo is open-source.** No real names, personal/ID codes, emails, phone numbers, addresses, account/väärtpaberikonto numbers, or other personally identifiable data in code, comments, tests, fixtures, migrations, or commit messages. Use synthetic values (e.g. `38888888888`) or stable opaque IDs (payment id, `external_id`, party UUID) instead. This also applies to logs and anything pushed to an external service.
 
 ## Architecture
 

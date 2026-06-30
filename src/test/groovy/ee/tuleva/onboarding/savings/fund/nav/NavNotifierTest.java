@@ -12,8 +12,8 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelTrackingDifference;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceQueryService;
+import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceSummary;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult.SecurityDetail;
 import java.math.BigDecimal;
@@ -51,7 +51,8 @@ class NavNotifierTest {
   void formatMessage_includesAllComponentsAndSecuritiesDetail() {
     var result = aNavCalculationResult();
 
-    var message = navNotifier.formatMessage(result, Optional.empty(), Optional.empty());
+    var message =
+        navNotifier.formatMessage(result, Optional.empty(), Optional.empty(), Optional.empty());
 
     assertThat(message)
         .contains("TKF100")
@@ -74,7 +75,8 @@ class NavNotifierTest {
         .contains("*NAV/Unit: 9.8440*")
         .contains("✅", "IE00BMDBMY19", "ESGM.XETRA", "13288", "43.38", "576,433.44", "2026-02-17")
         .contains("❌", "IE00BJZ2DC62", "XRSM.XETRA", "21180", "49.55", "1,049,469.00", "2026-02-12")
-        .contains("Tracking Difference (BENCHMARK_MODEL): n/a");
+        .contains("Tracking Difference (model portfolio): n/a")
+        .contains("Tracking Difference (holdings vs index): n/a");
   }
 
   @Test
@@ -86,12 +88,15 @@ class NavNotifierTest {
             result,
             Optional.of(new BigDecimal("-0.014095")),
             Optional.of(
-                new BenchmarkModelTrackingDifference(
+                new TrackingDifferenceSummary(new BigDecimal("0.000300"), new BigDecimal("0.001"))),
+            Optional.of(
+                new TrackingDifferenceSummary(
                     new BigDecimal("-0.000751"), new BigDecimal("0.001"))));
 
     assertThat(message)
         .contains("*NAV/Unit: 9.8440 (-1.41%)*")
-        .contains("Tracking Difference (BENCHMARK_MODEL): -0.08% ✅");
+        .contains("Tracking Difference (model portfolio): +0.03% ✅")
+        .contains("Tracking Difference (holdings vs index): -0.08% ✅");
   }
 
   @Test
@@ -103,12 +108,15 @@ class NavNotifierTest {
             result,
             Optional.of(new BigDecimal("0.000245")),
             Optional.of(
-                new BenchmarkModelTrackingDifference(
+                new TrackingDifferenceSummary(new BigDecimal("0.001500"), new BigDecimal("0.001"))),
+            Optional.of(
+                new TrackingDifferenceSummary(
                     new BigDecimal("0.001073"), new BigDecimal("0.001"))));
 
     assertThat(message)
         .contains("*NAV/Unit: 9.8440 (+0.02%)*")
-        .contains("Tracking Difference (BENCHMARK_MODEL): +0.11% 🔴");
+        .contains("Tracking Difference (model portfolio): +0.15% 🔴")
+        .contains("Tracking Difference (holdings vs index): +0.11% 🔴");
   }
 
   @Test
@@ -135,18 +143,27 @@ class NavNotifierTest {
     given(fundNavQueryService.findNavPerUnit("TKF100", previousNavDate))
         .willReturn(Optional.of(new BigDecimal("9.8000")));
     given(
+            trackingDifferenceQueryService.findLatestModelPortfolio(
+                TKF100, result.positionReportDate()))
+        .willReturn(
+            Optional.of(
+                new TrackingDifferenceSummary(
+                    new BigDecimal("0.001500"), new BigDecimal("0.001"))));
+    given(
             trackingDifferenceQueryService.findLatestBenchmarkModel(
                 TKF100, result.positionReportDate()))
         .willReturn(
             Optional.of(
-                new BenchmarkModelTrackingDifference(
+                new TrackingDifferenceSummary(
                     new BigDecimal("0.000500"), new BigDecimal("0.001"))));
 
     navNotifier.notify(result);
 
     verify(notificationService).sendMessage(contains("*NAV/Unit: 9.8440 (+0.45%)*"), eq(SAVINGS));
     verify(notificationService)
-        .sendMessage(contains("Tracking Difference (BENCHMARK_MODEL): +0.05% ✅"), eq(SAVINGS));
+        .sendMessage(contains("Tracking Difference (model portfolio): +0.15% 🔴"), eq(SAVINGS));
+    verify(notificationService)
+        .sendMessage(contains("Tracking Difference (holdings vs index): +0.05% ✅"), eq(SAVINGS));
   }
 
   @Test

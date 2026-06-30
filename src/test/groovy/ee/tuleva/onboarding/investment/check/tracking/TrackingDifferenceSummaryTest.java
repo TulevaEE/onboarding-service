@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 
-class BenchmarkModelTrackingDifferenceTest {
+class TrackingDifferenceSummaryTest {
 
   private static final BigDecimal LIMIT = new BigDecimal("0.001");
 
@@ -22,7 +22,7 @@ class BenchmarkModelTrackingDifferenceTest {
     assertThat(trackingDifference("-0.000999").breachesLimit()).isFalse();
   }
 
-  private BenchmarkModelTrackingDifference trackingDifference(String value) {
-    return new BenchmarkModelTrackingDifference(new BigDecimal(value), LIMIT);
+  private TrackingDifferenceSummary trackingDifference(String value) {
+    return new TrackingDifferenceSummary(new BigDecimal(value), LIMIT);
   }
 }

@@ -60,9 +60,6 @@ class QuantityAmountValidator {
         null);
   }
 
-  // A split order fills in several pieces. Validate the running total (existing pieces, excluding a
-  // re-imported row, plus this row) against the order target: an under-fill is an expected partial,
-  // only an over-fill beyond tolerance is a real divergence.
   Optional<QuantityAmountMismatchEvent> validateCumulative(
       TransactionOrder order,
       SebPendingTransactionRow row,
@@ -74,13 +71,10 @@ class QuantityAmountValidator {
       return Optional.empty();
     }
     MismatchKind kind = kind(order);
-    BigDecimal cumulative = sumExecutedValue(order, existingExecutions, row.ourRef()).add(rowValue);
+    BigDecimal previouslyExecuted = sumExecutedValue(order, existingExecutions, row.ourRef());
+    BigDecimal cumulative = previouslyExecuted.add(rowValue);
     BigDecimal tolerance = tolerance(kind, properties);
-    boolean overfill =
-        kind == MismatchKind.FUND_BUY_AMOUNT
-            ? relativeExcess(target, cumulative).compareTo(tolerance) > 0
-            : cumulative.subtract(target).compareTo(tolerance) > 0;
-    if (!overfill) {
+    if (!isOverfill(kind, target, cumulative, tolerance)) {
       return Optional.empty();
     }
     return Optional.of(
@@ -96,9 +90,6 @@ class QuantityAmountValidator {
             null));
   }
 
-  // True only when the order's executions sum to provably LESS than the target (beyond tolerance).
-  // Used to block settling a split order that is still short; an unknown target cannot be proven
-  // short, so it does not block settlement.
   boolean isShortFill(
       TransactionOrder order,
       List<TransactionExecution> executions,
@@ -107,12 +98,20 @@ class QuantityAmountValidator {
     if (target == null) {
       return false;
     }
-    BigDecimal sum = sumExecutedValue(order, executions, null);
+    BigDecimal executed = sumExecutedValue(order, executions, null);
     BigDecimal tolerance = tolerance(kind(order), properties);
     if (kind(order) == MismatchKind.FUND_BUY_AMOUNT) {
-      return target.signum() != 0 && relativeExcess(target, sum).negate().compareTo(tolerance) > 0;
+      return target.signum() != 0
+          && relativeExcess(target, executed).negate().compareTo(tolerance) > 0;
     }
-    return target.subtract(sum).compareTo(tolerance) > 0;
+    return target.subtract(executed).compareTo(tolerance) > 0;
+  }
+
+  private static boolean isOverfill(
+      MismatchKind kind, BigDecimal target, BigDecimal cumulative, BigDecimal tolerance) {
+    return kind == MismatchKind.FUND_BUY_AMOUNT
+        ? relativeExcess(target, cumulative).compareTo(tolerance) > 0
+        : cumulative.subtract(target).compareTo(tolerance) > 0;
   }
 
   private static BigDecimal sumExecutedValue(

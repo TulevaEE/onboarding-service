@@ -31,6 +31,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -103,16 +104,16 @@ class SettlementCheckJob {
     List<SebPendingTransactionRow> unmatched =
         fresh ? unmatchedFinder.collectUnmatched(latestReport.get()) : List.of();
 
-    // TODO: remove the registryOrders.isEmpty() guard once the transaction registry holds real
-    // orders. It exists only to silence the stale/missing-report warning during the empty-registry
-    // bootstrap; left in place it would also hide a genuinely broken pipeline if the table is ever
-    // wiped to empty.
-    if (overdue.isEmpty() && unmatched.isEmpty() && (fresh || registryOrders.isEmpty())) {
+    boolean emptyRegistryBootstrap = registryOrders.isEmpty();
+    // TODO: drop emptyRegistryBootstrap once the registry holds real orders — it silences the
+    // stale-report warning during bootstrap but would also mask a broken pipeline on an empty
+    // table.
+    if (overdue.isEmpty() && unmatched.isEmpty() && (fresh || emptyRegistryBootstrap)) {
       log.info(
           "Settlement check clean: today={}, fresh={}, registryEmpty={}",
           today,
           fresh,
-          registryOrders.isEmpty());
+          emptyRegistryBootstrap);
       return;
     }
 
@@ -131,15 +132,10 @@ class SettlementCheckJob {
     run();
   }
 
-  // Only trust the "absent from report => settled" inference for a genuine, parsed SEB report.
-  // A legitimately empty report (all transactions settled) still carries its header/metadata block
-  // — captured as the "As of:" date — whereas a truncated, zero-byte or otherwise corrupt file does
-  // not. Without that proof we treat the report as unusable: warn and list every overdue order,
-  // rather than silently marking them all settled. Row count alone cannot distinguish the two,
-  // since an all-settled report and a broken one both yield zero data rows.
   private boolean isUsable(InvestmentReport report, LocalDate today) {
-    boolean recent = !report.getReportDate().isBefore(publicHolidays.previousWorkingDay(today));
-    return recent && hasParsedHeader(report);
+    boolean recentEnough =
+        !report.getReportDate().isBefore(publicHolidays.previousWorkingDay(today));
+    return recentEnough && hasParsedHeader(report);
   }
 
   private static boolean hasParsedHeader(InvestmentReport report) {
@@ -173,8 +169,9 @@ class SettlementCheckJob {
         if (deadline == null || !deadline.isBefore(referenceDate)) {
           continue;
         }
-        // When the latest report is fresh, an EXECUTED order absent from it has settled -> skip.
-        if (fresh && !isPresentInReport(order, executions, reportClientRefs, reportOurRefs)) {
+        boolean settledSinceFreshReport =
+            fresh && !isPresentInReport(order, executions, reportClientRefs, reportOurRefs);
+        if (settledSinceFreshReport) {
           continue;
         }
         overdue.add(new OverdueLine(order, EXECUTED, deadline));
@@ -192,21 +189,20 @@ class SettlementCheckJob {
         orderDate(order), instrumentType, order.getInstrumentIsin(), thresholdFor(instrumentType));
   }
 
-  // An order settles in full only when its last piece settles, so the overdue deadline is the
-  // latest piece's settlement date (mirrors MAX(actual_settlement_date) in
-  // v_depositary_reconciliation);
-  // fall back to the expected deadline until any piece has settled.
   private @Nullable LocalDate executedDeadline(
       TransactionOrder order, List<TransactionExecution> executions) {
-    var latestSettlement =
-        executions.stream()
-            .map(TransactionExecution::getActualSettlementDate)
-            .filter(Objects::nonNull)
-            .max(Comparator.naturalOrder());
+    Optional<LocalDate> latestSettlement = latestPieceSettlementDate(executions);
     return latestSettlement.isPresent() ? latestSettlement.get() : sentDeadline(order);
   }
 
-  // The order is still settling if any of its pieces lingers in the report.
+  private static Optional<LocalDate> latestPieceSettlementDate(
+      List<TransactionExecution> executions) {
+    return executions.stream()
+        .map(TransactionExecution::getActualSettlementDate)
+        .filter(Objects::nonNull)
+        .max(Comparator.naturalOrder());
+  }
+
   private static boolean isPresentInReport(
       TransactionOrder order,
       List<TransactionExecution> executions,

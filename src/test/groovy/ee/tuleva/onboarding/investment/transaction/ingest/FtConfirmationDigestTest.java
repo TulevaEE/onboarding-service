@@ -40,8 +40,8 @@ class FtConfirmationDigestTest {
   }
 
   @Test
-  void errorRow_isSentAsOneInvestmentDigest() {
-    digest(false).publish(List.of(outcome(ERROR, OK)));
+  void errorRow_whenRegistryAuthoritative_isSentAsOneInvestmentDigest() {
+    digest(true).publish(List.of(outcome(ERROR, OK)));
 
     verify(notificationService)
         .sendMessage(
@@ -52,8 +52,8 @@ class FtConfirmationDigestTest {
   }
 
   @Test
-  void ambiguousRow_isSent() {
-    digest(false).publish(List.of(outcome(AMBIGUOUS, AMBIGUOUS)));
+  void ambiguousRow_whenRegistryAuthoritative_isSent() {
+    digest(true).publish(List.of(outcome(AMBIGUOUS, AMBIGUOUS)));
 
     verify(notificationService)
         .sendMessage(
@@ -64,8 +64,10 @@ class FtConfirmationDigestTest {
   }
 
   @Test
-  void orphanRow_whileRegistryNotAuthoritative_isNotSent() {
-    digest(false).publish(List.of(outcome(ORPHAN, ORPHAN)));
+  void whileRegistryNotAuthoritative_nothingIsSent_evenForActionableRows() {
+    digest(false)
+        .publish(
+            List.of(outcome(ERROR, OK), outcome(AMBIGUOUS, AMBIGUOUS), outcome(ORPHAN, ORPHAN)));
 
     verifyNoInteractions(notificationService);
   }

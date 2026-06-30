@@ -3,13 +3,17 @@ package ee.tuleva.onboarding.aml;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static java.util.Map.entry;
 
+import ee.tuleva.onboarding.company.Company;
+import ee.tuleva.onboarding.company.CompanyRepository;
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCheckHistory;
 import ee.tuleva.onboarding.kyb.KybCheckType;
 import ee.tuleva.onboarding.kyb.PersonalCode;
+import ee.tuleva.onboarding.kyb.RegistryCode;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -38,16 +42,26 @@ public class AmlKybCheckHistory implements KybCheckHistory {
           entry(AmlCheckType.KYB_SELF_CERTIFICATION, KybCheckType.SELF_CERTIFICATION));
 
   private final AmlCheckRepository amlCheckRepository;
+  private final CompanyRepository companyRepository;
 
   @Override
-  public List<KybCheck> getLatestChecks(PersonalCode personalCode) {
+  public List<KybCheck> getLatestChecks(PersonalCode personalCode, RegistryCode registryCode) {
+    UUID companyId = resolveCompanyId(registryCode);
     return amlCheckRepository
-        .findAllByPersonalCodeAndCreatedTimeAfter(personalCode.value(), aYearAgo())
+        .findAllByPersonalCodeAndCompanyIdAndCreatedTimeAfter(
+            personalCode.value(), companyId, aYearAgo())
         .stream()
         .filter(check -> REVERSE_TYPE_MAPPING.containsKey(check.getType()))
         .sorted(Comparator.comparing(AmlCheck::getCreatedTime).reversed())
         .map(this::toKybCheck)
         .toList();
+  }
+
+  private UUID resolveCompanyId(RegistryCode registryCode) {
+    return companyRepository
+        .findByRegistryCode(registryCode.value())
+        .map(Company::getId)
+        .orElse(null);
   }
 
   private KybCheck toKybCheck(AmlCheck amlCheck) {

@@ -23,7 +23,9 @@ public class KybScreeningService {
   public List<KybCheck> screen(KybCompanyData companyData) {
     var screenerResults = validate(companyData);
 
-    var dataChangedCheck = dataChangeDetector.detect(companyData.personalCode(), screenerResults);
+    var dataChangedCheck =
+        dataChangeDetector.detect(
+            companyData.personalCode(), companyData.company().registryCode(), screenerResults);
 
     var results = Stream.concat(screenerResults.stream(), Stream.of(dataChangedCheck)).toList();
 

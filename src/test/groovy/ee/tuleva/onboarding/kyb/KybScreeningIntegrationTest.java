@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyWith;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.kybPerson;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
+import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -15,12 +16,16 @@ import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
+import ee.tuleva.onboarding.time.ClockHolder;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +39,7 @@ import tools.jackson.databind.json.JsonMapper;
 class KybScreeningIntegrationTest {
 
   private static final PersonalCode PERSONAL_CODE = new PersonalCode("38501010002");
+  private static final Instant NOW = Instant.parse("2025-06-01T00:00:00Z");
 
   @Autowired private KybScreeningService kybScreeningService;
   @Autowired private AmlCheckRepository amlCheckRepository;
@@ -47,6 +53,11 @@ class KybScreeningIntegrationTest {
     when(sanctionCheckService.matchCompany(any()))
         .thenReturn(
             new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
+  }
+
+  @AfterEach
+  void resetClock() {
+    ClockHolder.setDefaultClock();
   }
 
   @Test
@@ -296,5 +307,52 @@ class KybScreeningIntegrationTest {
     var ageCheck = amlChecks.stream().filter(c -> c.getType() == KYB_COMPANY_AGE).findFirst();
     assertThat(ageCheck).as("KYB_COMPANY_AGE AmlCheck should be persisted").isPresent();
     assertThat(ageCheck.get().isSuccess()).isFalse();
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void rescreeningACompanyIgnoresAnotherCompanyOfTheSameRepresentative() {
+    // AML #78: KybDataChangeDetector read history by personal_code only, so a representative tied
+    // to
+    // two companies had each company's checks compared against the other company's most recent row.
+    // Identical nightly re-screenings then flagged DATA_CHANGED for every such company. History is
+    // now scoped to the company, so another company of the same representative is ignored. The
+    // clock
+    // is advanced between screenings so the other company's row is unambiguously the most recent.
+    var owner = boardMemberOwner(PERSONAL_CODE, 100.0).build();
+
+    ClockHolder.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
+    kybScreeningService.screen(companyFor("11111111", "62011", owner));
+    entityManager.flush();
+    entityManager.clear();
+
+    ClockHolder.setClock(Clock.fixed(NOW.plus(1, DAYS), ZoneOffset.UTC));
+    kybScreeningService.screen(companyFor("22222222", "41201", owner));
+    entityManager.flush();
+    entityManager.clear();
+
+    ClockHolder.setClock(Clock.fixed(NOW.plus(2, DAYS), ZoneOffset.UTC));
+    var rescreenFirstCompany = kybScreeningService.screen(companyFor("11111111", "62011", owner));
+
+    var dataChanged =
+        rescreenFirstCompany.stream()
+            .filter(c -> c.type() == KybCheckType.DATA_CHANGED)
+            .findFirst()
+            .orElseThrow();
+    assertThat(dataChanged.success()).isTrue();
+    assertThat((List<Map<String, Object>>) dataChanged.metadata().get("changes")).isEmpty();
+  }
+
+  private KybCompanyData companyFor(String registryCode, String naceCode, KybRelatedPerson owner) {
+    return new KybCompanyData(
+        new CompanyDto(new RegistryCode(registryCode), "Test OÜ", naceCode, LegalForm.OÜ),
+        PERSONAL_CODE,
+        R,
+        List.of(owner),
+        new SelfCertification(true, true, true),
+        "EE",
+        "Harju maakond, Tallinn, Pärnu mnt 1",
+        null,
+        List.of());
   }
 }

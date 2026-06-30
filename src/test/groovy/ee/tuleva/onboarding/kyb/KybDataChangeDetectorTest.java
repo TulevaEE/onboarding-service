@@ -15,13 +15,14 @@ class KybDataChangeDetectorTest {
   private final KybDataChangeDetector detector = new KybDataChangeDetector(checkHistory);
 
   private static final PersonalCode PERSONAL_CODE = new PersonalCode("38501010001");
+  private static final RegistryCode REGISTRY_CODE = new RegistryCode("12345678");
 
   @Test
   void noPreviousChecksReturnsSuccess() {
-    when(checkHistory.getLatestChecks(PERSONAL_CODE)).thenReturn(List.of());
+    when(checkHistory.getLatestChecks(PERSONAL_CODE, REGISTRY_CODE)).thenReturn(List.of());
 
     var currentChecks = List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of("status", "R")));
-    var result = detector.detect(PERSONAL_CODE, currentChecks);
+    var result = detector.detect(PERSONAL_CODE, REGISTRY_CODE, currentChecks);
 
     assertThat(result.type()).isEqualTo(DATA_CHANGED);
     assertThat(result.success()).isTrue();
@@ -32,9 +33,9 @@ class KybDataChangeDetectorTest {
   @Test
   void identicalResultsReturnsSuccess() {
     var checks = List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of("status", "R")));
-    when(checkHistory.getLatestChecks(PERSONAL_CODE)).thenReturn(checks);
+    when(checkHistory.getLatestChecks(PERSONAL_CODE, REGISTRY_CODE)).thenReturn(checks);
 
-    var result = detector.detect(PERSONAL_CODE, checks);
+    var result = detector.detect(PERSONAL_CODE, REGISTRY_CODE, checks);
 
     assertThat(result.success()).isTrue();
     assertThat((List<?>) result.metadata().get("changes")).isEmpty();
@@ -44,9 +45,9 @@ class KybDataChangeDetectorTest {
   void successFlipDetected() {
     var previousChecks = List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of("status", "R")));
     var currentChecks = List.of(new KybCheck(COMPANY_ACTIVE, false, Map.of("status", "L")));
-    when(checkHistory.getLatestChecks(PERSONAL_CODE)).thenReturn(previousChecks);
+    when(checkHistory.getLatestChecks(PERSONAL_CODE, REGISTRY_CODE)).thenReturn(previousChecks);
 
-    var result = detector.detect(PERSONAL_CODE, currentChecks);
+    var result = detector.detect(PERSONAL_CODE, REGISTRY_CODE, currentChecks);
 
     assertThat(result.success()).isFalse();
     var changes = (List<Map<String, Object>>) result.metadata().get("changes");
@@ -71,9 +72,9 @@ class KybDataChangeDetectorTest {
                 SOLE_MEMBER_OWNERSHIP,
                 true,
                 Map.of("personalCode", "38501010001", "ownershipPercent", 50)));
-    when(checkHistory.getLatestChecks(PERSONAL_CODE)).thenReturn(previousChecks);
+    when(checkHistory.getLatestChecks(PERSONAL_CODE, REGISTRY_CODE)).thenReturn(previousChecks);
 
-    var result = detector.detect(PERSONAL_CODE, currentChecks);
+    var result = detector.detect(PERSONAL_CODE, REGISTRY_CODE, currentChecks);
 
     assertThat(result.success()).isFalse();
     var changes = (List<Map<String, Object>>) result.metadata().get("changes");
@@ -91,9 +92,9 @@ class KybDataChangeDetectorTest {
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of("status", "R")),
             new KybCheck(COMPANY_AGE, true, Map.of()));
-    when(checkHistory.getLatestChecks(PERSONAL_CODE)).thenReturn(previousChecks);
+    when(checkHistory.getLatestChecks(PERSONAL_CODE, REGISTRY_CODE)).thenReturn(previousChecks);
 
-    var result = detector.detect(PERSONAL_CODE, currentChecks);
+    var result = detector.detect(PERSONAL_CODE, REGISTRY_CODE, currentChecks);
 
     assertThat(result.success()).isTrue();
     assertThat((List<?>) result.metadata().get("changes")).isEmpty();
@@ -108,9 +109,9 @@ class KybDataChangeDetectorTest {
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of("status", "R")),
             new KybCheck(COMPANY_AGE, false, Map.of()));
-    when(checkHistory.getLatestChecks(PERSONAL_CODE)).thenReturn(previousChecks);
+    when(checkHistory.getLatestChecks(PERSONAL_CODE, REGISTRY_CODE)).thenReturn(previousChecks);
 
-    var result = detector.detect(PERSONAL_CODE, currentChecks);
+    var result = detector.detect(PERSONAL_CODE, REGISTRY_CODE, currentChecks);
 
     assertThat(result.success()).isTrue();
     assertThat((List<?>) result.metadata().get("changes")).isEmpty();
@@ -130,9 +131,9 @@ class KybDataChangeDetectorTest {
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of("status", "R")),
             new KybCheck(DUAL_MEMBER_OWNERSHIP, true, Map.of()));
-    when(checkHistory.getLatestChecks(PERSONAL_CODE)).thenReturn(previousChecks);
+    when(checkHistory.getLatestChecks(PERSONAL_CODE, REGISTRY_CODE)).thenReturn(previousChecks);
 
-    var result = detector.detect(PERSONAL_CODE, currentChecks);
+    var result = detector.detect(PERSONAL_CODE, REGISTRY_CODE, currentChecks);
 
     assertThat(result.success()).isFalse();
     var changes = (List<Map<String, Object>>) result.metadata().get("changes");
@@ -153,9 +154,9 @@ class KybDataChangeDetectorTest {
         List.of(
             new KybCheck(COMPANY_ACTIVE, false, Map.of("status", "L")),
             new KybCheck(SOLE_MEMBER_OWNERSHIP, false, Map.of()));
-    when(checkHistory.getLatestChecks(PERSONAL_CODE)).thenReturn(previousChecks);
+    when(checkHistory.getLatestChecks(PERSONAL_CODE, REGISTRY_CODE)).thenReturn(previousChecks);
 
-    var result = detector.detect(PERSONAL_CODE, currentChecks);
+    var result = detector.detect(PERSONAL_CODE, REGISTRY_CODE, currentChecks);
 
     assertThat(result.success()).isFalse();
     var changes = (List<Map<String, Object>>) result.metadata().get("changes");
@@ -168,9 +169,9 @@ class KybDataChangeDetectorTest {
         List.of(new KybCheck(COMPANY_SANCTION, true, Map.of("results", "[{id=Q1, score=0.31}]")));
     var currentChecks =
         List.of(new KybCheck(COMPANY_SANCTION, true, Map.of("results", "[{id=Q2, score=0.62}]")));
-    when(checkHistory.getLatestChecks(PERSONAL_CODE)).thenReturn(previousChecks);
+    when(checkHistory.getLatestChecks(PERSONAL_CODE, REGISTRY_CODE)).thenReturn(previousChecks);
 
-    var result = detector.detect(PERSONAL_CODE, currentChecks);
+    var result = detector.detect(PERSONAL_CODE, REGISTRY_CODE, currentChecks);
 
     assertThat(result.success()).isTrue();
     assertThat((List<?>) result.metadata().get("changes")).isEmpty();
@@ -181,9 +182,9 @@ class KybDataChangeDetectorTest {
     var previousChecks = List.of(new KybCheck(COMPANY_SANCTION, true, Map.of("results", "[]")));
     var currentChecks =
         List.of(new KybCheck(COMPANY_SANCTION, false, Map.of("results", "[{match=true}]")));
-    when(checkHistory.getLatestChecks(PERSONAL_CODE)).thenReturn(previousChecks);
+    when(checkHistory.getLatestChecks(PERSONAL_CODE, REGISTRY_CODE)).thenReturn(previousChecks);
 
-    var result = detector.detect(PERSONAL_CODE, currentChecks);
+    var result = detector.detect(PERSONAL_CODE, REGISTRY_CODE, currentChecks);
 
     assertThat(result.success()).isFalse();
   }

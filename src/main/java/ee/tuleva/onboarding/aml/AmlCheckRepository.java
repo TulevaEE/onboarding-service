@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.aml;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AmlCheckRepository extends JpaRepository<AmlCheck, Long> {
@@ -11,6 +12,9 @@ public interface AmlCheckRepository extends JpaRepository<AmlCheck, Long> {
 
   List<AmlCheck> findAllByPersonalCodeAndCreatedTimeAfter(
       String personalCode, Instant createdAfter);
+
+  List<AmlCheck> findAllByPersonalCodeAndCompanyIdAndCreatedTimeAfter(
+      String personalCode, UUID companyId, Instant createdAfter);
 
   List<AmlCheck> findAllByTypeIn(List<AmlCheckType> types);
 

@@ -4,5 +4,5 @@ import java.util.List;
 
 public interface KybCheckHistory {
 
-  List<KybCheck> getLatestChecks(PersonalCode personalCode);
+  List<KybCheck> getLatestChecks(PersonalCode personalCode, RegistryCode registryCode);
 }

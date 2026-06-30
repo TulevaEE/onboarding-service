@@ -19,8 +19,6 @@ class ExecutionPriceConsistencyAlertListener {
   private final EmailService emailService;
   private final OperationsNotificationService notificationService;
 
-  // Fire after the reconcile transaction commits so a Slack/email failure can never roll back
-  // persisted reconciliation state; fallbackExecution lets it still run outside a transaction.
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
   public void onExecutionPriceConsistency(ExecutionPriceConsistencyEvent event) {
     try {

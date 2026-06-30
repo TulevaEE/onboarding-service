@@ -194,13 +194,7 @@ public class FtConfirmationVerificationService {
       orderQuantityOk = withinQuantityTolerance(confirmation.quantity(), order.getOrderQuantity());
     }
 
-    // Sum across all executions: a split order fills in several pieces, so the executed quantity is
-    // the total of every piece, not just the first one.
-    BigDecimal totalExecuted =
-        executionRepository.findAllByOrderId(order.getId()).stream()
-            .map(TransactionExecution::getExecutedQuantity)
-            .filter(Objects::nonNull)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    BigDecimal totalExecuted = sumExecutedQuantityAcrossPieces(order);
     Optional<BigDecimal> executedQuantity =
         totalExecuted.signum() > 0 ? Optional.of(totalExecuted) : Optional.empty();
 
@@ -220,6 +214,13 @@ public class FtConfirmationVerificationService {
     boolean executedQuantityOk =
         withinQuantityTolerance(confirmation.quantity(), executedQuantity.get());
     return orderQuantityOk && executedQuantityOk ? OK : ERROR;
+  }
+
+  private BigDecimal sumExecutedQuantityAcrossPieces(TransactionOrder order) {
+    return executionRepository.findAllByOrderId(order.getId()).stream()
+        .map(TransactionExecution::getExecutedQuantity)
+        .filter(Objects::nonNull)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
   private static boolean withinQuantityTolerance(BigDecimal ftQuantity, BigDecimal quantity) {

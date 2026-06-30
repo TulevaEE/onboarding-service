@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlement;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementService;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.Comparator;
@@ -82,8 +83,6 @@ public class SebPendingTransactionReconciliationService {
           unmatched++;
           continue;
         }
-        // Unmatched rows are surfaced read-only by the daily SettlementCheckJob digest,
-        // not alerted per-row here.
         log.info(
             "Unmatched pending transaction: clientRef={}, ourRef={}, isin={}, reportDate={}",
             row.clientRef(),
@@ -97,8 +96,6 @@ public class SebPendingTransactionReconciliationService {
       TransactionOrder order = orderOpt.get();
       presentOrderIds.add(order.getId());
       if (!isRowConsistentWithOrder(order, row, reportDate)) {
-        // A reused/mis-assigned Client ref or a row with no Our ref cannot be a safe piece of this
-        // order. Quarantine it; it still counts as present so the order is not settled by absence.
         matched++;
         continue;
       }
@@ -113,8 +110,6 @@ public class SebPendingTransactionReconciliationService {
           quantityAmountValidator.validateCumulative(
               order, row, executionRepository.findAllByOrderId(order.getId()), matchingProperties);
       if (mismatch.isPresent()) {
-        // Quarantine: an over-fill (cumulative beyond the order target) must not be silently
-        // absorbed. An under-fill is an expected partial and is accepted.
         reportMismatch(mismatch.get().withReportDate(reportDate), row);
         matched++;
         continue;
@@ -180,8 +175,6 @@ public class SebPendingTransactionReconciliationService {
         .flatMap(orderRepository::findById);
   }
 
-  // The broker_transaction_id index is not unique (H2/PG-portable schema), so a duplicate broker
-  // ref must be refused rather than resolved to an arbitrary execution (would silently mislink).
   private Optional<TransactionExecution> uniqueExecutionByBrokerRef(String brokerRef) {
     List<TransactionExecution> matches =
         executionRepository.findAllByBrokerTransactionId(brokerRef);
@@ -287,14 +280,11 @@ public class SebPendingTransactionReconciliationService {
       return;
     }
     if (!reportComplete) {
-      // A dropped malformed row could make a still-pending order look absent → false settlement.
       log.warn(
           "Skipping settlement detection, report had malformed rows: reportDate={}", reportDate);
       return;
     }
     if (!isLatestReport(reportDate)) {
-      // A lookback/backfill replay of an older report must not flip an order SETTLED out of order:
-      // a newer report may still show it pending.
       log.info("Skipping settlement detection on non-latest report: reportDate={}", reportDate);
       return;
     }
@@ -315,21 +305,21 @@ public class SebPendingTransactionReconciliationService {
   }
 
   private boolean executedBefore(TransactionOrder order, LocalDate reportDate) {
-    // Use the latest piece's execution timestamp: repository ordering is not guaranteed and an
-    // order can now have several executions, so settlement-by-absence must key off the most recent.
+    return latestExecutionTimestamp(order)
+        .map(timestamp -> timestamp.atZone(ZoneOffset.UTC).toLocalDate().isBefore(reportDate))
+        .orElse(false);
+  }
+
+  private Optional<Instant> latestExecutionTimestamp(TransactionOrder order) {
     return executionRepository.findAllByOrderId(order.getId()).stream()
         .map(TransactionExecution::getExecutionTimestamp)
         .filter(Objects::nonNull)
-        .max(Comparator.naturalOrder())
-        .map(timestamp -> timestamp.atZone(ZoneOffset.UTC).toLocalDate().isBefore(reportDate))
-        .orElse(false);
+        .max(Comparator.naturalOrder());
   }
 
   private void settleByAbsence(TransactionOrder order, LocalDate reportDate) {
     List<TransactionExecution> executions = executionRepository.findAllByOrderId(order.getId());
     if (quantityAmountValidator.isShortFill(order, executions, matchingPolicy.current())) {
-      // A split order can be momentarily absent (a piece settled and left the report before the
-      // remaining pieces appeared). Do not settle a short order: leave it EXECUTED and alert.
       log.error(
           "Order absent from pending report but not fully filled, leaving EXECUTED: orderId={},"
               + " reportDate={}, executionCount={}",

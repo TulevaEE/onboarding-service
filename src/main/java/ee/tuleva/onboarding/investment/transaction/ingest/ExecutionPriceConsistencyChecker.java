@@ -9,9 +9,6 @@ import java.util.Objects;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 
-// When one order fills in several pieces, the pieces should share a unit price within tolerance.
-// A divergence beyond tolerance hints at a mis-assigned Client ref or a genuinely different trade
-// hiding under one order UUID, so it is surfaced as an alert (defends I1 beyond the UUID match).
 @Component
 class ExecutionPriceConsistencyChecker {
 
@@ -29,7 +26,8 @@ class ExecutionPriceConsistencyChecker {
     BigDecimal min = prices.stream().min(BigDecimal::compareTo).orElseThrow();
     BigDecimal max = prices.stream().max(BigDecimal::compareTo).orElseThrow();
     BigDecimal relativeSpread = max.subtract(min).divide(min, MathContext.DECIMAL64);
-    if (relativeSpread.compareTo(tolerance) <= 0) {
+    boolean withinTolerance = relativeSpread.compareTo(tolerance) <= 0;
+    if (withinTolerance) {
       return Optional.empty();
     }
     return Optional.of(

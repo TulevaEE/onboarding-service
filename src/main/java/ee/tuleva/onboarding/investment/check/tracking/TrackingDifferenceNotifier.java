@@ -103,13 +103,18 @@ class TrackingDifferenceNotifier {
     }
   }
 
+  private String returnLabel(TrackingDifferenceResult result) {
+    return result.checkType() == BENCHMARK_MODEL ? "holdings" : "fund";
+  }
+
   private String formatWithinLimits(TrackingDifferenceResult result) {
     var sb = new StringBuilder();
     sb.append(
-        "\n  %s TD=%s%% (fund=%s%%, benchmark=%s%%)"
+        "\n  %s TD=%s%% (%s=%s%%, benchmark=%s%%)"
             .formatted(
                 result.checkType(),
                 formatPercent(result.trackingDifference()),
+                returnLabel(result),
                 formatPercent(result.fundReturn()),
                 formatPercent(result.benchmarkReturn())));
     if (result.checkType() == MODEL_PORTFOLIO) {
@@ -126,19 +131,22 @@ class TrackingDifferenceNotifier {
   private String formatBreach(TrackingDifferenceResult result, boolean escalation) {
     var sb = new StringBuilder();
     sb.append(
-        "\n[%s] %s %s: TD=%s%% (fund=%s%%, benchmark=%s%%)"
+        "\n[%s] %s %s: TD=%s%% (%s=%s%%, benchmark=%s%%)"
             .formatted(
                 result.fund(),
                 result.checkType(),
                 result.checkDate(),
                 formatPercent(result.trackingDifference()),
+                returnLabel(result),
                 formatPercent(result.fundReturn()),
                 formatPercent(result.benchmarkReturn())));
 
     if (result.checkType() == MODEL_PORTFOLIO) {
       sb.append("\n  Action: check NAV calculation — weights, prices, cash, fees");
     } else if (result.checkType() == BENCHMARK_MODEL) {
-      sb.append("\n  Action: review instrument prices and benchmark data for pricing errors");
+      sb.append(
+          "\n  Holdings vs MSCI World/EM index. Regional/ESG spread is expected;"
+              + " check an outsized contribution for a stale price.");
     }
 
     if (result.checkType() == MODEL_PORTFOLIO) {
@@ -168,7 +176,7 @@ class TrackingDifferenceNotifier {
       if (result.checkType() == BENCHMARK_MODEL) {
         for (var attr : sorted) {
           sb.append(
-              "\n  %s: instrument %s%%, benchmark %s%%, diff %s%%"
+              "\n  %s: instrument %s%%, index %s%%, contributes %s%% to TD"
                   .formatted(
                       attr.isin(),
                       formatPercent(attr.securityReturn()),

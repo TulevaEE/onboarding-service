@@ -345,7 +345,7 @@ class TrackingDifferenceServiceTest {
 
     var model =
         results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
-    assertThat(model.impliedFundReturn()).isEqualByComparingTo(new BigDecimal("0.002"));
+    assertThat(model.bodImpliedFundReturn()).isEqualByComparingTo(new BigDecimal("0.002"));
     assertThat(model.navResidualBreach()).isFalse();
     // Anchored on Friday, never the weekend.
     verify(fundPositionRepository).findByNavDateAndFundAndAccountType(friday, TUK75, SECURITY);
@@ -369,7 +369,7 @@ class TrackingDifferenceServiceTest {
         results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
     assertThat(model.breach()).isTrue();
     assertThat(model.navResidualBreach()).isFalse();
-    assertThat(model.impliedFundReturn()).isNull();
+    assertThat(model.bodImpliedFundReturn()).isNull();
   }
 
   @Test
@@ -394,7 +394,7 @@ class TrackingDifferenceServiceTest {
         results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
     assertThat(model.breach()).isTrue();
     assertThat(model.navResidualBreach()).isFalse();
-    assertThat(model.impliedFundReturn()).isNull();
+    assertThat(model.bodImpliedFundReturn()).isNull();
   }
 
   @Test

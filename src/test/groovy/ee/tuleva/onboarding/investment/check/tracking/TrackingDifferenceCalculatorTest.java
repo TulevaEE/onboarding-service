@@ -271,14 +271,14 @@ class TrackingDifferenceCalculatorTest {
 
     assertThat(result).isPresent();
     // fund return 0.02 == implied (1.0 sleeve fraction * 1.0 weight * 0.02 return)
-    assertThat(result.get().impliedFundReturn()).isEqualByComparingTo(new BigDecimal("0.02"));
+    assertThat(result.get().bodImpliedFundReturn()).isEqualByComparingTo(new BigDecimal("0.02"));
     assertThat(result.get().navResidual()).isEqualByComparingTo(BigDecimal.ZERO);
     assertThat(result.get().navResidualBreach()).isFalse();
   }
 
   @Test
   void navResidualReDilutesBySecuritiesFractionAndAppliesFeeDrag() {
-    // 95% securities sleeve (5% cash) and a management fee. impliedFundReturn must re-dilute the
+    // 95% securities sleeve (5% cash) and a management fee. bodImpliedFundReturn must re-dilute the
     // sleeve return by the securities fraction and subtract the fee drag.
     var input =
         TrackingInput.builder()
@@ -301,7 +301,7 @@ class TrackingDifferenceCalculatorTest {
 
     assertThat(result).isPresent();
     // 0.95 * (1.0 * 0.02) + (-0.0365/365) = 0.019 - 0.0001 = 0.0189
-    assertThat(result.get().impliedFundReturn()).isEqualByComparingTo(new BigDecimal("0.0189"));
+    assertThat(result.get().bodImpliedFundReturn()).isEqualByComparingTo(new BigDecimal("0.0189"));
     // fund return = 10.189/10.00 - 1 = 0.0189 -> navResidual 0
     assertThat(result.get().navResidual()).isEqualByComparingTo(BigDecimal.ZERO);
     assertThat(result.get().navResidualBreach()).isFalse();
@@ -360,7 +360,7 @@ class TrackingDifferenceCalculatorTest {
 
     assertThat(result).isPresent();
     // raw implied = 1.0 * 0.60 = 0.60; fund return = 16/10 - 1 = 0.60 -> navResidual 0
-    assertThat(result.get().impliedFundReturn()).isEqualByComparingTo(new BigDecimal("0.60"));
+    assertThat(result.get().bodImpliedFundReturn()).isEqualByComparingTo(new BigDecimal("0.60"));
     assertThat(result.get().navResidual()).isEqualByComparingTo(BigDecimal.ZERO);
     assertThat(result.get().navResidualBreach()).isFalse();
   }
@@ -407,7 +407,7 @@ class TrackingDifferenceCalculatorTest {
     assertThat(result).isPresent();
     assertThat(result.get().navResidualBreach()).isFalse();
     assertThat(result.get().navResidual()).isNull();
-    assertThat(result.get().impliedFundReturn()).isNull();
+    assertThat(result.get().bodImpliedFundReturn()).isNull();
   }
 
   @Test
@@ -432,7 +432,7 @@ class TrackingDifferenceCalculatorTest {
     var result = calculator.calculate(input);
 
     assertThat(result).isPresent();
-    assertThat(result.get().impliedFundReturn()).isNull();
+    assertThat(result.get().bodImpliedFundReturn()).isNull();
     assertThat(result.get().navResidual()).isNull();
     assertThat(result.get().navResidualBreach()).isFalse();
   }
@@ -459,7 +459,7 @@ class TrackingDifferenceCalculatorTest {
     var result = calculator.calculate(input);
 
     assertThat(result).isPresent();
-    assertThat(result.get().impliedFundReturn()).isNull();
+    assertThat(result.get().bodImpliedFundReturn()).isNull();
     assertThat(result.get().navResidual()).isNull();
     assertThat(result.get().navResidualBreach()).isFalse();
   }
@@ -507,7 +507,7 @@ class TrackingDifferenceCalculatorTest {
     assertThat(result).isPresent();
     // Only IE00A is priceable: 1.0 sleeve fraction * 1.0 weight * 0.02 return = 0.02 == fund
     // return.
-    assertThat(result.get().impliedFundReturn()).isEqualByComparingTo(new BigDecimal("0.02"));
+    assertThat(result.get().bodImpliedFundReturn()).isEqualByComparingTo(new BigDecimal("0.02"));
     assertThat(result.get().navResidual()).isEqualByComparingTo(BigDecimal.ZERO);
     assertThat(result.get().navResidualBreach()).isFalse();
   }

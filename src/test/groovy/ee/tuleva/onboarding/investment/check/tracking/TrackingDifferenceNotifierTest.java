@@ -155,7 +155,7 @@ class TrackingDifferenceNotifierTest {
             .cashDrag(BigDecimal.ZERO)
             .feeDrag(BigDecimal.ZERO)
             .residual(BigDecimal.ZERO)
-            .impliedFundReturn(new BigDecimal("0.0070"))
+            .bodImpliedFundReturn(new BigDecimal("0.0070"))
             .navResidual(new BigDecimal("0.0030"))
             .navResidualBreach(true)
             .escalationNavResidualBreach(true)
@@ -227,7 +227,7 @@ class TrackingDifferenceNotifierTest {
             .cashDrag(BigDecimal.ZERO)
             .feeDrag(BigDecimal.ZERO)
             .residual(BigDecimal.ZERO)
-            .impliedFundReturn(new BigDecimal("0.0023"))
+            .bodImpliedFundReturn(new BigDecimal("0.0023"))
             .navResidual(new BigDecimal("0.00001"))
             .navResidualBreach(false)
             .build();
@@ -242,7 +242,8 @@ class TrackingDifferenceNotifierTest {
 
   @Test
   void withinLimitsDisclosesWhenNavResidualNotEvaluated() {
-    // No breach, but the begin-of-day gate was skipped (impliedFundReturn null) — "within limits"
+    // No breach, but the begin-of-day gate was skipped (bodImpliedFundReturn null) — "within
+    // limits"
     // must say so rather than imply the NAV residual was validated clean.
     var result =
         TrackingDifferenceResult.builder()
@@ -259,7 +260,7 @@ class TrackingDifferenceNotifierTest {
             .cashDrag(BigDecimal.ZERO)
             .feeDrag(BigDecimal.ZERO)
             .residual(BigDecimal.ZERO)
-            .impliedFundReturn(null)
+            .bodImpliedFundReturn(null)
             .navResidual(null)
             .navResidualBreach(false)
             .build();
@@ -292,7 +293,7 @@ class TrackingDifferenceNotifierTest {
             .cashDrag(BigDecimal.ZERO)
             .feeDrag(BigDecimal.ZERO)
             .residual(BigDecimal.ZERO)
-            .impliedFundReturn(new BigDecimal("0.0100"))
+            .bodImpliedFundReturn(new BigDecimal("0.0100"))
             .navResidual(BigDecimal.ZERO)
             .navResidualBreach(false)
             .build();
@@ -392,7 +393,7 @@ class TrackingDifferenceNotifierTest {
             .cashDrag(BigDecimal.ZERO)
             .feeDrag(BigDecimal.ZERO)
             .residual(BigDecimal.ZERO)
-            .impliedFundReturn(new BigDecimal("0.0009"))
+            .bodImpliedFundReturn(new BigDecimal("0.0009"))
             .navResidual(new BigDecimal("0.0091"))
             .navResidualBreach(true)
             .build();
@@ -408,7 +409,7 @@ class TrackingDifferenceNotifierTest {
 
   @Test
   void showsNavResidualNotEvaluatedWhenBeginningOfDayHoldingsUnavailable() {
-    // Fail-soft: impliedFundReturn null means the navResidual gate was skipped; must not read as
+    // Fail-soft: bodImpliedFundReturn null means the navResidual gate was skipped; must not read as
     // "validated clean".
     var result =
         TrackingDifferenceResult.builder()
@@ -425,7 +426,7 @@ class TrackingDifferenceNotifierTest {
             .cashDrag(BigDecimal.ZERO)
             .feeDrag(BigDecimal.ZERO)
             .residual(BigDecimal.ZERO)
-            .impliedFundReturn(null)
+            .bodImpliedFundReturn(null)
             .navResidual(null)
             .navResidualBreach(false)
             .build();
@@ -727,7 +728,7 @@ class TrackingDifferenceNotifierTest {
         .cashDrag(BigDecimal.ZERO)
         .feeDrag(BigDecimal.ZERO)
         .residual(BigDecimal.ZERO)
-        .impliedFundReturn(new BigDecimal("0.0100"))
+        .bodImpliedFundReturn(new BigDecimal("0.0100"))
         .navResidual(BigDecimal.ZERO)
         .navResidualBreach(false)
         .build();

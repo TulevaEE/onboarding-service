@@ -44,7 +44,7 @@ class ChildControllerTest {
 
   @Test
   void verifiedCustody_returnsOkWithChildIdentity() throws Exception {
-    given(childOnboardingService.onboardChild(parent.getPersonalCode(), CHILD))
+    given(childOnboardingService.onboardChild(parent, CHILD))
         .willReturn(new ChildOnboardingResult(true, "Mari", "Maasikas", LocalDate.of(2015, 6, 15)));
 
     mvc.perform(
@@ -62,7 +62,7 @@ class ChildControllerTest {
 
   @Test
   void unverifiedCustody_returnsAcceptedUnderReviewWithoutIdentity() throws Exception {
-    given(childOnboardingService.onboardChild(parent.getPersonalCode(), CHILD))
+    given(childOnboardingService.onboardChild(parent, CHILD))
         .willReturn(new ChildOnboardingResult(false, null, null, null));
 
     mvc.perform(

@@ -25,8 +25,7 @@ class ChildController {
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody CreateChildCommand command) {
     ChildOnboardingResult result =
-        childOnboardingService.onboardChild(
-            authenticatedPerson.getPersonalCode(), command.childPersonalCode());
+        childOnboardingService.onboardChild(authenticatedPerson, command.childPersonalCode());
     if (result.verified()) {
       return ResponseEntity.ok(ChildResponse.verified(result));
     }

@@ -162,6 +162,7 @@ dependencies {
     implementation("commons-io:commons-io:2.22.0")
     implementation("org.apache.commons:commons-csv:1.14.1")
     implementation("org.apache.poi:poi-ooxml:5.5.1")
+    implementation("at.datenwort.openhtmltopdf:openhtmltopdf-pdfbox:1.1.4")
 
     implementation("net.javacrumbs.shedlock:shedlock-spring:7.7.0")
     implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.7.0")

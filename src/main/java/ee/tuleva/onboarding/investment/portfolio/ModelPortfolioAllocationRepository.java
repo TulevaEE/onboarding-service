@@ -50,6 +50,17 @@ public interface ModelPortfolioAllocationRepository
       """)
   List<ModelPortfolioAllocation> findPreviousByFundAsOf(TulevaFund fund, LocalDate asOf);
 
+  // Distinct effective dates of upcoming model-portfolio versions (a switch scheduled to take
+  // effect after :asOf). Lets readiness checks (e.g. price history) run before the version goes
+  // live.
+  @Query(
+      """
+      SELECT DISTINCT m.effectiveDate FROM ModelPortfolioAllocation m
+      WHERE m.fund = :fund AND m.effectiveDate > :asOf
+      ORDER BY m.effectiveDate
+      """)
+  List<LocalDate> findFutureEffectiveDates(TulevaFund fund, LocalDate asOf);
+
   @Query(
       """
       SELECT a FROM ModelPortfolioAllocation a

@@ -220,7 +220,9 @@ class TrackingDifferenceCalculator {
       int consecutiveBreachDays,
       // Begin-of-day holdings (yesterday's EOD security snapshot) and their share of total NAV,
       // used for the NAV-correctness residual. Null/empty when not supplied (non-MODEL_PORTFOLIO
-      // callers and unit fixtures) — navResidual then degenerates to fund return minus fee drag.
+      // callers and unit fixtures) — the residual is then skipped: navResidual stays null (not
+      // evaluated, distinct from an evaluated 0) and navResidualBreach stays false, so the gate
+      // never blocks on data we could not compute.
       @Nullable List<BodHolding> bodHoldings,
       @Nullable BigDecimal bodSecuritiesFraction) {}
 

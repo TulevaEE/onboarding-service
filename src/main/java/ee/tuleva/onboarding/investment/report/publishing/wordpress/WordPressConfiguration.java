@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.report.publishing.wordpress;
 
+import static java.time.Duration.ofMillis;
 import static java.time.Duration.ofSeconds;
 
 import java.net.http.HttpClient;
@@ -8,7 +9,12 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.retry.RetryPolicy;
+import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 @Configuration
@@ -36,6 +42,19 @@ class WordPressConfiguration {
                   return execution.execute(request, body);
                 })
             .build();
-    return new WordPressMediaClient(restClient);
+    return new WordPressMediaClient(restClient, wordPressRetryTemplate());
+  }
+
+  private static RetryTemplate wordPressRetryTemplate() {
+    var policy =
+        RetryPolicy.builder()
+            .includes(HttpServerErrorException.class, ResourceAccessException.class)
+            .excludes(HttpClientErrorException.class)
+            .maxRetries(2)
+            .delay(ofMillis(500))
+            .multiplier(2)
+            .maxDelay(ofSeconds(2))
+            .build();
+    return new RetryTemplate(policy);
   }
 }

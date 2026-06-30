@@ -3,15 +3,22 @@ package ee.tuleva.onboarding.investment.report.publishing.wordpress;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.retry.RetryPolicy;
+import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 class WordPressMediaClientTest {
@@ -24,7 +31,17 @@ class WordPressMediaClientTest {
   void setUp() {
     var builder = RestClient.builder().baseUrl("https://tuleva.ee/wp-json/wp/v2");
     server = MockRestServiceServer.bindTo(builder).build();
-    client = new WordPressMediaClient(builder.build());
+    client = new WordPressMediaClient(builder.build(), retryTemplate());
+  }
+
+  private static RetryTemplate retryTemplate() {
+    return new RetryTemplate(
+        RetryPolicy.builder()
+            .includes(HttpServerErrorException.class, ResourceAccessException.class)
+            .excludes(HttpClientErrorException.class)
+            .maxRetries(2)
+            .delay(Duration.ofMillis(1))
+            .build());
   }
 
   @Test
@@ -111,6 +128,31 @@ class WordPressMediaClientTest {
     assertThat(result.attachmentId()).isEqualTo(42);
     assertThat(result.sourceUrl())
         .isEqualTo("https://tuleva.ee/wp-content/uploads/2026/04/test.pdf");
+    server.verify();
+  }
+
+  @Test
+  void uploadRetriesOnServerErrorThenSucceeds() throws Exception {
+    var responseBody =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "id", 42, "source_url", "https://tuleva.ee/wp-content/uploads/2026/04/test.pdf"));
+
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media?search=test.pdf"))
+        .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media"))
+        .andExpect(method(org.springframework.http.HttpMethod.POST))
+        .andRespond(withServerError());
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media"))
+        .andExpect(method(org.springframework.http.HttpMethod.POST))
+        .andRespond(withSuccess(responseBody, MediaType.APPLICATION_JSON));
+
+    var result = client.upload("test.pdf", new byte[] {0x25, 0x50, 0x44, 0x46});
+
+    assertThat(result.attachmentId()).isEqualTo(42);
     server.verify();
   }
 

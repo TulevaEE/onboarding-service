@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 
@@ -21,6 +22,7 @@ public class WordPressMediaClient {
           "^https://tuleva\\.ee/wp-content/uploads/\\d{4}/\\d{2}/[A-Za-z0-9._-]+\\.pdf$");
 
   private final RestClient restClient;
+  private final RetryTemplate retryTemplate;
 
   public record UploadResult(int attachmentId, String sourceUrl) {}
 
@@ -39,14 +41,16 @@ public class WordPressMediaClient {
     log.info("Uploading PDF to WordPress: filename={}, size={}bytes", slug, pdfBytes.length);
 
     var response =
-        restClient
-            .post()
-            .uri("/media")
-            .contentType(MediaType.APPLICATION_PDF)
-            .header("Content-Disposition", "attachment; filename=\"" + slug + "\"")
-            .body(pdfBytes)
-            .retrieve()
-            .body(Map.class);
+        retryTemplate.invoke(
+            () ->
+                restClient
+                    .post()
+                    .uri("/media")
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .header("Content-Disposition", "attachment; filename=\"" + slug + "\"")
+                    .body(pdfBytes)
+                    .retrieve()
+                    .body(Map.class));
 
     var sourceUrl = (String) response.get("source_url");
     if (sourceUrl == null || !VALID_WP_PDF_URL.matcher(sourceUrl).matches()) {
@@ -65,11 +69,13 @@ public class WordPressMediaClient {
 
   private Optional<UploadResult> findExistingMedia(String slug) {
     var media =
-        restClient
-            .get()
-            .uri(uriBuilder -> uriBuilder.path("/media").queryParam("search", slug).build())
-            .retrieve()
-            .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+        retryTemplate.invoke(
+            () ->
+                restClient
+                    .get()
+                    .uri(uriBuilder -> uriBuilder.path("/media").queryParam("search", slug).build())
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {}));
 
     if (media == null) {
       return Optional.empty();
@@ -91,13 +97,15 @@ public class WordPressMediaClient {
   public void updateAcfReportField(String pageSlug, int attachmentId) {
     var pageId = findPageIdBySlug(pageSlug);
 
-    restClient
-        .post()
-        .uri("/pages/{pageId}", pageId)
-        .contentType(MediaType.APPLICATION_JSON)
-        .body(Map.of("acf", Map.of("investment_report_file", attachmentId)))
-        .retrieve()
-        .body(Map.class);
+    retryTemplate.invoke(
+        () ->
+            restClient
+                .post()
+                .uri("/pages/{pageId}", pageId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("acf", Map.of("investment_report_file", attachmentId)))
+                .retrieve()
+                .body(Map.class));
 
     log.info(
         "Updated ACF investment_report_file: pageSlug={}, pageId={}, attachmentId={}",
@@ -108,11 +116,13 @@ public class WordPressMediaClient {
 
   private int findPageIdBySlug(String slug) {
     var pages =
-        restClient
-            .get()
-            .uri("/pages?slug={slug}", slug)
-            .retrieve()
-            .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+        retryTemplate.invoke(
+            () ->
+                restClient
+                    .get()
+                    .uri("/pages?slug={slug}", slug)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {}));
 
     if (pages == null || pages.isEmpty()) {
       throw new IllegalStateException("No WordPress page found with slug: " + slug);

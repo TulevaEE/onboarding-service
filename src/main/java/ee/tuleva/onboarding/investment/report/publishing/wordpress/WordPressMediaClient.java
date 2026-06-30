@@ -25,28 +25,25 @@ public class WordPressMediaClient {
   public record UploadResult(int attachmentId, String sourceUrl) {}
 
   public UploadResult upload(String filename, byte[] pdfBytes) {
-    var sanitizedFilename = sanitizeFilename(filename);
+    var slug = toWordPressSlug(filename);
 
-    var existing = findExistingMedia(sanitizedFilename);
+    var existing = findExistingMedia(slug);
     if (existing.isPresent()) {
       log.info(
           "Reusing existing WordPress media instead of re-uploading: filename={}, attachmentId={}",
-          sanitizedFilename,
+          slug,
           existing.get().attachmentId());
       return existing.get();
     }
 
-    log.info(
-        "Uploading PDF to WordPress: filename={}, size={}bytes",
-        sanitizedFilename,
-        pdfBytes.length);
+    log.info("Uploading PDF to WordPress: filename={}, size={}bytes", slug, pdfBytes.length);
 
     var response =
         restClient
             .post()
             .uri("/media")
             .contentType(MediaType.APPLICATION_PDF)
-            .header("Content-Disposition", "attachment; filename=\"" + sanitizedFilename + "\"")
+            .header("Content-Disposition", "attachment; filename=\"" + slug + "\"")
             .body(pdfBytes)
             .retrieve()
             .body(Map.class);
@@ -66,13 +63,11 @@ public class WordPressMediaClient {
     return new UploadResult(attachmentId, sourceUrl);
   }
 
-  private Optional<UploadResult> findExistingMedia(String sanitizedFilename) {
+  private Optional<UploadResult> findExistingMedia(String slug) {
     var media =
         restClient
             .get()
-            .uri(
-                uriBuilder ->
-                    uriBuilder.path("/media").queryParam("search", sanitizedFilename).build())
+            .uri(uriBuilder -> uriBuilder.path("/media").queryParam("search", slug).build())
             .retrieve()
             .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
 
@@ -87,7 +82,7 @@ public class WordPressMediaClient {
             item -> {
               var sourceUrl = (String) item.get("source_url");
               return VALID_WP_PDF_URL.matcher(sourceUrl).matches()
-                  && sourceUrl.endsWith("/" + sanitizedFilename);
+                  && sourceUrl.endsWith("/" + slug);
             })
         .map(item -> new UploadResult((Integer) item.get("id"), (String) item.get("source_url")))
         .findFirst();
@@ -133,11 +128,7 @@ public class WordPressMediaClient {
     return (Integer) pages.getFirst().get("id");
   }
 
-  // Produce the exact slug WordPress would derive from this filename (lowercase ASCII, diacritics
-  // folded, every run of non-alphanumerics collapsed to a single hyphen). Sending an
-  // already-canonical slug means WordPress stores it unchanged, so the source_url ends with this
-  // string and findExistingMedia can recognise an earlier upload instead of duplicating it.
-  static String sanitizeFilename(String filename) {
+  static String toWordPressSlug(String filename) {
     var dotIndex = filename.lastIndexOf('.');
     var base = dotIndex > 0 ? filename.substring(0, dotIndex) : filename;
     var extension = dotIndex > 0 ? filename.substring(dotIndex + 1) : "pdf";

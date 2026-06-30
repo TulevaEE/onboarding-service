@@ -117,8 +117,6 @@ class InvestmentReportPublisherTest {
 
     var result = publisher.publish(MARCH_2026);
 
-    // One fund failing means no fund page is repointed: the site stays fully on last month's
-    // reports
     assertThat(result.wordPressUrls()).isEmpty();
     assertThat(result.errors()).hasSize(1);
     assertThat(result.errors().getFirst()).contains("TUK00");
@@ -144,8 +142,6 @@ class InvestmentReportPublisherTest {
 
     var result = publisher.publish(MARCH_2026);
 
-    // All four PDFs uploaded, but one page update failed: that fund is left off, the rest are live,
-    // the report email is suppressed and a partial-publish alert goes out.
     verify(wordPressClient, times(4)).upload(any(), any());
     assertThat(result.errors()).hasSize(1);
     assertThat(result.errors().getFirst()).contains("TUK00");

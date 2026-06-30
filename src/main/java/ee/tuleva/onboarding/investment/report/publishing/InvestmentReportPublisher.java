@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDa
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import java.math.BigDecimal;
 import java.time.YearMonth;
@@ -36,14 +37,57 @@ public class InvestmentReportPublisher {
   public InvestmentReportPublishingResult publish(YearMonth month) {
     log.info("Starting investment report publishing for month={}", month);
 
-    // Pre-publish validation: NAV dates
     var navDateErrors = validateNavDates(month);
     if (!navDateErrors.isEmpty()) {
       log.warn("Pre-publish validation failed: {}", navDateErrors);
-      return new InvestmentReportPublishingResult(Map.of(), false, navDateErrors);
+      return abortedWithoutPublishing(navDateErrors);
     }
 
-    // Pre-publish validation: quantity reconciliation (warning only)
+    logQuantityWarnings(month);
+
+    var generation = generateReports(month);
+    if (!generation.allocationErrors().isEmpty()) {
+      log.warn("Allocation validation failed, aborting publish: {}", generation.allocationErrors());
+      return abortedWithoutPublishing(generation.allocationErrors());
+    }
+    if (!generation.errors().isEmpty()) {
+      log.warn("Report generation failed, aborting before any upload: {}", generation.errors());
+      return abortedWithoutPublishing(generation.errors());
+    }
+    var pdfs = generation.pdfs();
+
+    var uploadErrors = new ArrayList<String>();
+    var uploads = uploadAllReports(month, pdfs, uploadErrors);
+    if (!uploadErrors.isEmpty()) {
+      log.warn("Uploads failed, no fund pages changed, website unchanged: {}", uploadErrors);
+      return abortedWithoutPublishing(uploadErrors);
+    }
+
+    var repointErrors = new ArrayList<String>();
+    var publishedUrls = repointFundPages(uploads, repointErrors);
+    if (!repointErrors.isEmpty()) {
+      log.error(
+          "Partial publish, some fund pages updated and some not: updated={}, errors={}",
+          publishedUrls.keySet(),
+          repointErrors);
+      alertPartialPublish(month, publishedUrls.keySet(), repointErrors);
+      return new InvestmentReportPublishingResult(publishedUrls, false, repointErrors);
+    }
+
+    var emailErrors = new ArrayList<String>();
+    var emailSent = emailReports(month, pdfs, emailErrors);
+    log.info(
+        "Investment report publishing completed: publishedFunds={}, emailSent={}",
+        publishedUrls.size(),
+        emailSent);
+    return new InvestmentReportPublishingResult(publishedUrls, emailSent, emailErrors);
+  }
+
+  private static InvestmentReportPublishingResult abortedWithoutPublishing(List<String> errors) {
+    return new InvestmentReportPublishingResult(Map.of(), false, errors);
+  }
+
+  private void logQuantityWarnings(YearMonth month) {
     for (var mapping : FundReportMapping.all()) {
       var quantityWarnings = dataService.validateQuantities(mapping.fund(), month);
       if (!quantityWarnings.isEmpty()) {
@@ -51,13 +95,11 @@ public class InvestmentReportPublisher {
             "Quantity mismatch warnings for {}: {}", mapping.fund().getCode(), quantityWarnings);
       }
     }
+  }
 
-    var errors = new ArrayList<String>();
+  private ReportGeneration generateReports(YearMonth month) {
     var pdfs = new LinkedHashMap<FundReportMapping, byte[]>();
-    var wpUrls = new LinkedHashMap<String, String>();
-    boolean emailSent = false;
-
-    // Step 1: Generate PDFs for all funds and validate allocation
+    var errors = new ArrayList<String>();
     var allocationErrors = new ArrayList<String>();
     for (var mapping : FundReportMapping.all()) {
       try {
@@ -71,72 +113,53 @@ public class InvestmentReportPublisher {
         pdfs.put(mapping, pdfBytes);
         log.info("Generated PDF: fund={}, size={}bytes", mapping.fund().getCode(), pdfBytes.length);
       } catch (Exception e) {
-        var msg =
-            "PDF generation failed for %s: %s".formatted(mapping.fund().getCode(), e.getMessage());
-        log.error(msg, e);
-        errors.add(msg);
+        log.error("PDF generation failed for {}", mapping.fund().getCode(), e);
+        errors.add(
+            "PDF generation failed for %s: %s".formatted(mapping.fund().getCode(), e.getMessage()));
       }
     }
+    return new ReportGeneration(pdfs, errors, allocationErrors);
+  }
 
-    if (!allocationErrors.isEmpty()) {
-      log.warn("Allocation validation failed, aborting publish: {}", allocationErrors);
-      return new InvestmentReportPublishingResult(Map.of(), false, allocationErrors);
-    }
-
-    // If any fund's report could not be produced, publish nothing: updating only some fund pages
-    // would leave the site showing a new report for some funds and last month's for others.
-    if (!errors.isEmpty()) {
-      log.warn("PDF generation failed, aborting before any upload: errors={}", errors);
-      return new InvestmentReportPublishingResult(Map.of(), false, errors);
-    }
-
-    // Step 2a: Upload every PDF first. No fund page is repointed until all uploads succeed, so an
-    // upload failure cannot leave the live website half-updated.
-    var uploads = new LinkedHashMap<FundReportMapping, WordPressMediaClient.UploadResult>();
+  private Map<FundReportMapping, UploadResult> uploadAllReports(
+      YearMonth month, Map<FundReportMapping, byte[]> pdfs, List<String> errors) {
+    var uploads = new LinkedHashMap<FundReportMapping, UploadResult>();
     for (var entry : pdfs.entrySet()) {
       var mapping = entry.getKey();
       try {
         uploads.put(
             mapping, wordPressClient.upload(mapping.buildPdfFilename(month), entry.getValue()));
       } catch (Exception e) {
-        var msg =
+        log.error("WordPress upload failed for {}", mapping.fund().getCode(), e);
+        errors.add(
             "WordPress upload failed for %s: %s"
-                .formatted(mapping.fund().getCode(), e.getMessage());
-        log.error(msg, e);
-        errors.add(msg);
+                .formatted(mapping.fund().getCode(), e.getMessage()));
       }
     }
-    if (!errors.isEmpty()) {
-      log.warn("Upload errors, no fund pages updated, website unchanged: errors={}", errors);
-      return new InvestmentReportPublishingResult(Map.of(), false, errors);
-    }
+    return uploads;
+  }
 
-    // Step 2b: Point each fund page at its uploaded report. All uploads succeeded, so a failure
-    // here is a genuine partial publish that needs manual attention.
+  private Map<String, String> repointFundPages(
+      Map<FundReportMapping, UploadResult> uploads, List<String> errors) {
+    var publishedUrls = new LinkedHashMap<String, String>();
     for (var entry : uploads.entrySet()) {
       var mapping = entry.getKey();
       var upload = entry.getValue();
       try {
         wordPressClient.updateAcfReportField(mapping.pageSlug(), upload.attachmentId());
-        wpUrls.put(mapping.fund().getCode(), upload.sourceUrl());
+        publishedUrls.put(mapping.fund().getCode(), upload.sourceUrl());
       } catch (Exception e) {
-        var msg =
+        log.error("WordPress page update failed for {}", mapping.fund().getCode(), e);
+        errors.add(
             "WordPress page update failed for %s: %s"
-                .formatted(mapping.fund().getCode(), e.getMessage());
-        log.error(msg, e);
-        errors.add(msg);
+                .formatted(mapping.fund().getCode(), e.getMessage()));
       }
     }
-    if (!errors.isEmpty()) {
-      log.error(
-          "Partial publish: some fund pages updated, some not: updated={}, errors={}",
-          wpUrls.keySet(),
-          errors);
-      alertPartialPublish(month, wpUrls.keySet(), errors);
-      return new InvestmentReportPublishingResult(wpUrls, false, errors);
-    }
+    return publishedUrls;
+  }
 
-    // Step 3: Send email with PDF attachments (only funds included in email)
+  private boolean emailReports(
+      YearMonth month, Map<FundReportMapping, byte[]> pdfs, List<String> errors) {
     try {
       var message = new MandrillMessage();
       message.setFromEmail("funds@tuleva.ee");
@@ -147,38 +170,32 @@ public class InvestmentReportPublisher {
               + "<p>Manuses on Tuleva pensionifondide investeeringute aruanded.</p>"
               + "<p>See on automaatne kiri.</p>"
               + "<p>Parimat,<br>Tuleva robot</p>");
-
       var recipient = new Recipient();
       recipient.setEmail("funds@tuleva.ee");
       recipient.setType(TO);
       message.setTo(List.of(recipient));
-
-      var attachments = new ArrayList<MessageContent>();
-      for (var entry : pdfs.entrySet()) {
-        if (entry.getKey().includeInEmail()) {
-          var attachment = new MessageContent();
-          attachment.setName(entry.getKey().buildPdfFilename(month));
-          attachment.setType("application/pdf");
-          attachment.setContent(Base64.getEncoder().encodeToString(entry.getValue()));
-          attachments.add(attachment);
-        }
-      }
-      message.setAttachments(attachments);
-
-      emailSent = emailService.sendSystemEmail(message);
+      message.setAttachments(emailAttachments(month, pdfs));
+      return emailService.sendSystemEmail(message);
     } catch (Exception e) {
-      var msg = "Email send failed: " + e.getMessage();
-      log.error(msg, e);
-      errors.add(msg);
+      log.error("Email send failed", e);
+      errors.add("Email send failed: " + e.getMessage());
+      return false;
     }
+  }
 
-    var result = new InvestmentReportPublishingResult(wpUrls, emailSent, errors);
-    log.info(
-        "Investment report publishing completed: wpUrls={}, emailSent={}, errors={}",
-        wpUrls.size(),
-        emailSent,
-        errors.size());
-    return result;
+  private static List<MessageContent> emailAttachments(
+      YearMonth month, Map<FundReportMapping, byte[]> pdfs) {
+    var attachments = new ArrayList<MessageContent>();
+    for (var entry : pdfs.entrySet()) {
+      if (entry.getKey().includeInEmail()) {
+        var attachment = new MessageContent();
+        attachment.setName(entry.getKey().buildPdfFilename(month));
+        attachment.setType("application/pdf");
+        attachment.setContent(Base64.getEncoder().encodeToString(entry.getValue()));
+        attachments.add(attachment);
+      }
+    }
+    return attachments;
   }
 
   private void alertPartialPublish(
@@ -207,7 +224,6 @@ public class InvestmentReportPublisher {
     var navDates = dataService.findNavDatesForAllFunds(month);
     var errors = new ArrayList<String>();
 
-    // Check all funds have published NAV data
     var allFundCodes = FundReportMapping.all().stream().map(m -> m.fund().getCode()).toList();
     var missingFunds = allFundCodes.stream().filter(code -> !navDates.containsKey(code)).toList();
     if (!missingFunds.isEmpty()) {
@@ -215,14 +231,12 @@ public class InvestmentReportPublisher {
       return errors;
     }
 
-    // Check all funds have the same NAV date
     var distinctDates = new LinkedHashSet<>(navDates.values());
     if (distinctDates.size() > 1) {
       errors.add("Inconsistent NAV dates across funds: %s".formatted(navDates));
       return errors;
     }
 
-    // Check NAV date is end-of-month (day >= 25)
     var navDate = distinctDates.iterator().next();
     if (navDate.getDayOfMonth() < MIN_END_OF_MONTH_DAY) {
       errors.add(
@@ -241,4 +255,7 @@ public class InvestmentReportPublisher {
     }
     return null;
   }
+
+  private record ReportGeneration(
+      Map<FundReportMapping, byte[]> pdfs, List<String> errors, List<String> allocationErrors) {}
 }

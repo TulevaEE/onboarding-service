@@ -195,9 +195,6 @@ public class InvestmentReportDataService {
   }
 
   private static BigDecimal securitiesTotalCostIfComplete(List<InvestmentReportRow> securityRows) {
-    // A partial sum (some holdings missing a cost-basis snapshot) would understate the total and
-    // inflate any market-vs-cost comparison, so the total cost is reported only when every holding
-    // has a cost basis; otherwise it stays blank.
     if (securityRows.isEmpty()
         || securityRows.stream().anyMatch(row -> row.avgCostTotal() == null)) {
       return null;

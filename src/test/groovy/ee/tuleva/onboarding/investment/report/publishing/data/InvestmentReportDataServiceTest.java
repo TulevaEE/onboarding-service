@@ -157,7 +157,6 @@ class InvestmentReportDataServiceTest {
         .willReturn(NAV_DATE);
     given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
         .willReturn(List.of(withCost, withoutCost, units));
-    // only IE0009FT4LX4 has a cost-basis snapshot; IE00BFG1TM61 has none
     var cb =
         new PortfolioCostBasisSnapshot(
             "IE0009FT4LX4",

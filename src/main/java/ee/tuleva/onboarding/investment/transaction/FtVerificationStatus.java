@@ -10,5 +10,6 @@ public enum FtVerificationStatus {
   PENDING_NAV,
   CANCELLED,
   AMBIGUOUS,
-  IGNORED
+  IGNORED,
+  ORPHAN
 }

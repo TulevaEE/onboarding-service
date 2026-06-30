@@ -88,10 +88,6 @@ class TrackingDifferenceCalculator {
             .filter(s -> s.previous().price().signum() != 0)
             .toList();
 
-    // Raw per-instrument returns (no max-move cap): the fund NAV was valued with these prices, so
-    // the model TD and its attribution must reconcile against them. Implausible price values are
-    // caught upstream by FundValueIntegrityChecker, not masked here. The persisted benchmarkReturn
-    // and securityReturn feed the periodic attribution, which compounds them over the period.
     var benchmarkReturn =
         validSecurities.stream()
             .map(
@@ -162,12 +158,6 @@ class TrackingDifferenceCalculator {
             .build());
   }
 
-  // NAV-correctness residual: the realised fund return minus the return implied by the holdings the
-  // fund actually held entering the day (begin-of-day / yesterday's EOD snapshot), using raw
-  // per-instrument returns so it reconciles against the exact prices the NAV used. On a MOC trade
-  // day this collapses to ~0 even when the fund-vs-model TD breaches, so the NAV gate keys on it.
-  // Fails soft when the begin-of-day snapshot is unavailable: returns a not-evaluated residual so
-  // the gate never blocks on, nor manufactures a residual from, data we could not validate.
   private NavResidualCheck computeNavResidual(
       TrackingInput input, BigDecimal fundReturn, BigDecimal feeDrag, BigDecimal breachThreshold) {
     if (input.bodSecuritiesFraction() == null
@@ -216,11 +206,6 @@ class TrackingDifferenceCalculator {
       BigDecimal cashWeight,
       BigDecimal annualFeeRate,
       int consecutiveBreachDays,
-      // Begin-of-day holdings (yesterday's EOD security snapshot) and their share of total NAV,
-      // used for the NAV-correctness residual. Null/empty when not supplied (non-MODEL_PORTFOLIO
-      // callers and unit fixtures) — the residual is then skipped: navResidual stays null (not
-      // evaluated, distinct from an evaluated 0) and navResidualBreach stays false, so the gate
-      // never blocks on data we could not compute.
       @Nullable List<BodHolding> bodHoldings,
       @Nullable BigDecimal bodSecuritiesFraction) {}
 
@@ -233,11 +218,8 @@ class TrackingDifferenceCalculator {
       PriceSnapshot today,
       PriceSnapshot previous) {}
 
-  // A security the fund held entering the day, weighted within the begin-of-day securities sleeve.
   record BodHolding(String isin, BigDecimal weight, PriceSnapshot today, PriceSnapshot previous) {}
 
-  // Outcome of the begin-of-day NAV-correctness check. A null value is the "not evaluated" sentinel
-  // (begin-of-day holdings unavailable), distinct from an evaluated zero residual.
   record NavResidualCheck(
       @Nullable BigDecimal impliedFundReturn, @Nullable BigDecimal value, boolean breach) {
     static NavResidualCheck notEvaluated() {

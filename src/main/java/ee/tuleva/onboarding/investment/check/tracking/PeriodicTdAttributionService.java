@@ -65,21 +65,11 @@ public class PeriodicTdAttributionService {
   public TdAttributionResult computeAttribution(
       TulevaFund fund, LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
 
-    // Compute before touching the database: a failure here leaves the prior period's row intact.
     var input = buildInput(fund, periodStart, periodEnd, periodType);
     var result = calculator.calculate(input);
     var entity = toEntity(result);
 
-    // Replace the existing row atomically. A TransactionTemplate (not @Transactional) is used so
-    // the delete+save run in one transaction even on the self-invoked batch/backfill paths, where
-    // a @Transactional proxy would be bypassed and the delete could commit without the save.
-    new TransactionTemplate(transactionManager)
-        .executeWithoutResult(
-            status -> {
-              attributionRepository.deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
-                  fund, periodStart, periodEnd, periodType);
-              attributionRepository.save(entity);
-            });
+    replaceAttributionRowInSingleTransaction(fund, periodStart, periodEnd, periodType, entity);
 
     log.info(
         "TD attribution computed: fund={}, period={}-{}, td={}bps, residual={}bps",
@@ -90,6 +80,21 @@ public class PeriodicTdAttributionService {
         result.residual().multiply(BigDecimal.valueOf(10000)).setScale(1, HALF_UP));
 
     return result;
+  }
+
+  private void replaceAttributionRowInSingleTransaction(
+      TulevaFund fund,
+      LocalDate periodStart,
+      LocalDate periodEnd,
+      PeriodType periodType,
+      PeriodicTdAttribution entity) {
+    new TransactionTemplate(transactionManager)
+        .executeWithoutResult(
+            status -> {
+              attributionRepository.deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
+                  fund, periodStart, periodEnd, periodType);
+              attributionRepository.save(entity);
+            });
   }
 
   public void computeForAllFunds(
@@ -130,9 +135,6 @@ public class PeriodicTdAttributionService {
         modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
             fund, periodStart, periodEnd);
 
-    // Geometric compounding telescopes only if the daily event series is unbroken (each event's
-    // return spans to the prior event's date). A missing working day breaks the chain, so detect
-    // and surface gaps rather than silently producing a distorted period return.
     var seriesGapDays =
         countSeriesGaps(
             tdEvents.stream().map(TrackingDifferenceEvent::getCheckDate).toList(), publicHolidays);
@@ -203,9 +205,6 @@ public class PeriodicTdAttributionService {
         .build();
   }
 
-  // Counts adjacency breaks in the daily event series: a gap exists when an event's immediately
-  // preceding working day is not the prior event's date, meaning a working day's return is missing
-  // from the chain and the geometric product no longer telescopes cleanly over the period.
   static int countSeriesGaps(List<LocalDate> sortedEventDates, PublicHolidays publicHolidays) {
     int gaps = 0;
     for (int i = 1; i < sortedEventDates.size(); i++) {
@@ -324,13 +323,11 @@ public class PeriodicTdAttributionService {
     }
     var securities = fundNavQueryService.findSecuritiesTotalValue(fund.getCode(), date);
     var cash = fundNavQueryService.findCashValue(fund.getCode(), date);
-    var feeAccrualLiabilities = fundNavQueryService.findFeeAccrualLiabilities(fund.getCode(), date);
+    var negativeFeeAccrualLiabilities =
+        fundNavQueryService.findFeeAccrualLiabilities(fund.getCode(), date);
 
-    // Non-security value: AUM - securities - cash - feeAccruals
-    // LIABILITY_FEE market_values are NEGATIVE in nav_report (NavReportMapper.liabilityFeeRow
-    // stores amount.negate()), so subtracting a negative adds them back — correctly excluding
-    // fee accruals from this component (they are attributed in components A+B).
-    var nonSecurityValue = aum.subtract(securities).subtract(cash).subtract(feeAccrualLiabilities);
+    var nonSecurityValue =
+        aum.subtract(securities).subtract(cash).subtract(negativeFeeAccrualLiabilities);
 
     return new NavComponents(aum, securities, cash, nonSecurityValue);
   }

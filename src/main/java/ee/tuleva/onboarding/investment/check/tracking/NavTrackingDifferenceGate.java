@@ -27,17 +27,12 @@ public class NavTrackingDifferenceGate {
     try {
       var results = trackingDifferenceService.checkFund(fund, navDate);
       if (results.isEmpty()) {
-        // No NAV pair or no model data — the check could not run. Surface it (the report is going
-        // out unvalidated) but do not block.
         trackingDifferenceNotifier.notifyCheckCouldNotRun(fund, navDate);
       } else {
         trackingDifferenceNotifier.notify(results);
       }
       pipelineTracker.stepCompleted(TRACKING_DIFFERENCE);
 
-      // Block only on the NAV-correctness residual, not on the informational fund-vs-model TD.
-      // On a MOC trade / model-switch day the fund-vs-model TD breaches but navResidual stays ~0
-      // (the fund earned its begin-of-day portfolio's return), so the NAV report is not blocked.
       var breaches =
           results.stream()
               .filter(r -> r.checkType() == MODEL_PORTFOLIO)
@@ -48,7 +43,6 @@ public class NavTrackingDifferenceGate {
             breaches.stream()
                 .map(
                     r -> {
-                      // navResidualBreach implies the residual was evaluated, so both are non-null.
                       var navResidual = requireNonNull(r.navResidual());
                       var implied = requireNonNull(r.impliedFundReturn());
                       return "%s navResidual=%s (fund=%s, implied=%s, TD=%s)"
@@ -66,8 +60,6 @@ public class NavTrackingDifferenceGate {
       return Optional.empty();
     } catch (TrackingDifferenceService.IncompletePriceDataException e) {
       if (e.completedResults().isEmpty()) {
-        // The check could not run (missing security prices) — surface it explicitly instead of the
-        // misleading empty "within limits".
         trackingDifferenceNotifier.notifyCheckCouldNotRun(fund, navDate);
       } else {
         trackingDifferenceNotifier.notify(e.completedResults());

@@ -383,7 +383,6 @@ public class AmlService {
         conversion.isPartiallyConverted() || conversion.isFullyConverted();
     var isWithdrawalMandate = mandate.getMandateType().isWithdrawalType();
 
-    // intentionally returning boolean literal and not expression for clarity
     if (!isTulevaThirdPillarClient && isWithdrawalMandate) {
       return false;
     }

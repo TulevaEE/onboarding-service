@@ -32,8 +32,11 @@ class FtConfirmationDigest {
   }
 
   void publish(List<FtConfirmationOutcome> changedOutcomes) {
+    if (!registryAuthoritative) {
+      return;
+    }
     List<FtConfirmationOutcome> actionable =
-        changedOutcomes.stream().filter(this::shouldAlert).toList();
+        changedOutcomes.stream().filter(FtConfirmationDigest::isActionable).toList();
     if (actionable.isEmpty()) {
       return;
     }
@@ -45,16 +48,13 @@ class FtConfirmationDigest {
     }
   }
 
-  private boolean shouldAlert(FtConfirmationOutcome outcome) {
+  private static boolean isActionable(FtConfirmationOutcome outcome) {
     FtConfirmationResult result = outcome.result();
-    if (result.quantityStatus() == ORPHAN) {
-      return registryAuthoritative;
-    }
     return isActionable(result.quantityStatus()) || isActionable(result.priceStatus());
   }
 
   private static boolean isActionable(FtVerificationStatus status) {
-    return status == ERROR || status == AMBIGUOUS;
+    return status == ERROR || status == AMBIGUOUS || status == ORPHAN;
   }
 
   private static String buildMessage(List<FtConfirmationOutcome> actionable) {

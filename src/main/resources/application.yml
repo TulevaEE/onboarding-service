@@ -206,9 +206,11 @@ transaction-registry:
     # scan because orders never transition to SETTLED, so the EXECUTED backlog grows.
     scan-lookback-days: 60
   ft-confirmation:
-    # Whether onboarding-service is the authoritative order registry yet. While false
-    # (parallel run with GAS), orphan FT confirmations are recorded but not alerted,
-    # because the missing order may still live only in GAS. Flip to true at cutover.
+    # Whether onboarding-service is the authoritative FT-verification pipeline yet. While
+    # false (parallel run with GAS), the FT check runs in shadow mode: confirmations are
+    # verified and their outcomes recorded to the audit trail, but no alerts are sent —
+    # GAS remains the alerting authority. Flip to true at cutover (after retiring the GAS
+    # check) to start sending the Slack digest of ERROR/AMBIGUOUS/ORPHAN rows.
     registry-authoritative: ${TRANSACTION_REGISTRY_FT_CONFIRMATION_REGISTRY_AUTHORITATIVE:false}
 
 payment-provider:

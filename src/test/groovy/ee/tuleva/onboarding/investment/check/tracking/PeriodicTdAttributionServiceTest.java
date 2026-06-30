@@ -15,6 +15,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
@@ -82,7 +83,7 @@ class PeriodicTdAttributionServiceTest {
             transactionExecutionRepository,
             instrumentFeeRepository,
             transactionManager,
-            new ee.tuleva.onboarding.deadline.PublicHolidays());
+            new PublicHolidays());
 
     // Default lenient stubs for Phase 3 data sources (overridden in specific tests)
     given(transactionExecutionRepository.sumCommissionsForFundAndPeriod(anyString(), any(), any()))
@@ -102,7 +103,7 @@ class PeriodicTdAttributionServiceTest {
 
     assertThat(result.fund()).isEqualTo(TUK75);
     assertThat(result.periodType()).isEqualTo(MONTHLY);
-    assertThat(result.businessDays()).isEqualTo(2);
+    assertThat(result.navEventCount()).isEqualTo(2);
     assertThat(result.mgmtFeeDrag()).isNegative();
     assertThat(result.cashDrag()).isNegative();
 
@@ -154,7 +155,7 @@ class PeriodicTdAttributionServiceTest {
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
     assertThat(result.tdGeometric()).isEqualByComparingTo(ZERO);
-    assertThat(result.businessDays()).isZero();
+    assertThat(result.navEventCount()).isZero();
   }
 
   @Test
@@ -190,7 +191,7 @@ class PeriodicTdAttributionServiceTest {
 
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
-    assertThat(result.businessDays()).isEqualTo(2);
+    assertThat(result.navEventCount()).isEqualTo(2);
     verify(attributionRepository).save(any(PeriodicTdAttribution.class));
   }
 
@@ -244,7 +245,7 @@ class PeriodicTdAttributionServiceTest {
 
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
-    assertThat(result.businessDays()).isEqualTo(1);
+    assertThat(result.navEventCount()).isEqualTo(1);
     assertThat(result.avgAum()).isEqualByComparingTo(ZERO);
   }
 
@@ -794,7 +795,7 @@ class PeriodicTdAttributionServiceTest {
 
   @Test
   void countSeriesGapsIgnoresWeekendsButCountsMissingWorkingDays() {
-    var holidays = new ee.tuleva.onboarding.deadline.PublicHolidays();
+    var holidays = new PublicHolidays();
 
     // Mon, Tue, Wed — unbroken chain.
     assertThat(

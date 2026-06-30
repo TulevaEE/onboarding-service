@@ -5,6 +5,7 @@ import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import java.math.BigDecimal;
@@ -163,7 +164,7 @@ class NavTrackingDifferenceGateTest {
     assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
 
     then(trackingDifferenceNotifier).should().notifyCheckCouldNotRun(TUK75, NAV_DATE);
-    then(trackingDifferenceNotifier).should(org.mockito.Mockito.never()).notify(List.of());
+    then(trackingDifferenceNotifier).should(never()).notify(List.of());
   }
 
   @Test

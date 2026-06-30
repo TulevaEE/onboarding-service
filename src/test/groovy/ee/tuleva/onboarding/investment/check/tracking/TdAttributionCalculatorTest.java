@@ -299,7 +299,7 @@ class TdAttributionCalculatorTest {
 
     var result = calculator.calculate(input);
 
-    assertThat(result.businessDays()).isEqualTo(2);
+    assertThat(result.navEventCount()).isEqualTo(2);
     assertThat(result.avgAum()).isEqualByComparingTo(new BigDecimal("1000000"));
   }
 
@@ -310,7 +310,7 @@ class TdAttributionCalculatorTest {
     var result = calculator.calculate(input);
 
     assertThat(result.tdGeometric()).isEqualByComparingTo(ZERO);
-    assertThat(result.businessDays()).isZero();
+    assertThat(result.navEventCount()).isZero();
     assertThat(result.instrumentDetails()).isEmpty();
   }
 

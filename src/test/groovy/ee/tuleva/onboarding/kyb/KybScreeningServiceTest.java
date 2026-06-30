@@ -58,7 +58,7 @@ class KybScreeningServiceTest {
     when(sanctionCheckService.matchCompany(any()))
         .thenReturn(
             new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
-    when(checkHistory.getLatestChecks(any())).thenReturn(List.of());
+    when(checkHistory.getLatestChecks(any(), any())).thenReturn(List.of());
   }
 
   @Test

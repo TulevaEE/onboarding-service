@@ -22,8 +22,9 @@ public class KybDataChangeDetector {
 
   private final KybCheckHistory checkHistory;
 
-  public KybCheck detect(PersonalCode personalCode, List<KybCheck> currentChecks) {
-    var previousChecks = checkHistory.getLatestChecks(personalCode);
+  public KybCheck detect(
+      PersonalCode personalCode, RegistryCode registryCode, List<KybCheck> currentChecks) {
+    var previousChecks = checkHistory.getLatestChecks(personalCode, registryCode);
 
     if (previousChecks.isEmpty()) {
       return new KybCheck(DATA_CHANGED, true, Map.of("changes", List.of()));

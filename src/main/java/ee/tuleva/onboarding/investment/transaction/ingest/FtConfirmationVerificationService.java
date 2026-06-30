@@ -29,6 +29,7 @@ import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -193,11 +194,15 @@ public class FtConfirmationVerificationService {
       orderQuantityOk = withinQuantityTolerance(confirmation.quantity(), order.getOrderQuantity());
     }
 
-    Optional<BigDecimal> executedQuantity =
+    // Sum across all executions: a split order fills in several pieces, so the executed quantity is
+    // the total of every piece, not just the first one.
+    BigDecimal totalExecuted =
         executionRepository.findAllByOrderId(order.getId()).stream()
-            .findFirst()
             .map(TransactionExecution::getExecutedQuantity)
-            .filter(quantity -> quantity.signum() > 0);
+            .filter(Objects::nonNull)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    Optional<BigDecimal> executedQuantity =
+        totalExecuted.signum() > 0 ? Optional.of(totalExecuted) : Optional.empty();
 
     if (executedQuantity.isEmpty()) {
       LocalDate executionDeadline =

@@ -57,7 +57,9 @@ class TransactionExecutionRepositoryIT {
     entityManager.flush();
     entityManager.clear();
 
-    TransactionExecution loaded = executionRepository.findAllByOrderId(order.getId()).getFirst();
+    var executions = executionRepository.findAllByOrderId(order.getId());
+    assertThat(executions).hasSize(1);
+    TransactionExecution loaded = executions.getFirst();
 
     assertThat(loaded.getId()).isEqualTo(saved.getId());
     assertThat(loaded.getOrderId()).isEqualTo(order.getId());

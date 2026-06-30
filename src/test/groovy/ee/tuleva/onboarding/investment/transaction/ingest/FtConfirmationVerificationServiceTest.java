@@ -127,6 +127,25 @@ class FtConfirmationVerificationServiceTest {
   }
 
   @Test
+  void splitExecution_sumsExecutedQuantityAcrossPieces_returnsOk() {
+    // Order filled in two SEB pieces (20217 + 20217 = 40434): the executed quantity is the sum of
+    // every piece, not just the first one.
+    TransactionOrder order = order(new BigDecimal("40434"));
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
+    given(executionRepository.findAllByOrderId(order.getId()))
+        .willReturn(
+            List.of(
+                executionPiece(7L, new BigDecimal("20217")),
+                executionPiece(8L, new BigDecimal("20217"))));
+    givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
+
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation()).orElseThrow();
+
+    assertThat(result.quantityStatus()).isEqualTo(OK);
+    assertThat(result.details()).containsEntry("executedQuantity", "40434");
+  }
+
+  @Test
   void orderQuantityDiffersByMoreThanOneUnit_returnsError() {
     givenOrderAndExecution(new BigDecimal("40432"), new BigDecimal("40434"));
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
@@ -433,6 +452,18 @@ class FtConfirmationVerificationServiceTest {
     return TransactionExecution.builder()
         .id(7L)
         .orderId(42L)
+        .executedQuantity(executedQuantity)
+        .unitPrice(new BigDecimal("10.09"))
+        .executionTimestamp(Instant.parse("2026-06-08T15:30:00Z"))
+        .source("FT")
+        .build();
+  }
+
+  private TransactionExecution executionPiece(long id, BigDecimal executedQuantity) {
+    return TransactionExecution.builder()
+        .id(id)
+        .orderId(42L)
+        .brokerTransactionId("DLA" + id)
         .executedQuantity(executedQuantity)
         .unitPrice(new BigDecimal("10.09"))
         .executionTimestamp(Instant.parse("2026-06-08T15:30:00Z"))

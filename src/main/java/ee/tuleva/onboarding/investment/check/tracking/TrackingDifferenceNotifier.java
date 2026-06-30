@@ -45,7 +45,7 @@ class TrackingDifferenceNotifier {
     try {
       var alertableResults = results.stream().filter(r -> r.checkType() != BENCHMARK).toList();
       var hasAnyBreaches =
-          alertableResults.stream().anyMatch(r -> r.breach() || r.navResidualBreach());
+          alertableResults.stream().anyMatch(TrackingDifferenceResult::hasAnyBreach);
 
       if (!hasAnyBreaches) {
         var byFund =
@@ -81,7 +81,7 @@ class TrackingDifferenceNotifier {
       var hasEscalation = false;
 
       for (var result : alertableResults) {
-        if (!result.breach() && !result.navResidualBreach()) {
+        if (!result.hasAnyBreach()) {
           continue;
         }
 

@@ -29,7 +29,12 @@ record TrackingDifferenceResult(
     BigDecimal cashDrag,
     BigDecimal feeDrag,
     BigDecimal residual,
-    @Nullable BigDecimal impliedFundReturn,
+    @Nullable BigDecimal bodImpliedFundReturn,
     @Nullable BigDecimal navResidual,
     boolean navResidualBreach,
-    boolean escalationNavResidualBreach) {}
+    boolean escalationNavResidualBreach) {
+
+  boolean hasAnyBreach() {
+    return breach() || navResidualBreach();
+  }
+}

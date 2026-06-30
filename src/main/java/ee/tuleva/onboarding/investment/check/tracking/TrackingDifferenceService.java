@@ -959,7 +959,7 @@ class TrackingDifferenceService {
         "residual",
         Objects.requireNonNullElse(result.residual(), ZERO),
         "impliedFundReturn",
-        Objects.requireNonNullElse(result.impliedFundReturn(), ZERO),
+        Objects.requireNonNullElse(result.bodImpliedFundReturn(), ZERO),
         "navResidual",
         Objects.requireNonNullElse(result.navResidual(), ZERO),
         "navResidualBreach",

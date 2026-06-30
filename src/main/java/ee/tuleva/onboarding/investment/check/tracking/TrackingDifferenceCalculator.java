@@ -92,7 +92,7 @@ class TrackingDifferenceCalculator {
         validSecurities.stream()
             .map(
                 s -> {
-                  var secReturn = dailyReturn(s.today().price(), s.previous().price());
+                  var secReturn = rawDailyReturn(s.today().price(), s.previous().price());
                   return s.modelWeight().multiply(secReturn);
                 })
             .reduce(ZERO, BigDecimal::add)
@@ -105,7 +105,7 @@ class TrackingDifferenceCalculator {
         validSecurities.stream()
             .map(
                 s -> {
-                  var secReturn = dailyReturn(s.today().price(), s.previous().price());
+                  var secReturn = rawDailyReturn(s.today().price(), s.previous().price());
                   var weightDiff =
                       s.actualWeight().subtract(s.modelWeight()).setScale(SCALE, HALF_UP);
                   var contribution = weightDiff.multiply(secReturn).setScale(SCALE, HALF_UP);
@@ -152,7 +152,7 @@ class TrackingDifferenceCalculator {
             .cashDrag(cashDrag)
             .feeDrag(feeDrag)
             .residual(residual)
-            .impliedFundReturn(navResidual.impliedFundReturn())
+            .bodImpliedFundReturn(navResidual.bodImpliedFundReturn())
             .navResidual(navResidual.value())
             .navResidualBreach(navResidual.breach())
             .build());
@@ -169,29 +169,29 @@ class TrackingDifferenceCalculator {
         input.bodHoldings().stream()
             .filter(b -> b.today().price() != null && b.previous().price() != null)
             .filter(b -> b.previous().price().signum() != 0)
-            .map(b -> b.weight().multiply(dailyReturn(b.today().price(), b.previous().price())))
+            .map(b -> b.weight().multiply(rawDailyReturn(b.today().price(), b.previous().price())))
             .reduce(ZERO, BigDecimal::add);
-    var impliedFundReturn =
+    var bodImpliedFundReturn =
         input
             .bodSecuritiesFraction()
             .multiply(impliedSleeveReturn)
             .add(feeDrag)
             .setScale(SCALE, HALF_UP);
-    var value = fundReturn.subtract(impliedFundReturn).setScale(SCALE, HALF_UP);
+    var value = fundReturn.subtract(bodImpliedFundReturn).setScale(SCALE, HALF_UP);
     var breach = value.abs().compareTo(breachThreshold) >= 0;
-    return new NavResidualCheck(impliedFundReturn, value, breach);
+    return new NavResidualCheck(bodImpliedFundReturn, value, breach);
   }
 
   BigDecimal maxDailyReturn(LocalDate asOf) {
     return parameterRepository.findLatestValue(TRACKING_MAX_DAILY_RETURN, asOf);
   }
 
-  BigDecimal dailyReturn(BigDecimal today, BigDecimal yesterday) {
+  BigDecimal rawDailyReturn(BigDecimal today, BigDecimal yesterday) {
     return today.subtract(yesterday).divide(yesterday, SCALE, HALF_UP);
   }
 
   BigDecimal safeDailyReturn(BigDecimal today, BigDecimal yesterday, BigDecimal maxDailyReturn) {
-    var ret = dailyReturn(today, yesterday);
+    var ret = rawDailyReturn(today, yesterday);
     return ret.abs().compareTo(maxDailyReturn) > 0 ? ZERO : ret;
   }
 
@@ -221,7 +221,7 @@ class TrackingDifferenceCalculator {
   record BodHolding(String isin, BigDecimal weight, PriceSnapshot today, PriceSnapshot previous) {}
 
   record NavResidualCheck(
-      @Nullable BigDecimal impliedFundReturn, @Nullable BigDecimal value, boolean breach) {
+      @Nullable BigDecimal bodImpliedFundReturn, @Nullable BigDecimal value, boolean breach) {
     static NavResidualCheck notEvaluated() {
       return new NavResidualCheck(null, null, false);
     }

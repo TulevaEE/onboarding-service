@@ -44,7 +44,7 @@ public class NavTrackingDifferenceGate {
                 .map(
                     r -> {
                       var navResidual = requireNonNull(r.navResidual());
-                      var implied = requireNonNull(r.impliedFundReturn());
+                      var implied = requireNonNull(r.bodImpliedFundReturn());
                       return "%s navResidual=%s (fund=%s, implied=%s, TD=%s)"
                           .formatted(
                               r.checkType(),

@@ -122,6 +122,7 @@ public class NavLedgerRepository {
               AND a.purpose = 'SYSTEM_ACCOUNT'
               AND t.transaction_date <= :cutoff
             GROUP BY a.name
+            HAVING SUM(e.amount) <> 0
             """)
         .param("prefix", prefix + "%")
         .param("cutoff", Timestamp.from(cutoff))

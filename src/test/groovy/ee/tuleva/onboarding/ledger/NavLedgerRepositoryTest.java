@@ -61,6 +61,23 @@ class NavLedgerRepositoryTest {
   }
 
   @Test
+  void getSecuritiesUnitBalancesAt_excludesFullyLiquidatedInstruments() {
+    createSecuritiesUnitsBalance("IE00BFG1TM61", new BigDecimal("1000.00000"));
+    createSecuritiesUnitsBalance("IE00BFNM3D14", new BigDecimal("500.00000"));
+    createSecuritiesUnitsBalance("IE00BFNM3D14", new BigDecimal("-500.00000"));
+    entityManager.flush();
+
+    Instant cutoff = Instant.now().plusSeconds(3600);
+
+    Map<String, BigDecimal> balances =
+        navLedgerRepository.getSecuritiesUnitBalancesAt(cutoff, TKF100);
+
+    assertThat(balances).hasSize(1);
+    assertThat(balances.get("IE00BFG1TM61")).isEqualByComparingTo("1000.00000");
+    assertThat(balances).doesNotContainKey("IE00BFNM3D14");
+  }
+
+  @Test
   void getSystemAccountBalanceBefore_excludesEntriesAtOrAfterCutoff() {
     ZoneId eet = ZoneId.of("Europe/Tallinn");
     LedgerAccount feeAccount =

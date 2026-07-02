@@ -31,7 +31,7 @@ class TrackingControllerSpec extends BaseControllerSpec {
     0 * eventPublisher.publishEvent(_)
     expect:
     mvc.perform(post("/v1/t")
-        .content("""{"type": "REPRESENT_MINOR_ROLE_SWITCH", "data": {"childPersonalCode": "61506150006"}}""")
+        .content("""{"type": "ROLE_SWITCH", "data": {"roleType": "PERSON", "code": "61506150006"}}""")
         .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isBadRequest())
   }

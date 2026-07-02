@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.auth.role;
 import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
+import static ee.tuleva.onboarding.event.TrackableEventType.ROLE_SWITCH;
 import static java.util.Collections.unmodifiableList;
 
 import ee.tuleva.onboarding.auth.AuthenticationTokens;
@@ -14,7 +15,6 @@ import ee.tuleva.onboarding.company.CompanyParty;
 import ee.tuleva.onboarding.company.CompanyPartyRepository;
 import ee.tuleva.onboarding.company.CompanyRepository;
 import ee.tuleva.onboarding.event.TrackableEvent;
-import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.user.User;
@@ -25,12 +25,14 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@NullMarked
 public class RoleSwitchService {
 
   private final CompanyRepository companyRepository;
@@ -76,7 +78,7 @@ public class RoleSwitchService {
       AuthenticatedPerson person, SwitchRoleCommand command) {
     if (command.code().equals(person.getPersonalCode())) {
       log.info("Role switch to self: personalCode={}", person.getPersonalCode());
-      return generateTokens(person, new Role(PERSON, command.code(), person.getFullName()));
+      return switchTo(person, new Role(PERSON, command.code(), person.getFullName()));
     }
     return switchToRepresentedChild(person, command);
   }
@@ -96,14 +98,7 @@ public class RoleSwitchService {
         "Role switch to represented child: personalCode={}, childCode={}",
         person.getPersonalCode(),
         command.code());
-    AuthenticationTokens tokens =
-        generateTokens(person, new Role(PERSON, command.code(), child.getFullName()));
-    applicationEventPublisher.publishEvent(
-        new TrackableEvent(
-            person,
-            TrackableEventType.REPRESENT_MINOR_ROLE_SWITCH,
-            Map.of("childPersonalCode", command.code())));
-    return tokens;
+    return switchTo(person, new Role(PERSON, command.code(), child.getFullName()));
   }
 
   private AuthenticationTokens switchToCompany(
@@ -123,11 +118,15 @@ public class RoleSwitchService {
         person.getPersonalCode(),
         command.code());
 
-    var role = new Role(LEGAL_ENTITY, command.code(), company.getName());
-    return generateTokens(person, role);
+    return switchTo(person, new Role(LEGAL_ENTITY, command.code(), company.getName()));
   }
 
-  private AuthenticationTokens generateTokens(AuthenticatedPerson person, Role role) {
-    return tokenService.generateTokens(principalService.withRole(person, role));
+  private AuthenticationTokens switchTo(AuthenticatedPerson person, Role role) {
+    AuthenticationTokens tokens =
+        tokenService.generateTokens(principalService.withRole(person, role));
+    applicationEventPublisher.publishEvent(
+        new TrackableEvent(
+            person, ROLE_SWITCH, Map.of("roleType", role.type().name(), "code", role.code())));
+    return tokens;
   }
 }

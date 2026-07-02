@@ -81,6 +81,48 @@ class RoleSwitchServiceTest {
   }
 
   @Test
+  void switchToCompanyPublishesAuditEvent() {
+    var company = sampleCompany().build();
+    when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
+        .thenReturn(Optional.of(company));
+    when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
+            person.getPersonalCode(), PartyId.Type.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
+        .thenReturn(true);
+    when(principalService.withRole(any(), any())).thenReturn(person);
+    when(tokenService.generateTokens(any()))
+        .thenReturn(new AuthenticationTokens("access", "refresh"));
+
+    roleSwitchService.switchRole(person, new SwitchRoleCommand(LEGAL_ENTITY, SAMPLE_REGISTRY_CODE));
+
+    verify(applicationEventPublisher)
+        .publishEvent(
+            new TrackableEvent(
+                person,
+                TrackableEventType.ROLE_SWITCH,
+                Map.of("roleType", "LEGAL_ENTITY", "code", SAMPLE_REGISTRY_CODE)));
+  }
+
+  @Test
+  void switchToCompanyPublishesNoAuditEventWhenTokenGenerationFails() {
+    var company = sampleCompany().build();
+    when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
+        .thenReturn(Optional.of(company));
+    when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
+            person.getPersonalCode(), PartyId.Type.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
+        .thenReturn(true);
+    when(principalService.withRole(any(), any())).thenReturn(person);
+    when(tokenService.generateTokens(any()))
+        .thenThrow(new RuntimeException("token signing failed"));
+
+    assertThatThrownBy(
+            () ->
+                roleSwitchService.switchRole(
+                    person, new SwitchRoleCommand(LEGAL_ENTITY, SAMPLE_REGISTRY_CODE)))
+        .isInstanceOf(RuntimeException.class);
+    verifyNoInteractions(applicationEventPublisher);
+  }
+
+  @Test
   void switchRoleToSelf() {
     when(principalService.withRole(any(), any())).thenReturn(person);
     when(tokenService.generateTokens(any()))
@@ -91,6 +133,36 @@ class RoleSwitchServiceTest {
             person, new SwitchRoleCommand(PERSON, person.getPersonalCode()));
 
     assertThat(tokens.accessToken()).isEqualTo("access");
+  }
+
+  @Test
+  void switchToSelfPublishesAuditEvent() {
+    when(principalService.withRole(any(), any())).thenReturn(person);
+    when(tokenService.generateTokens(any()))
+        .thenReturn(new AuthenticationTokens("access", "refresh"));
+
+    roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, person.getPersonalCode()));
+
+    verify(applicationEventPublisher)
+        .publishEvent(
+            new TrackableEvent(
+                person,
+                TrackableEventType.ROLE_SWITCH,
+                Map.of("roleType", "PERSON", "code", person.getPersonalCode())));
+  }
+
+  @Test
+  void switchToSelfPublishesNoAuditEventWhenTokenGenerationFails() {
+    when(principalService.withRole(any(), any())).thenReturn(person);
+    when(tokenService.generateTokens(any()))
+        .thenThrow(new RuntimeException("token signing failed"));
+
+    assertThatThrownBy(
+            () ->
+                roleSwitchService.switchRole(
+                    person, new SwitchRoleCommand(PERSON, person.getPersonalCode())))
+        .isInstanceOf(RuntimeException.class);
+    verifyNoInteractions(applicationEventPublisher);
   }
 
   @Test
@@ -231,8 +303,8 @@ class RoleSwitchServiceTest {
         .publishEvent(
             new TrackableEvent(
                 person,
-                TrackableEventType.REPRESENT_MINOR_ROLE_SWITCH,
-                Map.of("childPersonalCode", CHILD_CODE)));
+                TrackableEventType.ROLE_SWITCH,
+                Map.of("roleType", "PERSON", "code", CHILD_CODE)));
   }
 
   @Test

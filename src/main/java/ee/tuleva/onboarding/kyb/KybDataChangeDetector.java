@@ -43,18 +43,13 @@ public class KybDataChangeDetector {
     for (var current : currentChecks) {
       var previous = previousByType.get(current.type());
       if (isExistingCheck(previous) && changed(previous, current)) {
-        changes.add(
-            change(
-                current.type(),
-                previous.success(),
-                current.success(),
-                metadataChanged(previous, current)));
+        changes.add(changedCheckEntry(previous, current));
       }
     }
 
     for (var previous : previousChecks) {
       if (isRemovedCheck(previous, currentByType)) {
-        changes.add(change(previous.type(), previous.success(), "N/A", true));
+        changes.add(removedCheckEntry(previous));
       }
     }
 
@@ -69,13 +64,24 @@ public class KybDataChangeDetector {
     return !currentByType.containsKey(previous.type());
   }
 
-  private Map<String, Object> change(
-      KybCheckType type, Object previousSuccess, Object currentSuccess, boolean metadataChanged) {
+  private Map<String, Object> changedCheckEntry(KybCheck previous, KybCheck current) {
     return Map.of(
-        "check", type.name(),
-        "previousSuccess", previousSuccess,
-        "currentSuccess", currentSuccess,
-        "metadataChanged", metadataChanged);
+        "check", current.type().name(),
+        "previousSuccess", previous.success(),
+        "currentSuccess", current.success(),
+        "metadataChanged", metadataChanged(previous, current));
+  }
+
+  private Map<String, Object> removedCheckEntry(KybCheck previous) {
+    return Map.of(
+        "check",
+        previous.type().name(),
+        "previousSuccess",
+        previous.success(),
+        "currentSuccess",
+        "N/A",
+        "metadataChanged",
+        true);
   }
 
   private boolean changed(KybCheck previous, KybCheck current) {

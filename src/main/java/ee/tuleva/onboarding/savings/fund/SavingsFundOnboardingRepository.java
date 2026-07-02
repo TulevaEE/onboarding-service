@@ -2,8 +2,11 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 
+import ee.tuleva.onboarding.kyb.KybCheckType;
 import ee.tuleva.onboarding.party.PartyId;
+import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -44,17 +47,23 @@ public class SavingsFundOnboardingRepository {
                 FROM aml_check ac
                 JOIN company c ON ac.company_id = c.id
                 WHERE c.registry_code = o.code
-                  AND ac.type IN ('KYB_SOLE_MEMBER_OWNERSHIP',
-                                  'KYB_DUAL_MEMBER_OWNERSHIP',
-                                  'KYB_SINGLE_BOARD_MEMBER_OWNERSHIP')
+                  AND ac.type IN (:ownershipCheckTypes)
                   AND ac.success = false
                   AND ac.created_time >= :since
               )
             ORDER BY o.code
             """)
-        .param("since", since)
+        .param("ownershipCheckTypes", ownershipCheckTypeNames())
+        .param("since", Timestamp.from(since))
         .query(String.class)
         .list();
+  }
+
+  private static List<String> ownershipCheckTypeNames() {
+    return Arrays.stream(KybCheckType.values())
+        .filter(KybCheckType::isOwnershipCheck)
+        .map(type -> "KYB_" + type.name())
+        .toList();
   }
 
   @Transactional

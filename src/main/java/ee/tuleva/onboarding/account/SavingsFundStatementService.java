@@ -47,18 +47,22 @@ public class SavingsFundStatementService {
             fundUnitsAccount ->
                 statement(
                     account ->
-                        ledgerService
-                            .findPartyAccount(ownerCode, partyType, account)
-                            .map(LedgerAccount::getBalance)
-                            .orElse(BigDecimal.ZERO)));
+                        account == FUND_UNITS
+                            ? fundUnitsAccount.getBalance()
+                            : ledgerService
+                                .findPartyAccount(ownerCode, partyType, account)
+                                .map(LedgerAccount::getBalance)
+                                .orElse(BigDecimal.ZERO)));
   }
 
   private FundBalance statement(Function<UserAccount, BigDecimal> balances) {
+    BigDecimal nav = getNAV();
+
     BigDecimal units = balances.apply(FUND_UNITS).negate();
-    BigDecimal value = getNAV().multiply(units).setScale(2, HALF_UP);
+    BigDecimal value = nav.multiply(units).setScale(2, HALF_UP);
 
     BigDecimal reservedUnits = balances.apply(FUND_UNITS_RESERVED).negate();
-    BigDecimal reservedValue = getNAV().multiply(reservedUnits).setScale(2, HALF_UP);
+    BigDecimal reservedValue = nav.multiply(reservedUnits).setScale(2, HALF_UP);
 
     return FundBalance.builder()
         .fund(getSavingsFund())

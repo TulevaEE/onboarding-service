@@ -6,9 +6,13 @@ import ee.tuleva.onboarding.kyb.KybMonitoringCompletedEvent;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+@Slf4j
+@NullMarked
 @Component
 @RequiredArgsConstructor
 class LegalEntityManualReviewNotifier {
@@ -18,6 +22,14 @@ class LegalEntityManualReviewNotifier {
 
   @EventListener
   public void onKybMonitoringCompleted(KybMonitoringCompletedEvent event) {
+    try {
+      notifyIfCompaniesNeedManualReview(event);
+    } catch (Exception e) {
+      log.error("Manual review digest failed: startedAt={}", event.startedAt(), e);
+    }
+  }
+
+  private void notifyIfCompaniesNeedManualReview(KybMonitoringCompletedEvent event) {
     List<String> registryCodes =
         savingsFundOnboardingRepository.findCompletedLegalEntitiesWithFailedOwnershipChecksSince(
             event.startedAt());

@@ -158,7 +158,7 @@ class LegalEntityOnboardingEventListenerTest {
   }
 
   @Test
-  void setsStatusRejectedWhenOwnershipCheckOfCompletedCompanyDisappears() {
+  void keepsCompletedWhenFailingOwnershipCheckHasNoOwnEvidenceDespiteStaleRemovedCheckEntry() {
     when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
     var checks =
         List.of(
@@ -177,6 +177,34 @@ class LegalEntityOnboardingEventListenerTest {
                             true,
                             "currentSuccess",
                             "N/A",
+                            "metadataChanged",
+                            true)))));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+  }
+
+  @Test
+  void setsStatusRejectedWhenFailingOwnershipCheckItselfShowsMetadataChange() {
+    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(DUAL_MEMBER_OWNERSHIP, false, Map.of("totalOwnership", "60")),
+            new KybCheck(
+                DATA_CHANGED,
+                false,
+                Map.of(
+                    "changes",
+                    List.of(
+                        Map.of(
+                            "check",
+                            "DUAL_MEMBER_OWNERSHIP",
+                            "previousSuccess",
+                            true,
+                            "currentSuccess",
+                            false,
                             "metadataChanged",
                             true)))));
 

@@ -78,12 +78,120 @@ class LegalEntityOnboardingEventListenerTest {
   }
 
   @Test
-  void setsStatusRejectedEvenIfPreviouslyCompleted() {
+  void setsStatusRejectedEvenIfPreviouslyCompletedWhenNonOwnershipGateCheckFails() {
     when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(COMPANY_STRUCTURE, false, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+  }
+
+  @Test
+  void keepsCompletedWhenOwnershipCheckFailsWithoutEvidenceOfChange() {
+    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(
+                SOLE_MEMBER_OWNERSHIP,
+                false,
+                Map.of("personalCode", "38501010001", "ownershipPercent", "100")),
+            new KybCheck(
+                DATA_CHANGED,
+                false,
+                Map.of(
+                    "changes",
+                    List.of(
+                        Map.of(
+                            "check", "SOLE_MEMBER_OWNERSHIP",
+                            "previousSuccess", true,
+                            "currentSuccess", false,
+                            "metadataChanged", false)))));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+  }
+
+  @Test
+  void keepsCompletedWhenOwnershipCheckFailsAndNoDataChangedCheckPresent() {
+    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(SINGLE_BOARD_MEMBER_OWNERSHIP, false, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+  }
+
+  @Test
+  void setsStatusRejectedWhenOwnershipDataActuallyChanged() {
+    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(
+                SOLE_MEMBER_OWNERSHIP,
+                false,
+                Map.of("personalCode", "39901010000", "ownershipPercent", "100")),
+            new KybCheck(
+                DATA_CHANGED,
+                false,
+                Map.of(
+                    "changes",
+                    List.of(
+                        Map.of(
+                            "check", "SOLE_MEMBER_OWNERSHIP",
+                            "previousSuccess", true,
+                            "currentSuccess", false,
+                            "metadataChanged", true)))));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+  }
+
+  @Test
+  void setsStatusRejectedWhenOwnershipCheckOfCompletedCompanyDisappears() {
+    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(DUAL_MEMBER_OWNERSHIP, false, Map.of("totalOwnership", "100")),
+            new KybCheck(
+                DATA_CHANGED,
+                false,
+                Map.of(
+                    "changes",
+                    List.of(
+                        Map.of(
+                            "check",
+                            "SOLE_MEMBER_OWNERSHIP",
+                            "previousSuccess",
+                            true,
+                            "currentSuccess",
+                            "N/A",
+                            "metadataChanged",
+                            true)))));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+  }
+
+  @Test
+  void setsStatusRejectedForNewCompanyWhenOwnershipCheckFails() {
+    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.empty());
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(SOLE_MEMBER_OWNERSHIP, false, Map.of()));
 
     listener.onKybCheckPerformed(eventWith(checks));
 

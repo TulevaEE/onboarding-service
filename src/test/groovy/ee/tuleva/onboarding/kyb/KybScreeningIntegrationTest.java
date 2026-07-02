@@ -16,6 +16,9 @@ import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
+import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus;
 import ee.tuleva.onboarding.time.ClockHolder;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
@@ -43,6 +46,8 @@ class KybScreeningIntegrationTest {
 
   @Autowired private KybScreeningService kybScreeningService;
   @Autowired private AmlCheckRepository amlCheckRepository;
+
+  @Autowired private SavingsFundOnboardingRepository onboardingRepository;
   @Autowired private JsonMapper objectMapper;
   @Autowired private Clock clock;
   @Autowired private EntityManager entityManager;
@@ -227,6 +232,44 @@ class KybScreeningIntegrationTest {
             .orElseThrow();
     assertThat(dataChanged.success()).isTrue();
     assertThat((List<Map<String, Object>>) dataChanged.metadata().get("changes")).isEmpty();
+  }
+
+  @Test
+  void missingBeneficialOwnerEvidenceKeepsCompletedCompanyCompleted() {
+    var registryCode = "12345678";
+    var owner = boardMemberOwner(PERSONAL_CODE, 100.0).build();
+    kybScreeningService.screen(companyWith(owner));
+    assertThat(onboardingRepository.findStatus(registryCode, PartyId.Type.LEGAL_ENTITY))
+        .contains(SavingsFundOnboardingStatus.COMPLETED);
+
+    entityManager.flush();
+    entityManager.clear();
+
+    var ownerWithoutBeneficialOwnerEvidence =
+        boardMemberOwner(PERSONAL_CODE, 100.0).beneficialOwner(false).build();
+    var results = kybScreeningService.screen(companyWith(ownerWithoutBeneficialOwnerEvidence));
+
+    assertThat(results)
+        .anyMatch(check -> check.type() == KybCheckType.SOLE_MEMBER_OWNERSHIP && !check.success());
+    assertThat(onboardingRepository.findStatus(registryCode, PartyId.Type.LEGAL_ENTITY))
+        .contains(SavingsFundOnboardingStatus.COMPLETED);
+  }
+
+  @Test
+  void ownerChangeStillRejectsCompletedCompany() {
+    var registryCode = "12345678";
+    var owner = boardMemberOwner(PERSONAL_CODE, 100.0).build();
+    kybScreeningService.screen(companyWith(owner));
+
+    entityManager.flush();
+    entityManager.clear();
+
+    var newOwnerWithoutBeneficialOwnerEvidence =
+        boardMemberOwner("49001010001", 100.0).beneficialOwner(false).build();
+    kybScreeningService.screen(companyWith(newOwnerWithoutBeneficialOwnerEvidence));
+
+    assertThat(onboardingRepository.findStatus(registryCode, PartyId.Type.LEGAL_ENTITY))
+        .contains(SavingsFundOnboardingStatus.REJECTED);
   }
 
   @Test

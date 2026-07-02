@@ -102,7 +102,7 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
     0 * accountStatementService.getAccountStatement(_, _, _)
   }
 
-  def "/savings-account-statement endpoint returns savings account balance if onboarded"() {
+  def "/savings-account-statement endpoint returns savings account balance when a statement exists"() {
     given:
     FundBalance fundBalance = FundBalance.builder()
         .fund(FundFixture.additionalSavingsFund())
@@ -112,7 +112,7 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
         .contributions(10)
         .subtractions(0)
         .build()
-    1 * savingsFundStatementService.getAccountStatement(_ as Person) >> fundBalance
+    1 * savingsFundStatementService.getAccountStatement(_ as Person) >> Optional.of(fundBalance)
     localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
 
     expect:
@@ -121,13 +121,26 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('fund.name', is(fundBalance.fund.nameEstonian)))
   }
 
-  def "/savings-account-statement endpoint returns no content if not onboarded"() {
+  def "/savings-account-statement endpoint returns no content when there is no savings account"() {
     given:
-    1 * savingsFundStatementService.getAccountStatement(_ as Person) >> { throw new IllegalStateException("not onboarded") }
+    1 * savingsFundStatementService.getAccountStatement(_ as Person) >> Optional.empty()
     localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
 
     expect:
     mockMvc.perform(get("/v1/savings-account-statement"))
         .andExpect(status().isNoContent())
+  }
+
+  def "/savings-account-statement endpoint propagates errors instead of swallowing them as no content"() {
+    given:
+    1 * savingsFundStatementService.getAccountStatement(_ as Person) >> { throw new IllegalStateException("boom") }
+    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
+
+    when:
+    mockMvc.perform(get("/v1/savings-account-statement"))
+
+    then:
+    def exception = thrown(Exception)
+    exception.cause instanceof IllegalStateException
   }
 }

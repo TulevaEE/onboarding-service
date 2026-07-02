@@ -8,12 +8,16 @@ import static java.math.RoundingMode.HALF_UP;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
+import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
 import ee.tuleva.onboarding.ledger.LedgerService;
+import ee.tuleva.onboarding.ledger.UserAccount;
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import java.math.BigDecimal;
+import java.util.Optional;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -27,18 +31,33 @@ public class SavingsFundStatementService {
   private final FundRepository fundRepository;
   private final SavingsFundConfiguration savingsFundConfiguration;
 
-  public FundBalance getAccountStatement(AuthenticatedPerson person) {
+  public Optional<FundBalance> getAccountStatement(AuthenticatedPerson person) {
     String ownerCode = person.getRoleCode();
     PartyType partyType = PartyType.from(person.getRoleType());
 
-    if (!savingsFundOnboardingService.isOnboardingCompleted(person.toPartyId())) {
-      throw new IllegalStateException("Not onboarded: code=" + ownerCode);
+    if (savingsFundOnboardingService.isOnboardingCompleted(person.toPartyId())) {
+      return Optional.of(
+          statement(
+              account ->
+                  ledgerService.getPartyAccount(ownerCode, partyType, account).getBalance()));
     }
+    return ledgerService
+        .findPartyAccount(ownerCode, partyType, FUND_UNITS)
+        .map(
+            fundUnitsAccount ->
+                statement(
+                    account ->
+                        ledgerService
+                            .findPartyAccount(ownerCode, partyType, account)
+                            .map(LedgerAccount::getBalance)
+                            .orElse(BigDecimal.ZERO)));
+  }
 
-    BigDecimal units = getUnits(ownerCode, partyType);
+  private FundBalance statement(Function<UserAccount, BigDecimal> balances) {
+    BigDecimal units = balances.apply(FUND_UNITS).negate();
     BigDecimal value = getNAV().multiply(units).setScale(2, HALF_UP);
 
-    BigDecimal reservedUnits = getReservedUnits(ownerCode, partyType);
+    BigDecimal reservedUnits = balances.apply(FUND_UNITS_RESERVED).negate();
     BigDecimal reservedValue = getNAV().multiply(reservedUnits).setScale(2, HALF_UP);
 
     return FundBalance.builder()
@@ -48,8 +67,8 @@ public class SavingsFundStatementService {
         .value(value)
         .unavailableUnits(reservedUnits)
         .unavailableValue(reservedValue)
-        .contributions(getSubscriptions(ownerCode, partyType))
-        .subtractions(getRedemptions(ownerCode, partyType))
+        .contributions(balances.apply(SUBSCRIPTIONS).negate())
+        .subtractions(balances.apply(REDEMPTIONS).negate())
         .build();
   }
 
@@ -60,25 +79,6 @@ public class SavingsFundStatementService {
           "Savings fund not found: isin=" + savingsFundConfiguration.getIsin());
     }
     return fund;
-  }
-
-  private BigDecimal getUnits(String ownerCode, PartyType partyType) {
-    return ledgerService.getPartyAccount(ownerCode, partyType, FUND_UNITS).getBalance().negate();
-  }
-
-  private BigDecimal getReservedUnits(String ownerCode, PartyType partyType) {
-    return ledgerService
-        .getPartyAccount(ownerCode, partyType, FUND_UNITS_RESERVED)
-        .getBalance()
-        .negate();
-  }
-
-  private BigDecimal getSubscriptions(String ownerCode, PartyType partyType) {
-    return ledgerService.getPartyAccount(ownerCode, partyType, SUBSCRIPTIONS).getBalance().negate();
-  }
-
-  private BigDecimal getRedemptions(String ownerCode, PartyType partyType) {
-    return ledgerService.getPartyAccount(ownerCode, partyType, REDEMPTIONS).getBalance().negate();
   }
 
   private BigDecimal getNAV() {

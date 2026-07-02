@@ -43,14 +43,13 @@ public class AccountStatementController {
   @GetMapping("/savings-account-statement")
   public ResponseEntity<ApiFundBalanceResponse> getMySavingsAccountStatement(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    try {
-      FundBalance fundBalance =
-          savingsFundStatementService.getAccountStatement(authenticatedPerson);
-      return ResponseEntity.ok(
-          ApiFundBalanceResponse.from(fundBalance, localeService.getCurrentLocale()));
-    } catch (Exception e) {
-      return ResponseEntity.noContent().build();
-    }
+    return savingsFundStatementService
+        .getAccountStatement(authenticatedPerson)
+        .map(
+            fundBalance ->
+                ResponseEntity.ok(
+                    ApiFundBalanceResponse.from(fundBalance, localeService.getCurrentLocale())))
+        .orElseGet(() -> ResponseEntity.noContent().build());
   }
 
   private List<ApiFundBalanceResponse> convertToDtos(

@@ -43,7 +43,7 @@ class SavingsFundStatementServiceSpec extends Specification {
     fundRepository.findByIsin(savingsFund.isin) >> savingsFund
 
     when:
-    FundBalance savingsAccountStatement = service.getAccountStatement(person)
+    FundBalance savingsAccountStatement = service.getAccountStatement(person).get()
 
     then:
     savingsAccountStatement.fund == savingsFund
@@ -71,7 +71,7 @@ class SavingsFundStatementServiceSpec extends Specification {
     fundRepository.findByIsin(savingsFund.isin) >> savingsFund
 
     when:
-    FundBalance savingsAccountStatement = service.getAccountStatement(person)
+    FundBalance savingsAccountStatement = service.getAccountStatement(person).get()
 
     then:
     savingsAccountStatement.fund == savingsFund
@@ -79,16 +79,73 @@ class SavingsFundStatementServiceSpec extends Specification {
     savingsAccountStatement.value == 2.25
   }
 
-  def "throws exception if user is not onboarded"() {
+  def "returns balance for a not-onboarded party that has a ledger account"() {
+    given:
+    def person = sampleAuthenticatedPersonLegalEntity().build()
+    def registryCode = person.role.code()
+    def savingsFund = additionalSavingsFund()
+
+    savingsFundOnboardingService.isOnboardingCompleted(_ as PartyId) >> false
+    navProvider.getDisplayNav(_ as TulevaFund) >> new BigDecimal("1.12345")
+    ledgerService.findPartyAccount(registryCode, LEGAL_ENTITY, FUND_UNITS) >> Optional.of(fundUnitsAccountWithBalance(2.0))
+    ledgerService.findPartyAccount(registryCode, LEGAL_ENTITY, FUND_UNITS_RESERVED) >> Optional.of(fundUnitsReservedAccountWithBalance(1.0))
+    ledgerService.findPartyAccount(registryCode, LEGAL_ENTITY, SUBSCRIPTIONS) >> Optional.of(subscriptionsAccountWithBalance(3.0))
+    ledgerService.findPartyAccount(registryCode, LEGAL_ENTITY, REDEMPTIONS) >> Optional.of(redemptionsAccountWithBalance(1.0))
+    savingsFundConfiguration.getIsin() >> savingsFund.isin
+    fundRepository.findByIsin(savingsFund.isin) >> savingsFund
+
+    when:
+    def statement = service.getAccountStatement(person)
+
+    then:
+    statement.present
+    statement.get().fund == savingsFund
+    statement.get().units == 2
+    statement.get().value == 2.25
+    statement.get().unavailableUnits == 1
+    statement.get().contributions == 3
+    statement.get().subtractions == -1
+    0 * ledgerService.getPartyAccount(_, _, _)
+  }
+
+  def "missing secondary accounts default to zero for a not-onboarded party"() {
+    given:
+    def person = sampleAuthenticatedPersonLegalEntity().build()
+    def registryCode = person.role.code()
+    def savingsFund = additionalSavingsFund()
+
+    savingsFundOnboardingService.isOnboardingCompleted(_ as PartyId) >> false
+    navProvider.getDisplayNav(_ as TulevaFund) >> new BigDecimal("1.12345")
+    ledgerService.findPartyAccount(registryCode, LEGAL_ENTITY, FUND_UNITS) >> Optional.of(fundUnitsAccountWithBalance(2.0))
+    ledgerService.findPartyAccount(registryCode, LEGAL_ENTITY, FUND_UNITS_RESERVED) >> Optional.empty()
+    ledgerService.findPartyAccount(registryCode, LEGAL_ENTITY, SUBSCRIPTIONS) >> Optional.empty()
+    ledgerService.findPartyAccount(registryCode, LEGAL_ENTITY, REDEMPTIONS) >> Optional.empty()
+    savingsFundConfiguration.getIsin() >> savingsFund.isin
+    fundRepository.findByIsin(savingsFund.isin) >> savingsFund
+
+    when:
+    def statement = service.getAccountStatement(person)
+
+    then:
+    statement.present
+    statement.get().units == 2
+    statement.get().unavailableUnits == 0
+    statement.get().contributions == 0
+    statement.get().subtractions == 0
+  }
+
+  def "returns empty for a not-onboarded party without a ledger account"() {
     given:
     def person = sampleAuthenticatedPersonAndMember().build()
 
     savingsFundOnboardingService.isOnboardingCompleted(_ as PartyId) >> false
+    ledgerService.findPartyAccount(person.personalCode, PERSON, FUND_UNITS) >> Optional.empty()
 
     when:
-    service.getAccountStatement(person)
+    def statement = service.getAccountStatement(person)
 
     then:
-    thrown(IllegalStateException)
+    statement.empty
+    0 * ledgerService.getPartyAccount(_, _, _)
   }
 }

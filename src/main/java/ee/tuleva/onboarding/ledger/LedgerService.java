@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.ledger;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
 import ee.tuleva.onboarding.party.PartyId;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -30,6 +31,13 @@ public class LedgerService {
     return ledgerAccountService
         .findUserAccount(party, userAccount)
         .orElseGet(() -> ledgerAccountService.createUserAccount(party, userAccount));
+  }
+
+  public Optional<LedgerAccount> findPartyAccount(
+      String ownerId, PartyType partyType, UserAccount userAccount) {
+    return ledgerPartyService
+        .getParty(ownerId, partyType)
+        .flatMap(party -> ledgerAccountService.findUserAccount(party, userAccount));
   }
 
   public int countAccountsWithPositiveBalance(UserAccount userAccount) {

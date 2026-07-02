@@ -29,4 +29,10 @@ public enum KybCheckType {
   public boolean isOnboardingGate() {
     return onboardingGate;
   }
+
+  public boolean isOwnershipCheck() {
+    return this == SOLE_MEMBER_OWNERSHIP
+        || this == DUAL_MEMBER_OWNERSHIP
+        || this == SINGLE_BOARD_MEMBER_OWNERSHIP;
+  }
 }

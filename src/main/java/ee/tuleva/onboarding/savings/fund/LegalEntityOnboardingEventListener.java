@@ -28,9 +28,19 @@ class LegalEntityOnboardingEventListener {
     var personalCode = event.getPersonalCode().value();
     var oldStatus =
         savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY).orElse(null);
-    var newStatus = allGateChecksPassed(event) ? COMPLETED : REJECTED;
+    var failedGateChecks = failedGateChecks(event);
+    var newStatus = failedGateChecks.isEmpty() ? COMPLETED : REJECTED;
 
     if (newStatus == oldStatus) {
+      return;
+    }
+
+    if (oldStatus == COMPLETED && isInconclusiveOwnershipFailure(failedGateChecks, event)) {
+      log.error(
+          "KYB ownership verification inconclusive, keeping completed status for manual review: registryCode={}, personalCode={}, failedChecks={}",
+          registryCode,
+          personalCode,
+          formatFailedChecks(event.getChecks()));
       return;
     }
 
@@ -52,10 +62,17 @@ class LegalEntityOnboardingEventListener {
     }
   }
 
-  private boolean allGateChecksPassed(KybCheckPerformedEvent event) {
+  private List<KybCheck> failedGateChecks(KybCheckPerformedEvent event) {
     return event.getChecks().stream()
-        .filter(check -> check.type().isOnboardingGate())
-        .allMatch(KybCheck::success);
+        .filter(check -> check.type().isOnboardingGate() && !check.success())
+        .toList();
+  }
+
+  private boolean isInconclusiveOwnershipFailure(
+      List<KybCheck> failedGateChecks, KybCheckPerformedEvent event) {
+    return !failedGateChecks.isEmpty()
+        && failedGateChecks.stream().allMatch(check -> check.type().isOwnershipCheck())
+        && !event.hasOwnershipEvidenceChange();
   }
 
   private static String formatFailedChecks(List<KybCheck> checks) {

@@ -62,6 +62,44 @@ class LedgerServiceTest {
   }
 
   @Test
+  void findPartyAccount_returnsAccountWithoutCreating() {
+    when(ledgerPartyService.getParty(testParty.code(), PERSON))
+        .thenReturn(Optional.of(ledgerParty));
+    when(ledgerAccountService.findUserAccount(ledgerParty, SUBSCRIPTIONS))
+        .thenReturn(Optional.of(account));
+
+    var result = ledgerService.findPartyAccount(testParty.code(), PERSON, SUBSCRIPTIONS);
+
+    assertThat(result).contains(account);
+    verify(ledgerPartyService, never()).getOrCreate(any(), any());
+    verify(ledgerAccountService, never()).createUserAccount(any(), any());
+  }
+
+  @Test
+  void findPartyAccount_returnsEmptyWhenPartyMissing() {
+    when(ledgerPartyService.getParty(testParty.code(), PERSON)).thenReturn(Optional.empty());
+
+    var result = ledgerService.findPartyAccount(testParty.code(), PERSON, SUBSCRIPTIONS);
+
+    assertThat(result).isEmpty();
+    verify(ledgerPartyService, never()).getOrCreate(any(), any());
+    verify(ledgerAccountService, never()).createUserAccount(any(), any());
+  }
+
+  @Test
+  void findPartyAccount_returnsEmptyWhenAccountMissing() {
+    when(ledgerPartyService.getParty(testParty.code(), PERSON))
+        .thenReturn(Optional.of(ledgerParty));
+    when(ledgerAccountService.findUserAccount(ledgerParty, SUBSCRIPTIONS))
+        .thenReturn(Optional.empty());
+
+    var result = ledgerService.findPartyAccount(testParty.code(), PERSON, SUBSCRIPTIONS);
+
+    assertThat(result).isEmpty();
+    verify(ledgerAccountService, never()).createUserAccount(any(), any());
+  }
+
+  @Test
   void getPartyAccount_createsAccountWhenNotFound() {
     when(ledgerPartyService.getOrCreate(testParty.code(), PERSON)).thenReturn(ledgerParty);
     when(ledgerAccountService.findUserAccount(ledgerParty, SUBSCRIPTIONS))

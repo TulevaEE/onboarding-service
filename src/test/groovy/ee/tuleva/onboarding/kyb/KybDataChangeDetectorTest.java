@@ -164,6 +164,71 @@ class KybDataChangeDetectorTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
+  void successFlipWithUnchangedMetadataIsMarkedInconclusive() {
+    var metadata = Map.<String, Object>of("personalCode", "38501010001", "ownershipPercent", "100");
+    var previousChecks = List.of(new KybCheck(SOLE_MEMBER_OWNERSHIP, true, metadata));
+    var currentChecks = List.of(new KybCheck(SOLE_MEMBER_OWNERSHIP, false, metadata));
+    when(checkHistory.getLatestChecks(PERSONAL_CODE, REGISTRY_CODE)).thenReturn(previousChecks);
+
+    var result = detector.detect(PERSONAL_CODE, REGISTRY_CODE, currentChecks);
+
+    var changes = (List<Map<String, Object>>) result.metadata().get("changes");
+    assertThat(changes).hasSize(1);
+    assertThat(changes.getFirst())
+        .containsEntry("check", "SOLE_MEMBER_OWNERSHIP")
+        .containsEntry("metadataChanged", false);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void metadataChangeIsMarkedAsEvidence() {
+    var previousChecks =
+        List.of(
+            new KybCheck(
+                SOLE_MEMBER_OWNERSHIP,
+                true,
+                Map.of("personalCode", "38501010001", "ownershipPercent", "100")));
+    var currentChecks =
+        List.of(
+            new KybCheck(
+                SOLE_MEMBER_OWNERSHIP,
+                false,
+                Map.of("personalCode", "39901010000", "ownershipPercent", "100")));
+    when(checkHistory.getLatestChecks(PERSONAL_CODE, REGISTRY_CODE)).thenReturn(previousChecks);
+
+    var result = detector.detect(PERSONAL_CODE, REGISTRY_CODE, currentChecks);
+
+    var changes = (List<Map<String, Object>>) result.metadata().get("changes");
+    assertThat(changes).hasSize(1);
+    assertThat(changes.getFirst())
+        .containsEntry("check", "SOLE_MEMBER_OWNERSHIP")
+        .containsEntry("metadataChanged", true);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void removedCheckIsMarkedAsMetadataChanged() {
+    var previousChecks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of("status", "R")),
+            new KybCheck(SOLE_MEMBER_OWNERSHIP, true, Map.of()));
+    var currentChecks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of("status", "R")),
+            new KybCheck(DUAL_MEMBER_OWNERSHIP, true, Map.of()));
+    when(checkHistory.getLatestChecks(PERSONAL_CODE, REGISTRY_CODE)).thenReturn(previousChecks);
+
+    var result = detector.detect(PERSONAL_CODE, REGISTRY_CODE, currentChecks);
+
+    var changes = (List<Map<String, Object>>) result.metadata().get("changes");
+    assertThat(changes).hasSize(1);
+    assertThat(changes.getFirst())
+        .containsEntry("check", "SOLE_MEMBER_OWNERSHIP")
+        .containsEntry("metadataChanged", true);
+  }
+
+  @Test
   void volatileSanctionMetadataAloneDoesNotCountAsChange() {
     var previousChecks =
         List.of(new KybCheck(COMPANY_SANCTION, true, Map.of("results", "[{id=Q1, score=0.31}]")));

@@ -7,6 +7,9 @@ import ee.tuleva.onboarding.ariregister.generated.ObjectFactory;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV2;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV2Response;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6Query;
+import ee.tuleva.onboarding.ariregister.generated.kasusaajad.TegelikudKasusaajadRequest;
+import ee.tuleva.onboarding.ariregister.generated.kasusaajad.TegelikudKasusaajadV2;
+import ee.tuleva.onboarding.ariregister.generated.kasusaajad.TegelikudKasusaajadV2Response;
 import jakarta.xml.bind.JAXBElement;
 import java.math.BigInteger;
 import java.time.LocalDate;
@@ -33,14 +36,14 @@ public class AriregisterClient {
   public List<CompanyRelationship> getCompanyRelationships(String registryCode) {
     log.info("Fetching company relationships: registryCode={}", registryCode);
 
-    var paring = new EttevottegaSeotudIsikudParing();
-    paring.setAriregisterKasutajanimi(properties.username());
-    paring.setAriregisterParool(properties.password());
-    paring.setAriregistriKood(new BigInteger(registryCode));
-    paring.setKeel("est");
+    var requestBody = new EttevottegaSeotudIsikudParing();
+    requestBody.setAriregisterKasutajanimi(properties.username());
+    requestBody.setAriregisterParool(properties.password());
+    requestBody.setAriregistriKood(new BigInteger(registryCode));
+    requestBody.setKeel("est");
 
     var request = new EttevottegaSeotudIsikudV1();
-    request.setKeha(paring);
+    request.setKeha(requestBody);
 
     @SuppressWarnings("unchecked")
     var response =
@@ -48,12 +51,16 @@ public class AriregisterClient {
             ariregisterWebServiceTemplate.marshalSendAndReceive(
                 FACTORY.createEttevottegaSeotudIsikudV1(request));
 
-    var vastus = response.getValue().getKeha();
-    if (vastus == null || vastus.getSeosed() == null) {
+    if (response == null || response.getValue() == null) {
+      throw new IllegalStateException(
+          "No company relationships response: registryCode=" + registryCode);
+    }
+    var responseBody = response.getValue().getKeha();
+    if (responseBody == null || responseBody.getSeosed() == null) {
       return List.of();
     }
 
-    return vastus.getSeosed().stream().map(CompanyRelationshipMapper::fromSeos).toList();
+    return responseBody.getSeosed().stream().map(CompanyRelationshipMapper::fromSeos).toList();
   }
 
   public Optional<CompanyDetail> getCompanyDetails(String registryCode) {
@@ -82,12 +89,17 @@ public class AriregisterClient {
             ariregisterWebServiceTemplate.marshalSendAndReceive(
                 DETAILANDMED_FACTORY.createDetailandmedV2(request));
 
-    var vastus = response.getValue().getKeha();
-    if (vastus == null || vastus.getEttevotjad() == null || vastus.getEttevotjad().isNil()) {
+    if (response == null || response.getValue() == null) {
+      throw new IllegalStateException("No company details response: registryCode=" + registryCode);
+    }
+    var responseBody = response.getValue().getKeha();
+    if (responseBody == null
+        || responseBody.getEttevotjad() == null
+        || responseBody.getEttevotjad().isNil()) {
       return Optional.empty();
     }
 
-    return vastus.getEttevotjad().getValue().getItem().stream()
+    return responseBody.getEttevotjad().getValue().getItem().stream()
         .findFirst()
         .map(CompanyDetailMapper::fromEttevotja);
   }
@@ -98,5 +110,36 @@ public class AriregisterClient {
         .filter(r -> r.startDate() == null || !r.startDate().isAfter(asOf))
         .filter(r -> r.endDate() == null || !r.endDate().isBefore(asOf))
         .toList();
+  }
+
+  public BeneficialOwners getBeneficialOwners(String registryCode) {
+    log.info("Fetching beneficial owners: registryCode={}", registryCode);
+
+    var requestBody = new TegelikudKasusaajadRequest();
+    requestBody.setAriregisterKasutajanimi(properties.username());
+    requestBody.setAriregisterParool(properties.password());
+    requestBody.setAriregistriKood(Integer.parseInt(registryCode));
+    requestBody.setAinultKehtivad(true);
+    requestBody.setKeel("est");
+
+    var request = new TegelikudKasusaajadV2();
+    request.setKeha(requestBody);
+
+    var response =
+        (TegelikudKasusaajadV2Response)
+            ariregisterWebServiceTemplate.marshalSendAndReceive(request);
+
+    if (response == null || response.getKeha() == null) {
+      throw new IllegalStateException(
+          "Empty beneficial owners response: registryCode=" + registryCode);
+    }
+    var responseBody = response.getKeha();
+    var ownersData = responseBody.getKasusaajad();
+    if (ownersData == null) {
+      return BeneficialOwners.none();
+    }
+    var owners =
+        ownersData.getKasusaaja().stream().map(BeneficialOwnerMapper::fromKasusaaja).toList();
+    return new BeneficialOwners(owners, ownersData.getPeidetudKasusaajateArv().intValue());
   }
 }

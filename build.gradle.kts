@@ -382,6 +382,9 @@ tasks {
                 file(
                     "$ariregisterDir/detailandmed_v2.xsd",
                 ) to "ee.tuleva.onboarding.ariregister.generated.detailandmed",
+                file(
+                    "$ariregisterDir/tegelikudKasusaajad_v2.xsd",
+                ) to "ee.tuleva.onboarding.ariregister.generated.kasusaajad",
             )
 
         val bindingsFile = file("$projectDir/src/main/resources/jaxb-bindings.xjb")

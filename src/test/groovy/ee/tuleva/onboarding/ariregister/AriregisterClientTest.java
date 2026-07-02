@@ -6,6 +6,7 @@ import static org.springframework.ws.test.client.ResponseCreators.withPayload;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -157,6 +158,64 @@ class AriregisterClientTest {
     mockServer.verify();
   }
 
+  @Test
+  void getBeneficialOwners() throws Exception {
+    mockServer
+        .expect(xpath("//ar:ariregistri_kood", NS).evaluatesTo("99000001"))
+        .andExpect(xpath("//ar:ariregister_kasutajanimi", NS).evaluatesTo("testuser"))
+        .andExpect(xpath("//ar:ariregister_parool", NS).evaluatesTo("testpass"))
+        .andExpect(xpath("//ar:ainult_kehtivad", NS).evaluatesTo("true"))
+        .andRespond(withPayload(beneficialOwnersResponsePayload()));
+
+    var result = client.getBeneficialOwners("99000001");
+
+    assertThat(result)
+        .isEqualTo(
+            new BeneficialOwners(
+                List.of(
+                    new BeneficialOwner("Jaan", "Tamm", "39901010000", "O"),
+                    new BeneficialOwner("Mari", "Maasikas", null, "J")),
+                0));
+  }
+
+  @Test
+  void getBeneficialOwnersReportsHiddenOwnerCount() throws Exception {
+    mockServer
+        .expect(xpath("//ar:ariregistri_kood", NS).evaluatesTo("99000001"))
+        .andRespond(
+            withPayload(
+                new ResourceSource(
+                    new ClassPathResource(
+                        "ariregister/tegelikudKasusaajad_v2_hidden_response.xml"))));
+
+    var result = client.getBeneficialOwners("99000001");
+
+    assertThat(result)
+        .isEqualTo(
+            new BeneficialOwners(
+                List.of(new BeneficialOwner("Jaan", "Tamm", "39901010000", "O")), 1));
+  }
+
+  @Test
+  void getBeneficialOwnersReturnsEmptyWhenNoneRegistered() throws Exception {
+    mockServer
+        .expect(xpath("//ar:ariregistri_kood", NS).evaluatesTo("99000001"))
+        .andRespond(
+            withPayload(
+                new ResourceSource(
+                    new ClassPathResource(
+                        "ariregister/tegelikudKasusaajad_v2_empty_response.xml"))));
+
+    var result = client.getBeneficialOwners("99000001");
+
+    assertThat(result).isEqualTo(new BeneficialOwners(List.of(), 0));
+  }
+
+  private static ResourceSource beneficialOwnersResponsePayload() throws Exception {
+    return new ResourceSource(
+        new ClassPathResource("ariregister/tegelikudKasusaajad_v2_response.xml"));
+  }
+
   private static ResourceSource responsePayload() throws Exception {
     return new ResourceSource(
         new ClassPathResource("ariregister/ettevottegaSeotudIsikud_v1_response.xml"));
@@ -174,7 +233,8 @@ class AriregisterClientTest {
       var marshaller = new Jaxb2Marshaller();
       marshaller.setContextPath(
           "ee.tuleva.onboarding.ariregister.generated"
-              + ":ee.tuleva.onboarding.ariregister.generated.detailandmed");
+              + ":ee.tuleva.onboarding.ariregister.generated.detailandmed"
+              + ":ee.tuleva.onboarding.ariregister.generated.kasusaajad");
       return marshaller;
     }
 

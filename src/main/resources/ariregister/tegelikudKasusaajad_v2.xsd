@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<xsd:schema
+    targetNamespace="http://arireg.x-road.eu/producer/"
+    elementFormDefault="qualified"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:ar="http://arireg.x-road.eu/producer/">
+
+    <xsd:complexType name="tegelikudKasusaajadRequest">
+        <xsd:sequence>
+            <xsd:element name="ariregister_kasutajanimi" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="ariregister_parool" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="ariregistri_kood" type="xsd:int"/>
+            <xsd:element name="ainult_kehtivad" type="xsd:boolean" minOccurs="0"/>
+            <xsd:element name="keel" type="xsd:string" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="tegelikudKasusaajad_v2Vastus">
+        <xsd:all>
+            <xsd:element name="kasusaajad" type="ar:tegelikudKasusaajad_v2_kasusaajad" minOccurs="0"/>
+            <xsd:element name="esitab_kasusaajad" type="xsd:boolean" minOccurs="0"/>
+        </xsd:all>
+    </xsd:complexType>
+
+    <xsd:complexType name="tegelikudKasusaajad_v2_kasusaajad">
+        <xsd:sequence>
+            <xsd:element name="kasusaajate_arv_kokku" type="xsd:integer"/>
+            <xsd:element name="peidetud_kasusaajate_arv" type="xsd:integer"/>
+            <xsd:element name="lahknevusteade_puudumisest" type="xsd:boolean" minOccurs="0"/>
+            <xsd:element name="kasusaaja" type="ar:tegelikudKasusaajad_v2_kasusaaja" minOccurs="0" maxOccurs="unbounded"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="tegelikudKasusaajad_v2_kasusaaja">
+        <xsd:sequence>
+            <xsd:element name="kirje_id" type="xsd:integer" minOccurs="0"/>
+            <xsd:element name="eesnimi" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="nimi" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="isikukood" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="valis_kood" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="valis_kood_riik" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="synniaeg" type="xsd:date" minOccurs="0"/>
+            <xsd:element name="kontrolli_teostamise_viis" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="kontrolli_teostamise_viis_tekstina" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="algus_kpv" type="xsd:date" minOccurs="0"/>
+            <xsd:element name="lopp_kpv" type="xsd:date" minOccurs="0"/>
+            <xsd:element name="lahknevusteade_esitatud" type="xsd:boolean" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:element name="tegelikudKasusaajad_v2">
+        <xsd:complexType>
+            <xsd:sequence>
+                <xsd:element name="keha" type="ar:tegelikudKasusaajadRequest"/>
+            </xsd:sequence>
+        </xsd:complexType>
+    </xsd:element>
+
+    <xsd:element name="tegelikudKasusaajad_v2Response">
+        <xsd:complexType>
+            <xsd:sequence>
+                <xsd:element name="paring" type="ar:tegelikudKasusaajadRequest" minOccurs="0"/>
+                <xsd:element name="keha" type="ar:tegelikudKasusaajad_v2Vastus"/>
+            </xsd:sequence>
+        </xsd:complexType>
+    </xsd:element>
+
+</xsd:schema>

@@ -1,0 +1,9 @@
+<ns1:tegelikudKasusaajad_v2Response xmlns:ns1="http://arireg.x-road.eu/producer/">
+  <ns1:keha>
+    <ns1:kasusaajad>
+      <ns1:kasusaajate_arv_kokku>0</ns1:kasusaajate_arv_kokku>
+      <ns1:peidetud_kasusaajate_arv>0</ns1:peidetud_kasusaajate_arv>
+      <ns1:lahknevusteade_puudumisest>true</ns1:lahknevusteade_puudumisest>
+    </ns1:kasusaajad>
+  </ns1:keha>
+</ns1:tegelikudKasusaajad_v2Response>

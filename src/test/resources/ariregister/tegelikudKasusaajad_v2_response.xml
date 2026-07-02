@@ -1,0 +1,23 @@
+<ns1:tegelikudKasusaajad_v2Response xmlns:ns1="http://arireg.x-road.eu/producer/">
+  <ns1:keha>
+    <ns1:kasusaajad>
+      <ns1:kasusaajate_arv_kokku>2</ns1:kasusaajate_arv_kokku>
+      <ns1:peidetud_kasusaajate_arv>0</ns1:peidetud_kasusaajate_arv>
+      <ns1:lahknevusteade_puudumisest>false</ns1:lahknevusteade_puudumisest>
+      <ns1:kasusaaja>
+        <ns1:kirje_id>1</ns1:kirje_id>
+        <ns1:eesnimi>Jaan</ns1:eesnimi>
+        <ns1:nimi>Tamm</ns1:nimi>
+        <ns1:isikukood>39901010000</ns1:isikukood>
+        <ns1:kontrolli_teostamise_viis>O</ns1:kontrolli_teostamise_viis>
+        <ns1:kontrolli_teostamise_viis_tekstina>otsene omand</ns1:kontrolli_teostamise_viis_tekstina>
+        <ns1:algus_kpv>2019-05-01</ns1:algus_kpv>
+      </ns1:kasusaaja>
+      <ns1:kasusaaja>
+        <ns1:eesnimi>Mari</ns1:eesnimi>
+        <ns1:nimi>Maasikas</ns1:nimi>
+        <ns1:kontrolli_teostamise_viis>J</ns1:kontrolli_teostamise_viis>
+      </ns1:kasusaaja>
+    </ns1:kasusaajad>
+  </ns1:keha>
+</ns1:tegelikudKasusaajad_v2Response>

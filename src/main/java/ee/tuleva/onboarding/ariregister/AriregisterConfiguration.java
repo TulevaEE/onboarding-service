@@ -19,7 +19,8 @@ class AriregisterConfiguration {
     var marshaller = new Jaxb2Marshaller();
     marshaller.setContextPath(
         "ee.tuleva.onboarding.ariregister.generated"
-            + ":ee.tuleva.onboarding.ariregister.generated.detailandmed");
+            + ":ee.tuleva.onboarding.ariregister.generated.detailandmed"
+            + ":ee.tuleva.onboarding.ariregister.generated.kasusaajad");
     return marshaller;
   }
 

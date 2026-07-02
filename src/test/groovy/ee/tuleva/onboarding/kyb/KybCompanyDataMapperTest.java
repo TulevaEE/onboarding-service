@@ -10,6 +10,8 @@ import static org.mockito.Mockito.when;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.ariregister.AddressDetails;
+import ee.tuleva.onboarding.ariregister.BeneficialOwner;
+import ee.tuleva.onboarding.ariregister.BeneficialOwners;
 import ee.tuleva.onboarding.ariregister.CompanyAddress;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
@@ -22,6 +24,7 @@ class KybCompanyDataMapperTest {
 
   private static final PersonalCode PERSONAL_CODE = new PersonalCode("38501010002");
   private static final SelfCertification SELF_CERT = new SelfCertification(true, true, true);
+  private static final BeneficialOwners NO_BENEFICIAL_OWNERS = BeneficialOwners.none();
 
   private final AmlCheckRepository amlCheckRepository = mock(AmlCheckRepository.class);
   private final KybCompanyDataMapper mapper = new KybCompanyDataMapper(amlCheckRepository);
@@ -62,7 +65,12 @@ class KybCompanyDataMapperTest {
 
     var result =
         mapper.toKybCompanyData(
-            detail, PERSONAL_CODE, List.of(boardMember, shareholder), SELF_CERT);
+            detail,
+            PERSONAL_CODE,
+            List.of(boardMember, shareholder),
+            new BeneficialOwners(
+                List.of(new BeneficialOwner("Jaan", "Tamm", PERSONAL_CODE.value(), "O")), 0),
+            SELF_CERT);
 
     assertThat(result.company())
         .isEqualTo(new CompanyDto(new RegistryCode("12345678"), "Test OÜ", null, LegalForm.OÜ));
@@ -115,7 +123,8 @@ class KybCompanyDataMapperTest {
         new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
 
     var result =
-        mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(person1, person2), SELF_CERT);
+        mapper.toKybCompanyData(
+            detail, PERSONAL_CODE, List.of(person1, person2), NO_BENEFICIAL_OWNERS, SELF_CERT);
 
     assertThat(result.relatedPersons()).hasSize(2);
     assertThat(result.relatedPersons())
@@ -128,7 +137,7 @@ class KybCompanyDataMapperTest {
   }
 
   @Test
-  void mapsBeneficialOwnerByControlMethod() {
+  void controlMethodOnRelationshipDoesNotMakeBeneficialOwner() {
     var relationship =
         new CompanyRelationship(
             "F",
@@ -147,7 +156,47 @@ class KybCompanyDataMapperTest {
     var detail =
         new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
 
-    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(relationship), SELF_CERT);
+    var result =
+        mapper.toKybCompanyData(
+            detail, PERSONAL_CODE, List.of(relationship), NO_BENEFICIAL_OWNERS, SELF_CERT);
+
+    assertThat(result.relatedPersons())
+        .containsExactly(
+            kybPerson()
+                .personalCode(PERSONAL_CODE)
+                .shareholder(true)
+                .ownershipPercent(new BigDecimal("75.00"))
+                .build());
+  }
+
+  @Test
+  void beneficialOwnerFlagComesFromBeneficialOwnersRegistry() {
+    var relationship =
+        new CompanyRelationship(
+            "F",
+            "OSAN",
+            "Osanik",
+            "Jaan",
+            "Tamm",
+            "38501010002",
+            null,
+            null,
+            null,
+            new BigDecimal("100.00"),
+            null,
+            "EST");
+
+    var detail =
+        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+
+    var result =
+        mapper.toKybCompanyData(
+            detail,
+            PERSONAL_CODE,
+            List.of(relationship),
+            new BeneficialOwners(
+                List.of(new BeneficialOwner("Jaan", "Tamm", "38501010002", "O")), 0),
+            SELF_CERT);
 
     assertThat(result.relatedPersons())
         .containsExactly(
@@ -155,8 +204,77 @@ class KybCompanyDataMapperTest {
                 .personalCode(PERSONAL_CODE)
                 .shareholder(true)
                 .beneficialOwner(true)
-                .ownershipPercent(new BigDecimal("75.00"))
+                .ownershipPercent(new BigDecimal("100.00"))
                 .build());
+  }
+
+  @Test
+  void synthesizesRelatedPersonForBeneficialOwnerWithoutRelationships() {
+    var relationship =
+        new CompanyRelationship(
+            "F",
+            "OSAN",
+            "Osanik",
+            "Jaan",
+            "Tamm",
+            "38501010002",
+            null,
+            null,
+            null,
+            new BigDecimal("100.00"),
+            null,
+            "EST");
+
+    var detail =
+        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+
+    var result =
+        mapper.toKybCompanyData(
+            detail,
+            PERSONAL_CODE,
+            List.of(relationship),
+            new BeneficialOwners(
+                List.of(new BeneficialOwner("Mari", "Maasikas", "49001010001", "K")), 0),
+            SELF_CERT);
+
+    assertThat(result.relatedPersons())
+        .containsExactly(
+            kybPerson()
+                .personalCode(PERSONAL_CODE)
+                .shareholder(true)
+                .ownershipPercent(new BigDecimal("100.00"))
+                .build(),
+            kybPerson("49001010001").beneficialOwner(true).build());
+  }
+
+  @Test
+  void synthesizesUnidentifiedPersonPerHiddenBeneficialOwner() {
+    var detail =
+        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+
+    var result =
+        mapper.toKybCompanyData(
+            detail, PERSONAL_CODE, List.of(), new BeneficialOwners(List.of(), 2), SELF_CERT);
+
+    assertThat(result.relatedPersons())
+        .containsExactly(
+            kybPerson().beneficialOwner(true).build(), kybPerson().beneficialOwner(true).build());
+  }
+
+  @Test
+  void synthesizesUnidentifiedPersonForForeignBeneficialOwnerWithoutCode() {
+    var detail =
+        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+
+    var result =
+        mapper.toKybCompanyData(
+            detail,
+            PERSONAL_CODE,
+            List.of(),
+            new BeneficialOwners(List.of(new BeneficialOwner("Sven", "Svensson", null, "K")), 0),
+            SELF_CERT);
+
+    assertThat(result.relatedPersons()).containsExactly(kybPerson().beneficialOwner(true).build());
   }
 
   @Test
@@ -168,7 +286,8 @@ class KybCompanyDataMapperTest {
     var detail =
         new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, address, null, null, List.of());
 
-    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), SELF_CERT);
+    var result =
+        mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), NO_BENEFICIAL_OWNERS, SELF_CERT);
 
     assertThat(result.countryCode()).isEqualTo("EE");
     assertThat(result.fullAddress()).isEqualTo("Tartu maakond, Tartu linn, Paju 2");
@@ -179,7 +298,8 @@ class KybCompanyDataMapperTest {
     var detail =
         new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
 
-    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), SELF_CERT);
+    var result =
+        mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), NO_BENEFICIAL_OWNERS, SELF_CERT);
 
     assertThat(result.countryCode()).isNull();
     assertThat(result.fullAddress()).isNull();
@@ -190,7 +310,8 @@ class KybCompanyDataMapperTest {
     var detail =
         new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
 
-    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), SELF_CERT);
+    var result =
+        mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), NO_BENEFICIAL_OWNERS, SELF_CERT);
 
     assertThat(result.status()).isEqualTo(R);
   }
@@ -209,7 +330,8 @@ class KybCompanyDataMapperTest {
             null,
             List.of());
 
-    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), SELF_CERT);
+    var result =
+        mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), NO_BENEFICIAL_OWNERS, SELF_CERT);
 
     assertThat(result.foundingDate()).isEqualTo(LocalDate.of(2020, 1, 15));
   }
@@ -219,7 +341,8 @@ class KybCompanyDataMapperTest {
     var detail =
         new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
 
-    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), SELF_CERT);
+    var result =
+        mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), NO_BENEFICIAL_OWNERS, SELF_CERT);
 
     assertThat(result.foundingDate()).isNull();
   }
@@ -260,7 +383,11 @@ class KybCompanyDataMapperTest {
 
     var result =
         mapper.toKybCompanyData(
-            detail, PERSONAL_CODE, List.of(withCode, foreignBoardMember), SELF_CERT);
+            detail,
+            PERSONAL_CODE,
+            List.of(withCode, foreignBoardMember),
+            NO_BENEFICIAL_OWNERS,
+            SELF_CERT);
 
     assertThat(result.relatedPersons()).hasSize(2);
     assertThat(result.relatedPersons())
@@ -274,7 +401,8 @@ class KybCompanyDataMapperTest {
     var detail =
         new CompanyDetail("Test TÜH", "12345678", "R", "TÜH", null, null, null, null, List.of());
 
-    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), SELF_CERT);
+    var result =
+        mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), NO_BENEFICIAL_OWNERS, SELF_CERT);
 
     assertThat(result.company().legalForm()).isEqualTo(LegalForm.TÜH);
   }
@@ -284,7 +412,8 @@ class KybCompanyDataMapperTest {
     var detail =
         new CompanyDetail("Test XYZ", "12345678", "R", "XYZ", null, null, null, null, List.of());
 
-    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), SELF_CERT);
+    var result =
+        mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), NO_BENEFICIAL_OWNERS, SELF_CERT);
 
     assertThat(result.company().legalForm()).isEqualTo(LegalForm.OTHER);
   }
@@ -323,7 +452,9 @@ class KybCompanyDataMapperTest {
     var detail =
         new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
 
-    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(role1, role2), SELF_CERT);
+    var result =
+        mapper.toKybCompanyData(
+            detail, PERSONAL_CODE, List.of(role1, role2), NO_BENEFICIAL_OWNERS, SELF_CERT);
 
     assertThat(result.relatedPersons())
         .first()
@@ -341,7 +472,9 @@ class KybCompanyDataMapperTest {
     var detail =
         new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
 
-    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(relationship), SELF_CERT);
+    var result =
+        mapper.toKybCompanyData(
+            detail, PERSONAL_CODE, List.of(relationship), NO_BENEFICIAL_OWNERS, SELF_CERT);
 
     assertThat(result.relatedPersons().getFirst().kycStatus()).isEqualTo(KybKycStatus.COMPLETED);
   }
@@ -359,7 +492,9 @@ class KybCompanyDataMapperTest {
     var detail =
         new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
 
-    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(relationship), SELF_CERT);
+    var result =
+        mapper.toKybCompanyData(
+            detail, PERSONAL_CODE, List.of(relationship), NO_BENEFICIAL_OWNERS, SELF_CERT);
 
     assertThat(result.relatedPersons().getFirst().kycStatus()).isEqualTo(KybKycStatus.REJECTED);
   }
@@ -370,7 +505,9 @@ class KybCompanyDataMapperTest {
     var detail =
         new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
 
-    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(relationship), SELF_CERT);
+    var result =
+        mapper.toKybCompanyData(
+            detail, PERSONAL_CODE, List.of(relationship), NO_BENEFICIAL_OWNERS, SELF_CERT);
 
     assertThat(result.relatedPersons().getFirst().kycStatus()).isEqualTo(KybKycStatus.UNKNOWN);
   }
@@ -381,7 +518,9 @@ class KybCompanyDataMapperTest {
     var detail =
         new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
 
-    var result = mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(shareholder), SELF_CERT);
+    var result =
+        mapper.toKybCompanyData(
+            detail, PERSONAL_CODE, List.of(shareholder), NO_BENEFICIAL_OWNERS, SELF_CERT);
 
     assertThat(result.relatedPersons())
         .containsExactly(
@@ -400,7 +539,8 @@ class KybCompanyDataMapperTest {
         new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
 
     var result =
-        mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(legalEntityOwner), SELF_CERT);
+        mapper.toKybCompanyData(
+            detail, PERSONAL_CODE, List.of(legalEntityOwner), NO_BENEFICIAL_OWNERS, SELF_CERT);
 
     assertThat(result.relatedPersons())
         .containsExactly(

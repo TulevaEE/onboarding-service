@@ -7,6 +7,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.ariregister.AriregisterClient;
+import ee.tuleva.onboarding.ariregister.BeneficialOwner;
+import ee.tuleva.onboarding.ariregister.BeneficialOwners;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.kyb.survey.KybSurveyInputs;
@@ -26,6 +28,8 @@ class LegalEntityScreenerTest {
   private static final String REGISTRY_CODE = "12345678";
   private static final PersonalCode PERSONAL_CODE = new PersonalCode("38501010002");
   private static final SelfCertification SELF_CERT = new SelfCertification(true, true, true);
+  private static final BeneficialOwners BENEFICIAL_OWNERS =
+      new BeneficialOwners(List.of(new BeneficialOwner("Jaan", "Tamm", "38501010002", "O")), 0);
   private static final Clock FIXED_CLOCK =
       Clock.fixed(Instant.parse("2026-03-27T10:00:00Z"), ZoneId.of("Europe/Tallinn"));
 
@@ -77,6 +81,7 @@ class LegalEntityScreenerTest {
     var relationships = List.of(relationship("JUHL", "Jaan", "Tamm", "38501010002"));
     var detail = sampleDetail();
     given(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).willReturn(Optional.of(detail));
+    given(ariregisterClient.getBeneficialOwners(REGISTRY_CODE)).willReturn(BENEFICIAL_OWNERS);
     var companyData =
         new KybCompanyData(
             new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", null, LegalForm.OÜ),
@@ -88,7 +93,9 @@ class LegalEntityScreenerTest {
             "Harju maakond, Tallinn, Pärnu mnt 1",
             null,
             List.of());
-    given(kybCompanyDataMapper.toKybCompanyData(detail, PERSONAL_CODE, relationships, SELF_CERT))
+    given(
+            kybCompanyDataMapper.toKybCompanyData(
+                detail, PERSONAL_CODE, relationships, BENEFICIAL_OWNERS, SELF_CERT))
         .willReturn(companyData);
     var checks = List.of(new KybCheck(KybCheckType.COMPANY_ACTIVE, true, Map.of()));
     given(kybScreeningService.screen(companyData)).willReturn(checks);
@@ -104,6 +111,7 @@ class LegalEntityScreenerTest {
     var relationships = List.of(relationship("JUHL", "Jaan", "Tamm", "38501010002"));
     var detail = sampleDetail();
     given(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).willReturn(Optional.of(detail));
+    given(ariregisterClient.getBeneficialOwners(REGISTRY_CODE)).willReturn(BENEFICIAL_OWNERS);
     var companyData =
         new KybCompanyData(
             new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", null, LegalForm.OÜ),
@@ -115,7 +123,9 @@ class LegalEntityScreenerTest {
             "Harju maakond, Tallinn, Pärnu mnt 1",
             null,
             List.of());
-    given(kybCompanyDataMapper.toKybCompanyData(detail, PERSONAL_CODE, relationships, null))
+    given(
+            kybCompanyDataMapper.toKybCompanyData(
+                detail, PERSONAL_CODE, relationships, BENEFICIAL_OWNERS, null))
         .willReturn(companyData);
     var checks = List.of(new KybCheck(KybCheckType.COMPANY_ACTIVE, true, Map.of()));
     given(kybScreeningService.validate(companyData)).willReturn(checks);
@@ -136,6 +146,7 @@ class LegalEntityScreenerTest {
         .willReturn(List.of(boardMember, founder));
     var detail = sampleDetail();
     given(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).willReturn(Optional.of(detail));
+    given(ariregisterClient.getBeneficialOwners(REGISTRY_CODE)).willReturn(BENEFICIAL_OWNERS);
     given(latestKybSurveyInputs.findByRegistryCode(REGISTRY_CODE))
         .willReturn(new KybSurveyInputs(PERSONAL_CODE, SELF_CERT));
     var companyData =
@@ -151,7 +162,7 @@ class LegalEntityScreenerTest {
             List.of());
     given(
             kybCompanyDataMapper.toKybCompanyData(
-                detail, PERSONAL_CODE, List.of(boardMember), SELF_CERT))
+                detail, PERSONAL_CODE, List.of(boardMember), BENEFICIAL_OWNERS, SELF_CERT))
         .willReturn(companyData);
     var checks = List.of(new KybCheck(KybCheckType.COMPANY_ACTIVE, true, Map.of()));
     given(kybScreeningService.screen(companyData)).willReturn(checks);

@@ -36,9 +36,10 @@ public class LegalEntityScreener {
       SelfCertification selfCertification,
       List<CompanyRelationship> relationships) {
     var detail = fetchCompanyDetail(registryCode);
+    var beneficialOwners = ariregisterClient.getBeneficialOwners(registryCode);
     var data =
         kybCompanyDataMapper.toKybCompanyData(
-            detail, personalCode, relationships, selfCertification);
+            detail, personalCode, relationships, beneficialOwners, selfCertification);
     return kybScreeningService.screen(data);
   }
 
@@ -55,9 +56,10 @@ public class LegalEntityScreener {
       SelfCertification selfCertification,
       List<CompanyRelationship> relationships) {
     var detail = fetchCompanyDetail(registryCode);
+    var beneficialOwners = ariregisterClient.getBeneficialOwners(registryCode);
     var data =
         kybCompanyDataMapper.toKybCompanyData(
-            detail, personalCode, relationships, selfCertification);
+            detail, personalCode, relationships, beneficialOwners, selfCertification);
     return new ValidationResult(detail, kybScreeningService.validate(data));
   }
 

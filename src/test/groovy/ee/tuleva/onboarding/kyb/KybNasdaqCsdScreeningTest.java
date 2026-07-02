@@ -10,6 +10,8 @@ import static org.mockito.Mockito.mock;
 
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.ariregister.AriregisterClient;
+import ee.tuleva.onboarding.ariregister.BeneficialOwner;
+import ee.tuleva.onboarding.ariregister.BeneficialOwners;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.kyb.screener.CompanyStructureScreener;
 import ee.tuleva.onboarding.kyb.screener.DualMemberOwnershipScreener;
@@ -53,6 +55,7 @@ class KybNasdaqCsdScreeningTest {
   @Test
   void nasdaqCsdRegisteredSoleOwnerOuIsNotRejectedForStructureOrOwnership() {
     givenRelationships(nasdaqCsdSoleOwnerRelationships(JAAN.value()));
+    givenBeneficialOwners(new BeneficialOwner("Jaan", "Tamm", JAAN.value(), "O"));
 
     var checks = screenActive(JAAN);
 
@@ -66,6 +69,7 @@ class KybNasdaqCsdScreeningTest {
         List.of(
             boardMember(JAAN.value(), "Jaan", "Tamm"),
             legalEntityShareholder("90000002", "Holding OÜ", new BigDecimal("100.00"))));
+    givenBeneficialOwners();
 
     var checks = screenActive(JAAN);
 
@@ -83,11 +87,19 @@ class KybNasdaqCsdScreeningTest {
             nasdaqCsdShareholder(MARI.value(), "Mari", "Kask", new BigDecimal("50.00")),
             nasdaqBeneficialOwner(MARI.value(), "Mari", "Kask"),
             shareRegistrar()));
+    givenBeneficialOwners(
+        new BeneficialOwner("Jaan", "Tamm", JAAN.value(), "O"),
+        new BeneficialOwner("Mari", "Kask", MARI.value(), "O"));
 
     var checks = screenActive(JAAN);
 
     assertThat(success(checks, COMPANY_STRUCTURE)).isTrue();
     assertThat(success(checks, DUAL_MEMBER_OWNERSHIP)).isTrue();
+  }
+
+  private void givenBeneficialOwners(BeneficialOwner... owners) {
+    given(ariregisterClient.getBeneficialOwners(REGISTRY_CODE))
+        .willReturn(new BeneficialOwners(List.of(owners), 0));
   }
 
   private void givenRelationships(List<CompanyRelationship> relationships) {

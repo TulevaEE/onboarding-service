@@ -2,10 +2,12 @@ package ee.tuleva.onboarding.kyb;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.kyb.CompanyStatus.R;
-import static ee.tuleva.onboarding.kyb.KybKycStatus.*;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyWith;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.kybPerson;
+import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
+import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -16,9 +18,7 @@ import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
-import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
-import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus;
 import ee.tuleva.onboarding.time.ClockHolder;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
@@ -102,7 +102,7 @@ class KybScreeningIntegrationTest {
             .boardMember(true)
             .shareholder(true)
             .ownershipPercent(BigDecimal.valueOf(100))
-            .kycStatus(COMPLETED)
+            .kycStatus(KybKycStatus.COMPLETED)
             .build();
     var data = companyWith(person);
 
@@ -153,7 +153,7 @@ class KybScreeningIntegrationTest {
 
   @Test
   void relatedPersonWithRejectedKycCreatesFailedKycCheck() {
-    var person = boardMemberOwner(PERSONAL_CODE, 100.0).kycStatus(REJECTED).build();
+    var person = boardMemberOwner(PERSONAL_CODE, 100.0).kycStatus(KybKycStatus.REJECTED).build();
     var data = companyWith(person);
 
     var results = kybScreeningService.screen(data);
@@ -174,7 +174,8 @@ class KybScreeningIntegrationTest {
 
   @Test
   void companyWithUnidentifiedRelatedPersonIsBlockedWithoutCrashing() {
-    var unidentified = boardMemberOwner((PersonalCode) null, 100.0).kycStatus(UNKNOWN).build();
+    var unidentified =
+        boardMemberOwner((PersonalCode) null, 100.0).kycStatus(KybKycStatus.UNKNOWN).build();
     var data = companyWith(unidentified);
 
     var results = kybScreeningService.screen(data);
@@ -239,8 +240,7 @@ class KybScreeningIntegrationTest {
     var registryCode = "12345678";
     var owner = boardMemberOwner(PERSONAL_CODE, 100.0).build();
     kybScreeningService.screen(companyWith(owner));
-    assertThat(onboardingRepository.findStatus(registryCode, PartyId.Type.LEGAL_ENTITY))
-        .contains(SavingsFundOnboardingStatus.COMPLETED);
+    assertThat(onboardingRepository.findStatus(registryCode, LEGAL_ENTITY)).contains(COMPLETED);
 
     entityManager.flush();
     entityManager.clear();
@@ -251,8 +251,7 @@ class KybScreeningIntegrationTest {
 
     assertThat(results)
         .anyMatch(check -> check.type() == KybCheckType.SOLE_MEMBER_OWNERSHIP && !check.success());
-    assertThat(onboardingRepository.findStatus(registryCode, PartyId.Type.LEGAL_ENTITY))
-        .contains(SavingsFundOnboardingStatus.COMPLETED);
+    assertThat(onboardingRepository.findStatus(registryCode, LEGAL_ENTITY)).contains(COMPLETED);
   }
 
   @Test
@@ -268,8 +267,7 @@ class KybScreeningIntegrationTest {
         boardMemberOwner("49001010001", 100.0).beneficialOwner(false).build();
     kybScreeningService.screen(companyWith(newOwnerWithoutBeneficialOwnerEvidence));
 
-    assertThat(onboardingRepository.findStatus(registryCode, PartyId.Type.LEGAL_ENTITY))
-        .contains(SavingsFundOnboardingStatus.REJECTED);
+    assertThat(onboardingRepository.findStatus(registryCode, LEGAL_ENTITY)).contains(REJECTED);
   }
 
   @Test

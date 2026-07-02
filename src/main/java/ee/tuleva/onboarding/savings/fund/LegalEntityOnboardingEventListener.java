@@ -52,6 +52,12 @@ class LegalEntityOnboardingEventListener {
           registryCode,
           personalCode,
           oldStatus);
+    } else if (oldStatus == COMPLETED) {
+      log.error(
+          "Legal entity onboarding rejected after being completed: registryCode={}, personalCode={}, failedChecks={}",
+          registryCode,
+          personalCode,
+          formatFailedChecks(event.getChecks()));
     } else {
       log.info(
           "Legal entity onboarding rejected: registryCode={}, personalCode={}, oldStatus={}, failedChecks={}",
@@ -72,7 +78,7 @@ class LegalEntityOnboardingEventListener {
       List<KybCheck> failedGateChecks, KybCheckPerformedEvent event) {
     return !failedGateChecks.isEmpty()
         && failedGateChecks.stream().allMatch(check -> check.type().isOwnershipCheck())
-        && !event.hasOwnershipEvidenceChange();
+        && !event.hasMetadataChangeFor(failedGateChecks.stream().map(KybCheck::type).toList());
   }
 
   private static String formatFailedChecks(List<KybCheck> checks) {

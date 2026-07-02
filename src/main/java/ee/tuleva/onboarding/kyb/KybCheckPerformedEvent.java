@@ -1,12 +1,14 @@
 package ee.tuleva.onboarding.kyb;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.DATA_CHANGED;
+import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.ariregister.RepresentationRight;
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 
@@ -35,11 +37,14 @@ public class KybCheckPerformedEvent extends ApplicationEvent {
     this.representationRights = Objects.requireNonNull(representationRights);
   }
 
-  public boolean hasOwnershipEvidenceChange() {
+  public boolean hasMetadataChangeFor(Collection<KybCheckType> checkTypes) {
+    Set<String> checkNames = checkTypes.stream().map(KybCheckType::name).collect(toSet());
     return checks.stream()
         .filter(check -> check.type() == DATA_CHANGED)
         .flatMap(check -> changeEntries(check).stream())
-        .filter(entry -> isOwnershipCheckName(entry.get("check")))
+        .filter(
+            entry ->
+                entry.get("check") instanceof String checkName && checkNames.contains(checkName))
         .anyMatch(entry -> Boolean.TRUE.equals(entry.get("metadataChanged")));
   }
 
@@ -52,11 +57,5 @@ public class KybCheckPerformedEvent extends ApplicationEvent {
           .toList();
     }
     return List.of();
-  }
-
-  private static boolean isOwnershipCheckName(Object checkName) {
-    return Arrays.stream(KybCheckType.values())
-        .filter(KybCheckType::isOwnershipCheck)
-        .anyMatch(type -> type.name().equals(checkName));
   }
 }

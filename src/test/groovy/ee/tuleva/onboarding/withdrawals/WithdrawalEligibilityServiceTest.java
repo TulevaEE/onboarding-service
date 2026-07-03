@@ -15,9 +15,10 @@ import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -26,13 +27,32 @@ class WithdrawalEligibilityServiceTest {
 
   Clock clock = Clock.fixed(Instant.parse("2024-10-10T10:00:00Z"), UTC);
 
+  Clock estonianClock =
+      new Clock() {
+        @Override
+        public ZoneId getZone() {
+          return ZoneId.of("Europe/Tallinn");
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+          return ClockHolder.clock().withZone(zone);
+        }
+
+        @Override
+        public Instant instant() {
+          return ClockHolder.clock().instant();
+        }
+      };
+
   @Mock private EpisService episService;
 
-  @InjectMocks private WithdrawalEligibilityService withdrawalEligibilityService;
+  private WithdrawalEligibilityService withdrawalEligibilityService;
 
   @BeforeEach
   void setup() {
     ClockHolder.setClock(clock);
+    withdrawalEligibilityService = new WithdrawalEligibilityService(episService, estonianClock);
   }
 
   @AfterEach
@@ -207,8 +227,38 @@ class WithdrawalEligibilityServiceTest {
 
       assertThat(result.hasReachedEarlyRetirementAge()).isFalse();
       assertThat(result.canWithdrawThirdPillarWithReducedTax()).isTrue();
+      assertThat(result.canWithdrawThirdPillarWithReducedTaxFrom())
+          .isEqualTo(LocalDate.parse("2027-12-30"));
       assertThat(result.recommendedDurationYears()).isEqualTo(0);
       assertThat(result.age()).isEqualTo(55);
+    }
+
+    @Test
+    void reducedTaxAvailableFromAge55ForPre2021JoinersUnder55() {
+      ClockHolder.setClock(Clock.fixed(Instant.parse("2026-07-03T10:00:00Z"), UTC));
+      var aPerson =
+          PersonImpl.builder()
+              .personalCode("39201155216")
+              .firstName("Jaan")
+              .lastName("Jõgi")
+              .build();
+      var aContactDetails = contactDetailsFixture();
+      aContactDetails.setPersonalCode(aPerson.getPersonalCode());
+
+      given(episService.getContactDetails(aPerson)).willReturn(aContactDetails);
+      given(episService.getFundPensionCalculation(aPerson))
+          .willReturn(new FundPensionCalculationDto(0));
+      given(episService.getArrestsBankruptciesPresent(aPerson))
+          .willReturn(new ArrestsBankruptciesDto(false, false));
+
+      var result = withdrawalEligibilityService.getWithdrawalEligibility(aPerson);
+
+      assertThat(result.hasReachedEarlyRetirementAge()).isFalse();
+      assertThat(result.canWithdrawThirdPillarWithReducedTax()).isFalse();
+      assertThat(result.canWithdrawThirdPillarWithReducedTaxFrom())
+          .isEqualTo(LocalDate.parse("2047-01-15"));
+      assertThat(result.earlyRetirementDate()).isEqualTo(LocalDate.parse("2052-04-15"));
+      assertThat(result.age()).isEqualTo(34);
     }
 
     @Test
@@ -312,6 +362,9 @@ class WithdrawalEligibilityServiceTest {
 
       assertThat(result.hasReachedEarlyRetirementAge()).isTrue();
       assertThat(result.canWithdrawThirdPillarWithReducedTax()).isFalse();
+      assertThat(result.canWithdrawThirdPillarWithReducedTaxFrom())
+          .isEqualTo(LocalDate.parse("2026-10-15"));
+      assertThat(result.earlyRetirementDate()).isEqualTo(LocalDate.parse("2025-03-03"));
       assertThat(result.age()).isEqualTo(61);
     }
 
@@ -336,6 +389,46 @@ class WithdrawalEligibilityServiceTest {
     }
 
     @Test
+    void eligibilityDateComparisonUsesEstonianCalendarDate() {
+      ClockHolder.setClock(Clock.fixed(Instant.parse("2026-10-14T22:30:00Z"), UTC));
+      var aContactDetails = contactDetailsFixture();
+      aContactDetails.setPersonalCode(personOver60.getPersonalCode());
+      aContactDetails.setThirdPillarInitDate(Instant.parse("2021-10-15T00:00:00.000Z"));
+
+      given(episService.getContactDetails(personOver60)).willReturn(aContactDetails);
+      given(episService.getFundPensionCalculation(personOver60))
+          .willReturn(new FundPensionCalculationDto(20));
+      given(episService.getArrestsBankruptciesPresent(personOver60))
+          .willReturn(new ArrestsBankruptciesDto(false, false));
+
+      var result = withdrawalEligibilityService.getWithdrawalEligibility(personOver60);
+
+      assertThat(result.canWithdrawThirdPillarWithReducedTax()).isTrue();
+      assertThat(result.canWithdrawThirdPillarWithReducedTaxFrom())
+          .isEqualTo(LocalDate.parse("2026-10-15"));
+    }
+
+    @Test
+    void thirdPillarInitDateUsesEstonianCalendarDate() {
+      ClockHolder.setClock(clock2026);
+      var aContactDetails = contactDetailsFixture();
+      aContactDetails.setPersonalCode(personOver60.getPersonalCode());
+      aContactDetails.setThirdPillarInitDate(Instant.parse("2020-12-31T22:30:00.000Z"));
+
+      given(episService.getContactDetails(personOver60)).willReturn(aContactDetails);
+      given(episService.getFundPensionCalculation(personOver60))
+          .willReturn(new FundPensionCalculationDto(20));
+      given(episService.getArrestsBankruptciesPresent(personOver60))
+          .willReturn(new ArrestsBankruptciesDto(false, false));
+
+      var result = withdrawalEligibilityService.getWithdrawalEligibility(personOver60);
+
+      assertThat(result.canWithdrawThirdPillarWithReducedTax()).isTrue();
+      assertThat(result.canWithdrawThirdPillarWithReducedTaxFrom())
+          .isEqualTo(LocalDate.parse("2026-01-01"));
+    }
+
+    @Test
     void noReducedTaxWhenThirdPillarMissing() {
       ClockHolder.setClock(clock2026);
       var aContactDetails = contactDetailsFixture();
@@ -352,6 +445,7 @@ class WithdrawalEligibilityServiceTest {
 
       assertThat(result.hasReachedEarlyRetirementAge()).isTrue();
       assertThat(result.canWithdrawThirdPillarWithReducedTax()).isFalse();
+      assertThat(result.canWithdrawThirdPillarWithReducedTaxFrom()).isNull();
     }
 
     @Test
@@ -372,6 +466,58 @@ class WithdrawalEligibilityServiceTest {
 
       assertThat(result.hasReachedEarlyRetirementAge()).isTrue();
       assertThat(result.canWithdrawThirdPillarWithReducedTax()).isFalse();
+      assertThat(result.age()).isEqualTo(60);
+    }
+
+    @Test
+    void notReachedEarlyRetirementAgeAt60Before2027ThresholdOf60Years1Month() {
+      ClockHolder.setClock(Clock.fixed(Instant.parse("2027-01-20T10:00:00Z"), UTC));
+      var aPerson =
+          PersonImpl.builder()
+              .personalCode("36701155216")
+              .firstName("Mart")
+              .lastName("Mets")
+              .build();
+      var aContactDetails = contactDetailsFixture();
+      aContactDetails.setPersonalCode(aPerson.getPersonalCode());
+      aContactDetails.setThirdPillarInitDate(Instant.parse("2021-10-15T00:00:00.000Z"));
+
+      given(episService.getContactDetails(aPerson)).willReturn(aContactDetails);
+      given(episService.getFundPensionCalculation(aPerson))
+          .willReturn(new FundPensionCalculationDto(20));
+      given(episService.getArrestsBankruptciesPresent(aPerson))
+          .willReturn(new ArrestsBankruptciesDto(false, false));
+
+      var result = withdrawalEligibilityService.getWithdrawalEligibility(aPerson);
+
+      assertThat(result.hasReachedEarlyRetirementAge()).isFalse();
+      assertThat(result.canWithdrawThirdPillarWithReducedTax()).isFalse();
+      assertThat(result.age()).isEqualTo(60);
+    }
+
+    @Test
+    void reachedEarlyRetirementAgeAt60Years1MonthIn2027() {
+      ClockHolder.setClock(Clock.fixed(Instant.parse("2027-03-01T10:00:00Z"), UTC));
+      var aPerson =
+          PersonImpl.builder()
+              .personalCode("36701155216")
+              .firstName("Mart")
+              .lastName("Mets")
+              .build();
+      var aContactDetails = contactDetailsFixture();
+      aContactDetails.setPersonalCode(aPerson.getPersonalCode());
+      aContactDetails.setThirdPillarInitDate(Instant.parse("2021-10-15T00:00:00.000Z"));
+
+      given(episService.getContactDetails(aPerson)).willReturn(aContactDetails);
+      given(episService.getFundPensionCalculation(aPerson))
+          .willReturn(new FundPensionCalculationDto(20));
+      given(episService.getArrestsBankruptciesPresent(aPerson))
+          .willReturn(new ArrestsBankruptciesDto(false, false));
+
+      var result = withdrawalEligibilityService.getWithdrawalEligibility(aPerson);
+
+      assertThat(result.hasReachedEarlyRetirementAge()).isTrue();
+      assertThat(result.canWithdrawThirdPillarWithReducedTax()).isTrue();
       assertThat(result.age()).isEqualTo(60);
     }
 

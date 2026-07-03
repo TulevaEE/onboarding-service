@@ -11,8 +11,21 @@ import java.time.Period;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.util.Map;
+import java.util.NavigableMap;
+import java.util.TreeMap;
+import org.jspecify.annotations.NullMarked;
 
+@NullMarked
 public class PersonalCode {
+
+  private static final NavigableMap<Integer, Period> ESTABLISHED_RETIREMENT_AGE_BY_YEAR =
+      new TreeMap<>(
+          Map.of(
+              2027, Period.of(65, 1, 0),
+              2028, Period.of(65, 3, 0)));
+
+  private static final Period BASE_RETIREMENT_AGE = Period.ofYears(65);
 
   public static int getAge(String personalCode) {
     LocalDate today = clock().instant().atZone(ZoneId.systemDefault()).toLocalDate();
@@ -22,14 +35,38 @@ public class PersonalCode {
     return period.getYears();
   }
 
-  public static int getEarlyRetirementAge(String personalCode) {
-    // TODO: make more accurate in the future
-    return 60;
+  public static int getRetirementAge(String personalCode) {
+    return Period.between(getDateOfBirth(personalCode), getRetirementDate(personalCode)).getYears();
   }
 
-  public static int getRetirementAge(String personalCode) {
-    // TODO: make more accurate in the future
-    return 65;
+  public static LocalDate getRetirementDate(String personalCode) {
+    return retirementDate(personalCode, 0);
+  }
+
+  public static LocalDate getEarlyRetirementDate(String personalCode) {
+    return retirementDate(personalCode, 5);
+  }
+
+  private static LocalDate retirementDate(String personalCode, int yearsEarly) {
+    LocalDate dateOfBirth = getDateOfBirth(personalCode);
+    int firstCandidateYear = dateOfBirth.plus(BASE_RETIREMENT_AGE).minusYears(yearsEarly).getYear();
+    for (int year = firstCandidateYear; year <= firstCandidateYear + 10; year++) {
+      LocalDate date = dateOfBirth.plus(retirementAgeInForce(year)).minusYears(yearsEarly);
+      if (date.getYear() == year) {
+        return date;
+      }
+    }
+    throw new IllegalStateException(
+        "Could not resolve retirement date: dateOfBirth=" + dateOfBirth);
+  }
+
+  public static int lastEstablishedRetirementAgeYear() {
+    return ESTABLISHED_RETIREMENT_AGE_BY_YEAR.lastKey();
+  }
+
+  private static Period retirementAgeInForce(int year) {
+    var established = ESTABLISHED_RETIREMENT_AGE_BY_YEAR.floorEntry(year);
+    return established == null ? BASE_RETIREMENT_AGE : established.getValue();
   }
 
   public static LocalDate getDateOfBirth(String personalCode) {

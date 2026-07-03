@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class ParentChildLinkRegistrationServiceTest {
@@ -36,6 +37,7 @@ class ParentChildLinkRegistrationServiceTest {
 
   @Mock private ParentChildLinkRepository parentChildLinkRepository;
   @Mock private UserService userService;
+  @Mock private ApplicationEventPublisher applicationEventPublisher;
 
   private final Clock clock = Clock.fixed(Instant.parse("2026-05-22T00:00:00Z"), ZoneOffset.UTC);
 
@@ -43,7 +45,9 @@ class ParentChildLinkRegistrationServiceTest {
 
   @BeforeEach
   void setUp() {
-    service = new ParentChildLinkRegistrationService(parentChildLinkRepository, userService, clock);
+    service =
+        new ParentChildLinkRegistrationService(
+            parentChildLinkRepository, userService, applicationEventPublisher, clock);
   }
 
   @Test
@@ -73,6 +77,8 @@ class ParentChildLinkRegistrationServiceTest {
                 .lastName("Maasikas")
                 .active(true)
                 .build());
+    verify(applicationEventPublisher)
+        .publishEvent(new ParentChildLinkCreatedEvent(PARENT, CHILD, LEGAL_REPRESENTATIVE));
   }
 
   @Test
@@ -112,6 +118,7 @@ class ParentChildLinkRegistrationServiceTest {
                 .active(true)
                 .build());
     verify(parentChildLinkRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    verifyNoInteractions(applicationEventPublisher);
   }
 
   @Test
@@ -160,5 +167,7 @@ class ParentChildLinkRegistrationServiceTest {
                 .lastName("Haldja")
                 .active(true)
                 .build());
+    verify(applicationEventPublisher)
+        .publishEvent(new ParentChildLinkCreatedEvent(GUARDIAN_CODE, ADULT_WARD, GUARDIAN));
   }
 }

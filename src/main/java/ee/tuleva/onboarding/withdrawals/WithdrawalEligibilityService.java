@@ -21,7 +21,7 @@ public class WithdrawalEligibilityService {
 
     return WithdrawalEligibilityDto.builder()
         .hasReachedEarlyRetirementAge(hasReachedEarlyRetirementAge(person))
-        .canWithdrawThirdPillarWithReducedTax(canWithdrawEarlyFromThirdPillar(person))
+        .canWithdrawThirdPillarWithReducedTax(canWithdrawThirdPillarWithReducedTax(person))
         .age(PersonalCode.getAge(person.getPersonalCode()))
         .recommendedDurationYears(fundPensionCalculation.durationYears())
         .arrestsOrBankruptciesPresent(getArrestsOrBankruptciesPresent(person))
@@ -39,29 +39,26 @@ public class WithdrawalEligibilityService {
         || arrestsBankruptcies.activeArrestsPresent();
   }
 
-  private boolean canWithdrawEarlyFromThirdPillar(Person person) {
-    if (hasReachedEarlyRetirementAge(person)) {
-      return true;
-    }
-
+  private boolean canWithdrawThirdPillarWithReducedTax(Person person) {
     var contactDetails = episService.getContactDetails(person);
+    var thirdPillarInitDate = contactDetails.getThirdPillarInitDate();
 
-    if (contactDetails.getThirdPillarInitDate() == null) {
+    if (thirdPillarInitDate == null || !contactDetails.isThirdPillarActive()) {
       return false;
     }
 
-    var ageAtLeast55 = PersonalCode.getAge(person.getPersonalCode()) >= 55;
-
     var fiveYearsAgo = ZonedDateTime.now(clock()).minusYears(5).toInstant();
-    var thirdPillarOpenedAtLeast5YearsAgo =
-        contactDetails.isThirdPillarActive()
-            && contactDetails.getThirdPillarInitDate().isBefore(fiveYearsAgo);
+    var thirdPillarHeldForFiveYears = thirdPillarInitDate.isBefore(fiveYearsAgo);
 
     var thirdPillar2021Deadline = ZonedDateTime.parse("2021-01-01T00:00:00+02:00").toInstant();
-    var thirdPillarOpenedBefore2021 =
-        contactDetails.isThirdPillarActive()
-            && contactDetails.getThirdPillarInitDate().isBefore(thirdPillar2021Deadline);
+    var thirdPillarOpenedBefore2021 = thirdPillarInitDate.isBefore(thirdPillar2021Deadline);
 
-    return ageAtLeast55 && thirdPillarOpenedBefore2021 && thirdPillarOpenedAtLeast5YearsAgo;
+    var reducedTaxAge =
+        thirdPillarOpenedBefore2021
+            ? 55
+            : PersonalCode.getEarlyRetirementAge(person.getPersonalCode());
+    var hasReachedReducedTaxAge = PersonalCode.getAge(person.getPersonalCode()) >= reducedTaxAge;
+
+    return hasReachedReducedTaxAge && thirdPillarHeldForFiveYears;
   }
 }

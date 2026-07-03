@@ -15,14 +15,19 @@ class ParentChildLinkRepositoryTest {
   @Autowired ParentChildLinkRepository repository;
 
   private static final String PARENT = "38001010000";
+  private static final String OTHER_PARENT = "38002020008";
   private static final String CHILD = "61001010000";
   private static final LocalDate EIGHTEENTH_BIRTHDAY = LocalDate.of(2030, 1, 1);
   private static final Instant SUSPENDED = Instant.parse("2026-05-22T00:00:00Z");
 
   private ParentChildLink savedLink(Instant suspendedAt) {
+    return savedLink(PARENT, suspendedAt);
+  }
+
+  private ParentChildLink savedLink(String parentPersonalCode, Instant suspendedAt) {
     return repository.save(
         ParentChildLink.builder()
-            .parentPersonalCode(PARENT)
+            .parentPersonalCode(parentPersonalCode)
             .childPersonalCode(CHILD)
             .relationshipType(LEGAL_REPRESENTATIVE)
             .validUntil(EIGHTEENTH_BIRTHDAY)
@@ -112,5 +117,37 @@ class ParentChildLinkRepositoryTest {
                 .existsByParentPersonalCodeAndChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
                     PARENT, "99999999999", EIGHTEENTH_BIRTHDAY.minusDays(1)))
         .isFalse();
+  }
+
+  @Test
+  void findsAllActiveParentsOfChild() {
+    var link = savedLink(PARENT, null);
+    var otherLink = savedLink(OTHER_PARENT, null);
+
+    assertThat(
+            repository.findByChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
+                CHILD, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .containsExactlyInAnyOrder(link, otherLink);
+  }
+
+  @Test
+  void doesNotFindSuspendedParentOfChild() {
+    var link = savedLink(PARENT, null);
+    savedLink(OTHER_PARENT, SUSPENDED);
+
+    assertThat(
+            repository.findByChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
+                CHILD, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .containsExactly(link);
+  }
+
+  @Test
+  void doesNotFindExpiredParentOfChild() {
+    savedLink(PARENT, null);
+
+    assertThat(
+            repository.findByChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
+                CHILD, EIGHTEENTH_BIRTHDAY))
+        .isEmpty();
   }
 }

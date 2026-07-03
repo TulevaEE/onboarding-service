@@ -11,6 +11,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,7 @@ public class ParentChildLinkRegistrationService {
 
   private final ParentChildLinkRepository parentChildLinkRepository;
   private final UserService userService;
+  private final ApplicationEventPublisher applicationEventPublisher;
   private final Clock clock;
 
   @Transactional
@@ -70,13 +72,18 @@ public class ParentChildLinkRegistrationService {
                   childPersonalCode,
                   relationshipType,
                   validUntil);
-              return parentChildLinkRepository.save(
-                  ParentChildLink.builder()
-                      .parentPersonalCode(parentPersonalCode)
-                      .childPersonalCode(childPersonalCode)
-                      .relationshipType(relationshipType)
-                      .validUntil(validUntil)
-                      .build());
+              ParentChildLink saved =
+                  parentChildLinkRepository.save(
+                      ParentChildLink.builder()
+                          .parentPersonalCode(parentPersonalCode)
+                          .childPersonalCode(childPersonalCode)
+                          .relationshipType(relationshipType)
+                          .validUntil(validUntil)
+                          .build());
+              applicationEventPublisher.publishEvent(
+                  new ParentChildLinkCreatedEvent(
+                      parentPersonalCode, childPersonalCode, relationshipType));
+              return saved;
             });
   }
 

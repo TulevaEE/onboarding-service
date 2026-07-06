@@ -60,6 +60,25 @@ class CustodyVerificationServiceTest {
   }
 
   @Test
+  void verifiesWhenChildHasBothPersonalAndPropertyCustodyEvenWhenPersonalIsListedFirst() {
+    // A full-custody parent has both H10 (personal) and H20 (property) for the same
+    // child, and the register lists personal first — verification must still find the
+    // property (asset-management) right instead of stopping at the first entry.
+    given(populationRegisterClient.fetchCustodyRights(PARENT))
+        .willReturn(
+            List.of(
+                new CustodyRight(CHILD, PERSONAL, true, true),
+                new CustodyRight(CHILD, PROPERTY, true, true)));
+    given(populationRegisterClient.fetchPerson(CHILD)).willReturn(aliveChild);
+
+    CustodyVerification result = service.verify(PARENT, CHILD);
+
+    assertThat(result.isVerified()).isTrue();
+    assertThat(result.outcome()).isEqualTo(OK);
+    assertThat(result.evidence()).containsEntry("custodyType", "PROPERTY");
+  }
+
+  @Test
   void doesNotVerifyAndDoesNotFetchIdentityWhenNoCustodyForThatChild() {
     given(populationRegisterClient.fetchCustodyRights(PARENT))
         .willReturn(List.of(new CustodyRight(OTHER_CHILD, PROPERTY, true, true)));

@@ -60,6 +60,27 @@ class QuantityAmountValidator {
         null);
   }
 
+  Optional<QuantityAmountMismatchEvent> detectBlankEconomics(
+      TransactionOrder order,
+      SebPendingTransactionRow row,
+      TransactionMatchingProperties properties) {
+    if (actual(order, row) != null) {
+      return Optional.empty();
+    }
+    MismatchKind kind = kind(order);
+    return Optional.of(
+        new QuantityAmountMismatchEvent(
+            row,
+            order,
+            kind,
+            expected(order),
+            null,
+            null,
+            tolerance(kind, properties),
+            properties.nearMissMultiplier(),
+            null));
+  }
+
   Optional<QuantityAmountMismatchEvent> validateCumulative(
       TransactionOrder order,
       SebPendingTransactionRow row,

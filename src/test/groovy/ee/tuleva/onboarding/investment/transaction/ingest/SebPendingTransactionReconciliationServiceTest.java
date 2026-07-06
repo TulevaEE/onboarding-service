@@ -314,6 +314,26 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
+  void reconcile_uuidMatchedEtfRowWithBlankQuantity_isQuarantinedNotExecuted() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = orderWith(clientRef, ETF, BUY, new BigDecimal("15007"), null);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+
+    service.reconcile(reportWithSingleRowQuantity(clientRef, null));
+
+    verify(eventPublisher)
+        .publishEvent(
+            argThat(
+                (Object e) ->
+                    e instanceof QuantityAmountMismatchEvent qe
+                        && qe.kind() == QuantityAmountMismatchEvent.MismatchKind.ETF_QUANTITY
+                        && qe.actual() == null));
+    verify(executionRepository, never()).save(any());
+    assertThat(order.getOrderStatus()).isEqualTo(SENT);
+  }
+
+  @Test
   void reconcile_uuidMatchWithNullOrderQuantity_publishesNoMismatch() {
     service = newService();
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");

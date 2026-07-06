@@ -207,6 +207,17 @@ class FtConfirmationAuditRecorderTest {
   }
 
   @Test
+  void alreadyAlerted_priorAlertWithDifferentDecimalScale_returnsTrue() {
+    given(auditEventRepository.findByEventType("FT_CONFIRMATION_ALERTED"))
+        .willReturn(List.of(priorAlert("ERROR", "OK", "40434.0", "10.090")));
+
+    boolean alerted =
+        recorder().alreadyAlerted(confirmation(), new FtConfirmationResult(ERROR, OK, Map.of()));
+
+    assertThat(alerted).isTrue();
+  }
+
+  @Test
   void recordAlerted_savesAlertedEventWithSystemActor() {
     recorder().recordAlerted(confirmation(), new FtConfirmationResult(ERROR, OK, Map.of()));
 
@@ -231,12 +242,17 @@ class FtConfirmationAuditRecorderTest {
   }
 
   private static TransactionAuditEvent priorAlert(String quantityStatus, String priceStatus) {
+    return priorAlert(quantityStatus, priceStatus, "40434", "10.09");
+  }
+
+  private static TransactionAuditEvent priorAlert(
+      String quantityStatus, String priceStatus, String quantity, String grossPrice) {
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("fund", "TUK75");
     payload.put("isin", "IE000F60HVH9");
     payload.put("tradeDate", "2026-06-08");
-    payload.put("quantity", "40434");
-    payload.put("grossPrice", "10.09");
+    payload.put("quantity", quantity);
+    payload.put("grossPrice", grossPrice);
     payload.put("type", "NORMAL");
     payload.put("quantityStatus", quantityStatus);
     payload.put("priceStatus", priceStatus);

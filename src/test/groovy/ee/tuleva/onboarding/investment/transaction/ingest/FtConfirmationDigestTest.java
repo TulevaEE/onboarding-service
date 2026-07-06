@@ -116,6 +116,21 @@ class FtConfirmationDigestTest {
   }
 
   @Test
+  void duplicateActionableRowsInOneBatch_areAlertedOnce() {
+    FtConfirmationOutcome error = outcome(ERROR, OK);
+
+    digest(true).publish(List.of(error, error));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 1 issue(s) need attention\n"
+                + "FT issue: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434,"
+                + " quantityStatus=ERROR, priceStatus=OK",
+            INVESTMENT);
+    verify(auditRecorder).recordAlerted(error.confirmation(), error.result());
+  }
+
+  @Test
   void alreadyAlertedActionableRow_isNotSentAgain() {
     given(auditRecorder.alreadyAlerted(any(), any())).willReturn(true);
 

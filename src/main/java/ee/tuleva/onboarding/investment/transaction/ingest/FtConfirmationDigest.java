@@ -37,6 +37,7 @@ class FtConfirmationDigest {
     List<FtConfirmationOutcome> unalerted =
         outcomes.stream()
             .filter(outcome -> outcome.result().isActionable())
+            .distinct()
             .filter(
                 outcome -> !auditRecorder.alreadyAlerted(outcome.confirmation(), outcome.result()))
             .toList();

@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEvent;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -84,9 +85,13 @@ class FtConfirmationAuditRecorder {
     return confirmation.fund().name().equals(payload.get("fund"))
         && confirmation.isin().equals(payload.get("isin"))
         && confirmation.tradeDate().toString().equals(payload.get("tradeDate"))
-        && confirmation.quantity().toPlainString().equals(payload.get("quantity"))
-        && confirmation.grossPrice().toPlainString().equals(payload.get("grossPrice"))
+        && sameAmount(confirmation.quantity(), payload.get("quantity"))
+        && sameAmount(confirmation.grossPrice(), payload.get("grossPrice"))
         && confirmation.type().name().equals(payload.get("type"));
+  }
+
+  private static boolean sameAmount(BigDecimal value, @Nullable Object stored) {
+    return stored != null && value.compareTo(new BigDecimal(stored.toString())) == 0;
   }
 
   private static List<String> statusPair(FtConfirmationResult result) {

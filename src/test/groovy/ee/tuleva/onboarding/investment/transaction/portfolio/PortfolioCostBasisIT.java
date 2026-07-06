@@ -34,8 +34,10 @@ class PortfolioCostBasisIT {
 
   private static final String FUND_ISIN = TUK75.getIsin();
   private static final String INSTRUMENT_ISIN = "IE00BFNM3G45";
+  private static final String INSTRUMENT_ISIN_2 = "IE00B4L5Y983";
   private static final LocalDate BASELINE_DATE = LocalDate.of(2026, 4, 30);
   private static final LocalDate TRADE_DATE = LocalDate.of(2026, 5, 1);
+  private static final LocalDate NEXT_DATE = LocalDate.of(2026, 5, 2);
 
   @Autowired private PortfolioCostBasisService service;
   @Autowired private PortfolioCostBasisRepository costBasisRepository;
@@ -85,6 +87,23 @@ class PortfolioCostBasisIT {
     assertThat(rows.get(0).getQuantity()).isEqualByComparingTo("120000.0000");
   }
 
+  @Test
+  void runForFundAndDate_carriesForwardPostBaselineInstrumentOnNoTradeDay() {
+    seedBaseline(); // baseline holds INSTRUMENT_ISIN only
+    seedBuyExecutionForIsin(
+        INSTRUMENT_ISIN_2, new BigDecimal("500.0000"), new BigDecimal("20.00000000"), TRADE_DATE);
+
+    service.runForFundAndDate(TUK75, TRADE_DATE); // buys the post-baseline instrument
+    service.runForFundAndDate(TUK75, NEXT_DATE); // no execution this day
+
+    PortfolioCostBasis nextDayRow =
+        costBasisRepository
+            .findByFundIsinAndInstrumentIsinAndAsOfDate(FUND_ISIN, INSTRUMENT_ISIN_2, NEXT_DATE)
+            .orElseThrow();
+    assertThat(nextDayRow.getQuantity()).isEqualByComparingTo("500.0000");
+    assertThat(nextDayRow.getDeltaQuantity()).isEqualByComparingTo("0.0000");
+  }
+
   private void seedBaseline() {
     PortfolioBaseline baseline =
         PortfolioBaseline.builder()
@@ -121,18 +140,41 @@ class PortfolioCostBasisIT {
   }
 
   private TransactionOrder persistOrder(TransactionType type) {
+    return persistOrder(INSTRUMENT_ISIN, type, TRADE_DATE);
+  }
+
+  private void seedBuyExecutionForIsin(
+      String isin, BigDecimal qty, BigDecimal unitPrice, LocalDate date) {
+    TransactionOrder order = persistOrder(isin, BUY, date);
+    TransactionExecution exec =
+        TransactionExecution.builder()
+            .orderId(order.getId())
+            .brokerTransactionId("DLA" + UUID.randomUUID())
+            .executionTimestamp(date.atStartOfDay().toInstant(ZoneOffset.UTC))
+            .executedQuantity(qty)
+            .unitPrice(unitPrice)
+            .totalConsideration(qty.multiply(unitPrice))
+            .commissionAmount(BigDecimal.ZERO)
+            .actualSettlementDate(date.plusDays(2))
+            .source("SEB_OOTEL")
+            .build();
+    executionRepository.save(exec);
+    entityManager.flush();
+  }
+
+  private TransactionOrder persistOrder(String isin, TransactionType type, LocalDate date) {
     TransactionBatch batch =
         batchRepository.save(TransactionBatch.builder().fund(TUK75).createdBy("test").build());
     return orderRepository.save(
         TransactionOrder.builder()
             .batch(batch)
             .fund(TUK75)
-            .instrumentIsin(INSTRUMENT_ISIN)
+            .instrumentIsin(isin)
             .transactionType(type)
             .instrumentType(ETF)
             .orderQuantity(new BigDecimal("20000"))
             .orderVenue(SEB)
-            .orderTimestamp(TRADE_DATE.atStartOfDay().toInstant(ZoneOffset.UTC))
+            .orderTimestamp(date.atStartOfDay().toInstant(ZoneOffset.UTC))
             .orderUuid(UUID.randomUUID())
             .build());
   }

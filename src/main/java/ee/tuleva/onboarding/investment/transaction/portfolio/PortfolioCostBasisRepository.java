@@ -32,4 +32,15 @@ public interface PortfolioCostBasisRepository extends JpaRepository<PortfolioCos
 
   List<PortfolioCostBasis> findByFundIsinAndAsOfDateGreaterThanEqual(
       String fundIsin, LocalDate asOfDate);
+
+  @Query(
+      """
+      SELECT c FROM PortfolioCostBasis c
+      WHERE c.fundIsin = :fundIsin
+        AND c.asOfDate = (
+          SELECT MAX(c2.asOfDate) FROM PortfolioCostBasis c2
+          WHERE c2.fundIsin = :fundIsin
+            AND c2.asOfDate < :asOfDate)
+      """)
+  List<PortfolioCostBasis> findLatestSnapshotBefore(String fundIsin, LocalDate asOfDate);
 }

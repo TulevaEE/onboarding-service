@@ -31,12 +31,14 @@ public class CostBasisCalculator {
     BigDecimal totalCost = priorQty.multiply(priorAvg);
 
     for (ExecutionEvent event : executions) {
-      BigDecimal execQty = nullSafe(event.quantity());
-      BigDecimal execPrice = nullSafe(event.unitPrice());
+      BigDecimal execQty =
+          requirePositive(event.quantity(), "quantity", fundIsin, instrumentIsin, asOfDate);
 
       if (event.side() == TransactionType.BUY) {
         // Commission excluded to match legacy AppScript Portfolio_History; see remaining-tasks.md
         // F.7 for FI-practice divergence note
+        BigDecimal execPrice =
+            requirePositive(event.unitPrice(), "unitPrice", fundIsin, instrumentIsin, asOfDate);
         totalCost = totalCost.add(execQty.multiply(execPrice));
         qty = qty.add(execQty);
       } else {
@@ -83,8 +85,15 @@ public class CostBasisCalculator {
         .build();
   }
 
-  private static BigDecimal nullSafe(BigDecimal value) {
-    return value == null ? BigDecimal.ZERO : value;
+  private static BigDecimal requirePositive(
+      BigDecimal value, String field, String fundIsin, String instrumentIsin, LocalDate asOfDate) {
+    if (value == null || value.signum() <= 0) {
+      throw new IllegalStateException(
+          String.format(
+              "Cost-basis execution has non-positive %s: fund=%s, isin=%s, asOfDate=%s, value=%s",
+              field, fundIsin, instrumentIsin, asOfDate, value));
+    }
+    return value;
   }
 
   public record PriorPosition(BigDecimal quantity, BigDecimal avgUnitCost) {

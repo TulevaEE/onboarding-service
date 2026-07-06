@@ -195,6 +195,46 @@ class CostBasisCalculatorSpec extends Specification {
         result.avgUnitCost.compareTo(new BigDecimal("10.00000000")) == 0
     }
 
+    def "BUY with null unit price fails loudly instead of adding zero-cost units"() {
+        given:
+        def execs = [
+                new ExecutionEvent(TransactionType.BUY, new BigDecimal("1000"), null, BigDecimal.ZERO)
+        ]
+
+        when:
+        calculator.calculate(Optional.empty(), execs, FUND_ISIN, INSTRUMENT_ISIN, DATE)
+
+        then:
+        thrown(IllegalStateException)
+    }
+
+    def "BUY with non-positive unit price fails loudly"() {
+        given:
+        def execs = [
+                new ExecutionEvent(TransactionType.BUY, new BigDecimal("1000"), BigDecimal.ZERO, BigDecimal.ZERO)
+        ]
+
+        when:
+        calculator.calculate(Optional.empty(), execs, FUND_ISIN, INSTRUMENT_ISIN, DATE)
+
+        then:
+        thrown(IllegalStateException)
+    }
+
+    def "SELL with null quantity fails loudly instead of leaving holdings unchanged"() {
+        given:
+        def prior = Optional.of(new PriorPosition(new BigDecimal("1000"), new BigDecimal("10.00")))
+        def execs = [
+                new ExecutionEvent(TransactionType.SELL, null, new BigDecimal("12.00"), BigDecimal.ZERO)
+        ]
+
+        when:
+        calculator.calculate(prior, execs, FUND_ISIN, INSTRUMENT_ISIN, DATE)
+
+        then:
+        thrown(IllegalStateException)
+    }
+
     def "null commission treated as zero"() {
         given:
         def prior = Optional.empty()

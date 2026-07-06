@@ -341,6 +341,19 @@ class FtConfirmationVerificationServiceTest {
   }
 
   @Test
+  void cancellationConfirmation_multipleMatchingOrders_returnsAmbiguous_notCancelled() {
+    TransactionOrder first = order(10L, new BigDecimal("40434"));
+    TransactionOrder second = order(42L, new BigDecimal("40434"));
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(first, second));
+
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(cancellationConfirmation());
+
+    assertThat(result.quantityStatus()).isEqualTo(AMBIGUOUS);
+    assertThat(result.priceStatus()).isEqualTo(AMBIGUOUS);
+    assertThat(result.details()).containsEntry("ambiguousOrderCount", "2");
+  }
+
+  @Test
   void cancellationConfirmation_orderNotFound_returnsOrphan() {
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of());
 

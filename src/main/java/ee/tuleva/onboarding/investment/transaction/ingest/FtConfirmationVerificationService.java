@@ -139,6 +139,10 @@ public class FtConfirmationVerificationService {
     details.put("orderUuid", order.getOrderUuid().toString());
 
     if (confirmation.isCancellation()) {
+      if (selection.matchCount() > 1) {
+        details.put("ambiguousOrderCount", String.valueOf(selection.matchCount()));
+        return new Computed(result(AMBIGUOUS, AMBIGUOUS, details), order);
+      }
       details.put("cancellationSignature", confirmation.cancellationSignature());
       return new Computed(result(CANCELLED, CANCELLED, details), order);
     }

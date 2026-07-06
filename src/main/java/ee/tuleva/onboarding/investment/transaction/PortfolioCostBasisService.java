@@ -56,10 +56,18 @@ public class PortfolioCostBasisService {
     List<TransactionExecution> dayExecutions = findExecutionsByTradeDate(fund, asOfDate);
     Set<String> isins = new HashSet<>(baselineEntryIsins(baseline));
     isins.addAll(executionIsins(dayExecutions));
+    isins.addAll(carriedForwardIsins(fundIsin, asOfDate));
 
     for (String isin : isins) {
       computeAndUpsert(fund, asOfDate, isin, baseline, dayExecutions);
     }
+  }
+
+  private List<String> carriedForwardIsins(String fundIsin, LocalDate asOfDate) {
+    return costBasisRepository.findLatestSnapshotBefore(fundIsin, asOfDate).stream()
+        .filter(row -> row.getQuantity() != null && row.getQuantity().signum() != 0)
+        .map(PortfolioCostBasis::getInstrumentIsin)
+        .toList();
   }
 
   @Transactional

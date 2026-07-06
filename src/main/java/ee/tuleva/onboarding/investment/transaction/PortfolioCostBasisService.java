@@ -84,7 +84,7 @@ public class PortfolioCostBasisService {
 
   private List<String> carriedForwardIsins(String fundIsin, LocalDate asOfDate) {
     return costBasisRepository.findLatestSnapshotBefore(fundIsin, asOfDate).stream()
-        .filter(row -> row.getQuantity() != null && row.getQuantity().signum() != 0)
+        .filter(row -> row.getQuantity().signum() != 0)
         .map(PortfolioCostBasis::getInstrumentIsin)
         .toList();
   }

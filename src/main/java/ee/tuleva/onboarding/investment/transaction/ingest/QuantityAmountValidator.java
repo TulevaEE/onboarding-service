@@ -46,18 +46,7 @@ class QuantityAmountValidator {
       TransactionOrder order,
       SebPendingTransactionRow row,
       TransactionMatchingProperties properties) {
-    BigDecimal expected = expected(order);
-    BigDecimal actual = actual(order, row);
-    return new QuantityAmountMismatchEvent(
-        row,
-        order,
-        kind(order),
-        expected,
-        actual,
-        actual.subtract(expected).abs(),
-        tolerance(kind(order), properties),
-        properties.nearMissMultiplier(),
-        null);
+    return mismatchEvent(row, order, kind(order), expected(order), actual(order, row), properties);
   }
 
   Optional<QuantityAmountMismatchEvent> detectBlankEconomics(
@@ -67,18 +56,7 @@ class QuantityAmountValidator {
     if (actual(order, row) != null) {
       return Optional.empty();
     }
-    MismatchKind kind = kind(order);
-    return Optional.of(
-        new QuantityAmountMismatchEvent(
-            row,
-            order,
-            kind,
-            expected(order),
-            null,
-            null,
-            tolerance(kind, properties),
-            properties.nearMissMultiplier(),
-            null));
+    return Optional.of(mismatchEvent(row, order, kind(order), expected(order), null, properties));
   }
 
   Optional<QuantityAmountMismatchEvent> validateCumulative(
@@ -94,21 +72,30 @@ class QuantityAmountValidator {
     MismatchKind kind = kind(order);
     BigDecimal previouslyExecuted = sumExecutedValue(order, existingExecutions, row.ourRef());
     BigDecimal cumulative = previouslyExecuted.add(rowValue);
-    BigDecimal tolerance = tolerance(kind, properties);
-    if (!isOverfill(kind, target, cumulative, tolerance)) {
+    if (!isOverfill(kind, target, cumulative, tolerance(kind, properties))) {
       return Optional.empty();
     }
-    return Optional.of(
-        new QuantityAmountMismatchEvent(
-            row,
-            order,
-            kind,
-            target,
-            cumulative,
-            cumulative.subtract(target).abs(),
-            tolerance,
-            properties.nearMissMultiplier(),
-            null));
+    return Optional.of(mismatchEvent(row, order, kind, target, cumulative, properties));
+  }
+
+  private static QuantityAmountMismatchEvent mismatchEvent(
+      SebPendingTransactionRow row,
+      TransactionOrder order,
+      MismatchKind kind,
+      BigDecimal expected,
+      BigDecimal actual,
+      TransactionMatchingProperties properties) {
+    BigDecimal delta = expected == null || actual == null ? null : actual.subtract(expected).abs();
+    return new QuantityAmountMismatchEvent(
+        row,
+        order,
+        kind,
+        expected,
+        actual,
+        delta,
+        tolerance(kind, properties),
+        properties.nearMissMultiplier(),
+        null);
   }
 
   boolean isShortFill(

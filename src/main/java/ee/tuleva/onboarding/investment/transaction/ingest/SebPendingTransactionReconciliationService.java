@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
@@ -39,6 +40,7 @@ public class SebPendingTransactionReconciliationService {
   private final SebPendingTransactionMatcher matcher;
   private final SebPendingTransactionComplexMatcher complexMatcher;
   private final QuantityAmountValidator quantityAmountValidator;
+  private final SebClientNameToFundResolver fundResolver;
   private final ExecutionPriceConsistencyChecker priceConsistencyChecker;
   private final TransactionMatchingPolicy matchingPolicy;
   private final TransactionExecutionMapper executionMapper;
@@ -224,6 +226,19 @@ public class SebPendingTransactionReconciliationService {
           row.isin(),
           order.getTransactionType(),
           row.side(),
+          row.ourRef(),
+          reportDate);
+      return false;
+    }
+    Optional<TulevaFund> rowFund = fundResolver.resolve(row.clientName());
+    if (rowFund.isPresent() && rowFund.get() != order.getFund()) {
+      log.error(
+          "Matched SEB row client name resolves to a different fund than the order: orderId={},"
+              + " orderFund={}, rowFund={}, clientName={}, ourRef={}, reportDate={}",
+          order.getId(),
+          order.getFund(),
+          rowFund.get(),
+          row.clientName(),
           row.ourRef(),
           reportDate);
       return false;

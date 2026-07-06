@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.SELL;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -303,6 +304,7 @@ class TransactionPreparationServiceTest {
             .transactionType(TransactionType.BUY)
             .instrumentType(InstrumentType.ETF)
             .orderAmount(new BigDecimal("100000"))
+            .orderQuantity(new BigDecimal("9876.543210"))
             .orderVenue(OrderVenue.SEB)
             .orderStatus(OrderStatus.PENDING)
             .build();
@@ -553,6 +555,128 @@ class TransactionPreparationServiceTest {
   }
 
   @Test
+  void processCommand_leavesEtfOrderQuantityNullWhenPriceIsZero() {
+    var command = givenSingleEtfBuyCommandPricedAt(ZERO);
+
+    var result = service.processCommand(command);
+
+    assertThat(orderByIsin(result, "IE00ETF").getOrderQuantity()).isNull();
+  }
+
+  @Test
+  void processCommand_leavesEtfOrderQuantityNullWhenPriceIsNegative() {
+    var command = givenSingleEtfBuyCommandPricedAt(new BigDecimal("-3"));
+
+    var result = service.processCommand(command);
+
+    assertThat(orderByIsin(result, "IE00ETF").getOrderQuantity()).isNull();
+  }
+
+  @Test
+  void processCommand_onUnexpectedRuntimeException_setsFailedStatusInsteadOfPropagating() {
+    var command =
+        TransactionCommand.builder()
+            .id(10L)
+            .fund(TUV100)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .status(PROCESSING)
+            .build();
+
+    when(clock.instant()).thenReturn(Instant.parse("2026-01-15T10:00:00Z"));
+    when(inputService.gatherInput(any(), any(), any()))
+        .thenThrow(new ArithmeticException("/ by zero"));
+
+    var result = service.processCommand(command);
+
+    assertThat(result).isNull();
+    assertThat(command.getStatus()).isEqualTo(FAILED);
+    assertThat(command.getErrorMessage()).isNotNull();
+    assertThat(command.getProcessedAt()).isNotNull();
+  }
+
+  @Test
+  void finalizeConfirmedBatch_failsWhenNonAmountOrderHasNullQuantity_withoutGeneratingExports() {
+    when(clock.instant()).thenReturn(Instant.parse("2026-01-15T10:00:00Z"));
+    when(clock.getZone()).thenReturn(ZoneId.of("Europe/Tallinn"));
+
+    var batch =
+        TransactionBatch.builder()
+            .id(1L)
+            .fund(TUV100)
+            .status(CONFIRMED)
+            .createdBy("system")
+            .metadata(new HashMap<>(Map.of("commandId", 1L)))
+            .build();
+    var etfOrderWithoutQuantity =
+        TransactionOrder.builder()
+            .batch(batch)
+            .fund(TUV100)
+            .instrumentIsin("IE00A")
+            .transactionType(TransactionType.BUY)
+            .instrumentType(InstrumentType.ETF)
+            .orderAmount(new BigDecimal("100000"))
+            .orderVenue(OrderVenue.SEB)
+            .orderStatus(OrderStatus.PENDING)
+            .build();
+
+    when(orderRepository.findByBatchId(batch.getId())).thenReturn(List.of(etfOrderWithoutQuantity));
+
+    assertThatThrownBy(() -> service.finalizeConfirmedBatch(batch))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("IE00A");
+
+    assertThat(batch.getStatus()).isEqualTo(CONFIRMED);
+    verifyNoInteractions(exportService);
+    verify(orderRepository, never()).saveAll(any());
+  }
+
+  private TransactionCommand givenSingleEtfBuyCommandPricedAt(BigDecimal price) {
+    var command =
+        TransactionCommand.builder()
+            .id(9L)
+            .fund(TUV100)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .status(PROCESSING)
+            .build();
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00ETF", new BigDecimal("300000"))))
+            .modelWeights(List.of(new ModelWeight("IE00ETF", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("600000"))
+            .cashBuffer(new BigDecimal("10000"))
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("90000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .instrumentTypes(Map.of("IE00ETF", InstrumentType.ETF))
+            .orderVenues(Map.of())
+            .build();
+    var trades =
+        List.of(
+            new TradeCalculation(
+                "IE00ETF", new BigDecimal("50000"), new BigDecimal("0.55"), LimitStatus.OK));
+    var calculationResult = new FundCalculationResult(TUV100, BUY, input, trades);
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).willReturn(input);
+    given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
+    given(batchRepository.save(any(TransactionBatch.class)))
+        .willAnswer(
+            invocation -> {
+              TransactionBatch batch = invocation.getArgument(0);
+              batch.setId(1L);
+              return batch;
+            });
+    given(positionPriceResolver.resolve("IE00ETF", LocalDate.of(2026, 1, 15)))
+        .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(price).build()));
+    return command;
+  }
+
+  @Test
   void processCommand_setsFundSellOrderQuantityFromLatestPriceAndLeavesFundBuyQuantityNull() {
     var command =
         TransactionCommand.builder()
@@ -757,6 +881,7 @@ class TransactionPreparationServiceTest {
             .transactionType(TransactionType.BUY)
             .instrumentType(InstrumentType.ETF)
             .orderAmount(new BigDecimal("100000"))
+            .orderQuantity(new BigDecimal("9876.543210"))
             .orderVenue(OrderVenue.SEB)
             .orderStatus(OrderStatus.PENDING)
             .build();
@@ -803,6 +928,7 @@ class TransactionPreparationServiceTest {
             .transactionType(TransactionType.BUY)
             .instrumentType(InstrumentType.ETF)
             .orderAmount(new BigDecimal("100000"))
+            .orderQuantity(new BigDecimal("9876.543210"))
             .orderVenue(OrderVenue.SEB)
             .orderStatus(OrderStatus.PENDING)
             .build();

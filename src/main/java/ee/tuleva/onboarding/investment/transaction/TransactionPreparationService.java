@@ -112,7 +112,7 @@ public class TransactionPreparationService {
 
       return new ProcessCommandResult(batch, orders);
 
-    } catch (IllegalStateException | IllegalArgumentException e) {
+    } catch (RuntimeException e) {
       log.error("Command processing failed: id={}", command.getId(), e);
       command.setStatus(CommandStatus.FAILED);
       command.setErrorMessage(e.getMessage());
@@ -130,6 +130,7 @@ public class TransactionPreparationService {
     LocalDate tradeDate = now.atZone(clock.getZone()).toLocalDate();
 
     List<TransactionOrder> orders = orderRepository.findByBatchId(batch.getId());
+    requireQuantitiesForNonAmountOrders(batch, orders);
     orders.forEach(
         order -> {
           order.setOrderTimestamp(now);
@@ -267,24 +268,50 @@ public class TransactionPreparationService {
     if (isAmountBasedOrder(instrumentType, transactionType)) {
       return null;
     }
-    return positionPriceResolver
-        .resolve(isin, asOfDate)
-        .map(ResolvedPrice::usedPrice)
-        .map(price -> orderAmount.divide(price, 6, RoundingMode.HALF_UP))
-        .orElseGet(
-            () -> {
-              log.warn(
-                  "No price found for order quantity: isin={}, instrumentType={}, asOfDate={}",
-                  isin,
-                  instrumentType,
-                  asOfDate);
-              return null;
-            });
+    BigDecimal price =
+        positionPriceResolver.resolve(isin, asOfDate).map(ResolvedPrice::usedPrice).orElse(null);
+    if (price == null) {
+      log.warn(
+          "No price found for order quantity: isin={}, instrumentType={}, asOfDate={}",
+          isin,
+          instrumentType,
+          asOfDate);
+      return null;
+    }
+    if (price.signum() <= 0) {
+      log.warn(
+          "Non-positive price for order quantity, leaving quantity unset:"
+              + " isin={}, instrumentType={}, price={}, asOfDate={}",
+          isin,
+          instrumentType,
+          price.toPlainString(),
+          asOfDate);
+      return null;
+    }
+    return orderAmount.divide(price, 6, RoundingMode.HALF_UP);
   }
 
   private boolean isAmountBasedOrder(
       InstrumentType instrumentType, TransactionType transactionType) {
     return instrumentType == InstrumentType.FUND && transactionType == TransactionType.BUY;
+  }
+
+  private void requireQuantitiesForNonAmountOrders(
+      TransactionBatch batch, List<TransactionOrder> orders) {
+    List<String> missingQuantity =
+        orders.stream()
+            .filter(
+                order -> !isAmountBasedOrder(order.getInstrumentType(), order.getTransactionType()))
+            .filter(order -> order.getOrderQuantity() == null)
+            .map(TransactionOrder::getInstrumentIsin)
+            .toList();
+    if (!missingQuantity.isEmpty()) {
+      throw new IllegalStateException(
+          "Cannot finalize batch: orders require a quantity but have none: batchId="
+              + batch.getId()
+              + ", isins="
+              + missingQuantity);
+    }
   }
 
   static Map<String, Object> serializeInput(

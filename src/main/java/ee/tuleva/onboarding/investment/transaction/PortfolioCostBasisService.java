@@ -58,8 +58,27 @@ public class PortfolioCostBasisService {
     isins.addAll(executionIsins(dayExecutions));
     isins.addAll(carriedForwardIsins(fundIsin, asOfDate));
 
+    Set<String> persistedIsins = new HashSet<>();
     for (String isin : isins) {
-      computeAndUpsert(fund, asOfDate, isin, baseline, dayExecutions);
+      if (computeAndUpsert(fund, asOfDate, isin, baseline, dayExecutions)) {
+        persistedIsins.add(isin);
+      }
+    }
+    deleteStaleRows(fundIsin, asOfDate, persistedIsins);
+  }
+
+  private void deleteStaleRows(String fundIsin, LocalDate asOfDate, Set<String> persistedIsins) {
+    List<PortfolioCostBasis> stale =
+        costBasisRepository.findByFundIsinAndAsOfDate(fundIsin, asOfDate).stream()
+            .filter(row -> !persistedIsins.contains(row.getInstrumentIsin()))
+            .toList();
+    if (!stale.isEmpty()) {
+      log.info(
+          "Deleting stale cost-basis rows: fundIsin={}, asOfDate={}, count={}",
+          fundIsin,
+          asOfDate,
+          stale.size());
+      costBasisRepository.deleteAll(stale);
     }
   }
 
@@ -96,7 +115,7 @@ public class PortfolioCostBasisService {
         row.getAsOfDate());
   }
 
-  private void computeAndUpsert(
+  private boolean computeAndUpsert(
       TulevaFund fund,
       LocalDate asOfDate,
       String isin,
@@ -107,7 +126,7 @@ public class PortfolioCostBasisService {
     List<ExecutionEvent> events = executionsFor(isin, dayExecutions);
 
     if (prior.isEmpty() && events.isEmpty()) {
-      return;
+      return false;
     }
 
     PortfolioCostBasis computed = calculator.calculate(prior, events, fundIsin, isin, asOfDate);
@@ -125,6 +144,7 @@ public class PortfolioCostBasisService {
     } else {
       costBasisRepository.save(computed);
     }
+    return true;
   }
 
   private Optional<PriorPosition> priorPosition(

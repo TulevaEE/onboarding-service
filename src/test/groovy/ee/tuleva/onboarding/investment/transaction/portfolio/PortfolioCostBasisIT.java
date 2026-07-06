@@ -104,6 +104,33 @@ class PortfolioCostBasisIT {
     assertThat(nextDayRow.getDeltaQuantity()).isEqualByComparingTo("0.0000");
   }
 
+  @Test
+  void runForFundAndDate_rebuild_deletesRowForACorrectedAwayExecution() {
+    seedBaseline(); // baseline holds INSTRUMENT_ISIN
+    seedBuyExecutionForIsin(
+        INSTRUMENT_ISIN_2, new BigDecimal("500.0000"), new BigDecimal("20.00000000"), TRADE_DATE);
+    service.runForFundAndDate(TUK75, TRADE_DATE);
+    assertThat(
+            costBasisRepository.findByFundIsinAndInstrumentIsinAndAsOfDate(
+                FUND_ISIN, INSTRUMENT_ISIN_2, TRADE_DATE))
+        .isPresent();
+
+    // The erroneous execution is corrected away, then the day is rebuilt (as the self-heal does)
+    executionRepository.deleteAll();
+    entityManager.flush();
+
+    service.runForFundAndDate(TUK75, TRADE_DATE);
+
+    assertThat(
+            costBasisRepository.findByFundIsinAndInstrumentIsinAndAsOfDate(
+                FUND_ISIN, INSTRUMENT_ISIN_2, TRADE_DATE))
+        .isEmpty();
+    assertThat(
+            costBasisRepository.findByFundIsinAndInstrumentIsinAndAsOfDate(
+                FUND_ISIN, INSTRUMENT_ISIN, TRADE_DATE))
+        .isPresent();
+  }
+
   private void seedBaseline() {
     PortfolioBaseline baseline =
         PortfolioBaseline.builder()

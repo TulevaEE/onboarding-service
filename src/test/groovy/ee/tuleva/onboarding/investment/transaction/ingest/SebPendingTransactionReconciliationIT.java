@@ -412,7 +412,8 @@ class SebPendingTransactionReconciliationIT {
     raw.put("Trade date", "2026-06-22T10:00:00Z");
     raw.put("Settlement date", "2026-06-24");
     raw.put("Settlement amount", amount);
-    raw.put("Client name", "Tuleva III Samba Pensionifond");
+    raw.put(
+        "Client name", "Tuleva Täiendav Kogumisfond"); // TKF100, matching the split order's fund
     raw.put("Instrument name", "Xtrackers MSCI World Screened UCITS ETF 1C");
     return raw;
   }

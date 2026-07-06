@@ -76,6 +76,7 @@ class SebPendingTransactionReconciliationServiceTest {
         new SebPendingTransactionComplexMatcher(
             orderRepository, executionRepository, resolver, validator),
         validator,
+        resolver,
         new ExecutionPriceConsistencyChecker(),
         matchingPolicy,
         mapper,
@@ -620,6 +621,23 @@ class SebPendingTransactionReconciliationServiceTest {
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
 
     service.reconcile(reportWithSingleRow(clientRef));
+
+    verify(executionRepository, never()).save(any());
+    assertThat(order.getOrderStatus()).isEqualTo(SENT);
+  }
+
+  @Test
+  void reconcile_uuidMatchedRowWhoseClientNameResolvesToADifferentFund_isQuarantined() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = sampleOrder(clientRef); // fund TKF100
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+
+    // Row carries this order's Client ref but SEB's client name is a different fund → misrouted ref
+    Map<String, Object> raw = validRawRow(clientRef);
+    raw.put("Client name", "Tuleva Maailma Aktsiate Pensionifond"); // TUK75, not TKF100
+
+    service.reconcile(reportOf(raw));
 
     verify(executionRepository, never()).save(any());
     assertThat(order.getOrderStatus()).isEqualTo(SENT);

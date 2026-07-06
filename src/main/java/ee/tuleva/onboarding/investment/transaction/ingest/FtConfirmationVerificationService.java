@@ -66,23 +66,19 @@ public class FtConfirmationVerificationService {
   private BigDecimal priceTolerance = DEFAULT_PRICE_TOLERANCE;
 
   public FtConfirmationResult verify(FtConfirmation confirmation) {
-    Verification verification = verifyAndRecord(confirmation, ADMIN_ACTOR);
-    return verification.result();
+    return verifyAndRecord(confirmation, ADMIN_ACTOR);
   }
 
   public List<FtConfirmationBatchResult> verifyAll(
       List<FtConfirmation> confirmations, String actor) {
     List<FtConfirmationBatchResult> results = new ArrayList<>();
-    List<FtConfirmationOutcome> changedOutcomes = new ArrayList<>();
+    List<FtConfirmationOutcome> outcomes = new ArrayList<>();
     for (int index = 0; index < confirmations.size(); index++) {
       FtConfirmation confirmation = confirmations.get(index);
       try {
-        Verification verification = verifyAndRecord(confirmation, actor);
-        results.add(
-            FtConfirmationBatchResult.verified(index, confirmation.isin(), verification.result()));
-        if (verification.statusChanged()) {
-          changedOutcomes.add(new FtConfirmationOutcome(confirmation, verification.result()));
-        }
+        FtConfirmationResult result = verifyAndRecord(confirmation, actor);
+        results.add(FtConfirmationBatchResult.verified(index, confirmation.isin(), result));
+        outcomes.add(new FtConfirmationOutcome(confirmation, result));
       } catch (RuntimeException e) {
         log.error(
             "FT confirmation row failed: index={}, isin={}, error={}",
@@ -93,19 +89,19 @@ public class FtConfirmationVerificationService {
         results.add(FtConfirmationBatchResult.failed(index, confirmation.isin(), e.getMessage()));
       }
     }
-    digest.publish(changedOutcomes);
+    digest.publish(outcomes);
     return results;
   }
 
-  private Verification verifyAndRecord(FtConfirmation confirmation, String actor) {
+  private FtConfirmationResult verifyAndRecord(FtConfirmation confirmation, String actor) {
     Computed computed = compute(confirmation);
-    boolean statusChanged = record(confirmation, computed, actor);
-    return new Verification(computed.result(), statusChanged);
+    record(confirmation, computed, actor);
+    return computed.result();
   }
 
-  private boolean record(FtConfirmation confirmation, Computed computed, String actor) {
+  private void record(FtConfirmation confirmation, Computed computed, String actor) {
     if (computed.result().quantityStatus() == IGNORED) {
-      return false;
+      return;
     }
     boolean recorded =
         auditRecorder.recordOutcome(computed.order(), confirmation, computed.result(), actor);
@@ -118,7 +114,6 @@ public class FtConfirmationVerificationService {
           computed.result().quantityStatus(),
           computed.result().priceStatus());
     }
-    return recorded;
   }
 
   private Computed compute(FtConfirmation confirmation) {
@@ -157,8 +152,6 @@ public class FtConfirmationVerificationService {
     FtVerificationStatus priceStatus = checkPrice(confirmation, details);
     return new Computed(result(quantityStatus, priceStatus, details), order);
   }
-
-  private record Verification(FtConfirmationResult result, boolean statusChanged) {}
 
   private record Computed(FtConfirmationResult result, @Nullable TransactionOrder order) {}
 

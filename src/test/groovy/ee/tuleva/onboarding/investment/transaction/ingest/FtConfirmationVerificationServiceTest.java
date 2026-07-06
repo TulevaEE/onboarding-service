@@ -435,13 +435,12 @@ class FtConfirmationVerificationServiceTest {
   }
 
   @Test
-  void verifyAll_changedActionableRows_arePublishedToDigest() {
+  void verifyAll_passesEveryVerifiedOutcomeToDigest() {
     TransactionOrder order = order(new BigDecimal("40432"));
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
     given(executionRepository.findAllByOrderId(order.getId()))
         .willReturn(List.of(execution(new BigDecimal("40432"))));
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
-    given(auditRecorder.recordOutcome(any(), any(), any(), any())).willReturn(true);
     FtConfirmation confirmation = confirmation();
 
     List<FtConfirmationBatchResult> results =
@@ -453,13 +452,17 @@ class FtConfirmationVerificationServiceTest {
   }
 
   @Test
-  void verifyAll_unchangedRows_areNotPublishedToDigest() {
+  void verifyAll_passesCleanOutcomesToDigestToo_alertingIsTheDigestsDecision() {
     givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
+    FtConfirmation confirmation = confirmation();
 
-    service(DAY_AFTER_TRADE).verifyAll(List.of(confirmation()), "ops");
+    List<FtConfirmationBatchResult> results =
+        service(DAY_AFTER_TRADE).verifyAll(List.of(confirmation), "ops");
 
-    verify(digest).publish(List.of());
+    FtConfirmationResult result = results.get(0).result();
+    assertThat(result.quantityStatus()).isEqualTo(OK);
+    verify(digest).publish(List.of(new FtConfirmationOutcome(confirmation, result)));
   }
 
   private FtConfirmation confirmation() {

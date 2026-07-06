@@ -79,9 +79,13 @@ class ChildRoleAwareKycIntegrationTest {
       }
       """;
 
-  // The child survey deliberately carries NO CITIZENSHIP and NO PEP_SELF_DECLARATION (a child's
-  // citizenship comes from the population register, not the survey), and adds the child-specific
-  // FUNDING_SOURCES + PLANNED_CONTRIBUTION items and the EDUCATION investment goal.
+  // Mirrors verbatim the payload onboarding-client PR #1587 sends from
+  // transformChildFormDataToSurveyCommand: ADDRESS (including the frontend's optional
+  // fullAddress field, which the backend AddressDetails record ignores under Jackson 3's
+  // default of not failing on unknown properties), EMAIL, PHONE_NUMBER, INVESTMENT_GOALS
+  // (child-only EDUCATION goal), PLANNED_CONTRIBUTION, FUNDING_SOURCES, purpose
+  // PERSONAL_ONBOARDING. Citizenship and PEP are intentionally absent — a child's
+  // citizenship comes from the population register and a child cannot be a PEP.
   private static final String CHILD_SURVEY =
       """
       {
@@ -91,6 +95,7 @@ class ChildRoleAwareKycIntegrationTest {
             "value": {
               "type": "ADDRESS",
               "value": {
+                "fullAddress": "123 Main St, Tallinn 10115",
                 "street": "123 Main St",
                 "city": "Tallinn",
                 "postalCode": "10115",
@@ -99,22 +104,21 @@ class ChildRoleAwareKycIntegrationTest {
             }
           },
           { "type": "EMAIL", "value": { "type": "TEXT", "value": "child@example.com" } },
+          { "type": "PHONE_NUMBER", "value": { "type": "TEXT", "value": "+37255500000" } },
           { "type": "INVESTMENT_GOALS", "value": { "type": "OPTION", "value": "EDUCATION" } },
-          { "type": "INVESTABLE_ASSETS", "value": { "type": "OPTION", "value": "LESS_THAN_20K" } },
-          { "type": "SOURCE_OF_INCOME", "value": [ { "type": "OPTION", "value": "SALARY" } ] },
+          {
+            "type": "PLANNED_CONTRIBUTION",
+            "value": { "type": "OPTION", "value": "FROM_50_TO_100" }
+          },
           {
             "type": "FUNDING_SOURCES",
             "value": [
               { "type": "OPTION", "value": "PARENT_INCOME_AND_SAVINGS" },
               { "type": "TEXT", "value": "lottery win" }
             ]
-          },
-          {
-            "type": "PLANNED_CONTRIBUTION",
-            "value": { "type": "OPTION", "value": "FROM_50_TO_100" }
-          },
-          { "type": "TERMS", "value": { "type": "OPTION", "value": "ACCEPTED" } }
-        ]
+          }
+        ],
+        "purpose": "PERSONAL_ONBOARDING"
       }
       """;
 

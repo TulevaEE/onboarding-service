@@ -25,6 +25,7 @@ import ee.tuleva.onboarding.investment.report.ReportType;
 import ee.tuleva.onboarding.investment.transaction.ingest.FtConfirmationVerificationService;
 import ee.tuleva.onboarding.investment.transaction.ingest.HistoricalRegistryImportService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -106,7 +107,7 @@ public class TransactionRegistryController {
   public List<FtConfirmationBatchResult> verifyFtConfirmations(
       @RequestHeader("X-Admin-Token") String token,
       @RequestHeader(name = "X-Admin-Actor", required = false, defaultValue = "admin") String actor,
-      @RequestBody List<FtConfirmation> confirmations) {
+      @Valid @RequestBody List<@NotNull @Valid FtConfirmation> confirmations) {
 
     validateToken(token);
 

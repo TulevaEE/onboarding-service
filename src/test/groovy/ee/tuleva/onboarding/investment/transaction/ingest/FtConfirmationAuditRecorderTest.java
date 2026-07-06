@@ -174,6 +174,79 @@ class FtConfirmationAuditRecorderTest {
                 .build());
   }
 
+  @Test
+  void alreadyAlerted_noPriorAlert_returnsFalse() {
+    given(auditEventRepository.findByEventType("FT_CONFIRMATION_ALERTED")).willReturn(List.of());
+
+    boolean alerted =
+        recorder().alreadyAlerted(confirmation(), new FtConfirmationResult(ERROR, OK, Map.of()));
+
+    assertThat(alerted).isFalse();
+  }
+
+  @Test
+  void alreadyAlerted_priorAlertWithSameStatus_returnsTrue() {
+    given(auditEventRepository.findByEventType("FT_CONFIRMATION_ALERTED"))
+        .willReturn(List.of(priorAlert("ERROR", "OK")));
+
+    boolean alerted =
+        recorder().alreadyAlerted(confirmation(), new FtConfirmationResult(ERROR, OK, Map.of()));
+
+    assertThat(alerted).isTrue();
+  }
+
+  @Test
+  void alreadyAlerted_priorAlertWithDifferentStatus_returnsFalse() {
+    given(auditEventRepository.findByEventType("FT_CONFIRMATION_ALERTED"))
+        .willReturn(List.of(priorAlert("AMBIGUOUS", "AMBIGUOUS")));
+
+    boolean alerted =
+        recorder().alreadyAlerted(confirmation(), new FtConfirmationResult(ERROR, OK, Map.of()));
+
+    assertThat(alerted).isFalse();
+  }
+
+  @Test
+  void recordAlerted_savesAlertedEventWithSystemActor() {
+    recorder().recordAlerted(confirmation(), new FtConfirmationResult(ERROR, OK, Map.of()));
+
+    verify(auditEventRepository)
+        .save(
+            TransactionAuditEvent.builder()
+                .eventType("FT_CONFIRMATION_ALERTED")
+                .actor("system")
+                .payload(
+                    Map.of(
+                        "fund", "TUK75",
+                        "isin", "IE000F60HVH9",
+                        "tradeDate", "2026-06-08",
+                        "quantity", "40434",
+                        "grossPrice", "10.09",
+                        "type", "NORMAL",
+                        "quantityStatus", "ERROR",
+                        "priceStatus", "OK",
+                        "details", Map.of()))
+                .createdAt(NOW)
+                .build());
+  }
+
+  private static TransactionAuditEvent priorAlert(String quantityStatus, String priceStatus) {
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("fund", "TUK75");
+    payload.put("isin", "IE000F60HVH9");
+    payload.put("tradeDate", "2026-06-08");
+    payload.put("quantity", "40434");
+    payload.put("grossPrice", "10.09");
+    payload.put("type", "NORMAL");
+    payload.put("quantityStatus", quantityStatus);
+    payload.put("priceStatus", priceStatus);
+    return TransactionAuditEvent.builder()
+        .eventType("FT_CONFIRMATION_ALERTED")
+        .payload(payload)
+        .createdAt(NOW)
+        .build();
+  }
+
   private static TransactionOrder order() {
     return TransactionOrder.builder()
         .id(42L)

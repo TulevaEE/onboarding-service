@@ -23,6 +23,8 @@ import org.springframework.stereotype.Component;
 class FtConfirmationAuditRecorder {
 
   static final String FT_CONFIRMATION_VERIFIED = "FT_CONFIRMATION_VERIFIED";
+  static final String FT_CONFIRMATION_ALERTED = "FT_CONFIRMATION_ALERTED";
+  private static final String ALERT_ACTOR = "system";
 
   private final TransactionAuditEventRepository auditEventRepository;
   private final Clock clock;
@@ -46,6 +48,23 @@ class FtConfirmationAuditRecorder {
             .createdAt(clock.instant())
             .build());
     return true;
+  }
+
+  boolean alreadyAlerted(FtConfirmation confirmation, FtConfirmationResult result) {
+    return auditEventRepository.findByEventType(FT_CONFIRMATION_ALERTED).stream()
+        .filter(event -> sameConfirmation(event.getPayload(), confirmation))
+        .map(event -> statusPair(event.getPayload()))
+        .anyMatch(statusPair(result)::equals);
+  }
+
+  void recordAlerted(FtConfirmation confirmation, FtConfirmationResult result) {
+    auditEventRepository.save(
+        TransactionAuditEvent.builder()
+            .eventType(FT_CONFIRMATION_ALERTED)
+            .actor(ALERT_ACTOR)
+            .payload(payload(confirmation, result))
+            .createdAt(clock.instant())
+            .build());
   }
 
   private boolean statusUnchangedSinceLastRecord(

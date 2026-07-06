@@ -2,15 +2,19 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.AMBIGUOUS;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.CANCELLED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ERROR;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.OK;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ORPHAN;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_NAV;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -34,9 +38,10 @@ class FtConfirmationDigestTest {
   private static final LocalDate TRADE_DATE = LocalDate.of(2026, 6, 8);
 
   @Mock private OperationsNotificationService notificationService;
+  @Mock private FtConfirmationAuditRecorder auditRecorder;
 
   private FtConfirmationDigest digest(boolean registryAuthoritative) {
-    return new FtConfirmationDigest(notificationService, registryAuthoritative);
+    return new FtConfirmationDigest(notificationService, auditRecorder, registryAuthoritative);
   }
 
   @Test
@@ -64,15 +69,6 @@ class FtConfirmationDigestTest {
   }
 
   @Test
-  void whileRegistryNotAuthoritative_nothingIsSent_evenForActionableRows() {
-    digest(false)
-        .publish(
-            List.of(outcome(ERROR, OK), outcome(AMBIGUOUS, AMBIGUOUS), outcome(ORPHAN, ORPHAN)));
-
-    verifyNoInteractions(notificationService);
-  }
-
-  @Test
   void orphanRow_whenRegistryAuthoritative_isSent() {
     digest(true).publish(List.of(outcome(ORPHAN, ORPHAN)));
 
@@ -82,6 +78,27 @@ class FtConfirmationDigestTest {
                 + "FT issue: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434,"
                 + " quantityStatus=ORPHAN, priceStatus=ORPHAN",
             INVESTMENT);
+  }
+
+  @Test
+  void cancellationRow_whenRegistryAuthoritative_isSentAsCancellationLine() {
+    digest(true).publish(List.of(outcome(CANCELLED, CANCELLED)));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 1 issue(s) need attention\n"
+                + "FT broker cancellation: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08,"
+                + " quantity=40434 — verify and cancel in registry",
+            INVESTMENT);
+  }
+
+  @Test
+  void whileRegistryNotAuthoritative_nothingIsSentOrRecorded_evenForActionableRows() {
+    digest(false)
+        .publish(
+            List.of(outcome(ERROR, OK), outcome(AMBIGUOUS, AMBIGUOUS), outcome(ORPHAN, ORPHAN)));
+
+    verifyNoInteractions(notificationService, auditRecorder);
   }
 
   @Test
@@ -99,13 +116,48 @@ class FtConfirmationDigestTest {
   }
 
   @Test
-  void slackFailure_doesNotPropagate() {
+  void alreadyAlertedActionableRow_isNotSentAgain() {
+    given(auditRecorder.alreadyAlerted(any(), any())).willReturn(true);
+
+    digest(true).publish(List.of(outcome(ERROR, OK)));
+
+    verifyNoInteractions(notificationService);
+    verify(auditRecorder, never()).recordAlerted(any(), any());
+  }
+
+  @Test
+  void deliveredActionableRows_areRecordedAsAlerted() {
+    FtConfirmationOutcome error = outcome(ERROR, OK);
+
+    digest(true).publish(List.of(error));
+
+    verify(auditRecorder).recordAlerted(error.confirmation(), error.result());
+  }
+
+  @Test
+  void issueUnalertedInShadowMode_isAlertedOnceAfterFlagFlips() {
+    FtConfirmationOutcome error = outcome(ERROR, OK);
+
+    // Shadow mode: recorded elsewhere, but nothing is alerted or marked as alerted.
+    digest(false).publish(List.of(error));
+    verifyNoInteractions(notificationService, auditRecorder);
+
+    // Flag flips: the still-open issue was never alerted, so it alerts exactly once now.
+    digest(true).publish(List.of(error));
+    verify(notificationService).sendMessage(anyString(), eq(INVESTMENT));
+    verify(auditRecorder).recordAlerted(error.confirmation(), error.result());
+  }
+
+  @Test
+  void slackFailure_doesNotPropagate_andDoesNotRecordAlerted() {
     willThrow(new RuntimeException("slack down"))
         .given(notificationService)
         .sendMessage(anyString(), eq(INVESTMENT));
 
     assertThatCode(() -> digest(true).publish(List.of(outcome(ERROR, OK))))
         .doesNotThrowAnyException();
+
+    verify(auditRecorder, never()).recordAlerted(any(), any());
   }
 
   private static FtConfirmationOutcome outcome(

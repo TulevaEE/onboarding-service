@@ -109,6 +109,31 @@ class FtConfirmationVerificationServiceTest {
   }
 
   @Test
+  void orderOnDifferentVenue_isNotAnFtCandidate_returnsOrphan() {
+    TransactionOrder sebOrder = order(new BigDecimal("40434"));
+    sebOrder.setOrderVenue(OrderVenue.SEB);
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(sebOrder));
+
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
+
+    assertThat(result.quantityStatus()).isEqualTo(ORPHAN);
+  }
+
+  @Test
+  void orderPlacedLateEveningUtc_matchesSameUtcTradeDate_notNextDayInTallinn() {
+    TransactionOrder order = order(new BigDecimal("40434"));
+    order.setOrderTimestamp(Instant.parse("2026-06-08T22:30:00Z")); // 01:30 on 06-09 in Tallinn
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
+    given(executionRepository.findAllByOrderId(order.getId()))
+        .willReturn(List.of(execution(new BigDecimal("40434"))));
+    givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
+
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
+
+    assertThat(result.quantityStatus()).isEqualTo(OK);
+  }
+
+  @Test
   void quantityAndPriceMatch_returnsOkOk() {
     givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);

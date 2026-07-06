@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationBatchResult;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
 import ee.tuleva.onboarding.investment.transaction.FtVerificationStatus;
+import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
@@ -27,7 +28,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -49,7 +50,6 @@ public class FtConfirmationVerificationService {
 
   private static final BigDecimal QUANTITY_TOLERANCE = BigDecimal.ONE;
   private static final BigDecimal DEFAULT_PRICE_TOLERANCE = new BigDecimal("0.001");
-  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final int EXECUTION_PENDING_BUSINESS_DAYS = 1;
   private static final String ADMIN_ACTOR = "admin";
 
@@ -194,6 +194,7 @@ public class FtConfirmationVerificationService {
 
   private List<TransactionOrder> candidateOrders(FtConfirmation confirmation) {
     return orderRepository.findByInstrumentIsin(confirmation.isin()).stream()
+        .filter(order -> order.getOrderVenue() == OrderVenue.FT)
         .filter(order -> order.getFund() == confirmation.fund())
         .filter(order -> hasTradeDate(order, confirmation.tradeDate()))
         .collect(toList());
@@ -225,9 +226,10 @@ public class FtConfirmationVerificationService {
 
   private record OrderSelection(TransactionOrder order, boolean ambiguous, int matchCount) {}
 
-  private static boolean hasTradeDate(TransactionOrder order, LocalDate tradeDate) {
-    return order.getOrderTimestamp() != null
-        && order.getOrderTimestamp().atZone(TALLINN).toLocalDate().equals(tradeDate);
+  private static boolean hasTradeDate(TransactionOrder order, LocalDate ftUtcTradeDate) {
+    var timestamp = order.getOrderTimestamp();
+    return timestamp != null
+        && LocalDate.ofInstant(timestamp, ZoneOffset.UTC).equals(ftUtcTradeDate);
   }
 
   private FtVerificationStatus checkQuantity(

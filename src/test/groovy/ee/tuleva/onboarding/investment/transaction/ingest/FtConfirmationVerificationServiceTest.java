@@ -39,6 +39,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -455,6 +456,34 @@ class FtConfirmationVerificationServiceTest {
     service(DAY_AFTER_TRADE).verifyAll(List.of(confirmation), "alice");
 
     verify(auditRecorder).recordOutcome(eq(order), eq(confirmation), any(), eq("alice"));
+  }
+
+  @Test
+  void verify_singleRow_publishesOutcomeToDigest() {
+    TransactionOrder order = order(new BigDecimal("40432"));
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
+    given(executionRepository.findAllByOrderId(order.getId()))
+        .willReturn(List.of(execution(new BigDecimal("40432"))));
+    givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
+    FtConfirmation confirmation = confirmation();
+
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation);
+
+    verify(digest).publish(List.of(new FtConfirmationOutcome(confirmation, result)));
+  }
+
+  @Test
+  void verifyAll_nullRow_isIsolatedWithoutAbortingOtherRows() {
+    givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
+    givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
+
+    List<FtConfirmationBatchResult> results =
+        service(DAY_AFTER_TRADE).verifyAll(Arrays.asList(null, confirmation()), "ops");
+
+    assertThat(results).hasSize(2);
+    assertThat(results.get(0).isin()).isNull();
+    assertThat(results.get(0).error()).isEqualTo("null confirmation row");
+    assertThat(results.get(1).result().quantityStatus()).isEqualTo(OK);
   }
 
   @Test

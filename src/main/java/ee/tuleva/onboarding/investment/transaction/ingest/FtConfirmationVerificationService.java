@@ -66,7 +66,9 @@ public class FtConfirmationVerificationService {
   private BigDecimal priceTolerance = DEFAULT_PRICE_TOLERANCE;
 
   public FtConfirmationResult verify(FtConfirmation confirmation) {
-    return verifyAndRecord(confirmation, ADMIN_ACTOR);
+    FtConfirmationResult result = verifyAndRecord(confirmation, ADMIN_ACTOR);
+    digest.publish(List.of(new FtConfirmationOutcome(confirmation, result)));
+    return result;
   }
 
   public List<FtConfirmationBatchResult> verifyAll(
@@ -75,6 +77,10 @@ public class FtConfirmationVerificationService {
     List<FtConfirmationOutcome> outcomes = new ArrayList<>();
     for (int index = 0; index < confirmations.size(); index++) {
       FtConfirmation confirmation = confirmations.get(index);
+      if (confirmation == null) {
+        results.add(FtConfirmationBatchResult.failed(index, null, "null confirmation row"));
+        continue;
+      }
       try {
         FtConfirmationResult result = verifyAndRecord(confirmation, actor);
         results.add(FtConfirmationBatchResult.verified(index, confirmation.isin(), result));

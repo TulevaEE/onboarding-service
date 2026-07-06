@@ -79,6 +79,45 @@ class ChildRoleAwareKycIntegrationTest {
       }
       """;
 
+  // The child survey deliberately carries NO CITIZENSHIP and NO PEP_SELF_DECLARATION (a child's
+  // citizenship comes from the population register, not the survey), and adds the child-specific
+  // FUNDING_SOURCES + PLANNED_CONTRIBUTION items and the EDUCATION investment goal.
+  private static final String CHILD_SURVEY =
+      """
+      {
+        "answers": [
+          {
+            "type": "ADDRESS",
+            "value": {
+              "type": "ADDRESS",
+              "value": {
+                "street": "123 Main St",
+                "city": "Tallinn",
+                "postalCode": "10115",
+                "countryCode": "EE"
+              }
+            }
+          },
+          { "type": "EMAIL", "value": { "type": "TEXT", "value": "child@example.com" } },
+          { "type": "INVESTMENT_GOALS", "value": { "type": "OPTION", "value": "EDUCATION" } },
+          { "type": "INVESTABLE_ASSETS", "value": { "type": "OPTION", "value": "LESS_THAN_20K" } },
+          { "type": "SOURCE_OF_INCOME", "value": [ { "type": "OPTION", "value": "SALARY" } ] },
+          {
+            "type": "FUNDING_SOURCES",
+            "value": [
+              { "type": "OPTION", "value": "PARENT_INCOME_AND_SAVINGS" },
+              { "type": "TEXT", "value": "lottery win" }
+            ]
+          },
+          {
+            "type": "PLANNED_CONTRIBUTION",
+            "value": { "type": "OPTION", "value": "FROM_50_TO_100" }
+          },
+          { "type": "TERMS", "value": { "type": "OPTION", "value": "ACCEPTED" } }
+        ]
+      }
+      """;
+
   @Autowired private MockMvc mockMvc;
   @Autowired private UserRepository userRepository;
   @Autowired private KycSurveyRepository kycSurveyRepository;
@@ -179,12 +218,37 @@ class ChildRoleAwareKycIntegrationTest {
         .andExpect(jsonPath("$.complete").value(false));
   }
 
+  @Test
+  void parentActingAsChild_childSurveyWithoutCitizenshipOrPep_isAcceptedAndCompletes()
+      throws Exception {
+    submitSurvey(parentActingAsChild, CHILD_SURVEY);
+
+    var storedSurvey = kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(child.getId());
+    assertThat(storedSurvey)
+        .as("child survey without CITIZENSHIP/PEP is accepted and stored under the child")
+        .isPresent();
+    assertThat(storedSurvey.get().getSurvey().citizenship())
+        .as("child survey carries no citizenship")
+        .isEmpty();
+    assertThat(storedSurvey.get().getSurvey().pepSelfDeclaration())
+        .as("child survey carries no PEP self-declaration")
+        .isEmpty();
+
+    assertThat(savingsFundOnboardingRepository.findStatus(child.getPersonalCode(), PERSON))
+        .as("child onboarding completes")
+        .contains(COMPLETED);
+  }
+
   private void submitOnboardingSurvey(Authentication as) throws Exception {
+    submitSurvey(as, ONBOARDING_SURVEY);
+  }
+
+  private void submitSurvey(Authentication as, String body) throws Exception {
     mockMvc
         .perform(
             post("/v1/kyc/surveys")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(ONBOARDING_SURVEY)
+                .content(body)
                 .with(csrf())
                 .with(authentication(as)))
         .andExpect(status().isOk());

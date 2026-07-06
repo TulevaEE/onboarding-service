@@ -2,7 +2,11 @@ package ee.tuleva.onboarding.kyc.survey;
 
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.IDENTITY_ONLY;
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.PERSONAL_ONBOARDING;
+import static ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.FundingSource.PARENT_INCOME_AND_SAVINGS;
+import static ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.InvestmentGoal.EDUCATION;
+import static ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.InvestmentGoal.FIRST_HOME;
 import static ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.PepStatus.IS_NOT_PEP;
+import static ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.PlannedContributionRange.FROM_50_TO_100;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,9 +17,14 @@ import ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.Citizenship;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.CountriesValue;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.Email;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.EmailValue;
+import ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.FundingSourceValueItem;
+import ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.FundingSources;
+import ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.InvestmentGoals;
+import ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.InvestmentGoalsValue;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.OptionValue;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.PepSelfDeclaration;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.PhoneNumber;
+import ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.PlannedContribution;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.TextValue;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -123,5 +132,46 @@ class KycSurveyResponseTest {
     assertThat(response.email()).isEmpty();
     assertThat(response.phoneNumber()).isEmpty();
     assertThat(response.pepSelfDeclaration()).isEmpty();
+  }
+
+  @Test
+  void childSurveyItemsParseAndRoundTrip() throws Exception {
+    var json =
+        """
+        {
+          "answers": [
+            {
+              "type": "FUNDING_SOURCES",
+              "value": [
+                { "type": "OPTION", "value": "PARENT_INCOME_AND_SAVINGS" },
+                { "type": "TEXT", "value": "lottery win" }
+              ]
+            },
+            {
+              "type": "PLANNED_CONTRIBUTION",
+              "value": { "type": "OPTION", "value": "FROM_50_TO_100" }
+            },
+            { "type": "INVESTMENT_GOALS", "value": { "type": "OPTION", "value": "EDUCATION" } },
+            { "type": "INVESTMENT_GOALS", "value": { "type": "OPTION", "value": "FIRST_HOME" } }
+          ]
+        }
+        """;
+
+    var response = objectMapper.readValue(json, KycSurveyResponse.class);
+
+    assertThat(response.answers())
+        .isEqualTo(
+            List.of(
+                new FundingSources(
+                    List.of(
+                        new FundingSourceValueItem.Option(PARENT_INCOME_AND_SAVINGS),
+                        new FundingSourceValueItem.Text("lottery win"))),
+                new PlannedContribution(new OptionValue<>("OPTION", FROM_50_TO_100)),
+                new InvestmentGoals(new InvestmentGoalsValue.Option(EDUCATION)),
+                new InvestmentGoals(new InvestmentGoalsValue.Option(FIRST_HOME))));
+
+    var roundTripped =
+        objectMapper.readValue(objectMapper.writeValueAsString(response), KycSurveyResponse.class);
+    assertThat(roundTripped).isEqualTo(response);
   }
 }

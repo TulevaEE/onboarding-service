@@ -106,6 +106,21 @@ public class SebPendingTransactionReconciliationService {
         handleSettledOrderReappearance(order, settlement.get(), row, reportDate);
         continue;
       }
+      Optional<QuantityAmountMismatchEvent> blankEconomics =
+          quantityAmountValidator.detectBlankEconomics(order, row, matchingProperties);
+      if (blankEconomics.isPresent()) {
+        log.error(
+            "Matched SEB row has blank required economics, refusing to record as executed:"
+                + " orderId={}, isin={}, kind={}, ourRef={}, reportDate={}",
+            order.getId(),
+            row.isin(),
+            blankEconomics.get().kind(),
+            row.ourRef(),
+            reportDate);
+        reportMismatch(blankEconomics.get().withReportDate(reportDate), row);
+        matched++;
+        continue;
+      }
       Optional<QuantityAmountMismatchEvent> mismatch =
           quantityAmountValidator.validateCumulative(
               order, row, executionRepository.findAllByOrderId(order.getId()), matchingProperties);

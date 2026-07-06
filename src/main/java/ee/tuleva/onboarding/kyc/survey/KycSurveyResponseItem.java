@@ -24,7 +24,11 @@ import java.util.List;
   @JsonSubTypes.Type(
       value = KycSurveyResponseItem.InvestableAssets.class,
       name = "INVESTABLE_ASSETS"),
+  @JsonSubTypes.Type(
+      value = KycSurveyResponseItem.PlannedContribution.class,
+      name = "PLANNED_CONTRIBUTION"),
   @JsonSubTypes.Type(value = KycSurveyResponseItem.SourceOfIncome.class, name = "SOURCE_OF_INCOME"),
+  @JsonSubTypes.Type(value = KycSurveyResponseItem.FundingSources.class, name = "FUNDING_SOURCES"),
   @JsonSubTypes.Type(value = KycSurveyResponseItem.Terms.class, name = "TERMS"),
 })
 public sealed interface KycSurveyResponseItem extends Serializable {
@@ -45,7 +49,13 @@ public sealed interface KycSurveyResponseItem extends Serializable {
   record InvestableAssets(@NotNull OptionValue<AssetRange> value)
       implements KycSurveyResponseItem {}
 
+  record PlannedContribution(@NotNull OptionValue<PlannedContributionRange> value)
+      implements KycSurveyResponseItem {}
+
   record SourceOfIncome(@NotNull List<@Valid SourceOfIncomeValueItem> value)
+      implements KycSurveyResponseItem {}
+
+  record FundingSources(@NotNull List<@Valid FundingSourceValueItem> value)
       implements KycSurveyResponseItem {}
 
   record Terms(@NotNull OptionValue<TermsAccepted> value) implements KycSurveyResponseItem {}
@@ -95,6 +105,17 @@ public sealed interface KycSurveyResponseItem extends Serializable {
     record Text(String value) implements SourceOfIncomeValueItem {}
   }
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = FundingSourceValueItem.Option.class, name = "OPTION"),
+    @JsonSubTypes.Type(value = FundingSourceValueItem.Text.class, name = "TEXT"),
+  })
+  sealed interface FundingSourceValueItem extends Serializable {
+    record Option(FundingSource value) implements FundingSourceValueItem {}
+
+    record Text(String value) implements FundingSourceValueItem {}
+  }
+
   // Enums
   enum PepStatus {
     IS_PEP,
@@ -105,7 +126,9 @@ public sealed interface KycSurveyResponseItem extends Serializable {
     LONG_TERM,
     SPECIFIC_GOAL,
     CHILD,
-    TRADING
+    TRADING,
+    EDUCATION,
+    FIRST_HOME
   }
 
   enum AssetRange {
@@ -115,6 +138,13 @@ public sealed interface KycSurveyResponseItem extends Serializable {
     MORE_THAN_80K
   }
 
+  enum PlannedContributionRange {
+    UP_TO_50,
+    FROM_50_TO_100,
+    FROM_100_TO_300,
+    OVER_300
+  }
+
   enum IncomeSource {
     SALARY,
     SAVINGS,
@@ -122,6 +152,13 @@ public sealed interface KycSurveyResponseItem extends Serializable {
     PENSION_OR_BENEFITS,
     FAMILY_FUNDS_OR_INHERITANCE,
     BUSINESS_INCOME
+  }
+
+  enum FundingSource {
+    PARENT_INCOME_AND_SAVINGS,
+    GIFTS,
+    INHERITANCE,
+    CHILD_OWN
   }
 
   enum TermsAccepted {

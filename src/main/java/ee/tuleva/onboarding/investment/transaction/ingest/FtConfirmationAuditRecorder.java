@@ -45,6 +45,7 @@ class FtConfirmationAuditRecorder {
             .batch(order == null ? null : order.getBatch())
             .eventType(FT_CONFIRMATION_VERIFIED)
             .actor(actor)
+            .dedupKey(dedupKey(confirmation))
             .payload(payload(confirmation, result))
             .createdAt(clock.instant())
             .build());
@@ -52,8 +53,9 @@ class FtConfirmationAuditRecorder {
   }
 
   boolean alreadyAlerted(FtConfirmation confirmation, FtConfirmationResult result) {
-    return auditEventRepository.findByEventType(FT_CONFIRMATION_ALERTED).stream()
-        .filter(event -> sameConfirmation(event.getPayload(), confirmation))
+    return auditEventRepository
+        .findByEventTypeAndDedupKey(FT_CONFIRMATION_ALERTED, dedupKey(confirmation))
+        .stream()
         .map(event -> statusPair(event.getPayload()))
         .anyMatch(statusPair(result)::equals);
   }
@@ -63,6 +65,7 @@ class FtConfirmationAuditRecorder {
         TransactionAuditEvent.builder()
             .eventType(FT_CONFIRMATION_ALERTED)
             .actor(ALERT_ACTOR)
+            .dedupKey(dedupKey(confirmation))
             .payload(payload(confirmation, result))
             .createdAt(clock.instant())
             .build());
@@ -74,24 +77,26 @@ class FtConfirmationAuditRecorder {
   }
 
   private Optional<List<String>> lastRecordedStatus(FtConfirmation confirmation) {
-    return auditEventRepository.findByEventType(FT_CONFIRMATION_VERIFIED).stream()
-        .filter(event -> sameConfirmation(event.getPayload(), confirmation))
+    return auditEventRepository
+        .findByEventTypeAndDedupKey(FT_CONFIRMATION_VERIFIED, dedupKey(confirmation))
+        .stream()
         .max(comparing(TransactionAuditEvent::getCreatedAt))
         .map(event -> statusPair(event.getPayload()));
   }
 
-  private static boolean sameConfirmation(
-      Map<String, Object> payload, FtConfirmation confirmation) {
-    return confirmation.fund().name().equals(payload.get("fund"))
-        && confirmation.isin().equals(payload.get("isin"))
-        && confirmation.tradeDate().toString().equals(payload.get("tradeDate"))
-        && sameAmount(confirmation.quantity(), payload.get("quantity"))
-        && sameAmount(confirmation.grossPrice(), payload.get("grossPrice"))
-        && confirmation.type().name().equals(payload.get("type"));
+  private static String dedupKey(FtConfirmation confirmation) {
+    return String.join(
+        "|",
+        confirmation.fund().name(),
+        confirmation.isin(),
+        confirmation.tradeDate().toString(),
+        normalized(confirmation.quantity()),
+        normalized(confirmation.grossPrice()),
+        confirmation.type().name());
   }
 
-  private static boolean sameAmount(BigDecimal value, @Nullable Object stored) {
-    return stored != null && value.compareTo(new BigDecimal(stored.toString())) == 0;
+  private static String normalized(BigDecimal amount) {
+    return amount.stripTrailingZeros().toPlainString();
   }
 
   private static List<String> statusPair(FtConfirmationResult result) {

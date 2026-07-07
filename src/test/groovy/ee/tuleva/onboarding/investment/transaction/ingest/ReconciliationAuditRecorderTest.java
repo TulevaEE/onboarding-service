@@ -69,28 +69,21 @@ class ReconciliationAuditRecorderTest {
                     "UNMATCHED_SEB_TRANSACTION".equals(event.getEventType())
                         && event.getOrderId() == null
                         && event.getBatch() == null
+                        && "2026-05-13|DLA0799512|bd83f551-8c79-4193-b92b-18e1dfd0bd29|IE000F60HVH9"
+                            .equals(event.getDedupKey())
                         && "IE000F60HVH9".equals(event.getPayload().get("isin"))
                         && REPORT_DATE.toString().equals(event.getPayload().get("reportDate"))));
   }
 
   @Test
   void recordUnmatched_skipsDuplicateForSameRowAndReportDate() {
-    given(auditEventRepository.findByEventType("UNMATCHED_SEB_TRANSACTION"))
+    given(
+            auditEventRepository.findByEventTypeAndDedupKey(
+                "UNMATCHED_SEB_TRANSACTION",
+                "2026-05-13|DLA0799512|bd83f551-8c79-4193-b92b-18e1dfd0bd29|IE000F60HVH9"))
         .willReturn(
             List.of(
-                TransactionAuditEvent.builder()
-                    .eventType("UNMATCHED_SEB_TRANSACTION")
-                    .payload(
-                        Map.of(
-                            "reportDate",
-                            REPORT_DATE.toString(),
-                            "ourRef",
-                            "DLA0799512",
-                            "clientRef",
-                            CLIENT_REF.toString(),
-                            "isin",
-                            "IE000F60HVH9"))
-                    .build()));
+                TransactionAuditEvent.builder().eventType("UNMATCHED_SEB_TRANSACTION").build()));
 
     newRecorder().recordUnmatched(sampleRow(), REPORT_DATE);
 

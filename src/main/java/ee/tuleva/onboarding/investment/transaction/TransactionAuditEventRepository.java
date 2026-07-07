@@ -10,5 +10,7 @@ public interface TransactionAuditEventRepository
 
   List<TransactionAuditEvent> findByEventType(String eventType);
 
+  List<TransactionAuditEvent> findByEventTypeAndDedupKey(String eventType, String dedupKey);
+
   List<TransactionAuditEvent> findByOrderIdAndEventType(Long orderId, String eventType);
 }

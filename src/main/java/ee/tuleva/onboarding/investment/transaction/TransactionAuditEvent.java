@@ -42,6 +42,9 @@ public class TransactionAuditEvent {
 
   @NotNull private String eventType;
 
+  @Column(name = "dedup_key")
+  private String dedupKey;
+
   private String actor;
 
   @NotNull

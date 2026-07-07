@@ -46,13 +46,15 @@ class ReconciliationAuditRecorder {
   }
 
   void recordUnmatched(SebPendingTransactionRow row, LocalDate reportDate) {
+    String dedupKey = unmatchedDedupKey(row, reportDate);
     boolean alreadyRecorded =
-        auditEventRepository.findByEventType(UNMATCHED_SEB_TRANSACTION).stream()
-            .anyMatch(event -> sameRowIdentity(event.getPayload(), row, reportDate));
+        !auditEventRepository
+            .findByEventTypeAndDedupKey(UNMATCHED_SEB_TRANSACTION, dedupKey)
+            .isEmpty();
     if (alreadyRecorded) {
       return;
     }
-    save(UNMATCHED_SEB_TRANSACTION, null, rowPayload(row, reportDate));
+    save(UNMATCHED_SEB_TRANSACTION, null, rowPayload(row, reportDate), dedupKey);
   }
 
   void recordQuantityAmountMismatch(QuantityAmountMismatchEvent mismatch) {
@@ -95,24 +97,30 @@ class ReconciliationAuditRecorder {
   }
 
   private void save(String eventType, TransactionOrder order, Map<String, Object> payload) {
+    save(eventType, order, payload, null);
+  }
+
+  private void save(
+      String eventType, TransactionOrder order, Map<String, Object> payload, String dedupKey) {
     auditEventRepository.save(
         TransactionAuditEvent.builder()
             .orderId(order == null ? null : order.getId())
             .batch(order == null ? null : order.getBatch())
             .eventType(eventType)
             .actor(SYSTEM_ACTOR)
+            .dedupKey(dedupKey)
             .payload(payload)
             .createdAt(clock.instant())
             .build());
   }
 
-  private static boolean sameRowIdentity(
-      Map<String, Object> payload, SebPendingTransactionRow row, LocalDate reportDate) {
-    return Objects.equals(payload.get("reportDate"), reportDate.toString())
-        && Objects.equals(payload.get("ourRef"), row.ourRef())
-        && Objects.equals(
-            payload.get("clientRef"), row.clientRef() == null ? null : row.clientRef().toString())
-        && Objects.equals(payload.get("isin"), row.isin());
+  private static String unmatchedDedupKey(SebPendingTransactionRow row, LocalDate reportDate) {
+    return String.join(
+        "|",
+        reportDate.toString(),
+        Objects.toString(row.ourRef(), ""),
+        Objects.toString(row.clientRef(), ""),
+        Objects.toString(row.isin(), ""));
   }
 
   private static Map<String, Object> rowPayload(

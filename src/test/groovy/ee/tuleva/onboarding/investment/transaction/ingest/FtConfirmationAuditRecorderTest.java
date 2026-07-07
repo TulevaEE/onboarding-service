@@ -39,6 +39,7 @@ class FtConfirmationAuditRecorderTest {
 
   private static final Instant NOW = Instant.parse("2026-06-09T08:00:00Z");
   private static final UUID ORDER_UUID = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+  private static final String DEDUP_KEY = "TUK75|IE000F60HVH9|2026-06-08|40434|10.09|NORMAL";
 
   @Mock private TransactionAuditEventRepository auditEventRepository;
 
@@ -63,6 +64,7 @@ class FtConfirmationAuditRecorderTest {
                 .orderId(42L)
                 .eventType("FT_CONFIRMATION_VERIFIED")
                 .actor("admin")
+                .dedupKey(DEDUP_KEY)
                 .payload(
                     Map.of(
                         "fund", "TUK75",
@@ -101,6 +103,7 @@ class FtConfirmationAuditRecorderTest {
                 .orderId(42L)
                 .eventType("FT_CONFIRMATION_VERIFIED")
                 .actor("admin")
+                .dedupKey("TUK75|IE000F60HVH9|2026-06-08|40434|10.09|CANCELLATION")
                 .payload(
                     Map.of(
                         "fund", "TUK75",
@@ -119,7 +122,7 @@ class FtConfirmationAuditRecorderTest {
 
   @Test
   void recordOutcome_sameStatusAlreadyRecorded_skipsSaveAndReturnsFalse() {
-    given(auditEventRepository.findByEventType("FT_CONFIRMATION_VERIFIED"))
+    given(auditEventRepository.findByEventTypeAndDedupKey("FT_CONFIRMATION_VERIFIED", DEDUP_KEY))
         .willReturn(List.of(priorEvent("ERROR", "OK")));
 
     boolean recorded =
@@ -133,7 +136,7 @@ class FtConfirmationAuditRecorderTest {
 
   @Test
   void recordOutcome_statusChangedSinceLastRecord_savesAndReturnsTrue() {
-    given(auditEventRepository.findByEventType("FT_CONFIRMATION_VERIFIED"))
+    given(auditEventRepository.findByEventTypeAndDedupKey("FT_CONFIRMATION_VERIFIED", DEDUP_KEY))
         .willReturn(List.of(priorEvent("PENDING_EXECUTION", "PENDING_NAV")));
 
     boolean recorded =
@@ -159,6 +162,7 @@ class FtConfirmationAuditRecorderTest {
             TransactionAuditEvent.builder()
                 .eventType("FT_CONFIRMATION_VERIFIED")
                 .actor("ops-person")
+                .dedupKey(DEDUP_KEY)
                 .payload(
                     Map.of(
                         "fund", "TUK75",
@@ -176,7 +180,8 @@ class FtConfirmationAuditRecorderTest {
 
   @Test
   void alreadyAlerted_noPriorAlert_returnsFalse() {
-    given(auditEventRepository.findByEventType("FT_CONFIRMATION_ALERTED")).willReturn(List.of());
+    given(auditEventRepository.findByEventTypeAndDedupKey("FT_CONFIRMATION_ALERTED", DEDUP_KEY))
+        .willReturn(List.of());
 
     boolean alerted =
         recorder().alreadyAlerted(confirmation(), new FtConfirmationResult(ERROR, OK, Map.of()));
@@ -186,7 +191,7 @@ class FtConfirmationAuditRecorderTest {
 
   @Test
   void alreadyAlerted_priorAlertWithSameStatus_returnsTrue() {
-    given(auditEventRepository.findByEventType("FT_CONFIRMATION_ALERTED"))
+    given(auditEventRepository.findByEventTypeAndDedupKey("FT_CONFIRMATION_ALERTED", DEDUP_KEY))
         .willReturn(List.of(priorAlert("ERROR", "OK")));
 
     boolean alerted =
@@ -197,7 +202,7 @@ class FtConfirmationAuditRecorderTest {
 
   @Test
   void alreadyAlerted_priorAlertWithDifferentStatus_returnsFalse() {
-    given(auditEventRepository.findByEventType("FT_CONFIRMATION_ALERTED"))
+    given(auditEventRepository.findByEventTypeAndDedupKey("FT_CONFIRMATION_ALERTED", DEDUP_KEY))
         .willReturn(List.of(priorAlert("AMBIGUOUS", "AMBIGUOUS")));
 
     boolean alerted =
@@ -207,12 +212,20 @@ class FtConfirmationAuditRecorderTest {
   }
 
   @Test
-  void alreadyAlerted_priorAlertWithDifferentDecimalScale_returnsTrue() {
-    given(auditEventRepository.findByEventType("FT_CONFIRMATION_ALERTED"))
-        .willReturn(List.of(priorAlert("ERROR", "OK", "40434.0", "10.090")));
+  void alreadyAlerted_normalizesAmountScaleWhenBuildingDedupKey() {
+    given(auditEventRepository.findByEventTypeAndDedupKey("FT_CONFIRMATION_ALERTED", DEDUP_KEY))
+        .willReturn(List.of(priorAlert("ERROR", "OK")));
 
     boolean alerted =
-        recorder().alreadyAlerted(confirmation(), new FtConfirmationResult(ERROR, OK, Map.of()));
+        recorder()
+            .alreadyAlerted(
+                new FtConfirmation(
+                    TUK75,
+                    "IE000F60HVH9",
+                    LocalDate.parse("2026-06-08"),
+                    new BigDecimal("40434.000"),
+                    new BigDecimal("10.0900")),
+                new FtConfirmationResult(ERROR, OK, Map.of()));
 
     assertThat(alerted).isTrue();
   }
@@ -226,6 +239,7 @@ class FtConfirmationAuditRecorderTest {
             TransactionAuditEvent.builder()
                 .eventType("FT_CONFIRMATION_ALERTED")
                 .actor("system")
+                .dedupKey(DEDUP_KEY)
                 .payload(
                     Map.of(
                         "fund", "TUK75",

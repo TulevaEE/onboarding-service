@@ -116,20 +116,26 @@ public class R45ReportParser {
   }
 
   private static void validateTehtudDate(List<String> preHeaderLines, LocalDate today) {
-    for (String line : preHeaderLines) {
-      if (!line.toLowerCase(Locale.ROOT).contains("tehtud")) {
-        continue;
-      }
-      LocalDate tehtud = findDate(line);
-      if (tehtud == null) {
-        continue;
-      }
-      if (!tehtud.equals(today)) {
-        throw new IllegalArgumentException(
-            "R45 report is stale: tehtud=" + tehtud + ", today=" + today);
-      }
-      return;
+    LocalDate tehtud = findTehtudDate(preHeaderLines);
+    if (tehtud == null) {
+      throw new IllegalArgumentException(
+          "R45 Tehtud date marker missing or unparseable: preHeaderLineCount="
+              + preHeaderLines.size());
     }
+    if (!tehtud.equals(today)) {
+      throw new IllegalArgumentException(
+          "R45 report is stale: tehtud=" + tehtud + ", today=" + today);
+    }
+  }
+
+  @Nullable
+  private static LocalDate findTehtudDate(List<String> preHeaderLines) {
+    for (String line : preHeaderLines) {
+      if (line.toLowerCase(Locale.ROOT).contains("tehtud")) {
+        return findDate(line);
+      }
+    }
+    return null;
   }
 
   private static void validateMagnitude(BigDecimal units, BigDecimal amount) {

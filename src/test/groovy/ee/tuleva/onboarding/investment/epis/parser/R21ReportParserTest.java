@@ -47,16 +47,15 @@ class R21ReportParserTest {
   }
 
   @Test
-  void parsesWhenMakseteKuuMissing() {
+  void throwsWhenMakseteKuuMissing() {
     String csv =
         """
         Väärtpaber;Jooksev NAV;Osakud;Summa;Valuuta
         Tuleva Maailma Aktsiate Pensionifond;0,80;100,000;80,00;EUR
         """;
 
-    Map<String, R21Result> result = parser.parse(csv, EXECUTION_MONTH);
-
-    assertThat(result.get("TUK75").ravaUnits()).isEqualByComparingTo("100.000");
+    assertThatThrownBy(() -> parser.parse(csv, EXECUTION_MONTH))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test

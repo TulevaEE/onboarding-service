@@ -208,6 +208,39 @@ class NavCalculationServiceTest {
   }
 
   @Test
+  void calculate_handlesNegativeCashFromSettlementTimingOverdraftWithoutClampingOrThrowing() {
+    LocalDate calcDate = LocalDate.of(2026, 6, 29);
+    LocalDate previousWorkingDay = LocalDate.of(2026, 6, 26);
+
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, previousWorkingDay))
+        .thenReturn(Optional.of(previousWorkingDay));
+    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TUK75))
+        .thenReturn(
+            fundUnitsOutstandingAccount(
+                TUK75,
+                List.of(
+                    new EntryFixture(
+                        new BigDecimal("695684547.00000"),
+                        Instant.parse("2026-06-26T00:00:00Z")))));
+
+    when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("1092007123.67"));
+    when(cashPositionComponent.calculate(any())).thenReturn(new BigDecimal("-1706854.69"));
+    when(receivablesComponent.calculate(any())).thenReturn(new BigDecimal("2324846.64"));
+    when(payablesComponent.calculate(any())).thenReturn(ZERO);
+    when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
+    when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
+    when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
+    when(feeCalculationService.calculateFeesForNav(any(), any(), any(), any(), any()))
+        .thenReturn(new FeeResult(new BigDecimal("152316.55"), ZERO));
+
+    NavCalculationResult result = service.calculate(TUK75, calcDate);
+
+    assertThat(result.cashPosition()).isEqualByComparingTo("-1706854.69");
+    assertThat(result.aum()).isEqualByComparingTo("1092472799.07");
+    assertThat(result.navPerUnit().compareTo(ZERO)).isGreaterThan(0);
+  }
+
+  @Test
   void calculate_looksUpPositionReportBeforeCalculationDate() {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);

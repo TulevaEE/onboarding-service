@@ -304,6 +304,44 @@ class TradeCalculationEngineTest {
   }
 
   @Test
+  void sell_targetsOnlyOverweightPositionsAndLeavesOnTargetPositionUntouched() {
+    // securityValue 900k, cash 0 -> gross 900k; buffer 100k drives the shortfall.
+    // freeCash = cash - buffer - liabilities + receivables = 0 - 100000 = -100000 (pendingCash 0).
+    // netInvestable = gross - buffer = 800000, so 50/50 target = 400000 each.
+    // IE00A (500000) is 100000 overweight; IE00B (400000) is exactly on target.
+    // A sell to cover the 100000 shortfall must come entirely from IE00A.
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00A", new BigDecimal("500000")),
+                    new PositionSnapshot("IE00B", new BigDecimal("400000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00A", new BigDecimal("0.50")),
+                    new ModelWeight("IE00B", new BigDecimal("0.50"))))
+            .grossPortfolioValue(new BigDecimal("900000"))
+            .cashBuffer(new BigDecimal("100000"))
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("-100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, SELL);
+
+    var tradeA =
+        result.trades().stream().filter(t -> t.isin().equals("IE00A")).findFirst().orElseThrow();
+    var tradeB =
+        result.trades().stream().filter(t -> t.isin().equals("IE00B")).findFirst().orElseThrow();
+
+    assertThat(tradeA.tradeAmount()).isEqualByComparingTo(new BigDecimal("-100000"));
+    assertThat(tradeB.tradeAmount()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
   void sell_withPositiveFreeCash_returnsZeroTrades() {
     var input =
         FundTransactionInput.builder()

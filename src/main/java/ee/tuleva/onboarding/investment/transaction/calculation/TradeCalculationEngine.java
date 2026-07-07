@@ -192,7 +192,7 @@ public class TradeCalculationEngine {
     }
 
     BigDecimal targetSellAmount = input.freeCash().abs();
-    BigDecimal reducedNet = netInvestable(input).subtract(targetSellAmount);
+    BigDecimal targetNet = netInvestable(input);
     Map<String, BigDecimal> weightMap = buildWeightMap(input.modelWeights());
 
     List<BigDecimal> standardScores =
@@ -201,7 +201,7 @@ public class TradeCalculationEngine {
                 position -> {
                   BigDecimal weight = weightMap.getOrDefault(position.isin(), ZERO);
                   BigDecimal idealOverweight =
-                      position.marketValue().subtract(weight.multiply(reducedNet));
+                      position.marketValue().subtract(weight.multiply(targetNet));
                   return position.marketValue().min(idealOverweight.max(ZERO));
                 })
             .toList();

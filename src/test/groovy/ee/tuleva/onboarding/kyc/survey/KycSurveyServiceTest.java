@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.kyc.survey;
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -95,6 +96,41 @@ class KycSurveyServiceTest {
 
     assertThatThrownBy(() -> kycSurveyService.submit(person, survey))
         .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void submit_whenActingAsCompany_storesSurveyUnderRepresentativeAndRunsCheckOnThem() {
+    var person = sampleAuthenticatedPersonLegalEntity().build();
+    var subject = User.builder().id(7L).personalCode(person.getPersonalCode()).build();
+    var survey =
+        identitySurvey(
+            new Address(
+                new AddressValue(
+                    "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))));
+    given(userService.findByPersonalCode(person.getPersonalCode()))
+        .willReturn(Optional.of(subject));
+    given(kycSurveyRepository.saveAndFlush(any(KycSurvey.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+
+    var saved = kycSurveyService.submit(person, survey);
+
+    assertThat(saved.getSurvey()).isEqualTo(survey);
+    assertThat(saved.getUserId()).isEqualTo(subject.getId());
+    verify(kycCheckService).check(subject, new Country("EE"), survey.purpose());
+  }
+
+  @Test
+  void getIdentity_whenActingAsCompany_returnsRepresentativeIdentity() {
+    var person = sampleAuthenticatedPersonLegalEntity().build();
+    given(userService.findByPersonalCode(person.getPersonalCode())).willReturn(Optional.of(user));
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(USER_ID))
+        .willReturn(Optional.empty());
+
+    var identity = kycSurveyService.getIdentity(person);
+
+    assertThat(identity)
+        .isEqualTo(
+            new KycIdentityResponse(null, null, "test@example.com", "+37255555555", null, null));
   }
 
   @Test

@@ -73,4 +73,18 @@ class AuthenticatedPersonTest {
 
     assertThat(person.isActingAsSelf()).isTrue();
   }
+
+  @Test
+  void isLegalEntityWhenRepresentingCompany() {
+    var person = sampleAuthenticatedPersonLegalEntity().build();
+
+    assertThat(person.isLegalEntity()).isTrue();
+  }
+
+  @Test
+  void isNotLegalEntityWhenActingAsPerson() {
+    var person = sampleAuthenticatedPersonAndMember().build();
+
+    assertThat(person.isLegalEntity()).isFalse();
+  }
 }

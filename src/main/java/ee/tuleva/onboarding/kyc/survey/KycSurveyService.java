@@ -51,12 +51,14 @@ public class KycSurveyService {
   }
 
   private User resolveSubject(AuthenticatedPerson person) {
+    String subjectPersonalCode =
+        person.isLegalEntity() ? person.getPersonalCode() : person.getRoleCode();
     return userService
-        .findByPersonalCode(person.getRoleCode())
+        .findByPersonalCode(subjectPersonalCode)
         .orElseThrow(
             () ->
                 new IllegalStateException(
-                    "KYC subject user not found: roleCode=" + person.getRoleCode()));
+                    "KYC subject user not found: personalCode=" + subjectPersonalCode));
   }
 
   private Country extractCountry(KycSurveyResponse surveyResponse) {

@@ -135,14 +135,17 @@ public sealed interface KycSurveyResponseItem extends Serializable {
     LESS_THAN_20K,
     RANGE_20K_40K,
     RANGE_40K_80K,
-    MORE_THAN_80K
+    MORE_THAN_80K,
+    UP_TO_2000,
+    FROM_2000_TO_10000,
+    OVER_10000
   }
 
   enum PlannedContributionRange {
-    UP_TO_50,
-    FROM_50_TO_100,
-    FROM_100_TO_300,
-    OVER_300
+    UP_TO_200,
+    FROM_200_TO_600,
+    FROM_600_TO_1000,
+    OVER_1000
   }
 
   enum IncomeSource {

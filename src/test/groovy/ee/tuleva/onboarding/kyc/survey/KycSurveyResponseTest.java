@@ -6,7 +6,7 @@ import static ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.FundingSourc
 import static ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.InvestmentGoal.EDUCATION;
 import static ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.InvestmentGoal.FIRST_HOME;
 import static ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.PepStatus.IS_NOT_PEP;
-import static ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.PlannedContributionRange.FROM_50_TO_100;
+import static ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.PlannedContributionRange.FROM_200_TO_600;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -149,7 +149,7 @@ class KycSurveyResponseTest {
             },
             {
               "type": "PLANNED_CONTRIBUTION",
-              "value": { "type": "OPTION", "value": "FROM_50_TO_100" }
+              "value": { "type": "OPTION", "value": "FROM_200_TO_600" }
             },
             { "type": "INVESTMENT_GOALS", "value": { "type": "OPTION", "value": "EDUCATION" } },
             { "type": "INVESTMENT_GOALS", "value": { "type": "OPTION", "value": "FIRST_HOME" } }
@@ -166,7 +166,7 @@ class KycSurveyResponseTest {
                     List.of(
                         new FundingSourceValueItem.Option(PARENT_INCOME_AND_SAVINGS),
                         new FundingSourceValueItem.Text("lottery win"))),
-                new PlannedContribution(new OptionValue<>("OPTION", FROM_50_TO_100)),
+                new PlannedContribution(new OptionValue<>("OPTION", FROM_200_TO_600)),
                 new InvestmentGoals(new InvestmentGoalsValue.Option(EDUCATION)),
                 new InvestmentGoals(new InvestmentGoalsValue.Option(FIRST_HOME))));
 

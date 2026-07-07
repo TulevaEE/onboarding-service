@@ -83,9 +83,10 @@ class ChildRoleAwareKycIntegrationTest {
   // transformChildFormDataToSurveyCommand: ADDRESS (including the frontend's optional
   // fullAddress field, which the backend AddressDetails record ignores under Jackson 3's
   // default of not failing on unknown properties), EMAIL, PHONE_NUMBER, INVESTMENT_GOALS
-  // (child-only EDUCATION goal), PLANNED_CONTRIBUTION, FUNDING_SOURCES, purpose
-  // PERSONAL_ONBOARDING. Citizenship and PEP are intentionally absent — a child's
-  // citizenship comes from the population register and a child cannot be a PEP.
+  // (child-only EDUCATION goal), PLANNED_CONTRIBUTION (child range), INVESTABLE_ASSETS
+  // (child range), FUNDING_SOURCES, purpose PERSONAL_ONBOARDING. Citizenship and PEP are
+  // intentionally absent — a child's citizenship comes from the population register and a
+  // child cannot be a PEP.
   private static final String CHILD_SURVEY =
       """
       {
@@ -108,8 +109,9 @@ class ChildRoleAwareKycIntegrationTest {
           { "type": "INVESTMENT_GOALS", "value": { "type": "OPTION", "value": "EDUCATION" } },
           {
             "type": "PLANNED_CONTRIBUTION",
-            "value": { "type": "OPTION", "value": "FROM_50_TO_100" }
+            "value": { "type": "OPTION", "value": "FROM_200_TO_600" }
           },
+          { "type": "INVESTABLE_ASSETS", "value": { "type": "OPTION", "value": "UP_TO_2000" } },
           {
             "type": "FUNDING_SOURCES",
             "value": [

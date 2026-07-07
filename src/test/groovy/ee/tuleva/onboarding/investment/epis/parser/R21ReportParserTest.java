@@ -59,6 +59,21 @@ class R21ReportParserTest {
   }
 
   @Test
+  void skipsNonMakseteKuuPreHeaderLinesBeforeMarker() {
+    String csv =
+        """
+        Fondi aruanne;;;;
+        Maksete kuu: 202609;;;;
+        Väärtpaber;Jooksev NAV;Osakud;Summa;Valuuta
+        Tuleva Maailma Aktsiate Pensionifond;0,80;100,000;80,00;EUR
+        """;
+
+    Map<String, R21Result> result = parser.parse(csv, EXECUTION_MONTH);
+
+    assertThat(result.get("TUK75").ravaUnits()).isEqualByComparingTo("100.000");
+  }
+
+  @Test
   void skipsRowsWithZeroUnitsOrUnknownFund() {
     String csv =
         """

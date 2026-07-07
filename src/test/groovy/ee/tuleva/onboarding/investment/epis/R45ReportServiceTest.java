@@ -166,6 +166,36 @@ class R45ReportServiceTest {
   }
 
   @Test
+  void alertsButKeepsMappedFundsCompleteWhenIsinUnmapped() {
+    String csv =
+        """
+        Tehtud: 14.08.2026;;;;;
+        Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
+        SUB;XX0000000000;0,80000;0;1500,00;18.08.2026
+        SUB;EE3600109435;0,80000;0;2000,00;18.08.2026
+        """;
+    givenStoredReport(csv);
+
+    service.processAndStore(REPORT_ID);
+
+    verify(summaryRepository)
+        .saveAll(
+            List.of(
+                summary(
+                    TUK75,
+                    Map.of(
+                        "inflowEur",
+                        new BigDecimal("2000.00"),
+                        "outflowEur",
+                        BigDecimal.ZERO,
+                        "netEur",
+                        new BigDecimal("2000.00"),
+                        "redRowSettlementDates",
+                        List.of()))));
+    verify(notificationService).sendMessage(contains("XX0000000000"), eq(INVESTMENT));
+  }
+
+  @Test
   void usesOwnFundNavAsFallbackWhenReportRowHasNoNavOrAmount() {
     String csv =
         """

@@ -143,7 +143,7 @@ class R45ReportParserTest {
   }
 
   @Test
-  void skipsRowsWithUnknownIsinOrUnknownTransactionType() {
+  void recordsRowsWithUnknownIsinOrUnknownTransactionType() {
     String csv =
         """
         Tehtud: 12.06.2026;;;;;
@@ -154,7 +154,12 @@ class R45ReportParserTest {
 
     R45ParseResult result = parser.parse(csv, TODAY, Map.of());
 
-    assertThat(result.fundResults()).isEmpty();
+    assertThat(result.unknownRows())
+        .containsExactly(
+            new R45UnknownRow("SUB", "XX0000000000", null),
+            new R45UnknownRow("XXX", "EE3600109435", "TUK75"));
+    // the row with a known fund but unknown type surfaces a zero entry so it can be blocked
+    assertResult(result.fundResults().get("TUK75"), "0", "0", "0");
   }
 
   @Test

@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser;
 import ee.tuleva.onboarding.investment.epis.parser.R45ParseResult;
 import ee.tuleva.onboarding.investment.epis.parser.R45ReportParser;
+import ee.tuleva.onboarding.investment.epis.parser.R45UnknownRow;
 import ee.tuleva.onboarding.investment.epis.parser.R45UnvaluedRow;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
@@ -23,9 +24,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -63,8 +66,9 @@ public class R45ReportService {
     LocalDate reportDate = report.getReportDate();
     R45ParseResult parsed = r45ReportParser.parse(csv, reportDate, fallbackNavsByIsin(reportDate));
     Set<String> incompleteFundCodes =
-        parsed.unvaluedRows().stream()
-            .map(R45UnvaluedRow::fundCode)
+        Stream.concat(
+                parsed.unvaluedRows().stream().map(R45UnvaluedRow::fundCode),
+                parsed.unknownRows().stream().map(R45UnknownRow::fundCode).filter(Objects::nonNull))
             .collect(Collectors.toUnmodifiableSet());
     if (!parsed.unvaluedRows().isEmpty()) {
       log.warn(
@@ -72,6 +76,13 @@ public class R45ReportService {
           reportId,
           parsed.unvaluedRows());
       notificationService.sendMessage(unvaluedAlertMessage(reportId, parsed), INVESTMENT);
+    }
+    if (!parsed.unknownRows().isEmpty()) {
+      log.warn(
+          "R45 rows with unknown transaction type or unmapped ISIN: reportId={}, unknownRows={}",
+          reportId,
+          parsed.unknownRows());
+      notificationService.sendMessage(unknownRowsAlertMessage(reportId, parsed), INVESTMENT);
     }
     Map<String, List<LocalDate>> redRowDates = redRowSettlementDatesByFundCode(csv);
 
@@ -161,6 +172,20 @@ public class R45ReportService {
       message.append(
           "\n%s %s: %s osakut, ISIN %s"
               .formatted(row.fundCode(), row.transactionType(), row.units(), row.isin()));
+    }
+    return message.toString();
+  }
+
+  private static String unknownRowsAlertMessage(Long reportId, R45ParseResult parsed) {
+    StringBuilder message =
+        new StringBuilder(
+            "⚠️ R45 tundmatu tehingu liik või kaardistamata ISIN (likviidsus võib olla alahinnatud): reportId=%s"
+                .formatted(reportId));
+    for (R45UnknownRow row : parsed.unknownRows()) {
+      message.append(
+          "\ntehingu liik %s, ISIN %s, fond %s"
+              .formatted(
+                  row.typeCode(), row.isin(), row.fundCode() == null ? "?" : row.fundCode()));
     }
     return message.toString();
   }

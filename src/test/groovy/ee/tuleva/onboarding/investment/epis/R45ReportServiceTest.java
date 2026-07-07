@@ -137,6 +137,35 @@ class R45ReportServiceTest {
   }
 
   @Test
+  void marksFundIncompleteAndAlertsWhenTransactionTypeUnknown() {
+    String csv =
+        """
+        Tehtud: 14.08.2026;;;;;
+        Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
+        XXX;EE3600109435;0,80000;0;1500,00;18.08.2026
+        """;
+    givenStoredReport(csv);
+
+    service.processAndStore(REPORT_ID);
+
+    verify(summaryRepository)
+        .saveAll(
+            List.of(
+                incompleteSummary(
+                    TUK75,
+                    Map.of(
+                        "inflowEur",
+                        BigDecimal.ZERO,
+                        "outflowEur",
+                        BigDecimal.ZERO,
+                        "netEur",
+                        BigDecimal.ZERO,
+                        "redRowSettlementDates",
+                        List.of()))));
+    verify(notificationService).sendMessage(contains("XXX"), eq(INVESTMENT));
+  }
+
+  @Test
   void usesOwnFundNavAsFallbackWhenReportRowHasNoNavOrAmount() {
     String csv =
         """

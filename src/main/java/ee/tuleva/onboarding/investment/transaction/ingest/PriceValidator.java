@@ -12,6 +12,9 @@ class PriceValidator {
   private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
 
   boolean isWithinTolerance(BigDecimal execPrice, BigDecimal navPrice, BigDecimal tolerance) {
+    if (navPrice.signum() <= 0) {
+      return false;
+    }
     BigDecimal ratio = absoluteRatio(execPrice, navPrice);
     return ratio.compareTo(tolerance) <= 0;
   }

@@ -40,6 +40,7 @@ class R45ReportParserTest {
   void usesAbsoluteUnitsTimesRowNavWhenSummaIsZero() {
     String csv =
         """
+        Tehtud: 12.06.2026;;;;;
         Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
         RED;EE3600109443;0,70000;-1000,000;0;15.06.2026
         """;
@@ -53,6 +54,7 @@ class R45ReportParserTest {
   void usesCallerSuppliedFallbackNavWhenRowNavIsZero() {
     String csv =
         """
+        Tehtud: 12.06.2026;;;;;
         Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
         RED;EE3600109443;0;1000,000;0;15.06.2026
         """;
@@ -67,6 +69,7 @@ class R45ReportParserTest {
   void usesNavFromAnotherRowOfSameIsinWhenFallbackMissing() {
     String csv =
         """
+        Tehtud: 12.06.2026;;;;;
         Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
         SUB;EE3600109443;0,70000;0;200,00;15.06.2026
         RED;EE3600109443;0;1000,000;0;15.06.2026
@@ -81,6 +84,7 @@ class R45ReportParserTest {
   void recordsUnvaluedRowAndZeroFundEntryWhenNoNavAvailable() {
     String csv =
         """
+        Tehtud: 12.06.2026;;;;;
         Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
         RED;EE3600109435;0;1000,000;0;15.06.2026
         """;
@@ -99,6 +103,7 @@ class R45ReportParserTest {
   void skipsSwsRowsWithZeroSummaAndZeroUnits() {
     String csv =
         """
+        Tehtud: 12.06.2026;;;;;
         Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
         SWS;EE3600109435;0,80000;0;0;15.06.2026
         """;
@@ -113,6 +118,7 @@ class R45ReportParserTest {
   void skipsRowsWithSettlementDateBeforeToday() {
     String csv =
         """
+        Tehtud: 12.06.2026;;;;;
         Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
         SUB;EE3600109435;0,80000;0;1500,00;11.06.2026
         """;
@@ -126,6 +132,7 @@ class R45ReportParserTest {
   void keepsRowsWithSettlementDateTodayOrLater() {
     String csv =
         """
+        Tehtud: 12.06.2026;;;;;
         Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
         SUB;EE3600109435;0,80000;0;1500,00;12.06.2026
         """;
@@ -139,6 +146,7 @@ class R45ReportParserTest {
   void skipsRowsWithUnknownIsinOrUnknownTransactionType() {
     String csv =
         """
+        Tehtud: 12.06.2026;;;;;
         Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
         SUB;XX0000000000;0,80000;0;1500,00;15.06.2026
         XXX;EE3600109435;0,80000;0;1500,00;15.06.2026
@@ -153,6 +161,7 @@ class R45ReportParserTest {
   void throwsWhenSummaExceedsHundredMillion() {
     String csv =
         """
+        Tehtud: 12.06.2026;;;;;
         Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
         SUB;EE3600109435;0,80000;0;150000000,00;15.06.2026
         """;
@@ -165,6 +174,7 @@ class R45ReportParserTest {
   void throwsWhenUnitsExceedHundredMillion() {
     String csv =
         """
+        Tehtud: 12.06.2026;;;;;
         Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
         SUB;EE3600109435;0,80000;150000000,000;0;15.06.2026
         """;
@@ -187,9 +197,22 @@ class R45ReportParserTest {
   }
 
   @Test
+  void throwsWhenTehtudMarkerMissing() {
+    String csv =
+        """
+        Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
+        SUB;EE3600109435;0,80000;0;1500,00;15.06.2026
+        """;
+
+    assertThatThrownBy(() -> parser.parse(csv, TODAY, Map.of()))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
   void parsesEnglishFormatReport() {
     String csv =
         """
+        Tehtud: 12.06.2026
         Tehingu liik,ISIN,NAV,Osakuid,Summa,Täitmise kuupäev
         SUB,EE3600109435,0.80000,0,1500.00,15.06.2026
         """;

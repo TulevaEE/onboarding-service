@@ -73,22 +73,31 @@ public class R17ReportParser {
 
   private static void validateSeisugaDate(
       List<String> preHeaderLines, LocalDate lockDate, LocalDate execDate) {
-    for (String line : preHeaderLines) {
-      LocalDate seisuga = findDate(line);
-      if (seisuga == null) {
-        continue;
-      }
-      if (seisuga.isBefore(lockDate) || seisuga.isAfter(execDate)) {
-        throw new IllegalArgumentException(
-            "R17 Seisuga date outside active cycle window: seisuga="
-                + seisuga
-                + ", lockDate="
-                + lockDate
-                + ", execDate="
-                + execDate);
-      }
-      return;
+    LocalDate seisuga = findSeisugaDate(preHeaderLines);
+    if (seisuga == null) {
+      throw new IllegalArgumentException(
+          "R17 Seisuga date marker missing or unparseable: preHeaderLineCount="
+              + preHeaderLines.size());
     }
+    if (seisuga.isBefore(lockDate) || seisuga.isAfter(execDate)) {
+      throw new IllegalArgumentException(
+          "R17 Seisuga date outside active cycle window: seisuga="
+              + seisuga
+              + ", lockDate="
+              + lockDate
+              + ", execDate="
+              + execDate);
+    }
+  }
+
+  @Nullable
+  private static LocalDate findSeisugaDate(List<String> preHeaderLines) {
+    for (String line : preHeaderLines) {
+      if (line.toLowerCase(Locale.ROOT).contains("seisuga")) {
+        return findDate(line);
+      }
+    }
+    return null;
   }
 
   private static BigDecimal unitsOrZero(Map<String, String> row) {

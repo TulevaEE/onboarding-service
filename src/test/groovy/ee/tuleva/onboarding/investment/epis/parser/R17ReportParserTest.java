@@ -65,22 +65,22 @@ class R17ReportParserTest {
   }
 
   @Test
-  void parsesWhenSeisugaDateMissing() {
+  void throwsWhenSeisugaMarkerMissing() {
     String csv =
         """
         Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
         Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100,000
         """;
 
-    Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
-
-    assertThat(result.get("TUK75").pikUnits()).isEqualByComparingTo("100.000");
+    assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   void usesAbsoluteUnits() {
     String csv =
         """
+        Seisuga: 15.04.2026;;;
         Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
         Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;Teine PF valitseja;-50,000
         """;
@@ -94,6 +94,7 @@ class R17ReportParserTest {
   void fallsBackToOsakuidColumnWhenTeenustasugaColumnMissing() {
     String csv =
         """
+        Seisuga: 15.04.2026;;;
         Väärtpaber;Toiming;PF valitseja/PIK;Osakuid
         Tuleva Maailma Aktsiate Pensionifond;Väljalase;Oma;200,000
         """;
@@ -107,6 +108,7 @@ class R17ReportParserTest {
   void skipsRowsWithZeroUnitsOrUnknownFund() {
     String csv =
         """
+        Seisuga: 15.04.2026;;;
         Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
         Tuleva Maailma Aktsiate Pensionifond;Väljalase;Oma;0
         Mingi Muu Fond;Väljalase;Oma;100,000
@@ -121,6 +123,7 @@ class R17ReportParserTest {
   void throwsWhenUnitsExceedHundredMillion() {
     String csv =
         """
+        Seisuga: 15.04.2026;;;
         Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
         Tuleva Maailma Aktsiate Pensionifond;Väljalase;Oma;150000000,000
         """;

@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -59,21 +60,29 @@ public class R21ReportParser {
 
   private static void validateMakseteKuu(
       List<String> preHeaderLines, YearMonth expectedExecutionMonth) {
+    String makseteKuu = findMakseteKuu(preHeaderLines);
+    if (makseteKuu == null) {
+      throw new IllegalArgumentException(
+          "R21 Maksete kuu marker missing: preHeaderLineCount=" + preHeaderLines.size());
+    }
+    String expected = expectedExecutionMonth.format(YEAR_MONTH);
+    if (!makseteKuu.equals(expected)) {
+      throw new IllegalArgumentException(
+          "R21 Maksete kuu does not match expected execution month: makseteKuu="
+              + makseteKuu
+              + ", expected="
+              + expected);
+    }
+  }
+
+  @Nullable
+  private static String findMakseteKuu(List<String> preHeaderLines) {
     for (String line : preHeaderLines) {
       Matcher matcher = MAKSETE_KUU.matcher(line);
-      if (!matcher.find()) {
-        continue;
+      if (matcher.find()) {
+        return matcher.group(1);
       }
-      String makseteKuu = matcher.group(1);
-      String expected = expectedExecutionMonth.format(YEAR_MONTH);
-      if (!makseteKuu.equals(expected)) {
-        throw new IllegalArgumentException(
-            "R21 Maksete kuu does not match expected execution month: makseteKuu="
-                + makseteKuu
-                + ", expected="
-                + expected);
-      }
-      return;
     }
+    return null;
   }
 }

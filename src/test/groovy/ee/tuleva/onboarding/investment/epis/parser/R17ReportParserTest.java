@@ -65,6 +65,47 @@ class R17ReportParserTest {
   }
 
   @Test
+  void throwsWhenSeisugaDateAfterExecutionDate() {
+    String csv =
+        """
+        Seisuga: 15.05.2026;;;
+        Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
+        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100,000
+        """;
+
+    assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void throwsWhenSeisugaLinePresentButHasNoDate() {
+    String csv =
+        """
+        Seisuga: teadmata;;;
+        Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
+        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100,000
+        """;
+
+    assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void skipsNonSeisugaPreHeaderLinesBeforeSeisugaLine() {
+    String csv =
+        """
+        Fondi aruanne;;;
+        Seisuga: 15.04.2026;;;
+        Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
+        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100,000
+        """;
+
+    Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
+
+    assertThat(result.get("TUK75").pikUnits()).isEqualByComparingTo("100.000");
+  }
+
+  @Test
   void throwsWhenSeisugaMarkerMissing() {
     String csv =
         """

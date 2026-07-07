@@ -201,6 +201,21 @@ class R45ReportParserTest {
   }
 
   @Test
+  void skipsNonTehtudPreHeaderLinesBeforeMarker() {
+    String csv =
+        """
+        Fondi aruanne;;;;;
+        Tehtud: 12.06.2026;;;;;
+        Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
+        SUB;EE3600109435;0,80000;0;1500,00;15.06.2026
+        """;
+
+    R45ParseResult result = parser.parse(csv, TODAY, Map.of());
+
+    assertResult(result.fundResults().get("TUK75"), "1500.00", "0", "1500.00");
+  }
+
+  @Test
   void throwsWhenTehtudMarkerMissing() {
     String csv =
         """

@@ -81,6 +81,7 @@ class TransactionAdminService {
                 TransactionBatchResponse.from(batch, orderRepository.findByBatchId(batch.getId())));
   }
 
+  @Transactional
   TransactionBatchResponse confirmAndFinalize(Long id, String actor) {
     TransactionBatch batch =
         batchRepository

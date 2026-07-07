@@ -26,6 +26,7 @@ public class TradeCalculationEngine {
 
   private static final int SCALE = 2;
   private static final int MAX_ITERATIONS = 20;
+  private static final BigDecimal MIN_MEANINGFUL_AMOUNT = new BigDecimal("0.01");
 
   public FundCalculationResult calculate(FundTransactionInput input, TransactionMode mode) {
     List<BigDecimal> rawTrades =
@@ -88,13 +89,13 @@ public class TradeCalculationEngine {
       }
     }
 
-    if (totalExcess.compareTo(new BigDecimal("0.01")) <= 0) {
+    if (totalExcess.compareTo(MIN_MEANINGFUL_AMOUNT) <= 0) {
       return List.of(capped);
     }
 
     BigDecimal undistributed = waterFillExcessAcrossRunners(input, scores, capped, totalExcess);
 
-    if (undistributed.compareTo(new BigDecimal("0.01")) > 0
+    if (undistributed.compareTo(MIN_MEANINGFUL_AMOUNT) > 0
         && input.freeCash().compareTo(threshold) >= 0) {
       topUpBestRunnerToThreshold(
           capped, runnerScores(input, scores, capped), undistributed, threshold);
@@ -109,7 +110,7 @@ public class TradeCalculationEngine {
     BigDecimal remaining = excess;
 
     for (int iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
-      if (remaining.compareTo(new BigDecimal("0.01")) <= 0) {
+      if (remaining.compareTo(MIN_MEANINGFUL_AMOUNT) <= 0) {
         break;
       }
 
@@ -280,7 +281,7 @@ public class TradeCalculationEngine {
 
     BigDecimal totalSellableMarketValue =
         input.positions().stream().map(PositionSnapshot::marketValue).reduce(ZERO, BigDecimal::add);
-    if (targetSellAmount.subtract(totalSellableMarketValue).compareTo(new BigDecimal("0.01")) > 0) {
+    if (targetSellAmount.subtract(totalSellableMarketValue).compareTo(MIN_MEANINGFUL_AMOUNT) > 0) {
       throw new IllegalStateException(
           "Insufficient liquidity to satisfy sell: fund="
               + input.fund()
@@ -300,7 +301,7 @@ public class TradeCalculationEngine {
     BigDecimal remainingNeed = targetSellAmount;
 
     for (int iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
-      if (remainingNeed.compareTo(new BigDecimal("0.01")) <= 0) {
+      if (remainingNeed.compareTo(MIN_MEANINGFUL_AMOUNT) <= 0) {
         break;
       }
 
@@ -401,7 +402,7 @@ public class TradeCalculationEngine {
     }
 
     BigDecimal remainingNeed = targetAmount.subtract(amountFromFast);
-    if (remainingNeed.compareTo(new BigDecimal("0.01")) > 0 && !slowIndices.isEmpty()) {
+    if (remainingNeed.compareTo(MIN_MEANINGFUL_AMOUNT) > 0 && !slowIndices.isEmpty()) {
       distributeSellByOverweight(input, slowIndices, targetValues, remainingNeed, results);
     }
 
@@ -415,13 +416,13 @@ public class TradeCalculationEngine {
       BigDecimal amount,
       BigDecimal[] results) {
     BigDecimal threshold = input.minTransactionThreshold();
-    BigDecimal thresholdTolerance = threshold.subtract(new BigDecimal("0.01"));
+    BigDecimal thresholdTolerance = threshold.subtract(MIN_MEANINGFUL_AMOUNT);
     List<Integer> active = new ArrayList<>(bucketIndices);
     Map<Integer, BigDecimal> filled = new HashMap<>();
     BigDecimal remaining = amount;
 
     for (int iteration = 0; iteration < MAX_ITERATIONS && !active.isEmpty(); iteration++) {
-      if (remaining.compareTo(new BigDecimal("0.01")) <= 0) {
+      if (remaining.compareTo(MIN_MEANINGFUL_AMOUNT) <= 0) {
         break;
       }
 
@@ -434,7 +435,7 @@ public class TradeCalculationEngine {
         totalScore = totalScore.add(overweight);
       }
 
-      if (totalScore.compareTo(new BigDecimal("0.01")) < 0) {
+      if (totalScore.compareTo(MIN_MEANINGFUL_AMOUNT) < 0) {
         totalScore = ZERO;
         for (int i : active) {
           BigDecimal headroom = headroom(input, filled, i);
@@ -551,7 +552,7 @@ public class TradeCalculationEngine {
   private List<BigDecimal> distributeBucketWithThreshold(
       List<BigDecimal> scores, BigDecimal threshold) {
     BigDecimal total = scores.stream().reduce(ZERO, BigDecimal::add);
-    if (total.compareTo(new BigDecimal("0.01")) <= 0) {
+    if (total.compareTo(MIN_MEANINGFUL_AMOUNT) <= 0) {
       return scores.stream().map(score -> ZERO).toList();
     }
     return distributeAmountWithThreshold(scores, total, threshold);
@@ -635,7 +636,7 @@ public class TradeCalculationEngine {
         }
       }
 
-      BigDecimal thresholdTolerance = threshold.subtract(new BigDecimal("0.01"));
+      BigDecimal thresholdTolerance = threshold.subtract(MIN_MEANINGFUL_AMOUNT);
       if (minAllocation != null && minAllocation.compareTo(thresholdTolerance) >= 0) {
         allocations = tempAllocations;
         break;

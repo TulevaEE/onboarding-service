@@ -158,7 +158,6 @@ class R45ReportParserTest {
         .containsExactly(
             new R45UnknownRow("SUB", "XX0000000000", null),
             new R45UnknownRow("XXX", "EE3600109435", "TUK75"));
-    // the row with a known fund but unknown type surfaces a zero entry so it can be blocked
     assertResult(result.fundResults().get("TUK75"), "0", "0", "0");
   }
 

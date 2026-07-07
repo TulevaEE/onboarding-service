@@ -244,10 +244,6 @@ class TradeCalculationEngineTest {
 
   @Test
   void buy_waterFillsHardLimitExcessAcrossRunnersInsteadOfStrandingCash() {
-    // IE00X overflows its 0.26 hard limit, producing ~60197 of excess to redistribute.
-    // Both IE00P and IE00Q are eligible runners, but a score-proportional split hands IE00P far
-    // more than its remaining ~5336 headroom (it caps at its 0.15 hard limit), while IE00Q has
-    // ample room. The clipped overflow must cascade to IE00Q, not strand — the full 100000 deploys.
     var input =
         FundTransactionInput.builder()
             .fund(TUV100)
@@ -355,11 +351,6 @@ class TradeCalculationEngineTest {
 
   @Test
   void sell_targetsOnlyOverweightPositionsAndLeavesOnTargetPositionUntouched() {
-    // securityValue 900k, cash 0 -> gross 900k; buffer 100k drives the shortfall.
-    // freeCash = cash - buffer - liabilities + receivables = 0 - 100000 = -100000 (pendingCash 0).
-    // netInvestable = gross - buffer = 800000, so 50/50 target = 400000 each.
-    // IE00A (500000) is 100000 overweight; IE00B (400000) is exactly on target.
-    // A sell to cover the 100000 shortfall must come entirely from IE00A.
     var input =
         FundTransactionInput.builder()
             .fund(TUV100)

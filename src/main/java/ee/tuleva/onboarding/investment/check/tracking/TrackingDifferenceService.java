@@ -207,6 +207,25 @@ class TrackingDifferenceService {
           List.of());
     }
 
+    var misalignedSecurities =
+        securities.stream()
+            .filter(s -> s.modelWeight().signum() > 0)
+            .filter(
+                s -> isStaleDate(s.today(), checkDate) || isStaleDate(s.previous(), previousDate))
+            .map(
+                s ->
+                    "%s[today=%s, prev=%s]"
+                        .formatted(s.isin(), s.today().date(), s.previous().date()))
+            .toList();
+    if (!misalignedSecurities.isEmpty()) {
+      log.warn(
+          "Benchmark price dates misaligned (may inflate MODEL_PORTFOLIO TD, no behavior change): fund={}, checkDate={}, previousDate={}, securities={}",
+          fund,
+          checkDate,
+          previousDate,
+          misalignedSecurities);
+    }
+
     var blendedSecurities =
         blendTransitionWeights(securities, allocations, previousAllocations, positions, fund);
 
@@ -735,6 +754,10 @@ class TrackingDifferenceService {
       return null;
     }
     return holdings;
+  }
+
+  private static boolean isStaleDate(PriceSnapshot snapshot, LocalDate expectedDate) {
+    return snapshot.date() != null && !snapshot.date().equals(expectedDate);
   }
 
   private Instant computePriceCutoff(TulevaFund fund, LocalDate navDate) {

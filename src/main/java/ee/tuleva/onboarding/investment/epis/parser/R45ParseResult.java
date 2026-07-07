@@ -5,4 +5,6 @@ import java.util.List;
 import java.util.Map;
 
 public record R45ParseResult(
-    Map<String, R45Result> fundResults, List<R45UnvaluedRow> unvaluedRows) {}
+    Map<String, R45Result> fundResults,
+    List<R45UnvaluedRow> unvaluedRows,
+    List<R45UnknownRow> unknownRows) {}

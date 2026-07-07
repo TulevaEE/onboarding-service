@@ -38,6 +38,7 @@ public class R45ReportParser {
     Map<String, BigDecimal> navByIsin = collectNavs(parsed.rows(), fallbackNavByIsin);
     Map<String, FlowAccumulator> flows = new LinkedHashMap<>();
     List<R45UnvaluedRow> unvaluedRows = new ArrayList<>();
+    List<R45UnknownRow> unknownRows = new ArrayList<>();
 
     for (Map<String, String> row : parsed.rows()) {
       String typeCode = trimmedUpperCase(findValue(row, "tehingu liik"));
@@ -57,6 +58,11 @@ public class R45ReportParser {
       Optional<TulevaFund> fund = TulevaFund.findByIsin(isin);
       Optional<R45TransactionType> type = R45TransactionType.find(typeCode);
       if (fund.isEmpty() || type.isEmpty()) {
+        String knownFundCode = fund.map(TulevaFund::getCode).orElse(null);
+        unknownRows.add(new R45UnknownRow(typeCode, isin, knownFundCode));
+        if (knownFundCode != null) {
+          flows.computeIfAbsent(knownFundCode, code -> new FlowAccumulator());
+        }
         continue;
       }
       String fundCode = fund.get().getCode();
@@ -81,7 +87,7 @@ public class R45ReportParser {
 
     Map<String, R45Result> fundResults = new LinkedHashMap<>();
     flows.forEach((fundCode, accumulator) -> fundResults.put(fundCode, accumulator.toResult()));
-    return new R45ParseResult(fundResults, List.copyOf(unvaluedRows));
+    return new R45ParseResult(fundResults, List.copyOf(unvaluedRows), List.copyOf(unknownRows));
   }
 
   private static Map<String, BigDecimal> collectNavs(

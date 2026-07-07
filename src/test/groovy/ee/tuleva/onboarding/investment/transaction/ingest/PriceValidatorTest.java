@@ -51,6 +51,15 @@ class PriceValidatorTest {
   }
 
   @Test
+  void negativeNavPrice_isOutsideTolerance() {
+    // A negative reference price is invalid: |exec - nav| / nav yields a negative ratio that
+    // would silently pass the <= tolerance comparison.
+    assertThat(
+            validator.isWithinTolerance(new BigDecimal("100"), new BigDecimal("-100"), TOLERANCE))
+        .isFalse();
+  }
+
+  @Test
   void computeDeltaPercent_returnsAbsoluteRatioTimes100() {
     // |4.7255 - 4.7800| / 4.7800 ≈ 0.011401673
     BigDecimal delta =

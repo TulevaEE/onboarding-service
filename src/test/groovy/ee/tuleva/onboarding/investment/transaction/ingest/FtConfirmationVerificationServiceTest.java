@@ -293,6 +293,19 @@ class FtConfirmationVerificationServiceTest {
   }
 
   @Test
+  void negativeReferencePrice_returnsError() {
+    givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
+    givenReferencePrice(new BigDecimal("-10.09"), TRADE_DATE);
+
+    FtConfirmationResult result =
+        service(DAY_AFTER_TRADE)
+            .verify(confirmation(new BigDecimal("40434"), new BigDecimal("10.09")));
+
+    assertThat(result.priceStatus()).isEqualTo(ERROR);
+    assertThat(result.details()).containsKey("invalidReferencePrice");
+  }
+
+  @Test
   void priceExactlyAtToleranceBoundary_returnsOk() {
     givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);

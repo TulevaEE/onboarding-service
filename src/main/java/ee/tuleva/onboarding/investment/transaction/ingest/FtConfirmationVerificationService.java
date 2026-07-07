@@ -298,16 +298,18 @@ public class FtConfirmationVerificationService {
       return PENDING_NAV;
     }
 
-    details.put("referencePrice", referencePrice.get().toPlainString());
-    if (priceValidator.isWithinTolerance(
-        confirmation.grossPrice(), referencePrice.get(), priceTolerance)) {
+    BigDecimal reference = referencePrice.get();
+    details.put("referencePrice", reference.toPlainString());
+    if (reference.signum() <= 0) {
+      details.put("invalidReferencePrice", "true");
+      return ERROR;
+    }
+    if (priceValidator.isWithinTolerance(confirmation.grossPrice(), reference, priceTolerance)) {
       return OK;
     }
     details.put(
         "priceDeltaPercent",
-        priceValidator
-            .computeDeltaPercent(confirmation.grossPrice(), referencePrice.get())
-            .toPlainString());
+        priceValidator.computeDeltaPercent(confirmation.grossPrice(), reference).toPlainString());
     return ERROR;
   }
 }

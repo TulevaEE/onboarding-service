@@ -27,6 +27,7 @@ class ScheduledAmlHealthCheckJobTest {
           AmlCheckType.SANCTION_OVERRIDE,
           AmlCheckType.INTERNAL_ESCALATION,
           AmlCheckType.MANUAL_EVENT,
+          AmlCheckType.CUSTODY_RIGHT,
           AmlCheckType.KYB_COMPANY_STRUCTURE,
           AmlCheckType.KYB_SOLE_MEMBER_OWNERSHIP,
           AmlCheckType.KYB_DUAL_MEMBER_OWNERSHIP,

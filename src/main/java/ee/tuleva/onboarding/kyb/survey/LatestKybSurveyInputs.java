@@ -13,6 +13,10 @@ public class LatestKybSurveyInputs {
   private final KybSurveyResponseMapper kybSurveyResponseMapper;
   private final UserRepository userRepository;
 
+  public boolean hasSurvey(String registryCode) {
+    return kybSurveyRepository.existsByRegistryCode(registryCode);
+  }
+
   public KybSurveyInputs findByRegistryCode(String registryCode) {
     var survey =
         kybSurveyRepository

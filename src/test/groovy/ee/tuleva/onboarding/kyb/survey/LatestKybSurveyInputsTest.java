@@ -59,6 +59,20 @@ class LatestKybSurveyInputsTest {
   }
 
   @Test
+  void hasSurveyWhenSurveyExists() {
+    given(kybSurveyRepository.existsByRegistryCode(REGISTRY_CODE)).willReturn(true);
+
+    assertThat(latestInputs.hasSurvey(REGISTRY_CODE)).isTrue();
+  }
+
+  @Test
+  void doesNotHaveSurveyWhenNoneExists() {
+    given(kybSurveyRepository.existsByRegistryCode(REGISTRY_CODE)).willReturn(false);
+
+    assertThat(latestInputs.hasSurvey(REGISTRY_CODE)).isFalse();
+  }
+
+  @Test
   void throwsWhenUserNotFound() {
     var survey =
         KybSurvey.builder()

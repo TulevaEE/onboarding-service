@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 interface KybSurveyRepository extends JpaRepository<KybSurvey, UUID> {
 
   Optional<KybSurvey> findTopByRegistryCodeOrderByCreatedTimeDesc(String registryCode);
+
+  boolean existsByRegistryCode(String registryCode);
 }

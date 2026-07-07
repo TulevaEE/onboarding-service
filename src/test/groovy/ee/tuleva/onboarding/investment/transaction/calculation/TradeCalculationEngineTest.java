@@ -243,6 +243,56 @@ class TradeCalculationEngineTest {
   }
 
   @Test
+  void buy_waterFillsHardLimitExcessAcrossRunnersInsteadOfStrandingCash() {
+    // IE00X overflows its 0.26 hard limit, producing ~60197 of excess to redistribute.
+    // Both IE00P and IE00Q are eligible runners, but a score-proportional split hands IE00P far
+    // more than its remaining ~5336 headroom (it caps at its 0.15 hard limit), while IE00Q has
+    // ample room. The clipped overflow must cascade to IE00Q, not strand — the full 100000 deploys.
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00X", new BigDecimal("240000")),
+                    new PositionSnapshot("IE00P", new BigDecimal("130000")),
+                    new PositionSnapshot("IE00Q", new BigDecimal("130000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00X", new BigDecimal("0.60")),
+                    new ModelWeight("IE00P", new BigDecimal("0.20")),
+                    new ModelWeight("IE00Q", new BigDecimal("0.16"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(new BigDecimal("50000"))
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(
+                Map.of(
+                    "IE00X",
+                        new PositionLimitSnapshot(new BigDecimal("0.25"), new BigDecimal("0.26")),
+                    "IE00P",
+                        new PositionLimitSnapshot(new BigDecimal("0.14"), new BigDecimal("0.15")),
+                    "IE00Q",
+                        new PositionLimitSnapshot(new BigDecimal("0.39"), new BigDecimal("0.40"))))
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, BUY);
+
+    BigDecimal totalInvested =
+        result.trades().stream().map(TradeCalculation::tradeAmount).reduce(ZERO, BigDecimal::add);
+    assertThat(totalInvested)
+        .isCloseTo(new BigDecimal("100000"), org.assertj.core.data.Offset.offset(BigDecimal.ONE));
+
+    result
+        .trades()
+        .forEach(
+            trade ->
+                assertThat(trade.projectedWeight())
+                    .isLessThanOrEqualTo(input.positionLimits().get(trade.isin()).hardLimit()));
+  }
+
+  @Test
   void buy_flagsSoftLimitExceeded() {
     var input =
         FundTransactionInput.builder()

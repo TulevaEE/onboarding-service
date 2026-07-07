@@ -92,31 +92,76 @@ public class TradeCalculationEngine {
       return List.of(capped);
     }
 
-    List<BigDecimal> runnerScores = new ArrayList<>();
-    for (int i = 0; i < size; i++) {
-      BigDecimal headroom = hardLimitHeadroom(input, input.positions().get(i));
-      BigDecimal remaining = headroom == null ? null : headroom.subtract(capped[i]).max(ZERO);
-      boolean eligible =
-          scores.get(i).compareTo(ZERO) > 0
-              && (remaining == null || remaining.compareTo(threshold) >= 0);
-      runnerScores.add(eligible ? scores.get(i) : ZERO);
-    }
+    BigDecimal undistributed = waterFillExcessAcrossRunners(input, scores, capped, totalExcess);
 
-    List<BigDecimal> subAllocations =
-        distributeAmountWithThreshold(runnerScores, totalExcess, threshold);
-    BigDecimal subTotal = subAllocations.stream().reduce(ZERO, BigDecimal::add);
-
-    if (subTotal.compareTo(new BigDecimal("0.01")) > 0) {
-      for (int i = 0; i < size; i++) {
-        capped[i] = capped[i].add(subAllocations.get(i));
-      }
-      return List.of(capped);
-    }
-
-    if (input.freeCash().compareTo(threshold) >= 0) {
-      topUpBestRunnerToThreshold(capped, runnerScores, totalExcess, threshold);
+    if (undistributed.compareTo(new BigDecimal("0.01")) > 0
+        && input.freeCash().compareTo(threshold) >= 0) {
+      topUpBestRunnerToThreshold(
+          capped, runnerScores(input, scores, capped), undistributed, threshold);
     }
     return List.of(capped);
+  }
+
+  private BigDecimal waterFillExcessAcrossRunners(
+      FundTransactionInput input, List<BigDecimal> scores, BigDecimal[] capped, BigDecimal excess) {
+    int size = capped.length;
+    BigDecimal threshold = input.minTransactionThreshold();
+    BigDecimal remaining = excess;
+
+    for (int iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+      if (remaining.compareTo(new BigDecimal("0.01")) <= 0) {
+        break;
+      }
+
+      List<BigDecimal> roundScores = runnerScores(input, scores, capped);
+      if (roundScores.stream().allMatch(score -> score.compareTo(ZERO) == 0)) {
+        break;
+      }
+
+      List<BigDecimal> round = distributeAmountWithThreshold(roundScores, remaining, threshold);
+
+      boolean newlyCapped = false;
+      for (int i = 0; i < size; i++) {
+        if (round.get(i).compareTo(ZERO) <= 0) {
+          continue;
+        }
+        BigDecimal headroom = remainingHeadroom(input, capped, i);
+        if (headroom != null && round.get(i).compareTo(headroom) >= 0) {
+          capped[i] = capped[i].add(headroom);
+          remaining = remaining.subtract(headroom);
+          newlyCapped = true;
+        } else {
+          capped[i] = capped[i].add(round.get(i));
+          remaining = remaining.subtract(round.get(i));
+        }
+      }
+
+      if (!newlyCapped) {
+        break;
+      }
+    }
+
+    return remaining;
+  }
+
+  private List<BigDecimal> runnerScores(
+      FundTransactionInput input, List<BigDecimal> scores, BigDecimal[] capped) {
+    BigDecimal threshold = input.minTransactionThreshold();
+    return IntStream.range(0, capped.length)
+        .mapToObj(
+            i -> {
+              BigDecimal remaining = remainingHeadroom(input, capped, i);
+              boolean eligible =
+                  scores.get(i).compareTo(ZERO) > 0
+                      && (remaining == null || remaining.compareTo(threshold) >= 0);
+              return eligible ? scores.get(i) : ZERO;
+            })
+        .toList();
+  }
+
+  private BigDecimal remainingHeadroom(FundTransactionInput input, BigDecimal[] capped, int index) {
+    BigDecimal headroom = hardLimitHeadroom(input, input.positions().get(index));
+    return headroom == null ? null : headroom.subtract(capped[index]).max(ZERO);
   }
 
   private void topUpBestRunnerToThreshold(

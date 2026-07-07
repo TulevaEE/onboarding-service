@@ -131,14 +131,17 @@ public class EmailService {
           response.getRejectReason());
 
       if (response.getStatus() != null && FAILED_STATUSES.contains(response.getStatus())) {
-        throw new EmailDeliveryException(
-            "Mandrill rejected email: status=%s, rejectReason=%s, id=%s"
-                .formatted(response.getStatus(), response.getRejectReason(), response.getId()));
+        log.warn(
+            "Mandrill did not deliver email: userId={}, templateName={}, status={}, rejectReason={}, id={}",
+            user.getId(),
+            templateName,
+            response.getStatus(),
+            response.getRejectReason(),
+            response.getId());
+        return Optional.empty();
       }
       return Optional.of(response);
 
-    } catch (EmailDeliveryException e) {
-      throw e;
     } catch (MandrillApiError mandrillApiError) {
       log.error(mandrillApiError.getMandrillErrorAsJson(), mandrillApiError);
       return Optional.empty();

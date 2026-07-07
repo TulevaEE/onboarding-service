@@ -68,30 +68,30 @@ class EmailServiceSpec extends Specification {
     response == Optional.of(mandrillMessageStatus)
   }
 
-  def "send throws when Mandrill returns rejected"() {
+  def "send returns empty when Mandrill returns rejected"() {
     given:
     def rejectedStatus = new MandrillMessageStatus()
     rejectedStatus.status = "rejected"
 
     when:
-    service.send(user, message, templateName)
+    def response = service.send(user, message, templateName)
 
     then:
     1 * mandrillMessagesApi.sendTemplate(templateName, [:], message, false, null, null) >> [rejectedStatus]
-    thrown(EmailDeliveryException)
+    response == Optional.empty()
   }
 
-  def "send throws when Mandrill returns invalid"() {
+  def "send returns empty when Mandrill returns invalid"() {
     given:
     def invalidStatus = new MandrillMessageStatus()
     invalidStatus.status = "invalid"
 
     when:
-    service.send(user, message, templateName)
+    def response = service.send(user, message, templateName)
 
     then:
     1 * mandrillMessagesApi.sendTemplate(templateName, [:], message, false, null, null) >> [invalidStatus]
-    thrown(EmailDeliveryException)
+    response == Optional.empty()
   }
 
   def "Can cancel scheduled emails"() {

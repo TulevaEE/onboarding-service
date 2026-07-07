@@ -632,6 +632,24 @@ class TransactionPreparationServiceTest {
     verify(orderRepository, never()).saveAll(any());
   }
 
+  @Test
+  void finalizeConfirmedBatch_alreadySentBatch_doesNotReFinalizeOrReSend() {
+    var batch =
+        TransactionBatch.builder()
+            .id(1L)
+            .fund(TUV100)
+            .status(SENT)
+            .createdBy("system")
+            .metadata(new HashMap<>(Map.of("commandId", 1L)))
+            .build();
+
+    assertThatThrownBy(() -> service.finalizeConfirmedBatch(batch))
+        .isInstanceOf(IllegalStateException.class);
+
+    verifyNoInteractions(exportService);
+    verify(orderRepository, never()).saveAll(any());
+  }
+
   private TransactionCommand givenSingleEtfBuyCommandPricedAt(BigDecimal price) {
     var command =
         TransactionCommand.builder()

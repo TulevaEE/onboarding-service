@@ -124,6 +124,10 @@ public class TransactionPreparationService {
 
   @Transactional
   public void finalizeConfirmedBatch(TransactionBatch batch) {
+    if (batch.getStatus() == BatchStatus.SENT) {
+      throw new IllegalStateException(
+          "Batch already finalized: id=" + batch.getId() + ", status=" + batch.getStatus());
+    }
     log.info("Finalizing batch: id={}", batch.getId());
 
     Instant now = Instant.now(clock);

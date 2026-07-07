@@ -45,12 +45,7 @@ public class CapitalTransferContractContextBuilder {
 
   public CapitalTransferContractContextBuilder iban(String iban) {
     ctx.setVariable("iban", iban);
-    try {
-      BankAccountDetails.Bank bank = BankAccountDetails.Bank.fromIban(iban);
-      ctx.setVariable("bankName", bank.getDisplayName());
-    } catch (IllegalArgumentException e) {
-      ctx.setVariable("bankName", "");
-    }
+    ctx.setVariable("bankName", BankAccountDetails.Bank.displayNameFromIban(iban));
     return this;
   }
 

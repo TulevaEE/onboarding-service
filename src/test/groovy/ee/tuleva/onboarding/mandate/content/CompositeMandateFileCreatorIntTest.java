@@ -2,9 +2,11 @@ package ee.tuleva.onboarding.mandate.content;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
+import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN;
 import static ee.tuleva.onboarding.fund.FundFixture.*;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static ee.tuleva.onboarding.mandate.MandateType.UNKNOWN;
+import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -13,12 +15,15 @@ import static org.mockito.Mockito.when;
 
 import au.com.origin.snapshots.Expect;
 import au.com.origin.snapshots.junit5.SnapshotExtension;
+import ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails;
+import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateType;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -112,6 +117,29 @@ public class CompositeMandateFileCreatorIntTest {
       expect.scenario(snapshotName).toMatchSnapshot(new String(file.getContent(), UTF_8));
       writeMandateFile(file, snapshotName);
     }
+  }
+
+  @Test
+  void rendersPartialWithdrawalMandateForBankMissingFromBankEnum() {
+    var unknownBankIban = "EE093300001111222233";
+    var details =
+        new PartialWithdrawalMandateDetails(
+            SECOND,
+            new BankAccountDetails(ESTONIAN, unknownBankIban),
+            List.of(
+                new PartialWithdrawalMandateDetails.FundWithdrawalAmount(
+                    "EE3600109435", 10, BigDecimal.TEN)),
+            "EST");
+    var aMandate = samplePartialWithdrawalMandate(details);
+    when(fundRepository.findAllByPillarAndStatus(any(), any()))
+        .thenReturn(List.of(tuleva2ndPillarStockFund(), lhv2ndPillarFund()));
+
+    List<MandateContentFile> files =
+        compositeMandateFileCreator.getContentFiles(
+            sampleUser().build(), aMandate, contactDetailsFixture());
+
+    assertThat(files).hasSize(1);
+    assertThat(new String(files.get(0).getContent(), UTF_8)).contains(unknownBankIban);
   }
 
   @Test

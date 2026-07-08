@@ -29,7 +29,7 @@ public class NameMatcher {
   }
 
   private String normalize(String name) {
-    return Arrays.stream(name.replaceAll("\\p{Punct}", " ").split("\\s+"))
+    return Arrays.stream(splitIntoWords(name))
         .map(String::strip)
         .filter(token -> !token.isEmpty())
         .map(String::toUpperCase)
@@ -38,5 +38,9 @@ public class NameMatcher {
         .map(token -> token.equals(OSAUHING) ? OSAUHING_ABBREVIATION : token)
         .sorted()
         .collect(joining(" "));
+  }
+
+  private String[] splitIntoWords(String name) {
+    return name.replaceAll("\\p{Cf}", "").replaceAll("[^\\p{L}\\p{N}\\p{M}]", " ").split("\\s+");
   }
 }

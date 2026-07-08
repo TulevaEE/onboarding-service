@@ -44,6 +44,18 @@ class NameMatcherTest {
   }
 
   @Test
+  void isSameName_ignoresTypographicQuotesSubstitutedWithAsciiPunctuation() {
+    assertThat(nameMatcher.isSameName("Osaühing „Alpha”", "Osaühing .Alpha.")).isTrue();
+    assertThat(nameMatcher.isSameName("O’Brien", "O'Brien")).isTrue();
+  }
+
+  @Test
+  void isSameName_ignoresNonBreakingSpaceAndZeroWidthFormatting() {
+    assertThat(nameMatcher.isSameName("Osaühing Alpha", "Osaühing Alpha")).isTrue();
+    assertThat(nameMatcher.isSameName("Al­pha OÜ", "Alpha OÜ")).isTrue();
+  }
+
+  @Test
   void isSameName_isCaseInsensitive() {
     assertThat(nameMatcher.isSameName("aaa bbb", "Aaa BBB")).isTrue();
   }

@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -85,7 +86,7 @@ class PopulationRegisterClientTest {
         .andExpect(jsonPath("$.andmevaljad.dokumendid").isEmpty())
         .andRespond(withSuccess(personResponse(), MediaType.APPLICATION_JSON));
 
-    PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE);
+    PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE).data();
 
     assertThat(person)
         .isEqualTo(
@@ -123,7 +124,7 @@ class PopulationRegisterClientTest {
         .andExpect(jsonPath("$.andmevaljad.dokumendid").isEmpty())
         .andRespond(withSuccess(custodyResponse(), MediaType.APPLICATION_JSON));
 
-    List<CustodyRight> rights = client.fetchCustodyRights(PERSONAL_CODE, MAX_AGE);
+    List<CustodyRight> rights = client.fetchCustodyRights(PERSONAL_CODE, MAX_AGE).data();
 
     assertThat(rights)
         .containsExactly(
@@ -137,13 +138,16 @@ class PopulationRegisterClientTest {
 
   @Test
   void storesTheRawResponseUnderTheSameMessageIdItSentToTheRegister() {
+    var sentMessageId = new AtomicReference<String>();
     server
         .expect(requestTo(ISIKUD_URL))
+        .andExpect(request -> sentMessageId.set(request.getHeaders().getFirst("X-Road-Id")))
         .andRespond(withSuccess(personResponse(), MediaType.APPLICATION_JSON));
 
-    client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE);
+    UUID messageId = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE).messageId();
 
-    verify(store).save(eq(PERSONAL_CODE), eq(IDENTITY), any(UUID.class), eq(rawPersonResponse()));
+    assertThat(messageId).hasToString(sentMessageId.get());
+    verify(store).save(eq(PERSONAL_CODE), eq(IDENTITY), eq(messageId), eq(rawPersonResponse()));
     server.verify();
   }
 
@@ -184,13 +188,15 @@ class PopulationRegisterClientTest {
 
   @Test
   void reusesAStoredResponseWithoutCallingTheRegister() {
+    UUID storedMessageId = UUID.randomUUID();
     given(store.findFresh(PERSONAL_CODE, IDENTITY, MAX_AGE))
-        .willReturn(Optional.of(rawPersonResponse()));
+        .willReturn(Optional.of(new StoredResponse(storedMessageId, rawPersonResponse())));
 
-    PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE);
+    var result = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE);
 
-    assertThat(person.firstName()).isEqualTo("MARI");
-    assertThat(person.isAlive()).isTrue();
+    assertThat(result.data().firstName()).isEqualTo("MARI");
+    assertThat(result.data().isAlive()).isTrue();
+    assertThat(result.messageId()).isEqualTo(storedMessageId);
     verify(store, never()).save(any(), any(), any(), any());
     server.verify();
   }
@@ -198,9 +204,9 @@ class PopulationRegisterClientTest {
   @Test
   void reusesStoredCustodyResponseWithoutCallingTheRegister() {
     given(store.findFresh(PERSONAL_CODE, CUSTODY, MAX_AGE))
-        .willReturn(Optional.of(rawCustodyResponse()));
+        .willReturn(Optional.of(new StoredResponse(UUID.randomUUID(), rawCustodyResponse())));
 
-    List<CustodyRight> rights = client.fetchCustodyRights(PERSONAL_CODE, MAX_AGE);
+    List<CustodyRight> rights = client.fetchCustodyRights(PERSONAL_CODE, MAX_AGE).data();
 
     assertThat(rights)
         .containsExactly(
@@ -211,12 +217,13 @@ class PopulationRegisterClientTest {
 
   @Test
   void refetchesWhenTheStoredResponseIsEmpty() {
-    given(store.findFresh(PERSONAL_CODE, IDENTITY, MAX_AGE)).willReturn(Optional.of(List.of()));
+    given(store.findFresh(PERSONAL_CODE, IDENTITY, MAX_AGE))
+        .willReturn(Optional.of(new StoredResponse(UUID.randomUUID(), List.of())));
     server
         .expect(times(1), requestTo(ISIKUD_URL))
         .andRespond(withSuccess(personResponse(), MediaType.APPLICATION_JSON));
 
-    PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE);
+    PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE).data();
 
     assertThat(person.firstName()).isEqualTo("MARI");
     verify(store).save(eq(PERSONAL_CODE), eq(IDENTITY), any(UUID.class), eq(rawPersonResponse()));
@@ -226,12 +233,13 @@ class PopulationRegisterClientTest {
   @Test
   void refetchesWhenTheStoredResponseIsMissingRequiredFields() {
     given(store.findFresh(PERSONAL_CODE, IDENTITY, MAX_AGE))
-        .willReturn(Optional.of(List.of(Map.of("eesnimi", "MARI"))));
+        .willReturn(
+            Optional.of(new StoredResponse(UUID.randomUUID(), List.of(Map.of("eesnimi", "MARI")))));
     server
         .expect(times(1), requestTo(ISIKUD_URL))
         .andRespond(withSuccess(personResponse(), MediaType.APPLICATION_JSON));
 
-    PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE);
+    PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE).data();
 
     assertThat(person.personalCode()).isEqualTo(PERSONAL_CODE);
     server.verify();
@@ -241,12 +249,15 @@ class PopulationRegisterClientTest {
   void refetchesWhenTheStoredResponseNoLongerFitsTheCurrentSchema() {
     given(store.findFresh(PERSONAL_CODE, IDENTITY, MAX_AGE))
         .willReturn(
-            Optional.of(List.of(Map.of("isikukood", PERSONAL_CODE, "isikuStaatus", "ELUS"))));
+            Optional.of(
+                new StoredResponse(
+                    UUID.randomUUID(),
+                    List.of(Map.of("isikukood", PERSONAL_CODE, "isikuStaatus", "ELUS")))));
     server
         .expect(times(1), requestTo(ISIKUD_URL))
         .andRespond(withSuccess(personResponse(), MediaType.APPLICATION_JSON));
 
-    PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE);
+    PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE).data();
 
     assertThat(person.firstName()).isEqualTo("MARI");
     server.verify();

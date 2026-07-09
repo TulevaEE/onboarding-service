@@ -5,8 +5,9 @@ import java.util.List;
 
 public interface PopulationRegisterClient {
 
-  PopulationRegisterPerson fetchPerson(
+  PopulationRegisterResult<PopulationRegisterPerson> fetchPerson(
       String requesterPersonalCode, String personalCode, Duration maxAge);
 
-  List<CustodyRight> fetchCustodyRights(String requesterPersonalCode, Duration maxAge);
+  PopulationRegisterResult<List<CustodyRight>> fetchCustodyRights(
+      String requesterPersonalCode, Duration maxAge);
 }

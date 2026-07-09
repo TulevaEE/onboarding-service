@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
 import java.util.List;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.ClassPathResource;
@@ -22,16 +23,19 @@ class MockPopulationRegisterClient implements PopulationRegisterClient {
   }
 
   @Override
-  public PopulationRegisterPerson fetchPerson(
+  public PopulationRegisterResult<PopulationRegisterPerson> fetchPerson(
       String requesterPersonalCode, String personalCode, Duration maxAge) {
     log.info("Mock population register person lookup");
-    return PersonMapper.toPerson(load("mock-person-response.json"));
+    return new PopulationRegisterResult<>(
+        PersonMapper.toPerson(load("mock-person-response.json")), UUID.randomUUID());
   }
 
   @Override
-  public List<CustodyRight> fetchCustodyRights(String requesterPersonalCode, Duration maxAge) {
+  public PopulationRegisterResult<List<CustodyRight>> fetchCustodyRights(
+      String requesterPersonalCode, Duration maxAge) {
     log.info("Mock population register custody lookup");
-    return PersonMapper.toCustodyRights(load("mock-custody-response.json"));
+    return new PopulationRegisterResult<>(
+        PersonMapper.toCustodyRights(load("mock-custody-response.json")), UUID.randomUUID());
   }
 
   private PersonResponse load(String fileName) {

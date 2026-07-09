@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.OK;
 import ee.tuleva.onboarding.populationregister.CustodyRight;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterClient;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -22,13 +23,14 @@ public class CustodyVerificationService {
 
   private final PopulationRegisterClient populationRegisterClient;
 
-  public CustodyVerification verify(String parentPersonalCode, String childPersonalCode) {
+  public CustodyVerification verify(
+      String parentPersonalCode, String childPersonalCode, Duration maxAge) {
     // The population register returns personal (H10) and property (H20) custody as
     // separate entries, so a parent with full custody has BOTH for the same child.
     // Asset management requires the property right specifically — look for it across
     // all of the child's entries rather than inspecting whichever one comes first.
     List<CustodyRight> childCustodies =
-        populationRegisterClient.fetchCustodyRights(parentPersonalCode).stream()
+        populationRegisterClient.fetchCustodyRights(parentPersonalCode, maxAge).stream()
             .filter(right -> right.childPersonalCode().equals(childPersonalCode))
             .toList();
 
@@ -54,7 +56,8 @@ public class CustodyVerificationService {
       return CustodyVerification.notVerified(NOT_ASSET_MANAGEMENT);
     }
 
-    PopulationRegisterPerson child = populationRegisterClient.fetchPerson(childPersonalCode);
+    PopulationRegisterPerson child =
+        populationRegisterClient.fetchPerson(childPersonalCode, maxAge);
     if (!child.isAlive()) {
       return CustodyVerification.notVerified(CHILD_NOT_ALIVE);
     }

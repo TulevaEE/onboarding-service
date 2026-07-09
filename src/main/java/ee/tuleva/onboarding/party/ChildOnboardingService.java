@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
+import java.time.Duration;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ChildOnboardingService {
 
+  static final Duration CUSTODY_MAX_AGE = Duration.ofHours(24);
+
   private final CustodyVerificationService custodyVerificationService;
   private final ParentChildLinkRegistrationService parentChildLinkRegistrationService;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
@@ -28,7 +31,7 @@ public class ChildOnboardingService {
   public ChildOnboardingResult onboardChild(AuthenticatedPerson parent, String childPersonalCode) {
     String parentPersonalCode = parent.getPersonalCode();
     CustodyVerification verification =
-        custodyVerificationService.verify(parentPersonalCode, childPersonalCode);
+        custodyVerificationService.verify(parentPersonalCode, childPersonalCode, CUSTODY_MAX_AGE);
 
     applicationEventPublisher.publishEvent(
         new TrackableEvent(

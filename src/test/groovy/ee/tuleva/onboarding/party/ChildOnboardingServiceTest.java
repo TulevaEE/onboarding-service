@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.party;
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
+import static ee.tuleva.onboarding.party.ChildOnboardingService.CUSTODY_MAX_AGE;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.NO_CUSTODY;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.OK;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
@@ -48,7 +49,7 @@ class ChildOnboardingServiceTest {
   @Test
   void verifiedCustody_createsLinkSeedsOnboardingRecordsCheckReturnsChild() {
     var evidence = Map.<String, Object>of("custodyType", "PROPERTY");
-    given(custodyVerificationService.verify(PARENT, CHILD))
+    given(custodyVerificationService.verify(PARENT, CHILD, CUSTODY_MAX_AGE))
         .willReturn(new CustodyVerification(OK, child, evidence));
 
     ChildOnboardingResult result = service.onboardChild(parent, CHILD);
@@ -70,7 +71,7 @@ class ChildOnboardingServiceTest {
 
   @Test
   void unverifiedCustody_recordsFailedCheckReturnsUnderReviewWithoutCreatingLink() {
-    given(custodyVerificationService.verify(PARENT, CHILD))
+    given(custodyVerificationService.verify(PARENT, CHILD, CUSTODY_MAX_AGE))
         .willReturn(CustodyVerification.notVerified(NO_CUSTODY));
 
     ChildOnboardingResult result = service.onboardChild(parent, CHILD);

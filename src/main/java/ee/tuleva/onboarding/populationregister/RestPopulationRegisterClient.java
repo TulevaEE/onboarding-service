@@ -51,9 +51,11 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
   }
 
   @Override
-  public PopulationRegisterPerson fetchPerson(String personalCode, Duration maxAge) {
+  public PopulationRegisterPerson fetchPerson(
+      String requesterPersonalCode, String personalCode, Duration maxAge) {
     return query(
         PersonQueryRequest.forIdentity(personalCode),
+        requesterPersonalCode,
         personalCode,
         IDENTITY,
         maxAge,
@@ -61,10 +63,11 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
   }
 
   @Override
-  public List<CustodyRight> fetchCustodyRights(String personalCode, Duration maxAge) {
+  public List<CustodyRight> fetchCustodyRights(String requesterPersonalCode, Duration maxAge) {
     return query(
-        PersonQueryRequest.forCustody(personalCode),
-        personalCode,
+        PersonQueryRequest.forCustody(requesterPersonalCode),
+        requesterPersonalCode,
+        requesterPersonalCode,
         CUSTODY,
         maxAge,
         PersonMapper::toCustodyRights);
@@ -72,6 +75,7 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
 
   private <T> T query(
       PersonQueryRequest request,
+      String requesterPersonalCode,
       String personalCode,
       PopulationRegisterQueryType queryType,
       Duration maxAge,
@@ -93,7 +97,7 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
         personalCode,
         queryType);
     var messageId = UUID.randomUUID();
-    var response = fetch(request, personalCode, messageId);
+    var response = fetch(request, requesterPersonalCode, messageId);
     store.save(personalCode, queryType, messageId, response);
     return mapper.apply(first(response, personalCode));
   }
@@ -116,9 +120,9 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
   }
 
   private List<Map<String, Object>> fetch(
-      PersonQueryRequest request, String personalCode, UUID messageId) {
+      PersonQueryRequest request, String requesterPersonalCode, UUID messageId) {
     try {
-      return retryTemplate.invoke(() -> post(request, personalCode, messageId));
+      return retryTemplate.invoke(() -> post(request, requesterPersonalCode, messageId));
     } catch (HttpClientErrorException e) {
       throw new PopulationRegisterException(
           "Population register rejected the request: status=" + e.getStatusCode(), e);
@@ -131,7 +135,7 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
   }
 
   private List<Map<String, Object>> post(
-      PersonQueryRequest request, String personalCode, UUID messageId) {
+      PersonQueryRequest request, String requesterPersonalCode, UUID messageId) {
     final String REQUEST_REASON = "oigustatud";
     var responses =
         restClient
@@ -140,7 +144,7 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
             .contentType(APPLICATION_JSON)
             .accept(APPLICATION_JSON)
             .header("X-Road-Client", properties.clientId())
-            .header("X-Road-UserId", personalCode)
+            .header("X-Road-UserId", requesterPersonalCode)
             .header("X-Road-Id", messageId.toString())
             .header("RR-Request-Reason", REQUEST_REASON)
             .body(request)

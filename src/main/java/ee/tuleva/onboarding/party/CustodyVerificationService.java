@@ -57,7 +57,7 @@ public class CustodyVerificationService {
     }
 
     PopulationRegisterPerson child =
-        populationRegisterClient.fetchPerson(childPersonalCode, maxAge);
+        populationRegisterClient.fetchPerson(parentPersonalCode, childPersonalCode, maxAge);
     if (!child.isAlive()) {
       return CustodyVerification.notVerified(CHILD_NOT_ALIVE);
     }

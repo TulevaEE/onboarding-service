@@ -22,13 +22,14 @@ class MockPopulationRegisterClient implements PopulationRegisterClient {
   }
 
   @Override
-  public PopulationRegisterPerson fetchPerson(String personalCode, Duration maxAge) {
+  public PopulationRegisterPerson fetchPerson(
+      String requesterPersonalCode, String personalCode, Duration maxAge) {
     log.info("Mock population register person lookup");
     return PersonMapper.toPerson(load("mock-person-response.json"));
   }
 
   @Override
-  public List<CustodyRight> fetchCustodyRights(String personalCode, Duration maxAge) {
+  public List<CustodyRight> fetchCustodyRights(String requesterPersonalCode, Duration maxAge) {
     log.info("Mock population register custody lookup");
     return PersonMapper.toCustodyRights(load("mock-custody-response.json"));
   }

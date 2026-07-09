@@ -57,6 +57,7 @@ class PopulationRegisterClientTest {
   private static final String ISIKUD_URL = BASE_URL + "/isikud";
   private static final String CLIENT_ID = "EE/COM/14118923/tuleva-fund-management";
   private static final String PERSONAL_CODE = "48503150000";
+  private static final String REQUESTER = "38812121215";
   private static final Duration MAX_AGE = ofMinutes(15);
 
   @Autowired RestPopulationRegisterClient client;
@@ -76,7 +77,6 @@ class PopulationRegisterClientTest {
         .expect(requestTo(ISIKUD_URL))
         .andExpect(method(HttpMethod.POST))
         .andExpect(header("X-Road-Client", CLIENT_ID))
-        .andExpect(header("X-Road-UserId", PERSONAL_CODE))
         .andExpect(header("RR-Request-Reason", "oigustatud"))
         .andExpect(jsonPath("$.isikukoodid[0]").value(PERSONAL_CODE))
         .andExpect(jsonPath("$.andmevaljad.isikuandmed").isNotEmpty())
@@ -85,7 +85,7 @@ class PopulationRegisterClientTest {
         .andExpect(jsonPath("$.andmevaljad.dokumendid").isEmpty())
         .andRespond(withSuccess(personResponse(), MediaType.APPLICATION_JSON));
 
-    PopulationRegisterPerson person = client.fetchPerson(PERSONAL_CODE, MAX_AGE);
+    PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE);
 
     assertThat(person)
         .isEqualTo(
@@ -101,10 +101,24 @@ class PopulationRegisterClientTest {
   }
 
   @Test
+  void identifiesTheRequesterNotTheLookedUpPersonToTheRegister() {
+    server
+        .expect(requestTo(ISIKUD_URL))
+        .andExpect(header("X-Road-UserId", REQUESTER))
+        .andExpect(jsonPath("$.isikukoodid[0]").value(PERSONAL_CODE))
+        .andRespond(withSuccess(personResponse(), MediaType.APPLICATION_JSON));
+
+    client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE);
+
+    server.verify();
+  }
+
+  @Test
   void fetchCustodyRightsMapsPropertyCustodyAndRequestsCustodyGroup() {
     server
         .expect(requestTo(ISIKUD_URL))
         .andExpect(method(HttpMethod.POST))
+        .andExpect(header("X-Road-UserId", PERSONAL_CODE))
         .andExpect(jsonPath("$.andmevaljad.hooldusoigused").isNotEmpty())
         .andExpect(jsonPath("$.andmevaljad.dokumendid").isEmpty())
         .andRespond(withSuccess(custodyResponse(), MediaType.APPLICATION_JSON));
@@ -127,7 +141,7 @@ class PopulationRegisterClientTest {
         .expect(requestTo(ISIKUD_URL))
         .andRespond(withSuccess(personResponse(), MediaType.APPLICATION_JSON));
 
-    client.fetchPerson(PERSONAL_CODE, MAX_AGE);
+    client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE);
 
     verify(store).save(eq(PERSONAL_CODE), eq(IDENTITY), any(UUID.class), eq(rawPersonResponse()));
     server.verify();
@@ -151,7 +165,7 @@ class PopulationRegisterClientTest {
                 """,
                 MediaType.APPLICATION_JSON));
 
-    client.fetchPerson(PERSONAL_CODE, MAX_AGE);
+    client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE);
 
     verify(store)
         .save(
@@ -173,7 +187,7 @@ class PopulationRegisterClientTest {
     given(store.findFresh(PERSONAL_CODE, IDENTITY, MAX_AGE))
         .willReturn(Optional.of(rawPersonResponse()));
 
-    PopulationRegisterPerson person = client.fetchPerson(PERSONAL_CODE, MAX_AGE);
+    PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE);
 
     assertThat(person.firstName()).isEqualTo("MARI");
     assertThat(person.isAlive()).isTrue();
@@ -202,7 +216,7 @@ class PopulationRegisterClientTest {
         .expect(times(1), requestTo(ISIKUD_URL))
         .andRespond(withSuccess(personResponse(), MediaType.APPLICATION_JSON));
 
-    PopulationRegisterPerson person = client.fetchPerson(PERSONAL_CODE, MAX_AGE);
+    PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE);
 
     assertThat(person.firstName()).isEqualTo("MARI");
     verify(store).save(eq(PERSONAL_CODE), eq(IDENTITY), any(UUID.class), eq(rawPersonResponse()));
@@ -217,7 +231,7 @@ class PopulationRegisterClientTest {
         .expect(times(1), requestTo(ISIKUD_URL))
         .andRespond(withSuccess(personResponse(), MediaType.APPLICATION_JSON));
 
-    PopulationRegisterPerson person = client.fetchPerson(PERSONAL_CODE, MAX_AGE);
+    PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE);
 
     assertThat(person.personalCode()).isEqualTo(PERSONAL_CODE);
     server.verify();
@@ -232,7 +246,7 @@ class PopulationRegisterClientTest {
         .expect(times(1), requestTo(ISIKUD_URL))
         .andRespond(withSuccess(personResponse(), MediaType.APPLICATION_JSON));
 
-    PopulationRegisterPerson person = client.fetchPerson(PERSONAL_CODE, MAX_AGE);
+    PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE);
 
     assertThat(person.firstName()).isEqualTo("MARI");
     server.verify();
@@ -249,7 +263,7 @@ class PopulationRegisterClientTest {
                 """,
                 MediaType.APPLICATION_JSON));
 
-    assertThatThrownBy(() -> client.fetchPerson(PERSONAL_CODE, MAX_AGE))
+    assertThatThrownBy(() -> client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE))
         .isInstanceOf(PopulationRegisterException.class)
         .hasCauseInstanceOf(JacksonException.class);
     server.verify();
@@ -261,7 +275,7 @@ class PopulationRegisterClientTest {
         .expect(times(1), requestTo(ISIKUD_URL))
         .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
 
-    assertThatThrownBy(() -> client.fetchPerson(PERSONAL_CODE, MAX_AGE))
+    assertThatThrownBy(() -> client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE))
         .isInstanceOf(PopulationRegisterException.class);
 
     verify(store).save(eq(PERSONAL_CODE), eq(IDENTITY), any(UUID.class), eq(List.of()));
@@ -274,7 +288,7 @@ class PopulationRegisterClientTest {
         .expect(times(1), requestTo(ISIKUD_URL))
         .andRespond(withSuccess(personResponse(), MediaType.APPLICATION_JSON));
 
-    client.fetchPerson(PERSONAL_CODE, ZERO);
+    client.fetchPerson(REQUESTER, PERSONAL_CODE, ZERO);
 
     verify(store).findFresh(PERSONAL_CODE, IDENTITY, ZERO);
     server.verify();
@@ -284,7 +298,7 @@ class PopulationRegisterClientTest {
   void throwsUnavailableWhenServerErrorsPersist() {
     server.expect(times(2), requestTo(ISIKUD_URL)).andRespond(withServerError());
 
-    assertThatThrownBy(() -> client.fetchPerson(PERSONAL_CODE, MAX_AGE))
+    assertThatThrownBy(() -> client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE))
         .isInstanceOf(PopulationRegisterUnavailable.class);
     verify(store, never()).save(any(), any(), any(), any());
     server.verify();
@@ -294,7 +308,7 @@ class PopulationRegisterClientTest {
   void throwsExceptionWithoutRetryOnClientError() {
     server.expect(times(1), requestTo(ISIKUD_URL)).andRespond(withStatus(HttpStatus.FORBIDDEN));
 
-    assertThatThrownBy(() -> client.fetchPerson(PERSONAL_CODE, MAX_AGE))
+    assertThatThrownBy(() -> client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE))
         .isInstanceOf(PopulationRegisterException.class)
         .isNotInstanceOf(PopulationRegisterUnavailable.class);
     verify(store, never()).save(any(), any(), any(), any());

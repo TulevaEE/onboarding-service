@@ -50,7 +50,7 @@ class CustodyVerificationServiceTest {
             List.of(
                 new CustodyRight(OTHER_CHILD, PERSONAL, true, true),
                 new CustodyRight(CHILD, PROPERTY, true, true)));
-    given(populationRegisterClient.fetchPerson(CHILD, MAX_AGE)).willReturn(aliveChild);
+    given(populationRegisterClient.fetchPerson(PARENT, CHILD, MAX_AGE)).willReturn(aliveChild);
 
     CustodyVerification result = service.verify(PARENT, CHILD, MAX_AGE);
 
@@ -72,7 +72,7 @@ class CustodyVerificationServiceTest {
             List.of(
                 new CustodyRight(CHILD, PERSONAL, true, true),
                 new CustodyRight(CHILD, PROPERTY, true, true)));
-    given(populationRegisterClient.fetchPerson(CHILD, MAX_AGE)).willReturn(aliveChild);
+    given(populationRegisterClient.fetchPerson(PARENT, CHILD, MAX_AGE)).willReturn(aliveChild);
 
     CustodyVerification result = service.verify(PARENT, CHILD, MAX_AGE);
 
@@ -90,7 +90,7 @@ class CustodyVerificationServiceTest {
 
     assertThat(result.outcome()).isEqualTo(NO_CUSTODY);
     assertThat(result.isVerified()).isFalse();
-    verify(populationRegisterClient, never()).fetchPerson(any(), any());
+    verify(populationRegisterClient, never()).fetchPerson(any(), any(), any());
   }
 
   @Test
@@ -101,7 +101,7 @@ class CustodyVerificationServiceTest {
     CustodyVerification result = service.verify(PARENT, CHILD, MAX_AGE);
 
     assertThat(result.outcome()).isEqualTo(NOT_ASSET_MANAGEMENT);
-    verify(populationRegisterClient, never()).fetchPerson(any(), any());
+    verify(populationRegisterClient, never()).fetchPerson(any(), any(), any());
   }
 
   @Test
@@ -112,7 +112,7 @@ class CustodyVerificationServiceTest {
     CustodyVerification result = service.verify(PARENT, CHILD, MAX_AGE);
 
     assertThat(result.outcome()).isEqualTo(NOT_ASSET_MANAGEMENT);
-    verify(populationRegisterClient, never()).fetchPerson(any(), any());
+    verify(populationRegisterClient, never()).fetchPerson(any(), any(), any());
   }
 
   @Test
@@ -123,6 +123,6 @@ class CustodyVerificationServiceTest {
     CustodyVerification result = service.verify(PARENT, CHILD, MAX_AGE);
 
     assertThat(result.outcome()).isEqualTo(CHILD_NOT_ALIVE);
-    verify(populationRegisterClient, never()).fetchPerson(any(), any());
+    verify(populationRegisterClient, never()).fetchPerson(any(), any(), any());
   }
 }

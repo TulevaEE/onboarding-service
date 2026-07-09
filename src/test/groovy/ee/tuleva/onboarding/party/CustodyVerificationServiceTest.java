@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.OTHER;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PERSONAL;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
+import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.INACTIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -17,9 +18,12 @@ import static org.mockito.Mockito.verify;
 import ee.tuleva.onboarding.populationregister.CustodyRight;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterClient;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
+import ee.tuleva.onboarding.populationregister.PopulationRegisterResult;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -35,6 +39,11 @@ class CustodyVerificationServiceTest {
   private static final String CHILD = "61506150006";
   private static final String OTHER_CHILD = "61001010000";
 
+  private static final UUID CUSTODY_MESSAGE_ID =
+      UUID.fromString("11111111-1111-1111-1111-111111111111");
+  private static final UUID CHILD_MESSAGE_ID =
+      UUID.fromString("22222222-2222-2222-2222-222222222222");
+
   @Mock private PopulationRegisterClient populationRegisterClient;
 
   @InjectMocks private CustodyVerificationService service;
@@ -43,14 +52,16 @@ class CustodyVerificationServiceTest {
       new PopulationRegisterPerson(
           CHILD, "MARI", "MAASIKAS", LocalDate.of(2015, 6, 15), ALIVE, "EESTI VABARIIK");
 
+  private final PopulationRegisterPerson inactiveChild =
+      new PopulationRegisterPerson(
+          CHILD, "MARI", "MAASIKAS", LocalDate.of(2015, 6, 15), INACTIVE, "EESTI VABARIIK");
+
   @Test
   void verifiesWhenParentHasAssetManagementCustodyOfAliveChild() {
-    given(populationRegisterClient.fetchCustodyRights(PARENT, MAX_AGE))
-        .willReturn(
-            List.of(
-                new CustodyRight(OTHER_CHILD, PERSONAL, true, true),
-                new CustodyRight(CHILD, PROPERTY, true, true)));
-    given(populationRegisterClient.fetchPerson(PARENT, CHILD, MAX_AGE)).willReturn(aliveChild);
+    givenCustodyRights(
+        new CustodyRight(OTHER_CHILD, PERSONAL, true, true),
+        new CustodyRight(CHILD, PROPERTY, true, true));
+    givenChild(aliveChild);
 
     CustodyVerification result = service.verify(PARENT, CHILD, MAX_AGE);
 
@@ -58,8 +69,22 @@ class CustodyVerificationServiceTest {
     assertThat(result.outcome()).isEqualTo(OK);
     assertThat(result.child()).isEqualTo(aliveChild);
     assertThat(result.evidence())
-        .containsEntry("custodyType", "PROPERTY")
-        .containsEntry("childPersonalCode", CHILD);
+        .containsExactlyInAnyOrderEntriesOf(
+            Map.of(
+                "outcome",
+                "OK",
+                "childPersonalCode",
+                CHILD,
+                "custodyResponseMessageId",
+                CUSTODY_MESSAGE_ID.toString(),
+                "childResponseMessageId",
+                CHILD_MESSAGE_ID.toString(),
+                "custodyType",
+                "PROPERTY",
+                "valid",
+                true,
+                "childAlive",
+                true));
   }
 
   @Test
@@ -67,12 +92,10 @@ class CustodyVerificationServiceTest {
     // A full-custody parent has both H10 (personal) and H20 (property) for the same
     // child, and the register lists personal first — verification must still find the
     // property (asset-management) right instead of stopping at the first entry.
-    given(populationRegisterClient.fetchCustodyRights(PARENT, MAX_AGE))
-        .willReturn(
-            List.of(
-                new CustodyRight(CHILD, PERSONAL, true, true),
-                new CustodyRight(CHILD, PROPERTY, true, true)));
-    given(populationRegisterClient.fetchPerson(PARENT, CHILD, MAX_AGE)).willReturn(aliveChild);
+    givenCustodyRights(
+        new CustodyRight(CHILD, PERSONAL, true, true),
+        new CustodyRight(CHILD, PROPERTY, true, true));
+    givenChild(aliveChild);
 
     CustodyVerification result = service.verify(PARENT, CHILD, MAX_AGE);
 
@@ -83,31 +106,40 @@ class CustodyVerificationServiceTest {
 
   @Test
   void doesNotVerifyAndDoesNotFetchIdentityWhenNoCustodyForThatChild() {
-    given(populationRegisterClient.fetchCustodyRights(PARENT, MAX_AGE))
-        .willReturn(List.of(new CustodyRight(OTHER_CHILD, PROPERTY, true, true)));
+    givenCustodyRights(new CustodyRight(OTHER_CHILD, PROPERTY, true, true));
 
     CustodyVerification result = service.verify(PARENT, CHILD, MAX_AGE);
 
     assertThat(result.outcome()).isEqualTo(NO_CUSTODY);
     assertThat(result.isVerified()).isFalse();
+    assertThat(result.evidence())
+        .containsExactlyInAnyOrderEntriesOf(
+            Map.of(
+                "outcome",
+                "NO_CUSTODY",
+                "childPersonalCode",
+                CHILD,
+                "custodyResponseMessageId",
+                CUSTODY_MESSAGE_ID.toString()));
     verify(populationRegisterClient, never()).fetchPerson(any(), any(), any());
   }
 
   @Test
   void doesNotVerifyWhenCustodyIsOnlyPersonalCare() {
-    given(populationRegisterClient.fetchCustodyRights(PARENT, MAX_AGE))
-        .willReturn(List.of(new CustodyRight(CHILD, PERSONAL, true, true)));
+    givenCustodyRights(new CustodyRight(CHILD, PERSONAL, true, true));
 
     CustodyVerification result = service.verify(PARENT, CHILD, MAX_AGE);
 
     assertThat(result.outcome()).isEqualTo(NOT_ASSET_MANAGEMENT);
+    assertThat(result.evidence())
+        .containsEntry("custodyResponseMessageId", CUSTODY_MESSAGE_ID.toString())
+        .doesNotContainKey("childResponseMessageId");
     verify(populationRegisterClient, never()).fetchPerson(any(), any(), any());
   }
 
   @Test
   void doesNotVerifyWhenCustodyIsRestrictedOrUnknownType() {
-    given(populationRegisterClient.fetchCustodyRights(PARENT, MAX_AGE))
-        .willReturn(List.of(new CustodyRight(CHILD, OTHER, true, true)));
+    givenCustodyRights(new CustodyRight(CHILD, OTHER, true, true));
 
     CustodyVerification result = service.verify(PARENT, CHILD, MAX_AGE);
 
@@ -117,12 +149,42 @@ class CustodyVerificationServiceTest {
 
   @Test
   void doesNotVerifyWhenChildNotAlivePerCustodyRecord() {
-    given(populationRegisterClient.fetchCustodyRights(PARENT, MAX_AGE))
-        .willReturn(List.of(new CustodyRight(CHILD, PROPERTY, true, false)));
+    givenCustodyRights(new CustodyRight(CHILD, PROPERTY, true, false));
 
     CustodyVerification result = service.verify(PARENT, CHILD, MAX_AGE);
 
     assertThat(result.outcome()).isEqualTo(CHILD_NOT_ALIVE);
     verify(populationRegisterClient, never()).fetchPerson(any(), any(), any());
+  }
+
+  @Test
+  void citesBothRegisterResponsesWhenTheIdentityLookupContradictsTheCustodyRecord() {
+    givenCustodyRights(new CustodyRight(CHILD, PROPERTY, true, true));
+    givenChild(inactiveChild);
+
+    CustodyVerification result = service.verify(PARENT, CHILD, MAX_AGE);
+
+    assertThat(result.outcome()).isEqualTo(CHILD_NOT_ALIVE);
+    assertThat(result.evidence())
+        .containsExactlyInAnyOrderEntriesOf(
+            Map.of(
+                "outcome",
+                "CHILD_NOT_ALIVE",
+                "childPersonalCode",
+                CHILD,
+                "custodyResponseMessageId",
+                CUSTODY_MESSAGE_ID.toString(),
+                "childResponseMessageId",
+                CHILD_MESSAGE_ID.toString()));
+  }
+
+  private void givenCustodyRights(CustodyRight... rights) {
+    given(populationRegisterClient.fetchCustodyRights(PARENT, MAX_AGE))
+        .willReturn(new PopulationRegisterResult<>(List.of(rights), CUSTODY_MESSAGE_ID));
+  }
+
+  private void givenChild(PopulationRegisterPerson child) {
+    given(populationRegisterClient.fetchPerson(PARENT, CHILD, MAX_AGE))
+        .willReturn(new PopulationRegisterResult<>(child, CHILD_MESSAGE_ID));
   }
 }

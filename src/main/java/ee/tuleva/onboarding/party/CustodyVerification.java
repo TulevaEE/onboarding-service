@@ -18,7 +18,7 @@ public record CustodyVerification(
     return outcome == Outcome.OK;
   }
 
-  static CustodyVerification notVerified(Outcome outcome) {
-    return new CustodyVerification(outcome, null, Map.of());
+  static CustodyVerification notVerified(Outcome outcome, Map<String, Object> evidence) {
+    return new CustodyVerification(outcome, null, evidence);
   }
 }

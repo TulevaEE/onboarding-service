@@ -51,7 +51,7 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
   }
 
   @Override
-  public PopulationRegisterPerson fetchPerson(
+  public PopulationRegisterResult<PopulationRegisterPerson> fetchPerson(
       String requesterPersonalCode, String personalCode, Duration maxAge) {
     return query(
         PersonQueryRequest.forIdentity(personalCode),
@@ -63,7 +63,8 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
   }
 
   @Override
-  public List<CustodyRight> fetchCustodyRights(String requesterPersonalCode, Duration maxAge) {
+  public PopulationRegisterResult<List<CustodyRight>> fetchCustodyRights(
+      String requesterPersonalCode, Duration maxAge) {
     return query(
         PersonQueryRequest.forCustody(requesterPersonalCode),
         requesterPersonalCode,
@@ -73,7 +74,7 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
         PersonMapper::toCustodyRights);
   }
 
-  private <T> T query(
+  private <T> PopulationRegisterResult<T> query(
       PersonQueryRequest request,
       String requesterPersonalCode,
       String personalCode,
@@ -99,16 +100,17 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
     var messageId = UUID.randomUUID();
     var response = fetch(request, requesterPersonalCode, messageId);
     store.save(personalCode, queryType, messageId, response);
-    return mapper.apply(first(response, personalCode));
+    return new PopulationRegisterResult<>(mapper.apply(first(response, personalCode)), messageId);
   }
 
-  private <T> Optional<T> reusable(
-      List<Map<String, Object>> stored,
+  private <T> Optional<PopulationRegisterResult<T>> reusable(
+      StoredResponse stored,
       String personalCode,
       PopulationRegisterQueryType queryType,
       Function<PersonResponse, T> mapper) {
     try {
-      return Optional.of(mapper.apply(first(stored, personalCode)));
+      T data = mapper.apply(first(stored.response(), personalCode));
+      return Optional.of(new PopulationRegisterResult<>(data, stored.messageId()));
     } catch (PopulationRegisterException e) {
       log.warn(
           "Discarding unusable stored population register response: personalCode={}, queryType={}",

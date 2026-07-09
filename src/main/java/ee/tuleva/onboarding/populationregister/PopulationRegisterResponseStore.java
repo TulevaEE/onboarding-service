@@ -19,14 +19,17 @@ class PopulationRegisterResponseStore {
   private final PopulationRegisterResponseRepository repository;
   private final Clock clock;
 
-  Optional<List<Map<String, Object>>> findFresh(
+  Optional<StoredResponse> findFresh(
       String personalCode, PopulationRegisterQueryType queryType, Duration maxAge) {
     if (maxAge.isZero() || maxAge.isNegative()) {
       return Optional.empty();
     }
     return repository
         .findLatestSince(personalCode, queryType, clock.instant().minus(maxAge))
-        .flatMap(stored -> Optional.ofNullable(stored.getResponse()));
+        .flatMap(
+            stored ->
+                Optional.ofNullable(stored.getResponse())
+                    .map(response -> new StoredResponse(stored.getMessageId(), response)));
   }
 
   @Transactional(propagation = REQUIRES_NEW)

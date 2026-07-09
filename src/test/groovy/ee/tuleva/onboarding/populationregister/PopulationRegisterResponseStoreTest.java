@@ -38,9 +38,11 @@ class PopulationRegisterResponseStoreTest {
 
   @Test
   void findsResponseWhileWithinMaxAge() {
-    persistAt(IDENTITY, NOW, RESPONSE);
+    UUID messageId = UUID.randomUUID();
+    persistAt(IDENTITY, NOW, RESPONSE, messageId);
 
-    assertThat(store.findFresh(PERSONAL_CODE, IDENTITY, ofMinutes(15))).contains(RESPONSE);
+    assertThat(store.findFresh(PERSONAL_CODE, IDENTITY, ofMinutes(15)))
+        .contains(new StoredResponse(messageId, RESPONSE));
   }
 
   @Test
@@ -59,19 +61,23 @@ class PopulationRegisterResponseStoreTest {
 
   @Test
   void separatesResponsesByQueryType() {
-    persistAt(CUSTODY, NOW, RESPONSE);
+    UUID messageId = UUID.randomUUID();
+    persistAt(CUSTODY, NOW, RESPONSE, messageId);
 
     assertThat(store.findFresh(PERSONAL_CODE, IDENTITY, ofMinutes(15))).isEmpty();
-    assertThat(store.findFresh(PERSONAL_CODE, CUSTODY, ofMinutes(15))).contains(RESPONSE);
+    assertThat(store.findFresh(PERSONAL_CODE, CUSTODY, ofMinutes(15)))
+        .contains(new StoredResponse(messageId, RESPONSE));
   }
 
   @Test
   void findsTheMostRecentResponse() {
     List<Map<String, Object>> older = List.of(Map.of("eesnimi", "OLD"));
+    UUID newestMessageId = UUID.randomUUID();
     persistAt(IDENTITY, NOW.minus(ofMinutes(10)), older);
-    persistAt(IDENTITY, NOW.minus(ofMinutes(1)), RESPONSE);
+    persistAt(IDENTITY, NOW.minus(ofMinutes(1)), RESPONSE, newestMessageId);
 
-    assertThat(store.findFresh(PERSONAL_CODE, IDENTITY, ofMinutes(15))).contains(RESPONSE);
+    assertThat(store.findFresh(PERSONAL_CODE, IDENTITY, ofMinutes(15)))
+        .contains(new StoredResponse(newestMessageId, RESPONSE));
   }
 
   @Test

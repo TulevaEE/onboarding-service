@@ -7,7 +7,6 @@ import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import java.time.Duration;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -35,10 +34,9 @@ public class ChildOnboardingService {
 
     applicationEventPublisher.publishEvent(
         new TrackableEvent(
-            parent,
-            TrackableEventType.MINOR_CUSTODY_VERIFICATION,
-            Map.of(
-                "childPersonalCode", childPersonalCode, "outcome", verification.outcome().name())));
+            parent, TrackableEventType.MINOR_CUSTODY_VERIFICATION, verification.evidence()));
+    amlService.addCustodyRightCheck(
+        childPersonalCode, verification.isVerified(), verification.evidence());
 
     if (!verification.isVerified()) {
       log.info(
@@ -46,8 +44,6 @@ public class ChildOnboardingService {
           parentPersonalCode,
           childPersonalCode,
           verification.outcome());
-      amlService.addCustodyRightCheck(
-          childPersonalCode, false, Map.of("outcome", verification.outcome().name()));
       return ChildOnboardingResult.underReview();
     }
 
@@ -55,7 +51,6 @@ public class ChildOnboardingService {
     parentChildLinkRegistrationService.register(
         parentPersonalCode, childPersonalCode, child.firstName(), child.lastName());
     savingsFundOnboardingService.seedPersonOnboardingIfAbsent(childPersonalCode);
-    amlService.addCustodyRightCheck(childPersonalCode, true, verification.evidence());
 
     return ChildOnboardingResult.verified(child);
   }

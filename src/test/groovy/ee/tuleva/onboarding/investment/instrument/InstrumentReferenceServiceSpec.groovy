@@ -152,9 +152,24 @@ class InstrumentReferenceServiceSpec extends Specification {
     service.resolveBenchmarkProxy("BOND_EURO", false).isEmpty()
   }
 
-  def "storageKeyResolvers returns correct number of resolvers"() {
-    expect:
-    service.storageKeyResolvers().size() == 6
+  def "storageKeyResolvers resolve keys in priority order with EODHD above the exchange feeds"() {
+    given:
+    def inst = instrument("IE00TEST", "TST.DE", "TST.XETRA", null, "123", "M1", "EQUITY_DM", true)
+
+    when:
+    def keys = service.storageKeyResolvers()
+        .collect { resolver -> resolver.apply(inst) }
+        .findAll { it.isPresent() }
+        .collect { it.get() }
+
+    then:
+    keys == [
+        "IE00TEST.BLACKROCK",
+        "IE00TEST.MORNINGSTAR",
+        "TST.XETRA",
+        "IE00TEST.XETR",
+        "TST.DE",
+    ]
   }
 
   def "scheduledRefresh refreshes cache from DB"() {

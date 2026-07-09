@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.populationregister;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -21,13 +22,13 @@ class MockPopulationRegisterClient implements PopulationRegisterClient {
   }
 
   @Override
-  public PopulationRegisterPerson fetchPerson(String personalCode) {
+  public PopulationRegisterPerson fetchPerson(String personalCode, Duration maxAge) {
     log.info("Mock population register person lookup");
     return PersonMapper.toPerson(load("mock-person-response.json"));
   }
 
   @Override
-  public List<CustodyRight> fetchCustodyRights(String personalCode) {
+  public List<CustodyRight> fetchCustodyRights(String personalCode, Duration maxAge) {
     log.info("Mock population register custody lookup");
     return PersonMapper.toCustodyRights(load("mock-custody-response.json"));
   }

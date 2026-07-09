@@ -187,9 +187,9 @@ public class InstrumentReferenceService {
     return List.of(
         InstrumentReference::getBlackrockStorageKey,
         InstrumentReference::getMorningstarStorageKey,
+        i -> Optional.ofNullable(i.getEodhdTicker()),
         InstrumentReference::getXetraStorageKey,
         InstrumentReference::getEuronextParisStorageKey,
-        i -> Optional.ofNullable(i.getEodhdTicker()),
         i -> Optional.ofNullable(i.getYahooTicker()));
   }
 

@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.populationregister.PopulationRegisterQueryTyp
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterQueryType.IDENTITY;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -36,18 +37,21 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
   private final PopulationRegisterProperties properties;
   private final PopulationRegisterResponseStore store;
   private final JsonMapper jsonMapper;
+  private final Clock clock;
 
   RestPopulationRegisterClient(
       RestClient populationRegisterRestClient,
       RetryTemplate populationRegisterRetryTemplate,
       PopulationRegisterProperties properties,
       PopulationRegisterResponseStore store,
-      JsonMapper jsonMapper) {
+      JsonMapper jsonMapper,
+      Clock clock) {
     this.restClient = populationRegisterRestClient;
     this.retryTemplate = populationRegisterRetryTemplate;
     this.properties = properties;
     this.store = store;
     this.jsonMapper = jsonMapper;
+    this.clock = clock;
   }
 
   @Override
@@ -84,37 +88,39 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
     var reused =
         store
             .findFresh(personalCode, queryType, maxAge)
-            .flatMap(stored -> reusable(stored, personalCode, queryType, mapper));
+            .flatMap(stored -> reusable(stored, queryType, mapper));
     if (reused.isPresent()) {
       log.info(
-          "Reusing stored population register response: personalCode={}, queryType={}, maxAgeSeconds={}",
-          personalCode,
+          "Reusing stored population register response: messageId={}, queryType={}, maxAgeSeconds={}",
+          reused.get().messageId(),
           queryType,
           maxAge.toSeconds());
       return reused.get();
     }
-    log.info(
-        "Fetching from population register: personalCode={}, queryType={}",
-        personalCode,
-        queryType);
     var messageId = UUID.randomUUID();
+    log.info("Fetching from population register: messageId={}, queryType={}", messageId, queryType);
+    var start = clock.instant();
     var response = fetch(request, requesterPersonalCode, messageId);
+    log.info(
+        "Population register call finished: messageId={}, queryType={}, durationMs={}",
+        messageId,
+        queryType,
+        Duration.between(start, clock.instant()).toMillis());
     store.save(personalCode, queryType, messageId, response);
-    return new PopulationRegisterResult<>(mapper.apply(first(response, personalCode)), messageId);
+    return new PopulationRegisterResult<>(mapper.apply(first(response, messageId)), messageId);
   }
 
   private <T> Optional<PopulationRegisterResult<T>> reusable(
       StoredResponse stored,
-      String personalCode,
       PopulationRegisterQueryType queryType,
       Function<PersonResponse, T> mapper) {
     try {
-      T data = mapper.apply(first(stored.response(), personalCode));
+      T data = mapper.apply(first(stored.response(), stored.messageId()));
       return Optional.of(new PopulationRegisterResult<>(data, stored.messageId()));
     } catch (PopulationRegisterException e) {
       log.warn(
-          "Discarding unusable stored population register response: personalCode={}, queryType={}",
-          personalCode,
+          "Discarding unusable stored population register response: messageId={}, queryType={}",
+          stored.messageId(),
           queryType,
           e);
       return Optional.empty();
@@ -155,20 +161,20 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
     return responses == null ? List.of() : responses;
   }
 
-  private PersonResponse first(List<Map<String, Object>> responses, String personalCode) {
+  private PersonResponse first(List<Map<String, Object>> responses, UUID messageId) {
     if (responses.isEmpty()) {
       throw new PopulationRegisterException(
-          "Population register returned no person: personalCode=" + personalCode);
+          "Population register returned no person: messageId=" + messageId);
     }
-    return parse(responses.getFirst(), personalCode);
+    return parse(responses.getFirst(), messageId);
   }
 
-  private PersonResponse parse(Map<String, Object> response, String personalCode) {
+  private PersonResponse parse(Map<String, Object> response, UUID messageId) {
     try {
       return jsonMapper.convertValue(response, PersonResponse.class);
     } catch (JacksonException | IllegalArgumentException e) {
       throw new PopulationRegisterException(
-          "Population register response could not be parsed: personalCode=" + personalCode, e);
+          "Population register response could not be parsed: messageId=" + messageId, e);
     }
   }
 }

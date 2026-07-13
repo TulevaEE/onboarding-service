@@ -6,7 +6,11 @@ import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
+import ee.tuleva.onboarding.user.personalcode.PersonalCode;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -25,6 +29,16 @@ public class ChildOnboardingService {
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final AmlService amlService;
   private final ApplicationEventPublisher applicationEventPublisher;
+  private final Clock clock;
+
+  public List<String> findEligibleChildren(AuthenticatedPerson parent) {
+    LocalDate today = LocalDate.now(clock);
+    return custodyVerificationService
+        .findChildrenWithAssetManagementCustody(parent.getPersonalCode(), CUSTODY_MAX_AGE)
+        .stream()
+        .filter(childPersonalCode -> PersonalCode.isMinor(childPersonalCode, today))
+        .toList();
+  }
 
   @Transactional
   public ChildOnboardingResult onboardChild(AuthenticatedPerson parent, String childPersonalCode) {

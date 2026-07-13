@@ -32,12 +32,10 @@ public class ParentChildLinkRegistrationService {
       String childFirstName,
       String childLastName) {
 
-    LocalDate dateOfBirth = PersonalCode.getDateOfBirth(childPersonalCode);
-    LocalDate eighteenthBirthday = dateOfBirth.plusYears(18);
-    LocalDate today = LocalDate.now(clock);
-    if (dateOfBirth.isAfter(today) || !eighteenthBirthday.isAfter(today)) {
+    if (!PersonalCode.isMinor(childPersonalCode, LocalDate.now(clock))) {
       throw new ChildIsNotAMinorException(childPersonalCode);
     }
+    LocalDate eighteenthBirthday = PersonalCode.getDateOfBirth(childPersonalCode).plusYears(18);
 
     upsertPerson(childPersonalCode, childFirstName, childLastName);
     return findOrCreateLink(

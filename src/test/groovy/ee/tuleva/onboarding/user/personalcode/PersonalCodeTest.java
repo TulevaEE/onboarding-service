@@ -33,6 +33,26 @@ class PersonalCodeTest {
   }
 
   @Test
+  void isMinor_trueForAChildUnderEighteen() {
+    assertThat(PersonalCode.isMinor("61506150006", LocalDate.of(2026, 5, 22))).isTrue();
+  }
+
+  @Test
+  void isMinor_trueOnTheDayBeforeTheEighteenthBirthday() {
+    assertThat(PersonalCode.isMinor("50805230009", LocalDate.of(2026, 5, 22))).isTrue();
+  }
+
+  @Test
+  void isMinor_falseFromTheEighteenthBirthday() {
+    assertThat(PersonalCode.isMinor("50805220008", LocalDate.of(2026, 5, 22))).isFalse();
+  }
+
+  @Test
+  void isMinor_falseForADateOfBirthInTheFuture() {
+    assertThat(PersonalCode.isMinor("62701010004", LocalDate.of(2026, 5, 22))).isFalse();
+  }
+
+  @Test
   void testGetRetirementAge() {
     String personalCode = "39912310015";
     assertEquals(65, PersonalCode.getRetirementAge(personalCode));

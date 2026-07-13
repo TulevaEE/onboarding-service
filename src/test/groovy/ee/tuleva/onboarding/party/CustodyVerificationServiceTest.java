@@ -178,6 +178,21 @@ class CustodyVerificationServiceTest {
                 CHILD_MESSAGE_ID.toString()));
   }
 
+  @Test
+  void listsDistinctChildrenWhoseCustodyGrantsAssetManagement() {
+    givenCustodyRights(
+        new CustodyRight(CHILD, PERSONAL, true, true),
+        new CustodyRight(CHILD, PROPERTY, true, true),
+        new CustodyRight(CHILD, PROPERTY, true, true),
+        new CustodyRight(OTHER_CHILD, PERSONAL, true, true),
+        new CustodyRight("60303030004", PROPERTY, false, true),
+        new CustodyRight("60404040005", PROPERTY, true, false));
+
+    List<String> children = service.findChildrenWithAssetManagementCustody(PARENT, MAX_AGE);
+
+    assertThat(children).containsExactly(CHILD);
+  }
+
   private void givenCustodyRights(CustodyRight... rights) {
     given(populationRegisterClient.fetchCustodyRights(PARENT, MAX_AGE))
         .willReturn(new PopulationRegisterResult<>(List.of(rights), CUSTODY_MESSAGE_ID));

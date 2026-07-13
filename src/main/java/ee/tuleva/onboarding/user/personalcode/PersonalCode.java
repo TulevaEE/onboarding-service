@@ -35,6 +35,11 @@ public class PersonalCode {
     return period.getYears();
   }
 
+  public static boolean isMinor(String personalCode, LocalDate today) {
+    LocalDate dateOfBirth = getDateOfBirth(personalCode);
+    return !dateOfBirth.isAfter(today) && dateOfBirth.plusYears(18).isAfter(today);
+  }
+
   public static int getRetirementAge(String personalCode) {
     return Period.between(getDateOfBirth(personalCode), getRetirementDate(personalCode)).getYears();
   }

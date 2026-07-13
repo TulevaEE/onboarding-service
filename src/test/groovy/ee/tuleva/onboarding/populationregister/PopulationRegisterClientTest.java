@@ -25,6 +25,8 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import ee.tuleva.onboarding.time.TestClockHolder;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
@@ -456,18 +458,25 @@ class PopulationRegisterClientTest {
     }
 
     @Bean
+    Clock clock() {
+      return TestClockHolder.clock;
+    }
+
+    @Bean
     RestPopulationRegisterClient restPopulationRegisterClient(
         RestClient populationRegisterRestClient,
         RetryTemplate populationRegisterRetryTemplate,
         PopulationRegisterProperties populationRegisterProperties,
         PopulationRegisterResponseStore store,
-        JsonMapper jsonMapper) {
+        JsonMapper jsonMapper,
+        Clock clock) {
       return new RestPopulationRegisterClient(
           populationRegisterRestClient,
           populationRegisterRetryTemplate,
           populationRegisterProperties,
           store,
-          jsonMapper);
+          jsonMapper,
+          clock);
     }
   }
 }

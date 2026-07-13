@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -41,6 +42,18 @@ class ChildControllerTest {
   private final Authentication authentication =
       new UsernamePasswordAuthenticationToken(
           parent, null, List.of(new SimpleGrantedAuthority(USER)));
+
+  @Test
+  void listChildren_returnsEligibleChildPersonalCodes() throws Exception {
+    given(childOnboardingService.findEligibleChildren(parent))
+        .willReturn(List.of(CHILD, "61001010000"));
+
+    mvc.perform(get("/v1/me/children").with(authentication(authentication)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(2))
+        .andExpect(jsonPath("$[0].personalCode").value(CHILD))
+        .andExpect(jsonPath("$[1].personalCode").value("61001010000"));
+  }
 
   @Test
   void verifiedCustody_returnsOkWithChildIdentity() throws Exception {

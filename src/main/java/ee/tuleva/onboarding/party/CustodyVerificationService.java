@@ -26,6 +26,15 @@ public class CustodyVerificationService {
 
   private final PopulationRegisterClient populationRegisterClient;
 
+  public List<String> findChildrenWithAssetManagementCustody(
+      String parentPersonalCode, Duration maxAge) {
+    return populationRegisterClient.fetchCustodyRights(parentPersonalCode, maxAge).data().stream()
+        .filter(CustodyRight::grantsAssetManagement)
+        .map(CustodyRight::childPersonalCode)
+        .distinct()
+        .toList();
+  }
+
   public CustodyVerification verify(
       String parentPersonalCode, String childPersonalCode, Duration maxAge) {
     PopulationRegisterResult<List<CustodyRight>> custodyResult =

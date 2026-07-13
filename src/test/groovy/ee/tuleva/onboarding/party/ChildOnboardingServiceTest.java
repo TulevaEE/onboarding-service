@@ -17,11 +17,15 @@ import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
@@ -31,6 +35,7 @@ class ChildOnboardingServiceTest {
 
   private static final String PARENT = "38812121215";
   private static final String CHILD = "61506150006";
+  private static final String ADULT = "39912310015";
 
   @Mock private CustodyVerificationService custodyVerificationService;
   @Mock private ParentChildLinkRegistrationService parentChildLinkRegistrationService;
@@ -38,7 +43,21 @@ class ChildOnboardingServiceTest {
   @Mock private AmlService amlService;
   @Mock private ApplicationEventPublisher applicationEventPublisher;
 
-  @InjectMocks private ChildOnboardingService service;
+  private final Clock clock = Clock.fixed(Instant.parse("2026-05-22T00:00:00Z"), ZoneOffset.UTC);
+
+  private ChildOnboardingService service;
+
+  @BeforeEach
+  void setUp() {
+    service =
+        new ChildOnboardingService(
+            custodyVerificationService,
+            parentChildLinkRegistrationService,
+            savingsFundOnboardingService,
+            amlService,
+            applicationEventPublisher,
+            clock);
+  }
 
   private final AuthenticatedPerson parent = sampleAuthenticatedPersonNonMember().build();
 
@@ -47,6 +66,26 @@ class ChildOnboardingServiceTest {
           CHILD, "MARI", "MAASIKAS", LocalDate.of(2015, 6, 15), ALIVE, "EESTI VABARIIK");
 
   private static final String CUSTODY_MESSAGE_ID = "11111111-1111-1111-1111-111111111111";
+
+  @Test
+  void findEligibleChildren_returnsChildrenWithAssetManagementCustody() {
+    given(
+            custodyVerificationService.findChildrenWithAssetManagementCustody(
+                PARENT, CUSTODY_MAX_AGE))
+        .willReturn(List.of(CHILD));
+
+    assertThat(service.findEligibleChildren(parent)).containsExactly(CHILD);
+  }
+
+  @Test
+  void findEligibleChildren_excludesChildrenWhoAreNoLongerMinors() {
+    given(
+            custodyVerificationService.findChildrenWithAssetManagementCustody(
+                PARENT, CUSTODY_MAX_AGE))
+        .willReturn(List.of(CHILD, ADULT));
+
+    assertThat(service.findEligibleChildren(parent)).containsExactly(CHILD);
+  }
 
   @Test
   void verifiedCustody_createsLinkSeedsOnboardingRecordsCheckReturnsChild() {

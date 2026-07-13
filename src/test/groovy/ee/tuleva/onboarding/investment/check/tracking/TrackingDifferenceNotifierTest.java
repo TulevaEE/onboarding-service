@@ -62,6 +62,35 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
+  void withinLimitsShowsGreenIcon() {
+    var result = result(false, 0, BigDecimal.ZERO);
+
+    notifier.notify(List.of(result));
+
+    then(notificationService).should().sendMessage(contains("✅"), eq(INVESTMENT));
+  }
+
+  @Test
+  void breachShowsRedIconInHeaderAndLine() {
+    var result = result(true, 1, new BigDecimal("0.0015"));
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    var message = captor.getValue();
+    assertThat(message).contains("🛑 TD BREACH DETECTED");
+    assertThat(message).contains("🛑 [TUK75]");
+  }
+
+  @Test
+  void checkCouldNotRunShowsYellowIcon() {
+    notifier.notifyCheckCouldNotRun(TUK75, LocalDate.of(2026, 6, 25));
+
+    then(notificationService).should().sendMessage(contains("⚠️"), eq(INVESTMENT));
+  }
+
+  @Test
   void includesFullAttributionDetail() {
     var attributions =
         List.of(

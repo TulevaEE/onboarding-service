@@ -142,9 +142,9 @@ dependencies {
     implementation("org.digidoc4j:digidoc4j:6.1.1") {
         exclude(group = "commons-logging", module = "commons-logging")
     }
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.84")
-    implementation("org.bouncycastle:bcprov-jdk18on:1.84")
-    implementation("org.bouncycastle:bcutil-jdk18on:1.84")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.85")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.85")
+    implementation("org.bouncycastle:bcutil-jdk18on:1.85")
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
     implementation("io.sentry:sentry-spring-boot-4:8.43.1")

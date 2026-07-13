@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
 import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.OK;
+import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.SOFT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -28,11 +29,12 @@ class LimitCheckNotifier {
         var fundNames =
             results.stream().map(r -> r.fund().getCode()).collect(Collectors.joining(", "));
         notificationService.sendMessage(
-            "Limit check completed: %s within limits".formatted(fundNames), INVESTMENT);
+            "✅ Limit check completed: %s within limits".formatted(fundNames), INVESTMENT);
         return;
       }
 
-      var message = new StringBuilder("LIMIT BREACH DETECTED\n");
+      var body = new StringBuilder();
+      var worst = SOFT;
 
       for (var result : results) {
         if (!result.hasBreaches()) {
@@ -41,9 +43,11 @@ class LimitCheckNotifier {
 
         for (var breach : result.positionBreaches()) {
           if (breach.severity() != OK) {
-            message.append(
-                "\n[%s] POSITION %s: %s=%s%%, soft=%s%%, hard=%s%%"
+            worst = worse(worst, breach.severity());
+            body.append(
+                "\n%s [%s] POSITION %s: %s=%s%%, soft=%s%%, hard=%s%%"
                     .formatted(
+                        severityIcon(breach.severity()),
                         breach.severity(),
                         result.fund(),
                         breach.label(),
@@ -55,9 +59,11 @@ class LimitCheckNotifier {
 
         for (var breach : result.providerBreaches()) {
           if (breach.severity() != OK) {
-            message.append(
-                "\n[%s] PROVIDER %s: %s=%s%%, soft=%s%%, hard=%s%%"
+            worst = worse(worst, breach.severity());
+            body.append(
+                "\n%s [%s] PROVIDER %s: %s=%s%%, soft=%s%%, hard=%s%%"
                     .formatted(
+                        severityIcon(breach.severity()),
                         breach.severity(),
                         result.fund(),
                         breach.provider(),
@@ -69,9 +75,11 @@ class LimitCheckNotifier {
 
         if (result.reserveBreach() != null && result.reserveBreach().severity() != OK) {
           var breach = result.reserveBreach();
-          message.append(
-              "\n[%s] RESERVE %s: cash=%s, soft=%s, hard=%s"
+          worst = worse(worst, breach.severity());
+          body.append(
+              "\n%s [%s] RESERVE %s: cash=%s, soft=%s, hard=%s"
                   .formatted(
+                      severityIcon(breach.severity()),
                       breach.severity(),
                       result.fund(),
                       breach.cashBalance(),
@@ -80,10 +88,23 @@ class LimitCheckNotifier {
         }
       }
 
-      notificationService.sendMessage(message.toString(), INVESTMENT);
+      var message = "%s LIMIT BREACH DETECTED\n".formatted(severityIcon(worst)) + body;
+      notificationService.sendMessage(message, INVESTMENT);
 
     } catch (Exception e) {
       log.error("Failed to send limit check notification", e);
     }
+  }
+
+  private BreachSeverity worse(BreachSeverity a, BreachSeverity b) {
+    return a.compareTo(b) >= 0 ? a : b;
+  }
+
+  private String severityIcon(BreachSeverity severity) {
+    return switch (severity) {
+      case HARD -> "🛑";
+      case SOFT -> "⚠️";
+      case OK -> "✅";
+    };
   }
 }

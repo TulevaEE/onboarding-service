@@ -33,7 +33,7 @@ class TrackingDifferenceNotifier {
   void notifyCheckCouldNotRun(TulevaFund fund, LocalDate navDate) {
     try {
       notificationService.sendMessage(
-          "TD CHECK DID NOT RUN: fund=%s, date=%s — missing NAV, prices, or model data; NAV report published WITHOUT tracking-difference validation"
+          "⚠️ TD CHECK DID NOT RUN: fund=%s, date=%s — missing NAV, prices, or model data; NAV report published WITHOUT tracking-difference validation"
               .formatted(fund.getCode(), navDate),
           INVESTMENT);
     } catch (Exception e) {
@@ -61,14 +61,14 @@ class TrackingDifferenceNotifier {
                   .distinct()
                   .sorted()
                   .collect(Collectors.joining(", "));
-          message.append("%s TD check completed: within limits".formatted(fundCodes));
+          message.append("✅ %s TD check completed: within limits".formatted(fundCodes));
         }
         byFund.forEach(
             (fundCode, fundResults) -> {
               if (message.length() > 0) {
                 message.append("\n");
               }
-              message.append("%s TD check completed: within limits".formatted(fundCode));
+              message.append("✅ %s TD check completed: within limits".formatted(fundCode));
               fundResults.stream()
                   .sorted(Comparator.comparing(r -> r.checkType().name()))
                   .forEach(r -> message.append(formatWithinLimits(r)));
@@ -77,7 +77,7 @@ class TrackingDifferenceNotifier {
         return;
       }
 
-      var message = new StringBuilder("TD BREACH DETECTED\n");
+      var message = new StringBuilder("🛑 TD BREACH DETECTED\n");
       var hasEscalation = false;
 
       for (var result : alertableResults) {
@@ -94,7 +94,7 @@ class TrackingDifferenceNotifier {
       }
 
       if (hasEscalation) {
-        message.insert(0, "TD ESCALATION — CONSECUTIVE BREACH DAYS\n");
+        message.insert(0, "🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS\n");
       }
 
       notificationService.sendMessage(message.toString(), INVESTMENT);
@@ -131,7 +131,7 @@ class TrackingDifferenceNotifier {
   private String formatBreach(TrackingDifferenceResult result, boolean escalation) {
     var sb = new StringBuilder();
     sb.append(
-        "\n[%s] %s %s: TD=%s%% (%s=%s%%, benchmark=%s%%)"
+        "\n🛑 [%s] %s %s: TD=%s%% (%s=%s%%, benchmark=%s%%)"
             .formatted(
                 result.fund(),
                 result.checkType(),

@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.*;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.ISHARES;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -90,6 +91,72 @@ class LimitCheckNotifierTest {
     notifier.notify(List.of(result));
 
     verify(notificationService).sendMessage(contains("within limits"), eq(INVESTMENT));
+  }
+
+  @Test
+  void withinLimitsMessageShowsGreenIcon() {
+    var result =
+        new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), null, null);
+
+    notifier.notify(List.of(result));
+
+    verify(notificationService).sendMessage(contains("✅"), eq(INVESTMENT));
+  }
+
+  @Test
+  void softBreachShowsYellowIcon() {
+    var breach =
+        new ReserveBreach(
+            TUK75, new BigDecimal("40000"), new BigDecimal("50000"), new BigDecimal("30000"), SOFT);
+    var result =
+        new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), breach, null);
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    verify(notificationService).sendMessage(captor.capture(), eq(INVESTMENT));
+    var message = captor.getValue();
+    assertThat(message).contains("⚠️ LIMIT BREACH DETECTED");
+    assertThat(message).contains("⚠️ [SOFT] RESERVE");
+    assertThat(message).doesNotContain("🛑");
+  }
+
+  @Test
+  void hardBreachShowsRedIconInHeaderAndLine() {
+    var breach =
+        new ReserveBreach(
+            TUK75, new BigDecimal("20000"), new BigDecimal("50000"), new BigDecimal("30000"), HARD);
+    var result =
+        new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), breach, null);
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    verify(notificationService).sendMessage(captor.capture(), eq(INVESTMENT));
+    var message = captor.getValue();
+    assertThat(message).contains("🛑 LIMIT BREACH DETECTED");
+    assertThat(message).contains("🛑 [HARD] RESERVE");
+  }
+
+  @Test
+  void headerReflectsWorstSeverityWhenSoftAndHardMixed() {
+    var soft =
+        new ProviderBreach(
+            TUK75, ISHARES, new BigDecimal("35"), new BigDecimal("30"), new BigDecimal("40"), SOFT);
+    var hard =
+        new ReserveBreach(
+            TUK75, new BigDecimal("20000"), new BigDecimal("50000"), new BigDecimal("30000"), HARD);
+    var result =
+        new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(soft), hard, null);
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    verify(notificationService).sendMessage(captor.capture(), eq(INVESTMENT));
+    var message = captor.getValue();
+    assertThat(message).contains("🛑 LIMIT BREACH DETECTED");
+    assertThat(message).contains("⚠️ [SOFT] PROVIDER");
+    assertThat(message).contains("🛑 [HARD] RESERVE");
   }
 
   @Test

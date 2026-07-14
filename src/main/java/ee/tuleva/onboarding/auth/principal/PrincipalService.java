@@ -12,11 +12,13 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
+@NullMarked
 public class PrincipalService {
 
   private static final int SELF_SERVICE_MINIMUM_AGE = 18;
@@ -47,8 +49,8 @@ public class PrincipalService {
     }
 
     return AuthenticatedPerson.builder()
-        .firstName(user.getFirstName())
-        .lastName(user.getLastName())
+        .firstName(capitalize(person.getFirstName()))
+        .lastName(capitalize(person.getLastName()))
         .personalCode(person.getPersonalCode())
         .userId(user.getId())
         .attributes(attributes)

@@ -13,19 +13,26 @@ import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@NullMarked
 public class AmlAutoChecker {
+
+  private static final int BEFORE_USER_DETAILS_UPDATER = 1;
 
   private final AmlService amlService;
   private final UserService userService;
   private final ContactDetailsService contactDetailsService;
 
   @EventListener
+  @Order(BEFORE_USER_DETAILS_UPDATER)
   public void beforeLogin(BeforeTokenGrantedEvent event) {
     Person person = event.getPerson();
     Boolean isResident = isResident(event);
@@ -80,7 +87,7 @@ public class AmlAutoChecker {
     amlService.addSanctionAndPepCheckIfMissing(event.person(), event.country());
   }
 
-  private Boolean isResident(BeforeTokenGrantedEvent event) {
+  private @Nullable Boolean isResident(BeforeTokenGrantedEvent event) {
     final var documentType = event.getIdDocumentType();
     if (documentType == null) {
       return null;

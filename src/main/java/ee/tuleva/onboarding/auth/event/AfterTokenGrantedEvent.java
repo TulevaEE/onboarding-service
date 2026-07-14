@@ -4,17 +4,17 @@ import ee.tuleva.onboarding.auth.AuthenticationTokens;
 import ee.tuleva.onboarding.auth.GrantType;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import lombok.Getter;
+import org.jspecify.annotations.NullMarked;
 
 @Getter
-public class AfterTokenGrantedEvent extends BeforeTokenGrantedEvent {
+@NullMarked
+public class AfterTokenGrantedEvent extends TokenGrantedEvent {
 
-  private final AuthenticatedPerson person;
   private final AuthenticationTokens tokens;
 
   public AfterTokenGrantedEvent(
       Object source, AuthenticatedPerson person, GrantType grantType, AuthenticationTokens tokens) {
     super(source, person, grantType);
-    this.person = person;
     this.tokens = tokens;
   }
 

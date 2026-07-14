@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth.smartid;
 
+import static ee.tuleva.onboarding.aml.AmlCheckType.SK_NAME;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.firstName;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.lastName;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.personalCode;
@@ -26,7 +27,17 @@ import ee.sk.smartid.rest.dao.SessionCertificate;
 import ee.sk.smartid.rest.dao.SessionResult;
 import ee.sk.smartid.rest.dao.SessionSignature;
 import ee.sk.smartid.rest.dao.SessionStatus;
+import ee.tuleva.onboarding.aml.AmlCheck;
+import ee.tuleva.onboarding.aml.AmlCheckRepository;
+import ee.tuleva.onboarding.auth.principal.PersonImpl;
+import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserRepository;
+import jakarta.servlet.http.Cookie;
 import java.security.KeyStore;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -51,6 +62,8 @@ class SmartIdAuthIntegrationTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private JsonMapper objectMapper;
+  @Autowired private UserRepository userRepository;
+  @Autowired private AmlCheckRepository amlCheckRepository;
 
   @MockitoBean private SmartIdConnector smartIdConnector;
   @MockitoBean private AuthenticationResponseValidator authenticationResponseValidator;
@@ -120,6 +133,120 @@ class SmartIdAuthIntegrationTest {
                     .andExpect(jsonPath("$.access_token").isNotEmpty()));
   }
 
+  @Test
+  void smartIdLoginUpdatesChangedNameFromAuthProvider() throws Exception {
+    userRepository.save(
+        User.builder()
+            .firstName("Aadu")
+            .lastName("Kadakas")
+            .personalCode(personalCode)
+            .active(true)
+            .build());
+    amlCheckRepository.save(
+        AmlCheck.builder().personalCode(personalCode).type(SK_NAME).success(true).build());
+
+    String accessToken = completeSmartIdLogin(identity("AADU", "KUUSK-ÕUNAPUU"));
+
+    User user = userRepository.findByPersonalCode(personalCode).orElseThrow();
+    assertThat(user.getFirstName()).isEqualTo("Aadu");
+    assertThat(user.getLastName()).isEqualTo("Kuusk-Õunapuu");
+
+    var claims = objectMapper.readTree(Base64.getUrlDecoder().decode(accessToken.split("\\.")[1]));
+    assertThat(claims.get("firstName").asText()).isEqualTo("Aadu");
+    assertThat(claims.get("lastName").asText()).isEqualTo("Kuusk-Õunapuu");
+
+    assertThat(
+            amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(personalCode, SK_NAME, false))
+        .isEmpty();
+    assertThat(
+            amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(personalCode, SK_NAME, true))
+        .hasSize(1);
+  }
+
+  @Test
+  void smartIdLoginWithChangedNameRecordsFailedSkNameCheckAgainstTheStoredName() throws Exception {
+    userRepository.save(
+        User.builder()
+            .firstName("Aadu")
+            .lastName("Kadakas")
+            .personalCode(personalCode)
+            .active(true)
+            .build());
+
+    completeSmartIdLogin(identity("AADU", "KUUSK-ÕUNAPUU"));
+
+    List<AmlCheck> failedSkNameChecks =
+        amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(personalCode, SK_NAME, false);
+    assertThat(failedSkNameChecks).hasSize(1);
+    assertThat(failedSkNameChecks.getFirst().getMetadata())
+        .isEqualTo(
+            Map.of(
+                "user", new PersonImpl(personalCode, "Aadu", "Kadakas"),
+                "person", new PersonImpl(personalCode, "Aadu", "Kuusk-Õunapuu")));
+    assertThat(
+            amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(personalCode, SK_NAME, true))
+        .isEmpty();
+  }
+
+  private String completeSmartIdLogin(AuthenticationIdentity identity) throws Exception {
+    var hash = AuthenticationHash.generateRandomHash();
+    given(hashGenerator.generateHash()).willReturn(hash);
+    given(smartIdConnector.authenticate(any(SemanticsIdentifier.class), any()))
+        .willReturn(authenticationSessionResponse("test-session-id"));
+    given(smartIdConnector.getSessionStatus(eq("test-session-id")))
+        .willReturn(completeSessionStatus());
+    given(authenticationResponseValidator.validate(any())).willReturn(identity);
+
+    var authResult =
+        mockMvc
+            .perform(
+                post("/authenticate")
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"type\":\"SMART_ID\",\"personalCode\":\"" + personalCode + "\"}"))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    Cookie sessionCookie = authResult.getResponse().getCookie("SESSION");
+    assertThat(sessionCookie).isNotNull();
+    var authHash =
+        objectMapper
+            .readTree(authResult.getResponse().getContentAsString())
+            .get("authenticationHash")
+            .asText();
+
+    var accessToken = new AtomicReference<String>();
+    await()
+        .pollInSameThread() // keep test transaction visible to /oauth/token's MockMvc call
+        .atMost(ofSeconds(5))
+        .untilAsserted(
+            () -> {
+              var result =
+                  mockMvc
+                      .perform(
+                          post("/oauth/token")
+                              .cookie(sessionCookie)
+                              .param("grant_type", "SMART_ID")
+                              .param("authenticationHash", authHash))
+                      .andReturn();
+              assertThat(result.getResponse().getStatus()).isEqualTo(200);
+              accessToken.set(
+                  objectMapper
+                      .readTree(result.getResponse().getContentAsString())
+                      .get("access_token")
+                      .asText());
+            });
+    return accessToken.get();
+  }
+
+  private static AuthenticationIdentity identity(String givenName, String surname) {
+    var identity = new AuthenticationIdentity();
+    identity.setIdentityCode(personalCode);
+    identity.setGivenName(givenName);
+    identity.setSurname(surname);
+    identity.setCountry("EE");
+    return identity;
+  }
+
   private static AuthenticationSessionResponse authenticationSessionResponse(String sessionId) {
     var response = new AuthenticationSessionResponse();
     response.setSessionID(sessionId);
@@ -127,12 +254,7 @@ class SmartIdAuthIntegrationTest {
   }
 
   private static AuthenticationIdentity validIdentity() {
-    var identity = new AuthenticationIdentity();
-    identity.setIdentityCode(personalCode);
-    identity.setGivenName(firstName);
-    identity.setSurname(lastName);
-    identity.setCountry("EE");
-    return identity;
+    return identity(firstName, lastName);
   }
 
   private static SessionStatus completeSessionStatus() {

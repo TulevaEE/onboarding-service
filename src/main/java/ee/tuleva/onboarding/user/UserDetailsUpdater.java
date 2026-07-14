@@ -11,18 +11,24 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
 @RequiredArgsConstructor
+@NullMarked
 public class UserDetailsUpdater {
+
+  private static final int AFTER_AML_CHECKS = 2;
 
   private final UserService userService;
   private final ContactDetailsService contactDetailsService;
 
   @EventListener
+  @Order(AFTER_AML_CHECKS)
   public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
     Person person = event.getPerson();
 

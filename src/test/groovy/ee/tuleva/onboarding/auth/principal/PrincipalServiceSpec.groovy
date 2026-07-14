@@ -44,8 +44,8 @@ class PrincipalServiceSpec extends Specification {
 
     then:
     authenticatedPerson.userId == sampleUser.id
-    authenticatedPerson.firstName == sampleUser.firstName
-    authenticatedPerson.lastName == sampleUser.lastName
+    authenticatedPerson.firstName == person.firstName
+    authenticatedPerson.lastName == person.lastName
     authenticatedPerson.personalCode == person.personalCode
   }
 
@@ -98,16 +98,16 @@ class PrincipalServiceSpec extends Specification {
     result.role == company
   }
 
-  def "getFromPerson: uses capitalized name from database not raw auth provider name"() {
+  def "getFromPerson: uses capitalized name from the auth provider, not the stored user name"() {
     given:
     def person = samplePerson().toBuilder()
-        .firstName("JOHN")
-        .lastName("DOE")
+        .firstName("JAAK")
+        .lastName("KUUSK-ÕUNAPUU")
         .build()
     def user = User.builder()
         .id(1L)
-        .firstName("John")
-        .lastName("Doe")
+        .firstName("Jaak")
+        .lastName("Kadakas")
         .active(true)
         .build()
     1 * userService.findByPersonalCode(person.personalCode) >> Optional.of(user)
@@ -116,9 +116,9 @@ class PrincipalServiceSpec extends Specification {
     AuthenticatedPerson authenticatedPerson = service.getFrom(person, Map.of())
 
     then:
-    authenticatedPerson.firstName == "John"
-    authenticatedPerson.lastName == "Doe"
-    authenticatedPerson.fullName == "John Doe"
+    authenticatedPerson.firstName == "Jaak"
+    authenticatedPerson.lastName == "Kuusk-Õunapuu"
+    authenticatedPerson.fullName == "Jaak Kuusk-Õunapuu"
   }
 
   def "getFromPerson: role name is capitalized even when auth provider gives all caps"() {

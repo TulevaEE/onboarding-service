@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
 import ee.tuleva.onboarding.auth.AuthenticationTokens
 import ee.tuleva.onboarding.auth.GrantType
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
+import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService
 import spock.lang.Specification
 
@@ -18,6 +19,24 @@ class UserDetailsUpdaterSpec extends Specification {
   ContactDetailsService contactDetailsService = Mock()
 
   UserDetailsUpdater service = new UserDetailsUpdater(userService, contactDetailsService)
+
+  def "updates user name from the auth provider on login, capitalizing it"() {
+    given:
+    def user = sampleUser().firstName("Jaak").lastName("Kadakas").build()
+    def person = sampleAuthenticatedPersonAndMember()
+        .firstName("JAAK")
+        .lastName("KUUSK-ÕUNAPUU")
+        .build()
+    1 * userService.findByPersonalCode(person.personalCode) >> Optional.of(user)
+
+    when:
+    service.onBeforeTokenGrantedEvent(new BeforeTokenGrantedEvent(this, person, SMART_ID))
+
+    then:
+    1 * userService.save(user)
+    user.firstName == "Jaak"
+    user.lastName == "Kuusk-Õunapuu"
+  }
 
   def "updates user email and phone number based on epis info"() {
     given:

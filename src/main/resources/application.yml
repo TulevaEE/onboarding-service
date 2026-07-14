@@ -123,6 +123,11 @@ pensionikeskus:
       url: https://public.pensionikeskus.ee/public/corporate/pensionFundStatistics.jsp
     3rdpillar:
       url: https://public.pensionikeskus.ee/public/corporate/pensionFundStatistics_3.jsp
+  fees:
+    second-pillar-statistics-url: https://www.pensionikeskus.ee/statistika/ii-sammas/kogumispensioni-paevastatistika/
+    third-pillar-statistics-url: https://www.pensionikeskus.ee/statistika/iii-sammas/taiendava-kogumispensioni-statistika/
+    second-pillar-fee-comparison-url: https://www.pensionikeskus.ee/ii-sammas/kohustuslikud-pensionifondid/fonditasude-vordlus/
+    third-pillar-fee-comparison-url: https://www.pensionikeskus.ee/iii-sammas/vabatahtlikud-fondid/fonditasude-vordlus/
 
 smartid:
   relyingPartyUUID: ${SMARTID_RELYING_PARTY_UUID:00000000-0000-0000-0000-000000000000}

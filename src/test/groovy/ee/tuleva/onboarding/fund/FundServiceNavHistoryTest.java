@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.fund;
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue;
+import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE;
 import static ee.tuleva.onboarding.fund.FundFixture.additionalSavingsFund;
+import static ee.tuleva.onboarding.fund.FundFixture.tuleva2ndPillarBondFund;
+import static ee.tuleva.onboarding.fund.FundFixture.tuleva2ndPillarStockFund;
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -42,6 +45,36 @@ class FundServiceNavHistoryTest {
   @Mock private FundNavProvider fundNavProvider;
 
   @InjectMocks private FundService fundService;
+
+  @Test
+  void getNavHistories_returnsNavForAllActiveFundsOfPillar() {
+    LocalDate start = LocalDate.of(2021, 6, 1);
+    Fund stockFund = tuleva2ndPillarStockFund();
+    Fund bondFund = tuleva2ndPillarBondFund();
+    given(fundRepository.findAllByPillarAndStatus(2, ACTIVE))
+        .willReturn(List.of(stockFund, bondFund));
+    given(savingsFundConfiguration.getIsin()).willReturn(TKF_ISIN);
+    given(
+            fundValueRepository.findValuesBetweenDates(
+                stockFund.getIsin(), start, LocalDate.of(9999, 12, 31)))
+        .willReturn(
+            List.of(
+                aFundValue(
+                    stockFund.getIsin(), LocalDate.of(2026, 2, 3), new BigDecimal("1.0000"))));
+    given(
+            fundValueRepository.findValuesBetweenDates(
+                bondFund.getIsin(), start, LocalDate.of(9999, 12, 31)))
+        .willReturn(List.of());
+
+    List<FundNavHistoryResponse> result = fundService.getNavHistories(2, start, null);
+
+    assertThat(result)
+        .containsExactly(
+            new FundNavHistoryResponse(
+                stockFund.getIsin(),
+                List.of(new NavValueResponse(LocalDate.of(2026, 2, 3), new BigDecimal("1.0000")))),
+            new FundNavHistoryResponse(bondFund.getIsin(), List.of()));
+  }
 
   @Test
   void getNavHistory_returnsMappedFundValues() {

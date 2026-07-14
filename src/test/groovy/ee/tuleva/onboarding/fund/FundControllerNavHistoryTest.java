@@ -34,6 +34,29 @@ class FundControllerNavHistoryTest {
   @MockitoBean private FundService fundService;
 
   @Test
+  void getNavHistories_returnsNavForAllPillarFundsWithCacheControlHeader() throws Exception {
+    given(fundService.getNavHistories(2, LocalDate.of(2021, 6, 1), null))
+        .willReturn(
+            List.of(
+                new FundNavHistoryResponse(
+                    ISIN,
+                    List.of(
+                        new NavValueResponse(
+                            LocalDate.of(2026, 2, 3), new BigDecimal("1.0000"))))));
+
+    mockMvc
+        .perform(get("/v1/funds/nav?pillar=2&startDate=2021-06-01"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(header().string("Cache-Control", "no-store"))
+        .andExpect(jsonPath("$", hasSize(1)))
+        .andExpect(jsonPath("$[0].isin", is(ISIN)))
+        .andExpect(jsonPath("$[0].nav", hasSize(1)))
+        .andExpect(jsonPath("$[0].nav[0].date", is("2026-02-03")))
+        .andExpect(jsonPath("$[0].nav[0].value", is(1.0)));
+  }
+
+  @Test
   void getNavHistory_returnsJsonWithCacheControlHeader() throws Exception {
     List<NavValueResponse> navValues =
         List.of(

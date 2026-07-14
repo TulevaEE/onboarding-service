@@ -124,6 +124,19 @@ class FundService {
     if (fund == null) {
       throw new ResponseStatusException(NOT_FOUND);
     }
+    return navHistoryFor(fund, startDate, endDate);
+  }
+
+  List<FundNavHistoryResponse> getNavHistories(
+      Integer pillar, LocalDate startDate, LocalDate endDate) {
+    return fundRepository.findAllByPillarAndStatus(pillar, Fund.FundStatus.ACTIVE).stream()
+        .map(
+            fund ->
+                new FundNavHistoryResponse(fund.getIsin(), navHistoryFor(fund, startDate, endDate)))
+        .toList();
+  }
+
+  private List<NavValueResponse> navHistoryFor(Fund fund, LocalDate startDate, LocalDate endDate) {
     LocalDate start = startDate != null ? startDate : LocalDate.EPOCH;
     LocalDate end = endDate != null ? endDate : LocalDate.of(9999, 12, 31);
     if (savingsFundConfiguration.getIsin().equals(fund.getIsin())) {

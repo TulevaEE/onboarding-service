@@ -29,6 +29,16 @@ public class FundController {
     return fundService.getFunds(fundManagerName);
   }
 
+  @Operation(summary = "Get NAV history for all active funds of a pillar")
+  @GetMapping("/funds/nav")
+  @NoCache
+  public List<FundNavHistoryResponse> getNavHistories(
+      @RequestParam Integer pillar,
+      @RequestParam(required = false) LocalDate startDate,
+      @RequestParam(required = false) LocalDate endDate) {
+    return fundService.getNavHistories(pillar, startDate, endDate);
+  }
+
   @Operation(summary = "Get NAV history for a fund")
   @GetMapping("/funds/{isin}/nav")
   @NoCache

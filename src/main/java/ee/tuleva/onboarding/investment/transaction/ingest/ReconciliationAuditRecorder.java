@@ -22,6 +22,12 @@ class ReconciliationAuditRecorder {
   static final String QUANTITY_AMOUNT_MISMATCH = "QUANTITY_AMOUNT_MISMATCH";
   static final String SETTLEMENT_DETECTED = "SETTLEMENT_DETECTED";
   static final String SETTLEMENT_REAPPEARED = "SETTLEMENT_REAPPEARED";
+  static final String INCONSISTENT_MATCHED_ROW = "INCONSISTENT_MATCHED_ROW";
+
+  static final String REASON_MISSING_OUR_REF = "MISSING_OUR_REF";
+  static final String REASON_MISSING_ISIN = "MISSING_ISIN";
+  static final String REASON_ISIN_SIDE_MISMATCH = "ISIN_SIDE_MISMATCH";
+  static final String REASON_FUND_MISMATCH = "FUND_MISMATCH";
 
   private static final String SYSTEM_ACTOR = "system";
 
@@ -55,6 +61,21 @@ class ReconciliationAuditRecorder {
       return;
     }
     save(UNMATCHED_SEB_TRANSACTION, null, rowPayload(row, reportDate), dedupKey);
+  }
+
+  void recordInconsistentMatchedRow(
+      TransactionOrder order, SebPendingTransactionRow row, String reason, LocalDate reportDate) {
+    String dedupKey = inconsistentMatchedRowDedupKey(order, reportDate, reason);
+    boolean alreadyRecorded =
+        !auditEventRepository
+            .findByEventTypeAndDedupKey(INCONSISTENT_MATCHED_ROW, dedupKey)
+            .isEmpty();
+    if (alreadyRecorded) {
+      return;
+    }
+    Map<String, Object> payload = rowPayload(row, reportDate);
+    payload.put("reason", reason);
+    save(INCONSISTENT_MATCHED_ROW, order, payload, dedupKey);
   }
 
   void recordQuantityAmountMismatch(QuantityAmountMismatchEvent mismatch) {
@@ -121,6 +142,11 @@ class ReconciliationAuditRecorder {
         Objects.toString(row.ourRef(), ""),
         Objects.toString(row.clientRef(), ""),
         Objects.toString(row.isin(), ""));
+  }
+
+  private static String inconsistentMatchedRowDedupKey(
+      TransactionOrder order, LocalDate reportDate, String reason) {
+    return String.join("|", reportDate.toString(), Objects.toString(order.getId(), ""), reason);
   }
 
   private static Map<String, Object> rowPayload(

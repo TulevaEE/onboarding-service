@@ -91,6 +91,63 @@ class ReconciliationAuditRecorderTest {
   }
 
   @Test
+  void recordInconsistentMatchedRow_savesEventWithOrderIdReasonAndRowPayload() {
+    newRecorder()
+        .recordInconsistentMatchedRow(
+            sampleOrder(), sampleRow(), "ISIN_SIDE_MISMATCH", REPORT_DATE);
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "INCONSISTENT_MATCHED_ROW".equals(event.getEventType())
+                        && event.getOrderId().equals(123L)
+                        && "ISIN_SIDE_MISMATCH".equals(event.getPayload().get("reason"))
+                        && "DLA0799512".equals(event.getPayload().get("ourRef"))
+                        && "2026-05-13|123|ISIN_SIDE_MISMATCH".equals(event.getDedupKey())
+                        && REPORT_DATE.toString().equals(event.getPayload().get("reportDate"))));
+  }
+
+  @Test
+  void recordInconsistentMatchedRow_twoDifferentOrdersMissingOurRef_bothRecordedWithDistinctKeys() {
+    ReconciliationAuditRecorder recorder = newRecorder();
+    TransactionOrder orderA = sampleOrder();
+    TransactionOrder orderB = TransactionOrder.builder().id(456L).build();
+    SebPendingTransactionRow rowMissingOurRef = rowWithoutOurRef();
+
+    recorder.recordInconsistentMatchedRow(orderA, rowMissingOurRef, "MISSING_OUR_REF", REPORT_DATE);
+    recorder.recordInconsistentMatchedRow(orderB, rowMissingOurRef, "MISSING_OUR_REF", REPORT_DATE);
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "INCONSISTENT_MATCHED_ROW".equals(event.getEventType())
+                        && "2026-05-13|123|MISSING_OUR_REF".equals(event.getDedupKey())));
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "INCONSISTENT_MATCHED_ROW".equals(event.getEventType())
+                        && "2026-05-13|456|MISSING_OUR_REF".equals(event.getDedupKey())));
+  }
+
+  @Test
+  void recordInconsistentMatchedRow_skipsDuplicateForSameRowReportDateAndReason() {
+    given(
+            auditEventRepository.findByEventTypeAndDedupKey(
+                "INCONSISTENT_MATCHED_ROW", "2026-05-13|123|ISIN_SIDE_MISMATCH"))
+        .willReturn(
+            List.of(TransactionAuditEvent.builder().eventType("INCONSISTENT_MATCHED_ROW").build()));
+
+    newRecorder()
+        .recordInconsistentMatchedRow(
+            sampleOrder(), sampleRow(), "ISIN_SIDE_MISMATCH", REPORT_DATE);
+
+    verify(auditEventRepository, never()).save(any());
+  }
+
+  @Test
   void recordQuantityAmountMismatch_savesEventWithOrderIdAndMismatchPayload() {
     newRecorder().recordQuantityAmountMismatch(sampleMismatch());
 
@@ -197,6 +254,24 @@ class ReconciliationAuditRecorderTest {
     return new SebPendingTransactionRow(
         CLIENT_REF,
         "DLA0799512",
+        "IE000F60HVH9",
+        new BigDecimal("15007"),
+        new BigDecimal("4.7255"),
+        new BigDecimal("70915.58"),
+        new BigDecimal("0.00"),
+        new BigDecimal("70915.58"),
+        BUY,
+        Instant.parse("2026-05-11T10:26:04Z"),
+        LocalDate.of(2026, 5, 13),
+        "Tuleva Täiendav Kogumisfond",
+        "VP68168",
+        "ICAV Amundi MSCI USA Screened UCITS ETF");
+  }
+
+  private static SebPendingTransactionRow rowWithoutOurRef() {
+    return new SebPendingTransactionRow(
+        CLIENT_REF,
+        null,
         "IE000F60HVH9",
         new BigDecimal("15007"),
         new BigDecimal("4.7255"),

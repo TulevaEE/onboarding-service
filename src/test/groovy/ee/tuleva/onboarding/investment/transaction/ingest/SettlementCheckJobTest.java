@@ -36,6 +36,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
+import ee.tuleva.onboarding.investment.transaction.ingest.UnmatchedPendingTransactionFinder.InconsistentMatchedRow;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -613,6 +614,51 @@ class SettlementCheckJobTest {
     assertThat(captor.getValue())
         .contains("[TÄIDETUD, arveldus hilinenud] Order 2")
         .contains("saadetud: ?");
+  }
+
+  @Test
+  void run_inconsistentMatchedRow_appearsInDedicatedDigestSection() {
+    given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
+    InvestmentReport report = report(TODAY);
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.of(report));
+    given(extractor.extract(report)).willReturn(List.of());
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of());
+    given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
+    given(unmatchedFinder.collectUnmatched(report)).willReturn(List.of());
+
+    TransactionOrder order =
+        order(5L, ETF, EXECUTED, dateOnly(2026, 5, 4), TUV100, "IE000F60HVH9", PRESENT_UUID);
+    InconsistentMatchedRow inconsistentRow =
+        new InconsistentMatchedRow(rowWithClientRef(PRESENT_UUID), order, "ISIN_SIDE_MISMATCH");
+    given(unmatchedFinder.collectInconsistent(report)).willReturn(List.of(inconsistentRow));
+
+    job().run();
+
+    ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+    verify(notificationService).sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TUV100")
+        .contains("Ebakõlalised vastavused (1)")
+        .contains("ISIN_SIDE_MISMATCH")
+        .contains("Order 5");
+  }
+
+  @Test
+  void run_consistentReport_noInconsistentSection_sendsNothing() {
+    given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
+    InvestmentReport report = report(TODAY);
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.of(report));
+    given(extractor.extract(report)).willReturn(List.of());
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of());
+    given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
+    given(unmatchedFinder.collectUnmatched(report)).willReturn(List.of());
+    given(unmatchedFinder.collectInconsistent(report)).willReturn(List.of());
+
+    job().run();
+
+    verifyNoInteractions(notificationService);
   }
 
   private static SebPendingTransactionRow rowWithOurRefOnly(String ourRef) {

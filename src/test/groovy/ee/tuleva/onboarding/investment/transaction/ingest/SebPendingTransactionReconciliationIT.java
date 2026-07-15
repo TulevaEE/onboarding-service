@@ -433,6 +433,7 @@ class SebPendingTransactionReconciliationIT {
                 .orderVenue(OrderVenue.SEB)
                 .orderUuid(UUID.randomUUID())
                 .orderStatus(EXECUTED)
+                .orderTimestamp(Instant.parse("2026-02-10T10:00:00Z"))
                 .build());
     executionRepository.save(
         TransactionExecution.builder()

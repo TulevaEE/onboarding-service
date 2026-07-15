@@ -209,6 +209,16 @@ public class SebPendingTransactionReconciliationService {
           reportDate);
       return false;
     }
+    if (row.isin() == null || row.isin().isBlank()) {
+      log.error(
+          "Matched SEB row is missing ISIN, cannot verify instrument: orderId={}, clientRef={},"
+              + " ourRef={}, reportDate={}",
+          order.getId(),
+          row.clientRef(),
+          row.ourRef(),
+          reportDate);
+      return false;
+    }
     if (!row.isin().equals(order.getInstrumentIsin()) || row.side() != order.getTransactionType()) {
       log.error(
           "Matched SEB row instrument/side does not match order: orderId={}, orderIsin={},"

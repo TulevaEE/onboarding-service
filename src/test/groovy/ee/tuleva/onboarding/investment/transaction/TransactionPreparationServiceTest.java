@@ -14,6 +14,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
+import ee.tuleva.onboarding.comparisons.fundvalue.PriceSource;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
@@ -651,6 +652,11 @@ class TransactionPreparationServiceTest {
   }
 
   private TransactionCommand givenSingleEtfBuyCommandPricedAt(BigDecimal price) {
+    return givenSingleEtfBuyCommandPricedAt(price, LocalDate.of(2026, 1, 15), null);
+  }
+
+  private TransactionCommand givenSingleEtfBuyCommandPricedAt(
+      BigDecimal price, LocalDate priceDate, PriceSource priceSource) {
     var command =
         TransactionCommand.builder()
             .id(9L)
@@ -690,8 +696,38 @@ class TransactionPreparationServiceTest {
               return batch;
             });
     given(positionPriceResolver.resolve("IE00ETF", LocalDate.of(2026, 1, 15)))
-        .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(price).build()));
+        .willReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(price)
+                    .priceDate(priceDate)
+                    .priceSource(priceSource)
+                    .build()));
     return command;
+  }
+
+  @Test
+  void processCommand_flagsOrderCommentWhenResolvedPriceIsStale() {
+    var command =
+        givenSingleEtfBuyCommandPricedAt(
+            new BigDecimal("3"), LocalDate.of(2026, 1, 10), PriceSource.EODHD);
+
+    var result = service.processCommand(command);
+
+    var order = orderByIsin(result, "IE00ETF");
+    assertThat(order.getComment()).contains("2026-01-10", "5", "EODHD");
+  }
+
+  @Test
+  void processCommand_doesNotFlagOrderCommentWhenResolvedPriceIsWithinStalenessThreshold() {
+    var command =
+        givenSingleEtfBuyCommandPricedAt(
+            new BigDecimal("3"), LocalDate.of(2026, 1, 12), PriceSource.EODHD);
+
+    var result = service.processCommand(command);
+
+    var order = orderByIsin(result, "IE00ETF");
+    assertThat(order.getComment()).isNull();
   }
 
   @Test

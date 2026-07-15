@@ -406,6 +406,19 @@ class FtConfirmationVerificationServiceTest {
   }
 
   @Test
+  void normalConfirmation_noOrderMatchesQuantity_returnsAmbiguousNotOldest() {
+    TransactionOrder first = order(10L, new BigDecimal("99999"));
+    TransactionOrder second = order(42L, new BigDecimal("88888"));
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(first, second));
+
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
+
+    assertThat(result.quantityStatus()).isEqualTo(AMBIGUOUS);
+    assertThat(result.priceStatus()).isEqualTo(AMBIGUOUS);
+    assertThat(result.details()).containsEntry("ambiguousOrderCount", "2");
+  }
+
+  @Test
   void weekendTradeDate_returnsIgnored_noMismatch() {
     LocalDate saturday = LocalDate.of(2026, 6, 6); // Saturday
     FtConfirmation weekendConfirmation =

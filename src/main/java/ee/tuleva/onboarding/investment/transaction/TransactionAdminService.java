@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -98,6 +99,11 @@ class TransactionAdminService {
     batch.setStatus(BatchStatus.CONFIRMED);
     batch.setConfirmedBy(actor);
     batch.setConfirmedAt(Instant.now(clock));
+    try {
+      batchRepository.saveAndFlush(batch);
+    } catch (ObjectOptimisticLockingFailureException e) {
+      throw new ResponseStatusException(CONFLICT, "Batch was modified concurrently: id=" + id);
+    }
     preparationService.finalizeConfirmedBatch(batch);
     return TransactionBatchResponse.from(batch, orderRepository.findByBatchId(batch.getId()));
   }

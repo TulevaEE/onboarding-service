@@ -2,6 +2,10 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
+import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationAuditRecorder.REASON_FUND_MISMATCH;
+import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationAuditRecorder.REASON_ISIN_SIDE_MISMATCH;
+import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationAuditRecorder.REASON_MISSING_ISIN;
+import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationAuditRecorder.REASON_MISSING_OUR_REF;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
@@ -36,9 +40,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SebPendingTransactionReconciliationService {
 
-  // A latest report whose row count drops by more than this fraction relative to the prior
-  // available report is treated as a possibly truncated upload: settlement-by-absence is skipped
-  // for it (present rows still reconcile normally) rather than risk mass over-settlement.
   private static final double TRUNCATION_ROW_DROP_RATIO = 0.5;
 
   private final SebPendingTransactionExtractor extractor;
@@ -212,9 +213,7 @@ public class SebPendingTransactionReconciliationService {
           row.clientRef(),
           row.isin(),
           reportDate);
-      auditRecorder.recordInconsistentMatchedRow(
-          order, row, ReconciliationAuditRecorder.REASON_MISSING_OUR_REF, reportDate);
-      return false;
+      return rejectInconsistentRow(order, row, REASON_MISSING_OUR_REF, reportDate);
     }
     if (row.isin() == null || row.isin().isBlank()) {
       log.error(
@@ -224,9 +223,7 @@ public class SebPendingTransactionReconciliationService {
           row.clientRef(),
           row.ourRef(),
           reportDate);
-      auditRecorder.recordInconsistentMatchedRow(
-          order, row, ReconciliationAuditRecorder.REASON_MISSING_ISIN, reportDate);
-      return false;
+      return rejectInconsistentRow(order, row, REASON_MISSING_ISIN, reportDate);
     }
     if (!row.isin().equals(order.getInstrumentIsin()) || row.side() != order.getTransactionType()) {
       log.error(
@@ -239,9 +236,7 @@ public class SebPendingTransactionReconciliationService {
           row.side(),
           row.ourRef(),
           reportDate);
-      auditRecorder.recordInconsistentMatchedRow(
-          order, row, ReconciliationAuditRecorder.REASON_ISIN_SIDE_MISMATCH, reportDate);
-      return false;
+      return rejectInconsistentRow(order, row, REASON_ISIN_SIDE_MISMATCH, reportDate);
     }
     Optional<TulevaFund> rowFund = fundResolver.resolve(row.clientName());
     if (rowFund.isPresent() && rowFund.get() != order.getFund()) {
@@ -254,11 +249,15 @@ public class SebPendingTransactionReconciliationService {
           row.clientName(),
           row.ourRef(),
           reportDate);
-      auditRecorder.recordInconsistentMatchedRow(
-          order, row, ReconciliationAuditRecorder.REASON_FUND_MISMATCH, reportDate);
-      return false;
+      return rejectInconsistentRow(order, row, REASON_FUND_MISMATCH, reportDate);
     }
     return true;
+  }
+
+  private boolean rejectInconsistentRow(
+      TransactionOrder order, SebPendingTransactionRow row, String reason, LocalDate reportDate) {
+    auditRecorder.recordInconsistentMatchedRow(order, row, reason, reportDate);
+    return false;
   }
 
   private boolean upsert(

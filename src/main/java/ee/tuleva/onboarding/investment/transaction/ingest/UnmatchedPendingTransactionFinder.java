@@ -1,11 +1,14 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationAuditRecorder.REASON_FUND_MISMATCH;
+import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationAuditRecorder.REASON_ISIN_SIDE_MISMATCH;
+import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationAuditRecorder.REASON_MISSING_ISIN;
+import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationAuditRecorder.REASON_MISSING_OUR_REF;
+
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -37,38 +40,39 @@ class UnmatchedPendingTransactionFinder {
   }
 
   List<InconsistentMatchedRow> collectInconsistent(InvestmentReport report) {
-    List<InconsistentMatchedRow> inconsistent = new ArrayList<>();
-    for (SebPendingTransactionRow row : extractor.extract(report)) {
-      if (row.clientRef() == null) {
-        continue;
-      }
-      orderRepository
-          .findByOrderUuid(row.clientRef())
-          .ifPresent(
-              order ->
-                  inconsistencyReason(order, row)
-                      .ifPresent(
-                          reason ->
-                              inconsistent.add(new InconsistentMatchedRow(row, order, reason))));
+    return extractor.extract(report).stream()
+        .map(this::toInconsistentMatchedRow)
+        .flatMap(Optional::stream)
+        .toList();
+  }
+
+  private Optional<InconsistentMatchedRow> toInconsistentMatchedRow(SebPendingTransactionRow row) {
+    if (row.clientRef() == null) {
+      return Optional.empty();
     }
-    return inconsistent;
+    return orderRepository
+        .findByOrderUuid(row.clientRef())
+        .flatMap(
+            order ->
+                inconsistencyReason(order, row)
+                    .map(reason -> new InconsistentMatchedRow(row, order, reason)));
   }
 
   private Optional<String> inconsistencyReason(
       TransactionOrder order, SebPendingTransactionRow row) {
     if (row.ourRef() == null) {
-      return Optional.of(ReconciliationAuditRecorder.REASON_MISSING_OUR_REF);
+      return Optional.of(REASON_MISSING_OUR_REF);
     }
     if (row.isin() == null || row.isin().isBlank()) {
-      return Optional.of(ReconciliationAuditRecorder.REASON_MISSING_ISIN);
+      return Optional.of(REASON_MISSING_ISIN);
     }
     if (!row.isin().equals(order.getInstrumentIsin()) || row.side() != order.getTransactionType()) {
-      return Optional.of(ReconciliationAuditRecorder.REASON_ISIN_SIDE_MISMATCH);
+      return Optional.of(REASON_ISIN_SIDE_MISMATCH);
     }
     return fundResolver
         .resolve(row.clientName())
-        .filter((TulevaFund rowFund) -> rowFund != order.getFund())
-        .map(rowFund -> ReconciliationAuditRecorder.REASON_FUND_MISMATCH);
+        .filter(rowFund -> rowFund != order.getFund())
+        .map(rowFund -> REASON_FUND_MISMATCH);
   }
 
   private boolean isAlreadyLinkedToExecution(SebPendingTransactionRow row) {

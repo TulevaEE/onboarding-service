@@ -54,11 +54,7 @@ class ReconciliationAuditRecorder {
 
   void recordUnmatched(SebPendingTransactionRow row, LocalDate reportDate) {
     String dedupKey = unmatchedDedupKey(row, reportDate);
-    boolean alreadyRecorded =
-        !auditEventRepository
-            .findByEventTypeAndDedupKey(UNMATCHED_SEB_TRANSACTION, dedupKey)
-            .isEmpty();
-    if (alreadyRecorded) {
+    if (alreadyRecordedForDedupKey(UNMATCHED_SEB_TRANSACTION, dedupKey)) {
       return;
     }
     save(UNMATCHED_SEB_TRANSACTION, null, rowPayload(row, reportDate), dedupKey);
@@ -67,11 +63,7 @@ class ReconciliationAuditRecorder {
   void recordInconsistentMatchedRow(
       TransactionOrder order, SebPendingTransactionRow row, String reason, LocalDate reportDate) {
     String dedupKey = inconsistentMatchedRowDedupKey(order, reportDate, reason);
-    boolean alreadyRecorded =
-        !auditEventRepository
-            .findByEventTypeAndDedupKey(INCONSISTENT_MATCHED_ROW, dedupKey)
-            .isEmpty();
-    if (alreadyRecorded) {
+    if (alreadyRecordedForDedupKey(INCONSISTENT_MATCHED_ROW, dedupKey)) {
       return;
     }
     Map<String, Object> payload = rowPayload(row, reportDate);
@@ -115,11 +107,7 @@ class ReconciliationAuditRecorder {
   void recordPossibleReportTruncation(
       LocalDate reportDate, int rowCount, LocalDate priorReportDate, int priorRowCount) {
     String dedupKey = reportDate.toString();
-    boolean alreadyRecorded =
-        !auditEventRepository
-            .findByEventTypeAndDedupKey(POSSIBLE_REPORT_TRUNCATION, dedupKey)
-            .isEmpty();
-    if (alreadyRecorded) {
+    if (alreadyRecordedForDedupKey(POSSIBLE_REPORT_TRUNCATION, dedupKey)) {
       return;
     }
     Map<String, Object> payload = new LinkedHashMap<>();
@@ -134,6 +122,10 @@ class ReconciliationAuditRecorder {
       Long orderId, String eventType, LocalDate reportDate) {
     return auditEventRepository.findByOrderIdAndEventType(orderId, eventType).stream()
         .anyMatch(event -> reportDate.toString().equals(event.getPayload().get("reportDate")));
+  }
+
+  private boolean alreadyRecordedForDedupKey(String eventType, String dedupKey) {
+    return !auditEventRepository.findByEventTypeAndDedupKey(eventType, dedupKey).isEmpty();
   }
 
   private void save(String eventType, TransactionOrder order, Map<String, Object> payload) {

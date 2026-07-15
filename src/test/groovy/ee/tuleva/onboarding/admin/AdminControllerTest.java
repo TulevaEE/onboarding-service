@@ -164,6 +164,23 @@ class AdminControllerTest {
   }
 
   @Test
+  void attributeUnattributedPayment_withOpsTokenDifferingInLastCharacter_returnsUnauthorized()
+      throws Exception {
+    var paymentId = UUID.randomUUID();
+
+    mockMvc
+        .perform(
+            post("/admin/savings-fund/payments/{paymentId}/attribute", paymentId)
+                .with(csrf())
+                .header("X-Admin-Token", "ops-tokeX")
+                .param("partyType", "PERSON")
+                .param("partyCode", "48806046007"))
+        .andExpect(status().isUnauthorized());
+
+    verifyNoInteractions(unattributedPaymentAttributionService);
+  }
+
+  @Test
   void fetchSebHistory_withValidToken_returnsOk() throws Exception {
     mockMvc
         .perform(
@@ -200,6 +217,18 @@ class AdminControllerTest {
             post("/admin/fetch-seb-history")
                 .with(csrf())
                 .header("X-Admin-Token", "wrong-token")
+                .param("from", "2026-01-01")
+                .param("to", "2026-01-31"))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void fetchSebHistory_withTokenDifferingInLastCharacter_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/fetch-seb-history")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-tokeX")
                 .param("from", "2026-01-01")
                 .param("to", "2026-01-31"))
         .andExpect(status().isUnauthorized());

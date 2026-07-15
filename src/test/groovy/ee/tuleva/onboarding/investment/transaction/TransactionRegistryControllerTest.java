@@ -108,6 +108,19 @@ class TransactionRegistryControllerTest {
   }
 
   @Test
+  void triggerMatch_withTokenDifferingInLastCharacter_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-registry/match")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-tokeX"))
+        .andExpect(status().isUnauthorized());
+
+    assertThat(applicationEvents.stream(RunSebPendingTransactionReconciliationRequested.class))
+        .isEmpty();
+  }
+
+  @Test
   void dailySummary_returnsPerFundSummary() throws Exception {
     given(adminService.dailySummary())
         .willReturn(

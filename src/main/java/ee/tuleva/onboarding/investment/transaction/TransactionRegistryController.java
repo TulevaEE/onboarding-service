@@ -26,6 +26,7 @@ import ee.tuleva.onboarding.investment.transaction.ingest.FtConfirmationVerifica
 import ee.tuleva.onboarding.investment.transaction.ingest.HistoricalRegistryImportService;
 import jakarta.validation.Valid;
 import java.io.IOException;
+import java.security.MessageDigest;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -232,7 +233,7 @@ public class TransactionRegistryController {
     if (adminApiToken.isBlank()) {
       throw new ResponseStatusException(SERVICE_UNAVAILABLE, "Admin API not configured");
     }
-    if (!adminApiToken.equals(token)) {
+    if (!MessageDigest.isEqual(adminApiToken.getBytes(UTF_8), token.getBytes(UTF_8))) {
       throw new ResponseStatusException(UNAUTHORIZED, "Invalid admin token");
     }
   }

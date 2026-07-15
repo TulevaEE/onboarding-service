@@ -60,6 +60,7 @@ public class TransactionInputService {
 
   private static final Set<TulevaFund> PEVA_RAVA_FUNDS = Set.of(TUK75, TUK00);
   private static final Set<TulevaFund> R16_FUNDS = Set.of(TUK75, TUK00, TUV100);
+  private static final BigDecimal MODEL_WEIGHT_SUM_TOLERANCE = new BigDecimal("0.0001");
 
   private final FundPositionRepository fundPositionRepository;
   private final FeeAccrualRepository feeAccrualRepository;
@@ -101,6 +102,7 @@ public class TransactionInputService {
             .filter(a -> a.getIsin() != null)
             .toList();
     List<ModelWeight> modelWeights = toModelWeights(allocations);
+    assertModelWeightsSumToOne(fund, modelWeights);
     BigDecimal cashBuffer = getCashBuffer(fund, asOfDate);
     BigDecimal minTransaction = getMinTransaction(fund, asOfDate);
     Map<String, PositionLimitSnapshot> positionLimits = getPositionLimits(fund, asOfDate);
@@ -190,6 +192,18 @@ public class TransactionInputService {
     return allocations.stream()
         .map(allocation -> new ModelWeight(allocation.getIsin(), allocation.getWeight()))
         .toList();
+  }
+
+  private void assertModelWeightsSumToOne(TulevaFund fund, List<ModelWeight> modelWeights) {
+    if (modelWeights.isEmpty()) {
+      return;
+    }
+    BigDecimal totalWeight =
+        modelWeights.stream().map(ModelWeight::weight).reduce(ZERO, BigDecimal::add);
+    if (totalWeight.subtract(ONE).abs().compareTo(MODEL_WEIGHT_SUM_TOLERANCE) > 0) {
+      throw new IllegalStateException(
+          "Model weights do not sum to 1: fund=" + fund + ", sum=" + totalWeight.toPlainString());
+    }
   }
 
   private BigDecimal getCashBuffer(TulevaFund fund, LocalDate asOfDate) {

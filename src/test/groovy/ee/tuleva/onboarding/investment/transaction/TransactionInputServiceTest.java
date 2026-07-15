@@ -143,6 +143,36 @@ class TransactionInputServiceTest {
   }
 
   @Test
+  void gatherInput_rejectsModelWeightsThatDoNotSumToOne() {
+    var positionDate = AS_OF_DATE;
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(List.of());
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(List.of());
+    given(
+            feeAccrualRepository.getAccruedFeesForMonth(
+                eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+        .willReturn(ZERO);
+
+    var underweightAllocation =
+        ModelPortfolioAllocation.builder()
+            .fund(TUV100)
+            .isin("IE00A")
+            .weight(new BigDecimal("0.90"))
+            .build();
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of(underweightAllocation));
+
+    assertThatThrownBy(() -> service.gatherInput(TUV100, AS_OF_DATE, Map.of()))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Model weights do not sum to 1")
+        .hasMessageContaining("fund=TUV100")
+        .hasMessageContaining("sum=0.90");
+  }
+
+  @Test
   void gatherInput_withNoPositionDate_throwsException() {
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
         .thenReturn(Optional.empty());
@@ -660,7 +690,7 @@ class TransactionInputServiceTest {
         ModelPortfolioAllocation.builder()
             .fund(TUV100)
             .isin("IE00A")
-            .weight(new BigDecimal("0.80"))
+            .weight(new BigDecimal("1.00"))
             .build();
     var allocationWithoutIsin =
         ModelPortfolioAllocation.builder()
@@ -678,7 +708,7 @@ class TransactionInputServiceTest {
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
 
     assertThat(result.modelWeights())
-        .isEqualTo(List.of(new ModelWeight("IE00A", new BigDecimal("0.80"))));
+        .isEqualTo(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))));
   }
 
   @Test

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
+import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
@@ -28,9 +29,7 @@ class SebPendingTransactionComplexMatcher {
       return Optional.empty();
     }
     List<TransactionOrder> inTolerance =
-        candidates.stream()
-            .filter(o -> quantityAmountValidator.withinTolerance(o, row, properties))
-            .toList();
+        candidates.stream().filter(o -> withinTolerance(o, row, properties)).toList();
 
     if (inTolerance.isEmpty()) {
       return Optional.empty();
@@ -57,8 +56,7 @@ class SebPendingTransactionComplexMatcher {
     if (candidates == null) {
       return false;
     }
-    return candidates.stream()
-        .anyMatch(candidate -> quantityAmountValidator.withinNearMiss(candidate, row, properties));
+    return candidates.stream().anyMatch(candidate -> withinNearMiss(candidate, row, properties));
   }
 
   Optional<QuantityAmountMismatchEvent> findNearMiss(
@@ -71,8 +69,8 @@ class SebPendingTransactionComplexMatcher {
     // a clean match would have been picked up by match() and is not a near miss.
     List<TransactionOrder> nearMissCandidates =
         candidates.stream()
-            .filter(o -> !quantityAmountValidator.withinTolerance(o, row, properties))
-            .filter(o -> quantityAmountValidator.withinNearMiss(o, row, properties))
+            .filter(o -> !withinTolerance(o, row, properties))
+            .filter(o -> withinNearMiss(o, row, properties))
             .toList();
 
     if (nearMissCandidates.size() != 1) {
@@ -99,11 +97,29 @@ class SebPendingTransactionComplexMatcher {
         .filter(o -> o.getFund() == fund)
         .filter(o -> o.getTransactionType() == row.side())
         .filter(o -> o.getOrderStatus() != OrderStatus.CANCELLED)
-        .filter(this::isNotAlreadyLinkedToExecution)
         .toList();
   }
 
-  private boolean isNotAlreadyLinkedToExecution(TransactionOrder order) {
-    return executionRepository.findAllByOrderId(order.getId()).isEmpty();
+  // Orders with no prior execution are matched against the full order target. Orders that
+  // already have one or more executions (a split fill) are matched against the residual —
+  // the target minus what's already been executed — so a later piece can still attach.
+  private boolean withinTolerance(
+      TransactionOrder order,
+      SebPendingTransactionRow row,
+      TransactionMatchingProperties properties) {
+    List<TransactionExecution> executions = executionRepository.findAllByOrderId(order.getId());
+    return executions.isEmpty()
+        ? quantityAmountValidator.withinTolerance(order, row, properties)
+        : quantityAmountValidator.withinResidualTolerance(order, row, executions, properties);
+  }
+
+  private boolean withinNearMiss(
+      TransactionOrder order,
+      SebPendingTransactionRow row,
+      TransactionMatchingProperties properties) {
+    List<TransactionExecution> executions = executionRepository.findAllByOrderId(order.getId());
+    return executions.isEmpty()
+        ? quantityAmountValidator.withinNearMiss(order, row, properties)
+        : quantityAmountValidator.withinResidualNearMiss(order, row, executions, properties);
   }
 }

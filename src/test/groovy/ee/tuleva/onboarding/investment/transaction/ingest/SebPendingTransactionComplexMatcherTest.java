@@ -149,15 +149,41 @@ class SebPendingTransactionComplexMatcherTest {
   }
 
   @Test
-  void match_skipsOrdersAlreadyLinkedToExecution() {
+  void match_alreadyLinkedOrderResidualFitsTolerance_returnsOrder() {
     TransactionOrder order = orderOf(41L, TUK75, "IE00BFNM3G45", BUY, ETF, 13288L, null, SENT);
     givenCandidates("IE00BFNM3G45", List.of(order));
     given(executionRepository.findAllByOrderId(41L))
         .willReturn(
-            List.of(TransactionExecution.builder().id(99L).orderId(41L).source("X").build()));
+            List.of(
+                TransactionExecution.builder()
+                    .id(99L)
+                    .orderId(41L)
+                    .executedQuantity(new BigDecimal("10000"))
+                    .source("X")
+                    .build()));
 
     SebPendingTransactionRow row =
-        row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288", null);
+        row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "3288", null);
+
+    assertThat(matcher().match(row, PROPERTIES)).contains(order);
+  }
+
+  @Test
+  void match_fullyExecutedOrderResidualOutsideTolerance_returnsEmpty() {
+    TransactionOrder order = orderOf(42L, TUK75, "IE00BFNM3G45", BUY, ETF, 13288L, null, SENT);
+    givenCandidates("IE00BFNM3G45", List.of(order));
+    given(executionRepository.findAllByOrderId(42L))
+        .willReturn(
+            List.of(
+                TransactionExecution.builder()
+                    .id(100L)
+                    .orderId(42L)
+                    .executedQuantity(new BigDecimal("13288"))
+                    .source("X")
+                    .build()));
+
+    SebPendingTransactionRow row =
+        row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "100", null);
 
     assertThat(matcher().match(row, PROPERTIES)).isEmpty();
   }
@@ -364,17 +390,47 @@ class SebPendingTransactionComplexMatcherTest {
   }
 
   @Test
-  void findNearMiss_excludesOrdersAlreadyLinkedToExecution() {
+  void findNearMiss_fullyExecutedOrderResidualOutsideNearMiss_returnsEmpty() {
     TransactionOrder order = orderOf(89L, TUK75, "IE00BFNM3G45", BUY, ETF, 13288L, null, SENT);
     givenCandidates("IE00BFNM3G45", List.of(order));
     given(executionRepository.findAllByOrderId(89L))
         .willReturn(
-            List.of(TransactionExecution.builder().id(99L).orderId(89L).source("X").build()));
+            List.of(
+                TransactionExecution.builder()
+                    .id(99L)
+                    .orderId(89L)
+                    .executedQuantity(new BigDecimal("13288"))
+                    .source("X")
+                    .build()));
 
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288.0003", null);
 
     assertThat(matcher().findNearMiss(row, PROPERTIES)).isEmpty();
+  }
+
+  @Test
+  void findNearMiss_alreadyLinkedOrderResidualOutsideToleranceButWithinFiveX_returnsNearMiss() {
+    TransactionOrder order = orderOf(90L, TUK75, "IE00BFNM3G45", BUY, ETF, 13288L, null, SENT);
+    givenCandidates("IE00BFNM3G45", List.of(order));
+    given(executionRepository.findAllByOrderId(90L))
+        .willReturn(
+            List.of(
+                TransactionExecution.builder()
+                    .id(101L)
+                    .orderId(90L)
+                    .executedQuantity(new BigDecimal("10000"))
+                    .source("X")
+                    .build()));
+
+    // Residual = 3288. Tolerance = 0.0001, 5x = 0.0005. Diff 0.0003 is outside tolerance but
+    // inside 5x.
+    SebPendingTransactionRow row =
+        row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "3288.0003", null);
+
+    Optional<QuantityAmountMismatchEvent> nearMiss = matcher().findNearMiss(row, PROPERTIES);
+    assertThat(nearMiss).isPresent();
+    assertThat(nearMiss.get().order()).isEqualTo(order);
   }
 
   @Test

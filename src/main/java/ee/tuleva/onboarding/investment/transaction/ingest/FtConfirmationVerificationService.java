@@ -227,7 +227,7 @@ public class FtConfirmationVerificationService {
     if (quantityMatches.size() > 1) {
       return new OrderSelection(oldest(quantityMatches), true, quantityMatches.size());
     }
-    return new OrderSelection(oldest(candidates), false, candidates.size());
+    return new OrderSelection(oldest(candidates), true, candidates.size());
   }
 
   private static TransactionOrder oldest(List<TransactionOrder> orders) {

@@ -100,4 +100,58 @@ class InvestmentReportRepositoryTest {
 
     assertThat(result).isEmpty();
   }
+
+  @Test
+  void
+      findTopByProviderAndReportTypeAndReportDateLessThanOrderByReportDateDesc_returnsMostRecentPriorReport() {
+    repository.save(
+        InvestmentReport.builder()
+            .provider(SWEDBANK)
+            .reportType(POSITIONS)
+            .reportDate(LocalDate.of(2026, 1, 10))
+            .rawData(List.of(Map.of("test", "old")))
+            .createdAt(Instant.now())
+            .build());
+    repository.save(
+        InvestmentReport.builder()
+            .provider(SWEDBANK)
+            .reportType(POSITIONS)
+            .reportDate(LocalDate.of(2026, 1, 14))
+            .rawData(List.of(Map.of("test", "closest")))
+            .createdAt(Instant.now())
+            .build());
+    repository.save(
+        InvestmentReport.builder()
+            .provider(SWEDBANK)
+            .reportType(POSITIONS)
+            .reportDate(LocalDate.of(2026, 1, 15))
+            .rawData(List.of(Map.of("test", "sameDayExcluded")))
+            .createdAt(Instant.now())
+            .build());
+
+    Optional<InvestmentReport> result =
+        repository.findTopByProviderAndReportTypeAndReportDateLessThanOrderByReportDateDesc(
+            SWEDBANK, POSITIONS, LocalDate.of(2026, 1, 15));
+
+    assertThat(result).isPresent();
+    assertThat(result.get().getReportDate()).isEqualTo(LocalDate.of(2026, 1, 14));
+  }
+
+  @Test
+  void
+      findTopByProviderAndReportTypeAndReportDateLessThanOrderByReportDateDesc_returnsEmptyWhenNoPriorReport() {
+    repository.save(
+        InvestmentReport.builder()
+            .provider(SWEDBANK)
+            .reportType(POSITIONS)
+            .reportDate(LocalDate.of(2026, 1, 15))
+            .createdAt(Instant.now())
+            .build());
+
+    Optional<InvestmentReport> result =
+        repository.findTopByProviderAndReportTypeAndReportDateLessThanOrderByReportDateDesc(
+            SWEDBANK, POSITIONS, LocalDate.of(2026, 1, 15));
+
+    assertThat(result).isEmpty();
+  }
 }

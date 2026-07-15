@@ -118,4 +118,22 @@ class InvestmentReportServiceTest {
 
     assertThat(service.getLatestReport(SEB, PENDING_TRANSACTIONS)).contains(latest);
   }
+
+  @Test
+  void getPriorReport_returnsMostRecentReportBeforeGivenDate() {
+    InvestmentReport prior =
+        InvestmentReport.builder()
+            .id(8L)
+            .provider(SEB)
+            .reportType(PENDING_TRANSACTIONS)
+            .reportDate(LocalDate.of(2026, 5, 17))
+            .build();
+    given(
+            repository.findTopByProviderAndReportTypeAndReportDateLessThanOrderByReportDateDesc(
+                SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 5, 18)))
+        .willReturn(Optional.of(prior));
+
+    assertThat(service.getPriorReport(SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 5, 18)))
+        .contains(prior);
+  }
 }

@@ -624,6 +624,35 @@ class SebPendingTransactionReconciliationServiceTest {
 
     verify(executionRepository, never()).save(any());
     assertThat(order.getOrderStatus()).isEqualTo(SENT);
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "INCONSISTENT_MATCHED_ROW".equals(event.getEventType())
+                        && event.getOrderId().equals(123L)
+                        && "ISIN_SIDE_MISMATCH".equals(event.getPayload().get("reason"))));
+  }
+
+  @Test
+  void reconcile_matchedRowWithMismatchedSide_secondReconcileDoesNotDuplicateAuditEvent() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = orderWith(clientRef, ETF, SELL, new BigDecimal("15007"), null);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+    String dedupKey = "2026-05-13|123|ISIN_SIDE_MISMATCH";
+    given(auditEventRepository.findByEventTypeAndDedupKey("INCONSISTENT_MATCHED_ROW", dedupKey))
+        .willReturn(
+            List.of(),
+            List.of(TransactionAuditEvent.builder().eventType("INCONSISTENT_MATCHED_ROW").build()));
+
+    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef));
+
+    verify(auditEventRepository, org.mockito.Mockito.times(1))
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "INCONSISTENT_MATCHED_ROW".equals(event.getEventType())));
   }
 
   @Test
@@ -683,6 +712,13 @@ class SebPendingTransactionReconciliationServiceTest {
     verify(executionRepository)
         .save(argThat((TransactionExecution e) -> e.getOrderId().equals(123L)));
     assertThat(orderB.getOrderStatus()).isEqualTo(SENT);
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "INCONSISTENT_MATCHED_ROW".equals(event.getEventType())
+                        && event.getOrderId().equals(124L)
+                        && "MISSING_ISIN".equals(event.getPayload().get("reason"))));
   }
 
   @Test

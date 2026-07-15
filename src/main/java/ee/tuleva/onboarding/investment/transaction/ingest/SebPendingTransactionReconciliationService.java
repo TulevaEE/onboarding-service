@@ -207,6 +207,8 @@ public class SebPendingTransactionReconciliationService {
           row.clientRef(),
           row.isin(),
           reportDate);
+      auditRecorder.recordInconsistentMatchedRow(
+          order, row, ReconciliationAuditRecorder.REASON_MISSING_OUR_REF, reportDate);
       return false;
     }
     if (row.isin() == null || row.isin().isBlank()) {
@@ -217,6 +219,8 @@ public class SebPendingTransactionReconciliationService {
           row.clientRef(),
           row.ourRef(),
           reportDate);
+      auditRecorder.recordInconsistentMatchedRow(
+          order, row, ReconciliationAuditRecorder.REASON_MISSING_ISIN, reportDate);
       return false;
     }
     if (!row.isin().equals(order.getInstrumentIsin()) || row.side() != order.getTransactionType()) {
@@ -230,6 +234,8 @@ public class SebPendingTransactionReconciliationService {
           row.side(),
           row.ourRef(),
           reportDate);
+      auditRecorder.recordInconsistentMatchedRow(
+          order, row, ReconciliationAuditRecorder.REASON_ISIN_SIDE_MISMATCH, reportDate);
       return false;
     }
     Optional<TulevaFund> rowFund = fundResolver.resolve(row.clientName());
@@ -243,6 +249,8 @@ public class SebPendingTransactionReconciliationService {
           row.clientName(),
           row.ourRef(),
           reportDate);
+      auditRecorder.recordInconsistentMatchedRow(
+          order, row, ReconciliationAuditRecorder.REASON_FUND_MISMATCH, reportDate);
       return false;
     }
     return true;

@@ -1,11 +1,17 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
+import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
@@ -30,15 +36,22 @@ class UnmatchedPendingTransactionFinderTest {
   @Mock private TransactionMatchingPolicy matchingPolicy;
   @Mock private TransactionOrderRepository orderRepository;
   @Mock private TransactionExecutionRepository executionRepository;
+  @Mock private SebClientNameToFundResolver fundResolver;
 
   private final InvestmentReport report = InvestmentReport.builder().build();
   private final TransactionMatchingProperties properties =
       new TransactionMatchingProperties(null, null, null, null, null);
 
   private UnmatchedPendingTransactionFinder finder() {
-    given(matchingPolicy.current()).willReturn(properties);
+    org.mockito.Mockito.lenient().when(matchingPolicy.current()).thenReturn(properties);
     return new UnmatchedPendingTransactionFinder(
-        extractor, matcher, complexMatcher, matchingPolicy, orderRepository, executionRepository);
+        extractor,
+        matcher,
+        complexMatcher,
+        matchingPolicy,
+        orderRepository,
+        executionRepository,
+        fundResolver);
   }
 
   @Test
@@ -123,6 +136,80 @@ class UnmatchedPendingTransactionFinderTest {
     given(complexMatcher.hasNearMissCandidate(row, properties)).willReturn(false);
 
     assertThat(finder().collectUnmatched(report)).containsExactly(row);
+  }
+
+  @Test
+  void collectInconsistent_clientRefMatchedRowWithMismatchedSide_isReturnedWithReason() {
+    UUID clientRef = UUID.randomUUID();
+    SebPendingTransactionRow row = rowWithClientRef(clientRef);
+    TransactionOrder order = orderWithClientRef(clientRef, SELL);
+    given(extractor.extract(report)).willReturn(List.of(row));
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+
+    assertThat(finder().collectInconsistent(report))
+        .containsExactly(
+            new UnmatchedPendingTransactionFinder.InconsistentMatchedRow(
+                row, order, "ISIN_SIDE_MISMATCH"));
+  }
+
+  @Test
+  void
+      collectInconsistent_clientRefMatchedRowWhoseClientNameResolvesToADifferentFund_isReturnedWithReason() {
+    UUID clientRef = UUID.randomUUID();
+    SebPendingTransactionRow row = rowWithClientRef(clientRef);
+    TransactionOrder order = orderWithClientRef(clientRef, BUY);
+    given(extractor.extract(report)).willReturn(List.of(row));
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+    given(fundResolver.resolve(row.clientName())).willReturn(Optional.of(TUK75));
+
+    assertThat(finder().collectInconsistent(report))
+        .containsExactly(
+            new UnmatchedPendingTransactionFinder.InconsistentMatchedRow(
+                row, order, "FUND_MISMATCH"));
+  }
+
+  @Test
+  void collectInconsistent_consistentClientRefMatchedRow_isNotReturned() {
+    UUID clientRef = UUID.randomUUID();
+    SebPendingTransactionRow row = rowWithClientRef(clientRef);
+    TransactionOrder order = orderWithClientRef(clientRef, BUY);
+    given(extractor.extract(report)).willReturn(List.of(row));
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+    given(fundResolver.resolve(row.clientName())).willReturn(Optional.of(TKF100));
+
+    assertThat(finder().collectInconsistent(report)).isEmpty();
+  }
+
+  @Test
+  void collectInconsistent_rowWithoutClientRef_isSkipped() {
+    SebPendingTransactionRow row = row("R1");
+    given(extractor.extract(report)).willReturn(List.of(row));
+
+    assertThat(finder().collectInconsistent(report)).isEmpty();
+  }
+
+  @Test
+  void collectInconsistent_unknownClientRef_isSkipped() {
+    UUID clientRef = UUID.randomUUID();
+    SebPendingTransactionRow row = rowWithClientRef(clientRef);
+    given(extractor.extract(report)).willReturn(List.of(row));
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.empty());
+
+    assertThat(finder().collectInconsistent(report)).isEmpty();
+  }
+
+  private static TransactionOrder orderWithClientRef(
+      UUID clientRef, ee.tuleva.onboarding.investment.transaction.TransactionType side) {
+    return TransactionOrder.builder()
+        .id(7L)
+        .fund(TKF100)
+        .instrumentIsin("IE000F60HVH9")
+        .transactionType(side)
+        .instrumentType(ETF)
+        .orderVenue(OrderVenue.SEB)
+        .orderUuid(clientRef)
+        .orderStatus(SENT)
+        .build();
   }
 
   private static SebPendingTransactionRow rowWithClientRef(UUID clientRef) {

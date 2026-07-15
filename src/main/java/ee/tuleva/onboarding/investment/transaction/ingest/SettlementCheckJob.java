@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
+import ee.tuleva.onboarding.investment.transaction.ingest.UnmatchedPendingTransactionFinder.InconsistentMatchedRow;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.Clock;
 import java.time.Instant;
@@ -103,12 +104,17 @@ class SettlementCheckJob {
         collectOverdue(referenceDate, fresh, reportClientRefs, reportOurRefs, registryOrders);
     List<SebPendingTransactionRow> unmatched =
         fresh ? unmatchedFinder.collectUnmatched(latestReport.get()) : List.of();
+    List<InconsistentMatchedRow> inconsistent =
+        fresh ? unmatchedFinder.collectInconsistent(latestReport.get()) : List.of();
 
     boolean emptyRegistryBootstrap = registryOrders.isEmpty();
     // TODO: drop emptyRegistryBootstrap once the registry holds real orders — it silences the
     // stale-report warning during bootstrap but would also mask a broken pipeline on an empty
     // table.
-    if (overdue.isEmpty() && unmatched.isEmpty() && (fresh || emptyRegistryBootstrap)) {
+    if (overdue.isEmpty()
+        && unmatched.isEmpty()
+        && inconsistent.isEmpty()
+        && (fresh || emptyRegistryBootstrap)) {
       log.info(
           "Settlement check clean: today={}, fresh={}, registryEmpty={}",
           today,
@@ -117,13 +123,15 @@ class SettlementCheckJob {
       return;
     }
 
-    String message = buildMessage(today, fresh, overdue, unmatched);
+    String message = buildMessage(today, fresh, overdue, unmatched, inconsistent);
     notificationService.sendMessage(message, INVESTMENT);
     log.info(
-        "Sent settlement check digest: today={}, overdue={}, unmatched={}, fresh={}",
+        "Sent settlement check digest: today={}, overdue={}, unmatched={}, inconsistent={},"
+            + " fresh={}",
         today,
         overdue.size(),
         unmatched.size(),
+        inconsistent.size(),
         fresh);
   }
 
@@ -231,7 +239,8 @@ class SettlementCheckJob {
       LocalDate today,
       boolean fresh,
       List<OverdueLine> overdue,
-      List<SebPendingTransactionRow> unmatched) {
+      List<SebPendingTransactionRow> unmatched,
+      List<InconsistentMatchedRow> inconsistent) {
     Map<TulevaFund, List<OverdueLine>> overdueByFund =
         overdue.stream().collect(Collectors.groupingBy(line -> line.order().getFund()));
     Map<TulevaFund, List<SebPendingTransactionRow>> unmatchedByFund = new LinkedHashMap<>();
@@ -243,6 +252,8 @@ class SettlementCheckJob {
               fund -> unmatchedByFund.computeIfAbsent(fund, k -> new ArrayList<>()).add(row),
               () -> unresolved.add(row));
     }
+    Map<TulevaFund, List<InconsistentMatchedRow>> inconsistentByFund =
+        inconsistent.stream().collect(Collectors.groupingBy(entry -> entry.order().getFund()));
 
     StringBuilder message = new StringBuilder();
     message.append("⚠️ SEB arveldus- ja tehingukontroll – ").append(today);
@@ -256,14 +267,16 @@ class SettlementCheckJob {
     Set<TulevaFund> fundsToReport = new LinkedHashSet<>(FUND_ORDER);
     fundsToReport.addAll(overdueByFund.keySet());
     fundsToReport.addAll(unmatchedByFund.keySet());
+    fundsToReport.addAll(inconsistentByFund.keySet());
     for (TulevaFund fund : fundsToReport) {
       appendFundBlock(
           message,
           fund.getCode(),
           unmatchedByFund.getOrDefault(fund, List.of()),
-          overdueByFund.getOrDefault(fund, List.of()));
+          overdueByFund.getOrDefault(fund, List.of()),
+          inconsistentByFund.getOrDefault(fund, List.of()));
     }
-    appendFundBlock(message, "Tundmatu fond / lahendamata", unresolved, List.of());
+    appendFundBlock(message, "Tundmatu fond / lahendamata", unresolved, List.of(), List.of());
 
     return message.toString();
   }
@@ -272,8 +285,9 @@ class SettlementCheckJob {
       StringBuilder message,
       String fundLabel,
       List<SebPendingTransactionRow> unmatched,
-      List<OverdueLine> overdue) {
-    if (unmatched.isEmpty() && overdue.isEmpty()) {
+      List<OverdueLine> overdue,
+      List<InconsistentMatchedRow> inconsistent) {
+    if (unmatched.isEmpty() && overdue.isEmpty() && inconsistent.isEmpty()) {
       return;
     }
     message.append("\n\n").append(fundLabel);
@@ -310,6 +324,22 @@ class SettlementCheckJob {
             .append(order.getOrderTimestamp() == null ? "?" : orderDate(order))
             .append(", tähtaeg: ")
             .append(line.deadline());
+      }
+    }
+    if (!inconsistent.isEmpty()) {
+      message.append("\n  Ebakõlalised vastavused (").append(inconsistent.size()).append("):");
+      for (InconsistentMatchedRow entry : inconsistent) {
+        message
+            .append("\n    - Order ")
+            .append(entry.order().getId())
+            .append(", põhjus: ")
+            .append(entry.reason())
+            .append(", ISIN: ")
+            .append(entry.row().isin())
+            .append(", Our ref: ")
+            .append(entry.row().ourRef())
+            .append(", Client ref: ")
+            .append(entry.row().clientRef());
       }
     }
   }

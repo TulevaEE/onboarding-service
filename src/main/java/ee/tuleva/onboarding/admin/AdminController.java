@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.admin;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
@@ -38,6 +39,7 @@ import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.DateTimeException;
 import java.time.LocalDate;
@@ -563,8 +565,12 @@ public class AdminController {
   }
 
   private void validateTokenWithOpsAccess(String token) {
-    boolean matchesAdmin = !adminApiToken.isBlank() && adminApiToken.equals(token);
-    boolean matchesOps = !opsToken.isBlank() && opsToken.equals(token);
+    boolean matchesAdmin =
+        !adminApiToken.isBlank()
+            && MessageDigest.isEqual(adminApiToken.getBytes(UTF_8), token.getBytes(UTF_8));
+    boolean matchesOps =
+        !opsToken.isBlank()
+            && MessageDigest.isEqual(opsToken.getBytes(UTF_8), token.getBytes(UTF_8));
     if (!matchesAdmin && !matchesOps) {
       throw new ResponseStatusException(UNAUTHORIZED, "Invalid admin token");
     }
@@ -574,7 +580,7 @@ public class AdminController {
     if (adminApiToken.isBlank()) {
       throw new ResponseStatusException(SERVICE_UNAVAILABLE, "Admin API not configured");
     }
-    if (!adminApiToken.equals(token)) {
+    if (!MessageDigest.isEqual(adminApiToken.getBytes(UTF_8), token.getBytes(UTF_8))) {
       throw new ResponseStatusException(UNAUTHORIZED, "Invalid admin token");
     }
   }

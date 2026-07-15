@@ -1,10 +1,12 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import jakarta.validation.Valid;
+import java.security.MessageDigest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -159,7 +161,7 @@ public class TransactionCommandController {
     if (adminApiToken.isBlank()) {
       throw new ResponseStatusException(SERVICE_UNAVAILABLE, "Admin API not configured");
     }
-    if (!adminApiToken.equals(token)) {
+    if (!MessageDigest.isEqual(adminApiToken.getBytes(UTF_8), token.getBytes(UTF_8))) {
       throw new ResponseStatusException(UNAUTHORIZED, "Invalid admin token");
     }
   }

@@ -128,6 +128,21 @@ class TransactionCommandControllerTest {
   }
 
   @Test
+  void createCommand_withTokenDifferingInLastCharacter_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-commands")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-tokeX")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"fund": "TUK75", "mode": "REBALANCE", "asOfDate": "2026-06-10"}
+                    """))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
   void createCommand_withMissingFund_returnsBadRequest() throws Exception {
     mockMvc
         .perform(

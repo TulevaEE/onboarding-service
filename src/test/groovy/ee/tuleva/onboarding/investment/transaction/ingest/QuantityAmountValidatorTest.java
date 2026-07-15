@@ -74,6 +74,41 @@ class QuantityAmountValidatorTest {
   }
 
   @Test
+  void withinResidualTolerance_etfSecondPieceMatchesResidualExactly_returnsTrue() {
+    TransactionOrder order = etfBuyOrder(new BigDecimal("13288"));
+    var existing = List.of(execQuantity("REF1", new BigDecimal("10000")));
+    SebPendingTransactionRow row = etfRowWithRef("REF2", new BigDecimal("3288"));
+
+    assertThat(validator.withinResidualTolerance(order, row, existing, PROPERTIES)).isTrue();
+  }
+
+  @Test
+  void withinResidualTolerance_fundBuyAmountSecondPieceMatchesResidual_returnsTrue() {
+    TransactionOrder order = fundBuyOrder(new BigDecimal("100000.00"));
+    var existing = List.of(execAmount("REF1", new BigDecimal("70000.00")));
+    SebPendingTransactionRow row = fundBuyRowWithRef("REF2", new BigDecimal("30000.00"));
+
+    assertThat(validator.withinResidualTolerance(order, row, existing, PROPERTIES)).isTrue();
+  }
+
+  @Test
+  void withinResidualTolerance_fullyExecutedOrder_returnsFalse() {
+    TransactionOrder order = etfBuyOrder(new BigDecimal("13288"));
+    var existing = List.of(execQuantity("REF1", new BigDecimal("13288")));
+    SebPendingTransactionRow row = etfRowWithRef("REF2", new BigDecimal("100"));
+
+    assertThat(validator.withinResidualTolerance(order, row, existing, PROPERTIES)).isFalse();
+  }
+
+  @Test
+  void withinResidualTolerance_nullOrderTarget_returnsFalse() {
+    TransactionOrder order = fundBuyOrder(null);
+    SebPendingTransactionRow row = fundBuyRowWithRef("REF2", new BigDecimal("30000.00"));
+
+    assertThat(validator.withinResidualTolerance(order, row, List.of(), PROPERTIES)).isFalse();
+  }
+
+  @Test
   void validate_fundBuyWithNullOrderAmount_returnsEmpty() {
     TransactionOrder order = fundBuyOrder(null);
     SebPendingTransactionRow row = fundBuyRow(new BigDecimal("102000.00"));

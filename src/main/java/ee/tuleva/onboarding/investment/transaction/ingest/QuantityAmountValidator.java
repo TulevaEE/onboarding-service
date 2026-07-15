@@ -42,6 +42,23 @@ class QuantityAmountValidator {
     return withinTolerance(order, row, properties, properties.nearMissMultiplier());
   }
 
+  boolean withinResidualTolerance(
+      TransactionOrder order,
+      SebPendingTransactionRow row,
+      List<TransactionExecution> existingExecutions,
+      TransactionMatchingProperties properties) {
+    return withinResidualTolerance(order, row, existingExecutions, properties, BigDecimal.ONE);
+  }
+
+  boolean withinResidualNearMiss(
+      TransactionOrder order,
+      SebPendingTransactionRow row,
+      List<TransactionExecution> existingExecutions,
+      TransactionMatchingProperties properties) {
+    return withinResidualTolerance(
+        order, row, existingExecutions, properties, properties.nearMissMultiplier());
+  }
+
   QuantityAmountMismatchEvent buildMismatchEvent(
       TransactionOrder order,
       SebPendingTransactionRow row,
@@ -145,12 +162,36 @@ class QuantityAmountValidator {
       SebPendingTransactionRow row,
       TransactionMatchingProperties properties,
       BigDecimal multiplier) {
+    return withinToleranceOf(expected(order), order, row, properties, multiplier);
+  }
+
+  private boolean withinResidualTolerance(
+      TransactionOrder order,
+      SebPendingTransactionRow row,
+      List<TransactionExecution> existingExecutions,
+      TransactionMatchingProperties properties,
+      BigDecimal multiplier) {
+    BigDecimal target = expected(order);
+    if (target == null) {
+      return false;
+    }
+    BigDecimal residual =
+        target.subtract(sumExecutedValue(order, existingExecutions, row.ourRef()));
+    return withinToleranceOf(residual, order, row, properties, multiplier);
+  }
+
+  private static boolean withinToleranceOf(
+      BigDecimal expectedValue,
+      TransactionOrder order,
+      SebPendingTransactionRow row,
+      TransactionMatchingProperties properties,
+      BigDecimal multiplier) {
     MismatchKind kind = kind(order);
     BigDecimal tolerance = tolerance(kind, properties).multiply(multiplier);
     if (kind == MismatchKind.FUND_BUY_AMOUNT) {
-      return amountWithinRelativeTolerance(expected(order), actual(order, row), tolerance);
+      return amountWithinRelativeTolerance(expectedValue, actual(order, row), tolerance);
     }
-    return quantityWithinTolerance(expected(order), actual(order, row), tolerance);
+    return quantityWithinTolerance(expectedValue, actual(order, row), tolerance);
   }
 
   private static BigDecimal tolerance(MismatchKind kind, TransactionMatchingProperties properties) {

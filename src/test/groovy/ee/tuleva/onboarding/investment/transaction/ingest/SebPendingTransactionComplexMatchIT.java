@@ -94,19 +94,62 @@ class SebPendingTransactionComplexMatchIT {
     assertThat(reloaded.getOrderStatus()).isEqualTo(EXECUTED);
   }
 
+  @Test
+  void reconcile_secondPartialFillMissingClientRef_complexMatchesResidualAndAddsExecution() {
+    executionRepository.save(
+        TransactionExecution.builder()
+            .orderId(order.getId())
+            .brokerTransactionId("DLA0001111")
+            .executedQuantity(new BigDecimal("10000"))
+            .totalConsideration(new BigDecimal("345000.00"))
+            .source("SEB_OOTEL")
+            .build());
+    order.setOrderStatus(EXECUTED);
+    orderRepository.save(order);
+
+    InvestmentReport secondPieceReport =
+        reportRepository.save(
+            InvestmentReport.builder()
+                .provider(SEB)
+                .reportType(PENDING_TRANSACTIONS)
+                .reportDate(LocalDate.of(2026, 5, 14))
+                .rawData(List.of(rawRowWithoutClientRef("DLA0002222", "3288")))
+                .metadata(Map.of("source", "fixture"))
+                .createdAt(Instant.now())
+                .build());
+
+    reconciliationService.reconcile(secondPieceReport);
+    entityManager.flush();
+    entityManager.clear();
+
+    List<TransactionExecution> executions = executionRepository.findAllByOrderId(order.getId());
+    assertThat(executions).hasSize(2);
+    assertThat(executions)
+        .extracting(TransactionExecution::getExecutedQuantity)
+        .usingElementComparator(BigDecimal::compareTo)
+        .containsExactlyInAnyOrder(new BigDecimal("10000"), new BigDecimal("3288"));
+
+    TransactionOrder reloaded = orderRepository.findById(order.getId()).orElseThrow();
+    assertThat(reloaded.getOrderStatus()).isEqualTo(EXECUTED);
+  }
+
   private static Map<String, Object> rawRowWithoutClientRef() {
+    return rawRowWithoutClientRef("DLA0001234", "13288");
+  }
+
+  private static Map<String, Object> rawRowWithoutClientRef(String ourRef, String quantity) {
     Map<String, Object> raw = new HashMap<>();
     raw.put("Client name", "Tuleva Maailma Aktsiate Pensionifond");
     raw.put("Account", "VP68958");
-    raw.put("Our ref", "DLA0001234");
+    raw.put("Our ref", ourRef);
     raw.put("ISIN", ETF_ISIN);
     raw.put("Instrument name", "iShares Edge MSCI USA Quality Factor UCITS ETF");
     raw.put("Currency", "EUR");
-    raw.put("Quantity", new BigDecimal("13288"));
+    raw.put("Quantity", new BigDecimal(quantity));
     raw.put("Price", new BigDecimal("34.50"));
-    raw.put("Settlement amount", new BigDecimal("458436.00"));
+    raw.put("Settlement amount", new BigDecimal(quantity).multiply(new BigDecimal("34.50")));
     raw.put("Broker fee", new BigDecimal("0.00"));
-    raw.put("Total", new BigDecimal("458436.00"));
+    raw.put("Total", new BigDecimal(quantity).multiply(new BigDecimal("34.50")));
     raw.put("Buy/Sell", "Buy");
     raw.put("Trade date", "2026-05-11T10:26:04Z");
     raw.put("Settlement date", "2026-05-13");

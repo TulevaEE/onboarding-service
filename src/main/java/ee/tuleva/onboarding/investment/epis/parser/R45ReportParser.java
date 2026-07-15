@@ -18,9 +18,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class R45ReportParser {
@@ -44,6 +46,9 @@ public class R45ReportParser {
       String typeCode = trimmedUpperCase(findValue(row, "tehingu liik"));
       String isin = normalizeIsin(findValue(row, "isin"));
       if (typeCode.isEmpty() || isin.isEmpty()) {
+        if (!typeCode.isEmpty()) {
+          log.warn("R45 row dropped: reason=missingIsin, typeCode={}", typeCode);
+        }
         continue;
       }
 

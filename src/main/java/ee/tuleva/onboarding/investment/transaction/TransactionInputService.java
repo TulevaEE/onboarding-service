@@ -332,6 +332,11 @@ public class TransactionInputService {
     BigDecimal bufferPercent =
         investmentParameterRepository.findLatestValue(R16_BUFFER_PERCENT, asOfDate);
     BigDecimal step = investmentParameterRepository.findLatestValue(R16_ROUNDING_STEP, asOfDate);
+    if (step.signum() <= 0) {
+      throw new IllegalStateException(
+          "Invalid investment parameter: parameter=R16_ROUNDING_STEP, value="
+              + step.toPlainString());
+    }
     return totalOutflowEur
         .abs()
         .multiply(ONE.add(bufferPercent))

@@ -627,6 +627,49 @@ class TradeCalculationEngineTest {
   }
 
   @Test
+  void sell_capsOverSoftReliefAtModelAndSpillsExcessToOtherOverweightFunds() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00A", new BigDecimal("550000")),
+                    new PositionSnapshot("IE00B", new BigDecimal("350000")),
+                    new PositionSnapshot("IE00C", new BigDecimal("100000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00A", new BigDecimal("0.40")),
+                    new ModelWeight("IE00B", new BigDecimal("0.30")),
+                    new ModelWeight("IE00C", new BigDecimal("0.30"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("-200000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(
+                Map.of(
+                    "IE00A",
+                        new PositionLimitSnapshot(new BigDecimal("0.50"), new BigDecimal("0.60")),
+                    "IE00B",
+                        new PositionLimitSnapshot(new BigDecimal("0.40"), new BigDecimal("0.50"))))
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, SELL);
+
+    assertThat(result.trades())
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            List.of(
+                new TradeCalculation(
+                    "IE00A", new BigDecimal("-150000"), new BigDecimal("0.400000"), OK),
+                new TradeCalculation(
+                    "IE00B", new BigDecimal("-50000"), new BigDecimal("0.300000"), OK),
+                new TradeCalculation("IE00C", ZERO, new BigDecimal("0.100000"), OK)));
+  }
+
+  @Test
   void sellFast_sellsFastTaggedInstrumentsFirst() {
     var input =
         FundTransactionInput.builder()
@@ -881,6 +924,100 @@ class TradeCalculationEngineTest {
 
     assertThat(tradeA.tradeAmount()).isEqualByComparingTo(new BigDecimal("-100000"));
     assertThat(tradeB.tradeAmount()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void rebalance_neverSellsAnyPositionBeyondItsMarketValue() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("100000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("100000"))
+            .cashBuffer(ZERO)
+            .liabilities(new BigDecimal("150000"))
+            .freeCash(ZERO)
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, REBALANCE);
+
+    var tradeA =
+        result.trades().stream().filter(t -> t.isin().equals("IE00A")).findFirst().orElseThrow();
+
+    assertThat(tradeA.tradeAmount()).isGreaterThanOrEqualTo(new BigDecimal("-100000"));
+  }
+
+  @Test
+  void rebalance_neverInflatesSurvivingSellAllocationBeyondMarketValueAfterThresholdElimination() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00A", new BigDecimal("3000")),
+                    new PositionSnapshot("IE00B", new BigDecimal("100000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00A", new BigDecimal("0.50")),
+                    new ModelWeight("IE00B", new BigDecimal("0.50"))))
+            .grossPortfolioValue(new BigDecimal("103000"))
+            .cashBuffer(ZERO)
+            .liabilities(new BigDecimal("203000"))
+            .freeCash(ZERO)
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, REBALANCE);
+
+    var tradeB =
+        result.trades().stream().filter(t -> t.isin().equals("IE00B")).findFirst().orElseThrow();
+
+    assertThat(tradeB.tradeAmount()).isGreaterThanOrEqualTo(new BigDecimal("-100000"));
+  }
+
+  @Test
+  void rebalance_waterFillsHardLimitBuyExcessAcrossRunnersInsteadOfStrandingCash() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00A", new BigDecimal("100000")),
+                    new PositionSnapshot("IE00B", new BigDecimal("100000")),
+                    new PositionSnapshot("IE00C", new BigDecimal("300000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00A", new BigDecimal("0.50")),
+                    new ModelWeight("IE00B", new BigDecimal("0.30")),
+                    new ModelWeight("IE00C", new BigDecimal("0.20"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(ZERO)
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(
+                Map.of(
+                    "IE00A",
+                    new PositionLimitSnapshot(new BigDecimal("0.32"), new BigDecimal("0.32"))))
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, REBALANCE);
+
+    BigDecimal totalBought =
+        result.trades().stream()
+            .map(TradeCalculation::tradeAmount)
+            .filter(amount -> amount.compareTo(ZERO) > 0)
+            .reduce(ZERO, BigDecimal::add);
+
+    assertThat(totalBought).isEqualByComparingTo(new BigDecimal("600000"));
+    assertThat(result.trades())
+        .allSatisfy(trade -> assertThat(trade.limitStatus()).isNotEqualTo(HARD_LIMIT_EXCEEDED));
   }
 
   @Test
@@ -1204,7 +1341,8 @@ class TradeCalculationEngineTest {
   }
 
   @Test
-  void sell_neverSellsAnyPositionBeyondItsMarketValue() {
+  void
+      sell_respectsMinTradeFloorAndLeavesSubThresholdResidualToReserveRatherThanDumpingOnAtModelPosition() {
     var input =
         FundTransactionInput.builder()
             .fund(TUV100)
@@ -1227,13 +1365,14 @@ class TradeCalculationEngineTest {
 
     var result = engine.calculate(input, SELL);
 
-    var overTrade =
-        result.trades().stream().filter(t -> t.isin().equals("IE00OVER")).findFirst().orElseThrow();
-    assertThat(overTrade.tradeAmount()).isGreaterThanOrEqualTo(new BigDecimal("-40000"));
-
-    BigDecimal totalSold =
-        result.trades().stream().map(TradeCalculation::tradeAmount).reduce(ZERO, BigDecimal::add);
-    assertThat(totalSold).isEqualByComparingTo(new BigDecimal("-44000"));
+    assertThat(result.trades())
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            List.of(
+                new TradeCalculation(
+                    "IE00OVER", new BigDecimal("-40000"), new BigDecimal("0.000000"), OK),
+                new TradeCalculation("IE00ATTARGET", ZERO, new BigDecimal("0.100000"), OK)));
   }
 
   @Test
@@ -1261,6 +1400,247 @@ class TradeCalculationEngineTest {
     assertThatThrownBy(() -> engine.calculate(input, SELL))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("Insufficient liquidity");
+  }
+
+  @Test
+  void buy_concentratesFreeCashIntoSingleAboveThresholdTradeInsteadOfSubThresholdSplits() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00A", new BigDecimal("315900")),
+                    new PositionSnapshot("IE00B", new BigDecimal("316100")),
+                    new PositionSnapshot("IE00C", new BigDecimal("368000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00A", new BigDecimal("0.32")),
+                    new ModelWeight("IE00B", new BigDecimal("0.32")),
+                    new ModelWeight("IE00C", new BigDecimal("0.36"))))
+            .grossPortfolioValue(new BigDecimal("1050000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("50000"))
+            .minTransactionThreshold(new BigDecimal("50000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, BUY);
+
+    assertThat(result.trades())
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            List.of(
+                new TradeCalculation(
+                    "IE00A", new BigDecimal("50000.00"), new BigDecimal("0.348476"), OK),
+                new TradeCalculation("IE00B", ZERO, new BigDecimal("0.301048"), OK),
+                new TradeCalculation("IE00C", ZERO, new BigDecimal("0.350476"), OK)));
+  }
+
+  @Test
+  void sellFast_weightsFastBucketSellsByOverweightBeforeTouchingSlowBucket() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00F1", new BigDecimal("250000")),
+                    new PositionSnapshot("IE00F2", new BigDecimal("210000")),
+                    new PositionSnapshot("IE00SLOW", new BigDecimal("240000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00F1", new BigDecimal("0.30")),
+                    new ModelWeight("IE00F2", new BigDecimal("0.30")),
+                    new ModelWeight("IE00SLOW", new BigDecimal("0.40"))))
+            .grossPortfolioValue(new BigDecimal("640000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("-60000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of("IE00F1", "IE00F2"))
+            .build();
+
+    var result = engine.calculate(input, SELL_FAST);
+
+    assertThat(result.trades())
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            List.of(
+                new TradeCalculation(
+                    "IE00F1", new BigDecimal("-45789.47"), new BigDecimal("0.319079"), OK),
+                new TradeCalculation(
+                    "IE00F2", new BigDecimal("-14210.53"), new BigDecimal("0.305921"), OK),
+                new TradeCalculation("IE00SLOW", ZERO, new BigDecimal("0.375000"), OK)));
+  }
+
+  @Test
+  void sellFast_liquidatesFastBucketFullyBeforeSpillingRemainderToSlowBucket() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00F1", new BigDecimal("250000")),
+                    new PositionSnapshot("IE00F2", new BigDecimal("210000")),
+                    new PositionSnapshot("IE00SLOW", new BigDecimal("240000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00F1", new BigDecimal("0.30")),
+                    new ModelWeight("IE00F2", new BigDecimal("0.30")),
+                    new ModelWeight("IE00SLOW", new BigDecimal("0.40"))))
+            .grossPortfolioValue(new BigDecimal("200000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("-500000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of("IE00F1", "IE00F2"))
+            .build();
+
+    var result = engine.calculate(input, SELL_FAST);
+
+    assertThat(result.trades())
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            List.of(
+                new TradeCalculation(
+                    "IE00F1", new BigDecimal("-250000"), new BigDecimal("0.000000"), OK),
+                new TradeCalculation(
+                    "IE00F2", new BigDecimal("-210000"), new BigDecimal("0.000000"), OK),
+                new TradeCalculation(
+                    "IE00SLOW", new BigDecimal("-40000"), new BigDecimal("1.000000"), OK)));
+  }
+
+  @Test
+  void sell_lastResortFullyLiquidatesTrappedSubThresholdOddLotsMostOverweightFirst() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00BIG1", new BigDecimal("300000")),
+                    new PositionSnapshot("IE00BIG2", new BigDecimal("300000")),
+                    new PositionSnapshot("IE00ODD1", new BigDecimal("40000")),
+                    new PositionSnapshot("IE00ODD2", new BigDecimal("40000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00BIG1", new BigDecimal("0.30")),
+                    new ModelWeight("IE00BIG2", new BigDecimal("0.30")),
+                    new ModelWeight("IE00ODD1", new BigDecimal("0.20")),
+                    new ModelWeight("IE00ODD2", new BigDecimal("0.20"))))
+            .grossPortfolioValue(new BigDecimal("680000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("-660000"))
+            .minTransactionThreshold(new BigDecimal("50000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, SELL);
+
+    assertThat(result.trades())
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            List.of(
+                new TradeCalculation(
+                    "IE00BIG1", new BigDecimal("-300000"), new BigDecimal("0.000000"), OK),
+                new TradeCalculation(
+                    "IE00BIG2", new BigDecimal("-300000"), new BigDecimal("0.000000"), OK),
+                new TradeCalculation(
+                    "IE00ODD1", new BigDecimal("-40000"), new BigDecimal("0.000000"), OK),
+                new TradeCalculation(
+                    "IE00ODD2", new BigDecimal("-40000"), new BigDecimal("0.000000"), OK)));
+  }
+
+  @Test
+  void sellFast_safetySpillFulfilsRedemptionTheBucketsStrandBelowMinTrade() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00FASTBIG", new BigDecimal("86000")),
+                    new PositionSnapshot("IE00FASTODD1", new BigDecimal("4000")),
+                    new PositionSnapshot("IE00FASTODD2", new BigDecimal("3000")),
+                    new PositionSnapshot("IE00SLOWODD", new BigDecimal("2000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00FASTBIG", new BigDecimal("3")),
+                    new ModelWeight("IE00FASTODD1", new BigDecimal("5")),
+                    new ModelWeight("IE00FASTODD2", new BigDecimal("4")),
+                    new ModelWeight("IE00SLOWODD", new BigDecimal("4"))))
+            .grossPortfolioValue(new BigDecimal("95000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("-4816"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of("IE00FASTBIG", "IE00FASTODD1", "IE00FASTODD2"))
+            .build();
+
+    var result = engine.calculate(input, SELL_FAST);
+
+    assertThat(result.trades())
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            List.of(
+                new TradeCalculation("IE00FASTBIG", ZERO, new BigDecimal("0.905263"), OK),
+                new TradeCalculation(
+                    "IE00FASTODD1", new BigDecimal("-4000"), new BigDecimal("0.000000"), OK),
+                new TradeCalculation("IE00FASTODD2", ZERO, new BigDecimal("0.031579"), OK),
+                new TradeCalculation(
+                    "IE00SLOWODD", new BigDecimal("-2000"), new BigDecimal("0.000000"), OK)));
+  }
+
+  @Test
+  void sell_withoutSoftLimitsSpreadsSellsAcrossOverweightFundsTowardModelRatherThanConcentrating() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00A", new BigDecimal("86151")),
+                    new PositionSnapshot("IE00B", new BigDecimal("262989")),
+                    new PositionSnapshot("IE00C", new BigDecimal("93572"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00A", ZERO),
+                    new ModelWeight("IE00B", new BigDecimal("0.50")),
+                    new ModelWeight("IE00C", new BigDecimal("0.50"))))
+            .grossPortfolioValue(new BigDecimal("442712"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("-354775"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, SELL);
+
+    assertThat(result.trades())
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            List.of(
+                new TradeCalculation(
+                    "IE00A", new BigDecimal("-86151"), new BigDecimal("0.000000"), OK),
+                new TradeCalculation(
+                    "IE00B", new BigDecimal("-201180.01"), new BigDecimal("0.139614"), OK),
+                new TradeCalculation(
+                    "IE00C", new BigDecimal("-67443.99"), new BigDecimal("0.059018"), OK)));
+
+    BigDecimal totalSold =
+        result.trades().stream().map(TradeCalculation::tradeAmount).reduce(ZERO, BigDecimal::add);
+    assertThat(totalSold).isEqualByComparingTo(new BigDecimal("-354775"));
   }
 
   @Test

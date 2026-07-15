@@ -29,7 +29,7 @@ class SebPendingTransactionComplexMatcher {
       return Optional.empty();
     }
     List<TransactionOrder> inTolerance =
-        candidates.stream().filter(o -> withinTolerance(o, row, properties)).toList();
+        candidates.stream().filter(o -> withinResidualAwareTolerance(o, row, properties)).toList();
 
     if (inTolerance.isEmpty()) {
       return Optional.empty();
@@ -56,7 +56,8 @@ class SebPendingTransactionComplexMatcher {
     if (candidates == null) {
       return false;
     }
-    return candidates.stream().anyMatch(candidate -> withinNearMiss(candidate, row, properties));
+    return candidates.stream()
+        .anyMatch(candidate -> withinResidualAwareNearMiss(candidate, row, properties));
   }
 
   Optional<QuantityAmountMismatchEvent> findNearMiss(
@@ -69,8 +70,8 @@ class SebPendingTransactionComplexMatcher {
     // a clean match would have been picked up by match() and is not a near miss.
     List<TransactionOrder> nearMissCandidates =
         candidates.stream()
-            .filter(o -> !withinTolerance(o, row, properties))
-            .filter(o -> withinNearMiss(o, row, properties))
+            .filter(o -> !withinResidualAwareTolerance(o, row, properties))
+            .filter(o -> withinResidualAwareNearMiss(o, row, properties))
             .toList();
 
     if (nearMissCandidates.size() != 1) {
@@ -100,10 +101,7 @@ class SebPendingTransactionComplexMatcher {
         .toList();
   }
 
-  // Orders with no prior execution are matched against the full order target. Orders that
-  // already have one or more executions (a split fill) are matched against the residual —
-  // the target minus what's already been executed — so a later piece can still attach.
-  private boolean withinTolerance(
+  private boolean withinResidualAwareTolerance(
       TransactionOrder order,
       SebPendingTransactionRow row,
       TransactionMatchingProperties properties) {
@@ -113,7 +111,7 @@ class SebPendingTransactionComplexMatcher {
         : quantityAmountValidator.withinResidualTolerance(order, row, executions, properties);
   }
 
-  private boolean withinNearMiss(
+  private boolean withinResidualAwareNearMiss(
       TransactionOrder order,
       SebPendingTransactionRow row,
       TransactionMatchingProperties properties) {

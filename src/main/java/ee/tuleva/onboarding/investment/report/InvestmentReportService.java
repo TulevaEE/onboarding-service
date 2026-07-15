@@ -82,6 +82,12 @@ public class InvestmentReportService {
     return repository.findTopByProviderAndReportTypeOrderByReportDateDesc(provider, reportType);
   }
 
+  public Optional<InvestmentReport> getPriorReport(
+      ReportProvider provider, ReportType reportType, LocalDate reportDate) {
+    return repository.findTopByProviderAndReportTypeAndReportDateLessThanOrderByReportDateDesc(
+        provider, reportType, reportDate);
+  }
+
   private byte[] readAllBytes(InputStream stream) {
     try {
       return stream.readAllBytes();

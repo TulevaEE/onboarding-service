@@ -36,6 +36,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SebPendingTransactionReconciliationService {
 
+  // A latest report whose row count drops by more than this fraction relative to the prior
+  // available report is treated as a possibly truncated upload: settlement-by-absence is skipped
+  // for it (present rows still reconcile normally) rather than risk mass over-settlement.
+  private static final double TRUNCATION_ROW_DROP_RATIO = 0.5;
+
   private final SebPendingTransactionExtractor extractor;
   private final SebPendingTransactionMatcher matcher;
   private final SebPendingTransactionComplexMatcher complexMatcher;
@@ -328,6 +333,9 @@ public class SebPendingTransactionReconciliationService {
       log.info("Skipping settlement detection on non-latest report: reportDate={}", reportDate);
       return;
     }
+    if (isPossibleTruncation(reportDate, rowCount)) {
+      return;
+    }
     orderRepository.findByOrderStatusIn(List.of(OrderStatus.EXECUTED)).stream()
         .filter(order -> order.getOrderVenue() == OrderVenue.SEB)
         .filter(order -> !presentOrderIds.contains(order.getId()))
@@ -342,6 +350,35 @@ public class SebPendingTransactionReconciliationService {
         .map(InvestmentReport::getReportDate)
         .map(latest -> !reportDate.isBefore(latest))
         .orElse(true);
+  }
+
+  private boolean isPossibleTruncation(LocalDate reportDate, int rowCount) {
+    Optional<InvestmentReport> priorReport =
+        reportService.getPriorReport(SEB, PENDING_TRANSACTIONS, reportDate);
+    if (priorReport.isEmpty()) {
+      log.info(
+          "Skipping truncation comparison, no prior SEB pending report found: reportDate={}",
+          reportDate);
+      return false;
+    }
+    int priorRowCount = extractor.extractWithDiagnostics(priorReport.get()).rows().size();
+    boolean truncated = rowCount < priorRowCount * (1 - TRUNCATION_ROW_DROP_RATIO);
+    if (!truncated) {
+      return false;
+    }
+    LocalDate priorReportDate = priorReport.get().getReportDate();
+    log.warn(
+        "Possible SEB pending report truncation, skipping settlement by absence: reportDate={},"
+            + " rowCount={}, priorReportDate={}, priorRowCount={}",
+        reportDate,
+        rowCount,
+        priorReportDate,
+        priorRowCount);
+    auditRecorder.recordPossibleReportTruncation(
+        reportDate, rowCount, priorReportDate, priorRowCount);
+    eventPublisher.publishEvent(
+        new PossibleReportTruncationEvent(reportDate, rowCount, priorReportDate, priorRowCount));
+    return true;
   }
 
   private boolean executedBefore(TransactionOrder order, LocalDate reportDate) {

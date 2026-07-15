@@ -227,6 +227,38 @@ class ReconciliationAuditRecorderTest {
     verify(auditEventRepository, never()).save(any());
   }
 
+  @Test
+  void recordPossibleReportTruncation_savesEventWithoutOrderAndRowCounts() {
+    newRecorder().recordPossibleReportTruncation(REPORT_DATE, 5, LocalDate.of(2026, 5, 12), 50);
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "POSSIBLE_REPORT_TRUNCATION".equals(event.getEventType())
+                        && event.getOrderId() == null
+                        && event.getBatch() == null
+                        && "2026-05-13".equals(event.getDedupKey())
+                        && REPORT_DATE.toString().equals(event.getPayload().get("reportDate"))
+                        && Integer.valueOf(5).equals(event.getPayload().get("rowCount"))
+                        && "2026-05-12".equals(event.getPayload().get("priorReportDate"))
+                        && Integer.valueOf(50).equals(event.getPayload().get("priorRowCount"))));
+  }
+
+  @Test
+  void recordPossibleReportTruncation_skipsDuplicateForSameReportDate() {
+    given(
+            auditEventRepository.findByEventTypeAndDedupKey(
+                "POSSIBLE_REPORT_TRUNCATION", "2026-05-13"))
+        .willReturn(
+            List.of(
+                TransactionAuditEvent.builder().eventType("POSSIBLE_REPORT_TRUNCATION").build()));
+
+    newRecorder().recordPossibleReportTruncation(REPORT_DATE, 5, LocalDate.of(2026, 5, 12), 50);
+
+    verify(auditEventRepository, never()).save(any());
+  }
+
   private static TransactionOrder sampleOrder() {
     return TransactionOrder.builder()
         .id(123L)

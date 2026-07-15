@@ -749,7 +749,8 @@ class SebPendingTransactionReconciliationServiceTest {
     // Absent EXECUTED order (target 100) executed before the report date, but only 60 filled so
     // far — a split order momentarily absent must not be settled while still short.
     TransactionOrder absentOrder = executedOrder(456L);
-    given(orderRepository.findByOrderStatusIn(anyCollection())).willReturn(List.of(absentOrder));
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(absentOrder));
     given(executionRepository.findAllByOrderId(456L))
         .willReturn(
             List.of(
@@ -777,7 +778,8 @@ class SebPendingTransactionReconciliationServiceTest {
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     TransactionOrder absentOrder = executedOrder(456L);
-    given(orderRepository.findByOrderStatusIn(anyCollection())).willReturn(List.of(absentOrder));
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(absentOrder));
     given(executionRepository.findAllByOrderId(456L))
         .willReturn(List.of(executionWithTradeInstant(456L, "2026-05-11T10:00:00Z")));
     given(settlementRepository.save(any()))
@@ -802,6 +804,30 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
+  void reconcile_absentExecutedOrder_usesBoundedLookbackFinder_notUnboundedScan() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder matchedOrder = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+
+    TransactionOrder absentOrder = executedOrder(456L);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(absentOrder));
+    given(executionRepository.findAllByOrderId(456L))
+        .willReturn(List.of(executionWithTradeInstant(456L, "2026-05-11T10:00:00Z")));
+    given(settlementRepository.save(any()))
+        .willAnswer(invocation -> invocation.getArgument(0, TransactionSettlement.class));
+
+    service.reconcile(reportWithSingleRow(clientRef));
+
+    verify(settlementRepository)
+        .save(argThat((TransactionSettlement settlement) -> settlement.getOrderId().equals(456L)));
+    assertThat(absentOrder.getOrderStatus()).isEqualTo(SETTLED);
+    verify(orderRepository, never()).findByOrderStatusIn(anyCollection());
+  }
+
+  @Test
   void reconcile_zeroMatchesOnNonEmptyReport_skipsSettlementDetection() {
     service = newService();
     UUID clientRef = UUID.fromString("00000000-0000-0000-0000-000000000099");
@@ -810,7 +836,8 @@ class SebPendingTransactionReconciliationServiceTest {
 
     service.reconcile(reportWithSingleRow(clientRef));
 
-    verify(orderRepository, never()).findByOrderStatusIn(anyCollection());
+    verify(orderRepository, never())
+        .findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
     verify(settlementRepository, never()).save(any());
   }
 
@@ -827,7 +854,8 @@ class SebPendingTransactionReconciliationServiceTest {
 
     service.reconcile(report);
 
-    verify(orderRepository, never()).findByOrderStatusIn(anyCollection());
+    verify(orderRepository, never())
+        .findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
     verify(settlementRepository, never()).save(any());
   }
 
@@ -882,7 +910,8 @@ class SebPendingTransactionReconciliationServiceTest {
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     TransactionOrder absentOrder = executedOrder(456L);
-    given(orderRepository.findByOrderStatusIn(anyCollection())).willReturn(List.of(absentOrder));
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(absentOrder));
     given(executionRepository.findAllByOrderId(456L)).willReturn(List.of());
 
     service.reconcile(reportWithSingleRow(clientRef));
@@ -900,7 +929,8 @@ class SebPendingTransactionReconciliationServiceTest {
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     TransactionOrder absentOrder = executedOrder(456L);
-    given(orderRepository.findByOrderStatusIn(anyCollection())).willReturn(List.of(absentOrder));
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(absentOrder));
     given(executionRepository.findAllByOrderId(456L))
         .willReturn(List.of(executionWithTradeInstant(456L, "2026-05-13T10:00:00Z")));
 
@@ -926,7 +956,7 @@ class SebPendingTransactionReconciliationServiceTest {
         .willReturn(List.of(executionWithTradeInstant(456L, "2026-05-11T10:00:00Z")));
 
     TransactionOrder presentByOurRef = executedOrder(456L);
-    given(orderRepository.findByOrderStatusIn(anyCollection()))
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
         .willReturn(List.of(presentByOurRef));
 
     Map<String, Object> secondRow = validRawRow(secondClientRef);
@@ -962,7 +992,8 @@ class SebPendingTransactionReconciliationServiceTest {
     service.reconcile(reportWithSingleRow(clientRef));
 
     // Truncation guard trips before candidate orders are even looked up.
-    verify(orderRepository, never()).findByOrderStatusIn(anyCollection());
+    verify(orderRepository, never())
+        .findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
     verify(settlementRepository, never()).save(any());
     verify(eventPublisher)
         .publishEvent(
@@ -995,7 +1026,8 @@ class SebPendingTransactionReconciliationServiceTest {
     given(orderRepository.findByInstrumentIsin(any())).willReturn(List.of());
 
     TransactionOrder absentOrder = executedOrder(456L);
-    given(orderRepository.findByOrderStatusIn(anyCollection())).willReturn(List.of(absentOrder));
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(absentOrder));
     given(executionRepository.findAllByOrderId(456L))
         .willReturn(List.of(executionWithTradeInstant(456L, "2026-05-11T10:00:00Z")));
     given(settlementRepository.save(any()))
@@ -1022,7 +1054,8 @@ class SebPendingTransactionReconciliationServiceTest {
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     TransactionOrder absentOrder = executedOrder(456L);
-    given(orderRepository.findByOrderStatusIn(anyCollection())).willReturn(List.of(absentOrder));
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(absentOrder));
     given(executionRepository.findAllByOrderId(456L))
         .willReturn(List.of(executionWithTradeInstant(456L, "2026-05-11T10:00:00Z")));
     given(settlementRepository.save(any()))
@@ -1056,7 +1089,8 @@ class SebPendingTransactionReconciliationServiceTest {
 
     service.reconcile(reportWithSingleRow(clientRef)); // reportDate 2026-05-13
 
-    verify(orderRepository, never()).findByOrderStatusIn(anyCollection());
+    verify(orderRepository, never())
+        .findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
     verify(settlementRepository, never()).save(any());
   }
 
@@ -1084,7 +1118,8 @@ class SebPendingTransactionReconciliationServiceTest {
 
     service.reconcile(report);
 
-    verify(orderRepository, never()).findByOrderStatusIn(anyCollection());
+    verify(orderRepository, never())
+        .findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
     verify(settlementRepository, never()).save(any());
   }
 

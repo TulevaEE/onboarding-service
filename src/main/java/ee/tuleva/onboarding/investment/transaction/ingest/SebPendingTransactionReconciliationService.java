@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,6 +58,9 @@ public class SebPendingTransactionReconciliationService {
   private final TransactionSettlementRepository settlementRepository;
   private final TransactionSettlementService settlementService;
   private final InvestmentReportService reportService;
+
+  @Value("${transaction-registry.settlement-check.scan-lookback-days:60}")
+  private int scanLookbackDays = 60;
 
   @Transactional
   public void reconcile(InvestmentReport report) {
@@ -335,7 +339,10 @@ public class SebPendingTransactionReconciliationService {
     if (isPossibleTruncation(reportDate, rowCount)) {
       return;
     }
-    orderRepository.findByOrderStatusIn(List.of(OrderStatus.EXECUTED)).stream()
+    Instant since = reportDate.minusDays(scanLookbackDays).atStartOfDay(ZoneOffset.UTC).toInstant();
+    orderRepository
+        .findByOrderStatusInAndOrderTimestampSince(List.of(OrderStatus.EXECUTED), since)
+        .stream()
         .filter(order -> order.getOrderVenue() == OrderVenue.SEB)
         .filter(order -> !presentOrderIds.contains(order.getId()))
         .filter(order -> !settlementRepository.existsByOrderId(order.getId()))

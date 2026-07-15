@@ -644,6 +644,48 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
+  void reconcile_matchedRowWithMissingIsin_isQuarantinedAndRunContinues() {
+    service = newService();
+    UUID clientRefA = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder orderA = sampleOrder(clientRefA);
+    given(orderRepository.findByOrderUuid(clientRefA)).willReturn(Optional.of(orderA));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+
+    UUID clientRefB = UUID.fromString("00000000-0000-0000-0000-000000000042");
+    TransactionOrder orderB =
+        TransactionOrder.builder()
+            .id(124L)
+            .fund(TKF100)
+            .instrumentIsin("IE000F60HVH9")
+            .transactionType(BUY)
+            .instrumentType(ETF)
+            .orderVenue(OrderVenue.SEB)
+            .orderUuid(clientRefB)
+            .orderStatus(SENT)
+            .build();
+    given(orderRepository.findByOrderUuid(clientRefB)).willReturn(Optional.of(orderB));
+
+    Map<String, Object> rowB = validRawRow(clientRefB);
+    rowB.put("Our ref", "DLA0888888");
+    rowB.remove("ISIN");
+
+    InvestmentReport report =
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(PENDING_TRANSACTIONS)
+            .reportDate(LocalDate.of(2026, 5, 13))
+            .rawData(List.of(validRawRow(clientRefA), rowB))
+            .build();
+
+    service.reconcile(report);
+
+    assertThat(orderA.getOrderStatus()).isEqualTo(EXECUTED);
+    verify(executionRepository)
+        .save(argThat((TransactionExecution e) -> e.getOrderId().equals(123L)));
+    assertThat(orderB.getOrderStatus()).isEqualTo(SENT);
+  }
+
+  @Test
   void reconcile_matchedRowWithoutOurRef_isQuarantinedNotExecuted() {
     service = newService();
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");

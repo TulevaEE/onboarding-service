@@ -1003,6 +1003,42 @@ class TransactionInputServiceTest {
   }
 
   @Test
+  void gatherInput_r16BufferedPhase_rejectsZeroRoundingStep() {
+    stubEmptyBaseline(TUV100);
+    var flow = r16Flow(TUV100, new BigDecimal("10500"));
+    given(r16FlowCalculationService.calculateFlows(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(flow));
+    given(r16PhaseCalculator.phaseFor(flow, AS_OF_DATE)).willReturn(R16Phase.BUFFERED);
+    given(investmentParameterRepository.findLatestValue(R16_BUFFER_PERCENT, AS_OF_DATE))
+        .willReturn(new BigDecimal("0.02"));
+    given(investmentParameterRepository.findLatestValue(R16_ROUNDING_STEP, AS_OF_DATE))
+        .willReturn(ZERO);
+
+    assertThatThrownBy(() -> service.gatherInput(TUV100, AS_OF_DATE, Map.of()))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("R16_ROUNDING_STEP")
+        .hasMessageContaining("value=0");
+  }
+
+  @Test
+  void gatherInput_r16BufferedPhase_rejectsNegativeRoundingStep() {
+    stubEmptyBaseline(TUV100);
+    var flow = r16Flow(TUV100, new BigDecimal("10500"));
+    given(r16FlowCalculationService.calculateFlows(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(flow));
+    given(r16PhaseCalculator.phaseFor(flow, AS_OF_DATE)).willReturn(R16Phase.BUFFERED);
+    given(investmentParameterRepository.findLatestValue(R16_BUFFER_PERCENT, AS_OF_DATE))
+        .willReturn(new BigDecimal("0.02"));
+    given(investmentParameterRepository.findLatestValue(R16_ROUNDING_STEP, AS_OF_DATE))
+        .willReturn(new BigDecimal("-1000"));
+
+    assertThatThrownBy(() -> service.gatherInput(TUV100, AS_OF_DATE, Map.of()))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("R16_ROUNDING_STEP")
+        .hasMessageContaining("value=-1000");
+  }
+
+  @Test
   void gatherInput_r16VisiblePhase_addsNothing() {
     stubEmptyBaseline(TUV100);
     var flow = r16Flow(TUV100, new BigDecimal("10500"));

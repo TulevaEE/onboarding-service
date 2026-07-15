@@ -17,6 +17,7 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -36,6 +37,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @Service
 @RequiredArgsConstructor
 public class TransactionPreparationService {
+
+  private static final int STALE_PRICE_THRESHOLD_DAYS = 3;
 
   private final TransactionInputService inputService;
   private final TradeCalculationEngine calculationEngine;
@@ -245,6 +248,9 @@ public class TransactionPreparationService {
                       ? TransactionType.BUY
                       : TransactionType.SELL;
               var orderAmount = trade.tradeAmount().abs();
+              var orderQuantity =
+                  resolveOrderQuantity(
+                      instrumentType, transactionType, trade.isin(), orderAmount, asOfDate);
               return TransactionOrder.builder()
                   .batch(batch)
                   .fund(result.fund())
@@ -252,9 +258,8 @@ public class TransactionPreparationService {
                   .transactionType(transactionType)
                   .instrumentType(instrumentType)
                   .orderAmount(orderAmount)
-                  .orderQuantity(
-                      calculateOrderQuantity(
-                          instrumentType, transactionType, trade.isin(), orderAmount, asOfDate))
+                  .orderQuantity(orderQuantity.quantity())
+                  .comment(orderQuantity.stalePriceComment())
                   .orderVenue(input.orderVenues().getOrDefault(trade.isin(), OrderVenue.SEB))
                   .createdAt(createdAt)
                   .build();
@@ -262,25 +267,26 @@ public class TransactionPreparationService {
         .toList();
   }
 
-  @Nullable
-  private BigDecimal calculateOrderQuantity(
+  private record OrderQuantity(@Nullable BigDecimal quantity, @Nullable String stalePriceComment) {}
+
+  private OrderQuantity resolveOrderQuantity(
       InstrumentType instrumentType,
       TransactionType transactionType,
       String isin,
       BigDecimal orderAmount,
       LocalDate asOfDate) {
     if (isAmountBasedOrder(instrumentType, transactionType)) {
-      return null;
+      return new OrderQuantity(null, null);
     }
-    BigDecimal price =
-        positionPriceResolver.resolve(isin, asOfDate).map(ResolvedPrice::usedPrice).orElse(null);
+    ResolvedPrice resolvedPrice = positionPriceResolver.resolve(isin, asOfDate).orElse(null);
+    BigDecimal price = resolvedPrice == null ? null : resolvedPrice.usedPrice();
     if (price == null) {
       log.warn(
           "No price found for order quantity: isin={}, instrumentType={}, asOfDate={}",
           isin,
           instrumentType,
           asOfDate);
-      return null;
+      return new OrderQuantity(null, null);
     }
     if (price.signum() <= 0) {
       log.warn(
@@ -290,9 +296,32 @@ public class TransactionPreparationService {
           instrumentType,
           price.toPlainString(),
           asOfDate);
+      return new OrderQuantity(null, null);
+    }
+    BigDecimal quantity = orderAmount.divide(price, 6, RoundingMode.HALF_UP);
+    String stalePriceComment = describeIfStale(isin, resolvedPrice, asOfDate);
+    return new OrderQuantity(quantity, stalePriceComment);
+  }
+
+  @Nullable
+  private String describeIfStale(String isin, ResolvedPrice resolvedPrice, LocalDate asOfDate) {
+    LocalDate priceDate = resolvedPrice.priceDate();
+    if (priceDate == null) {
       return null;
     }
-    return orderAmount.divide(price, 6, RoundingMode.HALF_UP);
+    long ageDays = ChronoUnit.DAYS.between(priceDate, asOfDate);
+    if (ageDays <= STALE_PRICE_THRESHOLD_DAYS) {
+      return null;
+    }
+    log.warn(
+        "Order sized on stale price: isin={}, priceDate={}, ageDays={}, source={}, asOfDate={}",
+        isin,
+        priceDate,
+        ageDays,
+        resolvedPrice.priceSource(),
+        asOfDate);
+    return "Sized on stale price: priceDate=%s, ageDays=%d, source=%s"
+        .formatted(priceDate, ageDays, resolvedPrice.priceSource());
   }
 
   private boolean isAmountBasedOrder(

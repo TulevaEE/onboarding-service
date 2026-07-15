@@ -29,7 +29,7 @@ public class R16ReportParser {
     EpisCsv parsed = csvParser.parse(csv, HEADER_MARKER);
     YearMonth paymentMonth = findPaymentMonth(parsed.preHeaderLines());
 
-    Map<String, R16ParsedFlow> results = new LinkedHashMap<>();
+    Map<String, UnitAccumulator> accumulators = new LinkedHashMap<>();
     for (Map<String, String> row : parsed.rows()) {
       Optional<TulevaFund> fund = FundResolver.resolve(findValue(row, "väärtpaber", "vaartpaber"));
       if (fund.isEmpty()) {
@@ -41,10 +41,23 @@ public class R16ReportParser {
           unitsOrZero(row, "ühekordsed maksed osakud", "uhekordsed maksed osakud");
       validateMagnitude(fondimaksedUnits, uhekordsedUnits);
 
-      results.put(
-          fund.get().getCode(),
-          new R16ParsedFlow(fund.get(), fondimaksedUnits, uhekordsedUnits, paymentMonth));
+      UnitAccumulator accumulator =
+          accumulators.computeIfAbsent(
+              fund.get().getCode(), code -> new UnitAccumulator(fund.get()));
+      accumulator.fondimaksedUnits = accumulator.fondimaksedUnits.add(fondimaksedUnits);
+      accumulator.uhekordsedUnits = accumulator.uhekordsedUnits.add(uhekordsedUnits);
     }
+
+    Map<String, R16ParsedFlow> results = new LinkedHashMap<>();
+    accumulators.forEach(
+        (fundCode, accumulator) ->
+            results.put(
+                fundCode,
+                new R16ParsedFlow(
+                    accumulator.fund,
+                    accumulator.fondimaksedUnits,
+                    accumulator.uhekordsedUnits,
+                    paymentMonth)));
     return results;
   }
 
@@ -72,5 +85,15 @@ public class R16ReportParser {
   private static BigDecimal unitsOrZero(Map<String, String> row, String... keywords) {
     BigDecimal units = parseNumber(findValue(row, keywords));
     return units == null ? BigDecimal.ZERO : units.abs();
+  }
+
+  private static final class UnitAccumulator {
+    private final TulevaFund fund;
+    private BigDecimal fondimaksedUnits = BigDecimal.ZERO;
+    private BigDecimal uhekordsedUnits = BigDecimal.ZERO;
+
+    private UnitAccumulator(TulevaFund fund) {
+      this.fund = fund;
+    }
   }
 }

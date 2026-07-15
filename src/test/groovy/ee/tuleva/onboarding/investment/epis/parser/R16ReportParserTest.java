@@ -101,6 +101,22 @@ class R16ReportParserTest {
   }
 
   @Test
+  void accumulatesUnitsAcrossMultipleRowsForSameFund() {
+    String csv =
+        """
+        Fondivalitseja: Tuleva Fondid AS;;;;;;
+        Kuu: 2026 06;;;;;;
+        Väärtpaber;Jooksev NAV;Fondimaksed Osakud;Fondimaksed Summa;Ühekordsed maksed Osakud;Ühekordsed maksed Summa;Valuuta
+        EE3600109435;0,80;100,000;80,00;0;0;EUR
+        EE3600109435;0,80;50,000;40,00;0;0;EUR
+        """;
+
+    Map<String, R16ParsedFlow> result = parser.parse(csv);
+
+    assertThat(result.get("TUK75").fondimaksedUnits()).isEqualByComparingTo("150.000");
+  }
+
+  @Test
   void throwsWhenUnitsExceedHundredMillion() {
     String csv =
         """

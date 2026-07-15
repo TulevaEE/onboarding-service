@@ -3,12 +3,17 @@ package ee.tuleva.onboarding.investment.epis.parser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import ee.tuleva.onboarding.investment.epis.R45Result;
 import ee.tuleva.onboarding.investment.epis.R45TransactionType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 class R45ReportParserTest {
 
@@ -140,6 +145,31 @@ class R45ReportParserTest {
     R45ParseResult result = parser.parse(csv, TODAY, Map.of());
 
     assertResult(result.fundResults().get("TUK75"), "1500.00", "0", "1500.00");
+  }
+
+  @Test
+  void warnsWhenRowHasResolvableTypeCodeButBlankIsin() {
+    String csv =
+        """
+        Tehtud: 12.06.2026;;;;;
+        Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
+        SUB;;0,80000;0;1500,00;15.06.2026
+        """;
+
+    var logAppender = new ListAppender<ILoggingEvent>();
+    var logger = (Logger) LoggerFactory.getLogger(R45ReportParser.class);
+    logAppender.start();
+    logger.addAppender(logAppender);
+
+    R45ParseResult result = parser.parse(csv, TODAY, Map.of());
+
+    logger.detachAppender(logAppender);
+
+    assertThat(result.fundResults()).isEmpty();
+    assertThat(logAppender.list)
+        .filteredOn(event -> event.getLevel() == Level.WARN)
+        .anyMatch(event -> event.getFormattedMessage().contains("reason=missingIsin"))
+        .anyMatch(event -> event.getFormattedMessage().contains("typeCode=SUB"));
   }
 
   @Test

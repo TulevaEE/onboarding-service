@@ -16,6 +16,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willAnswer;
+import static org.mockito.BDDMockito.willThrow;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
@@ -33,6 +34,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
@@ -283,6 +285,21 @@ class TransactionAdminServiceTest {
         .isInstanceOf(ResponseStatusException.class)
         .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
         .isEqualTo(404);
+  }
+
+  @Test
+  void confirmAndFinalize_concurrentlyModifiedBatch_throwsConflictAndNeverFinalizes() {
+    TransactionBatch batch = batch(10L, AWAITING_CONFIRMATION);
+    given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
+    willThrow(new ObjectOptimisticLockingFailureException(TransactionBatch.class, 10L))
+        .given(batchRepository)
+        .saveAndFlush(batch);
+
+    assertThatThrownBy(() -> service.confirmAndFinalize(10L, "admin"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(409);
+    then(preparationService).should(never()).finalizeConfirmedBatch(any());
   }
 
   @Test

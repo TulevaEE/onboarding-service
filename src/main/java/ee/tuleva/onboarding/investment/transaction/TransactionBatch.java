@@ -13,6 +13,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.Map;
@@ -62,6 +63,8 @@ public class TransactionBatch {
   private String cancelledBy;
 
   private Instant cancelledAt;
+
+  @Version private Long version;
 
   @PrePersist
   protected void onCreate() {

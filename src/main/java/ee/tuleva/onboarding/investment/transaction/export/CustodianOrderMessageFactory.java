@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -27,20 +28,34 @@ class CustodianOrderMessageFactory {
 
   private static final DateTimeFormatter TIMESTAMP =
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH_mm_ss").withZone(ZoneOffset.UTC);
+  private static final DateTimeFormatter UUID_WORKBOOK_TIMESTAMP =
+      DateTimeFormatter.ofPattern("yyyyMMdd_HHmm").withZone(ZoneOffset.UTC);
   private static final DateTimeFormatter SUBJECT_DATE =
       DateTimeFormatter.ofPattern("dd.MM.yyyy").withZone(ZoneOffset.UTC);
 
-  private static final Map<String, String> FILE_NAME_PATTERNS =
+  private static final Map<String, BiFunction<TulevaFund, Instant, String>> FILE_NAME_GENERATORS =
       Map.of(
-          "sebFundXlsx", "SEB_%s_indeksfondid_%s.csv",
-          "sebEtfXlsx", "SEB_%s_ETF_tehingud_%s.xlsx",
-          "ftEtfXlsx", "FT_%s_ETF_orders_%s.xlsx");
+          "sebFundXlsx",
+              (fund, timestamp) ->
+                  "SEB_%s_indeksfondid_%s.csv"
+                      .formatted(fund.getCode(), TIMESTAMP.format(timestamp)),
+          "sebEtfXlsx",
+              (fund, timestamp) ->
+                  "SEB_%s_ETF_tehingud_%s.xlsx"
+                      .formatted(fund.getCode(), TIMESTAMP.format(timestamp)),
+          "ftEtfXlsx",
+              (fund, timestamp) ->
+                  "FT_%s_ETF_orders_%s.xlsx".formatted(fund.getCode(), TIMESTAMP.format(timestamp)),
+          "uuidWorkbookXlsx",
+              (fund, timestamp) ->
+                  "Tehingud_UUID_%s.xlsx".formatted(UUID_WORKBOOK_TIMESTAMP.format(timestamp)));
 
   private static final Map<String, String> MIME_TYPES =
       Map.of(
           "sebFundXlsx", CSV_MIME_TYPE,
           "sebEtfXlsx", XLSX_MIME_TYPE,
-          "ftEtfXlsx", XLSX_MIME_TYPE);
+          "ftEtfXlsx", XLSX_MIME_TYPE,
+          "uuidWorkbookXlsx", XLSX_MIME_TYPE);
 
   private final CustodianOrderEmailProperties properties;
 
@@ -83,14 +98,13 @@ class CustodianOrderMessageFactory {
 
   private List<MessageContent> buildAttachments(
       TulevaFund fund, Instant timestamp, Map<String, byte[]> exports) {
-    var fileTimestamp = TIMESTAMP.format(timestamp);
     List<MessageContent> attachments = new ArrayList<>();
-    FILE_NAME_PATTERNS.forEach(
-        (exportKey, namePattern) -> {
+    FILE_NAME_GENERATORS.forEach(
+        (exportKey, fileNameGenerator) -> {
           var content = exports.get(exportKey);
           if (content != null && content.length > 0) {
             var attachment = new MessageContent();
-            attachment.setName(namePattern.formatted(fund.getCode(), fileTimestamp));
+            attachment.setName(fileNameGenerator.apply(fund, timestamp));
             attachment.setType(MIME_TYPES.get(exportKey));
             attachment.setContent(Base64.getEncoder().encodeToString(content));
             attachments.add(attachment);

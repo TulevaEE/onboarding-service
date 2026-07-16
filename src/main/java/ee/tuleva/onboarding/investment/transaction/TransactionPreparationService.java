@@ -164,13 +164,16 @@ public class TransactionPreparationService {
     byte[] xlsxExport = exportService.generateOrdersExport(orders);
     byte[] sebFundXlsx = exportService.generateSebFundExport(orders, labelsByIsin);
     byte[] sebEtfXlsx = exportService.generateSebEtfExport(orders, ricByIsin);
-    byte[] ftEtfXlsx = exportService.generateFtEtfExport(orders, labelsByIsin, bbgByIsin);
+    byte[] ftEtfXlsx =
+        exportService.generateFtEtfExport(orders, labelsByIsin, bbgByIsin, tradeDate);
+    byte[] uuidWorkbookXlsx = exportService.generateUuidWorkbook(orders);
 
     Map<String, Object> updatedMetadata = new HashMap<>(batch.getMetadata());
     updatedMetadata.put("xlsxExport", encodeExport(xlsxExport));
     updatedMetadata.put("sebFundXlsx", encodeExport(sebFundXlsx));
     updatedMetadata.put("sebEtfXlsx", encodeExport(sebEtfXlsx));
     updatedMetadata.put("ftEtfXlsx", encodeExport(ftEtfXlsx));
+    updatedMetadata.put("uuidWorkbookXlsx", encodeExport(uuidWorkbookXlsx));
     batch.setMetadata(updatedMetadata);
 
     batch.setStatus(BatchStatus.SENT);
@@ -188,7 +191,14 @@ public class TransactionPreparationService {
     runAfterCommit(
         () ->
             publishExportsToDrive(
-                batch, now, tradeDate, orders.size(), sebFundXlsx, sebEtfXlsx, ftEtfXlsx));
+                batch,
+                now,
+                tradeDate,
+                orders.size(),
+                sebFundXlsx,
+                sebEtfXlsx,
+                ftEtfXlsx,
+                uuidWorkbookXlsx));
 
     log.info("Batch finalized: id={}, orderCount={}", batch.getId(), orders.size());
   }
@@ -200,9 +210,14 @@ public class TransactionPreparationService {
       int orderCount,
       byte[] sebFundXlsx,
       byte[] sebEtfXlsx,
-      byte[] ftEtfXlsx) {
+      byte[] ftEtfXlsx,
+      byte[] uuidWorkbookXlsx) {
     var exports =
-        Map.of("sebFundXlsx", sebFundXlsx, "sebEtfXlsx", sebEtfXlsx, "ftEtfXlsx", ftEtfXlsx);
+        Map.of(
+            "sebFundXlsx", sebFundXlsx,
+            "sebEtfXlsx", sebEtfXlsx,
+            "ftEtfXlsx", ftEtfXlsx,
+            "uuidWorkbookXlsx", uuidWorkbookXlsx);
     Map<String, String> driveFileUrls = uploadExportsToDrive(batch, timestamp, exports);
     if (!driveFileUrls.isEmpty()) {
       persistDriveFileUrls(batch, driveFileUrls);

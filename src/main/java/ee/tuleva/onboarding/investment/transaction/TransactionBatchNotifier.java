@@ -19,7 +19,8 @@ class TransactionBatchNotifier {
       Map.of(
           "sebFundXlsx", "SEB indeksfondid",
           "sebEtfXlsx", "SEB ETF",
-          "ftEtfXlsx", "FT ETF");
+          "ftEtfXlsx", "FT ETF",
+          "uuidWorkbookXlsx", "UUID workbook");
 
   private final OperationsNotificationService notificationService;
 

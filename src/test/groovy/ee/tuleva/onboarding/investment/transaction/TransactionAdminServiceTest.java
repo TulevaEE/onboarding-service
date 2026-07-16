@@ -391,6 +391,16 @@ class TransactionAdminServiceTest {
   }
 
   @Test
+  void exportFile_decodesStoredUuidWorkbookExport() {
+    byte[] xlsx = {4, 5, 6};
+    TransactionBatch batch = batch(10L, BatchStatus.SENT);
+    batch.setMetadata(Map.of("uuidWorkbookXlsx", Base64.getEncoder().encodeToString(xlsx)));
+    given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
+
+    assertThat(service.exportFile(10L, "uuidWorkbookXlsx")).contains(xlsx);
+  }
+
+  @Test
   void exportFile_missingExport_returnsEmpty() {
     given(batchRepository.findById(10L)).willReturn(Optional.of(batch(10L, BatchStatus.SENT)));
 

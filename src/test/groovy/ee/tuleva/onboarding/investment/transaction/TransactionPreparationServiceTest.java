@@ -329,7 +329,9 @@ class TransactionPreparationServiceTest {
     when(exportService.generateOrdersExport(any())).thenReturn(new byte[] {1, 2, 3});
     when(exportService.generateSebFundExport(any(), any())).thenReturn(new byte[] {4, 5});
     when(exportService.generateSebEtfExport(any(), any())).thenReturn(new byte[] {6, 7});
-    when(exportService.generateFtEtfExport(any(), any(), any())).thenReturn(new byte[] {8, 9});
+    when(exportService.generateFtEtfExport(any(), any(), any(), any()))
+        .thenReturn(new byte[] {8, 9});
+    when(exportService.generateUuidWorkbook(any())).thenReturn(new byte[] {10, 11});
 
     service.finalizeConfirmedBatch(batch);
 
@@ -341,10 +343,12 @@ class TransactionPreparationServiceTest {
     assertThat(batch.getMetadata()).containsKey("sebFundXlsx");
     assertThat(batch.getMetadata()).containsKey("sebEtfXlsx");
     assertThat(batch.getMetadata()).containsKey("ftEtfXlsx");
+    assertThat(batch.getMetadata()).containsKey("uuidWorkbookXlsx");
 
     verify(exportService).generateSebFundExport(eq(List.of(order)), any());
     verify(exportService).generateSebEtfExport(eq(List.of(order)), any());
-    verify(exportService).generateFtEtfExport(eq(List.of(order)), any(), any());
+    verify(exportService).generateFtEtfExport(eq(List.of(order)), any(), any(), any());
+    verify(exportService).generateUuidWorkbook(eq(List.of(order)));
     verify(orderRepository).saveAll(List.of(order));
     verify(batchRepository).save(batch);
     verify(auditEventRepository).save(any(TransactionAuditEvent.class));
@@ -948,7 +952,8 @@ class TransactionPreparationServiceTest {
     when(exportService.generateOrdersExport(any())).thenReturn(new byte[] {1});
     when(exportService.generateSebFundExport(any(), any())).thenReturn(new byte[] {2});
     when(exportService.generateSebEtfExport(any(), any())).thenReturn(new byte[] {3});
-    when(exportService.generateFtEtfExport(any(), any(), any())).thenReturn(new byte[] {4});
+    when(exportService.generateFtEtfExport(any(), any(), any(), any())).thenReturn(new byte[] {4});
+    when(exportService.generateUuidWorkbook(any())).thenReturn(new byte[] {5});
     when(driveProperties.enabled()).thenReturn(true);
     when(driveProperties.rootFolderId()).thenReturn("root-folder-id");
     when(exportUploader.uploadExports(any(), any(), any(), any()))
@@ -997,7 +1002,8 @@ class TransactionPreparationServiceTest {
     given(exportService.generateOrdersExport(any())).willReturn(new byte[] {1});
     given(exportService.generateSebFundExport(any(), any())).willReturn(new byte[] {2});
     given(exportService.generateSebEtfExport(any(), any())).willReturn(new byte[] {3});
-    given(exportService.generateFtEtfExport(any(), any(), any())).willReturn(new byte[] {4});
+    given(exportService.generateFtEtfExport(any(), any(), any(), any())).willReturn(new byte[] {4});
+    given(exportService.generateUuidWorkbook(any())).willReturn(new byte[] {5});
     given(driveProperties.enabled()).willReturn(true);
     given(driveProperties.rootFolderId()).willReturn("root-folder-id");
     given(exportUploader.uploadExports(any(), any(), any(), any()))

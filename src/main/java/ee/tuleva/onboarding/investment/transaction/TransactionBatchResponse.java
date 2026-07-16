@@ -20,7 +20,7 @@ public record TransactionBatchResponse(
     List<TransactionOrderResponse> orders) {
 
   static final Set<String> EXPORT_TYPES =
-      Set.of("xlsxExport", "sebFundXlsx", "sebEtfXlsx", "ftEtfXlsx");
+      Set.of("xlsxExport", "sebFundXlsx", "sebEtfXlsx", "ftEtfXlsx", "uuidWorkbookXlsx");
 
   static TransactionBatchResponse from(TransactionBatch batch, List<TransactionOrder> orders) {
     Map<String, Object> metadata = batch.getMetadata();

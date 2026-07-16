@@ -15,11 +15,13 @@ import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -64,12 +66,24 @@ public class TransactionExportService {
     "Type"
   };
 
+  private static final String[] UUID_WORKBOOK_HEADERS = {
+    "Client name",
+    "instrument_isin",
+    "transaction_type",
+    "order_quantity",
+    "order_amount",
+    "order_id",
+    "order_venue"
+  };
+
   private static final String[] FT_ETF_HEADERS = {
-    "ETF Name",
-    "BBG",
-    "ISIN",
-    "Type",
+    "Symbol",
+    "Side",
     "QTY",
+    "TD",
+    "SD",
+    "ETF Name",
+    "ISIN",
     "Approximate total size in EUR (for control purposes)",
     "TULEVA ADDITIONAL INVESTMENT FUND",
     "TULEVA MAAILMA AKTSIATE PENSIONIFOND",
@@ -175,42 +189,47 @@ public class TransactionExportService {
   public byte[] generateFtEtfExport(
       List<TransactionOrder> orders,
       Map<String, String> labelsByIsin,
-      Map<String, String> bbgByIsin) {
+      Map<String, String> bbgByIsin,
+      LocalDate tradeDate) {
     List<TransactionOrder> ftOrders =
         orders.stream().filter(order -> order.getOrderVenue() == OrderVenue.FT).toList();
 
     Map<String, AggregatedFtOrder> aggregated = aggregateFtOrders(ftOrders);
+    double tradeDateSerial = DateUtil.getExcelDate(tradeDate);
 
     try (Workbook workbook = new XSSFWorkbook()) {
       Sheet sheet = workbook.createSheet("FT ETF");
 
-      createRow(sheet, 0, "FT");
-      createRow(sheet, 1, FT_ETF_HEADERS);
+      createRow(sheet, 0, FT_ETF_HEADERS);
 
-      int rowIndex = 2;
+      int rowIndex = 1;
       BigDecimal grandTotal = ZERO;
 
       for (var entry : aggregated.entrySet()) {
         var aggregation = entry.getValue();
         Row row = sheet.createRow(rowIndex++);
-        row.createCell(0).setCellValue(labelsByIsin.getOrDefault(aggregation.isin, ""));
-        row.createCell(1).setCellValue(bbgByIsin.getOrDefault(aggregation.isin, ""));
-        row.createCell(2).setCellValue(aggregation.isin);
-        row.createCell(3).setCellValue(aggregation.transactionType.name());
-        row.createCell(4).setCellValue(aggregation.totalQuantity.doubleValue());
-        row.createCell(5).setCellValue(aggregation.totalAmount.doubleValue());
-        row.createCell(6)
-            .setCellValue(aggregation.quantityByFund.getOrDefault(TKF100, ZERO).doubleValue());
-        row.createCell(7)
-            .setCellValue(aggregation.quantityByFund.getOrDefault(TUK75, ZERO).doubleValue());
+        row.createCell(0).setCellValue(bbgByIsin.getOrDefault(aggregation.isin, ""));
+        row.createCell(1).setCellValue(aggregation.transactionType.name());
+        row.createCell(2).setCellValue(aggregation.totalQuantity.doubleValue());
+        row.createCell(3).setCellValue(tradeDateSerial);
+        if (aggregation.settlementDate != null) {
+          row.createCell(4).setCellValue(DateUtil.getExcelDate(aggregation.settlementDate));
+        }
+        row.createCell(5).setCellValue(labelsByIsin.getOrDefault(aggregation.isin, ""));
+        row.createCell(6).setCellValue(aggregation.isin);
+        row.createCell(7).setCellValue(aggregation.totalAmount.doubleValue());
         row.createCell(8)
+            .setCellValue(aggregation.quantityByFund.getOrDefault(TKF100, ZERO).doubleValue());
+        row.createCell(9)
+            .setCellValue(aggregation.quantityByFund.getOrDefault(TUK75, ZERO).doubleValue());
+        row.createCell(10)
             .setCellValue(aggregation.quantityByFund.getOrDefault(TUV100, ZERO).doubleValue());
         grandTotal = grandTotal.add(aggregation.totalAmount);
       }
 
       Row totalRow = sheet.createRow(rowIndex);
       totalRow.createCell(0).setCellValue("Approximate total order size:");
-      totalRow.createCell(5).setCellValue(grandTotal.doubleValue());
+      totalRow.createCell(7).setCellValue(grandTotal.doubleValue());
 
       autoSizeColumns(sheet, FT_ETF_HEADERS.length);
       return toByteArray(workbook);
@@ -232,6 +251,43 @@ public class TransactionExportService {
     }
 
     return aggregated;
+  }
+
+  public byte[] generateUuidWorkbook(List<TransactionOrder> orders) {
+    List<TransactionOrder> uuidWorkbookOrders =
+        orders.stream()
+            .filter(
+                order ->
+                    order.getOrderVenue() == OrderVenue.FT
+                        || (order.getOrderVenue() == SEB && order.getInstrumentType() == ETF))
+            .toList();
+
+    try (Workbook workbook = new XSSFWorkbook()) {
+      Sheet sheet = workbook.createSheet("UUID");
+
+      createRow(sheet, 0, UUID_WORKBOOK_HEADERS);
+
+      int rowIndex = 1;
+      for (var order : uuidWorkbookOrders) {
+        Row row = sheet.createRow(rowIndex++);
+        row.createCell(0).setCellValue(order.getFund().getDisplayName());
+        row.createCell(1).setCellValue(order.getInstrumentIsin());
+        row.createCell(2).setCellValue(order.getTransactionType().name());
+        if (order.getOrderQuantity() != null) {
+          row.createCell(3).setCellValue(order.getOrderQuantity().doubleValue());
+        }
+        if (order.getOrderAmount() != null) {
+          row.createCell(4).setCellValue(order.getOrderAmount().doubleValue());
+        }
+        row.createCell(5).setCellValue(order.getOrderUuid().toString());
+        row.createCell(6).setCellValue(order.getOrderVenue().name());
+      }
+
+      autoSizeColumns(sheet, UUID_WORKBOOK_HEADERS.length);
+      return toByteArray(workbook);
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to generate UUID workbook export", e);
+    }
   }
 
   private void createGenericOrderRow(Sheet sheet, int rowIndex, TransactionOrder order) {
@@ -284,6 +340,7 @@ public class TransactionExportService {
     final TransactionType transactionType;
     BigDecimal totalQuantity = ZERO;
     BigDecimal totalAmount = ZERO;
+    LocalDate settlementDate;
     final Map<TulevaFund, BigDecimal> quantityByFund = new LinkedHashMap<>();
 
     AggregatedFtOrder(String isin, TransactionType transactionType) {
@@ -298,6 +355,9 @@ public class TransactionExportService {
       }
       if (order.getOrderAmount() != null) {
         totalAmount = totalAmount.add(order.getOrderAmount());
+      }
+      if (settlementDate == null) {
+        settlementDate = order.getExpectedSettlementDate();
       }
     }
   }

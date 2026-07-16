@@ -43,15 +43,17 @@ class CustodianOrderMessageFactoryTest {
             Map.of(
                 "sebFundXlsx", new byte[] {1, 2},
                 "sebEtfXlsx", new byte[] {3, 4},
-                "ftEtfXlsx", new byte[] {5, 6}));
+                "ftEtfXlsx", new byte[] {5, 6},
+                "uuidWorkbookXlsx", new byte[] {7, 8}));
 
     assertThat(message.getAttachments())
-        .hasSize(3)
+        .hasSize(4)
         .extracting(MessageContent::getName)
         .anySatisfy(
             name -> assertThat(name).contains("SEB").contains("indeksfondid").endsWith(".csv"))
         .anySatisfy(name -> assertThat(name).contains("SEB").contains("ETF").endsWith(".xlsx"))
-        .anySatisfy(name -> assertThat(name).contains("FT").contains("TUV100").endsWith(".xlsx"));
+        .anySatisfy(name -> assertThat(name).contains("FT").contains("TUV100").endsWith(".xlsx"))
+        .anySatisfy(name -> assertThat(name).isEqualTo("Tehingud_UUID_20260115_1000.xlsx"));
   }
 
   @Test
@@ -79,6 +81,16 @@ class CustodianOrderMessageFactoryTest {
                 assertThat(attachment.getType())
                     .isEqualTo(
                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+  }
+
+  @Test
+  void create_uuidWorkbookAttachmentHasXlsxMimeTypeAndFundlessFilename() {
+    var message = factory.create(TUV100, TIMESTAMP, Map.of("uuidWorkbookXlsx", new byte[] {9, 10}));
+
+    var attachment = message.getAttachments().getFirst();
+    assertThat(attachment.getName()).isEqualTo("Tehingud_UUID_20260115_1000.xlsx");
+    assertThat(attachment.getType())
+        .isEqualTo("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   }
 
   @Test

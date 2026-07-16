@@ -51,6 +51,20 @@ class TransactionBatchNotifierTest {
   }
 
   @Test
+  void onBatchFinalized_includesUuidWorkbookDriveUrlInMessage() {
+    var urls = Map.of("uuidWorkbookXlsx", "https://drive.google.com/uuid-workbook");
+    var event = new BatchFinalizedEvent(1L, 5, "2026-01-15", urls);
+
+    notifier.onBatchFinalized(event);
+
+    var messageCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+    verify(notificationService).sendMessage(messageCaptor.capture(), eq(INVESTMENT));
+
+    assertThat(messageCaptor.getValue())
+        .contains("UUID workbook: https://drive.google.com/uuid-workbook");
+  }
+
+  @Test
   void onBatchFinalized_whenNotificationFails_doesNotPropagate() {
     var event = new BatchFinalizedEvent(1L, 3, "2026-01-20", Map.of());
     doThrow(new RuntimeException("Slack unavailable"))

@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.junit.jupiter.api.Test;
 
@@ -183,6 +184,8 @@ class TransactionExportServiceTest {
   @Test
   void generateFtEtfExport_aggregatesAcrossFundsAndFormatsCorrectly() throws Exception {
     var batch = buildBatch();
+    var tradeDate = LocalDate.of(2026, 1, 15);
+    var settlementDate = LocalDate.of(2026, 1, 20);
 
     var tkfOrder =
         buildOrder(batch, TKF100, "IE00FT", BUY, ETF, FT, new BigDecimal("100000"), 400L);
@@ -197,7 +200,7 @@ class TransactionExportServiceTest {
 
     byte[] xlsx =
         service.generateFtEtfExport(
-            List.of(tkfOrder, tukOrder, tuvOrder, sebOrder), labelsByIsin, bbgByIsin);
+            List.of(tkfOrder, tukOrder, tuvOrder, sebOrder), labelsByIsin, bbgByIsin, tradeDate);
 
     assertThat(xlsx).isNotEmpty();
 
@@ -205,51 +208,116 @@ class TransactionExportServiceTest {
       var sheet = workbook.getSheetAt(0);
       assertThat(sheet.getSheetName()).isEqualTo("FT ETF");
 
-      var titleRow = sheet.getRow(0);
-      assertThat(titleRow.getCell(0).getStringCellValue()).isEqualTo("FT");
-
-      var headerRow = sheet.getRow(1);
-      assertThat(headerRow.getCell(0).getStringCellValue()).isEqualTo("ETF Name");
-      assertThat(headerRow.getCell(1).getStringCellValue()).isEqualTo("BBG");
-      assertThat(headerRow.getCell(2).getStringCellValue()).isEqualTo("ISIN");
-      assertThat(headerRow.getCell(3).getStringCellValue()).isEqualTo("Type");
-      assertThat(headerRow.getCell(4).getStringCellValue()).isEqualTo("QTY");
-      assertThat(headerRow.getCell(5).getStringCellValue())
-          .isEqualTo("Approximate total size in EUR (for control purposes)");
-      assertThat(headerRow.getCell(6).getStringCellValue())
-          .isEqualTo("TULEVA ADDITIONAL INVESTMENT FUND");
+      var headerRow = sheet.getRow(0);
+      assertThat(headerRow.getCell(0).getStringCellValue()).isEqualTo("Symbol");
+      assertThat(headerRow.getCell(1).getStringCellValue()).isEqualTo("Side");
+      assertThat(headerRow.getCell(2).getStringCellValue()).isEqualTo("QTY");
+      assertThat(headerRow.getCell(3).getStringCellValue()).isEqualTo("TD");
+      assertThat(headerRow.getCell(4).getStringCellValue()).isEqualTo("SD");
+      assertThat(headerRow.getCell(5).getStringCellValue()).isEqualTo("ETF Name");
+      assertThat(headerRow.getCell(6).getStringCellValue()).isEqualTo("ISIN");
       assertThat(headerRow.getCell(7).getStringCellValue())
-          .isEqualTo("TULEVA MAAILMA AKTSIATE PENSIONIFOND");
+          .isEqualTo("Approximate total size in EUR (for control purposes)");
       assertThat(headerRow.getCell(8).getStringCellValue())
+          .isEqualTo("TULEVA ADDITIONAL INVESTMENT FUND");
+      assertThat(headerRow.getCell(9).getStringCellValue())
+          .isEqualTo("TULEVA MAAILMA AKTSIATE PENSIONIFOND");
+      assertThat(headerRow.getCell(10).getStringCellValue())
           .isEqualTo("TULEVA III SAMBA PENSIONIFOND");
 
-      var dataRow = sheet.getRow(2);
-      assertThat(dataRow.getCell(0).getStringCellValue()).isEqualTo("iShares ESG MSCI");
-      assertThat(dataRow.getCell(1).getStringCellValue()).isEqualTo("ESGM GY");
-      assertThat(dataRow.getCell(2).getStringCellValue()).isEqualTo("IE00FT");
-      assertThat(dataRow.getCell(3).getStringCellValue()).isEqualTo("BUY");
-      assertThat((long) dataRow.getCell(4).getNumericCellValue()).isEqualTo(1800L);
-      assertThat(dataRow.getCell(5).getNumericCellValue()).isEqualTo(450000.0);
-      assertThat((long) dataRow.getCell(6).getNumericCellValue()).isEqualTo(400L);
-      assertThat((long) dataRow.getCell(7).getNumericCellValue()).isEqualTo(800L);
-      assertThat((long) dataRow.getCell(8).getNumericCellValue()).isEqualTo(600L);
+      var dataRow = sheet.getRow(1);
+      assertThat(dataRow.getCell(0).getStringCellValue()).isEqualTo("ESGM GY");
+      assertThat(dataRow.getCell(1).getStringCellValue()).isEqualTo("BUY");
+      assertThat((long) dataRow.getCell(2).getNumericCellValue()).isEqualTo(1800L);
+      assertThat(dataRow.getCell(3).getNumericCellValue())
+          .isEqualTo(DateUtil.getExcelDate(tradeDate));
+      assertThat(dataRow.getCell(4).getNumericCellValue())
+          .isEqualTo(DateUtil.getExcelDate(settlementDate));
+      assertThat(dataRow.getCell(5).getStringCellValue()).isEqualTo("iShares ESG MSCI");
+      assertThat(dataRow.getCell(6).getStringCellValue()).isEqualTo("IE00FT");
+      assertThat(dataRow.getCell(7).getNumericCellValue()).isEqualTo(450000.0);
+      assertThat((long) dataRow.getCell(8).getNumericCellValue()).isEqualTo(400L);
+      assertThat((long) dataRow.getCell(9).getNumericCellValue()).isEqualTo(800L);
+      assertThat((long) dataRow.getCell(10).getNumericCellValue()).isEqualTo(600L);
 
-      var totalRow = sheet.getRow(3);
+      var totalRow = sheet.getRow(2);
       assertThat(totalRow.getCell(0).getStringCellValue())
           .isEqualTo("Approximate total order size:");
-      assertThat(totalRow.getCell(5).getNumericCellValue()).isEqualTo(450000.0);
+      assertThat(totalRow.getCell(7).getNumericCellValue()).isEqualTo(450000.0);
 
-      assertThat(sheet.getPhysicalNumberOfRows()).isEqualTo(4);
+      assertThat(sheet.getPhysicalNumberOfRows()).isEqualTo(3);
     }
   }
 
   @Test
   void generateFtEtfExport_withEmptyOrders_returnsEmptySheet() throws Exception {
-    byte[] xlsx = service.generateFtEtfExport(List.of(), Map.of(), Map.of());
+    byte[] xlsx =
+        service.generateFtEtfExport(List.of(), Map.of(), Map.of(), LocalDate.of(2026, 1, 15));
 
     try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(xlsx))) {
       var sheet = workbook.getSheetAt(0);
+      assertThat(sheet.getPhysicalNumberOfRows()).isEqualTo(2);
+    }
+  }
+
+  @Test
+  void generateUuidWorkbook_writesOneRowPerSebEtfAndFtOrder() throws Exception {
+    var batch = buildBatch();
+
+    var sebEtfOrder =
+        buildOrder(batch, TKF100, "IE00ETF", BUY, ETF, SEB, new BigDecimal("100000"), 500L);
+    var ftOrder =
+        buildOrder(batch, TUV100, "IE00FT", SELL, ETF, FT, new BigDecimal("200000"), 800L);
+    var sebFundOrder =
+        buildOrder(batch, TKF100, "LU00FUND", BUY, FUND, SEB, new BigDecimal("75000"), null);
+
+    byte[] xlsx = service.generateUuidWorkbook(List.of(sebEtfOrder, ftOrder, sebFundOrder));
+
+    assertThat(xlsx).isNotEmpty();
+
+    try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(xlsx))) {
+      var sheet = workbook.getSheetAt(0);
+
+      var headerRow = sheet.getRow(0);
+      assertThat(headerRow.getCell(0).getStringCellValue()).isEqualTo("Client name");
+      assertThat(headerRow.getCell(1).getStringCellValue()).isEqualTo("instrument_isin");
+      assertThat(headerRow.getCell(2).getStringCellValue()).isEqualTo("transaction_type");
+      assertThat(headerRow.getCell(3).getStringCellValue()).isEqualTo("order_quantity");
+      assertThat(headerRow.getCell(4).getStringCellValue()).isEqualTo("order_amount");
+      assertThat(headerRow.getCell(5).getStringCellValue()).isEqualTo("order_id");
+      assertThat(headerRow.getCell(6).getStringCellValue()).isEqualTo("order_venue");
+
+      var sebRow = sheet.getRow(1);
+      assertThat(sebRow.getCell(0).getStringCellValue()).isEqualTo("Tuleva Täiendav Kogumisfond");
+      assertThat(sebRow.getCell(1).getStringCellValue()).isEqualTo("IE00ETF");
+      assertThat(sebRow.getCell(2).getStringCellValue()).isEqualTo("BUY");
+      assertThat((long) sebRow.getCell(3).getNumericCellValue()).isEqualTo(500L);
+      assertThat(sebRow.getCell(4).getNumericCellValue()).isEqualTo(100000.0);
+      assertThat(sebRow.getCell(5).getStringCellValue())
+          .isEqualTo(sebEtfOrder.getOrderUuid().toString());
+      assertThat(sebRow.getCell(6).getStringCellValue()).isEqualTo("SEB");
+
+      var ftRow = sheet.getRow(2);
+      assertThat(ftRow.getCell(0).getStringCellValue()).isEqualTo("Tuleva III Samba Pensionifond");
+      assertThat(ftRow.getCell(1).getStringCellValue()).isEqualTo("IE00FT");
+      assertThat(ftRow.getCell(2).getStringCellValue()).isEqualTo("SELL");
+      assertThat((long) ftRow.getCell(3).getNumericCellValue()).isEqualTo(800L);
+      assertThat(ftRow.getCell(4).getNumericCellValue()).isEqualTo(200000.0);
+      assertThat(ftRow.getCell(5).getStringCellValue())
+          .isEqualTo(ftOrder.getOrderUuid().toString());
+      assertThat(ftRow.getCell(6).getStringCellValue()).isEqualTo("FT");
+
       assertThat(sheet.getPhysicalNumberOfRows()).isEqualTo(3);
+    }
+  }
+
+  @Test
+  void generateUuidWorkbook_withEmptyOrders_returnsHeaderOnly() throws Exception {
+    byte[] xlsx = service.generateUuidWorkbook(List.of());
+
+    try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(xlsx))) {
+      var sheet = workbook.getSheetAt(0);
+      assertThat(sheet.getPhysicalNumberOfRows()).isEqualTo(1);
     }
   }
 

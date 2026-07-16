@@ -27,7 +27,8 @@ class TransactionExportUploaderTest {
         Map.of(
             "sebFundXlsx", new byte[] {1, 2},
             "sebEtfXlsx", new byte[] {3, 4},
-            "ftEtfXlsx", new byte[] {5, 6});
+            "ftEtfXlsx", new byte[] {5, 6},
+            "uuidWorkbookXlsx", new byte[] {7, 8});
 
     when(driveClient.getOrCreateFolder("root-id", "2026")).thenReturn("year-folder-id");
     when(driveClient.getOrCreateFolder("year-folder-id", "02")).thenReturn("month-folder-id");
@@ -45,6 +46,9 @@ class TransactionExportUploaderTest {
     when(driveClient.uploadFile(
             "month-folder-id", "FT_TKF100_ETF_orders_2026-02-16T14_30_05.xlsx", new byte[] {5, 6}))
         .thenReturn("https://drive.google.com/ft-etf");
+    when(driveClient.uploadFile(
+            "month-folder-id", "Tehingud_UUID_20260216_1430.xlsx", new byte[] {7, 8}))
+        .thenReturn("https://drive.google.com/uuid-workbook");
 
     var result = uploader.uploadExports(rootFolderId, TKF100, timestamp, exports);
 
@@ -53,7 +57,8 @@ class TransactionExportUploaderTest {
             Map.of(
                 "sebFundXlsx", "https://drive.google.com/seb-fund",
                 "sebEtfXlsx", "https://drive.google.com/seb-etf",
-                "ftEtfXlsx", "https://drive.google.com/ft-etf"));
+                "ftEtfXlsx", "https://drive.google.com/ft-etf",
+                "uuidWorkbookXlsx", "https://drive.google.com/uuid-workbook"));
   }
 
   @Test

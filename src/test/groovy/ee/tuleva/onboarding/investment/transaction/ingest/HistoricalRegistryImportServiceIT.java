@@ -438,6 +438,73 @@ class HistoricalRegistryImportServiceIT {
     assertThat(result.ordersCreated()).isEqualTo(3);
   }
 
+  @Test
+  void terminalFundBuyWithoutInstrumentTypeColumnResolvesTypeFromInstrumentReference() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9101,EE3600109443,IE0009FT4LX4,BR-9101,BUY,5000.00,,2025-03-10 09:00:00,EXECUTED,2025-03-12,,2025-03-10 14:30:00,,100.00,5000.00,4995.00,5.00,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors()).isEmpty();
+    assertThat(result.ordersCreated()).isEqualTo(1);
+    TransactionOrder order = orderRepository.findByInstrumentIsin("IE0009FT4LX4").getFirst();
+    assertThat(order.getInstrumentType()).isEqualTo(InstrumentType.FUND);
+  }
+
+  @Test
+  void etfBuyWithoutInstrumentTypeColumnStillRequiresExecutedQuantity() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9102,EE3600109443,IE000I9HGDZ3,BR-9102,BUY,5000.00,,2025-03-10 09:00:00,EXECUTED,2025-03-12,,2025-03-10 14:30:00,,100.00,5000.00,4995.00,5.00,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors())
+        .containsExactly(
+            new HistoricalImportResult.RowError(
+                2, "Missing value: column=executed_quantity, orderId=GAS-9102"));
+    assertThat(result.ordersCreated()).isZero();
+  }
+
+  @Test
+  void unknownInstrumentIsinWithoutInstrumentTypeColumnIsRejectedWithoutEtfGuess() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9103,EE3600109443,XX0000000099,,BUY,5000.00,,2025-03-10 09:00:00,SENT,2025-03-12,,,,,,,,
+        """;
+    long ordersBefore = orderRepository.count();
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors())
+        .containsExactly(
+            new HistoricalImportResult.RowError(
+                2, "Unknown instrument: instrumentIsin=XX0000000099"));
+    assertThat(result.ordersCreated()).isZero();
+    assertThat(orderRepository.count()).isEqualTo(ordersBefore);
+  }
+
+  @Test
+  void explicitInstrumentTypeColumnWinsOverInstrumentReference() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9104,EE3600109443,IE000I9HGDZ3,,BUY,FUND,5000.00,,2025-03-10 09:00:00,SENT,2025-03-12,,,,,,,,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors()).isEmpty();
+    TransactionOrder order = orderRepository.findByInstrumentIsin("IE000I9HGDZ3").getFirst();
+    assertThat(order.getInstrumentType()).isEqualTo(InstrumentType.FUND);
+  }
+
   private TransactionOrder findByComment(String brokerTransactionId) {
     TransactionExecution execution =
         executionRepository.findByBrokerTransactionId(brokerTransactionId).orElseThrow();

@@ -5,6 +5,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.ZoneOffset.UTC;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.instrument.InstrumentReference;
+import ee.tuleva.onboarding.investment.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.transaction.BatchStatus;
 import ee.tuleva.onboarding.investment.transaction.HistoricalImportFormatException;
 import ee.tuleva.onboarding.investment.transaction.HistoricalImportResult;
@@ -80,6 +82,7 @@ public class HistoricalRegistryImportService {
   private final TransactionOrderRepository orderRepository;
   private final TransactionExecutionRepository executionRepository;
   private final TransactionSettlementService settlementService;
+  private final InstrumentReferenceService instrumentReferenceService;
   private final Clock clock;
 
   @Transactional
@@ -212,6 +215,7 @@ public class HistoricalRegistryImportService {
   private ParsedRow parseRow(int rowNumber, CSVRecord record, char decimalSeparator) {
     String orderId = requireValue(record, "order_id");
     String fundIsin = requireValue(record, "fund_isin");
+    String instrumentIsin = requireValue(record, "instrument_isin");
     OrderStatus orderStatus =
         parseEnum(OrderStatus.class, requireValue(record, "order_status"), "order_status");
     LocalDate expectedSettlementDate =
@@ -231,12 +235,12 @@ public class HistoricalRegistryImportService {
             toOrderUuid(orderId),
             value(record, "transaction_id"),
             resolveFund(fundIsin),
-            requireValue(record, "instrument_isin"),
+            instrumentIsin,
             parseEnum(
                 TransactionType.class,
                 requireValue(record, "transaction_type"),
                 "transaction_type"),
-            parseInstrumentType(value(record, "instrument_type")),
+            resolveInstrumentType(value(record, "instrument_type"), instrumentIsin),
             parseDecimal(value(record, "order_amount"), "order_amount", decimalSeparator),
             parseDecimal(value(record, "order_quantity"), "order_quantity", decimalSeparator),
             parseInstant(value(record, "order_timestamp"), "order_timestamp"),
@@ -357,11 +361,31 @@ public class HistoricalRegistryImportService {
         .orElseThrow(() -> new RowParseException("Unknown fund: fundIsin=" + fundIsin));
   }
 
-  private static InstrumentType parseInstrumentType(@Nullable String value) {
-    if (value == null) {
-      return InstrumentType.ETF;
+  private InstrumentType resolveInstrumentType(
+      @Nullable String instrumentTypeValue, String instrumentIsin) {
+    if (instrumentTypeValue != null) {
+      return parseEnum(InstrumentType.class, instrumentTypeValue, "instrument_type");
     }
-    return parseEnum(InstrumentType.class, value, "instrument_type");
+    InstrumentReference reference =
+        instrumentReferenceService
+            .findByIsin(instrumentIsin)
+            .orElseThrow(
+                () ->
+                    new RowParseException("Unknown instrument: instrumentIsin=" + instrumentIsin));
+    String referenceInstrumentType = reference.getInstrumentType();
+    if (referenceInstrumentType == null) {
+      throw new RowParseException(
+          "Instrument reference missing instrument type: instrumentIsin=" + instrumentIsin);
+    }
+    try {
+      return InstrumentType.valueOf(referenceInstrumentType.strip().toUpperCase());
+    } catch (IllegalArgumentException e) {
+      throw new RowParseException(
+          "Instrument reference has unrecognised instrument type: instrumentIsin="
+              + instrumentIsin
+              + ", instrumentType="
+              + referenceInstrumentType);
+    }
   }
 
   private static <E extends Enum<E>> E parseEnum(Class<E> type, String value, String column) {

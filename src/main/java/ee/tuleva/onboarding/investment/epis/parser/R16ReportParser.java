@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 public class R16ReportParser {
 
   private static final String HEADER_MARKER = "Väärtpaber";
+  private static final DecimalConvention DECIMAL_CONVENTION = DecimalConvention.COMMA_DECIMAL;
   private static final BigDecimal MAX_REASONABLE_UNITS = new BigDecimal("100000000");
   private static final Pattern KUU = Pattern.compile("[Kk]uu[:\\s]*(\\d{4})\\s*(\\d{2})");
 
@@ -83,7 +84,7 @@ public class R16ReportParser {
   }
 
   private static BigDecimal unitsOrZero(Map<String, String> row, String... keywords) {
-    BigDecimal units = parseNumber(findValue(row, keywords));
+    BigDecimal units = parseNumber(findValue(row, keywords), DECIMAL_CONVENTION);
     return units == null ? BigDecimal.ZERO : units.abs();
   }
 

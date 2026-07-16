@@ -81,9 +81,9 @@ class EpisReportIngestionServiceTest {
       Seisuga: 01.08.2026;;;;;;;
       ;;;;;;;
       Väärtpaber;NAV;Toiming;PF valitseja/PIK;Hind;Osakud (teenustasuta);Osakud (teenustasuga);Summa
-      Tuleva Maailma Aktsiate Pensionifond;0,80;Tagasivõtt;PIK;0,80;100,000;100,000;80,00
-      Tuleva Maailma Aktsiate Pensionifond;0,80;Väljalase;Teine PF valitseja;0,80;200,000;200,000;160,00
-      Tuleva Maailma Võlakirjade Pensionifond;0,70;Tagasivõtt;Teine PF valitseja;0,70;50,000;50,000;35,00
+      Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;100.000;100.000;80.00
+      Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Teine PF valitseja;0.80;200.000;200.000;160.00
+      Tuleva Maailma Võlakirjade Pensionifond;0.70;Tagasivõtt;Teine PF valitseja;0.70;50.000;50.000;35.00
       """;
 
   @Test
@@ -171,8 +171,8 @@ class EpisReportIngestionServiceTest {
         Tehtud: 14.08.2026;;;;;
         ;;;;;
         Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
-        SUB;EE3600109435;0,80000;0;1500,00;17.08.2026
-        RED;EE3600001707;0,90000;0;300,00;18.08.2026
+        SUB;EE3600109435;0.80000;0;1500.00;17.08.2026
+        RED;EE3600001707;0.90000;0;300.00;18.08.2026
         """;
 
     EpisReportIngestionResult result = service.ingestReport(R45, r45Csv);

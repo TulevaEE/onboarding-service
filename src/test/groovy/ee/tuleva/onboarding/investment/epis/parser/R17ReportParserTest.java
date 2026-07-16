@@ -22,10 +22,10 @@ class R17ReportParserTest {
         Seisuga: 15.04.2026;;;;;;;
         ;;;;;;;
         Väärtpaber;NAV;Toiming;PF valitseja/PIK;Hind;Osakud (teenustasuta);Osakud (teenustasuga);Summa
-        Tuleva Maailma Aktsiate Pensionifond;0,80;Tagasivõtt;PIK;0,80;100,000;100,000;80,00
-        Tuleva Maailma Aktsiate Pensionifond;0,80;Väljalase;Teine PF valitseja;0,80;200,000;200,000;160,00
-        Tuleva Maailma Aktsiate Pensionifond;0,80;Tagasivõtt;Teine PF valitseja;0,80;50,000;50,000;40,00
-        Tuleva Maailma Võlakirjade Pensionifond;0,70;Väljalase;Oma;0,70;300,000;300,000;210,00
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;100.000;100.000;80.00
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Teine PF valitseja;0.80;200.000;200.000;160.00
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;Teine PF valitseja;0.80;50.000;50.000;40.00
+        Tuleva Maailma Võlakirjade Pensionifond;0.70;Väljalase;Oma;0.70;300.000;300.000;210.00
         """;
 
     Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
@@ -43,7 +43,7 @@ class R17ReportParserTest {
         """
         Seisuga: 15.03.2026;;;
         Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
-        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100,000
+        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100.000
         """;
 
     assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
@@ -56,7 +56,7 @@ class R17ReportParserTest {
         """
         Seisuga: 31.03.2026;;;
         Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
-        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100,000
+        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100.000
         """;
 
     Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
@@ -70,7 +70,7 @@ class R17ReportParserTest {
         """
         Seisuga: 15.05.2026;;;
         Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
-        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100,000
+        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100.000
         """;
 
     assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
@@ -83,7 +83,7 @@ class R17ReportParserTest {
         """
         Seisuga: teadmata;;;
         Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
-        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100,000
+        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100.000
         """;
 
     assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
@@ -97,7 +97,7 @@ class R17ReportParserTest {
         Fondi aruanne;;;
         Seisuga: 15.04.2026;;;
         Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
-        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100,000
+        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100.000
         """;
 
     Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
@@ -110,7 +110,7 @@ class R17ReportParserTest {
     String csv =
         """
         Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
-        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100,000
+        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100.000
         """;
 
     assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
@@ -123,7 +123,7 @@ class R17ReportParserTest {
         """
         Seisuga: 15.04.2026;;;
         Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
-        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;Teine PF valitseja;-50,000
+        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;Teine PF valitseja;-50.000
         """;
 
     Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
@@ -137,7 +137,7 @@ class R17ReportParserTest {
         """
         Seisuga: 15.04.2026;;;
         Väärtpaber;Toiming;PF valitseja/PIK;Osakuid
-        Tuleva Maailma Aktsiate Pensionifond;Väljalase;Oma;200,000
+        Tuleva Maailma Aktsiate Pensionifond;Väljalase;Oma;200.000
         """;
 
     Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
@@ -152,7 +152,7 @@ class R17ReportParserTest {
         Seisuga: 15.04.2026;;;
         Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
         Tuleva Maailma Aktsiate Pensionifond;Väljalase;Oma;0
-        Mingi Muu Fond;Väljalase;Oma;100,000
+        Mingi Muu Fond;Väljalase;Oma;100.000
         """;
 
     Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
@@ -161,12 +161,26 @@ class R17ReportParserTest {
   }
 
   @Test
+  void doesNotMisinterpretPeriodDecimalUnitsAsThousandsGrouping() {
+    String csv =
+        """
+        Seisuga: 15.04.2026;;;
+        Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
+        Tuleva Maailma Aktsiate Pensionifond;Väljalase;Oma;100.500
+        """;
+
+    Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
+
+    assertThat(result.get("TUK75").switchingNetUnits()).isEqualByComparingTo("100.500");
+  }
+
+  @Test
   void throwsWhenUnitsExceedHundredMillion() {
     String csv =
         """
         Seisuga: 15.04.2026;;;
         Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
-        Tuleva Maailma Aktsiate Pensionifond;Väljalase;Oma;150000000,000
+        Tuleva Maailma Aktsiate Pensionifond;Väljalase;Oma;150000000.000
         """;
 
     assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))

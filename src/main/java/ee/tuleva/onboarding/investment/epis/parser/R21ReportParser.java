@@ -23,6 +23,7 @@ import org.springframework.stereotype.Component;
 public class R21ReportParser {
 
   private static final String HEADER_MARKER = "Väärtpaber";
+  private static final DecimalConvention DECIMAL_CONVENTION = DecimalConvention.COMMA_DECIMAL;
   private static final BigDecimal MAX_REASONABLE_UNITS = new BigDecimal("100000000");
   private static final Pattern MAKSETE_KUU = Pattern.compile("[Mm]aksete\\s*kuu[:\\s]*(\\d{6})");
   private static final DateTimeFormatter YEAR_MONTH = DateTimeFormatter.ofPattern("yyyyMM");
@@ -36,7 +37,7 @@ public class R21ReportParser {
     Map<String, BigDecimal> unitsByFund = new LinkedHashMap<>();
     for (Map<String, String> row : parsed.rows()) {
       String fundRaw = findValue(row, "väärtpaber", "vaartpaber");
-      BigDecimal parsedUnits = parseNumber(findValue(row, "osakud"));
+      BigDecimal parsedUnits = parseNumber(findValue(row, "osakud"), DECIMAL_CONVENTION);
       BigDecimal units = parsedUnits == null ? BigDecimal.ZERO : parsedUnits.abs();
 
       if (fundRaw == null || fundRaw.isBlank() || units.signum() == 0) {

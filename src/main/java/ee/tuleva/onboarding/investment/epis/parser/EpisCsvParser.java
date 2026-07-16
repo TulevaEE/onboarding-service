@@ -16,8 +16,9 @@ import org.springframework.stereotype.Component;
 public class EpisCsvParser {
 
   private static final int HEADER_SCAN_ROWS = 10;
-  private static final Pattern ESTONIAN_DECIMAL = Pattern.compile("^-?\\d+,\\d+$");
   private static final Pattern DATE = Pattern.compile("(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})");
+  private static final Pattern COMMA_GROUPED = Pattern.compile("^-?\\d{1,3}(,\\d{3})+$");
+  private static final Pattern PERIOD_GROUPED = Pattern.compile("^-?\\d{1,3}(\\.\\d{3})+$");
 
   public EpisCsv parse(String content, String headerMarker) {
     List<String> lines = content.lines().toList();
@@ -48,7 +49,8 @@ public class EpisCsvParser {
     return null;
   }
 
-  public static @Nullable BigDecimal parseNumber(@Nullable String value) {
+  public static @Nullable BigDecimal parseNumber(
+      @Nullable String value, DecimalConvention convention) {
     if (value == null) {
       return null;
     }
@@ -56,16 +58,33 @@ public class EpisCsvParser {
     if (cleaned.isEmpty()) {
       return null;
     }
-    if (ESTONIAN_DECIMAL.matcher(cleaned).matches() && !cleaned.contains(".")) {
-      cleaned = cleaned.replace(',', '.');
-    } else {
-      cleaned = cleaned.replace(",", "");
+    boolean hasComma = cleaned.indexOf(',') >= 0;
+    boolean hasPeriod = cleaned.indexOf('.') >= 0;
+    if (hasComma && hasPeriod) {
+      cleaned =
+          cleaned.lastIndexOf(',') > cleaned.lastIndexOf('.')
+              ? cleaned.replace(".", "").replace(',', '.')
+              : cleaned.replace(",", "");
+    } else if (hasComma || hasPeriod) {
+      cleaned = resolveSingleSeparator(cleaned, hasComma ? ',' : '.', convention);
     }
     try {
       return new BigDecimal(cleaned);
     } catch (NumberFormatException e) {
       return null;
     }
+  }
+
+  private static String resolveSingleSeparator(
+      String cleaned, char separator, DecimalConvention convention) {
+    Pattern grouping = separator == ',' ? COMMA_GROUPED : PERIOD_GROUPED;
+    boolean isGrouping = grouping.matcher(cleaned).matches();
+    boolean isConventionDecimal = separator == convention.decimalSeparator();
+    long occurrences = cleaned.chars().filter(character -> character == separator).count();
+    if (isGrouping && !(isConventionDecimal && occurrences == 1)) {
+      return cleaned.replace(String.valueOf(separator), "");
+    }
+    return cleaned.replace(separator, '.');
   }
 
   public static @Nullable LocalDate findDate(String line) {

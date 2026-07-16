@@ -122,18 +122,28 @@ class EpisCsvParserTest {
   @CsvSource(
       nullValues = "NULL",
       value = {
-        "'1,5', 1.5",
-        "'1234.56', 1234.56",
-        "'1,234.56', 1234.56",
-        "'-123,45', -123.45",
-        "'10 000,50', 10000.50",
-        "'5%', 5",
-        "'0', 0",
-        "'', NULL",
-        "'abc', NULL"
+        "'1.234,56', COMMA_DECIMAL, 1234.56",
+        "'12.345', COMMA_DECIMAL, 12345",
+        "'12.345', PERIOD_DECIMAL, 12.345",
+        "'1,234.56', PERIOD_DECIMAL, 1234.56",
+        "'100,000', COMMA_DECIMAL, 100.000",
+        "'100,000', PERIOD_DECIMAL, 100000",
+        "'150000000,000', COMMA_DECIMAL, 150000000.000",
+        "'0.80000', COMMA_DECIMAL, 0.80000",
+        "'1500,00', COMMA_DECIMAL, 1500.00",
+        "'1,5', COMMA_DECIMAL, 1.5",
+        "'10 000,50', COMMA_DECIMAL, 10000.50",
+        "'1.234.567', COMMA_DECIMAL, 1234567",
+        "'1,234,567', PERIOD_DECIMAL, 1234567",
+        "'1234.56', PERIOD_DECIMAL, 1234.56",
+        "'5%', COMMA_DECIMAL, 5",
+        "'0', COMMA_DECIMAL, 0",
+        "'', COMMA_DECIMAL, NULL",
+        "'abc', COMMA_DECIMAL, NULL"
       })
-  void parseNumberHandlesEstonianAndEnglishFormats(String input, String expected) {
-    BigDecimal result = EpisCsvParser.parseNumber(input);
+  void parseNumberHandlesEstonianAndEnglishFormats(
+      String input, DecimalConvention convention, String expected) {
+    BigDecimal result = EpisCsvParser.parseNumber(input, convention);
 
     if (expected == null) {
       assertThat(result).isNull();
@@ -144,6 +154,6 @@ class EpisCsvParserTest {
 
   @Test
   void parseNumberHandlesNull() {
-    assertThat(EpisCsvParser.parseNumber(null)).isNull();
+    assertThat(EpisCsvParser.parseNumber(null, DecimalConvention.COMMA_DECIMAL)).isNull();
   }
 }

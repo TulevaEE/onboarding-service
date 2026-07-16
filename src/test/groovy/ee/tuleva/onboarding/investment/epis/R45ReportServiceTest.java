@@ -59,10 +59,10 @@ class R45ReportServiceTest {
         Tehtud: 14.08.2026;;;;;
         ;;;;;
         Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
-        SUB;EE3600109435;0,80000;0;1500,00;17.08.2026
-        RED;EE3600109435;0,80000;0;500,00;18.08.2026
-        RED;EE3600001707;0,90000;0;300,00;18.08.2026
-        RED;EE3600001707;0,90000;0;100,00;25.08.2026
+        SUB;EE3600109435;0.80000;0;1500.00;17.08.2026
+        RED;EE3600109435;0.80000;0;500.00;18.08.2026
+        RED;EE3600001707;0.90000;0;300.00;18.08.2026
+        RED;EE3600001707;0.90000;0;100.00;25.08.2026
         """;
     givenStoredReport(csv);
 
@@ -113,7 +113,7 @@ class R45ReportServiceTest {
         """
         Tehtud: 14.08.2026;;;;;
         Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
-        RED;EE3600109435;0;1000,000;0;18.08.2026
+        RED;EE3600109435;0;1000.000;0;18.08.2026
         """;
     givenStoredReport(csv);
 
@@ -142,7 +142,7 @@ class R45ReportServiceTest {
         """
         Tehtud: 14.08.2026;;;;;
         Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
-        XXX;EE3600109435;0,80000;0;1500,00;18.08.2026
+        XXX;EE3600109435;0.80000;0;1500.00;18.08.2026
         """;
     givenStoredReport(csv);
 
@@ -171,8 +171,8 @@ class R45ReportServiceTest {
         """
         Tehtud: 14.08.2026;;;;;
         Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
-        SUB;XX0000000000;0,80000;0;1500,00;18.08.2026
-        SUB;EE3600109435;0,80000;0;2000,00;18.08.2026
+        SUB;XX0000000000;0.80000;0;1500.00;18.08.2026
+        SUB;EE3600109435;0.80000;0;2000.00;18.08.2026
         """;
     givenStoredReport(csv);
 
@@ -201,7 +201,7 @@ class R45ReportServiceTest {
         """
         Tehtud: 14.08.2026;;;;;
         Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
-        RED;EE3600109443;0;1000,000;0;18.08.2026
+        RED;EE3600109443;0;1000.000;0;18.08.2026
         """;
     givenStoredReport(csv);
     given(fundNavQueryService.findLatestNavDateOnOrBefore(TUK00.getCode(), TODAY))

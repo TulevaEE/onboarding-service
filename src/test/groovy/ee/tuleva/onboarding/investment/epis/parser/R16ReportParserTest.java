@@ -117,6 +117,21 @@ class R16ReportParserTest {
   }
 
   @Test
+  void doesNotMisinterpretCommaDecimalUnitsWithFourLeadingDigitsAsThousandsGrouping() {
+    String csv =
+        """
+        Fondivalitseja: Tuleva Fondid AS;;;;;;
+        Kuu: 2026 06;;;;;;
+        Väärtpaber;Jooksev NAV;Fondimaksed Osakud;Fondimaksed Summa;Ühekordsed maksed Osakud;Ühekordsed maksed Summa;Valuuta
+        EE3600109435;0,80;196,938;800,00;0;0;EUR
+        """;
+
+    Map<String, R16ParsedFlow> result = parser.parse(csv);
+
+    assertThat(result.get("TUK75").fondimaksedUnits()).isEqualByComparingTo("196.938");
+  }
+
+  @Test
   void throwsWhenUnitsExceedHundredMillion() {
     String csv =
         """

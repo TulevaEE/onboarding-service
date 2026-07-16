@@ -28,6 +28,7 @@ import org.springframework.stereotype.Component;
 public class R45ReportParser {
 
   private static final String HEADER_MARKER = "Tehingu liik";
+  private static final DecimalConvention DECIMAL_CONVENTION = DecimalConvention.PERIOD_DECIMAL;
   private static final BigDecimal MAX_REASONABLE_VALUE = new BigDecimal("100000000");
 
   private final EpisCsvParser csvParser;
@@ -158,7 +159,7 @@ public class R45ReportParser {
   }
 
   private static BigDecimal numberOrZero(Map<String, String> row, String keyword) {
-    BigDecimal value = parseNumber(findValue(row, keyword));
+    BigDecimal value = parseNumber(findValue(row, keyword), DECIMAL_CONVENTION);
     return value == null ? BigDecimal.ZERO : value;
   }
 

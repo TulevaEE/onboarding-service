@@ -28,10 +28,14 @@ public class CustodyVerificationService {
 
   public List<CustodyRight> findChildrenWithAssetManagementCustody(
       String parentPersonalCode, Duration maxAge) {
-    return populationRegisterClient.fetchCustodyRights(parentPersonalCode, maxAge).data().stream()
+    // Dedupe by the child's code, not the whole record: the register can return more than one
+    // valid property-custody row per child, and now that CustodyRight carries the name, equality
+    // alone would let rows with differing or partially missing names through as duplicates.
+    Map<String, CustodyRight> byChild = new LinkedHashMap<>();
+    populationRegisterClient.fetchCustodyRights(parentPersonalCode, maxAge).data().stream()
         .filter(CustodyRight::grantsAssetManagement)
-        .distinct()
-        .toList();
+        .forEach(right -> byChild.putIfAbsent(right.childPersonalCode(), right));
+    return List.copyOf(byChild.values());
   }
 
   public CustodyVerification verify(

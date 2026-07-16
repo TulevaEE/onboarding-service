@@ -234,6 +234,61 @@ class HistoricalRegistryImportServiceIT {
   }
 
   @Test
+  void importResolvesSingleSeparatorAsThousandsUnderSemicolonDelimiter() {
+    String csv =
+        """
+        order_id;fund_isin;instrument_isin;transaction_id;transaction_type;instrument_type;order_amount;order_quantity;order_timestamp;order_status;expected_settlement_date;actual_settlement_date;execution_timestamp;executed_quantity;unit_price;total_consideration;net_settlement_amount;commission_amount;comment
+        GAS-2024-070;EE3600109435;IE00BFG1TM61;BR-2070;BUY;ETF;12.345;;2025-03-10 09:00:00;SENT;2025-03-12;;;;;;;;
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors()).isEmpty();
+    TransactionOrder order = orderRepository.findByInstrumentIsin("IE00BFG1TM61").getFirst();
+    assertThat(order.getOrderAmount()).isEqualByComparingTo("12345");
+  }
+
+  @Test
+  void importResolvesCommaDecimalConventionAcrossThousandsAndDecimalForms() {
+    String csv =
+        """
+        order_id;fund_isin;instrument_isin;transaction_id;transaction_type;instrument_type;order_amount;order_quantity;order_timestamp;order_status;expected_settlement_date;actual_settlement_date;execution_timestamp;executed_quantity;unit_price;total_consideration;net_settlement_amount;commission_amount;comment
+        GAS-2024-071;EE3600109435;IE00BFG1TM61;BR-2071;BUY;ETF;1.234.567;0.80000;2025-03-10 09:00:00;SENT;2025-03-12;;;;150000000,000;100,000;;;
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors()).isEmpty();
+    TransactionOrder order = orderRepository.findByInstrumentIsin("IE00BFG1TM61").getFirst();
+    assertThat(order.getOrderAmount()).isEqualByComparingTo("1234567");
+    assertThat(order.getOrderQuantity()).isEqualByComparingTo("0.80000");
+    TransactionExecution execution =
+        executionRepository.findByBrokerTransactionId("BR-2071").orElseThrow();
+    assertThat(execution.getUnitPrice()).isEqualByComparingTo("150000000.000");
+    assertThat(execution.getTotalConsideration()).isEqualByComparingTo("100.000");
+  }
+
+  @Test
+  void importResolvesPeriodDecimalConventionAcrossThousandsAndDecimalForms() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-2024-072,EE3600109435,IE00BFG1TM61,BR-2072,BUY,ETF,12.345,"1,234.56",2025-03-10 09:00:00,SENT,2025-03-12,,,,"100,000",1234.56,,,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors()).isEmpty();
+    TransactionOrder order = orderRepository.findByInstrumentIsin("IE00BFG1TM61").getFirst();
+    assertThat(order.getOrderAmount()).isEqualByComparingTo("12.345");
+    assertThat(order.getOrderQuantity()).isEqualByComparingTo("1234.56");
+    TransactionExecution execution =
+        executionRepository.findByBrokerTransactionId("BR-2072").orElseThrow();
+    assertThat(execution.getUnitPrice()).isEqualByComparingTo("100000");
+    assertThat(execution.getTotalConsideration()).isEqualByComparingTo("1234.56");
+  }
+
+  @Test
   void importWithMissingHeadersThrowsFormatException() {
     String csv =
         """

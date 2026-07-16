@@ -71,7 +71,8 @@ public class EpisCsvParser {
     try {
       return new BigDecimal(cleaned);
     } catch (NumberFormatException e) {
-      return null;
+      throw new IllegalArgumentException(
+          "Unparseable EPIS number: value=" + value + ", convention=" + convention, e);
     }
   }
 
@@ -80,8 +81,9 @@ public class EpisCsvParser {
     Pattern grouping = separator == ',' ? COMMA_GROUPED : PERIOD_GROUPED;
     boolean isGrouping = grouping.matcher(cleaned).matches();
     boolean isConventionDecimal = separator == convention.decimalSeparator();
-    long occurrences = cleaned.chars().filter(character -> character == separator).count();
-    if (isGrouping && !(isConventionDecimal && occurrences == 1)) {
+    boolean singleOccurrence = cleaned.indexOf(separator) == cleaned.lastIndexOf(separator);
+    boolean isDecimalUsage = isConventionDecimal && singleOccurrence;
+    if (isGrouping && !isDecimalUsage) {
       return cleaned.replace(String.valueOf(separator), "");
     }
     return cleaned.replace(separator, '.');

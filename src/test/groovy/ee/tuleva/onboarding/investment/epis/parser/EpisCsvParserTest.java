@@ -137,9 +137,7 @@ class EpisCsvParserTest {
         "'1,234,567', PERIOD_DECIMAL, 1234567",
         "'1234.56', PERIOD_DECIMAL, 1234.56",
         "'5%', COMMA_DECIMAL, 5",
-        "'0', COMMA_DECIMAL, 0",
-        "'', COMMA_DECIMAL, NULL",
-        "'abc', COMMA_DECIMAL, NULL"
+        "'0', COMMA_DECIMAL, 0"
       })
   void parseNumberHandlesEstonianAndEnglishFormats(
       String input, DecimalConvention convention, String expected) {
@@ -155,5 +153,23 @@ class EpisCsvParserTest {
   @Test
   void parseNumberHandlesNull() {
     assertThat(EpisCsvParser.parseNumber(null, DecimalConvention.COMMA_DECIMAL)).isNull();
+  }
+
+  @Test
+  void parseNumberHandlesBlank() {
+    assertThat(EpisCsvParser.parseNumber("", DecimalConvention.COMMA_DECIMAL)).isNull();
+    assertThat(EpisCsvParser.parseNumber("   ", DecimalConvention.COMMA_DECIMAL)).isNull();
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "abc, COMMA_DECIMAL",
+    "1.2.3, COMMA_DECIMAL",
+    "-, COMMA_DECIMAL",
+    "N/A, COMMA_DECIMAL"
+  })
+  void parseNumberThrowsOnUnparseableValue(String input, DecimalConvention convention) {
+    assertThatThrownBy(() -> EpisCsvParser.parseNumber(input, convention))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 }

@@ -20,7 +20,7 @@ public class TransactionExportUploader {
 
   private static final Map<String, String> FILE_NAME_PATTERNS =
       Map.of(
-          "sebFundXlsx", "SEB_%s_indeksfondid_%s.xlsx",
+          "sebFundXlsx", "SEB_%s_indeksfondid_%s.csv",
           "sebEtfXlsx", "SEB_%s_ETF_tehingud_%s.xlsx",
           "ftEtfXlsx", "FT_%s_ETF_orders_%s.xlsx");
 

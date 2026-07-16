@@ -23,6 +23,7 @@ class CustodianOrderMessageFactory {
 
   private static final String XLSX_MIME_TYPE =
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  private static final String CSV_MIME_TYPE = "text/csv";
 
   private static final DateTimeFormatter TIMESTAMP =
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH_mm_ss").withZone(ZoneOffset.UTC);
@@ -31,9 +32,15 @@ class CustodianOrderMessageFactory {
 
   private static final Map<String, String> FILE_NAME_PATTERNS =
       Map.of(
-          "sebFundXlsx", "SEB_%s_indeksfondid_%s.xlsx",
+          "sebFundXlsx", "SEB_%s_indeksfondid_%s.csv",
           "sebEtfXlsx", "SEB_%s_ETF_tehingud_%s.xlsx",
           "ftEtfXlsx", "FT_%s_ETF_orders_%s.xlsx");
+
+  private static final Map<String, String> MIME_TYPES =
+      Map.of(
+          "sebFundXlsx", CSV_MIME_TYPE,
+          "sebEtfXlsx", XLSX_MIME_TYPE,
+          "ftEtfXlsx", XLSX_MIME_TYPE);
 
   private final CustodianOrderEmailProperties properties;
 
@@ -84,7 +91,7 @@ class CustodianOrderMessageFactory {
           if (content != null && content.length > 0) {
             var attachment = new MessageContent();
             attachment.setName(namePattern.formatted(fund.getCode(), fileTimestamp));
-            attachment.setType(XLSX_MIME_TYPE);
+            attachment.setType(MIME_TYPES.get(exportKey));
             attachment.setContent(Base64.getEncoder().encodeToString(content));
             attachments.add(attachment);
           }

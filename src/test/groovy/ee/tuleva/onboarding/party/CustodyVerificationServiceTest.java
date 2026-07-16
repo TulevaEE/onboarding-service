@@ -193,6 +193,18 @@ class CustodyVerificationServiceTest {
     assertThat(children).containsExactly(new CustodyRight(CHILD, PROPERTY, true, true));
   }
 
+  @Test
+  void dedupesEligibleChildrenByPersonalCodeKeepingTheFirstNames() {
+    givenCustodyRights(
+        new CustodyRight(CHILD, PROPERTY, true, true, "Mari", "Maasikas"),
+        new CustodyRight(CHILD, PROPERTY, true, true, null, null));
+
+    List<CustodyRight> children = service.findChildrenWithAssetManagementCustody(PARENT, MAX_AGE);
+
+    assertThat(children)
+        .containsExactly(new CustodyRight(CHILD, PROPERTY, true, true, "Mari", "Maasikas"));
+  }
+
   private void givenCustodyRights(CustodyRight... rights) {
     given(populationRegisterClient.fetchCustodyRights(PARENT, MAX_AGE))
         .willReturn(new PopulationRegisterResult<>(List.of(rights), CUSTODY_MESSAGE_ID));

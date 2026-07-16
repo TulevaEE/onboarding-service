@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static java.math.BigDecimal.ZERO;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -177,17 +178,16 @@ class TransactionPipelineIntegrationTest {
   void finalizeConfirmedBatch_sebFundExportContainsCorrectData() throws Exception {
     var batch = runFullPipeline();
 
-    byte[] sebFundXlsx = decodeExport(batch.getMetadata(), "sebFundXlsx");
-    try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(sebFundXlsx))) {
-      Sheet sheet = workbook.getSheetAt(0);
+    byte[] sebFundCsv = decodeExport(batch.getMetadata(), "sebFundXlsx");
+    List<String> lines = List.of(new String(sebFundCsv, UTF_8).split("\n", -1));
 
-      Row dataRow = sheet.getRow(3);
-      assertThat(dataRow).isNotNull();
-      assertThat(dataRow.getCell(9).getStringCellValue()).isEqualTo("SUBS");
-      assertThat(dataRow.getCell(13).getStringCellValue()).isEqualTo("IE00BFG1TM61");
-      assertThat(new BigDecimal(String.valueOf(dataRow.getCell(16).getNumericCellValue())))
-          .isCloseTo(new BigDecimal("53487"), within(BigDecimal.ONE));
-    }
+    String dataLine =
+        lines.stream().filter(line -> line.contains("IE00BFG1TM61")).findFirst().orElseThrow();
+    List<String> cells = List.of(dataLine.split(";", -1));
+    assertThat(cells.get(5)).isEqualTo("SUBS");
+    assertThat(cells.get(9)).isEqualTo("IE00BFG1TM61");
+    assertThat(new BigDecimal(cells.get(12)))
+        .isCloseTo(new BigDecimal("53487"), within(BigDecimal.ONE));
   }
 
   @Test
@@ -199,7 +199,7 @@ class TransactionPipelineIntegrationTest {
       Sheet sheet = workbook.getSheetAt(0);
 
       Map<String, Row> rowsByIsin = new java.util.HashMap<>();
-      for (int i = 2; i <= sheet.getLastRowNum(); i++) {
+      for (int i = 1; i <= sheet.getLastRowNum(); i++) {
         Row row = sheet.getRow(i);
         if (row != null && row.getCell(2) != null) {
           rowsByIsin.put(row.getCell(2).getStringCellValue(), row);
@@ -209,13 +209,13 @@ class TransactionPipelineIntegrationTest {
       assertThat(rowsByIsin).containsKey("IE00BMDBMY19");
       assertThat(rowsByIsin.get("IE00BMDBMY19").getCell(3).getStringCellValue())
           .isEqualTo("ESGM.DE");
-      assertThat(rowsByIsin.get("IE00BMDBMY19").getCell(7).getStringCellValue()).isEqualTo("BUY");
+      assertThat(rowsByIsin.get("IE00BMDBMY19").getCell(7).getStringCellValue()).isEqualTo("Buy");
 
       assertThat(rowsByIsin).containsKey("LU1291106356");
-      assertThat(rowsByIsin.get("LU1291106356").getCell(7).getStringCellValue()).isEqualTo("BUY");
+      assertThat(rowsByIsin.get("LU1291106356").getCell(7).getStringCellValue()).isEqualTo("Buy");
 
       assertThat(rowsByIsin).containsKey("LU1291102447");
-      assertThat(rowsByIsin.get("LU1291102447").getCell(7).getStringCellValue()).isEqualTo("SELL");
+      assertThat(rowsByIsin.get("LU1291102447").getCell(7).getStringCellValue()).isEqualTo("Sell");
     }
   }
 

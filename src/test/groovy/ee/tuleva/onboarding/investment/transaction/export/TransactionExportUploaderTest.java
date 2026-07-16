@@ -34,7 +34,7 @@ class TransactionExportUploaderTest {
 
     when(driveClient.uploadFile(
             "month-folder-id",
-            "SEB_TKF100_indeksfondid_2026-02-16T14_30_05.xlsx",
+            "SEB_TKF100_indeksfondid_2026-02-16T14_30_05.csv",
             new byte[] {1, 2}))
         .thenReturn("https://drive.google.com/seb-fund");
     when(driveClient.uploadFile(
@@ -65,7 +65,7 @@ class TransactionExportUploaderTest {
     when(driveClient.getOrCreateFolder("root-id", "2026")).thenReturn("year-id");
     when(driveClient.getOrCreateFolder("year-id", "03")).thenReturn("month-id");
     when(driveClient.uploadFile(
-            "month-id", "SEB_TKF100_indeksfondid_2026-03-05T09_15_00.xlsx", new byte[] {1, 2}))
+            "month-id", "SEB_TKF100_indeksfondid_2026-03-05T09_15_00.csv", new byte[] {1, 2}))
         .thenReturn("https://drive.google.com/fund-only");
 
     var result = uploader.uploadExports(rootFolderId, TKF100, timestamp, exports);

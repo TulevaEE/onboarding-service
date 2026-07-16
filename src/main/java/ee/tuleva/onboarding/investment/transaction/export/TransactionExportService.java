@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static java.math.BigDecimal.ZERO;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
@@ -14,6 +15,8 @@ import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,15 +34,11 @@ public class TransactionExportService {
   };
 
   private static final String[] SEB_FUND_HEADERS = {
-    "Portfelli t\u00e4his",
-    "Issuer Of Order",
-    "Korralduse andja CIF",
-    "Securities Acc",
+    "Original reference",
+    "Client name",
+    "Securities Acc ",
     "Cash Acc",
     "Currency",
-    "Counterparties name",
-    "Counterparties Securities No",
-    "Counterparties Account Manager",
     "Transaction Type",
     "Trade Date",
     "Settlement Date",
@@ -48,9 +47,11 @@ public class TransactionExportService {
     "Quantity",
     "Price",
     "Transaction Sum",
-    "Commission",
+    "Transaction fee",
     "Total Sum"
   };
+
+  private static final String CSV_DELIMITER = ";";
 
   private static final String[] SEB_ETF_HEADERS = {
     "Client Name",
@@ -97,39 +98,46 @@ public class TransactionExportService {
     List<TransactionOrder> fundOrders =
         orders.stream().filter(order -> order.getInstrumentType() == FUND).toList();
 
-    try (Workbook workbook = new XSSFWorkbook()) {
-      Sheet sheet = workbook.createSheet("Indeksfondid SEB");
-
-      createCellAt(sheet, 0, 1, "ORDER");
-      createCellAt(sheet, 1, 1, "Fund units");
-      createRow(sheet, 2, SEB_FUND_HEADERS);
-
-      int rowIndex = 3;
-      for (var order : fundOrders) {
-        Row row = sheet.createRow(rowIndex++);
-        row.createCell(1).setCellValue(order.getFund().getDisplayName());
-        row.createCell(3).setCellValue(order.getFund().getSecuritiesAccount());
-        row.createCell(4).setCellValue(order.getFund().getCashAccount());
-        row.createCell(5).setCellValue("EUR");
-        row.createCell(9).setCellValue(order.getTransactionType() == BUY ? "SUBS" : "REDP");
-        row.createCell(12).setCellValue(labelsByIsin.getOrDefault(order.getInstrumentIsin(), ""));
-        row.createCell(13).setCellValue(order.getInstrumentIsin());
-        if (order.getTransactionType() == BUY) {
-          if (order.getOrderAmount() != null) {
-            row.createCell(16).setCellValue(order.getOrderAmount().doubleValue());
-          }
-        } else {
-          if (order.getOrderQuantity() != null) {
-            row.createCell(14).setCellValue(order.getOrderQuantity().doubleValue());
-          }
-        }
-      }
-
-      autoSizeColumns(sheet, SEB_FUND_HEADERS.length);
-      return toByteArray(workbook);
-    } catch (IOException e) {
-      throw new IllegalStateException("Failed to generate SEB Fund export", e);
+    List<String> lines = new ArrayList<>();
+    lines.add(sebFundPreambleRow("ORDER"));
+    lines.add(sebFundPreambleRow("Fund units"));
+    lines.add(String.join(CSV_DELIMITER, SEB_FUND_HEADERS));
+    for (var order : fundOrders) {
+      lines.add(sebFundDataRow(order, labelsByIsin));
     }
+
+    return String.join("\n", lines).getBytes(UTF_8);
+  }
+
+  private String sebFundPreambleRow(String label) {
+    String[] cells = new String[SEB_FUND_HEADERS.length];
+    Arrays.fill(cells, "");
+    cells[1] = label;
+    return String.join(CSV_DELIMITER, cells);
+  }
+
+  private String sebFundDataRow(TransactionOrder order, Map<String, String> labelsByIsin) {
+    boolean isSell = order.getTransactionType() != BUY;
+    String[] cells = new String[SEB_FUND_HEADERS.length];
+    Arrays.fill(cells, "");
+    cells[0] = order.getOrderUuid().toString();
+    cells[1] = order.getFund().getDisplayName();
+    cells[2] = order.getFund().getSecuritiesAccount();
+    cells[3] = order.getFund().getCashAccount();
+    cells[4] = "EUR";
+    cells[5] = isSell ? "REDM" : "SUBS";
+    cells[8] = labelsByIsin.getOrDefault(order.getInstrumentIsin(), "");
+    cells[9] = order.getInstrumentIsin();
+    if (isSell) {
+      if (order.getOrderQuantity() != null) {
+        cells[10] = order.getOrderQuantity().toPlainString();
+      }
+    } else {
+      if (order.getOrderAmount() != null) {
+        cells[12] = order.getOrderAmount().toPlainString();
+      }
+    }
+    return String.join(CSV_DELIMITER, cells);
   }
 
   public byte[] generateSebEtfExport(List<TransactionOrder> orders, Map<String, String> ricByIsin) {
@@ -141,10 +149,9 @@ public class TransactionExportService {
     try (Workbook workbook = new XSSFWorkbook()) {
       Sheet sheet = workbook.createSheet("SEB ETF");
 
-      createRow(sheet, 0, "SEB");
-      createRow(sheet, 1, SEB_ETF_HEADERS);
+      createRow(sheet, 0, SEB_ETF_HEADERS);
 
-      int rowIndex = 2;
+      int rowIndex = 1;
       for (var order : sebEtfOrders) {
         Row row = sheet.createRow(rowIndex++);
         row.createCell(0).setCellValue(order.getFund().getDisplayName());
@@ -155,7 +162,7 @@ public class TransactionExportService {
         if (order.getOrderQuantity() != null) {
           row.createCell(6).setCellValue(order.getOrderQuantity().doubleValue());
         }
-        row.createCell(7).setCellValue(order.getTransactionType().name());
+        row.createCell(7).setCellValue(titleCase(order.getTransactionType()));
       }
 
       autoSizeColumns(sheet, SEB_ETF_HEADERS.length);
@@ -248,16 +255,15 @@ public class TransactionExportService {
     }
   }
 
+  private String titleCase(TransactionType transactionType) {
+    return transactionType == BUY ? "Buy" : "Sell";
+  }
+
   private void createRow(Sheet sheet, int rowIndex, String... values) {
     Row row = sheet.createRow(rowIndex);
     for (int i = 0; i < values.length; i++) {
       row.createCell(i).setCellValue(values[i]);
     }
-  }
-
-  private void createCellAt(Sheet sheet, int rowIndex, int cellIndex, String value) {
-    Row row = sheet.createRow(rowIndex);
-    row.createCell(cellIndex).setCellValue(value);
   }
 
   private void autoSizeColumns(Sheet sheet, int columnCount) {

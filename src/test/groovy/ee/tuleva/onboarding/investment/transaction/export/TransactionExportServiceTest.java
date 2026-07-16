@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.time.TestClockHolder.now;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -74,7 +75,23 @@ class TransactionExportServiceTest {
   }
 
   @Test
-  void generateSebFundExport_filtersOnlyFundOrdersAndFormatsCorrectly() throws Exception {
+  void generateSebFundExport_writesPreambleAndHeaderRows() {
+    byte[] csv = service.generateSebFundExport(List.of(), Map.of());
+
+    List<String> lines = csvLines(csv);
+
+    assertThat(lines.get(0)).isEqualTo(";ORDER;;;;;;;;;;;;;");
+    assertThat(lines.get(1)).isEqualTo(";Fund units;;;;;;;;;;;;;");
+    assertThat(lines.get(2))
+        .isEqualTo(
+            "Original reference;Client name;Securities Acc ;Cash Acc;Currency;Transaction Type;"
+                + "Trade Date;Settlement Date;Security Name;ISIN;Quantity;Price;"
+                + "Transaction Sum;Transaction fee;Total Sum");
+    assertThat(lines).hasSize(3);
+  }
+
+  @Test
+  void generateSebFundExport_filtersOnlyFundOrdersAndWritesBuyRow() {
     var batch = buildBatch();
 
     var fundOrder =
@@ -84,69 +101,38 @@ class TransactionExportServiceTest {
 
     var labelsByIsin = Map.of("LU00FUND", "SEB Fund X");
 
-    byte[] xlsx = service.generateSebFundExport(List.of(fundOrder, etfOrder), labelsByIsin);
+    byte[] csv = service.generateSebFundExport(List.of(fundOrder, etfOrder), labelsByIsin);
 
-    assertThat(xlsx).isNotEmpty();
+    List<String> lines = csvLines(csv);
 
-    try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(xlsx))) {
-      var sheet = workbook.getSheetAt(0);
-      assertThat(sheet.getSheetName()).isEqualTo("Indeksfondid SEB");
-
-      assertThat(sheet.getRow(0).getCell(1).getStringCellValue()).isEqualTo("ORDER");
-      assertThat(sheet.getRow(1).getCell(1).getStringCellValue()).isEqualTo("Fund units");
-
-      var headerRow = sheet.getRow(2);
-      assertThat(headerRow.getCell(0).getStringCellValue()).isEqualTo("Portfelli tähis");
-      assertThat(headerRow.getCell(1).getStringCellValue()).isEqualTo("Issuer Of Order");
-      assertThat(headerRow.getCell(9).getStringCellValue()).isEqualTo("Transaction Type");
-      assertThat(headerRow.getCell(12).getStringCellValue()).isEqualTo("Security Name");
-      assertThat(headerRow.getCell(13).getStringCellValue()).isEqualTo("ISIN");
-      assertThat(headerRow.getCell(16).getStringCellValue()).isEqualTo("Transaction Sum");
-
-      var dataRow = sheet.getRow(3);
-      assertThat(dataRow.getCell(1).getStringCellValue()).isEqualTo("Tuleva Täiendav Kogumisfond");
-      assertThat(dataRow.getCell(3).getStringCellValue()).isEqualTo("VP68168");
-      assertThat(dataRow.getCell(4).getStringCellValue()).isEqualTo("EE861010220306591229");
-      assertThat(dataRow.getCell(5).getStringCellValue()).isEqualTo("EUR");
-      assertThat(dataRow.getCell(9).getStringCellValue()).isEqualTo("SUBS");
-      assertThat(dataRow.getCell(12).getStringCellValue()).isEqualTo("SEB Fund X");
-      assertThat(dataRow.getCell(13).getStringCellValue()).isEqualTo("LU00FUND");
-      assertThat(dataRow.getCell(16).getNumericCellValue()).isEqualTo(75000.0);
-
-      assertThat(sheet.getPhysicalNumberOfRows()).isEqualTo(4);
-    }
+    assertThat(lines).hasSize(4);
+    assertThat(lines.get(3))
+        .isEqualTo(
+            fundOrder.getOrderUuid()
+                + ";Tuleva Täiendav Kogumisfond;VP68168;EE861010220306591229;EUR;SUBS;;;"
+                + "SEB Fund X;LU00FUND;;;75000;;");
   }
 
   @Test
-  void generateSebFundExport_usesSellTransactionType() throws Exception {
-    var batch = buildBatch();
-    var sellOrder =
-        buildOrder(batch, TUV100, "LU00FUND", SELL, FUND, SEB, new BigDecimal("30000"), null);
-
-    byte[] xlsx =
-        service.generateSebFundExport(List.of(sellOrder), Map.of("LU00FUND", "SEB Fund X"));
-
-    try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(xlsx))) {
-      var dataRow = workbook.getSheetAt(0).getRow(3);
-      assertThat(dataRow.getCell(9).getStringCellValue()).isEqualTo("REDP");
-    }
-  }
-
-  @Test
-  void generateSebFundExport_redpRowCarriesQuantityNotTransactionSum() throws Exception {
+  void generateSebFundExport_writesReDMAndQuantityForSellOrder() {
     var batch = buildBatch();
     var sellOrder =
         buildOrder(batch, TUV100, "LU00FUND", SELL, FUND, SEB, new BigDecimal("30000"), 2400L);
 
-    byte[] xlsx =
+    byte[] csv =
         service.generateSebFundExport(List.of(sellOrder), Map.of("LU00FUND", "SEB Fund X"));
 
-    try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(xlsx))) {
-      var dataRow = workbook.getSheetAt(0).getRow(3);
-      assertThat(dataRow.getCell(9).getStringCellValue()).isEqualTo("REDP");
-      assertThat(dataRow.getCell(14).getNumericCellValue()).isEqualTo(2400.0);
-      assertThat(dataRow.getCell(16)).isNull();
-    }
+    List<String> lines = csvLines(csv);
+
+    assertThat(lines.get(3))
+        .isEqualTo(
+            sellOrder.getOrderUuid()
+                + ";Tuleva III Samba Pensionifond;VP68959;EE691010220306737229;EUR;REDM;;;"
+                + "SEB Fund X;LU00FUND;2400;;;;");
+  }
+
+  private List<String> csvLines(byte[] csv) {
+    return List.of(new String(csv, UTF_8).split("\n", -1));
   }
 
   @Test
@@ -171,10 +157,7 @@ class TransactionExportServiceTest {
       var sheet = workbook.getSheetAt(0);
       assertThat(sheet.getSheetName()).isEqualTo("SEB ETF");
 
-      var titleRow = sheet.getRow(0);
-      assertThat(titleRow.getCell(0).getStringCellValue()).isEqualTo("SEB");
-
-      var headerRow = sheet.getRow(1);
+      var headerRow = sheet.getRow(0);
       assertThat(headerRow.getCell(0).getStringCellValue()).isEqualTo("Client Name");
       assertThat(headerRow.getCell(1).getStringCellValue()).isEqualTo("Account external no.");
       assertThat(headerRow.getCell(2).getStringCellValue()).isEqualTo("Instruction ISIN");
@@ -184,16 +167,16 @@ class TransactionExportServiceTest {
       assertThat(headerRow.getCell(6).getStringCellValue()).isEqualTo("Quantity");
       assertThat(headerRow.getCell(7).getStringCellValue()).isEqualTo("Type");
 
-      var dataRow = sheet.getRow(2);
+      var dataRow = sheet.getRow(1);
       assertThat(dataRow.getCell(0).getStringCellValue()).isEqualTo("Tuleva Täiendav Kogumisfond");
       assertThat(dataRow.getCell(1).getStringCellValue()).isEqualTo("VP68168");
       assertThat(dataRow.getCell(2).getStringCellValue()).isEqualTo("IE00ETF");
       assertThat(dataRow.getCell(3).getStringCellValue()).isEqualTo("ESGM.DE");
       assertThat(dataRow.getCell(4).getStringCellValue()).isEqualTo("MOC");
       assertThat((long) dataRow.getCell(6).getNumericCellValue()).isEqualTo(500L);
-      assertThat(dataRow.getCell(7).getStringCellValue()).isEqualTo("BUY");
+      assertThat(dataRow.getCell(7).getStringCellValue()).isEqualTo("Buy");
 
-      assertThat(sheet.getPhysicalNumberOfRows()).isEqualTo(3);
+      assertThat(sheet.getPhysicalNumberOfRows()).isEqualTo(2);
     }
   }
 

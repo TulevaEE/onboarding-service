@@ -89,6 +89,18 @@ class GoogleDriveClientTest {
         .uri(contains("https://www.googleapis.com/upload/drive/v3/files"), any(Object[].class));
   }
 
+  @Test
+  void uploadFile_sendsSpreadsheetContentTypeForXlsxFile() {
+    assertThat(GoogleDriveClient.contentTypeFor("SEB_TKF100_ETF_tehingud_16022026.xlsx"))
+        .isEqualTo("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  }
+
+  @Test
+  void uploadFile_sendsCsvContentTypeForCsvFile() {
+    assertThat(GoogleDriveClient.contentTypeFor("SEB_TKF100_indeksfondid_16022026.csv"))
+        .isEqualTo("text/csv");
+  }
+
   @SuppressWarnings("unchecked")
   private static RestClient.RequestHeadersUriSpec<?> stubGet(
       RestClient restClient, Map<String, Object> response) {

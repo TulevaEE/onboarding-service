@@ -14,6 +14,9 @@ import tools.jackson.databind.json.JsonMapper;
 class GoogleDriveClient {
 
   private static final String FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
+  private static final String CSV_CONTENT_TYPE = "text/csv";
+  private static final String SPREADSHEET_CONTENT_TYPE =
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
   private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
       new ParameterizedTypeReference<>() {};
 
@@ -69,7 +72,8 @@ class GoogleDriveClient {
     var metadata = Map.of("name", fileName, "parents", List.of(folderId));
 
     var metadataJson = toJson(metadata);
-    var multipartBody = buildMultipartBody(boundary, metadataJson, content);
+    var multipartBody =
+        buildMultipartBody(boundary, metadataJson, content, contentTypeFor(fileName));
 
     Map<String, Object> response =
         restClient
@@ -85,14 +89,16 @@ class GoogleDriveClient {
     return (String) response.get("webViewLink");
   }
 
+  static String contentTypeFor(String fileName) {
+    return fileName.endsWith(".csv") ? CSV_CONTENT_TYPE : SPREADSHEET_CONTENT_TYPE;
+  }
+
   private static byte[] buildMultipartBody(
-      String boundary, String metadataJson, byte[] fileContent) {
+      String boundary, String metadataJson, byte[] fileContent, String contentType) {
     var metadataPart =
         ("--%s\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n%s\r\n"
             .formatted(boundary, metadataJson));
-    var filePart =
-        ("--%s\r\nContent-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n\r\n"
-            .formatted(boundary));
+    var filePart = ("--%s\r\nContent-Type: %s\r\n\r\n".formatted(boundary, contentType));
     var closing = "\r\n--%s--".formatted(boundary);
 
     var metadataBytes = metadataPart.getBytes();

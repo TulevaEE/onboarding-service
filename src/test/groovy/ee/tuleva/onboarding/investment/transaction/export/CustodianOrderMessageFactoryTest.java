@@ -48,8 +48,31 @@ class CustodianOrderMessageFactoryTest {
     assertThat(message.getAttachments())
         .hasSize(3)
         .extracting(MessageContent::getName)
-        .anySatisfy(name -> assertThat(name).contains("SEB").contains("TUV100").endsWith(".xlsx"))
+        .anySatisfy(
+            name -> assertThat(name).contains("SEB").contains("indeksfondid").endsWith(".csv"))
+        .anySatisfy(name -> assertThat(name).contains("SEB").contains("ETF").endsWith(".xlsx"))
         .anySatisfy(name -> assertThat(name).contains("FT").contains("TUV100").endsWith(".xlsx"));
+  }
+
+  @Test
+  void create_sebFundAttachmentHasCsvMimeTypeAndFilename() {
+    var message = factory.create(TUV100, TIMESTAMP, Map.of("sebFundXlsx", new byte[] {1, 2}));
+
+    var attachment = message.getAttachments().getFirst();
+    assertThat(attachment.getName()).isEqualTo("SEB_TUV100_indeksfondid_2026-01-15T10_00_00.csv");
+    assertThat(attachment.getType()).isEqualTo("text/csv");
+  }
+
+  @Test
+  void create_sebEtfAndFtEtfAttachmentsKeepXlsxMimeType() {
+    var message =
+        factory.create(
+            TUV100,
+            TIMESTAMP,
+            Map.of(
+                "sebEtfXlsx", new byte[] {3, 4},
+                "ftEtfXlsx", new byte[] {5, 6}));
+
     assertThat(message.getAttachments())
         .allSatisfy(
             attachment ->

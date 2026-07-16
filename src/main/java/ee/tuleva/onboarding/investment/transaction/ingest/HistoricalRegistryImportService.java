@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
@@ -71,6 +72,9 @@ public class HistoricalRegistryImportService {
   private static final DateTimeFormatter SHEET_TIMESTAMP =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
   private static final DateTimeFormatter ESTONIAN_DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+  private static final Pattern THOUSANDS_GROUPING_COMMA = Pattern.compile("^-?\\d{1,3}(,\\d{3})+$");
+  private static final Pattern THOUSANDS_GROUPING_PERIOD =
+      Pattern.compile("^-?\\d{1,3}(\\.\\d{3})+$");
 
   private final TransactionBatchRepository batchRepository;
   private final TransactionOrderRepository orderRepository;
@@ -80,9 +84,11 @@ public class HistoricalRegistryImportService {
 
   @Transactional
   public HistoricalImportResult importCsv(String csv) {
-    List<CSVRecord> records = parseRecords(csv);
+    char delimiter = sniffDelimiter(csv);
+    char decimalSeparator = decimalSeparatorFor(delimiter);
+    List<CSVRecord> records = parseRecords(csv, delimiter);
     List<RowError> errors = new ArrayList<>();
-    List<ParsedRow> parsedRows = parseRows(records, errors);
+    List<ParsedRow> parsedRows = parseRows(records, errors, decimalSeparator);
 
     Map<TulevaFund, BigDecimal> totalAmountByFund = totalAmountByFund(parsedRows);
     if (!errors.isEmpty()) {
@@ -142,8 +148,7 @@ public class HistoricalRegistryImportService {
         totalAmountByFund);
   }
 
-  private List<CSVRecord> parseRecords(String csv) {
-    char delimiter = sniffDelimiter(csv);
+  private List<CSVRecord> parseRecords(String csv, char delimiter) {
     try (CSVParser parser =
         CSVFormat.DEFAULT
             .builder()
@@ -170,18 +175,23 @@ public class HistoricalRegistryImportService {
     return headerLine.contains(";") ? ';' : ',';
   }
 
+  private static char decimalSeparatorFor(char delimiter) {
+    return delimiter == ';' ? ',' : '.';
+  }
+
   private String normalize(String header) {
     return header.strip().toLowerCase();
   }
 
-  private List<ParsedRow> parseRows(List<CSVRecord> records, List<RowError> errors) {
+  private List<ParsedRow> parseRows(
+      List<CSVRecord> records, List<RowError> errors, char decimalSeparator) {
     List<ParsedRow> parsedRows = new ArrayList<>();
     Set<UUID> seenOrderUuids = new HashSet<>();
     Set<String> seenBrokerTransactionIds = new HashSet<>();
     for (CSVRecord record : records) {
       int rowNumber = (int) record.getRecordNumber() + 1;
       try {
-        ParsedRow row = parseRow(rowNumber, record);
+        ParsedRow row = parseRow(rowNumber, record, decimalSeparator);
         if (!seenOrderUuids.add(row.orderUuid())) {
           throw new RowParseException("Duplicate order_id in file: orderId=" + row.orderId());
         }
@@ -199,7 +209,7 @@ public class HistoricalRegistryImportService {
     return parsedRows;
   }
 
-  private ParsedRow parseRow(int rowNumber, CSVRecord record) {
+  private ParsedRow parseRow(int rowNumber, CSVRecord record, char decimalSeparator) {
     String orderId = requireValue(record, "order_id");
     String fundIsin = requireValue(record, "fund_isin");
     OrderStatus orderStatus =
@@ -227,18 +237,20 @@ public class HistoricalRegistryImportService {
                 requireValue(record, "transaction_type"),
                 "transaction_type"),
             parseInstrumentType(value(record, "instrument_type")),
-            parseDecimal(value(record, "order_amount"), "order_amount"),
-            parseDecimal(value(record, "order_quantity"), "order_quantity"),
+            parseDecimal(value(record, "order_amount"), "order_amount", decimalSeparator),
+            parseDecimal(value(record, "order_quantity"), "order_quantity", decimalSeparator),
             parseInstant(value(record, "order_timestamp"), "order_timestamp"),
             orderStatus,
             expectedSettlementDate,
             value(record, "comment"),
             parseInstant(value(record, "execution_timestamp"), "execution_timestamp"),
-            parseDecimal(value(record, "executed_quantity"), "executed_quantity"),
-            parseDecimal(value(record, "unit_price"), "unit_price"),
-            parseDecimal(value(record, "total_consideration"), "total_consideration"),
-            parseDecimal(value(record, "net_settlement_amount"), "net_settlement_amount"),
-            parseDecimal(value(record, "commission_amount"), "commission_amount"),
+            parseDecimal(value(record, "executed_quantity"), "executed_quantity", decimalSeparator),
+            parseDecimal(value(record, "unit_price"), "unit_price", decimalSeparator),
+            parseDecimal(
+                value(record, "total_consideration"), "total_consideration", decimalSeparator),
+            parseDecimal(
+                value(record, "net_settlement_amount"), "net_settlement_amount", decimalSeparator),
+            parseDecimal(value(record, "commission_amount"), "commission_amount", decimalSeparator),
             actualSettlementDate);
     requireTerminalStatusData(row);
     return row;
@@ -376,24 +388,41 @@ public class HistoricalRegistryImportService {
     return value;
   }
 
-  private static @Nullable BigDecimal parseDecimal(@Nullable String raw, String column) {
+  private static @Nullable BigDecimal parseDecimal(
+      @Nullable String raw, String column, char decimalSeparator) {
     if (raw == null) {
       return null;
     }
-    String cleaned = raw.replace(" ", "").replace(" ", "");
-    if (cleaned.contains(",") && cleaned.contains(".")) {
+    String cleaned = raw.replace("\u00A0", "").replace(" ", "");
+    boolean hasComma = cleaned.contains(",");
+    boolean hasPeriod = cleaned.contains(".");
+    if (hasComma && hasPeriod) {
       cleaned =
           cleaned.lastIndexOf(',') > cleaned.lastIndexOf('.')
               ? cleaned.replace(".", "").replace(',', '.')
               : cleaned.replace(",", "");
-    } else {
-      cleaned = cleaned.replace(',', '.');
+    } else if (hasComma || hasPeriod) {
+      cleaned = resolveSingleSeparator(cleaned, hasComma ? ',' : '.', decimalSeparator);
     }
     try {
       return new BigDecimal(cleaned);
     } catch (NumberFormatException e) {
       throw new RowParseException("Invalid number: column=" + column + ", value=" + raw);
     }
+  }
+
+  private static String resolveSingleSeparator(
+      String cleaned, char separator, char decimalSeparator) {
+    Pattern groupingPattern =
+        separator == ',' ? THOUSANDS_GROUPING_COMMA : THOUSANDS_GROUPING_PERIOD;
+    if (!groupingPattern.matcher(cleaned).matches()) {
+      return cleaned.replace(separator, '.');
+    }
+    boolean singleOccurrence = cleaned.indexOf(separator) == cleaned.lastIndexOf(separator);
+    boolean isDecimalUsage = separator == decimalSeparator && singleOccurrence;
+    return isDecimalUsage
+        ? cleaned.replace(separator, '.')
+        : cleaned.replace(String.valueOf(separator), "");
   }
 
   private static @Nullable Instant parseInstant(@Nullable String raw, String column) {

@@ -148,7 +148,7 @@ public class NavTransactionImpactAlertJob {
     if (isPevaRavaExecutionDate(today)) {
       sendOnce(
           "PEVA_RAVA",
-          "NAV IMPACT ALERT — PEVA/RAVA execution date (navDate=%s)\n".formatted(navDate)
+          "⚠️ NAV IMPACT ALERT — PEVA/RAVA execution date (navDate=%s)\n".formatted(navDate)
               + "  All Pillar 2 fund switches and exits will use today's NAV.\n"
               + "  Funds affected: TUK75, TUK00\n"
               + "  Manual NAV verification strongly recommended.");
@@ -159,7 +159,7 @@ public class NavTransactionImpactAlertJob {
     if (isR16BookingDay(today)) {
       sendOnce(
           "R16",
-          "NAV IMPACT ALERT — R16 booking day (navDate=%s)\n".formatted(navDate)
+          "⚠️ NAV IMPACT ALERT — R16 booking day (navDate=%s)\n".formatted(navDate)
               + "  Fondimaksed + ühekordsed väljamaksed: Pensionikeskus will book unit redemptions\n"
               + "  using today's NAV (12:00-16:00).\n"
               + "  Funds affected: TUK75, TUK00, TUV100\n"
@@ -197,7 +197,7 @@ public class NavTransactionImpactAlertJob {
     BigDecimal impactAt10bp = totalVolume.multiply(new BigDecimal("0.001")).setScale(2, HALF_UP);
     BigDecimal impactAt100bp = totalVolume.multiply(new BigDecimal("0.01")).setScale(2, HALF_UP);
 
-    return "NAV IMPACT ALERT — TKF100 (navDate=%s)\n".formatted(navDate)
+    return "⚠️ NAV IMPACT ALERT — TKF100 (navDate=%s)\n".formatted(navDate)
         + String.format(
             Locale.US,
             "  Pending Subscriptions: %,.2f EUR (%d payments)\n",

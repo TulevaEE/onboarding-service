@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.party.ChildOnboardingService.CUSTODY_MAX_AGE;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.NO_CUSTODY;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.OK;
+import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -15,6 +16,7 @@ import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
+import ee.tuleva.onboarding.populationregister.CustodyRight;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import java.time.Clock;
@@ -68,13 +70,14 @@ class ChildOnboardingServiceTest {
   private static final String CUSTODY_MESSAGE_ID = "11111111-1111-1111-1111-111111111111";
 
   @Test
-  void findEligibleChildren_returnsChildrenWithAssetManagementCustody() {
+  void findEligibleChildren_returnsChildrenWithAssetManagementCustodyIncludingNames() {
     given(
             custodyVerificationService.findChildrenWithAssetManagementCustody(
                 PARENT, CUSTODY_MAX_AGE))
-        .willReturn(List.of(CHILD));
+        .willReturn(List.of(new CustodyRight(CHILD, PROPERTY, true, true, "Mari", "Maasikas")));
 
-    assertThat(service.findEligibleChildren(parent)).containsExactly(CHILD);
+    assertThat(service.findEligibleChildren(parent))
+        .containsExactly(new EligibleChild(CHILD, "Mari", "Maasikas"));
   }
 
   @Test
@@ -82,9 +85,13 @@ class ChildOnboardingServiceTest {
     given(
             custodyVerificationService.findChildrenWithAssetManagementCustody(
                 PARENT, CUSTODY_MAX_AGE))
-        .willReturn(List.of(CHILD, ADULT));
+        .willReturn(
+            List.of(
+                new CustodyRight(CHILD, PROPERTY, true, true, "Mari", "Maasikas"),
+                new CustodyRight(ADULT, PROPERTY, true, true, "Jüri", "Tamm")));
 
-    assertThat(service.findEligibleChildren(parent)).containsExactly(CHILD);
+    assertThat(service.findEligibleChildren(parent))
+        .containsExactly(new EligibleChild(CHILD, "Mari", "Maasikas"));
   }
 
   @Test

@@ -44,15 +44,21 @@ class ChildControllerTest {
           parent, null, List.of(new SimpleGrantedAuthority(USER)));
 
   @Test
-  void listChildren_returnsEligibleChildPersonalCodes() throws Exception {
+  void listChildren_returnsEligibleChildrenWithNames() throws Exception {
     given(childOnboardingService.findEligibleChildren(parent))
-        .willReturn(List.of(CHILD, "61001010000"));
+        .willReturn(
+            List.of(
+                new EligibleChild(CHILD, "Mari", "Maasikas"),
+                new EligibleChild("61001010000", "Jüri", "Tamm")));
 
     mvc.perform(get("/v1/me/children").with(authentication(authentication)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(2))
         .andExpect(jsonPath("$[0].personalCode").value(CHILD))
-        .andExpect(jsonPath("$[1].personalCode").value("61001010000"));
+        .andExpect(jsonPath("$[0].firstName").value("Mari"))
+        .andExpect(jsonPath("$[0].lastName").value("Maasikas"))
+        .andExpect(jsonPath("$[1].personalCode").value("61001010000"))
+        .andExpect(jsonPath("$[1].firstName").value("Jüri"));
   }
 
   @Test

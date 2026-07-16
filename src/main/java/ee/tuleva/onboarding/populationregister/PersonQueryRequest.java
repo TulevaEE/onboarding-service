@@ -54,7 +54,14 @@ record PersonQueryRequest(
           EXCLUDED,
           EXCLUDED,
           EXCLUDED,
-          List.of("Liik", "Staatus", "HooldusoigusAlgus", "TeineIsikIsikukood", "TeineIsikOlek"));
+          List.of(
+              "Liik",
+              "Staatus",
+              "HooldusoigusAlgus",
+              "TeineIsikIsikukood",
+              "TeineIsikOlek",
+              "TeineIsikEesnimi",
+              "TeineIsikPerenimi"));
     }
   }
 }

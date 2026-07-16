@@ -163,6 +163,72 @@ class EpisCsvParserTest {
   }
 
   @Test
+  void throwsWhenHeaderRowCountIsUnsupported() {
+    String csv =
+        """
+        Tehingu liik;ISIN
+        SUB;EE3600109435
+        """;
+
+    assertThatThrownBy(() -> parser.parse(csv, "Tehingu liik", 3))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("headerRowCount=3");
+  }
+
+  @Test
+  void combinedHeaderFallsBackToGroupLabelWhenSubRowHasFewerColumnsThanGroupRow() {
+    String csv =
+        """
+        Väärtpaber;Jooksev NAV;Fondimaksed;Valuuta
+        ;;Osakud
+        Tuleva III Samba Pensionifond;1,4153;100,000;EUR
+        """;
+
+    EpisCsv result = parser.parse(csv, "Väärtpaber", 2);
+
+    Map<String, String> row = result.rows().getFirst();
+    assertThat(EpisCsvParser.findValue(row, "väärtpaber"))
+        .isEqualTo("Tuleva III Samba Pensionifond");
+    assertThat(EpisCsvParser.findValue(row, "fondimaksed osakud")).isEqualTo("100,000");
+    assertThat(EpisCsvParser.findValue(row, "valuuta")).isEqualTo("EUR");
+  }
+
+  @Test
+  void combinedHeaderCarriesLastGroupIntoTrailingColumnWhenGroupRowHasFewerColumnsThanSubRow() {
+    String csv =
+        """
+        Väärtpaber;Jooksev NAV;Valuuta
+        ;;;
+        Tuleva III Samba Pensionifond;1,4153;EUR;
+        """;
+
+    EpisCsv result = parser.parse(csv, "Väärtpaber", 2);
+
+    Map<String, String> row = result.rows().getFirst();
+    assertThat(EpisCsvParser.findValue(row, "väärtpaber"))
+        .isEqualTo("Tuleva III Samba Pensionifond");
+    assertThat(EpisCsvParser.findValue(row, "jooksev nav")).isEqualTo("1,4153");
+    assertThat(EpisCsvParser.findValue(row, "valuuta")).isEqualTo("EUR");
+  }
+
+  @Test
+  void combinedHeaderUsesSubLabelAloneWhenFirstColumnHasNoGroupLabelAtAll() {
+    String csv =
+        """
+        ;Väärtpaber
+        Positsioon;Osakud
+        Tuleva III Samba Pensionifond;100,000
+        """;
+
+    EpisCsv result = parser.parse(csv, "Väärtpaber", 2);
+
+    Map<String, String> row = result.rows().getFirst();
+    assertThat(EpisCsvParser.findValue(row, "positsioon"))
+        .isEqualTo("Tuleva III Samba Pensionifond");
+    assertThat(EpisCsvParser.findValue(row, "väärtpaber osakud")).isEqualTo("100,000");
+  }
+
+  @Test
   void throwsWhenHeaderMarkerNotFoundInFirstTenRows() {
     String csv =
         """
@@ -222,7 +288,8 @@ class EpisCsvParserTest {
     "abc, COMMA_DECIMAL",
     "1.2.3, COMMA_DECIMAL",
     "-, COMMA_DECIMAL",
-    "N/A, COMMA_DECIMAL"
+    "N/A, COMMA_DECIMAL",
+    "'1,2,3', COMMA_DECIMAL"
   })
   void parseNumberThrowsOnUnparseableValue(String input, DecimalConvention convention) {
     assertThatThrownBy(() -> EpisCsvParser.parseNumber(input, convention))

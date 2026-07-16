@@ -119,6 +119,20 @@ class R17ReportParserTest {
   }
 
   @Test
+  void throwsWhenSeisugaLabelIsOnTheLastPreHeaderLineWithNoFollowingLine() {
+    String csv =
+        """
+        Seisuga teadmata;;;;;;;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;100.000;100.000;80.00;0.00
+        """
+            .formatted(HEADER_ROW);
+
+    assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
   void throwsWhenSeisugaMarkerMissing() {
     String csv =
         """

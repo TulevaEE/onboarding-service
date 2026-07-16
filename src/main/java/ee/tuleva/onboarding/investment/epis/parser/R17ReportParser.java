@@ -93,9 +93,14 @@ public class R17ReportParser {
 
   @Nullable
   private static LocalDate findSeisugaDate(List<String> preHeaderLines) {
-    for (String line : preHeaderLines) {
+    for (int i = 0; i < preHeaderLines.size(); i++) {
+      String line = preHeaderLines.get(i);
       if (line.toLowerCase(Locale.ROOT).contains("seisuga")) {
-        return findDate(line);
+        LocalDate sameLineDate = findDate(line);
+        if (sameLineDate != null) {
+          return sameLineDate;
+        }
+        return i + 1 < preHeaderLines.size() ? findDate(preHeaderLines.get(i + 1)) : null;
       }
     }
     return null;

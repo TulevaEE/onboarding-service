@@ -20,7 +20,8 @@ class R16ReportParserTest {
         """
         Fondivalitseja: Tuleva Fondid AS;;;;;;
         Kuu: 2026 06;;;;;;
-        Väärtpaber;Jooksev NAV;Fondimaksed Osakud;Fondimaksed Summa;Ühekordsed maksed Osakud;Ühekordsed maksed Summa;Valuuta
+        Väärtpaber;Jooksev NAV;                       Fondimaksed;;                       Ühekordsed maksed;;Valuuta
+        ;;Osakud;Summa;Osakud;Summa;
         EE3600109435;0,80;1000,000;800,00;5000,000;4000,00;EUR
         EE3600109443;0,70;200,000;140,00;0;0;EUR
         """;
@@ -46,7 +47,8 @@ class R16ReportParserTest {
         """
         Fondivalitseja: Tuleva Fondid AS;;;;;;
         Kuu: 2026 06;;;;;;
-        Väärtpaber;Jooksev NAV;Fondimaksed Osakud;Fondimaksed Summa;Ühekordsed maksed Osakud;Ühekordsed maksed Summa;Valuuta
+        Väärtpaber;Jooksev NAV;Fondimaksed;;Ühekordsed maksed;;Valuuta
+        ;;Osakud;Summa;Osakud;Summa;
         Tuleva III Samba Pensionifond;0,90;300,000;270,00;100,000;90,00;EUR
         """;
 
@@ -62,7 +64,8 @@ class R16ReportParserTest {
     String csv =
         """
         Fondivalitseja: Tuleva Fondid AS;;;;;;
-        Väärtpaber;Jooksev NAV;Fondimaksed Osakud;Fondimaksed Summa;Ühekordsed maksed Osakud;Ühekordsed maksed Summa;Valuuta
+        Väärtpaber;Jooksev NAV;Fondimaksed;;Ühekordsed maksed;;Valuuta
+        ;;Osakud;Summa;Osakud;Summa;
         EE3600109435;0,80;1000,000;800,00;5000,000;4000,00;EUR
         """;
 
@@ -75,7 +78,8 @@ class R16ReportParserTest {
         """
         Fondivalitseja: Tuleva Fondid AS;;;;;;
         Kuu: 2026 06;;;;;;
-        Väärtpaber;Jooksev NAV;Fondimaksed Osakud;Fondimaksed Summa;Ühekordsed maksed Osakud;Ühekordsed maksed Summa;Valuuta
+        Väärtpaber;Jooksev NAV;Fondimaksed;;Ühekordsed maksed;;Valuuta
+        ;;Osakud;Summa;Osakud;Summa;
         XX0000000000;0,80;1000,000;800,00;5000,000;4000,00;EUR
         """;
 
@@ -90,7 +94,8 @@ class R16ReportParserTest {
         """
         Fondivalitseja: Tuleva Fondid AS;;;;;;
         Kuu: 2026 06;;;;;;
-        Väärtpaber;Jooksev NAV;Fondimaksed Osakud;Fondimaksed Summa;Ühekordsed maksed Osakud;Ühekordsed maksed Summa;Valuuta
+        Väärtpaber;Jooksev NAV;Fondimaksed;;Ühekordsed maksed;;Valuuta
+        ;;Osakud;Summa;Osakud;Summa;
         EE3600109435;0,80;0;0;0;0;EUR
         """;
 
@@ -106,7 +111,8 @@ class R16ReportParserTest {
         """
         Fondivalitseja: Tuleva Fondid AS;;;;;;
         Kuu: 2026 06;;;;;;
-        Väärtpaber;Jooksev NAV;Fondimaksed Osakud;Fondimaksed Summa;Ühekordsed maksed Osakud;Ühekordsed maksed Summa;Valuuta
+        Väärtpaber;Jooksev NAV;Fondimaksed;;Ühekordsed maksed;;Valuuta
+        ;;Osakud;Summa;Osakud;Summa;
         EE3600109435;0,80;100,000;80,00;0;0;EUR
         EE3600109435;0,80;50,000;40,00;0;0;EUR
         """;
@@ -122,13 +128,14 @@ class R16ReportParserTest {
         """
         Fondivalitseja: Tuleva Fondid AS;;;;;;
         Kuu: 2026 06;;;;;;
-        Väärtpaber;Jooksev NAV;Fondimaksed Osakud;Fondimaksed Summa;Ühekordsed maksed Osakud;Ühekordsed maksed Summa;Valuuta
-        EE3600109435;0,80;196,938;800,00;0;0;EUR
+        Väärtpaber;Jooksev NAV;Fondimaksed;;Ühekordsed maksed;;Valuuta
+        ;;Osakud;Summa;Osakud;Summa;
+        EE3600109435;0,80;123,456;800,00;0;0;EUR
         """;
 
     Map<String, R16ParsedFlow> result = parser.parse(csv);
 
-    assertThat(result.get("TUK75").fondimaksedUnits()).isEqualByComparingTo("196.938");
+    assertThat(result.get("TUK75").fondimaksedUnits()).isEqualByComparingTo("123.456");
   }
 
   @Test
@@ -137,10 +144,31 @@ class R16ReportParserTest {
         """
         Fondivalitseja: Tuleva Fondid AS;;;;;;
         Kuu: 2026 06;;;;;;
-        Väärtpaber;Jooksev NAV;Fondimaksed Osakud;Fondimaksed Summa;Ühekordsed maksed Osakud;Ühekordsed maksed Summa;Valuuta
+        Väärtpaber;Jooksev NAV;Fondimaksed;;Ühekordsed maksed;;Valuuta
+        ;;Osakud;Summa;Osakud;Summa;
         EE3600109435;0,80;150000000,000;800,00;0;0;EUR
         """;
 
     assertThatThrownBy(() -> parser.parse(csv)).isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void parsesRealTwoRowGroupedHeaderWithSpacePaddedGroupCells() {
+    String csv =
+        """
+        Fondivalitseja: Tuleva Fondid AS;;;;;;
+        Kuu: 2026 07;;;;;;
+        Väärtpaber;Jooksev NAV;                       Fondimaksed;;                       Ühekordsed maksed;;Valuuta
+        ;;Osakud;Summa;Osakud;Summa;
+        Tuleva III Samba Pensionifond;1,4153;7892,021;11169,58;123,456;278,73;EUR
+        """;
+
+    Map<String, R16ParsedFlow> result = parser.parse(csv);
+
+    assertThat(result).containsOnlyKeys("TUV100");
+    R16ParsedFlow tuv100 = result.get("TUV100");
+    assertThat(tuv100.fondimaksedUnits()).isEqualByComparingTo("7892.021");
+    assertThat(tuv100.uhekordsedUnits()).isEqualByComparingTo("123.456");
+    assertThat(tuv100.paymentMonth()).isEqualTo(YearMonth.of(2026, 7));
   }
 }

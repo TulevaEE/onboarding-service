@@ -78,12 +78,12 @@ class EpisReportIngestionServiceTest {
 
   private static final String R17_CSV =
       """
-      Seisuga: 01.08.2026;;;;;;;
-      ;;;;;;;
-      Väärtpaber;NAV;Toiming;PF valitseja/PIK;Hind;Osakud (teenustasuta);Osakud (teenustasuga);Summa
-      Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;100.000;100.000;80.00
-      Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Teine PF valitseja;0.80;200.000;200.000;160.00
-      Tuleva Maailma Võlakirjade Pensionifond;0.70;Tagasivõtt;Teine PF valitseja;0.70;50.000;50.000;35.00
+      Staatus;;;;Seisuga;;Valuuta;;
+      Netitud;;;;01.08.2026;;EUR;;
+      Väärtpaber;NAV;Toiming;PF valitseja/PIK;Hind;Osakud (teenustasuta);Osakud (teenustasuga);Summa;Summa (PF valitseja)
+      Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;100.000;100.000;80.00;0.00
+      Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Teine PF valitseja;0.80;200.000;200.000;160.00;0.00
+      Tuleva Maailma Võlakirjade Pensionifond;0.70;Tagasivõtt;Teine PF valitseja;0.70;50.000;50.000;35.00;0.00
       """;
 
   @Test
@@ -194,7 +194,8 @@ class EpisReportIngestionServiceTest {
     return """
         Fondivalitseja: Tuleva Fondid AS;;;;;;
         Kuu: 2026 08;;;;;;
-        Väärtpaber;Jooksev NAV;Fondimaksed Osakud;Fondimaksed Summa;Ühekordsed maksed Osakud;Ühekordsed maksed Summa;Valuuta
+        Väärtpaber;Jooksev NAV;                       Fondimaksed;;                       Ühekordsed maksed;;Valuuta
+        ;;Osakud;Summa;Osakud;Summa;
         EE3600109435;0,80;%s;800,00;0;0;EUR
         """
         .formatted(fondimaksedUnits);

@@ -214,29 +214,59 @@ public class HistoricalRegistryImportService {
       throw new RowParseException(
           "Settled row missing both actual and expected settlement date: orderId=" + orderId);
     }
-    return new ParsedRow(
-        rowNumber,
-        orderId,
-        toOrderUuid(orderId),
-        value(record, "transaction_id"),
-        resolveFund(fundIsin),
-        requireValue(record, "instrument_isin"),
-        parseEnum(
-            TransactionType.class, requireValue(record, "transaction_type"), "transaction_type"),
-        parseInstrumentType(value(record, "instrument_type")),
-        parseDecimal(value(record, "order_amount"), "order_amount"),
-        parseDecimal(value(record, "order_quantity"), "order_quantity"),
-        parseInstant(value(record, "order_timestamp"), "order_timestamp"),
-        orderStatus,
-        expectedSettlementDate,
-        value(record, "comment"),
-        parseInstant(value(record, "execution_timestamp"), "execution_timestamp"),
-        parseDecimal(value(record, "executed_quantity"), "executed_quantity"),
-        parseDecimal(value(record, "unit_price"), "unit_price"),
-        parseDecimal(value(record, "total_consideration"), "total_consideration"),
-        parseDecimal(value(record, "net_settlement_amount"), "net_settlement_amount"),
-        parseDecimal(value(record, "commission_amount"), "commission_amount"),
-        actualSettlementDate);
+    ParsedRow row =
+        new ParsedRow(
+            rowNumber,
+            orderId,
+            toOrderUuid(orderId),
+            value(record, "transaction_id"),
+            resolveFund(fundIsin),
+            requireValue(record, "instrument_isin"),
+            parseEnum(
+                TransactionType.class,
+                requireValue(record, "transaction_type"),
+                "transaction_type"),
+            parseInstrumentType(value(record, "instrument_type")),
+            parseDecimal(value(record, "order_amount"), "order_amount"),
+            parseDecimal(value(record, "order_quantity"), "order_quantity"),
+            parseInstant(value(record, "order_timestamp"), "order_timestamp"),
+            orderStatus,
+            expectedSettlementDate,
+            value(record, "comment"),
+            parseInstant(value(record, "execution_timestamp"), "execution_timestamp"),
+            parseDecimal(value(record, "executed_quantity"), "executed_quantity"),
+            parseDecimal(value(record, "unit_price"), "unit_price"),
+            parseDecimal(value(record, "total_consideration"), "total_consideration"),
+            parseDecimal(value(record, "net_settlement_amount"), "net_settlement_amount"),
+            parseDecimal(value(record, "commission_amount"), "commission_amount"),
+            actualSettlementDate);
+    requireTerminalStatusData(row);
+    return row;
+  }
+
+  private static void requireTerminalStatusData(ParsedRow row) {
+    if (row.orderStatus() != OrderStatus.EXECUTED && row.orderStatus() != OrderStatus.SETTLED) {
+      return;
+    }
+    if (row.orderTimestamp() == null) {
+      throw new RowParseException(
+          "Missing value: column=order_timestamp, orderId=" + row.orderId());
+    }
+    if (!row.hasExecutionData()) {
+      throw new RowParseException(
+          "Terminal order missing execution data: orderId=" + row.orderId());
+    }
+    if (row.unitPrice() == null) {
+      throw new RowParseException("Missing value: column=unit_price, orderId=" + row.orderId());
+    }
+    if (row.requiresExecutedQuantity() && row.executedQuantity() == null) {
+      throw new RowParseException(
+          "Missing value: column=executed_quantity, orderId=" + row.orderId());
+    }
+    if (row.isFundSubscription() && row.totalConsideration() == null) {
+      throw new RowParseException(
+          "Missing value: column=total_consideration, orderId=" + row.orderId());
+    }
   }
 
   private boolean isDuplicateBrokerTransactionId(ParsedRow row) {
@@ -433,6 +463,14 @@ public class HistoricalRegistryImportService {
           || executedQuantity != null
           || unitPrice != null
           || totalConsideration != null;
+    }
+
+    boolean requiresExecutedQuantity() {
+      return instrumentType == InstrumentType.ETF || transactionType == TransactionType.SELL;
+    }
+
+    boolean isFundSubscription() {
+      return instrumentType == InstrumentType.FUND && transactionType == TransactionType.BUY;
     }
 
     LocalDate settlementReportDate() {

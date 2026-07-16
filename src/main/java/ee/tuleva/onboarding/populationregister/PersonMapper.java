@@ -27,8 +27,8 @@ class PersonMapper {
   static PopulationRegisterPerson toPerson(PersonResponse response) {
     return new PopulationRegisterPerson(
         require(response.personalCode(), "isikukood"),
-        require(response.firstName(), "eesnimi"),
-        require(response.lastName(), "perekonnanimi"),
+        capitalizeFully(require(response.firstName(), "eesnimi"), ' ', '-'),
+        capitalizeFully(require(response.lastName(), "perekonnanimi"), ' ', '-'),
         parseDate(response.dateOfBirth()),
         toStatus(response.status()),
         toCitizenship(response.citizenship()));

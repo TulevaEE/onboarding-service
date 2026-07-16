@@ -95,8 +95,8 @@ class PopulationRegisterClientTest {
         .isEqualTo(
             new PopulationRegisterPerson(
                 PERSONAL_CODE,
-                "MARI",
-                "MAASIKAS",
+                "Mari",
+                "Maasikas",
                 LocalDate.of(1985, 3, 15),
                 ALIVE,
                 "EESTI VABARIIK"));
@@ -232,7 +232,7 @@ class PopulationRegisterClientTest {
 
     var result = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE);
 
-    assertThat(result.data().firstName()).isEqualTo("MARI");
+    assertThat(result.data().firstName()).isEqualTo("Mari");
     assertThat(result.data().isAlive()).isTrue();
     assertThat(result.messageId()).isEqualTo(storedMessageId);
     verify(store, never()).save(any(), any(), any(), any());
@@ -263,7 +263,7 @@ class PopulationRegisterClientTest {
 
     PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE).data();
 
-    assertThat(person.firstName()).isEqualTo("MARI");
+    assertThat(person.firstName()).isEqualTo("Mari");
     verify(store).save(eq(PERSONAL_CODE), eq(IDENTITY), any(UUID.class), eq(rawPersonResponse()));
     server.verify();
   }
@@ -297,7 +297,7 @@ class PopulationRegisterClientTest {
 
     PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE).data();
 
-    assertThat(person.firstName()).isEqualTo("MARI");
+    assertThat(person.firstName()).isEqualTo("Mari");
     server.verify();
   }
 

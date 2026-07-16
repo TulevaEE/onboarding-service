@@ -22,6 +22,7 @@ import org.springframework.stereotype.Component;
 public class R17ReportParser {
 
   private static final String HEADER_MARKER = "Väärtpaber";
+  private static final DecimalConvention DECIMAL_CONVENTION = DecimalConvention.PERIOD_DECIMAL;
   private static final BigDecimal MAX_REASONABLE_UNITS = new BigDecimal("100000000");
 
   private final EpisCsvParser csvParser;
@@ -101,7 +102,8 @@ public class R17ReportParser {
   }
 
   private static BigDecimal unitsOrZero(Map<String, String> row) {
-    BigDecimal units = parseNumber(findValue(row, "osakud (teenustasuga)", "osakuid"));
+    BigDecimal units =
+        parseNumber(findValue(row, "osakud (teenustasuga)", "osakuid"), DECIMAL_CONVENTION);
     return units == null ? BigDecimal.ZERO : units;
   }
 

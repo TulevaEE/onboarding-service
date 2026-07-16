@@ -107,6 +107,62 @@ class EpisCsvParserTest {
   }
 
   @Test
+  void combinesGroupedTwoRowHeaderWhenHeaderRowCountIsTwo() {
+    String csv =
+        """
+        Fondivalitseja: Tuleva Fondid AS;;;;;;
+        Kuu: 2026 07;;;;;;
+        Väärtpaber;Jooksev NAV;                       Fondimaksed;;                       Ühekordsed maksed;;Valuuta
+        ;;Osakud;Summa;Osakud;Summa;
+        Tuleva III Samba Pensionifond;1,4153;7892,021;11169,58;123,456;278,73;EUR
+        """;
+
+    EpisCsv result = parser.parse(csv, "Väärtpaber", 2);
+
+    assertThat(result.rows()).hasSize(1);
+    Map<String, String> row = result.rows().getFirst();
+    assertThat(EpisCsvParser.findValue(row, "väärtpaber"))
+        .isEqualTo("Tuleva III Samba Pensionifond");
+    assertThat(EpisCsvParser.findValue(row, "jooksev nav")).isEqualTo("1,4153");
+    assertThat(EpisCsvParser.findValue(row, "fondimaksed osakud")).isEqualTo("7892,021");
+    assertThat(EpisCsvParser.findValue(row, "fondimaksed summa")).isEqualTo("11169,58");
+    assertThat(EpisCsvParser.findValue(row, "ühekordsed maksed osakud")).isEqualTo("123,456");
+    assertThat(EpisCsvParser.findValue(row, "ühekordsed maksed summa")).isEqualTo("278,73");
+    assertThat(EpisCsvParser.findValue(row, "valuuta")).isEqualTo("EUR");
+  }
+
+  @Test
+  void twoRowHeaderModeKeepsPreHeaderLines() {
+    String csv =
+        """
+        Fondivalitseja: Tuleva Fondid AS;;;;;;
+        Kuu: 2026 07;;;;;;
+        Väärtpaber;Jooksev NAV;                       Fondimaksed;;                       Ühekordsed maksed;;Valuuta
+        ;;Osakud;Summa;Osakud;Summa;
+        Tuleva III Samba Pensionifond;1,4153;7892,021;11169,58;123,456;278,73;EUR
+        """;
+
+    EpisCsv result = parser.parse(csv, "Väärtpaber", 2);
+
+    assertThat(result.preHeaderLines())
+        .containsExactly("Fondivalitseja: Tuleva Fondid AS;;;;;;", "Kuu: 2026 07;;;;;;");
+  }
+
+  @Test
+  void singleHeaderRowModeIsUnaffectedByThreeArgOverload() {
+    String csv =
+        """
+        Tehingu liik;ISIN;Osakuid;Summa
+        SUB;EE3600109435;100,500;1500,00
+        """;
+
+    EpisCsv result = parser.parse(csv, "Tehingu liik", 1);
+
+    assertThat(result.rows()).hasSize(1);
+    assertThat(EpisCsvParser.findValue(result.rows().getFirst(), "osakuid")).isEqualTo("100,500");
+  }
+
+  @Test
   void throwsWhenHeaderMarkerNotFoundInFirstTenRows() {
     String csv =
         """

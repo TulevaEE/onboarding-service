@@ -21,13 +21,17 @@ public class EpisCsvParser {
   private static final Pattern PERIOD_GROUPED = Pattern.compile("^-?\\d{1,3}(\\.\\d{3})+$");
 
   public EpisCsv parse(String content, String headerMarker) {
+    return parse(content, headerMarker, 1);
+  }
+
+  public EpisCsv parse(String content, String headerMarker, int headerRowCount) {
     List<String> lines = content.lines().toList();
     char delimiter = detectDelimiter(lines);
     int headerLineIndex = findHeaderLineIndex(lines, delimiter, headerMarker);
+    List<String> headers = readHeaders(lines, delimiter, headerLineIndex, headerRowCount);
 
-    List<String> headers = splitLine(lines.get(headerLineIndex), delimiter);
     List<Map<String, String>> rows = new ArrayList<>();
-    for (int i = headerLineIndex + 1; i < lines.size(); i++) {
+    for (int i = headerLineIndex + headerRowCount; i < lines.size(); i++) {
       List<String> cells = splitLine(lines.get(i), delimiter);
       if (cells.stream().allMatch(String::isBlank)) {
         continue;
@@ -35,6 +39,44 @@ public class EpisCsvParser {
       rows.add(toRow(headers, cells));
     }
     return new EpisCsv(lines.subList(0, headerLineIndex), rows);
+  }
+
+  private static List<String> readHeaders(
+      List<String> lines, char delimiter, int headerLineIndex, int headerRowCount) {
+    return switch (headerRowCount) {
+      case 1 -> splitLine(lines.get(headerLineIndex), delimiter);
+      case 2 ->
+          combineHeaderRows(lines.get(headerLineIndex), lines.get(headerLineIndex + 1), delimiter);
+      default ->
+          throw new IllegalArgumentException(
+              "Unsupported EPIS header row count: headerRowCount=" + headerRowCount);
+    };
+  }
+
+  private static List<String> combineHeaderRows(String groupLine, String subLine, char delimiter) {
+    List<String> groupCells = splitLine(groupLine, delimiter);
+    List<String> subCells = splitLine(subLine, delimiter);
+    int columnCount = Math.max(groupCells.size(), subCells.size());
+    List<String> combined = new ArrayList<>();
+    String lastGroup = "";
+    for (int i = 0; i < columnCount; i++) {
+      String rawGroup = i < groupCells.size() ? groupCells.get(i).trim() : "";
+      String sub = i < subCells.size() ? subCells.get(i).trim() : "";
+      String group = rawGroup.isEmpty() ? lastGroup : rawGroup;
+      lastGroup = group;
+      combined.add(joinHeaderParts(group, sub));
+    }
+    return combined;
+  }
+
+  private static String joinHeaderParts(String group, String sub) {
+    if (sub.isEmpty()) {
+      return group;
+    }
+    if (group.isEmpty()) {
+      return sub;
+    }
+    return group + " " + sub;
   }
 
   public static @Nullable String findValue(Map<String, String> row, String... keywords) {

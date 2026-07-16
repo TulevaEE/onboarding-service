@@ -27,7 +27,7 @@ public class R16ReportParser {
   private final EpisCsvParser csvParser;
 
   public Map<String, R16ParsedFlow> parse(String csv) {
-    EpisCsv parsed = csvParser.parse(csv, HEADER_MARKER);
+    EpisCsv parsed = csvParser.parse(csv, HEADER_MARKER, 2);
     YearMonth paymentMonth = findPaymentMonth(parsed.preHeaderLines());
 
     Map<String, UnitAccumulator> accumulators = new LinkedHashMap<>();

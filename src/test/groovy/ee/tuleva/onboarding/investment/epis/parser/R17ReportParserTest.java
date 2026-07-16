@@ -12,6 +12,8 @@ class R17ReportParserTest {
 
   private static final LocalDate LOCK_DATE = LocalDate.of(2026, 3, 31);
   private static final LocalDate EXEC_DATE = LocalDate.of(2026, 5, 1);
+  private static final String HEADER_ROW =
+      "Väärtpaber;NAV;Toiming;PF valitseja/PIK;Hind;Osakud (teenustasuta);Osakud (teenustasuga);Summa;Summa (PF valitseja)";
 
   private final R17ReportParser parser = new R17ReportParser(new EpisCsvParser());
 
@@ -19,14 +21,15 @@ class R17ReportParserTest {
   void aggregatesPikAndSwitchingNetUnitsPerFund() {
     String csv =
         """
-        Seisuga: 15.04.2026;;;;;;;
-        ;;;;;;;
-        Väärtpaber;NAV;Toiming;PF valitseja/PIK;Hind;Osakud (teenustasuta);Osakud (teenustasuga);Summa
-        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;100.000;100.000;80.00
-        Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Teine PF valitseja;0.80;200.000;200.000;160.00
-        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;Teine PF valitseja;0.80;50.000;50.000;40.00
-        Tuleva Maailma Võlakirjade Pensionifond;0.70;Väljalase;Oma;0.70;300.000;300.000;210.00
-        """;
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;100.000;100.000;80.00;0.00
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Teine PF valitseja;0.80;200.000;200.000;160.00;0.00
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;Teine PF valitseja;0.80;50.000;50.000;40.00;0.00
+        Tuleva Maailma Võlakirjade Pensionifond;0.70;Väljalase;Oma;0.70;300.000;300.000;210.00;0.00
+        """
+            .formatted(HEADER_ROW);
 
     Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
 
@@ -41,10 +44,12 @@ class R17ReportParserTest {
   void throwsWhenSeisugaDateOutsideCycleWindow() {
     String csv =
         """
-        Seisuga: 15.03.2026;;;
-        Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
-        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100.000
-        """;
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.03.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;100.000;100.000;80.00;0.00
+        """
+            .formatted(HEADER_ROW);
 
     assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
         .isInstanceOf(IllegalArgumentException.class);
@@ -54,10 +59,12 @@ class R17ReportParserTest {
   void acceptsSeisugaDateOnCycleBoundaries() {
     String csv =
         """
-        Seisuga: 31.03.2026;;;
-        Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
-        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100.000
-        """;
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;31.03.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;100.000;100.000;80.00;0.00
+        """
+            .formatted(HEADER_ROW);
 
     Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
 
@@ -68,23 +75,27 @@ class R17ReportParserTest {
   void throwsWhenSeisugaDateAfterExecutionDate() {
     String csv =
         """
-        Seisuga: 15.05.2026;;;
-        Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
-        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100.000
-        """;
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.05.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;100.000;100.000;80.00;0.00
+        """
+            .formatted(HEADER_ROW);
 
     assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
-  void throwsWhenSeisugaLinePresentButHasNoDate() {
+  void throwsWhenSeisugaLinePresentButHasNoDateOnEitherLine() {
     String csv =
         """
-        Seisuga: teadmata;;;
-        Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
-        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100.000
-        """;
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;teadmata;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;100.000;100.000;80.00;0.00
+        """
+            .formatted(HEADER_ROW);
 
     assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
         .isInstanceOf(IllegalArgumentException.class);
@@ -94,11 +105,13 @@ class R17ReportParserTest {
   void skipsNonSeisugaPreHeaderLinesBeforeSeisugaLine() {
     String csv =
         """
-        Fondi aruanne;;;
-        Seisuga: 15.04.2026;;;
-        Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
-        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100.000
-        """;
+        Fondi aruanne;;;;;;;;
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;100.000;100.000;80.00;0.00
+        """
+            .formatted(HEADER_ROW);
 
     Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
 
@@ -109,22 +122,40 @@ class R17ReportParserTest {
   void throwsWhenSeisugaMarkerMissing() {
     String csv =
         """
-        Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
-        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;PIK;100.000
-        """;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;100.000;100.000;80.00;0.00
+        """
+            .formatted(HEADER_ROW);
 
     assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
+  void acceptsSeisugaDateWhenLabelAndValueAreOnTheSameLine() {
+    String csv =
+        """
+        Seisuga: 15.04.2026;;;;;;;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;100.000;100.000;80.00;0.00
+        """
+            .formatted(HEADER_ROW);
+
+    Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
+
+    assertThat(result.get("TUK75").pikUnits()).isEqualByComparingTo("100.000");
+  }
+
+  @Test
   void usesAbsoluteUnits() {
     String csv =
         """
-        Seisuga: 15.04.2026;;;
-        Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
-        Tuleva Maailma Aktsiate Pensionifond;Tagasivõtt;Teine PF valitseja;-50.000
-        """;
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;Teine PF valitseja;0.80;-50.000;-50.000;-40.00;0.00
+        """
+            .formatted(HEADER_ROW);
 
     Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
 
@@ -135,7 +166,8 @@ class R17ReportParserTest {
   void fallsBackToOsakuidColumnWhenTeenustasugaColumnMissing() {
     String csv =
         """
-        Seisuga: 15.04.2026;;;
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
         Väärtpaber;Toiming;PF valitseja/PIK;Osakuid
         Tuleva Maailma Aktsiate Pensionifond;Väljalase;Oma;200.000
         """;
@@ -149,11 +181,13 @@ class R17ReportParserTest {
   void skipsRowsWithZeroUnitsOrUnknownFund() {
     String csv =
         """
-        Seisuga: 15.04.2026;;;
-        Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
-        Tuleva Maailma Aktsiate Pensionifond;Väljalase;Oma;0
-        Mingi Muu Fond;Väljalase;Oma;100.000
-        """;
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Oma;0.80;0;0;0.00;0.00
+        Mingi Muu Fond;0.80;Väljalase;Oma;0.80;100.000;100.000;80.00;0.00
+        """
+            .formatted(HEADER_ROW);
 
     Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
 
@@ -164,10 +198,12 @@ class R17ReportParserTest {
   void doesNotMisinterpretPeriodDecimalUnitsAsThousandsGrouping() {
     String csv =
         """
-        Seisuga: 15.04.2026;;;
-        Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
-        Tuleva Maailma Aktsiate Pensionifond;Väljalase;Oma;100.500
-        """;
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Oma;0.80;100.500;100.500;80.00;0.00
+        """
+            .formatted(HEADER_ROW);
 
     Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
 
@@ -178,12 +214,48 @@ class R17ReportParserTest {
   void throwsWhenUnitsExceedHundredMillion() {
     String csv =
         """
-        Seisuga: 15.04.2026;;;
-        Väärtpaber;Toiming;PF valitseja/PIK;Osakud (teenustasuga)
-        Tuleva Maailma Aktsiate Pensionifond;Väljalase;Oma;150000000.000
-        """;
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Oma;0.80;150000000.000;150000000.000;80.00;0.00
+        """
+            .formatted(HEADER_ROW);
 
     assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
         .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void pfValitsejaColumnTakesPrecedenceOverSummaPfValitsejaColumnDueToHeaderOrder() {
+    String csv =
+        """
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;100.000;100.000;80.00;999.00
+        """
+            .formatted(HEADER_ROW);
+
+    Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
+
+    assertThat(result.get("TUK75").pikUnits()).isEqualByComparingTo("100.000");
+    assertThat(result.get("TUK75").switchingNetUnits()).isEqualByComparingTo("0");
+  }
+
+  @Test
+  void parsesWhenFileStartsWithUtf8Bom() {
+    String csv =
+        "﻿"
+            + """
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;100.000;100.000;80.00;0.00
+        """
+                .formatted(HEADER_ROW);
+
+    Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
+
+    assertThat(result.get("TUK75").pikUnits()).isEqualByComparingTo("100.000");
   }
 }

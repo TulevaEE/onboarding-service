@@ -167,11 +167,55 @@ class KycSurveyResponseTest {
                         new FundingSourceValueItem.Option(PARENT_INCOME_AND_SAVINGS),
                         new FundingSourceValueItem.Text("lottery win"))),
                 new PlannedContribution(new OptionValue<>("OPTION", FROM_200_TO_600)),
-                new InvestmentGoals(new InvestmentGoalsValue.Option(EDUCATION)),
-                new InvestmentGoals(new InvestmentGoalsValue.Option(FIRST_HOME))));
+                new InvestmentGoals(List.of(new InvestmentGoalsValue.Option(EDUCATION))),
+                new InvestmentGoals(List.of(new InvestmentGoalsValue.Option(FIRST_HOME)))));
 
     var roundTripped =
         objectMapper.readValue(objectMapper.writeValueAsString(response), KycSurveyResponse.class);
     assertThat(roundTripped).isEqualTo(response);
+  }
+
+  @Test
+  void investmentGoalsAcceptsMultipleGoalsInOneItem() throws Exception {
+    var json =
+        """
+        {
+          "answers": [
+            {
+              "type": "INVESTMENT_GOALS",
+              "value": [
+                { "type": "OPTION", "value": "EDUCATION" },
+                { "type": "OPTION", "value": "FIRST_HOME" }
+              ]
+            }
+          ]
+        }
+        """;
+
+    var response = objectMapper.readValue(json, KycSurveyResponse.class);
+
+    assertThat(response.answers())
+        .containsExactly(
+            new InvestmentGoals(
+                List.of(
+                    new InvestmentGoalsValue.Option(EDUCATION),
+                    new InvestmentGoalsValue.Option(FIRST_HOME))));
+  }
+
+  @Test
+  void investmentGoalsStillAcceptsASingleGoalForBackwardCompatibility() throws Exception {
+    var json =
+        """
+        {
+          "answers": [
+            { "type": "INVESTMENT_GOALS", "value": { "type": "OPTION", "value": "EDUCATION" } }
+          ]
+        }
+        """;
+
+    var response = objectMapper.readValue(json, KycSurveyResponse.class);
+
+    assertThat(response.answers())
+        .containsExactly(new InvestmentGoals(List.of(new InvestmentGoalsValue.Option(EDUCATION))));
   }
 }

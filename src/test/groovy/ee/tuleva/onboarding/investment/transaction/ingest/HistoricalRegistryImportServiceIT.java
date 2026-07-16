@@ -263,6 +263,126 @@ class HistoricalRegistryImportServiceIT {
             "comment");
   }
 
+  @Test
+  void executedRowWithBlankOrderTimestampIsRejected() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9001,EE3600109435,IE00BFG1TM61,BR-9001,BUY,ETF,1000.00,10.000000,,EXECUTED,2025-03-12,,2025-03-10 14:30:00,10.000000,100.00,1000.00,995.00,5.00,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors())
+        .containsExactly(
+            new HistoricalImportResult.RowError(
+                2, "Missing value: column=order_timestamp, orderId=GAS-9001"));
+    assertThat(result.ordersCreated()).isZero();
+    assertThat(executionRepository.findByBrokerTransactionId("BR-9001")).isEmpty();
+  }
+
+  @Test
+  void executedRowWithNoExecutionDataIsRejected() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9002,EE3600109435,IE00BFG1TM61,BR-9002,BUY,ETF,1000.00,10.000000,2025-03-10 09:00:00,EXECUTED,2025-03-12,,,,,,,,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors())
+        .containsExactly(
+            new HistoricalImportResult.RowError(
+                2, "Terminal order missing execution data: orderId=GAS-9002"));
+    assertThat(result.ordersCreated()).isZero();
+  }
+
+  @Test
+  void executedRowWithBlankUnitPriceIsRejected() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9003,EE3600109435,IE00BFG1TM61,BR-9003,BUY,ETF,1000.00,10.000000,2025-03-10 09:00:00,EXECUTED,2025-03-12,,2025-03-10 14:30:00,10.000000,,1000.00,995.00,5.00,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors())
+        .containsExactly(
+            new HistoricalImportResult.RowError(
+                2, "Missing value: column=unit_price, orderId=GAS-9003"));
+    assertThat(result.ordersCreated()).isZero();
+  }
+
+  @Test
+  void executedEtfBuyWithBlankExecutedQuantityIsRejected() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9004,EE3600109435,IE00BFG1TM61,BR-9004,BUY,ETF,1000.00,10.000000,2025-03-10 09:00:00,EXECUTED,2025-03-12,,2025-03-10 14:30:00,,100.00,1000.00,995.00,5.00,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors())
+        .containsExactly(
+            new HistoricalImportResult.RowError(
+                2, "Missing value: column=executed_quantity, orderId=GAS-9004"));
+    assertThat(result.ordersCreated()).isZero();
+  }
+
+  @Test
+  void executedSellWithBlankExecutedQuantityIsRejected() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9005,EE3600109443,IE0009FT4LX4,BR-9005,SELL,FUND,1000.00,10.000000,2025-03-10 09:00:00,EXECUTED,2025-03-12,,2025-03-10 14:30:00,,100.00,1000.00,995.00,5.00,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors())
+        .containsExactly(
+            new HistoricalImportResult.RowError(
+                2, "Missing value: column=executed_quantity, orderId=GAS-9005"));
+    assertThat(result.ordersCreated()).isZero();
+  }
+
+  @Test
+  void executedFundBuyWithBlankExecutedQuantityButPopulatedTotalConsiderationSucceeds() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9006,EE3600109443,IE0009FT4LX4,BR-9006,BUY,FUND,5000.00,,2025-03-10 09:00:00,EXECUTED,2025-03-12,,2025-03-10 14:30:00,,100.00,5000.00,4995.00,5.00,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors()).isEmpty();
+    assertThat(result.ordersCreated()).isEqualTo(1);
+    TransactionExecution execution =
+        executionRepository.findByBrokerTransactionId("BR-9006").orElseThrow();
+    assertThat(execution.getExecutedQuantity()).isNull();
+    assertThat(execution.getTotalConsideration()).isEqualByComparingTo("5000.00");
+  }
+
+  @Test
+  void nonTerminalRowsWithBlankTimestampAndEconomicsSucceed() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9007,EE3600109435,IE00BFG1TM61,,BUY,ETF,1000.00,10.000000,,PENDING,2025-03-12,,,,,,,,
+        GAS-9008,EE3600109435,IE00BFG1TM61,,BUY,ETF,1000.00,10.000000,,SENT,2025-03-12,,,,,,,,
+        GAS-9009,EE3600109435,IE00BFG1TM61,,BUY,ETF,1000.00,10.000000,,CANCELLED,2025-03-12,,,,,,,,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors()).isEmpty();
+    assertThat(result.ordersCreated()).isEqualTo(3);
+  }
+
   private TransactionOrder findByComment(String brokerTransactionId) {
     TransactionExecution execution =
         executionRepository.findByBrokerTransactionId(brokerTransactionId).orElseThrow();

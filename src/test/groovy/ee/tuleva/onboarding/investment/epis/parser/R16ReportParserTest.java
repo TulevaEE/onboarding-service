@@ -117,7 +117,7 @@ class R16ReportParserTest {
   }
 
   @Test
-  void doesNotMisinterpretCommaDecimalUnitsWithFourLeadingDigitsAsThousandsGrouping() {
+  void doesNotMisinterpretCommaDecimalUnitsThatMatchThousandsGroupingShape() {
     String csv =
         """
         Fondivalitseja: Tuleva Fondid AS;;;;;;

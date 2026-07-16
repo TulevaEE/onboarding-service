@@ -150,6 +150,69 @@ class HistoricalRegistryImportServiceIT {
   }
 
   @Test
+  void importWithInFileDuplicateBrokerTransactionIdPersistsNothing() {
+    long ordersBefore = orderRepository.count();
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-2024-040,EE3600109435,IE00BFG1TM61,BR-3040,BUY,ETF,1000.00,10.000000,2025-03-10 09:00:00,EXECUTED,2025-03-12,,2025-03-10 14:30:00,10.000000,100.00,1000.00,995.00,5.00,
+        GAS-2024-041,EE3600109435,IE00BFG1TM61,BR-3040,BUY,ETF,2000.00,20.000000,2025-03-11 09:00:00,EXECUTED,2025-03-13,,2025-03-11 14:30:00,20.000000,100.00,2000.00,1995.00,5.00,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.rowCount()).isEqualTo(2);
+    assertThat(result.ordersCreated()).isZero();
+    assertThat(result.executionsCreated()).isZero();
+    assertThat(result.errors())
+        .containsExactly(
+            new HistoricalImportResult.RowError(
+                3, "Duplicate brokerTransactionId in file: brokerTransactionId=BR-3040"));
+    assertThat(orderRepository.count()).isEqualTo(ordersBefore);
+    assertThat(executionRepository.findByBrokerTransactionId("BR-3040")).isEmpty();
+  }
+
+  @Test
+  void importWithMultipleBlankBrokerTransactionIdsSucceeds() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-2024-050,EE3600109435,IE00BFG1TM61,,BUY,ETF,1000.00,,2025-03-10 09:00:00,SENT,2025-03-12,,,,,,,,
+        GAS-2024-051,EE3600109435,IE00BFG1TM61,,BUY,ETF,2000.00,,2025-03-11 09:00:00,SENT,2025-03-13,,,,,,,,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors()).isEmpty();
+    assertThat(result.ordersCreated()).isEqualTo(2);
+  }
+
+  @Test
+  void importWithAlreadyPersistedDuplicateBrokerTransactionIdReportsRowError() {
+    importService.importCsv(
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-2024-060,EE3600109435,IE00BFG1TM61,BR-3060,BUY,ETF,1000.00,10.000000,2025-03-10 09:00:00,EXECUTED,2025-03-12,,2025-03-10 14:30:00,10.000000,100.00,1000.00,995.00,5.00,
+        """);
+    long ordersBefore = orderRepository.count();
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-2024-061,EE3600109435,IE00BFG1TM61,BR-3060,BUY,ETF,2000.00,20.000000,2025-03-11 09:00:00,EXECUTED,2025-03-13,,2025-03-11 14:30:00,20.000000,100.00,2000.00,1995.00,5.00,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.rowCount()).isEqualTo(1);
+    assertThat(result.ordersCreated()).isZero();
+    assertThat(result.errors())
+        .containsExactly(
+            new HistoricalImportResult.RowError(
+                2, "Duplicate brokerTransactionId: brokerTransactionId=BR-3060"));
+    assertThat(orderRepository.count()).isEqualTo(ordersBefore);
+  }
+
+  @Test
   void importParsesSemicolonDelimiterAndEstonianDecimals() {
     String csv =
         """

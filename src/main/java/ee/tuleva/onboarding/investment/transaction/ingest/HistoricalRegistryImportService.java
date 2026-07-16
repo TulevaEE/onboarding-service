@@ -177,12 +177,19 @@ public class HistoricalRegistryImportService {
   private List<ParsedRow> parseRows(List<CSVRecord> records, List<RowError> errors) {
     List<ParsedRow> parsedRows = new ArrayList<>();
     Set<UUID> seenOrderUuids = new HashSet<>();
+    Set<String> seenBrokerTransactionIds = new HashSet<>();
     for (CSVRecord record : records) {
       int rowNumber = (int) record.getRecordNumber() + 1;
       try {
         ParsedRow row = parseRow(rowNumber, record);
         if (!seenOrderUuids.add(row.orderUuid())) {
           throw new RowParseException("Duplicate order_id in file: orderId=" + row.orderId());
+        }
+        if (row.brokerTransactionId() != null
+            && !seenBrokerTransactionIds.add(row.brokerTransactionId())) {
+          throw new RowParseException(
+              "Duplicate brokerTransactionId in file: brokerTransactionId="
+                  + row.brokerTransactionId());
         }
         parsedRows.add(row);
       } catch (RowParseException e) {

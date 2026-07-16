@@ -31,12 +31,15 @@ public class ChildOnboardingService {
   private final ApplicationEventPublisher applicationEventPublisher;
   private final Clock clock;
 
-  public List<String> findEligibleChildren(AuthenticatedPerson parent) {
+  public List<EligibleChild> findEligibleChildren(AuthenticatedPerson parent) {
     LocalDate today = LocalDate.now(clock);
     return custodyVerificationService
         .findChildrenWithAssetManagementCustody(parent.getPersonalCode(), CUSTODY_MAX_AGE)
         .stream()
-        .filter(childPersonalCode -> PersonalCode.isMinor(childPersonalCode, today))
+        .filter(right -> PersonalCode.isMinor(right.childPersonalCode(), today))
+        .map(
+            right ->
+                new EligibleChild(right.childPersonalCode(), right.firstName(), right.lastName()))
         .toList();
   }
 

@@ -14,7 +14,9 @@
         "staatus": { "kood": "HOOLDUS_STAATUS", "elemendiKood": "H1", "nimetus": "kehtiv" },
         "hooldusoigusAlgus": "2016-09-01T00:00:00",
         "teineIsikIsikukood": "61509070000",
-        "teineIsikOlek": { "kood": "ISIKU_STAATUS", "elemendiKood": "E", "nimetus": "ELUS" }
+        "teineIsikOlek": { "kood": "ISIKU_STAATUS", "elemendiKood": "E", "nimetus": "ELUS" },
+        "teineIsikEesnimi": "JAAN",
+        "teineIsikPerenimi": "MAASIKAS"
       },
       {
         "liik": {
@@ -25,7 +27,9 @@
         "staatus": { "kood": "HOOLDUS_STAATUS", "elemendiKood": "H1", "nimetus": "kehtiv" },
         "hooldusoigusAlgus": "2016-09-01T00:00:00",
         "teineIsikIsikukood": "61509070000",
-        "teineIsikOlek": { "kood": "ISIKU_STAATUS", "elemendiKood": "E", "nimetus": "ELUS" }
+        "teineIsikOlek": { "kood": "ISIKU_STAATUS", "elemendiKood": "E", "nimetus": "ELUS" },
+        "teineIsikEesnimi": "JAAN",
+        "teineIsikPerenimi": "MAASIKAS"
       }
     ]
   }

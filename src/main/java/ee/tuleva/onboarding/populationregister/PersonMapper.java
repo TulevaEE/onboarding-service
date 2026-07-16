@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.INACTIVE;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.UNKNOWN;
+import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
 
 import ee.tuleva.onboarding.populationregister.PersonResponse.Citizenship;
 import ee.tuleva.onboarding.populationregister.PersonResponse.Code;
@@ -46,7 +47,15 @@ class PersonMapper {
         require(custody.otherPersonCode(), "teineIsikIsikukood"),
         toCustodyType(custody.type()),
         hasCode(custody.status(), VALID_CUSTODY_CODE),
-        hasCode(custody.otherPersonStatus(), ALIVE_CODE));
+        hasCode(custody.otherPersonStatus(), ALIVE_CODE),
+        capitalizeName(custody.otherPersonFirstName()),
+        capitalizeName(custody.otherPersonLastName()));
+  }
+
+  // The register returns names in uppercase (JÕEORG); present them the same way the rest of the
+  // app stores names (Jõeorg), matching ParentChildLinkRegistrationService.
+  private static @Nullable String capitalizeName(@Nullable String name) {
+    return name == null ? null : capitalizeFully(name, ' ', '-');
   }
 
   private static CustodyRight.Type toCustodyType(@Nullable Code type) {

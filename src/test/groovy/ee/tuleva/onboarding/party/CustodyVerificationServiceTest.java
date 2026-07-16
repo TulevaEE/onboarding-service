@@ -188,9 +188,9 @@ class CustodyVerificationServiceTest {
         new CustodyRight("60303030004", PROPERTY, false, true),
         new CustodyRight("60404040005", PROPERTY, true, false));
 
-    List<String> children = service.findChildrenWithAssetManagementCustody(PARENT, MAX_AGE);
+    List<CustodyRight> children = service.findChildrenWithAssetManagementCustody(PARENT, MAX_AGE);
 
-    assertThat(children).containsExactly(CHILD);
+    assertThat(children).containsExactly(new CustodyRight(CHILD, PROPERTY, true, true));
   }
 
   private void givenCustodyRights(CustodyRight... rights) {

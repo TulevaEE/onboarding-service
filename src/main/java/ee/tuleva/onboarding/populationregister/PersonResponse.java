@@ -28,5 +28,7 @@ record PersonResponse(
       @JsonProperty("liik") @Nullable Code type,
       @JsonProperty("staatus") @Nullable Code status,
       @JsonProperty("teineIsikIsikukood") @Nullable String otherPersonCode,
-      @JsonProperty("teineIsikOlek") @Nullable Code otherPersonStatus) {}
+      @JsonProperty("teineIsikOlek") @Nullable Code otherPersonStatus,
+      @JsonProperty("teineIsikEesnimi") @Nullable String otherPersonFirstName,
+      @JsonProperty("teineIsikPerenimi") @Nullable String otherPersonLastName) {}
 }

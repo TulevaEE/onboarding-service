@@ -9,6 +9,7 @@ import static java.time.Duration.ZERO;
 import static java.time.Duration.ofMinutes;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.hasItem;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -135,6 +136,41 @@ class PopulationRegisterClientTest {
     assertThat(rights)
         .filteredOn(CustodyRight::grantsAssetManagement)
         .containsExactly(new CustodyRight("61509070000", PROPERTY, true, true));
+    server.verify();
+  }
+
+  @Test
+  void fetchCustodyRightsMapsTheChildsNameCapitalizedFromUppercase() {
+    server
+        .expect(requestTo(ISIKUD_URL))
+        .andExpect(jsonPath("$.andmevaljad.hooldusoigused").value(hasItem("TeineIsikEesnimi")))
+        .andExpect(jsonPath("$.andmevaljad.hooldusoigused").value(hasItem("TeineIsikPerenimi")))
+        .andRespond(
+            withSuccess(
+                """
+                [
+                  {
+                    "isikukood": "48503150000",
+                    "hooldusoigused": [
+                      {
+                        "liik": { "elemendiKood": "H20", "nimetus": "täielik varahooldusõigus" },
+                        "staatus": { "elemendiKood": "H1", "nimetus": "kehtiv" },
+                        "teineIsikIsikukood": "61509070000",
+                        "teineIsikOlek": { "elemendiKood": "E", "nimetus": "ELUS" },
+                        "teineIsikEesnimi": "SIIM-JÜRI",
+                        "teineIsikPerenimi": "JÕEORG"
+                      }
+                    ]
+                  }
+                ]
+                """,
+                MediaType.APPLICATION_JSON));
+
+    List<CustodyRight> rights = client.fetchCustodyRights(PERSONAL_CODE, MAX_AGE).data();
+
+    assertThat(rights)
+        .containsExactly(
+            new CustodyRight("61509070000", PROPERTY, true, true, "Siim-Jüri", "Jõeorg"));
     server.verify();
   }
 

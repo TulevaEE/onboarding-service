@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.epis.parser;
 
-public enum DecimalConvention {
+enum DecimalConvention {
   COMMA_DECIMAL(','),
   PERIOD_DECIMAL('.');
 

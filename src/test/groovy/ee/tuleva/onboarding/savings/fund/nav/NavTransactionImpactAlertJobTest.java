@@ -91,6 +91,20 @@ class NavTransactionImpactAlertJobTest {
   }
 
   @Test
+  void tkf100_alert_showsYellowIcon() {
+    // 2026-03-10 = Tuesday, regular day
+    var job = jobOn("2026-03-10T08:00:00Z");
+    stubThreshold(ONE_MILLION);
+    stubTkf100Subscriptions(new BigDecimal("800000"));
+    stubTkf100Redemptions(List.of(redemption(new BigDecimal("200000"))));
+    stubNav(NAV);
+
+    job.onFundPositionsImported();
+
+    verify(notificationService).sendMessage(contains("⚠️ NAV IMPACT ALERT — TKF100"), eq(SAVINGS));
+  }
+
+  @Test
   void tkf100_redemptionEur_estimatedFromUnitsTimesNav() {
     // 2026-03-10 = Tuesday
     var job = jobOn("2026-03-10T08:00:00Z");
@@ -120,6 +134,21 @@ class NavTransactionImpactAlertJobTest {
     job.onFundPositionsImported();
 
     verify(notificationService).sendMessage(contains("PEVA/RAVA"), eq(SAVINGS));
+  }
+
+  @Test
+  void pevaRava_alert_showsYellowIcon() {
+    // 2026-01-02 = PEVA/RAVA execution date
+    var job = jobOn("2026-01-02T08:00:00Z");
+    stubThresholdLenient(ONE_MILLION);
+    stubTkf100SubscriptionsLenient(ZERO);
+    stubTkf100RedemptionsLenient(List.of());
+    stubNavLenient(NAV);
+
+    job.onFundPositionsImported();
+
+    verify(notificationService)
+        .sendMessage(contains("⚠️ NAV IMPACT ALERT — PEVA/RAVA"), eq(SAVINGS));
   }
 
   @Test
@@ -177,6 +206,20 @@ class NavTransactionImpactAlertJobTest {
     job.onFundPositionsImported();
 
     verify(notificationService).sendMessage(contains("R16"), eq(SAVINGS));
+  }
+
+  @Test
+  void r16_alert_showsYellowIcon() {
+    // 2026-04-15 = Wednesday (business day, 15th is the booking day)
+    var job = jobOn("2026-04-15T08:00:00Z");
+    stubThresholdLenient(ONE_MILLION);
+    stubTkf100SubscriptionsLenient(ZERO);
+    stubTkf100RedemptionsLenient(List.of());
+    stubNavLenient(NAV);
+
+    job.onFundPositionsImported();
+
+    verify(notificationService).sendMessage(contains("⚠️ NAV IMPACT ALERT — R16"), eq(SAVINGS));
   }
 
   @Test

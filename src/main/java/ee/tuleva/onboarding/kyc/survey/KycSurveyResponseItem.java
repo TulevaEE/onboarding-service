@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.kyc.survey;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import ee.tuleva.onboarding.country.ValidIso2CountryCode;
@@ -44,7 +45,12 @@ public sealed interface KycSurveyResponseItem extends Serializable {
   record PepSelfDeclaration(@NotNull OptionValue<PepStatus> value)
       implements KycSurveyResponseItem {}
 
-  record InvestmentGoals(@NotNull InvestmentGoalsValue value) implements KycSurveyResponseItem {}
+  // A list so a saver can pick several goals (e.g. education and a first home). Accepts a single
+  // value too, so existing single-goal payloads and already-stored surveys still deserialize.
+  record InvestmentGoals(
+      @NotNull @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
+          List<@Valid InvestmentGoalsValue> value)
+      implements KycSurveyResponseItem {}
 
   record InvestableAssets(@NotNull OptionValue<AssetRange> value)
       implements KycSurveyResponseItem {}

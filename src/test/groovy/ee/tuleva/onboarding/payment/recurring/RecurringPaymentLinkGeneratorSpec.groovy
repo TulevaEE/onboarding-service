@@ -230,7 +230,25 @@ class RecurringPaymentLinkGeneratorSpec extends Specification {
     exception.errorsResponse.errors[0].code == "payment.amount.required"
 
     where:
-    channel << [COOP, COOP_WEB, PARTNER]
+    channel << [COOP]
+  }
+
+  def "builds #channel recurring link without amount so the Coop form collects the sum"() {
+    given:
+    def person = samplePerson
+    def paymentData = new PaymentData(samplePerson.personalCode, null, null, RECURRING, channel)
+
+    when:
+    def link = recurringPaymentLinkGenerator.getPaymentLink(paymentData, person) as PrefilledLink
+
+    then:
+    link.url() == url
+    link.amount() == null
+
+    where:
+    channel  | url
+    COOP_WEB | "i/standing-orders/new?bname=AS%20Pensionikeskus&bacc=EE362200221067235244&cur=EUR&desc=30101119828%2C%20EE3600001707&ref=993432432&date=10.01.2020&freq=2&lang=en"
+    PARTNER  | """{"accountNumber":"EE362200221067235244","recipientName":"AS Pensionikeskus","amount":null,"currency":null,"description":"30101119828, EE3600001707","reference":"993432432","interval":"MONTHLY","firstPaymentDate":"2020-01-10"}"""
   }
 
   def "rejects recurring payment without payment channel as 400"() {

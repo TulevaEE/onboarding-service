@@ -90,8 +90,12 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
             amount);
       }
       case LUMINOR -> new RedirectLink("https://luminor.ee/auth/#/web/view/autopilot/newpayment");
-      case COOP, COOP_WEB, PARTNER -> {
+      case COOP -> {
         requireAmount(paymentData, channel);
+        yield coopPankPaymentLinkGenerator.getPaymentLink(paymentData, person);
+      }
+      case COOP_WEB, PARTNER -> {
+        validateAmountIfPresent(paymentData);
         yield coopPankPaymentLinkGenerator.getPaymentLink(paymentData, person);
       }
       case TULUNDUSUHISTU ->
@@ -114,11 +118,16 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
               "payment.amount.required",
               "Payment amount is required for " + channel + " recurring links."));
     }
-    if (amount.compareTo(MIN_AMOUNT) < 0) {
+    validateAmountIfPresent(paymentData);
+    return amount.toPlainString();
+  }
+
+  private static void validateAmountIfPresent(PaymentData paymentData) {
+    var amount = paymentData.getAmount();
+    if (amount != null && amount.compareTo(MIN_AMOUNT) < 0) {
       throw new ErrorsResponseException(
           ErrorsResponse.ofSingleError(
               "payment.amount.invalid", "Payment amount must be at least " + MIN_AMOUNT + "."));
     }
-    return amount.toPlainString();
   }
 }

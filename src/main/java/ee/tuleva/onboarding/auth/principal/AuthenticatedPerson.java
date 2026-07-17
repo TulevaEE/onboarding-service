@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth.principal;
 
 import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
+import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.auth.role.Role;
@@ -59,6 +60,15 @@ public class AuthenticatedPerson implements Person, Serializable {
   @JsonIgnore
   public PartyId toPartyId() {
     return PartyId.from(role);
+  }
+
+  @JsonIgnore
+  @Override
+  public String getRepresentedPersonalCode() {
+    if (role == null || role.type() != PERSON) {
+      return personalCode;
+    }
+    return role.code();
   }
 
   @JsonIgnore

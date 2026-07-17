@@ -71,7 +71,7 @@ public class EpisService {
   @Nullable
   String episServiceLongRequestUrl;
 
-  @Cacheable(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode", sync = true)
+  @Cacheable(value = APPLICATIONS_CACHE_NAME, key = "#person.representedPersonalCode", sync = true)
   public List<ApplicationDTO> getApplications(Person person) {
     String url = episServiceUrl + "/applications";
 
@@ -85,7 +85,7 @@ public class EpisService {
 
   @Cacheable(
       value = CASH_FLOW_STATEMENT_CACHE_NAME,
-      key = "{ #person.personalCode, #fromDate, #toDate }",
+      key = "{ #person.representedPersonalCode, #fromDate, #toDate }",
       sync = true)
   public CashFlowStatement getCashFlowStatement(
       Person person, LocalDate fromDate, LocalDate toDate) {
@@ -105,25 +105,39 @@ public class EpisService {
 
   @Caching(
       evict = {
-        @CacheEvict(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = CONTRIBUTIONS_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = FUND_PENSION_CALCULATION_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = FUND_PENSION_STATUS_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = ARRESTS_BANKRUPTCIES_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = SECOND_PILLAR_ASSETS_CACHE_NAME, key = "#person.personalCode"),
+        @CacheEvict(value = APPLICATIONS_CACHE_NAME, key = "#person.representedPersonalCode"),
+        @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.representedPersonalCode"),
+        @CacheEvict(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.representedPersonalCode"),
+        @CacheEvict(value = CONTRIBUTIONS_CACHE_NAME, key = "#person.representedPersonalCode"),
+        @CacheEvict(
+            value = FUND_PENSION_CALCULATION_CACHE_NAME,
+            key = "#person.representedPersonalCode"),
+        @CacheEvict(
+            value = FUND_PENSION_STATUS_CACHE_NAME,
+            key = "#person.representedPersonalCode"),
+        @CacheEvict(
+            value = ARRESTS_BANKRUPTCIES_CACHE_NAME,
+            key = "#person.representedPersonalCode"),
+        @CacheEvict(
+            value = SECOND_PILLAR_ASSETS_CACHE_NAME,
+            key = "#person.representedPersonalCode"),
       })
   public void clearCache(Person person) {
     log.info("Clearing cache for {}", person.getPersonalCode());
   }
 
-  @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode", sync = true)
+  @Cacheable(
+      value = CONTACT_DETAILS_CACHE_NAME,
+      key = "#person.representedPersonalCode",
+      sync = true)
   public ContactDetails getContactDetails(Person person) {
     return getContactDetails(person, userJwtToken());
   }
 
-  @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode", sync = true)
+  @Cacheable(
+      value = CONTACT_DETAILS_CACHE_NAME,
+      key = "#person.representedPersonalCode",
+      sync = true)
   public ContactDetails getContactDetails(Person person, String jwtToken) {
     String url = episServiceUrl + "/contact-details";
 
@@ -137,7 +151,7 @@ public class EpisService {
 
   @Cacheable(
       value = ACCOUNT_STATEMENT_CACHE_NAME,
-      key = "#person.personalCode",
+      key = "#person.representedPersonalCode",
       condition = "#fromDate == null && #toDate == null",
       sync = true)
   public List<FundBalanceDto> getAccountStatement(
@@ -158,7 +172,7 @@ public class EpisService {
     return asList(response.getBody());
   }
 
-  @Cacheable(value = CONTRIBUTIONS_CACHE_NAME, key = "#person.personalCode", sync = true)
+  @Cacheable(value = CONTRIBUTIONS_CACHE_NAME, key = "#person.representedPersonalCode", sync = true)
   public List<Contribution> getContributions(Person person) {
     String url = episServiceUrl + "/contributions";
 
@@ -182,7 +196,10 @@ public class EpisService {
     return asList(response.getBody());
   }
 
-  @Cacheable(value = FUND_PENSION_CALCULATION_CACHE_NAME, key = "#person.personalCode", sync = true)
+  @Cacheable(
+      value = FUND_PENSION_CALCULATION_CACHE_NAME,
+      key = "#person.representedPersonalCode",
+      sync = true)
   public FundPensionCalculationDto getFundPensionCalculation(Person person) {
     String url = episServiceUrl + "/fund-pension-calculation";
 
@@ -194,7 +211,10 @@ public class EpisService {
     return response.getBody();
   }
 
-  @Cacheable(value = FUND_PENSION_STATUS_CACHE_NAME, key = "#person.personalCode", sync = true)
+  @Cacheable(
+      value = FUND_PENSION_STATUS_CACHE_NAME,
+      key = "#person.representedPersonalCode",
+      sync = true)
   public FundPensionStatusDto getFundPensionStatus(Person person) {
     String url = episServiceUrl + "/fund-pension-status";
 
@@ -206,7 +226,10 @@ public class EpisService {
     return response.getBody();
   }
 
-  @Cacheable(value = ARRESTS_BANKRUPTCIES_CACHE_NAME, key = "#person.personalCode", sync = true)
+  @Cacheable(
+      value = ARRESTS_BANKRUPTCIES_CACHE_NAME,
+      key = "#person.representedPersonalCode",
+      sync = true)
   public ArrestsBankruptciesDto getArrestsBankruptciesPresent(Person person) {
     String url = episServiceUrl + "/arrests-bankruptcies";
 
@@ -218,7 +241,10 @@ public class EpisService {
     return response.getBody();
   }
 
-  @Cacheable(value = SECOND_PILLAR_ASSETS_CACHE_NAME, key = "#person.personalCode", sync = true)
+  @Cacheable(
+      value = SECOND_PILLAR_ASSETS_CACHE_NAME,
+      key = "#person.representedPersonalCode",
+      sync = true)
   public SecondPillarAssets getSecondPillarAssets(Person person) {
     String url = episServiceUrl + "/second-pillar-assets";
 
@@ -389,7 +415,7 @@ public class EpisService {
         url, new HttpEntity<>(mandate, getUserHeaders()), ApplicationResponseDTO.class);
   }
 
-  @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
+  @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.representedPersonalCode")
   public ContactDetails updateContactDetails(Person person, ContactDetails contactDetails) {
     String url = episServiceUrl + "/contact-details";
 

@@ -22,6 +22,11 @@ public interface Person {
     return getFirstName() + " " + getLastName();
   }
 
+  @JsonIgnore
+  default String getRepresentedPersonalCode() {
+    return getPersonalCode();
+  }
+
   static String capitalize(String name) {
     return capitalizeFully(name, ' ', '-');
   }

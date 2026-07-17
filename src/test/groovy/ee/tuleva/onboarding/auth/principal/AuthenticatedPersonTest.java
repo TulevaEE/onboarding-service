@@ -75,6 +75,37 @@ class AuthenticatedPersonTest {
   }
 
   @Test
+  void representedPersonalCodeIsTheOwnPersonalCodeWhenActingAsSelf() {
+    var person = sampleAuthenticatedPersonAndMember().build();
+
+    assertThat(person.getRepresentedPersonalCode()).isEqualTo(person.getPersonalCode());
+  }
+
+  @Test
+  void representedPersonalCodeIsTheRoleCodeWhenRepresentingAnotherPerson() {
+    var person =
+        sampleAuthenticatedPersonAndMember()
+            .role(new Role(PERSON, "61506150006", "Child Name"))
+            .build();
+
+    assertThat(person.getRepresentedPersonalCode()).isEqualTo("61506150006");
+  }
+
+  @Test
+  void representedPersonalCodeFallsBackToTheOwnPersonalCodeForALegalEntityRole() {
+    var person = sampleAuthenticatedPersonLegalEntity().build();
+
+    assertThat(person.getRepresentedPersonalCode()).isEqualTo(person.getPersonalCode());
+  }
+
+  @Test
+  void representedPersonalCodeIsTheOwnPersonalCodeWhenRoleIsNull() {
+    var person = AuthenticatedPerson.builder().personalCode("38501010002").build();
+
+    assertThat(person.getRepresentedPersonalCode()).isEqualTo("38501010002");
+  }
+
+  @Test
   void isLegalEntityWhenRepresentingCompany() {
     var person = sampleAuthenticatedPersonLegalEntity().build();
 

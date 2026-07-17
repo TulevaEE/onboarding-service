@@ -48,8 +48,8 @@ class ChildControllerTest {
     given(childOnboardingService.findEligibleChildren(parent))
         .willReturn(
             List.of(
-                new EligibleChild(CHILD, "Mari", "Maasikas"),
-                new EligibleChild("61001010000", "Jüri", "Tamm")));
+                new EligibleChild(CHILD, "Mari", "Maasikas", true),
+                new EligibleChild("61001010000", "Jüri", "Tamm", false)));
 
     mvc.perform(get("/v1/me/children").with(authentication(authentication)))
         .andExpect(status().isOk())
@@ -57,8 +57,10 @@ class ChildControllerTest {
         .andExpect(jsonPath("$[0].personalCode").value(CHILD))
         .andExpect(jsonPath("$[0].firstName").value("Mari"))
         .andExpect(jsonPath("$[0].lastName").value("Maasikas"))
+        .andExpect(jsonPath("$[0].hasBeenOnboarded").value(true))
         .andExpect(jsonPath("$[1].personalCode").value("61001010000"))
-        .andExpect(jsonPath("$[1].firstName").value("Jüri"));
+        .andExpect(jsonPath("$[1].firstName").value("Jüri"))
+        .andExpect(jsonPath("$[1].hasBeenOnboarded").value(false));
   }
 
   @Test

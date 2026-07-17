@@ -79,7 +79,7 @@ class SmartIdAuthProviderSpec extends Specification {
     thrown(AuthNotCompleteException)
   }
 
-  def "throws when grant is older than 120 seconds (replay protection)"() {
+  def "throws when grant is older than 180 seconds (replay protection)"() {
     given:
     SmartIdSession session = sessionWithHash()
     AuthenticationIdentity identity = new AuthenticationIdentity()
@@ -89,11 +89,30 @@ class SmartIdAuthProviderSpec extends Specification {
     identity.country = "EE"
     session.person = new SmartIdPerson(identity)
     genericSessionStore.get(SmartIdSession) >> Optional.of(session)
-    clock.tick(121, java.time.temporal.ChronoUnit.SECONDS)
+    clock.tick(181, java.time.temporal.ChronoUnit.SECONDS)
     when:
     smartIdAuthProvider.authenticate(session.authenticationHash.hashInBase64)
     then:
     thrown(SmartIdSessionNotFoundException)
+  }
+
+  def "grants the token when the user returns to a suspended tab within 180 seconds"() {
+    given:
+    AuthenticatedPerson person = sampleAuthenticatedPersonAndMember().build()
+    SmartIdSession session = sessionWithHash()
+    AuthenticationIdentity identity = new AuthenticationIdentity()
+    identity.identityCode = personalCode
+    identity.givenName = firstName
+    identity.surname = lastName
+    identity.country = "EE"
+    session.person = new SmartIdPerson(identity)
+    genericSessionStore.get(SmartIdSession) >> Optional.of(session)
+    principalService.getFrom(session.person, [(GRANT_TYPE): SMART_ID.name()]) >> person
+    clock.tick(170, java.time.temporal.ChronoUnit.SECONDS)
+    when:
+    AuthenticatedPerson result = smartIdAuthProvider.authenticate(session.authenticationHash.hashInBase64)
+    then:
+    result == person
   }
 
   def "returns the authenticated person when polled hash matches and person is set"() {

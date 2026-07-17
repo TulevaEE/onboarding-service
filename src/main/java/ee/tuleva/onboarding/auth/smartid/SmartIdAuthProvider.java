@@ -21,8 +21,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SmartIdAuthProvider implements AuthProvider {
 
-  // SK accepts up to ~90s of user idle; 120s covers that plus poll/write-back roundtrip.
-  private static final Duration GRANT_TTL = Duration.ofSeconds(120);
+  // SK accepts up to ~90s of user idle; 180s covers that plus poll/write-back roundtrip.
+  private static final Duration GRANT_TTL = Duration.ofSeconds(180);
 
   private final GenericSessionStore genericSessionStore;
   private final PrincipalService principalService;

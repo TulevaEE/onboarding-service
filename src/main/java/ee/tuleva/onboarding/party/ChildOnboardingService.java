@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.party;
 
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
+
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.event.TrackableEvent;
@@ -39,8 +41,17 @@ public class ChildOnboardingService {
         .filter(right -> PersonalCode.isMinor(right.childPersonalCode(), today))
         .map(
             right ->
-                new EligibleChild(right.childPersonalCode(), right.firstName(), right.lastName()))
+                new EligibleChild(
+                    right.childPersonalCode(),
+                    right.firstName(),
+                    right.lastName(),
+                    hasBeenOnboarded(right.childPersonalCode())))
         .toList();
+  }
+
+  private boolean hasBeenOnboarded(String childPersonalCode) {
+    return savingsFundOnboardingService.getOnboardingStatus(new PartyId(PERSON, childPersonalCode))
+        != null;
   }
 
   @Transactional

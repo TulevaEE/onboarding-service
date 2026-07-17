@@ -4,8 +4,10 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.party.ChildOnboardingService.CUSTODY_MAX_AGE;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.NO_CUSTODY;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.OK;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
+import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.PENDING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -77,7 +79,7 @@ class ChildOnboardingServiceTest {
         .willReturn(List.of(new CustodyRight(CHILD, PROPERTY, true, true, "Mari", "Maasikas")));
 
     assertThat(service.findEligibleChildren(parent))
-        .containsExactly(new EligibleChild(CHILD, "Mari", "Maasikas"));
+        .containsExactly(new EligibleChild(CHILD, "Mari", "Maasikas", false));
   }
 
   @Test
@@ -91,7 +93,26 @@ class ChildOnboardingServiceTest {
                 new CustodyRight(ADULT, PROPERTY, true, true, "Jüri", "Tamm")));
 
     assertThat(service.findEligibleChildren(parent))
-        .containsExactly(new EligibleChild(CHILD, "Mari", "Maasikas"));
+        .containsExactly(new EligibleChild(CHILD, "Mari", "Maasikas", false));
+  }
+
+  @Test
+  void findEligibleChildren_marksChildrenWhoHaveAlreadyBeenOnboarded() {
+    var secondChild = "61001010000";
+    given(
+            custodyVerificationService.findChildrenWithAssetManagementCustody(
+                PARENT, CUSTODY_MAX_AGE))
+        .willReturn(
+            List.of(
+                new CustodyRight(CHILD, PROPERTY, true, true, "Mari", "Maasikas"),
+                new CustodyRight(secondChild, PROPERTY, true, true, "Jüri", "Tamm")));
+    given(savingsFundOnboardingService.getOnboardingStatus(new PartyId(PERSON, CHILD)))
+        .willReturn(PENDING);
+
+    assertThat(service.findEligibleChildren(parent))
+        .containsExactly(
+            new EligibleChild(CHILD, "Mari", "Maasikas", true),
+            new EligibleChild(secondChild, "Jüri", "Tamm", false));
   }
 
   @Test

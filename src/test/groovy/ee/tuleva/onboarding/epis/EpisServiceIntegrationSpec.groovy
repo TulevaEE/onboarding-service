@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.epis
 
+import ee.tuleva.onboarding.auth.role.Role
 import ee.tuleva.onboarding.contribution.ThirdPillarContribution
 import ee.tuleva.onboarding.epis.application.ApplicationResponse
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
@@ -28,7 +29,10 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.auth.role.RoleType.PERSON
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.MandateCommandResponseFixture.sampleMandateCommandResponse
 import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.*
@@ -164,6 +168,48 @@ class EpisServiceIntegrationSpec extends Specification {
     }
     then:
     mockServerClient.verify(request().withPath("/account-cash-flow-statement"), VerificationTimes.exactly(1))
+  }
+
+  def "account statement cache separates the represented person from the acting person"() {
+    given:
+    mockServerClient
+        .when(request("/account-statement")
+            .withHeader("Authorization", "Bearer dummy"))
+        .respond(response()
+            .withContentType(MediaType.APPLICATION_JSON)
+            .withBody(json("[]", MatchType.STRICT)))
+
+    def actingAsSelf = sampleAuthenticatedPersonAndMember().build()
+    def representingChild = sampleAuthenticatedPersonAndMember()
+        .role(new Role(PERSON, "61508110000", "Child Name"))
+        .build()
+
+    when:
+    episService.getAccountStatement(actingAsSelf, null, null)
+    episService.getAccountStatement(representingChild, null, null)
+
+    then:
+    mockServerClient.verify(request().withPath("/account-statement"), VerificationTimes.exactly(2))
+  }
+
+  def "account statement cache keys a legal entity role on the acting person, like epis-service does"() {
+    given:
+    mockServerClient
+        .when(request("/account-statement")
+            .withHeader("Authorization", "Bearer dummy"))
+        .respond(response()
+            .withContentType(MediaType.APPLICATION_JSON)
+            .withBody(json("[]", MatchType.STRICT)))
+
+    def actingAsSelf = sampleAuthenticatedPersonAndMember().build()
+    def actingForCompany = sampleAuthenticatedPersonLegalEntity().build()
+
+    when:
+    episService.getAccountStatement(actingAsSelf, null, null)
+    episService.getAccountStatement(actingForCompany, null, null)
+
+    then:
+    mockServerClient.verify(request().withPath("/account-statement"), VerificationTimes.exactly(1))
   }
 
   def "clear cache does not fail"() {

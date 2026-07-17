@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.MockMvc
 
 import static ee.tuleva.onboarding.account.AccountStatementFixture.activeTuleva2ndPillarFundBalance
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON
 import static org.hamcrest.Matchers.hasSize
 import static org.hamcrest.Matchers.is
@@ -86,15 +87,32 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
 
   }
 
-  def "/pension-account-statement endpoint returns empty when representing another party"() {
+  def "/pension-account-statement endpoint returns the statement when representing another party"() {
     given:
     AuthenticatedPerson representing = sampleAuthenticatedPersonAndMember()
         .role(new Role(PERSON, "61506150006", "Child Name"))
         .build()
     MockMvc mockMvcRepresenting = mockMvcWithAuthenticationPrincipal(representing, controller)
+    List<FundBalance> fundBalances = activeTuleva2ndPillarFundBalance
+    1 * accountStatementService.getAccountStatement(representing, null, null) >> fundBalances
+    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
 
     when:
     def result = mockMvcRepresenting.perform(get("/v1/pension-account-statement"))
+
+    then:
+    result.andExpect(status().isOk())
+        .andExpect(jsonPath('$', hasSize(fundBalances.size())))
+        .andExpect(jsonPath('$[0].fund.isin', is(fundBalances[0].fund.isin)))
+  }
+
+  def "/pension-account-statement endpoint returns empty when acting under a company role"() {
+    given:
+    AuthenticatedPerson actingForCompany = sampleAuthenticatedPersonLegalEntity().build()
+    MockMvc mockMvcCompany = mockMvcWithAuthenticationPrincipal(actingForCompany, controller)
+
+    when:
+    def result = mockMvcCompany.perform(get("/v1/pension-account-statement"))
 
     then:
     result.andExpect(status().isOk())

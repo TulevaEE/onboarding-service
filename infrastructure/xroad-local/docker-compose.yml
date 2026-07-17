@@ -15,7 +15,7 @@ services:
       retries: 10
 
   xroad:
-    image: niis/xroad-security-server-sidecar:7.8.0-ee
+    image: niis/xroad-security-server-sidecar:7.8.2-ee
     container_name: xroad-security-server
     depends_on:
       postgres:

@@ -4,7 +4,7 @@
 RIA-issued certs. **This does not validate code-level integration with rahvastikuregister or any real X-Road service** —
 code confidence comes from `@RestClientTest` tests in onboarding-service.
 
-Mirrors the production deployment in spirit (same image `niis/xroad-security-server-sidecar:7.8.0-ee`, same external
+Mirrors the production deployment in spirit (same image `niis/xroad-security-server-sidecar:7.8.2-ee`, same external
 Postgres 16 pattern, same volume layout) but is single-machine, no anchor, no certs.
 
 ## Prerequisites

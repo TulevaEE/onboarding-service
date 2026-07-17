@@ -54,7 +54,7 @@ public class AuthenticatedPerson implements Person, Serializable {
 
   @JsonIgnore
   public boolean isLegalEntity() {
-    return role.type() == LEGAL_ENTITY;
+    return role != null && role.type() == LEGAL_ENTITY;
   }
 
   @JsonIgnore

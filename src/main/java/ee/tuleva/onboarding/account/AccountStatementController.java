@@ -31,7 +31,7 @@ public class AccountStatementController {
       @RequestParam(value = "from-date", required = false) LocalDate fromDate,
       @RequestParam(value = "to-date", required = false) LocalDate toDate,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    if (!authenticatedPerson.isActingAsSelf()) {
+    if (authenticatedPerson.isLegalEntity()) {
       return List.of();
     }
     List<FundBalance> fundBalances =

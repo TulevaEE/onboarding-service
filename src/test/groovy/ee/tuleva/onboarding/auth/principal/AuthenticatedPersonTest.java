@@ -118,4 +118,11 @@ class AuthenticatedPersonTest {
 
     assertThat(person.isLegalEntity()).isFalse();
   }
+
+  @Test
+  void isNotLegalEntityWhenRoleIsNull() {
+    var person = AuthenticatedPerson.builder().personalCode("38501010002").build();
+
+    assertThat(person.isLegalEntity()).isFalse();
+  }
 }

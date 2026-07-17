@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.auth.AuthenticationTokens;
 import ee.tuleva.onboarding.auth.TokenService;
+import ee.tuleva.onboarding.auth.event.RoleSwitchedEvent;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
@@ -305,6 +306,24 @@ class RoleSwitchServiceTest {
                 person,
                 TrackableEventType.ROLE_SWITCH,
                 Map.of("roleType", "PERSON", "code", CHILD_CODE)));
+  }
+
+  @Test
+  void switchToRepresentedChildPublishesRoleSwitchedEventWithTheChildRole() {
+    var switchedPerson =
+        sampleAuthenticatedPersonAndMember()
+            .role(new Role(PERSON, CHILD_CODE, "Mari Maasikas"))
+            .build();
+    when(parentChildLinkService.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
+        .thenReturn(true);
+    when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
+    when(principalService.withRole(any(), any())).thenReturn(switchedPerson);
+    when(tokenService.generateTokens(any()))
+        .thenReturn(new AuthenticationTokens("access", "refresh"));
+
+    roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, CHILD_CODE));
+
+    verify(applicationEventPublisher).publishEvent(new RoleSwitchedEvent(switchedPerson));
   }
 
   @Test

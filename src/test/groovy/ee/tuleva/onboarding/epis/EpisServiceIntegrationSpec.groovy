@@ -212,6 +212,28 @@ class EpisServiceIntegrationSpec extends Specification {
     mockServerClient.verify(request().withPath("/account-statement"), VerificationTimes.exactly(1))
   }
 
+  def "clearing the cache while representing a person evicts the represented person's entries"() {
+    given:
+    mockServerClient
+        .when(request("/account-statement")
+            .withHeader("Authorization", "Bearer dummy"))
+        .respond(response()
+            .withContentType(MediaType.APPLICATION_JSON)
+            .withBody(json("[]", MatchType.STRICT)))
+
+    def representingChild = sampleAuthenticatedPersonAndMember()
+        .role(new Role(PERSON, "61508110000", "Child Name"))
+        .build()
+
+    when:
+    episService.getAccountStatement(representingChild, null, null)
+    episService.clearCache(representingChild)
+    episService.getAccountStatement(representingChild, null, null)
+
+    then:
+    mockServerClient.verify(request().withPath("/account-statement"), VerificationTimes.exactly(2))
+  }
+
   def "clear cache does not fail"() {
     when:
     episService.clearCache(samplePerson())

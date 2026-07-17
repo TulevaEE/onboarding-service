@@ -8,6 +8,7 @@ import static java.util.Collections.unmodifiableList;
 
 import ee.tuleva.onboarding.auth.AuthenticationTokens;
 import ee.tuleva.onboarding.auth.TokenService;
+import ee.tuleva.onboarding.auth.event.RoleSwitchedEvent;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
@@ -122,8 +123,9 @@ public class RoleSwitchService {
   }
 
   private AuthenticationTokens switchTo(AuthenticatedPerson person, Role role) {
-    AuthenticationTokens tokens =
-        tokenService.generateTokens(principalService.withRole(person, role));
+    AuthenticatedPerson switchedPerson = principalService.withRole(person, role);
+    AuthenticationTokens tokens = tokenService.generateTokens(switchedPerson);
+    applicationEventPublisher.publishEvent(new RoleSwitchedEvent(switchedPerson));
     applicationEventPublisher.publishEvent(
         new TrackableEvent(
             person, ROLE_SWITCH, Map.of("roleType", role.type().name(), "code", role.code())));

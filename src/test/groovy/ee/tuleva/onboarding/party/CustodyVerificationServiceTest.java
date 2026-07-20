@@ -16,6 +16,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.populationregister.CustodyRight;
+import ee.tuleva.onboarding.populationregister.Guardian;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterClient;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterResult;
@@ -203,6 +204,34 @@ class CustodyVerificationServiceTest {
 
     assertThat(children)
         .containsExactly(new CustodyRight(CHILD, PROPERTY, true, true, "Mari", "Maasikas"));
+  }
+
+  private static final String CO_PARENT = "38002020008";
+
+  @Test
+  void findGuardiansWithAssetManagement_returnsOtherValidLivingPropertyGuardiansExcludingRequester() {
+    given(populationRegisterClient.fetchCustodyRights(PARENT, CHILD, Duration.ZERO))
+        .willReturn(
+            new PopulationRegisterResult<>(
+                List.of(
+                    new Guardian(PARENT, true, true, true), // the requester themselves -> excluded
+                    new Guardian(CO_PARENT, true, true, true), // valid property guardian -> kept
+                    new Guardian("60303030004", false, true, true), // personal care only -> excluded
+                    new Guardian("60404040005", true, false, true), // custody not valid -> excluded
+                    new Guardian("60505050006", true, true, false)), // guardian not alive -> excluded
+                CUSTODY_MESSAGE_ID));
+
+    assertThat(service.findGuardiansWithAssetManagement(CHILD, PARENT)).containsExactly(CO_PARENT);
+  }
+
+  @Test
+  void findGuardiansWithAssetManagement_returnsEmptyWhenTheOnlyGuardianIsTheRequester() {
+    given(populationRegisterClient.fetchCustodyRights(PARENT, CHILD, Duration.ZERO))
+        .willReturn(
+            new PopulationRegisterResult<>(
+                List.of(new Guardian(PARENT, true, true, true)), CUSTODY_MESSAGE_ID));
+
+    assertThat(service.findGuardiansWithAssetManagement(CHILD, PARENT)).isEmpty();
   }
 
   private void givenCustodyRights(CustodyRight... rights) {

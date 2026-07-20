@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.party;
 
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
 import java.time.Clock;
@@ -9,6 +10,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -64,5 +67,69 @@ class ParentChildLinkServiceTest {
   @Test
   void isNotActiveRepresentationWhenNoActiveLink() {
     assertThat(service.isActiveRepresentation(PARENT, CHILD)).isFalse();
+  }
+
+  @Test
+  void findsPendingChildrenForParent() {
+    var pending =
+        ParentChildLink.builder()
+            .parentPersonalCode(PARENT)
+            .childPersonalCode(CHILD)
+            .relationshipType(LEGAL_REPRESENTATIVE)
+            .validUntil(LocalDate.of(2030, 1, 1))
+            .status(ParentChildLinkStatus.PENDING_KYC)
+            .build();
+    given(
+            parentChildLinkRepository
+                .findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, ParentChildLinkStatus.PENDING_KYC, TODAY))
+        .willReturn(List.of(pending));
+
+    assertThat(service.findPendingChildren(PARENT)).containsExactly(pending);
+  }
+
+  @Test
+  void resolvesPendingChildCodeWhenLinkIsOwnedByParentAndPending() {
+    var id = UUID.randomUUID();
+    given(parentChildLinkRepository.findById(id)).willReturn(Optional.of(pendingLink(PARENT)));
+
+    assertThat(service.resolvePendingChildCode(PARENT, id)).isEqualTo(CHILD);
+  }
+
+  @Test
+  void resolvePendingChildCodeRejectsLinkOwnedByAnotherParent() {
+    var id = UUID.randomUUID();
+    given(parentChildLinkRepository.findById(id))
+        .willReturn(Optional.of(pendingLink("38002020008")));
+
+    assertThatThrownBy(() -> service.resolvePendingChildCode(PARENT, id))
+        .isInstanceOf(PendingChildLinkNotFoundException.class);
+  }
+
+  @Test
+  void resolvePendingChildCodeRejectsAlreadyActiveLink() {
+    var id = UUID.randomUUID();
+    var active =
+        ParentChildLink.builder()
+            .parentPersonalCode(PARENT)
+            .childPersonalCode(CHILD)
+            .relationshipType(LEGAL_REPRESENTATIVE)
+            .validUntil(LocalDate.of(2030, 1, 1))
+            .status(ParentChildLinkStatus.ACTIVE)
+            .build();
+    given(parentChildLinkRepository.findById(id)).willReturn(Optional.of(active));
+
+    assertThatThrownBy(() -> service.resolvePendingChildCode(PARENT, id))
+        .isInstanceOf(PendingChildLinkNotFoundException.class);
+  }
+
+  private ParentChildLink pendingLink(String parentPersonalCode) {
+    return ParentChildLink.builder()
+        .parentPersonalCode(parentPersonalCode)
+        .childPersonalCode(CHILD)
+        .relationshipType(LEGAL_REPRESENTATIVE)
+        .validUntil(LocalDate.of(2030, 1, 1))
+        .status(ParentChildLinkStatus.PENDING_KYC)
+        .build();
   }
 }

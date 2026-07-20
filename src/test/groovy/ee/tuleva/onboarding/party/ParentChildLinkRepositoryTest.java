@@ -35,6 +35,64 @@ class ParentChildLinkRepositoryTest {
             .build());
   }
 
+  private ParentChildLink savedPendingLink(String parentPersonalCode) {
+    return repository.save(
+        ParentChildLink.builder()
+            .parentPersonalCode(parentPersonalCode)
+            .childPersonalCode(CHILD)
+            .relationshipType(LEGAL_REPRESENTATIVE)
+            .validUntil(EIGHTEENTH_BIRTHDAY)
+            .status(ParentChildLinkStatus.PENDING_KYC)
+            .build());
+  }
+
+  @Test
+  void builderDefaultsStatusToActive() {
+    var link = savedLink(null);
+
+    assertThat(link.getStatus()).isEqualTo(ParentChildLinkStatus.ACTIVE);
+    assertThat(link.isActive()).isTrue();
+    assertThat(link.isPending()).isFalse();
+  }
+
+  @Test
+  void activeRepresentationQueriesExcludePendingLinks() {
+    savedPendingLink(PARENT);
+
+    // role switch + payments both read through these two queries
+    assertThat(
+            repository.findByParentPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
+                PARENT, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .isEmpty();
+    assertThat(
+            repository
+                .existsByParentPersonalCodeAndChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .isFalse();
+  }
+
+  @Test
+  void otherActiveParentsQueryExcludesPendingLinks() {
+    // the notification sender reads this query directly, so it must not see pending co-parents
+    savedPendingLink(PARENT);
+
+    assertThat(
+            repository.findByChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
+                CHILD, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .isEmpty();
+  }
+
+  @Test
+  void findsOnlyPendingLinksForParent() {
+    var pending = savedPendingLink(PARENT);
+    savedLink(OTHER_PARENT, null); // an ACTIVE link must not show up
+
+    assertThat(
+            repository.findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                PARENT, ParentChildLinkStatus.PENDING_KYC, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .containsExactly(pending);
+  }
+
   @Test
   void findsActiveLinkBeforeValidUntil() {
     var link = savedLink(null);

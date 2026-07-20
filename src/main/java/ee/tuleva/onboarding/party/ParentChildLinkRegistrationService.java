@@ -32,14 +32,73 @@ public class ParentChildLinkRegistrationService {
       String childFirstName,
       String childLastName) {
 
-    if (!PersonalCode.isMinor(childPersonalCode, LocalDate.now(clock))) {
-      throw new ChildIsNotAMinorException(childPersonalCode);
-    }
-    LocalDate eighteenthBirthday = PersonalCode.getDateOfBirth(childPersonalCode).plusYears(18);
-
+    requireMinor(childPersonalCode);
     upsertPerson(childPersonalCode, childFirstName, childLastName);
     return findOrCreateLink(
-        parentPersonalCode, childPersonalCode, LEGAL_REPRESENTATIVE, eighteenthBirthday);
+        parentPersonalCode,
+        childPersonalCode,
+        LEGAL_REPRESENTATIVE,
+        eighteenthBirthday(childPersonalCode));
+  }
+
+  // Captures a PENDING_KYC link for the OTHER guardian discovered from the population register when
+  // the account is opened. It publishes NO ParentChildLinkCreatedEvent (that event's listener emails
+  // the parents; a pending capture must be silent) and grants no access. Idempotent find-first: an
+  // existing link (of either status) is left untouched, so an ACTIVE link is never downgraded to
+  // pending and re-capture never duplicates. ChildOnboardingService wraps the call so that, in the
+  // narrow race where two guardians open the same child concurrently, a unique-constraint failure is
+  // logged rather than breaking the opening parent's onboarding.
+  @Transactional
+  public void registerPending(
+      String coParentPersonalCode,
+      String childPersonalCode,
+      String childFirstName,
+      String childLastName) {
+
+    requireMinor(childPersonalCode);
+    upsertPerson(childPersonalCode, childFirstName, childLastName);
+    if (parentChildLinkRepository
+        .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
+            coParentPersonalCode, childPersonalCode, LEGAL_REPRESENTATIVE)
+        .isPresent()) {
+      return;
+    }
+    log.info(
+        "Capturing pending parent-child link: coParentCode={}, childCode={}",
+        coParentPersonalCode,
+        childPersonalCode);
+    parentChildLinkRepository.save(
+        ParentChildLink.builder()
+            .parentPersonalCode(coParentPersonalCode)
+            .childPersonalCode(childPersonalCode)
+            .relationshipType(LEGAL_REPRESENTATIVE)
+            .validUntil(eighteenthBirthday(childPersonalCode))
+            .status(ParentChildLinkStatus.PENDING_KYC)
+            .build());
+  }
+
+  // Activates the co-parent's PENDING_KYC link once they have completed their own onboarding/KYC.
+  // This is the real "co-parent added" moment, so it publishes ParentChildLinkCreatedEvent (unlike
+  // register/findOrCreateLink, which never update an existing row — activation must be explicit).
+  // A no-op when there is no pending link (already active, or never captured).
+  @Transactional
+  public void activate(String parentPersonalCode, String childPersonalCode) {
+    parentChildLinkRepository
+        .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
+            parentPersonalCode, childPersonalCode, LEGAL_REPRESENTATIVE)
+        .filter(ParentChildLink::isPending)
+        .ifPresent(
+            link -> {
+              log.info(
+                  "Activating pending parent-child link: parentCode={}, childCode={}",
+                  parentPersonalCode,
+                  childPersonalCode);
+              link.activate();
+              parentChildLinkRepository.save(link);
+              applicationEventPublisher.publishEvent(
+                  new ParentChildLinkCreatedEvent(
+                      parentPersonalCode, childPersonalCode, link.getRelationshipType()));
+            });
   }
 
   @Transactional
@@ -83,6 +142,16 @@ public class ParentChildLinkRegistrationService {
                       parentPersonalCode, childPersonalCode, relationshipType));
               return saved;
             });
+  }
+
+  private void requireMinor(String childPersonalCode) {
+    if (!PersonalCode.isMinor(childPersonalCode, LocalDate.now(clock))) {
+      throw new ChildIsNotAMinorException(childPersonalCode);
+    }
+  }
+
+  private LocalDate eighteenthBirthday(String childPersonalCode) {
+    return PersonalCode.getDateOfBirth(childPersonalCode).plusYears(18);
   }
 
   private void upsertPerson(String personalCode, String firstName, String lastName) {

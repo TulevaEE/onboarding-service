@@ -35,6 +35,8 @@ class ParentChildLinkRegistrationServiceTest {
   private static final String ADULT_WARD = "48806046007";
   private static final LocalDate GUARDIANSHIP_VALID_UNTIL = LocalDate.of(2099, 12, 31);
 
+  private static final String CO_PARENT = "38002020008";
+
   @Mock private ParentChildLinkRepository parentChildLinkRepository;
   @Mock private UserService userService;
   @Mock private ApplicationEventPublisher applicationEventPublisher;
@@ -137,6 +139,131 @@ class ParentChildLinkRegistrationServiceTest {
 
     verifyNoInteractions(userService);
     verify(parentChildLinkRepository, never()).save(org.mockito.ArgumentMatchers.any());
+  }
+
+  @Test
+  void registerPending_savesPendingLinkWithoutPublishingAnEvent() {
+    given(userService.findByPersonalCode(CHILD)).willReturn(Optional.empty());
+    given(
+            parentChildLinkRepository
+                .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
+                    CO_PARENT, CHILD, LEGAL_REPRESENTATIVE))
+        .willReturn(Optional.empty());
+    given(parentChildLinkRepository.save(org.mockito.ArgumentMatchers.any()))
+        .willAnswer(returnsFirstArg());
+
+    service.registerPending(CO_PARENT, CHILD, "mari", "maasikas");
+
+    verify(userService)
+        .createNewUser(
+            User.builder()
+                .personalCode(CHILD)
+                .firstName("Mari")
+                .lastName("Maasikas")
+                .active(true)
+                .build());
+    var captor = org.mockito.ArgumentCaptor.forClass(ParentChildLink.class);
+    verify(parentChildLinkRepository).save(captor.capture());
+    ParentChildLink saved = captor.getValue();
+    assertThat(saved.getParentPersonalCode()).isEqualTo(CO_PARENT);
+    assertThat(saved.getChildPersonalCode()).isEqualTo(CHILD);
+    assertThat(saved.getRelationshipType()).isEqualTo(LEGAL_REPRESENTATIVE);
+    assertThat(saved.getValidUntil()).isEqualTo(CHILD_EIGHTEENTH_BIRTHDAY);
+    assertThat(saved.isPending()).isTrue();
+    verifyNoInteractions(applicationEventPublisher);
+  }
+
+  @Test
+  void registerPending_isIdempotentAndNeverDowngradesAnExistingLink() {
+    given(userService.findByPersonalCode(CHILD)).willReturn(Optional.empty());
+    ParentChildLink existingActive =
+        ParentChildLink.builder()
+            .parentPersonalCode(CO_PARENT)
+            .childPersonalCode(CHILD)
+            .relationshipType(LEGAL_REPRESENTATIVE)
+            .validUntil(CHILD_EIGHTEENTH_BIRTHDAY)
+            .status(ParentChildLinkStatus.ACTIVE)
+            .build();
+    given(
+            parentChildLinkRepository
+                .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
+                    CO_PARENT, CHILD, LEGAL_REPRESENTATIVE))
+        .willReturn(Optional.of(existingActive));
+
+    service.registerPending(CO_PARENT, CHILD, "mari", "maasikas");
+
+    assertThat(existingActive.isActive()).isTrue();
+    verify(parentChildLinkRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    verifyNoInteractions(applicationEventPublisher);
+  }
+
+  @Test
+  void registerPending_rejectsAdultChild() {
+    assertThatThrownBy(() -> service.registerPending(CO_PARENT, "38812121215", "Ad", "Ult"))
+        .isInstanceOf(ChildIsNotAMinorException.class);
+
+    verifyNoInteractions(userService, applicationEventPublisher);
+    verify(parentChildLinkRepository, never()).save(org.mockito.ArgumentMatchers.any());
+  }
+
+  @Test
+  void activate_flipsPendingLinkToActiveAndPublishesEvent() {
+    ParentChildLink pending =
+        ParentChildLink.builder()
+            .parentPersonalCode(CO_PARENT)
+            .childPersonalCode(CHILD)
+            .relationshipType(LEGAL_REPRESENTATIVE)
+            .validUntil(CHILD_EIGHTEENTH_BIRTHDAY)
+            .status(ParentChildLinkStatus.PENDING_KYC)
+            .build();
+    given(
+            parentChildLinkRepository
+                .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
+                    CO_PARENT, CHILD, LEGAL_REPRESENTATIVE))
+        .willReturn(Optional.of(pending));
+
+    service.activate(CO_PARENT, CHILD);
+
+    assertThat(pending.isActive()).isTrue();
+    verify(parentChildLinkRepository).save(pending);
+    verify(applicationEventPublisher)
+        .publishEvent(new ParentChildLinkCreatedEvent(CO_PARENT, CHILD, LEGAL_REPRESENTATIVE));
+  }
+
+  @Test
+  void activate_isNoOpWhenLinkIsAlreadyActive() {
+    ParentChildLink active =
+        ParentChildLink.builder()
+            .parentPersonalCode(CO_PARENT)
+            .childPersonalCode(CHILD)
+            .relationshipType(LEGAL_REPRESENTATIVE)
+            .validUntil(CHILD_EIGHTEENTH_BIRTHDAY)
+            .status(ParentChildLinkStatus.ACTIVE)
+            .build();
+    given(
+            parentChildLinkRepository
+                .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
+                    CO_PARENT, CHILD, LEGAL_REPRESENTATIVE))
+        .willReturn(Optional.of(active));
+
+    service.activate(CO_PARENT, CHILD);
+
+    verify(parentChildLinkRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    verifyNoInteractions(applicationEventPublisher);
+  }
+
+  @Test
+  void activate_isNoOpWhenNoLinkExists() {
+    given(
+            parentChildLinkRepository
+                .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
+                    CO_PARENT, CHILD, LEGAL_REPRESENTATIVE))
+        .willReturn(Optional.empty());
+
+    service.activate(CO_PARENT, CHILD);
+
+    verify(parentChildLinkRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    verifyNoInteractions(applicationEventPublisher);
   }
 
   @Test

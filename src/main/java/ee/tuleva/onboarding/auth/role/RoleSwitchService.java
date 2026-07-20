@@ -75,6 +75,20 @@ public class RoleSwitchService {
     return unmodifiableList(roles);
   }
 
+  // Children the parent can "join" but not yet switch to: PENDING_KYC links grant no access, so they
+  // are surfaced on a SEPARATE endpoint (never mixed into /v1/me/roles) as non-switchable entries.
+  // Resolves the child's display name exactly like getRoles does, keyed by the pending link's id.
+  public List<PendingChildResponse> getPendingChildOnboardings(AuthenticatedPerson person) {
+    return parentChildLinkService.findPendingChildren(person.getPersonalCode()).stream()
+        .flatMap(
+            link ->
+                userService
+                    .findByPersonalCode(link.getChildPersonalCode())
+                    .map(child -> new PendingChildResponse(link.getId(), child.getFullName()))
+                    .stream())
+        .toList();
+  }
+
   private AuthenticationTokens switchToPerson(
       AuthenticatedPerson person, SwitchRoleCommand command) {
     if (command.code().equals(person.getPersonalCode())) {
@@ -86,6 +100,9 @@ public class RoleSwitchService {
 
   private AuthenticationTokens switchToRepresentedChild(
       AuthenticatedPerson person, SwitchRoleCommand command) {
+    // isActiveRepresentation is status-aware (ACTIVE only), so a PENDING_KYC link is rejected here
+    // just like a missing or suspended one — a co-parent cannot switch to the child before their
+    // own onboarding/KYC activates the link.
     if (!parentChildLinkService.isActiveRepresentation(person.getPersonalCode(), command.code())) {
       throw new RoleSwitchAccessDeniedException(person.getPersonalCode(), command.code());
     }

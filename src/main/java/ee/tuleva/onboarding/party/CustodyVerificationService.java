@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.NO_CUSTODY;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.OK;
 
 import ee.tuleva.onboarding.populationregister.CustodyRight;
+import ee.tuleva.onboarding.populationregister.Guardian;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterClient;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterResult;
@@ -25,6 +26,23 @@ import org.springframework.stereotype.Service;
 public class CustodyVerificationService {
 
   private final PopulationRegisterClient populationRegisterClient;
+
+  // The OTHER guardians of a child (property/H20 custody, valid, living guardian), discovered from a
+  // child-subject custody query authorized by the requesting parent. Excludes the requester's own
+  // code, so this returns exactly the co-guardian(s) to capture a pending link for. The query is
+  // never cache-reused across requesters (see PopulationRegisterClient.fetchCustodyRights).
+  public List<String> findGuardiansWithAssetManagement(
+      String childPersonalCode, String requesterPersonalCode) {
+    return populationRegisterClient
+        .fetchCustodyRights(requesterPersonalCode, childPersonalCode, Duration.ZERO)
+        .data()
+        .stream()
+        .filter(Guardian::grantsAssetManagement)
+        .map(Guardian::personalCode)
+        .filter(guardianCode -> !guardianCode.equals(requesterPersonalCode))
+        .distinct()
+        .toList();
+  }
 
   public List<CustodyRight> findChildrenWithAssetManagementCustody(
       String parentPersonalCode, Duration maxAge) {

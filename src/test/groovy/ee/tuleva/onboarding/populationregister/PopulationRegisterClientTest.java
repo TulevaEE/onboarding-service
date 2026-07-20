@@ -404,6 +404,71 @@ class PopulationRegisterClientTest {
         "teineIsikOlek", Map.of("elemendiKood", "E", "nimetus", "ELUS"));
   }
 
+  @Test
+  void fetchesGuardiansOfAChildQueryingTheChildUnderTheRequesterAndBypassingTheStore() {
+    var childCode = "61509070000";
+    var otherGuardian = "47101010033";
+    server
+        .expect(requestTo(ISIKUD_URL))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header("X-Road-UserId", REQUESTER))
+        .andExpect(jsonPath("$.isikukoodid[0]").value(childCode))
+        .andExpect(jsonPath("$.andmevaljad.hooldusoigused").isNotEmpty())
+        .andRespond(
+            withSuccess(guardianResponse(childCode, otherGuardian), MediaType.APPLICATION_JSON));
+
+    List<Guardian> guardians = client.fetchCustodyRights(REQUESTER, childCode, MAX_AGE).data();
+
+    assertThat(guardians)
+        .containsExactly(
+            new Guardian(REQUESTER, true, true, true),
+            new Guardian(otherGuardian, true, true, true));
+    verify(store, never()).findFresh(any(), any(), any());
+    verify(store, never()).save(any(), any(), any(), any());
+    server.verify();
+  }
+
+  @Test
+  void neverReusesAStoredResponseForAChildSubjectCustodyQuery() {
+    // A child's custody record fetched under a DIFFERENT requester must not be served here, so the
+    // store is not consulted at all — the requester always makes their own audited call.
+    var childCode = "61509070000";
+    server
+        .expect(times(1), requestTo(ISIKUD_URL))
+        .andRespond(
+            withSuccess(guardianResponse(childCode, "47101010033"), MediaType.APPLICATION_JSON));
+
+    client.fetchCustodyRights(REQUESTER, childCode, MAX_AGE);
+
+    verify(store, never()).findFresh(any(), any(), any());
+    server.verify();
+  }
+
+  private static String guardianResponse(String childCode, String otherGuardian) {
+    return """
+        [
+          {
+            "isikukood": "%s",
+            "hooldusoigused": [
+              {
+                "liik": { "elemendiKood": "H20", "nimetus": "täielik varahooldusõigus" },
+                "staatus": { "elemendiKood": "H1", "nimetus": "kehtiv" },
+                "teineIsikIsikukood": "%s",
+                "teineIsikOlek": { "elemendiKood": "E", "nimetus": "ELUS" }
+              },
+              {
+                "liik": { "elemendiKood": "H20", "nimetus": "täielik varahooldusõigus" },
+                "staatus": { "elemendiKood": "H1", "nimetus": "kehtiv" },
+                "teineIsikIsikukood": "%s",
+                "teineIsikOlek": { "elemendiKood": "E", "nimetus": "ELUS" }
+              }
+            ]
+          }
+        ]
+        """
+        .formatted(childCode, REQUESTER, otherGuardian);
+  }
+
   private static String personResponse() {
     return """
         [

@@ -78,6 +78,20 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
         PersonMapper::toCustodyRights);
   }
 
+  @Override
+  public PopulationRegisterResult<List<Guardian>> fetchCustodyRights(
+      String requesterPersonalCode, String subjectPersonalCode, Duration maxAge) {
+    // BYPASS the cache for child-subject custody queries. The store keys responses by
+    // personalCode + queryType only, so a child's custody record fetched under parent A would
+    // otherwise be served to parent B, skipping B's own per-requester X-Road request/audit. Always
+    // fetch fresh; never read or write the store for this direction. (maxAge is therefore unused.)
+    return queryFresh(
+        PersonQueryRequest.forCustody(subjectPersonalCode),
+        requesterPersonalCode,
+        CUSTODY,
+        PersonMapper::toGuardians);
+  }
+
   private <T> PopulationRegisterResult<T> query(
       PersonQueryRequest request,
       String requesterPersonalCode,
@@ -107,6 +121,28 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
         queryType,
         Duration.between(start, clock.instant()).toMillis());
     store.save(personalCode, queryType, messageId, response);
+    return new PopulationRegisterResult<>(mapper.apply(first(response, messageId)), messageId);
+  }
+
+  // Like query(), but never touches the store — no cached reuse, no persisted audit row. Used for
+  // child-subject custody queries where reuse across requesters would be incorrect (see caller).
+  private <T> PopulationRegisterResult<T> queryFresh(
+      PersonQueryRequest request,
+      String requesterPersonalCode,
+      PopulationRegisterQueryType queryType,
+      Function<PersonResponse, T> mapper) {
+    var messageId = UUID.randomUUID();
+    log.info(
+        "Fetching from population register (uncached): messageId={}, queryType={}",
+        messageId,
+        queryType);
+    var start = clock.instant();
+    var response = fetch(request, requesterPersonalCode, messageId);
+    log.info(
+        "Population register call finished: messageId={}, queryType={}, durationMs={}",
+        messageId,
+        queryType,
+        Duration.between(start, clock.instant()).toMillis());
     return new PopulationRegisterResult<>(mapper.apply(first(response, messageId)), messageId);
   }
 

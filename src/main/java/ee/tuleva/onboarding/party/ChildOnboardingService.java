@@ -80,6 +80,31 @@ public class ChildOnboardingService {
         parentPersonalCode, childPersonalCode, child.firstName(), child.lastName());
     savingsFundOnboardingService.seedPersonOnboardingIfAbsent(childPersonalCode);
 
+    capturePendingCoParents(parentPersonalCode, child);
+
     return ChildOnboardingResult.verified(child);
+  }
+
+  // Give each OTHER guardian a PENDING_KYC link so the child shows in their account selector; they
+  // gain access only after their own onboarding/KYC activates it. Best-effort inside the parent's
+  // transaction: capturing co-parents must never break the opening parent's own onboarding.
+  private void capturePendingCoParents(String parentPersonalCode, PopulationRegisterPerson child) {
+    try {
+      custodyVerificationService
+          .findGuardiansWithAssetManagement(child.personalCode(), parentPersonalCode)
+          .forEach(
+              coParentPersonalCode ->
+                  parentChildLinkRegistrationService.registerPending(
+                      coParentPersonalCode,
+                      child.personalCode(),
+                      child.firstName(),
+                      child.lastName()));
+    } catch (RuntimeException e) {
+      log.warn(
+          "Failed to capture pending co-parents, continuing onboarding: parentCode={}, childCode={}",
+          parentPersonalCode,
+          child.personalCode(),
+          e);
+    }
   }
 }

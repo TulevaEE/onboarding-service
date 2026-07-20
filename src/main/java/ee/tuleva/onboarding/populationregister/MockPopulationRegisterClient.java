@@ -38,6 +38,14 @@ class MockPopulationRegisterClient implements PopulationRegisterClient {
         PersonMapper.toCustodyRights(load("mock-custody-response.json")), UUID.randomUUID());
   }
 
+  @Override
+  public PopulationRegisterResult<List<Guardian>> fetchCustodyRights(
+      String requesterPersonalCode, String subjectPersonalCode, Duration maxAge) {
+    log.info("Mock population register guardian lookup");
+    return new PopulationRegisterResult<>(
+        PersonMapper.toGuardians(load("mock-custody-response.json")), UUID.randomUUID());
+  }
+
   private PersonResponse load(String fileName) {
     try (InputStream stream =
         new ClassPathResource("populationregister/" + fileName).getInputStream()) {

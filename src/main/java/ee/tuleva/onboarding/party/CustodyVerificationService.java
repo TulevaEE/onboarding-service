@@ -27,10 +27,6 @@ public class CustodyVerificationService {
 
   private final PopulationRegisterClient populationRegisterClient;
 
-  // The OTHER guardians of a child (property/H20 custody, valid, living guardian), discovered from a
-  // child-subject custody query authorized by the requesting parent. Excludes the requester's own
-  // code, so this returns exactly the co-guardian(s) to capture a pending link for. The query is
-  // never cache-reused across requesters (see PopulationRegisterClient.fetchCustodyRights).
   public List<String> findGuardiansWithAssetManagement(
       String childPersonalCode, String requesterPersonalCode) {
     return populationRegisterClient

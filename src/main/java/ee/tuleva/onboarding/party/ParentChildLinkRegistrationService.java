@@ -41,13 +41,6 @@ public class ParentChildLinkRegistrationService {
         eighteenthBirthday(childPersonalCode));
   }
 
-  // Captures a PENDING_KYC link for the OTHER guardian discovered from the population register when
-  // the account is opened. It publishes NO ParentChildLinkCreatedEvent (that event's listener emails
-  // the parents; a pending capture must be silent) and grants no access. Idempotent find-first: an
-  // existing link (of either status) is left untouched, so an ACTIVE link is never downgraded to
-  // pending and re-capture never duplicates. ChildOnboardingService wraps the call so that, in the
-  // narrow race where two guardians open the same child concurrently, a unique-constraint failure is
-  // logged rather than breaking the opening parent's onboarding.
   @Transactional
   public void registerPending(
       String coParentPersonalCode,
@@ -77,30 +70,6 @@ public class ParentChildLinkRegistrationService {
             .build());
   }
 
-  // Activates the co-parent's PENDING_KYC link once they have completed their own onboarding/KYC.
-  // This is the real "co-parent added" moment, so it publishes ParentChildLinkCreatedEvent (unlike
-  // register/findOrCreateLink, which never update an existing row — activation must be explicit).
-  // A no-op when there is no pending link (already active, or never captured).
-  @Transactional
-  public void activate(String parentPersonalCode, String childPersonalCode) {
-    parentChildLinkRepository
-        .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
-            parentPersonalCode, childPersonalCode, LEGAL_REPRESENTATIVE)
-        .filter(ParentChildLink::isPending)
-        .ifPresent(
-            link -> {
-              log.info(
-                  "Activating pending parent-child link: parentCode={}, childCode={}",
-                  parentPersonalCode,
-                  childPersonalCode);
-              link.activate();
-              parentChildLinkRepository.save(link);
-              applicationEventPublisher.publishEvent(
-                  new ParentChildLinkCreatedEvent(
-                      parentPersonalCode, childPersonalCode, link.getRelationshipType()));
-            });
-  }
-
   @Transactional
   public ParentChildLink registerGuardian(
       String guardianPersonalCode,
@@ -121,27 +90,49 @@ public class ParentChildLinkRegistrationService {
     return parentChildLinkRepository
         .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
             parentPersonalCode, childPersonalCode, relationshipType)
+        .map(existing -> existing.isPending() ? activate(existing) : existing)
         .orElseGet(
-            () -> {
-              log.info(
-                  "Creating parent-child link: parentCode={}, childCode={}, relationshipType={}, validUntil={}",
-                  parentPersonalCode,
-                  childPersonalCode,
-                  relationshipType,
-                  validUntil);
-              ParentChildLink saved =
-                  parentChildLinkRepository.save(
-                      ParentChildLink.builder()
-                          .parentPersonalCode(parentPersonalCode)
-                          .childPersonalCode(childPersonalCode)
-                          .relationshipType(relationshipType)
-                          .validUntil(validUntil)
-                          .build());
-              applicationEventPublisher.publishEvent(
-                  new ParentChildLinkCreatedEvent(
-                      parentPersonalCode, childPersonalCode, relationshipType));
-              return saved;
-            });
+            () -> createLink(parentPersonalCode, childPersonalCode, relationshipType, validUntil));
+  }
+
+  private ParentChildLink createLink(
+      String parentPersonalCode,
+      String childPersonalCode,
+      RepresentationType relationshipType,
+      LocalDate validUntil) {
+    log.info(
+        "Creating parent-child link: parentCode={}, childCode={}, relationshipType={}, validUntil={}",
+        parentPersonalCode,
+        childPersonalCode,
+        relationshipType,
+        validUntil);
+    ParentChildLink saved =
+        parentChildLinkRepository.save(
+            ParentChildLink.builder()
+                .parentPersonalCode(parentPersonalCode)
+                .childPersonalCode(childPersonalCode)
+                .relationshipType(relationshipType)
+                .validUntil(validUntil)
+                .build());
+    publishCreated(saved);
+    return saved;
+  }
+
+  private ParentChildLink activate(ParentChildLink pending) {
+    log.info(
+        "Activating pending parent-child link: parentCode={}, childCode={}",
+        pending.getParentPersonalCode(),
+        pending.getChildPersonalCode());
+    pending.activate();
+    ParentChildLink saved = parentChildLinkRepository.save(pending);
+    publishCreated(saved);
+    return saved;
+  }
+
+  private void publishCreated(ParentChildLink link) {
+    applicationEventPublisher.publishEvent(
+        new ParentChildLinkCreatedEvent(
+            link.getParentPersonalCode(), link.getChildPersonalCode(), link.getRelationshipType()));
   }
 
   private void requireMinor(String childPersonalCode) {

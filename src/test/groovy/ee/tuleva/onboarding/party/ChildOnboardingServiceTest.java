@@ -40,7 +40,6 @@ class ChildOnboardingServiceTest {
   private static final String PARENT = "38812121215";
   private static final String CHILD = "61506150006";
   private static final String ADULT = "39912310015";
-  private static final String CO_PARENT = "38002020008";
 
   @Mock private CustodyVerificationService custodyVerificationService;
   @Mock private ParentChildLinkRegistrationService parentChildLinkRegistrationService;
@@ -146,36 +145,18 @@ class ChildOnboardingServiceTest {
   }
 
   @Test
-  void verifiedCustody_capturesPendingLinksForTheOtherGuardiansOnly() {
+  void verifiedCustody_publishesChildOnboardedEventToCaptureCoParentsAfterCommit() {
     var evidence =
-        Map.<String, Object>of("outcome", "OK", "childPersonalCode", CHILD, "custodyType", "PROPERTY");
+        Map.<String, Object>of(
+            "outcome", "OK", "childPersonalCode", CHILD, "custodyType", "PROPERTY");
     given(custodyVerificationService.verify(PARENT, CHILD, CUSTODY_MAX_AGE))
         .willReturn(new CustodyVerification(OK, child, evidence));
-    given(custodyVerificationService.findGuardiansWithAssetManagement(CHILD, PARENT))
-        .willReturn(List.of(CO_PARENT));
 
     service.onboardChild(parent, CHILD);
 
     verify(parentChildLinkRegistrationService).register(PARENT, CHILD, "MARI", "MAASIKAS");
-    verify(parentChildLinkRegistrationService).registerPending(CO_PARENT, CHILD, "MARI", "MAASIKAS");
-  }
-
-  @Test
-  void verifiedCustody_coParentCaptureFailureDoesNotBreakTheParentsOwnOnboarding() {
-    var evidence =
-        Map.<String, Object>of("outcome", "OK", "childPersonalCode", CHILD, "custodyType", "PROPERTY");
-    given(custodyVerificationService.verify(PARENT, CHILD, CUSTODY_MAX_AGE))
-        .willReturn(new CustodyVerification(OK, child, evidence));
-    given(custodyVerificationService.findGuardiansWithAssetManagement(CHILD, PARENT))
-        .willThrow(new RuntimeException("population register unavailable"));
-
-    ChildOnboardingResult result = service.onboardChild(parent, CHILD);
-
-    assertThat(result.verified()).isTrue();
-    verify(parentChildLinkRegistrationService).register(PARENT, CHILD, "MARI", "MAASIKAS");
-    verify(savingsFundOnboardingService).seedPersonOnboardingIfAbsent(CHILD);
-    verify(parentChildLinkRegistrationService, never())
-        .registerPending(any(), any(), any(), any());
+    verify(applicationEventPublisher)
+        .publishEvent(new ChildOnboardedEvent(PARENT, CHILD, "MARI", "MAASIKAS"));
   }
 
   @Test

@@ -163,6 +163,60 @@ class RecurringPaymentLinkGeneratorSpec extends Specification {
     channel << [SEB, LHV, COOP, COOP_WEB, PARTNER]
   }
 
+  def "every payment channel declares an amount policy"() {
+    expect:
+    amountPolicies().keySet() == PaymentData.PaymentChannel.values() as Set
+  }
+
+  def "#channel recurring link without an amount behaves as its #policy policy requires"() {
+    given:
+    def person = samplePerson
+    def paymentData = new PaymentData(samplePerson.personalCode, null, EUR, RECURRING, channel)
+
+    when:
+    def link = recurringPaymentLinkGenerator.getPaymentLink(paymentData, person)
+
+    then:
+    def exception = thrown(ErrorsResponseException)
+    exception.errorsResponse.errors[0].code == expectedErrorCode
+
+    where:
+    [channel, policy] << amountPolicies().findAll { it.value != OPTIONAL_AMOUNT }.collect { [it.key, it.value] }
+    expectedErrorCode = policy == UNSUPPORTED_CHANNEL ? "payment.channel.not.supported" : "payment.amount.required"
+  }
+
+  def "#channel recurring link is built without an amount because the bank form collects the sum"() {
+    given:
+    def person = samplePerson
+    def paymentData = new PaymentData(samplePerson.personalCode, null, EUR, RECURRING, channel)
+
+    when:
+    def link = recurringPaymentLinkGenerator.getPaymentLink(paymentData, person)
+
+    then:
+    link != null
+
+    where:
+    channel << amountPolicies().findAll { it.value == OPTIONAL_AMOUNT }.keySet()
+  }
+
+  private static final String REQUIRED_AMOUNT = "REQUIRED_AMOUNT"
+  private static final String OPTIONAL_AMOUNT = "OPTIONAL_AMOUNT"
+  private static final String UNSUPPORTED_CHANNEL = "UNSUPPORTED_CHANNEL"
+
+  private static Map<PaymentData.PaymentChannel, String> amountPolicies() {
+    [
+        (SWEDBANK)     : OPTIONAL_AMOUNT,
+        (LUMINOR)      : OPTIONAL_AMOUNT,
+        (SEB)          : REQUIRED_AMOUNT,
+        (LHV)          : REQUIRED_AMOUNT,
+        (COOP)         : REQUIRED_AMOUNT,
+        (COOP_WEB)     : OPTIONAL_AMOUNT,
+        (PARTNER)      : OPTIONAL_AMOUNT,
+        (TULUNDUSUHISTU): UNSUPPORTED_CHANNEL,
+    ]
+  }
+
   def "rejects recurring payments for TULUNDUSUHISTU as 400"() {
     given:
     def person = samplePerson

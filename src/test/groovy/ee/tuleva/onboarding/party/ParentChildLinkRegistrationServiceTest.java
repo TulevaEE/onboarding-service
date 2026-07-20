@@ -207,10 +207,11 @@ class ParentChildLinkRegistrationServiceTest {
   }
 
   @Test
-  void activate_flipsPendingLinkToActiveAndPublishesEvent() {
+  void register_activatesAnExistingPendingLinkAndPublishesEvent() {
+    given(userService.findByPersonalCode(CHILD)).willReturn(Optional.empty());
     ParentChildLink pending =
         ParentChildLink.builder()
-            .parentPersonalCode(CO_PARENT)
+            .parentPersonalCode(PARENT)
             .childPersonalCode(CHILD)
             .relationshipType(LEGAL_REPRESENTATIVE)
             .validUntil(CHILD_EIGHTEENTH_BIRTHDAY)
@@ -219,51 +220,18 @@ class ParentChildLinkRegistrationServiceTest {
     given(
             parentChildLinkRepository
                 .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
-                    CO_PARENT, CHILD, LEGAL_REPRESENTATIVE))
+                    PARENT, CHILD, LEGAL_REPRESENTATIVE))
         .willReturn(Optional.of(pending));
+    given(parentChildLinkRepository.save(org.mockito.ArgumentMatchers.any()))
+        .willAnswer(returnsFirstArg());
 
-    service.activate(CO_PARENT, CHILD);
+    ParentChildLink result = service.register(PARENT, CHILD, "mari", "maasikas");
 
-    assertThat(pending.isActive()).isTrue();
+    assertThat(result).isSameAs(pending);
+    assertThat(result.isActive()).isTrue();
     verify(parentChildLinkRepository).save(pending);
     verify(applicationEventPublisher)
-        .publishEvent(new ParentChildLinkCreatedEvent(CO_PARENT, CHILD, LEGAL_REPRESENTATIVE));
-  }
-
-  @Test
-  void activate_isNoOpWhenLinkIsAlreadyActive() {
-    ParentChildLink active =
-        ParentChildLink.builder()
-            .parentPersonalCode(CO_PARENT)
-            .childPersonalCode(CHILD)
-            .relationshipType(LEGAL_REPRESENTATIVE)
-            .validUntil(CHILD_EIGHTEENTH_BIRTHDAY)
-            .status(ParentChildLinkStatus.ACTIVE)
-            .build();
-    given(
-            parentChildLinkRepository
-                .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
-                    CO_PARENT, CHILD, LEGAL_REPRESENTATIVE))
-        .willReturn(Optional.of(active));
-
-    service.activate(CO_PARENT, CHILD);
-
-    verify(parentChildLinkRepository, never()).save(org.mockito.ArgumentMatchers.any());
-    verifyNoInteractions(applicationEventPublisher);
-  }
-
-  @Test
-  void activate_isNoOpWhenNoLinkExists() {
-    given(
-            parentChildLinkRepository
-                .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
-                    CO_PARENT, CHILD, LEGAL_REPRESENTATIVE))
-        .willReturn(Optional.empty());
-
-    service.activate(CO_PARENT, CHILD);
-
-    verify(parentChildLinkRepository, never()).save(org.mockito.ArgumentMatchers.any());
-    verifyNoInteractions(applicationEventPublisher);
+        .publishEvent(new ParentChildLinkCreatedEvent(PARENT, CHILD, LEGAL_REPRESENTATIVE));
   }
 
   @Test

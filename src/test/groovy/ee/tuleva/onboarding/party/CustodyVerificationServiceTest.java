@@ -209,16 +209,19 @@ class CustodyVerificationServiceTest {
   private static final String CO_PARENT = "38002020008";
 
   @Test
-  void findGuardiansWithAssetManagement_returnsOtherValidLivingPropertyGuardiansExcludingRequester() {
+  void
+      findGuardiansWithAssetManagement_returnsOtherValidLivingPropertyGuardiansExcludingRequester() {
     given(populationRegisterClient.fetchCustodyRights(PARENT, CHILD, Duration.ZERO))
         .willReturn(
             new PopulationRegisterResult<>(
                 List.of(
                     new Guardian(PARENT, true, true, true), // the requester themselves -> excluded
                     new Guardian(CO_PARENT, true, true, true), // valid property guardian -> kept
-                    new Guardian("60303030004", false, true, true), // personal care only -> excluded
+                    new Guardian(
+                        "60303030004", false, true, true), // personal care only -> excluded
                     new Guardian("60404040005", true, false, true), // custody not valid -> excluded
-                    new Guardian("60505050006", true, true, false)), // guardian not alive -> excluded
+                    new Guardian(
+                        "60505050006", true, true, false)), // guardian not alive -> excluded
                 CUSTODY_MESSAGE_ID));
 
     assertThat(service.findGuardiansWithAssetManagement(CHILD, PARENT)).containsExactly(CO_PARENT);

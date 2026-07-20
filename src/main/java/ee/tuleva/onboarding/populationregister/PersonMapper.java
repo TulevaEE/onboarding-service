@@ -42,8 +42,6 @@ class PersonMapper {
     return custodies.stream().map(PersonMapper::toCustodyRight).toList();
   }
 
-  // Maps a CHILD-subject custody response: each hooldusoigused entry's teineIsik is a GUARDIAN of
-  // the queried child (the reverse direction of toCustodyRight, where teineIsik is the child).
   static List<Guardian> toGuardians(PersonResponse response) {
     List<Custody> custodies = response.custodyRights();
     if (custodies == null) {

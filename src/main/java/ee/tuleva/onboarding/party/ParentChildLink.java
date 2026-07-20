@@ -41,9 +41,6 @@ public class ParentChildLink {
   @Column(nullable = false)
   private LocalDate validUntil;
 
-  // ACTIVE authorizes representation; PENDING_KYC grants no access until the co-parent completes
-  // their own onboarding/KYC. Defaulted to ACTIVE so ParentChildLink.builder() never yields a null
-  // status against the non-null column (pending links are created via a dedicated native insert).
   @NotNull
   @Builder.Default
   @Enumerated(STRING)
@@ -74,8 +71,6 @@ public class ParentChildLink {
     return status == ParentChildLinkStatus.ACTIVE;
   }
 
-  // Activation is the real "co-parent added" moment: flips a PENDING_KYC link to ACTIVE once the
-  // co-parent has completed their own onboarding/KYC.
   void activate() {
     this.status = ParentChildLinkStatus.ACTIVE;
   }

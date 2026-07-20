@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.error;
 
+import static ee.tuleva.onboarding.error.SentryErrorCodeFingerprint.ERROR_CODE;
 import static org.springframework.http.HttpStatus.*;
 
 import ee.tuleva.onboarding.account.PensionRegistryAccountStatementConnectionException;
@@ -23,10 +24,14 @@ import ee.tuleva.onboarding.party.ChildIsNotAMinorException;
 import io.jsonwebtoken.ExpiredJwtException;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.CannotGetJdbcConnectionException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -75,6 +80,21 @@ public class ErrorHandlingControllerAdvice {
     return new ResponseEntity<>(exception.getErrorsResponse(), GATEWAY_TIMEOUT);
   }
 
+  @ExceptionHandler({
+    CannotGetJdbcConnectionException.class,
+    CannotCreateTransactionException.class
+  })
+  public ResponseEntity<ErrorsResponse> handleDatabaseConnectionUnavailable(Exception exception) {
+    log.error(
+        "Database connection unavailable (pool exhausted or database unreachable): {}",
+        exception.toString());
+    return ResponseEntity.status(SERVICE_UNAVAILABLE)
+        .header(HttpHeaders.RETRY_AFTER, "5")
+        .body(
+            ErrorsResponse.ofSingleError(
+                "service.unavailable", "Service temporarily unavailable, please retry."));
+  }
+
   @ExceptionHandler(ErrorsResponseException.class)
   public ResponseEntity<Object> handleErrors(ErrorsResponseException exception) {
     if (exception instanceof AuthNotCompleteException) {
@@ -87,8 +107,23 @@ public class ErrorHandlingControllerAdvice {
               "error", "AUTHENTICATION_NOT_COMPLETE", "error_description", "Please keep polling."),
           OK);
     }
-    log.error("{}", exception.toString());
+    logRejection(exception);
     return new ResponseEntity<>(exception.getErrorsResponse(), BAD_REQUEST);
+  }
+
+  private static void logRejection(ErrorsResponseException exception) {
+    var errors = exception.getErrorsResponse().getErrors();
+    if (errors.isEmpty()) {
+      log.error("Request rejected: error={}", exception.toString());
+      return;
+    }
+    var errorCode = errors.getFirst().getCode();
+    MDC.put(ERROR_CODE, errorCode);
+    try {
+      log.error("Request rejected: code={}, error={}", errorCode, exception.toString());
+    } finally {
+      MDC.remove(ERROR_CODE);
+    }
   }
 
   @ExceptionHandler(ExpiredJwtException.class)

@@ -40,7 +40,8 @@ public class IntegrityCheckResult {
       BigDecimal difference,
       BigDecimal percentageDifference,
       Severity severity,
-      String comparisonDescription) {
+      String comparisonDescription,
+      List<SourceValue> allSourceValues) {
 
     public Discrepancy(
         String fundTicker,
@@ -57,9 +58,12 @@ public class IntegrityCheckResult {
           difference,
           percentageDifference,
           Severity.WARNING,
-          "");
+          "",
+          List.of());
     }
   }
+
+  public record SourceValue(String source, BigDecimal value) {}
 
   public record MissingData(
       String fundTicker, LocalDate date, BigDecimal referenceValue, Severity severity) {

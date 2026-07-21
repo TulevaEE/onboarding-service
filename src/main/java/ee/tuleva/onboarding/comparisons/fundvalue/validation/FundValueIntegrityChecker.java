@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityChe
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
+import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
@@ -19,6 +20,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResul
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.MissingData;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.OrphanedData;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Severity;
+import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.SourceValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.StaleSource;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -199,16 +201,24 @@ public class FundValueIntegrityChecker {
     if (present.size() < 2) {
       return List.of();
     }
+    List<SourceValue> allSourceValues =
+        present.stream()
+            .map(source -> new SourceValue(source.source().name(), source.valuesByDate().get(date)))
+            .toList();
     SourceValues anchor = present.getFirst();
     return present.stream()
         .skip(1)
-        .map(compared -> compareOnDate(ticker, date, anchor, compared))
+        .map(compared -> compareOnDate(ticker, date, anchor, compared, allSourceValues))
         .flatMap(Optional::stream)
         .toList();
   }
 
   private Optional<Discrepancy> compareOnDate(
-      FundTicker ticker, LocalDate date, SourceValues anchor, SourceValues compared) {
+      FundTicker ticker,
+      LocalDate date,
+      SourceValues anchor,
+      SourceValues compared,
+      List<SourceValue> allSourceValues) {
     int scale = Math.min(anchor.source().scale(), compared.source().scale());
     BigDecimal thresholdPercent =
         scale < DATABASE_SCALE ? NAV_ROUNDING_THRESHOLD_PERCENT : CROSS_PROVIDER_THRESHOLD_PERCENT;
@@ -234,7 +244,8 @@ public class FundValueIntegrityChecker {
             difference,
             percentageDiff,
             severity,
-            anchor.source().name() + " vs " + compared.source().name()));
+            anchor.source().name() + " vs " + compared.source().name(),
+            allSourceValues));
   }
 
   List<StaleSource> checkSourceFreshness(FundTicker ticker, LocalDate endDate) {
@@ -440,13 +451,14 @@ public class FundValueIntegrityChecker {
             d ->
                 sb.append(
                     String.format(
-                        "  PRICE DISCREPANCY: %s [%s] %s anchor=%s vs compared=%s (%s%%)%n",
+                        "  PRICE DISCREPANCY: %s [%s] %s anchor=%s vs compared=%s (%s%%)%s%n",
                         d.fundTicker(),
                         d.date(),
                         d.comparisonDescription(),
                         d.anchorValue().toPlainString(),
                         d.comparedValue().toPlainString(),
-                        d.percentageDifference().toPlainString())));
+                        d.percentageDifference().toPlainString(),
+                        formatAllSources(d))));
     return sb.toString().stripTrailing();
   }
 
@@ -514,13 +526,14 @@ public class FundValueIntegrityChecker {
                 d ->
                     summary.append(
                         String.format(
-                            "    • %s: %s=%.5f vs %s=%.5f (diff: %.4f%%)%n",
+                            "    • %s: %s=%.5f vs %s=%.5f (diff: %.4f%%)%s%n",
                             d.fundTicker(),
                             getAnchorName(d.comparisonDescription()),
                             d.anchorValue(),
                             getComparedName(d.comparisonDescription()),
                             d.comparedValue(),
-                            d.percentageDifference())));
+                            d.percentageDifference(),
+                            formatAllSources(d))));
       }
       if (infoCount > 0) {
         summary.append(
@@ -619,17 +632,27 @@ public class FundValueIntegrityChecker {
             d ->
                 summary.append(
                     String.format(
-                        "  • %s [%s]: %s %.5f vs %.5f, diff=%.5f (%.4f%%)%n",
+                        "  • %s [%s]: %s %.5f vs %.5f, diff=%.5f (%.4f%%)%s%n",
                         d.fundTicker(),
                         d.date(),
                         d.comparisonDescription(),
                         d.anchorValue(),
                         d.comparedValue(),
                         d.difference(),
-                        d.percentageDifference())));
+                        d.percentageDifference(),
+                        formatAllSources(d))));
     if (issues.size() > 10) {
       summary.append(String.format("  ... and %d more%n", issues.size() - 10));
     }
+  }
+
+  private String formatAllSources(Discrepancy discrepancy) {
+    if (discrepancy.allSourceValues().size() <= 2) {
+      return "";
+    }
+    return discrepancy.allSourceValues().stream()
+        .map(sourceValue -> sourceValue.source() + "=" + sourceValue.value().toPlainString())
+        .collect(joining(", ", " | all sources: ", ""));
   }
 
   private void appendIssuesSummary(StringBuilder summary, List<Discrepancy> issues, int limit) {

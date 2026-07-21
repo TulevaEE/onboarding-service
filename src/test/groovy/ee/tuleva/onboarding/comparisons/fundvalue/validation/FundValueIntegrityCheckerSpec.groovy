@@ -365,6 +365,28 @@ class FundValueIntegrityCheckerSpec extends Specification {
     discrepancies.isEmpty()
   }
 
+  def "discrepancy carries all source values for the date"() {
+    given:
+    def ticker = FundTicker.XTRACKERS_WORLD_SCREENED
+    LocalDate date = LocalDate.of(2026, 7, 20)
+    def xetraKey = ticker.isin + ".XETR"
+
+    fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> [aFundValue(ticker.eodhdTicker, date, 9.947)]
+    fundValueRepository.findValuesBetweenDates(xetraKey, date, date) >> [aFundValue(xetraKey, date, 9.969)]
+    fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> [aFundValue(ticker.yahooTicker, date, 9.947)]
+
+    when:
+    def discrepancies = checker.checkCrossProviderIntegrity(ticker, date, date)
+
+    then:
+    discrepancies.size() == 1
+    discrepancies[0].allSourceValues() == [
+        new IntegrityCheckResult.SourceValue("EODHD", 9.947),
+        new IntegrityCheckResult.SourceValue("Exchange", 9.969),
+        new IntegrityCheckResult.SourceValue("Yahoo", 9.947),
+    ]
+  }
+
   def "should label Deutsche Börse in discrepancies for Xetra-traded ETFs"() {
     given:
     def ticker = FundTicker.ISHARES_USA_ESG_SCREENED
@@ -694,6 +716,50 @@ class FundValueIntegrityCheckerSpec extends Specification {
     !summary.contains("30-Day Trend Summary")
   }
 
+  def "summary shows all source values for a discrepancy so the odd one out is visible"() {
+    given:
+    LocalDate endDate = LocalDate.of(2026, 7, 20)
+    def xwsc = FundTicker.XTRACKERS_WORLD_SCREENED
+    def xwscXetraKey = xwsc.isin + ".XETR"
+
+    priorityPriceProvider.resolve(_, _) >> Optional.empty()
+
+    yahooFundValueRetriever.retrieveValuesForRange(_, _) >> FundTicker.values().collect {
+      aFundValue(it.yahooTicker, endDate, it == xwsc ? 9.947 : 100.00)
+    }
+
+    fundValueRepository.findValuesBetweenDates(xwsc.eodhdTicker, _, _) >> [aFundValue(xwsc.eodhdTicker, endDate, 9.947)]
+    fundValueRepository.findValuesBetweenDates(xwscXetraKey, _, _) >> [aFundValue(xwscXetraKey, endDate, 9.969)]
+    fundValueRepository.findValuesBetweenDates(xwsc.yahooTicker, _, _) >> [aFundValue(xwsc.yahooTicker, endDate, 9.947)]
+
+    for (ticker in FundTicker.values()) {
+      if (ticker == xwsc) {
+        continue
+      }
+      fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, _, _) >> [aFundValue(ticker.yahooTicker, endDate, 100.00)]
+      fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, _, _) >> [aFundValue(ticker.eodhdTicker, endDate, 100.00)]
+
+      ticker.getXetraStorageKey().ifPresent { xetraKey ->
+        fundValueRepository.findValuesBetweenDates(xetraKey, _, _) >> [aFundValue(xetraKey, endDate, 100.00)]
+      }
+      ticker.getEuronextParisStorageKey().ifPresent { euronextKey ->
+        fundValueRepository.findValuesBetweenDates(euronextKey, _, _) >> [aFundValue(euronextKey, endDate, 100.00)]
+      }
+      ticker.getBlackrockStorageKey().ifPresent { blackrockKey ->
+        fundValueRepository.findValuesBetweenDates(blackrockKey, _, _) >> [aFundValue(blackrockKey, endDate, 100.00)]
+      }
+      ticker.getMorningstarStorageKey().ifPresent { morningstarKey ->
+        fundValueRepository.findValuesBetweenDates(morningstarKey, _, _) >> [aFundValue(morningstarKey, endDate, 100.00)]
+      }
+    }
+
+    when:
+    String summary = checker.runIntegrityCheck(endDate)
+
+    then:
+    summary.contains("all sources: EODHD=9.947, Exchange=9.969, Yahoo=9.947")
+  }
+
   def "sends a Slack alert to the INVESTMENT channel listing stale sources when critical"() {
     given:
     def staleSource = new IntegrityCheckResult.StaleSource(
@@ -715,7 +781,12 @@ class FundValueIntegrityCheckerSpec extends Specification {
   def "Slack alert lists the specific instrument, sources and percentage for a critical discrepancy"() {
     given:
     def discrepancy = new IntegrityCheckResult.Discrepancy(
-        "IWDA", LocalDate.of(2026, 2, 11), 100.00, 80.00, 20.00, 20.0000, Severity.CRITICAL, "EODHD vs BLACKROCK")
+        "IWDA", LocalDate.of(2026, 2, 11), 100.00, 80.00, 20.00, 20.0000, Severity.CRITICAL, "EODHD vs BLACKROCK",
+        [
+            new IntegrityCheckResult.SourceValue("EODHD", 100.00),
+            new IntegrityCheckResult.SourceValue("BlackRock", 80.00),
+            new IntegrityCheckResult.SourceValue("Yahoo", 99.50),
+        ])
     def result = new FundValueIntegrityChecker.TickerCheckResult(
         FundTicker.values()[0], IntegrityCheckResult.empty(), [] as Set, [] as Set, [], [discrepancy])
 
@@ -728,7 +799,8 @@ class FundValueIntegrityCheckerSpec extends Specification {
           message.contains("IWDA") &&
           message.contains("EODHD vs BLACKROCK") &&
           message.contains("100") &&
-          message.contains("80")
+          message.contains("80") &&
+          message.contains("Yahoo=99.50")
     }, OperationsNotificationService.Channel.INVESTMENT)
   }
 

@@ -53,18 +53,16 @@ class DeutscheBoerseValueRetrieverTest {
   void retrievesFundValuesFromDeutscheBoerseApi() {
     FundTicker.getXetraIsins()
         .forEach(
-            isin ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://mobile-api.live.deutsche-boerse.com/v1/data/price_history"
-                                + "?isin="
-                                + isin
-                                + "&mic=XETR&minDate=2024-01-02&maxDate=2024-01-04"))
-                    .andRespond(
-                        withSuccess(
-                            mockResponseForIsin(isin, "2024-01-02", "2024-01-04"),
-                            APPLICATION_JSON)));
+            isin -> {
+              server
+                  .expect(requestTo(priceHistoryUrl(isin, "2024-01-02", "2024-01-04")))
+                  .andRespond(
+                      withSuccess(
+                          mockResponseForIsin(isin, "2024-01-02", "2024-01-04"), APPLICATION_JSON));
+              server
+                  .expect(requestTo(quoteBoxUrl(isin)))
+                  .andRespond(withSuccess("{}", APPLICATION_JSON));
+            });
 
     var startDate = LocalDate.of(2024, 1, 2);
     var endDate = LocalDate.of(2024, 1, 4);
@@ -104,19 +102,19 @@ class DeutscheBoerseValueRetrieverTest {
                     + isin
                     + "&mic=XETR&minDate=2024-01-02&maxDate=2024-01-02"))
         .andRespond(withSuccess(mockResponse, APPLICATION_JSON));
+    server.expect(requestTo(quoteBoxUrl(isin))).andRespond(withSuccess("{}", APPLICATION_JSON));
 
     FundTicker.getXetraIsins().stream()
         .skip(1)
         .forEach(
-            otherIsin ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://mobile-api.live.deutsche-boerse.com/v1/data/price_history"
-                                + "?isin="
-                                + otherIsin
-                                + "&mic=XETR&minDate=2024-01-02&maxDate=2024-01-02"))
-                    .andRespond(withSuccess(emptyResponse(otherIsin), APPLICATION_JSON)));
+            otherIsin -> {
+              server
+                  .expect(requestTo(priceHistoryUrl(otherIsin, "2024-01-02", "2024-01-02")))
+                  .andRespond(withSuccess(emptyResponse(otherIsin), APPLICATION_JSON));
+              server
+                  .expect(requestTo(quoteBoxUrl(otherIsin)))
+                  .andRespond(withSuccess("{}", APPLICATION_JSON));
+            });
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 2));
@@ -135,15 +133,14 @@ class DeutscheBoerseValueRetrieverTest {
   void filtersOutZeroValues() {
     FundTicker.getXetraIsins()
         .forEach(
-            isin ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://mobile-api.live.deutsche-boerse.com/v1/data/price_history"
-                                + "?isin="
-                                + isin
-                                + "&mic=XETR&minDate=2024-01-02&maxDate=2024-01-04"))
-                    .andRespond(withSuccess(mockResponseWithZero(isin), APPLICATION_JSON)));
+            isin -> {
+              server
+                  .expect(requestTo(priceHistoryUrl(isin, "2024-01-02", "2024-01-04")))
+                  .andRespond(withSuccess(mockResponseWithZero(isin), APPLICATION_JSON));
+              server
+                  .expect(requestTo(quoteBoxUrl(isin)))
+                  .andRespond(withSuccess("{}", APPLICATION_JSON));
+            });
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
@@ -177,15 +174,14 @@ class DeutscheBoerseValueRetrieverTest {
   void handlesEmptyDataResponse() {
     FundTicker.getXetraIsins()
         .forEach(
-            isin ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://mobile-api.live.deutsche-boerse.com/v1/data/price_history"
-                                + "?isin="
-                                + isin
-                                + "&mic=XETR&minDate=2024-01-02&maxDate=2024-01-02"))
-                    .andRespond(withSuccess(emptyResponse(isin), APPLICATION_JSON)));
+            isin -> {
+              server
+                  .expect(requestTo(priceHistoryUrl(isin, "2024-01-02", "2024-01-02")))
+                  .andRespond(withSuccess(emptyResponse(isin), APPLICATION_JSON));
+              server
+                  .expect(requestTo(quoteBoxUrl(isin)))
+                  .andRespond(withSuccess("{}", APPLICATION_JSON));
+            });
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 2));
@@ -200,18 +196,19 @@ class DeutscheBoerseValueRetrieverTest {
 
     FundTicker.getXetraIsins()
         .forEach(
-            isin ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://mobile-api.live.deutsche-boerse.com/v1/data/price_history"
-                                + "?isin="
-                                + isin
-                                + "&mic=XETR&minDate=2024-01-02&maxDate=2024-01-04"))
-                    .andRespond(
-                        withSuccess(
-                            mockResponseForIsin(isin, "2024-01-02", "2024-01-04"),
-                            APPLICATION_JSON)));
+            isin -> {
+              server
+                  .expect(requestTo(priceHistoryUrl(isin, "2024-01-02", "2024-01-04")))
+                  .andRespond(
+                      withSuccess(
+                          mockResponseForIsin(isin, "2024-01-02", "2024-01-04"), APPLICATION_JSON));
+              server
+                  .expect(requestTo(quoteBoxUrl(isin)))
+                  .andRespond(
+                      withSuccess(
+                          quoteBoxResponse(isin, "102.00", "2024-01-04T16:35:00Z"),
+                          APPLICATION_JSON));
+            });
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
@@ -231,18 +228,19 @@ class DeutscheBoerseValueRetrieverTest {
 
     FundTicker.getXetraIsins()
         .forEach(
-            isin ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://mobile-api.live.deutsche-boerse.com/v1/data/price_history"
-                                + "?isin="
-                                + isin
-                                + "&mic=XETR&minDate=2024-01-02&maxDate=2024-01-04"))
-                    .andRespond(
-                        withSuccess(
-                            mockResponseForIsin(isin, "2024-01-02", "2024-01-04"),
-                            APPLICATION_JSON)));
+            isin -> {
+              server
+                  .expect(requestTo(priceHistoryUrl(isin, "2024-01-02", "2024-01-04")))
+                  .andRespond(
+                      withSuccess(
+                          mockResponseForIsin(isin, "2024-01-02", "2024-01-04"), APPLICATION_JSON));
+              server
+                  .expect(requestTo(quoteBoxUrl(isin)))
+                  .andRespond(
+                      withSuccess(
+                          quoteBoxResponse(isin, "102.00", "2024-01-04T16:35:00Z"),
+                          APPLICATION_JSON));
+            });
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
@@ -262,18 +260,19 @@ class DeutscheBoerseValueRetrieverTest {
 
     FundTicker.getXetraIsins()
         .forEach(
-            isin ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://mobile-api.live.deutsche-boerse.com/v1/data/price_history"
-                                + "?isin="
-                                + isin
-                                + "&mic=XETR&minDate=2024-01-02&maxDate=2024-01-04"))
-                    .andRespond(
-                        withSuccess(
-                            mockResponseForIsin(isin, "2024-01-02", "2024-01-04"),
-                            APPLICATION_JSON)));
+            isin -> {
+              server
+                  .expect(requestTo(priceHistoryUrl(isin, "2024-01-02", "2024-01-04")))
+                  .andRespond(
+                      withSuccess(
+                          mockResponseForIsin(isin, "2024-01-02", "2024-01-04"), APPLICATION_JSON));
+              server
+                  .expect(requestTo(quoteBoxUrl(isin)))
+                  .andRespond(
+                      withSuccess(
+                          quoteBoxResponse(isin, "102.00", "2024-01-04T16:35:00Z"),
+                          APPLICATION_JSON));
+            });
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
@@ -285,6 +284,234 @@ class DeutscheBoerseValueRetrieverTest {
         .anyMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 2)))
         .anyMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 3)))
         .noneMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 4)));
+  }
+
+  @Test
+  void overridesBarCloseWithOfficialLastPriceForItsDate() {
+    // 2026-07-21 05:00 UTC = 07:00 CEST, after the 06:00 cutoff: 2026-07-20 is finalized
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-07-21T05:00:00Z"), UTC));
+    var isin = FundTicker.getXetraIsins().getFirst();
+    var thinDayBars =
+        """
+        {
+          "isin": "%s",
+          "data": [
+            {"date": "2026-07-17", "open": 9.900, "close": 9.92, "high": 9.924, "low": 9.900, "turnoverPieces": 0, "turnoverEuro": 0.0},
+            {"date": "2026-07-20", "open": 9.905, "close": 9.969, "high": 9.969, "low": 9.905, "turnoverPieces": 10, "turnoverEuro": 99.69}
+          ],
+          "totalCount": 2
+        }
+        """
+            .formatted(isin);
+
+    server
+        .expect(requestTo(priceHistoryUrl(isin, "2026-07-17", "2026-07-20")))
+        .andRespond(withSuccess(thinDayBars, APPLICATION_JSON));
+    server
+        .expect(requestTo(quoteBoxUrl(isin)))
+        .andRespond(
+            withSuccess(quoteBoxResponse(isin, "9.947", "2026-07-20T15:35:48Z"), APPLICATION_JSON));
+    expectNoDataForOtherIsins(isin, "2026-07-17", "2026-07-20");
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 7, 17), LocalDate.of(2026, 7, 20));
+
+    var updatedAt = Instant.parse("2026-07-21T05:00:00Z");
+    assertThat(result.stream().filter(value -> value.key().equals(isin + ".XETR")))
+        .containsExactlyInAnyOrder(
+            new FundValue(
+                isin + ".XETR",
+                LocalDate.of(2026, 7, 17),
+                new BigDecimal("9.92"),
+                "DEUTSCHE_BOERSE",
+                updatedAt),
+            new FundValue(
+                isin + ".XETR",
+                LocalDate.of(2026, 7, 20),
+                new BigDecimal("9.947"),
+                "DEUTSCHE_BOERSE",
+                updatedAt));
+  }
+
+  @Test
+  void ignoresLiveIntradayLastPriceFromToday() {
+    // 2026-07-21 08:00 UTC = 10:00 CEST, Xetra is open and quote box serves a live price
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-07-21T08:00:00Z"), UTC));
+    var isin = FundTicker.getXetraIsins().getFirst();
+    var bars =
+        """
+        {
+          "isin": "%s",
+          "data": [
+            {"date": "2026-07-20", "open": 9.905, "close": 9.969, "high": 9.969, "low": 9.905, "turnoverPieces": 10, "turnoverEuro": 99.69}
+          ],
+          "totalCount": 1
+        }
+        """
+            .formatted(isin);
+
+    server
+        .expect(requestTo(priceHistoryUrl(isin, "2026-07-17", "2026-07-21")))
+        .andRespond(withSuccess(bars, APPLICATION_JSON));
+    server
+        .expect(requestTo(quoteBoxUrl(isin)))
+        .andRespond(
+            withSuccess(quoteBoxResponse(isin, "9.943", "2026-07-21T07:16:42Z"), APPLICATION_JSON));
+    expectNoDataForOtherIsins(isin, "2026-07-17", "2026-07-21");
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 7, 17), LocalDate.of(2026, 7, 21));
+
+    assertThat(result.stream().filter(value -> value.key().equals(isin + ".XETR")))
+        .containsExactlyInAnyOrder(
+            new FundValue(
+                isin + ".XETR",
+                LocalDate.of(2026, 7, 20),
+                new BigDecimal("9.969"),
+                "DEUTSCHE_BOERSE",
+                Instant.parse("2026-07-21T08:00:00Z")));
+  }
+
+  @Test
+  void holdsBackLatestFinalizedDayWhenOfficialLastPriceUnavailable() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-07-21T05:00:00Z"), UTC));
+    var isin = FundTicker.getXetraIsins().getFirst();
+    var bars =
+        """
+        {
+          "isin": "%s",
+          "data": [
+            {"date": "2026-07-17", "open": 9.900, "close": 9.92, "high": 9.924, "low": 9.900, "turnoverPieces": 0, "turnoverEuro": 0.0},
+            {"date": "2026-07-20", "open": 9.905, "close": 9.969, "high": 9.969, "low": 9.905, "turnoverPieces": 10, "turnoverEuro": 99.69}
+          ],
+          "totalCount": 2
+        }
+        """
+            .formatted(isin);
+
+    server
+        .expect(requestTo(priceHistoryUrl(isin, "2026-07-17", "2026-07-20")))
+        .andRespond(withSuccess(bars, APPLICATION_JSON));
+    server.expect(requestTo(quoteBoxUrl(isin))).andRespond(withServerError());
+    expectNoDataForOtherIsins(isin, "2026-07-17", "2026-07-20");
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 7, 17), LocalDate.of(2026, 7, 20));
+
+    assertThat(result.stream().filter(value -> value.key().equals(isin + ".XETR")))
+        .containsExactlyInAnyOrder(
+            new FundValue(
+                isin + ".XETR",
+                LocalDate.of(2026, 7, 17),
+                new BigDecimal("9.92"),
+                "DEUTSCHE_BOERSE",
+                Instant.parse("2026-07-21T05:00:00Z")));
+  }
+
+  @Test
+  void insertsOlderBarValuesEvenWhenOfficialLastPriceUnavailable() {
+    // A day later the unconfirmed 2026-07-20 close is no longer the latest finalized day
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-07-22T05:00:00Z"), UTC));
+    var isin = FundTicker.getXetraIsins().getFirst();
+    var bars =
+        """
+        {
+          "isin": "%s",
+          "data": [
+            {"date": "2026-07-20", "open": 9.905, "close": 9.969, "high": 9.969, "low": 9.905, "turnoverPieces": 10, "turnoverEuro": 99.69},
+            {"date": "2026-07-21", "open": 9.943, "close": 9.951, "high": 9.955, "low": 9.940, "turnoverPieces": 500, "turnoverEuro": 4975.50}
+          ],
+          "totalCount": 2
+        }
+        """
+            .formatted(isin);
+
+    server
+        .expect(requestTo(priceHistoryUrl(isin, "2026-07-20", "2026-07-21")))
+        .andRespond(withSuccess(bars, APPLICATION_JSON));
+    server.expect(requestTo(quoteBoxUrl(isin))).andRespond(withServerError());
+    expectNoDataForOtherIsins(isin, "2026-07-20", "2026-07-21");
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 7, 20), LocalDate.of(2026, 7, 21));
+
+    assertThat(result.stream().filter(value -> value.key().equals(isin + ".XETR")))
+        .containsExactlyInAnyOrder(
+            new FundValue(
+                isin + ".XETR",
+                LocalDate.of(2026, 7, 20),
+                new BigDecimal("9.969"),
+                "DEUTSCHE_BOERSE",
+                Instant.parse("2026-07-22T05:00:00Z")));
+  }
+
+  @Test
+  void usesOfficialLastPriceWhenPriceHistoryReturnsNoData() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-07-21T05:00:00Z"), UTC));
+    var isin = FundTicker.getXetraIsins().getFirst();
+
+    server
+        .expect(requestTo(priceHistoryUrl(isin, "2026-07-17", "2026-07-20")))
+        .andRespond(withSuccess(emptyResponse(isin), APPLICATION_JSON));
+    server
+        .expect(requestTo(quoteBoxUrl(isin)))
+        .andRespond(
+            withSuccess(quoteBoxResponse(isin, "9.947", "2026-07-20T15:35:48Z"), APPLICATION_JSON));
+    expectNoDataForOtherIsins(isin, "2026-07-17", "2026-07-20");
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 7, 17), LocalDate.of(2026, 7, 20));
+
+    assertThat(result.stream().filter(value -> value.key().equals(isin + ".XETR")))
+        .containsExactlyInAnyOrder(
+            new FundValue(
+                isin + ".XETR",
+                LocalDate.of(2026, 7, 20),
+                new BigDecimal("9.947"),
+                "DEUTSCHE_BOERSE",
+                Instant.parse("2026-07-21T05:00:00Z")));
+  }
+
+  private void expectNoDataForOtherIsins(String isin, String startDate, String endDate) {
+    FundTicker.getXetraIsins().stream()
+        .filter(otherIsin -> !otherIsin.equals(isin))
+        .forEach(
+            otherIsin -> {
+              server
+                  .expect(requestTo(priceHistoryUrl(otherIsin, startDate, endDate)))
+                  .andRespond(withSuccess(emptyResponse(otherIsin), APPLICATION_JSON));
+              server
+                  .expect(requestTo(quoteBoxUrl(otherIsin)))
+                  .andRespond(withSuccess("{}", APPLICATION_JSON));
+            });
+  }
+
+  private String priceHistoryUrl(String isin, String startDate, String endDate) {
+    return "https://mobile-api.live.deutsche-boerse.com/v1/data/price_history?isin="
+        + isin
+        + "&mic=XETR&minDate="
+        + startDate
+        + "&maxDate="
+        + endDate;
+  }
+
+  private String quoteBoxUrl(String isin) {
+    return "https://api.live.deutsche-boerse.com/v1/data/quote_box/single?isin="
+        + isin
+        + "&mic=XETR";
+  }
+
+  private String quoteBoxResponse(String isin, String lastPrice, String timestampLastPrice) {
+    return """
+        {
+          "isin": "%s",
+          "lastPrice": %s,
+          "timestampLastPrice": "%s",
+          "instrumentStatus": "Active",
+          "tradingStatus": "Continuous Trading"
+        }
+        """
+        .formatted(isin, lastPrice, timestampLastPrice);
   }
 
   private String mockResponseForIsin(String isin, String startDate, String endDate) {

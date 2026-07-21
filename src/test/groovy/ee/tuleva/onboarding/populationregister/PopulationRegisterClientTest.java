@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.populationregister;
 
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PERSONAL_CUSTODY;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY_CUSTODY;
-import static ee.tuleva.onboarding.populationregister.Guardian.CustodyValidity.VALID;
+import static ee.tuleva.onboarding.populationregister.CustodyValidity.VALID;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterQueryType.CUSTODY;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterQueryType.IDENTITY;
@@ -132,11 +132,11 @@ class PopulationRegisterClientTest {
 
     assertThat(rights)
         .containsExactly(
-            new CustodyRight("61509070000", PERSONAL_CUSTODY, true, true),
-            new CustodyRight("61509070000", PROPERTY_CUSTODY, true, true));
+            new CustodyRight("61509070000", PERSONAL_CUSTODY, VALID, ALIVE),
+            new CustodyRight("61509070000", PROPERTY_CUSTODY, VALID, ALIVE));
     assertThat(rights)
         .filteredOn(CustodyRight::grantsAssetManagement)
-        .containsExactly(new CustodyRight("61509070000", PROPERTY_CUSTODY, true, true));
+        .containsExactly(new CustodyRight("61509070000", PROPERTY_CUSTODY, VALID, ALIVE));
     server.verify();
   }
 
@@ -171,7 +171,7 @@ class PopulationRegisterClientTest {
 
     assertThat(rights)
         .containsExactly(
-            new CustodyRight("61509070000", PROPERTY_CUSTODY, true, true, "Siim-Jüri", "Jõeorg"));
+            new CustodyRight("61509070000", PROPERTY_CUSTODY, VALID, ALIVE, "Siim-Jüri", "Jõeorg"));
     server.verify();
   }
 
@@ -249,8 +249,8 @@ class PopulationRegisterClientTest {
 
     assertThat(rights)
         .containsExactly(
-            new CustodyRight("61509070000", PERSONAL_CUSTODY, true, true),
-            new CustodyRight("61509070000", PROPERTY_CUSTODY, true, true));
+            new CustodyRight("61509070000", PERSONAL_CUSTODY, VALID, ALIVE),
+            new CustodyRight("61509070000", PROPERTY_CUSTODY, VALID, ALIVE));
     server.verify();
   }
 

@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.party;
 
+import static ee.tuleva.onboarding.event.TrackableEventType.MINOR_CUSTODY_VERIFICATION;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.event.TrackableEvent;
-import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
@@ -61,8 +61,7 @@ public class ChildOnboardingService {
         custodyVerificationService.verify(parentPersonalCode, childPersonalCode, CUSTODY_MAX_AGE);
 
     applicationEventPublisher.publishEvent(
-        new TrackableEvent(
-            parent, TrackableEventType.MINOR_CUSTODY_VERIFICATION, verification.evidence()));
+        new TrackableEvent(parent, MINOR_CUSTODY_VERIFICATION, verification.evidence()));
     amlService.addCustodyRightCheck(
         childPersonalCode, verification.isVerified(), verification.evidence());
 

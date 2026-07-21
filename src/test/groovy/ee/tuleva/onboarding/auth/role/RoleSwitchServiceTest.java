@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.auth.role.RoleType.*;
 import static ee.tuleva.onboarding.company.CompanyFixture.*;
 import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
+import static ee.tuleva.onboarding.event.TrackableEventType.ROLE_SWITCH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -20,7 +21,6 @@ import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import ee.tuleva.onboarding.company.CompanyPartyRepository;
 import ee.tuleva.onboarding.company.CompanyRepository;
 import ee.tuleva.onboarding.event.TrackableEvent;
-import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.user.User;
@@ -99,7 +99,7 @@ class RoleSwitchServiceTest {
         .publishEvent(
             new TrackableEvent(
                 person,
-                TrackableEventType.ROLE_SWITCH,
+                ROLE_SWITCH,
                 Map.of("roleType", "LEGAL_ENTITY", "code", SAMPLE_REGISTRY_CODE)));
   }
 
@@ -148,7 +148,7 @@ class RoleSwitchServiceTest {
         .publishEvent(
             new TrackableEvent(
                 person,
-                TrackableEventType.ROLE_SWITCH,
+                ROLE_SWITCH,
                 Map.of("roleType", "PERSON", "code", person.getPersonalCode())));
   }
 
@@ -303,9 +303,7 @@ class RoleSwitchServiceTest {
     verify(applicationEventPublisher)
         .publishEvent(
             new TrackableEvent(
-                person,
-                TrackableEventType.ROLE_SWITCH,
-                Map.of("roleType", "PERSON", "code", CHILD_CODE)));
+                person, ROLE_SWITCH, Map.of("roleType", "PERSON", "code", CHILD_CODE)));
   }
 
   @Test

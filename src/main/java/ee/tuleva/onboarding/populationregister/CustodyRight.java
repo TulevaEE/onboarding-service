@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.populationregister;
 
-import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY;
+import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY_CUSTODY;
 
 import org.jspecify.annotations.Nullable;
 
@@ -19,12 +19,12 @@ public record CustodyRight(
   }
 
   public enum Type {
-    PERSONAL,
-    PROPERTY,
+    PERSONAL_CUSTODY,
+    PROPERTY_CUSTODY,
     OTHER
   }
 
   public boolean grantsAssetManagement() {
-    return type == PROPERTY && valid && childAlive;
+    return type == PROPERTY_CUSTODY && valid && childAlive;
   }
 }

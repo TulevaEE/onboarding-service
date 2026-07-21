@@ -12,6 +12,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 import lombok.*;
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 @Entity
 @Table(name = "parent_child_link")
@@ -46,7 +48,8 @@ public class ParentChildLink {
   @NotNull
   @Builder.Default
   @Enumerated(STRING)
-  @Column(nullable = false)
+  @Column(columnDefinition = "parent_child_link_status", nullable = false)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   private ParentChildLinkStatus status = ACTIVE;
 
   private Instant suspendedAt;

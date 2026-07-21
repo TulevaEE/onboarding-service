@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.populationregister;
 
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.OTHER;
-import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PERSONAL;
-import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY;
+import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PERSONAL_CUSTODY;
+import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY_CUSTODY;
 import static ee.tuleva.onboarding.populationregister.Guardian.CustodyValidity.INVALID;
 import static ee.tuleva.onboarding.populationregister.Guardian.CustodyValidity.VALID;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
@@ -84,8 +84,8 @@ class PersonMapper {
 
   private static CustodyRight.Type toCustodyType(@Nullable Code type) {
     return switch (type == null ? null : type.code()) {
-      case PROPERTY_CUSTODY_CODE -> PROPERTY;
-      case PERSONAL_CUSTODY_CODE -> PERSONAL;
+      case PROPERTY_CUSTODY_CODE -> PROPERTY_CUSTODY;
+      case PERSONAL_CUSTODY_CODE -> PERSONAL_CUSTODY;
       case null, default -> OTHER;
     };
   }

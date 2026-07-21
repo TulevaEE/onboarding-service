@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.kyb.survey;
 
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.kyb.KybCheckType.SINGLE_BOARD_MEMBER_OWNERSHIP;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -13,7 +13,6 @@ import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.kyb.KybCheckOverrideRepository;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyb.SelfCertification;
-import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.util.List;
 import java.util.Optional;
@@ -38,9 +37,8 @@ class ManualCompanyOnboardingServiceTest {
   @InjectMocks private ManualCompanyOnboardingService service;
 
   @Test
-  void onboard_savesSelfCertifiedSurveyAndOverrideThenReScreens() {
-    var user = mock(User.class);
-    given(user.getId()).willReturn(42L);
+  void onboard_savesNonAttestingSurveyAndOverrideThenReScreens() {
+    var user = sampleUser().build();
     given(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
         .willReturn(List.of(boardMemberRelationship(PERSONAL_CODE)));
     given(userRepository.findByPersonalCode(PERSONAL_CODE)).willReturn(Optional.of(user));
@@ -55,11 +53,11 @@ class ManualCompanyOnboardingServiceTest {
         .save(
             argThat(
                 survey ->
-                    survey.getUserId().equals(42L)
+                    survey.getUserId().equals(999L)
                         && survey.getRegistryCode().equals(REGISTRY_CODE)
                         && new KybSurveyResponseMapper()
                             .extractSelfCertification(survey.getSurvey())
-                            .equals(new SelfCertification(true, true, true))));
+                            .equals(new SelfCertification(false, false, false))));
     verify(kybCheckOverrideRepository)
         .save(
             argThat(

@@ -1,14 +1,9 @@
 package ee.tuleva.onboarding.kyb.survey;
 
-import static ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSource.NOT_IN_CRYPTO;
-import static ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSource.NOT_SANCTIONED_NOT_PROFITING_FROM_SANCTIONED_COUNTRIES;
-import static ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSource.ONLY_ACTIVE_IN_ESTONIA;
-
 import ee.tuleva.onboarding.kyb.KybCheckOverride;
 import ee.tuleva.onboarding.kyb.KybCheckOverrideRepository;
 import ee.tuleva.onboarding.kyb.KybCheckType;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
-import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSourceItem;
 import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanySourceOfIncome;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
@@ -47,7 +42,7 @@ public class ManualCompanyOnboardingService {
         KybSurvey.builder()
             .userId(user.getId())
             .registryCode(registryCode)
-            .survey(selfCertifiedSurveyResponse())
+            .survey(nonAttestingSurveyResponse())
             .build());
 
     forcedChecks.forEach(checkType -> saveOverride(registryCode, checkType, reason));
@@ -87,13 +82,7 @@ public class ManualCompanyOnboardingService {
     kybCheckOverrideRepository.save(override);
   }
 
-  private KybSurveyResponse selfCertifiedSurveyResponse() {
-    List<CompanyIncomeSourceItem> incomeSources =
-        List.of(
-            new CompanyIncomeSourceItem.Option(ONLY_ACTIVE_IN_ESTONIA),
-            new CompanyIncomeSourceItem.Option(
-                NOT_SANCTIONED_NOT_PROFITING_FROM_SANCTIONED_COUNTRIES),
-            new CompanyIncomeSourceItem.Option(NOT_IN_CRYPTO));
-    return new KybSurveyResponse(List.of(new CompanySourceOfIncome(incomeSources)));
+  private KybSurveyResponse nonAttestingSurveyResponse() {
+    return new KybSurveyResponse(List.of(new CompanySourceOfIncome(List.of())));
   }
 }

@@ -318,6 +318,14 @@ public class AdminController {
       @RequestParam String reason) {
 
     validateTokenWithOpsAccess(token);
+    var notForceable = forcedChecks.stream().filter(check -> !check.isManuallyForceable()).toList();
+    if (!notForceable.isEmpty()) {
+      throw new ResponseStatusException(
+          BAD_REQUEST, "Checks are not manually forceable: " + notForceable);
+    }
+    if (reason.isBlank()) {
+      throw new ResponseStatusException(BAD_REQUEST, "A reason is required");
+    }
     log.info(
         "Admin manually onboarding company: registryCode={}, forcedChecks={}, reason={}",
         registryCode,

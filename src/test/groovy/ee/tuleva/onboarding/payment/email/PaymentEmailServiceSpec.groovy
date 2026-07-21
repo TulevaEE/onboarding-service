@@ -99,7 +99,7 @@ class PaymentEmailServiceSpec extends Specification {
     }
 
     when:
-    paymentEmailService.sendSavingsFundPaymentEmail(user, emailType, pillarSuggestion, locale)
+    paymentEmailService.sendSavingsFundPaymentEmail(user, emailType, pillarSuggestion, locale, null)
 
     then:
     1 * emailService.send(user, message, templateName) >> Optional.of(mandrillResponse)
@@ -107,9 +107,45 @@ class PaymentEmailServiceSpec extends Specification {
     1 * emailPersistenceService.save(user, mandrillResponse.id, emailType, mandrillResponse.status)
 
     where:
-    emailType                    | templateName
-    SAVINGS_FUND_PAYMENT_SUCCESS | "savings_fund_payment_success_en"
-    SAVINGS_FUND_PAYMENT_FAIL    | "savings_fund_payment_failed_en"
-    SAVINGS_FUND_PAYMENT_CANCEL  | "savings_fund_payment_cancelled_en"
+    emailType                           | templateName
+    SAVINGS_FUND_PAYMENT_SUCCESS        | "savings_fund_payment_success_en"
+    SAVINGS_FUND_PAYMENT_SUCCESS_PERSON | "savings_fund_payment_success_person_en"
+    SAVINGS_FUND_PAYMENT_SUCCESS_CHILD  | "savings_fund_payment_success_child_en"
+    SAVINGS_FUND_PAYMENT_SUCCESS_COMPANY | "savings_fund_payment_success_company_en"
+    SAVINGS_FUND_PAYMENT_FAIL           | "savings_fund_payment_failed_en"
+    SAVINGS_FUND_PAYMENT_CANCEL         | "savings_fund_payment_cancelled_en"
+  }
+
+  def "savings fund payment email includes the recipient name when present"() {
+    given:
+    def user = sampleUser().build()
+    def conversion = notConverted()
+    def contactDetails = contactDetailsFixture()
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def message = new MandrillMessage()
+    var mergeVars = [
+        "fname"              : user.firstName,
+        "lname"              : user.lastName,
+        "recipientName"      : "Kid Valdma",
+        "suggestPaymentRate" : pillarSuggestion.suggestPaymentRate,
+        "suggestMembership"  : pillarSuggestion.suggestMembership,
+        "suggestSecondPillar": pillarSuggestion.suggestSecondPillar,
+        "suggestThirdPillar" : pillarSuggestion.suggestThirdPillar
+    ]
+    def tags = ["savings_fund", "suggest_payment_rate", "suggest_2"]
+    def locale = Locale.ENGLISH
+    def mandrillResponse = new MandrillMessageStatus().tap {
+      _id = "123"
+      status = "sent"
+    }
+
+    when:
+    paymentEmailService.sendSavingsFundPaymentEmail(user, SAVINGS_FUND_PAYMENT_SUCCESS_CHILD, pillarSuggestion, locale, "Kid Valdma")
+
+    then:
+    1 * emailService.send(user, message, "savings_fund_payment_success_child_en") >> Optional.of(mandrillResponse)
+    1 * emailService.newMandrillMessage(user.email, "savings_fund_payment_success_child_en", mergeVars, tags, null) >> message
+    1 * emailPersistenceService.save(user, mandrillResponse.id, SAVINGS_FUND_PAYMENT_SUCCESS_CHILD, mandrillResponse.status)
   }
 }

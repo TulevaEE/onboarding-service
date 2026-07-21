@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.party;
 
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
+
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
@@ -15,7 +18,8 @@ public class ParentChildLinkService {
 
   public List<String> findActivelyRepresentedChildCodes(String parentPersonalCode) {
     return parentChildLinkRepository
-        .findByParentPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(parentPersonalCode, today())
+        .findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+            parentPersonalCode, ACTIVE, today())
         .stream()
         .map(ParentChildLink::getChildPersonalCode)
         .toList();
@@ -23,14 +27,17 @@ public class ParentChildLinkService {
 
   public boolean isActiveRepresentation(String parentPersonalCode, String childPersonalCode) {
     return parentChildLinkRepository
-        .existsByParentPersonalCodeAndChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
-            parentPersonalCode, childPersonalCode, today());
+        .existsByParentPersonalCodeAndChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+            parentPersonalCode, childPersonalCode, ACTIVE, today());
   }
 
-  public List<ParentChildLink> findPendingChildren(String parentPersonalCode) {
+  public List<String> findPendingChildCodes(String parentPersonalCode) {
     return parentChildLinkRepository
         .findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
-            parentPersonalCode, ParentChildLinkStatus.PENDING_KYC, today());
+            parentPersonalCode, PENDING_KYC, today())
+        .stream()
+        .map(ParentChildLink::getChildPersonalCode)
+        .toList();
   }
 
   private LocalDate today() {

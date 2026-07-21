@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.populationregister;
 
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PERSONAL;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY;
+import static ee.tuleva.onboarding.populationregister.Guardian.CustodyValidity.VALID;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterQueryType.CUSTODY;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterQueryType.IDENTITY;
@@ -417,12 +418,12 @@ class PopulationRegisterClientTest {
         .andRespond(
             withSuccess(guardianResponse(childCode, otherGuardian), MediaType.APPLICATION_JSON));
 
-    List<Guardian> guardians = client.fetchCustodyRights(REQUESTER, childCode, MAX_AGE).data();
+    List<Guardian> guardians = client.fetchCustodyRights(REQUESTER, childCode).data();
 
     assertThat(guardians)
         .containsExactly(
-            new Guardian(REQUESTER, true, true, true),
-            new Guardian(otherGuardian, true, true, true));
+            new Guardian(REQUESTER, PROPERTY, VALID, ALIVE),
+            new Guardian(otherGuardian, PROPERTY, VALID, ALIVE));
     verify(store, never()).findFresh(any(), any(), any());
     verify(store, never()).save(any(), any(), any(), any());
     server.verify();
@@ -438,9 +439,47 @@ class PopulationRegisterClientTest {
         .andRespond(
             withSuccess(guardianResponse(childCode, "47101010033"), MediaType.APPLICATION_JSON));
 
-    client.fetchCustodyRights(REQUESTER, childCode, MAX_AGE);
+    client.fetchCustodyRights(REQUESTER, childCode);
 
     verify(store, never()).findFresh(any(), any(), any());
+    server.verify();
+  }
+
+  @Test
+  void skipsGuardianRowsWithoutACounterpartPersonalCode() {
+    // An institutional guardian (identified by registry code) has no teineIsikIsikukood — the row
+    // is skipped instead of failing the whole listing and losing the valid co-parents.
+    var childCode = "61509070000";
+    var otherGuardian = "47101010033";
+    var responseWithCodelessRow =
+        """
+        [
+          {
+            "isikukood": "%s",
+            "hooldusoigused": [
+              {
+                "liik": { "elemendiKood": "H20", "nimetus": "täielik varahooldusõigus" },
+                "staatus": { "elemendiKood": "H1", "nimetus": "kehtiv" },
+                "teineIsikOlek": { "elemendiKood": "E", "nimetus": "ELUS" }
+              },
+              {
+                "liik": { "elemendiKood": "H20", "nimetus": "täielik varahooldusõigus" },
+                "staatus": { "elemendiKood": "H1", "nimetus": "kehtiv" },
+                "teineIsikIsikukood": "%s",
+                "teineIsikOlek": { "elemendiKood": "E", "nimetus": "ELUS" }
+              }
+            ]
+          }
+        ]
+        """
+            .formatted(childCode, otherGuardian);
+    server
+        .expect(requestTo(ISIKUD_URL))
+        .andRespond(withSuccess(responseWithCodelessRow, MediaType.APPLICATION_JSON));
+
+    List<Guardian> guardians = client.fetchCustodyRights(REQUESTER, childCode).data();
+
+    assertThat(guardians).containsExactly(new Guardian(otherGuardian, PROPERTY, VALID, ALIVE));
     server.verify();
   }
 

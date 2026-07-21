@@ -1,0 +1,36 @@
+[
+  {
+    "isikukood": "61509070000",
+    "eesnimi": "JAAN",
+    "perekonnanimi": "MAASIKAS",
+    "isikuStaatus": { "kood": "ISIKU_STAATUS", "elemendiKood": "E", "nimetus": "ELUS" },
+    "hooldusoigused": [
+      {
+        "liik": {
+          "kood": "HOOLDUSE_LIIK",
+          "elemendiKood": "H20",
+          "nimetus": "täielik varahooldusõigus"
+        },
+        "staatus": { "kood": "HOOLDUS_STAATUS", "elemendiKood": "H1", "nimetus": "kehtiv" },
+        "hooldusoigusAlgus": "2016-09-01T00:00:00",
+        "teineIsikIsikukood": "48503150000",
+        "teineIsikOlek": { "kood": "ISIKU_STAATUS", "elemendiKood": "E", "nimetus": "ELUS" },
+        "teineIsikEesnimi": "MARI",
+        "teineIsikPerenimi": "MAASIKAS"
+      },
+      {
+        "liik": {
+          "kood": "HOOLDUSE_LIIK",
+          "elemendiKood": "H20",
+          "nimetus": "täielik varahooldusõigus"
+        },
+        "staatus": { "kood": "HOOLDUS_STAATUS", "elemendiKood": "H1", "nimetus": "kehtiv" },
+        "hooldusoigusAlgus": "2016-09-01T00:00:00",
+        "teineIsikIsikukood": "38002020008",
+        "teineIsikOlek": { "kood": "ISIKU_STAATUS", "elemendiKood": "E", "nimetus": "ELUS" },
+        "teineIsikEesnimi": "PEETER",
+        "teineIsikPerenimi": "MAASIKAS"
+      }
+    ]
+  }
+]

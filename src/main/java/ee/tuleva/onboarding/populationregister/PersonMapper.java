@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.populationregister;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.OTHER;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PERSONAL;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY;
+import static ee.tuleva.onboarding.populationregister.Guardian.CustodyValidity.INVALID;
+import static ee.tuleva.onboarding.populationregister.Guardian.CustodyValidity.VALID;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.INACTIVE;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.UNKNOWN;
@@ -42,20 +44,26 @@ class PersonMapper {
     return custodies.stream().map(PersonMapper::toCustodyRight).toList();
   }
 
+  // A custody row without a counterpart personal code (e.g. an institutional guardian identified
+  // by registry code) can never become a co-parent link — skip it instead of failing the whole
+  // guardian listing.
   static List<Guardian> toGuardians(PersonResponse response) {
     List<Custody> custodies = response.custodyRights();
     if (custodies == null) {
       return List.of();
     }
-    return custodies.stream().map(PersonMapper::toGuardian).toList();
+    return custodies.stream()
+        .filter(custody -> custody.otherPersonCode() != null)
+        .map(PersonMapper::toGuardian)
+        .toList();
   }
 
   private static Guardian toGuardian(Custody custody) {
     return new Guardian(
         require(custody.otherPersonCode(), "teineIsikIsikukood"),
-        toCustodyType(custody.type()) == PROPERTY,
-        hasCode(custody.status(), VALID_CUSTODY_CODE),
-        hasCode(custody.otherPersonStatus(), ALIVE_CODE));
+        toCustodyType(custody.type()),
+        hasCode(custody.status(), VALID_CUSTODY_CODE) ? VALID : INVALID,
+        toStatus(custody.otherPersonStatus()));
   }
 
   private static CustodyRight toCustodyRight(Custody custody) {

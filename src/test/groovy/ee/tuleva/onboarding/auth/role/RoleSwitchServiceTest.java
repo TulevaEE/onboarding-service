@@ -21,14 +21,10 @@ import ee.tuleva.onboarding.company.CompanyPartyRepository;
 import ee.tuleva.onboarding.company.CompanyRepository;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
-import ee.tuleva.onboarding.party.ParentChildLink;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
-import ee.tuleva.onboarding.party.ParentChildLinkStatus;
 import ee.tuleva.onboarding.party.PartyId;
-import ee.tuleva.onboarding.party.RepresentationType;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -367,43 +363,23 @@ class RoleSwitchServiceTest {
   }
 
   @Test
-  void switchToPendingChildIsRejected() {
-    // A PENDING_KYC link makes isActiveRepresentation false (status-aware repository query), so a
-    // co-parent cannot switch to the child before their own onboarding activates the link.
-    when(parentChildLinkService.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
-        .thenReturn(false);
-
-    assertThatThrownBy(
-            () -> roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, CHILD_CODE)))
-        .isInstanceOf(RoleSwitchAccessDeniedException.class);
-    verifyNoInteractions(applicationEventPublisher);
-  }
-
-  @Test
-  void getPendingChildOnboardingsReturnsPendingEntriesWithChildName() {
-    var pending =
-        ParentChildLink.builder()
-            .parentPersonalCode(person.getPersonalCode())
-            .childPersonalCode(CHILD_CODE)
-            .relationshipType(RepresentationType.LEGAL_REPRESENTATIVE)
-            .validUntil(LocalDate.of(2030, 1, 1))
-            .status(ParentChildLinkStatus.PENDING_KYC)
-            .build();
-    when(parentChildLinkService.findPendingChildren(person.getPersonalCode()))
-        .thenReturn(List.of(pending));
+  void getPendingOnboardingsReturnsPendingChildrenWithNames() {
+    when(parentChildLinkService.findPendingChildCodes(person.getPersonalCode()))
+        .thenReturn(List.of(CHILD_CODE));
     when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
 
-    List<PendingChildResponse> result = roleSwitchService.getPendingChildOnboardings(person);
+    List<PendingOnboardingResponse> result = roleSwitchService.getPendingOnboardings(person);
 
-    assertThat(result).containsExactly(new PendingChildResponse(CHILD_CODE, "Mari Maasikas"));
+    assertThat(result)
+        .containsExactly(new PendingOnboardingResponse(PERSON, CHILD_CODE, "Mari Maasikas"));
   }
 
   @Test
-  void getPendingChildOnboardingsIsEmptyWhenThereAreNoPendingLinks() {
-    when(parentChildLinkService.findPendingChildren(person.getPersonalCode()))
+  void getPendingOnboardingsIsEmptyWhenThereAreNoPendingLinks() {
+    when(parentChildLinkService.findPendingChildCodes(person.getPersonalCode()))
         .thenReturn(List.of());
 
-    assertThat(roleSwitchService.getPendingChildOnboardings(person)).isEmpty();
+    assertThat(roleSwitchService.getPendingOnboardings(person)).isEmpty();
   }
 
   @Test

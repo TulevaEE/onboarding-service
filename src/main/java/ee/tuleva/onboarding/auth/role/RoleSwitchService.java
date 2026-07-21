@@ -75,17 +75,13 @@ public class RoleSwitchService {
     return unmodifiableList(roles);
   }
 
-  public List<PendingChildResponse> getPendingChildOnboardings(AuthenticatedPerson person) {
-    return parentChildLinkService.findPendingChildren(person.getPersonalCode()).stream()
-        .flatMap(
-            link ->
-                userService
-                    .findByPersonalCode(link.getChildPersonalCode())
-                    .map(
-                        child ->
-                            new PendingChildResponse(
-                                link.getChildPersonalCode(), child.getFullName()))
-                    .stream())
+  public List<PendingOnboardingResponse> getPendingOnboardings(AuthenticatedPerson person) {
+    return parentChildLinkService.findPendingChildCodes(person.getPersonalCode()).stream()
+        .map(userService::findByPersonalCode)
+        .flatMap(Optional::stream)
+        .map(
+            child ->
+                new PendingOnboardingResponse(PERSON, child.getPersonalCode(), child.getFullName()))
         .toList();
   }
 

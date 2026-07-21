@@ -36,8 +36,9 @@ class ParentChildLinkNotificationIntegrationTest {
   @AfterEach
   void cleanUp() {
     parentChildLinkRepository.deleteAll(
-        parentChildLinkRepository.findByChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
-            CHILD, LocalDate.now().minusYears(100)));
+        parentChildLinkRepository
+            .findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                CHILD, ParentChildLinkStatus.ACTIVE, LocalDate.now().minusYears(100)));
     Stream.of(NEW_PARENT, EXISTING_PARENT, CHILD)
         .map(userRepository::findByPersonalCode)
         .flatMap(Optional::stream)

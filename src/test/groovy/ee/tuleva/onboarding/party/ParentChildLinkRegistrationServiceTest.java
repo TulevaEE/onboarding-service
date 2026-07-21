@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.party;
 
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -152,7 +154,7 @@ class ParentChildLinkRegistrationServiceTest {
     given(parentChildLinkRepository.save(org.mockito.ArgumentMatchers.any()))
         .willAnswer(returnsFirstArg());
 
-    service.registerPending(CO_PARENT, CHILD, "mari", "maasikas");
+    ParentChildLink saved = service.registerPending(CO_PARENT, CHILD, "mari", "maasikas");
 
     verify(userService)
         .createNewUser(
@@ -162,9 +164,6 @@ class ParentChildLinkRegistrationServiceTest {
                 .lastName("Maasikas")
                 .active(true)
                 .build());
-    var captor = org.mockito.ArgumentCaptor.forClass(ParentChildLink.class);
-    verify(parentChildLinkRepository).save(captor.capture());
-    ParentChildLink saved = captor.getValue();
     assertThat(saved.getParentPersonalCode()).isEqualTo(CO_PARENT);
     assertThat(saved.getChildPersonalCode()).isEqualTo(CHILD);
     assertThat(saved.getRelationshipType()).isEqualTo(LEGAL_REPRESENTATIVE);
@@ -182,7 +181,7 @@ class ParentChildLinkRegistrationServiceTest {
             .childPersonalCode(CHILD)
             .relationshipType(LEGAL_REPRESENTATIVE)
             .validUntil(CHILD_EIGHTEENTH_BIRTHDAY)
-            .status(ParentChildLinkStatus.ACTIVE)
+            .status(ACTIVE)
             .build();
     given(
             parentChildLinkRepository
@@ -190,9 +189,10 @@ class ParentChildLinkRegistrationServiceTest {
                     CO_PARENT, CHILD, LEGAL_REPRESENTATIVE))
         .willReturn(Optional.of(existingActive));
 
-    service.registerPending(CO_PARENT, CHILD, "mari", "maasikas");
+    ParentChildLink result = service.registerPending(CO_PARENT, CHILD, "mari", "maasikas");
 
-    assertThat(existingActive.isActive()).isTrue();
+    assertThat(result).isSameAs(existingActive);
+    assertThat(result.getStatus()).isEqualTo(ACTIVE);
     verify(parentChildLinkRepository, never()).save(org.mockito.ArgumentMatchers.any());
     verifyNoInteractions(applicationEventPublisher);
   }
@@ -215,7 +215,7 @@ class ParentChildLinkRegistrationServiceTest {
             .childPersonalCode(CHILD)
             .relationshipType(LEGAL_REPRESENTATIVE)
             .validUntil(CHILD_EIGHTEENTH_BIRTHDAY)
-            .status(ParentChildLinkStatus.PENDING_KYC)
+            .status(PENDING_KYC)
             .build();
     given(
             parentChildLinkRepository
@@ -228,7 +228,7 @@ class ParentChildLinkRegistrationServiceTest {
     ParentChildLink result = service.register(PARENT, CHILD, "mari", "maasikas");
 
     assertThat(result).isSameAs(pending);
-    assertThat(result.isActive()).isTrue();
+    assertThat(result.getStatus()).isEqualTo(ACTIVE);
     verify(parentChildLinkRepository).save(pending);
     verify(applicationEventPublisher)
         .publishEvent(new ParentChildLinkCreatedEvent(PARENT, CHILD, LEGAL_REPRESENTATIVE));

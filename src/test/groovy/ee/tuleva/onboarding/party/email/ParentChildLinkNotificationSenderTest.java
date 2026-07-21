@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.party.email;
 
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -66,8 +67,9 @@ class ParentChildLinkNotificationSenderTest {
     given(userService.findByPersonalCode(NEW_PARENT)).willReturn(Optional.of(newParent));
     given(userService.findByPersonalCode(EXISTING_PARENT)).willReturn(Optional.of(existingParent));
     given(
-            parentChildLinkRepository.findByChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
-                CHILD, LocalDate.of(2026, 5, 22)))
+            parentChildLinkRepository
+                .findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                    CHILD, ACTIVE, LocalDate.of(2026, 5, 22)))
         .willReturn(List.of(link(EXISTING_PARENT), link(NEW_PARENT)));
 
     MandrillMessage confirmationMessage = new MandrillMessage();

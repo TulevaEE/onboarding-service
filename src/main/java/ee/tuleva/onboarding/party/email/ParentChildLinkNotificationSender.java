@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.party.email;
 import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getNameMergeVars;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.PARENT_CHILD_LINK_ADDED;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.PARENT_CHILD_LINK_CONFIRMATION;
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
@@ -64,8 +65,8 @@ public class ParentChildLinkNotificationSender {
 
   private List<User> otherActiveParents(ParentChildLinkCreatedEvent event) {
     return parentChildLinkRepository
-        .findByChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
-            event.childPersonalCode(), LocalDate.now(clock))
+        .findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+            event.childPersonalCode(), ACTIVE, LocalDate.now(clock))
         .stream()
         .map(ParentChildLink::getParentPersonalCode)
         .filter(parentCode -> !parentCode.equals(event.parentPersonalCode()))

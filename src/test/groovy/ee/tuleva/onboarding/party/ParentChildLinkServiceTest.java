@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.party;
 
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
@@ -44,7 +46,8 @@ class ParentChildLinkServiceTest {
             .build();
     given(
             parentChildLinkRepository
-                .findByParentPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(PARENT, TODAY))
+                .findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, ACTIVE, TODAY))
         .willReturn(List.of(link));
 
     assertThat(service.findActivelyRepresentedChildCodes(PARENT)).containsExactly(CHILD);
@@ -54,8 +57,8 @@ class ParentChildLinkServiceTest {
   void isActiveRepresentationWhenActiveLinkExistsAsOfToday() {
     given(
             parentChildLinkRepository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
-                    PARENT, CHILD, TODAY))
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, ACTIVE, TODAY))
         .willReturn(true);
 
     assertThat(service.isActiveRepresentation(PARENT, CHILD)).isTrue();
@@ -67,21 +70,21 @@ class ParentChildLinkServiceTest {
   }
 
   @Test
-  void findsPendingChildrenForParent() {
+  void findsPendingChildCodesForParent() {
     var pending =
         ParentChildLink.builder()
             .parentPersonalCode(PARENT)
             .childPersonalCode(CHILD)
             .relationshipType(LEGAL_REPRESENTATIVE)
             .validUntil(LocalDate.of(2030, 1, 1))
-            .status(ParentChildLinkStatus.PENDING_KYC)
+            .status(PENDING_KYC)
             .build();
     given(
             parentChildLinkRepository
                 .findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
-                    PARENT, ParentChildLinkStatus.PENDING_KYC, TODAY))
+                    PARENT, PENDING_KYC, TODAY))
         .willReturn(List.of(pending));
 
-    assertThat(service.findPendingChildren(PARENT)).containsExactly(pending);
+    assertThat(service.findPendingChildCodes(PARENT)).containsExactly(CHILD);
   }
 }

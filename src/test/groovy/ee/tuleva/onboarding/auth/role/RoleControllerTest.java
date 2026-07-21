@@ -118,6 +118,21 @@ class RoleControllerTest {
   }
 
   @Test
+  void getPendingOnboardingsDelegatesToService() throws Exception {
+    when(roleSwitchService.getPendingOnboardings(any(AuthenticatedPerson.class)))
+        .thenReturn(
+            List.of(
+                new PendingOnboardingResponse(RoleType.PERSON, "61509070000", "Jaan Maasikas")));
+
+    mockMvc
+        .perform(get("/v1/me/pending-onboardings").with(authentication(userAuth())))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].type").value("PERSON"))
+        .andExpect(jsonPath("$[0].code").value("61509070000"))
+        .andExpect(jsonPath("$[0].name").value("Jaan Maasikas"));
+  }
+
+  @Test
   void unauthenticatedRequestReturns401() throws Exception {
     mockMvc
         .perform(

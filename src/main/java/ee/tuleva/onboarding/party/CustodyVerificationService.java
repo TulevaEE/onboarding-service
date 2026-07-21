@@ -30,7 +30,7 @@ public class CustodyVerificationService {
   public List<String> findGuardiansWithAssetManagement(
       String childPersonalCode, String requesterPersonalCode) {
     return populationRegisterClient
-        .fetchCustodyRights(requesterPersonalCode, childPersonalCode, Duration.ZERO)
+        .fetchCustodyRights(requesterPersonalCode, childPersonalCode)
         .data()
         .stream()
         .filter(Guardian::grantsAssetManagement)

@@ -12,5 +12,5 @@ public interface PopulationRegisterClient {
       String requesterPersonalCode, Duration maxAge);
 
   PopulationRegisterResult<List<Guardian>> fetchCustodyRights(
-      String requesterPersonalCode, String subjectPersonalCode, Duration maxAge);
+      String requesterPersonalCode, String subjectPersonalCode);
 }

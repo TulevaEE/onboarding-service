@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.party;
 
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.EnumType.STRING;
 import static jakarta.persistence.GenerationType.UUID;
@@ -45,7 +47,7 @@ public class ParentChildLink {
   @Builder.Default
   @Enumerated(STRING)
   @Column(nullable = false)
-  private ParentChildLinkStatus status = ParentChildLinkStatus.ACTIVE;
+  private ParentChildLinkStatus status = ACTIVE;
 
   private Instant suspendedAt;
 
@@ -64,14 +66,10 @@ public class ParentChildLink {
   }
 
   public boolean isPending() {
-    return status == ParentChildLinkStatus.PENDING_KYC;
-  }
-
-  public boolean isActive() {
-    return status == ParentChildLinkStatus.ACTIVE;
+    return status == PENDING_KYC;
   }
 
   void activate() {
-    this.status = ParentChildLinkStatus.ACTIVE;
+    status = ACTIVE;
   }
 }

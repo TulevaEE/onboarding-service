@@ -19,10 +19,10 @@ public class RoleController {
     return roleSwitchService.getRoles(person);
   }
 
-  @GetMapping("/v1/me/pending-child-onboardings")
-  public List<PendingChildResponse> getPendingChildOnboardings(
+  @GetMapping("/v1/me/pending-onboardings")
+  public List<PendingOnboardingResponse> getPendingOnboardings(
       @AuthenticationPrincipal AuthenticatedPerson person) {
-    return roleSwitchService.getPendingChildOnboardings(person);
+    return roleSwitchService.getPendingOnboardings(person);
   }
 
   @PostMapping("/v1/me/role")

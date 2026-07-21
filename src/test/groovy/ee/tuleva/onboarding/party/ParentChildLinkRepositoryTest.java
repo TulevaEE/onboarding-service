@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.party;
 
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -42,7 +44,7 @@ class ParentChildLinkRepositoryTest {
             .childPersonalCode(CHILD)
             .relationshipType(LEGAL_REPRESENTATIVE)
             .validUntil(EIGHTEENTH_BIRTHDAY)
-            .status(ParentChildLinkStatus.PENDING_KYC)
+            .status(PENDING_KYC)
             .build());
   }
 
@@ -50,8 +52,7 @@ class ParentChildLinkRepositoryTest {
   void builderDefaultsStatusToActive() {
     var link = savedLink(null);
 
-    assertThat(link.getStatus()).isEqualTo(ParentChildLinkStatus.ACTIVE);
-    assertThat(link.isActive()).isTrue();
+    assertThat(link.getStatus()).isEqualTo(ACTIVE);
     assertThat(link.isPending()).isFalse();
   }
 
@@ -61,13 +62,13 @@ class ParentChildLinkRepositoryTest {
 
     // role switch + payments both read through these two queries
     assertThat(
-            repository.findByParentPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
-                PARENT, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+            repository.findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                PARENT, ACTIVE, EIGHTEENTH_BIRTHDAY.minusDays(1)))
         .isEmpty();
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
-                    PARENT, CHILD, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, ACTIVE, EIGHTEENTH_BIRTHDAY.minusDays(1)))
         .isFalse();
   }
 
@@ -77,8 +78,8 @@ class ParentChildLinkRepositoryTest {
     savedPendingLink(PARENT);
 
     assertThat(
-            repository.findByChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
-                CHILD, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+            repository.findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                CHILD, ACTIVE, EIGHTEENTH_BIRTHDAY.minusDays(1)))
         .isEmpty();
   }
 
@@ -89,7 +90,7 @@ class ParentChildLinkRepositoryTest {
 
     assertThat(
             repository.findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
-                PARENT, ParentChildLinkStatus.PENDING_KYC, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+                PARENT, PENDING_KYC, EIGHTEENTH_BIRTHDAY.minusDays(1)))
         .containsExactly(pending);
   }
 
@@ -98,8 +99,8 @@ class ParentChildLinkRepositoryTest {
     var link = savedLink(null);
 
     assertThat(
-            repository.findByParentPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
-                PARENT, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+            repository.findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                PARENT, ACTIVE, EIGHTEENTH_BIRTHDAY.minusDays(1)))
         .containsExactly(link);
   }
 
@@ -108,8 +109,8 @@ class ParentChildLinkRepositoryTest {
     savedLink(null);
 
     assertThat(
-            repository.findByParentPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
-                PARENT, EIGHTEENTH_BIRTHDAY))
+            repository.findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                PARENT, ACTIVE, EIGHTEENTH_BIRTHDAY))
         .isEmpty();
   }
 
@@ -118,8 +119,8 @@ class ParentChildLinkRepositoryTest {
     savedLink(null);
 
     assertThat(
-            repository.findByParentPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
-                PARENT, EIGHTEENTH_BIRTHDAY.plusDays(1)))
+            repository.findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                PARENT, ACTIVE, EIGHTEENTH_BIRTHDAY.plusDays(1)))
         .isEmpty();
   }
 
@@ -128,8 +129,8 @@ class ParentChildLinkRepositoryTest {
     savedLink(SUSPENDED);
 
     assertThat(
-            repository.findByParentPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
-                PARENT, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+            repository.findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                PARENT, ACTIVE, EIGHTEENTH_BIRTHDAY.minusDays(1)))
         .isEmpty();
   }
 
@@ -139,8 +140,8 @@ class ParentChildLinkRepositoryTest {
 
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
-                    PARENT, CHILD, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, ACTIVE, EIGHTEENTH_BIRTHDAY.minusDays(1)))
         .isTrue();
   }
 
@@ -150,8 +151,8 @@ class ParentChildLinkRepositoryTest {
 
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
-                    PARENT, CHILD, EIGHTEENTH_BIRTHDAY))
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, ACTIVE, EIGHTEENTH_BIRTHDAY))
         .isFalse();
   }
 
@@ -161,8 +162,8 @@ class ParentChildLinkRepositoryTest {
 
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
-                    PARENT, CHILD, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, ACTIVE, EIGHTEENTH_BIRTHDAY.minusDays(1)))
         .isFalse();
   }
 
@@ -172,8 +173,8 @@ class ParentChildLinkRepositoryTest {
 
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
-                    PARENT, "99999999999", EIGHTEENTH_BIRTHDAY.minusDays(1)))
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, "99999999999", ACTIVE, EIGHTEENTH_BIRTHDAY.minusDays(1)))
         .isFalse();
   }
 
@@ -183,8 +184,8 @@ class ParentChildLinkRepositoryTest {
     var otherLink = savedLink(OTHER_PARENT, null);
 
     assertThat(
-            repository.findByChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
-                CHILD, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+            repository.findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                CHILD, ACTIVE, EIGHTEENTH_BIRTHDAY.minusDays(1)))
         .containsExactlyInAnyOrder(link, otherLink);
   }
 
@@ -194,8 +195,8 @@ class ParentChildLinkRepositoryTest {
     savedLink(OTHER_PARENT, SUSPENDED);
 
     assertThat(
-            repository.findByChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
-                CHILD, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+            repository.findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                CHILD, ACTIVE, EIGHTEENTH_BIRTHDAY.minusDays(1)))
         .containsExactly(link);
   }
 
@@ -204,8 +205,8 @@ class ParentChildLinkRepositoryTest {
     savedLink(PARENT, null);
 
     assertThat(
-            repository.findByChildPersonalCodeAndSuspendedAtIsNullAndValidUntilAfter(
-                CHILD, EIGHTEENTH_BIRTHDAY))
+            repository.findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                CHILD, ACTIVE, EIGHTEENTH_BIRTHDAY))
         .isEmpty();
   }
 }

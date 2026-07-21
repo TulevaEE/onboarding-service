@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.party;
 
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
+import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
@@ -41,8 +43,10 @@ public class ParentChildLinkRegistrationService {
         eighteenthBirthday(childPersonalCode));
   }
 
-  @Transactional
-  public void registerPending(
+  // REQUIRES_NEW: the only caller is an AFTER_COMMIT listener, where a REQUIRED transaction would
+  // join the already-committed transaction and its writes would never be committed.
+  @Transactional(propagation = REQUIRES_NEW)
+  public ParentChildLink registerPending(
       String coParentPersonalCode,
       String childPersonalCode,
       String childFirstName,
@@ -50,23 +54,24 @@ public class ParentChildLinkRegistrationService {
 
     requireMinor(childPersonalCode);
     upsertPerson(childPersonalCode, childFirstName, childLastName);
-    if (parentChildLinkRepository
+    return parentChildLinkRepository
         .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
             coParentPersonalCode, childPersonalCode, LEGAL_REPRESENTATIVE)
-        .isPresent()) {
-      return;
-    }
+        .orElseGet(() -> createPendingLink(coParentPersonalCode, childPersonalCode));
+  }
+
+  private ParentChildLink createPendingLink(String coParentPersonalCode, String childPersonalCode) {
     log.info(
         "Capturing pending parent-child link: coParentCode={}, childCode={}",
         coParentPersonalCode,
         childPersonalCode);
-    parentChildLinkRepository.save(
+    return parentChildLinkRepository.save(
         ParentChildLink.builder()
             .parentPersonalCode(coParentPersonalCode)
             .childPersonalCode(childPersonalCode)
             .relationshipType(LEGAL_REPRESENTATIVE)
             .validUntil(eighteenthBirthday(childPersonalCode))
-            .status(ParentChildLinkStatus.PENDING_KYC)
+            .status(PENDING_KYC)
             .build());
   }
 

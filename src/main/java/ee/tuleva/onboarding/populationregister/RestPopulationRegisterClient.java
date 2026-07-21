@@ -80,7 +80,7 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
 
   @Override
   public PopulationRegisterResult<List<Guardian>> fetchCustodyRights(
-      String requesterPersonalCode, String subjectPersonalCode, Duration maxAge) {
+      String requesterPersonalCode, String subjectPersonalCode) {
     // Never cache child-subject custody: the store keys by subject only, so reuse would serve one
     // parent's response to another and skip their per-requester X-Road audit. Always fetch fresh.
     return queryFresh(
@@ -109,6 +109,23 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
           maxAge.toSeconds());
       return reused.get();
     }
+    var fetched = fetchAndLog(request, requesterPersonalCode, queryType);
+    store.save(personalCode, queryType, fetched.messageId(), fetched.response());
+    return toResult(fetched, mapper);
+  }
+
+  private <T> PopulationRegisterResult<T> queryFresh(
+      PersonQueryRequest request,
+      String requesterPersonalCode,
+      PopulationRegisterQueryType queryType,
+      Function<PersonResponse, T> mapper) {
+    return toResult(fetchAndLog(request, requesterPersonalCode, queryType), mapper);
+  }
+
+  private Fetched fetchAndLog(
+      PersonQueryRequest request,
+      String requesterPersonalCode,
+      PopulationRegisterQueryType queryType) {
     var messageId = UUID.randomUUID();
     log.info("Fetching from population register: messageId={}, queryType={}", messageId, queryType);
     var start = clock.instant();
@@ -118,29 +135,16 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
         messageId,
         queryType,
         Duration.between(start, clock.instant()).toMillis());
-    store.save(personalCode, queryType, messageId, response);
-    return new PopulationRegisterResult<>(mapper.apply(first(response, messageId)), messageId);
+    return new Fetched(response, messageId);
   }
 
-  private <T> PopulationRegisterResult<T> queryFresh(
-      PersonQueryRequest request,
-      String requesterPersonalCode,
-      PopulationRegisterQueryType queryType,
-      Function<PersonResponse, T> mapper) {
-    var messageId = UUID.randomUUID();
-    log.info(
-        "Fetching from population register (uncached): messageId={}, queryType={}",
-        messageId,
-        queryType);
-    var start = clock.instant();
-    var response = fetch(request, requesterPersonalCode, messageId);
-    log.info(
-        "Population register call finished: messageId={}, queryType={}, durationMs={}",
-        messageId,
-        queryType,
-        Duration.between(start, clock.instant()).toMillis());
-    return new PopulationRegisterResult<>(mapper.apply(first(response, messageId)), messageId);
+  private <T> PopulationRegisterResult<T> toResult(
+      Fetched fetched, Function<PersonResponse, T> mapper) {
+    return new PopulationRegisterResult<>(
+        mapper.apply(first(fetched.response(), fetched.messageId())), fetched.messageId());
   }
+
+  private record Fetched(List<Map<String, Object>> response, UUID messageId) {}
 
   private <T> Optional<PopulationRegisterResult<T>> reusable(
       StoredResponse stored,

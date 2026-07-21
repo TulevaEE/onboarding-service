@@ -7,6 +7,8 @@ import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.OK;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.OTHER;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PERSONAL;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY;
+import static ee.tuleva.onboarding.populationregister.Guardian.CustodyValidity.INVALID;
+import static ee.tuleva.onboarding.populationregister.Guardian.CustodyValidity.VALID;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.INACTIVE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,6 +41,7 @@ class CustodyVerificationServiceTest {
   private static final String PARENT = "38812121215";
   private static final String CHILD = "61506150006";
   private static final String OTHER_CHILD = "61001010000";
+  private static final String CO_PARENT = "38002020008";
 
   private static final UUID CUSTODY_MESSAGE_ID =
       UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -206,22 +209,18 @@ class CustodyVerificationServiceTest {
         .containsExactly(new CustodyRight(CHILD, PROPERTY, true, true, "Mari", "Maasikas"));
   }
 
-  private static final String CO_PARENT = "38002020008";
-
   @Test
   void
       findGuardiansWithAssetManagement_returnsOtherValidLivingPropertyGuardiansExcludingRequester() {
-    given(populationRegisterClient.fetchCustodyRights(PARENT, CHILD, Duration.ZERO))
+    given(populationRegisterClient.fetchCustodyRights(PARENT, CHILD))
         .willReturn(
             new PopulationRegisterResult<>(
                 List.of(
-                    new Guardian(PARENT, true, true, true), // the requester themselves -> excluded
-                    new Guardian(CO_PARENT, true, true, true), // valid property guardian -> kept
-                    new Guardian(
-                        "60303030004", false, true, true), // personal care only -> excluded
-                    new Guardian("60404040005", true, false, true), // custody not valid -> excluded
-                    new Guardian(
-                        "60505050006", true, true, false)), // guardian not alive -> excluded
+                    new Guardian(PARENT, PROPERTY, VALID, ALIVE), // the requester -> excluded
+                    new Guardian(CO_PARENT, PROPERTY, VALID, ALIVE), // kept
+                    new Guardian("60303030004", PERSONAL, VALID, ALIVE), // personal care only
+                    new Guardian("60404040005", PROPERTY, INVALID, ALIVE), // custody not valid
+                    new Guardian("60505050006", PROPERTY, VALID, INACTIVE)), // guardian not alive
                 CUSTODY_MESSAGE_ID));
 
     assertThat(service.findGuardiansWithAssetManagement(CHILD, PARENT)).containsExactly(CO_PARENT);
@@ -229,10 +228,10 @@ class CustodyVerificationServiceTest {
 
   @Test
   void findGuardiansWithAssetManagement_returnsEmptyWhenTheOnlyGuardianIsTheRequester() {
-    given(populationRegisterClient.fetchCustodyRights(PARENT, CHILD, Duration.ZERO))
+    given(populationRegisterClient.fetchCustodyRights(PARENT, CHILD))
         .willReturn(
             new PopulationRegisterResult<>(
-                List.of(new Guardian(PARENT, true, true, true)), CUSTODY_MESSAGE_ID));
+                List.of(new Guardian(PARENT, PROPERTY, VALID, ALIVE)), CUSTODY_MESSAGE_ID));
 
     assertThat(service.findGuardiansWithAssetManagement(CHILD, PARENT)).isEmpty();
   }

@@ -32,7 +32,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -382,10 +381,8 @@ class RoleSwitchServiceTest {
 
   @Test
   void getPendingChildOnboardingsReturnsPendingEntriesWithChildName() {
-    var linkId = UUID.randomUUID();
     var pending =
         ParentChildLink.builder()
-            .id(linkId)
             .parentPersonalCode(person.getPersonalCode())
             .childPersonalCode(CHILD_CODE)
             .relationshipType(RepresentationType.LEGAL_REPRESENTATIVE)
@@ -398,7 +395,7 @@ class RoleSwitchServiceTest {
 
     List<PendingChildResponse> result = roleSwitchService.getPendingChildOnboardings(person);
 
-    assertThat(result).containsExactly(new PendingChildResponse(linkId, "Mari Maasikas"));
+    assertThat(result).containsExactly(new PendingChildResponse(CHILD_CODE, "Mari Maasikas"));
   }
 
   @Test

@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.party;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -32,16 +31,6 @@ public class ParentChildLinkService {
     return parentChildLinkRepository
         .findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
             parentPersonalCode, ParentChildLinkStatus.PENDING_KYC, today());
-  }
-
-  public String resolvePendingChildCode(String parentPersonalCode, UUID pendingLinkId) {
-    return parentChildLinkRepository
-        .findById(pendingLinkId)
-        .filter(link -> link.getParentPersonalCode().equals(parentPersonalCode))
-        .filter(ParentChildLink::isPending)
-        .map(ParentChildLink::getChildPersonalCode)
-        .orElseThrow(
-            () -> new PendingChildLinkNotFoundException(parentPersonalCode, pendingLinkId));
   }
 
   private LocalDate today() {

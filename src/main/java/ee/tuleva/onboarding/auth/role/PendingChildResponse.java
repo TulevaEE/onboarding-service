@@ -1,5 +1,3 @@
 package ee.tuleva.onboarding.auth.role;
 
-import java.util.UUID;
-
-public record PendingChildResponse(UUID id, String childName) {}
+public record PendingChildResponse(String childPersonalCode, String childName) {}

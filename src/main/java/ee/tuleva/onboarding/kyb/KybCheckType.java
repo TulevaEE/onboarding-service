@@ -35,4 +35,8 @@ public enum KybCheckType {
         || this == DUAL_MEMBER_OWNERSHIP
         || this == SINGLE_BOARD_MEMBER_OWNERSHIP;
   }
+
+  public boolean isManuallyForceable() {
+    return isOwnershipCheck() || this == SELF_CERTIFICATION;
+  }
 }

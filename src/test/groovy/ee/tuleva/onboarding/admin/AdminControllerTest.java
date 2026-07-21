@@ -1013,6 +1013,38 @@ class AdminControllerTest {
   }
 
   @Test
+  void manuallyOnboardCompany_withNonForceableCheck_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/manually-onboard-company")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("registryCode", "12934765")
+                .param("personalCode", "38901040329")
+                .param("forcedChecks", "COMPANY_SANCTION")
+                .param("reason", "spouses"))
+        .andExpect(status().isBadRequest());
+
+    verify(manualCompanyOnboardingService, never()).onboard(any(), any(), any(), any());
+  }
+
+  @Test
+  void manuallyOnboardCompany_withBlankReason_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/manually-onboard-company")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("registryCode", "12934765")
+                .param("personalCode", "38901040329")
+                .param("forcedChecks", "SINGLE_BOARD_MEMBER_OWNERSHIP")
+                .param("reason", " "))
+        .andExpect(status().isBadRequest());
+
+    verify(manualCompanyOnboardingService, never()).onboard(any(), any(), any(), any());
+  }
+
+  @Test
   void createParentChildLink_withValidToken_delegatesToService() throws Exception {
     mockMvc
         .perform(

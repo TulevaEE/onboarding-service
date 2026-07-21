@@ -81,7 +81,10 @@ public class RoleSwitchService {
             link ->
                 userService
                     .findByPersonalCode(link.getChildPersonalCode())
-                    .map(child -> new PendingChildResponse(link.getId(), child.getFullName()))
+                    .map(
+                        child ->
+                            new PendingChildResponse(
+                                link.getChildPersonalCode(), child.getFullName()))
                     .stream())
         .toList();
   }

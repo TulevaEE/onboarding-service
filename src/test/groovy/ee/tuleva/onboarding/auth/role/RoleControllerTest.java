@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.auth.role;
 
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
+import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
+import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static ee.tuleva.onboarding.company.CompanyFixture.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -103,8 +105,8 @@ class RoleControllerTest {
     when(roleSwitchService.getRoles(any(AuthenticatedPerson.class)))
         .thenReturn(
             List.of(
-                new Role(RoleType.PERSON, "38501010002", "Jordan Valdma"),
-                new Role(RoleType.LEGAL_ENTITY, SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME)));
+                new Role(PERSON, "38501010002", "Jordan Valdma"),
+                new Role(LEGAL_ENTITY, SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME)));
 
     mockMvc
         .perform(get("/v1/me/roles").with(authentication(userAuth())))
@@ -120,9 +122,7 @@ class RoleControllerTest {
   @Test
   void getPendingOnboardingsDelegatesToService() throws Exception {
     when(roleSwitchService.getPendingOnboardings(any(AuthenticatedPerson.class)))
-        .thenReturn(
-            List.of(
-                new PendingOnboardingResponse(RoleType.PERSON, "61509070000", "Jaan Maasikas")));
+        .thenReturn(List.of(new PendingOnboardingResponse(PERSON, "61509070000", "Jaan Maasikas")));
 
     mockMvc
         .perform(get("/v1/me/pending-onboardings").with(authentication(userAuth())))

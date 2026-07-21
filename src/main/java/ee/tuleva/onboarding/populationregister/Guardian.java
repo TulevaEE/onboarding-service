@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.populationregister;
 
-import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY;
+import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY_CUSTODY;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
 
 import ee.tuleva.onboarding.populationregister.CustodyRight.Type;
@@ -15,7 +15,7 @@ public record Guardian(
   }
 
   public boolean grantsAssetManagement() {
-    return custodyType == PROPERTY
+    return custodyType == PROPERTY_CUSTODY
         && custodyValidity == CustodyValidity.VALID
         && personStatus == ALIVE;
   }

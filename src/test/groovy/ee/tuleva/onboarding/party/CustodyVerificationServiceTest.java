@@ -5,8 +5,8 @@ import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.NOT_ASSET_M
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.NO_CUSTODY;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.OK;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.OTHER;
-import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PERSONAL;
-import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY;
+import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PERSONAL_CUSTODY;
+import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY_CUSTODY;
 import static ee.tuleva.onboarding.populationregister.Guardian.CustodyValidity.INVALID;
 import static ee.tuleva.onboarding.populationregister.Guardian.CustodyValidity.VALID;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
@@ -63,8 +63,8 @@ class CustodyVerificationServiceTest {
   @Test
   void verifiesWhenParentHasAssetManagementCustodyOfAliveChild() {
     givenCustodyRights(
-        new CustodyRight(OTHER_CHILD, PERSONAL, true, true),
-        new CustodyRight(CHILD, PROPERTY, true, true));
+        new CustodyRight(OTHER_CHILD, PERSONAL_CUSTODY, true, true),
+        new CustodyRight(CHILD, PROPERTY_CUSTODY, true, true));
     givenChild(aliveChild);
 
     CustodyVerification result = service.verify(PARENT, CHILD, MAX_AGE);
@@ -84,7 +84,7 @@ class CustodyVerificationServiceTest {
                 "childResponseMessageId",
                 CHILD_MESSAGE_ID.toString(),
                 "custodyType",
-                "PROPERTY",
+                "PROPERTY_CUSTODY",
                 "valid",
                 true,
                 "childAlive",
@@ -97,20 +97,20 @@ class CustodyVerificationServiceTest {
     // child, and the register lists personal first — verification must still find the
     // property (asset-management) right instead of stopping at the first entry.
     givenCustodyRights(
-        new CustodyRight(CHILD, PERSONAL, true, true),
-        new CustodyRight(CHILD, PROPERTY, true, true));
+        new CustodyRight(CHILD, PERSONAL_CUSTODY, true, true),
+        new CustodyRight(CHILD, PROPERTY_CUSTODY, true, true));
     givenChild(aliveChild);
 
     CustodyVerification result = service.verify(PARENT, CHILD, MAX_AGE);
 
     assertThat(result.isVerified()).isTrue();
     assertThat(result.outcome()).isEqualTo(OK);
-    assertThat(result.evidence()).containsEntry("custodyType", "PROPERTY");
+    assertThat(result.evidence()).containsEntry("custodyType", "PROPERTY_CUSTODY");
   }
 
   @Test
   void doesNotVerifyAndDoesNotFetchIdentityWhenNoCustodyForThatChild() {
-    givenCustodyRights(new CustodyRight(OTHER_CHILD, PROPERTY, true, true));
+    givenCustodyRights(new CustodyRight(OTHER_CHILD, PROPERTY_CUSTODY, true, true));
 
     CustodyVerification result = service.verify(PARENT, CHILD, MAX_AGE);
 
@@ -130,7 +130,7 @@ class CustodyVerificationServiceTest {
 
   @Test
   void doesNotVerifyWhenCustodyIsOnlyPersonalCare() {
-    givenCustodyRights(new CustodyRight(CHILD, PERSONAL, true, true));
+    givenCustodyRights(new CustodyRight(CHILD, PERSONAL_CUSTODY, true, true));
 
     CustodyVerification result = service.verify(PARENT, CHILD, MAX_AGE);
 
@@ -153,7 +153,7 @@ class CustodyVerificationServiceTest {
 
   @Test
   void doesNotVerifyWhenChildNotAlivePerCustodyRecord() {
-    givenCustodyRights(new CustodyRight(CHILD, PROPERTY, true, false));
+    givenCustodyRights(new CustodyRight(CHILD, PROPERTY_CUSTODY, true, false));
 
     CustodyVerification result = service.verify(PARENT, CHILD, MAX_AGE);
 
@@ -163,7 +163,7 @@ class CustodyVerificationServiceTest {
 
   @Test
   void citesBothRegisterResponsesWhenTheIdentityLookupContradictsTheCustodyRecord() {
-    givenCustodyRights(new CustodyRight(CHILD, PROPERTY, true, true));
+    givenCustodyRights(new CustodyRight(CHILD, PROPERTY_CUSTODY, true, true));
     givenChild(inactiveChild);
 
     CustodyVerification result = service.verify(PARENT, CHILD, MAX_AGE);
@@ -185,28 +185,28 @@ class CustodyVerificationServiceTest {
   @Test
   void listsDistinctChildrenWhoseCustodyGrantsAssetManagement() {
     givenCustodyRights(
-        new CustodyRight(CHILD, PERSONAL, true, true),
-        new CustodyRight(CHILD, PROPERTY, true, true),
-        new CustodyRight(CHILD, PROPERTY, true, true),
-        new CustodyRight(OTHER_CHILD, PERSONAL, true, true),
-        new CustodyRight("60303030004", PROPERTY, false, true),
-        new CustodyRight("60404040005", PROPERTY, true, false));
+        new CustodyRight(CHILD, PERSONAL_CUSTODY, true, true),
+        new CustodyRight(CHILD, PROPERTY_CUSTODY, true, true),
+        new CustodyRight(CHILD, PROPERTY_CUSTODY, true, true),
+        new CustodyRight(OTHER_CHILD, PERSONAL_CUSTODY, true, true),
+        new CustodyRight("60303030004", PROPERTY_CUSTODY, false, true),
+        new CustodyRight("60404040005", PROPERTY_CUSTODY, true, false));
 
     List<CustodyRight> children = service.findChildrenWithAssetManagementCustody(PARENT, MAX_AGE);
 
-    assertThat(children).containsExactly(new CustodyRight(CHILD, PROPERTY, true, true));
+    assertThat(children).containsExactly(new CustodyRight(CHILD, PROPERTY_CUSTODY, true, true));
   }
 
   @Test
   void dedupesEligibleChildrenByPersonalCodeKeepingTheFirstNames() {
     givenCustodyRights(
-        new CustodyRight(CHILD, PROPERTY, true, true, "Mari", "Maasikas"),
-        new CustodyRight(CHILD, PROPERTY, true, true, null, null));
+        new CustodyRight(CHILD, PROPERTY_CUSTODY, true, true, "Mari", "Maasikas"),
+        new CustodyRight(CHILD, PROPERTY_CUSTODY, true, true, null, null));
 
     List<CustodyRight> children = service.findChildrenWithAssetManagementCustody(PARENT, MAX_AGE);
 
     assertThat(children)
-        .containsExactly(new CustodyRight(CHILD, PROPERTY, true, true, "Mari", "Maasikas"));
+        .containsExactly(new CustodyRight(CHILD, PROPERTY_CUSTODY, true, true, "Mari", "Maasikas"));
   }
 
   @Test
@@ -216,11 +216,15 @@ class CustodyVerificationServiceTest {
         .willReturn(
             new PopulationRegisterResult<>(
                 List.of(
-                    new Guardian(PARENT, PROPERTY, VALID, ALIVE), // the requester -> excluded
-                    new Guardian(CO_PARENT, PROPERTY, VALID, ALIVE), // kept
-                    new Guardian("60303030004", PERSONAL, VALID, ALIVE), // personal care only
-                    new Guardian("60404040005", PROPERTY, INVALID, ALIVE), // custody not valid
-                    new Guardian("60505050006", PROPERTY, VALID, INACTIVE)), // guardian not alive
+                    new Guardian(
+                        PARENT, PROPERTY_CUSTODY, VALID, ALIVE), // the requester -> excluded
+                    new Guardian(CO_PARENT, PROPERTY_CUSTODY, VALID, ALIVE), // kept
+                    new Guardian(
+                        "60303030004", PERSONAL_CUSTODY, VALID, ALIVE), // personal care only
+                    new Guardian(
+                        "60404040005", PROPERTY_CUSTODY, INVALID, ALIVE), // custody not valid
+                    new Guardian(
+                        "60505050006", PROPERTY_CUSTODY, VALID, INACTIVE)), // guardian not alive
                 CUSTODY_MESSAGE_ID));
 
     assertThat(service.findGuardiansWithAssetManagement(CHILD, PARENT)).containsExactly(CO_PARENT);
@@ -231,7 +235,7 @@ class CustodyVerificationServiceTest {
     given(populationRegisterClient.fetchCustodyRights(PARENT, CHILD))
         .willReturn(
             new PopulationRegisterResult<>(
-                List.of(new Guardian(PARENT, PROPERTY, VALID, ALIVE)), CUSTODY_MESSAGE_ID));
+                List.of(new Guardian(PARENT, PROPERTY_CUSTODY, VALID, ALIVE)), CUSTODY_MESSAGE_ID));
 
     assertThat(service.findGuardiansWithAssetManagement(CHILD, PARENT)).isEmpty();
   }

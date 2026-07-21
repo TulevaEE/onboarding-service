@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.AdditionalAnswers.returnsFirstArg;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -62,8 +63,7 @@ class ParentChildLinkRegistrationServiceTest {
                 .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
                     PARENT, CHILD, LEGAL_REPRESENTATIVE))
         .willReturn(Optional.empty());
-    given(parentChildLinkRepository.save(org.mockito.ArgumentMatchers.any()))
-        .willAnswer(returnsFirstArg());
+    given(parentChildLinkRepository.save(any())).willAnswer(returnsFirstArg());
 
     ParentChildLink result = service.register(PARENT, CHILD, "mari", "maasikas");
 
@@ -121,7 +121,7 @@ class ParentChildLinkRegistrationServiceTest {
                 .lastName("Maasikas")
                 .active(true)
                 .build());
-    verify(parentChildLinkRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    verify(parentChildLinkRepository, never()).save(any());
     verifyNoInteractions(applicationEventPublisher);
   }
 
@@ -131,7 +131,7 @@ class ParentChildLinkRegistrationServiceTest {
         .isInstanceOf(ChildIsNotAMinorException.class);
 
     verifyNoInteractions(userService);
-    verify(parentChildLinkRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    verify(parentChildLinkRepository, never()).save(any());
   }
 
   @Test
@@ -140,7 +140,7 @@ class ParentChildLinkRegistrationServiceTest {
         .isInstanceOf(ChildIsNotAMinorException.class);
 
     verifyNoInteractions(userService);
-    verify(parentChildLinkRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    verify(parentChildLinkRepository, never()).save(any());
   }
 
   @Test
@@ -151,8 +151,7 @@ class ParentChildLinkRegistrationServiceTest {
                 .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
                     CO_PARENT, CHILD, LEGAL_REPRESENTATIVE))
         .willReturn(Optional.empty());
-    given(parentChildLinkRepository.save(org.mockito.ArgumentMatchers.any()))
-        .willAnswer(returnsFirstArg());
+    given(parentChildLinkRepository.save(any())).willAnswer(returnsFirstArg());
 
     ParentChildLink saved = service.registerPending(CO_PARENT, CHILD, "mari", "maasikas");
 
@@ -193,7 +192,7 @@ class ParentChildLinkRegistrationServiceTest {
 
     assertThat(result).isSameAs(existingActive);
     assertThat(result.getStatus()).isEqualTo(ACTIVE);
-    verify(parentChildLinkRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    verify(parentChildLinkRepository, never()).save(any());
     verifyNoInteractions(applicationEventPublisher);
   }
 
@@ -203,7 +202,7 @@ class ParentChildLinkRegistrationServiceTest {
         .isInstanceOf(ChildIsNotAMinorException.class);
 
     verifyNoInteractions(userService, applicationEventPublisher);
-    verify(parentChildLinkRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    verify(parentChildLinkRepository, never()).save(any());
   }
 
   @Test
@@ -222,8 +221,7 @@ class ParentChildLinkRegistrationServiceTest {
                 .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
                     PARENT, CHILD, LEGAL_REPRESENTATIVE))
         .willReturn(Optional.of(pending));
-    given(parentChildLinkRepository.save(org.mockito.ArgumentMatchers.any()))
-        .willAnswer(returnsFirstArg());
+    given(parentChildLinkRepository.save(any())).willAnswer(returnsFirstArg());
 
     ParentChildLink result = service.register(PARENT, CHILD, "mari", "maasikas");
 
@@ -242,8 +240,7 @@ class ParentChildLinkRegistrationServiceTest {
                 .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
                     GUARDIAN_CODE, ADULT_WARD, GUARDIAN))
         .willReturn(Optional.empty());
-    given(parentChildLinkRepository.save(org.mockito.ArgumentMatchers.any()))
-        .willAnswer(returnsFirstArg());
+    given(parentChildLinkRepository.save(any())).willAnswer(returnsFirstArg());
 
     ParentChildLink result =
         service.registerGuardian(

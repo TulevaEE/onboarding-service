@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.populationregister;
 
-import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PERSONAL;
-import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY;
+import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PERSONAL_CUSTODY;
+import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY_CUSTODY;
 import static ee.tuleva.onboarding.populationregister.Guardian.CustodyValidity.VALID;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterQueryType.CUSTODY;
@@ -18,6 +18,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.client.ExpectedCount.times;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
@@ -45,7 +46,6 @@ import org.springframework.core.retry.RetryPolicy;
 import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.HttpClientErrorException;
@@ -88,7 +88,7 @@ class PopulationRegisterClientTest {
         .andExpect(jsonPath("$.andmevaljad.suhted").isEmpty())
         .andExpect(jsonPath("$.andmevaljad.hooldusoigused").isEmpty())
         .andExpect(jsonPath("$.andmevaljad.dokumendid").isEmpty())
-        .andRespond(withSuccess(personResponse(), MediaType.APPLICATION_JSON));
+        .andRespond(withSuccess(personResponse(), APPLICATION_JSON));
 
     PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE).data();
 
@@ -111,7 +111,7 @@ class PopulationRegisterClientTest {
         .expect(requestTo(ISIKUD_URL))
         .andExpect(header("X-Road-UserId", REQUESTER))
         .andExpect(jsonPath("$.isikukoodid[0]").value(PERSONAL_CODE))
-        .andRespond(withSuccess(personResponse(), MediaType.APPLICATION_JSON));
+        .andRespond(withSuccess(personResponse(), APPLICATION_JSON));
 
     client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE);
 
@@ -126,17 +126,17 @@ class PopulationRegisterClientTest {
         .andExpect(header("X-Road-UserId", PERSONAL_CODE))
         .andExpect(jsonPath("$.andmevaljad.hooldusoigused").isNotEmpty())
         .andExpect(jsonPath("$.andmevaljad.dokumendid").isEmpty())
-        .andRespond(withSuccess(custodyResponse(), MediaType.APPLICATION_JSON));
+        .andRespond(withSuccess(custodyResponse(), APPLICATION_JSON));
 
     List<CustodyRight> rights = client.fetchCustodyRights(PERSONAL_CODE, MAX_AGE).data();
 
     assertThat(rights)
         .containsExactly(
-            new CustodyRight("61509070000", PERSONAL, true, true),
-            new CustodyRight("61509070000", PROPERTY, true, true));
+            new CustodyRight("61509070000", PERSONAL_CUSTODY, true, true),
+            new CustodyRight("61509070000", PROPERTY_CUSTODY, true, true));
     assertThat(rights)
         .filteredOn(CustodyRight::grantsAssetManagement)
-        .containsExactly(new CustodyRight("61509070000", PROPERTY, true, true));
+        .containsExactly(new CustodyRight("61509070000", PROPERTY_CUSTODY, true, true));
     server.verify();
   }
 
@@ -165,13 +165,13 @@ class PopulationRegisterClientTest {
                   }
                 ]
                 """,
-                MediaType.APPLICATION_JSON));
+                APPLICATION_JSON));
 
     List<CustodyRight> rights = client.fetchCustodyRights(PERSONAL_CODE, MAX_AGE).data();
 
     assertThat(rights)
         .containsExactly(
-            new CustodyRight("61509070000", PROPERTY, true, true, "Siim-Jüri", "Jõeorg"));
+            new CustodyRight("61509070000", PROPERTY_CUSTODY, true, true, "Siim-Jüri", "Jõeorg"));
     server.verify();
   }
 
@@ -181,7 +181,7 @@ class PopulationRegisterClientTest {
     server
         .expect(requestTo(ISIKUD_URL))
         .andExpect(request -> sentMessageId.set(request.getHeaders().getFirst("X-Road-Id")))
-        .andRespond(withSuccess(personResponse(), MediaType.APPLICATION_JSON));
+        .andRespond(withSuccess(personResponse(), APPLICATION_JSON));
 
     UUID messageId = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE).messageId();
 
@@ -206,7 +206,7 @@ class PopulationRegisterClientTest {
                   }
                 ]
                 """,
-                MediaType.APPLICATION_JSON));
+                APPLICATION_JSON));
 
     client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE);
 
@@ -249,8 +249,8 @@ class PopulationRegisterClientTest {
 
     assertThat(rights)
         .containsExactly(
-            new CustodyRight("61509070000", PERSONAL, true, true),
-            new CustodyRight("61509070000", PROPERTY, true, true));
+            new CustodyRight("61509070000", PERSONAL_CUSTODY, true, true),
+            new CustodyRight("61509070000", PROPERTY_CUSTODY, true, true));
     server.verify();
   }
 
@@ -260,7 +260,7 @@ class PopulationRegisterClientTest {
         .willReturn(Optional.of(new StoredResponse(UUID.randomUUID(), List.of())));
     server
         .expect(times(1), requestTo(ISIKUD_URL))
-        .andRespond(withSuccess(personResponse(), MediaType.APPLICATION_JSON));
+        .andRespond(withSuccess(personResponse(), APPLICATION_JSON));
 
     PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE).data();
 
@@ -276,7 +276,7 @@ class PopulationRegisterClientTest {
             Optional.of(new StoredResponse(UUID.randomUUID(), List.of(Map.of("eesnimi", "MARI")))));
     server
         .expect(times(1), requestTo(ISIKUD_URL))
-        .andRespond(withSuccess(personResponse(), MediaType.APPLICATION_JSON));
+        .andRespond(withSuccess(personResponse(), APPLICATION_JSON));
 
     PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE).data();
 
@@ -294,7 +294,7 @@ class PopulationRegisterClientTest {
                     List.of(Map.of("isikukood", PERSONAL_CODE, "isikuStaatus", "ELUS")))));
     server
         .expect(times(1), requestTo(ISIKUD_URL))
-        .andRespond(withSuccess(personResponse(), MediaType.APPLICATION_JSON));
+        .andRespond(withSuccess(personResponse(), APPLICATION_JSON));
 
     PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE).data();
 
@@ -311,7 +311,7 @@ class PopulationRegisterClientTest {
                 """
                 [{ "isikukood": "48503150000", "isikuStaatus": "ELUS" }]
                 """,
-                MediaType.APPLICATION_JSON));
+                APPLICATION_JSON));
 
     assertThatThrownBy(() -> client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE))
         .isInstanceOf(PopulationRegisterException.class)
@@ -321,9 +321,7 @@ class PopulationRegisterClientTest {
 
   @Test
   void storesAnEmptyRegisterResponseForTheAuditTrailAndStillFails() {
-    server
-        .expect(times(1), requestTo(ISIKUD_URL))
-        .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+    server.expect(times(1), requestTo(ISIKUD_URL)).andRespond(withSuccess("[]", APPLICATION_JSON));
 
     assertThatThrownBy(() -> client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE))
         .isInstanceOf(PopulationRegisterException.class);
@@ -336,7 +334,7 @@ class PopulationRegisterClientTest {
   void alwaysCallsTheRegisterWhenNoStalenessIsAllowed() {
     server
         .expect(times(1), requestTo(ISIKUD_URL))
-        .andRespond(withSuccess(personResponse(), MediaType.APPLICATION_JSON));
+        .andRespond(withSuccess(personResponse(), APPLICATION_JSON));
 
     client.fetchPerson(REQUESTER, PERSONAL_CODE, ZERO);
 
@@ -415,15 +413,14 @@ class PopulationRegisterClientTest {
         .andExpect(header("X-Road-UserId", REQUESTER))
         .andExpect(jsonPath("$.isikukoodid[0]").value(childCode))
         .andExpect(jsonPath("$.andmevaljad.hooldusoigused").isNotEmpty())
-        .andRespond(
-            withSuccess(guardianResponse(childCode, otherGuardian), MediaType.APPLICATION_JSON));
+        .andRespond(withSuccess(guardianResponse(childCode, otherGuardian), APPLICATION_JSON));
 
     List<Guardian> guardians = client.fetchCustodyRights(REQUESTER, childCode).data();
 
     assertThat(guardians)
         .containsExactly(
-            new Guardian(REQUESTER, PROPERTY, VALID, ALIVE),
-            new Guardian(otherGuardian, PROPERTY, VALID, ALIVE));
+            new Guardian(REQUESTER, PROPERTY_CUSTODY, VALID, ALIVE),
+            new Guardian(otherGuardian, PROPERTY_CUSTODY, VALID, ALIVE));
     verify(store, never()).findFresh(any(), any(), any());
     verify(store, never()).save(any(), any(), any(), any());
     server.verify();
@@ -436,8 +433,7 @@ class PopulationRegisterClientTest {
     var childCode = "61509070000";
     server
         .expect(times(1), requestTo(ISIKUD_URL))
-        .andRespond(
-            withSuccess(guardianResponse(childCode, "47101010033"), MediaType.APPLICATION_JSON));
+        .andRespond(withSuccess(guardianResponse(childCode, "47101010033"), APPLICATION_JSON));
 
     client.fetchCustodyRights(REQUESTER, childCode);
 
@@ -475,11 +471,12 @@ class PopulationRegisterClientTest {
             .formatted(childCode, otherGuardian);
     server
         .expect(requestTo(ISIKUD_URL))
-        .andRespond(withSuccess(responseWithCodelessRow, MediaType.APPLICATION_JSON));
+        .andRespond(withSuccess(responseWithCodelessRow, APPLICATION_JSON));
 
     List<Guardian> guardians = client.fetchCustodyRights(REQUESTER, childCode).data();
 
-    assertThat(guardians).containsExactly(new Guardian(otherGuardian, PROPERTY, VALID, ALIVE));
+    assertThat(guardians)
+        .containsExactly(new Guardian(otherGuardian, PROPERTY_CUSTODY, VALID, ALIVE));
     server.verify();
   }
 

@@ -1,11 +1,12 @@
 package ee.tuleva.onboarding.party;
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
+import static ee.tuleva.onboarding.event.TrackableEventType.MINOR_CUSTODY_VERIFICATION;
 import static ee.tuleva.onboarding.party.ChildOnboardingService.CUSTODY_MAX_AGE;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.NO_CUSTODY;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.OK;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
-import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY;
+import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY_CUSTODY;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.PENDING;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,7 +18,6 @@ import static org.mockito.Mockito.verify;
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.event.TrackableEvent;
-import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.populationregister.CustodyRight;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
@@ -76,7 +76,8 @@ class ChildOnboardingServiceTest {
     given(
             custodyVerificationService.findChildrenWithAssetManagementCustody(
                 PARENT, CUSTODY_MAX_AGE))
-        .willReturn(List.of(new CustodyRight(CHILD, PROPERTY, true, true, "Mari", "Maasikas")));
+        .willReturn(
+            List.of(new CustodyRight(CHILD, PROPERTY_CUSTODY, true, true, "Mari", "Maasikas")));
 
     assertThat(service.findEligibleChildren(parent))
         .containsExactly(new EligibleChild(CHILD, "Mari", "Maasikas", false));
@@ -89,8 +90,8 @@ class ChildOnboardingServiceTest {
                 PARENT, CUSTODY_MAX_AGE))
         .willReturn(
             List.of(
-                new CustodyRight(CHILD, PROPERTY, true, true, "Mari", "Maasikas"),
-                new CustodyRight(ADULT, PROPERTY, true, true, "Jüri", "Tamm")));
+                new CustodyRight(CHILD, PROPERTY_CUSTODY, true, true, "Mari", "Maasikas"),
+                new CustodyRight(ADULT, PROPERTY_CUSTODY, true, true, "Jüri", "Tamm")));
 
     assertThat(service.findEligibleChildren(parent))
         .containsExactly(new EligibleChild(CHILD, "Mari", "Maasikas", false));
@@ -104,8 +105,8 @@ class ChildOnboardingServiceTest {
                 PARENT, CUSTODY_MAX_AGE))
         .willReturn(
             List.of(
-                new CustodyRight(CHILD, PROPERTY, true, true, "Mari", "Maasikas"),
-                new CustodyRight(secondChild, PROPERTY, true, true, "Jüri", "Tamm")));
+                new CustodyRight(CHILD, PROPERTY_CUSTODY, true, true, "Mari", "Maasikas"),
+                new CustodyRight(secondChild, PROPERTY_CUSTODY, true, true, "Jüri", "Tamm")));
     given(savingsFundOnboardingService.getOnboardingStatus(new PartyId(PERSON, CHILD)))
         .willReturn(PENDING);
 
@@ -124,7 +125,7 @@ class ChildOnboardingServiceTest {
             "childPersonalCode",
             CHILD,
             "custodyType",
-            "PROPERTY",
+            "PROPERTY_CUSTODY",
             "custodyResponseMessageId",
             CUSTODY_MESSAGE_ID);
     given(custodyVerificationService.verify(PARENT, CHILD, CUSTODY_MAX_AGE))
@@ -140,15 +141,14 @@ class ChildOnboardingServiceTest {
     verify(savingsFundOnboardingService).seedPersonOnboardingIfAbsent(CHILD);
     verify(amlService).addCustodyRightCheck(CHILD, true, evidence);
     verify(applicationEventPublisher)
-        .publishEvent(
-            new TrackableEvent(parent, TrackableEventType.MINOR_CUSTODY_VERIFICATION, evidence));
+        .publishEvent(new TrackableEvent(parent, MINOR_CUSTODY_VERIFICATION, evidence));
   }
 
   @Test
   void verifiedCustody_publishesChildOnboardedEventToCaptureCoParentsAfterCommit() {
     var evidence =
         Map.<String, Object>of(
-            "outcome", "OK", "childPersonalCode", CHILD, "custodyType", "PROPERTY");
+            "outcome", "OK", "childPersonalCode", CHILD, "custodyType", "PROPERTY_CUSTODY");
     given(custodyVerificationService.verify(PARENT, CHILD, CUSTODY_MAX_AGE))
         .willReturn(new CustodyVerification(OK, child, evidence));
 
@@ -180,7 +180,6 @@ class ChildOnboardingServiceTest {
     verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any());
     verify(savingsFundOnboardingService, never()).seedPersonOnboardingIfAbsent(any());
     verify(applicationEventPublisher)
-        .publishEvent(
-            new TrackableEvent(parent, TrackableEventType.MINOR_CUSTODY_VERIFICATION, evidence));
+        .publishEvent(new TrackableEvent(parent, MINOR_CUSTODY_VERIFICATION, evidence));
   }
 }

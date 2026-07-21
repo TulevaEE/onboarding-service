@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.party;
 
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -38,7 +39,7 @@ class ParentChildLinkNotificationIntegrationTest {
     parentChildLinkRepository.deleteAll(
         parentChildLinkRepository
             .findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
-                CHILD, ParentChildLinkStatus.ACTIVE, LocalDate.now().minusYears(100)));
+                CHILD, ACTIVE, LocalDate.now().minusYears(100)));
     Stream.of(NEW_PARENT, EXISTING_PARENT, CHILD)
         .map(userRepository::findByPersonalCode)
         .flatMap(Optional::stream)

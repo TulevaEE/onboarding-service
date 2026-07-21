@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent;
 import ee.tuleva.onboarding.payment.event.PaymentEvent;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCancelledEvent;
+import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
@@ -37,6 +38,7 @@ public class PaymentEmailSender {
   private final JwtTokenUtil jwtTokenUtil;
   private final ContactDetailsService contactDetailsService;
   private final SecondPillarPaymentRateService paymentRateService;
+  private final SavingsFundSuccessEmailResolver savingsFundSuccessEmailResolver;
 
   // TODO: can we make this @Async?
   @EventListener
@@ -58,15 +60,6 @@ public class PaymentEmailSender {
     }
   }
 
-  private EmailType getEmailTypeForSavingsFundEvent(PaymentEvent event) {
-    if (event instanceof SavingsPaymentFailedEvent) {
-      return EmailType.SAVINGS_FUND_PAYMENT_FAIL;
-    } else if (event instanceof SavingsPaymentCancelledEvent) {
-      return EmailType.SAVINGS_FUND_PAYMENT_CANCEL;
-    }
-    return EmailType.SAVINGS_FUND_PAYMENT_SUCCESS;
-  }
-
   private void sendSavingsFundEmail(PaymentEvent event) {
     User user = event.getUser();
     ContactDetails contactDetails = contactDetailsService.getContactDetails(user);
@@ -76,8 +69,21 @@ public class PaymentEmailSender {
     PillarSuggestion pillarSuggestion =
         new PillarSuggestion(user, contactDetails, conversion, paymentRates);
 
-    EmailType emailType = getEmailTypeForSavingsFundEvent(event);
-    emailService.sendSavingsFundPaymentEmail(user, emailType, pillarSuggestion, event.getLocale());
+    EmailType emailType;
+    String recipientName = null;
+    if (event instanceof SavingsPaymentFailedEvent) {
+      emailType = EmailType.SAVINGS_FUND_PAYMENT_FAIL;
+    } else if (event instanceof SavingsPaymentCancelledEvent) {
+      emailType = EmailType.SAVINGS_FUND_PAYMENT_CANCEL;
+    } else {
+      var resolved =
+          savingsFundSuccessEmailResolver.resolve(user, (SavingsPaymentCreatedEvent) event);
+      emailType = resolved.emailType();
+      recipientName = resolved.recipientName();
+    }
+
+    emailService.sendSavingsFundPaymentEmail(
+        user, emailType, pillarSuggestion, event.getLocale(), recipientName);
   }
 
   private void sendThirdPillarEmail(PaymentCreatedEvent event) {

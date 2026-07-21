@@ -73,7 +73,12 @@ public class SavingsCallbackService {
         .ifPresent(
             user ->
                 eventPublisher.publishEvent(
-                    new SavingsPaymentCreatedEvent(this, user, ref.getLocale())));
+                    new SavingsPaymentCreatedEvent(
+                        this,
+                        user,
+                        ref.getLocale(),
+                        ref.getRecipientPersonalCode(),
+                        Optional.ofNullable(ref.getRecipientPartyType()).orElse(PERSON))));
 
     return Optional.of(payment);
   }

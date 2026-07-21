@@ -47,10 +47,17 @@ public class PaymentEmailService {
   }
 
   void sendSavingsFundPaymentEmail(
-      User user, EmailType emailType, PillarSuggestion pillarSuggestion, Locale locale) {
+      User user,
+      EmailType emailType,
+      PillarSuggestion pillarSuggestion,
+      Locale locale,
+      String recipientName) {
     String templateName = emailType.getTemplateName(locale);
     Map<String, Object> mergeVars = new HashMap<>(getNameMergeVars(user));
     mergeVars.putAll(getPillarSuggestionMergeVars(pillarSuggestion));
+    if (recipientName != null) {
+      mergeVars.put("recipientName", recipientName);
+    }
 
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(

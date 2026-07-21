@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.admin;
 
+import static ee.tuleva.onboarding.kyb.KybCheckType.SINGLE_BOARD_MEMBER_OWNERSHIP;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
@@ -27,6 +28,7 @@ import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublish
 import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
+import ee.tuleva.onboarding.kyb.survey.ManualCompanyOnboardingService;
 import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
@@ -82,6 +84,7 @@ class AdminControllerTest {
   @MockitoBean private FundPositionImportJob fundPositionImportJob;
   @MockitoBean private RedemptionBatchJob redemptionBatchJob;
   @MockitoBean private SavingsFundOnboardingService savingsFundOnboardingService;
+  @MockitoBean private ManualCompanyOnboardingService manualCompanyOnboardingService;
   @MockitoBean private ParentChildLinkRegistrationService parentChildLinkRegistrationService;
 
   @MockitoBean
@@ -952,6 +955,61 @@ class AdminControllerTest {
                 .param("month", "3")
                 .param("year", "2026"))
         .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void manuallyOnboardCompany_withAdminToken_delegatesToService() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/manually-onboard-company")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("registryCode", "12934765")
+                .param("personalCode", "38901040329")
+                .param("forcedChecks", "SINGLE_BOARD_MEMBER_OWNERSHIP")
+                .param("reason", "single shareholder, two spousal beneficial owners"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("12934765")));
+
+    verify(manualCompanyOnboardingService)
+        .onboard(
+            "12934765",
+            "38901040329",
+            List.of(SINGLE_BOARD_MEMBER_OWNERSHIP),
+            "single shareholder, two spousal beneficial owners");
+  }
+
+  @Test
+  void manuallyOnboardCompany_withOpsToken_delegatesToService() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/manually-onboard-company")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("registryCode", "12934765")
+                .param("personalCode", "38901040329")
+                .param("forcedChecks", "SINGLE_BOARD_MEMBER_OWNERSHIP")
+                .param("reason", "spouses"))
+        .andExpect(status().isOk());
+
+    verify(manualCompanyOnboardingService)
+        .onboard("12934765", "38901040329", List.of(SINGLE_BOARD_MEMBER_OWNERSHIP), "spouses");
+  }
+
+  @Test
+  void manuallyOnboardCompany_withInvalidToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/manually-onboard-company")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .param("registryCode", "12934765")
+                .param("personalCode", "38901040329")
+                .param("forcedChecks", "SINGLE_BOARD_MEMBER_OWNERSHIP")
+                .param("reason", "spouses"))
+        .andExpect(status().isUnauthorized());
+
+    verify(manualCompanyOnboardingService, never()).onboard(any(), any(), any(), any());
   }
 
   @Test

@@ -37,6 +37,8 @@ class KybScreeningServiceTest {
       mock(PepAndSanctionCheckService.class);
   private final KybCheckHistory checkHistory = mock(KybCheckHistory.class);
   private final JsonMapper objectMapper = JsonMapper.builder().build();
+  private final KybCheckOverrideRepository kybCheckOverrideRepository =
+      mock(KybCheckOverrideRepository.class);
 
   private final KybScreeningService kybScreeningService =
       new KybScreeningService(
@@ -52,13 +54,15 @@ class KybScreeningServiceTest {
               new CompanyLegalFormScreener(),
               new SelfCertificationScreener()),
           new KybDataChangeDetector(checkHistory),
-          eventPublisher);
+          eventPublisher,
+          kybCheckOverrideRepository);
 
   {
     when(sanctionCheckService.matchCompany(any()))
         .thenReturn(
             new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
     when(checkHistory.getLatestChecks(any(), any())).thenReturn(List.of());
+    when(kybCheckOverrideRepository.findByRegistryCode(any())).thenReturn(List.of());
   }
 
   @Test
@@ -178,5 +182,34 @@ class KybScreeningServiceTest {
             SELF_CERTIFICATION);
     assertThat(types).doesNotContain(DATA_CHANGED);
     verifyNoInteractions(eventPublisher);
+  }
+
+  @Test
+  void appliesOverride_forcesCheckToOverriddenResultWithReason() {
+    var boardMember = boardMemberOwner("38501010001", 50.0).build();
+    var shareholder = shareholderOwner("38501010002", 50.0).build();
+    var data = companyWith(boardMember, shareholder);
+    when(kybCheckOverrideRepository.findByRegistryCode("12345678"))
+        .thenReturn(
+            List.of(
+                KybCheckOverride.builder()
+                    .registryCode("12345678")
+                    .checkType(SINGLE_BOARD_MEMBER_OWNERSHIP)
+                    .forcedSuccess(true)
+                    .reason("single shareholder, two spousal beneficial owners")
+                    .createdBy("admin")
+                    .build()));
+
+    var results = kybScreeningService.screen(data);
+
+    var ownershipCheck =
+        results.stream()
+            .filter(check -> check.type() == SINGLE_BOARD_MEMBER_OWNERSHIP)
+            .findFirst()
+            .orElseThrow();
+    assertThat(ownershipCheck.success()).isTrue();
+    assertThat(ownershipCheck.metadata())
+        .containsEntry("overridden", true)
+        .containsEntry("overrideReason", "single shareholder, two spousal beneficial owners");
   }
 }

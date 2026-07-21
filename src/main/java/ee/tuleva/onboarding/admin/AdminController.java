@@ -22,6 +22,8 @@ import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublish
 import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublishingResult;
 import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
+import ee.tuleva.onboarding.kyb.KybCheckType;
+import ee.tuleva.onboarding.kyb.survey.ManualCompanyOnboardingService;
 import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -81,6 +83,7 @@ public class AdminController {
   private final FundPositionImportJob fundPositionImportJob;
   private final RedemptionBatchJob redemptionBatchJob;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
+  private final ManualCompanyOnboardingService manualCompanyOnboardingService;
   private final ParentChildLinkRegistrationService parentChildLinkRegistrationService;
   private final ee.tuleva.onboarding.investment.check.tracking.PeriodicTdAttributionService
       tdAttributionService;
@@ -304,6 +307,25 @@ public class AdminController {
     redemptionBatchJob.retryFailedPayout(id);
 
     return "Retried redemption payout for " + id;
+  }
+
+  @PostMapping("/manually-onboard-company")
+  public String manuallyOnboardCompany(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam String registryCode,
+      @RequestParam String personalCode,
+      @RequestParam List<KybCheckType> forcedChecks,
+      @RequestParam String reason) {
+
+    validateTokenWithOpsAccess(token);
+    log.info(
+        "Admin manually onboarding company: registryCode={}, forcedChecks={}, reason={}",
+        registryCode,
+        forcedChecks,
+        reason);
+    manualCompanyOnboardingService.onboard(registryCode, personalCode, forcedChecks, reason);
+
+    return "Manually onboarded company: registryCode=" + registryCode;
   }
 
   @PostMapping("/whitelist-iban")

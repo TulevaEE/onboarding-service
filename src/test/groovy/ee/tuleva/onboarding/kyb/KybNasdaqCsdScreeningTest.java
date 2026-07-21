@@ -47,7 +47,8 @@ class KybNasdaqCsdScreeningTest {
               new DualMemberOwnershipScreener(),
               new SingleBoardMemberOwnershipScreener()),
           mock(KybDataChangeDetector.class),
-          mock(ApplicationEventPublisher.class));
+          mock(ApplicationEventPublisher.class),
+          mock(KybCheckOverrideRepository.class));
   private final LegalEntityScreener screener =
       new LegalEntityScreener(
           ariregisterClient, mapper, screeningService, latestKybSurveyInputs, FIXED_CLOCK);

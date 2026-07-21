@@ -1,7 +1,11 @@
 package ee.tuleva.onboarding.kyb;
 
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.toMap;
+
 import ee.tuleva.onboarding.kyb.screener.*;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -15,9 +19,34 @@ public class KybScreeningService {
   private final List<KybScreener> screeners;
   private final KybDataChangeDetector dataChangeDetector;
   private final ApplicationEventPublisher eventPublisher;
+  private final KybCheckOverrideRepository kybCheckOverrideRepository;
 
   public List<KybCheck> validate(KybCompanyData companyData) {
-    return screeners.stream().map(s -> s.screen(companyData)).flatMap(Collection::stream).toList();
+    var results =
+        screeners.stream().map(s -> s.screen(companyData)).flatMap(Collection::stream).toList();
+    return applyOverrides(companyData.company().registryCode().value(), results);
+  }
+
+  private List<KybCheck> applyOverrides(String registryCode, List<KybCheck> results) {
+    var overrides = kybCheckOverrideRepository.findByRegistryCode(registryCode);
+    if (overrides.isEmpty()) {
+      return results;
+    }
+    var overrideByType =
+        overrides.stream().collect(toMap(KybCheckOverride::getCheckType, identity()));
+    return results.stream()
+        .map(check -> applyOverride(check, overrideByType.get(check.type())))
+        .toList();
+  }
+
+  private KybCheck applyOverride(KybCheck check, KybCheckOverride override) {
+    if (override == null) {
+      return check;
+    }
+    var metadata = new LinkedHashMap<>(check.metadata());
+    metadata.put("overridden", true);
+    metadata.put("overrideReason", override.getReason());
+    return new KybCheck(check.type(), override.isForcedSuccess(), metadata);
   }
 
   public List<KybCheck> screen(KybCompanyData companyData) {

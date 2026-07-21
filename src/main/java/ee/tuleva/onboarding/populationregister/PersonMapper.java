@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.populationregister;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.OTHER;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PERSONAL_CUSTODY;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY_CUSTODY;
-import static ee.tuleva.onboarding.populationregister.Guardian.CustodyValidity.INVALID;
-import static ee.tuleva.onboarding.populationregister.Guardian.CustodyValidity.VALID;
+import static ee.tuleva.onboarding.populationregister.CustodyValidity.INVALID;
+import static ee.tuleva.onboarding.populationregister.CustodyValidity.VALID;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.INACTIVE;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.UNKNOWN;
@@ -70,8 +70,8 @@ class PersonMapper {
     return new CustodyRight(
         require(custody.otherPersonCode(), "teineIsikIsikukood"),
         toCustodyType(custody.type()),
-        hasCode(custody.status(), VALID_CUSTODY_CODE),
-        hasCode(custody.otherPersonStatus(), ALIVE_CODE),
+        hasCode(custody.status(), VALID_CUSTODY_CODE) ? VALID : INVALID,
+        toStatus(custody.otherPersonStatus()),
         capitalizeName(custody.otherPersonFirstName()),
         capitalizeName(custody.otherPersonLastName()));
   }

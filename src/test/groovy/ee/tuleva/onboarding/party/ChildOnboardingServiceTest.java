@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.NO_CUSTODY;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.OK;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY_CUSTODY;
+import static ee.tuleva.onboarding.populationregister.CustodyValidity.VALID;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.PENDING;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -77,7 +78,7 @@ class ChildOnboardingServiceTest {
             custodyVerificationService.findChildrenWithAssetManagementCustody(
                 PARENT, CUSTODY_MAX_AGE))
         .willReturn(
-            List.of(new CustodyRight(CHILD, PROPERTY_CUSTODY, true, true, "Mari", "Maasikas")));
+            List.of(new CustodyRight(CHILD, PROPERTY_CUSTODY, VALID, ALIVE, "Mari", "Maasikas")));
 
     assertThat(service.findEligibleChildren(parent))
         .containsExactly(new EligibleChild(CHILD, "Mari", "Maasikas", false));
@@ -90,8 +91,8 @@ class ChildOnboardingServiceTest {
                 PARENT, CUSTODY_MAX_AGE))
         .willReturn(
             List.of(
-                new CustodyRight(CHILD, PROPERTY_CUSTODY, true, true, "Mari", "Maasikas"),
-                new CustodyRight(ADULT, PROPERTY_CUSTODY, true, true, "Jüri", "Tamm")));
+                new CustodyRight(CHILD, PROPERTY_CUSTODY, VALID, ALIVE, "Mari", "Maasikas"),
+                new CustodyRight(ADULT, PROPERTY_CUSTODY, VALID, ALIVE, "Jüri", "Tamm")));
 
     assertThat(service.findEligibleChildren(parent))
         .containsExactly(new EligibleChild(CHILD, "Mari", "Maasikas", false));
@@ -105,8 +106,8 @@ class ChildOnboardingServiceTest {
                 PARENT, CUSTODY_MAX_AGE))
         .willReturn(
             List.of(
-                new CustodyRight(CHILD, PROPERTY_CUSTODY, true, true, "Mari", "Maasikas"),
-                new CustodyRight(secondChild, PROPERTY_CUSTODY, true, true, "Jüri", "Tamm")));
+                new CustodyRight(CHILD, PROPERTY_CUSTODY, VALID, ALIVE, "Mari", "Maasikas"),
+                new CustodyRight(secondChild, PROPERTY_CUSTODY, VALID, ALIVE, "Jüri", "Tamm")));
     given(savingsFundOnboardingService.getOnboardingStatus(new PartyId(PERSON, CHILD)))
         .willReturn(PENDING);
 

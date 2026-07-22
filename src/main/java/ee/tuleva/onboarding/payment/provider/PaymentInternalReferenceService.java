@@ -36,7 +36,7 @@ public class PaymentInternalReferenceService {
     return mapper.writeValueAsString(paymentReference);
   }
 
-  static PartyId.Type inferPartyType(String code) {
+  public static PartyId.Type inferPartyType(String code) {
     return personalCodeValidator.isValid(code) ? PartyId.Type.PERSON : PartyId.Type.LEGAL_ENTITY;
   }
 }

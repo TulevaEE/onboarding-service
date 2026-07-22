@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.payment.event;
 
+import static java.util.Objects.requireNonNull;
+
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.user.User;
@@ -9,18 +11,11 @@ import lombok.Getter;
 @Getter
 public class SavingsPaymentCreatedEvent extends PaymentEvent {
 
-  private final String recipientPersonalCode;
-  private final PartyId.Type recipientPartyType;
+  private final PartyId recipient;
 
-  public SavingsPaymentCreatedEvent(
-      Object source,
-      User user,
-      Locale locale,
-      String recipientPersonalCode,
-      PartyId.Type recipientPartyType) {
+  public SavingsPaymentCreatedEvent(Object source, User user, Locale locale, PartyId recipient) {
     super(source, user, locale);
-    this.recipientPersonalCode = recipientPersonalCode;
-    this.recipientPartyType = recipientPartyType;
+    this.recipient = requireNonNull(recipient);
   }
 
   @Override

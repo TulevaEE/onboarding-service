@@ -5,19 +5,14 @@ import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
-import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.mandate.email.PillarSuggestion;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
-import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent;
 import ee.tuleva.onboarding.payment.event.PaymentEvent;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCancelledEvent;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
-import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.User;
 import java.util.Map;
@@ -38,67 +33,62 @@ public class PaymentEmailSender {
   private final JwtTokenUtil jwtTokenUtil;
   private final ContactDetailsService contactDetailsService;
   private final SecondPillarPaymentRateService paymentRateService;
-  private final SavingsFundRecipientResolver savingsFundRecipientResolver;
+  private final SavingsFundSuccessEmailResolver savingsFundSuccessEmailResolver;
 
-  // TODO: can we make this @Async?
+  // TODO: can we make these @Async?
   @EventListener
-  public void sendEmails(PaymentEvent event) {
+  public void onThirdPillarPaymentCreated(PaymentCreatedEvent event) {
     if (event.getPaymentType() == MEMBER_FEE) {
       return;
     }
+    withSecurityContext(
+        event.getUser(),
+        () ->
+            emailService.sendThirdPillarPaymentSuccessEmail(
+                event.getUser(),
+                event.getPayment(),
+                pillarSuggestionFor(event.getUser()),
+                event.getLocale()));
+  }
 
+  @EventListener
+  public void onSavingsPaymentCreated(SavingsPaymentCreatedEvent event) {
+    sendSavingsFundEmail(event, savingsFundSuccessEmailResolver.resolve(event));
+  }
+
+  @EventListener
+  public void onSavingsPaymentCancelled(SavingsPaymentCancelledEvent event) {
+    sendSavingsFundEmail(event, SavingsFundPaymentEmail.cancelled());
+  }
+
+  @EventListener
+  public void onSavingsPaymentFailed(SavingsPaymentFailedEvent event) {
+    sendSavingsFundEmail(event, SavingsFundPaymentEmail.failed());
+  }
+
+  private void sendSavingsFundEmail(PaymentEvent event, SavingsFundPaymentEmail email) {
+    withSecurityContext(
+        event.getUser(),
+        () ->
+            emailService.sendSavingsFundPaymentEmail(
+                event.getUser(), email, pillarSuggestionFor(event.getUser()), event.getLocale()));
+  }
+
+  private PillarSuggestion pillarSuggestionFor(User user) {
+    return new PillarSuggestion(
+        user,
+        contactDetailsService.getContactDetails(user),
+        conversionService.getConversion(user),
+        paymentRateService.getPaymentRates(user));
+  }
+
+  private void withSecurityContext(User user, Runnable action) {
     try {
-      setupSecurityContext(event.getUser());
-      if (PaymentData.PaymentType.SAVINGS.equals(event.getPaymentType())) {
-        sendSavingsFundEmail(event);
-      } else {
-        sendThirdPillarEmail((PaymentCreatedEvent) event);
-      }
-
+      setupSecurityContext(user);
+      action.run();
     } finally {
       SecurityContextHolder.clearContext();
     }
-  }
-
-  private void sendSavingsFundEmail(PaymentEvent event) {
-    User user = event.getUser();
-    ContactDetails contactDetails = contactDetailsService.getContactDetails(user);
-    ConversionResponse conversion = conversionService.getConversion(user);
-    PaymentRates paymentRates = paymentRateService.getPaymentRates(user);
-
-    PillarSuggestion pillarSuggestion =
-        new PillarSuggestion(user, contactDetails, conversion, paymentRates);
-
-    EmailType emailType;
-    String recipientType = null;
-    String recipientName = null;
-    if (event instanceof SavingsPaymentFailedEvent) {
-      emailType = EmailType.SAVINGS_FUND_PAYMENT_FAIL;
-    } else if (event instanceof SavingsPaymentCancelledEvent) {
-      emailType = EmailType.SAVINGS_FUND_PAYMENT_CANCEL;
-    } else {
-      emailType = EmailType.SAVINGS_FUND_PAYMENT_SUCCESS;
-      var recipient =
-          savingsFundRecipientResolver.resolve(user, (SavingsPaymentCreatedEvent) event);
-      recipientType = recipient.type().mergeValue();
-      recipientName = recipient.name();
-    }
-
-    emailService.sendSavingsFundPaymentEmail(
-        user, emailType, pillarSuggestion, event.getLocale(), recipientType, recipientName);
-  }
-
-  private void sendThirdPillarEmail(PaymentCreatedEvent event) {
-    User user = event.getUser();
-    ContactDetails contactDetails = contactDetailsService.getContactDetails(user);
-    ConversionResponse conversion = conversionService.getConversion(user);
-    PaymentRates paymentRates = paymentRateService.getPaymentRates(event.getUser());
-
-    PillarSuggestion pillarSuggestion =
-        new PillarSuggestion(user, contactDetails, conversion, paymentRates);
-
-    emailService.sendThirdPillarPaymentSuccessEmail(
-        user, event.getPayment(), pillarSuggestion, event.getLocale());
   }
 
   private void setupSecurityContext(User user) {

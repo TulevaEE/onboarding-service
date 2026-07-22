@@ -29,7 +29,7 @@ class SavingsFundSuccessEmailResolverTest {
   @InjectMocks private SavingsFundSuccessEmailResolver resolver;
 
   private final User payer =
-      User.builder().personalCode("38812121215").firstName("Jordan").lastName("Valdma").build();
+      User.builder().personalCode("38888888888").firstName("Parent").lastName("Tester").build();
 
   private SavingsPaymentCreatedEvent event(PartyId recipient) {
     return new SavingsPaymentCreatedEvent(this, payer, ENGLISH, recipient);
@@ -45,8 +45,8 @@ class SavingsFundSuccessEmailResolverTest {
 
   @Test
   void paymentForRepresentedChildResolvesToChildEmailWithChildName() {
-    String childCode = "51107121760";
-    User child = User.builder().personalCode(childCode).firstName("Kid").lastName("Valdma").build();
+    String childCode = "51111111111";
+    User child = User.builder().personalCode(childCode).firstName("Kid").lastName("Tester").build();
     given(parentChildLinkService.isActiveRepresentation(payer.getPersonalCode(), childCode))
         .willReturn(true);
     given(partyResolver.resolve(new PartyId(PERSON, childCode))).willReturn(Optional.of(child));

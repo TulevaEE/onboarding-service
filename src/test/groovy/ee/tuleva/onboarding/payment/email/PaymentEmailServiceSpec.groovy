@@ -109,7 +109,7 @@ class PaymentEmailServiceSpec extends Specification {
     where:
     email                                               | templateName
     SavingsFundPaymentEmail.personSuccess()             | "savings_fund_payment_success_en"
-    SavingsFundPaymentEmail.childSuccess("Kid Valdma")  | "savings_fund_payment_success_en"
+    SavingsFundPaymentEmail.childSuccess("Kid Tester")  | "savings_fund_payment_success_en"
     SavingsFundPaymentEmail.companySuccess("Tuleva OÜ") | "savings_fund_payment_success_en"
     SavingsFundPaymentEmail.failed()                    | "savings_fund_payment_failed_en"
     SavingsFundPaymentEmail.cancelled()                 | "savings_fund_payment_cancelled_en"
@@ -127,7 +127,7 @@ class PaymentEmailServiceSpec extends Specification {
         "fname"              : user.firstName,
         "lname"              : user.lastName,
         "recipientType"      : "child",
-        "recipientName"      : "Kid Valdma",
+        "recipientName"      : "Kid Tester",
         "suggestPaymentRate" : pillarSuggestion.suggestPaymentRate,
         "suggestMembership"  : pillarSuggestion.suggestMembership,
         "suggestSecondPillar": pillarSuggestion.suggestSecondPillar,
@@ -141,7 +141,7 @@ class PaymentEmailServiceSpec extends Specification {
     }
 
     when:
-    paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Valdma"), pillarSuggestion, locale)
+    paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Tester"), pillarSuggestion, locale)
 
     then:
     1 * emailService.send(user, message, "savings_fund_payment_success_en") >> Optional.of(mandrillResponse)

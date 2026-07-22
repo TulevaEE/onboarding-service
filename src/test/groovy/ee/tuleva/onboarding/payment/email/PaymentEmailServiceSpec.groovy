@@ -108,14 +108,14 @@ class PaymentEmailServiceSpec extends Specification {
 
     where:
     email                                               | templateName
-    SavingsFundPaymentEmail.personSuccess()             | "savings_fund_payment_success_en"
-    SavingsFundPaymentEmail.childSuccess("Kid Tester")  | "savings_fund_payment_success_en"
-    SavingsFundPaymentEmail.companySuccess("Tuleva OÜ") | "savings_fund_payment_success_en"
+    SavingsFundPaymentEmail.personSuccess()             | "savings_fund_payment_success_person_en"
+    SavingsFundPaymentEmail.childSuccess("Kid Tester")  | "savings_fund_payment_success_child_en"
+    SavingsFundPaymentEmail.companySuccess("Tuleva OÜ") | "savings_fund_payment_success_company_en"
     SavingsFundPaymentEmail.failed()                    | "savings_fund_payment_failed_en"
     SavingsFundPaymentEmail.cancelled()                 | "savings_fund_payment_cancelled_en"
   }
 
-  def "savings fund payment email includes recipient type and name when present"() {
+  def "savings fund payment email includes the recipient name when present"() {
     given:
     def user = sampleUser().build()
     def conversion = notConverted()
@@ -126,7 +126,6 @@ class PaymentEmailServiceSpec extends Specification {
     var mergeVars = [
         "fname"              : user.firstName,
         "lname"              : user.lastName,
-        "recipientType"      : "child",
         "recipientName"      : "Kid Tester",
         "suggestPaymentRate" : pillarSuggestion.suggestPaymentRate,
         "suggestMembership"  : pillarSuggestion.suggestMembership,
@@ -144,8 +143,8 @@ class PaymentEmailServiceSpec extends Specification {
     paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Tester"), pillarSuggestion, locale)
 
     then:
-    1 * emailService.send(user, message, "savings_fund_payment_success_en") >> Optional.of(mandrillResponse)
-    1 * emailService.newMandrillMessage(user.email, "savings_fund_payment_success_en", mergeVars, tags, null) >> message
-    1 * emailPersistenceService.save(user, mandrillResponse.id, SAVINGS_FUND_PAYMENT_SUCCESS, mandrillResponse.status)
+    1 * emailService.send(user, message, "savings_fund_payment_success_child_en") >> Optional.of(mandrillResponse)
+    1 * emailService.newMandrillMessage(user.email, "savings_fund_payment_success_child_en", mergeVars, tags, null) >> message
+    1 * emailPersistenceService.save(user, mandrillResponse.id, SAVINGS_FUND_PAYMENT_SUCCESS_CHILD, mandrillResponse.status)
   }
 }

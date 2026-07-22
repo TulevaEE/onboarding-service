@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.payment.savings;
 
-import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
+import static ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService.inferPartyType;
 
 import com.nimbusds.jose.JWSObject;
 import ee.tuleva.onboarding.party.PartyId;
@@ -79,7 +79,9 @@ public class SavingsCallbackService {
   }
 
   private PartyId recipientParty(PaymentReference ref) {
-    var partyType = Optional.ofNullable(ref.getRecipientPartyType()).orElse(PERSON);
+    var partyType =
+        Optional.ofNullable(ref.getRecipientPartyType())
+            .orElseGet(() -> inferPartyType(ref.getRecipientPersonalCode()));
     return new PartyId(partyType, ref.getRecipientPersonalCode());
   }
 }

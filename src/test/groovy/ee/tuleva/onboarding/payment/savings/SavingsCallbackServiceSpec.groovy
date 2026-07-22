@@ -103,6 +103,24 @@ class SavingsCallbackServiceSpec extends Specification {
     returnedPayment.isPresent()
   }
 
+  def "company payment with a legacy reference missing recipientPartyType infers LEGAL_ENTITY from the registry code"() {
+    given:
+    def serializedToken = aSerializedLegacyCompanySavingsPaymentToken
+    def mockUser = sampleUser().personalCode("38812121215").build()
+    def paymentId = UUID.randomUUID()
+    1 * savingFundPaymentRepository.findRecentPayments(
+        aCompanySavingsInternalReference.description
+    ) >> []
+    1 * userService.findByPersonalCode(aCompanySavingsInternalReference.personalCode) >> Optional.of(mockUser)
+    when:
+    def returnedPayment = savingsCallbackService.processToken(serializedToken)
+    then:
+    1 * savingFundPaymentRepository.savePaymentData(_) >> paymentId
+    1 * savingFundPaymentRepository.attachParty(paymentId, new PartyId(PartyId.Type.LEGAL_ENTITY, "12345678"))
+    1 * eventPublisher.publishEvent({ it.recipient == new PartyId(PartyId.Type.LEGAL_ENTITY, "12345678") })
+    returnedPayment.isPresent()
+  }
+
   def "if payment already exists then no payment is saved"() {
     given:
     def serializedToken = aSerializedSavingsPaymentToken

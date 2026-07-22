@@ -167,7 +167,8 @@ public sealed interface KycSurveyResponseItem extends Serializable {
     PARENT_INCOME_AND_SAVINGS,
     GIFTS,
     INHERITANCE,
-    CHILD_OWN
+    CHILD_OWN,
+    CHILD_BENEFIT
   }
 
   enum TermsAccepted {

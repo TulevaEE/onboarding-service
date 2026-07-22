@@ -51,10 +51,14 @@ public class PaymentEmailService {
       EmailType emailType,
       PillarSuggestion pillarSuggestion,
       Locale locale,
+      String recipientType,
       String recipientName) {
     String templateName = emailType.getTemplateName(locale);
     Map<String, Object> mergeVars = new HashMap<>(getNameMergeVars(user));
     mergeVars.putAll(getPillarSuggestionMergeVars(pillarSuggestion));
+    if (recipientType != null) {
+      mergeVars.put("recipientType", recipientType);
+    }
     if (recipientName != null) {
       mergeVars.put("recipientName", recipientName);
     }

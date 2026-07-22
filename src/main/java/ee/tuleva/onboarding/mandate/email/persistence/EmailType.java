@@ -38,9 +38,6 @@ public enum EmailType {
   CAPITAL_TRANSFER_APPROVED_BY_BOARD("capital_transfer_approved_by_board"),
 
   SAVINGS_FUND_PAYMENT_SUCCESS("savings_fund_payment_success"),
-  SAVINGS_FUND_PAYMENT_SUCCESS_PERSON("savings_fund_payment_success_person"),
-  SAVINGS_FUND_PAYMENT_SUCCESS_CHILD("savings_fund_payment_success_child"),
-  SAVINGS_FUND_PAYMENT_SUCCESS_COMPANY("savings_fund_payment_success_company"),
   SAVINGS_FUND_PAYMENT_CANCEL("savings_fund_payment_cancelled"),
   SAVINGS_FUND_PAYMENT_FAIL("savings_fund_payment_failed"),
 

@@ -99,18 +99,20 @@ class PaymentEmailServiceSpec extends Specification {
     }
 
     when:
-    paymentEmailService.sendSavingsFundPaymentEmail(user, emailType, pillarSuggestion, locale, null, null)
+    paymentEmailService.sendSavingsFundPaymentEmail(user, email, pillarSuggestion, locale)
 
     then:
     1 * emailService.send(user, message, templateName) >> Optional.of(mandrillResponse)
-    1 * emailService.newMandrillMessage(user.email, templateName, mergeVars, tags, null) >> message
-    1 * emailPersistenceService.save(user, mandrillResponse.id, emailType, mandrillResponse.status)
+    1 * emailService.newMandrillMessage(user.email, templateName, mergeVars + email.mergeVars(), tags, null) >> message
+    1 * emailPersistenceService.save(user, mandrillResponse.id, email.emailType(), mandrillResponse.status)
 
     where:
-    emailType                    | templateName
-    SAVINGS_FUND_PAYMENT_SUCCESS | "savings_fund_payment_success_en"
-    SAVINGS_FUND_PAYMENT_FAIL    | "savings_fund_payment_failed_en"
-    SAVINGS_FUND_PAYMENT_CANCEL  | "savings_fund_payment_cancelled_en"
+    email                                               | templateName
+    SavingsFundPaymentEmail.personSuccess()             | "savings_fund_payment_success_en"
+    SavingsFundPaymentEmail.childSuccess("Kid Valdma")  | "savings_fund_payment_success_en"
+    SavingsFundPaymentEmail.companySuccess("Tuleva OÜ") | "savings_fund_payment_success_en"
+    SavingsFundPaymentEmail.failed()                    | "savings_fund_payment_failed_en"
+    SavingsFundPaymentEmail.cancelled()                 | "savings_fund_payment_cancelled_en"
   }
 
   def "savings fund payment email includes recipient type and name when present"() {
@@ -139,7 +141,7 @@ class PaymentEmailServiceSpec extends Specification {
     }
 
     when:
-    paymentEmailService.sendSavingsFundPaymentEmail(user, SAVINGS_FUND_PAYMENT_SUCCESS, pillarSuggestion, locale, "child", "Kid Valdma")
+    paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Valdma"), pillarSuggestion, locale)
 
     then:
     1 * emailService.send(user, message, "savings_fund_payment_success_en") >> Optional.of(mandrillResponse)

@@ -13,7 +13,6 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.Optional;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -65,27 +64,22 @@ public class SavingsCallbackService {
 
     var paymentId = savingFundPaymentRepository.savePaymentData(payment);
     var ref = token.getMerchantReference();
+    var recipient = recipientParty(ref);
 
-    attachRecipientParty(paymentId, ref);
+    savingFundPaymentRepository.attachParty(paymentId, recipient);
 
     userService
         .findByPersonalCode(ref.getPersonalCode())
         .ifPresent(
             user ->
                 eventPublisher.publishEvent(
-                    new SavingsPaymentCreatedEvent(
-                        this,
-                        user,
-                        ref.getLocale(),
-                        ref.getRecipientPersonalCode(),
-                        Optional.ofNullable(ref.getRecipientPartyType()).orElse(PERSON))));
+                    new SavingsPaymentCreatedEvent(this, user, ref.getLocale(), recipient)));
 
     return Optional.of(payment);
   }
 
-  private void attachRecipientParty(UUID paymentId, PaymentReference ref) {
+  private PartyId recipientParty(PaymentReference ref) {
     var partyType = Optional.ofNullable(ref.getRecipientPartyType()).orElse(PERSON);
-    var partyId = new PartyId(partyType, ref.getRecipientPersonalCode());
-    savingFundPaymentRepository.attachParty(paymentId, partyId);
+    return new PartyId(partyType, ref.getRecipientPersonalCode());
   }
 }

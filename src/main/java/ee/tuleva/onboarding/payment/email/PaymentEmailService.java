@@ -47,21 +47,11 @@ public class PaymentEmailService {
   }
 
   void sendSavingsFundPaymentEmail(
-      User user,
-      EmailType emailType,
-      PillarSuggestion pillarSuggestion,
-      Locale locale,
-      String recipientType,
-      String recipientName) {
-    String templateName = emailType.getTemplateName(locale);
+      User user, SavingsFundPaymentEmail email, PillarSuggestion pillarSuggestion, Locale locale) {
+    String templateName = email.emailType().getTemplateName(locale);
     Map<String, Object> mergeVars = new HashMap<>(getNameMergeVars(user));
     mergeVars.putAll(getPillarSuggestionMergeVars(pillarSuggestion));
-    if (recipientType != null) {
-      mergeVars.put("recipientType", recipientType);
-    }
-    if (recipientName != null) {
-      mergeVars.put("recipientName", recipientName);
-    }
+    mergeVars.putAll(email.mergeVars());
 
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
@@ -71,7 +61,7 @@ public class PaymentEmailService {
         .ifPresent(
             response ->
                 emailPersistenceService.save(
-                    user, response.getId(), emailType, response.getStatus()));
+                    user, response.getId(), email.emailType(), response.getStatus()));
   }
 
   private Map<String, Object> getMergeVars(

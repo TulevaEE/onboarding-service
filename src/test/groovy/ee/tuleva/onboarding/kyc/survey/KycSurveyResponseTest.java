@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.kyc.survey;
 
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.IDENTITY_ONLY;
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.PERSONAL_ONBOARDING;
+import static ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.FundingSource.CHILD_BENEFIT;
 import static ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.FundingSource.PARENT_INCOME_AND_SAVINGS;
 import static ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.InvestmentGoal.EDUCATION;
 import static ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.InvestmentGoal.FIRST_HOME;
@@ -173,6 +174,27 @@ class KycSurveyResponseTest {
     var roundTripped =
         objectMapper.readValue(objectMapper.writeValueAsString(response), KycSurveyResponse.class);
     assertThat(roundTripped).isEqualTo(response);
+  }
+
+  @Test
+  void fundingSourcesAcceptChildBenefit() throws Exception {
+    var json =
+        """
+        {
+          "answers": [
+            {
+              "type": "FUNDING_SOURCES",
+              "value": [{ "type": "OPTION", "value": "CHILD_BENEFIT" }]
+            }
+          ]
+        }
+        """;
+
+    var response = objectMapper.readValue(json, KycSurveyResponse.class);
+
+    assertThat(response.answers())
+        .isEqualTo(
+            List.of(new FundingSources(List.of(new FundingSourceValueItem.Option(CHILD_BENEFIT)))));
   }
 
   @Test

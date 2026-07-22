@@ -1,12 +1,8 @@
 package ee.tuleva.onboarding.payment.email;
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_PAYMENT_SUCCESS_CHILD;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_PAYMENT_SUCCESS_COMPANY;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_PAYMENT_SUCCESS_PERSON;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.party.PartyId;
@@ -18,28 +14,34 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class SavingsFundSuccessEmailResolver {
+public class SavingsFundRecipientResolver {
 
   private final ParentChildLinkService parentChildLinkService;
   private final PartyResolver partyResolver;
 
-  record ResolvedEmail(EmailType emailType, String recipientName) {}
+  public enum RecipientType {
+    PERSON,
+    CHILD,
+    COMPANY;
 
-  ResolvedEmail resolve(User payer, SavingsPaymentCreatedEvent event) {
+    String mergeValue() {
+      return name().toLowerCase();
+    }
+  }
+
+  public record Recipient(RecipientType type, String name) {}
+
+  public Recipient resolve(User payer, SavingsPaymentCreatedEvent event) {
     String recipientCode = event.getRecipientPersonalCode();
-    PartyId.Type recipientType = event.getRecipientPartyType();
+    PartyId.Type recipientPartyType = event.getRecipientPartyType();
 
-    if (recipientType == LEGAL_ENTITY) {
-      return new ResolvedEmail(
-          SAVINGS_FUND_PAYMENT_SUCCESS_COMPANY, resolveName(LEGAL_ENTITY, recipientCode));
+    if (recipientPartyType == LEGAL_ENTITY) {
+      return new Recipient(RecipientType.COMPANY, resolveName(LEGAL_ENTITY, recipientCode));
     }
-
     if (isForRepresentedChild(payer, recipientCode)) {
-      return new ResolvedEmail(
-          SAVINGS_FUND_PAYMENT_SUCCESS_CHILD, resolveName(PERSON, recipientCode));
+      return new Recipient(RecipientType.CHILD, resolveName(PERSON, recipientCode));
     }
-
-    return new ResolvedEmail(SAVINGS_FUND_PAYMENT_SUCCESS_PERSON, null);
+    return new Recipient(RecipientType.PERSON, null);
   }
 
   private boolean isForRepresentedChild(User payer, String recipientCode) {

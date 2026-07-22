@@ -38,7 +38,7 @@ public class PaymentEmailSender {
   private final JwtTokenUtil jwtTokenUtil;
   private final ContactDetailsService contactDetailsService;
   private final SecondPillarPaymentRateService paymentRateService;
-  private final SavingsFundSuccessEmailResolver savingsFundSuccessEmailResolver;
+  private final SavingsFundRecipientResolver savingsFundRecipientResolver;
 
   // TODO: can we make this @Async?
   @EventListener
@@ -70,20 +70,22 @@ public class PaymentEmailSender {
         new PillarSuggestion(user, contactDetails, conversion, paymentRates);
 
     EmailType emailType;
+    String recipientType = null;
     String recipientName = null;
     if (event instanceof SavingsPaymentFailedEvent) {
       emailType = EmailType.SAVINGS_FUND_PAYMENT_FAIL;
     } else if (event instanceof SavingsPaymentCancelledEvent) {
       emailType = EmailType.SAVINGS_FUND_PAYMENT_CANCEL;
     } else {
-      var resolved =
-          savingsFundSuccessEmailResolver.resolve(user, (SavingsPaymentCreatedEvent) event);
-      emailType = resolved.emailType();
-      recipientName = resolved.recipientName();
+      emailType = EmailType.SAVINGS_FUND_PAYMENT_SUCCESS;
+      var recipient =
+          savingsFundRecipientResolver.resolve(user, (SavingsPaymentCreatedEvent) event);
+      recipientType = recipient.type().mergeValue();
+      recipientName = recipient.name();
     }
 
     emailService.sendSavingsFundPaymentEmail(
-        user, emailType, pillarSuggestion, event.getLocale(), recipientName);
+        user, emailType, pillarSuggestion, event.getLocale(), recipientType, recipientName);
   }
 
   private void sendThirdPillarEmail(PaymentCreatedEvent event) {

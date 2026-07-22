@@ -213,7 +213,7 @@ class ChildRoleAwareKycIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.citizenship[0]").value("EE"))
         .andExpect(jsonPath("$.citizenship[1]").value("FI"))
-        .andExpect(jsonPath("$.email").value(child.getEmail()))
+        .andExpect(jsonPath("$.email").value("survey@example.com"))
         .andExpect(jsonPath("$.complete").value(true));
 
     var parentSelf =

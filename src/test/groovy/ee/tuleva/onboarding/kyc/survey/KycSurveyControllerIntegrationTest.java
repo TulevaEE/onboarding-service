@@ -240,8 +240,8 @@ class KycSurveyControllerIntegrationTest {
         .andExpect(jsonPath("$.address.city").value("Tallinn"))
         .andExpect(jsonPath("$.address.postalCode").value("10115"))
         .andExpect(jsonPath("$.address.countryCode").value("EE"))
-        .andExpect(jsonPath("$.email").value(user.getEmail()))
-        .andExpect(jsonPath("$.phoneNumber").value(user.getPhoneNumber()))
+        .andExpect(jsonPath("$.email").value("test@example.com"))
+        .andExpect(jsonPath("$.phoneNumber").value("+37255555555"))
         .andExpect(jsonPath("$.pepSelfDeclaration").value("IS_NOT_PEP"))
         .andExpect(jsonPath("$.complete").value(true))
         .andExpect(jsonPath("$.updatedAt").isNotEmpty());
@@ -395,6 +395,45 @@ class KycSurveyControllerIntegrationTest {
         .andExpect(jsonPath("$.citizenship").doesNotExist())
         .andExpect(jsonPath("$.complete").value(false))
         .andExpect(jsonPath("$.updatedAt").doesNotExist());
+  }
+
+  @Test
+  void getIdentity_completesFromSurveyAloneForUserWithoutContactDetailsOnFile() throws Exception {
+    user.setEmail(null);
+    user.setPhoneNumber(null);
+    userRepository.save(user);
+
+    String companyFlowIdentitySurvey =
+        """
+        {
+          "answers": [
+            { "type": "CITIZENSHIP", "value": { "type": "COUNTRIES", "value": ["EE"] } },
+            {
+              "type": "ADDRESS",
+              "value": {
+                "type": "ADDRESS",
+                "value": {
+                  "street": "123 Main St",
+                  "city": "Tallinn",
+                  "postalCode": "10115",
+                  "countryCode": "EE"
+                }
+              }
+            },
+            { "type": "EMAIL", "value": { "type": "TEXT", "value": "founder@example.com" } },
+            { "type": "PEP_SELF_DECLARATION", "value": { "type": "OPTION", "value": "IS_NOT_PEP" } }
+          ],
+          "purpose": "IDENTITY_ONLY"
+        }
+        """;
+    submitSurvey(companyFlowIdentitySurvey);
+
+    mockMvc
+        .perform(get("/v1/kyc/identity").with(authentication(authentication)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.email").value("founder@example.com"))
+        .andExpect(jsonPath("$.phoneNumber").doesNotExist())
+        .andExpect(jsonPath("$.complete").value(true));
   }
 
   @Test

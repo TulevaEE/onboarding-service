@@ -43,11 +43,17 @@ public record KycSurveyResponse(
   }
 
   public Optional<String> email() {
-    return firstAnswer(Email.class).map(Email::value).map(EmailValue::value);
+    return firstAnswer(Email.class)
+        .map(Email::value)
+        .map(EmailValue::value)
+        .filter(email -> !email.isBlank());
   }
 
   public Optional<String> phoneNumber() {
-    return firstAnswer(PhoneNumber.class).map(PhoneNumber::value).map(TextValue::value);
+    return firstAnswer(PhoneNumber.class)
+        .map(PhoneNumber::value)
+        .map(TextValue::value)
+        .filter(phoneNumber -> !phoneNumber.isBlank());
   }
 
   public Optional<PepStatus> pepSelfDeclaration() {

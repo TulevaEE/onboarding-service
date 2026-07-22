@@ -19,6 +19,10 @@ server:
 spring:
   application:
     name: 'Onboarding Service'
+  http:
+    clients:
+      connect-timeout: 10s
+      read-timeout: 60s
   lifecycle:
     timeout-per-shutdown-phase: 60s
   modulith:
@@ -60,6 +64,8 @@ mailchimp:
   listId: abc
 opensanctions:
   url: https://yente.tuleva.ee
+  connect-timeout: 5s
+  read-timeout: 15s
 
 eodhd:
   api-token: ${EODHD_API_TOKEN:}

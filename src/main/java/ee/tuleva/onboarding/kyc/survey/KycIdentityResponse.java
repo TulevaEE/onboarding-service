@@ -51,8 +51,8 @@ public record KycIdentityResponse(
     return new KycIdentityResponse(
         survey.citizenship().orElse(null),
         survey.address().map(Address::from).orElse(null),
-        user.getEmail(),
-        user.getPhoneNumber(),
+        survey.email().orElse(user.getEmail()),
+        survey.phoneNumber().orElse(user.getPhoneNumber()),
         survey.pepSelfDeclaration().orElse(null),
         updatedAt);
   }

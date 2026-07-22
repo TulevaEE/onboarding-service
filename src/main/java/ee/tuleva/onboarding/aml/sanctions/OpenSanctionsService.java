@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyb.CompanyDto;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -27,13 +28,18 @@ public class OpenSanctionsService implements PepAndSanctionCheckService {
 
   private final RestTemplate restTemplate;
   private final JsonMapper objectMapper;
+  private final String baseUrl;
 
-  @Value("${opensanctions.url}")
-  private String baseUrl;
-
-  public OpenSanctionsService(RestTemplateBuilder restTemplateBuilder, JsonMapper objectMapper) {
-    this.restTemplate = restTemplateBuilder.rootUri(baseUrl).build();
+  public OpenSanctionsService(
+      RestTemplateBuilder restTemplateBuilder,
+      JsonMapper objectMapper,
+      @Value("${opensanctions.url}") String baseUrl,
+      @Value("${opensanctions.connect-timeout:5s}") Duration connectTimeout,
+      @Value("${opensanctions.read-timeout:15s}") Duration readTimeout) {
+    this.restTemplate =
+        restTemplateBuilder.connectTimeout(connectTimeout).readTimeout(readTimeout).build();
     this.objectMapper = objectMapper;
+    this.baseUrl = baseUrl;
   }
 
   @Override

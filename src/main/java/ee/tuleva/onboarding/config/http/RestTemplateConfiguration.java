@@ -12,7 +12,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.client.BufferingClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpResponse;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 @Configuration
@@ -33,8 +32,8 @@ public class RestTemplateConfiguration {
   @Bean
   RestTemplateCustomizer loggingRestTemplateCustomizer() {
     return restTemplate -> {
-      SimpleClientHttpRequestFactory simpleClient = new SimpleClientHttpRequestFactory();
-      restTemplate.setRequestFactory(new BufferingClientHttpRequestFactory(simpleClient));
+      restTemplate.setRequestFactory(
+          new BufferingClientHttpRequestFactory(restTemplate.getRequestFactory()));
       restTemplate
           .getInterceptors()
           .add(

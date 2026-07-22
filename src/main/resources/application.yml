@@ -305,8 +305,12 @@ spring:
     username: ${JDBC_DATABASE_USERNAME}
     password: ${JDBC_DATABASE_PASSWORD}
     hikari:
-      maximum-pool-size: 50
-      connection-timeout: 30000
+      # maximum-pool-size is set per-environment via the
+      # SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE env var (prod=40, staging=30) — single
+      # source of truth, do not also set it here (that 50 was dead/overridden config).
+      connection-timeout: 10000
+      leak-detection-threshold: 10000
+      pool-name: onboarding-pool
   flyway:
     baseline-on-migrate: false
 server:

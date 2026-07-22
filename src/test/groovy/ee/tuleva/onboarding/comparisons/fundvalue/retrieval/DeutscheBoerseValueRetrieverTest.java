@@ -373,6 +373,103 @@ class DeutscheBoerseValueRetrieverTest {
   }
 
   @Test
+  void keepsBarCloseWhenLastPriceIsRetailSessionPrintFromPreviousEvening() {
+    // 2026-07-22 04:00 UTC = 06:00 CEST: 2026-07-21 is finalized, quote box still shows a
+    // retail session print from 20:05 CEST the previous evening
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-07-22T04:00:00Z"), UTC));
+    var isin = FundTicker.getXetraIsins().getFirst();
+    var bars =
+        """
+        {
+          "isin": "%s",
+          "data": [
+            {"date": "2026-07-20", "open": 8.701, "close": 8.81, "high": 8.849, "low": 8.69, "turnoverPieces": 176115, "turnoverEuro": 1543846.72},
+            {"date": "2026-07-21", "open": 8.944, "close": 9.002, "high": 9.002, "low": 8.927, "turnoverPieces": 135778, "turnoverEuro": 1215393.01}
+          ],
+          "totalCount": 2
+        }
+        """
+            .formatted(isin);
+
+    server
+        .expect(requestTo(priceHistoryUrl(isin, "2026-07-20", "2026-07-21")))
+        .andRespond(withSuccess(bars, APPLICATION_JSON));
+    server
+        .expect(requestTo(quoteBoxUrl(isin)))
+        .andRespond(
+            withSuccess(
+                quoteBoxResponse(isin, "9.045", "2026-07-21T18:05:14Z", "R"), APPLICATION_JSON));
+    expectNoDataForOtherIsins(isin, "2026-07-20", "2026-07-21");
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 7, 20), LocalDate.of(2026, 7, 21));
+
+    var updatedAt = Instant.parse("2026-07-22T04:00:00Z");
+    assertThat(result.stream().filter(value -> value.key().equals(isin + ".XETR")))
+        .containsExactlyInAnyOrder(
+            new FundValue(
+                isin + ".XETR",
+                LocalDate.of(2026, 7, 20),
+                new BigDecimal("8.81"),
+                "DEUTSCHE_BOERSE",
+                updatedAt),
+            new FundValue(
+                isin + ".XETR",
+                LocalDate.of(2026, 7, 21),
+                new BigDecimal("9.002"),
+                "DEUTSCHE_BOERSE",
+                updatedAt));
+  }
+
+  @Test
+  void doesNotHoldBackBarCloseWhenQuoteBoxServesRetailPrintFromToday() {
+    // 2026-07-22 06:30 UTC = 08:30 CEST: the retail early session prints before Xetra opens
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-07-22T06:30:00Z"), UTC));
+    var isin = FundTicker.getXetraIsins().getFirst();
+    var bars =
+        """
+        {
+          "isin": "%s",
+          "data": [
+            {"date": "2026-07-20", "open": 8.701, "close": 8.81, "high": 8.849, "low": 8.69, "turnoverPieces": 176115, "turnoverEuro": 1543846.72},
+            {"date": "2026-07-21", "open": 8.944, "close": 9.002, "high": 9.002, "low": 8.927, "turnoverPieces": 135778, "turnoverEuro": 1215393.01}
+          ],
+          "totalCount": 2
+        }
+        """
+            .formatted(isin);
+
+    server
+        .expect(requestTo(priceHistoryUrl(isin, "2026-07-20", "2026-07-21")))
+        .andRespond(withSuccess(bars, APPLICATION_JSON));
+    server
+        .expect(requestTo(quoteBoxUrl(isin)))
+        .andRespond(
+            withSuccess(
+                quoteBoxResponse(isin, "9.058", "2026-07-22T06:01:29Z", "R"), APPLICATION_JSON));
+    expectNoDataForOtherIsins(isin, "2026-07-20", "2026-07-21");
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 7, 20), LocalDate.of(2026, 7, 21));
+
+    var updatedAt = Instant.parse("2026-07-22T06:30:00Z");
+    assertThat(result.stream().filter(value -> value.key().equals(isin + ".XETR")))
+        .containsExactlyInAnyOrder(
+            new FundValue(
+                isin + ".XETR",
+                LocalDate.of(2026, 7, 20),
+                new BigDecimal("8.81"),
+                "DEUTSCHE_BOERSE",
+                updatedAt),
+            new FundValue(
+                isin + ".XETR",
+                LocalDate.of(2026, 7, 21),
+                new BigDecimal("9.002"),
+                "DEUTSCHE_BOERSE",
+                updatedAt));
+  }
+
+  @Test
   void holdsBackLatestFinalizedDayWhenOfficialLastPriceUnavailable() {
     ClockHolder.setClock(Clock.fixed(Instant.parse("2026-07-21T05:00:00Z"), UTC));
     var isin = FundTicker.getXetraIsins().getFirst();
@@ -393,6 +490,42 @@ class DeutscheBoerseValueRetrieverTest {
         .expect(requestTo(priceHistoryUrl(isin, "2026-07-17", "2026-07-20")))
         .andRespond(withSuccess(bars, APPLICATION_JSON));
     server.expect(requestTo(quoteBoxUrl(isin))).andRespond(withServerError());
+    expectNoDataForOtherIsins(isin, "2026-07-17", "2026-07-20");
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 7, 17), LocalDate.of(2026, 7, 20));
+
+    assertThat(result.stream().filter(value -> value.key().equals(isin + ".XETR")))
+        .containsExactlyInAnyOrder(
+            new FundValue(
+                isin + ".XETR",
+                LocalDate.of(2026, 7, 17),
+                new BigDecimal("9.92"),
+                "DEUTSCHE_BOERSE",
+                Instant.parse("2026-07-21T05:00:00Z")));
+  }
+
+  @Test
+  void holdsBackLatestFinalizedDayWhenQuoteBoxHasNoUsableLastPrice() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-07-21T05:00:00Z"), UTC));
+    var isin = FundTicker.getXetraIsins().getFirst();
+    var bars =
+        """
+        {
+          "isin": "%s",
+          "data": [
+            {"date": "2026-07-17", "open": 9.900, "close": 9.92, "high": 9.924, "low": 9.900, "turnoverPieces": 0, "turnoverEuro": 0.0},
+            {"date": "2026-07-20", "open": 9.905, "close": 9.969, "high": 9.969, "low": 9.905, "turnoverPieces": 10, "turnoverEuro": 99.69}
+          ],
+          "totalCount": 2
+        }
+        """
+            .formatted(isin);
+
+    server
+        .expect(requestTo(priceHistoryUrl(isin, "2026-07-17", "2026-07-20")))
+        .andRespond(withSuccess(bars, APPLICATION_JSON));
+    server.expect(requestTo(quoteBoxUrl(isin))).andRespond(withSuccess("{}", APPLICATION_JSON));
     expectNoDataForOtherIsins(isin, "2026-07-17", "2026-07-20");
 
     var result =
@@ -512,6 +645,21 @@ class DeutscheBoerseValueRetrieverTest {
         }
         """
         .formatted(isin, lastPrice, timestampLastPrice);
+  }
+
+  private String quoteBoxResponse(
+      String isin, String lastPrice, String timestampLastPrice, String lastPriceIndicator) {
+    return """
+        {
+          "isin": "%s",
+          "lastPrice": %s,
+          "timestampLastPrice": "%s",
+          "lastPriceIndicator": "%s",
+          "instrumentStatus": "Active",
+          "tradingStatus": "Retail Early/Late"
+        }
+        """
+        .formatted(isin, lastPrice, timestampLastPrice, lastPriceIndicator);
   }
 
   private String mockResponseForIsin(String isin, String startDate, String endDate) {

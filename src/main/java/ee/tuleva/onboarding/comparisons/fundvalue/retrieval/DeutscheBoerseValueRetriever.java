@@ -97,8 +97,11 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
                     new FundValue(storageKey, priceData.date(), priceData.close(), PROVIDER, now))
             .toList();
 
+    Optional<QuoteBoxResponse> quoteBox = fetchQuoteBox(isin);
     Optional<FundValue> officialLastPrice =
-        fetchOfficialLastPrice(isin, storageKey, startDate, endDate, now);
+        quoteBox.flatMap(
+            quoteBoxResponse ->
+                officialLastPrice(quoteBoxResponse, storageKey, startDate, endDate, now));
     List<FundValue> allValues = withOfficialLastPrice(barValues, officialLastPrice);
 
     logLatestValue(storageKey, allValues);
@@ -114,9 +117,13 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
     ZonedDateTime nowInCET = ZonedDateTime.now(clock).withZoneSameInstant(XETRA_TIMEZONE);
     LocalDate cutoff = latestFinalizedDate(nowInCET);
 
+    boolean cutoffDayConfirmed =
+        officialLastPrice.isPresent()
+            || quoteBox.filter(QuoteBoxResponse::isRetailSessionPrint).isPresent();
+
     return nonZeroValues.stream()
         .filter(fundValue -> !fundValue.date().isAfter(cutoff))
-        .filter(fundValue -> officialLastPrice.isPresent() || !fundValue.date().equals(cutoff))
+        .filter(fundValue -> cutoffDayConfirmed || !fundValue.date().equals(cutoff))
         .toList();
   }
 
@@ -133,8 +140,7 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
         .orElse(barValues);
   }
 
-  private Optional<FundValue> fetchOfficialLastPrice(
-      String isin, String storageKey, LocalDate startDate, LocalDate endDate, Instant now) {
+  private Optional<QuoteBoxResponse> fetchQuoteBox(String isin) {
     var uri =
         UriComponentsBuilder.fromUriString(
                 "https://api.live.deutsche-boerse.com/v1/data/quote_box/single")
@@ -143,21 +149,29 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
             .build()
             .toUriString();
 
-    QuoteBoxResponse response;
     try {
-      response =
+      return Optional.ofNullable(
           restClient
               .get()
               .uri(uri)
               .accept(APPLICATION_JSON)
               .retrieve()
-              .body(QuoteBoxResponse.class);
+              .body(QuoteBoxResponse.class));
     } catch (Exception e) {
       log.warn("Failed to retrieve official last price for ISIN: {}", isin, e);
       return Optional.empty();
     }
+  }
 
-    if (response == null || response.lastPrice() == null || response.timestampLastPrice() == null) {
+  private Optional<FundValue> officialLastPrice(
+      QuoteBoxResponse response,
+      String storageKey,
+      LocalDate startDate,
+      LocalDate endDate,
+      Instant now) {
+    if (response.lastPrice() == null
+        || response.timestampLastPrice() == null
+        || response.lastPriceIndicator() != null) {
       return Optional.empty();
     }
 
@@ -211,5 +225,11 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
       Long turnoverPieces,
       BigDecimal turnoverEuro) {}
 
-  record QuoteBoxResponse(BigDecimal lastPrice, Instant timestampLastPrice) {}
+  record QuoteBoxResponse(
+      BigDecimal lastPrice, Instant timestampLastPrice, String lastPriceIndicator) {
+
+    boolean isRetailSessionPrint() {
+      return "R".equals(lastPriceIndicator);
+    }
+  }
 }

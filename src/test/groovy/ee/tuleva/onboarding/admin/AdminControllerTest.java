@@ -28,7 +28,7 @@ import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublish
 import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
-import ee.tuleva.onboarding.kyb.survey.ManualCompanyOnboardingService;
+import ee.tuleva.onboarding.kyb.KybCheckOverrideService;
 import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
@@ -84,7 +84,7 @@ class AdminControllerTest {
   @MockitoBean private FundPositionImportJob fundPositionImportJob;
   @MockitoBean private RedemptionBatchJob redemptionBatchJob;
   @MockitoBean private SavingsFundOnboardingService savingsFundOnboardingService;
-  @MockitoBean private ManualCompanyOnboardingService manualCompanyOnboardingService;
+  @MockitoBean private KybCheckOverrideService kybCheckOverrideService;
   @MockitoBean private ParentChildLinkRegistrationService parentChildLinkRegistrationService;
 
   @MockitoBean
@@ -958,90 +958,132 @@ class AdminControllerTest {
   }
 
   @Test
-  void manuallyOnboardCompany_withAdminToken_delegatesToService() throws Exception {
+  void overrideKybCheck_withAdminToken_delegatesToService() throws Exception {
     mockMvc
         .perform(
-            post("/admin/manually-onboard-company")
+            post("/admin/override-kyb-check")
                 .with(csrf())
                 .header("X-Admin-Token", "valid-token")
                 .param("registryCode", "12934765")
-                .param("personalCode", "38901040329")
-                .param("forcedChecks", "SINGLE_BOARD_MEMBER_OWNERSHIP")
+                .param("checkType", "SINGLE_BOARD_MEMBER_OWNERSHIP")
                 .param("reason", "single shareholder, two spousal beneficial owners"))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("12934765")));
 
-    verify(manualCompanyOnboardingService)
-        .onboard(
+    verify(kybCheckOverrideService)
+        .forceSuccess(
             "12934765",
-            "38901040329",
-            List.of(SINGLE_BOARD_MEMBER_OWNERSHIP),
+            SINGLE_BOARD_MEMBER_OWNERSHIP,
             "single shareholder, two spousal beneficial owners");
   }
 
   @Test
-  void manuallyOnboardCompany_withOpsToken_delegatesToService() throws Exception {
+  void overrideKybCheck_withOpsToken_delegatesToService() throws Exception {
     mockMvc
         .perform(
-            post("/admin/manually-onboard-company")
+            post("/admin/override-kyb-check")
                 .with(csrf())
                 .header("X-Admin-Token", "ops-token")
                 .param("registryCode", "12934765")
-                .param("personalCode", "38901040329")
-                .param("forcedChecks", "SINGLE_BOARD_MEMBER_OWNERSHIP")
-                .param("reason", "spouses"))
+                .param("checkType", "SINGLE_BOARD_MEMBER_OWNERSHIP")
+                .param("reason", "single shareholder, two spousal beneficial owners"))
         .andExpect(status().isOk());
 
-    verify(manualCompanyOnboardingService)
-        .onboard("12934765", "38901040329", List.of(SINGLE_BOARD_MEMBER_OWNERSHIP), "spouses");
+    verify(kybCheckOverrideService)
+        .forceSuccess(
+            "12934765",
+            SINGLE_BOARD_MEMBER_OWNERSHIP,
+            "single shareholder, two spousal beneficial owners");
   }
 
   @Test
-  void manuallyOnboardCompany_withInvalidToken_returnsUnauthorized() throws Exception {
+  void overrideKybCheck_withInvalidToken_returnsUnauthorized() throws Exception {
     mockMvc
         .perform(
-            post("/admin/manually-onboard-company")
+            post("/admin/override-kyb-check")
                 .with(csrf())
                 .header("X-Admin-Token", "wrong-token")
                 .param("registryCode", "12934765")
-                .param("personalCode", "38901040329")
-                .param("forcedChecks", "SINGLE_BOARD_MEMBER_OWNERSHIP")
-                .param("reason", "spouses"))
+                .param("checkType", "SINGLE_BOARD_MEMBER_OWNERSHIP")
+                .param("reason", "single shareholder, two spousal beneficial owners"))
         .andExpect(status().isUnauthorized());
 
-    verify(manualCompanyOnboardingService, never()).onboard(any(), any(), any(), any());
+    verify(kybCheckOverrideService, never()).forceSuccess(any(), any(), any());
+    verify(kybCheckOverrideService, never()).forceSuccess(any(), any(), any(), any());
   }
 
   @Test
-  void manuallyOnboardCompany_withNonForceableCheck_returnsBadRequest() throws Exception {
+  void overrideKybCheck_withNonForceableCheck_returnsBadRequest() throws Exception {
     mockMvc
         .perform(
-            post("/admin/manually-onboard-company")
+            post("/admin/override-kyb-check")
                 .with(csrf())
                 .header("X-Admin-Token", "ops-token")
                 .param("registryCode", "12934765")
-                .param("personalCode", "38901040329")
-                .param("forcedChecks", "COMPANY_SANCTION")
-                .param("reason", "spouses"))
+                .param("checkType", "COMPANY_SANCTION")
+                .param("reason", "single shareholder, two spousal beneficial owners"))
         .andExpect(status().isBadRequest());
 
-    verify(manualCompanyOnboardingService, never()).onboard(any(), any(), any(), any());
+    verify(kybCheckOverrideService, never()).forceSuccess(any(), any(), any());
+    verify(kybCheckOverrideService, never()).forceSuccess(any(), any(), any(), any());
   }
 
   @Test
-  void manuallyOnboardCompany_withBlankReason_returnsBadRequest() throws Exception {
+  void overrideKybCheck_withBlankReason_returnsBadRequest() throws Exception {
     mockMvc
         .perform(
-            post("/admin/manually-onboard-company")
+            post("/admin/override-kyb-check")
                 .with(csrf())
                 .header("X-Admin-Token", "ops-token")
                 .param("registryCode", "12934765")
-                .param("personalCode", "38901040329")
-                .param("forcedChecks", "SINGLE_BOARD_MEMBER_OWNERSHIP")
+                .param("checkType", "SINGLE_BOARD_MEMBER_OWNERSHIP")
                 .param("reason", " "))
         .andExpect(status().isBadRequest());
 
-    verify(manualCompanyOnboardingService, never()).onboard(any(), any(), any(), any());
+    verify(kybCheckOverrideService, never()).forceSuccess(any(), any(), any());
+    verify(kybCheckOverrideService, never()).forceSuccess(any(), any(), any(), any());
+  }
+
+  @Test
+  void overrideKybCheck_withExpiresAt_delegatesWithExpiry() throws Exception {
+    given(clock.instant()).willReturn(Instant.parse("2026-07-22T10:00:00Z"));
+
+    mockMvc
+        .perform(
+            post("/admin/override-kyb-check")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("registryCode", "12934765")
+                .param("checkType", "SINGLE_BOARD_MEMBER_OWNERSHIP")
+                .param("reason", "single shareholder, two spousal beneficial owners")
+                .param("expiresAt", "2027-01-01T00:00:00Z"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("12934765")));
+
+    verify(kybCheckOverrideService)
+        .forceSuccess(
+            "12934765",
+            SINGLE_BOARD_MEMBER_OWNERSHIP,
+            "single shareholder, two spousal beneficial owners",
+            Instant.parse("2027-01-01T00:00:00Z"));
+  }
+
+  @Test
+  void overrideKybCheck_withPastExpiresAt_returnsBadRequest() throws Exception {
+    given(clock.instant()).willReturn(Instant.parse("2026-07-22T10:00:00Z"));
+
+    mockMvc
+        .perform(
+            post("/admin/override-kyb-check")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("registryCode", "12934765")
+                .param("checkType", "SINGLE_BOARD_MEMBER_OWNERSHIP")
+                .param("reason", "single shareholder, two spousal beneficial owners")
+                .param("expiresAt", "2020-01-01T00:00:00Z"))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(kybCheckOverrideService);
   }
 
   @Test

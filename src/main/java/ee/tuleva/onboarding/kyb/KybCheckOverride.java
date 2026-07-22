@@ -45,6 +45,10 @@ public class KybCheckOverride {
   @NotNull private String reason;
 
   @NotNull
+  @Column(name = "expires_at")
+  private Instant expiresAt;
+
+  @NotNull
   @Column(name = "created_by")
   private String createdBy;
 

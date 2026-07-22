@@ -22,8 +22,8 @@ import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublish
 import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublishingResult;
 import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
+import ee.tuleva.onboarding.kyb.KybCheckOverrideService;
 import ee.tuleva.onboarding.kyb.KybCheckType;
-import ee.tuleva.onboarding.kyb.survey.ManualCompanyOnboardingService;
 import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -44,6 +44,7 @@ import java.math.RoundingMode;
 import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.DateTimeException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Arrays;
@@ -83,7 +84,7 @@ public class AdminController {
   private final FundPositionImportJob fundPositionImportJob;
   private final RedemptionBatchJob redemptionBatchJob;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
-  private final ManualCompanyOnboardingService manualCompanyOnboardingService;
+  private final KybCheckOverrideService kybCheckOverrideService;
   private final ParentChildLinkRegistrationService parentChildLinkRegistrationService;
   private final ee.tuleva.onboarding.investment.check.tracking.PeriodicTdAttributionService
       tdAttributionService;
@@ -309,31 +310,37 @@ public class AdminController {
     return "Retried redemption payout for " + id;
   }
 
-  @PostMapping("/manually-onboard-company")
-  public String manuallyOnboardCompany(
+  @PostMapping("/override-kyb-check")
+  public String overrideKybCheck(
       @RequestHeader("X-Admin-Token") String token,
       @RequestParam String registryCode,
-      @RequestParam String personalCode,
-      @RequestParam List<KybCheckType> forcedChecks,
-      @RequestParam String reason) {
+      @RequestParam KybCheckType checkType,
+      @RequestParam String reason,
+      @RequestParam(required = false) Instant expiresAt) {
 
     validateTokenWithOpsAccess(token);
-    var notForceable = forcedChecks.stream().filter(check -> !check.isManuallyForceable()).toList();
-    if (!notForceable.isEmpty()) {
+    if (!checkType.isManuallyForceable()) {
       throw new ResponseStatusException(
-          BAD_REQUEST, "Checks are not manually forceable: " + notForceable);
+          BAD_REQUEST, "Check is not manually forceable: " + checkType);
     }
     if (reason.isBlank()) {
       throw new ResponseStatusException(BAD_REQUEST, "A reason is required");
     }
+    if (expiresAt != null && !expiresAt.isAfter(clock.instant())) {
+      throw new ResponseStatusException(BAD_REQUEST, "Expiry must be in the future: " + expiresAt);
+    }
     log.info(
-        "Admin manually onboarding company: registryCode={}, forcedChecks={}, reason={}",
+        "Admin overriding KYB check: registryCode={}, checkType={}, reason={}",
         registryCode,
-        forcedChecks,
+        checkType,
         reason);
-    manualCompanyOnboardingService.onboard(registryCode, personalCode, forcedChecks, reason);
+    if (expiresAt == null) {
+      kybCheckOverrideService.forceSuccess(registryCode, checkType, reason);
+    } else {
+      kybCheckOverrideService.forceSuccess(registryCode, checkType, reason, expiresAt);
+    }
 
-    return "Manually onboarded company: registryCode=" + registryCode;
+    return "Saved KYB check override: registryCode=" + registryCode + ", checkType=" + checkType;
   }
 
   @PostMapping("/whitelist-iban")

@@ -24,6 +24,9 @@ import ee.tuleva.onboarding.kyb.screener.RelatedPersonsKycScreener;
 import ee.tuleva.onboarding.kyb.screener.SelfCertificationScreener;
 import ee.tuleva.onboarding.kyb.screener.SingleBoardMemberOwnershipScreener;
 import ee.tuleva.onboarding.kyb.screener.SoleMemberOwnershipScreener;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -31,6 +34,9 @@ import org.springframework.context.ApplicationEventPublisher;
 import tools.jackson.databind.json.JsonMapper;
 
 class KybScreeningServiceTest {
+
+  private static final Instant FIXED_NOW = Instant.parse("2026-07-22T10:00:00Z");
+  private static final Clock FIXED_CLOCK = Clock.fixed(FIXED_NOW, ZoneOffset.UTC);
 
   private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
   private final PepAndSanctionCheckService sanctionCheckService =
@@ -55,7 +61,8 @@ class KybScreeningServiceTest {
               new SelfCertificationScreener()),
           new KybDataChangeDetector(checkHistory),
           eventPublisher,
-          kybCheckOverrideRepository);
+          kybCheckOverrideRepository,
+          FIXED_CLOCK);
 
   {
     when(sanctionCheckService.matchCompany(any()))
@@ -187,7 +194,7 @@ class KybScreeningServiceTest {
   @Test
   void appliesOverride_forcesCheckToOverriddenResultWithReason() {
     var boardMember = boardMemberOwner("38501010001", 50.0).build();
-    var shareholder = shareholderOwner("38501010002", 50.0).build();
+    var shareholder = shareholderOwner("38501010002", 30.0).build();
     var data = companyWith(boardMember, shareholder);
     when(kybCheckOverrideRepository.findByRegistryCode("12345678"))
         .thenReturn(
@@ -197,6 +204,7 @@ class KybScreeningServiceTest {
                     .checkType(SINGLE_BOARD_MEMBER_OWNERSHIP)
                     .forcedSuccess(true)
                     .reason("single shareholder, two spousal beneficial owners")
+                    .expiresAt(FIXED_NOW.plusSeconds(86400))
                     .createdBy("admin")
                     .build()));
 
@@ -211,5 +219,33 @@ class KybScreeningServiceTest {
     assertThat(ownershipCheck.metadata())
         .containsEntry("overridden", true)
         .containsEntry("overrideReason", "single shareholder, two spousal beneficial owners");
+  }
+
+  @Test
+  void ignoresExpiredOverride_checkKeepsRealResult() {
+    var boardMember = boardMemberOwner("38501010001", 50.0).build();
+    var shareholder = shareholderOwner("38501010002", 30.0).build();
+    var data = companyWith(boardMember, shareholder);
+    when(kybCheckOverrideRepository.findByRegistryCode("12345678"))
+        .thenReturn(
+            List.of(
+                KybCheckOverride.builder()
+                    .registryCode("12345678")
+                    .checkType(SINGLE_BOARD_MEMBER_OWNERSHIP)
+                    .forcedSuccess(true)
+                    .reason("single shareholder, two spousal beneficial owners")
+                    .expiresAt(FIXED_NOW.minusSeconds(1))
+                    .createdBy("admin")
+                    .build()));
+
+    var results = kybScreeningService.screen(data);
+
+    var ownershipCheck =
+        results.stream()
+            .filter(check -> check.type() == SINGLE_BOARD_MEMBER_OWNERSHIP)
+            .findFirst()
+            .orElseThrow();
+    assertThat(ownershipCheck.success()).isFalse();
+    assertThat(ownershipCheck.metadata()).doesNotContainKey("overridden");
   }
 }

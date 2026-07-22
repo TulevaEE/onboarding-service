@@ -4,6 +4,7 @@ import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.kyb.screener.*;
+import java.time.Clock;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,6 +21,7 @@ public class KybScreeningService {
   private final KybDataChangeDetector dataChangeDetector;
   private final ApplicationEventPublisher eventPublisher;
   private final KybCheckOverrideRepository kybCheckOverrideRepository;
+  private final Clock clock;
 
   public List<KybCheck> validate(KybCompanyData companyData) {
     var results =
@@ -33,7 +35,9 @@ public class KybScreeningService {
       return results;
     }
     var overrideByType =
-        overrides.stream().collect(toMap(KybCheckOverride::getCheckType, identity()));
+        overrides.stream()
+            .filter(override -> override.getExpiresAt().isAfter(clock.instant()))
+            .collect(toMap(KybCheckOverride::getCheckType, identity()));
     return results.stream()
         .map(check -> applyOverride(check, overrideByType.get(check.type())))
         .toList();

@@ -115,20 +115,23 @@ jobs:
           path: ./heapdump.hprof
           destination: heapdump
 
-      - when:
-          condition:
-            equal: [master, << pipeline.git.branch >>]
-          steps:
-            - snyk/scan:
-                fail-on-issues: false
-                monitor-on-build: true
-                organization: tuleva
-
       - store_test_results:
           path: ./build/test-results
 
+      - run:
+          name: Stage build reports for upload if the build failed
+          when: on_fail
+          command: |
+            if [ -d ./build/reports ]; then
+              mkdir -p /tmp/failure-reports
+              cp -r ./build/reports/. /tmp/failure-reports/
+              echo "Build reports staged for upload"
+            else
+              echo "No build reports found"
+            fi
+
       - store_artifacts:
-          path: ./build/reports
+          path: /tmp/failure-reports
           destination: /reports
 
       - codecov/upload
@@ -147,7 +150,23 @@ jobs:
             - persist_to_workspace:
                 root: .
                 paths:
-                  - build
+                  - build/docker
+
+  snyk-scan:
+    docker:
+      - image: cimg/openjdk:25.0
+    resource_class: medium
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v2-gradle-{{ arch }}-{{ checksum "build.gradle.kts" }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}
+            - v2-gradle-{{ arch }}-{{ checksum "build.gradle.kts" }}
+            - v2-gradle-{{ arch }}-
+      - snyk/scan:
+          fail-on-issues: false
+          monitor-on-build: true
+          organization: tuleva
 
   flag-for-additional-review:
     docker:
@@ -202,32 +221,6 @@ jobs:
             else
                 echo "No files requiring additional review changed in monitored paths on master branch (or no applicable changes found)."
             fi
-
-  retag-ecs-image:
-    docker:
-      - image: cimg/aws:2025.01
-    steps:
-      - run:
-          name: Retag latest as ecs-latest
-          command: |
-            echo "🏷️  Retagging :latest as :ecs-latest for ECS..."
-
-            # Get manifest from :latest
-            MANIFEST=$(aws ecr batch-get-image \
-              --repository-name onboarding-service \
-              --image-ids imageTag=latest \
-              --region eu-central-1 \
-              --query 'images[0].imageManifest' \
-              --output text)
-
-            # Retag as :ecs-latest
-            aws ecr put-image \
-              --repository-name onboarding-service \
-              --image-tag ecs-latest \
-              --image-manifest "$MANIFEST" \
-              --region eu-central-1
-
-            echo "✅ Image retagged as :ecs-latest"
 
   deploy-ecs-staging:
     docker:
@@ -321,8 +314,13 @@ workflows:
     jobs:
       - build:
           context:
-            - snyk
             - codecov
+
+      - snyk-scan:
+          context: snyk
+          filters:
+            branches:
+              only: master
 
       - flag-for-additional-review:
           requires:
@@ -338,36 +336,28 @@ workflows:
           executor: machine-with-docker-layer-caching
           requires:
             - build
-            - flag-for-additional-review
           context: aws
           auth:
             - aws-cli/setup
           path: build/docker
           build_path: build/docker
           repo: onboarding-service
-          tag: 'latest,${CIRCLE_SHA1}'
+          tag: 'latest,ecs-latest,${CIRCLE_SHA1}'
           attach_workspace: true
           workspace_root: .
           filters:
             branches:
               only: master
 
-      - retag-ecs-image:
+      - deploy-ecs-staging:
           requires: [ build_and_push_image ]
           context: aws
           filters:
             branches:
               only: master
 
-      - deploy-ecs-staging:
-          requires: [ retag-ecs-image ]
-          context: aws
-          filters:
-            branches:
-              only: master
-
       - deploy-ecs-production:
-          requires: [ retag-ecs-image ]
+          requires: [ build_and_push_image ]
           context: aws
           filters:
             branches:

@@ -26,7 +26,7 @@ interface LedgerAccountRepository extends CrudRepository<LedgerAccount, UUID> {
       """
       SELECT COUNT(a) FROM LedgerAccount a
       WHERE a.name = :name AND a.purpose = :purpose
-        AND (SELECT COALESCE(SUM(e.amount), 0) FROM LedgerEntry e WHERE e.account = a) < 0
+        AND a IN (SELECT e.account FROM LedgerEntry e GROUP BY e.account HAVING SUM(e.amount) < 0)
       """)
   int countWithPositiveBalance(String name, AccountPurpose purpose);
 }

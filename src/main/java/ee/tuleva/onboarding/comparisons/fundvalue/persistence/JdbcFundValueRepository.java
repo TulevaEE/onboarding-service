@@ -31,7 +31,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
       SELECT *
       FROM index_values
       WHERE key = :key
-      ORDER BY date DESC NULLS LAST
+      ORDER BY date DESC
       LIMIT 1
       """;
 

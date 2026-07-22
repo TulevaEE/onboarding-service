@@ -49,7 +49,7 @@ public class NavSelfHealJob {
         new NavPipeline(TUV100, List.of(TUV100)));
   }
 
-  @Scheduled(cron = "0 5/5 11 * * MON-FRI", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 15/5 11 * * MON-FRI", zone = "Europe/Tallinn")
   @SchedulerLock(name = "NavSelfHealRetry_pillar2", lockAtMostFor = "4m", lockAtLeastFor = "1m")
   public void scheduledPillar2Retry() {
     healIfNeeded();

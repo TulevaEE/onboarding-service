@@ -235,6 +235,23 @@ class NavCalculationJobTest {
   }
 
   @Test
+  void onNavCalculationRequested_skipsFund_whenPublishedConcurrentlyDuringRefresh() {
+    var job = jobOn("2025-01-15T09:00:00Z");
+
+    LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
+    when(navReportRepository.existsPublishedByNavDateAndFundCode(
+            previousWorkingDay, TUK00.getCode()))
+        .thenReturn(false, true); // unpublished at pipeline start, published during price refresh
+
+    job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TUK00)));
+
+    verify(fundValueIndexingJob).refreshForNavCalculation();
+    verify(navCalculationService, never()).calculate(any(TulevaFund.class), any(LocalDate.class));
+    verify(navPublisher, never()).publish(any());
+    verify(eventPublisher, never()).publishEvent(any(NavCalculationCompleted.class));
+  }
+
+  @Test
   void onNavCalculationRequested_publishesEventWithOnlySuccessfullyCalculatedFunds() {
     var job = jobOn("2025-01-15T09:00:00Z");
 

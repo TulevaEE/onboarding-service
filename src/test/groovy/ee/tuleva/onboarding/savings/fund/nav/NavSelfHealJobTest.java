@@ -18,6 +18,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.concurrent.ScheduledFuture;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,8 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.Trigger;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.support.CronExpression;
 
 @ExtendWith(MockitoExtension.class)
 class NavSelfHealJobTest {
@@ -285,6 +288,21 @@ class NavSelfHealJobTest {
     job.scheduledSavingsPillar3Retry();
 
     verify(navCalculationJob).recoverPipeline(eq(TUV100), any());
+  }
+
+  @Test
+  void scheduledPillar2Retry_firesOnlyAfterCalculationJobLockWindow() throws Exception {
+    var cron =
+        CronExpression.parse(
+            NavSelfHealJob.class
+                .getMethod("scheduledPillar2Retry")
+                .getAnnotation(Scheduled.class)
+                .cron());
+
+    var pillar2CalculationJobFireTime = LocalDateTime.of(2025, 1, 15, 11, 0);
+
+    assertThat(cron.next(pillar2CalculationJobFireTime))
+        .isEqualTo(LocalDateTime.of(2025, 1, 15, 11, 15));
   }
 
   private void stubAllPublished(LocalDate today) {

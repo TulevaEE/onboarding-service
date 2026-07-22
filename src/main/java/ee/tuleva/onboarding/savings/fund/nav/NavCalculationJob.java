@@ -116,6 +116,10 @@ public class NavCalculationJob {
   }
 
   private boolean tryCalculateAndPublish(TulevaFund fund, LocalDate today) {
+    if (isNavAlreadyPublishedToday(fund, today)) {
+      log.info("NAV published by concurrent run, skipping: fund={}, date={}", fund, today);
+      return false;
+    }
     try {
       calculateAndPublish(fund, today);
       return true;

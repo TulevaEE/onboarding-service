@@ -107,18 +107,18 @@ class PaymentEmailSenderSpec extends Specification {
     def paymentRates = samplePaymentRates()
     def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
 
-    def savingsPaymentCreatedEvent = new SavingsPaymentCreatedEvent(this, user, locale, new PartyId(PERSON, "51107121760"))
+    def savingsPaymentCreatedEvent = new SavingsPaymentCreatedEvent(this, user, locale, new PartyId(PERSON, "51111111111"))
 
     1 * contactDetailsService.getContactDetails(user) >> contactDetails
     1 * conversionService.getConversion(user) >> conversion
     1 * paymentRateService.getPaymentRates(user) >> paymentRates
-    1 * savingsFundSuccessEmailResolver.resolve(savingsPaymentCreatedEvent) >> SavingsFundPaymentEmail.childSuccess("Kid Valdma")
+    1 * savingsFundSuccessEmailResolver.resolve(savingsPaymentCreatedEvent) >> SavingsFundPaymentEmail.childSuccess("Kid Tester")
 
     when:
     paymentEmailSender.onSavingsPaymentCreated(savingsPaymentCreatedEvent)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Valdma"), pillarSuggestion, locale)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Tester"), pillarSuggestion, locale)
   }
 
   def "send email on savings payment cancel"() {

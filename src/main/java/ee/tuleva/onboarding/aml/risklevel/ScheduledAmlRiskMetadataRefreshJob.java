@@ -17,7 +17,7 @@ public class ScheduledAmlRiskMetadataRefreshJob {
   private final TkfRiskReader tkfRiskReader;
   private final CompanyRiskReader companyRiskReader;
 
-  @Scheduled(cron = "0 0 9,13,16 * * ?", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 0 12,16 * * ?", zone = "Europe/Tallinn")
   @SchedulerLock(
       name = "ScheduledAmlRiskMetadataRefreshJob_refreshAmlRiskMetadata",
       lockAtMostFor = "23h",

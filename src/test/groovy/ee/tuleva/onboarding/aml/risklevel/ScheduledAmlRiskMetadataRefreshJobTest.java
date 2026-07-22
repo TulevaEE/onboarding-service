@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.scheduling.annotation.Scheduled;
 
 @ExtendWith(MockitoExtension.class)
 class ScheduledAmlRiskMetadataRefreshJobTest {
@@ -19,6 +21,17 @@ class ScheduledAmlRiskMetadataRefreshJobTest {
   @Mock private CompanyRiskReader companyRiskReader;
 
   @InjectMocks private ScheduledAmlRiskMetadataRefreshJob scheduledAmlRiskMetadataRefreshJob;
+
+  @Test
+  void refreshScheduleAvoidsMorningPressureAndNavWindows() throws NoSuchMethodException {
+    Scheduled scheduled =
+        ScheduledAmlRiskMetadataRefreshJob.class
+            .getMethod("refreshAmlRiskMetadata")
+            .getAnnotation(Scheduled.class);
+
+    assertThat(scheduled.cron()).isEqualTo("0 0 12,16 * * ?");
+    assertThat(scheduled.zone()).isEqualTo("Europe/Tallinn");
+  }
 
   @Test
   void refreshesAmlTkfAndCompanyViews() {

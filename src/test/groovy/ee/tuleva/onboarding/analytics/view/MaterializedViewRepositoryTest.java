@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataAccessException;
@@ -37,8 +38,15 @@ class MaterializedViewRepositoryTest {
     repository.refreshAllViews();
 
     // then
-    verify(jdbcOperations, times(17)).execute(anyString());
-    verify(jdbcOperations)
+    verify(jdbcOperations, times(20)).execute(anyString());
+    InOrder inOrder = inOrder(jdbcOperations);
+    inOrder.verify(jdbcOperations).execute("REFRESH MATERIALIZED VIEW analytics.mv_tuk75_api;");
+    inOrder.verify(jdbcOperations).execute("REFRESH MATERIALIZED VIEW analytics.mv_tuk00_api;");
+    inOrder
+        .verify(jdbcOperations)
+        .execute("REFRESH MATERIALIZED VIEW analytics.mv_third_pillar_api;");
+    inOrder
+        .verify(jdbcOperations)
         .execute("REFRESH MATERIALIZED VIEW analytics.mv_change_application_history;");
     verify(jdbcOperations)
         .execute("REFRESH MATERIALIZED VIEW analytics.mv_tuk00_tuk75_history_new;");

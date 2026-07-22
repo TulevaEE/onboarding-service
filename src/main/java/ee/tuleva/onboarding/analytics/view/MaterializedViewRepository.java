@@ -13,6 +13,9 @@ public class MaterializedViewRepository {
   private final NamedParameterJdbcTemplate jdbcTemplate;
 
   private static final String[] MATERIALIZED_VIEWS = {
+    "analytics.mv_tuk75_api",
+    "analytics.mv_tuk00_api",
+    "analytics.mv_third_pillar_api",
     "analytics.mv_change_application_history",
     "analytics.mv_tuk00_tuk75_history_new",
     "analytics.mv_new_monthly_mandates_leavers",

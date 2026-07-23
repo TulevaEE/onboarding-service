@@ -95,12 +95,7 @@ class PopulationRegisterClientTest {
     assertThat(person)
         .isEqualTo(
             new PopulationRegisterPerson(
-                PERSONAL_CODE,
-                "Mari",
-                "Maasikas",
-                LocalDate.of(1985, 3, 15),
-                ALIVE,
-                "EESTI VABARIIK"));
+                PERSONAL_CODE, "Mari", "Maasikas", LocalDate.of(1985, 3, 15), ALIVE, "EE"));
     assertThat(person.isAlive()).isTrue();
     server.verify();
   }

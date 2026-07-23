@@ -18,6 +18,8 @@ import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.auth.principal.PersonImpl;
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.populationregister.CustodyRight;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
@@ -26,6 +28,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -68,7 +71,7 @@ class ChildOnboardingServiceTest {
 
   private final PopulationRegisterPerson child =
       new PopulationRegisterPerson(
-          CHILD, "MARI", "MAASIKAS", LocalDate.of(2015, 6, 15), ALIVE, "EESTI VABARIIK");
+          CHILD, "MARI", "MAASIKAS", LocalDate.of(2015, 6, 15), ALIVE, "EE");
 
   private static final String CUSTODY_MESSAGE_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -140,9 +143,52 @@ class ChildOnboardingServiceTest {
     assertThat(result.dateOfBirth()).isEqualTo(LocalDate.of(2015, 6, 15));
     verify(parentChildLinkRegistrationService).register(PARENT, CHILD, "MARI", "MAASIKAS");
     verify(savingsFundOnboardingService).seedPersonOnboardingIfAbsent(CHILD);
-    verify(amlService).addCustodyRightCheck(CHILD, true, evidence);
+    var evidenceWithCitizenship = new LinkedHashMap<String, Object>(evidence);
+    evidenceWithCitizenship.put("citizenship", "EE");
+    verify(amlService).addCustodyRightCheck(CHILD, true, evidenceWithCitizenship);
     verify(applicationEventPublisher)
         .publishEvent(new TrackableEvent(parent, MINOR_CUSTODY_VERIFICATION, evidence));
+  }
+
+  @Test
+  void verifiedCustody_screensTheChildForSanctionsAndPepUsingRegisterCitizenship() {
+    var evidence = Map.<String, Object>of("outcome", "OK", "childPersonalCode", CHILD);
+    given(custodyVerificationService.verify(PARENT, CHILD, CUSTODY_MAX_AGE))
+        .willReturn(new CustodyVerification(OK, child, evidence));
+
+    service.onboardChild(parent, CHILD);
+
+    verify(amlService)
+        .addSanctionAndPepCheckIfMissing(
+            new PersonImpl(CHILD, "MARI", "MAASIKAS"), new Country("EE"));
+  }
+
+  @Test
+  void verifiedCustody_screensTheChildEvenWhenTheRegisterReportsNoCitizenship() {
+    var childWithoutCitizenship =
+        new PopulationRegisterPerson(
+            CHILD, "MARI", "MAASIKAS", LocalDate.of(2015, 6, 15), ALIVE, null);
+    var evidence = Map.<String, Object>of("outcome", "OK", "childPersonalCode", CHILD);
+    given(custodyVerificationService.verify(PARENT, CHILD, CUSTODY_MAX_AGE))
+        .willReturn(new CustodyVerification(OK, childWithoutCitizenship, evidence));
+
+    service.onboardChild(parent, CHILD);
+
+    verify(amlService)
+        .addSanctionAndPepCheckIfMissing(
+            new PersonImpl(CHILD, "MARI", "MAASIKAS"), new Country(null));
+    verify(amlService).addCustodyRightCheck(CHILD, true, evidence);
+  }
+
+  @Test
+  void unverifiedCustody_doesNotScreenTheChild() {
+    var evidence = Map.<String, Object>of("outcome", "NO_CUSTODY", "childPersonalCode", CHILD);
+    given(custodyVerificationService.verify(PARENT, CHILD, CUSTODY_MAX_AGE))
+        .willReturn(new CustodyVerification(NO_CUSTODY, null, evidence));
+
+    service.onboardChild(parent, CHILD);
+
+    verify(amlService, never()).addSanctionAndPepCheckIfMissing(any(), any());
   }
 
   @Test

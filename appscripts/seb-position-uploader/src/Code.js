@@ -212,6 +212,10 @@ function messageHasMatchingAttachments(message) {
         .map(function (a) { return a.getName(); });
     var partition = partitionFilenamesByMatch(source, filenames);
 
+    Logger.log("Attachments from known sender: sender=" + sender +
+        ", matched=[" + partition.matched.join(",") +
+        "], unmatched=[" + partition.unmatched.join(",") + "]");
+
     if (shouldAlertOnUnmatched(partition.matched.length, partition.unmatched.length)) {
         notifyOnceForUnmatchedAttachments(message.getId(), sender, partition.unmatched, partition.matched.length);
     }

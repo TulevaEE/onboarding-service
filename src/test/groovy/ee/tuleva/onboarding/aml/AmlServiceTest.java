@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static java.util.Arrays.stream;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -974,5 +975,104 @@ class AmlServiceTest {
     return stream(checkTypes)
         .map(type -> AmlCheck.builder().type(type).success(false).build())
         .toList();
+  }
+
+  private MatchResponse sanctionAndPepMatch() {
+    ArrayNode results = objectMapper.createArrayNode();
+    ObjectNode result = JsonNodeFactory.instance.objectNode();
+    result.put("id", "matchId123");
+    result.put("match", true);
+    ObjectNode properties = JsonNodeFactory.instance.objectNode();
+    properties.set("topics", JsonNodeFactory.instance.arrayNode().add("role.pep").add("sanction"));
+    result.set("properties", properties);
+    results.add(result);
+    return new MatchResponse(results, JsonNodeFactory.instance.objectNode());
+  }
+
+  private void latestCheckIs(AmlCheckType type, boolean success) {
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+            anyString(), eq(type)))
+        .thenReturn(
+            Optional.of(
+                AmlCheck.builder()
+                    .personalCode("38812121215")
+                    .type(type)
+                    .success(success)
+                    .build()));
+  }
+
+  @Test
+  void screening_recordsNewlyFailingResultDespiteARecentPassingCheck() {
+    User user = createUser("38812121215", "Test", "User", 1L);
+    when(pepAndSanctionCheckService.match(eq(user), any(Country.class)))
+        .thenReturn(sanctionAndPepMatch());
+    when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+            anyString(), any(AmlCheckType.class), any(Instant.class)))
+        .thenReturn(true);
+    latestCheckIs(SANCTION, true);
+    latestCheckIs(POLITICALLY_EXPOSED_PERSON_AUTO, true);
+
+    amlService.addSanctionAndPepCheckIfMissing(user, new Country("EE"));
+
+    verify(amlCheckRepository, times(2)).save(amlCheckCaptor.capture());
+    assertThat(amlCheckCaptor.getAllValues())
+        .extracting(AmlCheck::getType, AmlCheck::isSuccess)
+        .containsExactlyInAnyOrder(
+            tuple(POLITICALLY_EXPOSED_PERSON_AUTO, false), tuple(SANCTION, false));
+  }
+
+  @Test
+  void screening_recordsRecoveryWhenAPreviouslyFailingPersonNoLongerMatches() {
+    User user = createUser("38812121215", "Test", "User", 1L);
+    when(pepAndSanctionCheckService.match(eq(user), any(Country.class)))
+        .thenReturn(
+            new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
+    when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+            anyString(), any(AmlCheckType.class), any(Instant.class)))
+        .thenReturn(true);
+    latestCheckIs(SANCTION, false);
+    latestCheckIs(POLITICALLY_EXPOSED_PERSON_AUTO, false);
+
+    amlService.addSanctionAndPepCheckIfMissing(user, new Country("EE"));
+
+    verify(amlCheckRepository, times(2)).save(amlCheckCaptor.capture());
+    assertThat(amlCheckCaptor.getAllValues())
+        .extracting(AmlCheck::getType, AmlCheck::isSuccess)
+        .containsExactlyInAnyOrder(
+            tuple(POLITICALLY_EXPOSED_PERSON_AUTO, true), tuple(SANCTION, true));
+  }
+
+  @Test
+  void screening_doesNotRecordAnUnchangedOutcomeWithinTheWindow() {
+    User user = createUser("38812121215", "Test", "User", 1L);
+    when(pepAndSanctionCheckService.match(eq(user), any(Country.class)))
+        .thenReturn(
+            new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
+    when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+            anyString(), any(AmlCheckType.class), any(Instant.class)))
+        .thenReturn(true);
+    latestCheckIs(SANCTION, true);
+    latestCheckIs(POLITICALLY_EXPOSED_PERSON_AUTO, true);
+
+    amlService.addSanctionAndPepCheckIfMissing(user, new Country("EE"));
+
+    verify(amlCheckRepository, never()).save(any(AmlCheck.class));
+  }
+
+  @Test
+  void screening_recordsAnUnchangedOutcomeOnceTheWindowHasExpired() {
+    User user = createUser("38812121215", "Test", "User", 1L);
+    when(pepAndSanctionCheckService.match(eq(user), any(Country.class)))
+        .thenReturn(
+            new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
+    when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+            anyString(), any(AmlCheckType.class), any(Instant.class)))
+        .thenReturn(false);
+    latestCheckIs(SANCTION, true);
+    latestCheckIs(POLITICALLY_EXPOSED_PERSON_AUTO, true);
+
+    amlService.addSanctionAndPepCheckIfMissing(user, new Country("EE"));
+
+    verify(amlCheckRepository, times(2)).save(any(AmlCheck.class));
   }
 }

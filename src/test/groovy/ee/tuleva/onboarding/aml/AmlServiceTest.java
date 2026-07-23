@@ -30,8 +30,10 @@ import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
@@ -71,6 +73,8 @@ class AmlServiceTest {
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private PepAndSanctionCheckService pepAndSanctionCheckService;
   @Mock private AnalyticsRecentThirdPillarRepository analyticsRecentThirdPillarRepository;
+  @Mock private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
+  @Mock private UserRepository userRepository;
   @Mock private UserConversionService userConversionService;
   @Spy private JsonMapper jsonMapper = JsonMapper.builder().build();
   @Spy private MeterRegistry meterRegistry = new SimpleMeterRegistry();
@@ -974,5 +978,107 @@ class AmlServiceTest {
     return stream(checkTypes)
         .map(type -> AmlCheck.builder().type(type).success(false).build())
         .toList();
+  }
+
+  private User savingsFundCustomer(String personalCode) {
+    return User.builder()
+        .personalCode(personalCode)
+        .firstName("First" + personalCode)
+        .lastName("Last" + personalCode)
+        .build();
+  }
+
+  @Test
+  void runAmlChecksOnSavingsFundCustomers_screensEveryOnboardedPerson() {
+    User first = savingsFundCustomer("38888888881");
+    User second = savingsFundCustomer("38888888882");
+    when(savingsFundOnboardingRepository.findPersonCodes())
+        .thenReturn(List.of(first.getPersonalCode(), second.getPersonalCode()));
+    when(userRepository.findAllByPersonalCodeIn(
+            List.of(first.getPersonalCode(), second.getPersonalCode())))
+        .thenReturn(List.of(first, second));
+    when(pepAndSanctionCheckService.match(any(Person.class), any(Country.class)))
+        .thenReturn(
+            new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
+    when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+            anyString(), any(AmlCheckType.class), any(Instant.class)))
+        .thenReturn(false);
+
+    amlService.runAmlChecksOnSavingsFundCustomers();
+
+    verify(pepAndSanctionCheckService).match(eq(first), any(Country.class));
+    verify(pepAndSanctionCheckService).match(eq(second), any(Country.class));
+    verify(notificationService, never()).sendMessage(anyString(), any());
+  }
+
+  @Test
+  void runAmlChecksOnSavingsFundCustomers_sendsSingleAggregatedAlertOnScreeningFailures() {
+    User ok = savingsFundCustomer("38888888881");
+    User failing = savingsFundCustomer("38888888882");
+    when(savingsFundOnboardingRepository.findPersonCodes())
+        .thenReturn(List.of(ok.getPersonalCode(), failing.getPersonalCode()));
+    when(userRepository.findAllByPersonalCodeIn(any())).thenReturn(List.of(ok, failing));
+    when(pepAndSanctionCheckService.match(eq(ok), any(Country.class)))
+        .thenReturn(
+            new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
+    when(pepAndSanctionCheckService.match(eq(failing), any(Country.class)))
+        .thenThrow(new RuntimeException("Match service error"));
+    when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+            anyString(), any(AmlCheckType.class), any(Instant.class)))
+        .thenReturn(false);
+
+    amlService.runAmlChecksOnSavingsFundCustomers();
+
+    verify(notificationService, times(1))
+        .sendMessage(
+            "AML batch: sanction/PEP screening failed for 1 of 2 savings fund customers this run",
+            OperationsNotificationService.Channel.AML);
+  }
+
+  @Test
+  void runAmlChecksOnSavingsFundCustomers_countsCheckPersistenceFailuresAndContinues() {
+    User failing = savingsFundCustomer("38888888881");
+    when(savingsFundOnboardingRepository.findPersonCodes())
+        .thenReturn(List.of(failing.getPersonalCode()));
+    when(userRepository.findAllByPersonalCodeIn(any())).thenReturn(List.of(failing));
+    when(pepAndSanctionCheckService.match(any(Person.class), any(Country.class)))
+        .thenReturn(
+            new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
+    when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+            anyString(), any(AmlCheckType.class), any(Instant.class)))
+        .thenThrow(new RuntimeException("Database unavailable"));
+
+    assertDoesNotThrow(() -> amlService.runAmlChecksOnSavingsFundCustomers());
+
+    verify(notificationService)
+        .sendMessage(
+            "AML batch: sanction/PEP screening failed for 1 of 1 savings fund customers this run",
+            OperationsNotificationService.Channel.AML);
+  }
+
+  @Test
+  void runAmlChecksOnSavingsFundCustomers_slackFailureDoesNotAbortBatch() {
+    User failing = savingsFundCustomer("38888888881");
+    when(savingsFundOnboardingRepository.findPersonCodes())
+        .thenReturn(List.of(failing.getPersonalCode()));
+    when(userRepository.findAllByPersonalCodeIn(any())).thenReturn(List.of(failing));
+    when(pepAndSanctionCheckService.match(any(Person.class), any(Country.class)))
+        .thenThrow(new RuntimeException("Match service error"));
+    doThrow(new RuntimeException("Slack down"))
+        .when(notificationService)
+        .sendMessage(anyString(), any());
+
+    assertDoesNotThrow(() -> amlService.runAmlChecksOnSavingsFundCustomers());
+  }
+
+  @Test
+  void runAmlChecksOnSavingsFundCustomers_doesNothingWhenNobodyIsOnboarded() {
+    when(savingsFundOnboardingRepository.findPersonCodes()).thenReturn(List.of());
+    when(userRepository.findAllByPersonalCodeIn(List.of())).thenReturn(List.of());
+
+    amlService.runAmlChecksOnSavingsFundCustomers();
+
+    verify(pepAndSanctionCheckService, never()).match(any(Person.class), any(Country.class));
+    verify(notificationService, never()).sendMessage(anyString(), any());
   }
 }

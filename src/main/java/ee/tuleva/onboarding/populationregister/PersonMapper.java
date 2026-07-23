@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.S
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.UNKNOWN;
 import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
 
+import ee.tuleva.onboarding.country.CountryCodes;
 import ee.tuleva.onboarding.populationregister.PersonResponse.Citizenship;
 import ee.tuleva.onboarding.populationregister.PersonResponse.Code;
 import ee.tuleva.onboarding.populationregister.PersonResponse.Custody;
@@ -102,7 +103,7 @@ class PersonMapper {
     if (citizenship == null || citizenship.country() == null) {
       return null;
     }
-    return citizenship.country().name();
+    return CountryCodes.numericToAlpha2(citizenship.country().code());
   }
 
   private static boolean hasCode(@Nullable Code value, String expected) {

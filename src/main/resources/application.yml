@@ -223,11 +223,6 @@ transaction-registry:
     # GAS remains the alerting authority. Flip to true at cutover (after retiring the GAS
     # check) to start sending the Slack digest of ERROR/AMBIGUOUS/ORPHAN rows.
     registry-authoritative: ${TRANSACTION_REGISTRY_FT_CONFIRMATION_REGISTRY_AUTHORITATIVE:false}
-    import:
-      # Whether FtConfirmationImportJob pulls confirmation PDFs from S3 (ft-confirmations/)
-      # and runs them through the verification pipeline. Off by default: while false, GAS
-      # keeps pushing confirmations via the legacy endpoints and this job is inert.
-      enabled: ${TRANSACTION_REGISTRY_FT_CONFIRMATION_IMPORT_ENABLED:false}
 
 payment-provider:
   url: https://sandbox-stargate.montonio.com/api

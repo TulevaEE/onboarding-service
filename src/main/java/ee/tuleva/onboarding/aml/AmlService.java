@@ -22,7 +22,9 @@ import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +48,8 @@ public class AmlService {
   private final ApplicationEventPublisher eventPublisher;
   private final PepAndSanctionCheckService pepAndSanctionCheckService;
   private final AnalyticsRecentThirdPillarRepository analyticsRecentThirdPillarRepository;
+  private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
+  private final UserRepository userRepository;
   private final UserConversionService userConversionService;
   private final JsonMapper jsonMapper;
   private final MeterRegistry meterRegistry;
@@ -205,6 +209,44 @@ public class AmlService {
     log.info(
         "Successfully ran III pillar AML checks on {} records ({} screening failures)",
         records.size(),
+        failureCount);
+  }
+
+  public void runAmlChecksOnSavingsFundCustomers() {
+    List<String> personalCodes = savingsFundOnboardingRepository.findPersonCodes();
+    List<User> customers = userRepository.findAllByPersonalCodeIn(personalCodes);
+
+    log.info(
+        "Running savings fund AML checks on {} of {} onboarded persons",
+        customers.size(),
+        personalCodes.size());
+
+    int failureCount = 0;
+    for (User customer : customers) {
+      try {
+        if (screenForSanctionAndPep(customer, new Country(null)).failed()) {
+          failureCount++;
+        }
+      } catch (RuntimeException e) {
+        handleScreeningFailure(customer, "savings-fund-batch", e);
+        failureCount++;
+      }
+    }
+
+    if (failureCount > 0) {
+      try {
+        notificationService.sendMessage(
+            "AML batch: sanction/PEP screening failed for %d of %d savings fund customers this run"
+                .formatted(failureCount, customers.size()),
+            OperationsNotificationService.Channel.AML);
+      } catch (RuntimeException e) {
+        log.error("Failed to send aggregated savings fund AML batch screening-failure alert", e);
+      }
+    }
+
+    log.info(
+        "Successfully ran savings fund AML checks on {} customers ({} screening failures)",
+        customers.size(),
         failureCount);
   }
 

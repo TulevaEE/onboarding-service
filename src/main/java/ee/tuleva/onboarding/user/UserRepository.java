@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.user;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -12,6 +14,9 @@ public interface UserRepository extends CrudRepository<User, Long> {
 
   @NotNull
   Optional<User> findByEmail(@NotNull String email);
+
+  @NotNull
+  List<User> findAllByPersonalCodeIn(@NotNull Collection<String> personalCodes);
 
   @NotNull
   @EntityGraph(attributePaths = "member")

@@ -75,7 +75,14 @@ class FtConfirmationImportJob {
       return Optional.empty();
     }
     try {
-      return Optional.of(parser.parse(bytes.get()));
+      FtConfirmation confirmation = parser.parse(bytes.get());
+      log.info(
+          "Parsed FT confirmation: key={}, fund={}, isin={}, type={}",
+          key,
+          confirmation.fund(),
+          confirmation.isin(),
+          confirmation.type());
+      return Optional.of(confirmation);
     } catch (RuntimeException e) {
       log.error(
           "FT confirmation PDF failed to parse, skipping: key={}, error={}",

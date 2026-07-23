@@ -32,10 +32,18 @@ class FtConfirmationS3Source {
   List<String> list() {
     ListObjectsV2Request request =
         ListObjectsV2Request.builder().bucket(BUCKET).prefix(PREFIX).build();
-    return s3Client.listObjectsV2(request).contents().stream()
-        .map(S3Object::key)
-        .filter(key -> !key.equals(PREFIX))
-        .toList();
+    List<String> keys =
+        s3Client.listObjectsV2(request).contents().stream()
+            .map(S3Object::key)
+            .filter(key -> !key.equals(PREFIX))
+            .toList();
+    log.info(
+        "Listed FT confirmation objects: bucket={}, prefix={}, count={}, keys={}",
+        BUCKET,
+        PREFIX,
+        keys.size(),
+        keys);
+    return keys;
   }
 
   Optional<byte[]> get(String key) {

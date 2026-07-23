@@ -3,13 +3,14 @@ package ee.tuleva.onboarding.config;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 
+import java.time.Clock;
 import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.Test;
 
 class LongRunningTransactionMonitorTest {
 
   private final LongRunningTransactionMonitor monitor =
-      new LongRunningTransactionMonitor(h2DataSource(), 300);
+      new LongRunningTransactionMonitor(h2DataSource(), Clock.systemUTC(), 300);
 
   @Test
   void doesNotDetectPostgresOnH2() {

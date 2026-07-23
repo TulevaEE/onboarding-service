@@ -1,12 +1,14 @@
 package ee.tuleva.onboarding.analytics.view;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
@@ -27,18 +29,15 @@ class MaterializedViewRepositoryTest {
 
   @BeforeEach
   void setUp() {
-    when(jdbcTemplate.getJdbcOperations()).thenReturn(jdbcOperations);
+    given(jdbcTemplate.getJdbcOperations()).willReturn(jdbcOperations);
     repository = new MaterializedViewRepository(jdbcTemplate);
   }
 
   @Test
-  @DisplayName("refreshAllViews should execute refresh for each view")
-  void refreshAllViews_executesRefreshForEachView() {
-    // when
+  void refreshesSnapshotsBeforeTheViewsThatReadThem() {
     repository.refreshAllViews();
 
-    // then
-    verify(jdbcOperations, times(20)).execute(anyString());
+    verify(jdbcOperations, times(21)).execute(anyString());
     InOrder inOrder = inOrder(jdbcOperations);
     inOrder.verify(jdbcOperations).execute("REFRESH MATERIALIZED VIEW analytics.mv_tuk75_api;");
     inOrder.verify(jdbcOperations).execute("REFRESH MATERIALIZED VIEW analytics.mv_tuk00_api;");
@@ -47,18 +46,22 @@ class MaterializedViewRepositoryTest {
         .execute("REFRESH MATERIALIZED VIEW analytics.mv_third_pillar_api;");
     inOrder
         .verify(jdbcOperations)
+        .execute("REFRESH MATERIALIZED VIEW analytics.mv_third_pillar_history;");
+    inOrder
+        .verify(jdbcOperations)
         .execute("REFRESH MATERIALIZED VIEW analytics.mv_change_application_history;");
+    inOrder
+        .verify(jdbcOperations)
+        .execute("REFRESH MATERIALIZED VIEW analytics.mv_new_monthly_mandates_leavers;");
+    inOrder.verify(jdbcOperations).execute("REFRESH MATERIALIZED VIEW analytics.mv_kpi_new;");
     verify(jdbcOperations)
         .execute("REFRESH MATERIALIZED VIEW analytics.mv_tuk00_tuk75_history_new;");
-    verify(jdbcOperations)
-        .execute("REFRESH MATERIALIZED VIEW analytics.mv_new_monthly_mandates_leavers;");
     verify(jdbcOperations).execute("REFRESH MATERIALIZED VIEW analytics.mv_third_pillar_summary;");
     verify(jdbcOperations).execute("REFRESH MATERIALIZED VIEW analytics.mv_third_pillar_savings;");
     verify(jdbcOperations).execute("REFRESH MATERIALIZED VIEW analytics.mv_crm;");
     verify(jdbcOperations).execute("REFRESH MATERIALIZED VIEW analytics.mv_third_pillar_kpi;");
     verify(jdbcOperations)
         .execute("REFRESH MATERIALIZED VIEW analytics.mv_second_pillar_sums_new;");
-    verify(jdbcOperations).execute("REFRESH MATERIALIZED VIEW analytics.mv_kpi_new;");
     verify(jdbcOperations).execute("REFRESH MATERIALIZED VIEW analytics.mv_monthly_conversions;");
     verify(jdbcOperations).execute("REFRESH MATERIALIZED VIEW analytics.mv_crm_mailchimp;");
     verify(jdbcOperations).execute("REFRESH MATERIALIZED VIEW analytics.mv_coop_list;");
@@ -73,16 +76,13 @@ class MaterializedViewRepositoryTest {
   }
 
   @Test
-  @DisplayName("refreshAllViews should throw exception when refresh fails")
-  void refreshAllViews_throwsExceptionWhenRefreshFails() {
-    // given
-    doThrow(new DataAccessException("Permission denied") {})
-        .when(jdbcOperations)
+  void abortsTheBatchWhenARefreshFails() {
+    willThrow(new DataAccessException("Permission denied") {})
+        .given(jdbcOperations)
         .execute(anyString());
 
-    // when & then
-    RuntimeException thrown =
-        assertThrows(RuntimeException.class, () -> repository.refreshAllViews());
-    assertTrue(thrown.getMessage().contains("Failed to refresh materialized view"));
+    assertThatThrownBy(() -> repository.refreshAllViews()).isInstanceOf(RuntimeException.class);
+
+    verify(jdbcOperations, times(1)).execute(anyString());
   }
 }

@@ -18,7 +18,7 @@ public class RefreshMaterializedViewsJob {
   @Scheduled(cron = "0 0 7 * * ?", zone = "Europe/Tallinn")
   @SchedulerLock(
       name = "RefreshMaterializedViewsJob_refreshViews",
-      lockAtMostFor = "23h",
+      lockAtMostFor = "4h",
       lockAtLeastFor = "30m")
   public void refreshViews() {
     log.info("Starting analytics materialized views refresh job");

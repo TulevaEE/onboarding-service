@@ -19,6 +19,9 @@ class FtAccountToFundResolver {
       Map.of(
           normalize("Tuleva Additional Investment Fund"), TKF100,
           normalize("TULEVA III SAMBA PENSIONIFOND"), TUV100,
+          // MAAKPE->TUK75 is a provisional inference (ISIN IE000I9HGDZ3 is a TUK75 holding),
+          // not yet confirmed against the FT account setup; the M2 history backfill self-confirms
+          // it.
           normalize("MAAKPE"), TUK75);
 
   Optional<TulevaFund> resolve(String account) {

@@ -106,6 +106,16 @@ class SavingsFundOnboardingRepositoryTest {
   }
 
   @Test
+  void findPersonCodes_returnsEveryOnboardedPersonRegardlessOfStatus() {
+    repository.saveOnboardingStatus("60001019906", PERSON, COMPLETED);
+    repository.saveOnboardingStatus("38888888888", PERSON, PENDING);
+    repository.saveOnboardingStatus("14118923", LEGAL_ENTITY, COMPLETED);
+
+    assertThat(repository.findPersonCodes())
+        .containsExactlyInAnyOrder("60001019906", "38888888888");
+  }
+
+  @Test
   void saveOnboardingStatus_separatesPersonAndLegalEntity() {
     repository.saveOnboardingStatus("14118923", LEGAL_ENTITY, COMPLETED);
 

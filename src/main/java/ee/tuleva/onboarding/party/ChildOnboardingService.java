@@ -2,9 +2,12 @@ package ee.tuleva.onboarding.party;
 
 import static ee.tuleva.onboarding.event.TrackableEventType.MINOR_CUSTODY_VERIFICATION;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
+import static java.util.Collections.unmodifiableMap;
 
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.auth.principal.PersonImpl;
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
@@ -12,7 +15,9 @@ import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -49,6 +54,22 @@ public class ChildOnboardingService {
         .toList();
   }
 
+  private Map<String, Object> custodyEvidence(CustodyVerification verification) {
+    PopulationRegisterPerson child = verification.child();
+    if (child == null || child.citizenship() == null) {
+      return verification.evidence();
+    }
+    var evidence = new LinkedHashMap<String, Object>(verification.evidence());
+    evidence.put("citizenship", child.citizenship());
+    return unmodifiableMap(evidence);
+  }
+
+  private void screenForSanctionsAndPep(PopulationRegisterPerson child) {
+    amlService.addSanctionAndPepCheckIfMissing(
+        new PersonImpl(child.personalCode(), child.firstName(), child.lastName()),
+        new Country(child.citizenship()));
+  }
+
   private boolean hasBeenOnboarded(String childPersonalCode) {
     return savingsFundOnboardingService.getOnboardingStatus(new PartyId(PERSON, childPersonalCode))
         != null;
@@ -63,7 +84,7 @@ public class ChildOnboardingService {
     applicationEventPublisher.publishEvent(
         new TrackableEvent(parent, MINOR_CUSTODY_VERIFICATION, verification.evidence()));
     amlService.addCustodyRightCheck(
-        childPersonalCode, verification.isVerified(), verification.evidence());
+        childPersonalCode, verification.isVerified(), custodyEvidence(verification));
 
     if (!verification.isVerified()) {
       log.info(
@@ -78,6 +99,7 @@ public class ChildOnboardingService {
     parentChildLinkRegistrationService.register(
         parentPersonalCode, childPersonalCode, child.firstName(), child.lastName());
     savingsFundOnboardingService.seedPersonOnboardingIfAbsent(childPersonalCode);
+    screenForSanctionsAndPep(child);
 
     applicationEventPublisher.publishEvent(
         new ChildOnboardedEvent(

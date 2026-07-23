@@ -20,5 +20,6 @@ public class ScheduledAmlCheckJob {
   @SchedulerLock(name = "ScheduledAmlCheckJob_run", lockAtMostFor = "6h", lockAtLeastFor = "30m")
   public void run() {
     amlService.runAmlChecksOnThirdPillarCustomers();
+    amlService.runAmlChecksOnSavingsFundCustomers();
   }
 }

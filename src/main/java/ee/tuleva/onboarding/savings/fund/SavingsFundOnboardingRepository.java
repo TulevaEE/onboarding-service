@@ -20,6 +20,13 @@ public class SavingsFundOnboardingRepository {
 
   private final JdbcClient jdbcClient;
 
+  public List<String> findPersonCodes() {
+    return jdbcClient
+        .sql("SELECT code FROM savings_fund_onboarding WHERE type = 'PERSON'")
+        .query(String.class)
+        .list();
+  }
+
   public boolean isOnboardingCompleted(String code, PartyId.Type type) {
     return findStatus(code, type).filter(status -> status == COMPLETED).isPresent();
   }

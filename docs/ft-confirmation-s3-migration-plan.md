@@ -38,10 +38,22 @@ ft-confirmations`) to **S3-drop + Java PDFBox parse**, mirroring how SEB/Swedban
   garbling. So **PDFBox `PDFTextStripper` reads it directly; no OCR / no Tesseract.** (GAS OCRs only because
   Apps Script has no PDF-text API — not because the PDF needs it.) Contrast: the SEB *fund* confirmation's
   text layer is broken (font-encoding) and would need OCR — but SEB is out of scope (covered by the pending CSV).
-- **R2 — `Account` → `TulevaFund` mapping — partially resolved.** `Account` is the **full English fund
-  name**. Confirmed from the sample: `Tuleva Additional Investment Fund` → **TKF100**. Still need the exact
-  `Account` strings for **TUK75** (Maailma Aktsiate) and **TUV100** (III Samba) — get from one confirmation
-  each, or map from the known fund set. `TulevaFund.fromCode` exists; add a name/account lookup.
+- **R2 — `Account` → `TulevaFund` mapping — ✅ RESOLVED 2026-07-23 (10 real confirmations), with one item
+  to confirm.** **The `Account` field is NOT uniformly named** — each fund uses a *different* convention, and
+  none is derivable from the `TulevaFund.displayName`:
+  | FT `Account` string | → fund | vs enum `displayName` |
+  | --- | --- | --- |
+  | `Tuleva Additional Investment Fund` | **TKF100** | enum = "Tuleva Täiendav Kogumisfond" (English marketing name, no match) |
+  | `TULEVA III SAMBA PENSIONIFOND` | **TUV100** | enum = "Tuleva III Samba Pensionifond" (matches case-insensitively) |
+  | `MAAKPE` | **TUK75** ⚠️ | enum = "Tuleva Maailma Aktsiate Pensionifond" (cryptic code, no match) |
+
+  So the parser needs an **explicit FT-account-alias → fund table** (normalize by trim + case-insensitive),
+  **failing loud (ORPHAN/error) on any unrecognized `Account`** so a new/changed variant surfaces instead of
+  silently mis-mapping. `MAAKPE` is **not** in our codebase — inferred as TUK75 because its ISIN
+  `IE000I9HGDZ3` is a TUK75 holding, it appears on the same date/price as the separate `III SAMBA`
+  confirmation, and `MAAKPE` ≈ a contraction of *MAAilma aKtsiate PEnsionifond*. **Confirm with J / the FT
+  account setup before shipping.** The sample is small (8× TKF100, 1× TUV100, 1× TUK75), so treat the alias
+  table as extensible + fail-loud, not exhaustive.
 - **R3 — SES routing (infra, J-owned).** Source is now concrete: **`from:flowtraders@ullink.eu`,
   `subject:"Trade Confirmation"`, PDF attachment** (per GAS `SEB_raport_import_convert.gs` OSA 3). Cleanest
   path: a **Gmail filter** on that sender/subject **auto-forwards to an SES-inbound address** (e.g.
@@ -59,6 +71,12 @@ ft-confirmations`) to **S3-drop + Java PDFBox parse**, mirroring how SEB/Swedban
 `ISIN`, `Your Direction`, `Quantity`, `Gross Price ... EUR`, `Net Price`, `Transaction Cost`, `Net Amount`,
 `Settlement Currency`, plus settlement-instruction blocks and a legal footer (ignored). Contact:
 `midoffice.amsterdam@nl.flowtraders.com`. The ported `extractField` (`Label\s*:\s*(value)`) handles it.
+
+**Cancellation detection:** the title is always `Trade Confirmation` (not a reliable signal). The
+discriminator is the body line — normal: `We confirm the following trade .`; cancellation: `We confirm the
+following trade cancellation.` Detect the phrase `trade cancellation` (case-insensitive), matching GAS.
+Real example in the sample set: `MID9AiyZwO-00` cancels a TKF100 buy of `IE000F60HVH9` @ 4.951500, re-booked
+as `MID9AoF5Ik-01` @ 4.970000 (note the `-01` allocation-id suffix on the rebook).
 
 ## Milestones (TDD-first, refactor/add before delete)
 

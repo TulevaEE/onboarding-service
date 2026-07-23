@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.party;
 
 import static ee.tuleva.onboarding.event.TrackableEventType.MINOR_CUSTODY_VERIFICATION;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
+import static java.util.Collections.unmodifiableMap;
 
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -60,7 +61,7 @@ public class ChildOnboardingService {
     }
     var evidence = new LinkedHashMap<String, Object>(verification.evidence());
     evidence.put("citizenship", child.citizenship());
-    return Map.copyOf(evidence);
+    return unmodifiableMap(evidence);
   }
 
   private void screenForSanctionsAndPep(PopulationRegisterPerson child) {

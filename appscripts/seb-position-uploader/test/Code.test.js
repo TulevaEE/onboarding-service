@@ -12,6 +12,8 @@ const {
   dedupKeyFor,
   formatUnmatchedAttachmentAlert,
   isIgnoredFilename,
+  isBinaryFileConfig,
+  resolveContentType,
 } = require("../src/Code");
 
 describe("getSourceForSender", () => {
@@ -25,6 +27,11 @@ describe("getSourceForSender", () => {
   test("matches each configured Swedbank sender", () => {
     SOURCES.SWEDBANK.senders.forEach((s) => {
       expect(getSourceForSender("Some Person <" + s + ">")).toBe(SOURCES.SWEDBANK);
+    });
+  });
+  test("matches each configured FT sender", () => {
+    SOURCES.FT.senders.forEach((s) => {
+      expect(getSourceForSender("Some Person <" + s + ">")).toBe(SOURCES.FT);
     });
   });
   test("rejects an arbitrary @tuleva.ee address that is not on the allowlist", () => {
@@ -50,7 +57,7 @@ describe("getFileConfigAndDate — SEB filenames (positive)", () => {
     const result = getFileConfigAndDate(SOURCES.SEB, filename);
     expect(result).not.toBeNull();
     expect(result.fileConfig.s3Suffix).toBe(expectedSuffix);
-    expect(result.reportDate).toBe(expectedDate);
+    expect(result.keyStem).toBe(expectedDate);
   });
 });
 
@@ -73,10 +80,65 @@ describe("getFileConfigAndDate — Swedbank filenames", () => {
     const result = getFileConfigAndDate(SOURCES.SWEDBANK, "TULEVA_PORTFOLIO_20260409.csv");
     expect(result).not.toBeNull();
     expect(result.fileConfig.s3Suffix).toBe(".csv");
-    expect(result.reportDate).toBe("2026-04-09");
+    expect(result.keyStem).toBe("2026-04-09");
   });
   test("rejects SEB filename", () => {
     expect(getFileConfigAndDate(SOURCES.SWEDBANK, "TULEVA_pos_raport_20260409.csv")).toBeNull();
+  });
+});
+
+describe("getFileConfigAndDate — FT filenames", () => {
+  test("matches an FT confirmation PDF, keyStem is the raw allocation id (not a date)", () => {
+    const result = getFileConfigAndDate(SOURCES.FT, "MID9BlFbos-00.pdf");
+    expect(result).not.toBeNull();
+    expect(result.keyStem).toBe("MID9BlFbos-00");
+    expect(result.fileConfig.s3Prefix).toBe("ft-confirmations/");
+    expect(result.fileConfig.s3Suffix).toBe(".pdf");
+  });
+  test("rejects a non-FT / garbage filename", () => {
+    expect(getFileConfigAndDate(SOURCES.FT, "random.pdf")).toBeNull();
+    expect(getFileConfigAndDate(SOURCES.FT, "TULEVA_pos_raport_20260409.csv")).toBeNull();
+  });
+  test("FT file config carries binary:true and contentType:application/pdf", () => {
+    const result = getFileConfigAndDate(SOURCES.FT, "MID9BlFbos-00.pdf");
+    expect(result.fileConfig.binary).toBe(true);
+    expect(result.fileConfig.contentType).toBe("application/pdf");
+  });
+});
+
+describe("getFileConfigAndDate — S3 key regression (CSV feeds stay date-based)", () => {
+  test("SEB filename still produces its exact date-based key", () => {
+    const result = getFileConfigAndDate(SOURCES.SEB, "TULEVA_pos_raport_20260409.csv");
+    const s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
+    expect(s3Key).toBe("seb/2026-04-09_positions.csv");
+  });
+  test("Swedbank filename still produces its exact date-based key", () => {
+    const result = getFileConfigAndDate(SOURCES.SWEDBANK, "TULEVA_PORTFOLIO_20260409.csv");
+    const s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
+    expect(s3Key).toBe("portfolio/2026-04-09.csv");
+  });
+  test("FT filename produces the allocation-id-based key", () => {
+    const result = getFileConfigAndDate(SOURCES.FT, "MID9BlFbos-00.pdf");
+    const s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
+    expect(s3Key).toBe("ft-confirmations/MID9BlFbos-00.pdf");
+  });
+});
+
+describe("isBinaryFileConfig / resolveContentType — attachment content selection", () => {
+  test("FT config reads as binary bytes with a PDF content-type", () => {
+    const ftFileConfig = getFileConfigAndDate(SOURCES.FT, "MID9BlFbos-00.pdf").fileConfig;
+    expect(isBinaryFileConfig(ftFileConfig)).toBe(true);
+    expect(resolveContentType(ftFileConfig)).toBe("application/pdf");
+  });
+  test("SEB config reads as text with the default text/csv content-type (binary/contentType omitted)", () => {
+    const sebFileConfig = getFileConfigAndDate(SOURCES.SEB, "TULEVA_pos_raport_20260409.csv").fileConfig;
+    expect(isBinaryFileConfig(sebFileConfig)).toBe(false);
+    expect(resolveContentType(sebFileConfig)).toBe("text/csv");
+  });
+  test("Swedbank config reads as text with the default text/csv content-type (binary/contentType omitted)", () => {
+    const swedbankFileConfig = getFileConfigAndDate(SOURCES.SWEDBANK, "TULEVA_PORTFOLIO_20260409.csv").fileConfig;
+    expect(isBinaryFileConfig(swedbankFileConfig)).toBe(false);
+    expect(resolveContentType(swedbankFileConfig)).toBe("text/csv");
   });
 });
 

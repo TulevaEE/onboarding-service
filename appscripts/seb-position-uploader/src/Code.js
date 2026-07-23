@@ -50,6 +50,23 @@ var SOURCES = {
         ignorePatterns: [
             /^T\w+\s+NAV\s+arvutamine\s+\d{8}\.csv$/i
         ]
+    },
+    FT: {
+        senders: ["flowtraders@ullink.eu"],
+        files: [
+            {
+                // ASSUMPTION (unconfirmed against a real FT email attachment name —
+                // see appscripts/seb-position-uploader/README.md / migration plan):
+                // Flow Traders names the confirmation PDF by allocation id, e.g.
+                // "MID9BlFbos-00.pdf". One-line regex change if the real name differs.
+                pattern: /^(MID\w+-\d+)\.pdf$/i,
+                s3Prefix: "ft-confirmations/",
+                s3Suffix: ".pdf",
+                binary: true,
+                contentType: "application/pdf",
+                keyFromCapture: true
+            }
+        ]
     }
 };
 
@@ -256,11 +273,11 @@ function processMessage(message, thread) {
 
         var result = getFileConfigAndDate(source, filename);
         if (result) {
-            var s3Key = result.fileConfig.s3Prefix + result.reportDate + result.fileConfig.s3Suffix;
-            var content = attachment.getDataAsString();
+            var s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
+            var content = isBinaryFileConfig(result.fileConfig) ? attachment.getBytes() : attachment.getDataAsString();
 
             try {
-                uploadToS3(S3_BUCKET, s3Key, content, "text/csv");
+                uploadToS3(S3_BUCKET, s3Key, content, resolveContentType(result.fileConfig));
                 Logger.log("SUCCESS: Uploaded " + filename + " -> s3://" + S3_BUCKET + "/" + s3Key);
                 uploadedCount++;
             } catch (e) {
@@ -289,14 +306,26 @@ function getSourceForSender(sender) {
 
 function getFileConfigAndDate(source, filename) {
     for (var i = 0; i < source.files.length; i++) {
-        var match = filename.match(source.files[i].pattern);
+        var fileConfig = source.files[i];
+        var match = filename.match(fileConfig.pattern);
         if (match && match[1]) {
-            var ymd = match[1];
-            var reportDate = ymd.substring(0, 4) + "-" + ymd.substring(4, 6) + "-" + ymd.substring(6, 8);
-            return { fileConfig: source.files[i], reportDate: reportDate };
+            var keyStem = fileConfig.keyFromCapture ? match[1] : formatDateFromCapture(match[1]);
+            return { fileConfig: fileConfig, keyStem: keyStem };
         }
     }
     return null;
+}
+
+function formatDateFromCapture(ymd) {
+    return ymd.substring(0, 4) + "-" + ymd.substring(4, 6) + "-" + ymd.substring(6, 8);
+}
+
+function isBinaryFileConfig(fileConfig) {
+    return !!fileConfig.binary;
+}
+
+function resolveContentType(fileConfig) {
+    return fileConfig.contentType || "text/csv";
 }
 
 function incrementUploadLabel(thread) {
@@ -488,7 +517,7 @@ function dryRunThread(thread) {
             var filename = attachments[k].getName();
             var result = getFileConfigAndDate(source, filename);
             if (result) {
-                var s3Key = result.fileConfig.s3Prefix + result.reportDate + result.fileConfig.s3Suffix;
+                var s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
                 Logger.log("    -> Would UPLOAD: " + filename + " to s3://" + S3_BUCKET + "/" + s3Key);
             } else {
                 Logger.log("    -> Would SKIP: Unknown file pattern: " + filename);
@@ -529,5 +558,7 @@ if (typeof module !== "undefined" && module.exports) {
         dedupKeyFor,
         formatUnmatchedAttachmentAlert,
         isIgnoredFilename,
+        isBinaryFileConfig,
+        resolveContentType,
     };
 }

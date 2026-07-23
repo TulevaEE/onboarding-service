@@ -10,7 +10,7 @@ onboarding-service ingests data from several external / automated sources:
 
 - **SEB** pending-transaction and position CSVs
 - **Swedbank** position CSVs
-- **First Trust / Allfunds ("FT")** trade confirmations (PDF, delivered by email)
+- **Flow Traders ("FT")** ETF trade confirmations (PDF, from `flowtraders@ullink.eu`)
 - **EPIS** reports R16 / R17 / R21 / R45 (no API — a human fetches them from the EPIS portal)
 
 SEB and Swedbank already follow one consistent shape: the external system **drops a file in
@@ -65,10 +65,11 @@ raw file lands in S3 the same way SEB / Swedbank reports do. New integration wor
 - **Attribution simplifies.** With no machine caller left on `/admin`, the only actors on those
   endpoints are human operators — which is what makes per-operator-token attribution clean (no
   awkward `gas-ft-push` service identity to special-case).
-- Each S3-drop feed needs three parts in Java: the **parser**, an **S3 landing** for the raw
-  file, and a **pull job / `*ReportSource`**. For email-delivered files (FT), the S3 landing is
-  an infra prerequisite (an SES inbound-email rule → S3, or a scheduled mail-fetch job) and is a
-  decision to make before that feed can go pull-based.
+- Each S3-drop feed needs a **parser** and a **pull job** in Java, plus an **S3 landing** for the raw
+  file. The landing already exists for email-delivered files: the production `investment_reports_gs.gs`
+  GAS→S3 uploader (Gmail `funds@tuleva.ee` → `tuleva-investment-reports`, with SigV4 + idempotency +
+  backfill). New feeds add a `SOURCES` entry there rather than standing up new email infra — GAS keeps a
+  dumb file-mover role, which is a file drop, not an API call, and so is ADR-compliant.
 
 ## Migration — FT confirmations (the one current violation)
 

@@ -1,8 +1,10 @@
 # FT Confirmation Ingestion — S3-Drop Migration Plan
 
-Realizes **ADR 0001** (`adr-0001-external-integration-via-s3-drop.md`) for the FT (First Trust /
-Allfunds) trade-confirmation feed. Moves FT from **GAS-push** (`POST /admin/transaction-registry/
-ft-confirmations`) to **S3-drop + Java PDFBox parse**, mirroring how SEB/Swedbank reports arrive.
+Realizes **ADR 0001** (`adr-0001-external-integration-via-s3-drop.md`) for the **FT = Flow Traders**
+(ETF market-maker; sender `flowtraders@ullink.eu`) trade-confirmation feed. Moves FT from **GAS-push**
+(`POST /admin/transaction-registry/ft-confirmations`) to **S3-drop + Java PDFBox parse** — landed the
+same way SEB/Swedbank reports already arrive: via the existing **`investment_reports_gs.gs` GAS→S3
+uploader** into `tuleva-investment-reports`, which `ReportImportJob` already consumes.
 
 ## What changes, what doesn't
 
@@ -10,7 +12,12 @@ ft-confirmations`) to **S3-drop + Java PDFBox parse**, mirroring how SEB/Swedban
   everything downstream — order matching, `FtConfirmationAuditRecorder` (dedup), `FtConfirmationDigest`,
   `PositionPriceResolver`. Only the **entry** changes: from an HTTP POST of parsed rows to an S3-pull
   job that parses PDFs into the same `FtConfirmation` objects.
-- **Removed at the end (M5):** the two push endpoints + their DTOs, and the GAS PDF parser + trigger.
+- **Removed at the end (M5):** the two push endpoints + their DTOs, the GAS PDF parser + the GAS→Java
+  push trigger, and the redundant GAS FT-PDF-to-Drive save.
+- **GAS is NOT fully retired — and that's ADR-compliant.** It keeps one job: the `investment_reports_gs.gs`
+  uploader dropping the raw FT PDF into S3 (a file drop, *not* an API call). The parsing logic moves to
+  Java, which is the ADR's actual requirement. Fully retiring GAS from ingestion (SES inbound) is a
+  possible far-future cleanup, not part of this migration.
 
 ## Key design decisions
 
@@ -22,9 +29,11 @@ ft-confirmations`) to **S3-drop + Java PDFBox parse**, mirroring how SEB/Swedban
 2. **Parse with Apache PDFBox `PDFTextStripper`** (add explicit `org.apache.pdfbox:pdfbox`; only the
    `openhtmltopdf-pdfbox` *generator* is present today). Port GAS's label→value strategy: `extractField`
    matches `Label: Value` on the same line or `Label⏎Value` on the next, case-insensitive.
-3. **SES inbound → S3** stores the raw email; a Java `jakarta.mail` seam extracts the PDF attachment,
-   then PDFBox parses it. (Alternative: SES → Lambda → clean PDF to S3, and the job reads PDFs directly.
-   Not recommended — keep the logic in Java per the ADR.)
+3. **Land the PDF via the existing GAS→S3 uploader**, not new infra. `investment_reports_gs.gs` already
+   polls `funds@tuleva.ee` and uploads matched attachments to `tuleva-investment-reports` with working
+   SigV4 signing, per-thread idempotency labels, and historical backfill. FT confirmations **already
+   arrive at `funds@tuleva.ee`** (confirmed), so this is a `SOURCES` config addition + two small tweaks
+   (see M2) — no SES, no Lambda, no MIME parsing in Java (the job reads a clean PDF straight from S3).
 4. **Idempotency** rides on the existing audit dedup (`recordOutcome` returns `recorded=false` on a
    repeat) + digest dedup, so re-parsing the same PDF on a later poll records or alerts nothing twice.
    Optionally track processed S3 keys to skip re-parse (efficiency only; no migration if we skip it).
@@ -54,11 +63,11 @@ ft-confirmations`) to **S3-drop + Java PDFBox parse**, mirroring how SEB/Swedban
   confirmation, and `MAAKPE` ≈ a contraction of *MAAilma aKtsiate PEnsionifond*. **Confirm with J / the FT
   account setup before shipping.** The sample is small (8× TKF100, 1× TUV100, 1× TUK75), so treat the alias
   table as extensible + fail-loud, not exhaustive.
-- **R3 — SES routing (infra, J-owned).** Source is now concrete: **`from:flowtraders@ullink.eu`,
-  `subject:"Trade Confirmation"`, PDF attachment** (per GAS `SEB_raport_import_convert.gs` OSA 3). Cleanest
-  path: a **Gmail filter** on that sender/subject **auto-forwards to an SES-inbound address** (e.g.
-  `ft-confirmations@in.tuleva.ee`, MX → SES) → SES stores raw email to S3. Replaces the GAS Drive-save;
-  mailbox stays put.
+- **R3 — S3 landing — ✅ RESOLVED 2026-07-23 (SES dropped).** No new email infra. The production
+  `investment_reports_gs.gs` GAS→S3 uploader already does exactly this for every other feed, and the FT
+  emails (`from:flowtraders@ullink.eu`, `subject:"Trade Confirmation"`) **already land in `funds@tuleva.ee`**
+  (confirmed by J), which the uploader searches (`to:funds@tuleva.ee has:attachment`). So the landing is a
+  `SOURCES` addition + the two M2 tweaks, not the SES/MX/forwarding project previously scoped here.
 - **R4 — formats — ✅ confirmed against the sample.** `Trade Date: 20260717` (`yyyyMMdd`, use directly for
   `tradeDate`); `Trade Date Time: 20260717-09:32:44 UTC`; `Quantity: 1,047` (strip comma); `Gross Price:
   56.850000 EUR` (strip ` EUR`, 6 dp); `Your Direction: Buy`; `Allocation ID: MID9BlFbos-00`; cancellation
@@ -80,28 +89,40 @@ as `MID9AoF5Ik-01` @ 4.970000 (note the `-01` allocation-id suffix on the rebook
 
 ## Milestones (TDD-first, refactor/add before delete)
 
-### M1 — FT PDF parser in Java (additive, no wiring)
-- **Prereq:** ≥1 real sample confirmation PDF (+ ideally one cancellation) — resolves R1/R2/R4.
+### M1 — FT PDF parser in Java (additive, no wiring) — **ready to build; R1/R2/R4 resolved**
+- **Samples in hand:** 11 real confirmations (10 in `/Users/j/scratch`, 1 uploaded) covering all 3 funds,
+  a cancellation + its rebook, comma-thousands quantities, 6-dp prices. R1/R2/R4 all resolved above.
 - **Failing test (business outcome):** given a real FT confirmation PDF, the parser yields the correct
   `FtConfirmation` (fund, isin, UTC tradeDate, quantity, grossPrice, type, account [+ allocationId]).
 - **Steps:** add the pdfbox dependency; `FtConfirmationPdfParser` = `PDFTextStripper` → text → ported
-  `extractField` regex → field mapping (UTC dates, strip ` EUR`/thousands, `Account`→`TulevaFund`,
-  cancellation via `/trade cancellation/i`); unit test per field + cancellation + **malformed → throws**
-  (fail loud, per the economics policy — never substitute).
-- **If R1 fails (image-only):** stop and escalate the Tesseract decision before writing more.
+  `extractField` regex → field mapping (UTC dates, strip ` EUR`/thousands, `Account`→`TulevaFund` via the
+  fail-loud alias table, cancellation via `/trade cancellation/i`); unit test per field + cancellation +
+  unmapped-account + **malformed → throws** (fail loud, per the economics policy — never substitute).
 
-### M2 — SES → S3 landing (infra J-owned + a Java MIME seam)
-- SES inbound receipt rule writes the raw email under `ft-confirmations-raw/` in the reports bucket.
-- `FtEmailPdfExtractor` (`jakarta.mail`): raw MIME → PDF attachment bytes. TDD against a saved raw-email
-  fixture (scrubbed). *(If we pick SES→Lambda→clean-PDF instead, this Java seam drops and the job reads
-  PDFs directly.)*
+### M2 — extend the existing GAS→S3 uploader for FT (in `investment_reports_gs.gs`)
+Add FT to the `SOURCES` config so the raw PDF lands at `ft-confirmations/<allocationId>.pdf`:
+```js
+FT: { senders: ["flowtraders@ullink.eu"],
+      files: [{ pattern: /^(MID\w+-\d+)\.pdf$/i, s3Prefix: "ft-confirmations/", s3Suffix: ".pdf" }] }
+```
+Two real tweaks (the uploader was built for dated CSVs):
+1. **Binary bytes.** `processMessage` (`:260`) reads `attachment.getDataAsString()` — fine for CSV text,
+   **corrupts a PDF**. Use `attachment.getBytes()` (or `copyBlob()`) + content-type `application/pdf` into
+   `uploadToS3` (which already accepts a byte payload for the SigV4 hash).
+2. **Allocation-id keys, not date keys.** `getFileConfigAndDate` (`:290`) builds the key from a **date**
+   captured in the filename (`prefix + yyyy-mm-dd + suffix`). FT filenames carry an **allocation id**
+   (`MID9BlFbos-00`) and there are many per day → key must be `ft-confirmations/<allocationId>.pdf`.
+   Add a per-file `keyFromCapture` (or similar) branch so `match[1]` is used verbatim as the key stem.
+- **Backfill for free:** the same uploader's `processHistoricalEmails30Days()` (with the FT source added)
+  bulk-lands historical confirmations — giving the full fixture set + every real `Account` alias (locks R2).
+- The GAS change is small; validate with the uploader's existing `testUpload` path against a scrubbed PDF.
 
-### M3 — S3 pull job (additive; shadow mode, no alerts)
-- `FtConfirmationS3Source`: `ListObjectsV2` under the prefix (net-new — no existing list usage), get
-  object, HeadObject `lastModified`.
+### M3 — Java S3 pull job (additive; shadow mode, no alerts)
+- `FtConfirmationS3Source`: `ListObjectsV2` under `ft-confirmations/` (net-new — no existing list usage),
+  get object, HeadObject `lastModified`.
 - `FtConfirmationImportJob`: `@Scheduled` + `@SchedulerLock`, `Clock`-injected, behind an enable flag
-  (`@ConditionalOnProperty`); list new objects → extract PDF (M2) → parse (M1) → `verifyAll`. Idempotent
-  via audit dedup.
+  (`@ConditionalOnProperty`); list new objects → parse each PDF (M1) → `verifyAll`. The object is already a
+  clean PDF (GAS dropped it), so no MIME/attachment extraction is needed. Idempotent via audit dedup.
 - **Failing integration test:** a PDF object in a mocked/LocalStack S3 prefix → verified outcome recorded;
   second run → no duplicate audit/alert. Confirm the audit dedup key holds across both entry paths (push
   + job) during the parallel run.
@@ -116,8 +137,9 @@ as `MID9AoF5Ik-01` @ 4.970000 (note the `-01` allocation-id suffix on the rebook
 2. Delete `POST /admin/transaction-registry/ft-confirmation` (singular) + `.../ft-confirmations` (plural)
    + their request DTOs/tests. Keep the domain `FtConfirmation` + `verifyAll` (now job-fed). The
    `X-Admin-Actor` on those endpoints goes away with them.
-3. Remove the GAS parser `tehingukinnitused_parse.gs` + Drive/OCR plumbing (tuleva repo) once the S3 path
-   is proven.
+3. Remove the GAS parser `tehingukinnitused_parse.gs` (OCR + sheet) and the now-redundant FT-PDF-to-Drive
+   save in `SEB_raport_import_convert.gs` (OSA 3), once the S3 path is proven. **Keep** the new FT `SOURCES`
+   entry in `investment_reports_gs.gs` — that S3 upload is the ongoing feed.
 
 ## Testing & conventions
 - **No PII in fixtures** (CLAUDE.md): scrub sample PDFs/emails — synthetic names, opaque IDs.

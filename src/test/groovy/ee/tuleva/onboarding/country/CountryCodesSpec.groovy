@@ -43,6 +43,31 @@ class CountryCodesSpec extends Specification {
         "EE"    | "EE"
     }
 
+    @Unroll
+    def "sanctions-critical numeric #input maps to exactly #expected"() {
+        expect:
+        CountryCodes.numericToAlpha2(input) == expected
+        where:
+        input | expected
+        "643" | "RU"
+        "408" | "KP"
+        "364" | "IR"
+        "760" | "SY"
+        "112" | "BY"
+        "192" | "CU"
+        "104" | "MM"
+        "004" | "AF"
+        "862" | "VE"
+        "156" | "CN"
+        "784" | "AE"
+        "729" | "SD"
+        "728" | "SS"
+        "233" | "EE"
+        "352" | "IS"
+        "438" | "LI"
+        "578" | "NO"
+    }
+
     def "every AML high-risk and EEA country used by the risk views is mapped"() {
         given:
         def required = [

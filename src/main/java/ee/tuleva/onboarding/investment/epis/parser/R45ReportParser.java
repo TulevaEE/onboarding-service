@@ -101,8 +101,8 @@ public class R45ReportParser {
     Map<String, BigDecimal> navByIsin = new HashMap<>(fallbackNavByIsin);
     for (Map<String, String> row : rows) {
       String isin = normalizeIsin(findValue(row, "isin"));
-      BigDecimal nav = numberOrZero(row, "nav");
-      if (!isin.isEmpty() && nav.signum() > 0) {
+      BigDecimal nav = findNav(row);
+      if (!isin.isEmpty() && nav != null && nav.signum() > 0) {
         navByIsin.putIfAbsent(isin, nav);
       }
     }
@@ -111,11 +111,16 @@ public class R45ReportParser {
 
   private static BigDecimal effectiveNav(
       Map<String, String> row, Map<String, BigDecimal> navByIsin, String isin) {
-    BigDecimal rowNav = numberOrZero(row, "nav");
-    if (rowNav.signum() > 0) {
+    BigDecimal rowNav = findNav(row);
+    if (rowNav != null && rowNav.signum() > 0) {
       return rowNav;
     }
     return navByIsin.getOrDefault(isin, BigDecimal.ZERO);
+  }
+
+  @Nullable
+  private static BigDecimal findNav(Map<String, String> row) {
+    return parseNumber(findValue(row, "nav"), DECIMAL_CONVENTION);
   }
 
   private static boolean isSettledBefore(Map<String, String> row, LocalDate today) {

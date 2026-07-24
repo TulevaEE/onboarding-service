@@ -35,10 +35,13 @@ public class R17ReportParser {
     for (Map<String, String> row : parsed.rows()) {
       String fundRaw = trimmed(findValue(row, "väärtpaber", "vaartpaber"));
       String toiming = lowerCase(findValue(row, "toiming"));
-      String pfType = lowerCase(findValue(row, "pf valitseja", "pfvalitseja"));
-      BigDecimal units = unitsOrZero(row).abs();
+      if (fundRaw.isEmpty() || toiming.isEmpty()) {
+        continue;
+      }
 
-      if (fundRaw.isEmpty() || toiming.isEmpty() || units.signum() == 0) {
+      String pfType = lowerCase(findValue(row, "pf valitseja", "pfvalitseja"));
+      BigDecimal units = requiredUnits(row, fundRaw, toiming).abs();
+      if (units.signum() == 0) {
         continue;
       }
       if (units.compareTo(MAX_REASONABLE_UNITS) > 0) {
@@ -106,10 +109,14 @@ public class R17ReportParser {
     return null;
   }
 
-  private static BigDecimal unitsOrZero(Map<String, String> row) {
+  private static BigDecimal requiredUnits(Map<String, String> row, String fund, String toiming) {
     BigDecimal units =
         parseNumber(findValue(row, "osakud (teenustasuga)", "osakuid"), DECIMAL_CONVENTION);
-    return units == null ? BigDecimal.ZERO : units;
+    if (units == null) {
+      throw new IllegalArgumentException(
+          "R17 required units missing: fund=" + fund + ", toiming=" + toiming);
+    }
+    return units;
   }
 
   private static String trimmed(@Nullable String value) {

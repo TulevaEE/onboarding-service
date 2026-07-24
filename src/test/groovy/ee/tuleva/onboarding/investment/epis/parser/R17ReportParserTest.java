@@ -257,6 +257,37 @@ class R17ReportParserTest {
   }
 
   @Test
+  void throwsWhenUnitsBlankOnDataRow() {
+    String csv =
+        """
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;100.000;;80.00;0.00
+        """
+            .formatted(HEADER_ROW);
+
+    assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void skipsRowWithEmptyToimingWithoutRequiringUnits() {
+    String csv =
+        """
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;;PIK;0.80;;;80.00;0.00
+        """
+            .formatted(HEADER_ROW);
+
+    Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
   void parsesWhenFileStartsWithUtf8Bom() {
     String csv =
         "﻿"

@@ -37,9 +37,9 @@ public class R16ReportParser {
         continue;
       }
 
-      BigDecimal fondimaksedUnits = unitsOrZero(row, "fondimaksed osakud");
+      BigDecimal fondimaksedUnits = requiredUnits(row, fund.get(), "fondimaksed osakud");
       BigDecimal uhekordsedUnits =
-          unitsOrZero(row, "ühekordsed maksed osakud", "uhekordsed maksed osakud");
+          requiredUnits(row, fund.get(), "ühekordsed maksed osakud", "uhekordsed maksed osakud");
       validateMagnitude(fondimaksedUnits, uhekordsedUnits);
 
       UnitAccumulator accumulator =
@@ -83,9 +83,14 @@ public class R16ReportParser {
     }
   }
 
-  private static BigDecimal unitsOrZero(Map<String, String> row, String... keywords) {
+  private static BigDecimal requiredUnits(
+      Map<String, String> row, TulevaFund fund, String... keywords) {
     BigDecimal units = parseNumber(findValue(row, keywords), DECIMAL_CONVENTION);
-    return units == null ? BigDecimal.ZERO : units.abs();
+    if (units == null) {
+      throw new IllegalArgumentException(
+          "R16 required units missing: fund=" + fund.getCode() + ", column=" + keywords[0]);
+    }
+    return units.abs();
   }
 
   private static final class UnitAccumulator {

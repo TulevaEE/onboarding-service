@@ -5,9 +5,6 @@ ALTER TABLE instrument_reference ADD COLUMN settlement_cutoff_time time;
 ALTER TABLE instrument_reference ADD COLUMN settlement_cutoff_zone text;
 ALTER TABLE instrument_reference ADD COLUMN settlement_days_from_acceptance integer;
 
-UPDATE investment_transaction_batch SET status = 'DRAFT' WHERE status = 'AWAITING_CONFIRMATION';
-UPDATE investment_transaction_order SET order_status = 'DRAFT' WHERE order_status = 'PENDING';
-
 ALTER TABLE investment_transaction_batch ALTER COLUMN status SET DEFAULT 'DRAFT';
 ALTER TABLE investment_transaction_order ALTER COLUMN order_status SET DEFAULT 'DRAFT';
 

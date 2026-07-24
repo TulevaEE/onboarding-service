@@ -1,9 +1,10 @@
 -- Per-instrument settlement terms for cut-off-aware expected settlement dates.
 --
--- Model: acceptance date = submission date when submitted at or before the cut-off (compared in the
--- cut-off zone; exactly the cut-off instant counts as before), otherwise the next business day on
--- the instrument's domicile calendar. Expected settlement = acceptance + settlement_days_from_
--- acceptance business days on that same calendar.
+-- Model: acceptance date = the submission date rolled to the next-or-same business day when
+-- submitted at or before the cut-off (compared in the cut-off zone; exactly the cut-off instant
+-- counts as before), otherwise the next business day. Business days follow the PROVIDER's domicile
+-- calendar (CCF is Irish-domiciled but settles via Allfunds on the France calendar). Expected
+-- settlement = acceptance + settlement_days_from_acceptance business days on that same calendar.
 --
 -- All three columns are nullable and act as one unit: if any is NULL the instrument keeps the flat
 -- T+2 (ETF) / T+5 (FUND) path. This is the rollout safety net.

@@ -256,6 +256,25 @@ class TransactionRegistryViewsIT {
     assertThat((BigDecimal) row.get("total_consideration")).isEqualByComparingTo("70915.58");
   }
 
+  @Test
+  void recreatedViews_exposeScheduledSettlementDate() {
+    TransactionOrder order = persistOrder(EXECUTED, LocalDate.now().minusDays(5), "400");
+    persistExecution(order, "400.0000");
+    entityManager.flush();
+
+    for (String view :
+        List.of("v_transaction_registry", "v_delayed_settlements", "v_depositary_reconciliation")) {
+      Map<String, Object> row =
+          jdbcClient
+              .sql("select scheduled_settlement_date from " + view + " where order_id = ?")
+              .param(order.getId())
+              .query()
+              .singleRow();
+      assertThat(((java.sql.Date) row.get("scheduled_settlement_date")).toLocalDate())
+          .isEqualTo(LocalDate.now().minusDays(1));
+    }
+  }
+
   private Map<String, Object> registryRow(TransactionOrder order) {
     return jdbcClient
         .sql("select * from v_transaction_registry where order_id = ?")

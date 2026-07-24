@@ -77,7 +77,7 @@ public class SettlementDateCalculator {
     LocalDate acceptanceDate =
         submitted.toLocalTime().isAfter(terms.cutoffTime())
             ? calendar.addBusinessDays(submissionDate, 1)
-            : submissionDate;
+            : calendar.nextOrSameBusinessDay(submissionDate);
     return calendar.addBusinessDays(acceptanceDate, terms.daysFromAcceptance());
   }
 

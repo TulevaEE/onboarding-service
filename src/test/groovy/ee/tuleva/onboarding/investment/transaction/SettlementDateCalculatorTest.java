@@ -103,6 +103,28 @@ class SettlementDateCalculatorTest {
   }
 
   @Test
+  void ccf_submittedOnFrenchHolidayBeforeCutoff_acceptedNextBusinessDay() {
+    given(instrumentReferenceService.settlementTerms(CCF_ISIN)).willReturn(Optional.of(CCF_TERMS));
+    givenProvider(CCF_ISIN, CCF);
+    Instant bastilleDayBeforeCutoff = tallinnInstant(LocalDate.of(2026, 7, 14), LocalTime.of(9, 0));
+
+    // Accepted Wednesday 2026-07-15; T+3 French business days lands on Monday 2026-07-20.
+    assertThat(calculator().calculateSettlementDate(bastilleDayBeforeCutoff, FUND, CCF_ISIN))
+        .isEqualTo(LocalDate.of(2026, 7, 20));
+  }
+
+  @Test
+  void ccf_submittedOnSaturdayBeforeCutoff_acceptedOnMonday() {
+    given(instrumentReferenceService.settlementTerms(CCF_ISIN)).willReturn(Optional.of(CCF_TERMS));
+    givenProvider(CCF_ISIN, CCF);
+    Instant saturdayBeforeCutoff = tallinnInstant(LocalDate.of(2026, 1, 17), LocalTime.of(9, 0));
+
+    // Accepted Monday 2026-01-19; T+3 lands on Thursday 2026-01-22.
+    assertThat(calculator().calculateSettlementDate(saturdayBeforeCutoff, FUND, CCF_ISIN))
+        .isEqualTo(LocalDate.of(2026, 1, 22));
+  }
+
+  @Test
   void ccf_withNullTerms_fallsBackToFlatFundPath() {
     given(instrumentReferenceService.settlementTerms(CCF_ISIN)).willReturn(Optional.empty());
     givenProvider(CCF_ISIN, CCF);

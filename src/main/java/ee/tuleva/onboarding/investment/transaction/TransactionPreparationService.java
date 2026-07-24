@@ -120,8 +120,31 @@ public class TransactionPreparationService {
       command.setErrorMessage(e.getMessage());
       command.setProcessedAt(Instant.now(clock));
       commandRepository.save(command);
+      auditEventRepository.save(
+          TransactionAuditEvent.builder()
+              .batch(batch)
+              .eventType("CALCULATION_FAILED")
+              .dedupKey(String.valueOf(command.getId()))
+              .actor("system")
+              .createdAt(Instant.now(clock))
+              .payload(failedPayload(command, input, e))
+              .build());
       return null;
     }
+  }
+
+  private Map<String, Object> failedPayload(
+      TransactionCommand command, @Nullable FundTransactionInput input, RuntimeException e) {
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("fund", command.getFund().name());
+    payload.put("asOfDate", command.getAsOfDate().toString());
+    payload.put("manualAdjustments", Map.copyOf(command.getManualAdjustments()));
+    if (input != null) {
+      payload.put("input", serializeInput(input, command.getManualAdjustments()));
+    }
+    payload.put("exceptionClass", e.getClass().getName());
+    putIfPresent(payload, "errorMessage", command.getErrorMessage());
+    return payload;
   }
 
   @Transactional

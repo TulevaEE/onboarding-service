@@ -622,6 +622,96 @@ class TransactionPreparationServiceTest {
   }
 
   @Test
+  void processCommand_onEarlyFailure_writesCalculationFailedWithoutBatchOrInput() {
+    var command =
+        TransactionCommand.builder()
+            .id(14L)
+            .fund(TUV100)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of("additionalLiabilities", "1000"))
+            .status(PROCESSING)
+            .build();
+
+    given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
+    given(inputService.gatherInput(any(), any(), any()))
+        .willThrow(new IllegalStateException("No position data found"));
+
+    service.processCommand(command);
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                event ->
+                    "CALCULATION_FAILED".equals(event.getEventType())
+                        && "14".equals(event.getDedupKey())
+                        && event.getBatch() == null
+                        && "TUV100".equals(event.getPayload().get("fund"))
+                        && "2026-01-15".equals(event.getPayload().get("asOfDate"))
+                        && "java.lang.IllegalStateException"
+                            .equals(event.getPayload().get("exceptionClass"))
+                        && "No position data found".equals(event.getPayload().get("errorMessage"))
+                        && event.getPayload().containsKey("manualAdjustments")
+                        && !event.getPayload().containsKey("input")));
+  }
+
+  @Test
+  void processCommand_onFailureAfterBatchCreated_attachesBatchAndInput() {
+    var command =
+        TransactionCommand.builder()
+            .id(15L)
+            .fund(TUV100)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .status(PROCESSING)
+            .build();
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("500000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(new BigDecimal("50000"))
+            .liabilities(ZERO)
+            .receivables(ZERO)
+            .freeCash(new BigDecimal("100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+    var trades =
+        List.of(
+            new TradeCalculation(
+                "IE00A", new BigDecimal("100000"), new BigDecimal("0.60"), LimitStatus.OK));
+    var calculationResult =
+        new FundCalculationResult(TUV100, BUY, input, trades, netInvestable(input), null);
+
+    given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).willReturn(input);
+    given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
+    given(batchRepository.save(any(TransactionBatch.class)))
+        .willAnswer(
+            invocation -> {
+              TransactionBatch batch = invocation.getArgument(0);
+              batch.setId(1L);
+              return batch;
+            });
+    given(orderRepository.saveAll(any())).willThrow(new IllegalStateException("db down"));
+
+    service.processCommand(command);
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                event ->
+                    "CALCULATION_FAILED".equals(event.getEventType())
+                        && event.getBatch() != null
+                        && TUV100.equals(event.getBatch().getFund())
+                        && event.getPayload().containsKey("input")));
+  }
+
+  @Test
   void finalizeConfirmedBatch_setsOrderTimestampsAndSettlementDatesAndStoresExports() {
     when(clock.instant()).thenReturn(Instant.parse("2026-01-15T10:00:00Z"));
     when(clock.getZone()).thenReturn(ZoneId.of("Europe/Tallinn"));

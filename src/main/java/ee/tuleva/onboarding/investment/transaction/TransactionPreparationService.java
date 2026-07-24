@@ -5,6 +5,8 @@ import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
+import ee.tuleva.onboarding.investment.epis.SettlementTimingWarning;
+import ee.tuleva.onboarding.investment.epis.SettlementTimingWarningService;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.transaction.calculation.TradeCalculationEngine;
@@ -55,6 +57,7 @@ public class TransactionPreparationService {
   private final GoogleDriveProperties driveProperties;
   @Nullable private final TransactionExportUploader exportUploader;
   private final CustodianOrderEmailSender custodianOrderEmailSender;
+  private final SettlementTimingWarningService settlementTimingWarningService;
   private final Clock clock;
 
   @Transactional
@@ -477,6 +480,11 @@ public class TransactionPreparationService {
     payload.put("input", serializeInput(input, command.getManualAdjustments()));
     payload.put("output", serializeTrades(result.trades(), ordersByIsin(orders)));
     payload.put("priceResolutions", serializePriceResolutions(calculated.priceResolutions()));
+    payload.put(
+        "settlementWarnings",
+        serializeSettlementWarnings(
+            settlementTimingWarningService.activeWarnings(
+                command.getFund(), command.getAsOfDate())));
     Map<String, Object> summary = new LinkedHashMap<>();
     summary.put("fund", command.getFund().name());
     summary.put("mode", command.getMode().name());
@@ -520,6 +528,29 @@ public class TransactionPreparationService {
           "instrumentType",
           order.getInstrumentType() == null ? null : order.getInstrumentType().name());
     }
+    return map;
+  }
+
+  static List<Map<String, Object>> serializeSettlementWarnings(
+      List<SettlementTimingWarning> warnings) {
+    return warnings.stream()
+        .map(TransactionPreparationService::serializeSettlementWarning)
+        .toList();
+  }
+
+  private static Map<String, Object> serializeSettlementWarning(SettlementTimingWarning warning) {
+    Map<String, Object> map = new LinkedHashMap<>();
+    putIfPresent(map, "type", warning.type() == null ? null : warning.type().name());
+    putIfPresent(map, "fund", warning.fund() == null ? null : warning.fund().name());
+    putIfPresent(
+        map,
+        "sellSettlementDate",
+        warning.sellSettlementDate() == null ? null : warning.sellSettlementDate().toString());
+    putIfPresent(
+        map,
+        "deadlineDate",
+        warning.deadlineDate() == null ? null : warning.deadlineDate().toString());
+    putIfPresent(map, "message", warning.message());
     return map;
   }
 

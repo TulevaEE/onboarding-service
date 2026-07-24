@@ -386,6 +386,62 @@ class TransactionCommandControllerTest {
   }
 
   @Test
+  void discardBatch_draftBatch_invokesServiceAndReturnsBatch() throws Exception {
+    given(adminService.discardBatch(10L, "operator-7")).willReturn(batchResponse());
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-batches/10/discard")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .header("X-Admin-Actor", "operator-7"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(10));
+
+    then(adminService).should().discardBatch(10L, "operator-7");
+  }
+
+  @Test
+  void discardBatch_withoutActor_defaultsToAdmin() throws Exception {
+    given(adminService.discardBatch(10L, "admin")).willReturn(batchResponse());
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-batches/10/discard")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token"))
+        .andExpect(status().isOk());
+
+    then(adminService).should().discardBatch(10L, "admin");
+  }
+
+  @Test
+  void discardBatch_nonDraftBatch_returnsConflict() throws Exception {
+    given(adminService.discardBatch(10L, "admin"))
+        .willThrow(
+            new ResponseStatusException(CONFLICT, "Batch not in DRAFT status: id=10, status=SENT"));
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-batches/10/discard")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token"))
+        .andExpect(status().isConflict());
+  }
+
+  @Test
+  void discardBatch_invalidToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-batches/10/discard")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token"))
+        .andExpect(status().isUnauthorized());
+
+    then(adminService).shouldHaveNoInteractions();
+  }
+
+  @Test
   void downloadExport_returnsXlsxFile() throws Exception {
     byte[] xlsx = {1, 2, 3};
     given(adminService.exportFile(10L, "sebEtfXlsx")).willReturn(Optional.of(xlsx));

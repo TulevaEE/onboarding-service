@@ -427,7 +427,7 @@ class HistoricalRegistryImportServiceIT {
     String csv =
         """
         order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
-        GAS-9007,EE3600109435,IE00BFG1TM61,,BUY,ETF,1000.00,10.000000,,PENDING,2025-03-12,,,,,,,,
+        GAS-9007,EE3600109435,IE00BFG1TM61,,BUY,ETF,1000.00,10.000000,,DRAFT,2025-03-12,,,,,,,,
         GAS-9008,EE3600109435,IE00BFG1TM61,,BUY,ETF,1000.00,10.000000,,SENT,2025-03-12,,,,,,,,
         GAS-9009,EE3600109435,IE00BFG1TM61,,BUY,ETF,1000.00,10.000000,,CANCELLED,2025-03-12,,,,,,,,
         """;

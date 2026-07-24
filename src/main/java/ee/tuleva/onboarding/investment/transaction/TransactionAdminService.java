@@ -95,9 +95,9 @@ class TransactionAdminService {
                 () ->
                     new ResponseStatusException(
                         NOT_FOUND, "Transaction batch not found: id=" + id));
-    if (batch.getStatus() != BatchStatus.AWAITING_CONFIRMATION) {
+    if (batch.getStatus() != BatchStatus.DRAFT) {
       throw new ResponseStatusException(
-          CONFLICT, "Batch not awaiting confirmation: id=" + id + ", status=" + batch.getStatus());
+          CONFLICT, "Batch not in DRAFT status: id=" + id + ", status=" + batch.getStatus());
     }
     log.info("Admin confirmed transaction batch: id={}, actor={}", id, actor);
     batch.setStatus(BatchStatus.CONFIRMED);

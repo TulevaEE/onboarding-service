@@ -131,12 +131,13 @@ class TransactionPreparationServiceTest {
     var result = service.processCommand(command);
 
     assertThat(result.batch().getFund()).isEqualTo(TUV100);
+    assertThat(result.batch().getStatus()).isEqualTo(BatchStatus.DRAFT);
     assertThat(result.orders())
         .singleElement()
         .satisfies(
             order -> {
               assertThat(order.getOrderUuid()).isNotNull();
-              assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.PENDING);
+              assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.DRAFT);
             });
 
     verify(auditEventRepository).save(any(TransactionAuditEvent.class));
@@ -818,7 +819,7 @@ class TransactionPreparationServiceTest {
             .orderAmount(new BigDecimal("100000"))
             .orderQuantity(new BigDecimal("9876.543210"))
             .orderVenue(OrderVenue.SEB)
-            .orderStatus(OrderStatus.PENDING)
+            .orderStatus(OrderStatus.DRAFT)
             .build();
 
     var allocation =
@@ -893,7 +894,7 @@ class TransactionPreparationServiceTest {
             .orderAmount(new BigDecimal("100000"))
             .orderQuantity(new BigDecimal("9876.543210"))
             .orderVenue(OrderVenue.SEB)
-            .orderStatus(OrderStatus.PENDING)
+            .orderStatus(OrderStatus.DRAFT)
             .build();
 
     given(orderRepository.findByBatchId(batch.getId())).willReturn(List.of(order));
@@ -1183,7 +1184,7 @@ class TransactionPreparationServiceTest {
             .instrumentType(InstrumentType.ETF)
             .orderAmount(new BigDecimal("100000"))
             .orderVenue(OrderVenue.SEB)
-            .orderStatus(OrderStatus.PENDING)
+            .orderStatus(OrderStatus.DRAFT)
             .build();
 
     given(orderRepository.findByBatchId(batch.getId()))
@@ -1504,7 +1505,7 @@ class TransactionPreparationServiceTest {
             .orderAmount(new BigDecimal("100000"))
             .orderQuantity(new BigDecimal("9876.543210"))
             .orderVenue(OrderVenue.SEB)
-            .orderStatus(OrderStatus.PENDING)
+            .orderStatus(OrderStatus.DRAFT)
             .build();
 
     when(orderRepository.findByBatchId(batch.getId())).thenReturn(List.of(order));
@@ -1551,7 +1552,7 @@ class TransactionPreparationServiceTest {
             .orderAmount(new BigDecimal("100000"))
             .orderQuantity(new BigDecimal("9876.543210"))
             .orderVenue(OrderVenue.SEB)
-            .orderStatus(OrderStatus.PENDING)
+            .orderStatus(OrderStatus.DRAFT)
             .build();
 
     given(orderRepository.findByBatchId(batch.getId())).willReturn(List.of(order));

@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.investment.transaction.BatchStatus.AWAITING_CONFIRMATION;
+import static ee.tuleva.onboarding.investment.transaction.BatchStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.CALCULATED;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
@@ -90,7 +90,7 @@ class TransactionPipelineIntegrationTest {
     var result = preparationService.processCommand(command);
 
     assertThat(result).isNotNull();
-    assertThat(result.batch().getStatus()).isEqualTo(AWAITING_CONFIRMATION);
+    assertThat(result.batch().getStatus()).isEqualTo(DRAFT);
     assertThat(command.getStatus()).isEqualTo(CALCULATED);
 
     List<TransactionOrder> orders = result.orders();

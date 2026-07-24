@@ -139,6 +139,28 @@ class SettlementTimingWarningServiceTest {
   }
 
   @Test
+  void activeWarningsForFund_returnsWarningsScopedToThatFund() {
+    given(periodService.getCurrentPeriod(TODAY))
+        .willReturn(Optional.of(period(TUK00_ACTIVE, notDActive(), dActive())));
+    given(allocationRepository.findLatestByFundAsOf(TUK00, TODAY))
+        .willReturn(List.of(allocation(TUK00, "LU0000000002", FUND)));
+    given(settlementDateCalculator.calculateSettlementDate(TODAY, FUND, "LU0000000002"))
+        .willReturn(LocalDate.of(2026, 5, 4));
+    given(settlementDateCalculator.calculateSettlementDate(TODAY, ETF, TUK00.getIsin()))
+        .willReturn(LocalDate.of(2026, 4, 22));
+
+    assertThat(service.activeWarnings(TUK00, TODAY))
+        .extracting(SettlementTimingWarning::type)
+        .containsExactly(PEVA_DEADLINE_MISS, REBALANCE_GAP);
+    assertThat(service.activeWarnings(TUK75, TODAY)).isEmpty();
+  }
+
+  @Test
+  void activeWarningsForFund_returnsEmptyForNonPevaRavaFund() {
+    assertThat(service.activeWarnings(TulevaFund.TUV100, TODAY)).isEmpty();
+  }
+
+  @Test
   void noWarningsForDActiveFundWithoutFundTypeInstruments() {
     given(periodService.getCurrentPeriod(TODAY))
         .willReturn(Optional.of(period(ACTIVE, dActive(), notDActive())));

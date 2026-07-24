@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
+import static ee.tuleva.onboarding.investment.epis.SettlementTimingWarning.Type.PEVA_DEADLINE_MISS;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.*;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.*;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
@@ -17,6 +19,8 @@ import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriceSource;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus;
+import ee.tuleva.onboarding.investment.epis.SettlementTimingWarning;
+import ee.tuleva.onboarding.investment.epis.SettlementTimingWarningService;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.transaction.calculation.TradeCalculationEngine;
@@ -61,6 +65,7 @@ class TransactionPreparationServiceTest {
   @Mock private TransactionExportUploader exportUploader;
   @Mock private CustodianOrderEmailSender custodianOrderEmailSender;
   @Mock private PositionPriceResolver positionPriceResolver;
+  @Mock private SettlementTimingWarningService settlementTimingWarningService;
   @Mock private Clock clock;
 
   @InjectMocks private TransactionPreparationService service;
@@ -209,6 +214,68 @@ class TransactionPreparationServiceTest {
   @SuppressWarnings("unchecked")
   private static Object summaryValue(TransactionAuditEvent event, String key) {
     return ((Map<String, Object>) event.getPayload().get("summary")).get(key);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void processCommand_recordsFundScopedSettlementWarnings() {
+    var asOfDate = LocalDate.of(2026, 1, 15);
+    var command =
+        TransactionCommand.builder()
+            .id(12L)
+            .fund(TUK75)
+            .mode(BUY)
+            .asOfDate(asOfDate)
+            .manualAdjustments(Map.of())
+            .status(PROCESSING)
+            .build();
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUK75)
+            .positions(List.of())
+            .modelWeights(List.of())
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(ZERO)
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+    var calculationResult =
+        new FundCalculationResult(TUK75, BUY, input, List.of(), netInvestable(input));
+    given(inputService.gatherInput(TUK75, asOfDate, Map.of())).willReturn(input);
+    given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
+    given(batchRepository.save(any(TransactionBatch.class)))
+        .willAnswer(
+            invocation -> {
+              TransactionBatch batch = invocation.getArgument(0);
+              batch.setId(1L);
+              return batch;
+            });
+    var warning =
+        new SettlementTimingWarning(
+            PEVA_DEADLINE_MISS,
+            TUK75,
+            LocalDate.of(2026, 5, 4),
+            LocalDate.of(2026, 5, 1),
+            "FUND sell settles after execution");
+    given(settlementTimingWarningService.activeWarnings(TUK75, asOfDate))
+        .willReturn(List.of(warning));
+
+    service.processCommand(command);
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                event -> {
+                  var warnings =
+                      (List<Map<String, Object>>) event.getPayload().get("settlementWarnings");
+                  return warnings.size() == 1
+                      && "PEVA_DEADLINE_MISS".equals(warnings.get(0).get("type"))
+                      && "TUK75".equals(warnings.get(0).get("fund"))
+                      && "FUND sell settles after execution".equals(warnings.get(0).get("message"));
+                }));
   }
 
   @Test

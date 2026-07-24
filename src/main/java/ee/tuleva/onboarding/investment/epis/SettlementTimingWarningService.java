@@ -36,26 +36,36 @@ public class SettlementTimingWarningService {
     LocalDate today = LocalDate.now(clock);
     return periodService
         .getCurrentPeriod(today)
-        .map(period -> warnings(period, today))
+        .map(
+            period ->
+                PEVA_RAVA_FUNDS.stream()
+                    .flatMap(fund -> warningsForFund(period, fund, today).stream())
+                    .toList())
         .orElse(List.of());
   }
 
-  private List<SettlementTimingWarning> warnings(PevaRavaPeriod period, LocalDate today) {
+  public List<SettlementTimingWarning> activeWarnings(TulevaFund fund, LocalDate asOfDate) {
+    if (!PEVA_RAVA_FUNDS.contains(fund)) {
+      return List.of();
+    }
+    return periodService
+        .getCurrentPeriod(asOfDate)
+        .map(period -> warningsForFund(period, fund, asOfDate))
+        .orElse(List.of());
+  }
+
+  private List<SettlementTimingWarning> warningsForFund(
+      PevaRavaPeriod period, TulevaFund fund, LocalDate today) {
     LocalDate execDate = period.cycle().execDate();
     if (period.phase() == DONE || today.isAfter(execDate)) {
       return List.of();
     }
-    List<SettlementTimingWarning> warnings = new ArrayList<>();
-    for (TulevaFund fund : PEVA_RAVA_FUNDS) {
-      if (!period.timelineFor(fund).dActive()) {
-        continue;
-      }
-      worstFundSellSettlementDate(fund, today)
-          .ifPresent(
-              sellSettlementDate ->
-                  warnings.addAll(fundWarnings(fund, today, sellSettlementDate, execDate)));
+    if (!period.timelineFor(fund).dActive()) {
+      return List.of();
     }
-    return warnings;
+    return worstFundSellSettlementDate(fund, today)
+        .map(sellSettlementDate -> fundWarnings(fund, today, sellSettlementDate, execDate))
+        .orElse(List.of());
   }
 
   private List<SettlementTimingWarning> fundWarnings(

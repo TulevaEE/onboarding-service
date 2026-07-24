@@ -21,7 +21,7 @@ buildscript {
     }
 }
 
-val springModulithVersion = "2.0.6"
+val springModulithVersion = "2.1.0"
 
 // Security patch ahead of the Spring Boot BOM — remove once Boot manages this version
 extra["opentelemetry.version"] = "1.62.0"

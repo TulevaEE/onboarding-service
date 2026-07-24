@@ -3,6 +3,9 @@ package ee.tuleva.onboarding.investment.instrument
 import spock.lang.Specification
 import spock.lang.Unroll
 
+import java.time.LocalTime
+import java.time.ZoneId
+
 class InstrumentReferenceSpec extends Specification {
 
   @Unroll
@@ -84,6 +87,29 @@ class InstrumentReferenceSpec extends Specification {
   def "getEffectiveDisplayName returns displayName when sebPositionName is null"() {
     expect:
     instrument(displayName: "Display", sebPositionName: null).getEffectiveDisplayName() == "Display"
+  }
+
+  def "settlementTerms returns the terms when all three columns are set"() {
+    expect:
+    instrument(
+        settlementCutoffTime: LocalTime.of(9, 30),
+        settlementCutoffZone: "Europe/Tallinn",
+        settlementDaysFromAcceptance: 3
+    ).settlementTerms() == Optional.of(
+        new SettlementTerms(LocalTime.of(9, 30), ZoneId.of("Europe/Tallinn"), 3))
+  }
+
+  @Unroll
+  def "settlementTerms is empty when #missing is null"() {
+    expect:
+    instrument(props).settlementTerms() == Optional.empty()
+
+    where:
+    missing            | props
+    "cutoff time"      | [settlementCutoffZone: "Europe/Tallinn", settlementDaysFromAcceptance: 3]
+    "cutoff zone"      | [settlementCutoffTime: LocalTime.of(9, 30), settlementDaysFromAcceptance: 3]
+    "days"             | [settlementCutoffTime: LocalTime.of(9, 30), settlementCutoffZone: "Europe/Tallinn"]
+    "all three"        | [:]
   }
 
   private static InstrumentReference instrument(Map props = [:]) {

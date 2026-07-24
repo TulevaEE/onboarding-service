@@ -172,7 +172,7 @@ public class TransactionPreparationService {
           order.setOrderTimestamp(now);
           order.setExpectedSettlementDate(
               settlementDateCalculator.calculateSettlementDate(
-                  tradeDate, order.getInstrumentType(), order.getInstrumentIsin()));
+                  now, order.getInstrumentType(), order.getInstrumentIsin()));
           order.setOrderStatus(OrderStatus.SENT);
         });
     orderRepository.saveAll(orders);

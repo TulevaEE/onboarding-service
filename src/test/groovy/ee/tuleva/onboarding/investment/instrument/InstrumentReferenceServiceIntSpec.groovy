@@ -6,6 +6,9 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
 import spock.lang.Specification
 
+import java.time.LocalTime
+import java.time.ZoneId
+
 @SpringBootTest
 @ActiveProfiles("test")
 class InstrumentReferenceServiceIntSpec extends Specification {
@@ -153,6 +156,17 @@ class InstrumentReferenceServiceIntSpec extends Specification {
             "findByTicker ISIN mismatch for ${shortTicker}"
       }
     }
+  }
+
+  def "CCF settlement terms are seeded as T+3 with a 09:30 Europe/Tallinn cut-off"() {
+    expect:
+    service.settlementTerms("IE0009FT4LX4") == Optional.of(
+        new SettlementTerms(LocalTime.of(9, 30), ZoneId.of("Europe/Tallinn"), 3))
+  }
+
+  def "instruments without seeded settlement terms fall back to the flat path"() {
+    expect:
+    service.settlementTerms("IE00BFNM3G45") == Optional.empty()
   }
 
   def "findByBloombergTicker matches FundTicker.findByBloombergTicker"() {

@@ -12,10 +12,16 @@ import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.investment.calendar.DomicileCalendar;
 import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
+import ee.tuleva.onboarding.investment.instrument.InstrumentReferenceService;
+import ee.tuleva.onboarding.investment.instrument.SettlementTerms;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.portfolio.Provider;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,13 +36,80 @@ class SettlementDateCalculatorTest {
   private static final String IRISH_FUND_ISIN = "IE00BFG1TM61";
   private static final String LUXEMBOURG_FUND_ISIN = "LU1437018838";
   private static final String UNKNOWN_ISIN = "XX0000000000";
+  private static final String CCF_ISIN = "IE0009FT4LX4";
+  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
+  private static final SettlementTerms CCF_TERMS =
+      new SettlementTerms(LocalTime.of(9, 30), TALLINN, 3);
 
   @Mock private ModelPortfolioAllocationRepository allocationRepository;
+  @Mock private InstrumentReferenceService instrumentReferenceService;
 
   private SettlementDateCalculator calculator() {
     Target2Calendar target2Calendar = new Target2Calendar();
     return new SettlementDateCalculator(
-        target2Calendar, new DomicileCalendar(target2Calendar), allocationRepository);
+        target2Calendar,
+        new DomicileCalendar(target2Calendar),
+        allocationRepository,
+        instrumentReferenceService);
+  }
+
+  private static Instant tallinnInstant(LocalDate date, LocalTime time) {
+    return ZonedDateTime.of(date, time, TALLINN).toInstant();
+  }
+
+  @Test
+  void ccf_submittedBeforeCutoff_acceptedSameDay_settlesThreeFrenchBusinessDaysLater() {
+    given(instrumentReferenceService.settlementTerms(CCF_ISIN)).willReturn(Optional.of(CCF_TERMS));
+    givenProvider(CCF_ISIN, CCF);
+    Instant mondayBeforeCutoff = tallinnInstant(LocalDate.of(2026, 1, 12), LocalTime.of(9, 15));
+
+    // T+3 lands on 2026-01-15; the old flat FUND path (+5) would land on 2026-01-19.
+    assertThat(calculator().calculateSettlementDate(mondayBeforeCutoff, FUND, CCF_ISIN))
+        .isEqualTo(LocalDate.of(2026, 1, 15));
+  }
+
+  @Test
+  void ccf_submittedAfterCutoff_acceptedNextBusinessDay_settlesOneBusinessDayLater() {
+    given(instrumentReferenceService.settlementTerms(CCF_ISIN)).willReturn(Optional.of(CCF_TERMS));
+    givenProvider(CCF_ISIN, CCF);
+    Instant mondayAfterCutoff = tallinnInstant(LocalDate.of(2026, 1, 12), LocalTime.of(9, 35));
+
+    // Accepted Tuesday, so T+3 lands on 2026-01-16 -- one business day after the before-cutoff
+    // case.
+    assertThat(calculator().calculateSettlementDate(mondayAfterCutoff, FUND, CCF_ISIN))
+        .isEqualTo(LocalDate.of(2026, 1, 16));
+  }
+
+  @Test
+  void ccf_submittedExactlyAtCutoff_treatedAsBeforeCutoff() {
+    given(instrumentReferenceService.settlementTerms(CCF_ISIN)).willReturn(Optional.of(CCF_TERMS));
+    givenProvider(CCF_ISIN, CCF);
+    Instant mondayAtCutoff = tallinnInstant(LocalDate.of(2026, 1, 12), LocalTime.of(9, 30));
+
+    assertThat(calculator().calculateSettlementDate(mondayAtCutoff, FUND, CCF_ISIN))
+        .isEqualTo(LocalDate.of(2026, 1, 15));
+  }
+
+  @Test
+  void ccf_dayCountSkipsFrenchHoliday() {
+    given(instrumentReferenceService.settlementTerms(CCF_ISIN)).willReturn(Optional.of(CCF_TERMS));
+    givenProvider(CCF_ISIN, CCF);
+    // Bastille Day (French holiday) falls on Tuesday 2026-07-14, inside the T+3 count from Monday.
+    Instant mondayBeforeBastille = tallinnInstant(LocalDate.of(2026, 7, 13), LocalTime.of(9, 15));
+
+    // Without the holiday the count would end on 2026-07-16; skipping it pushes to 2026-07-17.
+    assertThat(calculator().calculateSettlementDate(mondayBeforeBastille, FUND, CCF_ISIN))
+        .isEqualTo(LocalDate.of(2026, 7, 17));
+  }
+
+  @Test
+  void ccf_withNullTerms_fallsBackToFlatFundPath() {
+    given(instrumentReferenceService.settlementTerms(CCF_ISIN)).willReturn(Optional.empty());
+    givenProvider(CCF_ISIN, CCF);
+    Instant monday = tallinnInstant(LocalDate.of(2026, 1, 12), LocalTime.of(9, 15));
+
+    assertThat(calculator().calculateSettlementDate(monday, FUND, CCF_ISIN))
+        .isEqualTo(LocalDate.of(2026, 1, 19));
   }
 
   @Test

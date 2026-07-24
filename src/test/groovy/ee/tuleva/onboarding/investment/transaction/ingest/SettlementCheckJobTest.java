@@ -23,6 +23,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.calendar.DomicileCalendar;
 import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
+import ee.tuleva.onboarding.investment.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.portfolio.Provider;
@@ -73,13 +74,17 @@ class SettlementCheckJobTest {
   @Mock private SebClientNameToFundResolver fundResolver;
   @Mock private OperationsNotificationService notificationService;
   @Mock private ModelPortfolioAllocationRepository allocationRepository;
+  @Mock private InstrumentReferenceService instrumentReferenceService;
 
   private final Clock clock = Clock.fixed(TODAY.atStartOfDay(TALLINN).toInstant(), TALLINN);
 
   private SettlementDateCalculator settlementDateCalculator() {
     Target2Calendar target2Calendar = new Target2Calendar();
     return new SettlementDateCalculator(
-        target2Calendar, new DomicileCalendar(target2Calendar), allocationRepository);
+        target2Calendar,
+        new DomicileCalendar(target2Calendar),
+        allocationRepository,
+        instrumentReferenceService);
   }
 
   private SettlementCheckJob job() {

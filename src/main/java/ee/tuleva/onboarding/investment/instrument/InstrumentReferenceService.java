@@ -104,6 +104,10 @@ public class InstrumentReferenceService {
     return Optional.ofNullable(byIsin.get(isin));
   }
 
+  public Optional<SettlementTerms> settlementTerms(String isin) {
+    return findByIsin(isin).flatMap(InstrumentReference::settlementTerms);
+  }
+
   public Optional<InstrumentReference> findByTicker(String ticker) {
     return Optional.ofNullable(byShortTicker.get(ticker));
   }

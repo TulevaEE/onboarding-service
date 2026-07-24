@@ -32,7 +32,6 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -799,7 +798,6 @@ class TransactionPreparationServiceTest {
   @Test
   void finalizeConfirmedBatch_setsOrderTimestampsAndSettlementDatesAndStoresExports() {
     when(clock.instant()).thenReturn(Instant.parse("2026-01-15T10:00:00Z"));
-    when(clock.getZone()).thenReturn(ZoneId.of("Europe/Tallinn"));
 
     var batch =
         TransactionBatch.builder()
@@ -866,6 +864,52 @@ class TransactionPreparationServiceTest {
     verify(batchRepository).save(batch);
     verify(auditEventRepository).save(any(TransactionAuditEvent.class));
     verify(eventPublisher).publishEvent(any(BatchFinalizedEvent.class));
+  }
+
+  @Test
+  void finalizeConfirmedBatch_derivesTradeDateInTallinnZoneNotClockZone() {
+    // 23:30 UTC on 2026-01-15 is already 01:30 on 2026-01-16 in Europe/Tallinn. The production
+    // clock is Clock.systemUTC(), so deriving the trade date from the clock's own zone would stamp
+    // 2026-01-15; the operational trade date is the Tallinn business day 2026-01-16.
+    given(clock.instant()).willReturn(Instant.parse("2026-01-15T23:30:00Z"));
+
+    var batch =
+        TransactionBatch.builder()
+            .id(1L)
+            .fund(TUV100)
+            .status(CONFIRMED)
+            .createdBy("system")
+            .metadata(new HashMap<>(Map.of("commandId", 1L)))
+            .build();
+
+    var order =
+        TransactionOrder.builder()
+            .batch(batch)
+            .fund(TUV100)
+            .instrumentIsin("IE00A")
+            .transactionType(TransactionType.BUY)
+            .instrumentType(InstrumentType.ETF)
+            .orderAmount(new BigDecimal("100000"))
+            .orderQuantity(new BigDecimal("9876.543210"))
+            .orderVenue(OrderVenue.SEB)
+            .orderStatus(OrderStatus.PENDING)
+            .build();
+
+    given(orderRepository.findByBatchId(batch.getId())).willReturn(List.of(order));
+    given(settlementDateCalculator.calculateSettlementDate(any(), any(), any()))
+        .willReturn(LocalDate.of(2026, 1, 20));
+    given(exportService.generateOrdersExport(any())).willReturn(new byte[] {1});
+    given(exportService.generateSebFundExport(any(), any())).willReturn(new byte[] {2});
+    given(exportService.generateSebEtfExport(any(), any())).willReturn(new byte[] {3});
+    given(exportService.generateFtEtfExport(any(), any(), any(), any())).willReturn(new byte[] {4});
+    given(exportService.generateUuidWorkbook(any())).willReturn(new byte[] {5});
+
+    service.finalizeConfirmedBatch(batch);
+
+    verify(modelPortfolioAllocationRepository)
+        .findLatestByFundAsOf(TUV100, LocalDate.of(2026, 1, 16));
+    verify(auditEventRepository)
+        .save(argThat(event -> "2026-01-16".equals(event.getPayload().get("tradeDate"))));
   }
 
   @Test
@@ -1120,7 +1164,6 @@ class TransactionPreparationServiceTest {
   @Test
   void finalizeConfirmedBatch_failsWhenNonAmountOrderHasNullQuantity_withoutGeneratingExports() {
     given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
-    given(clock.getZone()).willReturn(ZoneId.of("Europe/Tallinn"));
 
     var batch =
         TransactionBatch.builder()
@@ -1440,7 +1483,6 @@ class TransactionPreparationServiceTest {
   @Test
   void finalizeConfirmedBatch_uploadsToDriveWhenEnabled() {
     when(clock.instant()).thenReturn(Instant.parse("2026-01-15T10:00:00Z"));
-    when(clock.getZone()).thenReturn(ZoneId.of("Europe/Tallinn"));
 
     var batch =
         TransactionBatch.builder()
@@ -1488,7 +1530,6 @@ class TransactionPreparationServiceTest {
   @Test
   void finalizeConfirmedBatch_uploadsToDriveOnlyAfterCommit() {
     when(clock.instant()).thenReturn(Instant.parse("2026-01-15T10:00:00Z"));
-    when(clock.getZone()).thenReturn(ZoneId.of("Europe/Tallinn"));
 
     var batch =
         TransactionBatch.builder()

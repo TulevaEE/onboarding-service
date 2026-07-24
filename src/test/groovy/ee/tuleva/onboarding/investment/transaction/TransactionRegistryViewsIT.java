@@ -320,7 +320,7 @@ class TransactionRegistryViewsIT {
             .unitPrice(new BigDecimal("4.72550000"))
             .totalConsideration(new BigDecimal("70915.58"))
             .commissionAmount(new BigDecimal("0.00"))
-            .actualSettlementDate(LocalDate.now().minusDays(1))
+            .scheduledSettlementDate(LocalDate.now().minusDays(1))
             .source("SEB_OOTEL")
             .build());
   }

@@ -24,7 +24,7 @@ class TransactionExecutionTest {
             .executedQuantity(new BigDecimal("15007.0000"))
             .unitPrice(new BigDecimal("4.72550000"))
             .totalConsideration(new BigDecimal("70915.58"))
-            .actualSettlementDate(LocalDate.of(2026, 5, 13))
+            .scheduledSettlementDate(LocalDate.of(2026, 5, 13))
             .source("SEB_OOTEL")
             .build();
 
@@ -35,7 +35,7 @@ class TransactionExecutionTest {
     assertThat(execution.getExecutedQuantity()).isEqualByComparingTo("15007.0000");
     assertThat(execution.getUnitPrice()).isEqualByComparingTo("4.72550000");
     assertThat(execution.getTotalConsideration()).isEqualByComparingTo("70915.58");
-    assertThat(execution.getActualSettlementDate()).isEqualTo(LocalDate.of(2026, 5, 13));
+    assertThat(execution.getScheduledSettlementDate()).isEqualTo(LocalDate.of(2026, 5, 13));
     assertThat(execution.getSource()).isEqualTo("SEB_OOTEL");
   }
 

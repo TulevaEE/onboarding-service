@@ -128,7 +128,7 @@ class PortfolioCostBasisSelfHealIT {
             .unitPrice(new BigDecimal(price))
             .totalConsideration(new BigDecimal(qty).multiply(new BigDecimal(price)))
             .commissionAmount(BigDecimal.ZERO)
-            .actualSettlementDate(date.plusDays(2))
+            .scheduledSettlementDate(date.plusDays(2))
             .source("SEB_OOTEL")
             .build();
     executionRepository.save(exec);

@@ -206,7 +206,7 @@ class SettlementCheckJob {
   private static Optional<LocalDate> latestPieceSettlementDate(
       List<TransactionExecution> executions) {
     return executions.stream()
-        .map(TransactionExecution::getActualSettlementDate)
+        .map(TransactionExecution::getScheduledSettlementDate)
         .filter(Objects::nonNull)
         .max(Comparator.naturalOrder());
   }

@@ -159,7 +159,7 @@ class PortfolioCostBasisIT {
             .unitPrice(unitPrice)
             .totalConsideration(qty.multiply(unitPrice))
             .commissionAmount(new BigDecimal(commission))
-            .actualSettlementDate(TRADE_DATE.plusDays(2))
+            .scheduledSettlementDate(TRADE_DATE.plusDays(2))
             .source("SEB_OOTEL")
             .build();
     executionRepository.save(exec);
@@ -182,7 +182,7 @@ class PortfolioCostBasisIT {
             .unitPrice(unitPrice)
             .totalConsideration(qty.multiply(unitPrice))
             .commissionAmount(BigDecimal.ZERO)
-            .actualSettlementDate(date.plusDays(2))
+            .scheduledSettlementDate(date.plusDays(2))
             .source("SEB_OOTEL")
             .build();
     executionRepository.save(exec);

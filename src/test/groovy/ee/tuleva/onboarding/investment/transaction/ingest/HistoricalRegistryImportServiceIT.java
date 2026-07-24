@@ -90,7 +90,7 @@ class HistoricalRegistryImportServiceIT {
     assertThat(execution.getTotalConsideration()).isEqualByComparingTo("25025.00");
     assertThat(execution.getSettlementAmount()).isEqualByComparingTo("25030.00");
     assertThat(execution.getCommissionAmount()).isEqualByComparingTo("5.00");
-    assertThat(execution.getActualSettlementDate()).isEqualTo(LocalDate.parse("2025-03-12"));
+    assertThat(execution.getScheduledSettlementDate()).isEqualTo(LocalDate.parse("2025-03-12"));
     assertThat(execution.getSource()).isEqualTo("HISTORICAL_IMPORT");
     assertThat(execution.getModifiedBy()).isEqualTo("historical-import");
 

@@ -27,7 +27,7 @@ class TransactionExecutionMapper {
     execution.setTotalConsideration(row.total());
     execution.setSettlementAmount(row.settlementAmount());
     execution.setCommissionAmount(row.brokerFee());
-    execution.setActualSettlementDate(row.settlementDate());
+    execution.setScheduledSettlementDate(row.settlementDate());
     execution.setSource(SOURCE_SEB_OOTEL);
     execution.setModifiedBy(MODIFIED_BY_SEB_RECONCILIATION);
     return execution;
@@ -44,7 +44,7 @@ class TransactionExecutionMapper {
     snapshot.put("totalConsideration", asString(execution.getTotalConsideration()));
     snapshot.put("settlementAmount", asString(execution.getSettlementAmount()));
     snapshot.put("commissionAmount", asString(execution.getCommissionAmount()));
-    snapshot.put("actualSettlementDate", asString(execution.getActualSettlementDate()));
+    snapshot.put("scheduledSettlementDate", asString(execution.getScheduledSettlementDate()));
     return snapshot;
   }
 

@@ -330,7 +330,7 @@ public class HistoricalRegistryImportService {
         .totalConsideration(row.totalConsideration())
         .settlementAmount(row.settlementAmount())
         .commissionAmount(row.commissionAmount())
-        .actualSettlementDate(row.actualSettlementDate())
+        .scheduledSettlementDate(row.actualSettlementDate())
         .source(SOURCE_HISTORICAL_IMPORT)
         .modifiedBy(CREATED_BY_HISTORICAL_IMPORT)
         .build();

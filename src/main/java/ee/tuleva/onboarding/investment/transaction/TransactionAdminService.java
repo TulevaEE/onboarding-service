@@ -40,13 +40,15 @@ class TransactionAdminService {
       TulevaFund fund,
       TransactionMode mode,
       LocalDate asOfDate,
-      @Nullable Map<String, Object> manualAdjustments) {
+      @Nullable Map<String, Object> manualAdjustments,
+      String actor) {
     TransactionCommand command =
         TransactionCommand.builder()
             .fund(fund)
             .mode(mode)
             .asOfDate(asOfDate)
             .manualAdjustments(manualAdjustments == null ? Map.of() : manualAdjustments)
+            .actor(actor)
             .status(CommandStatus.PROCESSING)
             .build();
     commandRepository.save(command);
@@ -62,10 +64,12 @@ class TransactionAdminService {
   }
 
   List<TransactionCommandResponse> createAndProcessAll(
-      @Nullable List<TulevaFund> funds, TransactionMode mode, LocalDate asOfDate) {
+      @Nullable List<TulevaFund> funds, TransactionMode mode, LocalDate asOfDate, String actor) {
     List<TulevaFund> targetFunds =
         funds == null || funds.isEmpty() ? List.of(TulevaFund.values()) : funds;
-    return targetFunds.stream().map(fund -> createAndProcess(fund, mode, asOfDate, null)).toList();
+    return targetFunds.stream()
+        .map(fund -> createAndProcess(fund, mode, asOfDate, null, actor))
+        .toList();
   }
 
   Optional<TransactionCommandResponse> getCommand(Long id) {

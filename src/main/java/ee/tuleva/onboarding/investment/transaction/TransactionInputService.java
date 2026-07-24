@@ -105,6 +105,12 @@ public class TransactionInputService {
             .toList();
     List<ModelWeight> modelWeights = toModelWeights(allocations);
     assertModelWeightsSumToOne(fund, modelWeights);
+    LocalDate modelEffectiveDate =
+        allocations.stream()
+            .map(ModelPortfolioAllocation::getEffectiveDate)
+            .filter(Objects::nonNull)
+            .findFirst()
+            .orElse(null);
     BigDecimal cashBuffer = getCashBuffer(fund, asOfDate);
     BigDecimal minTransaction = getMinTransaction(fund, asOfDate);
     Map<String, PositionLimitSnapshot> positionLimits = getPositionLimits(fund, asOfDate);
@@ -190,6 +196,8 @@ public class TransactionInputService {
         .liabilityBreakdown(liabilityBreakdown)
         .reportCash(cash)
         .ledgerCash(ledgerCash)
+        .positionDate(positionDate)
+        .modelEffectiveDate(modelEffectiveDate)
         .build();
   }
 

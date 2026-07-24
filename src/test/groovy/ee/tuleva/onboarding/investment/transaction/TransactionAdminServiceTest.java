@@ -97,7 +97,8 @@ class TransactionAdminServiceTest {
         .processCommand(any());
 
     TransactionCommandResponse response =
-        service.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00"));
+        service.createAndProcess(
+            TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00"), "operator-9");
 
     then(commandRepository)
         .should()
@@ -107,6 +108,7 @@ class TransactionAdminServiceTest {
                 .mode(REBALANCE)
                 .asOfDate(AS_OF_DATE)
                 .manualAdjustments(Map.of("IE00BFG1TM61", "1000.00"))
+                .actor("operator-9")
                 .status(CALCULATED)
                 .batchId(10L)
                 .build());
@@ -121,7 +123,7 @@ class TransactionAdminServiceTest {
     given(preparationService.processCommand(any()))
         .willReturn(new ProcessCommandResult(batch(10L, AWAITING_CONFIRMATION), List.of()));
 
-    service.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null);
+    service.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "admin");
 
     then(commandRepository)
         .should()
@@ -131,6 +133,7 @@ class TransactionAdminServiceTest {
                 .mode(REBALANCE)
                 .asOfDate(AS_OF_DATE)
                 .manualAdjustments(Map.of())
+                .actor("admin")
                 .status(PROCESSING)
                 .build());
   }
@@ -148,7 +151,7 @@ class TransactionAdminServiceTest {
         .processCommand(any());
 
     TransactionCommandResponse response =
-        service.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null);
+        service.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "admin");
 
     assertThat(response.status()).isEqualTo(FAILED);
     assertThat(response.errorMessage()).isEqualTo("No positions found");
@@ -161,7 +164,7 @@ class TransactionAdminServiceTest {
         .willReturn(new ProcessCommandResult(batch(10L, AWAITING_CONFIRMATION), List.of()));
 
     List<TransactionCommandResponse> responses =
-        service.createAndProcessAll(null, REBALANCE, AS_OF_DATE);
+        service.createAndProcessAll(null, REBALANCE, AS_OF_DATE, "admin");
 
     assertThat(responses)
         .extracting(TransactionCommandResponse::fund)
@@ -174,7 +177,7 @@ class TransactionAdminServiceTest {
         .willReturn(new ProcessCommandResult(batch(10L, AWAITING_CONFIRMATION), List.of()));
 
     List<TransactionCommandResponse> responses =
-        service.createAndProcessAll(List.of(TUK75), REBALANCE, AS_OF_DATE);
+        service.createAndProcessAll(List.of(TUK75), REBALANCE, AS_OF_DATE, "admin");
 
     assertThat(responses).extracting(TransactionCommandResponse::fund).containsExactly(TUK75);
   }

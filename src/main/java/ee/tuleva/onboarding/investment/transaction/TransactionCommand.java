@@ -57,6 +57,8 @@ public class TransactionCommand {
 
   private String errorMessage;
 
+  private String actor;
+
   private Long batchId;
 
   private Instant createdAt;

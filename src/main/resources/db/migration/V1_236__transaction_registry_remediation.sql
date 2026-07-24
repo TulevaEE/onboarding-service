@@ -1,43 +1,15 @@
--- Transaction registry remediation (PR #1806): operator actor + cash override on commands,
--- per-instrument settlement terms, the actual->scheduled settlement-date rename, and the
--- DRAFT/DISCARDED status model.
-
 ALTER TABLE investment_transaction_command ADD COLUMN actor text;
 ALTER TABLE investment_transaction_command ADD COLUMN cash numeric(19,2);
 
--- Settlement terms: acceptance = submission date rolled to the next-or-same business day when
--- submitted at or before the cut-off (in the cut-off zone; exactly at the cut-off counts as
--- before), else the next business day. Business days follow the PROVIDER's domicile calendar
--- (CCF is Irish-domiciled but settles via Allfunds on the France calendar). Expected settlement =
--- acceptance + settlement_days_from_acceptance business days. The three columns act as one unit:
--- any NULL keeps the flat T+2 (ETF) / T+5 (FUND) path.
 ALTER TABLE instrument_reference ADD COLUMN settlement_cutoff_time time;
 ALTER TABLE instrument_reference ADD COLUMN settlement_cutoff_zone text;
 ALTER TABLE instrument_reference ADD COLUMN settlement_days_from_acceptance integer;
 
-UPDATE instrument_reference
-SET settlement_cutoff_time = TIME '09:30:00',
-    settlement_cutoff_zone = 'Europe/Tallinn',
-    settlement_days_from_acceptance = 3
-WHERE isin = 'IE0009FT4LX4';
-
--- DRAFT/DISCARDED status model: preview batches are DRAFT, discarded ones DISCARDED; CANCELLED is
--- reserved for orders cancelled after being SENT. The admin endpoints are unused before cutover,
--- so production has essentially no legacy rows, but dev/test data does.
 UPDATE investment_transaction_batch SET status = 'DRAFT' WHERE status = 'AWAITING_CONFIRMATION';
 UPDATE investment_transaction_order SET order_status = 'DRAFT' WHERE order_status = 'PENDING';
 
 ALTER TABLE investment_transaction_batch ALTER COLUMN status SET DEFAULT 'DRAFT';
 ALTER TABLE investment_transaction_order ALTER COLUMN order_status SET DEFAULT 'DRAFT';
-
--- Rename investment_transaction_execution.actual_settlement_date -> scheduled_settlement_date: the
--- column holds the SEB pending report's SCHEDULED settlement date; the genuinely-settled date lives
--- in transaction_settlement.report_date. Dependent views are dropped first (neither H2 nor
--- PostgreSQL is trusted to auto-update a dependent view across the rename) and recreated with the
--- renamed source and output alias; v_transaction_registry additionally hides DRAFT/DISCARDED
--- orders. v_settlement_delays (V1_219) intentionally keeps its actual_settlement_date alias -- it
--- maps transaction_settlement.report_date, the true settled date. v_overdue_orders references only
--- execution.id, so it is untouched.
 
 DROP VIEW IF EXISTS v_transaction_registry;
 DROP VIEW IF EXISTS v_delayed_settlements;

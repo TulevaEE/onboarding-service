@@ -143,6 +143,41 @@ class TransactionInputServiceTest {
   }
 
   @Test
+  void gatherInput_populatesPositionQuantityAndUnitPrice() {
+    var positionDate = AS_OF_DATE;
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .thenReturn(Optional.of(positionDate));
+
+    var position =
+        FundPosition.builder()
+            .accountId("IE00A")
+            .fund(TUV100)
+            .navDate(positionDate)
+            .quantity(new BigDecimal("1000"))
+            .marketPrice(new BigDecimal("500"))
+            .marketValue(new BigDecimal("500000"))
+            .build();
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .thenReturn(List.of(position));
+    when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .thenReturn(List.of());
+    when(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
+        .thenReturn(ZERO);
+    when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .thenReturn(List.of());
+    when(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .thenReturn(Optional.of(zeroFundLimit(TUV100)));
+    when(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).thenReturn(List.of());
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.positions())
+        .containsExactly(
+            new PositionSnapshot(
+                "IE00A", new BigDecimal("500000"), new BigDecimal("1000"), new BigDecimal("500")));
+  }
+
+  @Test
   void gatherInput_rejectsModelWeightsThatDoNotSumToOne() {
     var positionDate = AS_OF_DATE;
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))

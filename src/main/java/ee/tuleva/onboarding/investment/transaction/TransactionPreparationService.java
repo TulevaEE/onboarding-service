@@ -371,7 +371,9 @@ public class TransactionPreparationService {
     putIfPresent(
         result,
         "positions",
-        input.positions().stream().map(TransactionPreparationService::serializePosition).toList());
+        input.positions().stream()
+            .map(position -> serializePosition(position, input.grossPortfolioValue()))
+            .toList());
     putIfPresent(
         result,
         "modelWeights",
@@ -390,11 +392,24 @@ public class TransactionPreparationService {
     return result;
   }
 
-  private static Map<String, Object> serializePosition(PositionSnapshot position) {
+  private static Map<String, Object> serializePosition(
+      PositionSnapshot position, BigDecimal grossPortfolioValue) {
     Map<String, Object> map = new LinkedHashMap<>();
     putIfPresent(map, "isin", position.isin());
     putIfPresent(map, "marketValue", plain(position.marketValue()));
+    putIfPresent(map, "quantity", plain(position.quantity()));
+    putIfPresent(map, "unitPrice", plain(position.unitPrice()));
+    putIfPresent(map, "currentWeight", plain(currentWeight(position, grossPortfolioValue)));
     return map;
+  }
+
+  @Nullable
+  private static BigDecimal currentWeight(
+      PositionSnapshot position, BigDecimal grossPortfolioValue) {
+    if (grossPortfolioValue.signum() == 0 || position.marketValue() == null) {
+      return null;
+    }
+    return position.marketValue().divide(grossPortfolioValue, 6, RoundingMode.HALF_UP);
   }
 
   private static Map<String, Object> serializeModelWeight(ModelWeight weight) {

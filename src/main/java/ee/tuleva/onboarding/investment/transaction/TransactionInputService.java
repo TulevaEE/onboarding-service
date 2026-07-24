@@ -163,7 +163,13 @@ public class TransactionInputService {
   private List<PositionSnapshot> getPositions(TulevaFund fund, LocalDate date) {
     return fundPositionRepository.findByNavDateAndFundAndAccountType(date, fund, SECURITY).stream()
         .filter(position -> position.getMarketValue() != null)
-        .map(position -> new PositionSnapshot(position.getAccountId(), position.getMarketValue()))
+        .map(
+            position ->
+                new PositionSnapshot(
+                    position.getAccountId(),
+                    position.getMarketValue(),
+                    position.getQuantity(),
+                    position.getMarketPrice()))
         .toList();
   }
 

@@ -239,6 +239,71 @@ class TransactionPreparationServiceTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
+  void serializeInput_serializesPositionQuantityUnitPriceAndCurrentWeight() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot(
+                        "IE00A",
+                        new BigDecimal("500000"),
+                        new BigDecimal("1000"),
+                        new BigDecimal("500"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(new BigDecimal("50000"))
+            .liabilities(ZERO)
+            .receivables(ZERO)
+            .freeCash(new BigDecimal("100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = TransactionPreparationService.serializeInput(input, Map.of());
+
+    var positions = (List<Map<String, Object>>) result.get("positions");
+    assertThat(positions)
+        .singleElement()
+        .satisfies(
+            position -> {
+              assertThat(position).containsEntry("isin", "IE00A");
+              assertThat(position).containsEntry("marketValue", "500000");
+              assertThat(position).containsEntry("quantity", "1000");
+              assertThat(position).containsEntry("unitPrice", "500");
+              assertThat(position).containsEntry("currentWeight", "0.500000");
+            });
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void serializeInput_omitsCurrentWeightWhenGrossPortfolioValueIsZero() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("500000"))))
+            .modelWeights(List.of())
+            .grossPortfolioValue(ZERO)
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .receivables(ZERO)
+            .freeCash(ZERO)
+            .minTransactionThreshold(ZERO)
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = TransactionPreparationService.serializeInput(input, Map.of());
+
+    var positions = (List<Map<String, Object>>) result.get("positions");
+    assertThat(positions)
+        .singleElement()
+        .satisfies(position -> assertThat(position).doesNotContainKey("currentWeight"));
+  }
+
+  @Test
   void serializeTrades_serializesAllFieldsToPlainStrings() {
     var trades =
         List.of(

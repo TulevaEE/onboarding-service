@@ -5,6 +5,8 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.CANCELLED;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DISCARDED;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
@@ -141,6 +143,29 @@ class SebPendingTransactionComplexMatcherTest {
     TransactionOrder cancelled =
         orderOf(31L, TUK75, "IE00BFNM3G45", BUY, ETF, 13288L, null, CANCELLED);
     givenCandidates("IE00BFNM3G45", List.of(cancelled));
+
+    SebPendingTransactionRow row =
+        row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288", null);
+
+    assertThat(matcher().match(row, PROPERTIES)).isEmpty();
+  }
+
+  @Test
+  void match_skipsDraftOrders() {
+    TransactionOrder draft = orderOf(32L, TUK75, "IE00BFNM3G45", BUY, ETF, 13288L, null, DRAFT);
+    givenCandidates("IE00BFNM3G45", List.of(draft));
+
+    SebPendingTransactionRow row =
+        row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288", null);
+
+    assertThat(matcher().match(row, PROPERTIES)).isEmpty();
+  }
+
+  @Test
+  void match_skipsDiscardedOrders() {
+    TransactionOrder discarded =
+        orderOf(33L, TUK75, "IE00BFNM3G45", BUY, ETF, 13288L, null, DISCARDED);
+    givenCandidates("IE00BFNM3G45", List.of(discarded));
 
     SebPendingTransactionRow row =
         row("Tuleva Maailma Aktsiate Pensionifond", "IE00BFNM3G45", "Buy", "13288", null);

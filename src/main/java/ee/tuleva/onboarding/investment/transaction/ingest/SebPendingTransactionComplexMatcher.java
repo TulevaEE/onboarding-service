@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
@@ -97,7 +96,7 @@ class SebPendingTransactionComplexMatcher {
     return orderRepository.findByInstrumentIsin(row.isin()).stream()
         .filter(o -> o.getFund() == fund)
         .filter(o -> o.getTransactionType() == row.side())
-        .filter(o -> o.getOrderStatus() != OrderStatus.CANCELLED)
+        .filter(o -> SebPendingTransactionMatcher.isMatchable(o.getOrderStatus()))
         .toList();
   }
 

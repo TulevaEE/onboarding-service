@@ -490,6 +490,7 @@ public class TransactionPreparationService {
     summary.put("mode", command.getMode().name());
     summary.put("tradeCount", orders.size());
     putIfPresent(summary, "netInvestable", plain(result.netInvestable()));
+    putIfPresent(summary, "noTradeReason", result.noTradeReason());
     payload.put("summary", summary);
     return payload;
   }

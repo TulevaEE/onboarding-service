@@ -41,6 +41,97 @@ class TradeCalculationEngineTest {
   }
 
   @Test
+  void buy_withFreeCashBelowThreshold_recordsFreeCashNoTradeReason() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("500000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(new BigDecimal("50000"))
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("1000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, BUY);
+
+    assertThat(result.trades())
+        .allSatisfy(trade -> assertThat(trade.tradeAmount()).isEqualByComparingTo(ZERO));
+    assertThat(result.noTradeReason())
+        .isEqualTo(
+            "No trades: mode=BUY, reason=freeCashBelowMinTransactionThreshold, freeCash=1000,"
+                + " minTransactionThreshold=5000");
+  }
+
+  @Test
+  void sell_withoutCashShortfall_recordsNoCashShortfallReason() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("500000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(ZERO)
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, SELL);
+
+    assertThat(result.noTradeReason())
+        .isEqualTo("No trades: mode=SELL, reason=noCashShortfall, freeCash=0");
+  }
+
+  @Test
+  void rebalance_withNoDrift_recordsNoDriftReason() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("1000000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(ZERO)
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, REBALANCE);
+
+    assertThat(result.noTradeReason())
+        .isEqualTo("No trades: mode=REBALANCE, reason=noDriftBeyondThreshold");
+  }
+
+  @Test
+  void calculate_withTrades_hasNoNoTradeReason() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("500000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, BUY);
+
+    assertThat(result.noTradeReason()).isNull();
+  }
+
+  @Test
   void buy_allocatesFreeCashToUnderweightPositions() {
     var input =
         FundTransactionInput.builder()

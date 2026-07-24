@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.IntStream;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -39,7 +40,50 @@ public class TradeCalculationEngine {
         };
 
     List<TradeCalculation> trades = applyLimits(input, rawTrades);
-    return new FundCalculationResult(input.fund(), mode, input, trades, netInvestable(input));
+    return new FundCalculationResult(
+        input.fund(),
+        mode,
+        input,
+        trades,
+        netInvestable(input),
+        noTradeReason(input, mode, trades));
+  }
+
+  @Nullable
+  private String noTradeReason(
+      FundTransactionInput input, TransactionMode mode, List<TradeCalculation> trades) {
+    boolean hasTrades = trades.stream().anyMatch(trade -> trade.tradeAmount().compareTo(ZERO) != 0);
+    if (hasTrades) {
+      return null;
+    }
+    return switch (mode) {
+      case BUY -> buyNoTradeReason(input);
+      case SELL, SELL_FAST -> sellNoTradeReason(input, mode);
+      case REBALANCE -> "No trades: mode=REBALANCE, reason=noDriftBeyondThreshold";
+    };
+  }
+
+  private String buyNoTradeReason(FundTransactionInput input) {
+    if (input.positions().isEmpty()) {
+      return "No trades: mode=BUY, reason=noPositions";
+    }
+    if (input.freeCash().compareTo(input.minTransactionThreshold()) < 0) {
+      return "No trades: mode=BUY, reason=freeCashBelowMinTransactionThreshold, freeCash=%s,"
+              .formatted(input.freeCash().toPlainString())
+          + " minTransactionThreshold=%s"
+              .formatted(input.minTransactionThreshold().toPlainString());
+    }
+    return "No trades: mode=BUY, reason=noPositionUnderTargetBeyondThreshold";
+  }
+
+  private String sellNoTradeReason(FundTransactionInput input, TransactionMode mode) {
+    if (input.freeCash().compareTo(new BigDecimal("-0.01")) >= 0) {
+      return "No trades: mode=%s, reason=noCashShortfall, freeCash=%s"
+          .formatted(mode.name(), input.freeCash().toPlainString());
+    }
+    return "No trades: mode=%s, reason=shortfallBelowMinTransactionThreshold, freeCash=%s,"
+            .formatted(mode.name(), input.freeCash().toPlainString())
+        + " minTransactionThreshold=%s".formatted(input.minTransactionThreshold().toPlainString());
   }
 
   private List<BigDecimal> calculateBuy(FundTransactionInput input) {

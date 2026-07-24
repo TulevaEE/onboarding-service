@@ -147,6 +147,52 @@ class TransactionPreparationServiceTest {
   }
 
   @Test
+  void processCommand_withCommandCash_passesCashOverrideToInputService() {
+    var command =
+        TransactionCommand.builder()
+            .id(20L)
+            .fund(TUV100)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .cash(new BigDecimal("40000"))
+            .status(PROCESSING)
+            .build();
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of())
+            .modelWeights(List.of())
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("40000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+    var calculationResult =
+        new FundCalculationResult(TUV100, BUY, input, List.of(), netInvestable(input), null);
+    given(
+            inputService.gatherInput(
+                TUV100, command.getAsOfDate(), Map.of(), new BigDecimal("40000")))
+        .willReturn(input);
+    given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
+    given(batchRepository.save(any(TransactionBatch.class)))
+        .willAnswer(
+            invocation -> {
+              TransactionBatch batch = invocation.getArgument(0);
+              batch.setId(1L);
+              return batch;
+            });
+
+    service.processCommand(command);
+
+    verify(inputService)
+        .gatherInput(TUV100, command.getAsOfDate(), Map.of(), new BigDecimal("40000"));
+  }
+
+  @Test
   void processCommand_persistsManualAdjustmentsInCalculationSnapshot() {
     var manualAdjustments = Map.<String, Object>of("IE00A", "25000");
     var command =
@@ -589,6 +635,7 @@ class TransactionPreparationServiceTest {
                     ZERO,
                     ZERO))
             .reportCash(new BigDecimal("100000"))
+            .appliedCash(new BigDecimal("100000"))
             .ledgerCash(new BigDecimal("95000"))
             .build();
 
@@ -602,6 +649,7 @@ class TransactionPreparationServiceTest {
         .containsEntry("pendingBuys", "1500")
         .containsEntry("pendingSells", "500");
     assertThat(result).containsEntry("reportCash", "100000");
+    assertThat(result).containsEntry("appliedCash", "100000");
     assertThat(result).containsEntry("ledgerCash", "95000");
     assertThat(result).containsEntry("cashDifference", "5000");
   }

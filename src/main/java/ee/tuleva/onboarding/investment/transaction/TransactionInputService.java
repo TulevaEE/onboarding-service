@@ -51,6 +51,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -80,6 +81,14 @@ public class TransactionInputService {
 
   public FundTransactionInput gatherInput(
       TulevaFund fund, LocalDate asOfDate, Map<String, Object> manualAdjustments) {
+    return gatherInput(fund, asOfDate, manualAdjustments, null);
+  }
+
+  public FundTransactionInput gatherInput(
+      TulevaFund fund,
+      LocalDate asOfDate,
+      Map<String, Object> manualAdjustments,
+      @Nullable BigDecimal cashOverride) {
     LocalDate positionDate =
         fundPositionRepository
             .findLatestNavDateByFundAndAsOfDate(fund, asOfDate)
@@ -95,7 +104,8 @@ public class TransactionInputService {
         positionDate);
 
     List<PositionSnapshot> positions = getPositions(fund, positionDate);
-    BigDecimal cash = getCashBalance(fund, positionDate);
+    BigDecimal reportCash = getCashBalance(fund, positionDate);
+    BigDecimal appliedCash = cashOverride == null ? reportCash : cashOverride;
     BigDecimal managementFee = getAccruedFees(fund, asOfDate, FeeType.MANAGEMENT);
     BigDecimal depotFee = getAccruedFees(fund, asOfDate, FeeType.DEPOT);
     List<ModelPortfolioAllocation> allocations = getModelAllocations(fund, asOfDate);
@@ -124,7 +134,7 @@ public class TransactionInputService {
             .map(PositionSnapshot::marketValue)
             .filter(Objects::nonNull)
             .reduce(ZERO, BigDecimal::add);
-    BigDecimal grossPortfolioValue = securityValue.add(cash);
+    BigDecimal grossPortfolioValue = securityValue.add(reportCash);
 
     BigDecimal unreconciledBankReceipts = ZERO;
     BigDecimal fundUnitsReservedValue = ZERO;
@@ -157,7 +167,8 @@ public class TransactionInputService {
 
     PendingCash pendingCash = getPendingCashImpact(fund, asOfDate);
     BigDecimal freeCash =
-        cash.subtract(cashBuffer)
+        appliedCash
+            .subtract(cashBuffer)
             .subtract(liabilities)
             .add(receivables)
             .subtract(pendingCash.net());
@@ -194,7 +205,8 @@ public class TransactionInputService {
         .instrumentTypes(instrumentTypes)
         .orderVenues(orderVenues)
         .liabilityBreakdown(liabilityBreakdown)
-        .reportCash(cash)
+        .reportCash(reportCash)
+        .appliedCash(appliedCash)
         .ledgerCash(ledgerCash)
         .positionDate(positionDate)
         .modelEffectiveDate(modelEffectiveDate)

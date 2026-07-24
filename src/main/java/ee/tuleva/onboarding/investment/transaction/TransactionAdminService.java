@@ -41,13 +41,15 @@ class TransactionAdminService {
       TransactionMode mode,
       LocalDate asOfDate,
       @Nullable Map<String, Object> manualAdjustments,
-      String actor) {
+      String actor,
+      @Nullable BigDecimal cash) {
     TransactionCommand command =
         TransactionCommand.builder()
             .fund(fund)
             .mode(mode)
             .asOfDate(asOfDate)
             .manualAdjustments(manualAdjustments == null ? Map.of() : manualAdjustments)
+            .cash(cash)
             .actor(actor)
             .status(CommandStatus.PROCESSING)
             .build();
@@ -64,11 +66,15 @@ class TransactionAdminService {
   }
 
   List<TransactionCommandResponse> createAndProcessAll(
-      @Nullable List<TulevaFund> funds, TransactionMode mode, LocalDate asOfDate, String actor) {
+      @Nullable List<TulevaFund> funds,
+      TransactionMode mode,
+      LocalDate asOfDate,
+      String actor,
+      Map<TulevaFund, BigDecimal> cashOverrides) {
     List<TulevaFund> targetFunds =
         funds == null || funds.isEmpty() ? List.of(TulevaFund.values()) : funds;
     return targetFunds.stream()
-        .map(fund -> createAndProcess(fund, mode, asOfDate, null, actor))
+        .map(fund -> createAndProcess(fund, mode, asOfDate, null, actor, cashOverrides.get(fund)))
         .toList();
   }
 

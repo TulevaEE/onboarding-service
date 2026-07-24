@@ -14,6 +14,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;
@@ -45,6 +46,8 @@ public class TransactionCommand {
   private TransactionMode mode;
 
   @NotNull private LocalDate asOfDate;
+
+  private BigDecimal cash;
 
   @Builder.Default
   @JdbcTypeCode(JSON)

@@ -8,6 +8,7 @@ import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 import jakarta.validation.Valid;
 import java.security.MessageDigest;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
@@ -57,7 +58,12 @@ public class TransactionCommandController {
         actor);
 
     return adminService.createAndProcess(
-        request.fund(), request.mode(), request.asOfDate(), request.manualAdjustments(), actor);
+        request.fund(),
+        request.mode(),
+        request.asOfDate(),
+        request.manualAdjustments(),
+        actor,
+        request.cash());
   }
 
   @PostMapping("/transaction-commands/batch")
@@ -76,7 +82,11 @@ public class TransactionCommandController {
         actor);
 
     return adminService.createAndProcessAll(
-        request.funds(), request.mode(), request.asOfDate(), actor);
+        request.funds(),
+        request.mode(),
+        request.asOfDate(),
+        actor,
+        request.cash() == null ? Map.of() : request.cash());
   }
 
   @GetMapping("/transaction-commands/{id}")

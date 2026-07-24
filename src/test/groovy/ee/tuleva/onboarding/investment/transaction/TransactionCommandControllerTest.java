@@ -85,7 +85,7 @@ class TransactionCommandControllerTest {
   void createCommand_withValidToken_processesSynchronouslyAndReturnsResult() throws Exception {
     given(
             adminService.createAndProcess(
-                TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00"), "admin"))
+                TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00"), "admin", null))
         .willReturn(commandResponse());
 
     mockMvc
@@ -114,7 +114,7 @@ class TransactionCommandControllerTest {
 
   @Test
   void createCommand_passesAdminActorToService() throws Exception {
-    given(adminService.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "operator-7"))
+    given(adminService.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "operator-7", null))
         .willReturn(commandResponse());
 
     mockMvc
@@ -130,7 +130,50 @@ class TransactionCommandControllerTest {
                     """))
         .andExpect(status().isOk());
 
-    then(adminService).should().createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "operator-7");
+    then(adminService)
+        .should()
+        .createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "operator-7", null);
+  }
+
+  @Test
+  void createCommand_passesCashOverrideToService() throws Exception {
+    given(
+            adminService.createAndProcess(
+                TUK75, REBALANCE, AS_OF_DATE, null, "admin", new BigDecimal("40000")))
+        .willReturn(commandResponse());
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-commands")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"fund": "TUK75", "mode": "REBALANCE", "asOfDate": "2026-06-10", "cash": 40000}
+                    """))
+        .andExpect(status().isOk());
+
+    then(adminService)
+        .should()
+        .createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "admin", new BigDecimal("40000"));
+  }
+
+  @Test
+  void createCommand_negativeCash_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-commands")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"fund": "TUK75", "mode": "REBALANCE", "asOfDate": "2026-06-10", "cash": -1}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    then(adminService).shouldHaveNoInteractions();
   }
 
   @Test
@@ -180,7 +223,9 @@ class TransactionCommandControllerTest {
 
   @Test
   void createCommandBatch_processesRequestedFunds() throws Exception {
-    given(adminService.createAndProcessAll(List.of(TUK75, TUK00), REBALANCE, AS_OF_DATE, "admin"))
+    given(
+            adminService.createAndProcessAll(
+                List.of(TUK75, TUK00), REBALANCE, AS_OF_DATE, "admin", Map.of()))
         .willReturn(
             List.of(
                 commandResponse(),
@@ -204,7 +249,7 @@ class TransactionCommandControllerTest {
 
   @Test
   void createCommandBatch_withoutFunds_processesAllFunds() throws Exception {
-    given(adminService.createAndProcessAll(null, REBALANCE, AS_OF_DATE, "admin"))
+    given(adminService.createAndProcessAll(null, REBALANCE, AS_OF_DATE, "admin", Map.of()))
         .willReturn(List.of(commandResponse()));
 
     mockMvc

@@ -28,6 +28,7 @@ public record FundTransactionInput(
     Map<String, OrderVenue> orderVenues,
     @Nullable LiabilityBreakdown liabilityBreakdown,
     @Nullable BigDecimal reportCash,
+    @Nullable BigDecimal appliedCash,
     @Nullable BigDecimal ledgerCash,
     @Nullable LocalDate positionDate,
     @Nullable LocalDate modelEffectiveDate) {

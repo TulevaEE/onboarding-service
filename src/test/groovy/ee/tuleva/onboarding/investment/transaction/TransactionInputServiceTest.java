@@ -275,6 +275,67 @@ class TransactionInputServiceTest {
   }
 
   @Test
+  void gatherInput_withoutCashOverride_appliedCashEqualsReportCash() {
+    var positionDate = AS_OF_DATE;
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(List.of());
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(CASH)
+                    .marketValue(new BigDecimal("100000"))
+                    .build()));
+    given(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
+        .willReturn(ZERO);
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.reportCash()).isEqualByComparingTo(new BigDecimal("100000"));
+    assertThat(result.appliedCash()).isEqualByComparingTo(new BigDecimal("100000"));
+    assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("100000"));
+  }
+
+  @Test
+  void gatherInput_withCashOverride_usesOverrideInFreeCashAndRecordsBothCashFigures() {
+    var positionDate = AS_OF_DATE;
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(List.of());
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(CASH)
+                    .marketValue(new BigDecimal("100000"))
+                    .build()));
+    given(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
+        .willReturn(ZERO);
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), new BigDecimal("40000"));
+
+    assertThat(result.reportCash()).isEqualByComparingTo(new BigDecimal("100000"));
+    assertThat(result.appliedCash()).isEqualByComparingTo(new BigDecimal("40000"));
+    assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("40000"));
+    assertThat(result.grossPortfolioValue()).isEqualByComparingTo(new BigDecimal("100000"));
+  }
+
+  @Test
   void gatherInput_populatesPositionQuantityAndUnitPrice() {
     var positionDate = AS_OF_DATE;
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))

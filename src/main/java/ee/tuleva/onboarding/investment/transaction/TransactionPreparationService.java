@@ -74,9 +74,7 @@ public class TransactionPreparationService {
           command.getFund(),
           command.getMode());
 
-      input =
-          inputService.gatherInput(
-              command.getFund(), command.getAsOfDate(), command.getManualAdjustments());
+      input = gatherInput(command);
 
       var result = calculationEngine.calculate(input, command.getMode());
 
@@ -134,6 +132,15 @@ public class TransactionPreparationService {
               .build());
       return null;
     }
+  }
+
+  private FundTransactionInput gatherInput(TransactionCommand command) {
+    BigDecimal cash = command.getCash();
+    return cash == null
+        ? inputService.gatherInput(
+            command.getFund(), command.getAsOfDate(), command.getManualAdjustments())
+        : inputService.gatherInput(
+            command.getFund(), command.getAsOfDate(), command.getManualAdjustments(), cash);
   }
 
   private static String actorOf(TransactionCommand command) {
@@ -432,6 +439,7 @@ public class TransactionPreparationService {
     putIfPresent(
         result, "liabilityBreakdown", serializeLiabilityBreakdown(input.liabilityBreakdown()));
     putIfPresent(result, "reportCash", plain(input.reportCash()));
+    putIfPresent(result, "appliedCash", plain(input.appliedCash()));
     putIfPresent(result, "ledgerCash", plain(input.ledgerCash()));
     putIfPresent(result, "cashDifference", plain(cashDifference(input)));
     putIfPresent(result, "positionLimits", serializePositionLimits(input.positionLimits()));

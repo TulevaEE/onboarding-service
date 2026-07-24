@@ -194,6 +194,49 @@ class TransactionAdminService {
     return TransactionBatchResponse.from(batch, orders);
   }
 
+  @Transactional
+  TransactionOrderResponse cancelOrder(Long orderId, String reason, String actor) {
+    TransactionOrder order =
+        orderRepository
+            .findById(orderId)
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        NOT_FOUND, "Transaction order not found: id=" + orderId));
+    if (isInMarket(order)) {
+      throw new ResponseStatusException(
+          CONFLICT,
+          "Order is in market and cannot be cancelled: id="
+              + orderId
+              + ", status="
+              + order.getOrderStatus());
+    }
+    if (order.getOrderStatus() != OrderStatus.SENT) {
+      throw new ResponseStatusException(
+          CONFLICT,
+          "Only SENT orders can be cancelled: id="
+              + orderId
+              + ", status="
+              + order.getOrderStatus());
+    }
+    Instant now = Instant.now(clock);
+    log.info(
+        "Admin cancelled transaction order: id={}, actor={}, reason={}", orderId, actor, reason);
+    order.setOrderStatus(OrderStatus.CANCELLED);
+    orderRepository.save(order);
+
+    auditEventRepository.save(
+        TransactionAuditEvent.builder()
+            .orderId(order.getId())
+            .eventType("ORDER_CANCELLED")
+            .actor(actor)
+            .createdAt(now)
+            .payload(Map.of("reason", reason, "actor", actor))
+            .build());
+
+    return TransactionOrderResponse.from(order);
+  }
+
   private static boolean isInMarket(TransactionOrder order) {
     return order.getOrderStatus() == OrderStatus.EXECUTED
         || order.getOrderStatus() == OrderStatus.SETTLED;

@@ -148,6 +148,24 @@ public class TransactionCommandController {
     return adminService.discardBatch(id, actor);
   }
 
+  @PostMapping("/transaction-orders/{id}/cancel")
+  public TransactionOrderResponse cancelOrder(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestHeader(name = "X-Admin-Actor", required = false, defaultValue = "admin") String actor,
+      @PathVariable Long id,
+      @Valid @RequestBody CancelTransactionOrderRequest request) {
+
+    validateToken(token);
+
+    log.info(
+        "Admin triggered transaction order cancellation: id={}, actor={}, reason={}",
+        id,
+        actor,
+        request.reason());
+
+    return adminService.cancelOrder(id, request.reason(), actor);
+  }
+
   @GetMapping("/transaction-batches/{id}/exports/{type}")
   public ResponseEntity<byte[]> downloadExport(
       @RequestHeader("X-Admin-Token") String token,

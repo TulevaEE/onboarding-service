@@ -442,6 +442,100 @@ class TransactionCommandControllerTest {
   }
 
   @Test
+  void cancelOrder_withReasonAndActor_invokesServiceAndReturnsOrder() throws Exception {
+    given(adminService.cancelOrder(100L, "trader error", "operator-7")).willReturn(orderResponse());
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-orders/100/cancel")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .header("X-Admin-Actor", "operator-7")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"reason": "trader error"}
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(100));
+
+    then(adminService).should().cancelOrder(100L, "trader error", "operator-7");
+  }
+
+  @Test
+  void cancelOrder_withoutActor_defaultsToAdmin() throws Exception {
+    given(adminService.cancelOrder(100L, "trader error", "admin")).willReturn(orderResponse());
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-orders/100/cancel")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"reason": "trader error"}
+                    """))
+        .andExpect(status().isOk());
+
+    then(adminService).should().cancelOrder(100L, "trader error", "admin");
+  }
+
+  @Test
+  void cancelOrder_blankReason_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-orders/100/cancel")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"reason": "  "}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    then(adminService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void cancelOrder_notSentOrder_returnsConflict() throws Exception {
+    given(adminService.cancelOrder(100L, "trader error", "admin"))
+        .willThrow(
+            new ResponseStatusException(
+                CONFLICT, "Only SENT orders can be cancelled: id=100, status=DRAFT"));
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-orders/100/cancel")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"reason": "trader error"}
+                    """))
+        .andExpect(status().isConflict());
+  }
+
+  @Test
+  void cancelOrder_invalidToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-orders/100/cancel")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"reason": "trader error"}
+                    """))
+        .andExpect(status().isUnauthorized());
+
+    then(adminService).shouldHaveNoInteractions();
+  }
+
+  @Test
   void downloadExport_returnsXlsxFile() throws Exception {
     byte[] xlsx = {1, 2, 3};
     given(adminService.exportFile(10L, "sebEtfXlsx")).willReturn(Optional.of(xlsx));

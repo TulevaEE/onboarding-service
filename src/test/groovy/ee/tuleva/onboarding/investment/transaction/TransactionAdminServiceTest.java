@@ -454,6 +454,88 @@ class TransactionAdminServiceTest {
   }
 
   @Test
+  void cancelOrder_sentOrder_setsCancelledAndWritesOrderScopedAudit() {
+    TransactionOrder order = order(100L, batch(10L, BatchStatus.SENT));
+    order.setOrderStatus(OrderStatus.SENT);
+    given(orderRepository.findById(100L)).willReturn(Optional.of(order));
+
+    TransactionOrderResponse response = service.cancelOrder(100L, "trader error", "operator-7");
+
+    assertThat(response.orderStatus()).isEqualTo(OrderStatus.CANCELLED);
+    assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.CANCELLED);
+
+    then(orderRepository).should().save(order);
+    then(auditEventRepository)
+        .should()
+        .save(
+            TransactionAuditEvent.builder()
+                .orderId(100L)
+                .eventType("ORDER_CANCELLED")
+                .actor("operator-7")
+                .createdAt(Instant.parse("2026-06-11T09:00:00Z"))
+                .payload(Map.of("reason", "trader error", "actor", "operator-7"))
+                .build());
+  }
+
+  @Test
+  void cancelOrder_executedOrder_throwsConflictAndMutatesNothing() {
+    TransactionOrder order = order(100L, batch(10L, BatchStatus.SENT));
+    order.setOrderStatus(OrderStatus.EXECUTED);
+    given(orderRepository.findById(100L)).willReturn(Optional.of(order));
+
+    assertThatThrownBy(() -> service.cancelOrder(100L, "trader error", "operator-7"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(409);
+
+    assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.EXECUTED);
+    then(orderRepository).should(never()).save(any());
+    then(auditEventRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void cancelOrder_settledOrder_throwsConflictAndMutatesNothing() {
+    TransactionOrder order = order(100L, batch(10L, BatchStatus.SENT));
+    order.setOrderStatus(OrderStatus.SETTLED);
+    given(orderRepository.findById(100L)).willReturn(Optional.of(order));
+
+    assertThatThrownBy(() -> service.cancelOrder(100L, "trader error", "operator-7"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(409);
+
+    assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.SETTLED);
+    then(orderRepository).should(never()).save(any());
+    then(auditEventRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void cancelOrder_draftOrder_throwsConflictAndMutatesNothing() {
+    TransactionOrder order = order(100L, batch(10L, DRAFT));
+    order.setOrderStatus(OrderStatus.DRAFT);
+    given(orderRepository.findById(100L)).willReturn(Optional.of(order));
+
+    assertThatThrownBy(() -> service.cancelOrder(100L, "trader error", "operator-7"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(409);
+
+    assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.DRAFT);
+    then(orderRepository).should(never()).save(any());
+    then(auditEventRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void cancelOrder_unknownOrder_throwsNotFound() {
+    given(orderRepository.findById(999L)).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.cancelOrder(999L, "trader error", "admin"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(404);
+  }
+
+  @Test
   void exportFile_decodesStoredBase64Export() {
     byte[] xlsx = {1, 2, 3};
     TransactionBatch batch = batch(10L, BatchStatus.SENT);

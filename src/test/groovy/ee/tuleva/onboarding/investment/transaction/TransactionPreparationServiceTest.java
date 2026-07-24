@@ -16,6 +16,7 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriceSource;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
+import ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.transaction.calculation.TradeCalculationEngine;
@@ -178,27 +179,21 @@ class TransactionPreparationServiceTest {
 
     service.processCommand(command);
 
-    var expectedEvent =
-        TransactionAuditEvent.builder()
-            .eventType("CALCULATION_COMPLETED")
-            .actor("system")
-            .createdAt(Instant.now(clock))
-            .payload(
-                Map.of(
-                    "input", TransactionPreparationService.serializeInput(input, manualAdjustments),
-                    "output", TransactionPreparationService.serializeTrades(trades),
-                    "summary",
-                        Map.of(
-                            "fund", TUV100.name(),
-                            "mode", BUY.name(),
-                            "tradeCount", 1)))
-            .build();
+    var expectedInput = TransactionPreparationService.serializeInput(input, manualAdjustments);
     verify(auditEventRepository)
         .save(
             argThat(
                 event ->
                     "CALCULATION_COMPLETED".equals(event.getEventType())
-                        && event.getPayload().equals(expectedEvent.getPayload())));
+                        && event.getPayload().get("input").equals(expectedInput)
+                        && event.getPayload().containsKey("output")
+                        && event.getPayload().containsKey("priceResolutions")
+                        && summaryTradeCount(event).equals(1)));
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Object summaryTradeCount(TransactionAuditEvent event) {
+    return ((Map<String, Object>) event.getPayload().get("summary")).get("tradeCount");
   }
 
   @Test
@@ -304,23 +299,78 @@ class TransactionPreparationServiceTest {
   }
 
   @Test
-  void serializeTrades_serializesAllFieldsToPlainStrings() {
+  void serializeTrades_serializesUntradedIsinsWithBaseShape() {
     var trades =
         List.of(
             new TradeCalculation(
                 "IE00A", new BigDecimal("100000"), new BigDecimal("0.60"), LimitStatus.OK));
 
-    var result = TransactionPreparationService.serializeTrades(trades);
+    var result = TransactionPreparationService.serializeTrades(trades, Map.of());
 
     assertThat(result)
         .singleElement()
         .satisfies(
             trade -> {
+              assertThat(trade)
+                  .containsOnlyKeys("isin", "tradeAmount", "projectedWeight", "limitStatus");
               assertThat(trade).containsEntry("isin", "IE00A");
               assertThat(trade).containsEntry("tradeAmount", "100000");
               assertThat(trade).containsEntry("projectedWeight", "0.60");
               assertThat(trade).containsEntry("limitStatus", "OK");
             });
+  }
+
+  @Test
+  void serializeTrades_enrichesExecutedTradesFromOrders() {
+    var trades =
+        List.of(
+            new TradeCalculation(
+                "IE00ETF", new BigDecimal("50000"), new BigDecimal("0.55"), LimitStatus.OK),
+            new TradeCalculation("LU00UNTRADED", ZERO, new BigDecimal("0.10"), LimitStatus.OK));
+    var order =
+        TransactionOrder.builder()
+            .instrumentIsin("IE00ETF")
+            .transactionType(TransactionType.BUY)
+            .instrumentType(InstrumentType.ETF)
+            .orderVenue(OrderVenue.SEB)
+            .orderQuantity(new BigDecimal("16666.666667"))
+            .build();
+
+    var result = TransactionPreparationService.serializeTrades(trades, Map.of("IE00ETF", order));
+
+    assertThat(result.get(0))
+        .containsEntry("isin", "IE00ETF")
+        .containsEntry("tradeAmount", "50000")
+        .containsEntry("quantity", "16666.666667")
+        .containsEntry("side", "BUY")
+        .containsEntry("venue", "SEB")
+        .containsEntry("instrumentType", "ETF");
+    assertThat(result.get(1))
+        .containsOnlyKeys("isin", "tradeAmount", "projectedWeight", "limitStatus");
+  }
+
+  @Test
+  void serializePriceResolutions_serializesResolvedPriceFieldsAndTolersatesNull() {
+    var resolved =
+        ResolvedPrice.builder()
+            .usedPrice(new BigDecimal("12.5"))
+            .priceSource(PriceSource.EODHD)
+            .validationStatus(ValidationStatus.OK)
+            .priceDate(LocalDate.of(2026, 1, 14))
+            .build();
+    var resolutions = new java.util.LinkedHashMap<String, ResolvedPrice>();
+    resolutions.put("IE00ETF", resolved);
+    resolutions.put("LU00NOPRICE", null);
+
+    var result = TransactionPreparationService.serializePriceResolutions(resolutions);
+
+    assertThat(result.get(0))
+        .containsEntry("isin", "IE00ETF")
+        .containsEntry("price", "12.5")
+        .containsEntry("priceDate", "2026-01-14")
+        .containsEntry("priceSource", "EODHD")
+        .containsEntry("validationStatus", "OK");
+    assertThat(result.get(1)).containsOnlyKeys("isin");
   }
 
   @Test

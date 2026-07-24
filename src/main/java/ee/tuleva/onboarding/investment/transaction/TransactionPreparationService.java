@@ -84,8 +84,9 @@ public class TransactionPreparationService {
               .build();
       batchRepository.save(batch);
 
-      List<TransactionOrder> orders =
+      CalculatedOrders calculated =
           createOrders(batch, result, command.getAsOfDate(), Instant.now(clock));
+      List<TransactionOrder> orders = calculated.orders();
       orderRepository.saveAll(orders);
 
       auditEventRepository.save(
@@ -94,15 +95,7 @@ public class TransactionPreparationService {
               .eventType("CALCULATION_COMPLETED")
               .actor("system")
               .createdAt(Instant.now(clock))
-              .payload(
-                  Map.of(
-                      "input", serializeInput(input, command.getManualAdjustments()),
-                      "output", serializeTrades(result.trades()),
-                      "summary",
-                          Map.of(
-                              "fund", command.getFund().name(),
-                              "mode", command.getMode().name(),
-                              "tradeCount", orders.size())))
+              .payload(completedPayload(command, input, result, orders, calculated))
               .build());
 
       command.setStatus(CommandStatus.CALCULATED);
@@ -251,41 +244,50 @@ public class TransactionPreparationService {
     }
   }
 
-  private List<TransactionOrder> createOrders(
+  private CalculatedOrders createOrders(
       TransactionBatch batch, FundCalculationResult result, LocalDate asOfDate, Instant createdAt) {
     var input = result.input();
+    List<TransactionOrder> orders = new ArrayList<>();
+    Map<String, ResolvedPrice> priceResolutions = new LinkedHashMap<>();
 
-    return result.trades().stream()
-        .filter(trade -> trade.tradeAmount().compareTo(ZERO) != 0)
-        .map(
-            trade -> {
-              var instrumentType =
-                  input.instrumentTypes().getOrDefault(trade.isin(), InstrumentType.ETF);
-              var transactionType =
-                  trade.tradeAmount().compareTo(ZERO) > 0
-                      ? TransactionType.BUY
-                      : TransactionType.SELL;
-              var orderAmount = trade.tradeAmount().abs();
-              var orderQuantity =
-                  resolveOrderQuantity(
-                      instrumentType, transactionType, trade.isin(), orderAmount, asOfDate);
-              return TransactionOrder.builder()
-                  .batch(batch)
-                  .fund(result.fund())
-                  .instrumentIsin(trade.isin())
-                  .transactionType(transactionType)
-                  .instrumentType(instrumentType)
-                  .orderAmount(orderAmount)
-                  .orderQuantity(orderQuantity.quantity())
-                  .comment(orderQuantity.stalePriceComment())
-                  .orderVenue(input.orderVenues().getOrDefault(trade.isin(), OrderVenue.SEB))
-                  .createdAt(createdAt)
-                  .build();
-            })
-        .toList();
+    for (TradeCalculation trade : result.trades()) {
+      if (trade.tradeAmount().compareTo(ZERO) == 0) {
+        continue;
+      }
+      var instrumentType = input.instrumentTypes().getOrDefault(trade.isin(), InstrumentType.ETF);
+      var transactionType =
+          trade.tradeAmount().compareTo(ZERO) > 0 ? TransactionType.BUY : TransactionType.SELL;
+      var orderAmount = trade.tradeAmount().abs();
+      var orderQuantity =
+          resolveOrderQuantity(
+              instrumentType, transactionType, trade.isin(), orderAmount, asOfDate);
+      if (!isAmountBasedOrder(instrumentType, transactionType)) {
+        priceResolutions.put(trade.isin(), orderQuantity.resolvedPrice());
+      }
+      orders.add(
+          TransactionOrder.builder()
+              .batch(batch)
+              .fund(result.fund())
+              .instrumentIsin(trade.isin())
+              .transactionType(transactionType)
+              .instrumentType(instrumentType)
+              .orderAmount(orderAmount)
+              .orderQuantity(orderQuantity.quantity())
+              .comment(orderQuantity.stalePriceComment())
+              .orderVenue(input.orderVenues().getOrDefault(trade.isin(), OrderVenue.SEB))
+              .createdAt(createdAt)
+              .build());
+    }
+    return new CalculatedOrders(orders, priceResolutions);
   }
 
-  private record OrderQuantity(@Nullable BigDecimal quantity, @Nullable String stalePriceComment) {}
+  private record CalculatedOrders(
+      List<TransactionOrder> orders, Map<String, ResolvedPrice> priceResolutions) {}
+
+  private record OrderQuantity(
+      @Nullable BigDecimal quantity,
+      @Nullable String stalePriceComment,
+      @Nullable ResolvedPrice resolvedPrice) {}
 
   private OrderQuantity resolveOrderQuantity(
       InstrumentType instrumentType,
@@ -294,7 +296,7 @@ public class TransactionPreparationService {
       BigDecimal orderAmount,
       LocalDate asOfDate) {
     if (isAmountBasedOrder(instrumentType, transactionType)) {
-      return new OrderQuantity(null, null);
+      return new OrderQuantity(null, null, null);
     }
     ResolvedPrice resolvedPrice = positionPriceResolver.resolve(isin, asOfDate).orElse(null);
     BigDecimal price = resolvedPrice == null ? null : resolvedPrice.usedPrice();
@@ -304,7 +306,7 @@ public class TransactionPreparationService {
           isin,
           instrumentType,
           asOfDate);
-      return new OrderQuantity(null, null);
+      return new OrderQuantity(null, null, resolvedPrice);
     }
     if (price.signum() <= 0) {
       log.warn(
@@ -314,11 +316,11 @@ public class TransactionPreparationService {
           instrumentType,
           price.toPlainString(),
           asOfDate);
-      return new OrderQuantity(null, null);
+      return new OrderQuantity(null, null, resolvedPrice);
     }
     BigDecimal quantity = orderAmount.divide(price, 6, RoundingMode.HALF_UP);
     String stalePriceComment = describeIfStale(isin, resolvedPrice, asOfDate);
-    return new OrderQuantity(quantity, stalePriceComment);
+    return new OrderQuantity(quantity, stalePriceComment, resolvedPrice);
   }
 
   @Nullable
@@ -432,17 +434,89 @@ public class TransactionPreparationService {
     return map;
   }
 
-  static List<Map<String, Object>> serializeTrades(List<TradeCalculation> trades) {
-    return trades.stream().map(TransactionPreparationService::serializeTrade).toList();
+  private Map<String, Object> completedPayload(
+      TransactionCommand command,
+      FundTransactionInput input,
+      FundCalculationResult result,
+      List<TransactionOrder> orders,
+      CalculatedOrders calculated) {
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("input", serializeInput(input, command.getManualAdjustments()));
+    payload.put("output", serializeTrades(result.trades(), ordersByIsin(orders)));
+    payload.put("priceResolutions", serializePriceResolutions(calculated.priceResolutions()));
+    Map<String, Object> summary = new LinkedHashMap<>();
+    summary.put("fund", command.getFund().name());
+    summary.put("mode", command.getMode().name());
+    summary.put("tradeCount", orders.size());
+    payload.put("summary", summary);
+    return payload;
   }
 
-  private static Map<String, Object> serializeTrade(TradeCalculation trade) {
+  private static Map<String, TransactionOrder> ordersByIsin(List<TransactionOrder> orders) {
+    Map<String, TransactionOrder> map = new LinkedHashMap<>();
+    orders.forEach(order -> map.put(order.getInstrumentIsin(), order));
+    return map;
+  }
+
+  static List<Map<String, Object>> serializeTrades(
+      List<TradeCalculation> trades, Map<String, TransactionOrder> ordersByIsin) {
+    return trades.stream()
+        .map(trade -> serializeTrade(trade, ordersByIsin.get(trade.isin())))
+        .toList();
+  }
+
+  private static Map<String, Object> serializeTrade(
+      TradeCalculation trade, @Nullable TransactionOrder order) {
     Map<String, Object> map = new LinkedHashMap<>();
     putIfPresent(map, "isin", trade.isin());
     putIfPresent(map, "tradeAmount", plain(trade.tradeAmount()));
     putIfPresent(map, "projectedWeight", plain(trade.projectedWeight()));
     putIfPresent(
         map, "limitStatus", trade.limitStatus() == null ? null : trade.limitStatus().name());
+    if (order != null) {
+      putIfPresent(map, "quantity", plain(order.getOrderQuantity()));
+      putIfPresent(
+          map,
+          "side",
+          order.getTransactionType() == null ? null : order.getTransactionType().name());
+      putIfPresent(
+          map, "venue", order.getOrderVenue() == null ? null : order.getOrderVenue().name());
+      putIfPresent(
+          map,
+          "instrumentType",
+          order.getInstrumentType() == null ? null : order.getInstrumentType().name());
+    }
+    return map;
+  }
+
+  static List<Map<String, Object>> serializePriceResolutions(
+      Map<String, ResolvedPrice> priceResolutions) {
+    return priceResolutions.entrySet().stream()
+        .map(entry -> serializePriceResolution(entry.getKey(), entry.getValue()))
+        .toList();
+  }
+
+  private static Map<String, Object> serializePriceResolution(
+      String isin, @Nullable ResolvedPrice resolvedPrice) {
+    Map<String, Object> map = new LinkedHashMap<>();
+    putIfPresent(map, "isin", isin);
+    if (resolvedPrice != null) {
+      putIfPresent(map, "price", plain(resolvedPrice.usedPrice()));
+      putIfPresent(
+          map,
+          "priceDate",
+          resolvedPrice.priceDate() == null ? null : resolvedPrice.priceDate().toString());
+      putIfPresent(
+          map,
+          "priceSource",
+          resolvedPrice.priceSource() == null ? null : resolvedPrice.priceSource().name());
+      putIfPresent(
+          map,
+          "validationStatus",
+          resolvedPrice.validationStatus() == null
+              ? null
+              : resolvedPrice.validationStatus().name());
+    }
     return map;
   }
 

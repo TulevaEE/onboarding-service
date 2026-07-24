@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static java.math.BigDecimal.ZERO;
 import static java.util.stream.Collectors.toMap;
 
@@ -19,6 +20,7 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -42,6 +44,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 public class TransactionPreparationService {
 
   private static final int STALE_PRICE_THRESHOLD_DAYS = 3;
+  private static final ZoneId TALLINN = ZoneId.of(TIMEZONE);
 
   private final TransactionInputService inputService;
   private final TradeCalculationEngine calculationEngine;
@@ -160,7 +163,7 @@ public class TransactionPreparationService {
     log.info("Finalizing batch: id={}", batch.getId());
 
     Instant now = Instant.now(clock);
-    LocalDate tradeDate = now.atZone(clock.getZone()).toLocalDate();
+    LocalDate tradeDate = now.atZone(TALLINN).toLocalDate();
 
     List<TransactionOrder> orders = orderRepository.findByBatchId(batch.getId());
     requireQuantitiesForNonAmountOrders(batch, orders);

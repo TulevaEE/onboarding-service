@@ -4,6 +4,7 @@ import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,7 +28,9 @@ public record FundTransactionInput(
     Map<String, OrderVenue> orderVenues,
     @Nullable LiabilityBreakdown liabilityBreakdown,
     @Nullable BigDecimal reportCash,
-    @Nullable BigDecimal ledgerCash) {
+    @Nullable BigDecimal ledgerCash,
+    @Nullable LocalDate positionDate,
+    @Nullable LocalDate modelEffectiveDate) {
 
   public static class FundTransactionInputBuilder {
     private BigDecimal receivables = ZERO;

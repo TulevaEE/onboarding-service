@@ -85,7 +85,7 @@ class TransactionCommandControllerTest {
   void createCommand_withValidToken_processesSynchronouslyAndReturnsResult() throws Exception {
     given(
             adminService.createAndProcess(
-                TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00")))
+                TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00"), "admin"))
         .willReturn(commandResponse());
 
     mockMvc
@@ -110,6 +110,27 @@ class TransactionCommandControllerTest {
         .andExpect(jsonPath("$.batchId").value(10))
         .andExpect(jsonPath("$.orders[0].instrumentIsin").value("IE00BFG1TM61"))
         .andExpect(jsonPath("$.orders[0].orderAmount").value(1000.00));
+  }
+
+  @Test
+  void createCommand_passesAdminActorToService() throws Exception {
+    given(adminService.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "operator-7"))
+        .willReturn(commandResponse());
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-commands")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .header("X-Admin-Actor", "operator-7")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"fund": "TUK75", "mode": "REBALANCE", "asOfDate": "2026-06-10"}
+                    """))
+        .andExpect(status().isOk());
+
+    then(adminService).should().createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "operator-7");
   }
 
   @Test
@@ -159,7 +180,7 @@ class TransactionCommandControllerTest {
 
   @Test
   void createCommandBatch_processesRequestedFunds() throws Exception {
-    given(adminService.createAndProcessAll(List.of(TUK75, TUK00), REBALANCE, AS_OF_DATE))
+    given(adminService.createAndProcessAll(List.of(TUK75, TUK00), REBALANCE, AS_OF_DATE, "admin"))
         .willReturn(
             List.of(
                 commandResponse(),
@@ -183,7 +204,7 @@ class TransactionCommandControllerTest {
 
   @Test
   void createCommandBatch_withoutFunds_processesAllFunds() throws Exception {
-    given(adminService.createAndProcessAll(null, REBALANCE, AS_OF_DATE))
+    given(adminService.createAndProcessAll(null, REBALANCE, AS_OF_DATE, "admin"))
         .willReturn(List.of(commandResponse()));
 
     mockMvc

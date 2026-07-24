@@ -208,6 +208,36 @@ class TransactionInputServiceTest {
   }
 
   @Test
+  void gatherInput_populatesPositionDateAndModelEffectiveDate() {
+    var positionDate = LocalDate.of(2026, 1, 14);
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(List.of());
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(List.of());
+    given(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
+        .willReturn(ZERO);
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                ModelPortfolioAllocation.builder()
+                    .fund(TUV100)
+                    .isin("IE00A")
+                    .weight(new BigDecimal("1.00"))
+                    .effectiveDate(LocalDate.of(2026, 1, 1))
+                    .build()));
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.positionDate()).isEqualTo(LocalDate.of(2026, 1, 14));
+    assertThat(result.modelEffectiveDate()).isEqualTo(LocalDate.of(2026, 1, 1));
+  }
+
+  @Test
   void gatherInput_populatesCashTripleFromReportAndLedger() {
     var positionDate = AS_OF_DATE;
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))

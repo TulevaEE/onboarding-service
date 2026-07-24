@@ -44,34 +44,39 @@ public class TransactionCommandController {
   @PostMapping("/transaction-commands")
   public TransactionCommandResponse createCommand(
       @RequestHeader("X-Admin-Token") String token,
+      @RequestHeader(name = "X-Admin-Actor", required = false, defaultValue = "admin") String actor,
       @Valid @RequestBody CreateTransactionCommandRequest request) {
 
     validateToken(token);
 
     log.info(
-        "Admin triggered transaction command: fund={}, mode={}, asOfDate={}",
+        "Admin triggered transaction command: fund={}, mode={}, asOfDate={}, actor={}",
         request.fund(),
         request.mode(),
-        request.asOfDate());
+        request.asOfDate(),
+        actor);
 
     return adminService.createAndProcess(
-        request.fund(), request.mode(), request.asOfDate(), request.manualAdjustments());
+        request.fund(), request.mode(), request.asOfDate(), request.manualAdjustments(), actor);
   }
 
   @PostMapping("/transaction-commands/batch")
   public List<TransactionCommandResponse> createCommands(
       @RequestHeader("X-Admin-Token") String token,
+      @RequestHeader(name = "X-Admin-Actor", required = false, defaultValue = "admin") String actor,
       @Valid @RequestBody CreateTransactionCommandBatchRequest request) {
 
     validateToken(token);
 
     log.info(
-        "Admin triggered transaction command batch: funds={}, mode={}, asOfDate={}",
+        "Admin triggered transaction command batch: funds={}, mode={}, asOfDate={}, actor={}",
         request.funds(),
         request.mode(),
-        request.asOfDate());
+        request.asOfDate(),
+        actor);
 
-    return adminService.createAndProcessAll(request.funds(), request.mode(), request.asOfDate());
+    return adminService.createAndProcessAll(
+        request.funds(), request.mode(), request.asOfDate(), actor);
   }
 
   @GetMapping("/transaction-commands/{id}")

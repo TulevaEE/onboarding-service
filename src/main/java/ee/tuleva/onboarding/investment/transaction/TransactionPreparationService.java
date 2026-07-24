@@ -81,7 +81,7 @@ public class TransactionPreparationService {
           TransactionBatch.builder()
               .fund(command.getFund())
               .status(BatchStatus.AWAITING_CONFIRMATION)
-              .createdBy("system")
+              .createdBy(actorOf(command))
               .createdAt(Instant.now(clock))
               .metadata(Map.of("commandId", command.getId(), "mode", command.getMode().name()))
               .build();
@@ -96,7 +96,7 @@ public class TransactionPreparationService {
           TransactionAuditEvent.builder()
               .batch(batch)
               .eventType("CALCULATION_COMPLETED")
-              .actor("system")
+              .actor(actorOf(command))
               .createdAt(Instant.now(clock))
               .payload(completedPayload(command, input, result, orders, calculated))
               .build());
@@ -125,12 +125,16 @@ public class TransactionPreparationService {
               .batch(batch)
               .eventType("CALCULATION_FAILED")
               .dedupKey(String.valueOf(command.getId()))
-              .actor("system")
+              .actor(actorOf(command))
               .createdAt(Instant.now(clock))
               .payload(failedPayload(command, input, e))
               .build());
       return null;
     }
+  }
+
+  private static String actorOf(TransactionCommand command) {
+    return command.getActor() == null ? "system" : command.getActor();
   }
 
   private Map<String, Object> failedPayload(
@@ -414,6 +418,14 @@ public class TransactionPreparationService {
     putIfPresent(result, "receivables", plain(input.receivables()));
     putIfPresent(result, "freeCash", plain(input.freeCash()));
     putIfPresent(result, "minTransactionThreshold", plain(input.minTransactionThreshold()));
+    putIfPresent(
+        result,
+        "positionDate",
+        input.positionDate() == null ? null : input.positionDate().toString());
+    putIfPresent(
+        result,
+        "modelEffectiveDate",
+        input.modelEffectiveDate() == null ? null : input.modelEffectiveDate().toString());
     putIfPresent(
         result, "liabilityBreakdown", serializeLiabilityBreakdown(input.liabilityBreakdown()));
     putIfPresent(result, "reportCash", plain(input.reportCash()));

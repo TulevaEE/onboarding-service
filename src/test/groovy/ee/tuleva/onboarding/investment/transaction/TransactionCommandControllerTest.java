@@ -78,7 +78,8 @@ class TransactionCommandControllerTest {
         Instant.parse("2026-06-10T09:00:00Z"),
         List.of("sebEtfXlsx", "xlsxExport"),
         Map.of("sebEtfXlsx", "https://drive.google.com/file/d/abc"),
-        List.of(orderResponse()));
+        List.of(orderResponse()),
+        Map.of("summary", Map.of("tradeCount", 1)));
   }
 
   @Test
@@ -299,7 +300,8 @@ class TransactionCommandControllerTest {
         .andExpect(jsonPath("$.availableExports[0]").value("sebEtfXlsx"))
         .andExpect(
             jsonPath("$.driveFileUrls.sebEtfXlsx").value("https://drive.google.com/file/d/abc"))
-        .andExpect(jsonPath("$.orders[0].instrumentIsin").value("IE00BFG1TM61"));
+        .andExpect(jsonPath("$.orders[0].instrumentIsin").value("IE00BFG1TM61"))
+        .andExpect(jsonPath("$.calculationSnapshot.summary.tradeCount").value(1));
   }
 
   @Test

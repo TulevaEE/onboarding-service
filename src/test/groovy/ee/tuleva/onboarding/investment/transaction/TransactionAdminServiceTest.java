@@ -258,7 +258,54 @@ class TransactionAdminServiceTest {
 
     Optional<TransactionBatchResponse> response = service.getBatch(10L);
 
-    assertThat(response).contains(TransactionBatchResponse.from(batch, List.of(order)));
+    assertThat(response).contains(TransactionBatchResponse.from(batch, List.of(order), null));
+  }
+
+  @Test
+  void getBatch_includesCalculationCompletedPayloadAsSnapshot() {
+    TransactionBatch batch = batch(10L, DRAFT);
+    TransactionOrder order = order(100L, batch);
+    given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
+    given(orderRepository.findByBatchId(10L)).willReturn(List.of(order));
+    given(auditEventRepository.findByBatchIdOrderByCreatedAt(10L))
+        .willReturn(
+            List.of(
+                TransactionAuditEvent.builder()
+                    .batch(batch)
+                    .eventType("CALCULATION_COMPLETED")
+                    .payload(Map.of("summary", Map.of("tradeCount", 1)))
+                    .build(),
+                TransactionAuditEvent.builder()
+                    .batch(batch)
+                    .eventType("BATCH_FINALIZED")
+                    .payload(Map.of("tradeDate", "2026-06-11"))
+                    .build()));
+
+    Optional<TransactionBatchResponse> response = service.getBatch(10L);
+
+    assertThat(response)
+        .get()
+        .extracting(TransactionBatchResponse::calculationSnapshot)
+        .isEqualTo(Map.of("summary", Map.of("tradeCount", 1)));
+  }
+
+  @Test
+  void getBatch_withoutCalculationCompletedEvent_hasNullSnapshot() {
+    TransactionBatch batch = batch(10L, DRAFT);
+    given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
+    given(orderRepository.findByBatchId(10L)).willReturn(List.of());
+    given(auditEventRepository.findByBatchIdOrderByCreatedAt(10L))
+        .willReturn(
+            List.of(
+                TransactionAuditEvent.builder()
+                    .batch(batch)
+                    .eventType("BATCH_FINALIZED")
+                    .payload(Map.of("tradeDate", "2026-06-11"))
+                    .build()));
+
+    Optional<TransactionBatchResponse> response = service.getBatch(10L);
+
+    assertThat(response).get().extracting(TransactionBatchResponse::calculationSnapshot).isNull();
   }
 
   @Test

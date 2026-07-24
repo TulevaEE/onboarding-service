@@ -89,7 +89,19 @@ class TransactionAdminService {
         .findById(id)
         .map(
             batch ->
-                TransactionBatchResponse.from(batch, orderRepository.findByBatchId(batch.getId())));
+                TransactionBatchResponse.from(
+                    batch,
+                    orderRepository.findByBatchId(batch.getId()),
+                    calculationSnapshot(batch.getId())));
+  }
+
+  @Nullable
+  private Map<String, Object> calculationSnapshot(Long batchId) {
+    return auditEventRepository.findByBatchIdOrderByCreatedAt(batchId).stream()
+        .filter(event -> "CALCULATION_COMPLETED".equals(event.getEventType()))
+        .map(TransactionAuditEvent::getPayload)
+        .findFirst()
+        .orElse(null);
   }
 
   @Transactional
@@ -115,7 +127,8 @@ class TransactionAdminService {
       throw new ResponseStatusException(CONFLICT, "Batch was modified concurrently: id=" + id);
     }
     preparationService.finalizeConfirmedBatch(batch);
-    return TransactionBatchResponse.from(batch, orderRepository.findByBatchId(batch.getId()));
+    return TransactionBatchResponse.from(
+        batch, orderRepository.findByBatchId(batch.getId()), calculationSnapshot(batch.getId()));
   }
 
   @Transactional
@@ -163,7 +176,7 @@ class TransactionAdminService {
             .payload(Map.of("reason", reason, "actor", actor, "orderCount", orders.size()))
             .build());
 
-    return TransactionBatchResponse.from(batch, orders);
+    return TransactionBatchResponse.from(batch, orders, calculationSnapshot(batch.getId()));
   }
 
   @Transactional
@@ -197,7 +210,7 @@ class TransactionAdminService {
             .payload(Map.of("actor", actor, "orderCount", orders.size()))
             .build());
 
-    return TransactionBatchResponse.from(batch, orders);
+    return TransactionBatchResponse.from(batch, orders, calculationSnapshot(batch.getId()));
   }
 
   @Transactional

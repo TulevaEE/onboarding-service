@@ -121,6 +121,11 @@ class TransactionAdminService {
                 () ->
                     new ResponseStatusException(
                         NOT_FOUND, "Transaction batch not found: id=" + id));
+    if (batch.getStatus() != BatchStatus.SENT) {
+      throw new ResponseStatusException(
+          CONFLICT,
+          "Only SENT batches can be cancelled: id=" + id + ", status=" + batch.getStatus());
+    }
     List<TransactionOrder> orders = orderRepository.findByBatchId(batch.getId());
     if (orders.stream().anyMatch(TransactionAdminService::isInMarket)) {
       throw new ResponseStatusException(

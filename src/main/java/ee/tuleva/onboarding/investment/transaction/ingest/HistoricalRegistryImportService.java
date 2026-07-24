@@ -456,17 +456,14 @@ public class HistoricalRegistryImportService {
     try {
       return Instant.parse(raw);
     } catch (DateTimeParseException ignored) {
-      // not ISO instant — try sheet formats below
     }
     try {
       return LocalDateTime.parse(raw, SHEET_TIMESTAMP).toInstant(UTC);
     } catch (DateTimeParseException ignored) {
-      // not a sheet datetime — try ISO local datetime
     }
     try {
       return LocalDateTime.parse(raw, DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(UTC);
     } catch (DateTimeParseException ignored) {
-      // not a datetime at all — fall back to date-only
     }
     LocalDate date = parseDate(raw, column);
     return date == null ? null : date.atStartOfDay(UTC).toInstant();
@@ -479,7 +476,6 @@ public class HistoricalRegistryImportService {
     try {
       return LocalDate.parse(raw);
     } catch (DateTimeParseException ignored) {
-      // not ISO date — try Estonian format below
     }
     try {
       return LocalDate.parse(raw, ESTONIAN_DATE);

@@ -63,7 +63,6 @@ class SettlementDateCalculatorTest {
     givenProvider(CCF_ISIN, CCF);
     Instant mondayBeforeCutoff = tallinnInstant(LocalDate.of(2026, 1, 12), LocalTime.of(9, 15));
 
-    // T+3 lands on 2026-01-15; the old flat FUND path (+5) would land on 2026-01-19.
     assertThat(calculator().calculateSettlementDate(mondayBeforeCutoff, FUND, CCF_ISIN))
         .isEqualTo(LocalDate.of(2026, 1, 15));
   }
@@ -74,8 +73,6 @@ class SettlementDateCalculatorTest {
     givenProvider(CCF_ISIN, CCF);
     Instant mondayAfterCutoff = tallinnInstant(LocalDate.of(2026, 1, 12), LocalTime.of(9, 35));
 
-    // Accepted Tuesday, so T+3 lands on 2026-01-16 -- one business day after the before-cutoff
-    // case.
     assertThat(calculator().calculateSettlementDate(mondayAfterCutoff, FUND, CCF_ISIN))
         .isEqualTo(LocalDate.of(2026, 1, 16));
   }
@@ -94,10 +91,8 @@ class SettlementDateCalculatorTest {
   void ccf_dayCountSkipsFrenchHoliday() {
     given(instrumentReferenceService.settlementTerms(CCF_ISIN)).willReturn(Optional.of(CCF_TERMS));
     givenProvider(CCF_ISIN, CCF);
-    // Bastille Day (French holiday) falls on Tuesday 2026-07-14, inside the T+3 count from Monday.
     Instant mondayBeforeBastille = tallinnInstant(LocalDate.of(2026, 7, 13), LocalTime.of(9, 15));
 
-    // Without the holiday the count would end on 2026-07-16; skipping it pushes to 2026-07-17.
     assertThat(calculator().calculateSettlementDate(mondayBeforeBastille, FUND, CCF_ISIN))
         .isEqualTo(LocalDate.of(2026, 7, 17));
   }
@@ -108,7 +103,6 @@ class SettlementDateCalculatorTest {
     givenProvider(CCF_ISIN, CCF);
     Instant bastilleDayBeforeCutoff = tallinnInstant(LocalDate.of(2026, 7, 14), LocalTime.of(9, 0));
 
-    // Accepted Wednesday 2026-07-15; T+3 French business days lands on Monday 2026-07-20.
     assertThat(calculator().calculateSettlementDate(bastilleDayBeforeCutoff, FUND, CCF_ISIN))
         .isEqualTo(LocalDate.of(2026, 7, 20));
   }
@@ -119,7 +113,6 @@ class SettlementDateCalculatorTest {
     givenProvider(CCF_ISIN, CCF);
     Instant saturdayBeforeCutoff = tallinnInstant(LocalDate.of(2026, 1, 17), LocalTime.of(9, 0));
 
-    // Accepted Monday 2026-01-19; T+3 lands on Thursday 2026-01-22.
     assertThat(calculator().calculateSettlementDate(saturdayBeforeCutoff, FUND, CCF_ISIN))
         .isEqualTo(LocalDate.of(2026, 1, 22));
   }
@@ -210,16 +203,12 @@ class SettlementDateCalculatorTest {
   @Test
   void fund_futureDatedAllocationDoesNotAffectEarlierTradeDate() {
     LocalDate tradeDate = LocalDate.of(2026, 3, 12);
-    // A future-dated allocation (effectiveDate after the trade date) must not be resolved as the
-    // provider for this trade. The as-of-bounded finder returns empty, so we fall back to TARGET2.
     given(
             allocationRepository
                 .findFirstByIsinAndProviderIsNotNullAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
                     IRISH_FUND_ISIN, tradeDate))
         .willReturn(Optional.empty());
 
-    // If the future allocation leaked in, the Irish calendar would skip St Patrick's Day and push
-    // settlement to 2026-03-20; with TARGET2 fallback it settles 2026-03-19.
     assertThat(calculator().calculateSettlementDate(tradeDate, FUND, IRISH_FUND_ISIN))
         .isEqualTo(LocalDate.of(2026, 3, 19));
   }

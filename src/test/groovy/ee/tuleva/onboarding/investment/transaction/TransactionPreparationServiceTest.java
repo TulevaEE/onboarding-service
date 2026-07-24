@@ -918,9 +918,6 @@ class TransactionPreparationServiceTest {
 
   @Test
   void finalizeConfirmedBatch_derivesTradeDateInTallinnZoneNotClockZone() {
-    // 23:30 UTC on 2026-01-15 is already 01:30 on 2026-01-16 in Europe/Tallinn. The production
-    // clock is Clock.systemUTC(), so deriving the trade date from the clock's own zone would stamp
-    // 2026-01-15; the operational trade date is the Tallinn business day 2026-01-16.
     given(clock.instant()).willReturn(Instant.parse("2026-01-15T23:30:00Z"));
 
     var batch =

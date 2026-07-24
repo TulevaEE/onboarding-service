@@ -184,7 +184,11 @@ class TransactionInputServiceTest {
                 new R45Result(
                     new BigDecimal("1000"), new BigDecimal("5000"), new BigDecimal("-4000"))));
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result =
+        service.gatherInput(
+            TUV100,
+            AS_OF_DATE,
+            Map.of("additionalLiabilities", "700", "additionalReceivables", "250"));
 
     var breakdown = result.liabilityBreakdown();
     assertThat(breakdown.managementFee()).isEqualByComparingTo(new BigDecimal("3000"));
@@ -200,11 +204,13 @@ class TransactionInputServiceTest {
             .add(ZERO.max(breakdown.r45Net().negate()))
             .add(breakdown.unreconciledBankReceipts())
             .add(breakdown.fundUnitsReservedValue());
-    assertThat(liabilityComponents).isEqualByComparingTo(result.liabilities());
+    assertThat(liabilityComponents.add(new BigDecimal("700")))
+        .isEqualByComparingTo(result.liabilities());
 
     BigDecimal receivableComponents =
         breakdown.incomingPaymentsClearing().add(ZERO.max(breakdown.r45Net()));
-    assertThat(receivableComponents).isEqualByComparingTo(result.receivables());
+    assertThat(receivableComponents.add(new BigDecimal("250")))
+        .isEqualByComparingTo(result.receivables());
   }
 
   @Test
@@ -542,7 +548,7 @@ class TransactionInputServiceTest {
   }
 
   @Test
-  void gatherInput_forNonTKF100_doesNotQueryLedger() {
+  void gatherInput_forNonTKF100_queriesOnlyCashPositionFromLedger() {
     var positionDate = AS_OF_DATE;
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
         .thenReturn(Optional.of(positionDate));

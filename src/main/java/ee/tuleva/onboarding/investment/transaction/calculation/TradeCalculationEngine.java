@@ -39,7 +39,7 @@ public class TradeCalculationEngine {
         };
 
     List<TradeCalculation> trades = applyLimits(input, rawTrades);
-    return new FundCalculationResult(input.fund(), mode, input, trades);
+    return new FundCalculationResult(input.fund(), mode, input, trades, netInvestable(input));
   }
 
   private List<BigDecimal> calculateBuy(FundTransactionInput input) {

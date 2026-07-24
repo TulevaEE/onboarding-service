@@ -19,6 +19,28 @@ class TradeCalculationEngineTest {
   private final TradeCalculationEngine engine = new TradeCalculationEngine();
 
   @Test
+  void calculate_surfacesNetInvestable() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("500000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(new BigDecimal("50000"))
+            .liabilities(new BigDecimal("30000"))
+            .receivables(new BigDecimal("20000"))
+            .freeCash(new BigDecimal("100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, BUY);
+
+    assertThat(result.netInvestable()).isEqualByComparingTo(new BigDecimal("940000"));
+  }
+
+  @Test
   void buy_allocatesFreeCashToUnderweightPositions() {
     var input =
         FundTransactionInput.builder()

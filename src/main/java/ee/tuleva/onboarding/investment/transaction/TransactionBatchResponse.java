@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @NullMarked
 public record TransactionBatchResponse(
@@ -17,12 +18,16 @@ public record TransactionBatchResponse(
     Instant createdAt,
     List<String> availableExports,
     Map<String, String> driveFileUrls,
-    List<TransactionOrderResponse> orders) {
+    List<TransactionOrderResponse> orders,
+    @Nullable Map<String, Object> calculationSnapshot) {
 
   static final Set<String> EXPORT_TYPES =
       Set.of("xlsxExport", "sebFundXlsx", "sebEtfXlsx", "ftEtfXlsx", "uuidWorkbookXlsx");
 
-  static TransactionBatchResponse from(TransactionBatch batch, List<TransactionOrder> orders) {
+  static TransactionBatchResponse from(
+      TransactionBatch batch,
+      List<TransactionOrder> orders,
+      @Nullable Map<String, Object> calculationSnapshot) {
     Map<String, Object> metadata = batch.getMetadata();
     return new TransactionBatchResponse(
         batch.getId(),
@@ -32,7 +37,8 @@ public record TransactionBatchResponse(
         batch.getCreatedAt(),
         EXPORT_TYPES.stream().filter(metadata::containsKey).sorted().toList(),
         driveFileUrls(metadata),
-        orders.stream().map(TransactionOrderResponse::from).toList());
+        orders.stream().map(TransactionOrderResponse::from).toList(),
+        calculationSnapshot);
   }
 
   private static Map<String, String> driveFileUrls(Map<String, Object> metadata) {

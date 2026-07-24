@@ -37,6 +37,7 @@ import ee.tuleva.onboarding.investment.portfolio.PositionLimitRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
+import ee.tuleva.onboarding.ledger.SystemAccount;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -95,7 +96,8 @@ public class TransactionInputService {
 
     List<PositionSnapshot> positions = getPositions(fund, positionDate);
     BigDecimal cash = getCashBalance(fund, positionDate);
-    BigDecimal accruedFees = getAccruedFees(fund, asOfDate);
+    BigDecimal managementFee = getAccruedFees(fund, asOfDate, FeeType.MANAGEMENT);
+    BigDecimal depotFee = getAccruedFees(fund, asOfDate, FeeType.DEPOT);
     List<ModelPortfolioAllocation> allocations = getModelAllocations(fund, asOfDate);
     List<ModelPortfolioAllocation> previousAllocations =
         modelPortfolioAllocationRepository.findPreviousByFundAsOf(fund, asOfDate).stream()
@@ -118,19 +120,27 @@ public class TransactionInputService {
             .reduce(ZERO, BigDecimal::add);
     BigDecimal grossPortfolioValue = securityValue.add(cash);
 
-    BigDecimal liabilities = accruedFees;
+    BigDecimal unreconciledBankReceipts = ZERO;
+    BigDecimal fundUnitsReservedValue = ZERO;
+    BigDecimal incomingPaymentsClearing = ZERO;
+
+    BigDecimal liabilities = managementFee.add(depotFee);
     BigDecimal receivables = ZERO;
 
     if (fund == TKF100) {
-      BigDecimal unreconciledBankReceipts =
+      unreconciledBankReceipts =
           navLedgerRepository.getSystemAccountBalance("UNRECONCILED_BANK_RECEIPTS");
-      BigDecimal fundUnitsReservedValue = getFundUnitsReservedValue();
+      fundUnitsReservedValue = getFundUnitsReservedValue();
       liabilities = liabilities.add(unreconciledBankReceipts).add(fundUnitsReservedValue);
-      receivables = navLedgerRepository.getSystemAccountBalance("INCOMING_PAYMENTS_CLEARING");
+      incomingPaymentsClearing =
+          navLedgerRepository.getSystemAccountBalance("INCOMING_PAYMENTS_CLEARING");
+      receivables = incomingPaymentsClearing;
     }
 
-    liabilities = liabilities.add(getPevaRavaLiquidity(fund, asOfDate));
-    liabilities = liabilities.add(getR16Outflow(fund, asOfDate));
+    BigDecimal pevaRava = getPevaRavaLiquidity(fund, asOfDate);
+    liabilities = liabilities.add(pevaRava);
+    BigDecimal r16 = getR16Outflow(fund, asOfDate);
+    liabilities = liabilities.add(r16);
 
     BigDecimal r45Net = getR45Net(fund);
     liabilities = liabilities.add(ZERO.max(r45Net.negate()));
@@ -139,9 +149,29 @@ public class TransactionInputService {
     liabilities = liabilities.add(getAdjustment(manualAdjustments, "additionalLiabilities"));
     receivables = receivables.add(getAdjustment(manualAdjustments, "additionalReceivables"));
 
-    BigDecimal pendingCash = getPendingCashImpact(fund, asOfDate);
+    PendingCash pendingCash = getPendingCashImpact(fund, asOfDate);
     BigDecimal freeCash =
-        cash.subtract(cashBuffer).subtract(liabilities).add(receivables).subtract(pendingCash);
+        cash.subtract(cashBuffer)
+            .subtract(liabilities)
+            .add(receivables)
+            .subtract(pendingCash.net());
+
+    BigDecimal ledgerCash =
+        navLedgerRepository.getSystemAccountBalance(
+            SystemAccount.CASH_POSITION.getAccountName(fund));
+
+    LiabilityBreakdown liabilityBreakdown =
+        new LiabilityBreakdown(
+            managementFee,
+            depotFee,
+            pevaRava,
+            r16,
+            r45Net,
+            pendingCash.pendingBuys(),
+            pendingCash.pendingSells(),
+            unreconciledBankReceipts,
+            fundUnitsReservedValue,
+            incomingPaymentsClearing);
 
     return FundTransactionInput.builder()
         .fund(fund)
@@ -157,6 +187,9 @@ public class TransactionInputService {
         .fastSellIsins(fastSellIsins)
         .instrumentTypes(instrumentTypes)
         .orderVenues(orderVenues)
+        .liabilityBreakdown(liabilityBreakdown)
+        .reportCash(cash)
+        .ledgerCash(ledgerCash)
         .build();
   }
 
@@ -182,10 +215,9 @@ public class TransactionInputService {
         .reduce(ZERO, BigDecimal::add);
   }
 
-  private BigDecimal getAccruedFees(TulevaFund fund, LocalDate asOfDate) {
+  private BigDecimal getAccruedFees(TulevaFund fund, LocalDate asOfDate, FeeType feeType) {
     LocalDate feeMonth = asOfDate.withDayOfMonth(1);
-    return feeAccrualRepository.getAccruedFeesForMonth(
-        fund, feeMonth, List.of(FeeType.MANAGEMENT, FeeType.DEPOT), asOfDate);
+    return feeAccrualRepository.getAccruedFeesForMonth(fund, feeMonth, List.of(feeType), asOfDate);
   }
 
   private List<ModelPortfolioAllocation> getModelAllocations(TulevaFund fund, LocalDate asOfDate) {
@@ -391,7 +423,7 @@ public class TransactionInputService {
     return merged;
   }
 
-  private BigDecimal getPendingCashImpact(TulevaFund fund, LocalDate asOfDate) {
+  private PendingCash getPendingCashImpact(TulevaFund fund, LocalDate asOfDate) {
     List<TransactionOrder> unsettledOrders = orderRepository.findUnsettledOrders(fund, asOfDate);
     BigDecimal pendingBuys =
         unsettledOrders.stream()
@@ -405,6 +437,12 @@ public class TransactionInputService {
             .map(TransactionOrder::getOrderAmount)
             .filter(Objects::nonNull)
             .reduce(ZERO, BigDecimal::add);
-    return pendingBuys.subtract(pendingSells);
+    return new PendingCash(pendingBuys, pendingSells);
+  }
+
+  private record PendingCash(BigDecimal pendingBuys, BigDecimal pendingSells) {
+    BigDecimal net() {
+      return pendingBuys.subtract(pendingSells);
+    }
   }
 }

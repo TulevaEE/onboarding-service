@@ -130,7 +130,7 @@ public class AmlService {
             .success(isSuccess(person, SANCTION_OVERRIDE, response, "sanction"))
             .metadata(metadata(response.results(), response.query()))
             .build();
-    return addCheckIfMissing(sanctionCheck);
+    return addScreeningCheck(sanctionCheck);
   }
 
   private Optional<AmlCheck> addPepCheckIfMissing(Person person, MatchResponse response) {
@@ -141,7 +141,23 @@ public class AmlService {
             .success(isSuccess(person, POLITICALLY_EXPOSED_PERSON_OVERRIDE, response, "role"))
             .metadata(metadata(response.results(), response.query()))
             .build();
-    return addCheckIfMissing(pepCheck);
+    return addScreeningCheck(pepCheck);
+  }
+
+  private Optional<AmlCheck> addScreeningCheck(AmlCheck screeningCheck) {
+    if (hasCheck(screeningCheck.getPersonalCode(), screeningCheck.getType())
+        && outcomeUnchanged(screeningCheck)) {
+      return Optional.empty();
+    }
+    return Optional.of(addCheck(screeningCheck));
+  }
+
+  private boolean outcomeUnchanged(AmlCheck screeningCheck) {
+    return amlCheckRepository
+        .findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+            screeningCheck.getPersonalCode(), screeningCheck.getType())
+        .map(latest -> latest.isSuccess() == screeningCheck.isSuccess())
+        .orElse(false);
   }
 
   private boolean isSuccess(

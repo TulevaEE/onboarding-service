@@ -53,8 +53,8 @@ public class R45ReportParser {
         continue;
       }
 
-      BigDecimal units = numberOrZero(row, "osakuid");
-      BigDecimal amount = numberOrZero(row, "summa");
+      BigDecimal units = requiredNumber(row, "osakuid", typeCode, isin);
+      BigDecimal amount = requiredNumber(row, "summa", typeCode, isin);
       validateMagnitude(units, amount);
 
       if (isSettledBefore(row, today)) {
@@ -101,8 +101,8 @@ public class R45ReportParser {
     Map<String, BigDecimal> navByIsin = new HashMap<>(fallbackNavByIsin);
     for (Map<String, String> row : rows) {
       String isin = normalizeIsin(findValue(row, "isin"));
-      BigDecimal nav = numberOrZero(row, "nav");
-      if (!isin.isEmpty() && nav.signum() > 0) {
+      BigDecimal nav = findNav(row);
+      if (!isin.isEmpty() && nav != null && nav.signum() > 0) {
         navByIsin.putIfAbsent(isin, nav);
       }
     }
@@ -111,11 +111,16 @@ public class R45ReportParser {
 
   private static BigDecimal effectiveNav(
       Map<String, String> row, Map<String, BigDecimal> navByIsin, String isin) {
-    BigDecimal rowNav = numberOrZero(row, "nav");
-    if (rowNav.signum() > 0) {
+    BigDecimal rowNav = findNav(row);
+    if (rowNav != null && rowNav.signum() > 0) {
       return rowNav;
     }
     return navByIsin.getOrDefault(isin, BigDecimal.ZERO);
+  }
+
+  @Nullable
+  private static BigDecimal findNav(Map<String, String> row) {
+    return parseNumber(findValue(row, "nav"), DECIMAL_CONVENTION);
   }
 
   private static boolean isSettledBefore(Map<String, String> row, LocalDate today) {
@@ -158,9 +163,19 @@ public class R45ReportParser {
     }
   }
 
-  private static BigDecimal numberOrZero(Map<String, String> row, String keyword) {
+  private static BigDecimal requiredNumber(
+      Map<String, String> row, String keyword, String typeCode, String isin) {
     BigDecimal value = parseNumber(findValue(row, keyword), DECIMAL_CONVENTION);
-    return value == null ? BigDecimal.ZERO : value;
+    if (value == null) {
+      throw new IllegalArgumentException(
+          "R45 required value missing: column="
+              + keyword
+              + ", typeCode="
+              + typeCode
+              + ", isin="
+              + isin);
+    }
+    return value;
   }
 
   private static String trimmedUpperCase(@Nullable String value) {

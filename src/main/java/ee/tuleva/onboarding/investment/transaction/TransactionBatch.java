@@ -45,7 +45,7 @@ public class TransactionBatch {
   @NotNull
   @Enumerated(STRING)
   @Builder.Default
-  private BatchStatus status = BatchStatus.AWAITING_CONFIRMATION;
+  private BatchStatus status = BatchStatus.DRAFT;
 
   @NotNull
   @Builder.Default

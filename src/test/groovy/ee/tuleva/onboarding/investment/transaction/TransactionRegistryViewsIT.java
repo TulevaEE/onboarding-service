@@ -2,8 +2,10 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.CANCELLED;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DISCARDED;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
-import static ee.tuleva.onboarding.investment.transaction.OrderStatus.PENDING;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
@@ -75,12 +77,26 @@ class TransactionRegistryViewsIT {
 
   @Test
   void transactionRegistry_fallsBackToOrderStatusForOtherStates() {
-    TransactionOrder order = persistOrder(PENDING, LocalDate.now().plusDays(2), "100");
+    TransactionOrder order = persistOrder(CANCELLED, LocalDate.now().plusDays(2), "100");
     entityManager.flush();
 
     Map<String, Object> row = registryRow(order);
 
-    assertThat(row.get("derived_status")).isEqualTo("PENDING");
+    assertThat(row.get("derived_status")).isEqualTo("CANCELLED");
+  }
+
+  @Test
+  void transactionRegistry_excludesDraftAndDiscardedOrders() {
+    TransactionOrder draft = persistOrder(DRAFT, LocalDate.now().plusDays(2), "100");
+    TransactionOrder discarded = persistOrder(DISCARDED, LocalDate.now().plusDays(2), "100");
+    entityManager.flush();
+
+    List<Map<String, Object>> rows =
+        jdbcClient.sql("select order_id from v_transaction_registry").query().listOfRows();
+
+    assertThat(rows)
+        .extracting(row -> row.get("order_id"))
+        .doesNotContain(draft.getId(), discarded.getId());
   }
 
   @Test
@@ -146,7 +162,7 @@ class TransactionRegistryViewsIT {
     TransactionOrder sentButExecuted = persistOrder(SENT, LocalDate.now().minusDays(2), "100");
     persistExecution(sentButExecuted, "100.0000");
     TransactionOrder sentNotDue = persistOrder(SENT, LocalDate.now().plusDays(2), "100");
-    TransactionOrder pending = persistOrder(PENDING, LocalDate.now().minusDays(2), "100");
+    TransactionOrder draft = persistOrder(DRAFT, LocalDate.now().minusDays(2), "100");
     entityManager.flush();
 
     List<Map<String, Object>> rows =
@@ -158,7 +174,7 @@ class TransactionRegistryViewsIT {
     assertThat(rows)
         .extracting(row -> row.get("order_id"))
         .contains(overdue.getId())
-        .doesNotContain(sentButExecuted.getId(), sentNotDue.getId(), pending.getId());
+        .doesNotContain(sentButExecuted.getId(), sentNotDue.getId(), draft.getId());
   }
 
   @Test

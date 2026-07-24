@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.transaction.BatchStatus.AWAITING_CONFIRMATION;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.CONFIRMED;
+import static ee.tuleva.onboarding.investment.transaction.BatchStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.CALCULATED;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.FAILED;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.PROCESSING;
@@ -81,7 +81,7 @@ class TransactionAdminServiceTest {
 
   @Test
   void createAndProcess_persistsProcessingCommandAndProcessesItSynchronously() {
-    TransactionBatch batch = batch(10L, AWAITING_CONFIRMATION);
+    TransactionBatch batch = batch(10L, DRAFT);
     TransactionOrder order = order(100L, batch);
     willAnswer(
             invocation -> {
@@ -121,7 +121,7 @@ class TransactionAdminServiceTest {
   @Test
   void createAndProcess_withNullAdjustments_defaultsToEmptyMap() {
     given(preparationService.processCommand(any()))
-        .willReturn(new ProcessCommandResult(batch(10L, AWAITING_CONFIRMATION), List.of()));
+        .willReturn(new ProcessCommandResult(batch(10L, DRAFT), List.of()));
 
     service.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "admin");
 
@@ -161,7 +161,7 @@ class TransactionAdminServiceTest {
   @Test
   void createAndProcessAll_withoutFunds_processesEveryFund() {
     given(preparationService.processCommand(any()))
-        .willReturn(new ProcessCommandResult(batch(10L, AWAITING_CONFIRMATION), List.of()));
+        .willReturn(new ProcessCommandResult(batch(10L, DRAFT), List.of()));
 
     List<TransactionCommandResponse> responses =
         service.createAndProcessAll(null, REBALANCE, AS_OF_DATE, "admin");
@@ -174,7 +174,7 @@ class TransactionAdminServiceTest {
   @Test
   void createAndProcessAll_withFunds_processesOnlyThoseFunds() {
     given(preparationService.processCommand(any()))
-        .willReturn(new ProcessCommandResult(batch(10L, AWAITING_CONFIRMATION), List.of()));
+        .willReturn(new ProcessCommandResult(batch(10L, DRAFT), List.of()));
 
     List<TransactionCommandResponse> responses =
         service.createAndProcessAll(List.of(TUK75), REBALANCE, AS_OF_DATE, "admin");
@@ -193,7 +193,7 @@ class TransactionAdminServiceTest {
             .status(CALCULATED)
             .batchId(10L)
             .build();
-    TransactionOrder order = order(100L, batch(10L, AWAITING_CONFIRMATION));
+    TransactionOrder order = order(100L, batch(10L, DRAFT));
     given(commandRepository.findById(1L)).willReturn(Optional.of(command));
     given(orderRepository.findByBatchId(10L)).willReturn(List.of(order));
 
@@ -229,7 +229,7 @@ class TransactionAdminServiceTest {
 
   @Test
   void getBatch_returnsBatchWithOrders() {
-    TransactionBatch batch = batch(10L, AWAITING_CONFIRMATION);
+    TransactionBatch batch = batch(10L, DRAFT);
     TransactionOrder order = order(100L, batch);
     given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
     given(orderRepository.findByBatchId(10L)).willReturn(List.of(order));
@@ -241,7 +241,7 @@ class TransactionAdminServiceTest {
 
   @Test
   void confirmAndFinalize_confirmsAwaitingBatchThroughExistingFinalizePath() {
-    TransactionBatch batch = batch(10L, AWAITING_CONFIRMATION);
+    TransactionBatch batch = batch(10L, DRAFT);
     given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
     willAnswer(
             invocation -> {
@@ -263,7 +263,7 @@ class TransactionAdminServiceTest {
 
   @Test
   void confirmAndFinalize_passesConfirmedStatusToFinalize() {
-    TransactionBatch batch = batch(10L, AWAITING_CONFIRMATION);
+    TransactionBatch batch = batch(10L, DRAFT);
     given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
     willAnswer(
             invocation -> {
@@ -292,7 +292,7 @@ class TransactionAdminServiceTest {
 
   @Test
   void confirmAndFinalize_concurrentlyModifiedBatch_throwsConflictAndNeverFinalizes() {
-    TransactionBatch batch = batch(10L, AWAITING_CONFIRMATION);
+    TransactionBatch batch = batch(10L, DRAFT);
     given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
     willThrow(new ObjectOptimisticLockingFailureException(TransactionBatch.class, 10L))
         .given(batchRepository)
@@ -318,9 +318,9 @@ class TransactionAdminServiceTest {
 
   @Test
   void cancelBatch_cancelsBatchAndNotYetExecutedOrdersAndWritesAudit() {
-    TransactionBatch batch = batch(10L, AWAITING_CONFIRMATION);
+    TransactionBatch batch = batch(10L, DRAFT);
     TransactionOrder pendingOrder = order(100L, batch);
-    pendingOrder.setOrderStatus(OrderStatus.PENDING);
+    pendingOrder.setOrderStatus(OrderStatus.DRAFT);
     TransactionOrder sentOrder = order(101L, batch);
     sentOrder.setOrderStatus(OrderStatus.SENT);
     given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
@@ -419,7 +419,7 @@ class TransactionAdminServiceTest {
 
   @Test
   void dailySummary_aggregatesUnsettledOrdersAndLatestBatchPerFund() {
-    TransactionBatch latestBatch = batch(10L, AWAITING_CONFIRMATION);
+    TransactionBatch latestBatch = batch(10L, DRAFT);
     TransactionOrder unsettled = order(100L, latestBatch);
     unsettled.setOrderStatus(OrderStatus.SENT);
     given(orderRepository.findUnsettledOrders(TUK75, TODAY)).willReturn(List.of(unsettled));
@@ -432,12 +432,7 @@ class TransactionAdminServiceTest {
     assertThat(summary.funds())
         .contains(
             new TransactionDailySummary.FundSummary(
-                TUK75,
-                1,
-                new BigDecimal("1000.00"),
-                10L,
-                AWAITING_CONFIRMATION,
-                latestBatch.getCreatedAt()));
+                TUK75, 1, new BigDecimal("1000.00"), 10L, DRAFT, latestBatch.getCreatedAt()));
     assertThat(summary.funds()).hasSize(TulevaFund.values().length);
   }
 

@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 public enum OrderStatus {
-  PENDING,
+  DRAFT,
   SENT,
   EXECUTED,
   SETTLED,
-  CANCELLED
+  CANCELLED,
+  DISCARDED
 }

@@ -5,7 +5,7 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.CALCULATED;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
-import static ee.tuleva.onboarding.investment.transaction.OrderStatus.PENDING;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
@@ -58,7 +58,7 @@ class TransactionCommandControllerTest {
         new BigDecimal("1000.00"),
         new BigDecimal("8.500000"),
         SEB,
-        PENDING,
+        DRAFT,
         ORDER_UUID,
         null,
         "operator note");

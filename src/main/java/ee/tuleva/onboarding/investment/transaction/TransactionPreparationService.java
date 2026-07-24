@@ -83,7 +83,7 @@ public class TransactionPreparationService {
       batch =
           TransactionBatch.builder()
               .fund(command.getFund())
-              .status(BatchStatus.AWAITING_CONFIRMATION)
+              .status(BatchStatus.DRAFT)
               .createdBy(actorOf(command))
               .createdAt(Instant.now(clock))
               .metadata(Map.of("commandId", command.getId(), "mode", command.getMode().name()))

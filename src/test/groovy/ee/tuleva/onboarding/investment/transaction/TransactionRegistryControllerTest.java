@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.transaction.BatchStatus.AWAITING_CONFIRMATION;
+import static ee.tuleva.onboarding.investment.transaction.BatchStatus.DRAFT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -132,7 +132,7 @@ class TransactionRegistryControllerTest {
                         2,
                         new BigDecimal("15000.00"),
                         10L,
-                        AWAITING_CONFIRMATION,
+                        DRAFT,
                         Instant.parse("2026-06-11T07:00:00Z")),
                     new TransactionDailySummary.FundSummary(
                         TUK00, 0, BigDecimal.ZERO, null, null, null))));
@@ -144,7 +144,7 @@ class TransactionRegistryControllerTest {
         .andExpect(jsonPath("$.funds[0].fund").value("TUK75"))
         .andExpect(jsonPath("$.funds[0].unsettledOrderCount").value(2))
         .andExpect(jsonPath("$.funds[0].unsettledOrderAmount").value(15000.00))
-        .andExpect(jsonPath("$.funds[0].latestBatchStatus").value("AWAITING_CONFIRMATION"))
+        .andExpect(jsonPath("$.funds[0].latestBatchStatus").value("DRAFT"))
         .andExpect(jsonPath("$.funds[1].latestBatchId").doesNotExist());
   }
 

@@ -70,7 +70,7 @@ public class TransactionOrder {
   @NotNull
   @Enumerated(STRING)
   @Builder.Default
-  private OrderStatus orderStatus = OrderStatus.PENDING;
+  private OrderStatus orderStatus = OrderStatus.DRAFT;
 
   @NotNull @Builder.Default private String orderType = "MOC";
 

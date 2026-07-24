@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.transaction.BatchStatus.AWAITING_CONFIRMATION;
+import static ee.tuleva.onboarding.investment.transaction.BatchStatus.DRAFT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -97,7 +97,7 @@ class TransactionBatchRepositoryIT {
     return batchRepository.save(
         TransactionBatch.builder()
             .fund(fund)
-            .status(AWAITING_CONFIRMATION)
+            .status(DRAFT)
             .createdBy("system")
             .createdAt(createdAt)
             .metadata(Map.of())

@@ -21,6 +21,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -364,53 +365,79 @@ public class TransactionPreparationService {
 
   static Map<String, Object> serializeInput(
       FundTransactionInput input, Map<String, Object> manualAdjustments) {
-    return Map.ofEntries(
-        Map.entry(
-            "positions",
-            input.positions().stream()
-                .map(
-                    position ->
-                        Map.of(
-                            "isin", position.isin(),
-                            "marketValue", position.marketValue().toPlainString()))
-                .toList()),
-        Map.entry(
-            "modelWeights",
-            input.modelWeights().stream()
-                .map(
-                    weight ->
-                        Map.of("isin", weight.isin(), "weight", weight.weight().toPlainString()))
-                .toList()),
-        Map.entry("grossPortfolioValue", input.grossPortfolioValue().toPlainString()),
-        Map.entry("cashBuffer", input.cashBuffer().toPlainString()),
-        Map.entry("liabilities", input.liabilities().toPlainString()),
-        Map.entry("receivables", input.receivables().toPlainString()),
-        Map.entry("freeCash", input.freeCash().toPlainString()),
-        Map.entry("minTransactionThreshold", input.minTransactionThreshold().toPlainString()),
-        Map.entry(
-            "positionLimits",
-            input.positionLimits().entrySet().stream()
-                .collect(
-                    toMap(
-                        Map.Entry::getKey,
-                        entry ->
-                            Map.of(
-                                "softLimit", entry.getValue().softLimit().toPlainString(),
-                                "hardLimit", entry.getValue().hardLimit().toPlainString())))),
-        Map.entry("fastSellIsins", List.copyOf(input.fastSellIsins())),
-        Map.entry("manualAdjustments", Map.copyOf(manualAdjustments)));
+    Map<String, Object> result = new LinkedHashMap<>();
+    putIfPresent(
+        result,
+        "positions",
+        input.positions().stream().map(TransactionPreparationService::serializePosition).toList());
+    putIfPresent(
+        result,
+        "modelWeights",
+        input.modelWeights().stream()
+            .map(TransactionPreparationService::serializeModelWeight)
+            .toList());
+    putIfPresent(result, "grossPortfolioValue", plain(input.grossPortfolioValue()));
+    putIfPresent(result, "cashBuffer", plain(input.cashBuffer()));
+    putIfPresent(result, "liabilities", plain(input.liabilities()));
+    putIfPresent(result, "receivables", plain(input.receivables()));
+    putIfPresent(result, "freeCash", plain(input.freeCash()));
+    putIfPresent(result, "minTransactionThreshold", plain(input.minTransactionThreshold()));
+    putIfPresent(result, "positionLimits", serializePositionLimits(input.positionLimits()));
+    putIfPresent(result, "fastSellIsins", List.copyOf(input.fastSellIsins()));
+    putIfPresent(result, "manualAdjustments", Map.copyOf(manualAdjustments));
+    return result;
+  }
+
+  private static Map<String, Object> serializePosition(PositionSnapshot position) {
+    Map<String, Object> map = new LinkedHashMap<>();
+    putIfPresent(map, "isin", position.isin());
+    putIfPresent(map, "marketValue", plain(position.marketValue()));
+    return map;
+  }
+
+  private static Map<String, Object> serializeModelWeight(ModelWeight weight) {
+    Map<String, Object> map = new LinkedHashMap<>();
+    putIfPresent(map, "isin", weight.isin());
+    putIfPresent(map, "weight", plain(weight.weight()));
+    return map;
+  }
+
+  private static Map<String, Map<String, Object>> serializePositionLimits(
+      Map<String, PositionLimitSnapshot> positionLimits) {
+    Map<String, Map<String, Object>> map = new LinkedHashMap<>();
+    positionLimits.forEach(
+        (isin, limit) -> {
+          Map<String, Object> limitMap = new LinkedHashMap<>();
+          putIfPresent(limitMap, "softLimit", plain(limit.softLimit()));
+          putIfPresent(limitMap, "hardLimit", plain(limit.hardLimit()));
+          map.put(isin, limitMap);
+        });
+    return map;
   }
 
   static List<Map<String, Object>> serializeTrades(List<TradeCalculation> trades) {
-    return trades.stream()
-        .map(
-            trade ->
-                Map.<String, Object>of(
-                    "isin", trade.isin(),
-                    "tradeAmount", trade.tradeAmount().toPlainString(),
-                    "projectedWeight", trade.projectedWeight().toPlainString(),
-                    "limitStatus", trade.limitStatus().name()))
-        .toList();
+    return trades.stream().map(TransactionPreparationService::serializeTrade).toList();
+  }
+
+  private static Map<String, Object> serializeTrade(TradeCalculation trade) {
+    Map<String, Object> map = new LinkedHashMap<>();
+    putIfPresent(map, "isin", trade.isin());
+    putIfPresent(map, "tradeAmount", plain(trade.tradeAmount()));
+    putIfPresent(map, "projectedWeight", plain(trade.projectedWeight()));
+    putIfPresent(
+        map, "limitStatus", trade.limitStatus() == null ? null : trade.limitStatus().name());
+    return map;
+  }
+
+  private static void putIfPresent(Map<String, Object> map, String key, @Nullable Object value) {
+    if (value != null) {
+      map.put(key, value);
+    }
+  }
+
+  @Nullable
+  private static String plain(@Nullable BigDecimal value) {
+    return value == null ? null : value.toPlainString();
   }
 
   private Map<String, String> buildLookupMap(

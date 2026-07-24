@@ -53,8 +53,8 @@ public class R45ReportParser {
         continue;
       }
 
-      BigDecimal units = numberOrZero(row, "osakuid");
-      BigDecimal amount = numberOrZero(row, "summa");
+      BigDecimal units = requiredNumber(row, "osakuid", typeCode, isin);
+      BigDecimal amount = requiredNumber(row, "summa", typeCode, isin);
       validateMagnitude(units, amount);
 
       if (isSettledBefore(row, today)) {
@@ -163,9 +163,19 @@ public class R45ReportParser {
     }
   }
 
-  private static BigDecimal numberOrZero(Map<String, String> row, String keyword) {
+  private static BigDecimal requiredNumber(
+      Map<String, String> row, String keyword, String typeCode, String isin) {
     BigDecimal value = parseNumber(findValue(row, keyword), DECIMAL_CONVENTION);
-    return value == null ? BigDecimal.ZERO : value;
+    if (value == null) {
+      throw new IllegalArgumentException(
+          "R45 required value missing: column="
+              + keyword
+              + ", typeCode="
+              + typeCode
+              + ", isin="
+              + isin);
+    }
+    return value;
   }
 
   private static String trimmedUpperCase(@Nullable String value) {

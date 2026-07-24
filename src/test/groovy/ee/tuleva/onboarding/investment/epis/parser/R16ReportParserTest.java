@@ -171,4 +171,48 @@ class R16ReportParserTest {
     assertThat(tuv100.uhekordsedUnits()).isEqualByComparingTo("123.456");
     assertThat(tuv100.paymentMonth()).isEqualTo(YearMonth.of(2026, 7));
   }
+
+  @Test
+  void throwsWhenFondimaksedUnitsBlankOnResolvedFundRow() {
+    String csv =
+        """
+        Fondivalitseja: Tuleva Fondid AS;;;;;;
+        Kuu: 2026 06;;;;;;
+        Väärtpaber;Jooksev NAV;Fondimaksed;;Ühekordsed maksed;;Valuuta
+        ;;Osakud;Summa;Osakud;Summa;
+        EE3600109435;0,80;;800,00;5000,000;4000,00;EUR
+        """;
+
+    assertThatThrownBy(() -> parser.parse(csv)).isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void throwsWhenUhekordsedUnitsBlankOnResolvedFundRow() {
+    String csv =
+        """
+        Fondivalitseja: Tuleva Fondid AS;;;;;;
+        Kuu: 2026 06;;;;;;
+        Väärtpaber;Jooksev NAV;Fondimaksed;;Ühekordsed maksed;;Valuuta
+        ;;Osakud;Summa;Osakud;Summa;
+        EE3600109435;0,80;1000,000;800,00;;4000,00;EUR
+        """;
+
+    assertThatThrownBy(() -> parser.parse(csv)).isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void skipsUnresolvedFundRowWithoutRequiringUnits() {
+    String csv =
+        """
+        Fondivalitseja: Tuleva Fondid AS;;;;;;
+        Kuu: 2026 06;;;;;;
+        Väärtpaber;Jooksev NAV;Fondimaksed;;Ühekordsed maksed;;Valuuta
+        ;;Osakud;Summa;Osakud;Summa;
+        XX0000000000;0,80;;;;;EUR
+        """;
+
+    Map<String, R16ParsedFlow> result = parser.parse(csv);
+
+    assertThat(result).isEmpty();
+  }
 }

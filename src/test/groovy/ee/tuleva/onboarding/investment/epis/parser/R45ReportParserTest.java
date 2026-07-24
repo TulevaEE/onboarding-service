@@ -271,6 +271,66 @@ class R45ReportParserTest {
     assertResult(result.fundResults().get("TUK75"), "1500.00", "0", "1500.00");
   }
 
+  @Test
+  void throwsWhenOsakuidBlankOnFlowRow() {
+    String csv =
+        """
+        Tehtud: 12.06.2026;;;;;
+        Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
+        SUB;EE3600109435;0.80000;;1500.00;15.06.2026
+        """;
+
+    assertThatThrownBy(() -> parser.parse(csv, TODAY, Map.of()))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void throwsWhenSummaBlankOnFlowRow() {
+    String csv =
+        """
+        Tehtud: 12.06.2026;;;;;
+        Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
+        RED;EE3600109435;0.80000;100.000;;15.06.2026
+        """;
+
+    assertThatThrownBy(() -> parser.parse(csv, TODAY, Map.of()))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void treatsBlankNavAsUnvaluedRowNotZero() {
+    String csv =
+        """
+        Tehtud: 12.06.2026;;;;;
+        Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
+        RED;EE3600109435;;1000.000;0;15.06.2026
+        """;
+
+    R45ParseResult result = parser.parse(csv, TODAY, Map.of());
+
+    assertResult(result.fundResults().get("TUK75"), "0", "0", "0");
+    assertThat(result.unvaluedRows())
+        .usingRecursiveFieldByFieldElementComparator(comparingBigDecimals())
+        .containsExactly(
+            new R45UnvaluedRow(
+                "TUK75", R45TransactionType.RED, new BigDecimal("1000.000"), "EE3600109435"));
+  }
+
+  @Test
+  void skipsJunkRowWithBlankTypeAndBlankNumbersWithoutThrowing() {
+    String csv =
+        """
+        Tehtud: 12.06.2026;;;;;
+        Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
+        ;;;;;15.06.2026
+        SUB;EE3600109435;0.80000;0;1500.00;15.06.2026
+        """;
+
+    R45ParseResult result = parser.parse(csv, TODAY, Map.of());
+
+    assertResult(result.fundResults().get("TUK75"), "1500.00", "0", "1500.00");
+  }
+
   private static void assertResult(R45Result result, String inflow, String outflow, String net) {
     assertThat(result.inflowEur()).isEqualByComparingTo(inflow);
     assertThat(result.outflowEur()).isEqualByComparingTo(outflow);

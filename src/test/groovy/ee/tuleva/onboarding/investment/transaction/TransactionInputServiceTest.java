@@ -10,8 +10,12 @@ import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
@@ -42,6 +46,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -52,6 +57,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class TransactionInputServiceTest {
 
   private static final LocalDate AS_OF_DATE = LocalDate.of(2026, 1, 15);
+
+  @BeforeEach
+  void defaultLedgerCashToZero() {
+    lenient().when(navLedgerRepository.getSystemAccountBalance(anyString())).thenReturn(ZERO);
+  }
 
   @Mock private FundPositionRepository fundPositionRepository;
   @Mock private FeeAccrualRepository feeAccrualRepository;
@@ -96,8 +106,11 @@ class TransactionInputServiceTest {
         .thenReturn(List.of(cashPosition));
 
     when(feeAccrualRepository.getAccruedFeesForMonth(
-            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT)), any()))
         .thenReturn(new BigDecimal("5000"));
+    when(feeAccrualRepository.getAccruedFeesForMonth(
+            eq(TUV100), any(), eq(List.of(FeeType.DEPOT)), any()))
+        .thenReturn(ZERO);
 
     var modelAllocation =
         ModelPortfolioAllocation.builder()
@@ -140,6 +153,89 @@ class TransactionInputServiceTest {
     assertThat(result.minTransactionThreshold()).isEqualByComparingTo(new BigDecimal("5000"));
     assertThat(result.positionLimits()).containsKey("IE00A");
     assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("5000"));
+  }
+
+  @Test
+  void gatherInput_populatesLiabilityBreakdownComponentsThatSumToAggregates() {
+    var positionDate = AS_OF_DATE;
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(List.of());
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(List.of());
+    given(
+            feeAccrualRepository.getAccruedFeesForMonth(
+                eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT)), any()))
+        .willReturn(new BigDecimal("3000"));
+    given(
+            feeAccrualRepository.getAccruedFeesForMonth(
+                eq(TUV100), any(), eq(List.of(FeeType.DEPOT)), any()))
+        .willReturn(new BigDecimal("2000"));
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+    given(r45ReportService.getLatestFlows())
+        .willReturn(
+            Map.of(
+                TUV100,
+                new R45Result(
+                    new BigDecimal("1000"), new BigDecimal("5000"), new BigDecimal("-4000"))));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    var breakdown = result.liabilityBreakdown();
+    assertThat(breakdown.managementFee()).isEqualByComparingTo(new BigDecimal("3000"));
+    assertThat(breakdown.depotFee()).isEqualByComparingTo(new BigDecimal("2000"));
+    assertThat(breakdown.r45Net()).isEqualByComparingTo(new BigDecimal("-4000"));
+
+    BigDecimal liabilityComponents =
+        breakdown
+            .managementFee()
+            .add(breakdown.depotFee())
+            .add(breakdown.pevaRava())
+            .add(breakdown.r16())
+            .add(ZERO.max(breakdown.r45Net().negate()))
+            .add(breakdown.unreconciledBankReceipts())
+            .add(breakdown.fundUnitsReservedValue());
+    assertThat(liabilityComponents).isEqualByComparingTo(result.liabilities());
+
+    BigDecimal receivableComponents =
+        breakdown.incomingPaymentsClearing().add(ZERO.max(breakdown.r45Net()));
+    assertThat(receivableComponents).isEqualByComparingTo(result.receivables());
+  }
+
+  @Test
+  void gatherInput_populatesCashTripleFromReportAndLedger() {
+    var positionDate = AS_OF_DATE;
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(List.of());
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(CASH)
+                    .marketValue(new BigDecimal("100000"))
+                    .build()));
+    given(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
+        .willReturn(ZERO);
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+    given(navLedgerRepository.getSystemAccountBalance("CASH_POSITION:TUV100"))
+        .willReturn(new BigDecimal("95000"));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.reportCash()).isEqualByComparingTo(new BigDecimal("100000"));
+    assertThat(result.ledgerCash()).isEqualByComparingTo(new BigDecimal("95000"));
   }
 
   @Test
@@ -186,9 +282,7 @@ class TransactionInputServiceTest {
         .willReturn(List.of());
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .willReturn(List.of());
-    given(
-            feeAccrualRepository.getAccruedFeesForMonth(
-                eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+    given(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
         .willReturn(ZERO);
 
     var underweightAllocation =
@@ -225,8 +319,7 @@ class TransactionInputServiceTest {
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
-    when(feeAccrualRepository.getAccruedFeesForMonth(
-            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+    when(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
         .thenReturn(ZERO);
     when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .thenReturn(List.of());
@@ -249,8 +342,7 @@ class TransactionInputServiceTest {
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
-    when(feeAccrualRepository.getAccruedFeesForMonth(
-            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+    when(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
         .thenReturn(ZERO);
 
     var fastAllocation =
@@ -288,8 +380,7 @@ class TransactionInputServiceTest {
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
-    when(feeAccrualRepository.getAccruedFeesForMonth(
-            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+    when(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
         .thenReturn(ZERO);
 
     var currentAllocation =
@@ -330,8 +421,7 @@ class TransactionInputServiceTest {
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
-    when(feeAccrualRepository.getAccruedFeesForMonth(
-            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+    when(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
         .thenReturn(ZERO);
 
     var etfAllocation =
@@ -392,8 +482,11 @@ class TransactionInputServiceTest {
         .thenReturn(List.of(cashPosition));
 
     when(feeAccrualRepository.getAccruedFeesForMonth(
-            eq(TKF100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+            eq(TKF100), any(), eq(List.of(FeeType.MANAGEMENT)), any()))
         .thenReturn(new BigDecimal("3000"));
+    when(feeAccrualRepository.getAccruedFeesForMonth(
+            eq(TKF100), any(), eq(List.of(FeeType.DEPOT)), any()))
+        .thenReturn(ZERO);
 
     when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TKF100, AS_OF_DATE))
         .thenReturn(List.of());
@@ -428,8 +521,11 @@ class TransactionInputServiceTest {
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
     when(feeAccrualRepository.getAccruedFeesForMonth(
-            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT)), any()))
         .thenReturn(new BigDecimal("1000"));
+    when(feeAccrualRepository.getAccruedFeesForMonth(
+            eq(TUV100), any(), eq(List.of(FeeType.DEPOT)), any()))
+        .thenReturn(ZERO);
     when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .thenReturn(List.of());
     when(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
@@ -440,7 +536,10 @@ class TransactionInputServiceTest {
 
     assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("1000"));
     assertThat(result.receivables()).isEqualByComparingTo(ZERO);
-    org.mockito.Mockito.verifyNoInteractions(navLedgerRepository);
+    verify(navLedgerRepository).getSystemAccountBalance("CASH_POSITION:TUV100");
+    verify(navLedgerRepository, never()).getSystemAccountBalance("UNRECONCILED_BANK_RECEIPTS");
+    verify(navLedgerRepository, never()).getSystemAccountBalance("INCOMING_PAYMENTS_CLEARING");
+    verify(navLedgerRepository, never()).getFundUnitsBalance(any());
   }
 
   @Test
@@ -453,8 +552,11 @@ class TransactionInputServiceTest {
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
     when(feeAccrualRepository.getAccruedFeesForMonth(
-            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT)), any()))
         .thenReturn(new BigDecimal("1000"));
+    when(feeAccrualRepository.getAccruedFeesForMonth(
+            eq(TUV100), any(), eq(List.of(FeeType.DEPOT)), any()))
+        .thenReturn(ZERO);
     when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .thenReturn(List.of());
     when(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
@@ -482,8 +584,7 @@ class TransactionInputServiceTest {
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
-    when(feeAccrualRepository.getAccruedFeesForMonth(
-            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+    when(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
         .thenReturn(ZERO);
     when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .thenReturn(List.of());
@@ -504,8 +605,7 @@ class TransactionInputServiceTest {
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
-    when(feeAccrualRepository.getAccruedFeesForMonth(
-            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+    when(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
         .thenReturn(ZERO);
     when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .thenReturn(List.of());
@@ -529,8 +629,7 @@ class TransactionInputServiceTest {
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
-    when(feeAccrualRepository.getAccruedFeesForMonth(
-            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+    when(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
         .thenReturn(ZERO);
     when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .thenReturn(List.of());
@@ -554,8 +653,7 @@ class TransactionInputServiceTest {
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
-    when(feeAccrualRepository.getAccruedFeesForMonth(
-            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+    when(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
         .thenReturn(ZERO);
 
     var currentAllocation =
@@ -603,8 +701,7 @@ class TransactionInputServiceTest {
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
-    when(feeAccrualRepository.getAccruedFeesForMonth(
-            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+    when(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
         .thenReturn(ZERO);
 
     var currentAllocation =
@@ -668,8 +765,7 @@ class TransactionInputServiceTest {
 
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
-    when(feeAccrualRepository.getAccruedFeesForMonth(
-            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+    when(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
         .thenReturn(ZERO);
     when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .thenReturn(List.of());
@@ -693,8 +789,7 @@ class TransactionInputServiceTest {
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
-    when(feeAccrualRepository.getAccruedFeesForMonth(
-            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+    when(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
         .thenReturn(ZERO);
     when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .thenReturn(List.of());
@@ -717,8 +812,7 @@ class TransactionInputServiceTest {
         .thenReturn(List.of());
     when(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
         .thenReturn(List.of());
-    when(feeAccrualRepository.getAccruedFeesForMonth(
-            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+    when(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
         .thenReturn(ZERO);
 
     var allocationWithIsin =
@@ -761,8 +855,7 @@ class TransactionInputServiceTest {
                     .accountType(CASH)
                     .marketValue(new BigDecimal("100000"))
                     .build()));
-    when(feeAccrualRepository.getAccruedFeesForMonth(
-            eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+    when(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
         .thenReturn(ZERO);
     when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .thenReturn(List.of());
@@ -817,9 +910,7 @@ class TransactionInputServiceTest {
                     .accountType(CASH)
                     .marketValue(new BigDecimal("100000"))
                     .build()));
-    given(
-            feeAccrualRepository.getAccruedFeesForMonth(
-                eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+    given(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
         .willReturn(ZERO);
     given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(List.of());
@@ -1144,9 +1235,7 @@ class TransactionInputServiceTest {
         .willReturn(List.of());
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF_DATE, fund, CASH))
         .willReturn(List.of());
-    given(
-            feeAccrualRepository.getAccruedFeesForMonth(
-                eq(fund), any(), eq(List.of(FeeType.MANAGEMENT, FeeType.DEPOT)), any()))
+    given(feeAccrualRepository.getAccruedFeesForMonth(eq(fund), any(), any(), any()))
         .willReturn(ZERO);
     given(modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, AS_OF_DATE))
         .willReturn(List.of());

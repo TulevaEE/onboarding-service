@@ -299,6 +299,52 @@ class TransactionPreparationServiceTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
+  void serializeInput_serializesLiabilityBreakdownAndCashTriple() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of())
+            .modelWeights(List.of())
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(new BigDecimal("9000"))
+            .receivables(ZERO)
+            .freeCash(new BigDecimal("91000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .liabilityBreakdown(
+                new LiabilityBreakdown(
+                    new BigDecimal("3000"),
+                    new BigDecimal("2000"),
+                    ZERO,
+                    ZERO,
+                    new BigDecimal("-4000"),
+                    new BigDecimal("1500"),
+                    new BigDecimal("500"),
+                    ZERO,
+                    ZERO,
+                    ZERO))
+            .reportCash(new BigDecimal("100000"))
+            .ledgerCash(new BigDecimal("95000"))
+            .build();
+
+    var result = TransactionPreparationService.serializeInput(input, Map.of());
+
+    var breakdown = (Map<String, Object>) result.get("liabilityBreakdown");
+    assertThat(breakdown)
+        .containsEntry("managementFee", "3000")
+        .containsEntry("depotFee", "2000")
+        .containsEntry("r45Net", "-4000")
+        .containsEntry("pendingBuys", "1500")
+        .containsEntry("pendingSells", "500");
+    assertThat(result).containsEntry("reportCash", "100000");
+    assertThat(result).containsEntry("ledgerCash", "95000");
+    assertThat(result).containsEntry("cashDifference", "5000");
+  }
+
+  @Test
   void serializeTrades_serializesUntradedIsinsWithBaseShape() {
     var trades =
         List.of(

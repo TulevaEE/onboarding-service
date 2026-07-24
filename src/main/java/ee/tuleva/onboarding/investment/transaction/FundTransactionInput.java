@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 
 @Builder
 public record FundTransactionInput(
@@ -23,7 +24,10 @@ public record FundTransactionInput(
     Map<String, PositionLimitSnapshot> positionLimits,
     Set<String> fastSellIsins,
     Map<String, InstrumentType> instrumentTypes,
-    Map<String, OrderVenue> orderVenues) {
+    Map<String, OrderVenue> orderVenues,
+    @Nullable LiabilityBreakdown liabilityBreakdown,
+    @Nullable BigDecimal reportCash,
+    @Nullable BigDecimal ledgerCash) {
 
   public static class FundTransactionInputBuilder {
     private BigDecimal receivables = ZERO;

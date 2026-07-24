@@ -388,10 +388,43 @@ public class TransactionPreparationService {
     putIfPresent(result, "receivables", plain(input.receivables()));
     putIfPresent(result, "freeCash", plain(input.freeCash()));
     putIfPresent(result, "minTransactionThreshold", plain(input.minTransactionThreshold()));
+    putIfPresent(
+        result, "liabilityBreakdown", serializeLiabilityBreakdown(input.liabilityBreakdown()));
+    putIfPresent(result, "reportCash", plain(input.reportCash()));
+    putIfPresent(result, "ledgerCash", plain(input.ledgerCash()));
+    putIfPresent(result, "cashDifference", plain(cashDifference(input)));
     putIfPresent(result, "positionLimits", serializePositionLimits(input.positionLimits()));
     putIfPresent(result, "fastSellIsins", List.copyOf(input.fastSellIsins()));
     putIfPresent(result, "manualAdjustments", Map.copyOf(manualAdjustments));
     return result;
+  }
+
+  @Nullable
+  private static Map<String, Object> serializeLiabilityBreakdown(
+      @Nullable LiabilityBreakdown breakdown) {
+    if (breakdown == null) {
+      return null;
+    }
+    Map<String, Object> map = new LinkedHashMap<>();
+    putIfPresent(map, "managementFee", plain(breakdown.managementFee()));
+    putIfPresent(map, "depotFee", plain(breakdown.depotFee()));
+    putIfPresent(map, "pevaRava", plain(breakdown.pevaRava()));
+    putIfPresent(map, "r16", plain(breakdown.r16()));
+    putIfPresent(map, "r45Net", plain(breakdown.r45Net()));
+    putIfPresent(map, "pendingBuys", plain(breakdown.pendingBuys()));
+    putIfPresent(map, "pendingSells", plain(breakdown.pendingSells()));
+    putIfPresent(map, "unreconciledBankReceipts", plain(breakdown.unreconciledBankReceipts()));
+    putIfPresent(map, "fundUnitsReservedValue", plain(breakdown.fundUnitsReservedValue()));
+    putIfPresent(map, "incomingPaymentsClearing", plain(breakdown.incomingPaymentsClearing()));
+    return map;
+  }
+
+  @Nullable
+  private static BigDecimal cashDifference(FundTransactionInput input) {
+    if (input.reportCash() == null || input.ledgerCash() == null) {
+      return null;
+    }
+    return input.reportCash().subtract(input.ledgerCash());
   }
 
   private static Map<String, Object> serializePosition(

@@ -7,6 +7,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.Optional;
 import lombok.Getter;
 
@@ -33,6 +35,9 @@ public class InstrumentReference {
   private String morningstarId;
   private String blackrockProductId;
   private String benchmarkCategory;
+  private LocalTime settlementCutoffTime;
+  private String settlementCutoffZone;
+  private Integer settlementDaysFromAcceptance;
   private Boolean eodhdListed;
   private boolean active;
   private Instant createdAt;
@@ -79,5 +84,16 @@ public class InstrumentReference {
 
   public String getEffectiveDisplayName() {
     return sebPositionName != null ? sebPositionName : displayName;
+  }
+
+  public Optional<SettlementTerms> settlementTerms() {
+    if (settlementCutoffTime == null
+        || settlementCutoffZone == null
+        || settlementDaysFromAcceptance == null) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        new SettlementTerms(
+            settlementCutoffTime, ZoneId.of(settlementCutoffZone), settlementDaysFromAcceptance));
   }
 }

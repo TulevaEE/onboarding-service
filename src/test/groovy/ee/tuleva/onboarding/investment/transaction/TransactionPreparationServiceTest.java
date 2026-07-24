@@ -833,7 +833,8 @@ class TransactionPreparationServiceTest {
             .build();
 
     when(orderRepository.findByBatchId(batch.getId())).thenReturn(List.of(order));
-    when(settlementDateCalculator.calculateSettlementDate(any(), eq(InstrumentType.ETF), any()))
+    when(settlementDateCalculator.calculateSettlementDate(
+            any(Instant.class), eq(InstrumentType.ETF), any()))
         .thenReturn(LocalDate.of(2026, 1, 19));
     when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, LocalDate.of(2026, 1, 15)))
         .thenReturn(List.of(allocation));
@@ -896,7 +897,7 @@ class TransactionPreparationServiceTest {
             .build();
 
     given(orderRepository.findByBatchId(batch.getId())).willReturn(List.of(order));
-    given(settlementDateCalculator.calculateSettlementDate(any(), any(), any()))
+    given(settlementDateCalculator.calculateSettlementDate(any(Instant.class), any(), any()))
         .willReturn(LocalDate.of(2026, 1, 20));
     given(exportService.generateOrdersExport(any())).willReturn(new byte[] {1});
     given(exportService.generateSebFundExport(any(), any())).willReturn(new byte[] {2});
@@ -1507,7 +1508,7 @@ class TransactionPreparationServiceTest {
             .build();
 
     when(orderRepository.findByBatchId(batch.getId())).thenReturn(List.of(order));
-    when(settlementDateCalculator.calculateSettlementDate(any(), any(), any()))
+    when(settlementDateCalculator.calculateSettlementDate(any(Instant.class), any(), any()))
         .thenReturn(LocalDate.of(2026, 1, 19));
     when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, LocalDate.of(2026, 1, 15)))
         .thenReturn(List.of());
@@ -1554,7 +1555,7 @@ class TransactionPreparationServiceTest {
             .build();
 
     given(orderRepository.findByBatchId(batch.getId())).willReturn(List.of(order));
-    given(settlementDateCalculator.calculateSettlementDate(any(), any(), any()))
+    given(settlementDateCalculator.calculateSettlementDate(any(Instant.class), any(), any()))
         .willReturn(LocalDate.of(2026, 1, 19));
     given(
             modelPortfolioAllocationRepository.findLatestByFundAsOf(

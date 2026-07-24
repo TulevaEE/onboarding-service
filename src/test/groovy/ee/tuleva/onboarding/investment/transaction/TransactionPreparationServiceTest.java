@@ -374,6 +374,48 @@ class TransactionPreparationServiceTest {
   }
 
   @Test
+  void processCommand_actorlessCommandFallsBackToSystemActor() {
+    var command =
+        TransactionCommand.builder()
+            .id(17L)
+            .fund(TUV100)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .status(PROCESSING)
+            .build();
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of())
+            .modelWeights(List.of())
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(ZERO)
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+    var calculationResult =
+        new FundCalculationResult(TUV100, BUY, input, List.of(), netInvestable(input), null);
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).willReturn(input);
+    given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
+    given(batchRepository.save(any(TransactionBatch.class)))
+        .willAnswer(
+            invocation -> {
+              TransactionBatch batch = invocation.getArgument(0);
+              batch.setId(1L);
+              return batch;
+            });
+
+    var result = service.processCommand(command);
+
+    assertThat(result.batch().getCreatedBy()).isEqualTo("system");
+    verify(auditEventRepository).save(argThat(event -> "system".equals(event.getActor())));
+  }
+
+  @Test
   void processCommand_recordsNetInvestableInSummary() {
     var command =
         TransactionCommand.builder()

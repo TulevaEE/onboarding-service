@@ -19,6 +19,12 @@ class SebPendingTransactionMatcher {
     }
     return orderRepository
         .findByOrderUuid(row.clientRef())
-        .filter(order -> order.getOrderStatus() != OrderStatus.CANCELLED);
+        .filter(order -> isMatchable(order.getOrderStatus()));
+  }
+
+  static boolean isMatchable(OrderStatus status) {
+    return status != OrderStatus.CANCELLED
+        && status != OrderStatus.DRAFT
+        && status != OrderStatus.DISCARDED;
   }
 }

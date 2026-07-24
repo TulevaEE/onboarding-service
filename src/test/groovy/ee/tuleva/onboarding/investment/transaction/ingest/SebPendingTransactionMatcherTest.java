@@ -3,6 +3,9 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.CANCELLED;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DISCARDED;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DRAFT;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -71,6 +74,44 @@ class SebPendingTransactionMatcherTest {
   }
 
   @Test
+  void match_draftOrder_returnsEmptyToAvoidResurrection() {
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder draft =
+        TransactionOrder.builder()
+            .id(124L)
+            .fund(TKF100)
+            .instrumentIsin("IE000F60HVH9")
+            .transactionType(BUY)
+            .instrumentType(ETF)
+            .orderVenue(SEB)
+            .orderUuid(clientRef)
+            .orderStatus(DRAFT)
+            .build();
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(draft));
+
+    assertThat(matcher.match(sampleRow(clientRef))).isEmpty();
+  }
+
+  @Test
+  void match_discardedOrder_returnsEmpty() {
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder discarded =
+        TransactionOrder.builder()
+            .id(125L)
+            .fund(TKF100)
+            .instrumentIsin("IE000F60HVH9")
+            .transactionType(BUY)
+            .instrumentType(ETF)
+            .orderVenue(SEB)
+            .orderUuid(clientRef)
+            .orderStatus(DISCARDED)
+            .build();
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(discarded));
+
+    assertThat(matcher.match(sampleRow(clientRef))).isEmpty();
+  }
+
+  @Test
   void match_unknownClientRef_returnsEmpty() {
     UUID clientRef = UUID.fromString("00000000-0000-0000-0000-000000000099");
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.empty());
@@ -90,6 +131,7 @@ class SebPendingTransactionMatcherTest {
         .instrumentType(ETF)
         .orderVenue(SEB)
         .orderUuid(clientRef)
+        .orderStatus(SENT)
         .build();
   }
 

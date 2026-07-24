@@ -59,6 +59,8 @@ public class TransactionPreparationService {
 
   @Transactional
   public ProcessCommandResult processCommand(TransactionCommand command) {
+    @Nullable FundTransactionInput input = null;
+    @Nullable TransactionBatch batch = null;
     try {
       log.info(
           "Processing command: id={}, fund={}, mode={}",
@@ -66,13 +68,13 @@ public class TransactionPreparationService {
           command.getFund(),
           command.getMode());
 
-      var input =
+      input =
           inputService.gatherInput(
               command.getFund(), command.getAsOfDate(), command.getManualAdjustments());
 
       var result = calculationEngine.calculate(input, command.getMode());
 
-      var batch =
+      batch =
           TransactionBatch.builder()
               .fund(command.getFund())
               .status(BatchStatus.AWAITING_CONFIRMATION)

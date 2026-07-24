@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -15,10 +16,13 @@ public record TransactionCommandResponse(
     CommandStatus status,
     @Nullable String errorMessage,
     @Nullable Long batchId,
-    List<TransactionOrderResponse> orders) {
+    List<TransactionOrderResponse> orders,
+    @Nullable Map<String, Object> calculationSnapshot) {
 
   static TransactionCommandResponse from(
-      TransactionCommand command, List<TransactionOrder> orders) {
+      TransactionCommand command,
+      List<TransactionOrder> orders,
+      @Nullable Map<String, Object> calculationSnapshot) {
     return new TransactionCommandResponse(
         command.getId(),
         command.getFund(),
@@ -27,6 +31,7 @@ public record TransactionCommandResponse(
         command.getStatus(),
         command.getErrorMessage(),
         command.getBatchId(),
-        orders.stream().map(TransactionOrderResponse::from).toList());
+        orders.stream().map(TransactionOrderResponse::from).toList(),
+        calculationSnapshot);
   }
 }

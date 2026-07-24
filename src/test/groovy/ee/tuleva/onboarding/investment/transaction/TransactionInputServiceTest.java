@@ -305,7 +305,7 @@ class TransactionInputServiceTest {
   }
 
   @Test
-  void gatherInput_withCashOverride_usesOverrideInFreeCashAndRecordsBothCashFigures() {
+  void gatherInput_withCashOverride_replacesReportCashThroughoutAndRecordsBothFigures() {
     var positionDate = AS_OF_DATE;
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(positionDate));
@@ -332,7 +332,7 @@ class TransactionInputServiceTest {
     assertThat(result.reportCash()).isEqualByComparingTo(new BigDecimal("100000"));
     assertThat(result.appliedCash()).isEqualByComparingTo(new BigDecimal("40000"));
     assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("40000"));
-    assertThat(result.grossPortfolioValue()).isEqualByComparingTo(new BigDecimal("100000"));
+    assertThat(result.grossPortfolioValue()).isEqualByComparingTo(new BigDecimal("40000"));
   }
 
   @Test

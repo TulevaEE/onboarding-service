@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
@@ -62,7 +63,12 @@ class TransactionAdminService {
         asOfDate);
     ProcessCommandResult result = preparationService.processCommand(command);
     List<TransactionOrder> orders = result == null ? List.of() : result.orders();
-    return TransactionCommandResponse.from(command, orders);
+    return TransactionCommandResponse.from(command, orders, snapshotOf(command));
+  }
+
+  @Nullable
+  private Map<String, Object> snapshotOf(TransactionCommand command) {
+    return command.getBatchId() == null ? null : calculationSnapshot(command.getBatchId());
   }
 
   List<TransactionCommandResponse> createAndProcessAll(
@@ -73,6 +79,14 @@ class TransactionAdminService {
       Map<TulevaFund, BigDecimal> cashOverrides) {
     List<TulevaFund> targetFunds =
         funds == null || funds.isEmpty() ? List.of(TulevaFund.values()) : funds;
+    if (!targetFunds.containsAll(cashOverrides.keySet())) {
+      throw new ResponseStatusException(
+          BAD_REQUEST,
+          "Cash override for fund not in batch: funds="
+              + targetFunds
+              + ", cashFunds="
+              + cashOverrides.keySet());
+    }
     return targetFunds.stream()
         .map(fund -> createAndProcess(fund, mode, asOfDate, null, actor, cashOverrides.get(fund)))
         .toList();
@@ -81,7 +95,9 @@ class TransactionAdminService {
   Optional<TransactionCommandResponse> getCommand(Long id) {
     return commandRepository
         .findById(id)
-        .map(command -> TransactionCommandResponse.from(command, ordersOf(command)));
+        .map(
+            command ->
+                TransactionCommandResponse.from(command, ordersOf(command), snapshotOf(command)));
   }
 
   Optional<TransactionBatchResponse> getBatch(Long id) {
@@ -195,7 +211,11 @@ class TransactionAdminService {
     Instant now = Instant.now(clock);
     log.info("Admin discarded transaction batch: id={}, actor={}", id, actor);
     batch.setStatus(BatchStatus.DISCARDED);
-    batchRepository.save(batch);
+    try {
+      batchRepository.saveAndFlush(batch);
+    } catch (ObjectOptimisticLockingFailureException e) {
+      throw new ResponseStatusException(CONFLICT, "Batch was modified concurrently: id=" + id);
+    }
 
     List<TransactionOrder> orders = orderRepository.findByBatchId(batch.getId());
     orders.forEach(order -> order.setOrderStatus(OrderStatus.DISCARDED));
@@ -222,14 +242,6 @@ class TransactionAdminService {
                 () ->
                     new ResponseStatusException(
                         NOT_FOUND, "Transaction order not found: id=" + orderId));
-    if (isInMarket(order)) {
-      throw new ResponseStatusException(
-          CONFLICT,
-          "Order is in market and cannot be cancelled: id="
-              + orderId
-              + ", status="
-              + order.getOrderStatus());
-    }
     if (order.getOrderStatus() != OrderStatus.SENT) {
       throw new ResponseStatusException(
           CONFLICT,

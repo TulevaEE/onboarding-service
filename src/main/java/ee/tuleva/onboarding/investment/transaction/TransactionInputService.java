@@ -134,7 +134,7 @@ public class TransactionInputService {
             .map(PositionSnapshot::marketValue)
             .filter(Objects::nonNull)
             .reduce(ZERO, BigDecimal::add);
-    BigDecimal grossPortfolioValue = securityValue.add(reportCash);
+    BigDecimal grossPortfolioValue = securityValue.add(appliedCash);
 
     BigDecimal unreconciledBankReceipts = ZERO;
     BigDecimal fundUnitsReservedValue = ZERO;

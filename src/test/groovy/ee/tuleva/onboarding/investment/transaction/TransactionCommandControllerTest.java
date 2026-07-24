@@ -66,7 +66,7 @@ class TransactionCommandControllerTest {
 
   private static TransactionCommandResponse commandResponse() {
     return new TransactionCommandResponse(
-        1L, TUK75, REBALANCE, AS_OF_DATE, CALCULATED, null, 10L, List.of(orderResponse()));
+        1L, TUK75, REBALANCE, AS_OF_DATE, CALCULATED, null, 10L, List.of(orderResponse()), null);
   }
 
   private static TransactionBatchResponse batchResponse() {
@@ -178,6 +178,24 @@ class TransactionCommandControllerTest {
   }
 
   @Test
+  void createCommands_negativeCashInMap_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-commands/batch")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"funds": ["TUK75"], "mode": "REBALANCE", "asOfDate": "2026-06-10",
+                     "cash": {"TUK75": -1}}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    then(adminService).shouldHaveNoInteractions();
+  }
+
+  @Test
   void createCommand_withInvalidToken_returnsUnauthorized() throws Exception {
     mockMvc
         .perform(
@@ -231,7 +249,7 @@ class TransactionCommandControllerTest {
             List.of(
                 commandResponse(),
                 new TransactionCommandResponse(
-                    2L, TUK00, REBALANCE, AS_OF_DATE, CALCULATED, null, 11L, List.of())));
+                    2L, TUK00, REBALANCE, AS_OF_DATE, CALCULATED, null, 11L, List.of(), null)));
 
     mockMvc
         .perform(

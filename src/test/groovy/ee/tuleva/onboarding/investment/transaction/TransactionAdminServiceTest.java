@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.CONFIRMED;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.CALCULATED;
@@ -12,6 +13,7 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.then;
@@ -205,6 +207,81 @@ class TransactionAdminServiceTest {
   }
 
   @Test
+  void createAndProcessAll_passesPerFundCashOverrides() {
+    given(preparationService.processCommand(any()))
+        .willReturn(new ProcessCommandResult(batch(10L, DRAFT), List.of()));
+
+    service.createAndProcessAll(
+        List.of(TUK75, TUV100),
+        REBALANCE,
+        AS_OF_DATE,
+        "admin",
+        Map.of(TUK75, new BigDecimal("40000")));
+
+    then(commandRepository)
+        .should()
+        .save(
+            argThat(
+                command ->
+                    command.getFund() == TUK75
+                        && new BigDecimal("40000").compareTo(command.getCash()) == 0));
+    then(commandRepository)
+        .should()
+        .save(argThat(command -> command.getFund() == TUV100 && command.getCash() == null));
+  }
+
+  @Test
+  void createAndProcessAll_cashOverrideForFundNotInBatch_throwsBadRequest() {
+    assertThatThrownBy(
+            () ->
+                service.createAndProcessAll(
+                    List.of(TUK75), REBALANCE, AS_OF_DATE, "admin", Map.of(TUV100, BigDecimal.ONE)))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(400);
+    then(commandRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void createAndProcess_responseCarriesCalculationSnapshot() {
+    Map<String, Object> payload = Map.of("summary", Map.of("tradeCount", "0"));
+    given(preparationService.processCommand(any()))
+        .willAnswer(
+            invocation -> {
+              TransactionCommand command = invocation.getArgument(0);
+              command.setBatchId(10L);
+              return new ProcessCommandResult(batch(10L, DRAFT), List.of());
+            });
+    given(auditEventRepository.findByBatchIdOrderByCreatedAt(10L))
+        .willReturn(
+            List.of(
+                TransactionAuditEvent.builder()
+                    .eventType("CALCULATION_COMPLETED")
+                    .payload(payload)
+                    .build()));
+
+    TransactionCommandResponse response =
+        service.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "admin", null);
+
+    assertThat(response.calculationSnapshot()).isEqualTo(payload);
+  }
+
+  @Test
+  void discardBatch_concurrentlyModifiedBatch_throwsConflict() {
+    TransactionBatch batch = batch(10L, DRAFT);
+    given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
+    willThrow(new ObjectOptimisticLockingFailureException(TransactionBatch.class, 10L))
+        .given(batchRepository)
+        .saveAndFlush(batch);
+
+    assertThatThrownBy(() -> service.discardBatch(10L, "admin"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(409);
+    then(orderRepository).should(never()).saveAll(any());
+  }
+
+  @Test
   void getCommand_returnsCommandWithOrdersOfItsBatch() {
     TransactionCommand command =
         TransactionCommand.builder()
@@ -221,7 +298,7 @@ class TransactionAdminServiceTest {
 
     Optional<TransactionCommandResponse> response = service.getCommand(1L);
 
-    assertThat(response).contains(TransactionCommandResponse.from(command, List.of(order)));
+    assertThat(response).contains(TransactionCommandResponse.from(command, List.of(order), null));
   }
 
   @Test
@@ -238,7 +315,7 @@ class TransactionAdminServiceTest {
 
     Optional<TransactionCommandResponse> response = service.getCommand(1L);
 
-    assertThat(response).contains(TransactionCommandResponse.from(command, List.of()));
+    assertThat(response).contains(TransactionCommandResponse.from(command, List.of(), null));
     then(orderRepository).shouldHaveNoInteractions();
   }
 
@@ -482,7 +559,7 @@ class TransactionAdminServiceTest {
     assertThat(batch.getStatus()).isEqualTo(BatchStatus.DISCARDED);
     assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.DISCARDED);
 
-    then(batchRepository).should().save(batch);
+    then(batchRepository).should().saveAndFlush(batch);
     then(orderRepository).should().saveAll(List.of(order));
     then(auditEventRepository)
         .should()

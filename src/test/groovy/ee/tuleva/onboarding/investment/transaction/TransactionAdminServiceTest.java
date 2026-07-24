@@ -384,6 +384,60 @@ class TransactionAdminServiceTest {
   }
 
   @Test
+  void discardBatch_draftBatch_setsBatchAndOrdersDiscardedAndWritesAudit() {
+    TransactionBatch batch = batch(10L, DRAFT);
+    TransactionOrder order = order(100L, batch);
+    order.setOrderStatus(OrderStatus.DRAFT);
+    given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
+    given(orderRepository.findByBatchId(10L)).willReturn(List.of(order));
+
+    TransactionBatchResponse response = service.discardBatch(10L, "operator-7");
+
+    assertThat(response.status()).isEqualTo(BatchStatus.DISCARDED);
+    assertThat(batch.getStatus()).isEqualTo(BatchStatus.DISCARDED);
+    assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.DISCARDED);
+
+    then(batchRepository).should().save(batch);
+    then(orderRepository).should().saveAll(List.of(order));
+    then(auditEventRepository)
+        .should()
+        .save(
+            TransactionAuditEvent.builder()
+                .batch(batch)
+                .eventType("BATCH_DISCARDED")
+                .actor("operator-7")
+                .createdAt(Instant.parse("2026-06-11T09:00:00Z"))
+                .payload(Map.of("actor", "operator-7", "orderCount", 1))
+                .build());
+  }
+
+  @Test
+  void discardBatch_nonDraftBatch_throwsConflictAndMutatesNothing() {
+    TransactionBatch batch = batch(10L, CONFIRMED);
+    given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
+
+    assertThatThrownBy(() -> service.discardBatch(10L, "operator-7"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(409);
+
+    assertThat(batch.getStatus()).isEqualTo(BatchStatus.CONFIRMED);
+    then(batchRepository).should(never()).save(any());
+    then(orderRepository).shouldHaveNoInteractions();
+    then(auditEventRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void discardBatch_unknownBatch_throwsNotFound() {
+    given(batchRepository.findById(999L)).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.discardBatch(999L, "admin"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(404);
+  }
+
+  @Test
   void exportFile_decodesStoredBase64Export() {
     byte[] xlsx = {1, 2, 3};
     TransactionBatch batch = batch(10L, BatchStatus.SENT);

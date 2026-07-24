@@ -155,6 +155,40 @@ class TransactionAdminService {
     return TransactionBatchResponse.from(batch, orders);
   }
 
+  @Transactional
+  TransactionBatchResponse discardBatch(Long id, String actor) {
+    TransactionBatch batch =
+        batchRepository
+            .findById(id)
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        NOT_FOUND, "Transaction batch not found: id=" + id));
+    if (batch.getStatus() != BatchStatus.DRAFT) {
+      throw new ResponseStatusException(
+          CONFLICT, "Batch not in DRAFT status: id=" + id + ", status=" + batch.getStatus());
+    }
+    Instant now = Instant.now(clock);
+    log.info("Admin discarded transaction batch: id={}, actor={}", id, actor);
+    batch.setStatus(BatchStatus.DISCARDED);
+    batchRepository.save(batch);
+
+    List<TransactionOrder> orders = orderRepository.findByBatchId(batch.getId());
+    orders.forEach(order -> order.setOrderStatus(OrderStatus.DISCARDED));
+    orderRepository.saveAll(orders);
+
+    auditEventRepository.save(
+        TransactionAuditEvent.builder()
+            .batch(batch)
+            .eventType("BATCH_DISCARDED")
+            .actor(actor)
+            .createdAt(now)
+            .payload(Map.of("actor", actor, "orderCount", orders.size()))
+            .build());
+
+    return TransactionBatchResponse.from(batch, orders);
+  }
+
   private static boolean isInMarket(TransactionOrder order) {
     return order.getOrderStatus() == OrderStatus.EXECUTED
         || order.getOrderStatus() == OrderStatus.SETTLED;

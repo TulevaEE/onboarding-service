@@ -98,7 +98,7 @@ class TransactionAdminServiceTest {
 
     TransactionCommandResponse response =
         service.createAndProcess(
-            TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00"), "operator-9");
+            TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00"), "operator-9", null);
 
     then(commandRepository)
         .should()
@@ -123,7 +123,7 @@ class TransactionAdminServiceTest {
     given(preparationService.processCommand(any()))
         .willReturn(new ProcessCommandResult(batch(10L, DRAFT), List.of()));
 
-    service.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "admin");
+    service.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "admin", null);
 
     then(commandRepository)
         .should()
@@ -134,6 +134,28 @@ class TransactionAdminServiceTest {
                 .asOfDate(AS_OF_DATE)
                 .manualAdjustments(Map.of())
                 .actor("admin")
+                .status(PROCESSING)
+                .build());
+  }
+
+  @Test
+  void createAndProcess_withCashOverride_persistsCashOnCommand() {
+    given(preparationService.processCommand(any()))
+        .willReturn(new ProcessCommandResult(batch(10L, DRAFT), List.of()));
+
+    service.createAndProcess(
+        TUK75, REBALANCE, AS_OF_DATE, null, "operator-9", new BigDecimal("40000.00"));
+
+    then(commandRepository)
+        .should()
+        .save(
+            TransactionCommand.builder()
+                .fund(TUK75)
+                .mode(REBALANCE)
+                .asOfDate(AS_OF_DATE)
+                .manualAdjustments(Map.of())
+                .cash(new BigDecimal("40000.00"))
+                .actor("operator-9")
                 .status(PROCESSING)
                 .build());
   }
@@ -151,7 +173,7 @@ class TransactionAdminServiceTest {
         .processCommand(any());
 
     TransactionCommandResponse response =
-        service.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "admin");
+        service.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "admin", null);
 
     assertThat(response.status()).isEqualTo(FAILED);
     assertThat(response.errorMessage()).isEqualTo("No positions found");
@@ -164,7 +186,7 @@ class TransactionAdminServiceTest {
         .willReturn(new ProcessCommandResult(batch(10L, DRAFT), List.of()));
 
     List<TransactionCommandResponse> responses =
-        service.createAndProcessAll(null, REBALANCE, AS_OF_DATE, "admin");
+        service.createAndProcessAll(null, REBALANCE, AS_OF_DATE, "admin", Map.of());
 
     assertThat(responses)
         .extracting(TransactionCommandResponse::fund)
@@ -177,7 +199,7 @@ class TransactionAdminServiceTest {
         .willReturn(new ProcessCommandResult(batch(10L, DRAFT), List.of()));
 
     List<TransactionCommandResponse> responses =
-        service.createAndProcessAll(List.of(TUK75), REBALANCE, AS_OF_DATE, "admin");
+        service.createAndProcessAll(List.of(TUK75), REBALANCE, AS_OF_DATE, "admin", Map.of());
 
     assertThat(responses).extracting(TransactionCommandResponse::fund).containsExactly(TUK75);
   }

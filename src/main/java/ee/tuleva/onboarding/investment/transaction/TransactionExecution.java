@@ -59,7 +59,7 @@ public class TransactionExecution {
 
   private BigDecimal netSettlementAmount;
 
-  private LocalDate actualSettlementDate;
+  private LocalDate scheduledSettlementDate;
 
   private LocalDate navDate;
 

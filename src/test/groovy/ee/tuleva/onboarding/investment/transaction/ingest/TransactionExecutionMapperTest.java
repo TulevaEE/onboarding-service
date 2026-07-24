@@ -44,7 +44,7 @@ class TransactionExecutionMapperTest {
     assertThat(execution.getTotalConsideration()).isEqualByComparingTo("70915.58");
     assertThat(execution.getSettlementAmount()).isEqualByComparingTo("70915.58");
     assertThat(execution.getCommissionAmount()).isEqualByComparingTo("0.00");
-    assertThat(execution.getActualSettlementDate()).isEqualTo(LocalDate.of(2026, 5, 13));
+    assertThat(execution.getScheduledSettlementDate()).isEqualTo(LocalDate.of(2026, 5, 13));
     assertThat(execution.getExecutionTimestamp()).isEqualTo(Instant.parse("2026-05-11T10:26:04Z"));
     assertThat(execution.getSource()).isEqualTo("SEB_OOTEL");
     assertThat(execution.getModifiedBy()).isEqualTo("system:seb-reconciliation");

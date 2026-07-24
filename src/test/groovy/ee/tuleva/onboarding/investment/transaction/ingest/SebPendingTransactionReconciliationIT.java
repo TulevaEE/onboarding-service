@@ -109,7 +109,7 @@ class SebPendingTransactionReconciliationIT {
     assertThat(execution.getExecutedQuantity()).isEqualByComparingTo("2669.9");
     assertThat(execution.getUnitPrice()).isEqualByComparingTo("34.37656841");
     assertThat(execution.getTotalConsideration()).isEqualByComparingTo("91782.00");
-    assertThat(execution.getActualSettlementDate()).isEqualTo(LocalDate.of(2026, 2, 17));
+    assertThat(execution.getScheduledSettlementDate()).isEqualTo(LocalDate.of(2026, 2, 17));
     assertThat(execution.getExecutionTimestamp()).isEqualTo(Instant.parse("2026-02-10T16:06:58Z"));
     assertThat(execution.getSource()).isEqualTo("SEB_OOTEL");
 

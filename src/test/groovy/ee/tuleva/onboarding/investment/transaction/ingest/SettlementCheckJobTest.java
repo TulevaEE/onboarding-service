@@ -712,10 +712,10 @@ class SettlementCheckJobTest {
   }
 
   private static TransactionExecution execution(
-      long orderId, LocalDate actualSettlementDate, String brokerTransactionId) {
+      long orderId, LocalDate scheduledSettlementDate, String brokerTransactionId) {
     return TransactionExecution.builder()
         .orderId(orderId)
-        .actualSettlementDate(actualSettlementDate)
+        .scheduledSettlementDate(scheduledSettlementDate)
         .brokerTransactionId(brokerTransactionId)
         .source("SEB_OOTEL")
         .build();

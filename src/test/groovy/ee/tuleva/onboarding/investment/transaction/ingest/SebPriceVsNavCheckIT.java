@@ -86,7 +86,7 @@ class SebPriceVsNavCheckIT {
                 .executedQuantity(new BigDecimal("15007"))
                 .unitPrice(new BigDecimal("4.7255"))
                 .totalConsideration(new BigDecimal("70915.58"))
-                .actualSettlementDate(LocalDate.of(2026, 5, 13))
+                .scheduledSettlementDate(LocalDate.of(2026, 5, 13))
                 .build());
   }
 

@@ -45,7 +45,7 @@ class TransactionExecutionRepositoryIT {
             .settlementFeeAmount(new BigDecimal("0.00"))
             .settlementPenalty(new BigDecimal("0.00"))
             .netSettlementAmount(new BigDecimal("70915.58"))
-            .actualSettlementDate(LocalDate.of(2026, 5, 13))
+            .scheduledSettlementDate(LocalDate.of(2026, 5, 13))
             .navDate(LocalDate.of(2026, 5, 12))
             .comment("test execution")
             .source("SEB_OOTEL")
@@ -75,7 +75,7 @@ class TransactionExecutionRepositoryIT {
     assertThat(loaded.getSettlementFeeAmount()).isEqualByComparingTo("0.00");
     assertThat(loaded.getSettlementPenalty()).isEqualByComparingTo("0.00");
     assertThat(loaded.getNetSettlementAmount()).isEqualByComparingTo("70915.58");
-    assertThat(loaded.getActualSettlementDate()).isEqualTo(LocalDate.of(2026, 5, 13));
+    assertThat(loaded.getScheduledSettlementDate()).isEqualTo(LocalDate.of(2026, 5, 13));
     assertThat(loaded.getNavDate()).isEqualTo(LocalDate.of(2026, 5, 12));
     assertThat(loaded.getComment()).isEqualTo("test execution");
     assertThat(loaded.getSource()).isEqualTo("SEB_OOTEL");

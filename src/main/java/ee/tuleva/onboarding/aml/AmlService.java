@@ -29,6 +29,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
@@ -195,37 +196,8 @@ public class AmlService {
 
   public void runAmlChecksOnThirdPillarCustomers() {
     List<AnalyticsRecentThirdPillar> records = analyticsRecentThirdPillarRepository.findAll();
-
-    log.info("Running III pillar AML checks on {} records", records.size());
     eventPublisher.publishEvent(new AmlChecksRunEvent(this, records));
-
-    int failureCount = 0;
-    for (AnalyticsRecentThirdPillar record : records) {
-      try {
-        if (screenForSanctionAndPep(record, new Country(record.getCountry())).failed()) {
-          failureCount++;
-        }
-      } catch (RuntimeException e) {
-        handleScreeningFailure(record, "batch", e);
-        failureCount++;
-      }
-    }
-
-    if (failureCount > 0) {
-      try {
-        notificationService.sendMessage(
-            "AML batch: sanction/PEP screening failed for %d of %d third-pillar customers this run"
-                .formatted(failureCount, records.size()),
-            OperationsNotificationService.Channel.AML);
-      } catch (RuntimeException e) {
-        log.error("Failed to send aggregated AML batch screening-failure alert", e);
-      }
-    }
-
-    log.info(
-        "Successfully ran III pillar AML checks on {} records ({} screening failures)",
-        records.size(),
-        failureCount);
+    screenBatch(ScreeningBatch.THIRD_PILLAR, records, record -> new Country(record.getCountry()));
   }
 
   public void runAmlChecksOnSavingsFundCustomers() {
@@ -233,37 +205,64 @@ public class AmlService {
     List<User> customers = userRepository.findAllByPersonalCodeIn(personalCodes);
 
     log.info(
-        "Running savings fund AML checks on {} of {} onboarded persons",
-        customers.size(),
-        personalCodes.size());
+        "Resolved savings fund customers to screen: onboarded={}, resolved={}",
+        personalCodes.size(),
+        customers.size());
+
+    screenBatch(ScreeningBatch.SAVINGS_FUND, customers, customer -> new Country(null));
+  }
+
+  private <T extends Person> void screenBatch(
+      ScreeningBatch batch, List<T> people, Function<T, Country> countryOf) {
+    log.info(
+        "Running AML screening batch: population={}, people={}", batch.population, people.size());
 
     int failureCount = 0;
-    for (User customer : customers) {
+    for (T person : people) {
       try {
-        if (screenForSanctionAndPep(customer, new Country(null)).failed()) {
+        if (screenForSanctionAndPep(person, countryOf.apply(person)).failed()) {
           failureCount++;
         }
       } catch (RuntimeException e) {
-        handleScreeningFailure(customer, "savings-fund-batch", e);
+        handleScreeningFailure(person, batch.metricPhase, e);
         failureCount++;
       }
     }
 
-    if (failureCount > 0) {
-      try {
-        notificationService.sendMessage(
-            "AML batch: sanction/PEP screening failed for %d of %d savings fund customers this run"
-                .formatted(failureCount, customers.size()),
-            OperationsNotificationService.Channel.AML);
-      } catch (RuntimeException e) {
-        log.error("Failed to send aggregated savings fund AML batch screening-failure alert", e);
-      }
-    }
+    alertOnBatchScreeningFailures(batch, failureCount, people.size());
 
     log.info(
-        "Successfully ran savings fund AML checks on {} customers ({} screening failures)",
-        customers.size(),
+        "Finished AML screening batch: population={}, people={}, screeningFailures={}",
+        batch.population,
+        people.size(),
         failureCount);
+  }
+
+  private void alertOnBatchScreeningFailures(
+      ScreeningBatch batch, int failureCount, int peopleCount) {
+    if (failureCount == 0) {
+      return;
+    }
+    try {
+      notificationService.sendMessage(
+          "AML batch: sanction/PEP screening failed for %d of %d %s customers this run"
+              .formatted(failureCount, peopleCount, batch.population),
+          OperationsNotificationService.Channel.AML);
+    } catch (RuntimeException e) {
+      log.error(
+          "Failed to send aggregated AML batch screening-failure alert: population={}",
+          batch.population,
+          e);
+    }
+  }
+
+  @RequiredArgsConstructor
+  private enum ScreeningBatch {
+    THIRD_PILLAR("third-pillar", "batch"),
+    SAVINGS_FUND("savings fund", "savings-fund-batch");
+
+    private final String population;
+    private final String metricPhase;
   }
 
   private Map<String, Object> metadata(JsonNode results, JsonNode query) {

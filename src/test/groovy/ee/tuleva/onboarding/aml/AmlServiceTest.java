@@ -965,6 +965,7 @@ class AmlServiceTest {
     // then
     verify(eventPublisher).publishEvent(any(AmlChecksRunEvent.class));
 
+    verify(pepAndSanctionCheckService).match(record1, new Country("EE"));
     verify(amlCheckRepository, times(2)).save(any(AmlCheck.class));
     verify(eventPublisher, times(2)).publishEvent(any(AmlCheckCreatedEvent.class));
   }
@@ -1106,8 +1107,8 @@ class AmlServiceTest {
 
     amlService.runAmlChecksOnSavingsFundCustomers();
 
-    verify(pepAndSanctionCheckService).match(eq(first), any(Country.class));
-    verify(pepAndSanctionCheckService).match(eq(second), any(Country.class));
+    verify(pepAndSanctionCheckService).match(first, new Country(null));
+    verify(pepAndSanctionCheckService).match(second, new Country(null));
     verify(notificationService, never()).sendMessage(anyString(), any());
   }
 
@@ -1154,6 +1155,8 @@ class AmlServiceTest {
         .sendMessage(
             "AML batch: sanction/PEP screening failed for 1 of 1 savings fund customers this run",
             OperationsNotificationService.Channel.AML);
+    assertEquals(
+        1.0, meterRegistry.counter("aml.screening.failure", "phase", "savings-fund-batch").count());
   }
 
   @Test

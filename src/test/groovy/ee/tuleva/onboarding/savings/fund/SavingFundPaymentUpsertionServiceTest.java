@@ -382,7 +382,7 @@ class SavingFundPaymentUpsertionServiceTest {
   }
 
   @Test
-  void upsert_throwsExceptionWhenNamesDontMatch() {
+  void upsert_overridesConflictingRemitterNameWithBankStatementName() {
     var existingPaymentId = UUID.randomUUID();
     var existingPayment =
         SavingFundPayment.builder()
@@ -402,6 +402,90 @@ class SavingFundPaymentUpsertionServiceTest {
             .externalId("EXT123")
             .remitterName("MARI KASK")
             .remitterIban("EE123")
+            .receivedBefore(Instant.now())
+            .build();
+
+    when(repository.findByExternalId("EXT123")).thenReturn(Optional.empty());
+    when(repository.findRecentPayments("37508295796")).thenReturn(List.of(existingPayment));
+
+    service.upsert(
+        incomingPayment,
+        p -> SavingFundPayment.Status.RECEIVED,
+        p -> SavingFundPayment.Status.RECEIVED);
+
+    var captor = ArgumentCaptor.forClass(SavingFundPayment.class);
+    verify(repository).updatePaymentData(eq(existingPaymentId), captor.capture());
+
+    var mergedPayment = captor.getValue();
+    assertThat(mergedPayment.getRemitterName()).isEqualTo("MARI KASK");
+  }
+
+  @Test
+  void upsert_overridesConflictingBeneficiaryNameWithBankStatementName() {
+    var existingPaymentId = UUID.randomUUID();
+    var existingPayment =
+        SavingFundPayment.builder()
+            .id(existingPaymentId)
+            .amount(BigDecimal.TEN)
+            .currency(EUR)
+            .description("37508295796")
+            .remitterName("MARI KASK")
+            .remitterIban("EE123")
+            .beneficiaryName("TULEVA AS")
+            .beneficiaryIban("EE456")
+            .build();
+
+    var incomingPayment =
+        SavingFundPayment.builder()
+            .amount(BigDecimal.TEN)
+            .currency(EUR)
+            .description("37508295796")
+            .externalId("EXT123")
+            .remitterName("MARI KASK")
+            .remitterIban("EE123")
+            .beneficiaryName("TULEVA FONDID AS")
+            .beneficiaryIban("EE456")
+            .receivedBefore(Instant.now())
+            .build();
+
+    when(repository.findByExternalId("EXT123")).thenReturn(Optional.empty());
+    when(repository.findRecentPayments("37508295796")).thenReturn(List.of(existingPayment));
+
+    service.upsert(
+        incomingPayment,
+        p -> SavingFundPayment.Status.RECEIVED,
+        p -> SavingFundPayment.Status.RECEIVED);
+
+    var captor = ArgumentCaptor.forClass(SavingFundPayment.class);
+    verify(repository).updatePaymentData(eq(existingPaymentId), captor.capture());
+
+    var mergedPayment = captor.getValue();
+    assertThat(mergedPayment.getBeneficiaryName()).isEqualTo("TULEVA FONDID AS");
+  }
+
+  @Test
+  void upsert_throwsExceptionWhenNonNameFieldDiffers() {
+    var existingPaymentId = UUID.randomUUID();
+    var existingPayment =
+        SavingFundPayment.builder()
+            .id(existingPaymentId)
+            .amount(BigDecimal.TEN)
+            .currency(EUR)
+            .description("37508295796")
+            .remitterName("MARI KASK")
+            .remitterIban("EE123")
+            .remitterIdCode("38888888888")
+            .build();
+
+    var incomingPayment =
+        SavingFundPayment.builder()
+            .amount(BigDecimal.TEN)
+            .currency(EUR)
+            .description("37508295796")
+            .externalId("EXT123")
+            .remitterName("MARI KASK")
+            .remitterIban("EE123")
+            .remitterIdCode("38888888889")
             .receivedBefore(Instant.now())
             .build();
 

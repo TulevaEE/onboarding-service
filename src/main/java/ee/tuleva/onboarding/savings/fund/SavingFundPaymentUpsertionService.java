@@ -130,8 +130,11 @@ public class SavingFundPaymentUpsertionService {
             mergeAndValidateField(
                 "remitterIdCode", existing.getRemitterIdCode(), payment.getRemitterIdCode()))
         .remitterName(
-            mergeAndValidateName(
-                "remitterName", existing.getRemitterName(), payment.getRemitterName()))
+            mergeName(
+                "remitterName",
+                existing.getId(),
+                existing.getRemitterName(),
+                payment.getRemitterName()))
         .beneficiaryIban(
             mergeAndValidateField(
                 "beneficiaryIban", existing.getBeneficiaryIban(), payment.getBeneficiaryIban()))
@@ -141,8 +144,11 @@ public class SavingFundPaymentUpsertionService {
                 existing.getBeneficiaryIdCode(),
                 payment.getBeneficiaryIdCode()))
         .beneficiaryName(
-            mergeAndValidateName(
-                "beneficiaryName", existing.getBeneficiaryName(), payment.getBeneficiaryName()))
+            mergeName(
+                "beneficiaryName",
+                existing.getId(),
+                existing.getBeneficiaryName(),
+                payment.getBeneficiaryName()))
         .externalId(
             mergeAndValidateField("externalId", existing.getExternalId(), payment.getExternalId()))
         .createdAt(existing.getCreatedAt())
@@ -180,16 +186,18 @@ public class SavingFundPaymentUpsertionService {
     return existingValue;
   }
 
-  private String mergeAndValidateName(String fieldName, String existingValue, String newValue) {
+  private String mergeName(
+      String fieldName, UUID paymentId, String existingValue, String newValue) {
     if (existingValue == null) {
       return newValue;
     } else if (newValue == null) {
       return existingValue;
     } else if (!nameMatcher.isSameName(existingValue, newValue)) {
-      throw new IllegalStateException(
-          String.format(
-              "Payment field mismatch: %s existing='%s', incoming='%s'",
-              fieldName, existingValue, newValue));
+      log.warn(
+          "Overriding payment name from bank statement: field={}, paymentId={}",
+          fieldName,
+          paymentId);
+      return newValue;
     }
     return existingValue;
   }

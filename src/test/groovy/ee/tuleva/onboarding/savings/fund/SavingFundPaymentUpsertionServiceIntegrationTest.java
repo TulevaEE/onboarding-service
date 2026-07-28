@@ -522,13 +522,32 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     }
 
     @Test
-    void doesNotMarkMessageAsProcessedWhenNonNullFieldDiffers() {
+    void overridesConflictingRemitterNameWithBankStatementName() {
       // given - existing payment with conflicting remitterName
       var existingPayment =
-          paymentMatchingXmlTemplate().externalId(null).remitterName("Different Name").build();
-      repository.savePaymentData(existingPayment);
+          paymentMatchingXmlTemplate().externalId(null).remitterName("Kati Karu").build();
+      var existingId = repository.savePaymentData(existingPayment);
 
       // when - XML arrives with different remitterName
+      var messageId = processXmlMessage(XML_TEMPLATE);
+
+      // then - the bank statement name wins and the message is processed
+      assertThat(repository.findAll()).hasSize(1);
+      var updated = repository.findAll().iterator().next();
+      assertThat(updated.getId()).isEqualTo(existingId);
+      assertThat(updated.getRemitterName()).isEqualTo("Jüri Tamm");
+      var message = bankingMessageRepository.findById(messageId).orElseThrow();
+      assertThat(message.getProcessedAt()).isNotNull();
+    }
+
+    @Test
+    void doesNotMarkMessageAsProcessedWhenNonNullFieldDiffers() {
+      // given - existing payment with conflicting remitterIdCode
+      var existingPayment =
+          paymentMatchingXmlTemplate().externalId(null).remitterIdCode("38888888888").build();
+      repository.savePaymentData(existingPayment);
+
+      // when - XML arrives with different remitterIdCode
       var messageId = processXmlMessage(XML_TEMPLATE);
 
       // then - message should not be marked as processed due to field mismatch

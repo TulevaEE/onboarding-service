@@ -71,8 +71,8 @@ public class ChildOnboardingService {
   }
 
   private boolean hasBeenOnboarded(String childPersonalCode) {
-    return savingsFundOnboardingService.getOnboardingStatus(new PartyId(PERSON, childPersonalCode))
-        != null;
+    return savingsFundOnboardingService.isOnboardingCompleted(
+        new PartyId(PERSON, childPersonalCode));
   }
 
   @Transactional

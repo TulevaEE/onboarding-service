@@ -9,7 +9,6 @@ import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY_CUSTODY;
 import static ee.tuleva.onboarding.populationregister.CustodyValidity.VALID;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.PENDING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -111,13 +110,27 @@ class ChildOnboardingServiceTest {
             List.of(
                 new CustodyRight(CHILD, PROPERTY_CUSTODY, VALID, ALIVE, "Mari", "Maasikas"),
                 new CustodyRight(secondChild, PROPERTY_CUSTODY, VALID, ALIVE, "Jüri", "Tamm")));
-    given(savingsFundOnboardingService.getOnboardingStatus(new PartyId(PERSON, CHILD)))
-        .willReturn(PENDING);
+    given(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(PERSON, CHILD)))
+        .willReturn(true);
 
     assertThat(service.findEligibleChildren(parent))
         .containsExactly(
             new EligibleChild(CHILD, "Mari", "Maasikas", true),
             new EligibleChild(secondChild, "Jüri", "Tamm", false));
+  }
+
+  @Test
+  void findEligibleChildren_doesNotMarkChildrenWhoseOnboardingIsNotCompleted() {
+    given(
+            custodyVerificationService.findChildrenWithAssetManagementCustody(
+                PARENT, CUSTODY_MAX_AGE))
+        .willReturn(
+            List.of(new CustodyRight(CHILD, PROPERTY_CUSTODY, VALID, ALIVE, "Mari", "Maasikas")));
+    given(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(PERSON, CHILD)))
+        .willReturn(false);
+
+    assertThat(service.findEligibleChildren(parent))
+        .containsExactly(new EligibleChild(CHILD, "Mari", "Maasikas", false));
   }
 
   @Test

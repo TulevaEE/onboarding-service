@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,8 +31,39 @@ public class RiskLevelService {
   private final AmlCheckRepository amlCheckRepository;
   private final ApplicationEventPublisher eventPublisher;
 
+  private static final int HIGH_RISK_LEVEL = 1;
+
   public void runRiskLevelCheck(double mediumRiskIndividualSelectionProbability) {
     scorePillar("III pillar", amlRiskReader, RISK_LEVEL, mediumRiskIndividualSelectionProbability);
+  }
+
+  public boolean isHighRisk(String personalCode) {
+    return latestLevelIsHigh(personalCode, List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE))
+        || latestLevelIsHigh(personalCode, List.of(TKF_RISK_LEVEL, TKF_RISK_LEVEL_OVERRIDE));
+  }
+
+  private boolean latestLevelIsHigh(String personalCode, List<AmlCheckType> types) {
+    return amlCheckRepository
+        .findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(personalCode, types)
+        .map(check -> Objects.equals(riskLevel(check), HIGH_RISK_LEVEL))
+        .orElse(false);
+  }
+
+  // An override row without a level is a specialist confirmation without a score change and does
+  // not keep the client high-risk.
+  private Integer riskLevel(AmlCheck check) {
+    Object level = check.getMetadata().get("level");
+    if (level instanceof Number number) {
+      return number.intValue();
+    }
+    if (level instanceof String string) {
+      try {
+        return Integer.parseInt(string);
+      } catch (NumberFormatException e) {
+        return null;
+      }
+    }
+    return null;
   }
 
   public void runTkfRiskLevelCheck(double mediumRiskIndividualSelectionProbability) {

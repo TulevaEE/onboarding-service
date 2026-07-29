@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,13 +55,21 @@ public class ChildOnboardingService {
         .toList();
   }
 
-  private Map<String, Object> custodyEvidence(CustodyVerification verification) {
-    PopulationRegisterPerson child = verification.child();
-    if (child == null || child.citizenship() == null) {
-      return verification.evidence();
-    }
+  private Map<String, Object> custodyEvidence(
+      CustodyVerification verification,
+      String guardianPersonalCode,
+      @Nullable String guardianCitizenship) {
     var evidence = new LinkedHashMap<String, Object>(verification.evidence());
-    evidence.put("citizenship", child.citizenship());
+    PopulationRegisterPerson child = verification.child();
+    if (child != null && child.citizenship() != null) {
+      evidence.put("citizenship", child.citizenship());
+    }
+    if (verification.isVerified()) {
+      evidence.put("guardianPersonalCode", guardianPersonalCode);
+      if (guardianCitizenship != null) {
+        evidence.put("guardianCitizenship", guardianCitizenship);
+      }
+    }
     return unmodifiableMap(evidence);
   }
 
@@ -68,6 +77,12 @@ public class ChildOnboardingService {
     amlService.addSanctionAndPepCheckIfMissing(
         new PersonImpl(child.personalCode(), child.firstName(), child.lastName()),
         new Country(child.citizenship()));
+  }
+
+  private void screenGuardian(AuthenticatedPerson parent, @Nullable String citizenship) {
+    amlService.addSanctionAndPepCheckIfMissing(
+        new PersonImpl(parent.getPersonalCode(), parent.getFirstName(), parent.getLastName()),
+        new Country(citizenship));
   }
 
   private boolean hasBeenOnboarded(String childPersonalCode) {
@@ -83,8 +98,15 @@ public class ChildOnboardingService {
 
     applicationEventPublisher.publishEvent(
         new TrackableEvent(parent, MINOR_CUSTODY_VERIFICATION, verification.evidence()));
+    String guardianCitizenship =
+        verification.isVerified()
+            ? custodyVerificationService.fetchGuardianCitizenship(
+                parentPersonalCode, CUSTODY_MAX_AGE)
+            : null;
     amlService.addCustodyRightCheck(
-        childPersonalCode, verification.isVerified(), custodyEvidence(verification));
+        childPersonalCode,
+        verification.isVerified(),
+        custodyEvidence(verification, parentPersonalCode, guardianCitizenship));
 
     if (!verification.isVerified()) {
       log.info(
@@ -100,6 +122,7 @@ public class ChildOnboardingService {
         parentPersonalCode, childPersonalCode, child.firstName(), child.lastName());
     savingsFundOnboardingService.seedPersonOnboardingIfAbsent(childPersonalCode);
     screenForSanctionsAndPep(child);
+    screenGuardian(parent, guardianCitizenship);
 
     applicationEventPublisher.publishEvent(
         new ChildOnboardedEvent(

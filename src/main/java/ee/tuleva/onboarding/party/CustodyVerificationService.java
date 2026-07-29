@@ -18,6 +18,7 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -26,6 +27,20 @@ import org.springframework.stereotype.Service;
 public class CustodyVerificationService {
 
   private final PopulationRegisterClient populationRegisterClient;
+
+  // Best-effort AML data capture — a register failure must never block child onboarding,
+  // the risk assessment treats a missing citizenship as unknown.
+  public @Nullable String fetchGuardianCitizenship(String guardianPersonalCode, Duration maxAge) {
+    try {
+      return populationRegisterClient
+          .fetchPerson(guardianPersonalCode, guardianPersonalCode, maxAge)
+          .data()
+          .citizenship();
+    } catch (RuntimeException e) {
+      log.warn("Guardian citizenship lookup failed: guardianCode={}", guardianPersonalCode, e);
+      return null;
+    }
+  }
 
   public List<String> findGuardiansWithAssetManagement(
       String childPersonalCode, String requesterPersonalCode) {

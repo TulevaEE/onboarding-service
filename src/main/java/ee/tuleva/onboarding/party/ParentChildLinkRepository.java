@@ -14,6 +14,9 @@ public interface ParentChildLinkRepository extends JpaRepository<ParentChildLink
   List<ParentChildLink> findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
       String childPersonalCode, ParentChildLinkStatus status, LocalDate date);
 
+  List<ParentChildLink> findByChildPersonalCodeAndValidUntilAfter(
+      String childPersonalCode, LocalDate date);
+
   boolean
       existsByParentPersonalCodeAndChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
           String parentPersonalCode,

@@ -70,6 +70,29 @@ class ParentChildLinkServiceTest {
   }
 
   @Test
+  void findsGuardianCodesAcrossAllUnexpiredLinksIncludingSuspendedAndPending() {
+    var active =
+        ParentChildLink.builder()
+            .parentPersonalCode(PARENT)
+            .childPersonalCode(CHILD)
+            .relationshipType(LEGAL_REPRESENTATIVE)
+            .validUntil(LocalDate.of(2030, 1, 1))
+            .build();
+    var pendingCoParent =
+        ParentChildLink.builder()
+            .parentPersonalCode("48002020009")
+            .childPersonalCode(CHILD)
+            .relationshipType(LEGAL_REPRESENTATIVE)
+            .validUntil(LocalDate.of(2030, 1, 1))
+            .status(PENDING_KYC)
+            .build();
+    given(parentChildLinkRepository.findByChildPersonalCodeAndValidUntilAfter(CHILD, TODAY))
+        .willReturn(List.of(active, pendingCoParent));
+
+    assertThat(service.findGuardianCodes(CHILD)).containsExactly(PARENT, "48002020009");
+  }
+
+  @Test
   void findsPendingChildCodesForParent() {
     var pending =
         ParentChildLink.builder()

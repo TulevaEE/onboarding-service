@@ -11,7 +11,6 @@ import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.Outcome.WOULD_PR
 import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.ScreeningStatus.SCREENED;
 import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.ScreeningStatus.SCREENING_FAILED;
 import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.ScreeningStatus.SKIPPED;
-import static ee.tuleva.onboarding.party.ChildOnboardingService.CUSTODY_MAX_AGE;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.CHILD_NOT_ALIVE;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
@@ -30,25 +29,25 @@ import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
 import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Service;
 
-/**
- * One-off backfill for children onboarded before custody re-verification, citizenship capture and
- * sanction/PEP screening were part of child onboarding. Not transactional at the batch level on
- * purpose: each child's checks commit independently, so a mid-batch failure keeps the rows already
- * written.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@NullMarked
 public class ChildAmlBackfillService {
+
+  // Always hit the register: reusing a response another requester fetched would skip the
+  // ops-stamped X-Road audit entry this backfill exists to create.
+  static final Duration FRESH = Duration.ZERO;
 
   private final ParentChildLinkRepository parentChildLinkRepository;
   private final CustodyVerificationService custodyVerificationService;
@@ -67,14 +66,18 @@ public class ChildAmlBackfillService {
                     link.getStatus() == ACTIVE
                         && !link.isSuspended()
                         && link.getValidUntil().isAfter(today))
-            .collect(groupingBy(ParentChildLink::getChildPersonalCode, TreeMap::new, toList()));
+            .collect(
+                groupingBy(link -> link.getChildPersonalCode().strip(), TreeMap::new, toList()));
 
     log.info("Starting child AML backfill: dryRun={}, children={}", dryRun, linksByChild.size());
 
-    List<ChildResult> results = new ArrayList<>();
-    linksByChild.forEach(
-        (childCode, links) ->
-            results.add(processChild(requesterPersonalCode, childCode, links, today, dryRun)));
+    List<ChildResult> results =
+        linksByChild.entrySet().stream()
+            .map(
+                entry ->
+                    processChild(
+                        requesterPersonalCode, entry.getKey(), entry.getValue(), today, dryRun))
+            .toList();
 
     ChildAmlBackfillResult result = ChildAmlBackfillResult.of(dryRun, results);
     log.info(
@@ -91,9 +94,9 @@ public class ChildAmlBackfillService {
       List<ParentChildLink> links,
       LocalDate today,
       boolean dryRun) {
-    boolean hasUser = userRepository.findByPersonalCode(childCode).isPresent();
     try {
-      if (hasCitizenshipOnFile(childCode)) {
+      boolean hasUser = userRepository.findByPersonalCode(childCode).isPresent();
+      if (hasCitizenshipOnFile(childCode) && hasBeenScreened(childCode)) {
         return ChildResult.skipped(childCode, ALREADY_BACKFILLED, hasUser);
       }
       if (!PersonalCode.isMinor(childCode, today)) {
@@ -103,7 +106,7 @@ public class ChildAmlBackfillService {
       List<String> legalRepresentatives =
           links.stream()
               .filter(link -> link.getRelationshipType() == LEGAL_REPRESENTATIVE)
-              .map(ParentChildLink::getParentPersonalCode)
+              .map(link -> link.getParentPersonalCode().strip())
               .distinct()
               .sorted()
               .toList();
@@ -120,21 +123,14 @@ public class ChildAmlBackfillService {
           : reverify(requesterPersonalCode, childCode, legalRepresentatives, hasUser);
     } catch (RuntimeException e) {
       log.error("Child AML backfill failed for child: childCode={}", childCode, e);
-      return ChildResult.error(childCode, hasUser, e);
+      return ChildResult.error(childCode, e);
     }
   }
 
   private ChildResult reverify(
       String requesterPersonalCode, String childCode, List<String> parentCodes, boolean hasUser) {
-    CustodyVerification verification = null;
-    for (String parentCode : parentCodes) {
-      verification =
-          custodyVerificationService.verify(
-              requesterPersonalCode, parentCode, childCode, CUSTODY_MAX_AGE);
-      if (verification.isVerified()) {
-        break;
-      }
-    }
+    CustodyVerification verification =
+        verifyAgainstAnyParent(requesterPersonalCode, childCode, parentCodes);
     amlService.addCustodyRightCheck(
         childCode, verification.isVerified(), verification.evidenceWithCitizenship());
 
@@ -145,28 +141,39 @@ public class ChildAmlBackfillService {
     } else {
       if (child == null) {
         child =
-            populationRegisterClient
-                .fetchPerson(requesterPersonalCode, childCode, CUSTODY_MAX_AGE)
-                .data();
+            populationRegisterClient.fetchPerson(requesterPersonalCode, childCode, FRESH).data();
       }
       screeningStatus = screen(child);
     }
     return new ChildResult(
         childCode,
         verification.isVerified() ? BACKFILLED : CUSTODY_NOT_VERIFIED,
-        verification.outcome().name(),
+        verification.outcome(),
         child == null ? null : child.citizenship(),
         screeningStatus,
         hasUser,
         null);
   }
 
+  private CustodyVerification verifyAgainstAnyParent(
+      String requesterPersonalCode, String childCode, List<String> parentCodes) {
+    CustodyVerification verification =
+        custodyVerificationService.verify(
+            requesterPersonalCode, parentCodes.getFirst(), childCode, FRESH);
+    for (String parentCode : parentCodes.subList(1, parentCodes.size())) {
+      if (verification.isVerified()) {
+        break;
+      }
+      verification =
+          custodyVerificationService.verify(requesterPersonalCode, parentCode, childCode, FRESH);
+    }
+    return verification;
+  }
+
   private ChildResult screenGuardianWard(
       String requesterPersonalCode, String childCode, boolean hasUser) {
     PopulationRegisterPerson child =
-        populationRegisterClient
-            .fetchPerson(requesterPersonalCode, childCode, CUSTODY_MAX_AGE)
-            .data();
+        populationRegisterClient.fetchPerson(requesterPersonalCode, childCode, FRESH).data();
     return new ChildResult(
         childCode, GUARDIAN_LINK, null, child.citizenship(), screen(child), hasUser, null);
   }
@@ -177,10 +184,12 @@ public class ChildAmlBackfillService {
         new Country(child.citizenship()));
     // Screening is fail-open and returns an empty list both when it failed and when the result was
     // deduplicated, so success can only be confirmed by the row's existence.
-    boolean screened =
-        amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
-            child.personalCode(), SANCTION, aYearAgo());
-    return screened ? SCREENED : SCREENING_FAILED;
+    return hasBeenScreened(child.personalCode()) ? SCREENED : SCREENING_FAILED;
+  }
+
+  private boolean hasBeenScreened(String childCode) {
+    return amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+        childCode, SANCTION, aYearAgo());
   }
 
   private boolean hasCitizenshipOnFile(String childCode) {

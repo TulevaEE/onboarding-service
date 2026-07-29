@@ -422,9 +422,6 @@ public class AdminController {
         + request.childCode();
   }
 
-  // Re-runs the population-register custody verification (which stores citizenship) and
-  // sanction/PEP screening for linked children that predate these checks in child onboarding.
-  // The requester personal code is stamped into the register's X-Road audit log.
   @PostMapping("/child-aml-backfill")
   public ChildAmlBackfillResult backfillChildAmlChecks(
       @RequestHeader("X-Admin-Token") String token,

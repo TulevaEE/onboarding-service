@@ -1092,7 +1092,7 @@ class AdminControllerTest {
   @Test
   void childAmlBackfill_withOpsToken_delegatesToServiceAndReturnsTheReport() throws Exception {
     given(childAmlBackfillService.backfill("38812121215", true))
-        .willReturn(ChildAmlBackfillResult.of(true, java.util.List.of()));
+        .willReturn(ChildAmlBackfillResult.of(true, List.of()));
 
     mockMvc
         .perform(
@@ -1124,6 +1124,23 @@ class AdminControllerTest {
                     {"requesterPersonalCode": "38812121215", "dryRun": false}
                     """))
         .andExpect(status().isUnauthorized());
+
+    verifyNoInteractions(childAmlBackfillService);
+  }
+
+  @Test
+  void childAmlBackfill_withoutExplicitDryRun_isBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/child-aml-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"requesterPersonalCode": "38812121215"}
+                    """))
+        .andExpect(status().isBadRequest());
 
     verifyNoInteractions(childAmlBackfillService);
   }

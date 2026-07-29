@@ -3,11 +3,13 @@ package ee.tuleva.onboarding.party;
 import static java.util.stream.Collectors.counting;
 import static java.util.stream.Collectors.groupingBy;
 
-import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
+@NullMarked
 public record ChildAmlBackfillResult(
     boolean dryRun, int total, Map<Outcome, Long> counts, List<ChildResult> children) {
 
@@ -22,7 +24,7 @@ public record ChildAmlBackfillResult(
   public record ChildResult(
       String childPersonalCode,
       Outcome outcome,
-      @Nullable String custodyOutcome,
+      CustodyVerification.@Nullable Outcome custodyOutcome,
       @Nullable String citizenship,
       ScreeningStatus screeningStatus,
       boolean hasUser,
@@ -33,14 +35,14 @@ public record ChildAmlBackfillResult(
           childPersonalCode, outcome, null, null, ScreeningStatus.NOT_ATTEMPTED, hasUser, null);
     }
 
-    static ChildResult error(String childPersonalCode, boolean hasUser, RuntimeException e) {
+    static ChildResult error(String childPersonalCode, RuntimeException e) {
       return new ChildResult(
           childPersonalCode,
           Outcome.ERROR,
           null,
           null,
           ScreeningStatus.NOT_ATTEMPTED,
-          hasUser,
+          false,
           e.getClass().getSimpleName() + ": " + e.getMessage());
     }
   }

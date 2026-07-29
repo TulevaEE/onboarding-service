@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.IN_REVIEW;
@@ -17,6 +18,7 @@ import ee.tuleva.onboarding.aml.risklevel.RiskLevelService;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyService;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus;
@@ -39,6 +41,7 @@ class RedemptionVerificationServiceTest {
   @Mock private RiskLevelService riskLevelService;
   @Mock private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Mock private LegalEntityScreener legalEntityScreener;
+  @Mock private OperationsNotificationService notificationService;
 
   @InjectMocks private RedemptionVerificationService service;
 
@@ -87,6 +90,9 @@ class RedemptionVerificationServiceTest {
 
     verify(redemptionStatusService).changeStatus(requestId, IN_REVIEW);
     verify(redemptionStatusService, never()).changeStatus(requestId, VERIFIED);
+    verify(notificationService)
+        .sendMessage(
+            "AML: redemption held for review: id=" + requestId + ", amount=10.00 EUR", AML);
   }
 
   @Test

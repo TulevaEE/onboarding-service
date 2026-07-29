@@ -37,6 +37,7 @@ import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionBatchJob;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionReviewService;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
@@ -83,6 +84,7 @@ public class AdminController {
   private final ReportImportJob reportImportJob;
   private final FundPositionImportJob fundPositionImportJob;
   private final RedemptionBatchJob redemptionBatchJob;
+  private final RedemptionReviewService redemptionReviewService;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final KybCheckOverrideService kybCheckOverrideService;
   private final ParentChildLinkRegistrationService parentChildLinkRegistrationService;
@@ -308,6 +310,27 @@ public class AdminController {
     redemptionBatchJob.retryFailedPayout(id);
 
     return "Retried redemption payout for " + id;
+  }
+
+  @PostMapping("/redemptions/{id}/approve-review")
+  public String approveRedemptionReview(
+      @RequestHeader("X-Admin-Token") String token,
+      @PathVariable UUID id,
+      @RequestParam String approvedBy,
+      @RequestParam String reason) {
+
+    validateTokenWithOpsAccess(token);
+    if (approvedBy.isBlank()) {
+      throw new ResponseStatusException(BAD_REQUEST, "approvedBy is required");
+    }
+    if (reason.isBlank()) {
+      throw new ResponseStatusException(BAD_REQUEST, "A reason is required");
+    }
+
+    log.info("Admin approving redemption review: id={}, approvedBy={}", id, approvedBy);
+    redemptionReviewService.approve(id, approvedBy, reason);
+
+    return "Approved redemption review: id=" + id;
   }
 
   @PostMapping("/override-kyb-check")

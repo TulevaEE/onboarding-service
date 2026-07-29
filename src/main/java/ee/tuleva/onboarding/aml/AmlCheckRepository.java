@@ -30,4 +30,6 @@ public interface AmlCheckRepository extends JpaRepository<AmlCheck, Long> {
 
   Optional<AmlCheck> findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
       String personalCode, AmlCheckType type);
+
+  List<AmlCheck> findAllByPersonalCodeAndType(String personalCode, AmlCheckType type);
 }

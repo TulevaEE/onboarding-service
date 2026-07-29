@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.party;
 
 import static ee.tuleva.onboarding.event.TrackableEventType.MINOR_CUSTODY_VERIFICATION;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
-import static java.util.Collections.unmodifiableMap;
 
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -15,9 +14,7 @@ import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -54,16 +51,6 @@ public class ChildOnboardingService {
         .toList();
   }
 
-  private Map<String, Object> custodyEvidence(CustodyVerification verification) {
-    PopulationRegisterPerson child = verification.child();
-    if (child == null || child.citizenship() == null) {
-      return verification.evidence();
-    }
-    var evidence = new LinkedHashMap<String, Object>(verification.evidence());
-    evidence.put("citizenship", child.citizenship());
-    return unmodifiableMap(evidence);
-  }
-
   private void screenForSanctionsAndPep(PopulationRegisterPerson child) {
     amlService.addSanctionAndPepCheckIfMissing(
         new PersonImpl(child.personalCode(), child.firstName(), child.lastName()),
@@ -84,7 +71,7 @@ public class ChildOnboardingService {
     applicationEventPublisher.publishEvent(
         new TrackableEvent(parent, MINOR_CUSTODY_VERIFICATION, verification.evidence()));
     amlService.addCustodyRightCheck(
-        childPersonalCode, verification.isVerified(), custodyEvidence(verification));
+        childPersonalCode, verification.isVerified(), verification.evidenceWithCitizenship());
 
     if (!verification.isVerified()) {
       log.info(

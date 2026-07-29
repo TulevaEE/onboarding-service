@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.party;
 
+import static java.util.Collections.unmodifiableMap;
+
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
 import jakarta.annotation.Nullable;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public record CustodyVerification(
@@ -16,6 +19,15 @@ public record CustodyVerification(
 
   public boolean isVerified() {
     return outcome == Outcome.OK;
+  }
+
+  public Map<String, Object> evidenceWithCitizenship() {
+    if (child == null || child.citizenship() == null) {
+      return evidence;
+    }
+    var enriched = new LinkedHashMap<String, Object>(evidence);
+    enriched.put("citizenship", child.citizenship());
+    return unmodifiableMap(enriched);
   }
 
   static CustodyVerification notVerified(Outcome outcome, Map<String, Object> evidence) {

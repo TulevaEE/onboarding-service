@@ -33,6 +33,8 @@ import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.ChildAmlBackfillResult;
+import ee.tuleva.onboarding.party.ChildAmlBackfillService;
 import ee.tuleva.onboarding.party.ChildIsNotAMinorException;
 import ee.tuleva.onboarding.party.ParentChildLinkRegistrationService;
 import ee.tuleva.onboarding.party.PartyId;
@@ -86,6 +88,7 @@ class AdminControllerTest {
   @MockitoBean private SavingsFundOnboardingService savingsFundOnboardingService;
   @MockitoBean private KybCheckOverrideService kybCheckOverrideService;
   @MockitoBean private ParentChildLinkRegistrationService parentChildLinkRegistrationService;
+  @MockitoBean private ChildAmlBackfillService childAmlBackfillService;
 
   @MockitoBean
   private ee.tuleva.onboarding.investment.check.tracking.PeriodicTdAttributionService
@@ -1084,6 +1087,62 @@ class AdminControllerTest {
         .andExpect(status().isBadRequest());
 
     verifyNoInteractions(kybCheckOverrideService);
+  }
+
+  @Test
+  void childAmlBackfill_withOpsToken_delegatesToServiceAndReturnsTheReport() throws Exception {
+    given(childAmlBackfillService.backfill("38812121215", true))
+        .willReturn(ChildAmlBackfillResult.of(true, java.util.List.of()));
+
+    mockMvc
+        .perform(
+            post("/admin/child-aml-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"requesterPersonalCode": "38812121215", "dryRun": true}
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.dryRun").value(true))
+        .andExpect(jsonPath("$.total").value(0));
+
+    verify(childAmlBackfillService).backfill("38812121215", true);
+  }
+
+  @Test
+  void childAmlBackfill_withInvalidToken_isUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/child-aml-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"requesterPersonalCode": "38812121215", "dryRun": false}
+                    """))
+        .andExpect(status().isUnauthorized());
+
+    verifyNoInteractions(childAmlBackfillService);
+  }
+
+  @Test
+  void childAmlBackfill_withInvalidRequesterCode_isBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/child-aml-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"requesterPersonalCode": "12345", "dryRun": false}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(childAmlBackfillService);
   }
 
   @Test

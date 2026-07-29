@@ -54,8 +54,19 @@ public class CustodyVerificationService {
 
   public CustodyVerification verify(
       String parentPersonalCode, String childPersonalCode, Duration maxAge) {
+    return verify(parentPersonalCode, parentPersonalCode, childPersonalCode, maxAge);
+  }
+
+  // The requester is stamped into the register's X-Road audit log; it is the parent in the live
+  // onboarding flow, but an ops person when re-verifying on the parent's behalf (AML backfill).
+  public CustodyVerification verify(
+      String requesterPersonalCode,
+      String parentPersonalCode,
+      String childPersonalCode,
+      Duration maxAge) {
     PopulationRegisterResult<List<CustodyRight>> custodyResult =
-        populationRegisterClient.fetchCustodyRights(parentPersonalCode, maxAge);
+        populationRegisterClient.fetchCustodyRights(
+            requesterPersonalCode, parentPersonalCode, maxAge);
     UUID custodyMessageId = custodyResult.messageId();
 
     // The population register returns personal (H10) and property (H20) custody as
@@ -94,7 +105,7 @@ public class CustodyVerificationService {
     }
 
     PopulationRegisterResult<PopulationRegisterPerson> childResult =
-        populationRegisterClient.fetchPerson(parentPersonalCode, childPersonalCode, maxAge);
+        populationRegisterClient.fetchPerson(requesterPersonalCode, childPersonalCode, maxAge);
     PopulationRegisterPerson child = childResult.data();
     if (!child.isAlive()) {
       return CustodyVerification.notVerified(

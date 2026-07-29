@@ -183,8 +183,25 @@ class CustodyVerificationServiceTest {
   }
 
   @Test
+  void usesTheRequesterForRegisterCallsWhenVerifyingOnBehalfOfTheParent() {
+    var ops = "38001010002";
+    given(populationRegisterClient.fetchCustodyRights(ops, PARENT, MAX_AGE))
+        .willReturn(
+            new PopulationRegisterResult<>(
+                List.of(new CustodyRight(CHILD, PROPERTY_CUSTODY, VALID, ALIVE)),
+                CUSTODY_MESSAGE_ID));
+    given(populationRegisterClient.fetchPerson(ops, CHILD, MAX_AGE))
+        .willReturn(new PopulationRegisterResult<>(aliveChild, CHILD_MESSAGE_ID));
+
+    CustodyVerification result = service.verify(ops, PARENT, CHILD, MAX_AGE);
+
+    assertThat(result.isVerified()).isTrue();
+    assertThat(result.child()).isEqualTo(aliveChild);
+  }
+
+  @Test
   void listsDistinctChildrenWhoseCustodyGrantsAssetManagement() {
-    givenCustodyRights(
+    givenOwnCustodyRights(
         new CustodyRight(CHILD, PERSONAL_CUSTODY, VALID, ALIVE),
         new CustodyRight(CHILD, PROPERTY_CUSTODY, VALID, ALIVE),
         new CustodyRight(CHILD, PROPERTY_CUSTODY, VALID, ALIVE),
@@ -199,7 +216,7 @@ class CustodyVerificationServiceTest {
 
   @Test
   void dedupesEligibleChildrenByPersonalCodeKeepingTheFirstNames() {
-    givenCustodyRights(
+    givenOwnCustodyRights(
         new CustodyRight(CHILD, PROPERTY_CUSTODY, VALID, ALIVE, "Mari", "Maasikas"),
         new CustodyRight(CHILD, PROPERTY_CUSTODY, VALID, ALIVE, null, null));
 
@@ -242,6 +259,11 @@ class CustodyVerificationServiceTest {
   }
 
   private void givenCustodyRights(CustodyRight... rights) {
+    given(populationRegisterClient.fetchCustodyRights(PARENT, PARENT, MAX_AGE))
+        .willReturn(new PopulationRegisterResult<>(List.of(rights), CUSTODY_MESSAGE_ID));
+  }
+
+  private void givenOwnCustodyRights(CustodyRight... rights) {
     given(populationRegisterClient.fetchCustodyRights(PARENT, MAX_AGE))
         .willReturn(new PopulationRegisterResult<>(List.of(rights), CUSTODY_MESSAGE_ID));
   }

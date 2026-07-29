@@ -69,10 +69,16 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
   @Override
   public PopulationRegisterResult<List<CustodyRight>> fetchCustodyRights(
       String requesterPersonalCode, Duration maxAge) {
+    return fetchCustodyRights(requesterPersonalCode, requesterPersonalCode, maxAge);
+  }
+
+  @Override
+  public PopulationRegisterResult<List<CustodyRight>> fetchCustodyRights(
+      String requesterPersonalCode, String parentPersonalCode, Duration maxAge) {
     return query(
-        PersonQueryRequest.forCustody(requesterPersonalCode),
+        PersonQueryRequest.forCustody(parentPersonalCode),
         requesterPersonalCode,
-        requesterPersonalCode,
+        parentPersonalCode,
         CUSTODY,
         maxAge,
         PersonMapper::toCustodyRights);

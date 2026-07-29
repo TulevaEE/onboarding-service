@@ -171,6 +171,22 @@ class PopulationRegisterClientTest {
   }
 
   @Test
+  void identifiesTheRequesterSeparatelyFromTheParentWhenFetchingCustodyRights() {
+    server
+        .expect(requestTo(ISIKUD_URL))
+        .andExpect(header("X-Road-UserId", REQUESTER))
+        .andExpect(jsonPath("$.isikukoodid[0]").value(PERSONAL_CODE))
+        .andExpect(jsonPath("$.andmevaljad.hooldusoigused").isNotEmpty())
+        .andRespond(withSuccess(custodyResponse(), APPLICATION_JSON));
+
+    List<CustodyRight> rights = client.fetchCustodyRights(REQUESTER, PERSONAL_CODE, MAX_AGE).data();
+
+    assertThat(rights).isNotEmpty();
+    verify(store).save(eq(PERSONAL_CODE), eq(CUSTODY), any(UUID.class), any());
+    server.verify();
+  }
+
+  @Test
   void storesTheRawResponseUnderTheSameMessageIdItSentToTheRegister() {
     var sentMessageId = new AtomicReference<String>();
     server

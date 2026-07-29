@@ -39,6 +39,12 @@ class MockPopulationRegisterClient implements PopulationRegisterClient {
   }
 
   @Override
+  public PopulationRegisterResult<List<CustodyRight>> fetchCustodyRights(
+      String requesterPersonalCode, String parentPersonalCode, Duration maxAge) {
+    return fetchCustodyRights(parentPersonalCode, maxAge);
+  }
+
+  @Override
   public PopulationRegisterResult<List<Guardian>> fetchCustodyRights(
       String requesterPersonalCode, String subjectPersonalCode) {
     log.info("Mock population register guardian lookup");

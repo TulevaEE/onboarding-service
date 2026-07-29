@@ -2,6 +2,9 @@ package ee.tuleva.onboarding.party;
 
 import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT;
 
+import ee.tuleva.onboarding.aml.AmlService;
+import ee.tuleva.onboarding.country.Country;
+import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +19,8 @@ public class ChildCoParentCaptureListener {
 
   private final CustodyVerificationService custodyVerificationService;
   private final ParentChildLinkRegistrationService parentChildLinkRegistrationService;
+  private final UserService userService;
+  private final AmlService amlService;
 
   @Async
   @TransactionalEventListener(phase = AFTER_COMMIT)
@@ -48,6 +53,28 @@ public class ChildCoParentCaptureListener {
           "Failed to capture pending co-parent: coParentCode={}, childCode={}",
           coParentPersonalCode,
           event.childPersonalCode(),
+          e);
+      return;
+    }
+    screenCoParent(coParentPersonalCode, event.childPersonalCode());
+  }
+
+  private void screenCoParent(String coParentPersonalCode, String childPersonalCode) {
+    try {
+      userService
+          .findByPersonalCode(coParentPersonalCode)
+          .ifPresentOrElse(
+              coParent -> amlService.addSanctionAndPepCheckIfMissing(coParent, new Country(null)),
+              () ->
+                  log.info(
+                      "Co-parent has no user account, skipping sanction/PEP screening: coParentCode={}, childCode={}",
+                      coParentPersonalCode,
+                      childPersonalCode));
+    } catch (RuntimeException e) {
+      log.error(
+          "Co-parent screening failed: coParentCode={}, childCode={}",
+          coParentPersonalCode,
+          childPersonalCode,
           e);
     }
   }

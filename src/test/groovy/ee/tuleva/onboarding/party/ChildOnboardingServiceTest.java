@@ -147,6 +147,8 @@ class ChildOnboardingServiceTest {
             CUSTODY_MESSAGE_ID);
     given(custodyVerificationService.verify(PARENT, CHILD, CUSTODY_MAX_AGE))
         .willReturn(new CustodyVerification(OK, child, evidence));
+    given(custodyVerificationService.fetchGuardianCitizenship(PARENT, CUSTODY_MAX_AGE))
+        .willReturn("EE");
 
     ChildOnboardingResult result = service.onboardChild(parent, CHILD);
 
@@ -156,9 +158,11 @@ class ChildOnboardingServiceTest {
     assertThat(result.dateOfBirth()).isEqualTo(LocalDate.of(2015, 6, 15));
     verify(parentChildLinkRegistrationService).register(PARENT, CHILD, "MARI", "MAASIKAS");
     verify(savingsFundOnboardingService).seedPersonOnboardingIfAbsent(CHILD);
-    var evidenceWithCitizenship = new LinkedHashMap<String, Object>(evidence);
-    evidenceWithCitizenship.put("citizenship", "EE");
-    verify(amlService).addCustodyRightCheck(CHILD, true, evidenceWithCitizenship);
+    var expectedEvidence = new LinkedHashMap<String, Object>(evidence);
+    expectedEvidence.put("citizenship", "EE");
+    expectedEvidence.put("guardianPersonalCode", PARENT);
+    expectedEvidence.put("guardianCitizenship", "EE");
+    verify(amlService).addCustodyRightCheck(CHILD, true, expectedEvidence);
     verify(applicationEventPublisher)
         .publishEvent(new TrackableEvent(parent, MINOR_CUSTODY_VERIFICATION, evidence));
   }
@@ -177,6 +181,41 @@ class ChildOnboardingServiceTest {
   }
 
   @Test
+  void verifiedCustody_screensTheGuardianForSanctionsAndPepUsingRegisterCitizenship() {
+    var evidence = Map.<String, Object>of("outcome", "OK", "childPersonalCode", CHILD);
+    given(custodyVerificationService.verify(PARENT, CHILD, CUSTODY_MAX_AGE))
+        .willReturn(new CustodyVerification(OK, child, evidence));
+    given(custodyVerificationService.fetchGuardianCitizenship(PARENT, CUSTODY_MAX_AGE))
+        .willReturn("RU");
+
+    service.onboardChild(parent, CHILD);
+
+    verify(amlService)
+        .addSanctionAndPepCheckIfMissing(
+            new PersonImpl(PARENT, "Jordan", "Valdma"), new Country("RU"));
+    var expectedEvidence = new LinkedHashMap<String, Object>(evidence);
+    expectedEvidence.put("citizenship", "EE");
+    expectedEvidence.put("guardianPersonalCode", PARENT);
+    expectedEvidence.put("guardianCitizenship", "RU");
+    verify(amlService).addCustodyRightCheck(CHILD, true, expectedEvidence);
+  }
+
+  @Test
+  void verifiedCustody_screensTheGuardianEvenWhenTheirCitizenshipIsUnknown() {
+    var evidence = Map.<String, Object>of("outcome", "OK", "childPersonalCode", CHILD);
+    given(custodyVerificationService.verify(PARENT, CHILD, CUSTODY_MAX_AGE))
+        .willReturn(new CustodyVerification(OK, child, evidence));
+    given(custodyVerificationService.fetchGuardianCitizenship(PARENT, CUSTODY_MAX_AGE))
+        .willReturn(null);
+
+    service.onboardChild(parent, CHILD);
+
+    verify(amlService)
+        .addSanctionAndPepCheckIfMissing(
+            new PersonImpl(PARENT, "Jordan", "Valdma"), new Country(null));
+  }
+
+  @Test
   void verifiedCustody_screensTheChildEvenWhenTheRegisterReportsNoCitizenship() {
     var childWithoutCitizenship =
         new PopulationRegisterPerson(
@@ -190,7 +229,9 @@ class ChildOnboardingServiceTest {
     verify(amlService)
         .addSanctionAndPepCheckIfMissing(
             new PersonImpl(CHILD, "MARI", "MAASIKAS"), new Country(null));
-    verify(amlService).addCustodyRightCheck(CHILD, true, evidence);
+    var expectedEvidence = new LinkedHashMap<String, Object>(evidence);
+    expectedEvidence.put("guardianPersonalCode", PARENT);
+    verify(amlService).addCustodyRightCheck(CHILD, true, expectedEvidence);
   }
 
   @Test

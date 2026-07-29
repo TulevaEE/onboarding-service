@@ -31,6 +31,17 @@ public class ParentChildLinkService {
             parentPersonalCode, childPersonalCode, ACTIVE, today());
   }
 
+  // AML screening scope, not an authorization check: suspended and PENDING_KYC links count,
+  // because suspension does not cleanse the guardian-risk association (mirrors check_24).
+  public List<String> findGuardianCodes(String childPersonalCode) {
+    return parentChildLinkRepository
+        .findByChildPersonalCodeAndValidUntilAfter(childPersonalCode, today())
+        .stream()
+        .map(ParentChildLink::getParentPersonalCode)
+        .distinct()
+        .toList();
+  }
+
   public List<String> findPendingChildCodes(String parentPersonalCode) {
     return parentChildLinkRepository
         .findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(

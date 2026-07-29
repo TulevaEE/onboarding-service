@@ -1,10 +1,18 @@
 package ee.tuleva.onboarding.party;
 
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import ee.tuleva.onboarding.aml.AmlService;
+import ee.tuleva.onboarding.country.Country;
+import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -21,6 +29,8 @@ class ChildCoParentCaptureListenerTest {
 
   @Mock private CustodyVerificationService custodyVerificationService;
   @Mock private ParentChildLinkRegistrationService parentChildLinkRegistrationService;
+  @Mock private UserService userService;
+  @Mock private AmlService amlService;
 
   @InjectMocks private ChildCoParentCaptureListener listener;
 
@@ -28,6 +38,47 @@ class ChildCoParentCaptureListenerTest {
   void capturesPendingLinksForTheOtherGuardians() {
     given(custodyVerificationService.findGuardiansWithAssetManagement(CHILD, PARENT))
         .willReturn(List.of(CO_PARENT));
+    given(userService.findByPersonalCode(CO_PARENT)).willReturn(Optional.empty());
+
+    listener.onChildOnboarded(new ChildOnboardedEvent(PARENT, CHILD, "Mari", "Maasikas"));
+
+    verify(parentChildLinkRegistrationService)
+        .registerPending(CO_PARENT, CHILD, "Mari", "Maasikas");
+  }
+
+  @Test
+  void screensTheCapturedCoParentForSanctionsAndPep() {
+    User coParent = sampleUserNonMember().personalCode(CO_PARENT).build();
+    given(custodyVerificationService.findGuardiansWithAssetManagement(CHILD, PARENT))
+        .willReturn(List.of(CO_PARENT));
+    given(userService.findByPersonalCode(CO_PARENT)).willReturn(Optional.of(coParent));
+
+    listener.onChildOnboarded(new ChildOnboardedEvent(PARENT, CHILD, "Mari", "Maasikas"));
+
+    verify(amlService).addSanctionAndPepCheckIfMissing(coParent, new Country(null));
+  }
+
+  @Test
+  void skipsScreeningWhenTheCoParentHasNoUserAccount() {
+    given(custodyVerificationService.findGuardiansWithAssetManagement(CHILD, PARENT))
+        .willReturn(List.of(CO_PARENT));
+    given(userService.findByPersonalCode(CO_PARENT)).willReturn(Optional.empty());
+
+    listener.onChildOnboarded(new ChildOnboardedEvent(PARENT, CHILD, "Mari", "Maasikas"));
+
+    verify(parentChildLinkRegistrationService)
+        .registerPending(CO_PARENT, CHILD, "Mari", "Maasikas");
+    verify(amlService, never()).addSanctionAndPepCheckIfMissing(any(), any());
+  }
+
+  @Test
+  void screeningFailureDoesNotUndoTheCapturedLink() {
+    User coParent = sampleUserNonMember().personalCode(CO_PARENT).build();
+    given(custodyVerificationService.findGuardiansWithAssetManagement(CHILD, PARENT))
+        .willReturn(List.of(CO_PARENT));
+    given(userService.findByPersonalCode(CO_PARENT)).willReturn(Optional.of(coParent));
+    given(amlService.addSanctionAndPepCheckIfMissing(coParent, new Country(null)))
+        .willThrow(new RuntimeException("screening unavailable"));
 
     listener.onChildOnboarded(new ChildOnboardedEvent(PARENT, CHILD, "Mari", "Maasikas"));
 
@@ -51,10 +102,12 @@ class ChildCoParentCaptureListenerTest {
         .willReturn(List.of(CO_PARENT, OTHER_CO_PARENT));
     given(parentChildLinkRegistrationService.registerPending(CO_PARENT, CHILD, "Mari", "Maasikas"))
         .willThrow(new RuntimeException("constraint violation"));
+    given(userService.findByPersonalCode(OTHER_CO_PARENT)).willReturn(Optional.empty());
 
     listener.onChildOnboarded(new ChildOnboardedEvent(PARENT, CHILD, "Mari", "Maasikas"));
 
     verify(parentChildLinkRegistrationService)
         .registerPending(OTHER_CO_PARENT, CHILD, "Mari", "Maasikas");
+    verify(userService, never()).findByPersonalCode(CO_PARENT);
   }
 }

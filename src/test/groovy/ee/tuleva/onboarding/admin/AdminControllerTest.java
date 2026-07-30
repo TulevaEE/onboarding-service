@@ -721,6 +721,22 @@ class AdminControllerTest {
   }
 
   @Test
+  void approveRedemptionReview_withBlankApprover_returnsBadRequest() throws Exception {
+    var requestId = UUID.randomUUID();
+
+    mockMvc
+        .perform(
+            post("/admin/redemptions/{id}/approve-review", requestId)
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("approvedBy", " ")
+                .param("reason", "reviewed"))
+        .andExpect(status().isBadRequest());
+
+    verify(redemptionReviewService, never()).approve(any(), any(), any());
+  }
+
+  @Test
   void approveRedemptionReview_withInvalidToken_returnsUnauthorized() throws Exception {
     var requestId = UUID.randomUUID();
 

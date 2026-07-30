@@ -51,14 +51,22 @@ public class RedemptionVerificationService {
       log.info(
           "Redemption requires review: id={}, party={}", request.getId(), request.getPartyId());
       redemptionStatusService.changeStatus(request.getId(), IN_REVIEW);
-      notificationService.sendMessage(
-          "AML: redemption held for review: id=%s, amount=%s EUR"
-              .formatted(request.getId(), request.getRequestedAmount().toPlainString()),
-          AML);
+      notifyAmlChannel(request);
     } else {
       log.info(
           "Redemption verification passed: id={}, party={}", request.getId(), request.getPartyId());
       redemptionStatusService.changeStatus(request.getId(), VERIFIED);
+    }
+  }
+
+  private void notifyAmlChannel(RedemptionRequest request) {
+    try {
+      notificationService.sendMessage(
+          "AML: redemption held for review: id=%s, amount=%s EUR"
+              .formatted(request.getId(), request.getRequestedAmount().toPlainString()),
+          AML);
+    } catch (RuntimeException e) {
+      log.error("Failed to notify AML channel about held redemption: id={}", request.getId(), e);
     }
   }
 

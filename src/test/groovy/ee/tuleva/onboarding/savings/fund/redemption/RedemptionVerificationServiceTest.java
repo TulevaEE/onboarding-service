@@ -8,6 +8,8 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Sta
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
@@ -93,6 +95,32 @@ class RedemptionVerificationServiceTest {
     verify(notificationService)
         .sendMessage(
             "AML: redemption held for review: id=" + requestId + ", amount=10.00 EUR", AML);
+  }
+
+  @Test
+  void process_personRequest_holdsRedemptionEvenWhenNotificationFails() {
+    var userId = 1L;
+    var requestId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .userId(userId)
+            .partyId(new PartyId(PERSON, "38812121215"))
+            .build();
+    var user = sampleUser().id(userId).build();
+    var country = new Country("EE");
+
+    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
+    given(kycSurveyService.getCountry(userId)).willReturn(Optional.of(country));
+    given(amlService.isSanctionAndPepClear(user, country)).willReturn(false);
+    willThrow(new IllegalStateException("Slack unavailable"))
+        .given(notificationService)
+        .sendMessage(anyString(), any());
+
+    service.process(request);
+
+    verify(redemptionStatusService).changeStatus(requestId, IN_REVIEW);
+    verify(redemptionStatusService, never()).changeStatus(requestId, VERIFIED);
   }
 
   @Test

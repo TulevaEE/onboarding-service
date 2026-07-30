@@ -183,25 +183,27 @@ class CustodyVerificationServiceTest {
   }
 
   @Test
-  void usesTheRequesterForRegisterCallsWhenVerifyingOnBehalfOfTheParent() {
+  void verifyFresh_usesTheRequesterAndBypassesTheResponseStore() {
     var ops = "38001010002";
-    given(populationRegisterClient.fetchCustodyRights(ops, PARENT, MAX_AGE))
+    given(populationRegisterClient.fetchCustodyRightsFresh(ops, PARENT))
         .willReturn(
             new PopulationRegisterResult<>(
                 List.of(new CustodyRight(CHILD, PROPERTY_CUSTODY, VALID, ALIVE)),
                 CUSTODY_MESSAGE_ID));
-    given(populationRegisterClient.fetchPerson(ops, CHILD, MAX_AGE))
+    given(populationRegisterClient.fetchPersonFresh(ops, CHILD))
         .willReturn(new PopulationRegisterResult<>(aliveChild, CHILD_MESSAGE_ID));
 
-    CustodyVerification result = service.verify(ops, PARENT, CHILD, MAX_AGE);
+    CustodyVerification result = service.verifyFresh(ops, PARENT, CHILD);
 
     assertThat(result.isVerified()).isTrue();
     assertThat(result.child()).isEqualTo(aliveChild);
+    verify(populationRegisterClient, never()).fetchCustodyRights(any(), any(Duration.class));
+    verify(populationRegisterClient, never()).fetchPerson(any(), any(), any());
   }
 
   @Test
   void listsDistinctChildrenWhoseCustodyGrantsAssetManagement() {
-    givenOwnCustodyRights(
+    givenCustodyRights(
         new CustodyRight(CHILD, PERSONAL_CUSTODY, VALID, ALIVE),
         new CustodyRight(CHILD, PROPERTY_CUSTODY, VALID, ALIVE),
         new CustodyRight(CHILD, PROPERTY_CUSTODY, VALID, ALIVE),
@@ -216,7 +218,7 @@ class CustodyVerificationServiceTest {
 
   @Test
   void dedupesEligibleChildrenByPersonalCodeKeepingTheFirstNames() {
-    givenOwnCustodyRights(
+    givenCustodyRights(
         new CustodyRight(CHILD, PROPERTY_CUSTODY, VALID, ALIVE, "Mari", "Maasikas"),
         new CustodyRight(CHILD, PROPERTY_CUSTODY, VALID, ALIVE, null, null));
 
@@ -259,11 +261,6 @@ class CustodyVerificationServiceTest {
   }
 
   private void givenCustodyRights(CustodyRight... rights) {
-    given(populationRegisterClient.fetchCustodyRights(PARENT, PARENT, MAX_AGE))
-        .willReturn(new PopulationRegisterResult<>(List.of(rights), CUSTODY_MESSAGE_ID));
-  }
-
-  private void givenOwnCustodyRights(CustodyRight... rights) {
     given(populationRegisterClient.fetchCustodyRights(PARENT, MAX_AGE))
         .willReturn(new PopulationRegisterResult<>(List.of(rights), CUSTODY_MESSAGE_ID));
   }

@@ -35,14 +35,14 @@ public record ChildAmlBackfillResult(
           childPersonalCode, outcome, null, null, ScreeningStatus.NOT_ATTEMPTED, hasUser, null);
     }
 
-    static ChildResult error(String childPersonalCode, RuntimeException e) {
+    static ChildResult error(String childPersonalCode, boolean hasUser, RuntimeException e) {
       return new ChildResult(
           childPersonalCode,
           Outcome.ERROR,
           null,
           null,
           ScreeningStatus.NOT_ATTEMPTED,
-          false,
+          hasUser,
           e.getClass().getSimpleName() + ": " + e.getMessage());
     }
   }

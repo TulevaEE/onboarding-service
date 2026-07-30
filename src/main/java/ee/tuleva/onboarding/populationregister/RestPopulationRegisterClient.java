@@ -67,20 +67,38 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
   }
 
   @Override
-  public PopulationRegisterResult<List<CustodyRight>> fetchCustodyRights(
-      String requesterPersonalCode, Duration maxAge) {
-    return fetchCustodyRights(requesterPersonalCode, requesterPersonalCode, maxAge);
+  public PopulationRegisterResult<PopulationRegisterPerson> fetchPersonFresh(
+      String requesterPersonalCode, String personalCode) {
+    // Requester ≠ subject: bypass the response store both ways, so this call always produces its
+    // own X-Road audit entry and its response can never be served to another requester later.
+    return queryFresh(
+        PersonQueryRequest.forIdentity(personalCode),
+        requesterPersonalCode,
+        IDENTITY,
+        PersonMapper::toPerson);
   }
 
   @Override
   public PopulationRegisterResult<List<CustodyRight>> fetchCustodyRights(
-      String requesterPersonalCode, String parentPersonalCode, Duration maxAge) {
+      String requesterPersonalCode, Duration maxAge) {
     return query(
-        PersonQueryRequest.forCustody(parentPersonalCode),
+        PersonQueryRequest.forCustody(requesterPersonalCode),
         requesterPersonalCode,
-        parentPersonalCode,
+        requesterPersonalCode,
         CUSTODY,
         maxAge,
+        PersonMapper::toCustodyRights);
+  }
+
+  @Override
+  public PopulationRegisterResult<List<CustodyRight>> fetchCustodyRightsFresh(
+      String requesterPersonalCode, String parentPersonalCode) {
+    // Requester ≠ subject: bypass the response store both ways, so this call always produces its
+    // own X-Road audit entry and its response can never be served to another requester later.
+    return queryFresh(
+        PersonQueryRequest.forCustody(parentPersonalCode),
+        requesterPersonalCode,
+        CUSTODY,
         PersonMapper::toCustodyRights);
   }
 

@@ -13,7 +13,6 @@ import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.ScreeningStatus.
 import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.ScreeningStatus.SCREENED;
 import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.ScreeningStatus.SCREENING_FAILED;
 import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.ScreeningStatus.SKIPPED;
-import static ee.tuleva.onboarding.party.ChildAmlBackfillService.FRESH;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.CHILD_NOT_ALIVE;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.NO_CUSTODY;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.OK;
@@ -129,7 +128,7 @@ class ChildAmlBackfillServiceTest {
   void verifiedCustody_writesCustodyCheckWithCitizenshipAndScreens() {
     givenLinks(link(PARENT, CHILD, LEGAL_REPRESENTATIVE));
     var evidence = Map.<String, Object>of("outcome", "OK", "childPersonalCode", CHILD);
-    given(custodyVerificationService.verify(OPS, PARENT, CHILD, FRESH))
+    given(custodyVerificationService.verifyFresh(OPS, PARENT, CHILD))
         .willReturn(new CustodyVerification(OK, child, evidence));
     given(userRepository.findByPersonalCode(CHILD))
         .willReturn(Optional.of(User.builder().personalCode(CHILD).build()));
@@ -171,7 +170,7 @@ class ChildAmlBackfillServiceTest {
             amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
                 eq(CHILD), eq(SANCTION), any(Instant.class)))
         .willReturn(false, true);
-    given(custodyVerificationService.verify(OPS, PARENT, CHILD, FRESH))
+    given(custodyVerificationService.verifyFresh(OPS, PARENT, CHILD))
         .willReturn(new CustodyVerification(OK, child, Map.of("outcome", "OK")));
 
     ChildAmlBackfillResult result = service.backfill(OPS, false);
@@ -189,7 +188,7 @@ class ChildAmlBackfillServiceTest {
     givenLinks(link(PARENT, CHILD, LEGAL_REPRESENTATIVE));
     given(amlCheckRepository.findAllByPersonalCodeAndType(CHILD, CUSTODY_RIGHT))
         .willReturn(List.of(custodyCheck(Map.of("outcome", "OK"))));
-    given(custodyVerificationService.verify(OPS, PARENT, CHILD, FRESH))
+    given(custodyVerificationService.verifyFresh(OPS, PARENT, CHILD))
         .willReturn(new CustodyVerification(OK, child, Map.of("outcome", "OK")));
     givenSanctionRowExists(true);
 
@@ -202,9 +201,9 @@ class ChildAmlBackfillServiceTest {
   void unverifiedCustody_writesFailedCheckStillScreensAndDoesNotTouchTheLink() {
     givenLinks(link(PARENT, CHILD, LEGAL_REPRESENTATIVE));
     var evidence = Map.<String, Object>of("outcome", "NO_CUSTODY", "childPersonalCode", CHILD);
-    given(custodyVerificationService.verify(OPS, PARENT, CHILD, FRESH))
+    given(custodyVerificationService.verifyFresh(OPS, PARENT, CHILD))
         .willReturn(CustodyVerification.notVerified(NO_CUSTODY, evidence));
-    given(populationRegisterClient.fetchPerson(OPS, CHILD, FRESH))
+    given(populationRegisterClient.fetchPersonFresh(OPS, CHILD))
         .willReturn(new PopulationRegisterResult<>(child, UUID.randomUUID()));
     givenSanctionRowExists(true);
 
@@ -223,14 +222,14 @@ class ChildAmlBackfillServiceTest {
   @Test
   void childNotAlive_skipsScreening() {
     givenLinks(link(PARENT, CHILD, LEGAL_REPRESENTATIVE));
-    given(custodyVerificationService.verify(OPS, PARENT, CHILD, FRESH))
+    given(custodyVerificationService.verifyFresh(OPS, PARENT, CHILD))
         .willReturn(
             CustodyVerification.notVerified(CHILD_NOT_ALIVE, Map.of("outcome", "CHILD_NOT_ALIVE")));
 
     ChildAmlBackfillResult result = service.backfill(OPS, false);
 
     verify(amlService, never()).addSanctionAndPepCheckIfMissing(any(), any());
-    verify(populationRegisterClient, never()).fetchPerson(any(), any(), any());
+    verify(populationRegisterClient, never()).fetchPersonFresh(any(), any());
     assertThat(result.children()).extracting(ChildResult::screeningStatus).containsExactly(SKIPPED);
   }
 
@@ -238,9 +237,9 @@ class ChildAmlBackfillServiceTest {
   void triesEveryParentUntilOneVerifiesAndWritesOnlyThatCheck() {
     givenLinks(
         link(CO_PARENT, CHILD, LEGAL_REPRESENTATIVE), link(PARENT, CHILD, LEGAL_REPRESENTATIVE));
-    given(custodyVerificationService.verify(OPS, CO_PARENT, CHILD, FRESH))
+    given(custodyVerificationService.verifyFresh(OPS, CO_PARENT, CHILD))
         .willReturn(CustodyVerification.notVerified(NO_CUSTODY, Map.of("outcome", "NO_CUSTODY")));
-    given(custodyVerificationService.verify(OPS, PARENT, CHILD, FRESH))
+    given(custodyVerificationService.verifyFresh(OPS, PARENT, CHILD))
         .willReturn(new CustodyVerification(OK, child, Map.of("outcome", "OK")));
     givenSanctionRowExists(true);
 
@@ -254,7 +253,7 @@ class ChildAmlBackfillServiceTest {
   @Test
   void guardianOnlyChild_isScreenedButGetsNoCustodyCheck() {
     givenLinks(link(PARENT, CHILD, GUARDIAN));
-    given(populationRegisterClient.fetchPerson(OPS, CHILD, FRESH))
+    given(populationRegisterClient.fetchPersonFresh(OPS, CHILD))
         .willReturn(new PopulationRegisterResult<>(child, UUID.randomUUID()));
     givenSanctionRowExists(true);
 
@@ -285,9 +284,9 @@ class ChildAmlBackfillServiceTest {
   void oneChildFailing_doesNotAbortTheOthers() {
     givenLinks(
         link(PARENT, OTHER_CHILD, LEGAL_REPRESENTATIVE), link(PARENT, CHILD, LEGAL_REPRESENTATIVE));
-    given(custodyVerificationService.verify(OPS, PARENT, OTHER_CHILD, FRESH))
+    given(custodyVerificationService.verifyFresh(OPS, PARENT, OTHER_CHILD))
         .willThrow(new RuntimeException("register down"));
-    given(custodyVerificationService.verify(OPS, PARENT, CHILD, FRESH))
+    given(custodyVerificationService.verifyFresh(OPS, PARENT, CHILD))
         .willReturn(new CustodyVerification(OK, child, Map.of("outcome", "OK")));
     givenSanctionRowExists(true);
 
@@ -302,7 +301,7 @@ class ChildAmlBackfillServiceTest {
   @Test
   void screeningThatWritesNoSanctionRow_isReportedAsFailed() {
     givenLinks(link(PARENT, CHILD, LEGAL_REPRESENTATIVE));
-    given(custodyVerificationService.verify(OPS, PARENT, CHILD, FRESH))
+    given(custodyVerificationService.verifyFresh(OPS, PARENT, CHILD))
         .willReturn(new CustodyVerification(OK, child, Map.of("outcome", "OK")));
     givenSanctionRowExists(false);
 
@@ -316,7 +315,7 @@ class ChildAmlBackfillServiceTest {
   @Test
   void personalCodesWithWhitespace_areStrippedBeforeLookupsAndRegisterCalls() {
     givenLinks(link(" " + PARENT, CHILD + " ", LEGAL_REPRESENTATIVE));
-    given(custodyVerificationService.verify(OPS, PARENT, CHILD, FRESH))
+    given(custodyVerificationService.verifyFresh(OPS, PARENT, CHILD))
         .willReturn(new CustodyVerification(OK, child, Map.of("outcome", "OK")));
     givenSanctionRowExists(true);
 

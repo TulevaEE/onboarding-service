@@ -39,9 +39,15 @@ class MockPopulationRegisterClient implements PopulationRegisterClient {
   }
 
   @Override
-  public PopulationRegisterResult<List<CustodyRight>> fetchCustodyRights(
-      String requesterPersonalCode, String parentPersonalCode, Duration maxAge) {
-    return fetchCustodyRights(parentPersonalCode, maxAge);
+  public PopulationRegisterResult<PopulationRegisterPerson> fetchPersonFresh(
+      String requesterPersonalCode, String personalCode) {
+    return fetchPerson(requesterPersonalCode, personalCode, Duration.ZERO);
+  }
+
+  @Override
+  public PopulationRegisterResult<List<CustodyRight>> fetchCustodyRightsFresh(
+      String requesterPersonalCode, String parentPersonalCode) {
+    return fetchCustodyRights(parentPersonalCode, Duration.ZERO);
   }
 
   @Override

@@ -29,7 +29,6 @@ import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
 import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -44,10 +43,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @NullMarked
 public class ChildAmlBackfillService {
-
-  // Always hit the register: reusing a response another requester fetched would skip the
-  // ops-stamped X-Road audit entry this backfill exists to create.
-  static final Duration FRESH = Duration.ZERO;
 
   private final ParentChildLinkRepository parentChildLinkRepository;
   private final CustodyVerificationService custodyVerificationService;
@@ -94,8 +89,9 @@ public class ChildAmlBackfillService {
       List<ParentChildLink> links,
       LocalDate today,
       boolean dryRun) {
+    boolean hasUser = false;
     try {
-      boolean hasUser = userRepository.findByPersonalCode(childCode).isPresent();
+      hasUser = userRepository.findByPersonalCode(childCode).isPresent();
       if (hasCitizenshipOnFile(childCode) && hasBeenScreened(childCode)) {
         return ChildResult.skipped(childCode, ALREADY_BACKFILLED, hasUser);
       }
@@ -123,7 +119,7 @@ public class ChildAmlBackfillService {
           : reverify(requesterPersonalCode, childCode, legalRepresentatives, hasUser);
     } catch (RuntimeException e) {
       log.error("Child AML backfill failed for child: childCode={}", childCode, e);
-      return ChildResult.error(childCode, e);
+      return ChildResult.error(childCode, hasUser, e);
     }
   }
 
@@ -140,8 +136,7 @@ public class ChildAmlBackfillService {
       screeningStatus = SKIPPED;
     } else {
       if (child == null) {
-        child =
-            populationRegisterClient.fetchPerson(requesterPersonalCode, childCode, FRESH).data();
+        child = populationRegisterClient.fetchPersonFresh(requesterPersonalCode, childCode).data();
       }
       screeningStatus = screen(child);
     }
@@ -158,14 +153,14 @@ public class ChildAmlBackfillService {
   private CustodyVerification verifyAgainstAnyParent(
       String requesterPersonalCode, String childCode, List<String> parentCodes) {
     CustodyVerification verification =
-        custodyVerificationService.verify(
-            requesterPersonalCode, parentCodes.getFirst(), childCode, FRESH);
+        custodyVerificationService.verifyFresh(
+            requesterPersonalCode, parentCodes.getFirst(), childCode);
     for (String parentCode : parentCodes.subList(1, parentCodes.size())) {
       if (verification.isVerified()) {
         break;
       }
       verification =
-          custodyVerificationService.verify(requesterPersonalCode, parentCode, childCode, FRESH);
+          custodyVerificationService.verifyFresh(requesterPersonalCode, parentCode, childCode);
     }
     return verification;
   }
@@ -173,7 +168,7 @@ public class ChildAmlBackfillService {
   private ChildResult screenGuardianWard(
       String requesterPersonalCode, String childCode, boolean hasUser) {
     PopulationRegisterPerson child =
-        populationRegisterClient.fetchPerson(requesterPersonalCode, childCode, FRESH).data();
+        populationRegisterClient.fetchPersonFresh(requesterPersonalCode, childCode).data();
     return new ChildResult(
         childCode, GUARDIAN_LINK, null, child.citizenship(), screen(child), hasUser, null);
   }

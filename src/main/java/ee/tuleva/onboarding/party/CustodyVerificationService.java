@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -69,19 +70,30 @@ public class CustodyVerificationService {
 
   public CustodyVerification verify(
       String parentPersonalCode, String childPersonalCode, Duration maxAge) {
-    return verify(parentPersonalCode, parentPersonalCode, childPersonalCode, maxAge);
+    return verify(
+        populationRegisterClient.fetchCustodyRights(parentPersonalCode, maxAge),
+        parentPersonalCode,
+        childPersonalCode,
+        () -> populationRegisterClient.fetchPerson(parentPersonalCode, childPersonalCode, maxAge));
   }
 
-  // The requester is stamped into the register's X-Road audit log; it is the parent in the live
-  // onboarding flow, but an ops person when re-verifying on the parent's behalf (AML backfill).
-  public CustodyVerification verify(
-      String requesterPersonalCode,
+  // Re-verification on the parent's behalf (AML backfill): the ops requester is stamped into the
+  // register's X-Road audit log, and the response store is bypassed both ways so the live flow
+  // can never be served a response another requester fetched.
+  public CustodyVerification verifyFresh(
+      String requesterPersonalCode, String parentPersonalCode, String childPersonalCode) {
+    return verify(
+        populationRegisterClient.fetchCustodyRightsFresh(requesterPersonalCode, parentPersonalCode),
+        parentPersonalCode,
+        childPersonalCode,
+        () -> populationRegisterClient.fetchPersonFresh(requesterPersonalCode, childPersonalCode));
+  }
+
+  private CustodyVerification verify(
+      PopulationRegisterResult<List<CustodyRight>> custodyResult,
       String parentPersonalCode,
       String childPersonalCode,
-      Duration maxAge) {
-    PopulationRegisterResult<List<CustodyRight>> custodyResult =
-        populationRegisterClient.fetchCustodyRights(
-            requesterPersonalCode, parentPersonalCode, maxAge);
+      Supplier<PopulationRegisterResult<PopulationRegisterPerson>> childFetcher) {
     UUID custodyMessageId = custodyResult.messageId();
 
     // The population register returns personal (H10) and property (H20) custody as
@@ -119,8 +131,7 @@ public class CustodyVerificationService {
           evidence(NOT_ASSET_MANAGEMENT, childPersonalCode, custodyMessageId));
     }
 
-    PopulationRegisterResult<PopulationRegisterPerson> childResult =
-        populationRegisterClient.fetchPerson(requesterPersonalCode, childPersonalCode, maxAge);
+    PopulationRegisterResult<PopulationRegisterPerson> childResult = childFetcher.get();
     PopulationRegisterPerson child = childResult.data();
     if (!child.isAlive()) {
       return CustodyVerification.notVerified(

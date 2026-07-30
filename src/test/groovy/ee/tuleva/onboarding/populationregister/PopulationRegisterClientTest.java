@@ -171,7 +171,7 @@ class PopulationRegisterClientTest {
   }
 
   @Test
-  void identifiesTheRequesterSeparatelyFromTheParentWhenFetchingCustodyRights() {
+  void fetchCustodyRightsFresh_identifiesTheRequesterAndBypassesTheStore() {
     server
         .expect(requestTo(ISIKUD_URL))
         .andExpect(header("X-Road-UserId", REQUESTER))
@@ -179,10 +179,27 @@ class PopulationRegisterClientTest {
         .andExpect(jsonPath("$.andmevaljad.hooldusoigused").isNotEmpty())
         .andRespond(withSuccess(custodyResponse(), APPLICATION_JSON));
 
-    List<CustodyRight> rights = client.fetchCustodyRights(REQUESTER, PERSONAL_CODE, MAX_AGE).data();
+    List<CustodyRight> rights = client.fetchCustodyRightsFresh(REQUESTER, PERSONAL_CODE).data();
 
     assertThat(rights).isNotEmpty();
-    verify(store).save(eq(PERSONAL_CODE), eq(CUSTODY), any(UUID.class), any());
+    verify(store, never()).findFresh(any(), any(), any());
+    verify(store, never()).save(any(), any(), any(), any());
+    server.verify();
+  }
+
+  @Test
+  void fetchPersonFresh_identifiesTheRequesterAndBypassesTheStore() {
+    server
+        .expect(requestTo(ISIKUD_URL))
+        .andExpect(header("X-Road-UserId", REQUESTER))
+        .andExpect(jsonPath("$.isikukoodid[0]").value(PERSONAL_CODE))
+        .andRespond(withSuccess(personResponse(), APPLICATION_JSON));
+
+    PopulationRegisterPerson person = client.fetchPersonFresh(REQUESTER, PERSONAL_CODE).data();
+
+    assertThat(person.personalCode()).isEqualTo(PERSONAL_CODE);
+    verify(store, never()).findFresh(any(), any(), any());
+    verify(store, never()).save(any(), any(), any(), any());
     server.verify();
   }
 

@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.kyc.survey;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.KYC_CHECK;
+import static ee.tuleva.onboarding.aml.AmlCheckType.POLITICALLY_EXPOSED_PERSON_AUTO;
+import static ee.tuleva.onboarding.aml.AmlCheckType.SANCTION;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
@@ -8,6 +10,8 @@ import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -17,15 +21,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
+import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
+import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.auth.role.RoleType;
 import ee.tuleva.onboarding.kyc.BeforeKycCheckedEvent;
 import ee.tuleva.onboarding.kyc.KycCheckPerformedEvent;
 import ee.tuleva.onboarding.kyc.TestKycChecker;
 import ee.tuleva.onboarding.kyc.TestKycCheckerConfiguration;
+import ee.tuleva.onboarding.party.ParentChildLink;
+import ee.tuleva.onboarding.party.ParentChildLinkRepository;
+import ee.tuleva.onboarding.party.RepresentationType;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,10 +47,12 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -129,8 +141,13 @@ class ChildRoleAwareKycIntegrationTest {
   @Autowired private KycSurveyRepository kycSurveyRepository;
   @Autowired private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Autowired private AmlCheckRepository amlCheckRepository;
+  @Autowired private ParentChildLinkRepository parentChildLinkRepository;
   @Autowired private ApplicationEvents applicationEvents;
   @Autowired private TestKycChecker testKycChecker;
+
+  @MockitoBean private PepAndSanctionCheckService pepAndSanctionCheckService;
+
+  private static final JsonMapper objectMapper = JsonMapper.builder().build();
 
   private User parent;
   private User child;
@@ -139,6 +156,9 @@ class ChildRoleAwareKycIntegrationTest {
   @BeforeEach
   void setUp() {
     testKycChecker.reset();
+    given(pepAndSanctionCheckService.match(any(), any()))
+        .willReturn(
+            new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
     parent =
         userRepository.save(
             sampleUserNonMember()
@@ -158,6 +178,13 @@ class ChildRoleAwareKycIntegrationTest {
                 .email("child@example.com")
                 .phoneNumber("+37255500000")
                 .build());
+    parentChildLinkRepository.save(
+        ParentChildLink.builder()
+            .parentPersonalCode(PARENT_CODE)
+            .childPersonalCode(CHILD_CODE)
+            .relationshipType(RepresentationType.LEGAL_REPRESENTATIVE)
+            .validUntil(LocalDate.now().plusYears(2))
+            .build());
 
     parentActingAsChild =
         authenticatedAs(parent, new Role(RoleType.PERSON, CHILD_CODE, "Child Person"));
@@ -183,13 +210,13 @@ class ChildRoleAwareKycIntegrationTest {
   }
 
   @Test
-  void parentActingAsChild_screensTheChildNotTheParent() throws Exception {
+  void parentActingAsChild_screensTheChildAndTheLinkedGuardian() throws Exception {
     submitOnboardingSurvey(parentActingAsChild);
 
     var beforeKycEvents = applicationEvents.stream(BeforeKycCheckedEvent.class).toList();
     assertThat(beforeKycEvents).hasSize(1);
     assertThat(beforeKycEvents.getFirst().person().getPersonalCode())
-        .as("sanction/PEP screening is aimed at the child")
+        .as("the KYC check itself is aimed at the child")
         .isEqualTo(CHILD_CODE);
 
     var kycCheckEvents = applicationEvents.stream(KycCheckPerformedEvent.class).toList();
@@ -198,10 +225,12 @@ class ChildRoleAwareKycIntegrationTest {
 
     assertThat(amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(CHILD_CODE, aYearAgo()))
         .extracting(AmlCheck::getType)
-        .contains(KYC_CHECK);
+        .contains(KYC_CHECK, SANCTION, POLITICALLY_EXPOSED_PERSON_AUTO);
     assertThat(amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(PARENT_CODE, aYearAgo()))
-        .as("no AML checks are written against the parent")
-        .isEmpty();
+        .as("the linked guardian is sanction/PEP screened before the child's risk assessment")
+        .extracting(AmlCheck::getType)
+        .contains(SANCTION, POLITICALLY_EXPOSED_PERSON_AUTO)
+        .doesNotContain(KYC_CHECK);
   }
 
   @Test

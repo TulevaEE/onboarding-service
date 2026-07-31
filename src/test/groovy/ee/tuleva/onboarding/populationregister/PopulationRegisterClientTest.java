@@ -95,7 +95,13 @@ class PopulationRegisterClientTest {
     assertThat(person)
         .isEqualTo(
             new PopulationRegisterPerson(
-                PERSONAL_CODE, "Mari", "Maasikas", LocalDate.of(1985, 3, 15), ALIVE, "EE"));
+                PERSONAL_CODE,
+                "Mari",
+                "Maasikas",
+                LocalDate.of(1985, 3, 15),
+                ALIVE,
+                "EE",
+                List.of("EE")));
     assertThat(person.isAlive()).isTrue();
     server.verify();
   }
@@ -643,5 +649,48 @@ class PopulationRegisterClientTest {
           jsonMapper,
           clock);
     }
+  }
+
+  @Test
+  void fetchPersonRequestsAndMapsEveryValidCitizenship() {
+    server
+        .expect(requestTo(ISIKUD_URL))
+        .andExpect(jsonPath("$.andmevaljad.kodakondsused").value(hasItem("Riik")))
+        .andRespond(
+            withSuccess(
+                """
+                [
+                  {
+                    "isikukood": "48503150000",
+                    "eesnimi": "MARI",
+                    "perekonnanimi": "MAASIKAS",
+                    "isikuStaatus": { "elemendiKood": "E", "nimetus": "ELUS" },
+                    "pohiKodakondsus": { "riik": { "elemendiKood": "233", "nimetus": "EESTI" } },
+                    "kodakondsused": [
+                      { "riik": { "elemendiKood": "233", "nimetus": "EESTI" } },
+                      { "riik": { "elemendiKood": "643", "nimetus": "VENEMAA" } }
+                    ]
+                  }
+                ]
+                """,
+                APPLICATION_JSON));
+
+    PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE).data();
+
+    assertThat(person.citizenship()).isEqualTo("EE");
+    assertThat(person.citizenships()).containsExactly("EE", "RU");
+    server.verify();
+  }
+
+  @Test
+  void keepsTheMainCitizenshipWhenTheRegisterListsNoValidOnes() {
+    server
+        .expect(requestTo(ISIKUD_URL))
+        .andRespond(withSuccess(personResponse(), APPLICATION_JSON));
+
+    PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE).data();
+
+    assertThat(person.citizenships()).containsExactly("EE");
+    server.verify();
   }
 }

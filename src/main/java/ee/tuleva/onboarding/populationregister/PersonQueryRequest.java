@@ -37,7 +37,9 @@ record PersonQueryRequest(
               "IsikuStaatus",
               "PohiKodakondsus"),
           EXCLUDED,
-          EXCLUDED,
+          // Screening scores against every citizenship, so a dual citizen is matched against
+          // both. The register returns only citizenships in a valid status.
+          List.of("Riik"),
           EXCLUDED,
           EXCLUDED,
           EXCLUDED,

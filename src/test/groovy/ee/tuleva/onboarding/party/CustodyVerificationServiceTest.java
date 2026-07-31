@@ -54,11 +54,23 @@ class CustodyVerificationServiceTest {
 
   private final PopulationRegisterPerson aliveChild =
       new PopulationRegisterPerson(
-          CHILD, "MARI", "MAASIKAS", LocalDate.of(2015, 6, 15), ALIVE, "EESTI VABARIIK");
+          CHILD,
+          "MARI",
+          "MAASIKAS",
+          LocalDate.of(2015, 6, 15),
+          ALIVE,
+          "EESTI VABARIIK",
+          List.of("EESTI VABARIIK"));
 
   private final PopulationRegisterPerson inactiveChild =
       new PopulationRegisterPerson(
-          CHILD, "MARI", "MAASIKAS", LocalDate.of(2015, 6, 15), INACTIVE, "EESTI VABARIIK");
+          CHILD,
+          "MARI",
+          "MAASIKAS",
+          LocalDate.of(2015, 6, 15),
+          INACTIVE,
+          "EESTI VABARIIK",
+          List.of("EESTI VABARIIK"));
 
   @Test
   void verifiesWhenParentHasAssetManagementCustodyOfAliveChild() {

@@ -60,6 +60,10 @@ public class ChildOnboardingService {
       String guardianPersonalCode,
       @Nullable String guardianCitizenship) {
     var evidence = new LinkedHashMap<String, Object>(verification.evidenceWithCitizenship());
+    PopulationRegisterPerson child = verification.child();
+    if (child != null && !child.citizenships().isEmpty()) {
+      evidence.put("citizenships", child.citizenships());
+    }
     if (verification.isVerified()) {
       evidence.put("guardianPersonalCode", guardianPersonalCode);
       if (guardianCitizenship != null) {
@@ -72,7 +76,7 @@ public class ChildOnboardingService {
   private void screenForSanctionsAndPep(PopulationRegisterPerson child) {
     amlService.addSanctionAndPepCheckIfMissing(
         new PersonImpl(child.personalCode(), child.firstName(), child.lastName()),
-        Countries.of(child.citizenship()));
+        Countries.of(child.citizenships()));
   }
 
   private void screenGuardian(AuthenticatedPerson parent, @Nullable String citizenship) {

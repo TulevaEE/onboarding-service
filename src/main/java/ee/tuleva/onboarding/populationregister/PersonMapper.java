@@ -18,6 +18,8 @@ import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
 class PersonMapper {
@@ -34,7 +36,8 @@ class PersonMapper {
         capitalizeFully(require(response.lastName(), "perekonnanimi"), ' ', '-'),
         parseDate(response.dateOfBirth()),
         toStatus(response.status()),
-        toCitizenship(response.citizenship()));
+        toCitizenship(response.citizenship()),
+        toCitizenships(response));
   }
 
   static List<CustodyRight> toCustodyRights(PersonResponse response) {
@@ -97,6 +100,16 @@ class PersonMapper {
       case null -> UNKNOWN;
       default -> INACTIVE;
     };
+  }
+
+  // The main citizenship is repeated in the citizenships list only when the register lists it as
+  // valid, so it is added explicitly rather than assumed to be there.
+  private static List<String> toCitizenships(PersonResponse response) {
+    Stream<@Nullable Citizenship> all =
+        Stream.concat(
+            Stream.of(response.citizenship()),
+            response.citizenships() == null ? Stream.of() : response.citizenships().stream());
+    return all.map(PersonMapper::toCitizenship).filter(Objects::nonNull).distinct().toList();
   }
 
   private static @Nullable String toCitizenship(@Nullable Citizenship citizenship) {

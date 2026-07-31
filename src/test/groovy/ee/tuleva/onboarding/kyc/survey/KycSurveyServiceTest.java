@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.auth.role.RoleType;
+import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyc.KycCheckService;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -23,6 +24,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -77,7 +79,7 @@ class KycSurveyServiceTest {
 
     assertThat(saved.getSurvey()).isEqualTo(survey);
     assertThat(saved.getUserId()).isEqualTo(subject.getId());
-    verify(kycCheckService).check(subject, new Country("EE"), survey.purpose());
+    verify(kycCheckService).check(subject, Countries.of("EE"), survey.purpose());
   }
 
   @Test
@@ -116,7 +118,7 @@ class KycSurveyServiceTest {
 
     assertThat(saved.getSurvey()).isEqualTo(survey);
     assertThat(saved.getUserId()).isEqualTo(subject.getId());
-    verify(kycCheckService).check(subject, new Country("EE"), survey.purpose());
+    verify(kycCheckService).check(subject, Countries.of("EE"), survey.purpose());
   }
 
   @Test
@@ -145,9 +147,9 @@ class KycSurveyServiceTest {
     given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(userId))
         .willReturn(Optional.of(kycSurvey));
 
-    Optional<Country> result = kycSurveyService.getCountry(userId);
+    Optional<Set<Country>> result = kycSurveyService.getCountries(userId);
 
-    assertThat(result).contains(new Country("EE"));
+    assertThat(result).contains(Countries.of("EE"));
   }
 
   @Test
@@ -157,7 +159,7 @@ class KycSurveyServiceTest {
     given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(userId))
         .willReturn(Optional.empty());
 
-    Optional<Country> result = kycSurveyService.getCountry(userId);
+    Optional<Set<Country>> result = kycSurveyService.getCountries(userId);
 
     assertThat(result).isEmpty();
   }
@@ -173,7 +175,7 @@ class KycSurveyServiceTest {
     given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(userId))
         .willReturn(Optional.of(kycSurvey));
 
-    Optional<Country> result = kycSurveyService.getCountry(userId);
+    Optional<Set<Country>> result = kycSurveyService.getCountries(userId);
 
     assertThat(result).isEmpty();
   }
@@ -440,8 +442,40 @@ class KycSurveyServiceTest {
     given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(userId))
         .willReturn(Optional.of(kycSurvey));
 
-    Optional<Country> result = kycSurveyService.getCountry(userId);
+    Optional<Set<Country>> result = kycSurveyService.getCountries(userId);
 
-    assertThat(result).contains(new Country("FI"));
+    assertThat(result).contains(Countries.of("FI"));
+  }
+
+  @Test
+  void submit_screensAgainstEveryDeclaredCitizenshipNotOnlyTheResidence() {
+    var subject = user;
+    var survey =
+        identitySurvey(
+            new Citizenship(new CountriesValue("COUNTRIES", List.of("EE", "RU"))),
+            new Address(
+                new AddressValue(
+                    "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))));
+    var person = personResolvingTo(subject);
+    given(kycSurveyRepository.saveAndFlush(any(KycSurvey.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+
+    kycSurveyService.submit(person, survey);
+
+    verify(kycCheckService).check(subject, Countries.of("EE", "RU"), survey.purpose());
+  }
+
+  @Test
+  void getCountries_returnsResidenceAndEveryCitizenship() {
+    var survey =
+        identitySurvey(
+            new Citizenship(new CountriesValue("COUNTRIES", List.of("RU"))),
+            new Address(
+                new AddressValue(
+                    "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))));
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(USER_ID))
+        .willReturn(Optional.of(kycSurvey(USER_ID, survey, Instant.parse("2026-06-01T10:00:00Z"))));
+
+    assertThat(kycSurveyService.getCountries(USER_ID)).contains(Countries.of("EE", "RU"));
   }
 }

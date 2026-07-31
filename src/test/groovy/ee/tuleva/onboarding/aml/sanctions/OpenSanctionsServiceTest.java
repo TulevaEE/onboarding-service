@@ -6,12 +6,14 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
+import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyb.CompanyDto;
 import ee.tuleva.onboarding.kyb.LegalForm;
 import ee.tuleva.onboarding.kyb.RegistryCode;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import org.json.JSONException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -67,7 +69,7 @@ class OpenSanctionsServiceTest {
     String personalCode = "36004081234";
     Person person = new PersonImpl(personalCode, firstName, lastName);
     String countryCode = "ee";
-    Country country = new Country(countryCode);
+    Set<Country> country = Countries.of(countryCode);
 
     String expectedResultsJson =
         String.format(
@@ -219,8 +221,8 @@ class OpenSanctionsServiceTest {
   }
 
   @Test
-  @DisplayName("Should use default country 'ee' in request when country is null")
-  void match_whenCountryIsNull_usesDefaultCountry() throws JacksonException, JSONException {
+  @DisplayName("Should use only the default country 'ee' when no countries are known")
+  void match_whenNoCountriesKnown_usesDefaultCountry() throws JacksonException, JSONException {
     // given
     String firstName = "Peeter";
     String lastName = "Meeter";
@@ -228,63 +230,7 @@ class OpenSanctionsServiceTest {
     LocalDate birthDate = LocalDate.parse("1960-04-08");
     String personalCode = "36004081234";
     Person person = new PersonImpl(personalCode, firstName, lastName);
-    Country country = null;
-
-    List<String> countriesForRequest = List.of("ee");
-    List<String> countriesForQueryInResponse = List.of("ee");
-    String gender = "male";
-
-    String emptyResultsJson = "[]";
-    String mockApiResponseJson =
-        buildMockApiResponseJson(
-            personalCode, fullName, birthDate, countriesForQueryInResponse, emptyResultsJson);
-    String expectedRequestBodyJson =
-        buildExpectedRequestBodyJson(
-            personalCode, fullName, birthDate, countriesForRequest, gender);
-
-    server
-        .expect(requestTo(baseUrlForMatching))
-        .andExpect(MockRestRequestMatchers.method(HttpMethod.POST))
-        .andExpect(MockRestRequestMatchers.content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(MockRestRequestMatchers.content().json(expectedRequestBodyJson, true))
-        .andRespond(withSuccess(mockApiResponseJson, MediaType.APPLICATION_JSON));
-
-    // when
-    MatchResponse actualResponse = openSanctionsService.match(person, country);
-
-    // then
-    assertTrue(actualResponse.results().isEmpty());
-    String expectedQueryInResponseJson =
-        String.format(
-            """
-        {
-          "schema": "Person",
-          "properties": {
-            "name": ["%s"],
-            "birthDate": ["%s"],
-            "country": %s
-          }
-        }""",
-            fullName,
-            birthDate.toString(),
-            buildJsonArrayStringFromList(countriesForQueryInResponse));
-    JSONAssert.assertEquals(
-        expectedQueryInResponseJson,
-        objectMapper.writeValueAsString(actualResponse.query()),
-        JSONCompareMode.STRICT);
-  }
-
-  @Test
-  @DisplayName("Should use default country 'ee' in request when country code is null")
-  void match_whenCountryCodeIsNull_usesDefaultCountry() throws JacksonException, JSONException {
-    // given
-    String firstName = "Peeter";
-    String lastName = "Meeter";
-    String fullName = firstName + " " + lastName;
-    LocalDate birthDate = LocalDate.parse("1960-04-08");
-    String personalCode = "36004081234";
-    Person person = new PersonImpl(personalCode, firstName, lastName);
-    Country country = new Country(null);
+    Set<Country> country = Countries.<String>of();
 
     List<String> countriesForRequest = List.of("ee");
     List<String> countriesForQueryInResponse = List.of("ee");
@@ -342,7 +288,7 @@ class OpenSanctionsServiceTest {
     LocalDate birthDate = LocalDate.parse("1960-04-08");
     String personalCode = "36004081234";
     Person person = new PersonImpl(personalCode, firstName, lastName);
-    Country country = new Country("fi");
+    Set<Country> country = Countries.of("fi");
 
     List<String> countriesForRequest = List.of("ee", "fi");
     List<String> countriesForQueryInResponse = List.of("ee", "fi");
@@ -482,7 +428,7 @@ class OpenSanctionsServiceTest {
     LocalDate birthDate = LocalDate.parse("1960-04-08");
     String personalCode = "36004081234";
     Person person = new PersonImpl(personalCode, firstName, lastName);
-    Country country = new Country("ee");
+    Set<Country> country = Countries.of("ee");
 
     String malformedMockApiResponseJson =
         "{ \"responses\": { \"36004081234\": { \"status\": 200, \"results\": [{\"id\":\"test\"], \"query\": {} } }";
@@ -506,5 +452,70 @@ class OpenSanctionsServiceTest {
         () -> {
           openSanctionsService.match(person, country);
         });
+  }
+
+  @Test
+  void sendsEveryCitizenshipAsAQueryCountrySoDualCitizensMatchBothListings() {
+    Person person = new PersonImpl("36004081234", "Peeter", "Meeter");
+
+    String expectedRequestBodyJson =
+        """
+        {
+          "queries": {
+            "36004081234": {
+              "schema": "Person",
+              "properties": {
+                "name": ["Peeter Meeter"],
+                "birthDate": ["1960-04-08"],
+                "country": ["ee", "ru", "lv"],
+                "gender": ["male"]
+              }
+            }
+          }
+        }""";
+
+    server
+        .expect(MockRestRequestMatchers.requestTo(baseUrlForMatching))
+        .andExpect(MockRestRequestMatchers.method(HttpMethod.POST))
+        .andExpect(MockRestRequestMatchers.content().json(expectedRequestBodyJson, true))
+        .andRespond(
+            withSuccess(
+                """
+                {"responses": {"36004081234": {"results": [], "query": {}}}}""",
+                MediaType.APPLICATION_JSON));
+
+    openSanctionsService.match(person, Countries.of("RU", "LV"));
+  }
+
+  @Test
+  void normalisesCountryCasingSoAnEstonianCitizenIsNotSentTwice() {
+    Person person = new PersonImpl("36004081234", "Peeter", "Meeter");
+
+    String expectedRequestBodyJson =
+        """
+        {
+          "queries": {
+            "36004081234": {
+              "schema": "Person",
+              "properties": {
+                "name": ["Peeter Meeter"],
+                "birthDate": ["1960-04-08"],
+                "country": ["ee"],
+                "gender": ["male"]
+              }
+            }
+          }
+        }""";
+
+    server
+        .expect(MockRestRequestMatchers.requestTo(baseUrlForMatching))
+        .andExpect(MockRestRequestMatchers.content().json(expectedRequestBodyJson, true))
+        .andRespond(
+            withSuccess(
+                """
+                {"responses": {"36004081234": {"results": [], "query": {}}}}""",
+                MediaType.APPLICATION_JSON));
+
+    openSanctionsService.match(person, Countries.of("EE"));
   }
 }

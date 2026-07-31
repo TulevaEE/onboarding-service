@@ -13,7 +13,6 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,20 +44,39 @@ public class RiskLevelService {
   private boolean latestLevelIsHigh(String personalCode, List<AmlCheckType> types) {
     return amlCheckRepository
         .findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(personalCode, types)
-        .map(check -> Objects.equals(riskLevel(check), HIGH_RISK_LEVEL))
+        .map(this::isHighRiskLevel)
         .orElse(false);
   }
 
-  // An override row without a level is a specialist confirmation without a score change and does
-  // not keep the client high-risk.
-  private Integer riskLevel(AmlCheck check) {
+  // A missing level on an override row is a specialist confirmation without a score change and
+  // does not keep the client high-risk. Anything else unexpected is treated as high risk.
+  private boolean isHighRiskLevel(AmlCheck check) {
     Object level = check.getMetadata().get("level");
+    if (level == null) {
+      return !isOverride(check.getType());
+    }
+    Integer parsedLevel = parseLevel(level);
+    if (parsedLevel == null) {
+      log.error(
+          "Malformed risk level metadata, treating as high risk: checkId={}, level={}",
+          check.getId(),
+          level);
+      return true;
+    }
+    return parsedLevel == HIGH_RISK_LEVEL;
+  }
+
+  private boolean isOverride(AmlCheckType type) {
+    return type == RISK_LEVEL_OVERRIDE || type == TKF_RISK_LEVEL_OVERRIDE;
+  }
+
+  private Integer parseLevel(Object level) {
     if (level instanceof Number number) {
       return number.intValue();
     }
     if (level instanceof String string) {
       try {
-        return Integer.parseInt(string);
+        return Integer.parseInt(string.trim());
       } catch (NumberFormatException e) {
         return null;
       }

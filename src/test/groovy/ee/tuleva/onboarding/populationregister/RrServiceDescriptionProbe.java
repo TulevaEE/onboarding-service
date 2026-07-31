@@ -34,14 +34,15 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
  * ./gradlew test --tests '*RrServiceDescriptionProbe' -i
  * </pre>
  *
- * <p>listMethods also settles which service code actually exists — the production URL currently
- * points at {@code domesticDataExchange/v1} while the access decision names {@code isikud.v1}.
+ * <p>listMethods also settles which service code actually exists.
  */
 @EnabledIfEnvironmentVariable(named = "RR_PROBE_ENABLED", matches = "true")
 class RrServiceDescriptionProbe {
 
   private static final String PROVIDER = env("RR_PROBE_PROVIDER", "EE/GOV/70008440/rr");
-  private static final String SERVICE_CODE = env("RR_PROBE_SERVICE_CODE", "isikud.v1");
+  // listMethods (2026-07-31) reports the service code as domesticDataExchange, exposing
+  // POST /v1/isikud — so the production URL, which ends in domesticDataExchange/v1, is correct.
+  private static final String SERVICE_CODE = env("RR_PROBE_SERVICE_CODE", "domesticDataExchange");
   private static final Path OUTPUT = Path.of("build", "rr-service-description");
 
   private static final List<String> FIELDS_WE_STILL_GUESS_AT =

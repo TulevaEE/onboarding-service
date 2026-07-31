@@ -18,7 +18,7 @@ import static org.mockito.Mockito.verify;
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
-import ee.tuleva.onboarding.country.Country;
+import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.populationregister.CustodyRight;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
@@ -177,7 +177,7 @@ class ChildOnboardingServiceTest {
 
     verify(amlService)
         .addSanctionAndPepCheckIfMissing(
-            new PersonImpl(CHILD, "MARI", "MAASIKAS"), new Country("EE"));
+            new PersonImpl(CHILD, "MARI", "MAASIKAS"), Countries.of("EE"));
   }
 
   @Test
@@ -192,7 +192,7 @@ class ChildOnboardingServiceTest {
 
     verify(amlService)
         .addSanctionAndPepCheckIfMissing(
-            new PersonImpl(PARENT, "Jordan", "Valdma"), new Country("RU"));
+            new PersonImpl(PARENT, "Jordan", "Valdma"), Countries.of("RU"));
     var expectedEvidence = new LinkedHashMap<String, Object>(evidence);
     expectedEvidence.put("citizenship", "EE");
     expectedEvidence.put("guardianPersonalCode", PARENT);
@@ -212,7 +212,7 @@ class ChildOnboardingServiceTest {
 
     verify(amlService)
         .addSanctionAndPepCheckIfMissing(
-            new PersonImpl(PARENT, "Jordan", "Valdma"), new Country(null));
+            new PersonImpl(PARENT, "Jordan", "Valdma"), Countries.<String>of());
   }
 
   @Test
@@ -228,7 +228,7 @@ class ChildOnboardingServiceTest {
 
     verify(amlService)
         .addSanctionAndPepCheckIfMissing(
-            new PersonImpl(CHILD, "MARI", "MAASIKAS"), new Country(null));
+            new PersonImpl(CHILD, "MARI", "MAASIKAS"), Countries.<String>of());
     var expectedEvidence = new LinkedHashMap<String, Object>(evidence);
     expectedEvidence.put("guardianPersonalCode", PARENT);
     verify(amlService).addCustodyRightCheck(CHILD, true, expectedEvidence);

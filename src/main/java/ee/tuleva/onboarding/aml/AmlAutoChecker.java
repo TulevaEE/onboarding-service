@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent;
@@ -74,7 +75,8 @@ public class AmlAutoChecker {
     Country country = event.getCountry();
 
     if (amlService.isMandateAmlCheckRequired(user, event.getMandate())) {
-      amlService.addSanctionAndPepCheckIfMissing(user, country);
+      amlService.addSanctionAndPepCheckIfMissing(
+          user, Countries.of(country == null ? null : country.getCountryCode()));
     }
 
     if (!amlService.allChecksPassed(user, event.getMandate())) {
@@ -84,7 +86,7 @@ public class AmlAutoChecker {
 
   @EventListener
   public void beforeKycChecked(BeforeKycCheckedEvent event) {
-    amlService.addSanctionAndPepCheckIfMissing(event.person(), event.country());
+    amlService.addSanctionAndPepCheckIfMissing(event.person(), event.countries());
   }
 
   private @Nullable Boolean isResident(BeforeTokenGrantedEvent event) {

@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsRecentThirdPillarRepo
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.conversion.UserConversionService;
+import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
@@ -29,6 +30,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -96,16 +98,16 @@ public class AmlService {
     addCheckIfMissing(skNameCheck);
   }
 
-  public List<AmlCheck> addSanctionAndPepCheckIfMissing(Person person, Country country) {
-    return screenForSanctionAndPep(person, country).checks();
+  public List<AmlCheck> addSanctionAndPepCheckIfMissing(Person person, Set<Country> countries) {
+    return screenForSanctionAndPep(person, countries).checks();
   }
 
   private record ScreeningResult(List<AmlCheck> checks, boolean failed) {}
 
-  private ScreeningResult screenForSanctionAndPep(Person person, Country country) {
+  private ScreeningResult screenForSanctionAndPep(Person person, Set<Country> countries) {
     MatchResponse response;
     try {
-      response = pepAndSanctionCheckService.match(person, country);
+      response = pepAndSanctionCheckService.match(person, countries);
     } catch (RuntimeException e) {
       handleScreeningFailure(person, "match", e);
       return new ScreeningResult(List.of(), true);
@@ -197,7 +199,7 @@ public class AmlService {
   public void runAmlChecksOnThirdPillarCustomers() {
     List<AnalyticsRecentThirdPillar> records = analyticsRecentThirdPillarRepository.findAll();
     eventPublisher.publishEvent(new AmlChecksRunEvent(this, records));
-    screenBatch(ScreeningBatch.THIRD_PILLAR, records, record -> new Country(record.getCountry()));
+    screenBatch(ScreeningBatch.THIRD_PILLAR, records, record -> Countries.of(record.getCountry()));
   }
 
   public void runAmlChecksOnSavingsFundCustomers() {
@@ -209,18 +211,18 @@ public class AmlService {
         personalCodes.size(),
         customers.size());
 
-    screenBatch(ScreeningBatch.SAVINGS_FUND, customers, customer -> new Country(null));
+    screenBatch(ScreeningBatch.SAVINGS_FUND, customers, customer -> Countries.<String>of());
   }
 
   private <T extends Person> void screenBatch(
-      ScreeningBatch batch, List<T> people, Function<T, Country> countryOf) {
+      ScreeningBatch batch, List<T> people, Function<T, Set<Country>> countriesOf) {
     log.info(
         "Running AML screening batch: population={}, people={}", batch.population, people.size());
 
     int failureCount = 0;
     for (T person : people) {
       try {
-        if (screenForSanctionAndPep(person, countryOf.apply(person)).failed()) {
+        if (screenForSanctionAndPep(person, countriesOf.apply(person)).failed()) {
           failureCount++;
         }
       } catch (RuntimeException e) {

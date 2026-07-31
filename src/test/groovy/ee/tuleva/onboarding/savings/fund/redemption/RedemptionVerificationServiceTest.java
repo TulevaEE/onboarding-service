@@ -15,7 +15,7 @@ import static org.mockito.Mockito.verify;
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.aml.AmlService;
-import ee.tuleva.onboarding.country.Country;
+import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyService;
 import ee.tuleva.onboarding.party.PartyId;
@@ -54,7 +54,7 @@ class RedemptionVerificationServiceTest {
             .partyId(new PartyId(PERSON, "38812121215"))
             .build();
     var user = sampleUser().id(userId).build();
-    var country = new Country("EE");
+    var countries = Countries.of("EE");
     var passing =
         AmlCheck.builder()
             .personalCode(user.getPersonalCode())
@@ -63,8 +63,8 @@ class RedemptionVerificationServiceTest {
             .build();
 
     given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
-    given(kycSurveyService.getCountry(userId)).willReturn(Optional.of(country));
-    given(amlService.addSanctionAndPepCheckIfMissing(user, country)).willReturn(List.of(passing));
+    given(kycSurveyService.getCountries(userId)).willReturn(Optional.of(countries));
+    given(amlService.addSanctionAndPepCheckIfMissing(user, countries)).willReturn(List.of(passing));
 
     service.process(request);
 
@@ -83,11 +83,11 @@ class RedemptionVerificationServiceTest {
             .partyId(new PartyId(PERSON, "38812121215"))
             .build();
     var user = sampleUser().id(userId).build();
-    var country = new Country("EE");
+    var countries = Countries.of("EE");
 
     given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
-    given(kycSurveyService.getCountry(userId)).willReturn(Optional.of(country));
-    given(amlService.addSanctionAndPepCheckIfMissing(user, country)).willReturn(List.of());
+    given(kycSurveyService.getCountries(userId)).willReturn(Optional.of(countries));
+    given(amlService.addSanctionAndPepCheckIfMissing(user, countries)).willReturn(List.of());
 
     service.process(request);
 
@@ -105,7 +105,7 @@ class RedemptionVerificationServiceTest {
             .partyId(new PartyId(PERSON, "38812121215"))
             .build();
     var user = sampleUser().id(userId).build();
-    var country = new Country("EE");
+    var countries = Countries.of("EE");
     var failing =
         AmlCheck.builder()
             .personalCode(user.getPersonalCode())
@@ -114,8 +114,8 @@ class RedemptionVerificationServiceTest {
             .build();
 
     given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
-    given(kycSurveyService.getCountry(userId)).willReturn(Optional.of(country));
-    given(amlService.addSanctionAndPepCheckIfMissing(user, country)).willReturn(List.of(failing));
+    given(kycSurveyService.getCountries(userId)).willReturn(Optional.of(countries));
+    given(amlService.addSanctionAndPepCheckIfMissing(user, countries)).willReturn(List.of(failing));
 
     service.process(request);
 
@@ -135,7 +135,7 @@ class RedemptionVerificationServiceTest {
             .partyId(new PartyId(PERSON, childCode))
             .build();
     var child = sampleUser().id(2L).personalCode(childCode).build();
-    var country = new Country("EE");
+    var countries = Countries.of("EE");
     var passing =
         AmlCheck.builder()
             .personalCode(childCode)
@@ -144,8 +144,9 @@ class RedemptionVerificationServiceTest {
             .build();
 
     given(userService.findByPersonalCode(childCode)).willReturn(Optional.of(child));
-    given(kycSurveyService.getCountry(child.getId())).willReturn(Optional.of(country));
-    given(amlService.addSanctionAndPepCheckIfMissing(child, country)).willReturn(List.of(passing));
+    given(kycSurveyService.getCountries(child.getId())).willReturn(Optional.of(countries));
+    given(amlService.addSanctionAndPepCheckIfMissing(child, countries))
+        .willReturn(List.of(passing));
 
     service.process(request);
 
@@ -163,7 +164,7 @@ class RedemptionVerificationServiceTest {
     var user = sampleUser().id(userId).build();
 
     given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
-    given(kycSurveyService.getCountry(userId)).willReturn(Optional.empty());
+    given(kycSurveyService.getCountries(userId)).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.process(request)).isInstanceOf(IllegalStateException.class);
   }

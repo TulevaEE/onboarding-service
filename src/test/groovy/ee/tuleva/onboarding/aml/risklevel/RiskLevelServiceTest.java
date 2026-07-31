@@ -651,6 +651,24 @@ class RiskLevelServiceTest {
   }
 
   @Test
+  void isHighRisk_trueWhenLevelIsMalformed() {
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+            "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
+        .thenReturn(Optional.of(checkWithLevel(RISK_LEVEL, "not-a-number")));
+
+    assertTrue(riskLevelService.isHighRisk("123"));
+  }
+
+  @Test
+  void isHighRisk_trueWhenAutomaticSnapshotHasNoLevel() {
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+            "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
+        .thenReturn(Optional.of(checkWithLevel(RISK_LEVEL, null)));
+
+    assertTrue(riskLevelService.isHighRisk("123"));
+  }
+
+  @Test
   void isHighRisk_falseWhenLatestRowIsOverrideWithoutLevel() {
     when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
             "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))

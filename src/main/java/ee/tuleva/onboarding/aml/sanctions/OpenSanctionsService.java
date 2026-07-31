@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import lombok.SneakyThrows;
@@ -44,14 +45,14 @@ public class OpenSanctionsService implements PepAndSanctionCheckService {
 
   @Override
   @SneakyThrows
-  public MatchResponse match(Person person, Country country) {
+  public MatchResponse match(Person person, Set<Country> countries) {
     var personalCode = person.getPersonalCode();
     var fullName = person.getFullName();
-    var countries = getCountries(country);
+    var countryCodes = getCountryCodes(countries);
     var gender = PersonalCode.getGender(personalCode).name().toLowerCase();
     var birthDate = PersonalCode.getDateOfBirth(personalCode).toString();
     var properties =
-        new PersonProperties(List.of(fullName), List.of(birthDate), countries, List.of(gender));
+        new PersonProperties(List.of(fullName), List.of(birthDate), countryCodes, List.of(gender));
     var personQuery = new PersonQuery(properties);
 
     return executeMatch(personalCode, personQuery);
@@ -86,13 +87,18 @@ public class OpenSanctionsService implements PepAndSanctionCheckService {
           + "&topics=role.pep&topics=role.rca&topics=sanction"
           + "&facets=countries&facets=topics&facets=datasets&facets=gender";
 
-  private HashSet<String> getCountries(Country country) {
-    var countries = new HashSet<String>();
-    countries.add("ee");
-    if (country != null && country.getCountryCode() != null) {
-      countries.add(country.getCountryCode());
-    }
-    return countries;
+  // Every country a person is tied to — citizenships and residence — is sent as a query property.
+  // The match algorithm scores against them rather than filtering on them, so a person holding a
+  // second citizenship scores against that country's listings too.
+  private HashSet<String> getCountryCodes(Set<Country> countries) {
+    var codes = new HashSet<String>();
+    codes.add("ee");
+    countries.stream()
+        .map(Country::getCountryCode)
+        .filter(code -> code != null && !code.isBlank())
+        .map(code -> code.toLowerCase(Locale.ROOT))
+        .forEach(codes::add);
+    return codes;
   }
 
   private record PersonProperties(

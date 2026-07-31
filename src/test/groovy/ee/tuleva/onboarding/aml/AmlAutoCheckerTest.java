@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
@@ -18,6 +19,7 @@ import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,7 +38,8 @@ class AmlAutoCheckerTest {
 
   @Mock private User mockUser;
   @Mock private ContactDetails mockContactDetails;
-  @Mock private Country mockCountry;
+  private final Country mandateCountry = new Country("EE");
+  private final Set<Country> mockCountries = Countries.of("EE");
   @Mock private IdDocumentType mockIdDocumentType;
 
   private static AuthenticatedPerson createTestPerson(String personalCode) {
@@ -186,7 +189,7 @@ class AmlAutoCheckerTest {
 
     when(mockEvent.getUser()).thenReturn(mockUser);
     when(mockEvent.getMandate()).thenReturn(mandate);
-    when(mockEvent.getCountry()).thenReturn(mockCountry);
+    when(mockEvent.getCountry()).thenReturn(mandateCountry);
     when(amlService.allChecksPassed(mockUser, mandate)).thenReturn(true);
     when(amlService.isMandateAmlCheckRequired(mockUser, mandate)).thenReturn(true);
 
@@ -194,7 +197,7 @@ class AmlAutoCheckerTest {
     assertDoesNotThrow(() -> amlAutoChecker.beforeMandateCreated(mockEvent));
 
     // then
-    verify(amlService).addSanctionAndPepCheckIfMissing(mockUser, mockCountry);
+    verify(amlService).addSanctionAndPepCheckIfMissing(mockUser, mockCountries);
     verify(amlService).allChecksPassed(mockUser, mandate);
   }
 
@@ -229,7 +232,7 @@ class AmlAutoCheckerTest {
 
     when(mockEvent.getUser()).thenReturn(mockUser);
     when(mockEvent.getMandate()).thenReturn(mandate);
-    when(mockEvent.getCountry()).thenReturn(mockCountry);
+    when(mockEvent.getCountry()).thenReturn(mandateCountry);
     when(amlService.allChecksPassed(mockUser, mandate)).thenReturn(false);
     when(amlService.isMandateAmlCheckRequired(mockUser, mandate)).thenReturn(true);
 
@@ -243,7 +246,7 @@ class AmlAutoCheckerTest {
 
     // then
     assertNotNull(exception);
-    verify(amlService).addSanctionAndPepCheckIfMissing(mockUser, mockCountry);
+    verify(amlService).addSanctionAndPepCheckIfMissing(mockUser, mockCountries);
     verify(amlService).allChecksPassed(mockUser, mandate);
   }
 
@@ -252,12 +255,12 @@ class AmlAutoCheckerTest {
   void beforeKycChecked_addsSanctionAndPepCheck() {
     // given
     var person = createTestPerson("38001010005");
-    var event = new BeforeKycCheckedEvent(person, mockCountry);
+    var event = new BeforeKycCheckedEvent(person, mockCountries);
 
     // when
     amlAutoChecker.beforeKycChecked(event);
 
     // then
-    verify(amlService).addSanctionAndPepCheckIfMissing(person, mockCountry);
+    verify(amlService).addSanctionAndPepCheckIfMissing(person, mockCountries);
   }
 }

@@ -14,6 +14,8 @@ public interface UnitOwnerRepository extends JpaRepository<UnitOwner, Long> {
 
   List<UnitOwner> findBySnapshotDate(LocalDate snapshotDate);
 
+  boolean existsBySnapshotDate(LocalDate snapshotDate);
+
   @Query("SELECT MAX(uo.snapshotDate) FROM UnitOwner uo")
   Optional<LocalDate> findLatestSnapshotDate();
 

@@ -17,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceSynchronizer;
+import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerSnapshotDateValidator;
 import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerSynchronizer;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
@@ -81,6 +82,7 @@ class AdminControllerTest {
   @MockitoBean private NavPublisher navPublisher;
   @MockitoBean private FundBalanceSynchronizer fundBalanceSynchronizer;
   @MockitoBean private UnitOwnerSynchronizer unitOwnerSynchronizer;
+  @MockitoBean private UnitOwnerSnapshotDateValidator unitOwnerSnapshotDateValidator;
   @MockitoBean private FundPositionLedgerService fundPositionLedgerService;
   @MockitoBean private FundPositionRepository fundPositionRepository;
   @MockitoBean private ReportImportJob reportImportJob;
@@ -435,7 +437,7 @@ class AdminControllerTest {
   }
 
   @Test
-  void syncUnitOwners_recordsTheSnapshotUnderTodaysDate() throws Exception {
+  void syncUnitOwners_defaultsToTodaysDate() throws Exception {
     given(clock.instant()).willReturn(Instant.parse("2026-08-02T09:00:00Z"));
     given(clock.getZone()).willReturn(ZoneId.of("UTC"));
 
@@ -445,7 +447,39 @@ class AdminControllerTest {
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("2026-08-02")));
 
+    verify(unitOwnerSnapshotDateValidator).validate(LocalDate.of(2026, 8, 2));
     verify(unitOwnerSynchronizer).sync(LocalDate.of(2026, 8, 2));
+  }
+
+  @Test
+  void syncUnitOwners_validatesAnExplicitSnapshotDateBeforeSynchronizing() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/sync-unit-owners")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("snapshotDate", "2026-08-01"))
+        .andExpect(status().isOk());
+
+    verify(unitOwnerSnapshotDateValidator).validate(LocalDate.of(2026, 8, 1));
+    verify(unitOwnerSynchronizer).sync(LocalDate.of(2026, 8, 1));
+  }
+
+  @Test
+  void syncUnitOwners_doesNotSynchronizeWhenTheDateIsRejected() throws Exception {
+    doThrow(new IllegalArgumentException("too old"))
+        .when(unitOwnerSnapshotDateValidator)
+        .validate(LocalDate.of(2026, 1, 1));
+
+    mockMvc
+        .perform(
+            post("/admin/sync-unit-owners")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("snapshotDate", "2026-01-01"))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(unitOwnerSynchronizer);
   }
 
   @Test

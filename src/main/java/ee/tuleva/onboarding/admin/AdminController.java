@@ -7,6 +7,7 @@ import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceSynchronizer;
+import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerSnapshotDateValidator;
 import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerSynchronizer;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
@@ -81,6 +82,7 @@ public class AdminController {
   private final NavPublisher navPublisher;
   private final FundBalanceSynchronizer fundBalanceSynchronizer;
   private final UnitOwnerSynchronizer unitOwnerSynchronizer;
+  private final UnitOwnerSnapshotDateValidator unitOwnerSnapshotDateValidator;
   private final FundPositionLedgerService fundPositionLedgerService;
   private final FundPositionRepository fundPositionRepository;
   private final ReportImportJob reportImportJob;
@@ -223,15 +225,23 @@ public class AdminController {
   }
 
   @PostMapping("/sync-unit-owners")
-  public String syncUnitOwners(@RequestHeader("X-Admin-Token") String token) {
+  public String syncUnitOwners(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam(required = false) @DateTimeFormat(iso = DATE) LocalDate snapshotDate) {
 
     validateToken(token);
 
-    LocalDate snapshotDate = LocalDate.now(clock);
-    log.info("Admin triggered unit owner snapshot sync: snapshotDate={}", snapshotDate);
-    unitOwnerSynchronizer.sync(snapshotDate);
+    LocalDate date = snapshotDate != null ? snapshotDate : LocalDate.now(clock);
+    try {
+      unitOwnerSnapshotDateValidator.validate(date);
+    } catch (IllegalArgumentException e) {
+      throw new ResponseStatusException(BAD_REQUEST, e.getMessage());
+    }
 
-    return "Synchronized unit owner snapshot for " + snapshotDate;
+    log.info("Admin triggered unit owner snapshot sync: snapshotDate={}", date);
+    unitOwnerSynchronizer.sync(date);
+
+    return "Synchronized unit owner snapshot for " + date;
   }
 
   @PostMapping("/reimport-positions")

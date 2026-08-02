@@ -17,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceSynchronizer;
+import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerSynchronizer;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
@@ -79,6 +80,7 @@ class AdminControllerTest {
   @MockitoBean private NavCalculationService navCalculationService;
   @MockitoBean private NavPublisher navPublisher;
   @MockitoBean private FundBalanceSynchronizer fundBalanceSynchronizer;
+  @MockitoBean private UnitOwnerSynchronizer unitOwnerSynchronizer;
   @MockitoBean private FundPositionLedgerService fundPositionLedgerService;
   @MockitoBean private FundPositionRepository fundPositionRepository;
   @MockitoBean private ReportImportJob reportImportJob;
@@ -430,6 +432,30 @@ class AdminControllerTest {
 
     verify(fundBalanceSynchronizer)
         .backfillUnitCounts(LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 6));
+  }
+
+  @Test
+  void syncUnitOwners_recordsTheSnapshotUnderTodaysDate() throws Exception {
+    given(clock.instant()).willReturn(Instant.parse("2026-08-02T09:00:00Z"));
+    given(clock.getZone()).willReturn(ZoneId.of("UTC"));
+
+    mockMvc
+        .perform(
+            post("/admin/sync-unit-owners").with(csrf()).header("X-Admin-Token", "valid-token"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("2026-08-02")));
+
+    verify(unitOwnerSynchronizer).sync(LocalDate.of(2026, 8, 2));
+  }
+
+  @Test
+  void syncUnitOwners_rejectsAnInvalidToken() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/sync-unit-owners").with(csrf()).header("X-Admin-Token", "wrong-token"))
+        .andExpect(status().isUnauthorized());
+
+    verifyNoInteractions(unitOwnerSynchronizer);
   }
 
   @Test

@@ -7,6 +7,7 @@ import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceSynchronizer;
+import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerSynchronizer;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
 import ee.tuleva.onboarding.capital.transfer.iban.IbanValidator;
@@ -79,6 +80,7 @@ public class AdminController {
   private final NavCalculationService navCalculationService;
   private final NavPublisher navPublisher;
   private final FundBalanceSynchronizer fundBalanceSynchronizer;
+  private final UnitOwnerSynchronizer unitOwnerSynchronizer;
   private final FundPositionLedgerService fundPositionLedgerService;
   private final FundPositionRepository fundPositionRepository;
   private final ReportImportJob reportImportJob;
@@ -218,6 +220,18 @@ public class AdminController {
     fundBalanceSynchronizer.backfillUnitCounts(from, to);
 
     return "Backfilled unit counts from " + from + " to " + to;
+  }
+
+  @PostMapping("/sync-unit-owners")
+  public String syncUnitOwners(@RequestHeader("X-Admin-Token") String token) {
+
+    validateToken(token);
+
+    LocalDate snapshotDate = LocalDate.now(clock);
+    log.info("Admin triggered unit owner snapshot sync: snapshotDate={}", snapshotDate);
+    unitOwnerSynchronizer.sync(snapshotDate);
+
+    return "Synchronized unit owner snapshot for " + snapshotDate;
   }
 
   @PostMapping("/reimport-positions")

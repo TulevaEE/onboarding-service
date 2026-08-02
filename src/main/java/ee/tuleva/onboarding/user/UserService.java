@@ -9,6 +9,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -34,7 +35,14 @@ public class UserService {
 
   public User createNewUser(User user) {
     log.info("Creating new user for personal code {}", user.getPersonalCode());
-    return userRepository.save(user);
+    try {
+      return userRepository.save(user);
+    } catch (DataIntegrityViolationException e) {
+      log.info(
+          "Personal code already taken by a concurrent login, reusing it: personalCode={}",
+          user.getPersonalCode());
+      return userRepository.findByPersonalCode(user.getPersonalCode()).orElseThrow(() -> e);
+    }
   }
 
   public User updateUser(String personalCode, Optional<String> email, String phoneNumber) {

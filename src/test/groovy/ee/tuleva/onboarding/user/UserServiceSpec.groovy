@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException
 import ee.tuleva.onboarding.user.member.MemberRepository
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Shared
+import org.springframework.dao.DataIntegrityViolationException
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.*
@@ -132,6 +133,33 @@ class UserServiceSpec extends Specification {
 
     then:
     createdUser == user
+  }
+
+  def "returns the concurrently created user when the personal code is already taken"() {
+    given:
+    def user = sampleUserNonMember.build()
+    def winner = sampleUserNonMember.build()
+    userRepository.save(_ as User) >> { throw new DataIntegrityViolationException("duplicate key") }
+    userRepository.findByPersonalCode(user.personalCode) >> Optional.of(winner)
+
+    when:
+    def createdUser = service.createNewUser(user)
+
+    then:
+    createdUser == winner
+  }
+
+  def "rethrows when the personal code is taken but the user cannot be found"() {
+    given:
+    def user = sampleUserNonMember.build()
+    userRepository.save(_ as User) >> { throw new DataIntegrityViolationException("duplicate key") }
+    userRepository.findByPersonalCode(user.personalCode) >> Optional.empty()
+
+    when:
+    service.createNewUser(user)
+
+    then:
+    thrown(DataIntegrityViolationException)
   }
 
   def "isExistingEmail returns correct results"() {

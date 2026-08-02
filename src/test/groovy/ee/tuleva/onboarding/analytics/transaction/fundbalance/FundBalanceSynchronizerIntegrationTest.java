@@ -118,7 +118,7 @@ class FundBalanceSynchronizerIntegrationTest {
     private List<TransactionFundBalanceDto> fundBalances = new ArrayList<>();
 
     public MockEpisService(RestTemplate restTemplate, JwtTokenUtil jwtTokenUtil) {
-      super(restTemplate, jwtTokenUtil);
+      super(restTemplate, restTemplate, jwtTokenUtil);
     }
 
     @Override

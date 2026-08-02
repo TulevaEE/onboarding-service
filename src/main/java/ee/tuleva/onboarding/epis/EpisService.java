@@ -61,6 +61,8 @@ public class EpisService {
 
   private final RestTemplate episRestTemplate;
 
+  private final RestTemplate episLongRequestRestTemplate;
+
   private final JwtTokenUtil jwtTokenUtil;
 
   @Value("${epis.service.url}")
@@ -282,7 +284,7 @@ public class EpisService {
         url);
 
     ThirdPillarTransactionDto[] responseArray =
-        episRestTemplate
+        episLongRequestRestTemplate
             .exchange(
                 url,
                 GET,
@@ -321,7 +323,7 @@ public class EpisService {
         url);
 
     ExchangeTransactionDto[] responseArray =
-        episRestTemplate
+        episLongRequestRestTemplate
             .exchange(
                 url,
                 GET,
@@ -353,7 +355,7 @@ public class EpisService {
         url);
 
     ResponseEntity<FundTransactionDto[]> response =
-        episRestTemplate.exchange(
+        episLongRequestRestTemplate.exchange(
             url, GET, new HttpEntity<>(getHeaders(serviceJwtToken())), FundTransactionDto[].class);
 
     return Arrays.asList(response.getBody());
@@ -373,7 +375,7 @@ public class EpisService {
         url);
 
     ResponseEntity<TransactionFundBalanceDto[]> response =
-        episRestTemplate.exchange(
+        episLongRequestRestTemplate.exchange(
             url,
             GET,
             new HttpEntity<>(getHeaders(serviceJwtToken())),
@@ -395,7 +397,7 @@ public class EpisService {
         url);
 
     ResponseEntity<UnitOwnerDto[]> response =
-        episRestTemplate.exchange(
+        episLongRequestRestTemplate.exchange(
             url, GET, new HttpEntity<>(getHeaders(serviceJwtToken())), UnitOwnerDto[].class);
 
     return Arrays.asList(response.getBody());

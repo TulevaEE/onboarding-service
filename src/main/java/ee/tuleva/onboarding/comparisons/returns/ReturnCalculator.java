@@ -23,6 +23,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.decampo.xirr.Xirr;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -52,6 +53,7 @@ public class ReturnCalculator {
     return new ReturnDto(rateOfReturn, cashReturn.value, cashReturn.paymentsSum, EUR, from, to);
   }
 
+  @Nullable
   private BigDecimal getPersonalRateOfReturn(AccountOverview accountOverview) {
     List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
 
@@ -59,6 +61,7 @@ public class ReturnCalculator {
         purchaseTransactions, accountOverview.getEndingBalance(), accountOverview.getEndTime());
   }
 
+  @Nullable
   private BigDecimal getSimulatedRateOfReturn(
       AccountOverview accountOverview, String comparisonFund) {
     List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
@@ -229,6 +232,7 @@ public class ReturnCalculator {
     return new Transaction(transaction.amount().negate(), transaction.time());
   }
 
+  @Nullable
   private BigDecimal calculateReturn(
       List<Transaction> purchaseTransactions, BigDecimal endingBalance, Instant endTime) {
     List<Transaction> negatedTransactions = negateTransactionAmounts(purchaseTransactions);
@@ -240,6 +244,7 @@ public class ReturnCalculator {
     return calculateInternalRateOfReturn(internalTransactions);
   }
 
+  @Nullable
   private BigDecimal calculateInternalRateOfReturn(List<Transaction> transactions) {
     if (allZero(transactions)) {
       return ZERO;
@@ -253,9 +258,12 @@ public class ReturnCalculator {
 
       double result = new Xirr(xirrInternalTransactions).xirr();
       return roundPercentage(result);
-    } catch (IllegalArgumentException e) {
-      log.info("XIRR failed for Transactions: {}", transactions);
-      throw new IllegalArgumentException("XIRR calculation failed, see logs for more details", e);
+    } catch (IllegalArgumentException | ArithmeticException e) {
+      log.warn(
+          "XIRR solver found no rate: transactionCount={}, reason={}",
+          transactions.size(),
+          e.getClass().getSimpleName());
+      return null;
     }
   }
 

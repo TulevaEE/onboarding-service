@@ -21,18 +21,15 @@ buildscript {
     }
 }
 
-val springModulithVersion = "2.0.6"
-
-// Security patch ahead of the Spring Boot BOM — remove once Boot manages this version
-extra["opentelemetry.version"] = "1.62.0"
+val springModulithVersion = "2.1.0"
 
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "4.0.7"
+    id("org.springframework.boot") version "4.1.0"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "4.0.1"
-    id("com.diffplug.spotless") version "8.6.0"
+    id("com.diffplug.spotless") version "8.9.0"
     id("io.freefair.lombok") version "9.5.0"
     jacoco
 }
@@ -118,7 +115,7 @@ dependencies {
     implementation("commons-net:commons-net:3.13.0")
     implementation("org.apache.commons:commons-lang3")
     implementation("org.decampo:xirr:1.2")
-    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:5.0.0")
+    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:5.0.1")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.5")
     implementation("org.springframework.boot:spring-boot-starter-web-services")
     testImplementation("org.springframework.ws:spring-ws-test")
@@ -143,13 +140,13 @@ dependencies {
     implementation("org.digidoc4j:digidoc4j:6.1.1") {
         exclude(group = "commons-logging", module = "commons-logging")
     }
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.84")
-    implementation("org.bouncycastle:bcprov-jdk18on:1.84")
-    implementation("org.bouncycastle:bcutil-jdk18on:1.84")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.85")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.85")
+    implementation("org.bouncycastle:bcutil-jdk18on:1.85")
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-4:8.43.1")
-    implementation("io.sentry:sentry-logback:8.43.1")
+    implementation("io.sentry:sentry-spring-boot-4:8.51.0")
+    implementation("io.sentry:sentry-logback:8.51.0")
 
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
@@ -159,14 +156,14 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("software.amazon.awssdk:s3:2.46.5")
+    implementation("software.amazon.awssdk:s3:2.50.2")
     implementation("commons-io:commons-io:2.22.0")
     implementation("org.apache.commons:commons-csv:1.14.1")
     implementation("org.apache.poi:poi-ooxml:5.5.1")
     implementation("at.datenwort.openhtmltopdf:openhtmltopdf-pdfbox:1.1.4")
     // Pinned to match the PDFBox version openhtmltopdf-pdfbox/digidoc4j already resolve to on
     // runtimeClasspath (verified via `./gradlew dependencies`) — do not let this drift below it.
-    implementation("org.apache.pdfbox:pdfbox:3.0.4")
+    implementation("org.apache.pdfbox:pdfbox:3.0.8")
 
     implementation("net.javacrumbs.shedlock:shedlock-spring:7.7.0")
     implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.7.0")
@@ -191,15 +188,15 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.4-groovy-5.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy:5.0.6")
-    testImplementation("org.apache.groovy:groovy-json:5.0.6")
+    testImplementation("org.apache.groovy:groovy:5.0.7")
+    testImplementation("org.apache.groovy:groovy-json:5.0.7")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:postgresql:1.21.4")
     testImplementation("org.testcontainers:jdbc:1.21.4")
 
     // TODO: migrate to WireMock
-    testImplementation("org.mock-server:mockserver-netty:7.0.0")
-    testImplementation("org.mock-server:mockserver-spring-test-listener:7.0.0")
+    testImplementation("org.mock-server:mockserver-netty:7.5.0")
+    testImplementation("org.mock-server:mockserver-spring-test-listener:7.5.0")
 
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
     testImplementation("org.springframework.security:spring-security-test")

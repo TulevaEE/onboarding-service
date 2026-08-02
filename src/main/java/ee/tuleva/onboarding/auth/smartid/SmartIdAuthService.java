@@ -11,6 +11,7 @@ import ee.sk.smartid.SmartIdAuthenticationResponse;
 import ee.sk.smartid.SmartIdClient;
 import ee.sk.smartid.exception.UnprocessableSmartIdResponseException;
 import ee.sk.smartid.exception.useraccount.UserAccountNotFoundException;
+import ee.sk.smartid.exception.useraction.SessionTimeoutException;
 import ee.sk.smartid.exception.useraction.UserRefusedException;
 import ee.sk.smartid.rest.dao.Interaction;
 import ee.sk.smartid.rest.dao.SemanticsIdentifier;
@@ -85,6 +86,12 @@ public class SmartIdAuthService {
           } catch (UserRefusedException e) {
             session.setErrorCode("smart.id.user.refused");
             session.setErrorMessage("Smart ID User refused");
+          } catch (SessionTimeoutException e) {
+            log.info(
+                "Smart ID timed out waiting for the user: personalCode={}",
+                session.getPersonalCode());
+            session.setErrorCode("smart.id.timeout");
+            session.setErrorMessage("Smart ID timed out waiting for the user");
           } catch (Exception e) {
             log.error("Smart ID technical error", e);
             session.setErrorCode("smart.id.technical.error");

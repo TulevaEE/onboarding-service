@@ -3,12 +3,14 @@ package ee.tuleva.onboarding.party;
 import static java.util.Collections.unmodifiableMap;
 
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
-import jakarta.annotation.Nullable;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 public record CustodyVerification(
     Outcome outcome, @Nullable PopulationRegisterPerson child, Map<String, Object> evidence) {
+
+  static final String CITIZENSHIP = "citizenship";
 
   public enum Outcome {
     OK,
@@ -22,11 +24,12 @@ public record CustodyVerification(
   }
 
   public Map<String, Object> evidenceWithCitizenship() {
-    if (child == null || child.citizenship() == null) {
+    String citizenship = child == null ? null : child.citizenship();
+    if (citizenship == null) {
       return evidence;
     }
     var enriched = new LinkedHashMap<String, Object>(evidence);
-    enriched.put("citizenship", child.citizenship());
+    enriched.put(CITIZENSHIP, citizenship);
     return unmodifiableMap(enriched);
   }
 

@@ -11,10 +11,12 @@ import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.Outcome.WOULD_PR
 import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.ScreeningStatus.SCREENED;
 import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.ScreeningStatus.SCREENING_FAILED;
 import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.ScreeningStatus.SKIPPED;
+import static ee.tuleva.onboarding.party.CustodyVerification.CITIZENSHIP;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.CHILD_NOT_ALIVE;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 
@@ -23,6 +25,7 @@ import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.party.ChildAmlBackfillResult.ChildResult;
+import ee.tuleva.onboarding.party.ChildAmlBackfillResult.Outcome;
 import ee.tuleva.onboarding.party.ChildAmlBackfillResult.ScreeningStatus;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterClient;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
@@ -32,10 +35,12 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -55,12 +60,9 @@ public class ChildAmlBackfillService {
   public ChildAmlBackfillResult backfill(String requesterPersonalCode, boolean dryRun) {
     LocalDate today = LocalDate.now(clock);
     Map<String, List<ParentChildLink>> linksByChild =
-        parentChildLinkRepository.findAll().stream()
-            .filter(
-                link ->
-                    link.getStatus() == ACTIVE
-                        && !link.isSuspended()
-                        && link.getValidUntil().isAfter(today))
+        parentChildLinkRepository
+            .findByStatusAndSuspendedAtIsNullAndValidUntilAfter(ACTIVE, today)
+            .stream()
             .collect(
                 groupingBy(link -> link.getChildPersonalCode().strip(), TreeMap::new, toList()));
 
@@ -91,107 +93,107 @@ public class ChildAmlBackfillService {
       boolean dryRun) {
     boolean hasUser = false;
     try {
-      hasUser = userRepository.findByPersonalCode(childCode).isPresent();
-      if (hasCitizenshipOnFile(childCode) && hasBeenScreened(childCode)) {
-        return ChildResult.skipped(childCode, ALREADY_BACKFILLED, hasUser);
+      hasUser = userRepository.existsByPersonalCode(childCode);
+      if (hasEverRecordedCitizenship(childCode) && hasRecentSanctionRow(childCode)) {
+        return ChildResult.reported(childCode, ALREADY_BACKFILLED, hasUser);
       }
       if (!PersonalCode.isMinor(childCode, today)) {
-        return ChildResult.skipped(childCode, TURNED_ADULT, hasUser);
+        return ChildResult.reported(childCode, TURNED_ADULT, hasUser);
       }
 
-      List<String> legalRepresentatives =
-          links.stream()
-              .filter(link -> link.getRelationshipType() == LEGAL_REPRESENTATIVE)
-              .map(link -> link.getParentPersonalCode().strip())
-              .distinct()
-              .sorted()
-              .toList();
-
+      List<String> legalRepresentatives = legalRepresentativesIn(links);
       if (legalRepresentatives.isEmpty()) {
-        // Court-appointed guardians are not parental custody, so the register's custody query
-        // would report a false NO_CUSTODY — screen and report for manual review instead.
         return dryRun
-            ? ChildResult.skipped(childCode, GUARDIAN_LINK, hasUser)
-            : screenGuardianWard(requesterPersonalCode, childCode, hasUser);
+            ? ChildResult.reported(childCode, GUARDIAN_LINK, hasUser)
+            : screenWardWithoutCustodyQuery(requesterPersonalCode, childCode, hasUser);
       }
       return dryRun
-          ? ChildResult.skipped(childCode, WOULD_PROCESS, hasUser)
-          : reverify(requesterPersonalCode, childCode, legalRepresentatives, hasUser);
+          ? ChildResult.reported(childCode, WOULD_PROCESS, hasUser)
+          : verifyCustodyAndScreen(requesterPersonalCode, childCode, legalRepresentatives, hasUser);
     } catch (RuntimeException e) {
       log.error("Child AML backfill failed for child: childCode={}", childCode, e);
       return ChildResult.error(childCode, hasUser, e);
     }
   }
 
-  private ChildResult reverify(
+  private List<String> legalRepresentativesIn(List<ParentChildLink> links) {
+    return links.stream()
+        .filter(link -> link.getRelationshipType() == LEGAL_REPRESENTATIVE)
+        .map(link -> link.getParentPersonalCode().strip())
+        .distinct()
+        .sorted()
+        .toList();
+  }
+
+  private ChildResult verifyCustodyAndScreen(
       String requesterPersonalCode, String childCode, List<String> parentCodes, boolean hasUser) {
     CustodyVerification verification =
         verifyAgainstAnyParent(requesterPersonalCode, childCode, parentCodes);
     amlService.addCustodyRightCheck(
         childCode, verification.isVerified(), verification.evidenceWithCitizenship());
 
-    PopulationRegisterPerson child = verification.child();
-    ScreeningStatus screeningStatus;
+    Outcome outcome = verification.isVerified() ? BACKFILLED : CUSTODY_NOT_VERIFIED;
     if (verification.outcome() == CHILD_NOT_ALIVE) {
-      screeningStatus = SKIPPED;
-    } else {
-      if (child == null) {
-        child = populationRegisterClient.fetchPersonFresh(requesterPersonalCode, childCode).data();
-      }
-      screeningStatus = screen(child);
+      return new ChildResult(
+          childCode, outcome, verification.outcome(), null, SKIPPED, hasUser, null);
     }
+    PopulationRegisterPerson child =
+        Optional.ofNullable(verification.child())
+            .orElseGet(() -> fetchChild(requesterPersonalCode, childCode));
     return new ChildResult(
         childCode,
-        verification.isVerified() ? BACKFILLED : CUSTODY_NOT_VERIFIED,
+        outcome,
         verification.outcome(),
-        child == null ? null : child.citizenship(),
-        screeningStatus,
+        child.citizenship(),
+        screenAndConfirmBySanctionRow(child),
         hasUser,
         null);
   }
 
   private CustodyVerification verifyAgainstAnyParent(
       String requesterPersonalCode, String childCode, List<String> parentCodes) {
-    CustodyVerification verification =
-        custodyVerificationService.verifyFresh(
-            requesterPersonalCode, parentCodes.getFirst(), childCode);
-    for (String parentCode : parentCodes.subList(1, parentCodes.size())) {
-      if (verification.isVerified()) {
-        break;
-      }
-      verification =
+    @Nullable CustodyVerification lastAttempt = null;
+    for (String parentCode : parentCodes) {
+      lastAttempt =
           custodyVerificationService.verifyFresh(requesterPersonalCode, parentCode, childCode);
+      if (lastAttempt.isVerified()) {
+        return lastAttempt;
+      }
     }
-    return verification;
+    return requireNonNull(lastAttempt);
   }
 
-  private ChildResult screenGuardianWard(
+  private ChildResult screenWardWithoutCustodyQuery(
       String requesterPersonalCode, String childCode, boolean hasUser) {
-    PopulationRegisterPerson child =
-        populationRegisterClient.fetchPersonFresh(requesterPersonalCode, childCode).data();
+    PopulationRegisterPerson child = fetchChild(requesterPersonalCode, childCode);
     return new ChildResult(
-        childCode, GUARDIAN_LINK, null, child.citizenship(), screen(child), hasUser, null);
+        childCode,
+        GUARDIAN_LINK,
+        null,
+        child.citizenship(),
+        screenAndConfirmBySanctionRow(child),
+        hasUser,
+        null);
   }
 
-  private ScreeningStatus screen(PopulationRegisterPerson child) {
+  private PopulationRegisterPerson fetchChild(String requesterPersonalCode, String childCode) {
+    return populationRegisterClient.fetchPersonFresh(requesterPersonalCode, childCode).data();
+  }
+
+  private ScreeningStatus screenAndConfirmBySanctionRow(PopulationRegisterPerson child) {
     amlService.addSanctionAndPepCheckIfMissing(
         new PersonImpl(child.personalCode(), child.firstName(), child.lastName()),
         new Country(child.citizenship()));
-    // Screening is fail-open and returns an empty list both when it failed and when the result was
-    // deduplicated, so success can only be confirmed by the row's existence.
-    return hasBeenScreened(child.personalCode()) ? SCREENED : SCREENING_FAILED;
+    return hasRecentSanctionRow(child.personalCode()) ? SCREENED : SCREENING_FAILED;
   }
 
-  private boolean hasBeenScreened(String childCode) {
+  private boolean hasRecentSanctionRow(String childCode) {
     return amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
         childCode, SANCTION, aYearAgo());
   }
 
-  private boolean hasCitizenshipOnFile(String childCode) {
-    // Deliberately not year-scoped: any custody-right row that already carries citizenship means
-    // the child went through the current onboarding checks, however long ago.
+  private boolean hasEverRecordedCitizenship(String childCode) {
     return amlCheckRepository.findAllByPersonalCodeAndType(childCode, CUSTODY_RIGHT).stream()
-        .anyMatch(
-            check -> check.getMetadata() != null && check.getMetadata().containsKey("citizenship"));
+        .anyMatch(check -> check.hasMetadata(CITIZENSHIP));
   }
 }

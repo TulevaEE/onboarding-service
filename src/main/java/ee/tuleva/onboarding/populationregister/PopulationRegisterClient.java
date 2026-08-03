@@ -17,6 +17,6 @@ public interface PopulationRegisterClient {
   PopulationRegisterResult<List<CustodyRight>> fetchCustodyRightsFresh(
       String requesterPersonalCode, String parentPersonalCode);
 
-  PopulationRegisterResult<List<Guardian>> fetchCustodyRights(
-      String requesterPersonalCode, String subjectPersonalCode);
+  PopulationRegisterResult<List<Guardian>> fetchGuardians(
+      String requesterPersonalCode, String childPersonalCode);
 }

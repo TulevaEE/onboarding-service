@@ -39,7 +39,6 @@ import ee.tuleva.onboarding.party.ChildAmlBackfillResult.ChildResult;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterClient;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterResult;
-import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -48,7 +47,6 @@ import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -105,7 +103,10 @@ class ChildAmlBackfillServiceTest {
   }
 
   private void givenLinks(ParentChildLink... links) {
-    given(parentChildLinkRepository.findAll()).willReturn(List.of(links));
+    given(
+            parentChildLinkRepository.findByStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                ACTIVE, LocalDate.of(2026, 7, 29)))
+        .willReturn(List.of(links));
   }
 
   private void givenSanctionRowExists(boolean exists) {
@@ -130,8 +131,7 @@ class ChildAmlBackfillServiceTest {
     var evidence = Map.<String, Object>of("outcome", "OK", "childPersonalCode", CHILD);
     given(custodyVerificationService.verifyFresh(OPS, PARENT, CHILD))
         .willReturn(new CustodyVerification(OK, child, evidence));
-    given(userRepository.findByPersonalCode(CHILD))
-        .willReturn(Optional.of(User.builder().personalCode(CHILD).build()));
+    given(userRepository.existsByPersonalCode(CHILD)).willReturn(true);
     givenSanctionRowExists(true);
 
     ChildAmlBackfillResult result = service.backfill(OPS, false);
@@ -342,29 +342,13 @@ class ChildAmlBackfillServiceTest {
   }
 
   @Test
-  void suspendedAndExpiredLinks_areNotProcessed() {
-    var expired =
-        ParentChildLink.builder()
-            .parentPersonalCode(PARENT)
-            .childPersonalCode(OTHER_CHILD)
-            .relationshipType(LEGAL_REPRESENTATIVE)
-            .status(ACTIVE)
-            .validUntil(LocalDate.of(2026, 7, 29))
-            .build();
-    var suspended =
-        ParentChildLink.builder()
-            .parentPersonalCode(PARENT)
-            .childPersonalCode(CHILD)
-            .relationshipType(LEGAL_REPRESENTATIVE)
-            .status(ACTIVE)
-            .validUntil(LocalDate.of(2033, 6, 15))
-            .suspendedAt(Instant.parse("2026-07-01T00:00:00Z"))
-            .build();
-    givenLinks(suspended, expired);
+  void noActiveLinks_producesAnEmptyReport() {
+    givenLinks();
 
     ChildAmlBackfillResult result = service.backfill(OPS, false);
 
     assertThat(result.total()).isZero();
     assertThat(result.children()).isEmpty();
+    verifyNoInteractions(custodyVerificationService, populationRegisterClient, amlService);
   }
 }

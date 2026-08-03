@@ -30,12 +30,12 @@ public record ChildAmlBackfillResult(
       boolean hasUser,
       @Nullable String error) {
 
-    static ChildResult skipped(String childPersonalCode, Outcome outcome, boolean hasUser) {
+    static ChildResult reported(String childPersonalCode, Outcome outcome, boolean hasUser) {
       return new ChildResult(
           childPersonalCode, outcome, null, null, ScreeningStatus.NOT_ATTEMPTED, hasUser, null);
     }
 
-    static ChildResult error(String childPersonalCode, boolean hasUser, RuntimeException e) {
+    static ChildResult error(String childPersonalCode, boolean hasUser, RuntimeException cause) {
       return new ChildResult(
           childPersonalCode,
           Outcome.ERROR,
@@ -43,7 +43,7 @@ public record ChildAmlBackfillResult(
           null,
           ScreeningStatus.NOT_ATTEMPTED,
           hasUser,
-          e.getClass().getSimpleName() + ": " + e.getMessage());
+          cause.getClass().getSimpleName() + ": " + cause.getMessage());
     }
   }
 

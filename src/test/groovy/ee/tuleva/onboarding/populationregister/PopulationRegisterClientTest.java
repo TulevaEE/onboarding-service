@@ -443,7 +443,7 @@ class PopulationRegisterClientTest {
         .andExpect(jsonPath("$.andmevaljad.hooldusoigused").isNotEmpty())
         .andRespond(withSuccess(guardianResponse(childCode, otherGuardian), APPLICATION_JSON));
 
-    List<Guardian> guardians = client.fetchCustodyRights(REQUESTER, childCode).data();
+    List<Guardian> guardians = client.fetchGuardians(REQUESTER, childCode).data();
 
     assertThat(guardians)
         .containsExactly(
@@ -463,7 +463,7 @@ class PopulationRegisterClientTest {
         .expect(times(1), requestTo(ISIKUD_URL))
         .andRespond(withSuccess(guardianResponse(childCode, "47101010033"), APPLICATION_JSON));
 
-    client.fetchCustodyRights(REQUESTER, childCode);
+    client.fetchGuardians(REQUESTER, childCode);
 
     verify(store, never()).findFresh(any(), any(), any());
     server.verify();
@@ -501,7 +501,7 @@ class PopulationRegisterClientTest {
         .expect(requestTo(ISIKUD_URL))
         .andRespond(withSuccess(responseWithCodelessRow, APPLICATION_JSON));
 
-    List<Guardian> guardians = client.fetchCustodyRights(REQUESTER, childCode).data();
+    List<Guardian> guardians = client.fetchGuardians(REQUESTER, childCode).data();
 
     assertThat(guardians)
         .containsExactly(new Guardian(otherGuardian, PROPERTY_CUSTODY, VALID, ALIVE));

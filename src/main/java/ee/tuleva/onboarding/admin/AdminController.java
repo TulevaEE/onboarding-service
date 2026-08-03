@@ -422,16 +422,6 @@ public class AdminController {
         + request.childCode();
   }
 
-  @PostMapping("/child-aml-backfill")
-  public ChildAmlBackfillResult backfillChildAmlChecks(
-      @RequestHeader("X-Admin-Token") String token,
-      @Valid @RequestBody ChildAmlBackfillRequest request) {
-
-    validateTokenWithOpsAccess(token);
-    log.info("Admin triggered child AML backfill: dryRun={}", request.dryRun());
-    return childAmlBackfillService.backfill(request.requesterPersonalCode(), request.dryRun());
-  }
-
   @PostMapping("/guardian-link")
   public String createGuardianLink(
       @RequestHeader("X-Admin-Token") String token,
@@ -455,6 +445,16 @@ public class AdminController {
         + request.guardianCode()
         + ", wardCode="
         + request.wardCode();
+  }
+
+  @PostMapping("/child-aml-backfill")
+  public ChildAmlBackfillResult backfillChildAmlChecks(
+      @RequestHeader("X-Admin-Token") String token,
+      @Valid @RequestBody ChildAmlBackfillRequest request) {
+
+    validateTokenWithOpsAccess(token);
+    log.info("Admin triggered child AML backfill: dryRun={}", request.dryRun());
+    return childAmlBackfillService.backfill(request.requesterPersonalCode(), request.dryRun());
   }
 
   @PostMapping("/blackrock-adjustment")

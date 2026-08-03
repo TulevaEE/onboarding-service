@@ -46,7 +46,7 @@ public class CustodyVerificationService {
   public List<String> findGuardiansWithAssetManagement(
       String childPersonalCode, String requesterPersonalCode) {
     return populationRegisterClient
-        .fetchCustodyRights(requesterPersonalCode, childPersonalCode)
+        .fetchGuardians(requesterPersonalCode, childPersonalCode)
         .data()
         .stream()
         .filter(Guardian::grantsAssetManagement)
@@ -77,9 +77,6 @@ public class CustodyVerificationService {
         () -> populationRegisterClient.fetchPerson(parentPersonalCode, childPersonalCode, maxAge));
   }
 
-  // Re-verification on the parent's behalf (AML backfill): the ops requester is stamped into the
-  // register's X-Road audit log, and the response store is bypassed both ways so the live flow
-  // can never be served a response another requester fetched.
   public CustodyVerification verifyFresh(
       String requesterPersonalCode, String parentPersonalCode, String childPersonalCode) {
     return verify(

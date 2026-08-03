@@ -232,7 +232,7 @@ class CustodyVerificationServiceTest {
   @Test
   void
       findGuardiansWithAssetManagement_returnsOtherValidLivingPropertyGuardiansExcludingRequester() {
-    given(populationRegisterClient.fetchCustodyRights(PARENT, CHILD))
+    given(populationRegisterClient.fetchGuardians(PARENT, CHILD))
         .willReturn(
             new PopulationRegisterResult<>(
                 List.of(
@@ -252,7 +252,7 @@ class CustodyVerificationServiceTest {
 
   @Test
   void findGuardiansWithAssetManagement_returnsEmptyWhenTheOnlyGuardianIsTheRequester() {
-    given(populationRegisterClient.fetchCustodyRights(PARENT, CHILD))
+    given(populationRegisterClient.fetchGuardians(PARENT, CHILD))
         .willReturn(
             new PopulationRegisterResult<>(
                 List.of(new Guardian(PARENT, PROPERTY_CUSTODY, VALID, ALIVE)), CUSTODY_MESSAGE_ID));

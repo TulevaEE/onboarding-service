@@ -67,6 +67,16 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
   }
 
   @Override
+  public PopulationRegisterResult<PopulationRegisterPerson> fetchPersonFresh(
+      String requesterPersonalCode, String personalCode) {
+    return queryFresh(
+        PersonQueryRequest.forIdentity(personalCode),
+        requesterPersonalCode,
+        IDENTITY,
+        PersonMapper::toPerson);
+  }
+
+  @Override
   public PopulationRegisterResult<List<CustodyRight>> fetchCustodyRights(
       String requesterPersonalCode, Duration maxAge) {
     return query(
@@ -79,12 +89,20 @@ class RestPopulationRegisterClient implements PopulationRegisterClient {
   }
 
   @Override
-  public PopulationRegisterResult<List<Guardian>> fetchCustodyRights(
-      String requesterPersonalCode, String subjectPersonalCode) {
-    // Never cache child-subject custody: the store keys by subject only, so reuse would serve one
-    // parent's response to another and skip their per-requester X-Road audit. Always fetch fresh.
+  public PopulationRegisterResult<List<CustodyRight>> fetchCustodyRightsFresh(
+      String requesterPersonalCode, String parentPersonalCode) {
     return queryFresh(
-        PersonQueryRequest.forCustody(subjectPersonalCode),
+        PersonQueryRequest.forCustody(parentPersonalCode),
+        requesterPersonalCode,
+        CUSTODY,
+        PersonMapper::toCustodyRights);
+  }
+
+  @Override
+  public PopulationRegisterResult<List<Guardian>> fetchGuardians(
+      String requesterPersonalCode, String childPersonalCode) {
+    return queryFresh(
+        PersonQueryRequest.forCustody(childPersonalCode),
         requesterPersonalCode,
         CUSTODY,
         PersonMapper::toGuardians);

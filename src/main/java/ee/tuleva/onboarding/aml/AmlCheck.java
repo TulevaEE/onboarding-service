@@ -43,6 +43,10 @@ public class AmlCheck {
 
   @CreatedDate private Instant createdTime;
 
+  public boolean hasMetadata(String key) {
+    return metadata.containsKey(key);
+  }
+
   @PrePersist
   protected void onCreate() {
     createdTime = ClockHolder.clock().instant();

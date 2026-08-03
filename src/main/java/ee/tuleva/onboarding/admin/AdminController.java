@@ -29,6 +29,8 @@ import ee.tuleva.onboarding.kyb.KybCheckType;
 import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.ChildAmlBackfillResult;
+import ee.tuleva.onboarding.party.ChildAmlBackfillService;
 import ee.tuleva.onboarding.party.ParentChildLinkRegistrationService;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.IbanWhitelistEntry;
@@ -92,6 +94,7 @@ public class AdminController {
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final KybCheckOverrideService kybCheckOverrideService;
   private final ParentChildLinkRegistrationService parentChildLinkRegistrationService;
+  private final ChildAmlBackfillService childAmlBackfillService;
   private final ee.tuleva.onboarding.investment.check.tracking.PeriodicTdAttributionService
       tdAttributionService;
   private final ee.tuleva.onboarding.investment.fees.ocf.OcfCalculationService
@@ -489,6 +492,16 @@ public class AdminController {
         + request.guardianCode()
         + ", wardCode="
         + request.wardCode();
+  }
+
+  @PostMapping("/child-aml-backfill")
+  public ChildAmlBackfillResult backfillChildAmlChecks(
+      @RequestHeader("X-Admin-Token") String token,
+      @Valid @RequestBody ChildAmlBackfillRequest request) {
+
+    validateTokenWithOpsAccess(token);
+    log.info("Admin triggered child AML backfill: dryRun={}", request.dryRun());
+    return childAmlBackfillService.backfill(request.requesterPersonalCode(), request.dryRun());
   }
 
   @PostMapping("/blackrock-adjustment")

@@ -171,6 +171,39 @@ class PopulationRegisterClientTest {
   }
 
   @Test
+  void fetchCustodyRightsFresh_identifiesTheRequesterAndBypassesTheStore() {
+    server
+        .expect(requestTo(ISIKUD_URL))
+        .andExpect(header("X-Road-UserId", REQUESTER))
+        .andExpect(jsonPath("$.isikukoodid[0]").value(PERSONAL_CODE))
+        .andExpect(jsonPath("$.andmevaljad.hooldusoigused").isNotEmpty())
+        .andRespond(withSuccess(custodyResponse(), APPLICATION_JSON));
+
+    List<CustodyRight> rights = client.fetchCustodyRightsFresh(REQUESTER, PERSONAL_CODE).data();
+
+    assertThat(rights).isNotEmpty();
+    verify(store, never()).findFresh(any(), any(), any());
+    verify(store, never()).save(any(), any(), any(), any());
+    server.verify();
+  }
+
+  @Test
+  void fetchPersonFresh_identifiesTheRequesterAndBypassesTheStore() {
+    server
+        .expect(requestTo(ISIKUD_URL))
+        .andExpect(header("X-Road-UserId", REQUESTER))
+        .andExpect(jsonPath("$.isikukoodid[0]").value(PERSONAL_CODE))
+        .andRespond(withSuccess(personResponse(), APPLICATION_JSON));
+
+    PopulationRegisterPerson person = client.fetchPersonFresh(REQUESTER, PERSONAL_CODE).data();
+
+    assertThat(person.personalCode()).isEqualTo(PERSONAL_CODE);
+    verify(store, never()).findFresh(any(), any(), any());
+    verify(store, never()).save(any(), any(), any(), any());
+    server.verify();
+  }
+
+  @Test
   void storesTheRawResponseUnderTheSameMessageIdItSentToTheRegister() {
     var sentMessageId = new AtomicReference<String>();
     server
@@ -410,7 +443,7 @@ class PopulationRegisterClientTest {
         .andExpect(jsonPath("$.andmevaljad.hooldusoigused").isNotEmpty())
         .andRespond(withSuccess(guardianResponse(childCode, otherGuardian), APPLICATION_JSON));
 
-    List<Guardian> guardians = client.fetchCustodyRights(REQUESTER, childCode).data();
+    List<Guardian> guardians = client.fetchGuardians(REQUESTER, childCode).data();
 
     assertThat(guardians)
         .containsExactly(
@@ -430,7 +463,7 @@ class PopulationRegisterClientTest {
         .expect(times(1), requestTo(ISIKUD_URL))
         .andRespond(withSuccess(guardianResponse(childCode, "47101010033"), APPLICATION_JSON));
 
-    client.fetchCustodyRights(REQUESTER, childCode);
+    client.fetchGuardians(REQUESTER, childCode);
 
     verify(store, never()).findFresh(any(), any(), any());
     server.verify();
@@ -468,7 +501,7 @@ class PopulationRegisterClientTest {
         .expect(requestTo(ISIKUD_URL))
         .andRespond(withSuccess(responseWithCodelessRow, APPLICATION_JSON));
 
-    List<Guardian> guardians = client.fetchCustodyRights(REQUESTER, childCode).data();
+    List<Guardian> guardians = client.fetchGuardians(REQUESTER, childCode).data();
 
     assertThat(guardians)
         .containsExactly(new Guardian(otherGuardian, PROPERTY_CUSTODY, VALID, ALIVE));

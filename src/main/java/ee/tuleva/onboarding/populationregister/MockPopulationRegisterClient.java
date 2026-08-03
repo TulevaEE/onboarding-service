@@ -39,8 +39,20 @@ class MockPopulationRegisterClient implements PopulationRegisterClient {
   }
 
   @Override
-  public PopulationRegisterResult<List<Guardian>> fetchCustodyRights(
-      String requesterPersonalCode, String subjectPersonalCode) {
+  public PopulationRegisterResult<PopulationRegisterPerson> fetchPersonFresh(
+      String requesterPersonalCode, String personalCode) {
+    return fetchPerson(requesterPersonalCode, personalCode, Duration.ZERO);
+  }
+
+  @Override
+  public PopulationRegisterResult<List<CustodyRight>> fetchCustodyRightsFresh(
+      String requesterPersonalCode, String parentPersonalCode) {
+    return fetchCustodyRights(parentPersonalCode, Duration.ZERO);
+  }
+
+  @Override
+  public PopulationRegisterResult<List<Guardian>> fetchGuardians(
+      String requesterPersonalCode, String childPersonalCode) {
     log.info("Mock population register guardian lookup");
     return new PopulationRegisterResult<>(
         PersonMapper.toGuardians(load("mock-guardian-response.json")), UUID.randomUUID());

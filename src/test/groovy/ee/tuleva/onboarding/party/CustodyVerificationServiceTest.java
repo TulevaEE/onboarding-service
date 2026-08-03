@@ -183,6 +183,25 @@ class CustodyVerificationServiceTest {
   }
 
   @Test
+  void verifyFresh_usesTheRequesterAndBypassesTheResponseStore() {
+    var ops = "38001010002";
+    given(populationRegisterClient.fetchCustodyRightsFresh(ops, PARENT))
+        .willReturn(
+            new PopulationRegisterResult<>(
+                List.of(new CustodyRight(CHILD, PROPERTY_CUSTODY, VALID, ALIVE)),
+                CUSTODY_MESSAGE_ID));
+    given(populationRegisterClient.fetchPersonFresh(ops, CHILD))
+        .willReturn(new PopulationRegisterResult<>(aliveChild, CHILD_MESSAGE_ID));
+
+    CustodyVerification result = service.verifyFresh(ops, PARENT, CHILD);
+
+    assertThat(result.isVerified()).isTrue();
+    assertThat(result.child()).isEqualTo(aliveChild);
+    verify(populationRegisterClient, never()).fetchCustodyRights(any(), any(Duration.class));
+    verify(populationRegisterClient, never()).fetchPerson(any(), any(), any());
+  }
+
+  @Test
   void listsDistinctChildrenWhoseCustodyGrantsAssetManagement() {
     givenCustodyRights(
         new CustodyRight(CHILD, PERSONAL_CUSTODY, VALID, ALIVE),
@@ -213,7 +232,7 @@ class CustodyVerificationServiceTest {
   @Test
   void
       findGuardiansWithAssetManagement_returnsOtherValidLivingPropertyGuardiansExcludingRequester() {
-    given(populationRegisterClient.fetchCustodyRights(PARENT, CHILD))
+    given(populationRegisterClient.fetchGuardians(PARENT, CHILD))
         .willReturn(
             new PopulationRegisterResult<>(
                 List.of(
@@ -233,7 +252,7 @@ class CustodyVerificationServiceTest {
 
   @Test
   void findGuardiansWithAssetManagement_returnsEmptyWhenTheOnlyGuardianIsTheRequester() {
-    given(populationRegisterClient.fetchCustodyRights(PARENT, CHILD))
+    given(populationRegisterClient.fetchGuardians(PARENT, CHILD))
         .willReturn(
             new PopulationRegisterResult<>(
                 List.of(new Guardian(PARENT, PROPERTY_CUSTODY, VALID, ALIVE)), CUSTODY_MESSAGE_ID));

@@ -59,11 +59,7 @@ public class ChildOnboardingService {
       CustodyVerification verification,
       String guardianPersonalCode,
       @Nullable String guardianCitizenship) {
-    var evidence = new LinkedHashMap<String, Object>(verification.evidence());
-    PopulationRegisterPerson child = verification.child();
-    if (child != null && child.citizenship() != null) {
-      evidence.put("citizenship", child.citizenship());
-    }
+    var evidence = new LinkedHashMap<String, Object>(verification.evidenceWithCitizenship());
     if (verification.isVerified()) {
       evidence.put("guardianPersonalCode", guardianPersonalCode);
       if (guardianCitizenship != null) {

@@ -7,6 +7,8 @@ import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceSynchronizer;
+import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerSnapshotDateValidator;
+import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerSynchronizer;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
 import ee.tuleva.onboarding.capital.transfer.iban.IbanValidator;
@@ -39,6 +41,7 @@ import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionBatchJob;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionReviewService;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
@@ -80,11 +83,14 @@ public class AdminController {
   private final NavCalculationService navCalculationService;
   private final NavPublisher navPublisher;
   private final FundBalanceSynchronizer fundBalanceSynchronizer;
+  private final UnitOwnerSynchronizer unitOwnerSynchronizer;
+  private final UnitOwnerSnapshotDateValidator unitOwnerSnapshotDateValidator;
   private final FundPositionLedgerService fundPositionLedgerService;
   private final FundPositionRepository fundPositionRepository;
   private final ReportImportJob reportImportJob;
   private final FundPositionImportJob fundPositionImportJob;
   private final RedemptionBatchJob redemptionBatchJob;
+  private final RedemptionReviewService redemptionReviewService;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final KybCheckOverrideService kybCheckOverrideService;
   private final ParentChildLinkRegistrationService parentChildLinkRegistrationService;
@@ -221,6 +227,26 @@ public class AdminController {
     return "Backfilled unit counts from " + from + " to " + to;
   }
 
+  @PostMapping("/sync-unit-owners")
+  public String syncUnitOwners(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam(required = false) @DateTimeFormat(iso = DATE) LocalDate snapshotDate) {
+
+    validateToken(token);
+
+    LocalDate date = snapshotDate != null ? snapshotDate : LocalDate.now(clock);
+    try {
+      unitOwnerSnapshotDateValidator.validate(date);
+    } catch (IllegalArgumentException e) {
+      throw new ResponseStatusException(BAD_REQUEST, e.getMessage());
+    }
+
+    log.info("Admin triggered unit owner snapshot sync: snapshotDate={}", date);
+    unitOwnerSynchronizer.sync(date);
+
+    return "Synchronized unit owner snapshot for " + date;
+  }
+
   @PostMapping("/reimport-positions")
   public String reimportPositions(
       @RequestHeader("X-Admin-Token") String token,
@@ -311,6 +337,27 @@ public class AdminController {
     redemptionBatchJob.retryFailedPayout(id);
 
     return "Retried redemption payout for " + id;
+  }
+
+  @PostMapping("/redemptions/{id}/approve-review")
+  public String approveRedemptionReview(
+      @RequestHeader("X-Admin-Token") String token,
+      @PathVariable UUID id,
+      @RequestParam String approvedBy,
+      @RequestParam String reason) {
+
+    validateTokenWithOpsAccess(token);
+    if (approvedBy.isBlank()) {
+      throw new ResponseStatusException(BAD_REQUEST, "approvedBy is required");
+    }
+    if (reason.isBlank()) {
+      throw new ResponseStatusException(BAD_REQUEST, "A reason is required");
+    }
+
+    log.info("Admin approving redemption review: id={}, approvedBy={}", id, approvedBy);
+    redemptionReviewService.approve(id, approvedBy, reason);
+
+    return "Approved redemption review: id=" + id;
   }
 
   @PostMapping("/override-kyb-check")

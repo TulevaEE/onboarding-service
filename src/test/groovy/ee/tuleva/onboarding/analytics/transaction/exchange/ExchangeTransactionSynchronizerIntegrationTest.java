@@ -123,7 +123,7 @@ class ExchangeTransactionSynchronizerIntegrationTest {
     private List<ExchangeTransactionDto> exchangeTransactions = new ArrayList<>();
 
     public MockEpisService(RestTemplate restTemplate, JwtTokenUtil jwtTokenUtil) {
-      super(restTemplate, jwtTokenUtil);
+      super(restTemplate, restTemplate, jwtTokenUtil);
     }
 
     @Override

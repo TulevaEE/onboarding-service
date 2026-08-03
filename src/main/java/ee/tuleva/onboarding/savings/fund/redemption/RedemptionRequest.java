@@ -71,6 +71,12 @@ public class RedemptionRequest {
 
   @Nullable private String errorReason;
 
+  @Nullable private String reviewedBy;
+
+  @Nullable private String reviewReason;
+
+  @Nullable private Instant reviewedAt;
+
   @Column(nullable = false)
   private Instant updatedAt;
 

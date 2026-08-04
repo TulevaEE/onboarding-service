@@ -37,7 +37,7 @@ public record CustodyVerification(
     return enriched.size() == evidence.size() ? evidence : unmodifiableMap(enriched);
   }
 
-  private static final String CITIZENSHIPS = "citizenships";
+  static final String CITIZENSHIPS = "citizenships";
 
   static CustodyVerification notVerified(Outcome outcome, Map<String, Object> evidence) {
     return new CustodyVerification(outcome, null, evidence);

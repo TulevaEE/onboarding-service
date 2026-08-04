@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.util.HashSet;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -87,7 +88,12 @@ public class RedemptionVerificationService {
                     new IllegalStateException(
                         "KYC survey with country not found: userId=" + user.getId()));
 
-    boolean screeningClear = amlService.isSanctionAndPepClear(user, countries);
+    // A child's citizenships come from the population register, not their KYC survey, so the
+    // survey countries alone would re-screen a minor on residence and could clear an earlier hit.
+    Set<Country> allCountries = new HashSet<>(countries);
+    allCountries.addAll(amlService.recordedCitizenships(user));
+
+    boolean screeningClear = amlService.isSanctionAndPepClear(user, allCountries);
     boolean highRisk = riskLevelService.isHighRisk(user.getPersonalCode());
     if (highRisk) {
       log.info(

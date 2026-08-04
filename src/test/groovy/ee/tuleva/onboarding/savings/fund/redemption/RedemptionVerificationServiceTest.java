@@ -308,4 +308,28 @@ class RedemptionVerificationServiceTest {
         .partyId(new PartyId(LEGAL_ENTITY, registryCode))
         .build();
   }
+
+  @Test
+  void process_personRequest_screensAgainstCitizenshipsTheSurveyDoesNotCarry() {
+    var userId = 1L;
+    var requestId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .userId(userId)
+            .partyId(new PartyId(PERSON, "38812121215"))
+            .build();
+    var user = sampleUser().id(userId).build();
+
+    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
+    given(kycSurveyService.getCountries(userId)).willReturn(Optional.of(Countries.of("EE")));
+    given(amlService.recordedCitizenships(user)).willReturn(Countries.of("RU"));
+    given(amlService.isSanctionAndPepClear(user, Countries.of("EE", "RU"))).willReturn(true);
+    given(riskLevelService.isHighRisk(user.getPersonalCode())).willReturn(false);
+
+    service.process(request);
+
+    verify(amlService).isSanctionAndPepClear(user, Countries.of("EE", "RU"));
+    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
+  }
 }

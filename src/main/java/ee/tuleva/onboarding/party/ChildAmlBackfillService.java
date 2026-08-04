@@ -11,7 +11,7 @@ import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.Outcome.WOULD_PR
 import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.ScreeningStatus.SCREENED;
 import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.ScreeningStatus.SCREENING_FAILED;
 import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.ScreeningStatus.SKIPPED;
-import static ee.tuleva.onboarding.party.CustodyVerification.CITIZENSHIP;
+import static ee.tuleva.onboarding.party.CustodyVerification.CITIZENSHIPS;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.CHILD_NOT_ALIVE;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
@@ -94,7 +94,7 @@ public class ChildAmlBackfillService {
     boolean hasUser = false;
     try {
       hasUser = userRepository.existsByPersonalCode(childCode);
-      if (hasEverRecordedCitizenship(childCode) && hasRecentSanctionRow(childCode)) {
+      if (hasEveryRecordedCitizenship(childCode) && hasRecentSanctionRow(childCode)) {
         return ChildResult.reported(childCode, ALREADY_BACKFILLED, hasUser);
       }
       if (!PersonalCode.isMinor(childCode, today)) {
@@ -192,8 +192,8 @@ public class ChildAmlBackfillService {
         childCode, SANCTION, aYearAgo());
   }
 
-  private boolean hasEverRecordedCitizenship(String childCode) {
+  private boolean hasEveryRecordedCitizenship(String childCode) {
     return amlCheckRepository.findAllByPersonalCodeAndType(childCode, CUSTODY_RIGHT).stream()
-        .anyMatch(check -> check.hasMetadata(CITIZENSHIP));
+        .anyMatch(check -> check.hasMetadata(CITIZENSHIPS));
   }
 }

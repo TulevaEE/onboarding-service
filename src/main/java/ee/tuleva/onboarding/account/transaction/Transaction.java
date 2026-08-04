@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.account.transaction;
 
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH_WORKPLACE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Comparator.comparing;
 
@@ -36,6 +38,10 @@ public record Transaction(
         .units(cashFlow.getUnits())
         .nav(cashFlow.getNav())
         .build();
+  }
+
+  public boolean isAcquisition() {
+    return type == CONTRIBUTION_CASH || type == CONTRIBUTION_CASH_WORKPLACE;
   }
 
   @Override

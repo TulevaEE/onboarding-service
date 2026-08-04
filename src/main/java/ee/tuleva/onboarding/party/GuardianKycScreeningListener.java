@@ -41,8 +41,7 @@ class GuardianKycScreeningListener {
     userService
         .findByPersonalCode(guardianPersonalCode)
         .ifPresentOrElse(
-            guardian ->
-                amlService.addSanctionAndPepCheckIfMissing(guardian, Countries.<String>of()),
+            guardian -> amlService.addSanctionAndPepCheckIfMissing(guardian, Countries.of()),
             () ->
                 log.warn(
                     "Guardian has no user account, skipping sanction/PEP screening: guardianCode={}, childCode={}",

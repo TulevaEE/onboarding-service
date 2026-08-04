@@ -5,11 +5,11 @@ import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyb.CompanyDto;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.time.Duration;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.restclient.RestTemplateBuilder;
@@ -26,6 +26,8 @@ import tools.jackson.databind.node.ArrayNode;
 @Service
 @Profile("!dev")
 public class OpenSanctionsService implements PepAndSanctionCheckService {
+
+  private static final String ESTONIA = "ee";
 
   private final RestTemplate restTemplate;
   private final JsonMapper objectMapper;
@@ -63,7 +65,7 @@ public class OpenSanctionsService implements PepAndSanctionCheckService {
   public MatchResponse matchCompany(CompanyDto company) {
     var registryCode = company.registryCode().value();
     var properties =
-        new CompanyProperties(List.of(company.name()), List.of(registryCode), Set.of("ee"));
+        new CompanyProperties(List.of(company.name()), List.of(registryCode), Set.of(ESTONIA));
     var companyQuery = new CompanyQuery(properties);
 
     return executeMatch(registryCode, companyQuery);
@@ -87,15 +89,11 @@ public class OpenSanctionsService implements PepAndSanctionCheckService {
           + "&topics=role.pep&topics=role.rca&topics=sanction"
           + "&facets=countries&facets=topics&facets=datasets&facets=gender";
 
-  // Every country a person is tied to — citizenships and residence — is sent as a query property.
-  // The match algorithm scores against them rather than filtering on them, so a person holding a
-  // second citizenship scores against that country's listings too.
-  private HashSet<String> getCountryCodes(Set<Country> countries) {
-    var codes = new HashSet<String>();
-    codes.add("ee");
+  private Set<String> getCountryCodes(Set<Country> countries) {
+    var codes = new TreeSet<String>();
+    codes.add(ESTONIA);
     countries.stream()
         .map(Country::getCountryCode)
-        .filter(code -> code != null && !code.isBlank())
         .map(code -> code.toLowerCase(Locale.ROOT))
         .forEach(codes::add);
     return codes;

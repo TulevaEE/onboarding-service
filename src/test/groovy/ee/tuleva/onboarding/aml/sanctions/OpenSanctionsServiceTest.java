@@ -467,7 +467,7 @@ class OpenSanctionsServiceTest {
               "properties": {
                 "name": ["Peeter Meeter"],
                 "birthDate": ["1960-04-08"],
-                "country": ["ee", "ru", "lv"],
+                "country": ["ee", "lv", "ru"],
                 "gender": ["male"]
               }
             }

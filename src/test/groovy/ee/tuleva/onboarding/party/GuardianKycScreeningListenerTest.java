@@ -9,7 +9,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
-import ee.tuleva.onboarding.country.Country;
+import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.kyc.BeforeKycCheckedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
@@ -56,16 +56,16 @@ class GuardianKycScreeningListenerTest {
     given(userService.findByPersonalCode(OTHER_GUARDIAN)).willReturn(Optional.of(otherGuardian));
 
     listener.beforeKycChecked(
-        new BeforeKycCheckedEvent(new PersonImpl(CHILD, "Mari", "Maasikas"), new Country("EE")));
+        new BeforeKycCheckedEvent(new PersonImpl(CHILD, "Mari", "Maasikas"), Countries.of("EE")));
 
-    verify(amlService).addSanctionAndPepCheckIfMissing(guardian, new Country(null));
-    verify(amlService).addSanctionAndPepCheckIfMissing(otherGuardian, new Country(null));
+    verify(amlService).addSanctionAndPepCheckIfMissing(guardian, Countries.<String>of());
+    verify(amlService).addSanctionAndPepCheckIfMissing(otherGuardian, Countries.<String>of());
   }
 
   @Test
   void doesNothingForAnAdultKycSubject() {
     listener.beforeKycChecked(
-        new BeforeKycCheckedEvent(new PersonImpl(ADULT, "Jordan", "Valdma"), new Country("EE")));
+        new BeforeKycCheckedEvent(new PersonImpl(ADULT, "Jordan", "Valdma"), Countries.of("EE")));
 
     verifyNoInteractions(parentChildLinkService, userService, amlService);
   }
@@ -76,7 +76,7 @@ class GuardianKycScreeningListenerTest {
     given(userService.findByPersonalCode(GUARDIAN)).willReturn(Optional.empty());
 
     listener.beforeKycChecked(
-        new BeforeKycCheckedEvent(new PersonImpl(CHILD, "Mari", "Maasikas"), new Country("EE")));
+        new BeforeKycCheckedEvent(new PersonImpl(CHILD, "Mari", "Maasikas"), Countries.of("EE")));
 
     verify(amlService, never()).addSanctionAndPepCheckIfMissing(any(), any());
   }

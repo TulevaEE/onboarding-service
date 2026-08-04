@@ -7,7 +7,7 @@ import static java.util.Collections.unmodifiableMap;
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
-import ee.tuleva.onboarding.country.Country;
+import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
@@ -59,7 +59,7 @@ public class ChildOnboardingService {
       CustodyVerification verification,
       String guardianPersonalCode,
       @Nullable String guardianCitizenship) {
-    var evidence = new LinkedHashMap<String, Object>(verification.evidenceWithCitizenship());
+    var evidence = new LinkedHashMap<String, Object>(verification.evidenceWithCitizenships());
     if (verification.isVerified()) {
       evidence.put("guardianPersonalCode", guardianPersonalCode);
       if (guardianCitizenship != null) {
@@ -72,13 +72,13 @@ public class ChildOnboardingService {
   private void screenForSanctionsAndPep(PopulationRegisterPerson child) {
     amlService.addSanctionAndPepCheckIfMissing(
         new PersonImpl(child.personalCode(), child.firstName(), child.lastName()),
-        new Country(child.citizenship()));
+        Countries.of(child.citizenships()));
   }
 
   private void screenGuardian(AuthenticatedPerson parent, @Nullable String citizenship) {
     amlService.addSanctionAndPepCheckIfMissing(
         new PersonImpl(parent.getPersonalCode(), parent.getFirstName(), parent.getLastName()),
-        new Country(citizenship));
+        Countries.of(citizenship));
   }
 
   private boolean hasBeenOnboarded(String childPersonalCode) {

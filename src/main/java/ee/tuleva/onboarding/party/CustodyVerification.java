@@ -11,6 +11,7 @@ public record CustodyVerification(
     Outcome outcome, @Nullable PopulationRegisterPerson child, Map<String, Object> evidence) {
 
   static final String CITIZENSHIP = "citizenship";
+  static final String CITIZENSHIPS = "citizenships";
 
   public enum Outcome {
     OK,
@@ -23,13 +24,17 @@ public record CustodyVerification(
     return outcome == Outcome.OK;
   }
 
-  public Map<String, Object> evidenceWithCitizenship() {
-    String citizenship = child == null ? null : child.citizenship();
-    if (citizenship == null) {
+  public Map<String, Object> evidenceWithCitizenships() {
+    if (child == null) {
       return evidence;
     }
     var enriched = new LinkedHashMap<String, Object>(evidence);
-    enriched.put(CITIZENSHIP, citizenship);
+    if (child.citizenship() != null) {
+      enriched.put(CITIZENSHIP, child.citizenship());
+    }
+    if (!child.citizenships().isEmpty()) {
+      enriched.put(CITIZENSHIPS, child.citizenships());
+    }
     return unmodifiableMap(enriched);
   }
 

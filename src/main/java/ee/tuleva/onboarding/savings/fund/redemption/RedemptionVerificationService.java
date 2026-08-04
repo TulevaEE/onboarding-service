@@ -15,6 +15,8 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.util.HashSet;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -78,15 +80,18 @@ public class RedemptionVerificationService {
                 () ->
                     new IllegalStateException(
                         "Redemption party user not found: party=" + request.getPartyId()));
-    Country country =
+    Set<Country> countries =
         kycSurveyService
-            .getCountry(user.getId())
+            .getCountries(user.getId())
             .orElseThrow(
                 () ->
                     new IllegalStateException(
                         "KYC survey with country not found: userId=" + user.getId()));
 
-    boolean screeningClear = amlService.isSanctionAndPepClear(user, country);
+    Set<Country> allCountries = new HashSet<>(countries);
+    allCountries.addAll(amlService.recordedCitizenships(user));
+
+    boolean screeningClear = amlService.isSanctionAndPepClear(user, allCountries);
     boolean highRisk = riskLevelService.isHighRisk(user.getPersonalCode());
     if (highRisk) {
       log.info(

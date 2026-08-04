@@ -16,13 +16,13 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
-class CostBasisCalculatorTest {
+class SavingsFundCostBasisCalculatorTest {
 
   private static final String TKF = "EE0000003283";
   private static final LocalDate START_OF_2025 = LocalDate.parse("2025-01-01");
   private static final LocalDate END_OF_2025 = LocalDate.parse("2025-12-31");
 
-  private final CostBasisCalculator calculator = new CostBasisCalculator();
+  private final SavingsFundCostBasisCalculator calculator = new SavingsFundCostBasisCalculator();
 
   private static Transaction transaction(
       String time, String units, String nav, CashFlow.Type type) {

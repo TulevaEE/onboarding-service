@@ -14,7 +14,7 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
-public class CostBasisCalculator {
+public class SavingsFundCostBasisCalculator {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
   private static final MathContext UNIT_COST_PRECISION = MathContext.DECIMAL128;

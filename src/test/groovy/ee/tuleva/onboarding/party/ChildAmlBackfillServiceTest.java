@@ -147,10 +147,13 @@ class ChildAmlBackfillServiceTest {
   }
 
   @Test
-  void childWithCitizenshipAndScreeningOnFile_isSkippedWithoutRegisterCalls() {
+  void childWithEveryCitizenshipAndScreeningOnFile_isSkippedWithoutRegisterCalls() {
     givenLinks(link(PARENT, CHILD, LEGAL_REPRESENTATIVE));
     given(amlCheckRepository.findAllByPersonalCodeAndType(CHILD, CUSTODY_RIGHT))
-        .willReturn(List.of(custodyCheck(Map.of("outcome", "OK", "citizenship", "EE"))));
+        .willReturn(
+            List.of(
+                custodyCheck(
+                    Map.of("outcome", "OK", "citizenship", "EE", "citizenships", List.of("EE")))));
     givenSanctionRowExists(true);
 
     ChildAmlBackfillResult result = service.backfill(OPS, false);
@@ -350,5 +353,19 @@ class ChildAmlBackfillServiceTest {
     assertThat(result.total()).isZero();
     assertThat(result.children()).isEmpty();
     verifyNoInteractions(custodyVerificationService, populationRegisterClient, amlService);
+  }
+
+  @Test
+  void childRecordedBeforeCitizenshipsWereCaptured_isReverifiedForTheMissingOnes() {
+    givenLinks(link(PARENT, CHILD, LEGAL_REPRESENTATIVE));
+    given(amlCheckRepository.findAllByPersonalCodeAndType(CHILD, CUSTODY_RIGHT))
+        .willReturn(List.of(custodyCheck(Map.of("outcome", "OK", "citizenship", "EE"))));
+    given(custodyVerificationService.verifyFresh(OPS, PARENT, CHILD))
+        .willReturn(new CustodyVerification(OK, child, Map.of("outcome", "OK")));
+    givenSanctionRowExists(true);
+
+    ChildAmlBackfillResult result = service.backfill(OPS, false);
+
+    assertThat(result.children()).extracting(ChildResult::outcome).containsExactly(BACKFILLED);
   }
 }

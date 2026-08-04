@@ -27,6 +27,7 @@ import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import io.micrometer.core.instrument.MeterRegistry;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -102,8 +103,22 @@ public class AmlService {
     return screenForSanctionAndPep(person, countries).checks();
   }
 
-  public boolean isSanctionAndPepClear(Person person, Country country) {
-    if (screenForSanctionAndPep(person, country).failed()) {
+  @SuppressWarnings("unchecked")
+  public Set<Country> recordedCitizenships(Person person) {
+    return amlCheckRepository
+        .findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+            person.getPersonalCode(), CUSTODY_RIGHT)
+        .map(AmlCheck::getMetadata)
+        .map(
+            metadata ->
+                metadata.get("citizenships") instanceof Collection<?> recorded
+                    ? Countries.of(recorded.stream().map(String::valueOf).toList())
+                    : Countries.of(String.valueOf(metadata.get("citizenship"))))
+        .orElseGet(Set::of);
+  }
+
+  public boolean isSanctionAndPepClear(Person person, Set<Country> countries) {
+    if (screenForSanctionAndPep(person, countries).failed()) {
       return false;
     }
     return latestCheckPassed(person, SANCTION)

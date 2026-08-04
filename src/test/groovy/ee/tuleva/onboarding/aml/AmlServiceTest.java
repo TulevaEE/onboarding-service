@@ -1256,4 +1256,69 @@ class AmlServiceTest {
 
     assertFalse(amlService.isSanctionAndPepClear(user, country));
   }
+
+  @Test
+  void recordedCitizenships_readsEveryCitizenshipFromTheLatestCustodyCheck() {
+    var person = new PersonImpl("61506150006", "Mari", "Maasikas");
+    given(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+                person.getPersonalCode(), CUSTODY_RIGHT))
+        .willReturn(
+            Optional.of(
+                AmlCheck.builder()
+                    .personalCode(person.getPersonalCode())
+                    .type(CUSTODY_RIGHT)
+                    .success(true)
+                    .metadata(Map.of("citizenship", "EE", "citizenships", List.of("EE", "RU")))
+                    .build()));
+
+    assertThat(amlService.recordedCitizenships(person)).isEqualTo(Countries.of("EE", "RU"));
+  }
+
+  @Test
+  void recordedCitizenships_fallsBackToTheSingleCitizenshipOlderChecksRecorded() {
+    var person = new PersonImpl("61506150006", "Mari", "Maasikas");
+    given(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+                person.getPersonalCode(), CUSTODY_RIGHT))
+        .willReturn(
+            Optional.of(
+                AmlCheck.builder()
+                    .personalCode(person.getPersonalCode())
+                    .type(CUSTODY_RIGHT)
+                    .success(true)
+                    .metadata(Map.of("citizenship", "EE"))
+                    .build()));
+
+    assertThat(amlService.recordedCitizenships(person)).isEqualTo(Countries.of("EE"));
+  }
+
+  @Test
+  void recordedCitizenships_isEmptyWhenTheCustodyCheckRecordedNoCitizenship() {
+    var person = new PersonImpl("61506150006", "Mari", "Maasikas");
+    given(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+                person.getPersonalCode(), CUSTODY_RIGHT))
+        .willReturn(
+            Optional.of(
+                AmlCheck.builder()
+                    .personalCode(person.getPersonalCode())
+                    .type(CUSTODY_RIGHT)
+                    .success(false)
+                    .metadata(Map.of("outcome", "NO_CUSTODY"))
+                    .build()));
+
+    assertThat(amlService.recordedCitizenships(person)).isEmpty();
+  }
+
+  @Test
+  void recordedCitizenships_isEmptyWhenThereIsNoCustodyCheck() {
+    var person = new PersonImpl("38812121215", "Jaan", "Tamm");
+    given(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+                person.getPersonalCode(), CUSTODY_RIGHT))
+        .willReturn(Optional.empty());
+
+    assertThat(amlService.recordedCitizenships(person)).isEmpty();
+  }
 }

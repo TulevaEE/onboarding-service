@@ -94,7 +94,7 @@ public class ChildAmlBackfillService {
     boolean hasUser = false;
     try {
       hasUser = userRepository.existsByPersonalCode(childCode);
-      if (hasEveryRecordedCitizenship(childCode) && hasRecentSanctionRow(childCode)) {
+      if (hasRecordedEveryCitizenship(childCode) && hasRecentSanctionRow(childCode)) {
         return ChildResult.reported(childCode, ALREADY_BACKFILLED, hasUser);
       }
       if (!PersonalCode.isMinor(childCode, today)) {
@@ -130,7 +130,7 @@ public class ChildAmlBackfillService {
     CustodyVerification verification =
         verifyAgainstAnyParent(requesterPersonalCode, childCode, parentCodes);
     amlService.addCustodyRightCheck(
-        childCode, verification.isVerified(), verification.evidenceWithCitizenship());
+        childCode, verification.isVerified(), verification.evidenceWithCitizenships());
 
     Outcome outcome = verification.isVerified() ? BACKFILLED : CUSTODY_NOT_VERIFIED;
     if (verification.outcome() == CHILD_NOT_ALIVE) {
@@ -192,7 +192,7 @@ public class ChildAmlBackfillService {
         childCode, SANCTION, aYearAgo());
   }
 
-  private boolean hasEveryRecordedCitizenship(String childCode) {
+  private boolean hasRecordedEveryCitizenship(String childCode) {
     return amlCheckRepository.findAllByPersonalCodeAndType(childCode, CUSTODY_RIGHT).stream()
         .anyMatch(check -> check.hasMetadata(CITIZENSHIPS));
   }

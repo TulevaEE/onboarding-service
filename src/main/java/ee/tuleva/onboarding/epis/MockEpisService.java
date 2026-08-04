@@ -40,7 +40,7 @@ import org.springframework.web.client.RestTemplate;
 public class MockEpisService extends EpisService {
 
   public MockEpisService(RestTemplate restTemplate) {
-    super(restTemplate, null);
+    super(restTemplate, restTemplate, null);
   }
 
   @Override

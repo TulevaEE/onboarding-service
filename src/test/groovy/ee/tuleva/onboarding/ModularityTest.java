@@ -33,13 +33,13 @@ class ModularityTest {
     var forbiddenDependencies = Set.of("investment", "savings");
 
     var ledgerModule =
-        modules.stream().filter(module -> module.getName().equals("ledger")).findFirst();
+        modules.stream().filter(module -> moduleName(module).equals("ledger")).findFirst();
 
     assertThat(ledgerModule).isPresent();
 
     var ledgerDependencies =
-        ledgerModule.get().getDependencies(modules).stream()
-            .map(dep -> dep.getTargetModule().getName())
+        ledgerModule.get().getDirectDependencies(modules).stream()
+            .map(dep -> moduleName(dep.getTargetModule()))
             .filter(forbiddenDependencies::contains)
             .toList();
 
@@ -55,17 +55,21 @@ class ModularityTest {
 
     var modulesWithInvestmentDependency =
         modules.stream()
-            .filter(module -> !module.getName().equals("investment"))
-            .filter(module -> !allowedDependents.contains(module.getName()))
+            .filter(module -> !moduleName(module).equals("investment"))
+            .filter(module -> !allowedDependents.contains(moduleName(module)))
             .filter(
                 module ->
-                    module.getDependencies(modules).stream()
-                        .anyMatch(dep -> dep.getTargetModule().getName().equals("investment")))
-            .map(ApplicationModule::getName)
+                    module.getDirectDependencies(modules).stream()
+                        .anyMatch(dep -> moduleName(dep.getTargetModule()).equals("investment")))
+            .map(ModularityTest::moduleName)
             .toList();
 
     assertThat(modulesWithInvestmentDependency)
         .as("No module should depend on investment module")
         .isEmpty();
+  }
+
+  private static String moduleName(ApplicationModule module) {
+    return module.getIdentifier().toString();
   }
 }

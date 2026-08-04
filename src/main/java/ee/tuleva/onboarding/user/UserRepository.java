@@ -12,6 +12,8 @@ public interface UserRepository extends CrudRepository<User, Long> {
   @NotNull
   Optional<User> findByPersonalCode(@NotNull String personalCode);
 
+  boolean existsByPersonalCode(@NotNull String personalCode);
+
   @NotNull
   Optional<User> findByEmail(@NotNull String email);
 

@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -45,7 +46,7 @@ public class CustodyVerificationService {
   public List<String> findGuardiansWithAssetManagement(
       String childPersonalCode, String requesterPersonalCode) {
     return populationRegisterClient
-        .fetchCustodyRights(requesterPersonalCode, childPersonalCode)
+        .fetchGuardians(requesterPersonalCode, childPersonalCode)
         .data()
         .stream()
         .filter(Guardian::grantsAssetManagement)
@@ -69,8 +70,27 @@ public class CustodyVerificationService {
 
   public CustodyVerification verify(
       String parentPersonalCode, String childPersonalCode, Duration maxAge) {
-    PopulationRegisterResult<List<CustodyRight>> custodyResult =
-        populationRegisterClient.fetchCustodyRights(parentPersonalCode, maxAge);
+    return verify(
+        populationRegisterClient.fetchCustodyRights(parentPersonalCode, maxAge),
+        parentPersonalCode,
+        childPersonalCode,
+        () -> populationRegisterClient.fetchPerson(parentPersonalCode, childPersonalCode, maxAge));
+  }
+
+  public CustodyVerification verifyFresh(
+      String requesterPersonalCode, String parentPersonalCode, String childPersonalCode) {
+    return verify(
+        populationRegisterClient.fetchCustodyRightsFresh(requesterPersonalCode, parentPersonalCode),
+        parentPersonalCode,
+        childPersonalCode,
+        () -> populationRegisterClient.fetchPersonFresh(requesterPersonalCode, childPersonalCode));
+  }
+
+  private CustodyVerification verify(
+      PopulationRegisterResult<List<CustodyRight>> custodyResult,
+      String parentPersonalCode,
+      String childPersonalCode,
+      Supplier<PopulationRegisterResult<PopulationRegisterPerson>> childFetcher) {
     UUID custodyMessageId = custodyResult.messageId();
 
     // The population register returns personal (H10) and property (H20) custody as
@@ -108,8 +128,7 @@ public class CustodyVerificationService {
           evidence(NOT_ASSET_MANAGEMENT, childPersonalCode, custodyMessageId));
     }
 
-    PopulationRegisterResult<PopulationRegisterPerson> childResult =
-        populationRegisterClient.fetchPerson(parentPersonalCode, childPersonalCode, maxAge);
+    PopulationRegisterResult<PopulationRegisterPerson> childResult = childFetcher.get();
     PopulationRegisterPerson child = childResult.data();
     if (!child.isAlive()) {
       return CustodyVerification.notVerified(

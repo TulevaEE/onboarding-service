@@ -209,4 +209,37 @@ class ParentChildLinkRepositoryTest {
                 CHILD, ACTIVE, EIGHTEENTH_BIRTHDAY))
         .isEmpty();
   }
+
+  @Test
+  void findsEveryActiveLinkRegardlessOfParent() {
+    // the AML backfill enumerates the whole active population through this query
+    var link = savedLink(PARENT, null);
+    var otherLink = savedLink(OTHER_PARENT, null);
+
+    assertThat(
+            repository.findByStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                ACTIVE, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .containsExactlyInAnyOrder(link, otherLink);
+  }
+
+  @Test
+  void findsNoPendingOrSuspendedLinkRegardlessOfParent() {
+    savedPendingLink(PARENT);
+    savedLink(OTHER_PARENT, SUSPENDED);
+
+    assertThat(
+            repository.findByStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                ACTIVE, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .isEmpty();
+  }
+
+  @Test
+  void findsNoActiveLinkOnValidUntilDate() {
+    savedLink(PARENT, null);
+
+    assertThat(
+            repository.findByStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                ACTIVE, EIGHTEENTH_BIRTHDAY))
+        .isEmpty();
+  }
 }

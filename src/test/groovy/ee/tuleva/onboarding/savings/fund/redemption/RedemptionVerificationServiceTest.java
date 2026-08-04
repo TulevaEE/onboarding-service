@@ -1,28 +1,30 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.IN_REVIEW;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import ee.tuleva.onboarding.aml.AmlCheck;
-import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.aml.AmlService;
+import ee.tuleva.onboarding.aml.risklevel.RiskLevelService;
 import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyService;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus;
 import ee.tuleva.onboarding.user.UserService;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -38,13 +40,15 @@ class RedemptionVerificationServiceTest {
   @Mock private UserService userService;
   @Mock private KycSurveyService kycSurveyService;
   @Mock private AmlService amlService;
+  @Mock private RiskLevelService riskLevelService;
   @Mock private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Mock private LegalEntityScreener legalEntityScreener;
+  @Mock private OperationsNotificationService notificationService;
 
   @InjectMocks private RedemptionVerificationService service;
 
   @Test
-  void process_personRequest_transitionsToVerifiedWhenAllAmlChecksPass() {
+  void process_personRequest_transitionsToVerifiedWhenScreeningClearAndNotHighRisk() {
     var userId = 1L;
     var requestId = UUID.randomUUID();
     var request =
@@ -55,16 +59,11 @@ class RedemptionVerificationServiceTest {
             .build();
     var user = sampleUser().id(userId).build();
     var countries = Countries.of("EE");
-    var passing =
-        AmlCheck.builder()
-            .personalCode(user.getPersonalCode())
-            .type(AmlCheckType.SANCTION)
-            .success(true)
-            .build();
 
     given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
     given(kycSurveyService.getCountries(userId)).willReturn(Optional.of(countries));
-    given(amlService.addSanctionAndPepCheckIfMissing(user, countries)).willReturn(List.of(passing));
+    given(amlService.isSanctionAndPepClear(user, countries)).willReturn(true);
+    given(riskLevelService.isHighRisk(user.getPersonalCode())).willReturn(false);
 
     service.process(request);
 
@@ -73,7 +72,7 @@ class RedemptionVerificationServiceTest {
   }
 
   @Test
-  void process_personRequest_transitionsToVerifiedWhenNoNewChecksNeeded() {
+  void process_personRequest_transitionsToInReviewWhenScreeningNotClear() {
     var userId = 1L;
     var requestId = UUID.randomUUID();
     var request =
@@ -87,15 +86,19 @@ class RedemptionVerificationServiceTest {
 
     given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
     given(kycSurveyService.getCountries(userId)).willReturn(Optional.of(countries));
-    given(amlService.addSanctionAndPepCheckIfMissing(user, countries)).willReturn(List.of());
+    given(amlService.isSanctionAndPepClear(user, countries)).willReturn(false);
 
     service.process(request);
 
-    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
+    verify(redemptionStatusService).changeStatus(requestId, IN_REVIEW);
+    verify(redemptionStatusService, never()).changeStatus(requestId, VERIFIED);
+    verify(notificationService)
+        .sendMessage(
+            "AML: redemption held for review: id=" + requestId + ", amount=10.00 EUR", AML);
   }
 
   @Test
-  void process_personRequest_transitionsToInReviewWhenAnyAmlCheckFails() {
+  void process_personRequest_holdsRedemptionEvenWhenNotificationFails() {
     var userId = 1L;
     var requestId = UUID.randomUUID();
     var request =
@@ -106,16 +109,37 @@ class RedemptionVerificationServiceTest {
             .build();
     var user = sampleUser().id(userId).build();
     var countries = Countries.of("EE");
-    var failing =
-        AmlCheck.builder()
-            .personalCode(user.getPersonalCode())
-            .type(AmlCheckType.SANCTION)
-            .success(false)
-            .build();
 
     given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
     given(kycSurveyService.getCountries(userId)).willReturn(Optional.of(countries));
-    given(amlService.addSanctionAndPepCheckIfMissing(user, countries)).willReturn(List.of(failing));
+    given(amlService.isSanctionAndPepClear(user, countries)).willReturn(false);
+    willThrow(new IllegalStateException("Slack unavailable"))
+        .given(notificationService)
+        .sendMessage(anyString(), any());
+
+    service.process(request);
+
+    verify(redemptionStatusService).changeStatus(requestId, IN_REVIEW);
+    verify(redemptionStatusService, never()).changeStatus(requestId, VERIFIED);
+  }
+
+  @Test
+  void process_personRequest_transitionsToInReviewWhenPartyIsHighRisk() {
+    var userId = 1L;
+    var requestId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .userId(userId)
+            .partyId(new PartyId(PERSON, "38812121215"))
+            .build();
+    var user = sampleUser().id(userId).build();
+    var countries = Countries.of("EE");
+
+    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
+    given(kycSurveyService.getCountries(userId)).willReturn(Optional.of(countries));
+    given(amlService.isSanctionAndPepClear(user, countries)).willReturn(true);
+    given(riskLevelService.isHighRisk(user.getPersonalCode())).willReturn(true);
 
     service.process(request);
 
@@ -136,17 +160,11 @@ class RedemptionVerificationServiceTest {
             .build();
     var child = sampleUser().id(2L).personalCode(childCode).build();
     var countries = Countries.of("EE");
-    var passing =
-        AmlCheck.builder()
-            .personalCode(childCode)
-            .type(AmlCheckType.SANCTION)
-            .success(true)
-            .build();
 
     given(userService.findByPersonalCode(childCode)).willReturn(Optional.of(child));
     given(kycSurveyService.getCountries(child.getId())).willReturn(Optional.of(countries));
-    given(amlService.addSanctionAndPepCheckIfMissing(child, countries))
-        .willReturn(List.of(passing));
+    given(amlService.isSanctionAndPepClear(child, countries)).willReturn(true);
+    given(riskLevelService.isHighRisk(childCode)).willReturn(false);
 
     service.process(request);
 

@@ -17,6 +17,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceSynchronizer;
+import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerSnapshotDateValidator;
+import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerSynchronizer;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
@@ -33,6 +35,8 @@ import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.ChildAmlBackfillResult;
+import ee.tuleva.onboarding.party.ChildAmlBackfillService;
 import ee.tuleva.onboarding.party.ChildIsNotAMinorException;
 import ee.tuleva.onboarding.party.ParentChildLinkRegistrationService;
 import ee.tuleva.onboarding.party.PartyId;
@@ -45,6 +49,7 @@ import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionBatchJob;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionReviewService;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -78,14 +83,18 @@ class AdminControllerTest {
   @MockitoBean private NavCalculationService navCalculationService;
   @MockitoBean private NavPublisher navPublisher;
   @MockitoBean private FundBalanceSynchronizer fundBalanceSynchronizer;
+  @MockitoBean private UnitOwnerSynchronizer unitOwnerSynchronizer;
+  @MockitoBean private UnitOwnerSnapshotDateValidator unitOwnerSnapshotDateValidator;
   @MockitoBean private FundPositionLedgerService fundPositionLedgerService;
   @MockitoBean private FundPositionRepository fundPositionRepository;
   @MockitoBean private ReportImportJob reportImportJob;
   @MockitoBean private FundPositionImportJob fundPositionImportJob;
   @MockitoBean private RedemptionBatchJob redemptionBatchJob;
+  @MockitoBean private RedemptionReviewService redemptionReviewService;
   @MockitoBean private SavingsFundOnboardingService savingsFundOnboardingService;
   @MockitoBean private KybCheckOverrideService kybCheckOverrideService;
   @MockitoBean private ParentChildLinkRegistrationService parentChildLinkRegistrationService;
+  @MockitoBean private ChildAmlBackfillService childAmlBackfillService;
 
   @MockitoBean
   private ee.tuleva.onboarding.investment.check.tracking.PeriodicTdAttributionService
@@ -431,6 +440,62 @@ class AdminControllerTest {
   }
 
   @Test
+  void syncUnitOwners_defaultsToTodaysDate() throws Exception {
+    given(clock.instant()).willReturn(Instant.parse("2026-08-02T09:00:00Z"));
+    given(clock.getZone()).willReturn(ZoneId.of("UTC"));
+
+    mockMvc
+        .perform(
+            post("/admin/sync-unit-owners").with(csrf()).header("X-Admin-Token", "valid-token"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("2026-08-02")));
+
+    verify(unitOwnerSnapshotDateValidator).validate(LocalDate.of(2026, 8, 2));
+    verify(unitOwnerSynchronizer).sync(LocalDate.of(2026, 8, 2));
+  }
+
+  @Test
+  void syncUnitOwners_validatesAnExplicitSnapshotDateBeforeSynchronizing() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/sync-unit-owners")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("snapshotDate", "2026-08-01"))
+        .andExpect(status().isOk());
+
+    verify(unitOwnerSnapshotDateValidator).validate(LocalDate.of(2026, 8, 1));
+    verify(unitOwnerSynchronizer).sync(LocalDate.of(2026, 8, 1));
+  }
+
+  @Test
+  void syncUnitOwners_doesNotSynchronizeWhenTheDateIsRejected() throws Exception {
+    doThrow(new IllegalArgumentException("too old"))
+        .when(unitOwnerSnapshotDateValidator)
+        .validate(LocalDate.of(2026, 1, 1));
+
+    mockMvc
+        .perform(
+            post("/admin/sync-unit-owners")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("snapshotDate", "2026-01-01"))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(unitOwnerSynchronizer);
+  }
+
+  @Test
+  void syncUnitOwners_rejectsAnInvalidToken() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/sync-unit-owners").with(csrf()).header("X-Admin-Token", "wrong-token"))
+        .andExpect(status().isUnauthorized());
+
+    verifyNoInteractions(unitOwnerSynchronizer);
+  }
+
+  @Test
   void rerecordPositions_rerecordsPositionsAndBackfillsFees() throws Exception {
     when(fundPositionRepository.findLatestNavDateByFund(TulevaFund.TUK75))
         .thenReturn(java.util.Optional.of(LocalDate.of(2026, 3, 13)));
@@ -683,6 +748,71 @@ class AdminControllerTest {
         .andExpect(status().isBadRequest());
 
     verify(redemptionBatchJob, never()).retryFailedPayout(any());
+  }
+
+  @Test
+  void approveRedemptionReview_withOpsToken_delegatesToService() throws Exception {
+    var requestId = UUID.fromString("2db696b5-00ee-4937-87b4-8192c675e4b5");
+
+    mockMvc
+        .perform(
+            post("/admin/redemptions/{id}/approve-review", requestId)
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("approvedBy", "AML Specialist")
+                .param("reason", "reviewed, source of funds clear"))
+        .andExpect(status().isOk());
+
+    verify(redemptionReviewService)
+        .approve(requestId, "AML Specialist", "reviewed, source of funds clear");
+  }
+
+  @Test
+  void approveRedemptionReview_withBlankReason_returnsBadRequest() throws Exception {
+    var requestId = UUID.randomUUID();
+
+    mockMvc
+        .perform(
+            post("/admin/redemptions/{id}/approve-review", requestId)
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("approvedBy", "AML Specialist")
+                .param("reason", " "))
+        .andExpect(status().isBadRequest());
+
+    verify(redemptionReviewService, never()).approve(any(), any(), any());
+  }
+
+  @Test
+  void approveRedemptionReview_withBlankApprover_returnsBadRequest() throws Exception {
+    var requestId = UUID.randomUUID();
+
+    mockMvc
+        .perform(
+            post("/admin/redemptions/{id}/approve-review", requestId)
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("approvedBy", " ")
+                .param("reason", "reviewed"))
+        .andExpect(status().isBadRequest());
+
+    verify(redemptionReviewService, never()).approve(any(), any(), any());
+  }
+
+  @Test
+  void approveRedemptionReview_withInvalidToken_returnsUnauthorized() throws Exception {
+    var requestId = UUID.randomUUID();
+
+    mockMvc
+        .perform(
+            post("/admin/redemptions/{id}/approve-review", requestId)
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .param("approvedBy", "AML Specialist")
+                .param("reason", "reviewed"))
+        .andExpect(status().isUnauthorized());
+
+    verify(redemptionReviewService, never()).approve(any(), any(), any());
   }
 
   @Test
@@ -1084,6 +1214,79 @@ class AdminControllerTest {
         .andExpect(status().isBadRequest());
 
     verifyNoInteractions(kybCheckOverrideService);
+  }
+
+  @Test
+  void childAmlBackfill_withOpsToken_delegatesToServiceAndReturnsTheReport() throws Exception {
+    given(childAmlBackfillService.backfill("38812121215", true))
+        .willReturn(ChildAmlBackfillResult.of(true, List.of()));
+
+    mockMvc
+        .perform(
+            post("/admin/child-aml-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"requesterPersonalCode": "38812121215", "dryRun": true}
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.dryRun").value(true))
+        .andExpect(jsonPath("$.total").value(0));
+
+    verify(childAmlBackfillService).backfill("38812121215", true);
+  }
+
+  @Test
+  void childAmlBackfill_withInvalidToken_isUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/child-aml-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"requesterPersonalCode": "38812121215", "dryRun": false}
+                    """))
+        .andExpect(status().isUnauthorized());
+
+    verifyNoInteractions(childAmlBackfillService);
+  }
+
+  @Test
+  void childAmlBackfill_withoutExplicitDryRun_isBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/child-aml-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"requesterPersonalCode": "38812121215"}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(childAmlBackfillService);
+  }
+
+  @Test
+  void childAmlBackfill_withInvalidRequesterCode_isBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/child-aml-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"requesterPersonalCode": "12345", "dryRun": false}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(childAmlBackfillService);
   }
 
   @Test

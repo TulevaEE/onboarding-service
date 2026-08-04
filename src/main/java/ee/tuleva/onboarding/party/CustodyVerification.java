@@ -1,11 +1,16 @@
 package ee.tuleva.onboarding.party;
 
+import static java.util.Collections.unmodifiableMap;
+
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
-import jakarta.annotation.Nullable;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 public record CustodyVerification(
     Outcome outcome, @Nullable PopulationRegisterPerson child, Map<String, Object> evidence) {
+
+  static final String CITIZENSHIP = "citizenship";
 
   public enum Outcome {
     OK,
@@ -17,6 +22,22 @@ public record CustodyVerification(
   public boolean isVerified() {
     return outcome == Outcome.OK;
   }
+
+  public Map<String, Object> evidenceWithCitizenship() {
+    if (child == null) {
+      return evidence;
+    }
+    var enriched = new LinkedHashMap<String, Object>(evidence);
+    if (child.citizenship() != null) {
+      enriched.put(CITIZENSHIP, child.citizenship());
+    }
+    if (!child.citizenships().isEmpty()) {
+      enriched.put(CITIZENSHIPS, child.citizenships());
+    }
+    return enriched.size() == evidence.size() ? evidence : unmodifiableMap(enriched);
+  }
+
+  private static final String CITIZENSHIPS = "citizenships";
 
   static CustodyVerification notVerified(Outcome outcome, Map<String, Object> evidence) {
     return new CustodyVerification(outcome, null, evidence);

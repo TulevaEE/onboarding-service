@@ -102,6 +102,21 @@ public class AmlService {
     return screenForSanctionAndPep(person, countries).checks();
   }
 
+  public boolean isSanctionAndPepClear(Person person, Set<Country> countries) {
+    if (screenForSanctionAndPep(person, countries).failed()) {
+      return false;
+    }
+    return latestCheckPassed(person, SANCTION)
+        && latestCheckPassed(person, POLITICALLY_EXPOSED_PERSON_AUTO);
+  }
+
+  private boolean latestCheckPassed(Person person, AmlCheckType type) {
+    return amlCheckRepository
+        .findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(person.getPersonalCode(), type)
+        .map(AmlCheck::isSuccess)
+        .orElse(false);
+  }
+
   private record ScreeningResult(List<AmlCheck> checks, boolean failed) {}
 
   private ScreeningResult screenForSanctionAndPep(Person person, Set<Country> countries) {

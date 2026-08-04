@@ -30,8 +30,58 @@ public class RiskLevelService {
   private final AmlCheckRepository amlCheckRepository;
   private final ApplicationEventPublisher eventPublisher;
 
+  private static final int HIGH_RISK_LEVEL = 1;
+
   public void runRiskLevelCheck(double mediumRiskIndividualSelectionProbability) {
     scorePillar("III pillar", amlRiskReader, RISK_LEVEL, mediumRiskIndividualSelectionProbability);
+  }
+
+  public boolean isHighRisk(String personalCode) {
+    return latestLevelIsHigh(personalCode, List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE))
+        || latestLevelIsHigh(personalCode, List.of(TKF_RISK_LEVEL, TKF_RISK_LEVEL_OVERRIDE));
+  }
+
+  private boolean latestLevelIsHigh(String personalCode, List<AmlCheckType> types) {
+    return amlCheckRepository
+        .findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(personalCode, types)
+        .map(this::isHighRiskLevel)
+        .orElse(false);
+  }
+
+  // A missing level on an override row is a specialist confirmation without a score change and
+  // does not keep the client high-risk. Anything else unexpected is treated as high risk.
+  private boolean isHighRiskLevel(AmlCheck check) {
+    Object level = check.getMetadata().get("level");
+    if (level == null) {
+      return !isOverride(check.getType());
+    }
+    Integer parsedLevel = parseLevel(level);
+    if (parsedLevel == null) {
+      log.error(
+          "Malformed risk level metadata, treating as high risk: checkId={}, level={}",
+          check.getId(),
+          level);
+      return true;
+    }
+    return parsedLevel == HIGH_RISK_LEVEL;
+  }
+
+  private boolean isOverride(AmlCheckType type) {
+    return type == RISK_LEVEL_OVERRIDE || type == TKF_RISK_LEVEL_OVERRIDE;
+  }
+
+  private Integer parseLevel(Object level) {
+    if (level instanceof Number number) {
+      return number.intValue();
+    }
+    if (level instanceof String string) {
+      try {
+        return Integer.parseInt(string.trim());
+      } catch (NumberFormatException e) {
+        return null;
+      }
+    }
+    return null;
   }
 
   public void runTkfRiskLevelCheck(double mediumRiskIndividualSelectionProbability) {

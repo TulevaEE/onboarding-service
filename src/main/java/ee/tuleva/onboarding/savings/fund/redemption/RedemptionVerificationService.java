@@ -1,19 +1,20 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.PENDING;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.IN_REVIEW;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 
-import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlService;
+import ee.tuleva.onboarding.aml.risklevel.RiskLevelService;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyService;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,8 +30,10 @@ public class RedemptionVerificationService {
   private final UserService userService;
   private final KycSurveyService kycSurveyService;
   private final AmlService amlService;
+  private final RiskLevelService riskLevelService;
   private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   private final LegalEntityScreener legalEntityScreener;
+  private final OperationsNotificationService notificationService;
 
   @Transactional
   public void process(RedemptionRequest request) {
@@ -49,10 +52,22 @@ public class RedemptionVerificationService {
       log.info(
           "Redemption requires review: id={}, party={}", request.getId(), request.getPartyId());
       redemptionStatusService.changeStatus(request.getId(), IN_REVIEW);
+      notifyAmlChannel(request);
     } else {
       log.info(
           "Redemption verification passed: id={}, party={}", request.getId(), request.getPartyId());
       redemptionStatusService.changeStatus(request.getId(), VERIFIED);
+    }
+  }
+
+  private void notifyAmlChannel(RedemptionRequest request) {
+    try {
+      notificationService.sendMessage(
+          "AML: redemption held for review: id=%s, amount=%s EUR"
+              .formatted(request.getId(), request.getRequestedAmount().toPlainString()),
+          AML);
+    } catch (RuntimeException e) {
+      log.error("Failed to notify AML channel about held redemption: id={}", request.getId(), e);
     }
   }
 
@@ -72,8 +87,13 @@ public class RedemptionVerificationService {
                     new IllegalStateException(
                         "KYC survey with country not found: userId=" + user.getId()));
 
-    List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, countries);
-    return checks.stream().allMatch(AmlCheck::isSuccess);
+    boolean screeningClear = amlService.isSanctionAndPepClear(user, countries);
+    boolean highRisk = riskLevelService.isHighRisk(user.getPersonalCode());
+    if (highRisk) {
+      log.info(
+          "Redemption party is high risk: id={}, party={}", request.getId(), request.getPartyId());
+    }
+    return screeningClear && !highRisk;
   }
 
   private boolean runLegalEntityChecks(RedemptionRequest request) {

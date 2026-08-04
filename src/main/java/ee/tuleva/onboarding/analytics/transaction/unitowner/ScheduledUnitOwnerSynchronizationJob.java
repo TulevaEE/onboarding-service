@@ -27,21 +27,7 @@ public class ScheduledUnitOwnerSynchronizationJob {
       lockAtMostFor = "23h",
       lockAtLeastFor = "30m")
   public void runDailySync() {
-    LocalDate snapshotDate = LocalDate.now(ClockHolder.clock());
-    log.info(
-        "Starting scheduled unit owner snapshot synchronization job for date {}.", snapshotDate);
-    try {
-      unitOwnerSynchronizer.sync(snapshotDate);
-      log.info(
-          "Scheduled unit owner snapshot synchronization job completed successfully for date {}.",
-          snapshotDate);
-    } catch (Exception e) {
-      log.error(
-          "Scheduled unit owner snapshot synchronization job failed during execution for date {}: {}",
-          snapshotDate,
-          e.getMessage(),
-          e);
-    }
+    synchronizeSnapshot();
   }
 
   @Scheduled(cron = "0 0 5 1 * ?", zone = "Europe/Tallinn")
@@ -50,18 +36,20 @@ public class ScheduledUnitOwnerSynchronizationJob {
       lockAtMostFor = "23h",
       lockAtLeastFor = "30m")
   public void runMonthlySync() {
+    synchronizeSnapshot();
+  }
+
+  private void synchronizeSnapshot() {
     LocalDate snapshotDate = LocalDate.now(ClockHolder.clock());
-    log.info(
-        "Starting monthly scheduled unit owner snapshot synchronization job for date {}.",
-        snapshotDate);
+    log.info("Starting unit owner snapshot synchronization: snapshotDate={}", snapshotDate);
     try {
       unitOwnerSynchronizer.sync(snapshotDate);
-      log.info(
-          "Monthly scheduled unit owner snapshot synchronization job completed successfully for date {}.",
-          snapshotDate);
+      log.info("Unit owner snapshot synchronization completed: snapshotDate={}", snapshotDate);
     } catch (Exception e) {
       log.error(
-          "Monthly scheduled unit owner snapshot synchronization job failed during execution for date {}: {}",
+          "Unit owner snapshot synchronization failed, analytics monthly series will have no data"
+              + " for this month and a first-of-month snapshot cannot be recreated later:"
+              + " snapshotDate={}, error={}",
           snapshotDate,
           e.getMessage(),
           e);

@@ -152,7 +152,7 @@ class ThirdPillarTransactionSynchronizerIntegrationTest {
     private List<ThirdPillarTransactionDto> thirdPillarTransactionDtos = new ArrayList<>();
 
     public MockEpisService(RestTemplate restTemplate, JwtTokenUtil jwtTokenUtil) {
-      super(restTemplate, jwtTokenUtil);
+      super(restTemplate, restTemplate, jwtTokenUtil);
     }
 
     @Override

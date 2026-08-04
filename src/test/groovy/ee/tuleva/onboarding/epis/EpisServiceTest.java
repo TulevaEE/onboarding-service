@@ -43,7 +43,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpEntity;
@@ -58,10 +57,11 @@ import org.springframework.web.util.UriComponentsBuilder;
 @ExtendWith(MockitoExtension.class)
 class EpisServiceTest {
 
-  @Mock RestTemplate restTemplate;
+  @Mock RestTemplate episRestTemplate;
+  @Mock RestTemplate episLongRequestRestTemplate;
   @Mock JwtTokenUtil jwtTokenUtil;
 
-  @InjectMocks EpisService service;
+  EpisService service;
 
   String sampleUserToken = "123";
   String sampleServiceToken = "123456";
@@ -69,6 +69,7 @@ class EpisServiceTest {
 
   @BeforeEach
   void setUp() {
+    service = new EpisService(episRestTemplate, episLongRequestRestTemplate, jwtTokenUtil);
     ReflectionTestUtils.setField(service, "episServiceUrl", "http://epis");
     ReflectionTestUtils.setField(service, "episServiceLongRequestUrl", "http://epis");
   }
@@ -105,14 +106,14 @@ class EpisServiceTest {
               assertEquals(mandate.getId(), body.getId());
               return mock(ApplicationResponseDTO.class);
             })
-        .when(restTemplate)
+        .when(episRestTemplate)
         .postForObject(anyString(), any(HttpEntity.class), eq(ApplicationResponseDTO.class));
 
     // when
     service.sendMandate(mandateDto);
 
     // then
-    verify(restTemplate)
+    verify(episRestTemplate)
         .postForObject(
             eq("http://epis/mandates"), any(HttpEntity.class), eq(ApplicationResponseDTO.class));
   }
@@ -124,7 +125,7 @@ class EpisServiceTest {
     ApplicationDTO[] responseBody = {ApplicationDTO.builder().build()};
     var resultEntity = new ResponseEntity<>(responseBody, OK);
 
-    when(restTemplate.exchange(
+    when(episRestTemplate.exchange(
             eq("http://epis/applications"),
             eq(GET),
             argThat(entity -> doesHttpEntityContainToken(entity, sampleUserToken)),
@@ -145,7 +146,7 @@ class EpisServiceTest {
     var fixture = contactDetailsFixture();
     var response = new ResponseEntity<>(fixture, OK);
 
-    when(restTemplate.exchange(
+    when(episRestTemplate.exchange(
             eq("http://epis/contact-details"),
             eq(GET),
             argThat(entity -> doesHttpEntityContainToken(entity, sampleUserToken)),
@@ -167,7 +168,7 @@ class EpisServiceTest {
     String customJwt = "customJWT";
     var response = new ResponseEntity<>(fixture, OK);
 
-    when(restTemplate.exchange(
+    when(episRestTemplate.exchange(
             eq("http://epis/contact-details"),
             eq(GET),
             argThat(entity -> doesHttpEntityContainToken(entity, customJwt)),
@@ -192,7 +193,7 @@ class EpisServiceTest {
     String expectedUrl =
         "http://epis/account-cash-flow-statement?from-date=2001-01-01&to-date=2018-01-01";
 
-    when(restTemplate.exchange(
+    when(episRestTemplate.exchange(
             eq(expectedUrl),
             eq(GET),
             argThat(entity -> doesHttpEntityContainToken(entity, sampleUserToken)),
@@ -213,7 +214,7 @@ class EpisServiceTest {
     FundBalanceDto[] responseBody = {FundBalanceDto.builder().isin("someIsin").build()};
     var responseEntity = new ResponseEntity<>(responseBody, OK);
 
-    when(restTemplate.exchange(
+    when(episRestTemplate.exchange(
             eq("http://epis/account-statement"),
             eq(GET),
             argThat(entity -> doesHttpEntityContainToken(entity, sampleUserToken)),
@@ -237,7 +238,7 @@ class EpisServiceTest {
     };
     var responseEntity = new ResponseEntity<>(contributions, OK);
 
-    when(restTemplate.exchange(
+    when(episRestTemplate.exchange(
             eq("http://epis/contributions"),
             eq(GET),
             argThat(entity -> doesHttpEntityContainToken(entity, sampleUserToken)),
@@ -261,7 +262,7 @@ class EpisServiceTest {
     };
     var responseEntity = new ResponseEntity<>(sampleFunds, OK);
 
-    when(restTemplate.exchange(
+    when(episRestTemplate.exchange(
             eq("http://epis/funds"),
             eq(GET),
             argThat(entity -> doesHttpEntityContainToken(entity, sampleUserToken)),
@@ -283,7 +284,7 @@ class EpisServiceTest {
     FundDto[] emptyFunds = {};
     var responseEntity = new ResponseEntity<>(emptyFunds, OK);
 
-    when(restTemplate.exchange(
+    when(episRestTemplate.exchange(
             eq("http://epis/funds"),
             eq(GET),
             argThat(entity -> doesHttpEntityContainToken(entity, sampleUserToken)),
@@ -313,14 +314,14 @@ class EpisServiceTest {
               assertEquals(contactDetails.getPersonalCode(), body.getPersonalCode());
               return mock(ContactDetails.class);
             })
-        .when(restTemplate)
+        .when(episRestTemplate)
         .postForObject(anyString(), any(HttpEntity.class), eq(ContactDetails.class));
 
     // when
     service.updateContactDetails(samplePerson, contactDetails);
 
     // then
-    verify(restTemplate)
+    verify(episRestTemplate)
         .postForObject(
             eq("http://epis/contact-details"), any(HttpEntity.class), eq(ContactDetails.class));
   }
@@ -334,7 +335,7 @@ class EpisServiceTest {
     String expectedUrl = "http://epis/navs/EE666?date=2018-10-20";
     NavDto navDto = mock(NavDto.class);
 
-    when(restTemplate.exchange(
+    when(episRestTemplate.exchange(
             eq(expectedUrl),
             eq(GET),
             argThat(entity -> doesHttpEntityContainToken(entity, sampleServiceToken)),
@@ -363,7 +364,7 @@ class EpisServiceTest {
               assertEquals(sampleCancellation.getId(), cmd.getMandateDto().getId());
               return mandateCommandResponse;
             })
-        .when(restTemplate)
+        .when(episRestTemplate)
         .postForObject(
             eq("http://epis/mandates-v2"), any(HttpEntity.class), eq(MandateCommandResponse.class));
 
@@ -381,7 +382,7 @@ class EpisServiceTest {
     setupUserAuthentication();
     var fundPensionCalculation = new FundPensionCalculationDto(20);
 
-    when(restTemplate.exchange(
+    when(episRestTemplate.exchange(
             eq("http://epis/fund-pension-calculation"),
             eq(GET),
             argThat(entity -> doesHttpEntityContainToken(entity, sampleUserToken)),
@@ -401,7 +402,7 @@ class EpisServiceTest {
     setupUserAuthentication();
     var fundPensionStatusDto = new FundPensionStatusDto(List.of(), List.of());
 
-    when(restTemplate.exchange(
+    when(episRestTemplate.exchange(
             eq("http://epis/fund-pension-status"),
             eq(GET),
             argThat(entity -> doesHttpEntityContainToken(entity, sampleUserToken)),
@@ -421,7 +422,7 @@ class EpisServiceTest {
     setupUserAuthentication();
     var fixture = ArrestsBankruptciesDto.builder().build();
 
-    when(restTemplate.exchange(
+    when(episRestTemplate.exchange(
             eq("http://epis/arrests-bankruptcies"),
             eq(GET),
             argThat(entity -> doesHttpEntityContainToken(entity, sampleUserToken)),
@@ -440,7 +441,7 @@ class EpisServiceTest {
     setupUserAuthentication();
     var fixture = secondPillarAssetsFixture();
     given(
-            restTemplate.exchange(
+            episRestTemplate.exchange(
                 eq("http://epis/second-pillar-assets"),
                 eq(GET),
                 argThat(entity -> doesHttpEntityContainToken(entity, sampleUserToken)),
@@ -469,7 +470,7 @@ class EpisServiceTest {
       ThirdPillarTransactionDto.builder().personId("5678").build()
     };
 
-    when(restTemplate.exchange(
+    when(episLongRequestRestTemplate.exchange(
             eq(expectedUrl),
             eq(GET),
             argThat(entity -> doesHttpEntityContainToken(entity, sampleServiceToken)),
@@ -505,7 +506,7 @@ class EpisServiceTest {
       ExchangeTransactionDto.builder().securityTo(securityTo).build()
     };
 
-    when(restTemplate.exchange(
+    when(episLongRequestRestTemplate.exchange(
             eq(expectedUrl),
             eq(GET),
             argThat(entity -> doesHttpEntityContainToken(entity, sampleServiceToken)),
@@ -540,7 +541,7 @@ class EpisServiceTest {
       FundTransactionDto.builder().amount(BigDecimal.valueOf(100)).build(),
     };
 
-    when(restTemplate.exchange(
+    when(episLongRequestRestTemplate.exchange(
             eq(expectedUrl),
             eq(GET),
             argThat(entity -> doesHttpEntityContainToken(entity, sampleServiceToken)),
@@ -573,7 +574,7 @@ class EpisServiceTest {
     ResponseEntity<TransactionFundBalanceDto[]> mockResponseEntity =
         new ResponseEntity<>(mockResponseArray, OK);
 
-    when(restTemplate.exchange(
+    when(episLongRequestRestTemplate.exchange(
             eq(expectedUrl),
             eq(GET),
             argThat(entity -> doesHttpEntityContainToken(entity, sampleServiceToken)),
@@ -592,7 +593,7 @@ class EpisServiceTest {
     assertEquals("ISIN002", actualFundBalances.get(1).getIsin());
 
     verify(jwtTokenUtil).generateServiceToken();
-    verify(restTemplate)
+    verify(episLongRequestRestTemplate)
         .exchange(
             eq(expectedUrl),
             eq(GET),
@@ -613,7 +614,7 @@ class EpisServiceTest {
     };
     ResponseEntity<UnitOwnerDto[]> mockResponseEntity = new ResponseEntity<>(mockResponseArray, OK);
 
-    when(restTemplate.exchange(
+    when(episLongRequestRestTemplate.exchange(
             eq(expectedUrl),
             eq(GET),
             argThat(entity -> doesHttpEntityContainToken(entity, sampleServiceToken)),
@@ -632,7 +633,7 @@ class EpisServiceTest {
     assertEquals("OwnerB", actualUnitOwners.get(1).getName());
 
     verify(jwtTokenUtil).generateServiceToken();
-    verify(restTemplate)
+    verify(episLongRequestRestTemplate)
         .exchange(
             eq(expectedUrl),
             eq(GET),

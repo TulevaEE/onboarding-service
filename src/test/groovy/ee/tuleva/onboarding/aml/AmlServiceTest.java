@@ -1184,4 +1184,76 @@ class AmlServiceTest {
     verify(pepAndSanctionCheckService, never()).match(any(Person.class), anySet());
     verify(notificationService, never()).sendMessage(anyString(), any());
   }
+
+  @Test
+  void isSanctionAndPepClear_failsClosedWhenScreeningThrows() {
+    User user = createUser("123", "First", "Last", 1L);
+    Set<Country> country = Countries.of("EE");
+    when(pepAndSanctionCheckService.match(user, country))
+        .thenThrow(new RuntimeException("screening service down"));
+
+    assertFalse(amlService.isSanctionAndPepClear(user, country));
+  }
+
+  @Test
+  void isSanctionAndPepClear_trueWhenLatestScreeningChecksPass() {
+    User user = createUser("123", "First", "Last", 1L);
+    Set<Country> country = Countries.of("EE");
+    MatchResponse emptyResponse =
+        new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
+    when(pepAndSanctionCheckService.match(user, country)).thenReturn(emptyResponse);
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc("123", SANCTION))
+        .thenReturn(
+            Optional.of(
+                AmlCheck.builder().personalCode("123").type(SANCTION).success(true).build()));
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+            "123", POLITICALLY_EXPOSED_PERSON_AUTO))
+        .thenReturn(
+            Optional.of(
+                AmlCheck.builder()
+                    .personalCode("123")
+                    .type(POLITICALLY_EXPOSED_PERSON_AUTO)
+                    .success(true)
+                    .build()));
+
+    assertTrue(amlService.isSanctionAndPepClear(user, country));
+  }
+
+  @Test
+  void isSanctionAndPepClear_falseWhenLatestSanctionCheckHasFailed() {
+    User user = createUser("123", "First", "Last", 1L);
+    Set<Country> country = Countries.of("EE");
+    ArrayNode results = objectMapper.createArrayNode();
+    ObjectNode result = objectMapper.createObjectNode();
+    result.put("id", "sanction123");
+    result.put("match", true);
+    ArrayNode topics = objectMapper.createArrayNode();
+    topics.add("sanction");
+    ObjectNode properties = objectMapper.createObjectNode();
+    properties.set("topics", topics);
+    result.set("properties", properties);
+    results.add(result);
+    MatchResponse matchResponse = new MatchResponse(results, objectMapper.createObjectNode());
+    when(pepAndSanctionCheckService.match(user, country)).thenReturn(matchResponse);
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc("123", SANCTION))
+        .thenReturn(
+            Optional.of(
+                AmlCheck.builder().personalCode("123").type(SANCTION).success(false).build()));
+
+    assertFalse(amlService.isSanctionAndPepClear(user, country));
+  }
+
+  @Test
+  void isSanctionAndPepClear_falseWhenNoScreeningRecordExists() {
+    User user = createUser("123", "First", "Last", 1L);
+    Set<Country> country = Countries.of("EE");
+    MatchResponse emptyResponse =
+        new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
+    when(pepAndSanctionCheckService.match(user, country)).thenReturn(emptyResponse);
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+            eq("123"), any(AmlCheckType.class)))
+        .thenReturn(Optional.empty());
+
+    assertFalse(amlService.isSanctionAndPepClear(user, country));
+  }
 }

@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -614,5 +615,81 @@ class RiskLevelServiceTest {
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher).publishEvent(captor.capture());
     assertThat(captor.getValue().getLabel()).isEqualTo("TKF");
+  }
+
+  @Test
+  void isHighRisk_trueWhenLatestThirdPillarSnapshotIsHigh() {
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+            "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
+        .thenReturn(Optional.of(checkWithLevel(RISK_LEVEL, 1)));
+
+    assertTrue(riskLevelService.isHighRisk("123"));
+  }
+
+  @Test
+  void isHighRisk_trueWhenLatestTkfOverrideLevelIsHighString() {
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+            "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
+        .thenReturn(Optional.empty());
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+            "123", List.of(TKF_RISK_LEVEL, TKF_RISK_LEVEL_OVERRIDE)))
+        .thenReturn(Optional.of(checkWithLevel(TKF_RISK_LEVEL_OVERRIDE, "1")));
+
+    assertTrue(riskLevelService.isHighRisk("123"));
+  }
+
+  @Test
+  void isHighRisk_falseWhenLatestRowsAreNotHighOrMissing() {
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+            "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
+        .thenReturn(Optional.of(checkWithLevel(RISK_LEVEL, 2)));
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+            "123", List.of(TKF_RISK_LEVEL, TKF_RISK_LEVEL_OVERRIDE)))
+        .thenReturn(Optional.empty());
+
+    assertFalse(riskLevelService.isHighRisk("123"));
+  }
+
+  @Test
+  void isHighRisk_trueWhenLevelIsMalformed() {
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+            "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
+        .thenReturn(Optional.of(checkWithLevel(RISK_LEVEL, "not-a-number")));
+
+    assertTrue(riskLevelService.isHighRisk("123"));
+  }
+
+  @Test
+  void isHighRisk_trueWhenAutomaticSnapshotHasNoLevel() {
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+            "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
+        .thenReturn(Optional.of(checkWithLevel(RISK_LEVEL, null)));
+
+    assertTrue(riskLevelService.isHighRisk("123"));
+  }
+
+  @Test
+  void isHighRisk_falseWhenLatestRowIsOverrideWithoutLevel() {
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+            "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
+        .thenReturn(Optional.of(checkWithLevel(RISK_LEVEL_OVERRIDE, null)));
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+            "123", List.of(TKF_RISK_LEVEL, TKF_RISK_LEVEL_OVERRIDE)))
+        .thenReturn(Optional.of(checkWithLevel(TKF_RISK_LEVEL_OVERRIDE, null)));
+
+    assertFalse(riskLevelService.isHighRisk("123"));
+  }
+
+  private AmlCheck checkWithLevel(AmlCheckType type, Object level) {
+    Map<String, Object> metadata = new HashMap<>();
+    if (level != null) {
+      metadata.put("level", level);
+    }
+    return AmlCheck.builder()
+        .personalCode("123")
+        .type(type)
+        .success(false)
+        .metadata(metadata)
+        .build();
   }
 }

@@ -28,6 +28,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -59,7 +60,11 @@ public class EpisService {
   private final String ARRESTS_BANKRUPTCIES_CACHE_NAME = "arrestsBankruptcies";
   private final String SECOND_PILLAR_ASSETS_CACHE_NAME = "secondPillarAssets";
 
+  @Qualifier("episRestTemplate")
   private final RestTemplate episRestTemplate;
+
+  @Qualifier("episLongRequestRestTemplate")
+  private final RestTemplate episLongRequestRestTemplate;
 
   private final JwtTokenUtil jwtTokenUtil;
 
@@ -282,7 +287,7 @@ public class EpisService {
         url);
 
     ThirdPillarTransactionDto[] responseArray =
-        episRestTemplate
+        episLongRequestRestTemplate
             .exchange(
                 url,
                 GET,
@@ -321,7 +326,7 @@ public class EpisService {
         url);
 
     ExchangeTransactionDto[] responseArray =
-        episRestTemplate
+        episLongRequestRestTemplate
             .exchange(
                 url,
                 GET,
@@ -353,7 +358,7 @@ public class EpisService {
         url);
 
     ResponseEntity<FundTransactionDto[]> response =
-        episRestTemplate.exchange(
+        episLongRequestRestTemplate.exchange(
             url, GET, new HttpEntity<>(getHeaders(serviceJwtToken())), FundTransactionDto[].class);
 
     return Arrays.asList(response.getBody());
@@ -373,7 +378,7 @@ public class EpisService {
         url);
 
     ResponseEntity<TransactionFundBalanceDto[]> response =
-        episRestTemplate.exchange(
+        episLongRequestRestTemplate.exchange(
             url,
             GET,
             new HttpEntity<>(getHeaders(serviceJwtToken())),
@@ -395,7 +400,7 @@ public class EpisService {
         url);
 
     ResponseEntity<UnitOwnerDto[]> response =
-        episRestTemplate.exchange(
+        episLongRequestRestTemplate.exchange(
             url, GET, new HttpEntity<>(getHeaders(serviceJwtToken())), UnitOwnerDto[].class);
 
     return Arrays.asList(response.getBody());

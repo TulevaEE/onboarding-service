@@ -61,7 +61,7 @@ public @interface EnableEpisServiceHolder {
 
     public EpisServiceHolder(
         RestTemplate restTemplate, JwtTokenUtil jwtTokenUtil, EpisService originalDelegate) {
-      super(restTemplate, jwtTokenUtil);
+      super(restTemplate, restTemplate, jwtTokenUtil);
       this.restTemplate = restTemplate;
       this.jwtTokenUtil = jwtTokenUtil;
       this.originalDelegate = originalDelegate;

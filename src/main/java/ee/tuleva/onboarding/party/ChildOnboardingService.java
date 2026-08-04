@@ -59,16 +59,7 @@ public class ChildOnboardingService {
       CustodyVerification verification,
       String guardianPersonalCode,
       @Nullable String guardianCitizenship) {
-    var evidence = new LinkedHashMap<String, Object>(verification.evidence());
-    PopulationRegisterPerson child = verification.child();
-    if (child != null && child.citizenship() != null) {
-      evidence.put("citizenship", child.citizenship());
-    }
-    // The risk assessment reads the main citizenship today; the full set is recorded alongside it
-    // so a dual citizen's other citizenships are not lost.
-    if (child != null && !child.citizenships().isEmpty()) {
-      evidence.put("citizenships", child.citizenships());
-    }
+    var evidence = new LinkedHashMap<String, Object>(verification.evidenceWithCitizenship());
     if (verification.isVerified()) {
       evidence.put("guardianPersonalCode", guardianPersonalCode);
       if (guardianCitizenship != null) {

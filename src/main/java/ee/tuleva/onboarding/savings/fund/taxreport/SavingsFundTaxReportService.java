@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 public class SavingsFundTaxReportService {
 
   private final SavingsFundTransactionService savingsFundTransactionService;
-  private final CostBasisCalculator costBasisCalculator;
+  private final SavingsFundCostBasisCalculator costBasisCalculator;
 
   public SavingsFundTaxReport getTaxReport(
       AuthenticatedPerson person, int year, CostBasisMethod method) {

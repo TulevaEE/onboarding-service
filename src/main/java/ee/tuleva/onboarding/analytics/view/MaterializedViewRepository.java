@@ -27,6 +27,7 @@ public class MaterializedViewRepository {
     "analytics.mv_second_pillar_sums_new",
     "analytics.mv_kpi_new",
     "analytics.mv_monthly_conversions",
+    "analytics.mv_monthly_conversions_with_tkf",
     "analytics.mv_crm_mailchimp",
     "analytics.mv_coop_list",
     "analytics.mv_tulud_kulud_tegelik",

@@ -46,8 +46,6 @@ public class KycSurveyService {
         .orElseGet(() -> KycIdentityResponse.empty(subject));
   }
 
-  // Empty when the person has no surveyed residence country: callers that must not screen without
-  // one (redemption) rely on that to fail rather than silently screening on nothing.
   public Optional<Set<Country>> getCountries(Long userId) {
     return kycSurveyRepository
         .findFirstByUserIdOrderByCreatedTimeDesc(userId)
@@ -67,8 +65,6 @@ public class KycSurveyService {
                     "KYC subject user not found: personalCode=" + subjectPersonalCode));
   }
 
-  // Screening scores against every country the person is tied to, so a dual citizen is matched
-  // against both citizenships, not only where they live.
   private Set<Country> extractCountries(KycSurveyResponse surveyResponse) {
     String residence =
         surveyResponse

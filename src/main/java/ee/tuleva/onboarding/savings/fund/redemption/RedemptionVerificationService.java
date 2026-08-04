@@ -88,8 +88,6 @@ public class RedemptionVerificationService {
                     new IllegalStateException(
                         "KYC survey with country not found: userId=" + user.getId()));
 
-    // A child's citizenships come from the population register, not their KYC survey, so the
-    // survey countries alone would re-screen a minor on residence and could clear an earlier hit.
     Set<Country> allCountries = new HashSet<>(countries);
     allCountries.addAll(amlService.recordedCitizenships(user));
 

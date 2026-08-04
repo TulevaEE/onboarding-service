@@ -102,8 +102,6 @@ class PersonMapper {
     };
   }
 
-  // The main citizenship is repeated in the citizenships list only when the register lists it as
-  // valid, so it is added explicitly rather than assumed to be there.
   private static List<String> toCitizenships(PersonResponse response) {
     Stream<@Nullable Citizenship> all =
         Stream.concat(

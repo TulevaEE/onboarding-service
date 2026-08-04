@@ -17,6 +17,10 @@ public final class Countries {
     return of(Arrays.asList(countryCodes));
   }
 
+  public static Set<Country> of(@Nullable Country country) {
+    return country == null ? Set.of() : of(country.getCountryCode());
+  }
+
   public static Set<Country> of(Collection<@Nullable String> countryCodes) {
     return countryCodes.stream()
         .filter(code -> code != null && !code.isBlank())

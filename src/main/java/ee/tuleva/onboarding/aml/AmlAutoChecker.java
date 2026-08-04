@@ -75,8 +75,7 @@ public class AmlAutoChecker {
     Country country = event.getCountry();
 
     if (amlService.isMandateAmlCheckRequired(user, event.getMandate())) {
-      amlService.addSanctionAndPepCheckIfMissing(
-          user, Countries.of(country == null ? null : country.getCountryCode()));
+      amlService.addSanctionAndPepCheckIfMissing(user, Countries.of(country));
     }
 
     if (!amlService.allChecksPassed(user, event.getMandate())) {

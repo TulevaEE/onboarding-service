@@ -64,8 +64,7 @@ public class ChildCoParentCaptureListener {
       userService
           .findByPersonalCode(coParentPersonalCode)
           .ifPresentOrElse(
-              coParent ->
-                  amlService.addSanctionAndPepCheckIfMissing(coParent, Countries.<String>of()),
+              coParent -> amlService.addSanctionAndPepCheckIfMissing(coParent, Countries.of()),
               () ->
                   log.info(
                       "Co-parent has no user account, skipping sanction/PEP screening: coParentCode={}, childCode={}",

@@ -48,6 +48,11 @@ import tools.jackson.databind.json.JsonMapper;
 @RequiredArgsConstructor
 public class AmlService {
 
+  // The party module records these on its custody checks; screening reads them for parties whose
+  // KYC survey carries no citizenship of its own.
+  private static final String RECORDED_CITIZENSHIP = "citizenship";
+  private static final String RECORDED_CITIZENSHIPS = "citizenships";
+
   private final AmlCheckRepository amlCheckRepository;
   private final ApplicationEventPublisher eventPublisher;
   private final PepAndSanctionCheckService pepAndSanctionCheckService;
@@ -103,18 +108,24 @@ public class AmlService {
     return screenForSanctionAndPep(person, countries).checks();
   }
 
-  @SuppressWarnings("unchecked")
   public Set<Country> recordedCitizenships(Person person) {
     return amlCheckRepository
         .findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
             person.getPersonalCode(), CUSTODY_RIGHT)
         .map(AmlCheck::getMetadata)
-        .map(
-            metadata ->
-                metadata.get("citizenships") instanceof Collection<?> recorded
-                    ? Countries.of(recorded.stream().map(String::valueOf).toList())
-                    : Countries.of(String.valueOf(metadata.get("citizenship"))))
+        .map(AmlService::citizenshipsFrom)
         .orElseGet(Set::of);
+  }
+
+  private static Set<Country> citizenshipsFrom(Map<String, Object> metadata) {
+    if (metadata.get(RECORDED_CITIZENSHIPS) instanceof Collection<?> recorded) {
+      return Countries.of(
+          recorded.stream().filter(String.class::isInstance).map(String.class::cast).toList());
+    }
+    if (metadata.get(RECORDED_CITIZENSHIP) instanceof String citizenship) {
+      return Countries.of(citizenship);
+    }
+    return Set.of();
   }
 
   public boolean isSanctionAndPepClear(Person person, Set<Country> countries) {
@@ -241,7 +252,7 @@ public class AmlService {
         personalCodes.size(),
         customers.size());
 
-    screenBatch(ScreeningBatch.SAVINGS_FUND, customers, customer -> Countries.<String>of());
+    screenBatch(ScreeningBatch.SAVINGS_FUND, customers, customer -> Countries.of());
   }
 
   private <T extends Person> void screenBatch(

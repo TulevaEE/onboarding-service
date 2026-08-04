@@ -11,6 +11,7 @@ public record CustodyVerification(
     Outcome outcome, @Nullable PopulationRegisterPerson child, Map<String, Object> evidence) {
 
   static final String CITIZENSHIP = "citizenship";
+  static final String CITIZENSHIPS = "citizenships";
 
   public enum Outcome {
     OK,
@@ -23,7 +24,7 @@ public record CustodyVerification(
     return outcome == Outcome.OK;
   }
 
-  public Map<String, Object> evidenceWithCitizenship() {
+  public Map<String, Object> evidenceWithCitizenships() {
     if (child == null) {
       return evidence;
     }
@@ -34,10 +35,8 @@ public record CustodyVerification(
     if (!child.citizenships().isEmpty()) {
       enriched.put(CITIZENSHIPS, child.citizenships());
     }
-    return enriched.size() == evidence.size() ? evidence : unmodifiableMap(enriched);
+    return unmodifiableMap(enriched);
   }
-
-  static final String CITIZENSHIPS = "citizenships";
 
   static CustodyVerification notVerified(Outcome outcome, Map<String, Object> evidence) {
     return new CustodyVerification(outcome, null, evidence);

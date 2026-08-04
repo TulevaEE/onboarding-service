@@ -166,10 +166,13 @@ class ChildAmlBackfillServiceTest {
   }
 
   @Test
-  void childWithCitizenshipButFailedScreening_isRetriedOnRerun() {
+  void childWithEveryCitizenshipButFailedScreening_isRetriedOnRerun() {
     givenLinks(link(PARENT, CHILD, LEGAL_REPRESENTATIVE));
     given(amlCheckRepository.findAllByPersonalCodeAndType(CHILD, CUSTODY_RIGHT))
-        .willReturn(List.of(custodyCheck(Map.of("outcome", "OK", "citizenship", "EE"))));
+        .willReturn(
+            List.of(
+                custodyCheck(
+                    Map.of("outcome", "OK", "citizenship", "EE", "citizenships", List.of("EE")))));
     given(
             amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
                 eq(CHILD), eq(SANCTION), any(Instant.class)))

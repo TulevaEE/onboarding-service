@@ -35,6 +35,8 @@ public class HealthCheckService {
   private final UnitReconciliationThresholdRepository unitReconciliationThresholdRepository;
   private final AuthoritativeUnitsSource authoritativeUnitsSource;
   private final ReceivablesChecker receivablesChecker;
+  private final QuantityChangeChecker quantityChangeChecker;
+  private final TradedQuantitySource tradedQuantitySource;
   private final PayablesChecker payablesChecker;
 
   public List<HealthCheckResult> check(List<FundPosition> positions) {
@@ -85,6 +87,11 @@ public class HealthCheckService {
                         date, fund, RECEIVABLES))
             .orElse(List.of());
 
+    var tradedQuantities =
+        previousNavDate
+            .map(date -> tradedQuantitySource.resolve(fund, date, navDate))
+            .orElse(Map.of());
+
     var threshold = unitReconciliationThresholdRepository.findByFundCode(fund).orElse(null);
     var authoritativeUnits = authoritativeUnitsSource.resolve(fund, navDate).orElse(null);
 
@@ -105,6 +112,8 @@ public class HealthCheckService {
     findings.addAll(
         payablesChecker.check(
             fund, securities, previousSecurities, liabilities, previousLiabilities));
+    findings.addAll(
+        quantityChangeChecker.check(fund, securities, previousSecurities, tradedQuantities));
 
     saveEvents(fund, navDate, findings);
 

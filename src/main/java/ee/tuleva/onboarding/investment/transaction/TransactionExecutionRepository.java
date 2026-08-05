@@ -30,6 +30,30 @@ public interface TransactionExecutionRepository extends JpaRepository<Transactio
   List<TransactionExecution> findByOrderIdInAndExecutionTimestampInRange(
       Collection<Long> orderIds, Instant fromInclusive, Instant toExclusive);
 
+  // Report sanity check: how much of an instrument we ourselves traded in a window, per side.
+  // Buy and sell totals stay separate because a position report shows quantities before unsettled
+  // trades settle — a same-window buy and sell must not net each other out into a smaller budget.
+  @Query(
+      value =
+          """
+          SELECT o.instrument_isin AS isin,
+                 SUM(CASE WHEN o.transaction_type = 'BUY' THEN e.executed_quantity ELSE 0 END)
+                   AS bought,
+                 SUM(CASE WHEN o.transaction_type = 'SELL' THEN e.executed_quantity ELSE 0 END)
+                   AS sold
+          FROM investment_transaction_execution e
+          JOIN investment_transaction_order o ON o.id = e.order_id
+          WHERE o.fund_code = :fundCode
+            AND o.order_status NOT IN ('CANCELLED', 'DISCARDED')
+            AND e.executed_quantity IS NOT NULL
+            AND e.execution_timestamp >= :fromInclusive
+            AND e.execution_timestamp < :toExclusive
+          GROUP BY o.instrument_isin
+          """,
+      nativeQuery = true)
+  List<ExecutedQuantitySummary> sumExecutedQuantitiesByIsin(
+      String fundCode, Instant fromInclusive, Instant toExclusive);
+
   // Trade-date cost attribution: a trade's commission and settlement fee count in the
   // period it executes. Half-open [fromInclusive, toExclusive) on the execution timestamp
   // so last-day intraday trades are included rather than dropped at a date boundary.

@@ -33,6 +33,7 @@ public class PortfolioValuation {
   private final Map<PortfolioGroup, Set<String>> isinsByGroup;
   private final Map<String, NavigableMap<LocalDate, BigDecimal>> pricesByIsin = new HashMap<>();
   private final Map<String, NavigableMap<LocalDate, BigDecimal>> unitsHeldByIsin;
+  private final Set<String> unvaluableIsins;
 
   public PortfolioValuation(
       List<Transaction> transactions,
@@ -43,6 +44,14 @@ public class PortfolioValuation {
     this.isinsByGroup = isinsByGroup(groupByIsin);
     navHistoryByIsin.forEach((isin, navs) -> pricesByIsin.put(isin, new TreeMap<>(navs)));
     this.unitsHeldByIsin = runningUnitCounts(transactions);
+    this.unvaluableIsins = isinsWithUnknownUnits(transactions);
+  }
+
+  private static Set<String> isinsWithUnknownUnits(List<Transaction> transactions) {
+    return transactions.stream()
+        .filter(transaction -> transaction.units() == null)
+        .map(Transaction::isin)
+        .collect(toCollection(TreeSet::new));
   }
 
   private static Map<PortfolioGroup, Set<String>> isinsByGroup(
@@ -59,21 +68,21 @@ public class PortfolioValuation {
 
     transactions.stream()
         .filter(transaction -> transaction.units() != null)
-        .sorted(comparing(Transaction::time))
+        .sorted(comparing(Transaction::priceTime))
         .forEach(
             transaction -> {
               NavigableMap<LocalDate, BigDecimal> running =
                   byIsin.computeIfAbsent(transaction.isin(), isin -> new TreeMap<>());
               BigDecimal carried =
                   running.isEmpty() ? BigDecimal.ZERO : running.lastEntry().getValue();
-              running.put(dayOf(transaction), carried.add(signedUnits(transaction)));
+              running.put(pricingDayOf(transaction), carried.add(signedUnits(transaction)));
             });
 
     return byIsin;
   }
 
-  private static LocalDate dayOf(Transaction transaction) {
-    return transaction.time().atZone(ESTONIAN_ZONE).toLocalDate();
+  private static LocalDate pricingDayOf(Transaction transaction) {
+    return transaction.priceTime().atZone(ESTONIAN_ZONE).toLocalDate();
   }
 
   private static BigDecimal signedUnits(Transaction transaction) {
@@ -101,6 +110,10 @@ public class PortfolioValuation {
   }
 
   public @Nullable BigDecimal valueAt(Set<String> isins, LocalDate date) {
+    if (isins.stream().anyMatch(unvaluableIsins::contains)) {
+      return null;
+    }
+
     BigDecimal total = BigDecimal.ZERO;
 
     for (String isin : isins) {
@@ -195,8 +208,8 @@ public class PortfolioValuation {
       Set<String> isins, LocalDate from, LocalDate to, boolean acquisitions) {
     return transactions.stream()
         .filter(transaction -> isins.contains(transaction.isin()))
-        .filter(transaction -> !dayOf(transaction).isBefore(from))
-        .filter(transaction -> !dayOf(transaction).isAfter(to))
+        .filter(transaction -> !pricingDayOf(transaction).isBefore(from))
+        .filter(transaction -> !pricingDayOf(transaction).isAfter(to))
         .filter(transaction -> transaction.isAcquisition() == acquisitions)
         .map(transaction -> transaction.amount().abs())
         .reduce(BigDecimal.ZERO, BigDecimal::add)

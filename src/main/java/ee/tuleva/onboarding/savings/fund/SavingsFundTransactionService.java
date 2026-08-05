@@ -72,6 +72,7 @@ public class SavingsFundTransactionService {
         .amount(entry.getAmount().negate())
         .currency(EUR)
         .time(ledgerTransaction.getTransactionDate())
+        .priceTime(ledgerTransaction.getTransactionDate())
         .isin(isin)
         .type(type)
         .units(ledgerTransaction.findUserFundUnits().orElseThrow())

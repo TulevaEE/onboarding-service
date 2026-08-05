@@ -159,6 +159,21 @@ class PayablesCheckerTest {
     assertThat(findings).isEmpty();
   }
 
+  @Test
+  void warnsOnTheAggregateIncreaseWhenTodayIsSplitAcrossRows() {
+    var today =
+        List.of(
+            securityPosition("IE001", new BigDecimal("600")),
+            securityPosition("IE001", new BigDecimal("500")));
+    var previous = List.of(securityPosition("IE001", new BigDecimal("1000")));
+
+    var findings = checker.check(TUK75, today, previous, List.of(), List.of());
+
+    assertThat(findings)
+        .singleElement()
+        .satisfies(f -> assertThat(f.message()).contains("IE001", "+100"));
+  }
+
   private FundPosition securityPosition(String isin, BigDecimal quantity) {
     return FundPosition.builder()
         .navDate(NAV_DATE)

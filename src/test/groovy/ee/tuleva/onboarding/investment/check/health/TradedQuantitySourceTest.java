@@ -10,9 +10,7 @@ import static org.mockito.BDDMockito.given;
 import ee.tuleva.onboarding.investment.transaction.ExecutedQuantitySummary;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -24,7 +22,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class TradedQuantitySourceTest {
 
-  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final LocalDate NAV_DATE = LocalDate.of(2026, 4, 15);
   private static final LocalDate PREVIOUS_NAV_DATE = LocalDate.of(2026, 4, 14);
 
@@ -33,12 +30,10 @@ class TradedQuantitySourceTest {
   @InjectMocks private TradedQuantitySource source;
 
   @Test
-  void looksUpExecutionsFromTheSettlementLookbackBeforeThePreviousNavDateUpToTheNavDate() {
-    Instant fromInclusive = LocalDate.of(2026, 3, 31).atStartOfDay(TALLINN).toInstant();
-    Instant toExclusive = LocalDate.of(2026, 4, 16).atStartOfDay(TALLINN).toInstant();
+  void looksUpTradesSettlingBetweenThePreviousNavDateAndTheNavDate() {
     given(
             executionRepository.sumExecutedQuantitiesByIsin(
-                TUK75.getCode(), fromInclusive, toExclusive))
+                TUK75.getCode(), LocalDate.of(2026, 4, 9), NAV_DATE))
         .willReturn(
             List.of(
                 summary("IE0009FT4LX4", new BigDecimal("1500"), new BigDecimal("200")),

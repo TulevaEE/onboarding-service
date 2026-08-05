@@ -39,7 +39,7 @@ class QuantityChangeCheckerTest {
   }
 
   @Test
-  void noFindingsWhenInstrumentIsNewSincePreviousDay() {
+  void warnsWhenANewHoldingAppearsWithoutAPurchase() {
     var today =
         List.of(
             security("IE0009FT4LX4", new BigDecimal("1000")),
@@ -47,6 +47,26 @@ class QuantityChangeCheckerTest {
     var previous = List.of(security("IE0009FT4LX4", new BigDecimal("1000")));
 
     var findings = checker.check(TUK75, today, previous, Map.of());
+
+    assertThat(findings)
+        .singleElement()
+        .satisfies(
+            finding -> {
+              assertThat(finding.severity()).isEqualTo(WARNING);
+              assertThat(finding.message()).contains("IE000QWCYQT0", "500", "previous 0");
+            });
+  }
+
+  @Test
+  void noFindingsWhenANewHoldingWasBought() {
+    var today =
+        List.of(
+            security("IE0009FT4LX4", new BigDecimal("1000")),
+            security("IE000QWCYQT0", new BigDecimal("500")));
+    var previous = List.of(security("IE0009FT4LX4", new BigDecimal("1000")));
+    var traded = Map.of("IE000QWCYQT0", new TradedQuantity(new BigDecimal("500"), ZERO));
+
+    var findings = checker.check(TUK75, today, previous, traded);
 
     assertThat(findings).isEmpty();
   }

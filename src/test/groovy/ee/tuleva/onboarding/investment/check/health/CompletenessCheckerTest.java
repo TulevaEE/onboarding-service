@@ -50,6 +50,30 @@ class CompletenessCheckerTest {
   }
 
   @Test
+  void failsOnNegativeSecurityQuantityWithoutIsinAndNamesTheAccount() {
+    var positions =
+        List.of(
+            FundPosition.builder()
+                .navDate(NAV_DATE)
+                .fund(TUK75)
+                .accountType(SECURITY)
+                .accountName("Unmapped custody line")
+                .quantity(new BigDecimal("-3"))
+                .build(),
+            cashPosition(new BigDecimal("50000")));
+
+    var findings = checker.check(TUK75, NAV_DATE, positions);
+
+    assertThat(findings)
+        .singleElement()
+        .satisfies(
+            finding -> {
+              assertThat(finding.severity()).isEqualTo(FAIL);
+              assertThat(finding.message()).contains("Unmapped custody line", "-3");
+            });
+  }
+
+  @Test
   void warnsWhenCashMissing() {
     var positions = List.of(securityPosition("IE00BFG1TM61", new BigDecimal("1000")));
 

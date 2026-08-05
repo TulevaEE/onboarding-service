@@ -3,8 +3,11 @@ package ee.tuleva.onboarding.investment.transaction;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.CANCELLED;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -216,6 +219,155 @@ class TransactionExecutionRepositoryIT {
             Instant.parse("2026-06-01T00:00:00Z"));
 
     assertThat(sum).isEqualByComparingTo("0");
+  }
+
+  @Test
+  void sumExecutedQuantitiesByIsin_keepsBuysAndSellsSeparatePerInstrument() {
+    LocalDate fromExclusive = LocalDate.of(2026, 5, 1);
+    LocalDate toInclusive = LocalDate.of(2026, 5, 31);
+    Instant inside = Instant.parse("2026-05-11T10:00:00Z");
+
+    TransactionOrder buy = persistOrder(TUK75, "IE0009FT4LX4", BUY, SENT);
+    TransactionOrder sell = persistOrder(TUK75, "IE0009FT4LX4", SELL, SENT);
+    TransactionOrder otherInstrument = persistOrder(TUK75, "IE00BFG1TM61", BUY, SENT);
+
+    executionRepository.save(executionWithQuantity(buy.getId(), "DLA_B1", inside, "1000"));
+    executionRepository.save(executionWithQuantity(buy.getId(), "DLA_B2", inside, "500"));
+    executionRepository.save(executionWithQuantity(sell.getId(), "DLA_S1", inside, "200"));
+    executionRepository.save(
+        executionWithQuantity(otherInstrument.getId(), "DLA_O1", inside, "900"));
+
+    entityManager.flush();
+    entityManager.clear();
+
+    var summaries =
+        executionRepository.sumExecutedQuantitiesByIsin(
+            TUK75.getCode(), fromExclusive, toInclusive);
+
+    assertThat(summaries)
+        .extracting(ExecutedQuantitySummary::getIsin)
+        .containsExactlyInAnyOrder("IE0009FT4LX4", "IE00BFG1TM61");
+    assertThat(summaryFor(summaries, "IE0009FT4LX4").getBought()).isEqualByComparingTo("1500");
+    assertThat(summaryFor(summaries, "IE0009FT4LX4").getSold()).isEqualByComparingTo("200");
+    assertThat(summaryFor(summaries, "IE00BFG1TM61").getBought()).isEqualByComparingTo("900");
+    assertThat(summaryFor(summaries, "IE00BFG1TM61").getSold()).isEqualByComparingTo("0");
+  }
+
+  private ExecutedQuantitySummary summaryFor(List<ExecutedQuantitySummary> summaries, String isin) {
+    return summaries.stream()
+        .filter(summary -> summary.getIsin().equals(isin))
+        .findFirst()
+        .orElseThrow();
+  }
+
+  @Test
+  void sumExecutedQuantitiesByIsin_excludesOtherFundsCancelledOrdersAndTradesOutsideWindow() {
+    LocalDate fromExclusive = LocalDate.of(2026, 5, 1);
+    LocalDate toInclusive = LocalDate.of(2026, 5, 31);
+    Instant inside = Instant.parse("2026-05-11T10:00:00Z");
+
+    TransactionOrder otherFund = persistOrder(TUV100, "IE0009FT4LX4", BUY, SENT);
+    TransactionOrder cancelled = persistOrder(TUK75, "IE0009FT4LX4", BUY, CANCELLED);
+    TransactionOrder inWindow = persistOrder(TUK75, "IE0009FT4LX4", BUY, SENT);
+
+    executionRepository.save(executionWithQuantity(otherFund.getId(), "DLA_OF", inside, "700"));
+    executionRepository.save(executionWithQuantity(cancelled.getId(), "DLA_CX", inside, "600"));
+    executionRepository.save(executionWithQuantity(inWindow.getId(), "DLA_IN", inside, "100"));
+    executionRepository.save(
+        executionWithQuantity(
+            inWindow.getId(), "DLA_BEFORE", Instant.parse("2026-05-01T10:00:00Z"), "800"));
+    executionRepository.save(
+        executionWithQuantity(
+            inWindow.getId(), "DLA_AFTER", Instant.parse("2026-06-01T10:00:00Z"), "900"));
+
+    entityManager.flush();
+    entityManager.clear();
+
+    var summaries =
+        executionRepository.sumExecutedQuantitiesByIsin(
+            TUK75.getCode(), fromExclusive, toInclusive);
+
+    assertThat(summaries)
+        .singleElement()
+        .satisfies(
+            summary -> {
+              assertThat(summary.getIsin()).isEqualTo("IE0009FT4LX4");
+              assertThat(summary.getBought()).isEqualByComparingTo("100");
+              assertThat(summary.getSold()).isEqualByComparingTo("0");
+            });
+  }
+
+  @Test
+  void sumExecutedQuantitiesByIsin_windowsOnSettlementDateNotTradeDate() {
+    LocalDate fromExclusive = LocalDate.of(2026, 5, 1);
+    LocalDate toInclusive = LocalDate.of(2026, 5, 31);
+
+    TransactionOrder order = persistOrder(TUK75, "IE0009FT4LX4", BUY, SENT);
+
+    executionRepository.save(
+        executionWithQuantity(
+            order.getId(),
+            "DLA_LATE_SETTLE",
+            Instant.parse("2026-04-02T10:00:00Z"),
+            "100",
+            LocalDate.of(2026, 5, 11)));
+    executionRepository.save(
+        executionWithQuantity(
+            order.getId(),
+            "DLA_EARLY_SETTLE",
+            Instant.parse("2026-05-11T10:00:00Z"),
+            "700",
+            LocalDate.of(2026, 4, 20)));
+
+    entityManager.flush();
+    entityManager.clear();
+
+    var summaries =
+        executionRepository.sumExecutedQuantitiesByIsin(
+            TUK75.getCode(), fromExclusive, toInclusive);
+
+    assertThat(summaries)
+        .singleElement()
+        .satisfies(summary -> assertThat(summary.getBought()).isEqualByComparingTo("100"));
+  }
+
+  private TransactionExecution executionWithQuantity(
+      Long orderId, String brokerTxId, Instant timestamp, String quantity) {
+    return executionWithQuantity(orderId, brokerTxId, timestamp, quantity, null);
+  }
+
+  private TransactionExecution executionWithQuantity(
+      Long orderId,
+      String brokerTxId,
+      Instant timestamp,
+      String quantity,
+      LocalDate scheduledSettlementDate) {
+    return TransactionExecution.builder()
+        .orderId(orderId)
+        .brokerTransactionId(brokerTxId)
+        .executionTimestamp(timestamp)
+        .executedQuantity(new BigDecimal(quantity))
+        .scheduledSettlementDate(scheduledSettlementDate)
+        .source("SEB_OOTEL")
+        .build();
+  }
+
+  private TransactionOrder persistOrder(
+      TulevaFund fund, String isin, TransactionType side, OrderStatus status) {
+    TransactionBatch batch =
+        batchRepository.save(TransactionBatch.builder().fund(fund).createdBy("test-user").build());
+    return orderRepository.save(
+        TransactionOrder.builder()
+            .batch(batch)
+            .fund(fund)
+            .instrumentIsin(isin)
+            .transactionType(side)
+            .instrumentType(ETF)
+            .orderQuantity(new BigDecimal("15007"))
+            .orderVenue(SEB)
+            .orderStatus(status)
+            .orderUuid(UUID.randomUUID())
+            .build());
   }
 
   private TransactionExecution execution(Long orderId, String brokerTxId, Instant timestamp) {

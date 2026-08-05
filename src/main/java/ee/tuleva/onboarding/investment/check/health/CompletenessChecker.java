@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.health;
 
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
@@ -38,6 +39,28 @@ class CompletenessChecker {
               "%s: no CASH position found for navDate=%s".formatted(fund, navDate)));
     }
 
+    positions.stream()
+        .filter(position -> position.getAccountType() == SECURITY)
+        .filter(position -> position.getQuantity() != null && position.getQuantity().signum() < 0)
+        .forEach(
+            position ->
+                findings.add(
+                    new HealthCheckFinding(
+                        fund,
+                        COMPLETENESS,
+                        FAIL,
+                        "%s: negative SECURITY quantity %s for %s"
+                            .formatted(
+                                fund,
+                                position.getQuantity().toPlainString(),
+                                identify(position)))));
+
     return findings;
+  }
+
+  private String identify(FundPosition position) {
+    return position.getAccountId() == null
+        ? "account " + position.getAccountName()
+        : "ISIN " + position.getAccountId();
   }
 }

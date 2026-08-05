@@ -18,6 +18,7 @@ import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,6 +42,8 @@ class HealthCheckServiceTest {
   @Mock UnitReconciliationThresholdRepository unitReconciliationThresholdRepository;
   @Mock AuthoritativeUnitsSource authoritativeUnitsSource;
   @Mock ReceivablesChecker receivablesChecker;
+  @Mock QuantityChangeChecker quantityChangeChecker;
+  @Mock TradedQuantitySource tradedQuantitySource;
   @Mock PayablesChecker payablesChecker;
 
   @InjectMocks HealthCheckService healthCheckService;
@@ -178,6 +181,32 @@ class HealthCheckServiceTest {
 
     verify(receivablesChecker).check(eq(TUK75), any(), eq(previousSecurities), any(), any());
     verify(payablesChecker).check(eq(TUK75), any(), eq(previousSecurities), any(), any());
+  }
+
+  @Test
+  void checksQuantityChangesAgainstOurOwnExecutedTransactions() {
+    var previousDate = NAV_DATE.minusDays(1);
+    var positions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("900")));
+    var previousSecurities = List.of(securityPosition(TUK75, "IE001", new BigDecimal("1000")));
+    var traded = Map.of("IE001", new TradedQuantity(BigDecimal.ZERO, new BigDecimal("100")));
+
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(List.of());
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
+        .willReturn(Optional.of(previousDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(previousDate, TUK75, SECURITY))
+        .willReturn(previousSecurities);
+    given(tradedQuantitySource.resolve(TUK75, previousDate, NAV_DATE)).willReturn(traded);
+
+    given(completenessChecker.check(any(), any(), any())).willReturn(List.of());
+    given(isinMatchChecker.check(any(), any(), any(), any())).willReturn(List.of());
+    given(outstandingUnitsChecker.check(any(), any(), any())).willReturn(List.of());
+    given(quantityChangeChecker.check(eq(TUK75), any(), eq(previousSecurities), eq(traded)))
+        .willReturn(List.of());
+
+    healthCheckService.check(positions);
+
+    verify(quantityChangeChecker).check(eq(TUK75), any(), eq(previousSecurities), eq(traded));
   }
 
   @Test

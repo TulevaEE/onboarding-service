@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
@@ -27,6 +28,49 @@ class CompletenessCheckerTest {
     var findings = checker.check(TUK75, NAV_DATE, positions);
 
     assertThat(findings).isEmpty();
+  }
+
+  @Test
+  void failsOnNegativeSecurityQuantity() {
+    var positions =
+        List.of(
+            securityPosition("IE00BFG1TM61", new BigDecimal("-50")),
+            cashPosition(new BigDecimal("50000")));
+
+    var findings = checker.check(TUK75, NAV_DATE, positions);
+
+    assertThat(findings)
+        .singleElement()
+        .satisfies(
+            finding -> {
+              assertThat(finding.checkType()).isEqualTo(COMPLETENESS);
+              assertThat(finding.severity()).isEqualTo(FAIL);
+              assertThat(finding.message()).contains("IE00BFG1TM61", "-50");
+            });
+  }
+
+  @Test
+  void failsOnNegativeSecurityQuantityWithoutIsinAndNamesTheAccount() {
+    var positions =
+        List.of(
+            FundPosition.builder()
+                .navDate(NAV_DATE)
+                .fund(TUK75)
+                .accountType(SECURITY)
+                .accountName("Unmapped custody line")
+                .quantity(new BigDecimal("-3"))
+                .build(),
+            cashPosition(new BigDecimal("50000")));
+
+    var findings = checker.check(TUK75, NAV_DATE, positions);
+
+    assertThat(findings)
+        .singleElement()
+        .satisfies(
+            finding -> {
+              assertThat(finding.severity()).isEqualTo(FAIL);
+              assertThat(finding.message()).contains("Unmapped custody line", "-3");
+            });
   }
 
   @Test

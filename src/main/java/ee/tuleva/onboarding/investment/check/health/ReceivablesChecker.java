@@ -7,7 +7,6 @@ import static java.math.BigDecimal.ZERO;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import java.math.BigDecimal;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -28,21 +27,13 @@ class ReceivablesChecker {
       return List.of();
     }
 
-    Map<String, BigDecimal> previousByIsin =
-        previousSecurities.stream()
-            .filter(p -> p.getAccountId() != null && p.getQuantity() != null)
-            .collect(Collectors.toMap(FundPosition::getAccountId, FundPosition::getQuantity));
+    Map<String, BigDecimal> previousByIsin = SecurityQuantities.byIsin(previousSecurities);
 
     var decreased =
-        todaySecurities.stream()
-            .filter(
-                p -> {
-                  BigDecimal prev = previousByIsin.get(p.getAccountId());
-                  return prev != null
-                      && p.getQuantity() != null
-                      && p.getQuantity().compareTo(prev) < 0;
-                })
-            .sorted(Comparator.comparing(FundPosition::getAccountId))
+        SecurityQuantities.byIsin(todaySecurities).entrySet().stream()
+            .filter(entry -> previousByIsin.containsKey(entry.getKey()))
+            .filter(entry -> entry.getValue().compareTo(previousByIsin.get(entry.getKey())) < 0)
+            .sorted(Map.Entry.comparingByKey())
             .toList();
 
     if (decreased.isEmpty()) {
@@ -68,18 +59,19 @@ class ReceivablesChecker {
   }
 
   private String formatDeltas(
-      List<FundPosition> decreased, Map<String, BigDecimal> previousByIsin) {
+      List<Map.Entry<String, BigDecimal>> decreased, Map<String, BigDecimal> previousByIsin) {
     int total = decreased.size();
     var shown =
         decreased.stream()
             .limit(MAX_ISINS_IN_MESSAGE)
             .map(
-                p ->
+                entry ->
                     "%s (%s)"
                         .formatted(
-                            p.getAccountId(),
-                            p.getQuantity()
-                                .subtract(previousByIsin.get(p.getAccountId()))
+                            entry.getKey(),
+                            entry
+                                .getValue()
+                                .subtract(previousByIsin.get(entry.getKey()))
                                 .toPlainString()))
             .collect(Collectors.joining(", "));
     if (total > MAX_ISINS_IN_MESSAGE) {

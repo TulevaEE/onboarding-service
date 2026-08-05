@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.account.portfolio;
 
 import static ee.tuleva.onboarding.account.portfolio.PortfolioGroup.SECOND_PILLAR;
 import static ee.tuleva.onboarding.account.portfolio.PortfolioGroup.THIRD_PILLAR;
-import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
@@ -23,9 +22,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -48,7 +45,7 @@ public class PortfolioService {
   public Portfolio getPortfolio(AuthenticatedPerson person, LocalDate from, LocalDate to) {
     List<Transaction> transactions = transactionService.getTransactions(person);
     Map<String, PortfolioGroup> groupByIsin = groupByIsin();
-    Set<String> heldIsins = heldIsins(transactions, groupByIsin);
+    Set<String> heldIsins = PortfolioValuation.heldIsins(transactions, groupByIsin);
 
     PortfolioValuation valuation =
         new PortfolioValuation(transactions, groupByIsin, navHistory(heldIsins, from, to));
@@ -70,22 +67,12 @@ public class PortfolioService {
       LocalDate from,
       LocalDate to) {
     return groups.stream()
-        .map(group -> withAnnualReturn(valuation.summaryOf(group, from, to), rates.get(group)))
+        .map(
+            group ->
+                valuation.summaryOf(group, from, to).toBuilder()
+                    .annualReturnRate(rates.get(group))
+                    .build())
         .toList();
-  }
-
-  private static Portfolio.GroupSummary withAnnualReturn(
-      Portfolio.GroupSummary summary, @Nullable BigDecimal rate) {
-    return Portfolio.GroupSummary.builder()
-        .group(summary.group())
-        .startValue(summary.startValue())
-        .endValue(summary.endValue())
-        .contributions(summary.contributions())
-        .withdrawals(summary.withdrawals())
-        .gain(summary.gain())
-        .gainPercentage(summary.gainPercentage())
-        .annualReturnRate(rate)
-        .build();
   }
 
   private Map<String, PortfolioGroup> groupByIsin() {
@@ -109,14 +96,6 @@ public class PortfolioService {
       case 3 -> Optional.of(THIRD_PILLAR);
       default -> Optional.empty();
     };
-  }
-
-  private static Set<String> heldIsins(
-      List<Transaction> transactions, Map<String, PortfolioGroup> groupByIsin) {
-    return transactions.stream()
-        .map(Transaction::isin)
-        .filter(groupByIsin::containsKey)
-        .collect(toCollection(TreeSet::new));
   }
 
   private Map<String, Map<LocalDate, BigDecimal>> navHistory(

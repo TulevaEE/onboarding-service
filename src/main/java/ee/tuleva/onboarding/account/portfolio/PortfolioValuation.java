@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.account.portfolio;
 
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.Comparator.comparing;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toCollection;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
@@ -28,6 +30,7 @@ public class PortfolioValuation {
 
   private final List<Transaction> transactions;
   private final Map<String, PortfolioGroup> groupByIsin;
+  private final Map<PortfolioGroup, Set<String>> isinsByGroup;
   private final Map<String, NavigableMap<LocalDate, BigDecimal>> pricesByIsin = new HashMap<>();
   private final Map<String, NavigableMap<LocalDate, BigDecimal>> unitsHeldByIsin;
 
@@ -37,8 +40,17 @@ public class PortfolioValuation {
       Map<String, ? extends Map<LocalDate, BigDecimal>> navHistoryByIsin) {
     this.transactions = transactions;
     this.groupByIsin = groupByIsin;
+    this.isinsByGroup = isinsByGroup(groupByIsin);
     navHistoryByIsin.forEach((isin, navs) -> pricesByIsin.put(isin, new TreeMap<>(navs)));
     this.unitsHeldByIsin = runningUnitCounts(transactions);
+  }
+
+  private static Map<PortfolioGroup, Set<String>> isinsByGroup(
+      Map<String, PortfolioGroup> groupByIsin) {
+    return groupByIsin.entrySet().stream()
+        .collect(
+            groupingBy(
+                Map.Entry::getValue, mapping(Map.Entry::getKey, toCollection(TreeSet::new))));
   }
 
   private static Map<String, NavigableMap<LocalDate, BigDecimal>> runningUnitCounts(
@@ -161,13 +173,14 @@ public class PortfolioValuation {
   }
 
   public List<PortfolioGroup> heldGroups() {
-    Set<String> held = heldIsins();
+    Set<String> held = heldIsins(transactions, groupByIsin);
     return Arrays.stream(PortfolioGroup.values())
         .filter(group -> held.stream().anyMatch(isin -> group == groupByIsin.get(isin)))
         .toList();
   }
 
-  private Set<String> heldIsins() {
+  public static Set<String> heldIsins(
+      List<Transaction> transactions, Map<String, PortfolioGroup> groupByIsin) {
     return transactions.stream()
         .map(Transaction::isin)
         .filter(groupByIsin::containsKey)
@@ -175,10 +188,7 @@ public class PortfolioValuation {
   }
 
   private Set<String> isinsOf(PortfolioGroup group) {
-    return groupByIsin.entrySet().stream()
-        .filter(entry -> entry.getValue() == group)
-        .map(Map.Entry::getKey)
-        .collect(toCollection(TreeSet::new));
+    return isinsByGroup.getOrDefault(group, Set.of());
   }
 
   private BigDecimal cashFlowBetween(

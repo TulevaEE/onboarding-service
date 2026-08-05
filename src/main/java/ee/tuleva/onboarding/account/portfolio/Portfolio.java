@@ -11,7 +11,7 @@ import org.jspecify.annotations.Nullable;
 public record Portfolio(
     LocalDate from, LocalDate to, List<GroupSummary> groups, List<ValuePoint> series) {
 
-  @Builder
+  @Builder(toBuilder = true)
   public record GroupSummary(
       PortfolioGroup group,
       @Nullable BigDecimal startValue,

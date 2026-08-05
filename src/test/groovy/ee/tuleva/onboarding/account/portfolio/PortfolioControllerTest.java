@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.account.portfolio.PortfolioGroup.SECOND_PILLA
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -65,6 +66,18 @@ class PortfolioControllerTest {
         .andExpect(jsonPath("$.series[0].date").value("2025-12-31"))
         .andExpect(jsonPath("$.series[0].values.SAVINGS_FUND").value(1800.00))
         .andExpect(jsonPath("$.series[0].values.SECOND_PILLAR").doesNotExist());
+  }
+
+  @Test
+  void rejectsAPeriodWhereFromIsAfterTo() throws Exception {
+    mvc.perform(
+            get("/v1/portfolio")
+                .param("from", "2025-12-31")
+                .param("to", "2025-01-01")
+                .with(authentication(authentication)))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(portfolioService);
   }
 
   private static Portfolio portfolio(LocalDate from, LocalDate to) {

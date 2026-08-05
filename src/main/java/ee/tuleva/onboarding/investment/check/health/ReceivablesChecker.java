@@ -31,7 +31,9 @@ class ReceivablesChecker {
     Map<String, BigDecimal> previousByIsin =
         previousSecurities.stream()
             .filter(p -> p.getAccountId() != null && p.getQuantity() != null)
-            .collect(Collectors.toMap(FundPosition::getAccountId, FundPosition::getQuantity));
+            .collect(
+                Collectors.toMap(
+                    FundPosition::getAccountId, FundPosition::getQuantity, BigDecimal::add));
 
     var decreased =
         todaySecurities.stream()

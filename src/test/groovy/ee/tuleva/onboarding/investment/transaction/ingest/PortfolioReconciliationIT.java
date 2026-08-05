@@ -40,6 +40,7 @@ class PortfolioReconciliationIT {
   @BeforeEach
   void cleanRecorderAndData() {
     recorder.events.clear();
+    recorder.ledgerUnavailableEvents.clear();
     deleteNavRows();
     deleteCostBasisRows();
   }
@@ -94,15 +95,32 @@ class PortfolioReconciliationIT {
 
   @Test
   void costBasisRowMissing_emitsMismatch() {
-    seedNavReport(ISIN_B, new BigDecimal("250.0000"));
+    UUID calculationId = UUID.randomUUID();
+    seedCostBasis(ISIN_A, "10000.0000");
+    seedNavReport(ISIN_A, new BigDecimal("10000.0000"), calculationId);
+    seedNavReport(ISIN_B, new BigDecimal("250.0000"), calculationId);
 
     service.reconcile(TUK75, AS_OF);
 
     assertThat(recorder.events).hasSize(1);
+    assertThat(recorder.events.get(0).mismatches()).hasSize(1);
     MismatchEntry entry = recorder.events.get(0).mismatches().get(0);
     assertThat(entry.isin()).isEqualTo(ISIN_B);
     assertThat(entry.ourQuantity()).isNull();
     assertThat(entry.theirQuantity()).isEqualByComparingTo("250.0000");
+  }
+
+  @Test
+  void wholeCostBasisLedgerMissing_emitsLedgerUnavailableInsteadOfMismatch() {
+    UUID calculationId = UUID.randomUUID();
+    seedNavReport(ISIN_A, new BigDecimal("10000.0000"), calculationId);
+    seedNavReport(ISIN_B, new BigDecimal("250.0000"), calculationId);
+
+    service.reconcile(TUK75, AS_OF);
+
+    assertThat(recorder.events).isEmpty();
+    assertThat(recorder.ledgerUnavailableEvents)
+        .containsExactly(new PortfolioLedgerUnavailableEvent(TUK75, AS_OF, 2));
   }
 
   private void seedCostBasis(String isin, String quantity) {
@@ -119,6 +137,10 @@ class PortfolioReconciliationIT {
   }
 
   private void seedNavReport(String isin, BigDecimal quantity) {
+    seedNavReport(isin, quantity, UUID.randomUUID());
+  }
+
+  private void seedNavReport(String isin, BigDecimal quantity, UUID calculationId) {
     jdbcClient
         .sql(
             """
@@ -133,7 +155,7 @@ class PortfolioReconciliationIT {
         .param("name", TUK75.getCode() + "-" + isin)
         .param("isin", isin)
         .param("quantity", quantity)
-        .param("calcId", UUID.randomUUID())
+        .param("calcId", calculationId)
         .update();
   }
 
@@ -156,10 +178,16 @@ class PortfolioReconciliationIT {
 
   public static class TestEventRecorder {
     final List<PortfolioReconciliationMismatchEvent> events = new ArrayList<>();
+    final List<PortfolioLedgerUnavailableEvent> ledgerUnavailableEvents = new ArrayList<>();
 
     @EventListener
     void onMismatch(PortfolioReconciliationMismatchEvent event) {
       events.add(event);
+    }
+
+    @EventListener
+    void onLedgerUnavailable(PortfolioLedgerUnavailableEvent event) {
+      ledgerUnavailableEvents.add(event);
     }
   }
 }

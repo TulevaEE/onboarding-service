@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.account.portfolio;
 
 import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/v1")
@@ -31,7 +33,12 @@ public class PortfolioController {
       @AuthenticationPrincipal AuthenticatedPerson person,
       @RequestParam(required = false) @DateTimeFormat(iso = DATE) @Nullable LocalDate from,
       @RequestParam(required = false) @DateTimeFormat(iso = DATE) @Nullable LocalDate to) {
-    return portfolioService.getPortfolio(
-        person, from == null ? BEGINNING_OF_TIMES : from, to == null ? LocalDate.now(clock) : to);
+    var startDate = from == null ? BEGINNING_OF_TIMES : from;
+    var endDate = to == null ? LocalDate.now(clock) : to;
+    if (startDate.isAfter(endDate)) {
+      throw new ResponseStatusException(
+          BAD_REQUEST, "Invalid portfolio period: from=" + startDate + ", to=" + endDate);
+    }
+    return portfolioService.getPortfolio(person, startDate, endDate);
   }
 }

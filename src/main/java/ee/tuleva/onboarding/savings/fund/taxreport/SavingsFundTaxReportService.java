@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.taxreport;
 
+import static java.math.RoundingMode.HALF_UP;
+
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.savings.fund.SavingsFundTransactionService;
@@ -35,6 +37,6 @@ public class SavingsFundTaxReportService {
     return redemptions.stream()
         .map(RealisedGain::gain)
         .reduce(BigDecimal.ZERO, BigDecimal::add)
-        .setScale(2, java.math.RoundingMode.HALF_UP);
+        .setScale(2, HALF_UP);
   }
 }

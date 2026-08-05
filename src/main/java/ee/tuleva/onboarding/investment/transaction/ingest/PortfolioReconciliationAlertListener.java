@@ -40,6 +40,49 @@ class PortfolioReconciliationAlertListener {
     }
   }
 
+  @EventListener
+  public void onLedgerUnavailable(PortfolioLedgerUnavailableEvent event) {
+    var subject =
+        "[HOIATUS] Portfelli võrdlus jäi tegemata – "
+            + event.fund().getCode()
+            + " – "
+            + event.asOfDate();
+
+    boolean sent = emailService.sendSystemEmail(messageFactory.create(subject, buildBody(event)));
+    if (sent) {
+      log.info(
+          "Sent portfolio ledger unavailable alert: fundCode={}, asOfDate={}",
+          event.fund().getCode(),
+          event.asOfDate());
+    } else {
+      log.error(
+          "Failed to send portfolio ledger unavailable alert: fundCode={}, asOfDate={}",
+          event.fund().getCode(),
+          event.asOfDate());
+    }
+  }
+
+  private static String buildBody(PortfolioLedgerUnavailableEvent event) {
+    return """
+        Tuleva cost-basis pearaamatus ei ole selle fondi ja kuupäeva kohta ühtegi rida, seega \
+        positsioone ei saanud võrrelda. See EI ole positsioonide lahknevus.
+
+        Kuupäev: %s
+
+        Fond: %s (%s)
+
+        SEB POSITIONS-põhises nav_report'is on %d väärtpaberipositsiooni, meie pearaamatus 0.
+
+        Kontrolli, kas fondil on investment_portfolio_baseline kirje ja kas cost-basis töö on \
+        selle kuupäeva kohta jooksnud.
+        """
+        .formatted(
+            event.asOfDate(),
+            event.fund().getCode(),
+            event.fund().getDisplayName(),
+            event.reportedIsinCount());
+  }
+
   private static String buildBody(PortfolioReconciliationMismatchEvent event) {
     StringBuilder body = new StringBuilder();
     body.append(

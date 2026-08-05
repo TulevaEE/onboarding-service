@@ -37,6 +37,17 @@ public class PortfolioReconciliationService {
     Map<String, BigDecimal> theirQuantities =
         navReportLookup.findSecurityQuantities(fund, asOfDate);
 
+    if (ourQuantities.isEmpty() && !theirQuantities.isEmpty()) {
+      log.warn(
+          "Portfolio reconciliation skipped, no cost-basis rows: fundCode={}, asOfDate={}, reportedIsinCount={}",
+          fund.getCode(),
+          asOfDate,
+          theirQuantities.size());
+      eventPublisher.publishEvent(
+          new PortfolioLedgerUnavailableEvent(fund, asOfDate, theirQuantities.size()));
+      return;
+    }
+
     Set<String> allIsins = new TreeSet<>();
     allIsins.addAll(ourQuantities.keySet());
     allIsins.addAll(theirQuantities.keySet());

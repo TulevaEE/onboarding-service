@@ -12,6 +12,7 @@ import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
 import static org.assertj.core.api.Assertions.within;
 import static org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE;
 
@@ -578,5 +579,32 @@ class SavingFundPaymentRepositoryTest {
     var unmatchedReturns = repository.findUnmatchedOutgoingReturns(depositIban);
 
     assertThat(unmatchedReturns).extracting("id").containsExactly(depositReturn);
+  }
+
+  @Test
+  void findsRemitterIbansForTheGivenPayments() {
+    var fromInvestmentAccount =
+        repository.savePaymentData(
+            createPayment().externalId("iia").remitterIban("EE888888888888888888").build());
+    var fromOrdinaryAccount =
+        repository.savePaymentData(
+            createPayment().externalId("ordinary").remitterIban("EE777777777777777777").build());
+    var notAsked =
+        repository.savePaymentData(
+            createPayment().externalId("other").remitterIban("EE666666666666666666").build());
+
+    var ibans =
+        repository.findRemitterIbansByIds(List.of(fromInvestmentAccount, fromOrdinaryAccount));
+
+    assertThat(ibans)
+        .containsOnly(
+            entry(fromInvestmentAccount, "EE888888888888888888"),
+            entry(fromOrdinaryAccount, "EE777777777777777777"));
+    assertThat(ibans).doesNotContainKey(notAsked);
+  }
+
+  @Test
+  void findsNoRemitterIbansWithoutPayments() {
+    assertThat(repository.findRemitterIbansByIds(List.of())).isEmpty();
   }
 }

@@ -13,6 +13,7 @@ import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
@@ -21,9 +22,14 @@ import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerAccountFixture.EntryFixture;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -36,6 +42,8 @@ class SavingsFundTransactionServiceTest {
   @Mock private LedgerService ledgerService;
   @Mock private SavingsFundOnboardingService savingsFundOnboardingService;
   @Mock private SavingsFundConfiguration savingsFundConfiguration;
+  @Mock private SavingFundPaymentRepository savingFundPaymentRepository;
+  @Mock private RedemptionRequestRepository redemptionRequestRepository;
 
   @InjectMocks private SavingsFundTransactionService service;
 
@@ -150,5 +158,66 @@ class SavingsFundTransactionServiceTest {
 
     assertThat(transactions).hasSize(1);
     assertThat(transactions.get(0).amount()).isEqualTo(new BigDecimal("100.00"));
+  }
+
+  @Test
+  void reportsTheBankAccountEachTransactionWentThroughSoTaxRegimeCanBeTold() {
+    String isin = "EE0000003283";
+    UUID paymentId = UUID.randomUUID();
+    UUID redemptionId = UUID.randomUUID();
+    Instant date = Instant.parse("2025-03-10T10:00:00Z");
+
+    given(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).willReturn(true);
+    given(savingsFundConfiguration.getIsin()).willReturn(isin);
+
+    given(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .willReturn(
+            subscriptionsAccountWithEntries(
+                List.of(
+                    new EntryFixture(
+                        new BigDecimal("100.00"), date, new BigDecimal("10.0"), paymentId))));
+    given(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .willReturn(
+            redemptionsAccountWithEntries(
+                List.of(
+                    new EntryFixture(
+                        new BigDecimal("25.00"), date, new BigDecimal("10.0"), redemptionId))));
+
+    given(savingFundPaymentRepository.findRemitterIbansByIds(Set.of(paymentId)))
+        .willReturn(Map.of(paymentId, "EE471000001020145685"));
+    RedemptionRequest redemptionRequest = new RedemptionRequest();
+    redemptionRequest.setId(redemptionId);
+    redemptionRequest.setCustomerIban("EE902200221020145685");
+    given(redemptionRequestRepository.findAllById(Set.of(redemptionId)))
+        .willReturn(List.of(redemptionRequest));
+
+    List<Transaction> transactions = service.getTransactions(person);
+
+    assertThat(transactions)
+        .extracting(Transaction::type, Transaction::counterpartyIban)
+        .containsExactlyInAnyOrder(
+            tuple(CONTRIBUTION_CASH, "EE471000001020145685"),
+            tuple(SUBTRACTION, "EE902200221020145685"));
+  }
+
+  @Test
+  void leavesTheBankAccountEmptyWhenTheTransactionHasNoPaymentBehindIt() {
+    String isin = "EE0000003283";
+    Instant date = Instant.parse("2025-03-10T10:00:00Z");
+
+    given(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).willReturn(true);
+    given(savingsFundConfiguration.getIsin()).willReturn(isin);
+    given(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .willReturn(
+            subscriptionsAccountWithEntries(
+                List.of(new EntryFixture(new BigDecimal("100.00"), date))));
+    given(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .willReturn(redemptionsAccountWithEntries(List.of()));
+
+    List<Transaction> transactions = service.getTransactions(person);
+
+    assertThat(transactions)
+        .singleElement()
+        .satisfies(transaction -> assertThat(transaction.counterpartyIban()).isNull());
   }
 }

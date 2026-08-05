@@ -24,6 +24,22 @@ import org.springframework.stereotype.Repository;
 public class SavingFundPaymentRepository {
   private final NamedParameterJdbcTemplate jdbcTemplate;
 
+  public Map<UUID, String> findRemitterIbansByIds(Collection<UUID> ids) {
+    if (ids.isEmpty()) {
+      return Map.of();
+    }
+    return jdbcTemplate.query(
+        "select id, remitter_iban from saving_fund_payment where id in (:ids)",
+        new MapSqlParameterSource("ids", ids),
+        (ResultSet rs) -> {
+          Map<UUID, String> ibans = new HashMap<>();
+          while (rs.next()) {
+            ibans.put(rs.getObject("id", UUID.class), rs.getString("remitter_iban"));
+          }
+          return ibans;
+        });
+  }
+
   public Optional<SavingFundPayment> findById(UUID id) {
     var result =
         jdbcTemplate.query(

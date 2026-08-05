@@ -140,19 +140,20 @@ public class PortfolioService {
 
   private Map<PortfolioGroup, BigDecimal> annualReturnRates(
       AuthenticatedPerson person, List<PortfolioGroup> groups, LocalDate from, LocalDate to) {
-    List<String> keys = groups.stream().map(RETURN_KEYS::get).filter(Objects::nonNull).toList();
-    if (keys.isEmpty()) {
-      return Map.of();
-    }
-
-    Map<String, BigDecimal> rateByKey =
-        returnsService.get(person, from, to, keys).getReturns().stream()
-            .filter(aReturn -> aReturn.getRate() != null)
-            .collect(
-                toMap(Returns.Return::getKey, Returns.Return::getRate, (first, second) -> first));
-
     return RETURN_KEYS.entrySet().stream()
-        .filter(entry -> rateByKey.containsKey(entry.getValue()))
-        .collect(toMap(Map.Entry::getKey, entry -> rateByKey.get(entry.getValue())));
+        .filter(entry -> groups.contains(entry.getKey()))
+        .flatMap(
+            entry ->
+                annualReturnRate(person, entry.getValue(), from, to).stream()
+                    .map(rate -> Map.entry(entry.getKey(), rate)))
+        .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
+  }
+
+  private Optional<BigDecimal> annualReturnRate(
+      AuthenticatedPerson person, String key, LocalDate from, LocalDate to) {
+    return returnsService.get(person, from, to, List.of(key)).getReturns().stream()
+        .map(Returns.Return::getRate)
+        .filter(Objects::nonNull)
+        .findFirst();
   }
 }

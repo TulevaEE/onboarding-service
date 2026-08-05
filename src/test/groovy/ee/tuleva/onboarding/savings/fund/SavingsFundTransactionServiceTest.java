@@ -11,6 +11,7 @@ import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.UserAccount.REDEMPTIONS;
 import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -132,6 +133,32 @@ class SavingsFundTransactionServiceTest {
         .thenReturn(redemptionsAccountWithBalance(BigDecimal.ZERO));
 
     assertThat(service.getTransactions(person)).isEmpty();
+  }
+
+  @Test
+  void failsWhenLedgerTransactionHasNoFundUnits() {
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn("EE0000003283");
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(
+            subscriptionsAccountWithoutFundUnits(
+                new EntryFixture(new BigDecimal("100.00"), Instant.parse("2025-01-15T10:00:00Z"))));
+
+    assertThatThrownBy(() -> service.getTransactions(person))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void failsWhenLedgerTransactionHasNoNavPerUnit() {
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn("EE0000003283");
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(
+            subscriptionsAccountWithoutNavPerUnit(
+                new EntryFixture(new BigDecimal("100.00"), Instant.parse("2025-01-15T10:00:00Z"))));
+
+    assertThatThrownBy(() -> service.getTransactions(person))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test

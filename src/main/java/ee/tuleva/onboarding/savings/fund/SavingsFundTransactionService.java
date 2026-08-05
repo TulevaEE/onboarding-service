@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.UserAccount;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -75,9 +76,21 @@ public class SavingsFundTransactionService {
         .priceTime(ledgerTransaction.getTransactionDate())
         .isin(isin)
         .type(type)
-        .units(ledgerTransaction.findUserFundUnits().orElseThrow())
-        .nav(toNavScale(ledgerTransaction.findNavPerUnit().orElseThrow()))
+        .units(require(ledgerTransaction.findUserFundUnits(), "fundUnits", ledgerTransaction))
+        .nav(
+            toNavScale(
+                require(ledgerTransaction.findNavPerUnit(), "navPerUnit", ledgerTransaction)))
         .build();
+  }
+
+  private static BigDecimal require(
+      Optional<BigDecimal> value, String field, LedgerTransaction ledgerTransaction) {
+    return value.orElseThrow(
+        () ->
+            new IllegalStateException(
+                "Ledger transaction missing value: field=%s, transactionId=%s, transactionDate=%s"
+                    .formatted(
+                        field, ledgerTransaction.getId(), ledgerTransaction.getTransactionDate())));
   }
 
   private BigDecimal toNavScale(BigDecimal nav) {

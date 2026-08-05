@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.account.portfolio;
 import static ee.tuleva.onboarding.account.portfolio.PortfolioGroup.SAVINGS_FUND;
 import static ee.tuleva.onboarding.account.portfolio.PortfolioGroup.SECOND_PILLAR;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.SUBTRACTION;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -225,6 +226,25 @@ class PortfolioValuationTest {
             valuation(List.of(buy(TKF, "2025-01-01T10:00:00Z", 100, "10")), NAV_HISTORY)
                 .heldGroups())
         .containsExactly(SAVINGS_FUND);
+  }
+
+  @Test
+  void treatsEpisContributionsAsAcquisitions() {
+    List<Transaction> episContribution =
+        List.of(transaction(PILLAR_2, "2025-01-01T10:00:00Z", 200, "2", CONTRIBUTION));
+
+    PortfolioValuation valuation = valuation(episContribution, NAV_HISTORY);
+
+    assertThat(valuation.unitsAt(PILLAR_2, LocalDate.parse("2025-01-01")))
+        .isEqualByComparingTo("200");
+
+    Portfolio.GroupSummary summary =
+        valuation.summaryOf(
+            SECOND_PILLAR, LocalDate.parse("2025-01-01"), LocalDate.parse("2025-12-31"));
+
+    assertThat(summary.contributions()).isEqualByComparingTo("400.00");
+    assertThat(summary.withdrawals()).isEqualByComparingTo("0.00");
+    assertThat(summary.endValue()).isEqualByComparingTo("600.00");
   }
 
   @Test

@@ -49,6 +49,8 @@ public class SavingsFundCostBasisCalculator {
                 return;
               }
 
+              requireEnoughHeldUnits(transaction, units, lots);
+
               Consumption consumption = consume(lots, units, method);
               lots.clear();
               lots.addAll(consumption.remainingLots());
@@ -68,6 +70,17 @@ public class SavingsFundCostBasisCalculator {
     }
 
     return units.abs();
+  }
+
+  private static void requireEnoughHeldUnits(
+      Transaction transaction, BigDecimal units, List<Lot> lots) {
+    BigDecimal heldUnits = totalUnits(lots);
+
+    if (units.subtract(heldUnits).compareTo(UNIT_EPSILON) > 0) {
+      throw new IllegalStateException(
+          "Redemption exceeds held units: id=%s, time=%s, requested=%s, held=%s"
+              .formatted(transaction.id(), transaction.time(), units, heldUnits));
+    }
   }
 
   private static BigDecimal unitCostPaid(Transaction transaction, BigDecimal units) {

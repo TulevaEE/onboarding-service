@@ -189,6 +189,21 @@ class SavingsFundCostBasisCalculatorTest {
   }
 
   @Test
+  void refusesToPriceARedemptionOfMoreUnitsThanWereEverHeld() {
+    List<Transaction> oversell =
+        List.of(buy("2025-01-01T10:00:00Z", "10", "10"), sell("2025-03-01T10:00:00Z", "20", "12"));
+
+    assertThatThrownBy(
+            () -> calculator.realisedGainsBetween(oversell, START_OF_2025, END_OF_2025, FIFO))
+        .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(
+            () ->
+                calculator.realisedGainsBetween(
+                    oversell, START_OF_2025, END_OF_2025, WEIGHTED_AVERAGE))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
   void takesTheSecondLotOnceTheFirstIsExhaustedUnderFifo() {
     List<Transaction> twoLots =
         List.of(

@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
+import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -41,6 +42,7 @@ public class PortfolioService {
   private final FundValueRepository fundValueRepository;
   private final SavingsFundConfiguration savingsFundConfiguration;
   private final ReturnsService returnsService;
+  private final FundNavProvider fundNavProvider;
 
   public Portfolio getPortfolio(AuthenticatedPerson person, LocalDate from, LocalDate to) {
     List<Transaction> transactions = transactionService.getTransactions(person);
@@ -104,17 +106,29 @@ public class PortfolioService {
 
     isins.forEach(
         isin -> {
+          LocalDate end = latestVisibleDate(isin, to);
           Map<LocalDate, BigDecimal> prices = new HashMap<>();
           fundValueRepository
-              .getLatestValue(isin, from.minusDays(1))
+              .getLatestValue(isin, earlierOf(from.minusDays(1), end))
               .ifPresent(value -> prices.put(value.date(), value.value()));
           fundValueRepository
-              .findValuesBetweenDates(isin, from, to)
+              .findValuesBetweenDates(isin, from, end)
               .forEach(value -> prices.put(value.date(), value.value()));
           history.put(isin, prices);
         });
 
     return history;
+  }
+
+  private LocalDate latestVisibleDate(String isin, LocalDate to) {
+    if (!savingsFundConfiguration.getIsin().equals(isin)) {
+      return to;
+    }
+    return earlierOf(to, fundNavProvider.safeMaxNavDate());
+  }
+
+  private static LocalDate earlierOf(LocalDate date, LocalDate other) {
+    return date.isBefore(other) ? date : other;
   }
 
   private Map<PortfolioGroup, BigDecimal> annualReturnRates(

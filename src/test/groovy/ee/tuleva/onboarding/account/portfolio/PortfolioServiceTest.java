@@ -24,6 +24,7 @@ import ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
+import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -44,11 +45,13 @@ class PortfolioServiceTest {
   private static final String PILLAR_3 = "EE3600001707";
   private static final LocalDate FROM = LocalDate.parse("2025-01-01");
   private static final LocalDate TO = LocalDate.parse("2025-12-31");
+  private static final LocalDate FAR_FUTURE = LocalDate.parse("9999-12-31");
 
   @Mock private TransactionService transactionService;
   @Mock private FundRepository fundRepository;
   @Mock private FundValueRepository fundValueRepository;
   @Mock private ReturnsService returnsService;
+  @Mock private FundNavProvider fundNavProvider;
 
   private final SavingsFundConfiguration savingsFundConfiguration = new SavingsFundConfiguration();
   private final AuthenticatedPerson person = sampleAuthenticatedPersonNonMember().build();
@@ -63,7 +66,8 @@ class PortfolioServiceTest {
             fundRepository,
             fundValueRepository,
             savingsFundConfiguration,
-            returnsService);
+            returnsService,
+            fundNavProvider);
   }
 
   private static Transaction buy(String isin, String time, String units, String nav) {
@@ -111,6 +115,7 @@ class PortfolioServiceTest {
             List.of(
                 Fund.builder().isin(TKF).pillar(null).build(),
                 Fund.builder().isin(PILLAR_2).pillar(2).build()));
+    given(fundNavProvider.safeMaxNavDate()).willReturn(FAR_FUTURE);
     given(fundValueRepository.getLatestValue(any(), any())).willReturn(Optional.empty());
     given(fundValueRepository.findValuesBetweenDates(eq(TKF), eq(FROM), eq(TO)))
         .willReturn(
@@ -149,6 +154,7 @@ class PortfolioServiceTest {
     given(transactionService.getTransactions(person))
         .willReturn(List.of(buy(TKF, "2024-06-01T10:00:00Z", "100", "10")));
     given(fundRepository.findAll()).willReturn(List.of(Fund.builder().isin(TKF).build()));
+    given(fundNavProvider.safeMaxNavDate()).willReturn(FAR_FUTURE);
     given(fundValueRepository.getLatestValue(TKF, FROM.minusDays(1)))
         .willReturn(Optional.of(fundValue(TKF, "2024-12-30", "11")));
     given(fundValueRepository.findValuesBetweenDates(eq(TKF), eq(FROM), eq(TO)))
@@ -198,6 +204,7 @@ class PortfolioServiceTest {
     given(transactionService.getTransactions(person))
         .willReturn(List.of(buy(TKF, "2025-01-01T10:00:00Z", "100", "10")));
     given(fundRepository.findAll()).willReturn(List.of(Fund.builder().isin(TKF).build()));
+    given(fundNavProvider.safeMaxNavDate()).willReturn(FAR_FUTURE);
     given(fundValueRepository.getLatestValue(any(), any())).willReturn(Optional.empty());
     given(fundValueRepository.findValuesBetweenDates(eq(TKF), eq(FROM), eq(TO)))
         .willReturn(List.of(fundValue(TKF, "2025-12-31", "12")));
@@ -206,5 +213,42 @@ class PortfolioServiceTest {
 
     assertThat(portfolio.groups()).hasSize(1);
     assertThat(portfolio.groups().getFirst().annualReturnRate()).isNull();
+  }
+
+  @Test
+  void hidesSavingsFundNavsNewerThanTheSafeMaxNavDate() {
+    LocalDate safeMaxNavDate = LocalDate.parse("2025-11-28");
+    given(transactionService.getTransactions(person))
+        .willReturn(List.of(buy(TKF, "2025-01-01T10:00:00Z", "100", "10")));
+    given(fundRepository.findAll()).willReturn(List.of(Fund.builder().isin(TKF).build()));
+    given(fundNavProvider.safeMaxNavDate()).willReturn(safeMaxNavDate);
+    given(fundValueRepository.getLatestValue(TKF, FROM.minusDays(1))).willReturn(Optional.empty());
+    given(fundValueRepository.findValuesBetweenDates(eq(TKF), eq(FROM), eq(safeMaxNavDate)))
+        .willReturn(
+            List.of(fundValue(TKF, "2025-01-01", "10"), fundValue(TKF, "2025-11-28", "11")));
+
+    Portfolio portfolio = portfolioService.getPortfolio(person, FROM, TO);
+
+    assertThat(portfolio.groups().getFirst().endValue()).isEqualByComparingTo("1100.00");
+    assertThat(portfolio.series().stream().map(Portfolio.ValuePoint::date))
+        .containsExactly(LocalDate.parse("2025-01-01"), safeMaxNavDate);
+  }
+
+  @Test
+  void leavesPensionFundNavsUncapped() {
+    given(transactionService.getTransactions(person))
+        .willReturn(List.of(buy(PILLAR_2, "2025-01-01T10:00:00Z", "200", "2")));
+    given(fundRepository.findAll())
+        .willReturn(List.of(Fund.builder().isin(PILLAR_2).pillar(2).build()));
+    given(fundValueRepository.getLatestValue(PILLAR_2, FROM.minusDays(1)))
+        .willReturn(Optional.empty());
+    given(fundValueRepository.findValuesBetweenDates(eq(PILLAR_2), eq(FROM), eq(TO)))
+        .willReturn(List.of(fundValue(PILLAR_2, "2025-12-31", "3")));
+    given(returnsService.get(eq(person), eq(FROM), eq(TO), any()))
+        .willReturn(personalReturn(PersonalReturnProvider.SECOND_PILLAR, "0.0712"));
+
+    Portfolio portfolio = portfolioService.getPortfolio(person, FROM, TO);
+
+    assertThat(portfolio.groups().getFirst().endValue()).isEqualByComparingTo("600.00");
   }
 }

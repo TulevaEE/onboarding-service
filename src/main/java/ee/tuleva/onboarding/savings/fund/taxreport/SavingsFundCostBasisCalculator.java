@@ -25,8 +25,6 @@ public class SavingsFundCostBasisCalculator {
 
   private record Consumption(BigDecimal acquisitionCost, List<Lot> remainingLots) {}
 
-  private record PricedUnits(BigDecimal units, BigDecimal nav) {}
-
   public List<RealisedGain> realisedGainsBetween(
       List<Transaction> transactions, LocalDate from, LocalDate to, CostBasisMethod method) {
     return realiseUpTo(transactions, to, method).stream()
@@ -44,11 +42,10 @@ public class SavingsFundCostBasisCalculator {
         .sorted(comparing(Transaction::time))
         .forEach(
             transaction -> {
-              PricedUnits priced = requireUnitsAndNav(transaction);
-              BigDecimal units = priced.units();
+              BigDecimal units = requireUnits(transaction);
 
               if (transaction.isAcquisition()) {
-                lots.add(new Lot(units, priced.nav()));
+                lots.add(new Lot(units, unitCostPaid(transaction, units)));
                 return;
               }
 
@@ -61,17 +58,20 @@ public class SavingsFundCostBasisCalculator {
     return List.copyOf(realised);
   }
 
-  private static PricedUnits requireUnitsAndNav(Transaction transaction) {
+  private static BigDecimal requireUnits(Transaction transaction) {
     BigDecimal units = transaction.units();
-    BigDecimal nav = transaction.nav();
 
-    if (units == null || nav == null) {
+    if (units == null) {
       throw new IllegalStateException(
-          "Savings fund transaction missing units or nav: id=%s, time=%s"
+          "Savings fund transaction missing units: id=%s, time=%s"
               .formatted(transaction.id(), transaction.time()));
     }
 
-    return new PricedUnits(units.abs(), nav);
+    return units.abs();
+  }
+
+  private static BigDecimal unitCostPaid(Transaction transaction, BigDecimal units) {
+    return transaction.amount().abs().divide(units, UNIT_COST_PRECISION);
   }
 
   private static RealisedGain toRealisedGain(

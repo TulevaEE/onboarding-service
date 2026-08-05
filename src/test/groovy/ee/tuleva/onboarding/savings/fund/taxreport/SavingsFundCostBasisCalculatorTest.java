@@ -26,19 +26,22 @@ class SavingsFundCostBasisCalculatorTest {
   private final SavingsFundCostBasisCalculator calculator = new SavingsFundCostBasisCalculator();
 
   private static Transaction transaction(
-      String time, String units, String nav, CashFlow.Type type) {
-    BigDecimal unitCount = new BigDecimal(units);
-    BigDecimal navPerUnit = new BigDecimal(nav);
+      String time, String units, String nav, BigDecimal amount, CashFlow.Type type) {
     return Transaction.builder()
         .id(UUID.nameUUIDFromBytes((time + type).getBytes()))
-        .amount(unitCount.multiply(navPerUnit))
+        .amount(amount)
         .currency(EUR)
         .time(Instant.parse(time))
         .isin(TKF)
         .type(type)
-        .units(unitCount)
-        .nav(navPerUnit)
+        .units(new BigDecimal(units))
+        .nav(new BigDecimal(nav))
         .build();
+  }
+
+  private static Transaction transaction(
+      String time, String units, String nav, CashFlow.Type type) {
+    return transaction(time, units, nav, new BigDecimal(units).multiply(new BigDecimal(nav)), type);
   }
 
   private static Transaction buy(String time, String units, String nav) {
@@ -47,6 +50,14 @@ class SavingsFundCostBasisCalculatorTest {
 
   private static Transaction sell(String time, String units, String nav) {
     return transaction(time, units, nav, SUBTRACTION);
+  }
+
+  private static Transaction buyPaying(String time, String units, String nav, String amount) {
+    return transaction(time, units, nav, new BigDecimal(amount), CONTRIBUTION_CASH);
+  }
+
+  private static Transaction sellReceiving(String time, String units, String nav, String amount) {
+    return transaction(time, units, nav, new BigDecimal(amount), SUBTRACTION);
   }
 
   private static final List<Transaction> HISTORY =
@@ -119,7 +130,28 @@ class SavingsFundCostBasisCalculatorTest {
   }
 
   @Test
-  void refusesToPriceAHistoryWhereAnAcquisitionIsMissingItsNav() {
+  void refusesToPriceAHistoryWhereAnAcquisitionIsMissingItsUnits() {
+    Transaction acquisitionWithoutUnits =
+        Transaction.builder()
+            .id(UUID.nameUUIDFromBytes("missing-units".getBytes()))
+            .amount(new BigDecimal("1000"))
+            .currency(EUR)
+            .time(Instant.parse("2025-01-01T10:00:00Z"))
+            .isin(TKF)
+            .type(CONTRIBUTION_CASH)
+            .nav(new BigDecimal("10"))
+            .build();
+
+    List<Transaction> history =
+        List.of(acquisitionWithoutUnits, sell("2025-03-01T10:00:00Z", "100", "30"));
+
+    assertThatThrownBy(
+            () -> calculator.realisedGainsBetween(history, START_OF_2025, END_OF_2025, FIFO))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void pricesAnAcquisitionThatHasNoNavOffTheCashPaid() {
     Transaction acquisitionWithoutNav =
         Transaction.builder()
             .id(UUID.nameUUIDFromBytes("missing-nav".getBytes()))
@@ -134,9 +166,26 @@ class SavingsFundCostBasisCalculatorTest {
     List<Transaction> history =
         List.of(acquisitionWithoutNav, sell("2025-03-01T10:00:00Z", "100", "30"));
 
-    assertThatThrownBy(
-            () -> calculator.realisedGainsBetween(history, START_OF_2025, END_OF_2025, FIFO))
-        .isInstanceOf(IllegalStateException.class);
+    RealisedGain gain =
+        calculator.realisedGainsBetween(history, START_OF_2025, END_OF_2025, FIFO).getFirst();
+
+    assertThat(gain.acquisitionCost()).isEqualByComparingTo("1000.00");
+    assertThat(gain.gain()).isEqualByComparingTo("2000.00");
+  }
+
+  @Test
+  void pricesAcquisitionsAtTheCashPaidWhenIssuedUnitsDoNotMultiplyBackToIt() {
+    List<Transaction> history =
+        List.of(
+            buyPaying("2025-02-01T10:00:00Z", "9.87654", "10.12570", "100.00"),
+            sellReceiving("2025-06-01T10:00:00Z", "9.87654", "10.63140", "105.00"));
+
+    RealisedGain gain =
+        calculator.realisedGainsBetween(history, START_OF_2025, END_OF_2025, FIFO).getFirst();
+
+    assertThat(gain.acquisitionCost()).isEqualByComparingTo("100.00");
+    assertThat(gain.proceeds()).isEqualByComparingTo("105.00");
+    assertThat(gain.gain()).isEqualByComparingTo("5.00");
   }
 
   @Test

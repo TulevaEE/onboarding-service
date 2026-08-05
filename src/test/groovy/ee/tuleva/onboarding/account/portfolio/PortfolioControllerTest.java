@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.account.portfolio.PortfolioGroup.SAVINGS_FUND
 import static ee.tuleva.onboarding.account.portfolio.PortfolioGroup.SECOND_PILLAR;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
+import static java.time.ZoneOffset.UTC;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -13,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.time.TestClockHolder;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -66,6 +68,22 @@ class PortfolioControllerTest {
         .andExpect(jsonPath("$.series[0].date").value("2025-12-31"))
         .andExpect(jsonPath("$.series[0].values.SAVINGS_FUND").value(1800.00))
         .andExpect(jsonPath("$.series[0].values.SECOND_PILLAR").doesNotExist());
+  }
+
+  @Test
+  void defaultsToTheBeginningOfTimesAndToday() throws Exception {
+    LocalDate from = LocalDate.parse("2003-01-07");
+    LocalDate to = LocalDate.parse("2020-01-01");
+
+    when(clock.instant()).thenReturn(TestClockHolder.now);
+    when(clock.getZone()).thenReturn(UTC);
+    when(portfolioService.getPortfolio(eq(authPerson), eq(from), eq(to)))
+        .thenReturn(portfolio(from, to));
+
+    mvc.perform(get("/v1/portfolio").with(authentication(authentication)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.from").value("2003-01-07"))
+        .andExpect(jsonPath("$.to").value("2020-01-01"));
   }
 
   @Test

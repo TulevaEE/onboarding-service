@@ -20,11 +20,16 @@ public record Transaction(
     BigDecimal amount,
     Currency currency,
     Instant time,
+    Instant priceTime,
     String isin,
     CashFlow.Type type,
     BigDecimal units,
     BigDecimal nav)
     implements Comparable<Transaction> {
+
+  public Transaction {
+    priceTime = priceTime == null ? time : priceTime;
+  }
 
   public static Transaction from(CashFlow cashFlow) {
     String seed =
@@ -34,6 +39,7 @@ public record Transaction(
         .amount(cashFlow.getAmount())
         .currency(cashFlow.getCurrency())
         .time(cashFlow.getTime())
+        .priceTime(cashFlow.getPriceTime())
         .isin(cashFlow.getIsin())
         .type(cashFlow.getType())
         .units(cashFlow.getUnits())

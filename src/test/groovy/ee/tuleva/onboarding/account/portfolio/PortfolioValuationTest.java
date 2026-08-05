@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 class PortfolioValuationTest {
@@ -50,6 +51,11 @@ class PortfolioValuationTest {
 
   private static Transaction transaction(
       String isin, String time, int units, String nav, CashFlow.Type type) {
+    return transaction(isin, time, time, units, nav, type);
+  }
+
+  private static Transaction transaction(
+      String isin, String time, String priceTime, int units, String nav, CashFlow.Type type) {
     BigDecimal unitCount = BigDecimal.valueOf(units);
     BigDecimal navPerUnit = new BigDecimal(nav);
     return Transaction.builder()
@@ -57,6 +63,7 @@ class PortfolioValuationTest {
         .amount(unitCount.multiply(navPerUnit))
         .currency(EUR)
         .time(Instant.parse(time))
+        .priceTime(Instant.parse(priceTime))
         .isin(isin)
         .type(type)
         .units(unitCount)
@@ -68,8 +75,28 @@ class PortfolioValuationTest {
     return transaction(isin, time, units, nav, CONTRIBUTION_CASH);
   }
 
+  private static Transaction buy(
+      String isin, String time, String priceTime, int units, String nav) {
+    return transaction(isin, time, priceTime, units, nav, CONTRIBUTION_CASH);
+  }
+
   private static Transaction sell(String isin, String time, int units, String nav) {
     return transaction(isin, time, units, nav, SUBTRACTION);
+  }
+
+  private static Transaction contributionWithoutUnits(String isin, String time, String amount) {
+    return Transaction.builder()
+        .id(UUID.nameUUIDFromBytes((isin + time + CONTRIBUTION).getBytes()))
+        .amount(new BigDecimal(amount))
+        .currency(EUR)
+        .time(Instant.parse(time))
+        .isin(isin)
+        .type(CONTRIBUTION)
+        .build();
+  }
+
+  private static List<Transaction> alsoHolding(Transaction transaction) {
+    return Stream.concat(HISTORY.stream(), Stream.of(transaction)).toList();
   }
 
   private static PortfolioValuation valuation(
@@ -93,11 +120,7 @@ class PortfolioValuationTest {
     assertThat(valuation.unitsAt(TKF, LocalDate.parse("2025-01-01"))).isEqualByComparingTo("100");
     assertThat(valuation.unitsAt(TKF, LocalDate.parse("2025-06-30"))).isEqualByComparingTo("150");
 
-    List<Transaction> withRedemption =
-        java.util.stream.Stream.concat(
-                HISTORY.stream(),
-                java.util.stream.Stream.of(sell(TKF, "2025-07-01T10:00:00Z", 30, "11")))
-            .toList();
+    List<Transaction> withRedemption = alsoHolding(sell(TKF, "2025-07-01T10:00:00Z", 30, "11"));
 
     assertThat(valuation(withRedemption, NAV_HISTORY).unitsAt(TKF, LocalDate.parse("2025-07-01")))
         .isEqualByComparingTo("120");
@@ -267,6 +290,57 @@ class PortfolioValuationTest {
     assertThat(summary.contributions()).isEqualByComparingTo("400.00");
     assertThat(summary.withdrawals()).isEqualByComparingTo("0.00");
     assertThat(summary.endValue()).isEqualByComparingTo("600.00");
+  }
+
+  @Test
+  void datesUnitsAndCashFlowsByTheDayTheUnitsWerePricedNotTheDayTheyWereBooked() {
+    List<Transaction> bookedBeforePricing =
+        List.of(buy(TKF, "2025-06-29T10:00:00Z", "2025-07-01T00:00:00Z", 100, "10"));
+    Map<String, Map<LocalDate, BigDecimal>> navs =
+        Map.of(
+            TKF,
+            Map.of(
+                LocalDate.parse("2025-06-30"), new BigDecimal("10"),
+                LocalDate.parse("2025-07-01"), new BigDecimal("11")));
+
+    PortfolioValuation valuation = valuation(bookedBeforePricing, navs);
+
+    assertThat(valuation.unitsAt(TKF, LocalDate.parse("2025-06-30"))).isEqualByComparingTo("0");
+    assertThat(valuation.unitsAt(TKF, LocalDate.parse("2025-07-01"))).isEqualByComparingTo("100");
+
+    Portfolio.GroupSummary summary =
+        valuation.summaryOf(
+            SAVINGS_FUND, LocalDate.parse("2025-07-01"), LocalDate.parse("2025-07-01"));
+
+    assertThat(summary.startValue()).isEqualByComparingTo("0.00");
+    assertThat(summary.contributions()).isEqualByComparingTo("1000.00");
+    assertThat(summary.endValue()).isEqualByComparingTo("1100.00");
+    assertThat(summary.gain()).isEqualByComparingTo("100.00");
+  }
+
+  @Test
+  void leavesAGroupUnvaluedWhenOneOfItsHoldingsHasATransactionWithoutUnits() {
+    PortfolioValuation valuation =
+        valuation(
+            alsoHolding(contributionWithoutUnits(PILLAR_2, "2025-08-01T10:00:00Z", "40.00")),
+            NAV_HISTORY);
+
+    Portfolio.GroupSummary summary =
+        valuation.summaryOf(
+            SECOND_PILLAR, LocalDate.parse("2025-06-30"), LocalDate.parse("2025-12-31"));
+
+    assertThat(summary.startValue()).isNull();
+    assertThat(summary.endValue()).isNull();
+    assertThat(summary.gain()).isNull();
+    assertThat(summary.gainPercentage()).isNull();
+    assertThat(summary.contributions()).isEqualByComparingTo("40.00");
+    assertThat(summary.withdrawals()).isEqualByComparingTo("0.00");
+
+    List<Portfolio.ValuePoint> series =
+        valuation.series(LocalDate.parse("2025-01-01"), LocalDate.parse("2025-12-31"));
+
+    assertThat(series).allSatisfy(point -> assertThat(point.values().get(SECOND_PILLAR)).isNull());
+    assertThat(series.getLast().values().get(SAVINGS_FUND)).isEqualByComparingTo("1800.00");
   }
 
   @Test

@@ -160,12 +160,34 @@ class PortfolioValuationTest {
   }
 
   @Test
-  void isEmptyAndSafeWhenNoPricesAreKnown() {
+  void reportsNoEndValueWhenTheHeldFundHasNoPriceHistory() {
     Portfolio.GroupSummary summary =
         valuation(HISTORY, Map.of())
             .summaryOf(SAVINGS_FUND, LocalDate.parse("2025-01-01"), LocalDate.parse("2025-12-31"));
 
-    assertThat(summary.endValue()).isEqualByComparingTo("0.00");
+    assertThat(summary.endValue()).isNull();
+    assertThat(summary.gain()).isNull();
+    assertThat(summary.gainPercentage()).isNull();
+    assertThat(summary.startValue()).isEqualByComparingTo("0.00");
+    assertThat(summary.contributions()).isEqualByComparingTo("1550.00");
+    assertThat(summary.withdrawals()).isEqualByComparingTo("0.00");
+  }
+
+  @Test
+  void reportsNoStartValueWhenThePriceHistoryBeginsAfterThePeriodOpens() {
+    Map<String, Map<LocalDate, BigDecimal>> lateNavs =
+        Map.of(TKF, Map.of(LocalDate.parse("2025-12-31"), new BigDecimal("12")));
+
+    Portfolio.GroupSummary summary =
+        valuation(HISTORY, lateNavs)
+            .summaryOf(SAVINGS_FUND, LocalDate.parse("2025-06-30"), LocalDate.parse("2025-12-31"));
+
+    assertThat(summary.startValue()).isNull();
+    assertThat(summary.gain()).isNull();
+    assertThat(summary.gainPercentage()).isNull();
+    assertThat(summary.endValue()).isEqualByComparingTo("1800.00");
+    assertThat(summary.contributions()).isEqualByComparingTo("550.00");
+    assertThat(summary.withdrawals()).isEqualByComparingTo("0.00");
   }
 
   @Test

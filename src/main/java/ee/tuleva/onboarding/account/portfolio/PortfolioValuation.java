@@ -130,21 +130,27 @@ public class PortfolioValuation {
 
   public Portfolio.GroupSummary summaryOf(PortfolioGroup group, LocalDate from, LocalDate to) {
     Set<String> isins = isinsOf(group);
-    BigDecimal startValue = zeroWhenUnpriced(valueAt(isins, from.minusDays(1)));
-    BigDecimal endValue = zeroWhenUnpriced(valueAt(isins, to));
+    BigDecimal startValue = valueAt(isins, from.minusDays(1));
+    BigDecimal endValue = valueAt(isins, to);
     BigDecimal contributions = cashFlowBetween(isins, from, to, true);
     BigDecimal withdrawals = cashFlowBetween(isins, from, to, false);
-    BigDecimal gain = endValue.add(withdrawals).subtract(startValue).subtract(contributions);
-    BigDecimal invested = startValue.add(contributions);
 
-    return Portfolio.GroupSummary.builder()
-        .group(group)
-        .startValue(startValue)
-        .endValue(endValue)
-        .contributions(contributions)
-        .withdrawals(withdrawals)
+    Portfolio.GroupSummary.GroupSummaryBuilder summary =
+        Portfolio.GroupSummary.builder()
+            .group(group)
+            .startValue(startValue)
+            .endValue(endValue)
+            .contributions(contributions)
+            .withdrawals(withdrawals);
+
+    if (startValue == null || endValue == null) {
+      return summary.build();
+    }
+
+    BigDecimal gain = endValue.add(withdrawals).subtract(startValue).subtract(contributions);
+    return summary
         .gain(gain)
-        .gainPercentage(percentageOf(gain, invested))
+        .gainPercentage(percentageOf(gain, startValue.add(contributions)))
         .build();
   }
 
@@ -185,9 +191,5 @@ public class PortfolioValuation {
         .map(transaction -> transaction.amount().abs())
         .reduce(BigDecimal.ZERO, BigDecimal::add)
         .setScale(MONEY_SCALE, HALF_UP);
-  }
-
-  private static BigDecimal zeroWhenUnpriced(@Nullable BigDecimal value) {
-    return value == null ? BigDecimal.ZERO.setScale(MONEY_SCALE) : value;
   }
 }

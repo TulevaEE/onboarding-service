@@ -2,11 +2,13 @@ package ee.tuleva.onboarding.account.portfolio;
 
 import static ee.tuleva.onboarding.account.portfolio.PortfolioGroup.SAVINGS_FUND;
 import static ee.tuleva.onboarding.account.portfolio.PortfolioGroup.SECOND_PILLAR;
+import static ee.tuleva.onboarding.account.portfolio.PortfolioGroup.THIRD_PILLAR;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.PERSONAL;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -18,6 +20,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.comparisons.returns.Returns;
 import ee.tuleva.onboarding.comparisons.returns.ReturnsService;
+import ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
@@ -38,6 +41,7 @@ class PortfolioServiceTest {
 
   private static final String TKF = "EE0000003283";
   private static final String PILLAR_2 = "EE3600109435";
+  private static final String PILLAR_3 = "EE3600001707";
   private static final LocalDate FROM = LocalDate.parse("2025-01-01");
   private static final LocalDate TO = LocalDate.parse("2025-12-31");
 
@@ -81,6 +85,20 @@ class PortfolioServiceTest {
     return new FundValue(isin, LocalDate.parse(date), new BigDecimal(value), "TEST", Instant.EPOCH);
   }
 
+  private static Returns personalReturn(String key, String rate) {
+    return Returns.builder()
+        .returns(
+            List.of(
+                Returns.Return.builder()
+                    .key(key)
+                    .type(PERSONAL)
+                    .rate(new BigDecimal(rate))
+                    .from(FROM)
+                    .to(TO)
+                    .build()))
+        .build();
+  }
+
   @Test
   void groupsHoldingsBySourceAndValuesThemOverThePeriod() {
     given(transactionService.getTransactions(person))
@@ -102,18 +120,7 @@ class PortfolioServiceTest {
             List.of(
                 fundValue(PILLAR_2, "2025-01-01", "2"), fundValue(PILLAR_2, "2025-12-31", "3")));
     given(returnsService.get(eq(person), eq(FROM), eq(TO), any()))
-        .willReturn(
-            Returns.builder()
-                .returns(
-                    List.of(
-                        Returns.Return.builder()
-                            .key("SECOND_PILLAR")
-                            .type(PERSONAL)
-                            .rate(new BigDecimal("0.0712"))
-                            .from(FROM)
-                            .to(TO)
-                            .build()))
-                .build());
+        .willReturn(personalReturn(PersonalReturnProvider.SECOND_PILLAR, "0.0712"));
 
     Portfolio portfolio = portfolioService.getPortfolio(person, FROM, TO);
 
@@ -153,6 +160,37 @@ class PortfolioServiceTest {
     assertThat(savingsFund.startValue()).isEqualByComparingTo("1100.00");
     assertThat(savingsFund.endValue()).isEqualByComparingTo("1200.00");
     assertThat(savingsFund.gain()).isEqualByComparingTo("100.00");
+  }
+
+  @Test
+  void asksForEachHeldPillarsReturnSeparately() {
+    given(transactionService.getTransactions(person))
+        .willReturn(
+            List.of(
+                buy(PILLAR_2, "2025-01-01T10:00:00Z", "200", "2"),
+                buy(PILLAR_3, "2025-01-01T10:00:00Z", "100", "5")));
+    given(fundRepository.findAll())
+        .willReturn(
+            List.of(
+                Fund.builder().isin(PILLAR_2).pillar(2).build(),
+                Fund.builder().isin(PILLAR_3).pillar(3).build()));
+    given(fundValueRepository.getLatestValue(any(), any())).willReturn(Optional.empty());
+    given(fundValueRepository.findValuesBetweenDates(eq(PILLAR_2), eq(FROM), eq(TO)))
+        .willReturn(List.of(fundValue(PILLAR_2, "2025-12-31", "3")));
+    given(fundValueRepository.findValuesBetweenDates(eq(PILLAR_3), eq(FROM), eq(TO)))
+        .willReturn(List.of(fundValue(PILLAR_3, "2025-12-31", "6")));
+    given(returnsService.get(person, FROM, TO, List.of(PersonalReturnProvider.SECOND_PILLAR)))
+        .willReturn(personalReturn(PersonalReturnProvider.SECOND_PILLAR, "0.0712"));
+    given(returnsService.get(person, FROM, TO, List.of(PersonalReturnProvider.THIRD_PILLAR)))
+        .willReturn(personalReturn(PersonalReturnProvider.THIRD_PILLAR, "0.0435"));
+
+    Portfolio portfolio = portfolioService.getPortfolio(person, FROM, TO);
+
+    assertThat(portfolio.groups())
+        .extracting(Portfolio.GroupSummary::group, Portfolio.GroupSummary::annualReturnRate)
+        .containsExactly(
+            tuple(SECOND_PILLAR, new BigDecimal("0.0712")),
+            tuple(THIRD_PILLAR, new BigDecimal("0.0435")));
   }
 
   @Test

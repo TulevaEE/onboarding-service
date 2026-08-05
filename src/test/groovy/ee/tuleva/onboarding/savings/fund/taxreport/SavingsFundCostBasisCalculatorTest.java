@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.SUBTRACTION;
 import static ee.tuleva.onboarding.savings.fund.taxreport.CostBasisMethod.FIFO;
 import static ee.tuleva.onboarding.savings.fund.taxreport.CostBasisMethod.WEIGHTED_AVERAGE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.epis.cashflows.CashFlow;
@@ -115,6 +116,27 @@ class SavingsFundCostBasisCalculatorTest {
 
     assertThat(gains.get(0).acquisitionCost()).isEqualByComparingTo("1500.00");
     assertThat(gains.get(1).acquisitionCost()).isEqualByComparingTo("1500.00");
+  }
+
+  @Test
+  void refusesToPriceAHistoryWhereAnAcquisitionIsMissingItsNav() {
+    Transaction acquisitionWithoutNav =
+        Transaction.builder()
+            .id(UUID.nameUUIDFromBytes("missing-nav".getBytes()))
+            .amount(new BigDecimal("1000"))
+            .currency(EUR)
+            .time(Instant.parse("2025-01-01T10:00:00Z"))
+            .isin(TKF)
+            .type(CONTRIBUTION_CASH)
+            .units(new BigDecimal("100"))
+            .build();
+
+    List<Transaction> history =
+        List.of(acquisitionWithoutNav, sell("2025-03-01T10:00:00Z", "100", "30"));
+
+    assertThatThrownBy(
+            () -> calculator.realisedGainsBetween(history, START_OF_2025, END_OF_2025, FIFO))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test

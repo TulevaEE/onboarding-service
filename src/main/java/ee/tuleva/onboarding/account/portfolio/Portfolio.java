@@ -14,12 +14,12 @@ public record Portfolio(
   @Builder
   public record GroupSummary(
       PortfolioGroup group,
-      BigDecimal startValue,
-      BigDecimal endValue,
+      @Nullable BigDecimal startValue,
+      @Nullable BigDecimal endValue,
       BigDecimal contributions,
       BigDecimal withdrawals,
-      BigDecimal gain,
-      BigDecimal gainPercentage,
+      @Nullable BigDecimal gain,
+      @Nullable BigDecimal gainPercentage,
       @Nullable BigDecimal annualReturnRate) {}
 
   public record ValuePoint(LocalDate date, Map<PortfolioGroup, @Nullable BigDecimal> values) {}

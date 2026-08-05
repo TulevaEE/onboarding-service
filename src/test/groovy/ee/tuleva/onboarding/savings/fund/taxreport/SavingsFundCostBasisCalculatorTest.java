@@ -151,6 +151,18 @@ class SavingsFundCostBasisCalculatorTest {
   }
 
   @Test
+  void refusesToPriceAHistoryWhereAnAcquisitionHasZeroUnits() {
+    List<Transaction> history =
+        List.of(
+            buyPaying("2025-01-01T10:00:00Z", "0", "10", "1000"),
+            sell("2025-03-01T10:00:00Z", "100", "30"));
+
+    assertThatThrownBy(
+            () -> calculator.realisedGainsBetween(history, START_OF_2025, END_OF_2025, FIFO))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
   void pricesAnAcquisitionThatHasNoNavOffTheCashPaid() {
     Transaction acquisitionWithoutNav =
         Transaction.builder()

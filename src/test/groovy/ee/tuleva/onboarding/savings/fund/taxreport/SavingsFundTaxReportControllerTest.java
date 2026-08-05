@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.savings.fund.taxreport.CostBasisMethod.FIFO;
 import static ee.tuleva.onboarding.savings.fund.taxreport.CostBasisMethod.WEIGHTED_AVERAGE;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -81,6 +82,17 @@ class SavingsFundTaxReportControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.method").value("FIFO"))
         .andExpect(jsonPath("$.totalGain").value(80.00));
+  }
+
+  @Test
+  void rejectsAYearOutsideTheSupportedRange() throws Exception {
+    mvc.perform(
+            get("/v1/savings-fund/tax-report")
+                .param("year", "2000000000")
+                .with(authentication(authentication)))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(savingsFundTaxReportService);
   }
 
   private static SavingsFundTaxReport report(CostBasisMethod method, String totalGain) {

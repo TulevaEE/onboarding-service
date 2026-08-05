@@ -69,6 +69,12 @@ public class SavingsFundCostBasisCalculator {
               .formatted(transaction.id(), transaction.time()));
     }
 
+    if (units.signum() == 0) {
+      throw new IllegalStateException(
+          "Savings fund transaction has zero units: id=%s, time=%s"
+              .formatted(transaction.id(), transaction.time()));
+    }
+
     return units.abs();
   }
 

@@ -223,8 +223,8 @@ class TransactionExecutionRepositoryIT {
 
   @Test
   void sumExecutedQuantitiesByIsin_keepsBuysAndSellsSeparatePerInstrument() {
-    Instant fromInclusive = Instant.parse("2026-05-01T00:00:00Z");
-    Instant toExclusive = Instant.parse("2026-06-01T00:00:00Z");
+    LocalDate fromExclusive = LocalDate.of(2026, 5, 1);
+    LocalDate toInclusive = LocalDate.of(2026, 5, 31);
     Instant inside = Instant.parse("2026-05-11T10:00:00Z");
 
     TransactionOrder buy = persistOrder(TUK75, "IE0009FT4LX4", BUY, SENT);
@@ -242,7 +242,7 @@ class TransactionExecutionRepositoryIT {
 
     var summaries =
         executionRepository.sumExecutedQuantitiesByIsin(
-            TUK75.getCode(), fromInclusive, toExclusive);
+            TUK75.getCode(), fromExclusive, toInclusive);
 
     assertThat(summaries)
         .extracting(ExecutedQuantitySummary::getIsin)
@@ -262,8 +262,8 @@ class TransactionExecutionRepositoryIT {
 
   @Test
   void sumExecutedQuantitiesByIsin_excludesOtherFundsCancelledOrdersAndTradesOutsideWindow() {
-    Instant fromInclusive = Instant.parse("2026-05-01T00:00:00Z");
-    Instant toExclusive = Instant.parse("2026-06-01T00:00:00Z");
+    LocalDate fromExclusive = LocalDate.of(2026, 5, 1);
+    LocalDate toInclusive = LocalDate.of(2026, 5, 31);
     Instant inside = Instant.parse("2026-05-11T10:00:00Z");
 
     TransactionOrder otherFund = persistOrder(TUV100, "IE0009FT4LX4", BUY, SENT);
@@ -275,16 +275,17 @@ class TransactionExecutionRepositoryIT {
     executionRepository.save(executionWithQuantity(inWindow.getId(), "DLA_IN", inside, "100"));
     executionRepository.save(
         executionWithQuantity(
-            inWindow.getId(), "DLA_BEFORE", fromInclusive.minusSeconds(1), "800"));
+            inWindow.getId(), "DLA_BEFORE", Instant.parse("2026-05-01T10:00:00Z"), "800"));
     executionRepository.save(
-        executionWithQuantity(inWindow.getId(), "DLA_BOUND", toExclusive, "900"));
+        executionWithQuantity(
+            inWindow.getId(), "DLA_AFTER", Instant.parse("2026-06-01T10:00:00Z"), "900"));
 
     entityManager.flush();
     entityManager.clear();
 
     var summaries =
         executionRepository.sumExecutedQuantitiesByIsin(
-            TUK75.getCode(), fromInclusive, toExclusive);
+            TUK75.getCode(), fromExclusive, toInclusive);
 
     assertThat(summaries)
         .singleElement()
@@ -296,13 +297,57 @@ class TransactionExecutionRepositoryIT {
             });
   }
 
+  @Test
+  void sumExecutedQuantitiesByIsin_windowsOnSettlementDateNotTradeDate() {
+    LocalDate fromExclusive = LocalDate.of(2026, 5, 1);
+    LocalDate toInclusive = LocalDate.of(2026, 5, 31);
+
+    TransactionOrder order = persistOrder(TUK75, "IE0009FT4LX4", BUY, SENT);
+
+    executionRepository.save(
+        executionWithQuantity(
+            order.getId(),
+            "DLA_LATE_SETTLE",
+            Instant.parse("2026-04-02T10:00:00Z"),
+            "100",
+            LocalDate.of(2026, 5, 11)));
+    executionRepository.save(
+        executionWithQuantity(
+            order.getId(),
+            "DLA_EARLY_SETTLE",
+            Instant.parse("2026-05-11T10:00:00Z"),
+            "700",
+            LocalDate.of(2026, 4, 20)));
+
+    entityManager.flush();
+    entityManager.clear();
+
+    var summaries =
+        executionRepository.sumExecutedQuantitiesByIsin(
+            TUK75.getCode(), fromExclusive, toInclusive);
+
+    assertThat(summaries)
+        .singleElement()
+        .satisfies(summary -> assertThat(summary.getBought()).isEqualByComparingTo("100"));
+  }
+
   private TransactionExecution executionWithQuantity(
       Long orderId, String brokerTxId, Instant timestamp, String quantity) {
+    return executionWithQuantity(orderId, brokerTxId, timestamp, quantity, null);
+  }
+
+  private TransactionExecution executionWithQuantity(
+      Long orderId,
+      String brokerTxId,
+      Instant timestamp,
+      String quantity,
+      LocalDate scheduledSettlementDate) {
     return TransactionExecution.builder()
         .orderId(orderId)
         .brokerTransactionId(brokerTxId)
         .executionTimestamp(timestamp)
         .executedQuantity(new BigDecimal(quantity))
+        .scheduledSettlementDate(scheduledSettlementDate)
         .source("SEB_OOTEL")
         .build();
   }

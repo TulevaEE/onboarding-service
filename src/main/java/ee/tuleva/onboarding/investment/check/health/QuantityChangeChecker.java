@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -32,20 +33,23 @@ class QuantityChangeChecker {
       return List.of();
     }
 
-    Map<String, BigDecimal> currentByIsin = sumQuantitiesByIsin(securities);
+    Map<String, BigDecimal> currentByIsin = SecurityQuantities.byIsin(securities);
+    Map<String, BigDecimal> previousByIsin = SecurityQuantities.byIsin(previousSecurities);
     Set<String> reportedWithoutQuantity = reportedWithoutQuantity(securities, currentByIsin);
 
-    return sumQuantitiesByIsin(previousSecurities).entrySet().stream()
-        .filter(entry -> !reportedWithoutQuantity.contains(entry.getKey()))
-        .sorted(Map.Entry.comparingByKey())
+    Set<String> isins = new TreeSet<>(previousByIsin.keySet());
+    isins.addAll(currentByIsin.keySet());
+
+    return isins.stream()
+        .filter(isin -> !reportedWithoutQuantity.contains(isin))
         .map(
-            entry ->
+            isin ->
                 unexplainedChange(
                     fund,
-                    entry.getKey(),
-                    entry.getValue(),
-                    currentByIsin.getOrDefault(entry.getKey(), ZERO),
-                    tradedQuantities.getOrDefault(entry.getKey(), TradedQuantity.NONE)))
+                    isin,
+                    previousByIsin.getOrDefault(isin, ZERO),
+                    currentByIsin.getOrDefault(isin, ZERO),
+                    tradedQuantities.getOrDefault(isin, TradedQuantity.NONE)))
         .filter(Objects::nonNull)
         .toList();
   }
@@ -57,14 +61,6 @@ class QuantityChangeChecker {
         .filter(Objects::nonNull)
         .filter(isin -> !quantifiedByIsin.containsKey(isin))
         .collect(Collectors.toSet());
-  }
-
-  private Map<String, BigDecimal> sumQuantitiesByIsin(List<FundPosition> positions) {
-    return positions.stream()
-        .filter(position -> position.getAccountId() != null && position.getQuantity() != null)
-        .collect(
-            Collectors.toMap(
-                FundPosition::getAccountId, FundPosition::getQuantity, BigDecimal::add));
   }
 
   private HealthCheckFinding unexplainedChange(

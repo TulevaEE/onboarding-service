@@ -49,12 +49,18 @@ class CompletenessChecker {
                         fund,
                         COMPLETENESS,
                         FAIL,
-                        "%s: negative SECURITY quantity %s for ISIN %s"
+                        "%s: negative SECURITY quantity %s for %s"
                             .formatted(
                                 fund,
                                 position.getQuantity().toPlainString(),
-                                position.getAccountId()))));
+                                identify(position)))));
 
     return findings;
+  }
+
+  private String identify(FundPosition position) {
+    return position.getAccountId() == null
+        ? "account " + position.getAccountName()
+        : "ISIN " + position.getAccountId();
   }
 }

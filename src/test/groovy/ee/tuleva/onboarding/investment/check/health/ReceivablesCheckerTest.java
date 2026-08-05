@@ -159,6 +159,19 @@ class ReceivablesCheckerTest {
     assertThat(findings).isEmpty();
   }
 
+  @Test
+  void doesNotWarnWhenTodayIsSplitAcrossRowsButTheTotalIsUnchanged() {
+    var today =
+        List.of(
+            securityPosition("IE001", new BigDecimal("600")),
+            securityPosition("IE001", new BigDecimal("400")));
+    var previous = List.of(securityPosition("IE001", new BigDecimal("1000")));
+
+    var findings = checker.check(TUK75, today, previous, List.of(), List.of());
+
+    assertThat(findings).isEmpty();
+  }
+
   private FundPosition securityPosition(String isin, BigDecimal quantity) {
     return FundPosition.builder()
         .navDate(NAV_DATE)

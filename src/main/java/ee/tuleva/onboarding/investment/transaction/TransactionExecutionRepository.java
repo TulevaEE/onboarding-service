@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -30,9 +31,11 @@ public interface TransactionExecutionRepository extends JpaRepository<Transactio
   List<TransactionExecution> findByOrderIdInAndExecutionTimestampInRange(
       Collection<Long> orderIds, Instant fromInclusive, Instant toExclusive);
 
-  // Report sanity check: how much of an instrument we ourselves traded in a window, per side.
-  // Buy and sell totals stay separate because a position report shows quantities before unsettled
-  // trades settle — a same-window buy and sell must not net each other out into a smaller budget.
+  // Report sanity check: how much of an instrument we ourselves traded into a position over a
+  // window, per side. A trade moves the custodian position when it SETTLES, so the window is
+  // anchored on the settlement date, falling back to the trade date when the custodian gave us
+  // none. Buy and sell totals stay separate because a position report shows quantities before
+  // unsettled trades settle — a same-window buy and sell must not net each other out.
   @Query(
       value =
           """
@@ -46,13 +49,15 @@ public interface TransactionExecutionRepository extends JpaRepository<Transactio
           WHERE o.fund_code = :fundCode
             AND o.order_status NOT IN ('CANCELLED', 'DISCARDED')
             AND e.executed_quantity IS NOT NULL
-            AND e.execution_timestamp >= :fromInclusive
-            AND e.execution_timestamp < :toExclusive
+            AND COALESCE(e.scheduled_settlement_date, CAST(e.execution_timestamp AS DATE))
+                  > :fromExclusive
+            AND COALESCE(e.scheduled_settlement_date, CAST(e.execution_timestamp AS DATE))
+                  <= :toInclusive
           GROUP BY o.instrument_isin
           """,
       nativeQuery = true)
   List<ExecutedQuantitySummary> sumExecutedQuantitiesByIsin(
-      String fundCode, Instant fromInclusive, Instant toExclusive);
+      String fundCode, LocalDate fromExclusive, LocalDate toInclusive);
 
   // Trade-date cost attribution: a trade's commission and settlement fee count in the
   // period it executes. Half-open [fromInclusive, toExclusive) on the execution timestamp

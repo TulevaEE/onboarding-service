@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.investment.fees.ocf;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 
-import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.deadline.BusinessDays;
 import ee.tuleva.onboarding.investment.event.RunOcfCalculationRequested;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -22,14 +22,14 @@ import org.springframework.stereotype.Component;
 public class OcfCalculationJob {
 
   private final OcfCalculationService service;
-  private final PublicHolidays publicHolidays;
+  private final BusinessDays businessDays;
   private final Clock clock;
 
   @Scheduled(cron = "0 0 9 1-14 * *", zone = TIMEZONE)
   @SchedulerLock(name = "OcfCalculationJob", lockAtMostFor = "PT30M", lockAtLeastFor = "PT5M")
   void computeMonthlyIfReady() {
     var today = LocalDate.now(clock);
-    if (!isNthBusinessDayOfMonth(today, 4)) {
+    if (!businessDays.isNthBusinessDayOfMonth(today, 4)) {
       return;
     }
     var lastMonth = YearMonth.from(today).minusMonths(1);
@@ -42,16 +42,5 @@ public class OcfCalculationJob {
     var lastMonth = YearMonth.now(clock).minusMonths(1);
     log.info("OCF calculation requested: period={}", lastMonth);
     service.calculateForAllFunds(lastMonth);
-  }
-
-  boolean isNthBusinessDayOfMonth(LocalDate date, int n) {
-    var nthBusinessDay = date.withDayOfMonth(1);
-    if (!publicHolidays.isWorkingDay(nthBusinessDay)) {
-      nthBusinessDay = publicHolidays.nextWorkingDay(nthBusinessDay);
-    }
-    for (int i = 1; i < n; i++) {
-      nthBusinessDay = publicHolidays.nextWorkingDay(nthBusinessDay);
-    }
-    return date.equals(nthBusinessDay);
   }
 }

@@ -15,11 +15,18 @@ public final class PipelineStep {
   public static final String REPORT_EMAIL = "Report Email";
   public static final String LIMIT_CHECK = "Limit Check";
   public static final String HEALTH_CHECK = "Health Check";
+  public static final String FEE_CHECK = "Fee Check";
   public static final String EXECUTION_MATCHING = "Execution Matching";
 
   public static final List<String> IMPORT_PIPELINE =
       List.of(REPORT_IMPORT, POSITION_IMPORT, HEALTH_CHECK, EXECUTION_MATCHING, FEE_ACCRUAL_SYNC);
 
   public static final List<String> NAV_PIPELINE =
-      List.of(NAV_CALCULATION, REPORT_PERSIST, TRACKING_DIFFERENCE, REPORT_EMAIL, LIMIT_CHECK);
+      List.of(
+          NAV_CALCULATION,
+          REPORT_PERSIST,
+          TRACKING_DIFFERENCE,
+          REPORT_EMAIL,
+          LIMIT_CHECK,
+          FEE_CHECK);
 }

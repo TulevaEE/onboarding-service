@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.nav;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,30 @@ public class FundNavQueryService {
 
   public BigDecimal findCashValue(String fundCode, LocalDate navDate) {
     return navReportRepository.sumPublishedMarketValueByAccountType(fundCode, navDate, "CASH");
+  }
+
+  // The fee base is every asset less every non-fee liability, per Tingimused 18.2.1. Summing these
+  // four account types over the latest calculation for the date reproduces NavCalculationService's
+  // feeBaseValue exactly, because NavReportMapper writes each term as its own row and negates
+  // liabilities. Deliberately not published-only: an unpublished calculation still has to have
+  // charged the right base, and falling back to an older calculation would compare across dates.
+  public Optional<BigDecimal> findFeeBaseComponentTotal(String fundCode, LocalDate navDate) {
+    return sumForLatestCalculation(
+        fundCode, navDate, List.of("SECURITY", "CASH", "RECEIVABLES", "LIABILITY"));
+  }
+
+  public Optional<BigDecimal> findCustodianComparableTotal(String fundCode, LocalDate navDate) {
+    return sumForLatestCalculation(fundCode, navDate, List.of("CASH", "RECEIVABLES", "LIABILITY"));
+  }
+
+  private Optional<BigDecimal> sumForLatestCalculation(
+      String fundCode, LocalDate navDate, List<String> accountTypes) {
+    if (!navReportRepository.existsByFundCodeAndNavDate(fundCode, navDate)) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        navReportRepository.sumLatestCalculationMarketValueByAccountTypes(
+            fundCode, navDate, accountTypes));
   }
 
   public BigDecimal findFeeAccrualLiabilities(String fundCode, LocalDate navDate) {

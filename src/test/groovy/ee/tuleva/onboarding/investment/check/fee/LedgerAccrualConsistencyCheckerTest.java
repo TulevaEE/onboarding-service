@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.ledger.LedgerEntryAmount;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -131,6 +132,18 @@ class LedgerAccrualConsistencyCheckerTest {
 
   private DailyAccrualAmount accrual(LocalDate date, String amount) {
     return new DailyAccrualAmount(date, new BigDecimal(amount));
+  }
+
+  // A late-evening UTC instant is already the next calendar day in Tallinn. Grouping on the raw
+  // instant would file it under the previous day and report both days as mismatched.
+  @Test
+  void aLedgerEntryIsFiledUnderItsTallinnCalendarDayNotItsUtcOne() {
+    givenAccruals(accrual(DAY_TWO, "5.90"));
+    givenLedger(
+        new LedgerEntryAmount(
+            UUID.randomUUID(), Instant.parse("2026-06-02T22:30:00Z"), new BigDecimal("-5.90")));
+
+    assertThat(check()).singleElement().extracting(FeeCheckFinding::severity).isEqualTo(PASS);
   }
 
   private LedgerEntryAmount ledger(LocalDate date, String amount) {

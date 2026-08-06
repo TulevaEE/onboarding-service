@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.fee;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
@@ -13,6 +14,7 @@ import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -34,6 +36,9 @@ class FeeSettlementCheckIntegrationTest {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
   private static final LocalDate APRIL = LocalDate.of(2026, 4, 1);
+  private static final LocalDate LAST_DAY_OF_APRIL = LocalDate.of(2026, 4, 30);
+  private static final LocalDate FIRST_DAY_OF_MAY = LocalDate.of(2026, 5, 1);
+  private static final LocalDate PAYMENT_DATE = LocalDate.of(2026, 5, 15);
   private static final LocalDate MAY = LocalDate.of(2026, 5, 1);
   private static final LocalDate LAST_DAY_OF_MAY = LocalDate.of(2026, 5, 31);
   private static final LocalDate FIRST_DAY_OF_JUNE = LocalDate.of(2026, 6, 1);
@@ -141,6 +146,119 @@ class FeeSettlementCheckIntegrationTest {
     verify(notificationService, times(1)).sendMessage(any(), any());
   }
 
+  @Test
+  void aPaymentMatchingWhatWasSettledPasses() {
+    settleAprilForTkf100();
+    insertManagementFeePayment(PAYMENT_DATE, settledForTkf100());
+
+    runTkf100Checks();
+
+    assertThat(severityOf(TKF100, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("PASS");
+  }
+
+  @Test
+  void aPaymentThatDoesNotMatchWhatWasSettledIsReported() {
+    settleAprilForTkf100();
+    insertManagementFeePayment(PAYMENT_DATE, settledForTkf100().add(new BigDecimal("50.00")));
+
+    runTkf100Checks();
+
+    assertThat(severityOf(TKF100, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("WARNING");
+  }
+
+  @Test
+  void aSettlementWithNoPaymentOnceTheWindowClosedIsReported() {
+    settleAprilForTkf100();
+
+    runTkf100Checks();
+
+    assertThat(severityOf(TKF100, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("WARNING");
+  }
+
+  // The ledger carries no fee month on a payment, so a second one in the window cannot be
+  // attributed to a month - reported rather than summed, even when the sum would have matched.
+  @Test
+  void twoPaymentsSummingToTheSettledAmountAreStillReported() {
+    settleAprilForTkf100();
+    var half = settledForTkf100().divide(new BigDecimal("2"), 2, RoundingMode.DOWN);
+    insertManagementFeePayment(PAYMENT_DATE, half);
+    insertManagementFeePayment(PAYMENT_DATE, settledForTkf100().subtract(half));
+
+    runTkf100Checks();
+
+    assertThat(severityOf(TKF100, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("WARNING");
+  }
+
+  private void settleAprilForTkf100() {
+    accrueFor(TKF100, LAST_DAY_OF_APRIL);
+    accrueFor(TKF100, FIRST_DAY_OF_MAY);
+    insertSystemAccount("MANAGEMENT_FEE:TKF100", "EXPENSE");
+  }
+
+  private BigDecimal settledForTkf100() {
+    return jdbcClient
+        .sql(
+            """
+            SELECT COALESCE(SUM(e.amount), 0)
+            FROM ledger.entry e
+            JOIN ledger.account a ON e.account_id = a.id
+            JOIN ledger.transaction t ON e.transaction_id = t.id
+            WHERE a.name = 'MANAGEMENT_FEE_ACCRUAL:TKF100'
+              AND t.transaction_type = CAST('FEE_SETTLEMENT' AS ledger.transaction_type)
+            """)
+        .query(BigDecimal.class)
+        .single();
+  }
+
+  private void insertManagementFeePayment(LocalDate date, BigDecimal amount) {
+    var transactionId = UUID.randomUUID();
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO ledger.transaction (id, transaction_type, transaction_date, metadata)
+            VALUES (:id, CAST('MANAGEMENT_FEE_PAYMENT' AS ledger.transaction_type), :date,
+                    CAST('{"operationType":"MANAGEMENT_FEE_PAYMENT"}' AS jsonb))
+            """)
+        .param("id", transactionId)
+        .param("date", Timestamp.from(instantAt(date)))
+        .update();
+    insertEntry(transactionId, accountId("MANAGEMENT_FEE:TKF100"), amount);
+  }
+
+  private void insertSystemAccount(String name, String accountType) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO ledger.account (id, name, purpose, asset_type, account_type)
+            VALUES (:id, :name, CAST('SYSTEM_ACCOUNT' AS ledger.account_purpose),
+                    CAST('EUR' AS ledger.asset_type), CAST(:accountType AS ledger.account_type))
+            """)
+        .param("id", UUID.randomUUID())
+        .param("name", name)
+        .param("accountType", accountType)
+        .update();
+  }
+
+  private void runTkf100Checks() {
+    feeCheckService.runMonthlyChecks(List.of(TKF100), MAY, APRIL, THIRD_BUSINESS_DAY_OF_JUNE);
+  }
+
+  private String severityOf(TulevaFund fund, String checkType, String feeScope) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT severity FROM investment_fee_check_event
+            WHERE fund_code = :fundCode AND check_type = :checkType AND fee_scope = :feeScope
+            ORDER BY created_at DESC, id DESC
+            """)
+        .param("fundCode", fund.name())
+        .param("checkType", checkType)
+        .param("feeScope", feeScope)
+        .query(String.class)
+        .list()
+        .getFirst();
+  }
+
   private void runMonthlyChecks() {
     feeCheckService.runMonthlyChecks(List.of(TUK75), MAY, APRIL, THIRD_BUSINESS_DAY_OF_JUNE);
   }
@@ -157,8 +275,12 @@ class FeeSettlementCheckIntegrationTest {
   }
 
   private void accrueFor(LocalDate date) {
+    accrueFor(TUK75, date);
+  }
+
+  private void accrueFor(TulevaFund fund, LocalDate date) {
     var cutoff = date.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
-    feeCalculationService.calculateFeesForNav(TUK75, date, BASE_VALUE, cutoff, null);
+    feeCalculationService.calculateFeesForNav(fund, date, BASE_VALUE, cutoff, null);
   }
 
   private void insertManagementFeeCorrection(LocalDate date, BigDecimal amount) {

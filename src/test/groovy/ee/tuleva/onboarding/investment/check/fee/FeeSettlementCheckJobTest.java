@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.fee;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -8,14 +9,17 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import ee.tuleva.onboarding.deadline.BusinessDays;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import java.lang.reflect.Method;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.scheduling.annotation.Scheduled;
 
 @ExtendWith(MockitoExtension.class)
 class FeeSettlementCheckJobTest {
@@ -100,6 +104,40 @@ class FeeSettlementCheckJobTest {
             eq(LocalDate.of(2026, 5, 1)),
             eq(LocalDate.of(2026, 4, 1)),
             eq(notTheThirdBusinessDay));
+  }
+
+  // A typo in the cron or the lock name is invisible to every behavioural test: the job would
+  // simply never fire in production, silently.
+  @Test
+  void isScheduledAtTenTallinnTimeOverTheFirstFortnight() throws Exception {
+    var scheduled = triggerMethod().getAnnotation(Scheduled.class);
+
+    assertThat(scheduled.cron()).isEqualTo("0 0 10 1-14 * *");
+    assertThat(scheduled.zone()).isEqualTo("Europe/Tallinn");
+  }
+
+  @Test
+  void holdsAUniquelyNamedSchedulerLock() throws Exception {
+    assertThat(triggerMethod().getAnnotation(SchedulerLock.class).name())
+        .isEqualTo("FeeSettlementCheckJob");
+  }
+
+  // The cron only fires on days 1-14, so the third business day has to land inside that window in
+  // every month - including one that opens on a weekend followed by public holidays.
+  @Test
+  void theThirdBusinessDayAlwaysFallsWithinTheCronWindow() {
+    var businessDays = new BusinessDays(new PublicHolidays());
+
+    for (var month = LocalDate.of(2026, 1, 1);
+        month.getYear() < 2029;
+        month = month.plusMonths(1)) {
+      assertThat(businessDays.nthBusinessDayOfMonth(month, 3).getDayOfMonth())
+          .isLessThanOrEqualTo(14);
+    }
+  }
+
+  private Method triggerMethod() throws Exception {
+    return FeeSettlementCheckJob.class.getDeclaredMethod("checkClosedMonthIfReady");
   }
 
   private FeeSettlementCheckJob jobOn(LocalDate today) {

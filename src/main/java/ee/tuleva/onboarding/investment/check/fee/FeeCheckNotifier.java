@@ -105,7 +105,7 @@ class FeeCheckNotifier {
     var blind = active.stream().filter(t -> t.severity() == NOT_RUN).toList();
     var cleared = transitions.stream().filter(t -> t.severity() == PASS).toList();
 
-    var message = new StringBuilder(header(deviations, blind, cleared));
+    var message = new StringBuilder(header(deviations, blind));
     deviations.forEach(t -> message.append('\n').append(t.render()));
     if (!blind.isEmpty()) {
       message.append("\n\nCould not check:");
@@ -121,8 +121,7 @@ class FeeCheckNotifier {
     return message.toString();
   }
 
-  private String header(
-      List<Transition> deviations, List<Transition> blind, List<Transition> cleared) {
+  private String header(List<Transition> deviations, List<Transition> blind) {
     if (deviations.stream().anyMatch(t -> t.severity() == FAIL)) {
       return "Fee check FAILED — needs manual correction";
     }

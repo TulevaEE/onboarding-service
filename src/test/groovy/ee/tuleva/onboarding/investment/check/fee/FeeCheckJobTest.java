@@ -9,7 +9,6 @@ import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
-import ee.tuleva.onboarding.investment.event.RunFeeCheckRequested;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationCompleted;
 import java.time.Clock;
 import java.time.Instant;
@@ -42,7 +41,7 @@ class FeeCheckJobTest {
 
   @Test
   void anOnDemandRequestChecksEveryFund() {
-    job().onFeeCheckRequested(new RunFeeCheckRequested());
+    job().onFeeCheckRequested();
 
     verify(feeCheckService).runDailyChecks(List.of(TulevaFund.values()), TODAY);
   }

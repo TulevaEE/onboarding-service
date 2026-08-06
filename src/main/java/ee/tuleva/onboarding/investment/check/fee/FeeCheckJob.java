@@ -35,8 +35,8 @@ class FeeCheckJob {
     runDailyChecks(event.funds());
   }
 
-  @EventListener
-  void onFeeCheckRequested(RunFeeCheckRequested event) {
+  @EventListener(RunFeeCheckRequested.class)
+  void onFeeCheckRequested() {
     runDailyChecks(List.of(TulevaFund.values()));
   }
 

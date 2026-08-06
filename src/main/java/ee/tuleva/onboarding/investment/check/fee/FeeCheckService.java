@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.ACCRUAL_ROUNDING_DRIFT;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.BLACKROCK_ADJUSTMENT_FRESHNESS;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CASH_SETTLEMENT_OBSERVED;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CUSTODIAN_POSITION_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.LEDGER_ACCRUAL_CONSISTENCY;
@@ -42,6 +43,7 @@ class FeeCheckService {
   private final BlackrockAdjustmentFreshnessChecker blackrockAdjustmentFreshnessChecker;
   private final SettlementCompletenessChecker settlementCompletenessChecker;
   private final AccrualRoundingDriftChecker accrualRoundingDriftChecker;
+  private final CashSettlementChecker cashSettlementChecker;
   private final FeeCheckEventRepository eventRepository;
   private final FeeCheckNotifier notifier;
   private final int lookbackDays;
@@ -53,6 +55,7 @@ class FeeCheckService {
       BlackrockAdjustmentFreshnessChecker blackrockAdjustmentFreshnessChecker,
       SettlementCompletenessChecker settlementCompletenessChecker,
       AccrualRoundingDriftChecker accrualRoundingDriftChecker,
+      CashSettlementChecker cashSettlementChecker,
       FeeCheckEventRepository eventRepository,
       FeeCheckNotifier notifier,
       @Value("${investment.fee-check.daily-check-lookback-days:35}") int lookbackDays) {
@@ -62,6 +65,7 @@ class FeeCheckService {
     this.blackrockAdjustmentFreshnessChecker = blackrockAdjustmentFreshnessChecker;
     this.settlementCompletenessChecker = settlementCompletenessChecker;
     this.accrualRoundingDriftChecker = accrualRoundingDriftChecker;
+    this.cashSettlementChecker = cashSettlementChecker;
     this.eventRepository = eventRepository;
     this.notifier = notifier;
     this.lookbackDays = lookbackDays;
@@ -73,10 +77,20 @@ class FeeCheckService {
     return run(funds, checkDate, null, fund -> dailyFindings(fund, from, checkDate));
   }
 
+  // The cash leg trails the settlement leg by a month: a month settles on its last day but the
+  // payment only lands weeks later, so asking about the same month would always answer NOT_RUN.
   @Transactional
   List<FeeCheckResult> runMonthlyChecks(
-      List<TulevaFund> funds, LocalDate feeMonth, LocalDate checkDate) {
-    return run(funds, checkDate, feeMonth, fund -> monthlyFindings(fund, feeMonth, checkDate));
+      List<TulevaFund> funds, LocalDate settlementMonth, LocalDate cashMonth, LocalDate checkDate) {
+    var results = new ArrayList<FeeCheckResult>();
+    for (var fund : funds) {
+      results.add(
+          resultFor(
+              fund, checkDate, settlementMonth, monthlyFindings(fund, settlementMonth, checkDate)));
+      results.add(resultFor(fund, checkDate, cashMonth, cashFindings(fund, cashMonth, checkDate)));
+    }
+    notifier.notify(results);
+    return results;
   }
 
   private List<FeeCheckResult> run(
@@ -86,15 +100,29 @@ class FeeCheckService {
       Function<TulevaFund, List<FeeCheckFinding>> checks) {
     var results =
         funds.stream()
-            .map(
-                fund -> {
-                  var result = new FeeCheckResult(fund, checkDate, feeMonth, checks.apply(fund));
-                  saveEvents(result);
-                  return result;
-                })
+            .map(fund -> resultFor(fund, checkDate, feeMonth, checks.apply(fund)))
             .toList();
     notifier.notify(results);
     return results;
+  }
+
+  private FeeCheckResult resultFor(
+      TulevaFund fund,
+      LocalDate checkDate,
+      @Nullable LocalDate feeMonth,
+      List<FeeCheckFinding> findings) {
+    var result = new FeeCheckResult(fund, checkDate, feeMonth, findings);
+    saveEvents(result);
+    return result;
+  }
+
+  private List<FeeCheckFinding> cashFindings(
+      TulevaFund fund, LocalDate cashMonth, LocalDate checkDate) {
+    return runChecker(
+        fund,
+        CASH_SETTLEMENT_OBSERVED,
+        List.of(MANAGEMENT),
+        () -> cashSettlementChecker.check(fund, cashMonth, checkDate));
   }
 
   private List<FeeCheckFinding> dailyFindings(

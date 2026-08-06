@@ -48,7 +48,10 @@ class FeeSettlementCheckJobTest {
 
     verify(feeCheckService)
         .runMonthlyChecks(
-            eq(List.of(TulevaFund.values())), eq(LocalDate.of(2026, 5, 1)), eq(thirdBusinessDay));
+            eq(List.of(TulevaFund.values())),
+            eq(LocalDate.of(2026, 5, 1)),
+            eq(LocalDate.of(2026, 4, 1)),
+            eq(thirdBusinessDay));
   }
 
   @Test
@@ -58,12 +61,31 @@ class FeeSettlementCheckJobTest {
     verifyNoInteractions(feeCheckService);
   }
 
+  // The cash leg trails a month behind: April's payment has landed by June, May's has not.
+  @Test
+  void checksTheCashLegAMonthBehindTheSettlementLeg() {
+    var thirdBusinessDay = LocalDate.of(2026, 6, 3);
+
+    jobOn(thirdBusinessDay).checkClosedMonthIfReady();
+
+    verify(feeCheckService)
+        .runMonthlyChecks(
+            any(),
+            eq(LocalDate.of(2026, 5, 1)),
+            eq(LocalDate.of(2026, 4, 1)),
+            eq(thirdBusinessDay));
+  }
+
   @Test
   void countsBusinessDaysPastAWeekendStartOfMonth() {
     jobOn(LocalDate.of(2026, 8, 5)).checkClosedMonthIfReady();
 
     verify(feeCheckService)
-        .runMonthlyChecks(any(), eq(LocalDate.of(2026, 7, 1)), eq(LocalDate.of(2026, 8, 5)));
+        .runMonthlyChecks(
+            any(),
+            eq(LocalDate.of(2026, 7, 1)),
+            eq(LocalDate.of(2026, 6, 1)),
+            eq(LocalDate.of(2026, 8, 5)));
   }
 
   @Test
@@ -73,7 +95,11 @@ class FeeSettlementCheckJobTest {
     jobOn(notTheThirdBusinessDay).onSettlementCheckRequested();
 
     verify(feeCheckService)
-        .runMonthlyChecks(any(), eq(LocalDate.of(2026, 5, 1)), eq(notTheThirdBusinessDay));
+        .runMonthlyChecks(
+            any(),
+            eq(LocalDate.of(2026, 5, 1)),
+            eq(LocalDate.of(2026, 4, 1)),
+            eq(notTheThirdBusinessDay));
   }
 
   private FeeSettlementCheckJob jobOn(LocalDate today) {

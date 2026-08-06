@@ -49,13 +49,18 @@ class FeeSettlementCheckJob {
   }
 
   private void runForClosedMonth(LocalDate checkDate) {
-    var feeMonth = checkDate.withDayOfMonth(1).minusMonths(1);
-    log.info("Starting fee settlement check: feeMonth={}", feeMonth);
+    var settlementMonth = checkDate.withDayOfMonth(1).minusMonths(1);
+    var cashMonth = settlementMonth.minusMonths(1);
+    log.info(
+        "Starting fee settlement check: settlementMonth={}, cashMonth={}",
+        settlementMonth,
+        cashMonth);
     try {
-      feeCheckService.runMonthlyChecks(List.of(TulevaFund.values()), feeMonth, checkDate);
-      log.info("Fee settlement check completed: feeMonth={}", feeMonth);
+      feeCheckService.runMonthlyChecks(
+          List.of(TulevaFund.values()), settlementMonth, cashMonth, checkDate);
+      log.info("Fee settlement check completed: settlementMonth={}", settlementMonth);
     } catch (Exception e) {
-      log.error("Fee settlement check failed: feeMonth={}", feeMonth, e);
+      log.error("Fee settlement check failed: settlementMonth={}", settlementMonth, e);
     }
   }
 }

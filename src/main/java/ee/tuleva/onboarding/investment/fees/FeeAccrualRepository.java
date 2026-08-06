@@ -52,6 +52,65 @@ public class FeeAccrualRepository {
         .single();
   }
 
+  public BigDecimal sumRoundedDailyNetForMonth(
+      TulevaFund fund, LocalDate feeMonth, FeeType feeType) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT COALESCE(SUM(ROUND(daily_amount_net, 2)), 0)
+            FROM investment_fee_accrual
+            WHERE fund_code = :fundCode AND fee_month = :feeMonth AND fee_type = :feeType
+            """)
+        .param("fundCode", fund.name())
+        .param("feeMonth", feeMonth)
+        .param("feeType", feeType.name())
+        .query(BigDecimal.class)
+        .single();
+  }
+
+  public List<DailyAccrualAmount> findRoundedDailyNetBetween(
+      TulevaFund fund, FeeType feeType, LocalDate from, LocalDate to) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT accrual_date, ROUND(daily_amount_net, 2) AS rounded_net
+            FROM investment_fee_accrual
+            WHERE fund_code = :fundCode AND fee_type = :feeType
+              AND accrual_date BETWEEN :from AND :to
+            ORDER BY accrual_date
+            """)
+        .param("fundCode", fund.name())
+        .param("feeType", feeType.name())
+        .param("from", from)
+        .param("to", to)
+        .query(
+            (rs, rowNum) ->
+                new DailyAccrualAmount(
+                    rs.getDate("accrual_date").toLocalDate(), rs.getBigDecimal("rounded_net")))
+        .list();
+  }
+
+  public List<FeeBaseValue> findBaseValuesBetween(TulevaFund fund, LocalDate from, LocalDate to) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT accrual_date, fee_type, base_value
+            FROM investment_fee_accrual
+            WHERE fund_code = :fundCode AND accrual_date BETWEEN :from AND :to
+            ORDER BY accrual_date, fee_type
+            """)
+        .param("fundCode", fund.name())
+        .param("from", from)
+        .param("to", to)
+        .query(
+            (rs, rowNum) ->
+                new FeeBaseValue(
+                    rs.getDate("accrual_date").toLocalDate(),
+                    FeeType.valueOf(rs.getString("fee_type")),
+                    rs.getBigDecimal("base_value")))
+        .list();
+  }
+
   public BigDecimal getUnsettledAccrual(TulevaFund fund, FeeType feeType, LocalDate asOfDate) {
     return jdbcClient
         .sql(

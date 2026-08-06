@@ -68,6 +68,20 @@ public interface FundPositionRepository extends JpaRepository<FundPosition, Long
   Optional<FundPosition> findByNavDateAndFundAndAccountTypeAndAccountId(
       LocalDate navDate, TulevaFund fund, AccountType accountType, String accountId);
 
+  // The unit-flow rows the custodian reports carry the fund's own ISIN, and the NAV calculation
+  // takes those from our register rather than from the custodian - see getPendingSubscriptions.
+  // Excluding them leaves exactly what the custodian is the source of truth for.
+  @Query(
+      """
+      SELECT COALESCE(SUM(fp.marketValue), 0) FROM FundPosition fp
+      WHERE fp.fund = :fund
+      AND fp.navDate = :navDate
+      AND fp.accountType IN :accountTypes
+      AND (fp.accountId IS NULL OR fp.accountId <> :unitFlowAccountId)
+      """)
+  BigDecimal sumCustodianMarketValue(
+      TulevaFund fund, LocalDate navDate, List<AccountType> accountTypes, String unitFlowAccountId);
+
   @Query(
       "SELECT DISTINCT fp.navDate FROM FundPosition fp WHERE fp.fund = :fund ORDER BY fp.navDate")
   List<LocalDate> findDistinctNavDatesByFund(TulevaFund fund);

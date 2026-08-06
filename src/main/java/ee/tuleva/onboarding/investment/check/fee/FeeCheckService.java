@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.BLACKROCK_ADJUSTMENT_FRESHNESS;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CUSTODIAN_POSITION_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.LEDGER_ACCRUAL_CONSISTENCY;
 import static java.math.BigDecimal.ZERO;
@@ -29,6 +30,7 @@ class FeeCheckService {
 
   private final LedgerAccrualConsistencyChecker ledgerAccrualConsistencyChecker;
   private final FeeBaseCompletenessChecker feeBaseCompletenessChecker;
+  private final CustodianCompletenessChecker custodianCompletenessChecker;
   private final BlackrockAdjustmentFreshnessChecker blackrockAdjustmentFreshnessChecker;
   private final FeeCheckEventRepository eventRepository;
   private final FeeCheckNotifier notifier;
@@ -37,12 +39,14 @@ class FeeCheckService {
   FeeCheckService(
       LedgerAccrualConsistencyChecker ledgerAccrualConsistencyChecker,
       FeeBaseCompletenessChecker feeBaseCompletenessChecker,
+      CustodianCompletenessChecker custodianCompletenessChecker,
       BlackrockAdjustmentFreshnessChecker blackrockAdjustmentFreshnessChecker,
       FeeCheckEventRepository eventRepository,
       FeeCheckNotifier notifier,
       @Value("${investment.fee-check.daily-check-lookback-days:35}") int lookbackDays) {
     this.ledgerAccrualConsistencyChecker = ledgerAccrualConsistencyChecker;
     this.feeBaseCompletenessChecker = feeBaseCompletenessChecker;
+    this.custodianCompletenessChecker = custodianCompletenessChecker;
     this.blackrockAdjustmentFreshnessChecker = blackrockAdjustmentFreshnessChecker;
     this.eventRepository = eventRepository;
     this.notifier = notifier;
@@ -73,6 +77,12 @@ class FeeCheckService {
             FEE_BASE_COMPLETENESS,
             ALL,
             () -> feeBaseCompletenessChecker.check(fund, from, checkDate)));
+    findings.addAll(
+        runChecker(
+            fund,
+            CUSTODIAN_POSITION_COMPLETENESS,
+            ALL,
+            () -> custodianCompletenessChecker.check(fund, from, checkDate)));
     findings.addAll(
         runChecker(
             fund,

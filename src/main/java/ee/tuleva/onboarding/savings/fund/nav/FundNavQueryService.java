@@ -52,8 +52,20 @@ public class FundNavQueryService {
         fundCode, navDate, List.of("SECURITY", "CASH", "RECEIVABLES", "LIABILITY"));
   }
 
+  // What the custodian position report is the source of truth for: cash and unsettled trades.
+  // Excluding the register-sourced and manually-adjusted rows makes the remainder comparable to
+  // investment_fund_position, so a custodian row the ledger never recognised shows up as a
+  // difference instead of hiding inside a fee base that recomputes consistently from itself.
   public Optional<BigDecimal> findCustodianComparableTotal(String fundCode, LocalDate navDate) {
-    return sumForLatestCalculation(fundCode, navDate, List.of("CASH", "RECEIVABLES", "LIABILITY"));
+    if (!navReportRepository.existsByFundCodeAndNavDate(fundCode, navDate)) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        navReportRepository.sumLatestCalculationMarketValueExcludingAccountNames(
+            fundCode,
+            navDate,
+            List.of("CASH", "RECEIVABLES", "LIABILITY"),
+            NavReportAccountNames.NOT_SOURCED_FROM_CUSTODIAN));
   }
 
   private Optional<BigDecimal> sumForLatestCalculation(

@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.BLACKROCK_ADJUSTMENT_FRESHNESS;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CUSTODIAN_POSITION_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.LEDGER_ACCRUAL_CONSISTENCY;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,6 +31,7 @@ class FeeCheckServiceTest {
 
   @Mock private LedgerAccrualConsistencyChecker ledgerAccrualConsistencyChecker;
   @Mock private FeeBaseCompletenessChecker feeBaseCompletenessChecker;
+  @Mock private CustodianCompletenessChecker custodianCompletenessChecker;
   @Mock private BlackrockAdjustmentFreshnessChecker blackrockAdjustmentFreshnessChecker;
   @Mock private FeeCheckEventRepository eventRepository;
   @Mock private FeeCheckNotifier notifier;
@@ -42,6 +44,7 @@ class FeeCheckServiceTest {
         new FeeCheckService(
             ledgerAccrualConsistencyChecker,
             feeBaseCompletenessChecker,
+            custodianCompletenessChecker,
             blackrockAdjustmentFreshnessChecker,
             eventRepository,
             notifier,
@@ -61,6 +64,7 @@ class FeeCheckServiceTest {
                 LEDGER_ACCRUAL_CONSISTENCY, FeeCheckScope.MANAGEMENT),
             org.assertj.core.groups.Tuple.tuple(LEDGER_ACCRUAL_CONSISTENCY, FeeCheckScope.DEPOT),
             org.assertj.core.groups.Tuple.tuple(FEE_BASE_COMPLETENESS, FeeCheckScope.ALL),
+            org.assertj.core.groups.Tuple.tuple(CUSTODIAN_POSITION_COMPLETENESS, FeeCheckScope.ALL),
             org.assertj.core.groups.Tuple.tuple(BLACKROCK_ADJUSTMENT_FRESHNESS, FeeCheckScope.ALL));
   }
 
@@ -79,6 +83,7 @@ class FeeCheckServiceTest {
         .given(feeBaseCompletenessChecker)
         .check(any(), any(), any());
     givenLedgerCheckerPassesForBothFeeTypes();
+    givenCustodianCheckerPasses();
     given(blackrockAdjustmentFreshnessChecker.check(any(), any()))
         .willReturn(List.of(passFinding(BLACKROCK_ADJUSTMENT_FRESHNESS, FeeCheckScope.ALL)));
 
@@ -101,6 +106,7 @@ class FeeCheckServiceTest {
         .given(feeBaseCompletenessChecker)
         .check(any(), any(), any());
     givenLedgerCheckerPassesForBothFeeTypes();
+    givenCustodianCheckerPasses();
     given(blackrockAdjustmentFreshnessChecker.check(any(), any()))
         .willReturn(List.of(passFinding(BLACKROCK_ADJUSTMENT_FRESHNESS, FeeCheckScope.ALL)));
 
@@ -113,8 +119,14 @@ class FeeCheckServiceTest {
     givenLedgerCheckerPassesForBothFeeTypes();
     given(feeBaseCompletenessChecker.check(any(), any(), any()))
         .willReturn(List.of(passFinding(FEE_BASE_COMPLETENESS, FeeCheckScope.ALL)));
+    givenCustodianCheckerPasses();
     given(blackrockAdjustmentFreshnessChecker.check(any(), any()))
         .willReturn(List.of(passFinding(BLACKROCK_ADJUSTMENT_FRESHNESS, FeeCheckScope.ALL)));
+  }
+
+  private void givenCustodianCheckerPasses() {
+    given(custodianCompletenessChecker.check(any(), any(), any()))
+        .willReturn(List.of(passFinding(CUSTODIAN_POSITION_COMPLETENESS, FeeCheckScope.ALL)));
   }
 
   private void givenLedgerCheckerPassesForBothFeeTypes() {

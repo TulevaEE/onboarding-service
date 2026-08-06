@@ -34,6 +34,9 @@ class FeeCheckIntegrationTest {
   private static final LocalDate DAY_THREE = LocalDate.of(2026, 6, 4);
   private static final BigDecimal BASE_VALUE = new BigDecimal("1000000000");
   private static final BigDecimal CORRECTION = new BigDecimal("5.00");
+  private static final BigDecimal CUSTODIAN_CASH = new BigDecimal("500000.00");
+  private static final BigDecimal TRADE_PAYABLES = new BigDecimal("-91782.00");
+  private static final BigDecimal PENDING_REDEMPTIONS = new BigDecimal("-12000.00");
 
   @Autowired private FeeCheckService feeCheckService;
   @Autowired private FeeCalculationService feeCalculationService;
@@ -101,9 +104,24 @@ class FeeCheckIntegrationTest {
   }
 
   @Test
+  void aCustodianLiabilityTheNavNeverRecognisedIsDetected() {
+    var unrecognisedLiability = new BigDecimal("-8400.00");
+
+    seedMatchingCustodianPositionsAndNavReport(DAY_THREE);
+    insertPosition(DAY_THREE, "LIABILITY", "Accrued expenses payable", null, unrecognisedLiability);
+
+    feeCheckService.runDailyChecks(List.of(TUK75), DAY_THREE);
+
+    var event = findEvent(TUK75, "CUSTODIAN_POSITION_COMPLETENESS", "ALL");
+    assertThat(event.get("severity")).isEqualTo("WARNING");
+    assertThat((BigDecimal) event.get("deviation_amount"))
+        .isEqualByComparingTo(unrecognisedLiability.abs());
+  }
+
+  @Test
   void cleanRunProducesPassEventsAndNoSlackMessage() {
     accrueFor(DAY_ONE);
-    insertNavReportRow(DAY_ONE, "SECURITY", "Security", BASE_VALUE);
+    seedMatchingCustodianPositionsAndNavReport(DAY_ONE);
     insertSystemAccount("BLACKROCK_ADJUSTMENT:TUK75", "ASSET");
     insertBlackrockAdjustment(DAY_ONE, new BigDecimal("100.00"));
 
@@ -113,7 +131,50 @@ class FeeCheckIntegrationTest {
         .isEqualTo("PASS");
     assertThat(findEvent(TUK75, "LEDGER_ACCRUAL_CONSISTENCY", "DEPOT").get("severity"))
         .isEqualTo("PASS");
+    assertThat(findEvent(TUK75, "FEE_BASE_COMPLETENESS", "ALL").get("severity")).isEqualTo("PASS");
+    assertThat(findEvent(TUK75, "CUSTODIAN_POSITION_COMPLETENESS", "ALL").get("severity"))
+        .isEqualTo("PASS");
     verifyNoInteractions(notificationService);
+  }
+
+  // The redemptions row is reported by the custodian but sourced from our own register, so it has
+  // to drop out of both sides. Seeding it non-zero is what proves the exclusion is symmetric.
+  private void seedMatchingCustodianPositionsAndNavReport(LocalDate navDate) {
+    var securities =
+        BASE_VALUE.subtract(CUSTODIAN_CASH).subtract(TRADE_PAYABLES).subtract(PENDING_REDEMPTIONS);
+
+    insertPosition(navDate, "CASH", "Cash account in SEB Pank", null, CUSTODIAN_CASH);
+    insertPosition(
+        navDate, "LIABILITY", "Total payables of unsettled transactions", null, TRADE_PAYABLES);
+    insertPosition(
+        navDate, "LIABILITY", "Payables of redeemed units", TUK75.getIsin(), PENDING_REDEMPTIONS);
+
+    insertNavReportRow(navDate, "SECURITY", "Security", securities);
+    insertNavReportRow(navDate, "CASH", "Cash account in SEB Pank", CUSTODIAN_CASH);
+    insertNavReportRow(
+        navDate, "LIABILITY", "Total payables of unsettled transactions", TRADE_PAYABLES);
+    insertNavReportRow(navDate, "LIABILITY", "Payables of redeemed units", PENDING_REDEMPTIONS);
+  }
+
+  private void insertPosition(
+      LocalDate navDate,
+      String accountType,
+      String accountName,
+      String accountId,
+      BigDecimal marketValue) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fund_position
+            (nav_date, fund_code, account_type, account_name, account_id, market_value)
+            VALUES (:navDate, 'TUK75', :accountType, :accountName, :accountId, :marketValue)
+            """)
+        .param("navDate", navDate)
+        .param("accountType", accountType)
+        .param("accountName", accountName)
+        .param("accountId", accountId)
+        .param("marketValue", marketValue)
+        .update();
   }
 
   private String asText(Object jsonbValue) {

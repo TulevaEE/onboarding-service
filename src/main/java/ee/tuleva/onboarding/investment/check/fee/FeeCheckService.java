@@ -1,13 +1,17 @@
 package ee.tuleva.onboarding.investment.check.fee;
 
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckScope.ALL;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckScope.DEPOT;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckScope.MANAGEMENT;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.ACCRUAL_ROUNDING_DRIFT;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.BLACKROCK_ADJUSTMENT_FRESHNESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CUSTODIAN_POSITION_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.LEDGER_ACCRUAL_CONSISTENCY;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.SETTLEMENT_COMPLETENESS;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -18,8 +22,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,10 +34,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 class FeeCheckService {
 
+  private static final List<FeeCheckScope> PER_FEE_TYPE = List.of(MANAGEMENT, DEPOT);
+
   private final LedgerAccrualConsistencyChecker ledgerAccrualConsistencyChecker;
   private final FeeBaseCompletenessChecker feeBaseCompletenessChecker;
   private final CustodianCompletenessChecker custodianCompletenessChecker;
   private final BlackrockAdjustmentFreshnessChecker blackrockAdjustmentFreshnessChecker;
+  private final SettlementCompletenessChecker settlementCompletenessChecker;
+  private final AccrualRoundingDriftChecker accrualRoundingDriftChecker;
   private final FeeCheckEventRepository eventRepository;
   private final FeeCheckNotifier notifier;
   private final int lookbackDays;
@@ -41,6 +51,8 @@ class FeeCheckService {
       FeeBaseCompletenessChecker feeBaseCompletenessChecker,
       CustodianCompletenessChecker custodianCompletenessChecker,
       BlackrockAdjustmentFreshnessChecker blackrockAdjustmentFreshnessChecker,
+      SettlementCompletenessChecker settlementCompletenessChecker,
+      AccrualRoundingDriftChecker accrualRoundingDriftChecker,
       FeeCheckEventRepository eventRepository,
       FeeCheckNotifier notifier,
       @Value("${investment.fee-check.daily-check-lookback-days:35}") int lookbackDays) {
@@ -48,6 +60,8 @@ class FeeCheckService {
     this.feeBaseCompletenessChecker = feeBaseCompletenessChecker;
     this.custodianCompletenessChecker = custodianCompletenessChecker;
     this.blackrockAdjustmentFreshnessChecker = blackrockAdjustmentFreshnessChecker;
+    this.settlementCompletenessChecker = settlementCompletenessChecker;
+    this.accrualRoundingDriftChecker = accrualRoundingDriftChecker;
     this.eventRepository = eventRepository;
     this.notifier = notifier;
     this.lookbackDays = lookbackDays;
@@ -56,66 +70,107 @@ class FeeCheckService {
   @Transactional
   List<FeeCheckResult> runDailyChecks(List<TulevaFund> funds, LocalDate checkDate) {
     var from = checkDate.minusDays(lookbackDays);
-    var results = funds.stream().map(fund -> checkFund(fund, from, checkDate)).toList();
+    return run(funds, checkDate, null, fund -> dailyFindings(fund, from, checkDate));
+  }
+
+  @Transactional
+  List<FeeCheckResult> runMonthlyChecks(
+      List<TulevaFund> funds, LocalDate feeMonth, LocalDate checkDate) {
+    return run(funds, checkDate, feeMonth, fund -> monthlyFindings(fund, feeMonth, checkDate));
+  }
+
+  private List<FeeCheckResult> run(
+      List<TulevaFund> funds,
+      LocalDate checkDate,
+      @Nullable LocalDate feeMonth,
+      Function<TulevaFund, List<FeeCheckFinding>> checks) {
+    var results =
+        funds.stream()
+            .map(
+                fund -> {
+                  var result = new FeeCheckResult(fund, checkDate, feeMonth, checks.apply(fund));
+                  saveEvents(result);
+                  return result;
+                })
+            .toList();
     notifier.notify(results);
     return results;
   }
 
-  private FeeCheckResult checkFund(TulevaFund fund, LocalDate from, LocalDate checkDate) {
+  private List<FeeCheckFinding> dailyFindings(
+      TulevaFund fund, LocalDate from, LocalDate checkDate) {
     var findings = new ArrayList<FeeCheckFinding>();
     for (var feeType : FeeType.values()) {
       findings.addAll(
           runChecker(
               fund,
               LEDGER_ACCRUAL_CONSISTENCY,
-              scopeOf(feeType),
+              List.of(scopeOf(feeType)),
               () -> ledgerAccrualConsistencyChecker.check(fund, feeType, from, checkDate)));
     }
     findings.addAll(
         runChecker(
             fund,
             FEE_BASE_COMPLETENESS,
-            ALL,
+            List.of(ALL),
             () -> feeBaseCompletenessChecker.check(fund, from, checkDate)));
     findings.addAll(
         runChecker(
             fund,
             CUSTODIAN_POSITION_COMPLETENESS,
-            ALL,
+            List.of(ALL),
             () -> custodianCompletenessChecker.check(fund, from, checkDate)));
     findings.addAll(
         runChecker(
             fund,
             BLACKROCK_ADJUSTMENT_FRESHNESS,
-            ALL,
+            List.of(ALL),
             () -> blackrockAdjustmentFreshnessChecker.check(fund, checkDate)));
+    return findings;
+  }
 
-    var result = new FeeCheckResult(fund, checkDate, null, findings);
-    saveEvents(result);
-    return result;
+  private List<FeeCheckFinding> monthlyFindings(
+      TulevaFund fund, LocalDate feeMonth, LocalDate checkDate) {
+    var findings = new ArrayList<FeeCheckFinding>();
+    findings.addAll(
+        runChecker(
+            fund,
+            SETTLEMENT_COMPLETENESS,
+            PER_FEE_TYPE,
+            () -> settlementCompletenessChecker.check(fund, feeMonth, checkDate)));
+    findings.addAll(
+        runChecker(
+            fund,
+            ACCRUAL_ROUNDING_DRIFT,
+            PER_FEE_TYPE,
+            () -> accrualRoundingDriftChecker.check(fund, feeMonth)));
+    return findings;
   }
 
   // One checker blowing up must not take the others down with it - being blind about one thing is
-  // not a reason to stop checking everything else.
+  // not a reason to stop checking everything else. The fallback covers the same scopes the checker
+  // would have written, so a later successful run can transition them back out of NOT_RUN.
   private List<FeeCheckFinding> runChecker(
       TulevaFund fund,
       FeeCheckType checkType,
-      FeeCheckScope scope,
+      List<FeeCheckScope> fallbackScopes,
       Supplier<List<FeeCheckFinding>> checker) {
     try {
       return checker.get();
     } catch (Exception e) {
-      log.error(
-          "Fee check failed to run: fund={}, checkType={}, scope={}", fund, checkType, scope, e);
-      return List.of(
-          new FeeCheckFinding(
-              fund,
-              checkType,
-              scope,
-              NOT_RUN,
-              "Check did not run: " + e.getClass().getSimpleName(),
-              null,
-              Map.of()));
+      log.error("Fee check failed to run: fund={}, checkType={}", fund, checkType, e);
+      return fallbackScopes.stream()
+          .map(
+              scope ->
+                  new FeeCheckFinding(
+                      fund,
+                      checkType,
+                      scope,
+                      NOT_RUN,
+                      "Check did not run: " + e.getClass().getSimpleName(),
+                      null,
+                      Map.of()))
+          .toList();
     }
   }
 
@@ -165,6 +220,6 @@ class FeeCheckService {
   }
 
   private FeeCheckScope scopeOf(FeeType feeType) {
-    return feeType == FeeType.MANAGEMENT ? FeeCheckScope.MANAGEMENT : FeeCheckScope.DEPOT;
+    return feeType == FeeType.MANAGEMENT ? MANAGEMENT : DEPOT;
   }
 }

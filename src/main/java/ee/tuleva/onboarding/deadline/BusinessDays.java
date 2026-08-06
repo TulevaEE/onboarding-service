@@ -11,13 +11,17 @@ public class BusinessDays {
   private final PublicHolidays publicHolidays;
 
   public boolean isNthBusinessDayOfMonth(LocalDate date, int n) {
-    var nthBusinessDay = date.withDayOfMonth(1);
+    return date.equals(nthBusinessDayOfMonth(date, n));
+  }
+
+  public LocalDate nthBusinessDayOfMonth(LocalDate dayInMonth, int n) {
+    var nthBusinessDay = dayInMonth.withDayOfMonth(1);
     if (!publicHolidays.isWorkingDay(nthBusinessDay)) {
       nthBusinessDay = publicHolidays.nextWorkingDay(nthBusinessDay);
     }
     for (int i = 1; i < n; i++) {
       nthBusinessDay = publicHolidays.nextWorkingDay(nthBusinessDay);
     }
-    return date.equals(nthBusinessDay);
+    return nthBusinessDay;
   }
 }

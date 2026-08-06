@@ -68,6 +68,51 @@ public class FeeAccrualRepository {
         .single();
   }
 
+  public BigDecimal sumGrossForMonth(TulevaFund fund, LocalDate feeMonth, FeeType feeType) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT COALESCE(SUM(daily_amount_gross), 0)
+            FROM investment_fee_accrual
+            WHERE fund_code = :fundCode AND fee_month = :feeMonth AND fee_type = :feeType
+            """)
+        .param("fundCode", fund.name())
+        .param("feeMonth", feeMonth)
+        .param("feeType", feeType.name())
+        .query(BigDecimal.class)
+        .single();
+  }
+
+  public boolean existsByFundAndFeeMonth(TulevaFund fund, LocalDate feeMonth) {
+    return jdbcClient
+            .sql(
+                """
+            SELECT COUNT(*) FROM investment_fee_accrual
+            WHERE fund_code = :fundCode AND fee_month = :feeMonth
+            """)
+            .param("fundCode", fund.name())
+            .param("feeMonth", feeMonth)
+            .query(Integer.class)
+            .single()
+        > 0;
+  }
+
+  public BigDecimal roundedSumOfDailyNetForMonth(
+      TulevaFund fund, LocalDate feeMonth, FeeType feeType) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT COALESCE(ROUND(SUM(daily_amount_net), 2), 0)
+            FROM investment_fee_accrual
+            WHERE fund_code = :fundCode AND fee_month = :feeMonth AND fee_type = :feeType
+            """)
+        .param("fundCode", fund.name())
+        .param("feeMonth", feeMonth)
+        .param("feeType", feeType.name())
+        .query(BigDecimal.class)
+        .single();
+  }
+
   public List<DailyAccrualAmount> findRoundedDailyNetBetween(
       TulevaFund fund, FeeType feeType, LocalDate from, LocalDate to) {
     return jdbcClient

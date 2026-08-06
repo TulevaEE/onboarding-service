@@ -65,4 +65,20 @@ class BusinessDaysTest {
     assertThat(businessDays.isNthBusinessDayOfMonth(LocalDate.of(2026, 8, 5), 4)).isFalse();
     assertThat(businessDays.isNthBusinessDayOfMonth(LocalDate.of(2026, 8, 31), 3)).isFalse();
   }
+
+  @Test
+  void nthBusinessDayOfMonthResolvesFromAnyDayOfThatMonth() {
+    assertThat(businessDays.nthBusinessDayOfMonth(LocalDate.of(2026, 8, 20), 3))
+        .isEqualTo(LocalDate.of(2026, 8, 5));
+    assertThat(businessDays.nthBusinessDayOfMonth(LocalDate.of(2026, 1, 31), 3))
+        .isEqualTo(LocalDate.of(2026, 1, 6));
+  }
+
+  @Test
+  void nthBusinessDayOfMonthSkipsHolidaysWhileCounting() {
+    assertThat(businessDays.nthBusinessDayOfMonth(LocalDate.of(2026, 4, 1), 3))
+        .isEqualTo(LocalDate.of(2026, 4, 6));
+    assertThat(businessDays.nthBusinessDayOfMonth(LocalDate.of(2026, 5, 1), 4))
+        .isEqualTo(LocalDate.of(2026, 5, 7));
+  }
 }

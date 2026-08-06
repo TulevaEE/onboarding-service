@@ -33,6 +33,8 @@ class FeeCheckServiceTest {
   @Mock private FeeBaseCompletenessChecker feeBaseCompletenessChecker;
   @Mock private CustodianCompletenessChecker custodianCompletenessChecker;
   @Mock private BlackrockAdjustmentFreshnessChecker blackrockAdjustmentFreshnessChecker;
+  @Mock private SettlementCompletenessChecker settlementCompletenessChecker;
+  @Mock private AccrualRoundingDriftChecker accrualRoundingDriftChecker;
   @Mock private FeeCheckEventRepository eventRepository;
   @Mock private FeeCheckNotifier notifier;
 
@@ -46,6 +48,8 @@ class FeeCheckServiceTest {
             feeBaseCompletenessChecker,
             custodianCompletenessChecker,
             blackrockAdjustmentFreshnessChecker,
+            settlementCompletenessChecker,
+            accrualRoundingDriftChecker,
             eventRepository,
             notifier,
             35);

@@ -19,10 +19,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -58,6 +59,7 @@ class FeeBaseCompletenessChecker {
     var mismatches = new ArrayList<String>();
     var notRunDays = new ArrayList<LocalDate>();
     var totalDeviation = ZERO;
+    var feeTypesSeenSoFar = EnumSet.noneOf(FeeType.class);
 
     for (var entry : basesByDate.entrySet()) {
       var date = entry.getKey();
@@ -65,9 +67,10 @@ class FeeBaseCompletenessChecker {
         continue;
       }
       var bases = entry.getValue();
-      var missingFeeTypes = missingFeeTypes(bases);
-      if (!missingFeeTypes.isEmpty()) {
-        mismatches.add(date + " accrued nothing for " + missingFeeTypes);
+      var stopped = feeTypesThatStoppedAccruing(bases, feeTypesSeenSoFar);
+      bases.forEach(base -> feeTypesSeenSoFar.add(base.feeType()));
+      if (!stopped.isEmpty()) {
+        mismatches.add(date + " stopped accruing " + stopped);
         continue;
       }
       var disagreement = feeTypeDisagreement(bases);
@@ -104,12 +107,15 @@ class FeeBaseCompletenessChecker {
     return List.of(FeeCheckFinding.pass(fund, FEE_BASE_COMPLETENESS, ALL));
   }
 
-  // Every working day that accrues anything must accrue both fee types. A day with a MANAGEMENT
-  // row and no DEPOT row charges only part of the fee, and the ledger check cannot see it because
-  // that day is absent from both the table and the ledger on the DEPOT side.
-  private List<FeeType> missingFeeTypes(List<FeeBaseValue> bases) {
+  // Once a fee type has accrued, it must keep accruing: a day that drops one charges only part of
+  // the fee, and the ledger check cannot see it because that day is absent from both the table and
+  // the ledger on that side. Calibrated from the window itself rather than from a start date or
+  // the rate configuration, so a fee type that is not in use yet has nothing earlier to compare
+  // against and raises nothing until it genuinely starts.
+  private List<FeeType> feeTypesThatStoppedAccruing(
+      List<FeeBaseValue> bases, Set<FeeType> seenSoFar) {
     var present = bases.stream().map(FeeBaseValue::feeType).collect(toSet());
-    return Arrays.stream(FeeType.values()).filter(feeType -> !present.contains(feeType)).toList();
+    return seenSoFar.stream().filter(feeType -> !present.contains(feeType)).sorted().toList();
   }
 
   private Optional<String> feeTypeDisagreement(List<FeeBaseValue> bases) {

@@ -31,6 +31,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class FeeBaseCompletenessCheckerTest {
 
+  private static final LocalDate EARLIER_WORKING_DAY = LocalDate.of(2026, 6, 2);
   private static final LocalDate WORKING_DAY = LocalDate.of(2026, 6, 3);
   private static final LocalDate SATURDAY = LocalDate.of(2026, 6, 6);
   private static final BigDecimal NAV_TOTAL = new BigDecimal("1000000.00");
@@ -97,7 +98,7 @@ class FeeBaseCompletenessCheckerTest {
 
   @Test
   void aWorkingDayWithNoNavReportRowsIsNotRunRatherThanADeviation() {
-    givenAccruals(base(WORKING_DAY, MANAGEMENT, NAV_TOTAL), base(WORKING_DAY, DEPOT, NAV_TOTAL));
+    givenAccruals(base(WORKING_DAY, MANAGEMENT, NAV_TOTAL));
     given(fundNavQueryService.findFeeBaseComponentTotal("TUK75", WORKING_DAY))
         .willReturn(Optional.empty());
 
@@ -107,12 +108,17 @@ class FeeBaseCompletenessCheckerTest {
     assertThat(finding.deviationAmount()).isNull();
   }
 
-  // A day that accrued MANAGEMENT but not DEPOT charges the NAV only part of its fee. With no
-  // DEPOT row in the table and no DEPOT entry in the ledger, nothing else on the daily path can
-  // see it: the ledger check unions only the dates that exist on one side or the other.
+  // A fee type that was accruing and then stops charges the NAV only part of its fee. With no row
+  // in the table and no entry in the ledger, nothing else on the daily path can see it: the ledger
+  // check unions only the dates that exist on one side or the other.
   @Test
-  void aDayMissingOneFeeTypeEntirelyIsDetected() {
-    givenAccruals(base(WORKING_DAY, MANAGEMENT, NAV_TOTAL));
+  void aFeeTypeThatStopsAccruingIsDetected() {
+    givenAccruals(
+        base(EARLIER_WORKING_DAY, MANAGEMENT, NAV_TOTAL),
+        base(EARLIER_WORKING_DAY, DEPOT, NAV_TOTAL),
+        base(WORKING_DAY, MANAGEMENT, NAV_TOTAL));
+    given(fundNavQueryService.findFeeBaseComponentTotal("TUK75", EARLIER_WORKING_DAY))
+        .willReturn(Optional.of(NAV_TOTAL));
 
     var finding = check(TUK75).getFirst();
 
@@ -120,11 +126,37 @@ class FeeBaseCompletenessCheckerTest {
     assertThat(finding.message()).contains("DEPOT");
   }
 
+  // A fee type that is not in use yet legitimately has no rows at all. Every working day then has
+  // one fee type and not the other, and none of them may be reported.
+  @Test
+  void aFeeTypeThatHasNotStartedAccruingYetRaisesNothing() {
+    givenAccruals(
+        base(EARLIER_WORKING_DAY, MANAGEMENT, NAV_TOTAL), base(WORKING_DAY, MANAGEMENT, NAV_TOTAL));
+    givenNavTotal(WORKING_DAY, NAV_TOTAL);
+    given(fundNavQueryService.findFeeBaseComponentTotal("TUK75", EARLIER_WORKING_DAY))
+        .willReturn(Optional.of(NAV_TOTAL));
+
+    assertThat(check(TUK75)).singleElement().extracting(FeeCheckFinding::severity).isEqualTo(PASS);
+  }
+
+  // The first day a fee type appears has nothing earlier to compare against, so the day depot
+  // accrual starts must not read as the other fee type having stopped.
+  @Test
+  void theDayAFeeTypeStartsAccruingRaisesNothing() {
+    givenAccruals(
+        base(EARLIER_WORKING_DAY, MANAGEMENT, NAV_TOTAL),
+        base(WORKING_DAY, MANAGEMENT, NAV_TOTAL),
+        base(WORKING_DAY, DEPOT, NAV_TOTAL));
+    givenNavTotal(WORKING_DAY, NAV_TOTAL);
+    given(fundNavQueryService.findFeeBaseComponentTotal("TUK75", EARLIER_WORKING_DAY))
+        .willReturn(Optional.of(NAV_TOTAL));
+
+    assertThat(check(TUK75)).singleElement().extracting(FeeCheckFinding::severity).isEqualTo(PASS);
+  }
+
   @Test
   void gapFilledWeekendDaysAreSkippedEntirely() {
-    givenAccruals(
-        base(SATURDAY, MANAGEMENT, new BigDecimal("999.99")),
-        base(SATURDAY, DEPOT, new BigDecimal("999.99")));
+    givenAccruals(base(SATURDAY, MANAGEMENT, new BigDecimal("999.99")));
 
     assertThat(check(TUK75)).singleElement().extracting(FeeCheckFinding::severity).isEqualTo(PASS);
   }

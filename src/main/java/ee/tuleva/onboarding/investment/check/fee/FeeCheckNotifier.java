@@ -15,12 +15,16 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 class FeeCheckNotifier {
+
+  // The current run's row is already saved by the time this reads, so the baseline is the second.
+  private static final Limit PREVIOUS_AND_CURRENT = Limit.of(2);
 
   private static final Map<FeeCheckSeverity, String> EMOJI =
       Map.of(FAIL, "🛑", WARNING, "⚠️", NOT_RUN, "⏸", PASS, "✅");
@@ -78,12 +82,10 @@ class FeeCheckNotifier {
       FeeCheckResult result, FeeCheckType checkType, FeeCheckScope scope) {
     var rows =
         result.feeMonth() == null
-            ? eventRepository
-                .findTop2ByFundAndCheckTypeAndFeeScopeAndAlertFailedFalseAndFeeMonthIsNullOrderByCreatedAtDesc(
-                    result.fund(), checkType, scope)
-            : eventRepository
-                .findTop2ByFundAndCheckTypeAndFeeScopeAndAlertFailedFalseAndFeeMonthOrderByCreatedAtDesc(
-                    result.fund(), checkType, scope, result.feeMonth());
+            ? eventRepository.findLatestDelivered(
+                result.fund(), checkType, scope, PREVIOUS_AND_CURRENT)
+            : eventRepository.findLatestDeliveredForFeeMonth(
+                result.fund(), checkType, scope, result.feeMonth(), PREVIOUS_AND_CURRENT);
     if (rows.size() < 2) {
       return PASS;
     }

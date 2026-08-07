@@ -16,6 +16,7 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.data.domain.Limit;
 
 @DataJpaTest
 class FeeCheckEventRepositoryTest {
@@ -46,10 +47,7 @@ class FeeCheckEventRepositoryTest {
     save(FEE_BASE_COMPLETENESS, ALL, null, FAIL);
     save(FEE_BASE_COMPLETENESS, ALL, MAY, PASS);
 
-    var found =
-        repository
-            .findTop2ByFundAndCheckTypeAndFeeScopeAndAlertFailedFalseAndFeeMonthIsNullOrderByCreatedAtDesc(
-                TUK75, FEE_BASE_COMPLETENESS, ALL);
+    var found = repository.findLatestDelivered(TUK75, FEE_BASE_COMPLETENESS, ALL, Limit.of(2));
 
     assertThat(found).singleElement().satisfies(e -> assertThat(e.getSeverity()).isEqualTo(FAIL));
   }
@@ -61,9 +59,8 @@ class FeeCheckEventRepositoryTest {
     save(SETTLEMENT_COMPLETENESS, MANAGEMENT, null, PASS);
 
     var found =
-        repository
-            .findTop2ByFundAndCheckTypeAndFeeScopeAndAlertFailedFalseAndFeeMonthOrderByCreatedAtDesc(
-                TUK75, SETTLEMENT_COMPLETENESS, MANAGEMENT, MAY);
+        repository.findLatestDeliveredForFeeMonth(
+            TUK75, SETTLEMENT_COMPLETENESS, MANAGEMENT, MAY, Limit.of(2));
 
     assertThat(found).singleElement().satisfies(e -> assertThat(e.getFeeMonth()).isEqualTo(MAY));
   }
@@ -77,9 +74,8 @@ class FeeCheckEventRepositoryTest {
     save(SETTLEMENT_COMPLETENESS, MANAGEMENT, JUNE, FAIL);
 
     var june =
-        repository
-            .findTop2ByFundAndCheckTypeAndFeeScopeAndAlertFailedFalseAndFeeMonthOrderByCreatedAtDesc(
-                TUK75, SETTLEMENT_COMPLETENESS, MANAGEMENT, JUNE);
+        repository.findLatestDeliveredForFeeMonth(
+            TUK75, SETTLEMENT_COMPLETENESS, MANAGEMENT, JUNE, Limit.of(2));
 
     assertThat(june).hasSize(1);
   }
@@ -90,10 +86,7 @@ class FeeCheckEventRepositoryTest {
     save(FEE_BASE_COMPLETENESS, ALL, null, FAIL);
     save(FEE_BASE_COMPLETENESS, ALL, null, PASS);
 
-    var found =
-        repository
-            .findTop2ByFundAndCheckTypeAndFeeScopeAndAlertFailedFalseAndFeeMonthIsNullOrderByCreatedAtDesc(
-                TUK75, FEE_BASE_COMPLETENESS, ALL);
+    var found = repository.findLatestDelivered(TUK75, FEE_BASE_COMPLETENESS, ALL, Limit.of(2));
 
     assertThat(found).extracting(FeeCheckEvent::getSeverity).containsExactly(PASS, FAIL);
   }
@@ -105,12 +98,22 @@ class FeeCheckEventRepositoryTest {
     save(FEE_BASE_COMPLETENESS, ALL, null, PASS);
     saveUndelivered(FEE_BASE_COMPLETENESS, ALL, FAIL);
 
-    var found =
-        repository
-            .findTop2ByFundAndCheckTypeAndFeeScopeAndAlertFailedFalseAndFeeMonthIsNullOrderByCreatedAtDesc(
-                TUK75, FEE_BASE_COMPLETENESS, ALL);
+    var found = repository.findLatestDelivered(TUK75, FEE_BASE_COMPLETENESS, ALL, Limit.of(2));
 
     assertThat(found).extracting(FeeCheckEvent::getSeverity).containsExactly(PASS);
+  }
+
+  // Two rows written close enough together to share a timestamp must still come back newest
+  // first, or the baseline the notifier diffs against is whichever the database happened to
+  // return - and the same state could alert or stay silent from one run to the next.
+  @Test
+  void rowsSharingATimestampAreOrderedByIdSoTheLatestStillWins() {
+    saveAt(BASE_TIME, PASS);
+    saveAt(BASE_TIME, FAIL);
+
+    var found = repository.findLatestDelivered(TUK75, FEE_BASE_COMPLETENESS, ALL, Limit.of(2));
+
+    assertThat(found).extracting(FeeCheckEvent::getSeverity).containsExactly(FAIL, PASS);
   }
 
   @Test
@@ -133,6 +136,12 @@ class FeeCheckEventRepositoryTest {
       FeeCheckSeverity severity) {
     var event = event(checkType, scope, feeMonth, severity);
     event.setCreatedAt(BASE_TIME.plusSeconds(saved++));
+    repository.saveAndFlush(event);
+  }
+
+  private void saveAt(Instant createdAt, FeeCheckSeverity severity) {
+    var event = event(FEE_BASE_COMPLETENESS, ALL, null, severity);
+    event.setCreatedAt(createdAt);
     repository.saveAndFlush(event);
   }
 

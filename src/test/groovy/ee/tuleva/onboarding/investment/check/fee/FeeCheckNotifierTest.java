@@ -113,18 +113,16 @@ class FeeCheckNotifierTest {
 
   private void givenDailyHistory(FeeCheckSeverity current, FeeCheckSeverity previous) {
     given(
-            eventRepository
-                .findTop2ByFundAndCheckTypeAndFeeScopeAndAlertFailedFalseAndFeeMonthIsNullOrderByCreatedAtDesc(
-                    TUK75, LEDGER_ACCRUAL_CONSISTENCY, MANAGEMENT))
+            eventRepository.findLatestDelivered(
+                eq(TUK75), eq(LEDGER_ACCRUAL_CONSISTENCY), eq(MANAGEMENT), any()))
         .willReturn(List.of(event(current), event(previous)));
   }
 
   private void givenMonthlyHistory(
       LocalDate feeMonth, FeeCheckSeverity current, FeeCheckSeverity previous) {
     given(
-            eventRepository
-                .findTop2ByFundAndCheckTypeAndFeeScopeAndAlertFailedFalseAndFeeMonthOrderByCreatedAtDesc(
-                    TUK75, LEDGER_ACCRUAL_CONSISTENCY, MANAGEMENT, feeMonth))
+            eventRepository.findLatestDeliveredForFeeMonth(
+                eq(TUK75), eq(LEDGER_ACCRUAL_CONSISTENCY), eq(MANAGEMENT), eq(feeMonth), any()))
         .willReturn(List.of(event(current), event(previous)));
   }
 

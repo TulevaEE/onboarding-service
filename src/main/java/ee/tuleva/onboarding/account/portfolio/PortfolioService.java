@@ -24,6 +24,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -44,10 +45,13 @@ public class PortfolioService {
   private final ReturnsService returnsService;
   private final FundNavProvider fundNavProvider;
 
-  public Portfolio getPortfolio(AuthenticatedPerson person, LocalDate from, LocalDate to) {
+  public Portfolio getPortfolio(
+      AuthenticatedPerson person, @Nullable LocalDate requestedFrom, LocalDate to) {
     List<Transaction> transactions = transactionService.getTransactions(person);
     Map<String, PortfolioGroup> groupByIsin = groupByIsin();
     Set<String> heldIsins = PortfolioValuation.heldIsins(transactions, groupByIsin);
+    LocalDate from =
+        requestedFrom != null ? requestedFrom : firstHeldDay(transactions, heldIsins, to);
 
     PortfolioValuation valuation =
         new PortfolioValuation(transactions, groupByIsin, navHistory(heldIsins, from, to));
@@ -60,6 +64,11 @@ public class PortfolioService {
         .groups(summaries(valuation, groups, rates, from, to))
         .series(valuation.series(from, to))
         .build();
+  }
+
+  private static LocalDate firstHeldDay(
+      List<Transaction> transactions, Set<String> heldIsins, LocalDate to) {
+    return PortfolioValuation.earliestPricingDay(transactions, heldIsins).orElse(to);
   }
 
   private static List<Portfolio.GroupSummary> summaries(

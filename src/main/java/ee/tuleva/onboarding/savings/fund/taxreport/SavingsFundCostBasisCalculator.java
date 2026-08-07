@@ -29,6 +29,7 @@ public class SavingsFundCostBasisCalculator {
       List<Transaction> transactions, LocalDate from, LocalDate to, CostBasisMethod method) {
     return realiseUpTo(transactions, to, method).stream()
         .filter(gain -> !dayOf(gain.time()).isBefore(from))
+        .filter(gain -> !dayOf(gain.time()).isAfter(to))
         .toList();
   }
 
@@ -99,7 +100,7 @@ public class SavingsFundCostBasisCalculator {
     BigDecimal cost = acquisitionCost.setScale(MONEY_SCALE, HALF_UP);
 
     return RealisedGain.builder()
-        .time(transaction.time())
+        .time(transaction.settledTime())
         .units(units)
         .acquisitionCost(cost)
         .proceeds(proceeds)

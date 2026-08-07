@@ -230,4 +230,65 @@ class SavingsFundCostBasisCalculatorTest {
     assertThat(gains.get(0).acquisitionCost()).isEqualByComparingTo("1000.00");
     assertThat(gains.get(1).acquisitionCost()).isEqualByComparingTo("2000.00");
   }
+
+  private static Transaction sellSettledOn(
+      String time, String settledTime, String units, String nav) {
+    BigDecimal unitCount = new BigDecimal(units);
+    BigDecimal navPerUnit = new BigDecimal(nav);
+    return Transaction.builder()
+        .id(UUID.nameUUIDFromBytes((time + settledTime + SUBTRACTION).getBytes()))
+        .amount(unitCount.multiply(navPerUnit))
+        .currency(EUR)
+        .time(Instant.parse(time))
+        .settledTime(Instant.parse(settledTime))
+        .isin(TKF)
+        .type(SUBTRACTION)
+        .units(unitCount)
+        .nav(navPerUnit)
+        .build();
+  }
+
+  @Test
+  void countsARedemptionInTheYearItWasPaidOutNotBooked() {
+    List<Transaction> history =
+        List.of(
+            buy("2025-01-10T10:00:00Z", "100", "10"),
+            sellSettledOn("2025-12-31T10:00:00Z", "2026-01-05T10:00:00Z", "40", "12"));
+
+    assertThat(calculator.realisedGainsBetween(history, START_OF_2025, END_OF_2025, FIFO))
+        .isEmpty();
+    assertThat(
+            calculator.realisedGainsBetween(
+                history, LocalDate.parse("2026-01-01"), LocalDate.parse("2026-12-31"), FIFO))
+        .hasSize(1);
+  }
+
+  @Test
+  void datesARealisedGainByThePayoutDate() {
+    List<Transaction> history =
+        List.of(
+            buy("2025-01-10T10:00:00Z", "100", "10"),
+            sellSettledOn("2025-06-01T10:00:00Z", "2025-06-04T10:00:00Z", "40", "12"));
+
+    RealisedGain gain =
+        calculator.realisedGainsBetween(history, START_OF_2025, END_OF_2025, FIFO).getFirst();
+
+    assertThat(gain.time()).isEqualTo(Instant.parse("2025-06-04T10:00:00Z"));
+  }
+
+  @Test
+  void stillConsumesLotsInBookingOrderWhenPayoutLagsBehind() {
+    List<Transaction> history =
+        List.of(
+            buy("2025-01-01T10:00:00Z", "100", "10"),
+            buy("2025-02-01T10:00:00Z", "100", "20"),
+            sellSettledOn("2025-03-01T10:00:00Z", "2025-03-05T10:00:00Z", "100", "30"),
+            sellSettledOn("2025-04-01T10:00:00Z", "2025-04-05T10:00:00Z", "100", "30"));
+
+    List<RealisedGain> gains =
+        calculator.realisedGainsBetween(history, START_OF_2025, END_OF_2025, FIFO);
+
+    assertThat(gains.get(0).acquisitionCost()).isEqualByComparingTo("1000.00");
+    assertThat(gains.get(1).acquisitionCost()).isEqualByComparingTo("2000.00");
+  }
 }

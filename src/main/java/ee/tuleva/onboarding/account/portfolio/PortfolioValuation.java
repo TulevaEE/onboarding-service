@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.account.portfolio;
 
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.Comparator.comparing;
+import static java.util.Comparator.naturalOrder;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toCollection;
@@ -16,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -190,6 +192,14 @@ public class PortfolioValuation {
     return Arrays.stream(PortfolioGroup.values())
         .filter(group -> held.stream().anyMatch(isin -> group == groupByIsin.get(isin)))
         .toList();
+  }
+
+  public static Optional<LocalDate> earliestPricingDay(
+      List<Transaction> transactions, Set<String> isins) {
+    return transactions.stream()
+        .filter(transaction -> isins.contains(transaction.isin()))
+        .map(PortfolioValuation::pricingDayOf)
+        .min(naturalOrder());
   }
 
   public static Set<String> heldIsins(

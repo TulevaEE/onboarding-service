@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static java.time.ZoneOffset.UTC;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -71,18 +72,18 @@ class PortfolioControllerTest {
   }
 
   @Test
-  void defaultsToTheBeginningOfTimesAndToday() throws Exception {
-    LocalDate from = LocalDate.parse("2003-01-07");
+  void leavesTheStartToTheServiceAndDefaultsTheEndToToday() throws Exception {
+    LocalDate firstHeldDay = LocalDate.parse("2021-03-15");
     LocalDate to = LocalDate.parse("2020-01-01");
 
     when(clock.instant()).thenReturn(TestClockHolder.now);
     when(clock.getZone()).thenReturn(UTC);
-    when(portfolioService.getPortfolio(eq(authPerson), eq(from), eq(to)))
-        .thenReturn(portfolio(from, to));
+    when(portfolioService.getPortfolio(eq(authPerson), isNull(), eq(to)))
+        .thenReturn(portfolio(firstHeldDay, to));
 
     mvc.perform(get("/v1/portfolio").with(authentication(authentication)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.from").value("2003-01-07"))
+        .andExpect(jsonPath("$.from").value("2021-03-15"))
         .andExpect(jsonPath("$.to").value("2020-01-01"));
   }
 

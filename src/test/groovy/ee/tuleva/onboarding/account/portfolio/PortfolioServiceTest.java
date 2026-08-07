@@ -251,4 +251,45 @@ class PortfolioServiceTest {
 
     assertThat(portfolio.groups().getFirst().endValue()).isEqualByComparingTo("600.00");
   }
+
+  @Test
+  void opensOnTheFirstDayThePersonHeldAnythingWhenNoStartIsGiven() {
+    given(fundNavProvider.safeMaxNavDate()).willReturn(FAR_FUTURE);
+    given(transactionService.getTransactions(person))
+        .willReturn(List.of(buy(TKF, "2021-03-15T10:00:00Z", "100", "10")));
+    given(fundRepository.findAll()).willReturn(List.of(Fund.builder().isin(TKF).build()));
+    given(fundValueRepository.getLatestValue(any(), any())).willReturn(Optional.empty());
+    given(fundValueRepository.findValuesBetweenDates(eq(TKF), any(), eq(TO)))
+        .willReturn(List.of(fundValue(TKF, "2025-12-31", "12")));
+
+    Portfolio portfolio = portfolioService.getPortfolio(person, null, TO);
+
+    assertThat(portfolio.from()).isEqualTo(LocalDate.parse("2021-03-15"));
+  }
+
+  @Test
+  void opensOnTheEndOfThePeriodWhenThePersonHoldsNothing() {
+    given(transactionService.getTransactions(person)).willReturn(List.of());
+    given(fundRepository.findAll()).willReturn(List.of(Fund.builder().isin(TKF).build()));
+
+    Portfolio portfolio = portfolioService.getPortfolio(person, null, TO);
+
+    assertThat(portfolio.from()).isEqualTo(TO);
+    assertThat(portfolio.groups()).isEmpty();
+  }
+
+  @Test
+  void keepsAnExplicitStartDate() {
+    given(fundNavProvider.safeMaxNavDate()).willReturn(FAR_FUTURE);
+    given(transactionService.getTransactions(person))
+        .willReturn(List.of(buy(TKF, "2021-03-15T10:00:00Z", "100", "10")));
+    given(fundRepository.findAll()).willReturn(List.of(Fund.builder().isin(TKF).build()));
+    given(fundValueRepository.getLatestValue(any(), any())).willReturn(Optional.empty());
+    given(fundValueRepository.findValuesBetweenDates(eq(TKF), eq(FROM), eq(TO)))
+        .willReturn(List.of(fundValue(TKF, "2025-12-31", "12")));
+
+    Portfolio portfolio = portfolioService.getPortfolio(person, FROM, TO);
+
+    assertThat(portfolio.from()).isEqualTo(FROM);
+  }
 }

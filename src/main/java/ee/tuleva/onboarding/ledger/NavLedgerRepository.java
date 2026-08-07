@@ -7,7 +7,10 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -80,6 +83,58 @@ public class NavLedgerRepository {
         .param("before", Timestamp.from(before))
         .query(BigDecimal.class)
         .single();
+  }
+
+  public List<LedgerEntryAmount> findEntriesByTransactionTypeBetween(
+      String accountName,
+      LedgerTransaction.TransactionType transactionType,
+      Instant fromInclusive,
+      Instant toExclusive) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT t.id AS transaction_id, t.transaction_date, e.amount
+            FROM ledger.entry e
+            JOIN ledger.account a ON e.account_id = a.id
+            JOIN ledger.transaction t ON e.transaction_id = t.id
+            WHERE a.name = :accountName
+              AND a.purpose = 'SYSTEM_ACCOUNT'
+              AND t.transaction_type = CAST(:transactionType AS ledger.transaction_type)
+              AND t.transaction_date >= :fromInclusive
+              AND t.transaction_date < :toExclusive
+            ORDER BY t.transaction_date, t.id
+            """)
+        .param("accountName", accountName)
+        .param("transactionType", transactionType.name())
+        .param("fromInclusive", Timestamp.from(fromInclusive))
+        .param("toExclusive", Timestamp.from(toExclusive))
+        .query(
+            (rs, rowNum) ->
+                new LedgerEntryAmount(
+                    rs.getObject("transaction_id", UUID.class),
+                    rs.getTimestamp("transaction_date").toInstant(),
+                    rs.getBigDecimal("amount")))
+        .list();
+  }
+
+  public Optional<Instant> findLatestTransactionDateByType(
+      String accountName, LedgerTransaction.TransactionType transactionType) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT MAX(t.transaction_date) AS latest
+            FROM ledger.entry e
+            JOIN ledger.account a ON e.account_id = a.id
+            JOIN ledger.transaction t ON e.transaction_id = t.id
+            WHERE a.name = :accountName
+              AND a.purpose = 'SYSTEM_ACCOUNT'
+              AND t.transaction_type = CAST(:transactionType AS ledger.transaction_type)
+            """)
+        .param("accountName", accountName)
+        .param("transactionType", transactionType.name())
+        .query((rs, rowNum) -> rs.getTimestamp("latest"))
+        .optional()
+        .map(Timestamp::toInstant);
   }
 
   public Map<String, BigDecimal> getSecuritiesUnitBalances(TulevaFund fund) {

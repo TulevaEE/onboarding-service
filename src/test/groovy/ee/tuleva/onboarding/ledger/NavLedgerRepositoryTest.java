@@ -6,8 +6,10 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJUSTMENT;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_ACCRUAL;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
@@ -117,6 +119,112 @@ class NavLedgerRepositoryTest {
             MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100), cutoff);
 
     assertThat(balance).isEqualByComparingTo("0");
+  }
+
+  @Test
+  void findEntriesByTransactionTypeBetween_returnsOnlyMatchingTypeInsideTheHalfOpenWindow() {
+    var account = feeAccrualAccount();
+    var counter = navEquityAccount();
+    var inside = instantAt("2026-06-02");
+    var atUpperBound = instantAt("2026-06-04");
+
+    createSystemAccountEntry(account, counter, new BigDecimal("-5.89"), inside, FEE_ACCRUAL);
+    createSystemAccountEntry(
+        account, counter, new BigDecimal("-1.11"), instantAt("2026-06-03"), FEE_ACCRUAL);
+    createSystemAccountEntry(account, counter, new BigDecimal("-9.99"), inside, ADJUSTMENT);
+    createSystemAccountEntry(account, counter, new BigDecimal("-7.77"), atUpperBound, FEE_ACCRUAL);
+    entityManager.flush();
+
+    var entries =
+        navLedgerRepository.findEntriesByTransactionTypeBetween(
+            MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100),
+            FEE_ACCRUAL,
+            instantAt("2026-06-02"),
+            atUpperBound);
+
+    assertThat(entries)
+        .extracting(LedgerEntryAmount::transactionDate, LedgerEntryAmount::amount)
+        .containsExactly(
+            tuple(inside, new BigDecimal("-5.89")),
+            tuple(instantAt("2026-06-03"), new BigDecimal("-1.11")));
+  }
+
+  @Test
+  void findLatestTransactionDateByType_returnsTheMostRecentMatchingTransaction() {
+    var account = feeAccrualAccount();
+    var counter = navEquityAccount();
+    createSystemAccountEntry(
+        account, counter, new BigDecimal("-1.00"), instantAt("2026-06-02"), ADJUSTMENT);
+    createSystemAccountEntry(
+        account, counter, new BigDecimal("-2.00"), instantAt("2026-06-05"), ADJUSTMENT);
+    createSystemAccountEntry(
+        account, counter, new BigDecimal("-3.00"), instantAt("2026-06-09"), FEE_ACCRUAL);
+    entityManager.flush();
+
+    var latest =
+        navLedgerRepository.findLatestTransactionDateByType(
+            MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100), ADJUSTMENT);
+
+    assertThat(latest).contains(instantAt("2026-06-05"));
+  }
+
+  @Test
+  void findLatestTransactionDateByType_isEmptyWhenNothingWasEverPosted() {
+    var latest =
+        navLedgerRepository.findLatestTransactionDateByType(
+            MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100), ADJUSTMENT);
+
+    assertThat(latest).isEmpty();
+  }
+
+  private LedgerAccount feeAccrualAccount() {
+    return systemAccount(MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100));
+  }
+
+  private LedgerAccount navEquityAccount() {
+    return systemAccount(NAV_EQUITY.getAccountName(TKF100));
+  }
+
+  private LedgerAccount systemAccount(String name) {
+    return ledgerAccountService
+        .findSystemAccountByName(name, LIABILITY, EUR)
+        .orElseGet(() -> ledgerAccountService.createSystemAccount(name, LIABILITY, EUR));
+  }
+
+  private Instant instantAt(String date) {
+    return LocalDate.parse(date).atTime(9, 0).atZone(ZoneId.of("Europe/Tallinn")).toInstant();
+  }
+
+  private void createSystemAccountEntry(
+      LedgerAccount account,
+      LedgerAccount counterAccount,
+      BigDecimal amount,
+      Instant timestamp,
+      LedgerTransaction.TransactionType transactionType) {
+    var transaction =
+        LedgerTransaction.builder()
+            .transactionType(transactionType)
+            .transactionDate(timestamp)
+            .build();
+
+    var entry =
+        LedgerEntry.builder()
+            .amount(amount)
+            .assetType(EUR)
+            .account(account)
+            .transaction(transaction)
+            .build();
+    var counterEntry =
+        LedgerEntry.builder()
+            .amount(amount.negate())
+            .assetType(EUR)
+            .account(counterAccount)
+            .transaction(transaction)
+            .build();
+
+    transaction.getEntries().add(entry);
+    transaction.getEntries().add(counterEntry);
+    entityManager.persist(transaction);
   }
 
   private void createSystemAccountEntry(

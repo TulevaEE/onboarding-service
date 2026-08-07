@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
+import static ee.tuleva.onboarding.savings.fund.nav.NavReportAccountNames.*;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
@@ -30,27 +31,11 @@ class NavReportMapper {
         .forEach(detail -> rows.add(securityRow(navDate, fundCode, detail)));
 
     rows.add(cashRow(navDate, fundCode, accountId, result.cashPosition()));
+    rows.add(receivablesRow(navDate, fundCode, accountId, TRADE_RECEIVABLES, result.receivables()));
+    rows.add(liabilityRow(navDate, fundCode, accountId, TRADE_PAYABLES, result.payables()));
     rows.add(
         receivablesRow(
-            navDate,
-            fundCode,
-            accountId,
-            "Total receivables of unsettled transactions",
-            result.receivables()));
-    rows.add(
-        liabilityRow(
-            navDate,
-            fundCode,
-            accountId,
-            "Total payables of unsettled transactions",
-            result.payables()));
-    rows.add(
-        receivablesRow(
-            navDate,
-            fundCode,
-            accountId,
-            "Receivables of outstanding units",
-            result.pendingSubscriptions()));
+            navDate, fundCode, accountId, PENDING_SUBSCRIPTIONS, result.pendingSubscriptions()));
 
     if (!fund.isSavingsFund()) {
       rows.add(
@@ -58,7 +43,7 @@ class NavReportMapper {
               navDate,
               fundCode,
               accountId,
-              "Other receivables",
+              BLACKROCK_RECEIVABLE,
               result.blackrockAdjustment().max(ZERO)));
     }
 
@@ -68,22 +53,17 @@ class NavReportMapper {
               navDate,
               fundCode,
               accountId,
-              "Liabilities Other",
+              BLACKROCK_LIABILITY,
               result.blackrockAdjustment().min(ZERO).negate()));
     }
 
     rows.add(
         liabilityRow(
-            navDate,
-            fundCode,
-            accountId,
-            "Payables of redeemed units",
-            result.pendingRedemptions()));
+            navDate, fundCode, accountId, PENDING_REDEMPTIONS, result.pendingRedemptions()));
     rows.add(
         liabilityFeeRow(
-            navDate, fundCode, accountId, "Management fee", result.managementFeeAccrual()));
-    rows.add(
-        liabilityFeeRow(navDate, fundCode, accountId, "Custody fee", result.depotFeeAccrual()));
+            navDate, fundCode, accountId, MANAGEMENT_FEE, result.managementFeeAccrual()));
+    rows.add(liabilityFeeRow(navDate, fundCode, accountId, CUSTODY_FEE, result.depotFeeAccrual()));
 
     rows.add(unitsRow(navDate, fundCode, result));
     rows.add(navRow(navDate, fundCode, result));
@@ -129,7 +109,7 @@ class NavReportMapper {
         .navDate(navDate)
         .fundCode(fundCode)
         .accountType("CASH")
-        .accountName("Cash account in SEB Pank")
+        .accountName(CASH)
         .accountId(accountId)
         .quantity(cashPosition.setScale(2, HALF_UP))
         .marketPrice(ONE)
@@ -184,7 +164,7 @@ class NavReportMapper {
         .navDate(navDate)
         .fundCode(fundCode)
         .accountType("UNITS")
-        .accountName("Total outstanding units:")
+        .accountName(UNITS_OUTSTANDING)
         .quantity(result.unitsOutstanding().setScale(3, HALF_UP))
         .marketPrice(result.navPerUnit())
         .marketValue(result.aum().setScale(2, HALF_UP))
@@ -196,7 +176,7 @@ class NavReportMapper {
         .navDate(navDate)
         .fundCode(fundCode)
         .accountType("NAV")
-        .accountName("Net Asset Value")
+        .accountName(NET_ASSET_VALUE)
         .quantity(ONE)
         .marketPrice(result.navPerUnit())
         .marketValue(result.navPerUnit().setScale(2, HALF_UP))

@@ -6,6 +6,7 @@ import ee.sk.smartid.AuthenticationResponseValidator
 import ee.sk.smartid.SmartIdClient
 import ee.sk.smartid.exception.UnprocessableSmartIdResponseException
 import ee.sk.smartid.exception.useraccount.UserAccountNotFoundException
+import ee.sk.smartid.exception.useraction.SessionTimeoutException
 import ee.sk.smartid.exception.useraction.UserRefusedException
 import ee.sk.smartid.rest.SmartIdConnector
 import ee.sk.smartid.rest.dao.*
@@ -94,6 +95,18 @@ class SmartIdAuthServiceSpec extends Specification {
     waitForPollComplete()
     then:
     session.errorCode == "smart.id.user.refused"
+  }
+
+  def "Polling: user not responding records a timeout rather than a technical error"() {
+    given:
+    1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
+    1 * connector.getSessionStatus(aSessionId) >> { throw new SessionTimeoutException() }
+    1 * genericSessionStore.saveBySessionId(httpSessionId, _ as SmartIdSession) >> { saveBySessionIdCalled.countDown() }
+    when:
+    SmartIdSession session = smartIdAuthService.startLogin(personalCode, httpSessionId)
+    waitForPollComplete()
+    then:
+    session.errorCode == "smart.id.timeout"
   }
 
   def "Polling: validator failure records technical error and stores session"() {

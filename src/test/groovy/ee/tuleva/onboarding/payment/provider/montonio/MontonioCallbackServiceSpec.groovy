@@ -132,4 +132,18 @@ class MontonioCallbackServiceSpec extends Specification {
 
     result.isEmpty()
   }
+
+  def "processToken: returns empty when the token is malformed"() {
+    when:
+    def result = service.processToken(malformedToken)
+
+    then:
+    0 * paymentRepository.findByInternalReference(_)
+    0 * paymentRepository.save(_)
+
+    result.isEmpty()
+
+    where:
+    malformedToken << ["", "not-a-token", "only.two", "a.b.c.d.e"]
+  }
 }

@@ -67,7 +67,7 @@ public class ErrorHandlingControllerAdvice {
 
   @ExceptionHandler({SmartIdSessionNotFoundException.class, MobileIdSessionNotFoundException.class})
   public ResponseEntity<ErrorsResponse> handleAuthSessionNotFound(RuntimeException exception) {
-    log.error("Auth session not found: {}", exception.getMessage());
+    log.info("Auth session not found: {}", exception.getMessage());
     return new ResponseEntity<>(
         ErrorsResponse.ofSingleError("auth.session.not.found", exception.getMessage()),
         UNAUTHORIZED);
@@ -120,10 +120,32 @@ public class ErrorHandlingControllerAdvice {
     var errorCode = errors.getFirst().getCode();
     MDC.put(ERROR_CODE, errorCode);
     try {
-      log.error("Request rejected: code={}, error={}", errorCode, exception.toString());
+      if (isCausedByUser(errorCode)) {
+        log.info("Request rejected: code={}, error={}", errorCode, exception.toString());
+      } else {
+        log.error("Request rejected: code={}, error={}", errorCode, exception.toString());
+      }
     } finally {
       MDC.remove(ERROR_CODE);
     }
+  }
+
+  private static boolean isCausedByUser(String errorCode) {
+    return switch (errorCode) {
+      case null -> false;
+      case "smart.id.account.not.found",
+          "smart.id.user.refused",
+          "smart.id.timeout",
+          "smart.id.validation.failed",
+          "mobile.id.cancelled",
+          "mobile.id.timeout",
+          "mobile.id.certificates.revoked",
+          "mobile.id.no.signal",
+          "mobile.id.configuration.error",
+          "new.user.flow.signup.error.email.duplicate" ->
+          true;
+      default -> false;
+    };
   }
 
   @ExceptionHandler(ExpiredJwtException.class)

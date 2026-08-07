@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.payment.provider.PaymentReference;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
+import java.text.ParseException;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +38,11 @@ public class MontonioCallbackService {
   public Optional<Payment> processToken(String serializedToken) {
     // TODO: can we create a separate class for the token and encapsulate the verify() and
     // isFinalized() logic there?
-    JWSObject token = JWSObject.parse(serializedToken);
+    Optional<JWSObject> parsedToken = parseToken(serializedToken);
+    if (parsedToken.isEmpty()) {
+      return Optional.empty();
+    }
+    JWSObject token = parsedToken.get();
     verifyToken(token);
 
     Map<String, Object> json = token.getPayload().toJSONObject();
@@ -93,6 +98,16 @@ public class MontonioCallbackService {
                     internalReference.getUuid());
                 throw e;
               });
+    }
+  }
+
+  private Optional<JWSObject> parseToken(String serializedToken) {
+    try {
+      return Optional.of(JWSObject.parse(serializedToken));
+    } catch (ParseException e) {
+      log.warn(
+          "Rejecting unparseable payment callback token: tokenLength={}", serializedToken.length());
+      return Optional.empty();
     }
   }
 

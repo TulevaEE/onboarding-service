@@ -288,7 +288,12 @@ public class LedgerAccountFixture {
         List.of(new EntryFixture(balance, Instant.parse("2025-01-01T00:00:00Z"))));
   }
 
-  public record EntryFixture(BigDecimal amount, Instant transactionDate, BigDecimal navPerUnit) {
+  public record EntryFixture(
+      BigDecimal amount, Instant transactionDate, BigDecimal navPerUnit, UUID externalReference) {
+    public EntryFixture(BigDecimal amount, Instant transactionDate, BigDecimal navPerUnit) {
+      this(amount, transactionDate, navPerUnit, null);
+    }
+
     public EntryFixture(BigDecimal amount, Instant transactionDate) {
       this(amount, transactionDate, new BigDecimal("10.0"));
     }
@@ -404,6 +409,7 @@ public class LedgerAccountFixture {
                   .id(UUID.randomUUID())
                   .transactionType(REDEMPTION_PAYOUT)
                   .transactionDate(entry.transactionDate())
+                  .externalReference(entry.externalReference())
                   .metadata(Map.of("navPerUnit", navPerUnit))
                   .build();
           transaction.addEntry(account, entry.amount());

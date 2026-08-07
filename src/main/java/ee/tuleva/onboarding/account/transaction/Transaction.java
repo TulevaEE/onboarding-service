@@ -21,6 +21,7 @@ public record Transaction(
     Currency currency,
     Instant time,
     Instant priceTime,
+    Instant settledTime,
     String isin,
     CashFlow.Type type,
     BigDecimal units,
@@ -29,6 +30,7 @@ public record Transaction(
 
   public Transaction {
     priceTime = priceTime == null ? time : priceTime;
+    settledTime = settledTime == null ? time : settledTime;
   }
 
   public static Transaction from(CashFlow cashFlow) {

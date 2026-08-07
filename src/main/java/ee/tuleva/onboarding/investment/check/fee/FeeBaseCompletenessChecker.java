@@ -5,11 +5,13 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_CO
 import static java.math.BigDecimal.ZERO;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeBaseValue;
+import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.SystemAccount;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
@@ -17,6 +19,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -62,6 +65,11 @@ class FeeBaseCompletenessChecker {
         continue;
       }
       var bases = entry.getValue();
+      var missingFeeTypes = missingFeeTypes(bases);
+      if (!missingFeeTypes.isEmpty()) {
+        mismatches.add(date + " accrued nothing for " + missingFeeTypes);
+        continue;
+      }
       var disagreement = feeTypeDisagreement(bases);
       if (disagreement.isPresent()) {
         mismatches.add(date + " " + disagreement.get());
@@ -94,6 +102,14 @@ class FeeBaseCompletenessChecker {
       return List.of(notRun(fund, notRunDays));
     }
     return List.of(FeeCheckFinding.pass(fund, FEE_BASE_COMPLETENESS, ALL));
+  }
+
+  // Every working day that accrues anything must accrue both fee types. A day with a MANAGEMENT
+  // row and no DEPOT row charges only part of the fee, and the ledger check cannot see it because
+  // that day is absent from both the table and the ledger on the DEPOT side.
+  private List<FeeType> missingFeeTypes(List<FeeBaseValue> bases) {
+    var present = bases.stream().map(FeeBaseValue::feeType).collect(toSet());
+    return Arrays.stream(FeeType.values()).filter(feeType -> !present.contains(feeType)).toList();
   }
 
   private Optional<String> feeTypeDisagreement(List<FeeBaseValue> bases) {

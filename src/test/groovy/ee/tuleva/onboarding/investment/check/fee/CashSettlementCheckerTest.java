@@ -123,6 +123,18 @@ class CashSettlementCheckerTest {
     assertThat(check(WINDOW_ELAPSED).getFirst().severity()).isEqualTo(PASS);
   }
 
+  // A month's fee is only settled on its last day, so a payment before that belongs to the
+  // previous month. Starting the window at the fee month would catch both and report two payments
+  // every single month.
+  @Test
+  void thePreviousMonthsPaymentIsNotCountedInThisMonthsWindow() {
+    givenSettled(SETTLED);
+    givenPaymentsAt(
+        payment(LocalDate.of(2026, 4, 15), SETTLED), payment(LocalDate.of(2026, 5, 15), SETTLED));
+
+    assertThat(check(WINDOW_ELAPSED).getFirst().severity()).isEqualTo(PASS);
+  }
+
   private List<FeeCheckFinding> check(LocalDate checkDate) {
     return checker.check(TKF100, FEE_MONTH, checkDate);
   }
@@ -133,6 +145,28 @@ class CashSettlementCheckerTest {
 
   private void givenPayments(BigDecimal... amounts) {
     givenEntries(MANAGEMENT_FEE_PAYMENT, amounts);
+  }
+
+  // Mirrors the half-open window the checker asks for, so a fixture dated before it is genuinely
+  // excluded by the query rather than by the stub.
+  private void givenPaymentsAt(LedgerEntryAmount... payments) {
+    given(
+            navLedgerRepository.findEntriesByTransactionTypeBetween(
+                anyString(), eq(MANAGEMENT_FEE_PAYMENT), any(), any()))
+        .willAnswer(
+            invocation -> {
+              Instant from = invocation.getArgument(2);
+              Instant to = invocation.getArgument(3);
+              return Arrays.stream(payments)
+                  .filter(
+                      p -> !p.transactionDate().isBefore(from) && p.transactionDate().isBefore(to))
+                  .toList();
+            });
+  }
+
+  private LedgerEntryAmount payment(LocalDate date, BigDecimal amount) {
+    return new LedgerEntryAmount(
+        UUID.randomUUID(), date.atStartOfDay(ESTONIAN_ZONE).toInstant(), amount);
   }
 
   private void givenEntries(TransactionType transactionType, BigDecimal... amounts) {

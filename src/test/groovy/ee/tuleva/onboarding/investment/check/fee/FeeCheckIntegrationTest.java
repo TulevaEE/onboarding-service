@@ -3,6 +3,10 @@ package ee.tuleva.onboarding.investment.check.fee;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -175,6 +179,29 @@ class FeeCheckIntegrationTest {
         .param("accountId", accountId)
         .param("marketValue", marketValue)
         .update();
+  }
+
+  // Codex found this: the event row was saved before the send, so a Slack outage during the first
+  // FAIL made the next run read FAIL-vs-FAIL and stay quiet. A genuine deviation went silent for
+  // good. Rows from an undelivered run are now skipped when looking for the previous severity.
+  @Test
+  void aDeviationFirstSeenWhileSlackWasDownStillAlertsOnTheNextRun() {
+    accrueFor(DAY_ONE);
+    seedMatchingCustodianPositionsAndNavReport(DAY_ONE);
+    insertSystemAccount("BLACKROCK_ADJUSTMENT:TUK75", "ASSET");
+    insertBlackrockAdjustment(DAY_ONE, new BigDecimal("100.00"));
+    feeCheckService.runDailyChecks(List.of(TUK75), DAY_ONE);
+
+    correctAccrualWithoutTouchingLedger(DAY_ONE, CORRECTION);
+    doThrow(new RuntimeException("slack is down"))
+        .when(notificationService)
+        .sendMessage(any(), any());
+    feeCheckService.runDailyChecks(List.of(TUK75), DAY_ONE);
+
+    reset(notificationService);
+    feeCheckService.runDailyChecks(List.of(TUK75), DAY_ONE);
+
+    verify(notificationService).sendMessage(any(), any());
   }
 
   private String asText(Object jsonbValue) {

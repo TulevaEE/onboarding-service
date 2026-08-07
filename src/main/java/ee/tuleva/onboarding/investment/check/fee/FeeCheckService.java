@@ -82,15 +82,31 @@ class FeeCheckService {
   @Transactional
   List<FeeCheckResult> runMonthlyChecks(
       List<TulevaFund> funds, LocalDate settlementMonth, LocalDate cashMonth, LocalDate checkDate) {
+    var saved = new ArrayList<FeeCheckEvent>();
     var results = new ArrayList<FeeCheckResult>();
     for (var fund : funds) {
       results.add(
           resultFor(
-              fund, checkDate, settlementMonth, monthlyFindings(fund, settlementMonth, checkDate)));
-      results.add(resultFor(fund, checkDate, cashMonth, cashFindings(fund, cashMonth, checkDate)));
+              fund,
+              checkDate,
+              settlementMonth,
+              monthlyFindings(fund, settlementMonth, checkDate),
+              saved));
+      results.add(
+          resultFor(fund, checkDate, cashMonth, cashFindings(fund, cashMonth, checkDate), saved));
     }
-    notifier.notify(results);
+    notifyAndRecordDelivery(results, saved);
     return results;
+  }
+
+  // A run whose alert never reached anyone must not become the baseline the next run diffs
+  // against, or a deviation that first appeared during a Slack outage stays silent forever.
+  private void notifyAndRecordDelivery(List<FeeCheckResult> results, List<FeeCheckEvent> saved) {
+    if (notifier.notify(results) != FeeCheckNotification.SEND_FAILED) {
+      return;
+    }
+    saved.forEach(event -> event.setAlertFailed(true));
+    eventRepository.saveAll(saved);
   }
 
   private List<FeeCheckResult> run(
@@ -98,11 +114,12 @@ class FeeCheckService {
       LocalDate checkDate,
       @Nullable LocalDate feeMonth,
       Function<TulevaFund, List<FeeCheckFinding>> checks) {
+    var saved = new ArrayList<FeeCheckEvent>();
     var results =
         funds.stream()
-            .map(fund -> resultFor(fund, checkDate, feeMonth, checks.apply(fund)))
+            .map(fund -> resultFor(fund, checkDate, feeMonth, checks.apply(fund), saved))
             .toList();
-    notifier.notify(results);
+    notifyAndRecordDelivery(results, saved);
     return results;
   }
 
@@ -110,9 +127,10 @@ class FeeCheckService {
       TulevaFund fund,
       LocalDate checkDate,
       @Nullable LocalDate feeMonth,
-      List<FeeCheckFinding> findings) {
+      List<FeeCheckFinding> findings,
+      List<FeeCheckEvent> saved) {
     var result = new FeeCheckResult(fund, checkDate, feeMonth, findings);
-    saveEvents(result);
+    saved.addAll(saveEvents(result));
     return result;
   }
 
@@ -202,7 +220,8 @@ class FeeCheckService {
     }
   }
 
-  private void saveEvents(FeeCheckResult result) {
+  private List<FeeCheckEvent> saveEvents(FeeCheckResult result) {
+    var saved = new ArrayList<FeeCheckEvent>();
     for (var checkType : FeeCheckType.values()) {
       for (var scope : FeeCheckScope.values()) {
         var findings =
@@ -213,20 +232,22 @@ class FeeCheckService {
           continue;
         }
         var severity = findings.stream().map(FeeCheckFinding::severity).max(Enum::compareTo).get();
-        eventRepository.save(
-            FeeCheckEvent.builder()
-                .fund(result.fund())
-                .checkDate(result.checkDate())
-                .feeMonth(result.feeMonth())
-                .checkType(checkType)
-                .feeScope(scope)
-                .severity(severity)
-                .deviationFound(severity == WARNING || severity == FAIL)
-                .deviationAmount(totalDeviation(findings))
-                .result(Map.of("findings", findings.stream().map(this::describe).toList()))
-                .build());
+        saved.add(
+            eventRepository.save(
+                FeeCheckEvent.builder()
+                    .fund(result.fund())
+                    .checkDate(result.checkDate())
+                    .feeMonth(result.feeMonth())
+                    .checkType(checkType)
+                    .feeScope(scope)
+                    .severity(severity)
+                    .deviationFound(severity == WARNING || severity == FAIL)
+                    .deviationAmount(totalDeviation(findings))
+                    .result(Map.of("findings", findings.stream().map(this::describe).toList()))
+                    .build()));
       }
     }
+    return saved;
   }
 
   private BigDecimal totalDeviation(List<FeeCheckFinding> findings) {

@@ -28,17 +28,17 @@ class FeeCheckNotifier {
   private final FeeCheckEventRepository eventRepository;
   private final OperationsNotificationService notificationService;
 
-  boolean notify(List<FeeCheckResult> results) {
+  FeeCheckNotification notify(List<FeeCheckResult> results) {
     try {
       var transitions = transitions(results);
       if (transitions.isEmpty()) {
-        return false;
+        return FeeCheckNotification.NOTHING_TO_REPORT;
       }
       notificationService.sendMessage(buildMessage(transitions), INVESTMENT);
-      return true;
+      return FeeCheckNotification.SENT;
     } catch (Exception e) {
       log.error("Failed to send fee check notification: results={}", results.size(), e);
-      return false;
+      return FeeCheckNotification.SEND_FAILED;
     }
   }
 
@@ -79,10 +79,11 @@ class FeeCheckNotifier {
     var rows =
         result.feeMonth() == null
             ? eventRepository
-                .findTop2ByFundAndCheckTypeAndFeeScopeAndFeeMonthIsNullOrderByCreatedAtDesc(
+                .findTop2ByFundAndCheckTypeAndFeeScopeAndAlertFailedFalseAndFeeMonthIsNullOrderByCreatedAtDesc(
                     result.fund(), checkType, scope)
-            : eventRepository.findTop2ByFundAndCheckTypeAndFeeScopeAndFeeMonthOrderByCreatedAtDesc(
-                result.fund(), checkType, scope, result.feeMonth());
+            : eventRepository
+                .findTop2ByFundAndCheckTypeAndFeeScopeAndAlertFailedFalseAndFeeMonthOrderByCreatedAtDesc(
+                    result.fund(), checkType, scope, result.feeMonth());
     if (rows.size() < 2) {
       return PASS;
     }

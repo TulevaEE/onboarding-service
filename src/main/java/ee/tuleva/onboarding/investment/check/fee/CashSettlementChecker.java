@@ -72,12 +72,15 @@ class CashSettlementChecker {
                 FEE_SETTLEMENT,
                 startOf(feeMonth),
                 startOf(feeMonth.plusMonths(1))));
+    // The window opens on the settlement date, not on the fee month. A month is only settled on
+    // its last day, so anything paid earlier belongs to the previous month - and counting from the
+    // fee month would sweep that in and report two payments every single month.
     var payments =
         entries(
             SystemAccount.MANAGEMENT_FEE.getAccountName(fund),
             MANAGEMENT_FEE_PAYMENT,
-            startOf(feeMonth),
-            windowCloses.atStartOfDay(ESTONIAN_ZONE).toInstant());
+            startOf(settlementDate),
+            startOf(windowCloses));
 
     var details =
         Map.<String, Object>of(

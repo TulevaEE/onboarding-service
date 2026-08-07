@@ -97,7 +97,7 @@ class FeeBaseCompletenessCheckerTest {
 
   @Test
   void aWorkingDayWithNoNavReportRowsIsNotRunRatherThanADeviation() {
-    givenAccruals(base(WORKING_DAY, MANAGEMENT, NAV_TOTAL));
+    givenAccruals(base(WORKING_DAY, MANAGEMENT, NAV_TOTAL), base(WORKING_DAY, DEPOT, NAV_TOTAL));
     given(fundNavQueryService.findFeeBaseComponentTotal("TUK75", WORKING_DAY))
         .willReturn(Optional.empty());
 
@@ -107,9 +107,24 @@ class FeeBaseCompletenessCheckerTest {
     assertThat(finding.deviationAmount()).isNull();
   }
 
+  // A day that accrued MANAGEMENT but not DEPOT charges the NAV only part of its fee. With no
+  // DEPOT row in the table and no DEPOT entry in the ledger, nothing else on the daily path can
+  // see it: the ledger check unions only the dates that exist on one side or the other.
+  @Test
+  void aDayMissingOneFeeTypeEntirelyIsDetected() {
+    givenAccruals(base(WORKING_DAY, MANAGEMENT, NAV_TOTAL));
+
+    var finding = check(TUK75).getFirst();
+
+    assertThat(finding.severity()).isEqualTo(FAIL);
+    assertThat(finding.message()).contains("DEPOT");
+  }
+
   @Test
   void gapFilledWeekendDaysAreSkippedEntirely() {
-    givenAccruals(base(SATURDAY, MANAGEMENT, new BigDecimal("999.99")));
+    givenAccruals(
+        base(SATURDAY, MANAGEMENT, new BigDecimal("999.99")),
+        base(SATURDAY, DEPOT, new BigDecimal("999.99")));
 
     assertThat(check(TUK75)).singleElement().extracting(FeeCheckFinding::severity).isEqualTo(PASS);
   }

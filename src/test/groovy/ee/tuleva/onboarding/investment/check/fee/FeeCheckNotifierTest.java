@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.investment.check.fee;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckNotification.NOTHING_TO_REPORT;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckNotification.SEND_FAILED;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckNotification.SENT;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckScope.MANAGEMENT;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
@@ -46,7 +49,7 @@ class FeeCheckNotifierTest {
   void aPersistingDailyFailureOnASecondDayIsSilent() {
     givenDailyHistory(FAIL, FAIL);
 
-    assertThat(notifier.notify(List.of(dailyResult(FAIL)))).isFalse();
+    assertThat(notifier.notify(List.of(dailyResult(FAIL)))).isEqualTo(NOTHING_TO_REPORT);
     verifyNoInteractions(notificationService);
   }
 
@@ -54,7 +57,7 @@ class FeeCheckNotifierTest {
   void aFreshDailyFailureAlertsOnce() {
     givenDailyHistory(FAIL, PASS);
 
-    assertThat(notifier.notify(List.of(dailyResult(FAIL)))).isTrue();
+    assertThat(notifier.notify(List.of(dailyResult(FAIL)))).isEqualTo(SENT);
     verify(notificationService).sendMessage(contains("LEDGER_ACCRUAL_CONSISTENCY"), eq(INVESTMENT));
   }
 
@@ -62,7 +65,7 @@ class FeeCheckNotifierTest {
   void aNewMonthFailingAfterThePreviousMonthAlreadyFailedStillAlerts() {
     givenMonthlyHistory(JUNE, FAIL, PASS);
 
-    assertThat(notifier.notify(List.of(monthlyResult(JUNE, FAIL)))).isTrue();
+    assertThat(notifier.notify(List.of(monthlyResult(JUNE, FAIL)))).isEqualTo(SENT);
     verify(notificationService).sendMessage(contains("2026-06-01"), eq(INVESTMENT));
   }
 
@@ -70,7 +73,7 @@ class FeeCheckNotifierTest {
   void monthlyBucketsDoNotSeeEachOthersHistory() {
     givenMonthlyHistory(MAY, FAIL, FAIL);
 
-    assertThat(notifier.notify(List.of(monthlyResult(MAY, FAIL)))).isFalse();
+    assertThat(notifier.notify(List.of(monthlyResult(MAY, FAIL)))).isEqualTo(NOTHING_TO_REPORT);
     verifyNoInteractions(notificationService);
   }
 
@@ -78,7 +81,7 @@ class FeeCheckNotifierTest {
   void aResolvedFailureIsReportedAsCleared() {
     givenDailyHistory(PASS, FAIL);
 
-    assertThat(notifier.notify(List.of(dailyResult(PASS)))).isTrue();
+    assertThat(notifier.notify(List.of(dailyResult(PASS)))).isEqualTo(SENT);
     verify(notificationService).sendMessage(contains("[CLEARED]"), eq(INVESTMENT));
   }
 
@@ -86,7 +89,7 @@ class FeeCheckNotifierTest {
   void goingBlindIsReportedSeparatelyFromADeviation() {
     givenDailyHistory(NOT_RUN, PASS);
 
-    assertThat(notifier.notify(List.of(dailyResult(NOT_RUN)))).isTrue();
+    assertThat(notifier.notify(List.of(dailyResult(NOT_RUN)))).isEqualTo(SENT);
     verify(notificationService).sendMessage(contains("Could not check"), eq(INVESTMENT));
   }
 
@@ -94,7 +97,7 @@ class FeeCheckNotifierTest {
   void stayingBlindIsSilent() {
     givenDailyHistory(NOT_RUN, NOT_RUN);
 
-    assertThat(notifier.notify(List.of(dailyResult(NOT_RUN)))).isFalse();
+    assertThat(notifier.notify(List.of(dailyResult(NOT_RUN)))).isEqualTo(NOTHING_TO_REPORT);
     verifyNoInteractions(notificationService);
   }
 
@@ -105,13 +108,13 @@ class FeeCheckNotifierTest {
         .given(notificationService)
         .sendMessage(any(), any());
 
-    assertThat(notifier.notify(List.of(dailyResult(FAIL)))).isFalse();
+    assertThat(notifier.notify(List.of(dailyResult(FAIL)))).isEqualTo(SEND_FAILED);
   }
 
   private void givenDailyHistory(FeeCheckSeverity current, FeeCheckSeverity previous) {
     given(
             eventRepository
-                .findTop2ByFundAndCheckTypeAndFeeScopeAndFeeMonthIsNullOrderByCreatedAtDesc(
+                .findTop2ByFundAndCheckTypeAndFeeScopeAndAlertFailedFalseAndFeeMonthIsNullOrderByCreatedAtDesc(
                     TUK75, LEDGER_ACCRUAL_CONSISTENCY, MANAGEMENT))
         .willReturn(List.of(event(current), event(previous)));
   }
@@ -119,8 +122,9 @@ class FeeCheckNotifierTest {
   private void givenMonthlyHistory(
       LocalDate feeMonth, FeeCheckSeverity current, FeeCheckSeverity previous) {
     given(
-            eventRepository.findTop2ByFundAndCheckTypeAndFeeScopeAndFeeMonthOrderByCreatedAtDesc(
-                TUK75, LEDGER_ACCRUAL_CONSISTENCY, MANAGEMENT, feeMonth))
+            eventRepository
+                .findTop2ByFundAndCheckTypeAndFeeScopeAndAlertFailedFalseAndFeeMonthOrderByCreatedAtDesc(
+                    TUK75, LEDGER_ACCRUAL_CONSISTENCY, MANAGEMENT, feeMonth))
         .willReturn(List.of(event(current), event(previous)));
   }
 

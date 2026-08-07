@@ -47,8 +47,9 @@ class FeeCheckEventRepositoryTest {
     save(FEE_BASE_COMPLETENESS, ALL, MAY, PASS);
 
     var found =
-        repository.findTop2ByFundAndCheckTypeAndFeeScopeAndFeeMonthIsNullOrderByCreatedAtDesc(
-            TUK75, FEE_BASE_COMPLETENESS, ALL);
+        repository
+            .findTop2ByFundAndCheckTypeAndFeeScopeAndAlertFailedFalseAndFeeMonthIsNullOrderByCreatedAtDesc(
+                TUK75, FEE_BASE_COMPLETENESS, ALL);
 
     assertThat(found).singleElement().satisfies(e -> assertThat(e.getSeverity()).isEqualTo(FAIL));
   }
@@ -60,8 +61,9 @@ class FeeCheckEventRepositoryTest {
     save(SETTLEMENT_COMPLETENESS, MANAGEMENT, null, PASS);
 
     var found =
-        repository.findTop2ByFundAndCheckTypeAndFeeScopeAndFeeMonthOrderByCreatedAtDesc(
-            TUK75, SETTLEMENT_COMPLETENESS, MANAGEMENT, MAY);
+        repository
+            .findTop2ByFundAndCheckTypeAndFeeScopeAndAlertFailedFalseAndFeeMonthOrderByCreatedAtDesc(
+                TUK75, SETTLEMENT_COMPLETENESS, MANAGEMENT, MAY);
 
     assertThat(found).singleElement().satisfies(e -> assertThat(e.getFeeMonth()).isEqualTo(MAY));
   }
@@ -75,8 +77,9 @@ class FeeCheckEventRepositoryTest {
     save(SETTLEMENT_COMPLETENESS, MANAGEMENT, JUNE, FAIL);
 
     var june =
-        repository.findTop2ByFundAndCheckTypeAndFeeScopeAndFeeMonthOrderByCreatedAtDesc(
-            TUK75, SETTLEMENT_COMPLETENESS, MANAGEMENT, JUNE);
+        repository
+            .findTop2ByFundAndCheckTypeAndFeeScopeAndAlertFailedFalseAndFeeMonthOrderByCreatedAtDesc(
+                TUK75, SETTLEMENT_COMPLETENESS, MANAGEMENT, JUNE);
 
     assertThat(june).hasSize(1);
   }
@@ -88,10 +91,26 @@ class FeeCheckEventRepositoryTest {
     save(FEE_BASE_COMPLETENESS, ALL, null, PASS);
 
     var found =
-        repository.findTop2ByFundAndCheckTypeAndFeeScopeAndFeeMonthIsNullOrderByCreatedAtDesc(
-            TUK75, FEE_BASE_COMPLETENESS, ALL);
+        repository
+            .findTop2ByFundAndCheckTypeAndFeeScopeAndAlertFailedFalseAndFeeMonthIsNullOrderByCreatedAtDesc(
+                TUK75, FEE_BASE_COMPLETENESS, ALL);
 
     assertThat(found).extracting(FeeCheckEvent::getSeverity).containsExactly(PASS, FAIL);
+  }
+
+  // A row whose alert never reached anyone must not become the baseline, or the deviation that
+  // first appeared during the outage is treated as already-reported and stays silent.
+  @Test
+  void aRowWhoseAlertWasNeverDeliveredIsSkipped() {
+    save(FEE_BASE_COMPLETENESS, ALL, null, PASS);
+    saveUndelivered(FEE_BASE_COMPLETENESS, ALL, FAIL);
+
+    var found =
+        repository
+            .findTop2ByFundAndCheckTypeAndFeeScopeAndAlertFailedFalseAndFeeMonthIsNullOrderByCreatedAtDesc(
+                TUK75, FEE_BASE_COMPLETENESS, ALL);
+
+    assertThat(found).extracting(FeeCheckEvent::getSeverity).containsExactly(PASS);
   }
 
   @Test
@@ -114,6 +133,14 @@ class FeeCheckEventRepositoryTest {
       FeeCheckSeverity severity) {
     var event = event(checkType, scope, feeMonth, severity);
     event.setCreatedAt(BASE_TIME.plusSeconds(saved++));
+    repository.saveAndFlush(event);
+  }
+
+  private void saveUndelivered(
+      FeeCheckType checkType, FeeCheckScope scope, FeeCheckSeverity severity) {
+    var event = event(checkType, scope, null, severity);
+    event.setCreatedAt(BASE_TIME.plusSeconds(saved++));
+    event.setAlertFailed(true);
     repository.saveAndFlush(event);
   }
 

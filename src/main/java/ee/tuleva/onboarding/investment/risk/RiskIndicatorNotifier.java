@@ -91,7 +91,7 @@ class RiskIndicatorNotifier {
     if (previous != null
         && !Objects.equals(previous.publishedClass(), indicator.publishedClass())) {
       lines.add(
-          "🔔 %s %s — avaldatav klass muutus %s → %s (kehtib alates %s)"
+          "⚠️ %s %s — avaldatav klass muutus %s → %s (kehtib alates %s)"
               .formatted(
                   indicator.fund(),
                   indicator.indicatorType(),
@@ -102,7 +102,7 @@ class RiskIndicatorNotifier {
       lines.add(
           "%s %s %s — staatus %s → %s (arvutatud klass %s, avaldatav klass %s)"
               .formatted(
-                  statusEmoji(indicator.status()),
+                  severity(indicator, disclosed).icon(),
                   indicator.fund(),
                   indicator.indicatorType(),
                   previous.status(),
@@ -172,7 +172,10 @@ class RiskIndicatorNotifier {
 
   private String digest(RiskIndicatorRun run) {
     var message = new StringBuilder();
-    message.append("📊 Riskiindikaatorite kuuülevaade — seisuga %s\n\n".formatted(asOfDate(run)));
+    message.append(
+        "%s Riskiindikaatorite kuuülevaade — seisuga %s\n"
+            .formatted(worstSeverity(run).icon(), asOfDate(run)));
+    message.append(headline(run)).append("\n\n");
     message.append("```\n").append(table(run)).append("```\n");
 
     for (var outcome : run.outcomes()) {
@@ -188,6 +191,42 @@ class RiskIndicatorNotifier {
 
     message.append("\n").append(footer(run));
     return message.toString();
+  }
+
+  /** The one line someone reads before deciding whether to open the rest. */
+  private String headline(RiskIndicatorRun run) {
+    var counts = new java.util.EnumMap<Severity, Integer>(Severity.class);
+    run.outcomes()
+        .forEach(
+            outcome ->
+                counts.merge(
+                    severity(outcome.indicator(), disclosedClass(outcome.indicator())),
+                    1,
+                    Integer::sum));
+
+    var parts = new ArrayList<String>();
+    if (counts.getOrDefault(Severity.RED, 0) > 0) {
+      parts.add("%d vajab tegevust".formatted(counts.get(Severity.RED)));
+    }
+    if (counts.getOrDefault(Severity.YELLOW, 0) > 0) {
+      parts.add("%d jälgimist".formatted(counts.get(Severity.YELLOW)));
+    }
+    if (counts.getOrDefault(Severity.GREEN, 0) > 0) {
+      parts.add("%d korras".formatted(counts.get(Severity.GREEN)));
+    }
+    if (!run.failures().isEmpty()) {
+      parts.add("%d hindamata".formatted(run.failures().size()));
+    }
+    return parts.isEmpty() ? "Ühtegi fondi ei hinnatud." : String.join(", ", parts) + ".";
+  }
+
+  private Severity worstSeverity(RiskIndicatorRun run) {
+    var worst =
+        run.outcomes().stream()
+            .map(outcome -> severity(outcome.indicator(), disclosedClass(outcome.indicator())))
+            .max(java.util.Comparator.naturalOrder())
+            .orElse(Severity.GREEN);
+    return run.failures().isEmpty() || worst == Severity.RED ? worst : Severity.YELLOW;
   }
 
   private String asOfDate(RiskIndicatorRun run) {
@@ -236,7 +275,7 @@ class RiskIndicatorNotifier {
     var block = new ArrayList<String>();
 
     if (!indicator.hasClass()) {
-      block.add("❔ %s %s — andmeid napib".formatted(indicator.fund(), indicator.indicatorType()));
+      block.add("⚠️ %s %s — andmeid napib".formatted(indicator.fund(), indicator.indicatorType()));
       block.add(
           "Aknas on %d vaatlust, klassi ei avaldata. Volatiilsus %s."
               .formatted(indicator.latestObservationCount(), volatility(indicator)));
@@ -258,7 +297,7 @@ class RiskIndicatorNotifier {
               + " investment_risk_indicator_disclosure tabelisse.");
     } else if (disclosed == null) {
       block.add(
-          "❔ %s %s — avaldatud klass teadmata"
+          "⚠️ %s %s — avaldatud klass teadmata"
               .formatted(indicator.fund(), indicator.indicatorType()));
       block.add(
           "Arvutatud avaldatav klass on %d, aga ühtegi dokumendirida ei ole."
@@ -279,7 +318,7 @@ class RiskIndicatorNotifier {
       block.add("👉 Tegevus praegu pole — jälgi.");
     } else if (indicator.status() == RiskIndicatorStatus.CHANGE_CONFIRMED) {
       block.add(
-          "🔔 %s %s — muutus äsja kinnitatud"
+          "⚠️ %s %s — muutus äsja kinnitatud"
               .formatted(indicator.fund(), indicator.indicatorType()));
       block.add(
           "Avaldatav klass %d alates %s (eelmine %s). %s"
@@ -442,7 +481,7 @@ class RiskIndicatorNotifier {
         continue;
       }
       lines.add(
-          ("🔔 %s %s — võrdlusindeksi proxy vajab ülevaatust\n"
+          ("⚠️ %s %s — võrdlusindeksi proxy vajab ülevaatust\n"
                   + "Fondil on nüüd %s aastat oma NAV-ajalugu (alates %s); indikaator arvutatakse"
                   + " endiselt allikast %s. Annex II p5 lävend on täidetud.\n"
                   + "👉 Tegevus: riskijuht — otsusta, kas minna üle oma andmetele.")
@@ -490,30 +529,56 @@ class RiskIndicatorNotifier {
         && !Objects.equals(disclosed.getDisclosedClass(), indicator.publishedClass());
   }
 
-  private String statusLabel(
-      PublishedRiskIndicator indicator, @Nullable DisclosedRiskIndicator disclosed) {
-    if (!indicator.hasClass()) {
-      return "❔ andmeid napib";
+  /**
+   * The same three-colour scale the rest of the investment checks use: green means nothing to do,
+   * yellow means look at it, red means the filed document and the computed class disagree. Red is
+   * reserved for that one case so that seeing red always means the same thing.
+   */
+  private enum Severity {
+    GREEN("✅"),
+    YELLOW("⚠️"),
+    RED("🔴");
+
+    private final String icon;
+
+    Severity(String icon) {
+      this.icon = icon;
     }
-    if (isMismatched(disclosed, indicator)) {
-      return "🔴 DOKUMENT VANANENUD";
+
+    String icon() {
+      return icon;
     }
-    if (disclosed == null) {
-      return "❔ avaldatud teadmata";
-    }
-    return switch (indicator.status()) {
-      case STABLE -> "✅ stabiilne";
-      case CHANGE_PENDING -> "⚠️ muutus ootel";
-      case CHANGE_CONFIRMED -> "🔔 muutus kinnitatud";
-    };
   }
 
-  private String statusEmoji(RiskIndicatorStatus status) {
-    return switch (status) {
-      case STABLE -> "✅";
-      case CHANGE_PENDING -> "⚠️";
-      case CHANGE_CONFIRMED -> "🔔";
-    };
+  private Severity severity(
+      PublishedRiskIndicator indicator, @Nullable DisclosedRiskIndicator disclosed) {
+    if (isMismatched(disclosed, indicator)) {
+      return Severity.RED;
+    }
+    if (!indicator.hasClass() || disclosed == null) {
+      return Severity.YELLOW;
+    }
+    return indicator.status() == RiskIndicatorStatus.STABLE ? Severity.GREEN : Severity.YELLOW;
+  }
+
+  private String statusLabel(
+      PublishedRiskIndicator indicator, @Nullable DisclosedRiskIndicator disclosed) {
+    var icon = severity(indicator, disclosed).icon();
+    if (!indicator.hasClass()) {
+      return icon + " andmeid napib";
+    }
+    if (isMismatched(disclosed, indicator)) {
+      return icon + " DOKUMENT VANANENUD";
+    }
+    if (disclosed == null) {
+      return icon + " avaldatud teadmata";
+    }
+    return icon
+        + switch (indicator.status()) {
+          case STABLE -> " stabiilne";
+          case CHANGE_PENDING -> " muutus ootel";
+          case CHANGE_CONFIRMED -> " muutus kinnitatud";
+        };
   }
 
   private String duration(PublishedRiskIndicator indicator) {

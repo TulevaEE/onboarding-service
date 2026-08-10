@@ -159,6 +159,7 @@ class RiskIndicatorSeriesService {
   private boolean hasDrifted(RiskIndicatorPoint stored, ReferencePoint recomputed) {
     var storedVolatility = stored.getVolatility();
     return !java.util.Objects.equals(stored.getRiskClass(), recomputed.riskClass())
+        || !java.util.Objects.equals(stored.getObservationCount(), recomputed.observationCount())
         || storedVolatility == null
         || storedVolatility.compareTo(recomputed.volatility()) != 0;
   }

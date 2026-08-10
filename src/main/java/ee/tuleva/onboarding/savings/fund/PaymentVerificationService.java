@@ -16,10 +16,14 @@ import ee.tuleva.onboarding.party.PartyResolver;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.savings.fund.notification.UnattributedPaymentEvent;
 import ee.tuleva.onboarding.user.UserRepository;
+import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import ee.tuleva.onboarding.user.personalcode.PersonalCodeValidator;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +46,7 @@ public class PaymentVerificationService {
   private final NameMatcher nameMatcher;
   private final PartyResolver partyResolver;
   private final ParentChildLinkService parentChildLinkService;
+  private final Clock clock;
 
   record VerificationMessages(
       String codeMismatch, String notClient, String nameMismatch, String notOnboarded) {
@@ -139,13 +144,34 @@ public class PaymentVerificationService {
     applicationEventPublisher.publishEvent(
         new UnattributedPaymentEvent(payment.getId(), payment.getAmount(), reason));
 
-    Optional.ofNullable(payment.getPartyId())
+    notifyAboutFailedPayment(payment);
+  }
+
+  private void notifyAboutFailedPayment(SavingFundPayment payment) {
+    try {
+      personalCodeToNotify(payment)
+          .flatMap(userRepository::findByPersonalCode)
+          .ifPresent(
+              user ->
+                  applicationEventPublisher.publishEvent(
+                      new SavingsPaymentFailedEvent(this, user, Locale.of("et"))));
+    } catch (Exception e) {
+      log.error("Failed to notify about returned payment: paymentId={}", payment.getId(), e);
+    }
+  }
+
+  private Optional<String> personalCodeToNotify(SavingFundPayment payment) {
+    Predicate<PartyId> isPerson = partyId -> partyId.type() == PERSON;
+    return parsePartyId(payment.getRemitterIdCode())
+        .filter(isPerson)
+        .or(() -> Optional.ofNullable(payment.getPartyId()).filter(isPerson))
         .map(PartyId::code)
-        .flatMap(userRepository::findByPersonalCode)
-        .ifPresent(
-            user ->
-                applicationEventPublisher.publishEvent(
-                    new SavingsPaymentFailedEvent(this, user, Locale.of("et"))));
+        .filter(this::canReceiveSelfServiceEmail);
+  }
+
+  private boolean canReceiveSelfServiceEmail(String personalCode) {
+    return personalCodeValidator.isValid(personalCode)
+        && !PersonalCode.isMinor(personalCode, LocalDate.now(clock));
   }
 
   private Optional<PartyId> extractPartyId(SavingFundPayment payment) {

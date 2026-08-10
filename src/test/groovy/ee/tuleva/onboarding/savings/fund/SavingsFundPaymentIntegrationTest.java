@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
+import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notFullyConverted;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.*;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
@@ -9,10 +10,15 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYM
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
+import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
@@ -21,12 +27,17 @@ import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.epis.contact.ContactDetails;
+import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerParty;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.payment.email.PaymentEmailService;
+import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.savings.fund.issuing.FundAccountPaymentJob;
 import ee.tuleva.onboarding.savings.fund.issuing.IssuingJob;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -46,6 +57,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -56,6 +68,7 @@ class SavingsFundPaymentIntegrationTest {
   @Autowired private BankingMessageRepository bankingMessageRepository;
   @Autowired private ApplicationEventPublisher eventPublisher;
   @Autowired private PaymentVerificationJob paymentVerificationJob;
+  @Autowired private PaymentVerificationService paymentVerificationService;
   @Autowired private SavingsFundReservationJob savingsFundReservationJob;
   @Autowired private IssuingJob issuingJob;
   @Autowired private FundAccountPaymentJob fundAccountPaymentJob;
@@ -69,6 +82,11 @@ class SavingsFundPaymentIntegrationTest {
   @Autowired private SavingsFundLedger savingsFundLedger;
   @Autowired private UnattributedPaymentAttributionService attributionService;
 
+  @MockitoBean private ContactDetailsService contactDetailsService;
+  @MockitoBean private UserConversionService conversionService;
+  @MockitoBean private SecondPillarPaymentRateService paymentRateService;
+  @MockitoBean private PaymentEmailService paymentEmailService;
+
   // Monday 2025-09-29 17:00 EET (15:00 UTC) - after 16:00 cutoff
   private static final Instant NOW = Instant.parse("2025-09-29T15:00:00Z");
 
@@ -77,6 +95,10 @@ class SavingsFundPaymentIntegrationTest {
   @BeforeEach
   void setUp() {
     ClockHolder.setClock(Clock.fixed(NOW, ZoneId.of("UTC")));
+
+    given(contactDetailsService.getContactDetails(any())).willReturn(new ContactDetails());
+    given(conversionService.getConversion(any())).willReturn(notFullyConverted());
+    given(paymentRateService.getPaymentRates(any())).willReturn(samplePaymentRates());
 
     // Create user and complete savings fund onboarding
     testUser =
@@ -618,6 +640,51 @@ class SavingsFundPaymentIntegrationTest {
     // Assert final ledger: bounce back recorded, clearing accounts balanced
     assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void paymentTargetingMinorWithoutActiveRepresentation_isReturnedAndRecordedAsUnattributed() {
+    var minorPersonalCode = "61506150006";
+    userRepository.save(
+        User.builder()
+            .firstName("Mari")
+            .lastName("Maasikas")
+            .personalCode(minorPersonalCode)
+            .build());
+    savingsFundOnboardingRepository.saveOnboardingStatus(minorPersonalCode, PERSON, COMPLETED);
+
+    var paymentAmount = new BigDecimal("50.00");
+    var paymentId =
+        paymentRepository.savePaymentData(
+            SavingFundPayment.builder()
+                .amount(paymentAmount)
+                .currency(Currency.EUR)
+                .description("Payment for " + minorPersonalCode)
+                .remitterName("Jüri Tamm")
+                .remitterIdCode(testUser.getPersonalCode())
+                .remitterIban("EE982200221234567890")
+                .beneficiaryIban("EE442200221092874625")
+                .externalId("test-minor-payment-1")
+                .receivedBefore(NOW)
+                .build());
+    paymentRepository.attachParty(paymentId, new PartyId(PERSON, minorPersonalCode));
+    paymentRepository.changeStatus(paymentId, RECEIVED);
+
+    paymentVerificationService.process(paymentRepository.findById(paymentId).orElseThrow());
+
+    var payment = paymentRepository.findById(paymentId).orElseThrow();
+    assertThat(payment.getStatus()).isEqualTo(TO_BE_RETURNED);
+    assertThat(payment.getReturnReason())
+        .isEqualTo("selgituses olev isikukood ei klapi maksja isikukoodiga");
+
+    assertThat(getIncomingPaymentsClearingAccount().getBalance())
+        .isEqualByComparingTo(paymentAmount);
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance())
+        .isEqualByComparingTo(paymentAmount.negate());
+
+    verify(contactDetailsService)
+        .getContactDetails(
+            argThat(notified -> testUser.getPersonalCode().equals(notified.getPersonalCode())));
   }
 
   private String createUnverifiablePaymentXml() {

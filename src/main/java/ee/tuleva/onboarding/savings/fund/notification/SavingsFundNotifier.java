@@ -1,12 +1,14 @@
 package ee.tuleva.onboarding.savings.fund.notification;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
+import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Slf4j
 @Component
@@ -101,7 +103,7 @@ public class SavingsFundNotifier {
     }
   }
 
-  @EventListener
+  @TransactionalEventListener(phase = AFTER_COMMIT)
   public void onUnattributedPayment(UnattributedPaymentEvent event) {
     try {
       notificationService.sendMessage(

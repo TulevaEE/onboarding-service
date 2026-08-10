@@ -13,6 +13,13 @@ import org.springframework.stereotype.Component;
 @Component
 class SriCalculator {
 
+  /**
+   * Annex II p52: the SRI is read off the MRM/CRM grid, and it equals the MRM class only while the
+   * credit risk measure is 1. TKF100 holds no credit-risky instruments, so this is an assumption
+   * carried in the digest footnote rather than something computed here.
+   */
+  static final int ASSUMED_CREDIT_RISK_MEASURE = 1;
+
   static final double Z = 1.95996398454005;
   static final double SKEW_COEFFICIENT = 0.47357647;
   static final double KURTOSIS_COEFFICIENT = 0.068717874;
